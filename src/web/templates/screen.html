@@ -1,0 +1,1144 @@
+{% extends "base.html" %}
+
+{% block title %}คัดกรองหุ้น - Stock Analyzer{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-filter me-2"></i>
+                คัดกรองหุ้น - Stock Screening
+            </h1>
+            <p class="text-muted">คัดกรองหุ้นหลายตัวพร้อมกันตามเกณฑ์ที่กำหนด</p>
+        </div>
+    </div>
+
+    <!-- Error/Success Messages -->
+    <div id="alert-container"></div>
+
+    <!-- Screening Tabs -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="screening-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general-screening" type="button" role="tab">
+                                <i class="fas fa-filter me-2"></i>
+                                คัดกรองทั่วไป
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="support-tab" data-bs-toggle="tab" data-bs-target="#support-screening" type="button" role="tab">
+                                <i class="fas fa-chart-line me-2"></i>
+                                หาหุ้นใกล้แนวรับ
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="dividend-tab" data-bs-toggle="tab" data-bs-target="#dividend-screening" type="button" role="tab">
+                                <i class="fas fa-coins me-2"></i>
+                                หุ้นปันผลระยะยาว
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="smallmid-tab" data-bs-toggle="tab" data-bs-target="#smallmid-screening" type="button" role="tab">
+                                <i class="fas fa-rocket me-2"></i>
+                                Small/Mid Cap โอกาสเติบโต
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="screening-tab-content">
+                        <!-- General Screening Tab -->
+                        <div class="tab-pane fade show active" id="general-screening" role="tabpanel">
+                            <form id="screening-form">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="symbols" class="form-label">รหัสหุ้น</label>
+                                            <textarea class="form-control" id="symbols" rows="3"
+                                                      placeholder="ใส่รหัสหุ้น เช่น AAPL, MSFT, GOOGL, AMZN, TSLA"></textarea>
+                                            <div class="form-text">แยกด้วยเครื่องหมายจุลภาค (,)</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="min-score" class="form-label">คะแนนขั้นต่ำ</label>
+                                            <input type="number" class="form-control" id="min-score"
+                                                   min="0" max="10" step="0.1" value="6.0">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="time-horizon" class="form-label">ระยะเวลาการลงทุน</label>
+                                            <select class="form-select" id="time-horizon">
+                                                <option value="short">ระยะสั้น (1-14 วัน)</option>
+                                                <option value="medium" selected>ระยะกลาง (1-6 เดือน)</option>
+                                                <option value="long">ระยะยาว (6+ เดือน)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <button type="submit" class="btn btn-success btn-lg">
+                                            <i class="fas fa-filter me-2"></i>
+                                            เริ่มคัดกรอง
+                                        </button>
+                                        <button type="button" class="btn btn-secondary ms-2" onclick="loadSampleSymbols()">
+                                            <i class="fas fa-magic me-2"></i>
+                                            ใช้ตัวอย่าง
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Support Level Screening Tab -->
+                        <div class="tab-pane fade" id="support-screening" role="tabpanel">
+                            <form id="support-screening-form">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="support-distance" class="form-label">ระยะห่างจากแนวรับ (สูงสุด)</label>
+                                            <select class="form-select" id="support-distance">
+                                                <option value="0.02">ใกล้มาก (ภายใน 2%)</option>
+                                                <option value="0.03" selected>ใกล้ (ภายใน 3%)</option>
+                                                <option value="0.05">ปานกลาง (ภายใน 5%)</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="support-fundamental-score" class="form-label">คะแนน Fundamental ขั้นต่ำ</label>
+                                            <input type="number" class="form-control" id="support-fundamental-score"
+                                                   min="0" max="10" step="0.1" value="5.0">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="support-technical-score" class="form-label">คะแนน Technical ขั้นต่ำ</label>
+                                            <input type="number" class="form-control" id="support-technical-score"
+                                                   min="0" max="10" step="0.1" value="4.0">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="support-time-horizon" class="form-label">ระยะเวลาการลงทุน</label>
+                                            <select class="form-select" id="support-time-horizon">
+                                                <option value="short">ระยะสั้น (1-14 วัน)</option>
+                                                <option value="medium" selected>ระยะกลาง (1-6 เดือน)</option>
+                                                <option value="long">ระยะยาว (6+ เดือน)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="mb-3">
+                                            <label for="max-stocks" class="form-label">จำนวนหุ้นสูงสุด</label>
+                                            <select class="form-select" id="max-stocks">
+                                                <option value="5">5 หุ้น</option>
+                                                <option value="10" selected>10 หุ้น</option>
+                                                <option value="15">15 หุ้น</option>
+                                                <option value="20">20 หุ้น</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <button type="submit" class="btn btn-warning btn-lg">
+                                            <i class="fas fa-chart-line me-2"></i>
+                                            หาหุ้นใกล้แนวรับ
+                                        </button>
+                                        <div class="form-text mt-2">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            ระบบจะค้นหาหุ้นที่อยู่ใกล้แนวรับและมีโอกาสกลับตัวขึ้น
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Dividend Screening Tab -->
+                        <div class="tab-pane fade" id="dividend-screening" role="tabpanel">
+                            <form id="dividend-screening-form">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="dividend-yield" class="form-label">ปันผลขั้นต่ำ (%)</label>
+                                            <select class="form-select" id="dividend-yield">
+                                                <option value="1.0">1% ขึ้นไป</option>
+                                                <option value="2.0" selected>2% ขึ้นไป</option>
+                                                <option value="3.0">3% ขึ้นไป</option>
+                                                <option value="4.0">4% ขึ้นไป</option>
+                                                <option value="5.0">5% ขึ้นไป</option>
+                                                <option value="6.0">6% ขึ้นไป</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="dividend-growth" class="form-label">อัตราเติบโตปันผลขั้นต่ำ (%)</label>
+                                            <select class="form-select" id="dividend-growth">
+                                                <option value="0" selected>ไม่จำกัด</option>
+                                                <option value="3.0">3% ขึ้นไป</option>
+                                                <option value="5.0">5% ขึ้นไป</option>
+                                                <option value="7.0">7% ขึ้นไป</option>
+                                                <option value="10.0">10% ขึ้นไป</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="payout-ratio-min" class="form-label">Payout Ratio ขั้นต่ำ (%)</label>
+                                            <input type="number" class="form-control" id="payout-ratio-min"
+                                                   min="0" max="100" step="5" value="20">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="payout-ratio-max" class="form-label">Payout Ratio สูงสุด (%)</label>
+                                            <input type="number" class="form-control" id="payout-ratio-max"
+                                                   min="0" max="100" step="5" value="70">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="dividend-fundamental-score" class="form-label">คะแนน Fundamental ขั้นต่ำ</label>
+                                            <input type="number" class="form-control" id="dividend-fundamental-score"
+                                                   min="0" max="10" step="0.1" value="3.0">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="dividend-max-stocks" class="form-label">จำนวนหุ้นสูงสุด</label>
+                                            <select class="form-select" id="dividend-max-stocks">
+                                                <option value="10">10 หุ้น</option>
+                                                <option value="15" selected>15 หุ้น</option>
+                                                <option value="20">20 หุ้น</option>
+                                                <option value="25">25 หุ้น</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="investment-amount" class="form-label">จำนวนเงินลงทุน ($)</label>
+                                            <input type="number" class="form-control" id="investment-amount"
+                                                   min="10000" step="10000" value="100000">
+                                            <div class="form-text">ยอดเงินคร่าวๆ สำหรับการคำนวณ position size</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <button type="submit" class="btn btn-primary btn-lg me-3">
+                                            <i class="fas fa-search me-2"></i>
+                                            ค้นหาหุ้นปันผล
+                                        </button>
+                                        <div class="form-text mt-2">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            ระบบจะหาหุ้นที่มีปันผลสูงและเหมาะสำหรับการลงทุนระยะยาว 1-3 ปี
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Small/Mid Cap Growth Screening Tab -->
+                        <div class="tab-pane fade" id="smallmid-screening" role="tabpanel">
+                            <form id="smallmid-screening-form">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="market-cap-type" class="form-label">ขนาดบริษัท</label>
+                                            <select class="form-select" id="market-cap-type">
+                                                <option value="small" selected>Small Cap ($300M - $5B)</option>
+                                                <option value="mid">Mid Cap ($2B - $50B)</option>
+                                                <option value="both">Small + Mid Cap (ทั้งสอง)</option>
+                                            </select>
+                                            <div class="form-text">หุ้นขนาดเล็กถึงกลางมีโอกาสเติบโตสูง (เกณฑ์ปรับเพื่อรองรับ growth stocks)</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="min-revenue-growth" class="form-label">การเติบโตของรายได้ (ขั้นต่ำ %)</label>
+                                            <input type="number" class="form-control" id="min-revenue-growth"
+                                                   min="0" max="100" step="1" value="10.0">
+                                            <div class="form-text">รายได้เติบโตอย่างต่อเนื่อง</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="min-earnings-growth" class="form-label">การเติบโตของกำไร (ขั้นต่ำ %)</label>
+                                            <input type="number" class="form-control" id="min-earnings-growth"
+                                                   min="0" max="200" step="5" value="10.0">
+                                            <div class="form-text">กำไรเติบโตอย่างต่อเนื่อง</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="min-momentum-score" class="form-label">คะแนน Momentum ขั้นต่ำ</label>
+                                            <input type="number" class="form-control" id="min-momentum-score"
+                                                   min="3" max="10" step="0.1" value="4.0">
+                                            <div class="form-text">แรงขับขึ้นของราคาหุ้น</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="min-volume-trend" class="form-label">แนวโน้มการซื้อขาย</label>
+                                            <select class="form-select" id="min-volume-trend">
+                                                <option value="increasing" selected>เพิ่มขึ้น</option>
+                                                <option value="stable">คงที่</option>
+                                                <option value="any">ไม่จำกัด</option>
+                                            </select>
+                                            <div class="form-text">ปริมาณการซื้อขายที่เพิ่มขึ้น</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="smallmid-time-horizon" class="form-label">ระยะเวลาการลงทุน</label>
+                                            <select class="form-select" id="smallmid-time-horizon">
+                                                <option value="short">ระยะสั้น (1-6 เดือน)</option>
+                                                <option value="medium" selected>ระยะกลาง (6-18 เดือน)</option>
+                                                <option value="long">ระยะยาว (1-3 ปี)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="smallmid-fundamental-score" class="form-label">คะแนน Fundamental ขั้นต่ำ</label>
+                                            <input type="number" class="form-control" id="smallmid-fundamental-score"
+                                                   min="0" max="10" step="0.1" value="3.0">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="smallmid-technical-score" class="form-label">คะแนน Technical ขั้นต่ำ</label>
+                                            <input type="number" class="form-control" id="smallmid-technical-score"
+                                                   min="0" max="10" step="0.1" value="3.0">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="smallmid-max-stocks" class="form-label">จำนวนหุ้นสูงสุด</label>
+                                            <select class="form-select" id="smallmid-max-stocks">
+                                                <option value="8">8 หุ้น</option>
+                                                <option value="12" selected>12 หุ้น</option>
+                                                <option value="15">15 หุ้น</option>
+                                                <option value="20">20 หุ้น</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <button type="submit" class="btn btn-warning btn-lg me-3">
+                                            <i class="fas fa-rocket me-2"></i>
+                                            ค้นหา Small/Mid Cap โอกาสเติบโต
+                                        </button>
+                                        <div class="form-text mt-2">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            ระบบจะใช้ AI หาหุ้นขนาดเล็กถึงกลางที่มีโอกาสเติบโตสูง เหมาะสำหรับนักลงทุนที่ต้องการความเสี่ยงสูง
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="screening-loading" class="loading-spinner">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2">กำลังคัดกรองหุ้น...</p>
+    </div>
+
+    <!-- Results -->
+    <div id="screening-results" style="display: none;">
+        <div class="row mb-3">
+            <div class="col-12">
+                <h4>ผลการคัดกรอง</h4>
+                <div id="screening-summary"></div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="results-table">
+                        <thead id="results-header">
+                            <tr>
+                                <th>รหัสหุ้น</th>
+                                <th>ราคาปัจจุบัน</th>
+                                <th>คะแนนรวม</th>
+                                <th>คำแนะนำ</th>
+                                <th>ความมั่นใจ</th>
+                                <th>การดำเนินการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('screening-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    runScreening();
+});
+
+document.getElementById('support-screening-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    runSupportScreening();
+});
+
+document.getElementById('dividend-screening-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    runDividendScreening();
+});
+
+document.getElementById('smallmid-screening-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    runSmallMidCapScreening();
+});
+
+
+function loadSampleSymbols() {
+    const sampleSymbols = 'AAPL, MSFT, GOOGL, SPY, QQQ, VYM, SCHD, TSLA';
+    document.getElementById('symbols').value = sampleSymbols;
+}
+
+function runScreening() {
+    const symbolsText = document.getElementById('symbols').value.trim();
+    const minScore = parseFloat(document.getElementById('min-score').value);
+    const timeHorizon = document.getElementById('time-horizon').value;
+
+    if (!symbolsText) {
+        showAlert('กรุณาใส่รหัสหุ้น', 'danger');
+        return;
+    }
+
+    // Parse symbols
+    const symbols = symbolsText.split(',')
+        .map(s => s.trim().toUpperCase())
+        .filter(s => s.length > 0);
+
+    if (symbols.length === 0) {
+        showAlert('กรุณาใส่รหัสหุ้นที่ถูกต้อง', 'danger');
+        return;
+    }
+
+    // Show loading
+    showLoading('screening-loading');
+    document.getElementById('screening-results').style.display = 'none';
+
+    // Prepare criteria
+    const criteria = {
+        min_score: minScore,
+        time_horizon: timeHorizon
+    };
+
+    // Make API request
+    fetch('/api/screen', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            symbols: symbols,
+            criteria: criteria
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading('screening-loading');
+
+        if (data.error) {
+            showAlert('เกิดข้อผิดพลาด: ' + data.error, 'danger');
+        } else {
+            displayScreeningResults(data, symbols.length);
+        }
+    })
+    .catch(error => {
+        hideLoading('screening-loading');
+        console.error('Error:', error);
+        showAlert('เกิดข้อผิดพลาดในการคัดกรอง', 'danger');
+    });
+}
+
+function displayScreeningResults(data, totalSymbols) {
+    const resultsContainer = document.getElementById('screening-results');
+    const summaryContainer = document.getElementById('screening-summary');
+    const tbody = document.getElementById('results-tbody');
+
+    // Show summary
+    const passedCount = data.passed_stocks ? data.passed_stocks.length : 0;
+    summaryContainer.innerHTML = `
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            คัดกรองเสร็จสิ้น: <strong>${passedCount}</strong> หุ้นจาก <strong>${totalSymbols}</strong> หุ้น ผ่านเกณฑ์การคัดกรอง
+        </div>
+    `;
+
+    // Clear previous results
+    tbody.innerHTML = '';
+
+    // Display results
+    if (data.passed_stocks && data.passed_stocks.length > 0) {
+        data.passed_stocks.forEach(stock => {
+            const row = createResultRow(stock);
+            tbody.appendChild(row);
+        });
+    } else {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-muted">
+                    <i class="fas fa-search me-2"></i>
+                    ไม่มีหุ้นใดผ่านเกณฑ์การคัดกรอง
+                </td>
+            </tr>
+        `;
+    }
+
+    resultsContainer.style.display = 'block';
+}
+
+function createResultRow(stock) {
+    const row = document.createElement('tr');
+
+    const recommendation = stock.recommendation || 'Hold';
+    const score = stock.score || 0;
+    const confidence = stock.confidence || 'Medium';
+    const price = stock.current_price || 0;
+
+    // Format symbol with ETF label if applicable
+    const symbolDisplay = stock.etf_info ?
+        `<strong>${stock.symbol}</strong> <span class="badge bg-info ms-1">ETF</span><br><small class="text-muted">${stock.etf_info.name}</small>` :
+        `<strong>${stock.symbol}</strong>`;
+
+    row.innerHTML = `
+        <td>
+            ${symbolDisplay}
+        </td>
+        <td>
+            ${formatCurrency(price)}
+        </td>
+        <td>
+            <div class="metric-card ${getScoreClass(score)}" style="padding: 5px 10px; border-radius: 5px; display: inline-block;">
+                <span class="text-white">${formatNumber(score, 1)}/10</span>
+            </div>
+        </td>
+        <td>
+            <span class="badge ${getRecommendationClass(recommendation)}">${recommendation}</span>
+        </td>
+        <td>
+            <span class="badge bg-info">${confidence}</span>
+        </td>
+        <td>
+            <a href="/analyze?symbol=${stock.symbol}" class="btn btn-sm btn-primary">
+                <i class="fas fa-chart-line me-1"></i>
+                วิเคราะห์
+            </a>
+        </td>
+    `;
+
+    return row;
+}
+
+function showAlert(message, type) {
+    const container = document.getElementById('alert-container');
+    container.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+}
+
+function runSupportScreening() {
+    const supportDistance = parseFloat(document.getElementById('support-distance').value);
+    const fundamentalScore = parseFloat(document.getElementById('support-fundamental-score').value);
+    const technicalScore = parseFloat(document.getElementById('support-technical-score').value);
+    const timeHorizon = document.getElementById('support-time-horizon').value;
+    const maxStocks = parseInt(document.getElementById('max-stocks').value);
+
+    // Show loading
+    showLoading('screening-loading');
+    document.getElementById('screening-results').style.display = 'none';
+
+    // Prepare criteria
+    const criteria = {
+        max_distance_from_support: supportDistance,
+        min_fundamental_score: fundamentalScore,
+        min_technical_score: technicalScore,
+        max_stocks: maxStocks,
+        time_horizon: timeHorizon
+    };
+
+    // Make API request
+    fetch('/api/support-screen', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(criteria)
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading('screening-loading');
+
+        if (data.error) {
+            showAlert('เกิดข้อผิดพลาด: ' + data.error, 'danger');
+        } else {
+            displaySupportScreeningResults(data);
+        }
+    })
+    .catch(error => {
+        hideLoading('screening-loading');
+        console.error('Error:', error);
+        showAlert('เกิดข้อผิดพลาดในการค้นหาหุ้นใกล้แนวรับ', 'danger');
+    });
+}
+
+function displaySupportScreeningResults(data) {
+    const resultsContainer = document.getElementById('screening-results');
+    const summaryContainer = document.getElementById('screening-summary');
+    const tbody = document.getElementById('results-tbody');
+    const headerRow = document.getElementById('results-header');
+
+    // Update table headers for support screening
+    headerRow.innerHTML = `
+        <tr>
+            <th>รหัสหุ้น</th>
+            <th>ราคาปัจจุบัน</th>
+            <th>แนวรับ</th>
+            <th>ระยะจากแนวรับ</th>
+            <th>คะแนนรวม</th>
+            <th>Risk/Reward</th>
+            <th>คำแนะนำ</th>
+            <th>การดำเนินการ</th>
+        </tr>
+    `;
+
+    // Show summary
+    const foundCount = data.opportunities ? data.opportunities.length : 0;
+    summaryContainer.innerHTML = `
+        <div class="alert alert-info">
+            <i class="fas fa-chart-line me-2"></i>
+            พบ <strong>${foundCount}</strong> หุ้นที่อยู่ใกล้แนวรับและน่าสนใจ
+        </div>
+    `;
+
+    // Clear previous results
+    tbody.innerHTML = '';
+
+    // Display results
+    if (data.opportunities && data.opportunities.length > 0) {
+        data.opportunities.forEach(opp => {
+            const row = createSupportResultRow(opp);
+            tbody.appendChild(row);
+        });
+    } else {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center text-muted">
+                    <i class="fas fa-search me-2"></i>
+                    ไม่พบหุ้นที่ตรงตามเกณฑ์ที่กำหนด
+                </td>
+            </tr>
+        `;
+    }
+
+    resultsContainer.style.display = 'block';
+}
+
+function createSupportResultRow(opp) {
+    const row = document.createElement('tr');
+
+    const attractiveness = opp.attractiveness_score || 0;
+    const riskReward = opp.risk_reward_ratio || 0;
+    const distance = opp.distance_from_support_pct || 0;
+    const recommendation = opp.recommendation || 'Hold';
+
+    row.innerHTML = `
+        <td>
+            <strong>${opp.symbol}</strong>
+        </td>
+        <td>
+            ${formatCurrency(opp.current_price)}
+        </td>
+        <td>
+            ${formatCurrency(opp.support_1)}
+        </td>
+        <td>
+            <span class="badge ${distance <= 0 ? 'bg-success' : distance <= 2 ? 'bg-warning' : 'bg-secondary'}">
+                ${distance > 0 ? '+' : ''}${distance.toFixed(1)}%
+            </span>
+        </td>
+        <td>
+            <div class="metric-card ${getScoreClass(attractiveness)}" style="padding: 5px 10px; border-radius: 5px; display: inline-block;">
+                <span class="text-white">${formatNumber(attractiveness, 1)}/10</span>
+            </div>
+        </td>
+        <td>
+            <span class="badge ${riskReward > 2 ? 'bg-success' : riskReward > 1 ? 'bg-warning' : 'bg-danger'}">
+                ${riskReward.toFixed(1)}:1
+            </span>
+        </td>
+        <td>
+            <span class="badge ${getRecommendationClass(recommendation)}">${recommendation}</span>
+        </td>
+        <td>
+            <a href="/analyze?symbol=${opp.symbol}" class="btn btn-sm btn-primary">
+                <i class="fas fa-chart-line me-1"></i>
+                วิเคราะห์
+            </a>
+        </td>
+    `;
+
+    return row;
+}
+
+// Dividend Screening Functions
+function runDividendScreening() {
+    const dividendYield = parseFloat(document.getElementById('dividend-yield').value);
+    const dividendGrowth = parseFloat(document.getElementById('dividend-growth').value);
+    const payoutRatioMin = parseFloat(document.getElementById('payout-ratio-min').value);
+    const payoutRatioMax = parseFloat(document.getElementById('payout-ratio-max').value);
+    const fundamentalScore = parseFloat(document.getElementById('dividend-fundamental-score').value);
+    const maxStocks = parseInt(document.getElementById('dividend-max-stocks').value);
+
+
+    // Show loading
+    showLoading('screening-loading');
+    document.getElementById('screening-results').style.display = 'none';
+
+    // Prepare criteria
+    const criteria = {
+        min_dividend_yield: dividendYield,
+        min_dividend_growth_rate: dividendGrowth,
+        min_payout_ratio: payoutRatioMin,
+        max_payout_ratio: payoutRatioMax,
+        min_fundamental_score: fundamentalScore,
+        max_stocks: maxStocks,
+    };
+
+    // Make API request
+    fetch('/api/dividend-screen', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(criteria)
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading('screening-loading');
+        if (data.error) {
+            showAlert('เกิดข้อผิดพลาด: ' + data.error, 'danger');
+        } else {
+            displayDividendScreeningResults(data);
+        }
+    })
+    .catch(error => {
+        hideLoading('screening-loading');
+        console.error('Error:', error);
+        showAlert('เกิดข้อผิดพลาดในการค้นหาหุ้นปันผล', 'danger');
+    });
+}
+
+function displayDividendScreeningResults(data) {
+    const resultsContainer = document.getElementById('screening-results');
+    const summaryContainer = document.getElementById('screening-summary');
+    const tbody = document.getElementById('results-tbody');
+    const headerRow = document.getElementById('results-header');
+
+    // Update table headers for dividend screening
+    headerRow.innerHTML = `
+        <tr>
+            <th>รหัสหุ้น</th>
+            <th>ปันผลยีลด์ (%)</th>
+            <th>การเติบโตปันผล (%)</th>
+            <th>Payout Ratio (%)</th>
+            <th>คะแนนพื้นฐาน</th>
+            <th>ความมั่นคงปันผล</th>
+            <th>ความน่าสนใจระยะยาว</th>
+            <th>ภาค</th>
+            <th>การดำเนินการ</th>
+        </tr>
+    `;
+
+    // Clear existing results
+    tbody.innerHTML = '';
+
+    // Display summary
+    summaryContainer.innerHTML = `
+        <div class="alert alert-info">
+            <h5><i class="fas fa-info-circle me-2"></i>ผลการค้นหาหุ้นปันผล</h5>
+            <p class="mb-1"><strong>หุ้นที่คัดกรองแล้ว:</strong> ${data.total_screened} หุ้น</p>
+            <p class="mb-1"><strong>หุ้นที่ผ่านเกณฑ์:</strong> ${data.found_opportunities} หุ้น</p>
+            <p class="mb-0"><strong>เกณฑ์:</strong> ปันผลขั้นต่ำ ${data.criteria.min_dividend_yield}%, เติบโตขั้นต่ำ ${data.criteria.min_dividend_growth_rate}%, คะแนนขั้นต่ำ ${data.criteria.min_fundamental_score}</p>
+        </div>
+    `;
+
+    // Add results to table
+    if (data.opportunities && data.opportunities.length > 0) {
+        data.opportunities.forEach(opportunity => {
+            const row = createDividendResultRow(opportunity);
+            tbody.appendChild(row);
+        });
+    } else {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">ไม่พบหุ้นที่ตรงตามเกณฑ์</td></tr>';
+    }
+
+    // Show results
+    resultsContainer.style.display = 'block';
+}
+
+
+
+function createDividendResultRow(opportunity) {
+    const row = document.createElement('tr');
+    const symbol = opportunity.symbol;
+    const dividendData = opportunity.dividend_analysis || {};
+    const fundamental = opportunity.fundamental_analysis || {};
+
+    const dividendYield = dividendData.dividend_yield?.toFixed(2) || 'N/A';
+    const dividendGrowth = dividendData.dividend_growth_rate?.toFixed(1) || 'N/A';
+    const payoutRatio = dividendData.payout_ratio?.toFixed(0) || 'N/A';
+    const fundamentalScore = fundamental.overall_score?.toFixed(1) || 'N/A';
+    const sustainability = opportunity.dividend_sustainability_score?.toFixed(1) || 'N/A';
+    const attractiveness = opportunity.long_term_attractiveness?.toFixed(1) || 'N/A';
+    const sector = fundamental.sector || 'N/A';
+
+    // Color coding for scores
+    const getSustainabilityClass = (score) => {
+        if (score >= 7) return 'text-success fw-bold';
+        if (score >= 5) return 'text-warning fw-bold';
+        return 'text-danger fw-bold';
+    };
+
+    // Format symbol with ETF label if applicable
+    const symbolDisplay = opportunity.etf_info ?
+        `<span class="fw-bold text-primary">${symbol}</span> <span class="badge bg-info ms-1">ETF</span><br><small class="text-muted">${opportunity.etf_info.name}</small>` :
+        symbol;
+
+    row.innerHTML = `
+        <td class="fw-bold text-primary">${symbolDisplay}</td>
+        <td>${dividendYield}%</td>
+        <td>${dividendGrowth}%</td>
+        <td>${payoutRatio}%</td>
+        <td>${fundamentalScore}/10</td>
+        <td class="${getSustainabilityClass(parseFloat(sustainability))}">${sustainability}/10</td>
+        <td>${attractiveness}/10</td>
+        <td><small>${sector}</small></td>
+        <td>
+            <button class="btn btn-sm btn-outline-primary" onclick="window.open('/analyze?symbol=${symbol}', '_blank')">
+                <i class="fas fa-chart-line"></i>
+            </button>
+        </td>
+    `;
+
+    return row;
+}
+
+// Value Screening Functions
+function runSmallMidCapScreening() {
+    const marketCapType = document.getElementById('market-cap-type').value;
+    const minRevenueGrowth = parseFloat(document.getElementById('min-revenue-growth').value);
+    const minEarningsGrowth = parseFloat(document.getElementById('min-earnings-growth').value);
+    const minMomentumScore = parseFloat(document.getElementById('min-momentum-score').value);
+    const volumeTrend = document.getElementById('min-volume-trend').value;
+    const fundamentalScore = parseFloat(document.getElementById('smallmid-fundamental-score').value);
+    const technicalScore = parseFloat(document.getElementById('smallmid-technical-score').value);
+    const timeHorizon = document.getElementById('smallmid-time-horizon').value;
+    const maxStocks = parseInt(document.getElementById('smallmid-max-stocks').value);
+
+    // Show loading
+    showLoading('screening-loading');
+    document.getElementById('screening-results').style.display = 'none';
+
+    // Prepare criteria
+    const criteria = {
+        market_cap_type: marketCapType,
+        min_revenue_growth: minRevenueGrowth,
+        min_earnings_growth: minEarningsGrowth,
+        min_momentum_score: minMomentumScore,
+        volume_trend: volumeTrend,
+        min_fundamental_score: fundamentalScore,
+        min_technical_score: technicalScore,
+        time_horizon: timeHorizon,
+        max_stocks: maxStocks
+    };
+
+    // Make API request
+    fetch('/api/smallmid-screen', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(criteria)
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading('screening-loading');
+        if (data.error) {
+            showAlert('เกิดข้อผิดพลาด: ' + data.error, 'danger');
+        } else {
+            displaySmallMidCapScreeningResults(data);
+        }
+    })
+    .catch(error => {
+        hideLoading('screening-loading');
+        console.error('Error:', error);
+        showAlert('เกิดข้อผิดพลาดในการค้นหาหุ้น Small/Mid Cap', 'danger');
+    });
+}
+
+function displaySmallMidCapScreeningResults(data) {
+    const resultsContainer = document.getElementById('screening-results');
+    const summaryContainer = document.getElementById('screening-summary');
+    const tbody = document.getElementById('results-tbody');
+    const headerRow = document.getElementById('results-header');
+
+    // Update table headers for small/mid cap screening
+    headerRow.innerHTML = `
+        <tr>
+            <th>รหัสหุ้น</th>
+            <th>ราคาปัจจุบัน</th>
+            <th>Market Cap</th>
+            <th>Revenue Growth (%)</th>
+            <th>Earnings Growth (%)</th>
+            <th>Momentum Score</th>
+            <th>Growth Score</th>
+            <th>Upside Potential (%)</th>
+            <th>คำแนะนำ</th>
+            <th>การดำเนินการ</th>
+        </tr>
+    `;
+
+    // Clear existing results
+    tbody.innerHTML = '';
+
+    // Display summary
+    const marketCapDisplay = data.market_cap_type === 'small' ? 'Small Cap' :
+                           data.market_cap_type === 'mid' ? 'Mid Cap' : 'Small + Mid Cap';
+    summaryContainer.innerHTML = `
+        <div class="alert alert-warning">
+            <h5><i class="fas fa-rocket me-2"></i>ผลการค้นหา ${marketCapDisplay} โอกาสเติบโต</h5>
+            <p class="mb-1">พบ <strong>${data.found_opportunities}</strong> หุ้นจากการวิเคราะห์ AI</p>
+            <p class="mb-0">เกณฑ์: การเติบโตรายได้ ≥${data.criteria?.min_revenue_growth || 15}%, กำไร ≥${data.criteria?.min_earnings_growth || 20}%</p>
+        </div>
+    `;
+
+    // Display results
+    if (data.opportunities && data.opportunities.length > 0) {
+        data.opportunities.forEach(opp => {
+            const row = createSmallMidCapResultRow(opp);
+            tbody.appendChild(row);
+        });
+    } else {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="10" class="text-center text-muted py-4">
+                    <i class="fas fa-search me-2"></i>
+                    ไม่พบหุ้น Small/Mid Cap ที่ตรงตามเกณฑ์ที่กำหนด
+                    <br><small class="text-muted">ลองปรับเกณฑ์ให้หลวมขึ้นหรือเปลี่ยนประเภทหุ้น</small>
+                </td>
+            </tr>
+        `;
+    }
+
+    resultsContainer.style.display = 'block';
+}
+
+function createSmallMidCapResultRow(opp) {
+    const row = document.createElement('tr');
+
+    const growthScore = opp.growth_score || 0;
+    const revenueGrowth = opp.revenue_growth || 0;
+    const earningsGrowth = opp.earnings_growth || 0;
+    const momentumScore = opp.momentum_score || 0;
+    const upsidePotential = opp.upside_potential || 0;
+    const recommendation = opp.recommendation || 'Hold';
+    const marketCap = opp.market_cap || 0;
+
+    // Format market cap
+    const formatMarketCap = (cap) => {
+        if (cap >= 1e9) return `$${(cap / 1e9).toFixed(1)}B`;
+        if (cap >= 1e6) return `$${(cap / 1e6).toFixed(0)}M`;
+        return `$${cap.toLocaleString()}`;
+    };
+
+    row.innerHTML = `
+        <td>
+            <strong>${opp.symbol}</strong>
+            ${opp.company_name ? `<br><small class="text-muted">${opp.company_name}</small>` : ''}
+        </td>
+        <td>
+            ${formatCurrency(opp.current_price)}
+        </td>
+        <td>
+            <span class="badge ${marketCap < 2e9 ? 'bg-info' : 'bg-primary'}">
+                ${formatMarketCap(marketCap)}
+            </span>
+        </td>
+        <td>
+            <span class="badge ${revenueGrowth >= 25 ? 'bg-success' : revenueGrowth >= 15 ? 'bg-warning' : 'bg-secondary'}">
+                +${revenueGrowth.toFixed(1)}%
+            </span>
+        </td>
+        <td>
+            <span class="badge ${earningsGrowth >= 30 ? 'bg-success' : earningsGrowth >= 20 ? 'bg-warning' : 'bg-secondary'}">
+                +${earningsGrowth.toFixed(1)}%
+            </span>
+        </td>
+        <td>
+            <div class="metric-card ${getScoreClass(momentumScore)}" style="padding: 5px 10px; border-radius: 5px; display: inline-block;">
+                <span class="text-white">${formatNumber(momentumScore, 1)}/10</span>
+            </div>
+        </td>
+        <td>
+            <div class="metric-card ${getScoreClass(growthScore)}" style="padding: 5px 10px; border-radius: 5px; display: inline-block;">
+                <span class="text-white">${formatNumber(growthScore, 1)}/10</span>
+            </div>
+        </td>
+        <td>
+            <span class="badge ${upsidePotential >= 50 ? 'bg-success' : upsidePotential >= 25 ? 'bg-warning' : 'bg-secondary'}">
+                +${upsidePotential.toFixed(0)}%
+            </span>
+        </td>
+        <td>
+            <span class="badge ${getRecommendationClass(recommendation)}">${recommendation}</span>
+        </td>
+        <td>
+            <a href="/analyze?symbol=${opp.symbol}" class="btn btn-sm btn-primary">
+                <i class="fas fa-chart-line me-1"></i>
+                วิเคราะห์
+            </a>
+        </td>
+    `;
+
+    return row;
+}
+
+function displayValueScreeningResults(data) {
+    const resultsContainer = document.getElementById('screening-results');
+    const summaryContainer = document.getElementById('screening-summary');
+    const tbody = document.getElementById('results-tbody');
+    const headerRow = document.getElementById('results-header');
+
+    // Update table headers for value screening
+    headerRow.innerHTML = `
+        <tr>
+            <th>รหัสหุ้น</th>
+            <th>ราคาปัจจุบัน</th>
+            <th>P/E</th>
+            <th>P/B</th>
+            <th>ROE (%)</th>
+            <th>Debt/Equity</th>
+            <th>Value Score</th>
+            <th>Upside (%)</th>
+            <th>Margin Safety (%)</th>
+            <th>คำแนะนำ</th>
+            <th>การดำเนินการ</th>
+        </tr>
+    `;
+
+    // Clear existing results
+    tbody.innerHTML = '';
+
+    // Display summary
+    const screenTypeDisplay = data.screen_type === 'value' ? 'Value Stocks' : 'Undervalued Growth';
+    summaryContainer.innerHTML = `
+        <div class="alert alert-info">
+            <h5><i class="fas fa-gem me-2"></i>ผลการค้นหา ${screenTypeDisplay}</h5>
+            <p class="mb-1"><strong>หุ้นที่คัดกรองแล้ว:</strong> ${data.total_screened} หุ้น</p>
+            <p class="mb-1"><strong>หุ้นที่ผ่านเกณฑ์:</strong> ${data.found_opportunities} หุ้น</p>
+            <p class="mb-0"><strong>เกณฑ์:</strong> P/E ≤ ${data.criteria.max_pe_ratio}, P/B ≤ ${data.criteria.max_pb_ratio}, ROE ≥ ${data.criteria.min_roe}%</p>
+        </div>
+    `;
+
+    // Add results to table
+    if (data.opportunities && data.opportunities.length > 0) {
+        data.opportunities.forEach(opportunity => {
+            const row = createValueResultRow(opportunity);
+            tbody.appendChild(row);
+        });
+    } else {
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">ไม่พบหุ้นที่ตรงตามเกณฑ์</td></tr>';
+    }
+
+    // Show results
+    resultsContainer.style.display = 'block';
+}
+
+function createValueResultRow(opportunity) {
+    const row = document.createElement('tr');
+    const symbol = opportunity.symbol;
+
+    const currentPrice = opportunity.current_price?.toFixed(2) || 'N/A';
+    const peRatio = opportunity.pe_ratio?.toFixed(1) || 'N/A';
+    const pbRatio = opportunity.pb_ratio?.toFixed(1) || 'N/A';
+    const roe = opportunity.roe?.toFixed(1) || 'N/A';
+    const debtEquity = opportunity.debt_to_equity?.toFixed(2) || 'N/A';
+    const valueScore = opportunity.value_score?.toFixed(1) || 'N/A';
+    const upside = opportunity.upside_potential?.toFixed(1) || 'N/A';
+    const marginSafety = opportunity.margin_of_safety?.toFixed(1) || 'N/A';
+    const recommendation = opportunity.recommendation || 'HOLD';
+
+    // Color coding for metrics
+    const getPEClass = (pe) => {
+        if (pe <= 10) return 'text-success fw-bold';
+        if (pe <= 15) return 'text-warning fw-bold';
+        return 'text-danger';
+    };
+
+    const getROEClass = (roe) => {
+        if (roe >= 15) return 'text-success fw-bold';
+        if (roe >= 10) return 'text-warning fw-bold';
+        return 'text-danger';
+    };
+
+    const getValueScoreClass = (score) => {
+        if (score >= 7) return 'bg-success';
+        if (score >= 5) return 'bg-warning';
+        return 'bg-danger';
+    };
+
+    // Format symbol with ETF label if applicable
+    const symbolDisplay = opportunity.etf_info ?
+        `<span class="fw-bold text-primary">${symbol}</span> <span class="badge bg-info ms-1">ETF</span><br><small class="text-muted">${opportunity.etf_info.name}</small>` :
+        `<span class="fw-bold text-primary">${symbol}</span>`;
+
+    row.innerHTML = `
+        <td>${symbolDisplay}</td>
+        <td>$${currentPrice}</td>
+        <td class="${getPEClass(parseFloat(peRatio))}">${peRatio}</td>
+        <td>${pbRatio}</td>
+        <td class="${getROEClass(parseFloat(roe))}">${roe}%</td>
+        <td>${debtEquity}</td>
+        <td>
+            <span class="badge ${getValueScoreClass(parseFloat(valueScore))}">${valueScore}/10</span>
+        </td>
+        <td class="text-success fw-bold">${upside}%</td>
+        <td class="text-info fw-bold">${marginSafety}%</td>
+        <td>
+            <span class="badge ${getRecommendationClass(recommendation)}">${recommendation}</span>
+        </td>
+        <td>
+            <button class="btn btn-sm btn-outline-primary" onclick="window.open('/analyze?symbol=${symbol}', '_blank')">
+                <i class="fas fa-chart-line"></i>
+            </button>
+        </td>
+    `;
+
+    return row;
+}
+
+
+// Load sample symbols on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadSampleSymbols();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,2492 @@
+{% extends "base.html" %}
+
+{% block title %}วิเคราะห์หุ้น - Stock Analyzer{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-search me-2"></i>
+                วิเคราะห์หุ้นแบบครบวงจร
+            </h1>
+            <p class="text-muted">Fundamental + Technical Analysis พร้อมสัญญาณการลงทุน</p>
+        </div>
+    </div>
+
+    <!-- Analysis Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cog me-2"></i>
+                        ตั้งค่าการวิเคราะห์
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="analyze-form">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="symbol" class="form-label">รหัสหุ้น</label>
+                                <input type="text" id="symbol" class="form-control"
+                                       placeholder="เช่น AAPL, MSFT" required style="text-transform: uppercase;">
+                                <div class="form-text">รหัสหุ้นในตลาด US Stock Market</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="time-horizon" class="form-label">ระยะเวลาการลงทุน</label>
+                                <select id="time-horizon" class="form-select">
+                                    <option value="short">ระยะสั้น (1-14 วัน)</option>
+                                    <option value="medium" selected>ระยะกลาง (1-6 เดือน)</option>
+                                    <option value="long">ระยะยาว (6+ เดือน)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="account-value" class="form-label">มูลค่าบัญชี (USD)</label>
+                                <input type="number" id="account-value" class="form-control"
+                                       value="100000" min="1000" step="1000">
+                                <div class="form-text">สำหรับคำนวณ Position Sizing</div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-analyze">
+                                    <i class="fas fa-search me-2"></i>
+                                    เริ่มวิเคราะห์
+                                </button>
+                                <button type="button" class="btn btn-secondary ms-2" onclick="clearResults()">
+                                    <i class="fas fa-times me-2"></i>
+                                    ล้างผลลัพธ์
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="analysis-loading" class="loading-spinner">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2">กำลังวิเคราะห์... กรุณารอสักครู่</p>
+    </div>
+
+    <!-- Error Container -->
+    <div id="error-container"></div>
+
+    <!-- Analysis Results -->
+    <div id="analysis-results" style="display: none;">
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div id="score-card" class="metric-card text-white">
+                    <div class="metric-value" id="total-score">0.0</div>
+                    <div class="metric-label">คะแนนรวม /10</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div id="recommendation-card" class="metric-card text-white">
+                    <div class="metric-value" id="recommendation" style="font-size: 1.3rem;">-</div>
+                    <div class="metric-label">คำแนะนำ</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card bg-info text-white">
+                    <div class="metric-value" id="confidence">-</div>
+                    <div class="metric-label">ความมั่นใจ</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card bg-secondary text-white">
+                    <div class="metric-value" id="current-price">$0.00</div>
+                    <div class="metric-label">ราคาปัจจุบัน</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Price Chart Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            <span id="chart-title">กราฟราคา</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative; height: 400px;">
+                            <canvas id="priceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Technical Indicators Charts -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-signal me-2"></i>
+                            RSI & MACD
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative; height: 250px;">
+                            <canvas id="indicatorsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            Volume Analysis
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative; height: 250px;">
+                            <canvas id="volumeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fundamental Metrics Charts -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-chart-pie me-2"></i>
+                            Financial Ratios
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative; height: 300px;">
+                            <canvas id="ratiosChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-chart-area me-2"></i>
+                            Score Breakdown
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative; height: 300px;">
+                            <canvas id="scoresChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Analysis -->
+        <div class="row">
+            <!-- Fundamental Analysis -->
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calculator me-2"></i>
+                            Fundamental Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="fundamental-content">
+                            <!-- Fundamental analysis content will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Technical Analysis -->
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Technical Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="technical-content">
+                            <!-- Technical analysis content will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Important News & Market Impact -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="fas fa-newspaper me-2"></i>
+                            ข่าวสำคัญและผลกระทบต่อราคาหุ้น
+                        </h5>
+                        <small class="text-muted">การวิเคราะห์ข่าวสำคัญในช่วง 1-3 เดือนข้างหน้า</small>
+                    </div>
+                    <div class="card-body">
+                        <div id="news-loading" class="text-center py-3" style="display: none;">
+                            <div class="spinner-border spinner-border-sm text-warning me-2" role="status"></div>
+                            <span>กำลังดึงข่าวและวิเคราะห์ผลกระทบ...</span>
+                        </div>
+                        <div id="important-news">
+                            <!-- Important news and impact analysis will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Investment Insights -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-robot me-2"></i>
+                            AI Investment Insights
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="ai-insights">
+                            <!-- AI insights will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Investment Guidance -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-bullseye me-2"></i>
+                            คำแนะนำการลงทุน
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="investment-guidance">
+                            <!-- Investment guidance will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Insights -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-lightbulb me-2"></i>
+                            ข้อมูลเชิงลึกและสรุป
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="insights-content">
+                            <!-- Key insights will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('analyze-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    performAnalysis();
+});
+
+function performAnalysis() {
+    const symbol = document.getElementById('symbol').value.trim().toUpperCase();
+    const timeHorizon = document.getElementById('time-horizon').value;
+    const accountValue = parseFloat(document.getElementById('account-value').value);
+
+    if (!symbol) {
+        showError('กรุณาใส่รหัสหุ้น');
+        return;
+    }
+
+    // Clear previous results
+    document.getElementById('error-container').innerHTML = '';
+    document.getElementById('analysis-results').style.display = 'none';
+    showLoading('analysis-loading');
+
+    fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            symbol: symbol,
+            time_horizon: timeHorizon,
+            account_value: accountValue
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading('analysis-loading');
+
+        if (data.error) {
+            showError(data.error);
+        } else {
+            displayAnalysisResults(data);
+            // Load important news and impact analysis
+            loadImportantNews(symbol);
+        }
+    })
+    .catch(error => {
+        hideLoading('analysis-loading');
+        console.error('Error:', error);
+        showError('เกิดข้อผิดพลาดในการวิเคราะห์');
+    });
+}
+
+function displayAnalysisResults(data) {
+    // Update summary cards
+    const score = data.signal_analysis?.final_score?.total_score || 0;
+    const recommendation = data.final_recommendation?.recommendation || 'Hold';
+    const confidence = data.confidence_level || 'Medium';
+
+    document.getElementById('total-score').textContent = formatNumber(score, 1);
+    document.getElementById('recommendation').textContent = recommendation;
+    document.getElementById('confidence').textContent = confidence;
+    document.getElementById('current-price').textContent = formatCurrency(data.current_price);
+
+    // Update card styles
+    document.getElementById('score-card').className = `metric-card text-white ${getScoreClass(score)}`;
+    document.getElementById('recommendation-card').className = `metric-card text-white ${getRecommendationClass(recommendation)}`;
+
+    // Display fundamental analysis
+    displayFundamentalAnalysis(data.fundamental_analysis);
+
+    // Display technical analysis
+    displayTechnicalAnalysis(data.technical_analysis);
+
+    // Display AI insights
+    displayAIInsights(data);
+
+    // Display investment guidance
+    displayInvestmentGuidance(data);
+
+    // Display key insights
+    displayKeyInsights(data);
+
+    // Load and display charts
+    loadChartsData(data.symbol, data);
+
+    // Create fundamental charts
+    createFundamentalCharts(data);
+
+    // Show results
+    document.getElementById('analysis-results').style.display = 'block';
+}
+
+function displayFundamentalAnalysis(fundamental) {
+    if (!fundamental) {
+        document.getElementById('fundamental-content').innerHTML = '<p class="text-muted">ไม่มีข้อมูล Fundamental Analysis</p>';
+        return;
+    }
+
+    const ratios = fundamental.financial_ratios || {};
+    const dcf = fundamental.dcf_valuation || {};
+
+    let html = `
+        <div class="row">
+            <div class="col-6">
+                <h6 class="text-primary">Valuation Ratios</h6>
+                <table class="table table-sm">
+                    <tr><td>P/E Ratio</td><td class="text-end">${formatNumber(ratios.pe_ratio)}</td></tr>
+                    <tr><td>PEG Ratio</td><td class="text-end">${formatNumber(ratios.peg_ratio)}</td></tr>
+                    <tr><td>P/B Ratio</td><td class="text-end">${formatNumber(ratios.pb_ratio)}</td></tr>
+                </table>
+            </div>
+            <div class="col-6">
+                <h6 class="text-success">Profitability</h6>
+                <table class="table table-sm">
+                    <tr><td>ROE</td><td class="text-end">${formatPercentageFromDecimal(ratios.roe)}</td></tr>
+                    <tr><td>ROA</td><td class="text-end">${formatPercentageFromDecimal(ratios.roa)}</td></tr>
+                    <tr><td>Profit Margin</td><td class="text-end">${formatPercentageFromDecimal(ratios.profit_margin)}</td></tr>
+                </table>
+            </div>
+        </div>
+    `;
+
+    if (dcf.intrinsic_value_per_share) {
+        const currentPrice = ratios.current_price || 0;
+        const upside = currentPrice > 0 ? ((dcf.intrinsic_value_per_share - currentPrice) / currentPrice) * 100 : 0;
+
+        html += `
+            <div class="mt-3">
+                <h6 class="text-info">DCF Valuation</h6>
+                <div class="row">
+                    <div class="col-4">
+                        <div class="text-center">
+                            <div class="h5 text-primary">${formatCurrency(dcf.intrinsic_value_per_share)}</div>
+                            <small class="text-muted">Intrinsic Value</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-center">
+                            <div class="h5 ${upside >= 0 ? 'text-success' : 'text-danger'}">${formatPercentage(upside)}</div>
+                            <small class="text-muted">Upside/Downside</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-center">
+                            <div class="h5 text-secondary">${formatNumber(fundamental.fundamental_score?.total_score || 0, 1)}/10</div>
+                            <small class="text-muted">Fundamental Score</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    document.getElementById('fundamental-content').innerHTML = html;
+}
+
+function displayTechnicalAnalysis(technical) {
+    if (!technical) {
+        document.getElementById('technical-content').innerHTML = '<p class="text-muted">ไม่มีข้อมูล Technical Analysis</p>';
+        return;
+    }
+
+    const indicators = technical.indicators || {};
+    const signals = technical.signals || {};
+
+    let html = `
+        <div class="row">
+            <div class="col-6">
+                <h6 class="text-primary">Key Indicators</h6>
+                <table class="table table-sm">
+                    <tr><td>RSI (14)</td><td class="text-end">${formatNumber(indicators.rsi)}</td></tr>
+                    <tr><td>MACD</td><td class="text-end">${formatNumber(indicators.macd_line)}</td></tr>
+                    <tr><td>EMA 20</td><td class="text-end">${formatCurrency(indicators.sma_20)}</td></tr>
+                </table>
+            </div>
+            <div class="col-6">
+                <h6 class="text-success">Support/Resistance</h6>
+                <table class="table table-sm">
+    `;
+
+    const sr = indicators.support_resistance || {};
+    if (sr.resistance_1) {
+        html += `<tr><td>Resistance 1</td><td class="text-end">${formatCurrency(sr.resistance_1)}</td></tr>`;
+    }
+    if (sr.support_1) {
+        html += `<tr><td>Support 1</td><td class="text-end">${formatCurrency(sr.support_1)}</td></tr>`;
+    }
+    if (sr.pivot_point) {
+        html += `<tr><td>Pivot Point</td><td class="text-end">${formatCurrency(sr.pivot_point)}</td></tr>`;
+    }
+
+    html += `
+                </table>
+            </div>
+        </div>
+        <div class="mt-3">
+            <h6 class="text-info">Technical Signals</h6>
+            <div class="row">
+    `;
+
+    // Display key technical signals
+    const keySignals = technical.key_signals || [];
+    if (keySignals.length > 0) {
+        keySignals.slice(0, 3).forEach(signal => {
+            html += `
+                <div class="col-12 mb-2">
+                    <div class="alert alert-info py-2 mb-1">
+                        <small><i class="fas fa-chart-line me-1"></i> ${signal}</small>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    html += `
+            </div>
+            <div class="text-center mt-2">
+                <div class="h5 text-secondary">${formatNumber(technical.technical_score?.total_score || 0, 1)}/10</div>
+                <small class="text-muted">Technical Score</small>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('technical-content').innerHTML = html;
+}
+
+function displayInvestmentGuidance(data) {
+    const entryExit = data.entry_exit_points || {};
+    const riskAssessment = data.trade_risk_assessment || {};
+
+    let html = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="text-primary">Entry & Exit Points</h6>
+                <table class="table table-striped">
+                    <tr><td>Suggested Entry</td><td class="text-end fw-bold text-success">${formatCurrency(data.suggested_entry)}</td></tr>
+                    <tr><td>Stop Loss</td><td class="text-end fw-bold text-danger">${formatCurrency(data.suggested_stop_loss)}</td></tr>
+    `;
+
+    if (data.suggested_targets && data.suggested_targets[0]) {
+        html += `<tr><td>Target 1</td><td class="text-end fw-bold text-info">${formatCurrency(data.suggested_targets[0])}</td></tr>`;
+    }
+    if (data.suggested_targets && data.suggested_targets[1]) {
+        html += `<tr><td>Target 2</td><td class="text-end fw-bold text-info">${formatCurrency(data.suggested_targets[1])}</td></tr>`;
+    }
+
+    html += `
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-success">Risk Assessment</h6>
+                <table class="table table-striped">
+                    <tr><td>Risk/Reward Ratio</td><td class="text-end">${formatNumber(data.risk_reward_ratio)}:1</td></tr>
+                    <tr><td>Risk Level</td><td class="text-end">${riskAssessment.risk_level || 'N/A'}</td></tr>
+                    <tr><td>Max Risk %</td><td class="text-end">${(riskAssessment.max_risk_percentage || 0).toFixed(2)}%</td></tr>
+                    <tr><td>Potential Reward %</td><td class="text-end">${(riskAssessment.potential_reward_percentage || 0).toFixed(2)}%</td></tr>
+                </table>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('investment-guidance').innerHTML = html;
+}
+
+function displayAIInsights(data) {
+    // Use AI-specific data from the new integration
+    const aiInsights = data.ai_insights || {};
+    const aiCurrentSituation = data.ai_current_situation || {};
+    const aiMarketContext = data.ai_market_context || {};
+    const aiRiskAssessment = data.ai_risk_assessment || {};
+    const aiInvestmentStrategy = data.ai_investment_strategy || {};
+    const aiKeyInsights = data.ai_key_insights || [];
+    const aiAvailable = data.ai_available || false;
+    const aiConfidence = data.ai_confidence || 0.5;
+
+    // Advanced analysis sections
+    const aiCatalystRiskMap = data.ai_catalyst_risk_map || {};
+    const aiValuationBenchmark = data.ai_valuation_benchmark || {};
+    const aiSensitivityAnalysis = data.ai_sensitivity_analysis || {};
+    const aiPositioningStrategy = data.ai_positioning_strategy || {};
+    const aiShareholderReturns = data.ai_shareholder_returns || {};
+    const aiAnalystConsensus = data.ai_analyst_consensus || {};
+
+    // Fallback to enhanced_analysis for backward compatibility
+    const enhancedAnalysis = data.enhanced_analysis || {};
+    const analysisInfo = enhancedAnalysis.analysis_summary || {};
+    const keyReasons = aiInsights.key_reasons || analysisInfo.key_reasons || [];
+    const marketContext = Object.keys(aiMarketContext).length > 0 ? aiMarketContext : enhancedAnalysis.market_context || {};
+    const riskAssessment = Object.keys(aiRiskAssessment).length > 0 ? aiRiskAssessment : enhancedAnalysis.risk_assessment || {};
+
+    let html = `
+        <div class="row">
+            <div class="col-md-8">
+                <h6 class="text-primary mb-3">
+                    <i class="fas fa-brain me-2"></i>
+                    AI Analysis Summary
+                </h6>
+    `;
+
+    // Current Situation Summary
+    if (Object.keys(aiCurrentSituation).length > 0) {
+        html += '<div class="mb-4">';
+        html += '<h6 class="text-info h6 mb-2">📊 สถานการณ์ปัจจุบัน:</h6>';
+
+        // Price trend and momentum
+        const priceTrend = aiCurrentSituation.price_trend || 'neutral';
+        const trendStrength = aiCurrentSituation.trend_strength || 'moderate';
+        const momentumDirection = aiCurrentSituation.momentum_direction || 'neutral';
+        const technicalStatus = aiCurrentSituation.technical_status || 'neutral';
+
+        // Trend indicators
+        const trendColor = priceTrend === 'bullish' ? 'success' :
+                          priceTrend === 'bearish' ? 'danger' : 'secondary';
+        const trendIcon = priceTrend === 'bullish' ? '📈' :
+                         priceTrend === 'bearish' ? '📉' : '➡️';
+
+        const strengthColor = trendStrength === 'strong' ? 'primary' :
+                             trendStrength === 'moderate' ? 'info' : 'secondary';
+
+        const statusColor = technicalStatus === 'overbought' ? 'warning' :
+                           technicalStatus === 'oversold' ? 'success' : 'secondary';
+
+        html += `
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <div class="card border-${trendColor} border-opacity-25">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted fw-bold d-block">แนวโน้มราคา</small>
+                                    <span class="h6 mb-0 text-${trendColor}">${trendIcon} ${priceTrend === 'bullish' ? 'ขาขึ้น' : priceTrend === 'bearish' ? 'ขาลง' : 'ไซด์เวย์'}</span>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-${strengthColor}">${trendStrength === 'strong' ? 'แรง' : trendStrength === 'moderate' ? 'ปานกลาง' : 'อ่อน'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card border-${statusColor} border-opacity-25">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted fw-bold d-block">สถานะเทคนิค</small>
+                                    <span class="h6 mb-0 text-${statusColor}">${technicalStatus === 'overbought' ? '🔥 OverBought' : technicalStatus === 'oversold' ? '❄️ OverSold' : '⚖️ Neutral'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Key drivers and catalysts
+        const keyDrivers = aiCurrentSituation.key_drivers || [];
+        const recentCatalysts = aiCurrentSituation.recent_catalysts || [];
+
+        if (keyDrivers.length > 0 || recentCatalysts.length > 0) {
+            html += '<div class="mb-3">';
+
+            if (keyDrivers.length > 0) {
+                html += '<div class="mb-2">';
+                html += '<small class="text-muted fw-bold d-block mb-1">🎯 ปัจจัยหลักที่ผลักดันราคา:</small>';
+                keyDrivers.slice(0, 2).forEach((driver, index) => {
+                    html += `
+                        <div class="alert alert-info border-info py-1 px-2 mb-1 small">
+                            <i class="fas fa-arrow-right me-1"></i> ${driver}
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            if (recentCatalysts.length > 0) {
+                html += '<div class="mb-2">';
+                html += '<small class="text-muted fw-bold d-block mb-1">⚡ เหตุการณ์ล่าสุดที่ส่งผลต่อราคา:</small>';
+                recentCatalysts.slice(0, 2).forEach((catalyst, index) => {
+                    html += `
+                        <div class="alert alert-warning border-warning py-1 px-2 mb-1 small">
+                            <i class="fas fa-bolt me-1"></i> ${catalyst}
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            html += '</div>';
+        }
+
+        // Support/Resistance status
+        const srStatus = aiCurrentSituation.support_resistance_status;
+        if (srStatus) {
+            const srColor = srStatus === 'near_resistance' ? 'warning' :
+                           srStatus === 'near_support' ? 'info' : 'secondary';
+            const srText = srStatus === 'near_resistance' ? '⬆️ ใกล้แนวต้าน' :
+                          srStatus === 'near_support' ? '⬇️ ใกล้แนวรับ' : '↔️ อยู่ระหว่างระดับ';
+
+            html += `
+                <div class="mb-2">
+                    <small class="text-muted fw-bold">ตำแหน่งเทคนิค:</small>
+                    <span class="badge bg-${srColor} ms-1">${srText}</span>
+                </div>
+            `;
+        }
+
+        html += '</div>';
+    }
+
+    // Enhanced AI Key Reasons - Separated by Type
+    const fundamentalReasons = aiInsights.fundamental_reasons || [];
+    const technicalReasons = aiInsights.technical_reasons || [];
+    const allReasons = keyReasons.length > 0 ? keyReasons : [...fundamentalReasons, ...technicalReasons];
+
+    if (allReasons.length > 0) {
+        html += '<div class="mb-4">';
+        html += '<h6 class="text-info h6 mb-2">AI Analysis Reasoning:</h6>';
+
+        // Fundamental Reasons
+        if (fundamentalReasons.length > 0) {
+            html += '<div class="mb-3">';
+            html += '<small class="text-muted fw-bold d-block mb-1">📊 Fundamental Analysis:</small>';
+            fundamentalReasons.slice(0, 3).forEach((reason, index) => {
+                html += `
+                    <div class="alert alert-light border-start border-success border-3 py-2 mb-1">
+                        <div class="d-flex align-items-start">
+                            <span class="badge bg-success rounded-pill me-2 mt-1">F${index + 1}</span>
+                            <span class="text-dark small">${reason}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+
+        // Technical Reasons
+        if (technicalReasons.length > 0) {
+            html += '<div class="mb-3">';
+            html += '<small class="text-muted fw-bold d-block mb-1">📈 Technical Analysis:</small>';
+            technicalReasons.slice(0, 3).forEach((reason, index) => {
+                html += `
+                    <div class="alert alert-light border-start border-warning border-3 py-2 mb-1">
+                        <div class="d-flex align-items-start">
+                            <span class="badge bg-warning rounded-pill me-2 mt-1">T${index + 1}</span>
+                            <span class="text-dark small">${reason}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+
+        // Fallback for combined reasons
+        if (fundamentalReasons.length === 0 && technicalReasons.length === 0 && allReasons.length > 0) {
+            html += '<div class="ai-reasons">';
+            allReasons.slice(0, 5).forEach((reason, index) => {
+                html += `
+                    <div class="alert alert-light border-start border-primary border-3 py-2 mb-2">
+                        <div class="d-flex align-items-start">
+                            <span class="badge bg-primary rounded-pill me-2 mt-1">${index + 1}</span>
+                            <span class="text-dark">${reason}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+        html += '</div>';
+    }
+
+    // Enhanced Market Context
+    if (Object.keys(marketContext).length > 0) {
+        html += '<div class="mb-3">';
+        html += '<h6 class="text-success h6 mb-2">🌐 Market Context:</h6>';
+        html += '<div class="row g-2">';
+
+        // Market regime and sector trend
+        if (marketContext.market_regime || marketContext.sector_trend) {
+            html += '<div class="col-6">';
+            if (marketContext.market_regime) {
+                const regimeColor = marketContext.market_regime === 'bull' ? 'success' :
+                                  marketContext.market_regime === 'bear' ? 'danger' : 'warning';
+                html += `<small class="text-muted d-block">Market Regime</small>
+                        <span class="badge bg-${regimeColor}">${marketContext.market_regime}</span><br>`;
+            }
+            if (marketContext.sector_trend) {
+                const trendColor = marketContext.sector_trend === 'outperforming' ? 'success' :
+                                 marketContext.sector_trend === 'underperforming' ? 'danger' : 'secondary';
+                html += `<small class="text-muted d-block mt-1">Sector Trend</small>
+                        <span class="badge bg-${trendColor}">${marketContext.sector_trend}</span>`;
+            }
+            html += '</div>';
+        }
+
+        // Relative strength and correlation
+        if (marketContext.relative_strength || marketContext.sector_correlation) {
+            html += '<div class="col-6">';
+            if (marketContext.relative_strength) {
+                const strengthColor = marketContext.relative_strength === 'strong' ? 'primary' :
+                                    marketContext.relative_strength === 'weak' ? 'secondary' : 'info';
+                html += `<small class="text-muted d-block">Relative Strength</small>
+                        <span class="badge bg-${strengthColor}">${marketContext.relative_strength}</span><br>`;
+            }
+            if (marketContext.sector_correlation) {
+                html += `<small class="text-muted d-block mt-1">Sector Correlation</small>
+                        <span class="badge bg-info">${marketContext.sector_correlation}</span>`;
+            }
+            html += '</div>';
+        }
+
+        html += '</div>';
+
+        // Sector catalysts
+        if (marketContext.sector_catalysts && marketContext.sector_catalysts.length > 0) {
+            html += '<div class="mt-2">';
+            html += '<small class="text-muted fw-bold d-block">Sector Catalysts:</small>';
+            marketContext.sector_catalysts.slice(0, 3).forEach(catalyst => {
+                html += `<span class="badge bg-light text-dark me-1 mb-1">${catalyst}</span>`;
+            });
+            html += '</div>';
+        }
+
+        // Macro sensitivity
+        if (marketContext.macro_sensitivity) {
+            html += '<div class="mt-2">';
+            const sensitivityColor = marketContext.macro_sensitivity === 'high' ? 'danger' :
+                                    marketContext.macro_sensitivity === 'low' ? 'success' : 'warning';
+            html += `<small class="text-muted d-block">Macro Sensitivity: </small>
+                    <span class="badge bg-${sensitivityColor}">${marketContext.macro_sensitivity}</span>`;
+            html += '</div>';
+        }
+
+        html += '</div>';
+    }
+
+    // Risk Assessment Summary
+    if (riskAssessment.risk_level || riskAssessment.volatility_assessment) {
+        html += '<div class="mb-3">';
+        html += '<h6 class="text-warning h6 mb-2">Risk Assessment:</h6>';
+        html += '<div class="row">';
+
+        if (riskAssessment.risk_level) {
+            const riskColor = riskAssessment.risk_level.toLowerCase() === 'low' ? 'success' :
+                             riskAssessment.risk_level.toLowerCase() === 'medium' ? 'warning' : 'danger';
+            html += `
+                <div class="col-6">
+                    <small class="text-muted d-block">Risk Level</small>
+                    <span class="badge bg-${riskColor}">${riskAssessment.risk_level}</span>
+                </div>
+            `;
+        }
+
+        if (riskAssessment.volatility_assessment) {
+            html += `
+                <div class="col-6">
+                    <small class="text-muted d-block">Volatility</small>
+                    <span class="badge bg-secondary">${riskAssessment.volatility_assessment}</span>
+                </div>
+            `;
+        }
+
+        html += '</div></div>';
+    }
+
+    // Price Targets Section
+    const priceTargets = data.ai_price_targets || data.price_targets;
+    if (priceTargets && Object.keys(priceTargets).length > 0) {
+        html += '<div class="mb-3">';
+        html += '<h6 class="text-info h6 mb-2">🎯 Price Targets:</h6>';
+
+        // Calculate overall upside/downside probability
+        let bullishTargets = 0;
+        let bearishTargets = 0;
+        let totalPositiveChange = 0;
+        let totalNegativeChange = 0;
+
+        ['high_target', 'average_target', 'low_target'].forEach(targetKey => {
+            const target = priceTargets[targetKey];
+            if (target && target.percentage_change !== undefined) {
+                if (target.percentage_change > 0) {
+                    bullishTargets++;
+                    totalPositiveChange += target.percentage_change;
+                } else if (target.percentage_change < 0) {
+                    bearishTargets++;
+                    totalNegativeChange += Math.abs(target.percentage_change);
+                }
+            }
+        });
+
+        // Calculate Risk/Reward Ratio
+        let riskRewardInfo = '';
+        const highTarget = priceTargets.high_target;
+        const lowTarget = priceTargets.low_target;
+
+        if (highTarget && lowTarget && highTarget.percentage_change && lowTarget.percentage_change) {
+            const upside = Math.abs(highTarget.percentage_change);
+            const downside = Math.abs(lowTarget.percentage_change);
+            const riskRewardRatio = downside > 0 ? (upside / downside) : 0;
+
+            const riskRewardColor = riskRewardRatio >= 1.5 ? 'success' :
+                                   riskRewardRatio >= 1.0 ? 'warning' : 'danger';
+            const riskRewardIcon = riskRewardRatio >= 1.5 ? '✅' :
+                                  riskRewardRatio >= 1.0 ? '⚠️' : '❌';
+
+            riskRewardInfo = `
+                <div class="mb-2">
+                    <small class="text-muted fw-bold">Risk/Reward Analysis:</small>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="small">${riskRewardIcon} Risk/Reward Ratio</span>
+                        <span class="badge bg-${riskRewardColor}">${riskRewardRatio.toFixed(2)}:1</span>
+                    </div>
+                    <small class="text-muted">เป้าหมาย: >1.5:1 (${riskRewardRatio >= 1.5 ? 'ผ่าน' : 'ไม่ผ่าน'})</small>
+                </div>
+            `;
+        }
+
+        // Overall sentiment summary
+        if (bullishTargets > 0 || bearishTargets > 0) {
+            const avgUpside = bullishTargets > 0 ? (totalPositiveChange / bullishTargets).toFixed(1) : 0;
+            const avgDownside = bearishTargets > 0 ? (totalNegativeChange / bearishTargets).toFixed(1) : 0;
+            const overallSentiment = bullishTargets > bearishTargets ? 'bullish' :
+                                   bearishTargets > bullishTargets ? 'bearish' : 'neutral';
+
+            const sentimentColor = overallSentiment === 'bullish' ? 'success' :
+                                 overallSentiment === 'bearish' ? 'danger' : 'warning';
+            const sentimentIcon = overallSentiment === 'bullish' ? '📈' :
+                                overallSentiment === 'bearish' ? '📉' : '⚖️';
+
+            html += `
+                <div class="alert alert-${sentimentColor} alert-dismissible border-${sentimentColor} py-2 mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${sentimentIcon} โอกาสโดยรวม: ${overallSentiment === 'bullish' ? 'มีแนวโน้มขึ้น' :
+                                                                 overallSentiment === 'bearish' ? 'มีแนวโน้มลง' : 'คงที่'}</strong>
+                            ${riskRewardInfo}
+                        </div>
+                        <div class="text-end">
+                            ${bullishTargets > 0 ? `<span class="badge bg-success me-1">↑ เฉลี่ย ${avgUpside}%</span>` : ''}
+                            ${bearishTargets > 0 ? `<span class="badge bg-danger">↓ เฉลี่ย ${avgDownside}%</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += '<div class="row g-2">';
+
+        // High Target
+        if (priceTargets.high_target) {
+            const target = priceTargets.high_target;
+            const changeColor = target.percentage_change >= 0 ? 'success' : 'danger';
+            const changeIcon = target.percentage_change >= 0 ? '↑' : '↓';
+            html += `
+                <div class="col-12 mb-2">
+                    <div class="card border-success border-opacity-25">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted fw-bold d-block">สูงสุด (High Target)</small>
+                                    <span class="h6 mb-0 text-success">$${target.price ? target.price.toFixed(2) : 'N/A'}</span>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-${changeColor}">${changeIcon} ${target.percentage_change ? Math.abs(target.percentage_change).toFixed(1) : 'N/A'}%</span>
+                                    <small class="text-muted d-block mt-1">${target.timeframe || ''}</small>
+                                    ${target.probability ? `<small class="badge bg-light text-dark mt-1">โอกาส: ${target.probability}</small>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Average Target
+        if (priceTargets.average_target) {
+            const target = priceTargets.average_target;
+            const changeColor = target.percentage_change >= 0 ? 'primary' : 'danger';
+            const changeIcon = target.percentage_change >= 0 ? '↑' : '↓';
+            html += `
+                <div class="col-12 mb-2">
+                    <div class="card border-primary border-opacity-25">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted fw-bold d-block">เฉลี่ย (Average Target)</small>
+                                    <span class="h6 mb-0 text-primary">$${target.price ? target.price.toFixed(2) : 'N/A'}</span>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-${changeColor}">${changeIcon} ${target.percentage_change ? Math.abs(target.percentage_change).toFixed(1) : 'N/A'}%</span>
+                                    <small class="text-muted d-block mt-1">${target.timeframe || ''}</small>
+                                    ${target.probability ? `<small class="badge bg-light text-dark mt-1">โอกาส: ${target.probability}</small>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Low Target
+        if (priceTargets.low_target) {
+            const target = priceTargets.low_target;
+            const changeColor = target.percentage_change >= 0 ? 'warning' : 'danger';
+            const changeIcon = target.percentage_change >= 0 ? '↑' : '↓';
+            html += `
+                <div class="col-12 mb-2">
+                    <div class="card border-warning border-opacity-25">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted fw-bold d-block">ต่ำสุด (Low Target)</small>
+                                    <span class="h6 mb-0 text-warning">$${target.price ? target.price.toFixed(2) : 'N/A'}</span>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-${changeColor}">${changeIcon} ${target.percentage_change ? Math.abs(target.percentage_change).toFixed(1) : 'N/A'}%</span>
+                                    <small class="text-muted d-block mt-1">${target.timeframe || ''}</small>
+                                    ${target.probability ? `<small class="badge bg-light text-dark mt-1">โอกาส: ${target.probability}</small>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Stop Loss
+        if (priceTargets.stop_loss) {
+            const stopLoss = priceTargets.stop_loss;
+            html += `
+                <div class="col-12">
+                    <div class="card border-danger border-opacity-25">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted fw-bold d-block">Stop Loss</small>
+                                    <span class="h6 mb-0 text-danger">$${stopLoss.price ? stopLoss.price.toFixed(2) : 'N/A'}</span>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-danger">↓ ${stopLoss.percentage_change ? Math.abs(stopLoss.percentage_change).toFixed(1) : 'N/A'}%</span>
+                                </div>
+                            </div>
+                            ${stopLoss.reason ? `<small class="text-muted">${stopLoss.reason}</small>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += '</div></div>';
+    }
+
+    // Advanced Analysis Sections
+    html += displayAdvancedAnalysis(aiCatalystRiskMap, aiValuationBenchmark, aiSensitivityAnalysis, aiPositioningStrategy, aiShareholderReturns, aiAnalystConsensus);
+
+    html += `
+            </div>
+            <div class="col-md-4">
+                <h6 class="text-primary mb-3">
+                    <i class="fas fa-chart-line me-2"></i>
+                    AI Confidence
+                </h6>
+                <div class="card border-primary">
+                    <div class="card-body text-center" style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);">
+                        <div class="h2 mb-2 text-primary fw-bold">${(aiConfidence * 100).toFixed(0)}%</div>
+                        <small class="text-dark fw-semibold">AI Confidence</small>
+                        <div class="progress mt-3" style="height: 12px; background-color: #e9ecef;">
+                            <div class="progress-bar" role="progressbar"
+                                 style="width: ${(aiConfidence * 100).toFixed(0)}%; background: linear-gradient(90deg, #007bff 0%, #6f42c1 100%);"></div>
+                        </div>
+                    </div>
+                </div>
+
+                ${aiInsights.recommendation ? `
+                <div class="mt-3">
+                    <h6 class="text-success mb-2">AI Recommendation</h6>
+                    <div class="text-center">
+                        <span class="badge ${getRecommendationClass(aiInsights.recommendation)} p-2 fs-6">
+                            ${aiInsights.recommendation}
+                        </span>
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+
+    // If no AI analysis available
+    if (!aiAvailable || keyReasons.length === 0) {
+        html = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-robot fa-3x mb-3 opacity-50"></i>
+                <h6>AI Insights ไม่พร้อมใช้งาน</h6>
+                <small>ระบบ AI analysis พบปัญหาหรือข้อมูลไม่เพียงพอ</small>
+                <div class="mt-2">
+                    <span class="badge bg-warning">Confidence: ${(aiConfidence * 100).toFixed(0)}%</span>
+                </div>
+            </div>
+        `;
+    }
+
+    document.getElementById('ai-insights').innerHTML = html;
+}
+
+function displayAdvancedAnalysis(catalystRiskMap, valuationBenchmark, sensitivityAnalysis, positioningStrategy, shareholderReturns, analystConsensus) {
+    let html = '';
+
+    // Check if any advanced analysis data exists
+    const hasAdvancedData = Object.keys(catalystRiskMap).length > 0 ||
+                           Object.keys(valuationBenchmark).length > 0 ||
+                           Object.keys(sensitivityAnalysis).length > 0 ||
+                           Object.keys(positioningStrategy).length > 0 ||
+                           Object.keys(shareholderReturns).length > 0 ||
+                           Object.keys(analystConsensus).length > 0;
+
+    if (!hasAdvancedData) {
+        return '';
+    }
+
+    html += `
+        <div class="mt-4">
+            <h6 class="text-info mb-3">
+                <i class="fas fa-microscope me-2"></i>
+                การวิเคราะห์เชิงลึก (Advanced Analysis)
+            </h6>
+    `;
+
+    // 1. Catalyst & Risk Map
+    if (Object.keys(catalystRiskMap).length > 0) {
+        html += `
+            <div class="card border-info border-opacity-25 mb-3">
+                <div class="card-header bg-info bg-opacity-10">
+                    <h6 class="mb-0 text-info">
+                        <i class="fas fa-map-marked-alt me-2"></i>
+                        Catalyst & Risk Map
+                    </h6>
+                </div>
+                <div class="card-body">
+        `;
+
+        // Short-term catalysts
+        if (catalystRiskMap.short_term_catalysts && catalystRiskMap.short_term_catalysts.length > 0) {
+            html += `
+                <div class="mb-3">
+                    <h6 class="text-success mb-2">📈 ปัจจัยขับเคลื่อนระยะสั้น:</h6>
+                    <ul class="list-group list-group-flush">
+            `;
+            catalystRiskMap.short_term_catalysts.forEach(catalyst => {
+                html += `
+                    <li class="list-group-item border-0 px-0 py-1">
+                        <i class="fas fa-arrow-trend-up text-success me-2"></i>
+                        <small>${catalyst}</small>
+                    </li>
+                `;
+            });
+            html += '</ul></div>';
+        }
+
+        // Medium-term catalysts
+        if (catalystRiskMap.medium_term_catalysts && catalystRiskMap.medium_term_catalysts.length > 0) {
+            html += `
+                <div class="mb-3">
+                    <h6 class="text-primary mb-2">📊 ปัจจัยขับเคลื่อนระยะกลาง:</h6>
+                    <ul class="list-group list-group-flush">
+            `;
+            catalystRiskMap.medium_term_catalysts.forEach(catalyst => {
+                html += `
+                    <li class="list-group-item border-0 px-0 py-1">
+                        <i class="fas fa-chart-line text-primary me-2"></i>
+                        <small>${catalyst}</small>
+                    </li>
+                `;
+            });
+            html += '</ul></div>';
+        }
+
+        // Key risks
+        if (catalystRiskMap.key_risks && catalystRiskMap.key_risks.length > 0) {
+            html += `
+                <div class="mb-0">
+                    <h6 class="text-danger mb-2">⚠️ ปัจจัยเสี่ยงหลัก:</h6>
+                    <ul class="list-group list-group-flush">
+            `;
+            catalystRiskMap.key_risks.forEach(risk => {
+                html += `
+                    <li class="list-group-item border-0 px-0 py-1">
+                        <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                        <small>${risk}</small>
+                    </li>
+                `;
+            });
+            html += '</ul></div>';
+        }
+
+        html += `
+                </div>
+            </div>
+        `;
+    }
+
+    // 2. Valuation Benchmark
+    if (Object.keys(valuationBenchmark).length > 0) {
+        html += `
+            <div class="card border-warning border-opacity-25 mb-3">
+                <div class="card-header bg-warning bg-opacity-10">
+                    <h6 class="mb-0 text-warning">
+                        <i class="fas fa-balance-scale me-2"></i>
+                        Valuation Benchmark
+                    </h6>
+                </div>
+                <div class="card-body">
+        `;
+
+        // Current metrics vs industry
+        if (valuationBenchmark.current_metrics) {
+            html += '<div class="row g-2 mb-3">';
+
+            if (valuationBenchmark.current_metrics.pe_vs_industry !== undefined) {
+                const peColor = valuationBenchmark.current_metrics.pe_vs_industry < 0 ? 'success' : 'danger';
+                const peIcon = valuationBenchmark.current_metrics.pe_vs_industry < 0 ? '📉' : '📈';
+                html += `
+                    <div class="col-6">
+                        <div class="card border-${peColor} border-opacity-25">
+                            <div class="card-body py-2 px-3">
+                                <small class="text-muted fw-bold d-block">P/E vs อุตสาหกรรม</small>
+                                <span class="text-${peColor} fw-bold">${peIcon} ${valuationBenchmark.current_metrics.pe_vs_industry > 0 ? '+' : ''}${valuationBenchmark.current_metrics.pe_vs_industry.toFixed(1)}%</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (valuationBenchmark.current_metrics.pb_vs_industry !== undefined) {
+                const pbColor = valuationBenchmark.current_metrics.pb_vs_industry < 0 ? 'success' : 'danger';
+                const pbIcon = valuationBenchmark.current_metrics.pb_vs_industry < 0 ? '📉' : '📈';
+                html += `
+                    <div class="col-6">
+                        <div class="card border-${pbColor} border-opacity-25">
+                            <div class="card-body py-2 px-3">
+                                <small class="text-muted fw-bold d-block">P/B vs อุตสาหกรรม</small>
+                                <span class="text-${pbColor} fw-bold">${pbIcon} ${valuationBenchmark.current_metrics.pb_vs_industry > 0 ? '+' : ''}${valuationBenchmark.current_metrics.pb_vs_industry.toFixed(1)}%</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+        }
+
+        // Valuation status
+        if (valuationBenchmark.valuation_status) {
+            const statusText = valuationBenchmark.valuation_status === 'discount' ? 'ราคาต่ำกว่าค่าเฉลี่ย' :
+                              valuationBenchmark.valuation_status === 'premium' ? 'ราคาสูงกว่าค่าเฉลี่ย' : 'ราคาสอดคล้องกับค่าเฉลี่ย';
+            const statusColor = valuationBenchmark.valuation_status === 'discount' ? 'success' :
+                               valuationBenchmark.valuation_status === 'premium' ? 'danger' : 'warning';
+            const statusIcon = valuationBenchmark.valuation_status === 'discount' ? '💰' :
+                              valuationBenchmark.valuation_status === 'premium' ? '💸' : '⚖️';
+
+            html += `
+                <div class="alert alert-${statusColor} border-${statusColor} py-2 mb-3">
+                    <strong>${statusIcon} สถานะ Valuation: ${statusText}</strong>
+                </div>
+            `;
+        }
+
+        // Fair value estimate
+        if (valuationBenchmark.fair_value_estimate) {
+            html += `
+                <div class="text-center">
+                    <small class="text-muted fw-bold d-block">ราคายุติธรรมโดยประมาณ</small>
+                    <span class="h5 text-primary fw-bold">$${valuationBenchmark.fair_value_estimate.toFixed(2)}</span>
+                </div>
+            `;
+        }
+
+        html += `
+                </div>
+            </div>
+        `;
+    }
+
+    // 3. Sensitivity Analysis
+    if (Object.keys(sensitivityAnalysis).length > 0 && sensitivityAnalysis.earnings_scenarios) {
+        html += `
+            <div class="card border-secondary border-opacity-25 mb-3">
+                <div class="card-header bg-secondary bg-opacity-10">
+                    <h6 class="mb-0 text-secondary">
+                        <i class="fas fa-chart-area me-2"></i>
+                        Sensitivity Analysis
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <small class="text-muted d-block mb-3">ผลกระทบต่อราคาหุ้นจากการเปลี่ยนแปลงของกำไร:</small>
+        `;
+
+        const scenarios = sensitivityAnalysis.earnings_scenarios;
+
+        // Bear Case
+        if (scenarios.bear_case) {
+            html += `
+                <div class="row mb-2">
+                    <div class="col-4">
+                        <span class="badge bg-danger">🐻 Bear Case</span>
+                    </div>
+                    <div class="col-4 text-center">
+                        <small class="text-muted">EPS: ${scenarios.bear_case.eps_change > 0 ? '+' : ''}${scenarios.bear_case.eps_change.toFixed(1)}%</small>
+                    </div>
+                    <div class="col-4 text-end">
+                        <small class="text-danger fw-bold">ราคา: ${scenarios.bear_case.price_impact > 0 ? '+' : ''}${scenarios.bear_case.price_impact.toFixed(1)}%</small>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Base Case
+        if (scenarios.base_case) {
+            html += `
+                <div class="row mb-2">
+                    <div class="col-4">
+                        <span class="badge bg-primary">📊 Base Case</span>
+                    </div>
+                    <div class="col-4 text-center">
+                        <small class="text-muted">EPS: ${scenarios.base_case.eps_change > 0 ? '+' : ''}${scenarios.base_case.eps_change.toFixed(1)}%</small>
+                    </div>
+                    <div class="col-4 text-end">
+                        <small class="text-primary fw-bold">ราคา: ${scenarios.base_case.price_impact > 0 ? '+' : ''}${scenarios.base_case.price_impact.toFixed(1)}%</small>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Bull Case
+        if (scenarios.bull_case) {
+            html += `
+                <div class="row mb-0">
+                    <div class="col-4">
+                        <span class="badge bg-success">🚀 Bull Case</span>
+                    </div>
+                    <div class="col-4 text-center">
+                        <small class="text-muted">EPS: ${scenarios.bull_case.eps_change > 0 ? '+' : ''}${scenarios.bull_case.eps_change.toFixed(1)}%</small>
+                    </div>
+                    <div class="col-4 text-end">
+                        <small class="text-success fw-bold">ราคา: ${scenarios.bull_case.price_impact > 0 ? '+' : ''}${scenarios.bull_case.price_impact.toFixed(1)}%</small>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += `
+                </div>
+            </div>
+        `;
+    }
+
+    // 4. Positioning Strategy
+    if (Object.keys(positioningStrategy).length > 0) {
+        html += `
+            <div class="card border-primary border-opacity-25 mb-3">
+                <div class="card-header bg-primary bg-opacity-10">
+                    <h6 class="mb-0 text-primary">
+                        <i class="fas fa-chess-knight me-2"></i>
+                        Positioning Strategy
+                    </h6>
+                </div>
+                <div class="card-body">
+        `;
+
+        if (positioningStrategy.entry_approach) {
+            html += `
+                <div class="mb-3">
+                    <h6 class="text-success mb-2">🎯 แนวทางการเข้าซื้อ:</h6>
+                    <div class="alert alert-success border-success py-2">
+                        <small>${positioningStrategy.entry_approach}</small>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (positioningStrategy.holding_strategy) {
+            html += `
+                <div class="mb-0">
+                    <h6 class="text-info mb-2">⏰ แนวทางการถือครอง:</h6>
+                    <div class="alert alert-info border-info py-2">
+                        <small>${positioningStrategy.holding_strategy}</small>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += `
+                </div>
+            </div>
+        `;
+    }
+
+    // 5. Dividend / Shareholder Return
+    if (Object.keys(shareholderReturns).length > 0) {
+        html += `
+            <div class="card border-success border-opacity-25 mb-3">
+                <div class="card-header bg-success bg-opacity-10">
+                    <h6 class="mb-0 text-success">
+                        <i class="fas fa-coins me-2"></i>
+                        Dividend & Shareholder Returns
+                    </h6>
+                </div>
+                <div class="card-body">
+        `;
+
+        // Dividend information
+        if (shareholderReturns.dividend_info) {
+            const dividendInfo = shareholderReturns.dividend_info;
+
+            html += '<div class="row g-2 mb-3">';
+
+            if (dividendInfo.dividend_yield !== undefined) {
+                html += `
+                    <div class="col-6">
+                        <div class="card border-success border-opacity-25">
+                            <div class="card-body py-2 px-3">
+                                <small class="text-muted fw-bold d-block">Dividend Yield</small>
+                                <span class="text-success fw-bold h6 mb-0">${dividendInfo.dividend_yield.toFixed(2)}%</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (dividendInfo.sustainability) {
+                const sustainabilityText = dividendInfo.sustainability === 'sustainable' ? 'ยั่งยืน' :
+                                          dividendInfo.sustainability === 'at_risk' ? 'เสี่ยง' : 'ไม่ยั่งยืน';
+                const sustainabilityColor = dividendInfo.sustainability === 'sustainable' ? 'success' :
+                                           dividendInfo.sustainability === 'at_risk' ? 'warning' : 'danger';
+                const sustainabilityIcon = dividendInfo.sustainability === 'sustainable' ? '✅' :
+                                          dividendInfo.sustainability === 'at_risk' ? '⚠️' : '❌';
+
+                html += `
+                    <div class="col-6">
+                        <div class="card border-${sustainabilityColor} border-opacity-25">
+                            <div class="card-body py-2 px-3">
+                                <small class="text-muted fw-bold d-block">ความยั่งยืน</small>
+                                <span class="text-${sustainabilityColor} fw-bold">${sustainabilityIcon} ${sustainabilityText}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+        }
+
+        // Buyback program
+        if (shareholderReturns.buyback_program) {
+            const buybackProgram = shareholderReturns.buyback_program;
+
+            html += `
+                <div class="mb-0">
+                    <h6 class="text-primary mb-2">📈 โปรแกรม Share Buyback:</h6>
+            `;
+
+            if (buybackProgram.active_program) {
+                html += `
+                    <div class="alert alert-primary border-primary py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-check-circle text-success me-2"></i><small>มีโปรแกรม Buyback ที่กำลังดำเนินการ</small></span>
+                            ${buybackProgram.buyback_yield ? `<span class="badge bg-primary">${buybackProgram.buyback_yield.toFixed(2)}% ของมูลค่าตลาด</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="alert alert-secondary border-secondary py-2">
+                        <small><i class="fas fa-times-circle text-secondary me-2"></i>ไม่มีโปรแกรม Buyback ในปัจจุบัน</small>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+        }
+
+        html += `
+                </div>
+            </div>
+        `;
+    }
+
+    // 6. Analyst Consensus
+    if (Object.keys(analystConsensus).length > 0) {
+        html += `
+            <div class="card border-dark border-opacity-25 mb-3">
+                <div class="card-header bg-dark bg-opacity-10">
+                    <h6 class="mb-0 text-dark">
+                        <i class="fas fa-users-tie me-2"></i>
+                        Analyst Consensus & Wall Street Recommendations
+                    </h6>
+                </div>
+                <div class="card-body">
+        `;
+
+        // Wall Street Consensus
+        if (analystConsensus.wall_street_consensus) {
+            const wsConsensus = analystConsensus.wall_street_consensus;
+
+            html += `
+                <div class="mb-4">
+                    <h6 class="text-primary mb-3">📊 Wall Street Consensus</h6>
+                    <div class="row g-2 mb-3">
+            `;
+
+            if (wsConsensus.recommendation) {
+                const recColor = wsConsensus.recommendation.includes('Buy') ? 'success' :
+                                wsConsensus.recommendation === 'Hold' ? 'warning' : 'danger';
+                const recIcon = wsConsensus.recommendation.includes('Buy') ? '📈' :
+                               wsConsensus.recommendation === 'Hold' ? '⚖️' : '📉';
+
+                html += `
+                    <div class="col-6">
+                        <div class="card border-${recColor} border-opacity-25">
+                            <div class="card-body py-2 px-3">
+                                <small class="text-muted fw-bold d-block">Consensus Rating</small>
+                                <span class="text-${recColor} fw-bold">${recIcon} ${wsConsensus.recommendation}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (wsConsensus.target_price) {
+                html += `
+                    <div class="col-6">
+                        <div class="card border-primary border-opacity-25">
+                            <div class="card-body py-2 px-3">
+                                <small class="text-muted fw-bold d-block">Target Price</small>
+                                <span class="text-primary fw-bold">$${wsConsensus.target_price.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+
+            if (wsConsensus.analyst_count && wsConsensus.bullish_percentage) {
+                html += `
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <small class="text-muted">Analysts Coverage: <strong>${wsConsensus.analyst_count}</strong></small>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Bullish: <strong>${wsConsensus.bullish_percentage.toFixed(0)}%</strong></small>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (wsConsensus.recent_upgrades_downgrades && wsConsensus.recent_upgrades_downgrades.length > 0) {
+                html += `
+                    <div class="mb-3">
+                        <small class="text-muted fw-bold d-block mb-1">Recent Rating Changes:</small>
+                `;
+                wsConsensus.recent_upgrades_downgrades.forEach(change => {
+                    html += `<small class="d-block text-info">• ${change}</small>`;
+                });
+                html += '</div>';
+            }
+
+            html += '</div>';
+        }
+
+        // Major Banks (simplified)
+        if (analystConsensus.major_banks) {
+            const banks = analystConsensus.major_banks;
+
+            html += `
+                <div class="mb-4">
+                    <h6 class="text-info mb-3">🏦 Major Bank Ratings</h6>
+                    <div class="row g-2">
+            `;
+
+            // Goldman Sachs
+            if (banks.goldman_sachs_rating) {
+                const gsRating = banks.goldman_sachs_rating;
+                const ratingColor = gsRating === 'Buy' ? 'success' : gsRating === 'Sell' ? 'danger' : 'warning';
+
+                html += `
+                    <div class="col-md-6 mb-2">
+                        <div class="card border-${ratingColor} border-opacity-25">
+                            <div class="card-body py-2 px-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="fw-bold">Goldman Sachs</small>
+                                    <span class="badge bg-${ratingColor}">${gsRating}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Morgan Stanley
+            if (banks.morgan_stanley_rating) {
+                const msRating = banks.morgan_stanley_rating;
+                const ratingColor = msRating === 'Overweight' ? 'success' : msRating === 'Underweight' ? 'danger' : 'warning';
+
+                html += `
+                    <div class="col-md-6 mb-2">
+                        <div class="card border-${ratingColor} border-opacity-25">
+                            <div class="card-body py-2 px-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="fw-bold">Morgan Stanley</small>
+                                    <span class="badge bg-${ratingColor}">${msRating}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+
+            // Average target
+            if (banks.average_target) {
+                html += `
+                    <div class="text-center mt-2">
+                        <small class="text-muted">Average Bank Target: </small>
+                        <span class="fw-bold text-primary">$${banks.average_target.toFixed(2)}</span>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+        }
+
+        // Remove Morningstar section to simplify prompt
+
+        // Consensus Summary (simplified)
+        if (analystConsensus.consensus_summary) {
+            const summary = analystConsensus.consensus_summary;
+
+            html += `
+                <div class="mb-0">
+                    <h6 class="text-success mb-3">📈 Wall Street Consensus</h6>
+            `;
+
+            if (summary.overall_sentiment) {
+                const sentimentColor = summary.overall_sentiment.includes('Bullish') ? 'success' :
+                                      summary.overall_sentiment.includes('Bearish') ? 'danger' : 'warning';
+                const sentimentIcon = summary.overall_sentiment.includes('Bullish') ? '📈' :
+                                     summary.overall_sentiment.includes('Bearish') ? '📉' : '⚖️';
+
+                html += `
+                    <div class="alert alert-${sentimentColor} border-${sentimentColor} py-2 mb-3">
+                        <strong>${sentimentIcon} Overall Sentiment: ${summary.overall_sentiment}</strong>
+                        ${summary.bullish_percentage ? `<span class="ms-2 badge bg-light text-dark">${summary.bullish_percentage.toFixed(0)}% Bullish</span>` : ''}
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+        }
+
+        html += `
+                </div>
+            </div>
+        `;
+    }
+
+    html += '</div>';
+
+    return html;
+}
+
+function displayKeyInsights(data) {
+    const insights = data.key_insights || [];
+    const recommendation = data.final_recommendation || {};
+
+    let html = `
+        <div class="row">
+            <div class="col-md-8">
+                <h6 class="text-primary">Key Insights</h6>
+    `;
+
+    if (insights.length > 0) {
+        html += '<ul class="list-group list-group-flush">';
+        insights.forEach(insight => {
+            html += `
+                <li class="list-group-item border-0 px-0">
+                    <i class="fas fa-lightbulb text-warning me-2"></i>
+                    ${insight}
+                </li>
+            `;
+        });
+        html += '</ul>';
+    } else {
+        html += '<p class="text-muted">ไม่มีข้อมูลเชิงลึกเพิ่มเติม</p>';
+    }
+
+    html += `
+            </div>
+            <div class="col-md-4">
+                <h6 class="text-success">Summary</h6>
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <div class="text-center">
+                            <div class="h4 ${getRecommendationClass(recommendation.recommendation || 'Hold')} text-white rounded p-2 mb-2">
+                                ${recommendation.recommendation || 'Hold'}
+                            </div>
+                            <small class="text-muted">
+                                Analysis Date: ${new Date(data.analysis_date).toLocaleDateString('th-TH')}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('insights-content').innerHTML = html;
+}
+
+function loadImportantNews(symbol) {
+    // Show loading
+    document.getElementById('news-loading').style.display = 'block';
+    document.getElementById('important-news').innerHTML = '';
+
+    fetch('/api/stock-news', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            symbol: symbol,
+            timeframe: '1-3_months'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('news-loading').style.display = 'none';
+
+        if (data.error) {
+            document.getElementById('important-news').innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ไม่สามารถดึงข่าวได้: ${data.error}
+                </div>
+            `;
+        } else {
+            displayImportantNews(data);
+        }
+    })
+    .catch(error => {
+        document.getElementById('news-loading').style.display = 'none';
+        console.error('Error loading news:', error);
+        document.getElementById('important-news').innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                เกิดข้อผิดพลาดในการดึงข่าว
+            </div>
+        `;
+    });
+}
+
+function displayImportantNews(data) {
+    if (!data.news || data.news.length === 0) {
+        document.getElementById('important-news').innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                ไม่พบข่าวสำคัญสำหรับหุ้น ${data.symbol || 'นี้'} ในช่วงเวลาที่ระบุ
+            </div>
+        `;
+        return;
+    }
+
+    let html = `
+        <div class="mb-3">
+            <h6 class="text-warning">
+                <i class="fas fa-calendar-alt me-2"></i>
+                ข่าวสำคัญ ${data.news.length} รายการ สำหรับ ${data.symbol || 'หุ้นนี้'}
+            </h6>
+            <small class="text-muted">วิเคราะห์ผลกระทบต่อราคาหุ้นในช่วง 1-3 เดือนข้างหน้า</small>
+        </div>
+    `;
+
+    data.news.forEach((news, index) => {
+        const impactClass = getImpactClass(news.price_impact);
+        const impactIcon = getImpactIcon(news.price_impact);
+
+        html += `
+            <div class="card mb-3 border-start border-3 ${impactClass === 'positive' ? 'border-success' :
+                                                              impactClass === 'negative' ? 'border-danger' : 'border-secondary'}">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6 class="card-title mb-2">
+                                <i class="fas fa-newspaper text-warning me-2"></i>
+                                ${news.title || 'ข่าวสำคัญ'}
+                            </h6>
+                            <p class="card-text text-muted small mb-2">
+                                ${news.summary || 'สรุปข่าว...'}
+                            </p>
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="badge bg-secondary me-2">
+                                    <i class="fas fa-clock me-1"></i>
+                                    ${news.date || 'ไม่ระบุวันที่'}
+                                </span>
+                                <span class="badge bg-info">
+                                    ${news.category || 'ทั่วไป'}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <div class="h4 mb-1 ${impactClass === 'positive' ? 'text-success' :
+                                                     impactClass === 'negative' ? 'text-danger' : 'text-secondary'}">
+                                    ${impactIcon}
+                                </div>
+                                <div class="fw-bold ${impactClass === 'positive' ? 'text-success' :
+                                                     impactClass === 'negative' ? 'text-danger' : 'text-secondary'}">
+                                    ${news.price_impact || 'เป็นกลาง'}
+                                </div>
+                                <small class="text-muted">ผลกระทบต่อราคา</small>
+                                ${news.confidence ? `
+                                    <div class="mt-1">
+                                        <small class="text-muted">ความมั่นใจ: ${news.confidence}%</small>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ${news.analysis ? `
+                        <div class="mt-3 p-3 bg-light rounded">
+                            <h6 class="text-primary mb-2">
+                                <i class="fas fa-brain me-2"></i>
+                                การวิเคราะห์ผลกระทบ
+                            </h6>
+                            <p class="mb-0 small">${news.analysis}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    });
+
+    // Add overall summary if available
+    if (data.overall_impact) {
+        const overallClass = getImpactClass(data.overall_impact.direction);
+        html += `
+            <div class="mt-4 p-3 border rounded ${overallClass === 'positive' ? 'border-success bg-light-success' :
+                                                    overallClass === 'negative' ? 'border-danger bg-light-danger' : 'border-secondary bg-light'}">
+                <h6 class="fw-bold">
+                    <i class="fas fa-chart-line me-2"></i>
+                    สรุปผลกระทบรวม
+                </h6>
+                <p class="mb-2">${data.overall_impact.summary || 'การวิเคราะห์ผลกระทบรวม'}</p>
+                <div class="row">
+                    <div class="col-md-6">
+                        <small class="text-muted">ผลกระทบต่อราคา: </small>
+                        <span class="fw-bold ${overallClass === 'positive' ? 'text-success' :
+                                              overallClass === 'negative' ? 'text-danger' : 'text-secondary'}">
+                            ${data.overall_impact.direction || 'เป็นกลาง'}
+                        </span>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">ระยะเวลา: </small>
+                        <span class="fw-bold">${data.overall_impact.timeframe || '1-3 เดือน'}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    document.getElementById('important-news').innerHTML = html;
+}
+
+function getImpactClass(impact) {
+    if (!impact) return 'neutral';
+    const impactLower = impact.toLowerCase();
+    if (impactLower.includes('เชิงบวก') || impactLower.includes('positive') || impactLower.includes('ขึ้น')) {
+        return 'positive';
+    } else if (impactLower.includes('เชิงลบ') || impactLower.includes('negative') || impactLower.includes('ลง')) {
+        return 'negative';
+    }
+    return 'neutral';
+}
+
+function getImpactIcon(impact) {
+    const impactClass = getImpactClass(impact);
+    if (impactClass === 'positive') return '<i class="fas fa-arrow-up"></i>';
+    if (impactClass === 'negative') return '<i class="fas fa-arrow-down"></i>';
+    return '<i class="fas fa-minus"></i>';
+}
+
+function clearResults() {
+    document.getElementById('analysis-results').style.display = 'none';
+    document.getElementById('error-container').innerHTML = '';
+    document.getElementById('symbol').value = '';
+    document.getElementById('symbol').focus();
+}
+
+// Get symbol from URL parameter if available
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const symbol = urlParams.get('symbol');
+    if (symbol) {
+        document.getElementById('symbol').value = symbol.toUpperCase();
+        performAnalysis();
+    }
+});
+
+// Enter key support
+document.getElementById('symbol').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        performAnalysis();
+    }
+});
+
+// Chart variables
+let priceChart = null;
+let indicatorsChart = null;
+let volumeChart = null;
+let ratiosChart = null;
+let scoresChart = null;
+
+// Load chart data and display charts
+function loadChartsData(symbol, analysisData = null) {
+    // Update chart title with ETF label if applicable
+    const etfInfo = analysisData?.etf_info;
+    const titleElement = document.getElementById('chart-title');
+
+    if (etfInfo) {
+        titleElement.innerHTML = `กราฟราคา ${symbol} <span class="badge bg-info ms-1">ETF</span>`;
+    } else {
+        titleElement.textContent = `กราฟราคา ${symbol}`;
+    }
+
+    // Fetch chart data
+    fetch(`/api/chart-data/${symbol}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Chart data error:', data.error);
+                return;
+            }
+
+            // Create charts with support/resistance levels
+            createPriceChart(data, symbol, analysisData);
+            createIndicatorsChart(data);
+            createVolumeChart(data);
+        })
+        .catch(error => {
+            console.error('Error loading chart data:', error);
+        });
+}
+
+// Create price chart with support/resistance levels
+function createPriceChart(data, symbol, analysisData = null) {
+    const ctx = document.getElementById('priceChart').getContext('2d');
+
+    // Destroy existing chart
+    if (priceChart) {
+        priceChart.destroy();
+    }
+
+    const datasets = [{
+        label: `${symbol} Price`,
+        data: data.prices.close,
+        borderColor: '#3498db',
+        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.1,
+        order: 1
+    }];
+
+    // Add support/resistance levels if analysis data is available
+    if (analysisData && analysisData.technical_analysis) {
+        const indicators = analysisData.technical_analysis.indicators || {};
+        const sr = indicators.support_resistance || {};
+
+        // Add resistance levels
+        if (sr.resistance_1) {
+            datasets.push({
+                label: 'Resistance 1',
+                data: Array(data.dates.length).fill(sr.resistance_1),
+                borderColor: '#e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                fill: false,
+                pointRadius: 0,
+                order: 2
+            });
+        }
+
+        if (sr.resistance_2) {
+            datasets.push({
+                label: 'Resistance 2',
+                data: Array(data.dates.length).fill(sr.resistance_2),
+                borderColor: '#c0392b',
+                backgroundColor: 'rgba(192, 57, 43, 0.1)',
+                borderWidth: 1,
+                borderDash: [10, 5],
+                fill: false,
+                pointRadius: 0,
+                order: 3
+            });
+        }
+
+        // Add support levels
+        if (sr.support_1) {
+            datasets.push({
+                label: 'Support 1',
+                data: Array(data.dates.length).fill(sr.support_1),
+                borderColor: '#27ae60',
+                backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                fill: false,
+                pointRadius: 0,
+                order: 4
+            });
+        }
+
+        if (sr.support_2) {
+            datasets.push({
+                label: 'Support 2',
+                data: Array(data.dates.length).fill(sr.support_2),
+                borderColor: '#229954',
+                backgroundColor: 'rgba(34, 153, 84, 0.1)',
+                borderWidth: 1,
+                borderDash: [10, 5],
+                fill: false,
+                pointRadius: 0,
+                order: 5
+            });
+        }
+
+        // Add pivot point
+        if (sr.pivot_point) {
+            datasets.push({
+                label: 'Pivot Point',
+                data: Array(data.dates.length).fill(sr.pivot_point),
+                borderColor: '#f39c12',
+                backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                borderWidth: 1,
+                borderDash: [3, 3],
+                fill: false,
+                pointRadius: 0,
+                order: 6
+            });
+        }
+    }
+
+    priceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.dates,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        filter: function(item, chart) {
+                            // Show only relevant legend items
+                            return !item.text.includes('undefined');
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            return context[0].label;
+                        },
+                        label: function(context) {
+                            return `${context.dataset.label}: $${context.parsed.y.toFixed(2)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    },
+                    ticks: {
+                        maxTicksLimit: 10
+                    }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Price ($)'
+                    },
+                    beginAtZero: false
+                }
+            }
+        }
+    });
+}
+
+// Create technical indicators chart (RSI & MACD)
+function createIndicatorsChart(data) {
+    const ctx = document.getElementById('indicatorsChart').getContext('2d');
+
+    // Destroy existing chart
+    if (indicatorsChart) {
+        indicatorsChart.destroy();
+    }
+
+    // Calculate simple RSI and MACD (simplified for demo)
+    const closes = data.prices.close;
+    const rsiData = calculateSimpleRSI(closes);
+    const macdData = calculateSimpleMACD(closes);
+
+    indicatorsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.dates.slice(-rsiData.length),
+            datasets: [{
+                label: 'RSI',
+                data: rsiData,
+                borderColor: '#e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                borderWidth: 2,
+                yAxisID: 'y'
+            }, {
+                label: 'MACD',
+                data: macdData,
+                borderColor: '#27ae60',
+                backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                borderWidth: 2,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    ticks: {
+                        maxTicksLimit: 6
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'RSI'
+                    },
+                    min: 0,
+                    max: 100
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'MACD'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                }
+            }
+        }
+    });
+}
+
+// Create volume chart
+function createVolumeChart(data) {
+    const ctx = document.getElementById('volumeChart').getContext('2d');
+
+    // Destroy existing chart
+    if (volumeChart) {
+        volumeChart.destroy();
+    }
+
+    volumeChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.dates,
+            datasets: [{
+                label: 'Volume',
+                data: data.volume,
+                backgroundColor: 'rgba(155, 89, 182, 0.6)',
+                borderColor: '#9b59b6',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    ticks: {
+                        maxTicksLimit: 10
+                    }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Volume'
+                    },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+// Simplified RSI calculation (for demo purposes)
+function calculateSimpleRSI(prices, period = 14) {
+    if (prices.length < period + 1) return [];
+
+    const rsi = [];
+    const changes = [];
+
+    // Calculate price changes
+    for (let i = 1; i < prices.length; i++) {
+        changes.push(prices[i] - prices[i - 1]);
+    }
+
+    for (let i = period; i < changes.length; i++) {
+        const gains = [];
+        const losses = [];
+
+        // Get gains and losses for the period
+        for (let j = i - period; j < i; j++) {
+            if (changes[j] > 0) {
+                gains.push(changes[j]);
+                losses.push(0);
+            } else {
+                gains.push(0);
+                losses.push(Math.abs(changes[j]));
+            }
+        }
+
+        const avgGain = gains.reduce((a, b) => a + b, 0) / period;
+        const avgLoss = losses.reduce((a, b) => a + b, 0) / period;
+
+        if (avgLoss === 0) {
+            rsi.push(100);
+        } else {
+            const rs = avgGain / avgLoss;
+            rsi.push(100 - (100 / (1 + rs)));
+        }
+    }
+
+    return rsi;
+}
+
+// Simplified MACD calculation (for demo purposes)
+function calculateSimpleMACD(prices, fastPeriod = 12, slowPeriod = 26) {
+    if (prices.length < slowPeriod) return [];
+
+    const fastEMA = calculateEMA(prices, fastPeriod);
+    const slowEMA = calculateEMA(prices, slowPeriod);
+    const macd = [];
+
+    const startIndex = Math.max(fastEMA.length, slowEMA.length) - Math.min(fastEMA.length, slowEMA.length);
+
+    for (let i = startIndex; i < Math.min(fastEMA.length, slowEMA.length); i++) {
+        macd.push(fastEMA[i] - slowEMA[i]);
+    }
+
+    return macd;
+}
+
+// Calculate Exponential Moving Average
+function calculateEMA(prices, period) {
+    const ema = [];
+    const multiplier = 2 / (period + 1);
+
+    // First EMA value is simple average
+    let sum = 0;
+    for (let i = 0; i < period; i++) {
+        sum += prices[i];
+    }
+    ema.push(sum / period);
+
+    // Calculate subsequent EMA values
+    for (let i = period; i < prices.length; i++) {
+        const value = (prices[i] * multiplier) + (ema[ema.length - 1] * (1 - multiplier));
+        ema.push(value);
+    }
+
+    return ema;
+}
+
+// Create fundamental analysis charts
+function createFundamentalCharts(data) {
+    const fundamental = data.fundamental_analysis;
+    if (!fundamental) return;
+
+    createRatiosChart(fundamental);
+    createScoresChart(data);
+}
+
+// Create financial ratios pie chart
+function createRatiosChart(fundamental) {
+    const ctx = document.getElementById('ratiosChart').getContext('2d');
+
+    // Destroy existing chart
+    if (ratiosChart) {
+        ratiosChart.destroy();
+    }
+
+    const ratios = fundamental.financial_ratios || {};
+
+    const ratioData = {
+        labels: ['P/E Ratio', 'P/B Ratio', 'ROE %', 'ROA %', 'Debt/Equity'],
+        datasets: [{
+            data: [
+                Math.min(ratios.pe_ratio || 0, 50), // Cap P/E at 50 for visualization
+                Math.min(ratios.pb_ratio || 0, 10), // Cap P/B at 10
+                (ratios.roe || 0) * 100, // Convert to percentage
+                (ratios.roa || 0) * 100, // Convert to percentage
+                Math.min(ratios.debt_to_equity || 0, 5) // Cap D/E at 5
+            ],
+            backgroundColor: [
+                '#3498db',
+                '#e74c3c',
+                '#27ae60',
+                '#f39c12',
+                '#9b59b6'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    };
+
+    ratiosChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: ratioData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label;
+                            const value = context.parsed;
+
+                            if (label.includes('%')) {
+                                return `${label}: ${value.toFixed(2)}%`;
+                            } else {
+                                return `${label}: ${value.toFixed(2)}`;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Create scores breakdown chart
+function createScoresChart(data) {
+    const ctx = document.getElementById('scoresChart').getContext('2d');
+
+    // Destroy existing chart
+    if (scoresChart) {
+        scoresChart.destroy();
+    }
+
+    const fundamental = data.fundamental_analysis || {};
+    const technical = data.technical_analysis || {};
+    const finalScore = data.signal_analysis?.final_score || {};
+
+    const scoresData = {
+        labels: ['Fundamental', 'Technical', 'Overall Score'],
+        datasets: [{
+            label: 'Analysis Scores',
+            data: [
+                fundamental.fundamental_score?.total_score || 0,
+                technical.technical_score?.total_score || 0,
+                finalScore.total_score || 0
+            ],
+            backgroundColor: [
+                'rgba(52, 152, 219, 0.7)',
+                'rgba(46, 204, 113, 0.7)',
+                'rgba(231, 76, 60, 0.7)'
+            ],
+            borderColor: [
+                '#3498db',
+                '#2ecc71',
+                '#e74c3c'
+            ],
+            borderWidth: 2
+        }]
+    };
+
+    scoresChart = new Chart(ctx, {
+        type: 'bar',
+        data: scoresData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.label}: ${context.parsed.y.toFixed(1)}/10`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 10,
+                    title: {
+                        display: true,
+                        text: 'Score (0-10)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + '/10';
+                        }
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Analysis Type'
+                    }
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+
+{% block title %}Backtesting - Stock Analyzer{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-history me-2"></i>
+                Backtesting - ทดสอบกลยุทธ์
+            </h1>
+            <p class="text-muted">ทดสอบกลยุทธ์การลงทุนกับข้อมูลย้อนหลัง</p>
+        </div>
+    </div>
+
+    <!-- Error/Success Messages -->
+    <div id="alert-container"></div>
+
+    <!-- Backtest Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cog me-2"></i>
+                        ตั้งค่า Backtest
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="backtest-form">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="symbols" class="form-label">รหัสหุ้น</label>
+                                    <textarea class="form-control" id="symbols" rows="3"
+                                              placeholder="ใส่รหัสหุ้น เช่น AAPL, MSFT, GOOGL"></textarea>
+                                    <div class="form-text">แยกด้วยเครื่องหมายจุลภาค (,)</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="initial-capital" class="form-label">เงินทุนเริ่มต้น ($)</label>
+                                    <input type="number" class="form-control" id="initial-capital"
+                                           min="1000" step="1000" value="100000">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="start-date" class="form-label">วันที่เริ่มต้น</label>
+                                    <input type="date" class="form-control" id="start-date" value="2023-01-01">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="end-date" class="form-label">วันที่สิ้นสุด</label>
+                                    <input type="date" class="form-control" id="end-date" value="2024-01-01">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12">
+                                <button type="submit" class="btn btn-warning btn-lg">
+                                    <i class="fas fa-play me-2"></i>
+                                    เริ่ม Backtest
+                                </button>
+                                <button type="button" class="btn btn-secondary ms-2" onclick="loadSampleBacktest()">
+                                    <i class="fas fa-magic me-2"></i>
+                                    ใช้ตัวอย่าง
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="backtest-loading" class="loading-spinner">
+        <div class="spinner-border text-warning" role="status"></div>
+        <p class="mt-2">กำลังรัน Backtest...</p>
+    </div>
+
+    <!-- Results -->
+    <div id="backtest-results" style="display: none;">
+        <!-- Performance Summary -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            สรุปผลการทดสอบ
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="performance-summary" class="row">
+                            <!-- Performance metrics will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Results -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list me-2"></i>
+                            รายละเอียดการซื้อขาย
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="trades-table">
+                                <thead>
+                                    <tr>
+                                        <th>วันที่</th>
+                                        <th>รหัสหุ้น</th>
+                                        <th>ประเภท</th>
+                                        <th>ราคา</th>
+                                        <th>จำนวน</th>
+                                        <th>มูลค่า</th>
+                                        <th>กำไร/ขาดทุน</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="trades-tbody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Chart -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            กราฟผลตอบแทน
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="performance-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('backtest-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    runBacktest();
+});
+
+function loadSampleBacktest() {
+    document.getElementById('symbols').value = 'AAPL, MSFT';
+    document.getElementById('start-date').value = '2023-01-01';
+    document.getElementById('end-date').value = '2024-01-01';
+    document.getElementById('initial-capital').value = '100000';
+}
+
+function runBacktest() {
+    const symbolsText = document.getElementById('symbols').value.trim();
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    const initialCapital = parseFloat(document.getElementById('initial-capital').value);
+
+    if (!symbolsText) {
+        showAlert('กรุณาใส่รหัสหุ้น', 'danger');
+        return;
+    }
+
+    if (!startDate || !endDate) {
+        showAlert('กรุณาเลือกช่วงวันที่', 'danger');
+        return;
+    }
+
+    if (new Date(startDate) >= new Date(endDate)) {
+        showAlert('วันที่เริ่มต้นต้องน้อยกว่าวันที่สิ้นสุด', 'danger');
+        return;
+    }
+
+    // Parse symbols
+    const symbols = symbolsText.split(',')
+        .map(s => s.trim().toUpperCase())
+        .filter(s => s.length > 0);
+
+    if (symbols.length === 0) {
+        showAlert('กรุณาใส่รหัสหุ้นที่ถูกต้อง', 'danger');
+        return;
+    }
+
+    // Show loading
+    showLoading('backtest-loading');
+    document.getElementById('backtest-results').style.display = 'none';
+
+    // Make API request
+    fetch('/api/backtest', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            symbols: symbols,
+            start_date: startDate,
+            end_date: endDate,
+            initial_capital: initialCapital
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading('backtest-loading');
+
+        if (data.error) {
+            showAlert('เกิดข้อผิดพลาด: ' + data.error, 'danger');
+        } else {
+            displayBacktestResults(data);
+        }
+    })
+    .catch(error => {
+        hideLoading('backtest-loading');
+        console.error('Error:', error);
+        showAlert('เกิดข้อผิดพลาดในการรัน Backtest', 'danger');
+    });
+}
+
+function displayBacktestResults(data) {
+    const resultsContainer = document.getElementById('backtest-results');
+
+    // Display performance summary
+    displayPerformanceSummary(data.performance_metrics || {});
+
+    // Display trades
+    displayTrades(data.trades || []);
+
+    // Display performance chart
+    if (data.equity_curve) {
+        displayPerformanceChart(data.equity_curve);
+    }
+
+    resultsContainer.style.display = 'block';
+}
+
+function displayPerformanceSummary(performance) {
+    const container = document.getElementById('performance-summary');
+
+    const totalReturn = performance.total_return || 0;
+    const annualizedReturn = performance.annualized_return || 0;
+    const sharpeRatio = performance.sharpe_ratio || 0;
+    const maxDrawdown = performance.max_drawdown || 0;
+    const winRate = performance.win_rate || 0;
+    const totalTrades = performance.total_trades || 0;
+
+    container.innerHTML = `
+        <div class="col-md-2">
+            <div class="metric-card ${totalReturn >= 0 ? 'score-good' : 'score-poor'} text-white">
+                <div class="metric-value">${formatPercentage(totalReturn)}</div>
+                <div class="metric-label">ผลตอบแทนรวม</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card bg-info text-white">
+                <div class="metric-value">${formatPercentage(annualizedReturn)}</div>
+                <div class="metric-label">ผลตอบแทนต่อปี</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card bg-primary text-white">
+                <div class="metric-value">${formatNumber(sharpeRatio, 2)}</div>
+                <div class="metric-label">Sharpe Ratio</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card bg-warning text-white">
+                <div class="metric-value">${formatPercentage(Math.abs(maxDrawdown))}</div>
+                <div class="metric-label">Max Drawdown</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card bg-success text-white">
+                <div class="metric-value">${formatPercentage(winRate)}</div>
+                <div class="metric-label">Win Rate</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card bg-secondary text-white">
+                <div class="metric-value">${totalTrades}</div>
+                <div class="metric-label">จำนวนรายการ</div>
+            </div>
+        </div>
+    `;
+}
+
+function displayTrades(trades) {
+    const tbody = document.getElementById('trades-tbody');
+    tbody.innerHTML = '';
+
+    if (trades.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center text-muted">
+                    <i class="fas fa-info-circle me-2"></i>
+                    ไม่มีรายการซื้อขาย
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    trades.forEach(trade => {
+        const row = document.createElement('tr');
+        const pnl = trade.pnl || 0;
+        const pnlClass = pnl >= 0 ? 'text-success' : 'text-danger';
+
+        row.innerHTML = `
+            <td>${formatDate(trade.date)}</td>
+            <td><strong>${trade.symbol}</strong></td>
+            <td>
+                <span class="badge ${trade.action === 'BUY' ? 'bg-success' : 'bg-danger'}">
+                    ${trade.action}
+                </span>
+            </td>
+            <td>${formatCurrency(trade.price)}</td>
+            <td>${trade.shares}</td>
+            <td>${formatCurrency(trade.value)}</td>
+            <td class="${pnlClass}">
+                ${pnl !== 0 ? formatCurrency(pnl) : '-'}
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function displayPerformanceChart(equityCurve) {
+    const ctx = document.getElementById('performance-chart').getContext('2d');
+
+    // Destroy existing chart if it exists
+    if (window.performanceChart && typeof window.performanceChart.destroy === 'function') {
+        window.performanceChart.destroy();
+    }
+
+    // Handle both array format from API and pandas DataFrame format
+    let dates, values;
+    if (Array.isArray(equityCurve)) {
+        // Array of equity points
+        dates = equityCurve.map((item, index) => `Day ${index + 1}`);
+        values = equityCurve.map(item => item.total_value || item.value || 0);
+    } else {
+        // DataFrame format - convert to arrays
+        dates = Object.keys(equityCurve);
+        values = Object.values(equityCurve);
+    }
+
+    // Create new chart and store reference
+    window.performanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [{
+                label: 'Portfolio Value',
+                data: values,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Value: ' + formatCurrency(context.parsed.y);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function formatDate(dateString) {
+    return new Date(dateString).toLocaleDateString('th-TH');
+}
+
+function showAlert(message, type) {
+    const container = document.getElementById('alert-container');
+    container.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+}
+
+// Set default dates
+document.addEventListener('DOMContentLoaded', function() {
+    loadSampleBacktest();
+});
+</script>
+{% endblock %}

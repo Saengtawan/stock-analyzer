@@ -1,0 +1,600 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Stock Analyzer{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-tachometer-alt me-2"></i>
+                Dashboard - ระบบวิเคราะห์หุ้นแบบครบวงจร
+            </h1>
+            <p class="text-muted">ภาพรวมตลาดและเครื่องมือวิเคราะห์</p>
+        </div>
+    </div>
+
+    <!-- Market Overview & Trending -->
+    <div class="row mb-4">
+        <!-- Market Indices -->
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-area me-2"></i>
+                        ดัชนีตลาด US (Market Indices)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="market-loading" class="loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">กำลังโหลดข้อมูลตลาด...</p>
+                    </div>
+                    <div id="market-data" class="row" style="display: none;">
+                        <!-- Market data will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trending Stocks -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-fire me-2"></i>
+                        หุ้นฮิตวันนี้
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="trending-loading" class="loading-spinner">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">กำลังโหลด...</p>
+                    </div>
+                    <div id="trending-stocks" style="display: none;">
+                        <!-- Trending stocks will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-search me-2"></i>
+                        วิเคราะห์หุ้น
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-3x text-primary mb-3"></i>
+                    <p>วิเคราะห์หุ้นแบบครบวงจร ทั้ง Fundamental และ Technical Analysis</p>
+                    <a href="{{ url_for('analyze_page') }}" class="btn btn-analyze">
+                        <i class="fas fa-search me-2"></i>
+                        เริ่มวิเคราะห์
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-filter me-2"></i>
+                        คัดกรองหุ้น
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <i class="fas fa-filter fa-3x text-success mb-3"></i>
+                    <p>คัดกรองหุ้นหลายตัวพร้อมกัน ตามเกณฑ์ที่กำหนด</p>
+                    <a href="{{ url_for('screen_page') }}" class="btn btn-success">
+                        <i class="fas fa-filter me-2"></i>
+                        เริ่มคัดกรอง
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Backtesting
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <i class="fas fa-history fa-3x text-warning mb-3"></i>
+                    <p>ทดสอบกลยุทธ์การลงทุนกับข้อมูลอดีต</p>
+                    <a href="{{ url_for('backtest_page') }}" class="btn btn-warning">
+                        <i class="fas fa-history me-2"></i>
+                        เริ่ม Backtest
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Analysis -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>
+                        วิเคราะห์ด่วน
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="input-group mb-3">
+                                <span class="input-group-text">
+                                    <i class="fas fa-search"></i>
+                                </span>
+                                <input type="text" id="quick-symbol" class="form-control"
+                                       placeholder="ใส่รหัสหุ้น (เช่น AAPL, TSLA, GOOGL)" style="text-transform: uppercase;">
+                                <button class="btn btn-analyze" type="button" onclick="quickAnalyze()">
+                                    <i class="fas fa-chart-line me-1"></i>
+                                    วิเคราะห์ด่วน
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <select id="quick-horizon" class="form-select">
+                                <option value="short">⚡ ระยะสั้น (1-14 วัน)</option>
+                                <option value="medium" selected>📈 ระยะกลาง (1-6 เดือน)</option>
+                                <option value="long">💎 ระยะยาว (6+ เดือน)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="quick-analysis-loading" class="loading-spinner">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2">กำลังวิเคราะห์...</p>
+                    </div>
+
+                    <div id="quick-analysis-result" style="display: none;">
+                        <!-- Quick analysis results will be shown here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Statistics -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        สถิติตลาดรวด
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 col-sm-6 mb-3">
+                            <div class="metric-card bg-info text-white">
+                                <div class="metric-value">95+</div>
+                                <div class="metric-label">
+                                    <i class="fas fa-chart-line me-1"></i>
+                                    Technical Indicators
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-sm-6 mb-3">
+                            <div class="metric-card bg-success text-white">
+                                <div class="metric-value">15+</div>
+                                <div class="metric-label">
+                                    <i class="fas fa-calculator me-1"></i>
+                                    Financial Ratios
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-sm-6 mb-3">
+                            <div class="metric-card bg-warning text-white">
+                                <div class="metric-value">5,000+</div>
+                                <div class="metric-label">
+                                    <i class="fas fa-building me-1"></i>
+                                    US Stocks Covered
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-sm-6 mb-3">
+                            <div class="metric-card bg-danger text-white">
+                                <div class="metric-value">24/7</div>
+                                <div class="metric-label">
+                                    <i class="fas fa-clock me-1"></i>
+                                    Real-time Analysis
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Overview -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-star me-2"></i>
+                        คุณสมบัติหลัก
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 col-lg-3 mb-3">
+                            <div class="text-center">
+                                <i class="fas fa-calculator fa-2x text-primary mb-2"></i>
+                                <h6>Fundamental Analysis</h6>
+                                <small class="text-muted">วิเคราะห์พื้นฐาน P/E, PEG, ROE, DCF</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6 col-lg-3 mb-3">
+                            <div class="text-center">
+                                <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
+                                <h6>Technical Analysis</h6>
+                                <small class="text-muted">RSI, MACD, Bollinger Bands, Support/Resistance</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6 col-lg-3 mb-3">
+                            <div class="text-center">
+                                <i class="fas fa-shield-alt fa-2x text-warning mb-2"></i>
+                                <h6>Risk Management</h6>
+                                <small class="text-muted">Position Sizing, VaR, Portfolio Risk</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6 col-lg-3 mb-3">
+                            <div class="text-center">
+                                <i class="fas fa-robot fa-2x text-info mb-2"></i>
+                                <h6>AI-Powered Signals</h6>
+                                <small class="text-muted">ระบบให้สัญญาณอัตโนมัติ</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadMarketData();
+    loadTrendingStocks();
+});
+
+function loadMarketData() {
+    showLoading('market-loading');
+
+    fetch('/api/market-data')
+        .then(response => response.json())
+        .then(data => {
+            hideLoading('market-loading');
+
+            if (data.error) {
+                document.getElementById('market-data').innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            ไม่สามารถโหลดข้อมูลตลาดได้: ${data.error}
+                        </div>
+                    </div>
+                `;
+            } else {
+                displayMarketData(data);
+            }
+
+            document.getElementById('market-data').style.display = 'block';
+        })
+        .catch(error => {
+            hideLoading('market-loading');
+            console.error('Error:', error);
+            document.getElementById('market-data').innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-times-circle me-2"></i>
+                        เกิดข้อผิดพลาดในการโหลดข้อมูลตลาด
+                    </div>
+                </div>
+            `;
+            document.getElementById('market-data').style.display = 'block';
+        });
+}
+
+function displayMarketData(data) {
+    const marketContainer = document.getElementById('market-data');
+    let html = '';
+
+    // Major indices with display names
+    const indices = {
+        'SPY': 'S&P 500 ETF',
+        'QQQ': 'NASDAQ 100 ETF',
+        'VTI': 'Total Stock Market ETF',
+        'IWM': 'Russell 2000 ETF'
+    };
+
+    if (data.data) {
+        Object.keys(indices).forEach(symbol => {
+            if (data.data[symbol]) {
+                const stockData = data.data[symbol];
+                const change = stockData.change || 0;
+                const changePercent = stockData.change_percent || 0;
+                const changeClass = change >= 0 ? 'text-success' : 'text-danger';
+                const changeIcon = change >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+
+                html += `
+                    <div class="col-md-6 col-lg-3 mb-3">
+                        <div class="card border-0 bg-light h-100">
+                            <div class="card-body text-center">
+                                <h6 class="card-title text-primary">${symbol}</h6>
+                                <div class="h5 ${changeClass} mb-1">
+                                    ${formatCurrency(stockData.current_price)}
+                                </div>
+                                <div class="small ${changeClass}">
+                                    <i class="fas ${changeIcon} me-1"></i>
+                                    ${formatCurrency(change)} (${formatPercentage(changePercent/100)})
+                                </div>
+                                <div class="text-muted small mt-1">${indices[symbol]}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+    }
+
+    if (html === '') {
+        html = `
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    ไม่มีข้อมูลตลาดให้แสดง
+                </div>
+            </div>
+        `;
+    }
+
+    marketContainer.innerHTML = html;
+}
+
+function loadTrendingStocks() {
+    showLoading('trending-loading');
+
+    // For now, use predefined trending stocks with mock data
+    // In production, this would call a real API
+    const trendingSymbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX'];
+
+    fetch('/api/trending-stocks', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            symbols: trendingSymbols
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading('trending-loading');
+
+        if (data.error) {
+            document.getElementById('trending-stocks').innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ไม่สามารถโหลดข้อมูลหุ้นฮิตได้
+                </div>
+            `;
+        } else {
+            displayTrendingStocks(data);
+        }
+
+        document.getElementById('trending-stocks').style.display = 'block';
+    })
+    .catch(error => {
+        hideLoading('trending-loading');
+        console.error('Error:', error);
+
+        // Fallback to display mock data
+        displayTrendingStocksFallback();
+        document.getElementById('trending-stocks').style.display = 'block';
+    });
+}
+
+function displayTrendingStocks(data) {
+    const container = document.getElementById('trending-stocks');
+    let html = '<div class="list-group list-group-flush">';
+
+    if (data.trending_stocks && data.trending_stocks.length > 0) {
+        data.trending_stocks.slice(0, 6).forEach((stock, index) => {
+            const changeClass = (stock.change_percent || 0) >= 0 ? 'text-success' : 'text-danger';
+            const changeIcon = (stock.change_percent || 0) >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+
+            html += `
+                <div class="list-group-item border-0 px-0 py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">${stock.symbol}</div>
+                            <div class="small text-muted">${formatCurrency(stock.current_price)}</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="small ${changeClass}">
+                                <i class="fas ${changeIcon} me-1"></i>
+                                ${formatPercentage((stock.change_percent || 0)/100)}
+                            </div>
+                            <a href="/analyze?symbol=${stock.symbol}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-search"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function displayTrendingStocksFallback() {
+    const container = document.getElementById('trending-stocks');
+    const mockStocks = [
+        {symbol: 'AAPL', current_price: 201.93, change_percent: 2.1},
+        {symbol: 'MSFT', current_price: 517.93, change_percent: 1.5},
+        {symbol: 'GOOGL', current_price: 254.72, change_percent: -0.8},
+        {symbol: 'AMZN', current_price: 226.67, change_percent: 0.9},
+        {symbol: 'TSLA', current_price: 426.07, change_percent: 3.2},
+        {symbol: 'META', current_price: 778.38, change_percent: -1.1}
+    ];
+
+    let html = '<div class="list-group list-group-flush">';
+
+    mockStocks.forEach(stock => {
+        const changeClass = stock.change_percent >= 0 ? 'text-success' : 'text-danger';
+        const changeIcon = stock.change_percent >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+
+        html += `
+            <div class="list-group-item border-0 px-0 py-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="fw-bold">${stock.symbol}</div>
+                        <div class="small text-muted">${formatCurrency(stock.current_price)}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="small ${changeClass}">
+                            <i class="fas ${changeIcon} me-1"></i>
+                            ${formatPercentage(stock.change_percent/100)}
+                        </div>
+                        <a href="/analyze?symbol=${stock.symbol}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-search"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function quickAnalyze() {
+    const symbol = document.getElementById('quick-symbol').value.trim().toUpperCase();
+    const horizon = document.getElementById('quick-horizon').value;
+
+    if (!symbol) {
+        alert('กรุณาใส่รหัสหุ้น');
+        return;
+    }
+
+    showLoading('quick-analysis-loading');
+    document.getElementById('quick-analysis-result').style.display = 'none';
+
+    fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            symbol: symbol,
+            time_horizon: horizon,
+            account_value: 100000
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading('quick-analysis-loading');
+
+        if (data.error) {
+            document.getElementById('quick-analysis-result').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-times-circle me-2"></i>
+                    ${data.error}
+                </div>
+            `;
+        } else {
+            displayQuickAnalysisResult(data);
+        }
+
+        document.getElementById('quick-analysis-result').style.display = 'block';
+    })
+    .catch(error => {
+        hideLoading('quick-analysis-loading');
+        console.error('Error:', error);
+        document.getElementById('quick-analysis-result').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-times-circle me-2"></i>
+                เกิดข้อผิดพลาดในการวิเคราะห์
+            </div>
+        `;
+        document.getElementById('quick-analysis-result').style.display = 'block';
+    });
+}
+
+function displayQuickAnalysisResult(data) {
+    const recommendation = data.final_recommendation?.recommendation || 'Hold';
+    const score = data.signal_analysis?.final_score?.total_score || 0;
+    const confidence = data.confidence_level || 'Medium';
+
+    const html = `
+        <div class="row">
+            <div class="col-md-3">
+                <div class="metric-card ${getScoreClass(score)} text-white">
+                    <div class="metric-value">${formatNumber(score, 1)}/10</div>
+                    <div class="metric-label">คะแนนรวม</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card ${getRecommendationClass(recommendation)} text-white">
+                    <div class="metric-value" style="font-size: 1.2rem;">${recommendation}</div>
+                    <div class="metric-label">คำแนะนำ</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card bg-info text-white">
+                    <div class="metric-value" style="font-size: 1.2rem;">${confidence}</div>
+                    <div class="metric-label">ความมั่นใจ</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card bg-secondary text-white">
+                    <div class="metric-value">${formatCurrency(data.current_price)}</div>
+                    <div class="metric-label">ราคาปัจจุบัน</div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-3">
+            <a href="/analyze?symbol=${data.symbol}" class="btn btn-primary">
+                <i class="fas fa-chart-line me-2"></i>
+                ดูรายละเอียดแบบเต็ม
+            </a>
+        </div>
+    `;
+
+    document.getElementById('quick-analysis-result').innerHTML = html;
+}
+
+// Enter key support for quick analysis
+document.getElementById('quick-symbol').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        quickAnalyze();
+    }
+});
+</script>
+{% endblock %}

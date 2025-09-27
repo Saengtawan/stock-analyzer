@@ -1,0 +1,204 @@
+# Stock Analyzer Configuration
+
+# Data Sources
+data_sources:
+  primary: "yfinance"  # yfinance, fmp, tiingo
+  backup: "fmp"
+  price_backup: "tiingo"
+  financial_data: "fmp"
+
+# Analysis Parameters
+analysis:
+  fundamental:
+    # P/E Ratio scoring thresholds
+    pe_excellent: 15
+    pe_good: 20
+    pe_fair: 25
+    pe_poor: 40
+
+    # PEG Ratio thresholds
+    peg_excellent: 1.0
+    peg_good: 1.5
+    peg_fair: 2.0
+
+    # ROE thresholds (percentages)
+    roe_excellent: 20
+    roe_good: 15
+    roe_fair: 10
+
+    # Debt to Equity thresholds
+    de_excellent: 0.3
+    de_good: 1.0
+    de_fair: 2.0
+
+  technical:
+    # RSI parameters
+    rsi_period: 14
+    rsi_overbought: 70
+    rsi_oversold: 30
+
+    # MACD parameters
+    macd_fast: 12
+    macd_slow: 26
+    macd_signal: 9
+
+    # Moving averages
+    ema_short: 9
+    ema_medium: 21
+    ema_long: 50
+    sma_trend: 200
+
+    # Bollinger Bands
+    bb_period: 20
+    bb_std: 2
+
+    # Volume analysis
+    volume_sma: 20
+    volume_spike_threshold: 1.5
+
+# Scoring Weights
+scoring:
+  fundamental_weight: 0.6
+  technical_weight: 0.4
+
+  fundamental_components:
+    pe_ratio: 0.2
+    peg_ratio: 0.2
+    roe: 0.2
+    debt_equity: 0.2
+    dcf_valuation: 0.2
+
+  technical_components:
+    rsi: 0.2
+    macd: 0.2
+    support_resistance: 0.2
+    moving_averages: 0.2
+    volume: 0.2
+
+# Recommendation Thresholds
+recommendations:
+  strong_buy: 8.5
+  buy: 7.0
+  hold_high: 5.5
+  hold_low: 4.0
+  sell: 4.0
+  strong_sell: 0.0
+
+# Risk Management
+risk_management:
+  default_risk_per_trade: 0.02  # 2%
+  max_portfolio_risk: 0.20      # 20%
+  max_single_position: 0.15     # 15%
+  min_risk_reward: 2.0          # 1:2 minimum
+
+  # Stop loss multipliers by timeframe
+  stop_loss_multipliers:
+    scalping: 1.0
+    day_trading: 1.5
+    swing_trading: 2.0
+    position_trading: 3.0
+
+  # Position sizing methods
+  position_sizing:
+    method: "fixed_fractional"  # fixed_fractional, kelly, volatility_adjusted
+    kelly_max: 0.25  # Maximum Kelly percentage
+    volatility_lookback: 20
+
+# Time Horizons
+time_horizons:
+  scalping:
+    period: "5m"
+    max_hold_days: 1
+    profit_target: 0.005  # 0.5%
+    stop_loss: 0.003      # 0.3%
+
+  day_trading:
+    period: "15m"
+    max_hold_days: 1
+    profit_target: 0.02   # 2%
+    stop_loss: 0.01       # 1%
+
+  swing_trading:
+    period: "1h"
+    max_hold_days: 14
+    profit_target: 0.08   # 8%
+    stop_loss: 0.03       # 3%
+
+  position_trading:
+    period: "1d"
+    max_hold_days: 180
+    profit_target: 0.25   # 25%
+    stop_loss: 0.10       # 10%
+
+# Market Regimes
+market_regimes:
+  bull_market:
+    trend_score_min: 5
+    strategy: "growth_momentum"
+    position_multiplier: 1.2
+
+  bear_market:
+    trend_score_max: -4
+    strategy: "defensive_quality"
+    position_multiplier: 0.6
+
+  sideways_market:
+    trend_score_range: [-1, 4]
+    strategy: "mean_reversion"
+    position_multiplier: 0.8
+
+# Backtesting
+backtesting:
+  default_period: "2y"
+  initial_capital: 100000
+  commission: 0.001     # 0.1%
+  slippage: 0.0005     # 0.05%
+  benchmark: "SPY"
+
+# API Rate Limits
+rate_limits:
+  fmp: 300              # calls per day (free tier)
+  tiingo: 500           # calls per hour (free tier)
+  yfinance: 2000        # calls per hour
+
+# Cache Settings
+cache:
+  price_data_ttl: 300   # 5 minutes
+  fundamental_ttl: 3600 # 1 hour
+  technical_ttl: 900    # 15 minutes
+
+# Sectors for Analysis
+sectors:
+  - "Technology"
+  - "Healthcare"
+  - "Financials"
+  - "Consumer Discretionary"
+  - "Communication Services"
+  - "Industrials"
+  - "Consumer Staples"
+  - "Energy"
+  - "Utilities"
+  - "Real Estate"
+  - "Materials"
+
+# Default Stock Universe (US Markets)
+default_universe:
+  large_cap:
+    - "AAPL"
+    - "MSFT"
+    - "GOOGL"
+    - "AMZN"
+    - "TSLA"
+    - "META"
+    - "NVDA"
+    - "NFLX"
+    - "DIS"
+    - "PYPL"
+
+  etfs:
+    - "SPY"   # S&P 500
+    - "QQQ"   # NASDAQ 100
+    - "IWM"   # Russell 2000
+    - "VTI"   # Total Stock Market
+    - "VEA"   # Developed Markets
+    - "VWO"   # Emerging Markets
