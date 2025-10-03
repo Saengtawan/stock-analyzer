@@ -48,6 +48,12 @@
                                 Small/Mid Cap โอกาสเติบโต
                             </button>
                         </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="volatile-tab" data-bs-toggle="tab" data-bs-target="#volatile-screening" type="button" role="tab">
+                                <i class="fas fa-bolt me-2"></i>
+                                เทรดระยะสั้น (Volatile)
+                            </button>
+                        </li>
                     </ul>
                 </div>
                 <div class="card-body">
@@ -335,6 +341,81 @@
                             </form>
                         </div>
 
+                        <!-- Volatile Trading Screening Tab -->
+                        <div class="tab-pane fade" id="volatile-screening" role="tabpanel">
+                            <form id="volatile-screening-form">
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>คำเตือน:</strong> หุ้นที่มีความผันผวนสูงมีความเสี่ยงสูง เหมาะสำหรับผู้มีประสบการณ์และควรใช้ Stop Loss กระชับ
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="min-volatility" class="form-label">ความผันผวนขั้นต่ำ (%)</label>
+                                            <input type="number" class="form-control" id="min-volatility"
+                                                   min="15" max="100" step="5" value="20.0">
+                                            <div class="form-text">Annualized Volatility - ยิ่งสูงยิ่งเหวี่ยงมาก</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="min-avg-volume" class="form-label">Volume เฉลี่ยต่อวันขั้นต่ำ</label>
+                                            <select class="form-select" id="min-avg-volume">
+                                                <option value="500000">500K</option>
+                                                <option value="1000000" selected>1M</option>
+                                                <option value="2000000">2M</option>
+                                                <option value="5000000">5M+</option>
+                                            </select>
+                                            <div class="form-text">ปริมาณการซื้อขายที่สูง = Liquidity ดี</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="min-price-range" class="form-label">ช่วงราคาขั้นต่ำ 30 วัน (%)</label>
+                                            <input type="number" class="form-control" id="min-price-range"
+                                                   min="2" max="50" step="1" value="3.0">
+                                            <div class="form-text">High-Low range - ช่วงราคากว้าง = เหวี่ยงมาก</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="volatile-momentum-score" class="form-label">คะแนน Momentum ขั้นต่ำ</label>
+                                            <input type="number" class="form-control" id="volatile-momentum-score"
+                                                   min="2" max="10" step="0.5" value="3.0">
+                                            <div class="form-text">แรงขับเคลื่อนราคา - สำคัญสำหรับ short-term trading</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="volatile-time-horizon" class="form-label">ระยะเวลาการเทรด</label>
+                                            <select class="form-select" id="volatile-time-horizon">
+                                                <option value="very_short">Day Trading (รายวัน)</option>
+                                                <option value="short" selected>Swing Trading (2-7 วัน)</option>
+                                            </select>
+                                            <div class="form-text">เลือกตาม trading style ของคุณ</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="volatile-max-stocks" class="form-label">จำนวนหุ้นสูงสุด</label>
+                                            <select class="form-select" id="volatile-max-stocks">
+                                                <option value="10">10 หุ้น</option>
+                                                <option value="15">15 หุ้น</option>
+                                                <option value="20" selected>20 หุ้น</option>
+                                                <option value="25">25 หุ้น</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <button type="submit" class="btn btn-danger btn-lg me-3">
+                                            <i class="fas fa-bolt me-2"></i>
+                                            ค้นหาหุ้นเหวี่ยงสำหรับเทรดระยะสั้น
+                                        </button>
+                                        <div class="form-text mt-2">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            ระบบจะใช้ AI หาหุ้นที่มีความผันผวนสูง Volume ดี เหมาะสำหรับ Day Trading และ Swing Trading
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -399,6 +480,11 @@ document.getElementById('dividend-screening-form').addEventListener('submit', fu
 document.getElementById('smallmid-screening-form').addEventListener('submit', function(e) {
     e.preventDefault();
     runSmallMidCapScreening();
+});
+
+document.getElementById('volatile-screening-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    runVolatileScreening();
 });
 
 
@@ -891,6 +977,291 @@ function runSmallMidCapScreening() {
         hideLoading('screening-loading');
         console.error('Error:', error);
         showAlert('เกิดข้อผิดพลาดในการค้นหาหุ้น Small/Mid Cap', 'danger');
+    });
+}
+
+function runVolatileScreening() {
+    const minVolatility = parseFloat(document.getElementById('min-volatility').value);
+    const minAvgVolume = parseInt(document.getElementById('min-avg-volume').value);
+    const minPriceRange = parseFloat(document.getElementById('min-price-range').value);
+    const minMomentumScore = parseFloat(document.getElementById('volatile-momentum-score').value);
+    const timeHorizon = document.getElementById('volatile-time-horizon').value;
+    const maxStocks = parseInt(document.getElementById('volatile-max-stocks').value);
+
+    // Show loading
+    showLoading('screening-loading');
+    document.getElementById('screening-results').style.display = 'none';
+
+    // Prepare criteria
+    const criteria = {
+        min_volatility: minVolatility,
+        min_avg_volume: minAvgVolume,
+        min_price_range: minPriceRange,
+        min_momentum_score: minMomentumScore,
+        time_horizon: timeHorizon,
+        max_stocks: maxStocks
+    };
+
+    // Make API request
+    fetch('/api/volatile-screen', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(criteria)
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading('screening-loading');
+        if (data.error) {
+            showAlert('เกิดข้อผิดพลาด: ' + data.error, 'danger');
+        } else {
+            displayVolatileScreeningResults(data);
+        }
+    })
+    .catch(error => {
+        hideLoading('screening-loading');
+        console.error('Error:', error);
+        showAlert('เกิดข้อผิดพลาดในการค้นหาหุ้นเหวี่ยง', 'danger');
+    });
+}
+
+function displayVolatileScreeningResults(data) {
+    const resultsContainer = document.getElementById('screening-results');
+    const summaryContainer = document.getElementById('screening-summary');
+    const tbody = document.getElementById('results-tbody');
+    const headerRow = document.getElementById('results-header');
+
+    // Update table headers for volatile trading screening
+    headerRow.innerHTML = `
+        <tr>
+            <th>รหัสหุ้น</th>
+            <th>ราคาปัจจุบัน</th>
+            <th>Volatility (%)</th>
+            <th>Avg Volume</th>
+            <th>Price Range 30d (%)</th>
+            <th>Intraday Range (%)</th>
+            <th>Momentum</th>
+            <th>Trading Score</th>
+            <th>กลยุทธ์</th>
+            <th>Risk Level</th>
+            <th>การดำเนินการ</th>
+        </tr>
+    `;
+
+    // Clear existing results
+    tbody.innerHTML = '';
+
+    // Display summary
+    summaryContainer.innerHTML = `
+        <div class="alert alert-danger border-danger">
+            <h5><i class="fas fa-bolt me-2"></i>ผลการค้นหาหุ้นเหวี่ยงสำหรับเทรดระยะสั้น</h5>
+            <p class="mb-1"><strong>หุ้นที่คัดกรองแล้ว:</strong> ${data.total_screened}</p>
+            <p class="mb-1"><strong>หุ้นที่ผ่านเกณฑ์:</strong> ${data.found_opportunities} หุ้น</p>
+            <p class="mb-0"><strong>เกณฑ์:</strong> Volatility ≥ ${data.criteria.min_volatility}%, Volume ≥ ${(data.criteria.min_avg_volume / 1000000).toFixed(1)}M</p>
+            <div class="mt-2">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                <small><strong>คำเตือน:</strong> หุ้นเหล่านี้มีความเสี่ยงสูง ใช้ Stop Loss กระชับและอย่าใช้เงินเกินกว่าที่เสียได้</small>
+            </div>
+        </div>
+    `;
+
+    // Add results to table
+    if (data.opportunities && data.opportunities.length > 0) {
+        data.opportunities.forEach(opportunity => {
+            tbody.appendChild(createVolatileStockRow(opportunity));
+        });
+        resultsContainer.style.display = 'block';
+    } else {
+        summaryContainer.innerHTML += `
+            <div class="alert alert-warning mt-2">
+                <p class="mb-0">ไม่พบหุ้นที่ตรงตามเกณฑ์ ลองปรับเกณฑ์ให้หลวมขึ้น</p>
+            </div>
+        `;
+        resultsContainer.style.display = 'block';
+    }
+}
+
+function createVolatileStockRow(opp) {
+    const row = document.createElement('tr');
+
+    const metrics = opp.volatility_metrics || {};
+    const technical = opp.technical_analysis || {};
+    const recommendation = opp.recommendation || {};
+
+    const volatility = metrics.volatility_30d || 0;
+    const avgVolume = metrics.avg_volume_30d || 0;
+    const priceRange = metrics.price_range_pct || 0;
+    const intradayRange = metrics.intraday_range_pct || 0;
+    const momentum = technical.momentum_score || 0;
+    const tradingScore = opp.trading_score || technical.trading_opportunity_score || 0;
+    const strategy = recommendation.strategy || 'N/A';
+    const riskLevel = recommendation.risk_level || 'Unknown';
+
+    // Format functions
+    const formatCurrency = (val) => val ? `$${val.toFixed(2)}` : 'N/A';
+    const formatNumber = (val, decimals = 1) => val ? val.toFixed(decimals) : 'N/A';
+    const formatVolume = (vol) => {
+        if (vol >= 1e6) return `${(vol / 1e6).toFixed(1)}M`;
+        if (vol >= 1e3) return `${(vol / 1e3).toFixed(0)}K`;
+        return vol.toLocaleString();
+    };
+
+    const getScoreClass = (score) => {
+        if (score >= 7) return 'bg-success';
+        if (score >= 5) return 'bg-warning';
+        return 'bg-danger';
+    };
+
+    const getRiskClass = (risk) => {
+        if (risk.includes('Very High')) return 'bg-danger';
+        if (risk.includes('High')) return 'bg-warning';
+        return 'bg-info';
+    };
+
+    row.innerHTML = `
+        <td>
+            <strong>${opp.symbol}</strong>
+            ${opp.company_name ? `<br><small class="text-muted">${opp.company_name}</small>` : ''}
+            ${opp.fundamental_summary?.sector ? `<br><small class="badge bg-secondary">${opp.fundamental_summary.sector}</small>` : ''}
+        </td>
+        <td>
+            ${formatCurrency(opp.current_price)}
+        </td>
+        <td>
+            <span class="badge ${volatility >= 50 ? 'bg-danger' : volatility >= 40 ? 'bg-warning' : 'bg-info'}">
+                ${formatNumber(volatility, 1)}%
+            </span>
+        </td>
+        <td>
+            <span class="badge ${avgVolume >= 5e6 ? 'bg-success' : avgVolume >= 2e6 ? 'bg-primary' : 'bg-secondary'}">
+                ${formatVolume(avgVolume)}
+            </span>
+        </td>
+        <td>
+            <span class="badge ${priceRange >= 20 ? 'bg-danger' : priceRange >= 10 ? 'bg-warning' : 'bg-info'}">
+                ${formatNumber(priceRange, 1)}%
+            </span>
+        </td>
+        <td>
+            <span class="badge bg-secondary">
+                ${formatNumber(intradayRange, 2)}%
+            </span>
+        </td>
+        <td>
+            <div class="metric-card ${getScoreClass(momentum)}" style="padding: 5px 10px; border-radius: 5px; display: inline-block;">
+                <span class="text-white">${formatNumber(momentum, 1)}/10</span>
+            </div>
+        </td>
+        <td>
+            <div class="metric-card ${getScoreClass(tradingScore)}" style="padding: 5px 10px; border-radius: 5px; display: inline-block;">
+                <span class="text-white">${formatNumber(tradingScore, 1)}/10</span>
+            </div>
+        </td>
+        <td>
+            <small>${strategy}</small>
+        </td>
+        <td>
+            <span class="badge ${getRiskClass(riskLevel)}">
+                ${riskLevel}
+            </span>
+        </td>
+        <td>
+            <a href="/analyze?symbol=${opp.symbol}" class="btn btn-sm btn-danger">
+                <i class="fas fa-chart-line me-1"></i>
+                วิเคราะห์
+            </a>
+        </td>
+    `;
+
+    // Add detailed recommendation on click
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', (e) => {
+        if (!e.target.closest('a')) {
+            showVolatileDetailModal(opp);
+        }
+    });
+
+    return row;
+}
+
+function showVolatileDetailModal(opp) {
+    const rec = opp.recommendation || {};
+    const metrics = opp.volatility_metrics || {};
+    const technical = opp.technical_analysis || {};
+
+    const modalContent = `
+        <div class="modal fade" id="volatileDetailModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title"><i class="fas fa-bolt me-2"></i>${opp.symbol} - คำแนะนำการเทรด</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <strong>${rec.description_thai || 'N/A'}</strong>
+                        </div>
+
+                        <h6 class="mt-3"><i class="fas fa-chart-line me-2"></i>กลยุทธ์การเทรด</h6>
+                        <p><strong>Strategy:</strong> ${rec.strategy || 'N/A'}</p>
+                        <p><strong>Timeframe:</strong> ${rec.timeframe || 'N/A'}</p>
+                        <p><strong>Risk Level:</strong> <span class="badge bg-danger">${rec.risk_level || 'N/A'}</span></p>
+
+                        <h6 class="mt-3"><i class="fas fa-sign-in-alt me-2"></i>จุดเข้า (Entry)</h6>
+                        <p>${rec.entry_suggestion || 'N/A'}</p>
+                        ${technical.support_level ? `<p><small class="text-muted">Support: $${technical.support_level.toFixed(2)}</small></p>` : ''}
+
+                        <h6 class="mt-3"><i class="fas fa-sign-out-alt me-2"></i>จุดออก (Exit)</h6>
+                        <p>${rec.exit_suggestion || 'N/A'}</p>
+                        ${technical.resistance_level ? `<p><small class="text-muted">Resistance: $${technical.resistance_level.toFixed(2)}</small></p>` : ''}
+
+                        <h6 class="mt-3"><i class="fas fa-chart-bar me-2"></i>Volatility Metrics</h6>
+                        <ul>
+                            <li><strong>30d Volatility:</strong> ${metrics.volatility_30d?.toFixed(1)}%</li>
+                            <li><strong>Price Range (30d):</strong> ${metrics.price_range_pct?.toFixed(1)}% (High: $${metrics.high_30d?.toFixed(2)} - Low: $${metrics.low_30d?.toFixed(2)})</li>
+                            <li><strong>Avg Volume:</strong> ${(metrics.avg_volume_30d / 1000000).toFixed(1)}M shares/day</li>
+                            <li><strong>Vol Trend:</strong> ${metrics.vol_trend || 'N/A'}</li>
+                        </ul>
+
+                        <h6 class="mt-3"><i class="fas fa-tachometer-alt me-2"></i>Technical Indicators</h6>
+                        <ul>
+                            <li><strong>Trend:</strong> ${technical.trend || 'N/A'}</li>
+                            <li><strong>RSI:</strong> ${technical.rsi?.toFixed(1) || 'N/A'}</li>
+                            <li><strong>Momentum Score:</strong> ${technical.momentum_score?.toFixed(1)}/10</li>
+                        </ul>
+
+                        <div class="alert alert-danger mt-3">
+                            <strong><i class="fas fa-exclamation-triangle me-2"></i>Risk Warning:</strong>
+                            <p class="mb-0">${rec.key_indicator || 'High volatility trading requires strict risk management'}</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+                        <a href="/analyze?symbol=${opp.symbol}" class="btn btn-danger">
+                            <i class="fas fa-chart-line me-1"></i>
+                            วิเคราะห์เพิ่มเติม
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('volatileDetailModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to body and show
+    document.body.insertAdjacentHTML('beforeend', modalContent);
+    const modal = new bootstrap.Modal(document.getElementById('volatileDetailModal'));
+    modal.show();
+
+    // Clean up after modal is hidden
+    document.getElementById('volatileDetailModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
     });
 }
 

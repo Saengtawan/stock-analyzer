@@ -7,7 +7,6 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 from loguru import logger
 
-
 class DCFValuation:
     """Discounted Cash Flow valuation model"""
 

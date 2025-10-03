@@ -19,6 +19,7 @@ from screeners.support_level_screener import SupportLevelScreener
 from screeners.dividend_screener import DividendGrowthScreener
 from screeners.value_screener import ValueStockScreener
 from ai_market_analyst import AIMarketAnalyst
+from analysis.fundamental.earnings_analyst import EarningsAnalystAnalyzer
 
 
 app = Flask(__name__)
@@ -763,6 +764,147 @@ def api_stock_news():
             'news': []
         }), 500
 
+@app.route('/api/enhanced-analysis', methods=['POST'])
+def api_enhanced_analysis():
+    """API endpoint for enhanced Yahoo Finance + AI analysis"""
+    try:
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+
+        if not symbol:
+            return jsonify({'error': 'Symbol is required'}), 400
+
+        logger.info(f"Starting enhanced analysis for {symbol}")
+
+        # Get earnings and analyst data from Yahoo Enhanced Client
+        earnings_analyzer = EarningsAnalystAnalyzer(symbol)
+        yahoo_analysis = earnings_analyzer.get_comprehensive_analysis()
+
+        # Get SEC EDGAR insider/institutional data
+        from analysis.fundamental.insider_institutional import InsiderInstitutionalAnalyzer
+        insider_analyzer = InsiderInstitutionalAnalyzer(symbol)
+        sec_edgar_data = insider_analyzer.get_comprehensive_analysis()
+
+        # Get AI analysis
+        ai_analysis = analyzer.analyze_stock(symbol, 'medium', 100000)
+
+        # Extract AI scores from the correct structure
+        fundamental_score = ai_analysis.get('fundamental_analysis', {}).get('overall_score', 0)
+        technical_score = ai_analysis.get('technical_analysis', {}).get('technical_score', {}).get('total_score', 0)
+
+        # Extract AI-specific data from enhanced analysis
+        ai_data = ai_analysis.get('ai_analysis', {})
+        ai_summary = ai_data.get('analysis_summary', {})
+
+        # Combine the analyses
+        enhanced_result = {
+            'symbol': symbol,
+            'yahoo_data': yahoo_analysis,
+            'sec_edgar_data': sec_edgar_data,
+            'ai_analysis': {
+                'overall_score': ai_summary.get('overall_score', (fundamental_score + technical_score) / 2 if fundamental_score or technical_score else 0),
+                'recommendation': ai_summary.get('recommendation', ai_analysis.get('recommendation', 'hold')),
+                'fundamental_score': fundamental_score,
+                'technical_score': technical_score,
+                'risk_score': round(10 - (ai_analysis.get('risk_assessment', {}).get('overall_risk_score', 0.5) * 10), 1),  # Convert 0-1 to 0-10 and invert
+                'key_insights': ai_data.get('key_insights', ai_analysis.get('key_insights', [])),
+                'price_target': ai_data.get('price_targets', {}).get('average_target', {}).get('price', 0),
+                'stop_loss': ai_data.get('price_targets', {}).get('stop_loss', {}).get('price', 0)
+            },
+            'timestamp': datetime.now().isoformat(),
+            'has_real_data': yahoo_analysis.get('has_real_data', False) or sec_edgar_data.get('has_real_data', False),
+            'data_quality': yahoo_analysis.get('data_quality', 'limited')
+        }
+
+        # Clean results for JSON serialization
+        cleaned_result = clean_analysis_results(enhanced_result)
+
+        return jsonify(cleaned_result)
+
+    except Exception as e:
+        logger.error(f"Enhanced analysis API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/sec-edgar-test', methods=['POST'])
+def api_sec_edgar_test():
+    """Test endpoint for SEC EDGAR data only"""
+    try:
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+
+        if not symbol:
+            return jsonify({'error': 'Symbol is required'}), 400
+
+        logger.info(f"Testing SEC EDGAR for {symbol}")
+
+        # Get SEC EDGAR insider/institutional data only
+        from analysis.fundamental.insider_institutional import InsiderInstitutionalAnalyzer
+        insider_analyzer = InsiderInstitutionalAnalyzer(symbol)
+        sec_edgar_data = insider_analyzer.get_comprehensive_analysis()
+
+        return jsonify({
+            'symbol': symbol,
+            'sec_edgar_data': sec_edgar_data,
+            'timestamp': datetime.now().isoformat(),
+            'status': 'success'
+        })
+
+    except Exception as e:
+        logger.error(f"SEC EDGAR test API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/volatile-screen', methods=['POST'])
+def api_volatile_screen():
+    """API endpoint for volatile trading screening"""
+    try:
+        data = request.get_json()
+
+        # Extract criteria
+        min_volatility = data.get('min_volatility', 30.0)
+        min_avg_volume = data.get('min_avg_volume', 1000000)
+        min_price_range = data.get('min_price_range', 5.0)
+        min_momentum_score = data.get('min_momentum_score', 4.0)
+        max_stocks = data.get('max_stocks', 20)
+        time_horizon = data.get('time_horizon', 'short')
+
+        logger.info(f"🚀 Starting volatile trading screening with {max_stocks} target stocks")
+
+        # Run volatile trading screening
+        opportunities = value_screener.screen_volatile_trading_opportunities(
+            min_volatility=min_volatility,
+            min_avg_volume=min_avg_volume,
+            min_price_range=min_price_range,
+            min_momentum_score=min_momentum_score,
+            max_stocks=max_stocks,
+            time_horizon=time_horizon
+        )
+
+        # Enrich with ETF information
+        opportunities_with_etf = enrich_with_etf_info(opportunities)
+
+        # Clean results for JSON serialization
+        cleaned_opportunities = clean_analysis_results(opportunities_with_etf)
+
+        return jsonify({
+            'opportunities': cleaned_opportunities,
+            'total_screened': 'AI-generated universe',
+            'found_opportunities': len(opportunities),
+            'criteria': {
+                'min_volatility': min_volatility,
+                'min_avg_volume': min_avg_volume,
+                'min_price_range': min_price_range,
+                'min_momentum_score': min_momentum_score,
+                'max_stocks': max_stocks,
+                'time_horizon': time_horizon
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Volatile trading screening API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5002)

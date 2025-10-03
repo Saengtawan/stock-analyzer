@@ -10,7 +10,6 @@ from loguru import logger
 from .ratios import FinancialRatios, IndustryComparison
 from .dcf_valuation import DCFValuation
 
-
 class FundamentalAnalyzer:
     """Main fundamental analysis engine"""
 

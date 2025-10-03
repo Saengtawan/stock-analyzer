@@ -463,6 +463,8 @@ CRITICAL REQUIREMENTS - FAILURE TO COMPLY WILL RESULT IN REJECTION:
                 # Basic validation for simple structure
                 if 'summary' in analysis:
                     logger.warning("Parsed AI response with basic structure, missing some enhanced fields")
+                    # Ensure the AI availability flag is set
+                    analysis['ai_analysis_available'] = True
                     return analysis
 
             # No fallback - strict JSON requirement
@@ -484,7 +486,7 @@ CRITICAL REQUIREMENTS - FAILURE TO COMPLY WILL RESULT IN REJECTION:
         return {
             'ai_analysis_available': False,
             'analysis_skipped': True,
-            'reason': 'AI analysis temporarily unavailable',
+            'reason': 'AI Investment Insights ไม่พร้อมใช้งาน: บริการ AI วิเคราะห์ขัดข้อง',
             'ai_timestamp': datetime.now().isoformat()
         }
 

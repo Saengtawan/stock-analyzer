@@ -28,7 +28,6 @@ except ImportError:
     from risk.enhanced_risk_manager import EnhancedRiskManager
     from signal_processing.signal_filter import SignalNoiseFilter
 
-
 class TechnicalAnalyzer:
     """Enhanced technical analysis engine with advanced modules"""
 

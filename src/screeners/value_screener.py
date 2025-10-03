@@ -960,6 +960,541 @@ Focus on companies that combine growth with improving profitability, not just re
 
         return max(0, min(160, base_upside))  # Increased max to 160% for exceptional profitable growth
 
+    def screen_volatile_trading_opportunities(self,
+                                             min_volatility: float = 20.0,
+                                             min_avg_volume: float = 1000000,
+                                             min_price_range: float = 3.0,
+                                             min_momentum_score: float = 3.0,
+                                             max_stocks: int = 20,
+                                             time_horizon: str = 'short'
+    ) -> List[Dict[str, Any]]:
+        """
+        Screen for volatile stocks suitable for short-term trading
+        หาหุ้นที่มีความผันผวนสูง เหมาะสำหรับเทรดระยะสั้น
+
+        Args:
+            min_volatility: ความผันผวนขั้นต่ำ (%) - หุ้นที่มี ATR%/Volatility สูง
+            min_avg_volume: Volume เฉลี่ยต่อวันขั้นต่ำ
+            min_price_range: ช่วงราคาขั้นต่ำใน % (High-Low range)
+            min_momentum_score: คะแนน momentum ขั้นต่ำ
+            max_stocks: จำนวนหุ้นสูงสุดที่จะส่งกลับ
+            time_horizon: ระยะเวลาการเทรด (short, very_short)
+
+        Returns:
+            List of volatile trading opportunities
+        """
+        # Generate AI universe for volatile trading
+        if not self.ai_generator:
+            raise ValueError("AI universe generator not initialized")
+
+        logger.info(f"🤖 Generating AI-powered volatile trading universe...")
+        criteria = {
+            'max_stocks': max_stocks * 3,  # Generate more for filtering
+            'time_horizon': time_horizon,
+            'screen_type': 'volatile_trading',
+            'min_volatility': min_volatility,
+            'min_volume': min_avg_volume
+        }
+        stock_universe = self.ai_generator.generate_volatile_universe(criteria)
+
+        # Fallback if AI returns empty
+        if not stock_universe:
+            logger.warning("AI returned empty universe, using fallback volatile stocks")
+            stock_universe = [
+                'NVDA', 'AMD', 'TSLA', 'MSTR', 'COIN', 'SMCI',
+                'RIVN', 'LCID', 'PLUG', 'MARA', 'RIOT', 'MRNA',
+                'SNAP', 'RBLX', 'SOXL', 'TQQQ', 'SQQQ', 'AMC', 'GME'
+            ][:max_stocks * 3]
+
+        logger.info(f"✅ Generated {len(stock_universe)} AI-selected volatile symbols")
+
+        logger.info(f"🔍 Screening {len(stock_universe)} stocks for volatile trading opportunities...")
+
+        opportunities = []
+
+        # Use ThreadPoolExecutor for faster screening
+        with ThreadPoolExecutor(max_workers=16) as executor:
+            future_to_symbol = {
+                executor.submit(self._analyze_stock_for_volatility, symbol, time_horizon): symbol
+                for symbol in stock_universe
+            }
+
+            for future in as_completed(future_to_symbol):
+                symbol = future_to_symbol[future]
+                try:
+                    result = future.result()
+                    if result:
+                        opportunities.append(result)
+                        # Log metrics even if found
+                        metrics = result.get('volatility_metrics', {})
+                        technical = result.get('technical_analysis', {})
+                        logger.info(f"✅ {symbol}: vol={metrics.get('volatility_30d', 0):.1f}%, vol={metrics.get('avg_volume_30d', 0):,.0f}, range={metrics.get('price_range_pct', 0):.1f}%, momentum={technical.get('momentum_score', 0):.1f}")
+                    else:
+                        logger.debug(f"❌ {symbol}: Analysis returned None")
+                except Exception as e:
+                    logger.error(f"Error analyzing {symbol}: {e}")
+
+        # Filter by criteria + additional quality filters
+        filtered = []
+        for opp in opportunities:
+            metrics = opp.get('volatility_metrics', {})
+            technical = opp.get('technical_analysis', {})
+            fundamental = opp.get('fundamental_summary', {})
+            recommendation = opp.get('recommendation', {})
+
+            vol = metrics.get('volatility_30d', 0)
+            volume = metrics.get('avg_volume_30d', 0)
+            price_range = metrics.get('price_range_pct', 0)
+            momentum = technical.get('momentum_score', 0)
+            trading_score = technical.get('trading_opportunity_score', 0)
+            risk_level = recommendation.get('risk_level', '')
+            strategy = recommendation.get('strategy', '')
+            sector = fundamental.get('sector', '')
+            market_cap = fundamental.get('market_cap', 0)
+
+            # Basic criteria check
+            if not (vol >= min_volatility and
+                    volume >= min_avg_volume and
+                    price_range >= min_price_range and
+                    momentum >= min_momentum_score):
+                reasons = []
+                if vol < min_volatility: reasons.append(f"vol={vol:.1f}<{min_volatility}")
+                if volume < min_avg_volume: reasons.append(f"volume={volume:,.0f}<{min_avg_volume:,.0f}")
+                if price_range < min_price_range: reasons.append(f"range={price_range:.1f}<{min_price_range}")
+                if momentum < min_momentum_score: reasons.append(f"momentum={momentum:.1f}<{min_momentum_score}")
+                logger.debug(f"✗ {opp['symbol']} filtered out: {', '.join(reasons)}")
+                continue
+
+            # Additional quality filters
+            # 1. Filter out "Broken Stock" recommendations
+            if "Broken Stock" in strategy:
+                logger.debug(f"✗ {opp['symbol']} filtered: Broken stock")
+                continue
+
+            # 2. Filter out "Wait for Pullback" - not ready to enter yet
+            if "Wait for Pullback" in strategy:
+                logger.debug(f"✗ {opp['symbol']} filtered: Wait for pullback (too extended)")
+                continue
+
+            # 3. Filter out "Monitor for Reversal" - too close to highs, risky
+            if "Monitor for Reversal" in strategy:
+                logger.debug(f"✗ {opp['symbol']} filtered: Monitor for reversal (too close to high)")
+                continue
+
+            # 4. Filter out extremely high volatility (>80%) - too unpredictable
+            if vol > 80.0:
+                logger.debug(f"✗ {opp['symbol']} filtered: Extreme volatility ({vol:.1f}% > 80%)")
+                continue
+
+            # 5. Filter out large-cap stable stocks with low volatility
+            # (GOOGL, AAPL type - market cap > $500B and volatility < 35%)
+            if market_cap > 500_000_000_000 and vol < 35:
+                logger.debug(f"✗ {opp['symbol']} filtered: Large-cap stable (${market_cap/1e9:.0f}B, {vol:.1f}%)")
+                continue
+
+            # 6. Require minimum trading opportunity score of 5.0 (quality threshold)
+            if trading_score < 5.0:
+                logger.debug(f"✗ {opp['symbol']} filtered: Low trading score ({trading_score:.1f} < 5.0)")
+                continue
+
+            # 4. Add trading_score to response (use this instead of volatility_score)
+            opp['trading_score'] = trading_score
+
+            filtered.append(opp)
+            logger.info(f"✓ {opp['symbol']}: trading_score={trading_score:.1f}, vol={vol:.1f}%, momentum={momentum:.1f}")
+
+        # Sort by Trading Opportunity Score (not volatility score)
+        filtered.sort(key=lambda x: x['trading_score'], reverse=True)
+
+        logger.info(f"Found {len(filtered)} quality volatile trading opportunities")
+        return filtered[:max_stocks]
+
+    def _analyze_stock_for_volatility(self, symbol: str, time_horizon: str) -> Optional[Dict[str, Any]]:
+        """
+        Analyze a single stock for volatile trading opportunities (BYPASS AI - use technical only)
+        """
+        try:
+            # Get price data
+            price_data = self.analyzer.data_manager.get_price_data(symbol, period='3mo')
+            if price_data is None or price_data.empty:
+                return None
+
+            # Standardize column names to lowercase for consistency
+            price_data.columns = price_data.columns.str.lower()
+
+            # Get current price
+            if 'close' not in price_data.columns or len(price_data) == 0:
+                return None
+            current_price = float(price_data['close'].iloc[-1])
+
+            # Basic filtering criteria
+            # 1. Price filter: $10-$500 (exclude penny stocks and extremely high-priced)
+            if current_price < 10.0 or current_price > 500.0:
+                return None
+
+            # Get company info early for market cap check
+            fundamental_summary = {}
+            market_cap = 0
+            try:
+                import yfinance as yf
+                ticker = yf.Ticker(symbol)
+                info = ticker.info
+                market_cap = info.get('marketCap', 0)
+                fundamental_summary = {
+                    'market_cap': market_cap,
+                    'sector': info.get('sector', 'Unknown'),
+                    'beta': info.get('beta', 1.0)
+                }
+            except:
+                fundamental_summary = {
+                    'market_cap': 0,
+                    'sector': 'Unknown',
+                    'beta': 1.0
+                }
+
+            # 2. Market cap filter: Minimum $500M (exclude micro-caps)
+            if market_cap > 0 and market_cap < 500_000_000:
+                return None
+
+            # Calculate volatility metrics
+            volatility_metrics = self._calculate_volatility_metrics(price_data)
+
+            # Validate volatility metrics
+            if not volatility_metrics or volatility_metrics.get('volatility_30d', 0) == 0:
+                return None
+
+            # 3. ATR filter: Minimum 2% average true range for meaningful swings
+            atr_pct = volatility_metrics.get('intraday_range_pct', 0)
+            if atr_pct < 2.0:
+                return None
+
+            # Calculate technical indicators
+            close = price_data['close']
+            high = price_data['high'] if 'high' in price_data.columns else close
+            volume = price_data['volume'] if 'volume' in price_data.columns else pd.Series([0] * len(price_data))
+
+            # 4. Price position filter: Avoid stocks that already ran up too much
+            # Calculate 52-week high and current distance from high
+            high_52w = high.max() if len(high) >= 250 else high.tail(len(high)).max()
+            high_30d = high.tail(30).max()
+
+            # Distance from 52-week high (%)
+            distance_from_52w_high = ((high_52w - current_price) / high_52w * 100) if high_52w > 0 else 0
+
+            # Distance from 30-day high (%)
+            distance_from_30d_high = ((high_30d - current_price) / high_30d * 100) if high_30d > 0 else 0
+
+            # Exclude stocks too close to 52-week high (already extended)
+            # If within 5% of 52-week high AND positive momentum = likely overextended
+            if distance_from_52w_high < 5.0:  # Within 5% of 52-week high
+                # Only exclude if it's been going up (not a breakout scenario)
+                price_change_5d = ((close.iloc[-1] - close.iloc[-5]) / close.iloc[-5] * 100) if len(close) >= 5 else 0
+                if price_change_5d > 3:  # Been rallying
+                    return None  # Too extended, skip
+
+            # Prefer stocks with some pullback room (10-40% from highs is ideal for entry)
+            # Stocks >50% from highs might be broken/failing
+            if distance_from_52w_high > 50.0:
+                # Check if it's a broken stock or just oversold
+                price_change_60d = ((close.iloc[-1] - close.iloc[-60]) / close.iloc[-60] * 100) if len(close) >= 60 else 0
+                if price_change_60d < -30:  # Down >30% in 60 days = likely broken
+                    return None
+
+            # RSI
+            delta = close.diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            rs = gain / loss
+            rsi_series = 100 - (100 / (1 + rs))
+            current_rsi = float(rsi_series.iloc[-1]) if len(rsi_series) > 0 and not pd.isna(rsi_series.iloc[-1]) else 50.0
+
+            # Trend (SMA 20 vs 50)
+            if len(close) >= 50:
+                sma_20 = close.rolling(window=20).mean().iloc[-1]
+                sma_50 = close.rolling(window=50).mean().iloc[-1]
+                trend = 'bullish' if sma_20 > sma_50 else 'bearish' if sma_20 < sma_50 else 'neutral'
+            else:
+                trend = 'unknown'
+
+            # IMPROVED MOMENTUM SCORE (0-10 scale)
+            # Weight: Price momentum 60%, Volume 20%, RSI 20%
+
+            # 1. Price Momentum Component (60% weight = 6.0 points max)
+            price_5d = ((close.iloc[-1] - close.iloc[-5]) / close.iloc[-5] * 100) if len(close) >= 5 else 0
+            price_10d = ((close.iloc[-1] - close.iloc[-10]) / close.iloc[-10] * 100) if len(close) >= 10 else 0
+            price_20d = ((close.iloc[-1] - close.iloc[-20]) / close.iloc[-20] * 100) if len(close) >= 20 else 0
+
+            # Weighted price momentum: recent price changes weighted more heavily
+            price_momentum = (price_5d * 0.5 + price_10d * 0.3 + price_20d * 0.2)
+            price_score = 0.0
+            if price_momentum > 15: price_score = 6.0
+            elif price_momentum > 10: price_score = 5.0
+            elif price_momentum > 5: price_score = 4.0
+            elif price_momentum > 2: price_score = 3.0
+            elif price_momentum > -2: price_score = 2.0
+            elif price_momentum > -5: price_score = 1.0
+            else: price_score = 0.0
+
+            # 2. Volume Component (20% weight = 2.0 points max)
+            avg_volume_20d = volume.tail(20).mean() if len(volume) >= 20 else volume.mean()
+            recent_volume_5d = volume.tail(5).mean() if len(volume) >= 5 else volume.mean()
+            volume_ratio = (recent_volume_5d / avg_volume_20d) if avg_volume_20d > 0 else 1.0
+
+            volume_score = 0.0
+            if volume_ratio > 2.0: volume_score = 2.0  # Volume surge
+            elif volume_ratio > 1.5: volume_score = 1.5
+            elif volume_ratio > 1.2: volume_score = 1.0
+            elif volume_ratio > 0.8: volume_score = 0.5
+            else: volume_score = 0.0  # Low volume = bad for trading
+
+            # 3. RSI Component (20% weight = 2.0 points max)
+            rsi_score = 0.0
+            if 55 <= current_rsi <= 70: rsi_score = 2.0  # Strong but not overbought
+            elif 50 <= current_rsi < 55: rsi_score = 1.5
+            elif 45 <= current_rsi < 50: rsi_score = 1.0
+            elif 70 < current_rsi <= 80: rsi_score = 1.0  # Overbought but could continue
+            elif 30 <= current_rsi < 45: rsi_score = 0.5  # Oversold (could bounce)
+            else: rsi_score = 0.0  # Extreme levels
+
+            # Final momentum score (0-10)
+            momentum_score = round(price_score + volume_score + rsi_score, 1)
+            momentum_score = max(0, min(10, momentum_score))
+
+            # Support/Resistance
+            recent_30d = price_data.tail(30)
+            support_level = float(recent_30d['low'].min()) if 'low' in recent_30d.columns else 0
+            resistance_level = float(recent_30d['high'].max()) if 'high' in recent_30d.columns else 0
+
+            # VOLATILITY QUALITY ASSESSMENT
+            # Not just high volatility, but TRADEABLE volatility
+
+            # 1. Directionality (is there a trend or just random noise?)
+            directional_moves = 0
+            for i in range(len(close) - 10, len(close)):
+                if i > 0:
+                    change = (close.iloc[i] - close.iloc[i-1]) / close.iloc[i-1] * 100
+                    if abs(change) > 1.5:  # Significant move
+                        directional_moves += 1
+            directionality_score = min(directional_moves / 5.0, 1.0) * 2.0  # 0-2 scale
+
+            # 2. Volume consistency (is volume reliable?)
+            volume_std = volume.tail(20).std() if len(volume) >= 20 else 0
+            volume_mean = volume.tail(20).mean() if len(volume) >= 20 else 1
+            volume_cv = (volume_std / volume_mean) if volume_mean > 0 else 0
+            volume_consistency_score = 2.0 if volume_cv < 0.5 else (1.0 if volume_cv < 1.0 else 0.0)
+
+            # 3. Intraday range consistency
+            if 'high' in price_data.columns and 'low' in price_data.columns:
+                daily_ranges = (price_data['high'] - price_data['low']) / price_data['close'] * 100
+                range_std = daily_ranges.tail(10).std()
+                range_consistency_score = 2.0 if range_std < 2.0 else (1.0 if range_std < 4.0 else 0.0)
+            else:
+                range_consistency_score = 0.0
+
+            # 4. Trend strength (ADX approximation)
+            trend_strength_score = 0.0
+            if trend == 'bullish':
+                trend_strength_score = 2.0 if price_momentum > 5 else 1.0
+            elif trend == 'bearish':
+                trend_strength_score = 2.0 if price_momentum < -5 else 1.0
+            else:
+                trend_strength_score = 0.5  # Neutral/choppy
+
+            # Volatility Quality Score (0-8 scale)
+            volatility_quality = directionality_score + volume_consistency_score + range_consistency_score + trend_strength_score
+            volatility_quality = round(volatility_quality, 1)
+
+            # IMPROVED TRADING OPPORTUNITY SCORE (0-10 scale)
+            # New weights: Momentum 40%, Volatility Quality 25%, Volume 20%, Raw Volatility 15%
+
+            # Normalize components to 0-10 scale
+            momentum_normalized = momentum_score  # Already 0-10
+            volatility_quality_normalized = (volatility_quality / 8.0) * 10.0  # 0-8 → 0-10
+            volume_normalized = volume_score * 5.0  # 0-2 → 0-10
+            vol_raw_normalized = min((volatility_metrics.get('volatility_30d', 0) / 50.0) * 10.0, 10.0)  # Cap at 50%
+
+            trading_opportunity_score = (
+                momentum_normalized * 0.40 +         # 40% - Most important for trading
+                volatility_quality_normalized * 0.25 +  # 25% - Quality of volatility
+                volume_normalized * 0.20 +           # 20% - Volume confirmation
+                vol_raw_normalized * 0.15            # 15% - Raw volatility bonus
+            )
+
+            # Boost for ideal price position (pullback zone)
+            if 15 < distance_from_52w_high < 35:
+                trading_opportunity_score += 1.0  # Ideal entry zone bonus
+
+            # Boost for strong technical setup
+            if trend == 'bullish' and current_rsi > 50 and volume_ratio > 1.2:
+                trading_opportunity_score += 0.8
+            elif trend == 'bearish' and current_rsi < 50 and volume_ratio > 1.2:
+                trading_opportunity_score += 0.5
+
+            trading_opportunity_score = round(min(trading_opportunity_score, 10.0), 1)
+
+            technical_analysis = {
+                'momentum_score': momentum_score,
+                'trend': trend,
+                'rsi': current_rsi,
+                'support_level': support_level,
+                'resistance_level': resistance_level,
+                'volatility_quality': volatility_quality,
+                'trading_opportunity_score': trading_opportunity_score,
+                'volume_ratio': round(volume_ratio, 2),
+                'price_momentum': round(price_momentum, 2),
+                'distance_from_52w_high': round(distance_from_52w_high, 1),
+                'distance_from_30d_high': round(distance_from_30d_high, 1),
+                'high_52w': round(high_52w, 2),
+                'high_30d': round(high_30d, 2)
+            }
+
+            # Build result
+            result = {
+                'symbol': symbol,
+                'current_price': current_price,
+                'volatility_metrics': volatility_metrics,
+                'technical_analysis': technical_analysis,
+                'fundamental_summary': fundamental_summary,
+                'recommendation': self._generate_volatile_trading_recommendation(
+                    volatility_metrics, technical_analysis, current_price
+                ),
+                'timestamp': datetime.now().isoformat()
+            }
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error analyzing {symbol} for volatility: {e}")
+            return None
+
+    def _calculate_volatility_metrics(self, price_data: pd.DataFrame) -> Dict[str, Any]:
+        """
+        Calculate various volatility metrics for trading
+        """
+        try:
+            # Ensure we have the right columns (lowercase)
+            if 'close' not in price_data.columns:
+                return {}
+
+            # 30-day volatility (annualized)
+            returns = price_data['close'].pct_change().dropna()
+            volatility_30d = returns.std() * (252 ** 0.5) * 100  # Annualized %
+
+            # Average daily volume (30 days)
+            avg_volume_30d = price_data['volume'].tail(30).mean() if 'volume' in price_data.columns else 0
+
+            # Price range percentage (30 days)
+            high_30d = price_data['high'].tail(30).max() if 'high' in price_data.columns else 0
+            low_30d = price_data['low'].tail(30).min() if 'low' in price_data.columns else 0
+            current_price = price_data['close'].iloc[-1]
+            price_range_pct = ((high_30d - low_30d) / current_price * 100) if current_price > 0 else 0
+
+            # Average intraday range (last 10 days)
+            if 'high' in price_data.columns and 'low' in price_data.columns:
+                recent_data = price_data.tail(10)
+                intraday_ranges = (recent_data['high'] - recent_data['low']) / recent_data['close'] * 100
+                intraday_range_pct = intraday_ranges.mean()
+            else:
+                intraday_range_pct = 0
+
+            # Recent volatility trend (last 5 days vs previous 5 days)
+            recent_vol = returns.tail(5).std() * 100
+            previous_vol = returns.tail(10).head(5).std() * 100
+            vol_trend = 'increasing' if recent_vol > previous_vol else 'decreasing'
+
+            # Beta approximation (correlation with SPY if available)
+            beta = 1.0  # Default neutral beta
+
+            return {
+                'volatility_30d': round(volatility_30d, 2),
+                'avg_volume_30d': int(avg_volume_30d),
+                'price_range_pct': round(price_range_pct, 2),
+                'intraday_range_pct': round(intraday_range_pct, 2),
+                'vol_trend': vol_trend,
+                'beta': beta,
+                'high_30d': round(high_30d, 2),
+                'low_30d': round(low_30d, 2)
+            }
+
+        except Exception as e:
+            logger.error(f"Error calculating volatility metrics: {e}")
+            return {}
+
+    def _generate_volatile_trading_recommendation(self,
+                                                  volatility_metrics: Dict[str, Any],
+                                                  technical: Dict[str, Any],
+                                                  current_price: float) -> Dict[str, str]:
+        """
+        Generate trading recommendations for volatile stocks (considering price position)
+        """
+        vol = volatility_metrics.get('volatility_30d', 0)
+        momentum = technical.get('momentum_score', 0)
+        trend = technical.get('trend', 'unknown')
+        intraday_range = volatility_metrics.get('intraday_range_pct', 0)
+        distance_from_52w = technical.get('distance_from_52w_high', 50)
+        distance_from_30d = technical.get('distance_from_30d_high', 20)
+        trading_score = technical.get('trading_opportunity_score', 5.0)
+
+        # Check if price is extended (too high)
+        is_extended = distance_from_52w < 10  # Within 10% of 52-week high
+        is_overextended = distance_from_52w < 5  # Within 5% of 52-week high
+        is_pullback_zone = 15 < distance_from_52w < 35  # Ideal pullback zone
+        is_broken = distance_from_52w > 45  # Far from highs, possibly broken
+
+        # Determine trading strategy based on price position
+        if is_overextended:
+            strategy = 'Wait for Pullback'
+            risk_level = 'Very High'
+            thai_desc = '⚠️ ราคาพุ่งสูงเกินไปแล้ว - รอให้ปรับฐานก่อน'
+            entry_suggestion = f'รอราคาปรับลง 10-15% จาก High (${technical.get("high_52w", 0):.2f})'
+            exit_suggestion = 'ไม่แนะนำเข้าจุดนี้ - ความเสี่ยงสูงมาก'
+        elif is_extended:
+            strategy = 'Monitor for Reversal'
+            risk_level = 'High'
+            thai_desc = 'ราคาใกล้ high แล้ว - ระวัง reversal'
+            entry_suggestion = 'รอ confirmation ว่าจะ breakout หรือ reversal'
+            exit_suggestion = 'ถ้าเข้าแล้วต้องตั้ง Stop Loss แน่น 3-5%'
+        elif is_pullback_zone and momentum >= 5 and trend == 'bullish':
+            strategy = 'Swing Trading (2-5 days)'
+            risk_level = 'Medium-High'
+            thai_desc = '✅ ราคา pullback สวย - เหมาะซื้อ swing'
+            entry_suggestion = f'เข้าได้ที่ราคาปัจจุบัน หรือรอ support ที่ ${technical.get("support_level", 0):.2f}'
+            exit_suggestion = f'Target: ${technical.get("high_30d", 0):.2f}, Stop Loss: 5-7%'
+        elif is_pullback_zone and momentum >= 3:
+            strategy = 'Short-term Position'
+            risk_level = 'Medium'
+            thai_desc = 'ราคาอยู่ในโซนที่น่าสนใจ - พิจารณาได้'
+            entry_suggestion = f'รอสัญญาณ reversal ก่อน (RSI < 40 หรือ volume surge)'
+            exit_suggestion = 'ตั้ง Stop Loss 7-10%, Take Profit ตาม R:R 1:2'
+        elif is_broken:
+            strategy = 'High Risk - Broken Stock?'
+            risk_level = 'Very High'
+            thai_desc = '⚠️ ราคาตกต่ำมาก - อาจมีปัญหาพื้นฐาน'
+            entry_suggestion = 'ไม่แนะนำเว้นแต่มี catalyst ชัด (earnings, news)'
+            exit_suggestion = 'ถ้าจะเข้าต้องเป็น speculation เท่านั้น'
+        elif vol >= 50 and momentum >= 6:
+            strategy = 'Aggressive Day Trading'
+            risk_level = 'Very High'
+            thai_desc = 'เหมาะ Day Trading - ความผันผวนสูงมาก'
+            entry_suggestion = 'จับจังหวะ intraday - ใช้ technical indicators'
+            exit_suggestion = 'ตั้ง target 3-5%, Stop Loss 2-3%'
+        else:
+            strategy = 'Monitor'
+            risk_level = 'Medium'
+            thai_desc = 'ติดตามต่อ - รอสัญญาณชัดเจน'
+            entry_suggestion = 'รอให้มี setup ที่ดีกว่า'
+            exit_suggestion = 'ตั้ง Stop Loss 5-8%'
+
+        return {
+            'strategy': strategy,
+            'risk_level': risk_level,
+            'description_thai': thai_desc,
+            'entry_suggestion': entry_suggestion,
+            'exit_suggestion': exit_suggestion,
+            'timeframe': 'รายวัน - รายสัปดาห์',
+            'key_indicator': f'Volatility: {vol:.1f}%, Distance from 52W High: {distance_from_52w:.1f}%, Score: {trading_score:.1f}'
+        }
+
 
 def main():
     """Example usage"""

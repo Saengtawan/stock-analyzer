@@ -16,7 +16,6 @@ from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestRegressor
 import talib
 
-
 class AdvancedTechnicalAnalyzer:
     """Advanced technical analysis with machine learning capabilities"""
 

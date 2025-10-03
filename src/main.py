@@ -483,17 +483,28 @@ class StockAnalyzer:
 
                 return round(min(entry_price, current_price * 1.05), 2)  # Max 5% above current
 
-            else:  # HOLD
+            else:  # HOLD or STRONG BUY/SELL with cautions
                 # For HOLD, suggest waiting for better technical setup
-                if current_price > bb_upper:
-                    # Wait for pullback to BB middle
-                    return round(bb_middle, 2)
-                elif current_price < bb_lower:
-                    # Wait for bounce to BB middle
-                    return round(bb_middle, 2)
+                # Don't just use current price - find optimal entry zone
+
+                # Check if stock is overbought
+                if current_price > bb_upper or rsi > 70:
+                    # Wait for pullback to BB middle or support
+                    suggested_entry = min(bb_middle, support_1 * 1.01)
+                    return round(suggested_entry, 2)
+
+                # Check if stock is oversold
+                elif current_price < bb_lower or rsi < 30:
+                    # Good entry opportunity near current levels
+                    suggested_entry = max(current_price, bb_lower)
+                    return round(suggested_entry, 2)
+
+                # Price is in neutral zone
                 else:
-                    # Current price is reasonable
-                    return round(current_price, 2)
+                    # Suggest entry slightly below current for limit order
+                    # This gives better risk/reward than market order
+                    suggested_entry = current_price * 0.995  # 0.5% below current
+                    return round(suggested_entry, 2)
 
         except Exception as e:
             # Fallback to current price

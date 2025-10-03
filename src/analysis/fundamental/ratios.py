@@ -7,7 +7,6 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 from loguru import logger
 
-
 class FinancialRatios:
     """Calculate and analyze financial ratios"""
 
@@ -328,7 +327,6 @@ class FinancialRatios:
 
         # Alternative: use provided interest coverage
         return self.data.get('interest_coverage')
-
 
 class IndustryComparison:
     """Compare ratios against industry averages"""

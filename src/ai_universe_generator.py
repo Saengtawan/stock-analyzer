@@ -474,6 +474,131 @@ EXAMPLE OUTPUT:
             logger.error(f"Error generating universe: {e}")
             return []
 
+    def generate_volatile_universe(self, criteria: Dict[str, Any]) -> List[str]:
+        """
+        Generate volatile trading stock universe using AI
+
+        Args:
+            criteria: User criteria for volatile trading screening
+
+        Returns:
+            List of stock symbols for volatile trading screening
+        """
+        try:
+            min_volatility = criteria.get('min_volatility', 30.0)
+            min_volume = criteria.get('min_volume', 1000000)
+            max_stocks = criteria.get('max_stocks', 60)  # Request 3x for filtering
+
+            prompt = f"""You are an expert swing trader and momentum analyst specializing in high-quality volatile stocks for short-term trading. Generate {max_stocks} stocks using CURRENT 2024-2025 market data.
+
+CRITICAL REQUIREMENTS:
+- ONLY actively trading stocks as of 2024-2025
+- Price range: $10-$500 (NO penny stocks under $10)
+- Market cap: Minimum $500M (NO micro-caps)
+- Daily volume: Minimum {min_volume:,.0f} shares
+- Listed on NYSE/NASDAQ only
+
+TARGET STOCK PROFILE (Ready-to-Trade Opportunities):
+- Stocks that have RECENTLY PULLED BACK 10-30% from recent highs
+- Showing signs of BOTTOMING or REVERSING (not still falling)
+- Building VOLUME on recent days (accumulation phase)
+- NEWS CATALYSTS upcoming (earnings, product launches)
+- DIRECTIONAL momentum starting to turn positive
+- CONSISTENT volume (not one-day spikes)
+- Technical setups: Pullback to support, consolidation after decline
+- Institutional participation (smart money accumulating)
+
+PORTFOLIO ALLOCATION (Focus on Pullback Opportunities):
+
+1. MID-CAP TECH AFTER PULLBACK (50%):
+   - Software/SaaS that pulled back: DDOG, NET, CRWD, ZS, MDB, PATH
+   - Semiconductors after correction: AMD, MRVL, AMAT (if pulled back 15-25%)
+   - AI/Cloud after decline: PLTR (if cooled off), SNOW (if corrected)
+   - Fintech after selloff: PYPL, AFRM, SOFI (if bottoming)
+   Selection criteria:
+   * DOWN 15-30% from recent highs
+   * Volume starting to increase in last 5 days
+   * RSI recovering from oversold (<40 → 45-55)
+   * Earnings coming up in next 4 weeks
+
+2. SMALL/MID-CAP RECOVERING (30%):
+   - Tech stocks showing reversal: RBLX, U, DASH (if pullback complete)
+   - Emerging sectors with support: RDDT, ASAN, OKTA
+   * Must show HIGHER LOWS in recent days
+   * Volume confirmation on up days
+   * Not still in downtrend
+
+3. SECTOR ROTATION OPPORTUNITIES (20%):
+   - Biotech after correction: VRTX, REGN, MRNA (if bouncing)
+   - Clean Energy if sector rotates: ENPH, FSLR (only if volume returns)
+   - Consumer Tech recovery: SHOP (if showing base formation)
+   * Sector must show signs of bottoming
+   * Relative strength improving
+   * News catalyst visible
+
+NO LARGE-CAP unless exceptional setup:
+   - Skip: AAPL, MSFT, GOOGL (not volatile enough)
+   - Maybe: TSLA, NVDA (ONLY if clear pullback + reversal signal)
+
+STRICT EXCLUSIONS:
+❌ Leveraged ETFs (SOXL, TQQQ, SQQQ, SPXL, etc.) - exclude ALL 3x ETFs
+❌ Meme stocks (GME, AMC, SAVA) - too risky
+❌ Crypto mining stocks (MARA, RIOT, HUT, CLSK) - too volatile/unpredictable
+❌ Penny/failing companies: LCID, FSR, FUBO, NIO, XPEV (under $10 or failing)
+❌ Bankrupt/Delisted: APE, BBBYQ, FSR
+❌ Low-volume stocks (<1M daily average)
+❌ Stocks still in STRONG DOWNTREND (making lower lows)
+❌ Stocks at or near 52-week highs (wait for pullback)
+❌ Stocks with extremely high volatility >100% (too risky like RUN)
+
+PULLBACK QUALITY CHECKS:
+✓ Has stock pulled back 15-30% from recent high?
+✓ Is there support visible (higher lows forming)?
+✓ Is volume increasing on up days vs down days?
+✓ Is RSI recovering from oversold territory?
+✓ Does price action show accumulation pattern?
+✓ Is there institutional ownership >30%?
+✓ Does it have upcoming catalyst (earnings, events)?
+
+EXAMPLES OF IDEAL SELECTIONS (Pullback + Recovery):
+- Stock down 20% from high, now bouncing off support with volume
+- Stock showing RSI recovery from 35 → 50 with volume confirmation
+- Stock forming higher lows after selloff, earnings in 2-3 weeks
+- Stock with sector rotation into its favor after correction
+
+EXAMPLES OF BAD SELECTIONS (AVOID):
+- Stock still making new lows daily (no bottom yet)
+- Stock at 52-week high (too extended, wait for pullback)
+- Stock with extreme volatility >100% like RUN (too unpredictable)
+- Meme stocks, leveraged ETFs, crypto miners
+
+OUTPUT FORMAT:
+Return ONLY a JSON array of {max_stocks} ticker symbols:
+["PLTR", "AMD", "SNOW", "CRWD", "NET", ...]
+
+Focus on QUALITY volatile stocks that professional traders actually trade.
+"""
+
+            response = self.deepseek_service.call_api(prompt, max_tokens=1000)
+
+            if not response:
+                logger.error("Empty response from AI for volatile universe generation")
+                return []
+
+            # Extract symbols
+            symbols = self._parse_symbols_from_response(response)
+
+            if not symbols:
+                logger.warning("No symbols extracted from AI response")
+                return []
+
+            logger.info(f"✅ AI generated {len(symbols)} volatile trading symbols")
+            return symbols[:max_stocks]
+
+        except Exception as e:
+            logger.error(f"Error generating volatile universe: {e}")
+            return []
+
 def main():
     """Test AI Universe Generator"""
     generator = AIUniverseGenerator()

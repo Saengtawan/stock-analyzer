@@ -30,7 +30,6 @@ except ImportError:
     from risk.enhanced_risk_manager import EnhancedRiskManager
     from signal_processing.signal_filter import SignalNoiseFilter
 
-
 class EnhancedStockAnalyzer:
     """
     Enhanced stock analyzer integrating all advanced modules for comprehensive analysis
@@ -456,12 +455,15 @@ class EnhancedStockAnalyzer:
             signal_weight = 0.3
             risk_weight = 0.1
 
-        # Calculate component scores
-        technical_score = technical_results.get('technical_score', {}).get('total_score', 5) / 10
-        fundamental_score = (fundamental_results.get('overall_score', 5) / 10
-                           if fundamental_results and 'error' not in fundamental_results else 0.5)
-        signal_score = processed_signals.get('signal_confidence', 0.5)
-        risk_score = 1 - (risk_assessment.get('overall_risk_score', 0.5))  # Invert risk
+        # Calculate component scores (all on 0-10 scale for consistency)
+        technical_score_raw = technical_results.get('technical_score', {}).get('total_score', 5.0)  # Already 0-10
+        fundamental_score_raw = (fundamental_results.get('overall_score', 5.0)
+                                if fundamental_results and 'error' not in fundamental_results else 5.0)  # Already 0-10
+        signal_score_raw = processed_signals.get('signal_confidence', 0.5) * 10  # Convert 0-1 to 0-10
+
+        # Calculate risk score (0-10 scale, higher = more risk)
+        risk_raw = risk_assessment.get('overall_risk_score', 0.5) * 10  # 0-1 → 0-10
+        risk_score_raw = 10 - risk_raw  # Invert: higher score = lower risk
 
         # Adjust weights if fundamental data not available
         if fundamental_weight == 0:
@@ -469,25 +471,25 @@ class EnhancedStockAnalyzer:
             signal_weight = 0.4
             risk_weight = 0.1
 
-        # Calculate weighted overall score
-        overall_score = (technical_score * technical_weight +
-                        fundamental_score * fundamental_weight +
-                        signal_score * signal_weight +
-                        risk_score * risk_weight)
+        # Calculate weighted overall score (0-10 scale)
+        overall_score = (technical_score_raw * technical_weight +
+                        fundamental_score_raw * fundamental_weight +
+                        signal_score_raw * signal_weight +
+                        risk_score_raw * risk_weight)
 
         # Apply overvaluation penalty for long-term analysis
         if time_horizon == 'long' and fundamental_results and 'error' not in fundamental_results:
             valuation_penalty = self._calculate_overvaluation_penalty(fundamental_results)
-            overall_score = max(0, overall_score - (valuation_penalty / 10))  # Convert to 0-1 scale
+            overall_score = max(0, overall_score - valuation_penalty)  # Already 0-10 scale
 
-        # Generate recommendation
-        if overall_score >= 0.8:
+        # Generate recommendation (based on 0-10 scale)
+        if overall_score >= 8.0:
             recommendation = "STRONG BUY"
-        elif overall_score >= 0.65:
+        elif overall_score >= 6.5:
             recommendation = "BUY"
-        elif overall_score >= 0.45:
+        elif overall_score >= 4.5:
             recommendation = "HOLD"
-        elif overall_score >= 0.3:
+        elif overall_score >= 3.0:
             recommendation = "SELL"
         else:
             recommendation = "STRONG SELL"
@@ -509,15 +511,15 @@ class EnhancedStockAnalyzer:
             technical_results, processed_signals, regime_analysis, overall_score)
 
         return {
-            'overall_score': round(overall_score, 3),
+            'overall_score': round(overall_score, 1),  # Now 0-10 scale
             'recommendation': recommendation,
             'confidence': round(confidence, 3),
             'key_reasons': key_reasons,
             'component_scores': {
-                'technical': round(technical_score, 3),
-                'fundamental': round(fundamental_score, 3),
-                'signals': round(signal_score, 3),
-                'risk_adjusted': round(risk_score, 3)
+                'technical': round(technical_score_raw, 1),
+                'fundamental': round(fundamental_score_raw, 1),
+                'signals': round(signal_score_raw, 1),
+                'risk_adjusted': round(risk_score_raw, 1)
             },
             'regime_context': current_regime
         }

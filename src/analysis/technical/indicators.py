@@ -7,7 +7,6 @@ from typing import Dict, Any, Optional, Tuple, List
 import talib
 from loguru import logger
 
-
 class TechnicalIndicators:
     """Calculate technical analysis indicators"""
 
@@ -329,7 +328,6 @@ class TechnicalIndicators:
         latest_values['price_change_percent'] = (latest_values['price_change'] / self.close[-2] * 100) if len(self.close) > 1 and self.close[-2] != 0 else 0
 
         return latest_values
-
 
 class TrendAnalysis:
     """Analyze price trends"""

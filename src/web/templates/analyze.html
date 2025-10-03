@@ -273,6 +273,27 @@
             </div>
         </div>
 
+        <!-- Enhanced Yahoo + AI Analysis -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Enhanced Analysis (Yahoo Finance + AI)
+                        </h5>
+                        <small class="text-light">ข้อมูล Earnings และ Analyst จริงจาก Yahoo Finance รวมกับการวิเคราะห์ AI</small>
+                    </div>
+                    <div class="card-body">
+                        <div id="enhanced-analysis">
+                            <!-- Enhanced analysis will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
         <!-- Investment Guidance -->
         <div class="row">
             <div class="col-12">
@@ -357,6 +378,8 @@ function performAnalysis() {
             displayAnalysisResults(data);
             // Load important news and impact analysis
             loadImportantNews(symbol);
+            // Load enhanced Yahoo + AI analysis
+            loadEnhancedAnalysis(symbol);
         }
     })
     .catch(error => {
@@ -463,6 +486,21 @@ function displayFundamentalAnalysis(fundamental) {
                         </div>
                     </div>
                 </div>
+                ${upside < -10 ? `
+                <div class="alert alert-warning mt-2 mb-0 py-2" role="alert">
+                    <small>
+                        <strong>⚠️ DCF Impact:</strong> Current price is ${Math.abs(upside).toFixed(0)}% above intrinsic value.
+                        This overvaluation reduces the Fundamental Score (Valuation component).
+                    </small>
+                </div>
+                ` : upside > 20 ? `
+                <div class="alert alert-success mt-2 mb-0 py-2" role="alert">
+                    <small>
+                        <strong>✅ DCF Impact:</strong> Stock appears ${upside.toFixed(0)}% undervalued.
+                        This increases the Fundamental Score (Valuation component).
+                    </small>
+                </div>
+                ` : ''}
             </div>
         `;
     }
@@ -1904,6 +1942,690 @@ function getImpactIcon(impact) {
     return '<i class="fas fa-minus"></i>';
 }
 
+function loadEnhancedAnalysis(symbol) {
+    // Show loading in enhanced analysis section
+    document.getElementById('enhanced-analysis').innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-success me-2" role="status"></div>
+            <span>กำลังโหลดข้อมูล Yahoo Finance และการวิเคราะห์ AI...</span>
+        </div>
+    `;
+
+    fetch('/api/enhanced-analysis', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            symbol: symbol
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            document.getElementById('enhanced-analysis').innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ไม่สามารถดึงข้อมูลได้: ${data.error}
+                </div>
+            `;
+        } else {
+            displayEnhancedAnalysis(data);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading enhanced analysis:', error);
+        document.getElementById('enhanced-analysis').innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                เกิดข้อผิดพลาดในการดึงข้อมูล
+            </div>
+        `;
+    });
+}
+
+function displayEnhancedAnalysis(data) {
+    const yahooData = data.yahoo_data || {};
+    const secEdgarData = data.sec_edgar_data || {};
+    const aiAnalysis = data.ai_analysis || {};
+    const earningsPerformance = yahooData.earnings_performance || {};
+    const analystCoverage = yahooData.analyst_coverage || {};
+
+    // SEC EDGAR data
+    const insiderTrading = secEdgarData.insider_trading || {};
+    const institutionalOwnership = secEdgarData.institutional_ownership || {};
+
+    let html = `
+        <div class="row">
+            <!-- Yahoo Finance Data -->
+            <div class="col-md-6">
+                <h6 class="text-success mb-3">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Yahoo Finance Data
+                </h6>
+
+                <!-- Earnings Performance -->
+                <div class="card border-success border-opacity-25 mb-3">
+                    <div class="card-header bg-success bg-opacity-10">
+                        <h6 class="mb-0">📊 Earnings Performance</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="card border-primary border-opacity-25">
+                                    <div class="card-body py-2 px-3">
+                                        <small class="text-muted fw-bold d-block">Current EPS</small>
+                                        <span class="text-primary fw-bold h6 mb-0">$${formatNumber(earningsPerformance.current_eps)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card border-info border-opacity-25">
+                                    <div class="card-body py-2 px-3">
+                                        <small class="text-muted fw-bold d-block">Forward EPS</small>
+                                        <span class="text-info fw-bold h6 mb-0">$${formatNumber(earningsPerformance.forward_eps)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">Data Quality: </small>
+                            <span class="badge ${earningsPerformance.has_real_data ? 'bg-success' : 'bg-warning'}">
+                                ${earningsPerformance.has_real_data ? 'Real Data' : 'Limited Data'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analyst Coverage -->
+                <div class="card border-warning border-opacity-25">
+                    <div class="card-header bg-warning bg-opacity-10">
+                        <h6 class="mb-0">👥 Analyst Coverage</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <div class="card border-success border-opacity-25">
+                                    <div class="card-body py-2 px-3">
+                                        <small class="text-muted fw-bold d-block">Target Price</small>
+                                        <span class="text-success fw-bold h6 mb-0">$${formatNumber(analystCoverage.avg_price_target)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card border-primary border-opacity-25">
+                                    <div class="card-body py-2 px-3">
+                                        <small class="text-muted fw-bold d-block">Upside Potential</small>
+                                        <span class="text-primary fw-bold h6 mb-0">${formatNumber(analystCoverage.upside_to_target)}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">Analysts: </small>
+                            <span class="fw-bold">${analystCoverage.num_analysts || 0}</span>
+                            <span class="ms-2 badge bg-${getRecommendationClass(analystCoverage.consensus)}">${analystCoverage.consensus || 'hold'}</span>
+                        </div>
+                        <div class="row g-1 text-center">
+                            <div class="col-4">
+                                <small class="text-success fw-bold d-block">${formatNumber(analystCoverage.buy_pct)}%</small>
+                                <small class="text-muted">Buy</small>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-warning fw-bold d-block">${formatNumber(analystCoverage.hold_pct)}%</small>
+                                <small class="text-muted">Hold</small>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-danger fw-bold d-block">${formatNumber(analystCoverage.sell_pct)}%</small>
+                                <small class="text-muted">Sell</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recommendation Comparison & Explanation -->
+                ${(() => {
+                    const aiRec = (data.final_recommendation?.recommendation || 'HOLD').toUpperCase();
+                    const analystRec = (analystCoverage.recommendation || analystCoverage.consensus || 'hold').toUpperCase();
+
+                    // Check if there's a conflict
+                    const isConflict = (
+                        (aiRec.includes('BUY') && (analystRec === 'HOLD' || analystRec === 'SELL')) ||
+                        (aiRec === 'HOLD' && (analystRec.includes('BUY') || analystRec === 'SELL')) ||
+                        (aiRec.includes('SELL') && (analystRec === 'HOLD' || analystRec.includes('BUY')))
+                    );
+
+                    if (isConflict) {
+                        return `
+                        <div class="card border-info border-opacity-25 mt-3">
+                            <div class="card-header bg-info bg-opacity-10">
+                                <h6 class="mb-0">🔍 Recommendation Comparison</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">AI Analysis</small>
+                                        <span class="badge ${getRecommendationClass(aiRec)} fs-6">${aiRec}</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Wall Street Consensus</small>
+                                        <span class="badge ${getRecommendationClass(analystRec)} fs-6">${analystRec}</span>
+                                    </div>
+                                </div>
+                                <div class="alert alert-info mb-0" role="alert">
+                                    <small class="fw-bold">📊 Why the difference?</small><br>
+                                    <small>
+                                        • <strong>AI Analysis</strong> focuses on <u>technical signals</u>, <u>recent price action</u>, and <u>short-to-medium term momentum</u><br>
+                                        • <strong>Wall Street</strong> focuses on <u>fundamental valuation</u>, <u>long-term earnings growth</u>, and <u>12-month price targets</u><br>
+                                        • Both can be correct for different <u>time horizons</u> and <u>trading styles</u><br>
+                                        • Consider your <strong>investment goals</strong>: Short-term trade vs Long-term hold
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        `;
+                    }
+                    return '';
+                })()}
+            </div>
+        </div>
+
+        <!-- SEC EDGAR Data Section -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6 class="text-info mb-3">
+                    <i class="fas fa-shield-alt me-2"></i>
+                    SEC EDGAR Data (Insider & Institutional Analysis)
+                </h6>
+                <div class="row">
+                    <!-- Insider Trading Enhanced -->
+                    <div class="col-md-6">
+                        <div class="card border-info border-opacity-25 mb-3">
+                            <div class="card-header bg-info bg-opacity-10">
+                                <h6 class="mb-0">👨‍💼 Insider Trading Activity</h6>
+                            </div>
+                            <div class="card-body">
+                                <!-- Filing Distribution -->
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <div class="card border-primary border-opacity-25">
+                                            <div class="card-body py-2 px-3">
+                                                <small class="text-muted fw-bold d-block">Form 4 Filings</small>
+                                                <span class="text-primary fw-bold h6 mb-0">${insiderTrading.form4_filings_count || 0}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="card border-secondary border-opacity-25">
+                                            <div class="card-body py-2 px-3">
+                                                <small class="text-muted fw-bold d-block">Recent (30d)</small>
+                                                <span class="text-secondary fw-bold h6 mb-0">${insiderTrading.filing_distribution?.last_30_days || 0}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Activity Level Meter -->
+                                <div class="mb-3">
+                                    <small class="text-muted fw-bold d-block">Activity Level</small>
+                                    ${(() => {
+                                        const level = insiderTrading.trend_analysis?.recent_activity_level || 'none';
+                                        const levels = {
+                                            'none': { width: '10%', color: 'bg-secondary', text: 'None' },
+                                            'low': { width: '30%', color: 'bg-warning', text: 'Low' },
+                                            'moderate': { width: '60%', color: 'bg-info', text: 'Moderate' },
+                                            'high': { width: '80%', color: 'bg-success', text: 'High' },
+                                            'very_high': { width: '100%', color: 'bg-danger', text: 'Very High' }
+                                        };
+                                        const config = levels[level] || levels['none'];
+                                        return `
+                                            <div class="progress mb-1" style="height: 8px;">
+                                                <div class="progress-bar ${config.color}" style="width: ${config.width}"></div>
+                                            </div>
+                                            <small class="text-muted">${config.text}</small>
+                                        `;
+                                    })()}
+                                </div>
+
+                                <!-- Trend & Sentiment -->
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted">Trend: </small>
+                                        <span class="badge bg-${(() => {
+                                            const trend = insiderTrading.trend_analysis?.trend_direction || 'neutral';
+                                            return trend === 'increasing' ? 'success' : trend === 'decreasing' ? 'danger' : 'secondary';
+                                        })()}">
+                                            ${insiderTrading.trend_analysis?.trend_direction || 'neutral'}
+                                        </span>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Sentiment: </small>
+                                        <span class="badge bg-${insiderTrading.insider_sentiment === 'very_active' ? 'success' : insiderTrading.insider_sentiment === 'active' ? 'info' : insiderTrading.insider_sentiment === 'neutral' ? 'secondary' : 'warning'}">
+                                            ${insiderTrading.insider_sentiment || 'unknown'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Confidence Score -->
+                                <div class="mb-2">
+                                    <small class="text-muted">Confidence Score: </small>
+                                    <span class="fw-bold text-primary">${formatNumber(insiderTrading.confidence_score || 0)}/10</span>
+                                    ${insiderTrading.trend_analysis?.activity_spike ? '<span class="badge bg-warning ms-1">SPIKE</span>' : ''}
+                                </div>
+
+                                <!-- Buy/Sell Ratio (if available) -->
+                                ${insiderTrading.net_insider_activity !== undefined && insiderTrading.total_transactions > 0 ? `
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Net Activity:</small>
+                                    <div class="d-flex align-items-center">
+                                        <span class="badge ${insiderTrading.net_insider_activity > 0 ? 'bg-success' : insiderTrading.net_insider_activity < 0 ? 'bg-danger' : 'bg-secondary'}">
+                                            ${insiderTrading.net_insider_activity > 0 ? '📈 Net Buying' : insiderTrading.net_insider_activity < 0 ? '📉 Net Selling' : '⚖️ Neutral'}
+                                        </span>
+                                    </div>
+                                    <small class="text-muted">Based on Form 4 filing activity</small>
+                                </div>
+                                ` : insiderTrading.total_transactions > 0 ? `
+                                <div class="alert alert-info py-1 px-2 mb-2">
+                                    <small>
+                                        <strong>📋 Note:</strong> Showing Form 4 filing activity. Detailed buy/sell breakdown requires parsing individual filings.
+                                    </small>
+                                </div>
+                                ` : ''}
+
+                                <!-- Risk Alerts -->
+                                ${insiderTrading.risk_alerts && insiderTrading.risk_alerts.length > 0 ? `
+                                <div class="mt-2">
+                                    ${insiderTrading.risk_alerts.map(alert => `
+                                        <div class="alert alert-${alert.severity === 'warning' ? 'warning' : alert.severity === 'info' ? 'info' : 'light'} py-1 px-2 mb-1">
+                                            <small><strong>${alert.type}:</strong> ${alert.message}</small>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Institutional Ownership Enhanced -->
+                    <div class="col-md-6">
+                        <div class="card border-warning border-opacity-25 mb-3">
+                            <div class="card-header bg-warning bg-opacity-10">
+                                <h6 class="mb-0">🏢 Institutional Flow Analysis</h6>
+                            </div>
+                            <div class="card-body">
+                                <!-- Filing Stats -->
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <div class="card border-primary border-opacity-25">
+                                            <div class="card-body py-2 px-3">
+                                                <small class="text-muted fw-bold d-block">Form 13F Filings</small>
+                                                <span class="text-primary fw-bold h6 mb-0">${institutionalOwnership.form13f_filings_count || 0}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="card border-success border-opacity-25">
+                                            <div class="card-body py-2 px-3">
+                                                <small class="text-muted fw-bold d-block">Smart Money Score</small>
+                                                <span class="text-success fw-bold h6 mb-0">${formatNumber(institutionalOwnership.smart_money_score || 0)}/10</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Flow Direction -->
+                                <div class="mb-3">
+                                    <small class="text-muted fw-bold d-block">Money Flow Direction</small>
+                                    ${(() => {
+                                        const flow = institutionalOwnership.flow_analysis?.flow_direction || 'neutral';
+                                        const flowConfig = {
+                                            'increasing': { icon: '📈', color: 'text-success', text: 'Increasing' },
+                                            'decreasing': { icon: '📉', color: 'text-danger', text: 'Decreasing' },
+                                            'stable': { icon: '➡️', color: 'text-info', text: 'Stable' },
+                                            'new_interest': { icon: '🆕', color: 'text-primary', text: 'New Interest' },
+                                            'neutral': { icon: '➖', color: 'text-secondary', text: 'Neutral' }
+                                        };
+                                        const config = flowConfig[flow] || flowConfig['neutral'];
+                                        return `<span class="${config.color} fw-bold">${config.icon} ${config.text}</span>`;
+                                    })()}
+                                </div>
+
+                                <!-- Activity Trend & Smart Money Signal -->
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted">Activity: </small>
+                                        <span class="badge bg-${(() => {
+                                            const activity = institutionalOwnership.flow_analysis?.activity_trend || 'low';
+                                            return activity === 'high' ? 'success' : activity === 'moderate' ? 'info' : activity === 'dormant' ? 'secondary' : 'warning';
+                                        })()}">
+                                            ${institutionalOwnership.flow_analysis?.activity_trend || 'low'}
+                                        </span>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Signal: </small>
+                                        <span class="badge bg-${(() => {
+                                            const signal = institutionalOwnership.flow_analysis?.smart_money_signal || 'neutral';
+                                            return signal === 'bullish' ? 'success' : signal === 'bearish' ? 'danger' : 'secondary';
+                                        })()}">
+                                            ${institutionalOwnership.flow_analysis?.smart_money_signal || 'neutral'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Combined Score & Data Quality -->
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted">Combined Score: </small>
+                                        <span class="fw-bold text-success">${formatNumber(secEdgarData.combined_score || 0)}/10</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Quality: </small>
+                                        <span class="badge ${secEdgarData.has_real_data ? 'bg-success' : 'bg-secondary'}">
+                                            ${secEdgarData.has_real_data ? 'Real Data' : 'Limited'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Institutional Alerts -->
+                                ${institutionalOwnership.institutional_alerts && institutionalOwnership.institutional_alerts.length > 0 ? `
+                                <div class="mt-2">
+                                    ${institutionalOwnership.institutional_alerts.map(alert => `
+                                        <div class="alert alert-${alert.severity === 'positive' ? 'success' : alert.severity === 'warning' ? 'warning' : 'info'} py-1 px-2 mb-1">
+                                            <small><strong>${alert.type}:</strong> ${alert.message}</small>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enhanced Filing Distribution Timeline -->
+                ${insiderTrading.filing_distribution ? `
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="card border-light">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">📊 Filing Distribution Timeline</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-2 text-center">
+                                    <div class="col-3">
+                                        <div class="bg-primary bg-opacity-10 p-2 rounded">
+                                            <small class="text-muted d-block">Last 30 Days</small>
+                                            <span class="fw-bold text-primary h6">${insiderTrading.filing_distribution.last_30_days || 0}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="bg-info bg-opacity-10 p-2 rounded">
+                                            <small class="text-muted d-block">31-90 Days</small>
+                                            <span class="fw-bold text-info h6">${insiderTrading.filing_distribution.last_90_days || 0}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="bg-warning bg-opacity-10 p-2 rounded">
+                                            <small class="text-muted d-block">91-180 Days</small>
+                                            <span class="fw-bold text-warning h6">${insiderTrading.filing_distribution.last_180_days || 0}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="bg-secondary bg-opacity-10 p-2 rounded">
+                                            <small class="text-muted d-block">Older</small>
+                                            <span class="fw-bold text-secondary h6">${insiderTrading.filing_distribution.older || 0}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- SEC EDGAR Key Insights -->
+                ${secEdgarData.key_insights && secEdgarData.key_insights.length > 0 ? `
+                <div class="alert alert-info py-2">
+                    <small class="fw-bold text-info d-block mb-1">🔍 Enhanced SEC EDGAR Insights:</small>
+                    ${secEdgarData.key_insights.map(insight => `<small class="d-block">• ${insight}</small>`).join('')}
+                </div>
+                ` : ''}
+
+                <!-- Sector Comparison Section -->
+                ${secEdgarData.sector_analysis ? `
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="card border-success border-opacity-25">
+                            <div class="card-header bg-success bg-opacity-10">
+                                <h6 class="mb-0">🎯 Sector Comparison & Ranking</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <!-- Sector Info -->
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <small class="text-muted d-block">Sector</small>
+                                            <span class="fw-bold text-primary h6">${secEdgarData.sector_analysis.sector || 'N/A'}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Overall Ranking -->
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <small class="text-muted d-block">Overall Percentile</small>
+                                            <span class="fw-bold text-success h6">${Math.round(secEdgarData.sector_analysis.sector_ranking?.overall_percentile || 0)}%</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Insider Ranking -->
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <small class="text-muted d-block">Insider Ranking</small>
+                                            <span class="badge bg-${(() => {
+                                                const ranking = secEdgarData.sector_analysis.sector_ranking?.insider_ranking || '';
+                                                return ranking.includes('Top') ? 'success' : ranking.includes('Above') ? 'info' : 'secondary';
+                                            })()}">${secEdgarData.sector_analysis.sector_ranking?.insider_ranking || 'N/A'}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Institutional Ranking -->
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <small class="text-muted d-block">Institutional Ranking</small>
+                                            <span class="badge bg-${(() => {
+                                                const ranking = secEdgarData.sector_analysis.sector_ranking?.institutional_ranking || '';
+                                                return ranking.includes('Top') ? 'success' : ranking.includes('Above') ? 'info' : 'secondary';
+                                            })()}">${secEdgarData.sector_analysis.sector_ranking?.institutional_ranking || 'N/A'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Performance Comparison -->
+                                <div class="row g-2 mt-2">
+                                    <div class="col-md-4">
+                                        <div class="card border-light">
+                                            <div class="card-body py-2 px-3">
+                                                <small class="text-muted fw-bold d-block">Insider Score vs Sector</small>
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span class="text-primary fw-bold">${formatNumber(secEdgarData.sector_analysis.sector_comparison?.insider_score?.current || 0)}</span>
+                                                    <small class="text-muted">vs ${formatNumber(secEdgarData.sector_analysis.sector_comparison?.insider_score?.sector_avg || 0)}</small>
+                                                    <span class="badge bg-${(() => {
+                                                        const perf = secEdgarData.sector_analysis.sector_comparison?.insider_score?.performance || 'average';
+                                                        return perf === 'excellent' ? 'success' : perf === 'above_average' ? 'info' : perf === 'below_average' ? 'warning' : 'secondary';
+                                                    })()}">${secEdgarData.sector_analysis.sector_comparison?.insider_score?.performance || 'avg'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card border-light">
+                                            <div class="card-body py-2 px-3">
+                                                <small class="text-muted fw-bold d-block">Institutional Score vs Sector</small>
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span class="text-warning fw-bold">${formatNumber(secEdgarData.sector_analysis.sector_comparison?.institutional_score?.current || 0)}</span>
+                                                    <small class="text-muted">vs ${formatNumber(secEdgarData.sector_analysis.sector_comparison?.institutional_score?.sector_avg || 0)}</small>
+                                                    <span class="badge bg-${(() => {
+                                                        const perf = secEdgarData.sector_analysis.sector_comparison?.institutional_score?.performance || 'average';
+                                                        return perf === 'excellent' ? 'success' : perf === 'above_average' ? 'info' : perf === 'below_average' ? 'warning' : 'secondary';
+                                                    })()}">${secEdgarData.sector_analysis.sector_comparison?.institutional_score?.performance || 'avg'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card border-light">
+                                            <div class="card-body py-2 px-3">
+                                                <small class="text-muted fw-bold d-block">Form 4 Filings vs Sector</small>
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span class="text-info fw-bold">${secEdgarData.sector_analysis.sector_comparison?.form4_filings?.current || 0}</span>
+                                                    <small class="text-muted">vs ${Math.round(secEdgarData.sector_analysis.sector_comparison?.form4_filings?.sector_avg || 0)}</small>
+                                                    <span class="badge bg-${(() => {
+                                                        const perf = secEdgarData.sector_analysis.sector_comparison?.form4_filings?.performance || 'average';
+                                                        return perf === 'excellent' ? 'success' : perf === 'above_average' ? 'info' : perf === 'below_average' ? 'warning' : 'secondary';
+                                                    })()}">${secEdgarData.sector_analysis.sector_comparison?.form4_filings?.performance || 'avg'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sector Comparison Insights -->
+                                ${secEdgarData.sector_analysis.comparison_insights && secEdgarData.sector_analysis.comparison_insights.length > 0 ? `
+                                <div class="mt-3">
+                                    <small class="fw-bold text-success d-block mb-1">📊 Sector Comparison Insights:</small>
+                                    ${secEdgarData.sector_analysis.comparison_insights.map(insight => `<small class="d-block text-muted">• ${insight}</small>`).join('')}
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- CIK Information -->
+                <div class="text-center mt-2">
+                    <small class="text-muted">
+                        CIK: <span class="fw-bold">${secEdgarData.cik || 'N/A'}</span> |
+                        Data Source: <span class="fw-bold text-success">SEC EDGAR API</span> |
+                        Last Updated: ${secEdgarData.timestamp ? new Date(secEdgarData.timestamp).toLocaleDateString('th-TH') : 'N/A'}
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- AI Analysis Summary -->
+            <div class="col-md-12">
+                <h6 class="text-primary mb-3">
+                    <i class="fas fa-robot me-2"></i>
+                    AI Analysis Summary
+                </h6>
+
+                <!-- Overall Score -->
+                <div class="card border-primary border-opacity-25 mb-3">
+                    <div class="card-header bg-primary bg-opacity-10">
+                        <h6 class="mb-0">🎯 Overall Assessment</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="metric-card ${getScoreClass(aiAnalysis.overall_score)} text-white">
+                                    <div class="metric-value">${formatNumber(aiAnalysis.overall_score)}</div>
+                                    <div class="metric-label">Overall Score</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="metric-card ${getRecommendationClass(aiAnalysis.recommendation)} text-white">
+                                    <div class="metric-value" style="font-size: 1.2rem;">${aiAnalysis.recommendation || 'Hold'}</div>
+                                    <div class="metric-label">Recommendation</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Scores -->
+                <div class="card border-info border-opacity-25">
+                    <div class="card-header bg-info bg-opacity-10">
+                        <h6 class="mb-0">📈 Detailed Scores</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2 mb-3">
+                            <div class="col-4">
+                                <div class="text-center">
+                                    <div class="h5 text-success mb-1">${formatNumber(aiAnalysis.fundamental_score)}</div>
+                                    <small class="text-muted">Fundamental</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-center">
+                                    <div class="h5 text-warning mb-1">${formatNumber(aiAnalysis.technical_score)}</div>
+                                    <small class="text-muted">Technical</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-center">
+                                    <div class="h5 text-danger mb-1">${formatNumber(aiAnalysis.risk_score)}</div>
+                                    <small class="text-muted">Risk</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        ${aiAnalysis.price_target ? `
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Price Target</small>
+                                    <span class="fw-bold text-success">$${formatNumber(aiAnalysis.price_target)}</span>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Stop Loss</small>
+                                    <span class="fw-bold text-danger">$${formatNumber(aiAnalysis.stop_loss)}</span>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Insights from Yahoo Enhanced -->
+        ${yahooData.key_insights && yahooData.key_insights.length > 0 ? `
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h6 class="text-info mb-3">💡 Key Insights (Yahoo Enhanced)</h6>
+                    <div class="row">
+                        ${yahooData.key_insights.map((insight, index) => `
+                            <div class="col-md-4 mb-2">
+                                <div class="alert alert-info border-info py-2">
+                                    <small><strong>${index + 1}.</strong> ${insight}</small>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        ` : ''}
+
+        <!-- Data Quality Summary -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="alert ${data.has_real_data ? 'alert-success' : 'alert-warning'} py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>
+                                ${data.has_real_data ? '✅ Real Data Available' : '⚠️ Limited Data'}
+                            </strong>
+                            <small class="d-block">Data Quality: ${data.data_quality}</small>
+                        </div>
+                        <small class="text-muted">Updated: ${new Date(data.timestamp).toLocaleString('th-TH')}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('enhanced-analysis').innerHTML = html;
+}
+
 function clearResults() {
     document.getElementById('analysis-results').style.display = 'none';
     document.getElementById('error-container').innerHTML = '';
@@ -2488,5 +3210,6 @@ function createScoresChart(data) {
         }
     });
 }
+
 </script>
 {% endblock %}
