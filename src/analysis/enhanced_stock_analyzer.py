@@ -10,6 +10,7 @@ from loguru import logger
 try:
     from .technical.technical_analyzer import TechnicalAnalyzer
     from .fundamental.fundamental_analyzer import FundamentalAnalyzer
+    from .price_change_analyzer import PriceChangeAnalyzer
     from ..data_quality.data_validator import DataQualityValidator
     from ..timeframe.timeframe_manager import TimeFrameManager, TradingStrategy
     from ..analysis.advanced.advanced_models import AdvancedTechnicalAnalyzer
@@ -23,6 +24,7 @@ except ImportError:
     sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
     from analysis.technical.technical_analyzer import TechnicalAnalyzer
     from analysis.fundamental.fundamental_analyzer import FundamentalAnalyzer
+    from analysis.price_change_analyzer import PriceChangeAnalyzer
     from data_quality.data_validator import DataQualityValidator
     from timeframe.timeframe_manager import TimeFrameManager, TradingStrategy
     from analysis.advanced.advanced_models import AdvancedTechnicalAnalyzer
@@ -53,6 +55,7 @@ class EnhancedStockAnalyzer:
         self.timeframe_manager = TimeFrameManager()
         self.risk_manager = EnhancedRiskManager()
         self.signal_filter = SignalNoiseFilter()
+        self.price_change_analyzer = PriceChangeAnalyzer()
 
         logger.info(f"Enhanced Stock Analyzer initialized with strategy: {trading_strategy}, risk: {risk_tolerance}")
 
@@ -87,25 +90,40 @@ class EnhancedStockAnalyzer:
             # 3. Technical Analysis
             technical_results = self._perform_technical_analysis(price_data)
 
-            # 4. Fundamental Analysis (if data available)
+            # 4. Price Change Analysis (NEW - ทำไมราคาขึ้น/ลง)
+            try:
+                price_change_analysis = self.price_change_analyzer.analyze_price_change(
+                    price_data,
+                    technical_indicators=technical_results.get('indicators', {}),
+                    fundamental_data=fundamental_data
+                )
+            except Exception as e:
+                logger.warning(f"Price change analysis failed: {e}")
+                price_change_analysis = {
+                    'error': str(e),
+                    'change_percent': 0,
+                    'direction': 'NEUTRAL'
+                }
+
+            # 5. Fundamental Analysis (if data available)
             fundamental_results = self._perform_fundamental_analysis(
                 symbol, fundamental_data) if fundamental_data else {}
 
-            # 5. Market Regime Detection
+            # 6. Market Regime Detection
             try:
                 regime_analysis = self._analyze_market_regime(price_data)
             except Exception as e:
                 logger.warning(f"Market regime analysis failed: {e}")
                 regime_analysis = {'current': {'regime': 'NORMAL', 'confidence': 0.5}}
 
-            # 6. Advanced Pattern Recognition
+            # 7. Advanced Pattern Recognition
             try:
                 advanced_analysis = self._perform_advanced_analysis(price_data)
             except Exception as e:
                 logger.warning(f"Advanced analysis failed: {e}")
                 advanced_analysis = {'pattern_strength': 0, 'sentiment_score': 0.5}
 
-            # 7. Signal Processing & Filtering
+            # 8. Signal Processing & Filtering
             try:
                 processed_signals = self._process_and_filter_signals(
                     technical_results, advanced_analysis, regime_analysis)
@@ -113,7 +131,7 @@ class EnhancedStockAnalyzer:
                 logger.warning(f"Signal processing failed: {e}")
                 processed_signals = {'signal_confidence': 0.5, 'dominant_signal': {}}
 
-            # 8. Risk Assessment
+            # 9. Risk Assessment
             try:
                 risk_assessment = self._assess_comprehensive_risk(
                     price_data, processed_signals, regime_analysis)
@@ -121,7 +139,7 @@ class EnhancedStockAnalyzer:
                 logger.warning(f"Risk assessment failed: {e}")
                 risk_assessment = {'overall_risk_score': 0.5}
 
-            # 9. Generate Final Recommendations
+            # 10. Generate Final Recommendations
             try:
                 final_recommendation = self._generate_final_recommendation(
                     technical_results, fundamental_results, processed_signals,
@@ -135,7 +153,7 @@ class EnhancedStockAnalyzer:
                     'key_reasons': ['Analysis incomplete due to technical issues']
                 }
 
-            # 10. Adaptability Insights
+            # 11. Adaptability Insights
             try:
                 adaptability_insights = self._generate_adaptability_insights(
                     regime_analysis, advanced_analysis, risk_assessment)
@@ -160,6 +178,9 @@ class EnhancedStockAnalyzer:
                 'fundamental_analysis': fundamental_results,
                 'market_regime': regime_analysis,
                 'advanced_analysis': advanced_analysis,
+
+                # Price Change Analysis (NEW - ทำไมราคาขึ้น/ลง)
+                'price_change_analysis': price_change_analysis,
 
                 # Signal Processing
                 'signal_processing': {
@@ -437,22 +458,22 @@ class EnhancedStockAnalyzer:
 
         # Weight different analysis components based on time horizon
         if time_horizon == 'short':
-            # Short-term: Focus on technical and signals
+            # Short-term: Focus on technical and signals (sum = 1.0)
             technical_weight = 0.5
-            fundamental_weight = 0.1 if fundamental_results and 'error' not in fundamental_results else 0
+            fundamental_weight = 0.0 if fundamental_results and 'error' not in fundamental_results else 0
             signal_weight = 0.4
             risk_weight = 0.1
         elif time_horizon == 'long':
-            # Long-term: Focus on fundamentals
+            # Long-term: Focus on fundamentals (sum = 1.0)
             technical_weight = 0.2
             fundamental_weight = 0.6 if fundamental_results and 'error' not in fundamental_results else 0
-            signal_weight = 0.2
+            signal_weight = 0.1
             risk_weight = 0.1
         else:  # medium
-            # Medium-term: Balanced approach
+            # Medium-term: Balanced approach (sum = 1.0)
             technical_weight = 0.4
             fundamental_weight = 0.3 if fundamental_results and 'error' not in fundamental_results else 0
-            signal_weight = 0.3
+            signal_weight = 0.2
             risk_weight = 0.1
 
         # Calculate component scores (all on 0-10 scale for consistency)

@@ -400,18 +400,25 @@ Return ONLY a valid JSON array of ticker symbols:
                 symbols = json.loads(json_match.group())
                 # Validate symbols (basic format check)
                 valid_symbols = []
+                seen = set()  # Track seen symbols to avoid duplicates
                 for symbol in symbols:
                     if isinstance(symbol, str) and len(symbol) <= 10 and symbol.isalnum():
-                        valid_symbols.append(symbol.upper())
+                        symbol_upper = symbol.upper()
+                        if symbol_upper not in seen:  # Only add if not seen before
+                            valid_symbols.append(symbol_upper)
+                            seen.add(symbol_upper)
                 return valid_symbols[:500]  # Limit to 500 symbols max
 
             # Fallback: extract symbols from text
             words = response.split()
             symbols = []
+            seen = set()  # Track seen symbols to avoid duplicates
             for word in words:
                 word = word.strip('",[]() ')
                 if len(word) <= 6 and word.isalpha() and word.isupper():
-                    symbols.append(word)
+                    if word not in seen:  # Only add if not seen before
+                        symbols.append(word)
+                        seen.add(word)
 
             return symbols[:300]  # Limit fallback extraction
 
@@ -498,7 +505,7 @@ CRITICAL REQUIREMENTS:
 - Daily volume: Minimum {min_volume:,.0f} shares
 - Listed on NYSE/NASDAQ only
 
-TARGET STOCK PROFILE (Ready-to-Trade Opportunities):
+TARGET ENTRY SETUP (Ready-to-Trade Opportunities):
 - Stocks that have RECENTLY PULLED BACK 10-30% from recent highs
 - Showing signs of BOTTOMING or REVERSING (not still falling)
 - Building VOLUME on recent days (accumulation phase)
@@ -508,75 +515,70 @@ TARGET STOCK PROFILE (Ready-to-Trade Opportunities):
 - Technical setups: Pullback to support, consolidation after decline
 - Institutional participation (smart money accumulating)
 
-PORTFOLIO ALLOCATION (Focus on Pullback Opportunities):
+PORTFOLIO FOCUS (Pullback + Recovery Opportunities):
 
-1. MID-CAP TECH AFTER PULLBACK (50%):
-   - Software/SaaS that pulled back: DDOG, NET, CRWD, ZS, MDB, PATH
-   - Semiconductors after correction: AMD, MRVL, AMAT (if pulled back 15-25%)
-   - AI/Cloud after decline: PLTR (if cooled off), SNOW (if corrected)
-   - Fintech after selloff: PYPL, AFRM, SOFI (if bottoming)
+1. MID-CAP TECH AFTER PULLBACK (~50%):
+   - Software/SaaS that pulled back: DDOG, NET, CRWD, ZS, MDB, PATH, SNOW
+   - Semiconductors after correction: AMD, MRVL, AMAT, QCOM, MU
+   - AI/Cloud companies: PLTR, SNOW, AI, ORCL
+   - Fintech after selloff: PYPL, AFRM, SOFI, SQ, COIN
    Selection criteria:
    * DOWN 15-30% from recent highs
-   * Volume starting to increase in last 5 days
-   * RSI recovering from oversold (<40 → 45-55)
-   * Earnings coming up in next 4 weeks
+   * Volume increasing in last 5-10 days
+   * Recent support holding
+   * Earnings catalyst within 4 weeks
 
-2. SMALL/MID-CAP RECOVERING (30%):
-   - Tech stocks showing reversal: RBLX, U, DASH (if pullback complete)
-   - Emerging sectors with support: RDDT, ASAN, OKTA
-   * Must show HIGHER LOWS in recent days
+2. SMALL/MID-CAP RECOVERING (~30%):
+   - Tech showing reversal: RBLX, U, DASH, ASAN, OKTA
+   - Emerging sectors: RDDT, HOOD, ABNB, UBER, LYFT
+   * Must show higher lows forming
    * Volume confirmation on up days
-   * Not still in downtrend
+   * Not in strong downtrend
 
-3. SECTOR ROTATION OPPORTUNITIES (20%):
-   - Biotech after correction: VRTX, REGN, MRNA (if bouncing)
-   - Clean Energy if sector rotates: ENPH, FSLR (only if volume returns)
-   - Consumer Tech recovery: SHOP (if showing base formation)
-   * Sector must show signs of bottoming
+3. SECTOR ROTATION PLAYS (~20%):
+   - Biotech if bouncing: VRTX, REGN, MRNA, BNTX
+   - Clean Energy rotation: ENPH, FSLR, RUN
+   - Consumer Tech: SHOP, ETSY, W
+   * Sector showing strength
    * Relative strength improving
-   * News catalyst visible
+   * Catalyst visible
 
-NO LARGE-CAP unless exceptional setup:
-   - Skip: AAPL, MSFT, GOOGL (not volatile enough)
-   - Maybe: TSLA, NVDA (ONLY if clear pullback + reversal signal)
+QUALITY CHECKS FOR PULLBACK ENTRIES:
+✓ Stock pulled back 15-30% from recent high?
+✓ Support visible (higher lows forming)?
+✓ Volume increasing on up days vs down days?
+✓ Technical pattern: consolidation, bottoming?
+✓ Institutional ownership >30%?
+✓ Upcoming catalyst (earnings, events)?
 
 STRICT EXCLUSIONS:
-❌ Leveraged ETFs (SOXL, TQQQ, SQQQ, SPXL, etc.) - exclude ALL 3x ETFs
-❌ Meme stocks (GME, AMC, SAVA) - too risky
-❌ Crypto mining stocks (MARA, RIOT, HUT, CLSK) - too volatile/unpredictable
-❌ Penny/failing companies: LCID, FSR, FUBO, NIO, XPEV (under $10 or failing)
-❌ Bankrupt/Delisted: APE, BBBYQ, FSR
-❌ Low-volume stocks (<1M daily average)
-❌ Stocks still in STRONG DOWNTREND (making lower lows)
-❌ Stocks at or near 52-week highs (wait for pullback)
-❌ Stocks with extremely high volatility >100% (too risky like RUN)
+❌ Leveraged ETFs (SOXL, TQQQ, SQQQ, SPXL, UPRO, etc.) - exclude ALL 3x ETFs
+❌ Meme stocks (GME, AMC, SAVA) - too unpredictable
+❌ Crypto mining (MARA, RIOT, HUT, CLSK) - too volatile
+❌ Penny/failing (<$10): LCID, FSR, FUBO, NIO, XPEV
+❌ Bankrupt/Delisted companies
+❌ Low volume (<{min_volume:,.0f} daily)
+❌ Stocks in STRONG DOWNTREND (making lower lows)
+❌ Stocks at 52-week highs (wait for pullback)
+❌ Extreme volatility >100% (too risky)
 
-PULLBACK QUALITY CHECKS:
-✓ Has stock pulled back 15-30% from recent high?
-✓ Is there support visible (higher lows forming)?
-✓ Is volume increasing on up days vs down days?
-✓ Is RSI recovering from oversold territory?
-✓ Does price action show accumulation pattern?
-✓ Is there institutional ownership >30%?
-✓ Does it have upcoming catalyst (earnings, events)?
+EXAMPLES OF IDEAL SELECTIONS:
+✓ Stock down 20% from high, bouncing off support with volume
+✓ Stock forming higher lows after selloff, earnings in 2-3 weeks
+✓ Stock with sector rotation tailwind after correction
+✓ Quality company with temporary weakness, strong fundamentals
 
-EXAMPLES OF IDEAL SELECTIONS (Pullback + Recovery):
-- Stock down 20% from high, now bouncing off support with volume
-- Stock showing RSI recovery from 35 → 50 with volume confirmation
-- Stock forming higher lows after selloff, earnings in 2-3 weeks
-- Stock with sector rotation into its favor after correction
-
-EXAMPLES OF BAD SELECTIONS (AVOID):
-- Stock still making new lows daily (no bottom yet)
-- Stock at 52-week high (too extended, wait for pullback)
-- Stock with extreme volatility >100% like RUN (too unpredictable)
-- Meme stocks, leveraged ETFs, crypto miners
+EXAMPLES TO AVOID:
+❌ Stock still making new lows daily (no bottom)
+❌ Stock at 52-week high (too extended)
+❌ Meme stocks, leveraged ETFs, crypto miners
+❌ Stocks with no catalyst or extreme volatility
 
 OUTPUT FORMAT:
 Return ONLY a JSON array of {max_stocks} ticker symbols:
-["PLTR", "AMD", "SNOW", "CRWD", "NET", ...]
+["PLTR", "AMD", "SNOW", "CRWD", "NET", "DDOG", ...]
 
-Focus on QUALITY volatile stocks that professional traders actually trade.
+Focus on QUALITY volatile stocks with clear entry setups that professional swing traders actually trade.
 """
 
             response = self.deepseek_service.call_api(prompt, max_tokens=1000)

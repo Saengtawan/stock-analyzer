@@ -373,7 +373,7 @@ class StockAnalyzer:
             'technical_analysis': enhanced_results.get('technical_analysis', {}),
             'signal_analysis': {
                 'final_score': {
-                    'total_score': analysis_summary.get('overall_score', 0) * 10  # Convert to 10-point scale
+                    'total_score': analysis_summary.get('overall_score', 0)  # Already 0-10 scale
                 },
                 'recommendation': {
                     'recommendation': analysis_summary.get('recommendation', 'HOLD')

@@ -1035,14 +1035,15 @@ function displayVolatileScreeningResults(data) {
     // Update table headers for volatile trading screening
     headerRow.innerHTML = `
         <tr>
+            <th>Rank</th>
             <th>รหัสหุ้น</th>
             <th>ราคาปัจจุบัน</th>
             <th>Volatility (%)</th>
             <th>Avg Volume</th>
-            <th>Price Range 30d (%)</th>
-            <th>Intraday Range (%)</th>
             <th>Momentum</th>
             <th>Trading Score</th>
+            <th>Entry Zone</th>
+            <th>Stop Loss %</th>
             <th>กลยุทธ์</th>
             <th>Risk Level</th>
             <th>การดำเนินการ</th>
@@ -1058,7 +1059,8 @@ function displayVolatileScreeningResults(data) {
             <h5><i class="fas fa-bolt me-2"></i>ผลการค้นหาหุ้นเหวี่ยงสำหรับเทรดระยะสั้น</h5>
             <p class="mb-1"><strong>หุ้นที่คัดกรองแล้ว:</strong> ${data.total_screened}</p>
             <p class="mb-1"><strong>หุ้นที่ผ่านเกณฑ์:</strong> ${data.found_opportunities} หุ้น</p>
-            <p class="mb-0"><strong>เกณฑ์:</strong> Volatility ≥ ${data.criteria.min_volatility}%, Volume ≥ ${(data.criteria.min_avg_volume / 1000000).toFixed(1)}M</p>
+            <p class="mb-1"><strong>เกณฑ์:</strong> Volatility ≥ ${data.criteria.min_volatility}%, Volume ≥ ${(data.criteria.min_avg_volume / 1000000).toFixed(1)}M shares/day</p>
+            <p class="mb-0"><small><strong>Trading Score:</strong> คำนวณจาก Volatility (40%) + Volume & Liquidity (30%) + Momentum (20%) + Price Range (10%)</small></p>
             <div class="mt-2">
                 <i class="fas fa-exclamation-triangle me-1"></i>
                 <small><strong>คำเตือน:</strong> หุ้นเหล่านี้มีความเสี่ยงสูง ใช้ Stop Loss กระชับและอย่าใช้เงินเกินกว่าที่เสียได้</small>
@@ -1066,11 +1068,43 @@ function displayVolatileScreeningResults(data) {
         </div>
     `;
 
-    // Add results to table
+    // Add results to table - separate actionable and watchlist
     if (data.opportunities && data.opportunities.length > 0) {
-        data.opportunities.forEach(opportunity => {
-            tbody.appendChild(createVolatileStockRow(opportunity));
+        // Separate into actionable and watchlist
+        const actionableStocks = data.opportunities.filter(opp => {
+            const strategy = (opp.recommendation?.strategy || '').toLowerCase();
+            return !strategy.includes('monitor');
         });
+        const watchlistStocks = data.opportunities.filter(opp => {
+            const strategy = (opp.recommendation?.strategy || '').toLowerCase();
+            return strategy.includes('monitor');
+        });
+
+        // Add actionable stocks first
+        if (actionableStocks.length > 0) {
+            actionableStocks.forEach((opportunity, index) => {
+                tbody.appendChild(createVolatileStockRow(opportunity, index + 1));
+            });
+        }
+
+        // Add watchlist section if any
+        if (watchlistStocks.length > 0) {
+            const separatorRow = document.createElement('tr');
+            separatorRow.innerHTML = `
+                <td colspan="12" class="bg-light text-center py-2">
+                    <strong><i class="fas fa-eye me-2"></i>รายการเฝ้าติดตาม (Watchlist)</strong>
+                    <small class="text-muted ms-2">- หุ้นเหล่านี้ยังไม่พร้อมเทรด รอสัญญาณที่ชัดเจนกว่า</small>
+                </td>
+            `;
+            tbody.appendChild(separatorRow);
+
+            watchlistStocks.forEach((opportunity, index) => {
+                const row = createVolatileStockRow(opportunity, '-');
+                row.style.opacity = '0.7';
+                tbody.appendChild(row);
+            });
+        }
+
         resultsContainer.style.display = 'block';
     } else {
         summaryContainer.innerHTML += `
@@ -1082,7 +1116,7 @@ function displayVolatileScreeningResults(data) {
     }
 }
 
-function createVolatileStockRow(opp) {
+function createVolatileStockRow(opp, rank = '-') {
     const row = document.createElement('tr');
 
     const metrics = opp.volatility_metrics || {};
@@ -1091,20 +1125,30 @@ function createVolatileStockRow(opp) {
 
     const volatility = metrics.volatility_30d || 0;
     const avgVolume = metrics.avg_volume_30d || 0;
-    const priceRange = metrics.price_range_pct || 0;
-    const intradayRange = metrics.intraday_range_pct || 0;
     const momentum = technical.momentum_score || 0;
     const tradingScore = opp.trading_score || technical.trading_opportunity_score || 0;
     const strategy = recommendation.strategy || 'N/A';
     const riskLevel = recommendation.risk_level || 'Unknown';
 
+    // Calculate Entry Zone and Stop Loss
+    const currentPrice = opp.current_price || 0;
+    const supportLevel = technical.support_level || currentPrice * 0.97;
+    const entryZone = `$${supportLevel.toFixed(2)} - $${(supportLevel * 1.02).toFixed(2)}`;
+
+    // Stop Loss based on risk level
+    let stopLossPct = 5; // default
+    if (riskLevel.includes('Very High')) stopLossPct = 3;
+    else if (riskLevel.includes('High')) stopLossPct = 4;
+    else if (riskLevel.includes('Medium-High')) stopLossPct = 5;
+    else if (riskLevel.includes('Medium')) stopLossPct = 6;
+
     // Format functions
     const formatCurrency = (val) => val ? `$${val.toFixed(2)}` : 'N/A';
     const formatNumber = (val, decimals = 1) => val ? val.toFixed(decimals) : 'N/A';
     const formatVolume = (vol) => {
-        if (vol >= 1e6) return `${(vol / 1e6).toFixed(1)}M`;
-        if (vol >= 1e3) return `${(vol / 1e3).toFixed(0)}K`;
-        return vol.toLocaleString();
+        if (vol >= 1e6) return `${(vol / 1e6).toFixed(1)}M shares`;
+        if (vol >= 1e3) return `${(vol / 1e3).toFixed(0)}K shares`;
+        return vol.toLocaleString() + ' shares';
     };
 
     const getScoreClass = (score) => {
@@ -1120,6 +1164,9 @@ function createVolatileStockRow(opp) {
     };
 
     row.innerHTML = `
+        <td class="text-center">
+            ${rank !== '-' ? `<span class="badge bg-primary">#${rank}</span>` : '<span class="text-muted">-</span>'}
+        </td>
         <td>
             <strong>${opp.symbol}</strong>
             ${opp.company_name ? `<br><small class="text-muted">${opp.company_name}</small>` : ''}
@@ -1139,16 +1186,6 @@ function createVolatileStockRow(opp) {
             </span>
         </td>
         <td>
-            <span class="badge ${priceRange >= 20 ? 'bg-danger' : priceRange >= 10 ? 'bg-warning' : 'bg-info'}">
-                ${formatNumber(priceRange, 1)}%
-            </span>
-        </td>
-        <td>
-            <span class="badge bg-secondary">
-                ${formatNumber(intradayRange, 2)}%
-            </span>
-        </td>
-        <td>
             <div class="metric-card ${getScoreClass(momentum)}" style="padding: 5px 10px; border-radius: 5px; display: inline-block;">
                 <span class="text-white">${formatNumber(momentum, 1)}/10</span>
             </div>
@@ -1157,6 +1194,12 @@ function createVolatileStockRow(opp) {
             <div class="metric-card ${getScoreClass(tradingScore)}" style="padding: 5px 10px; border-radius: 5px; display: inline-block;">
                 <span class="text-white">${formatNumber(tradingScore, 1)}/10</span>
             </div>
+        </td>
+        <td>
+            <small class="text-success">${entryZone}</small>
+        </td>
+        <td>
+            <span class="badge bg-danger">${stopLossPct}%</span>
         </td>
         <td>
             <small>${strategy}</small>

@@ -9,6 +9,7 @@ from loguru import logger
 
 from .ratios import FinancialRatios, IndustryComparison
 from .dcf_valuation import DCFValuation
+from core.data_source_transparency import TransparentFinancialData
 
 class FundamentalAnalyzer:
     """Main fundamental analysis engine"""
@@ -48,8 +49,27 @@ class FundamentalAnalyzer:
             industry_comparison = self.industry_comparison.compare_ratios(ratios)
             sector_ranking = self.industry_comparison.get_sector_ranking(ratios)
 
-            # DCF valuation
+            # DCF valuation with sensitivity analysis
             dcf_results = self.dcf_valuation.calculate_dcf_value()
+
+            # NEW: Run sensitivity analysis
+            dcf_sensitivity = self.dcf_valuation.sensitivity_analysis(
+                wacc_range=(-0.02, 0.02, 0.005),  # ±2% WACC
+                growth_range=(-0.01, 0.01, 0.005)  # ±1% growth
+            )
+
+            # Calculate DCF confidence interval
+            dcf_confidence = self._calculate_dcf_confidence(dcf_sensitivity)
+
+            # Generate DCF recommendation based on sensitivity
+            dcf_recommendation = self._generate_dcf_recommendation(
+                dcf_results, dcf_sensitivity, dcf_confidence
+            )
+
+            # Add to dcf_results
+            dcf_results['sensitivity_analysis'] = dcf_sensitivity
+            dcf_results['confidence_interval'] = dcf_confidence
+            dcf_results['dcf_recommendation'] = dcf_recommendation
 
             # Add upside/downside calculation for web interface
             if 'intrinsic_value_per_share' in dcf_results and dcf_results['intrinsic_value_per_share']:
@@ -415,6 +435,88 @@ class FundamentalAnalyzer:
         quality_factors['overall_grade'] = sum(grades) / len(grades)
 
         return quality_factors
+
+    def _calculate_dcf_confidence(self, sensitivity: Dict) -> Dict[str, Any]:
+        """Calculate confidence interval from DCF sensitivity analysis"""
+        if not sensitivity or 'min_value' not in sensitivity:
+            return {}
+
+        return {
+            'low_estimate': sensitivity.get('min_value'),   # Worst case
+            'base_estimate': sensitivity.get('base_intrinsic_value'),
+            'high_estimate': sensitivity.get('max_value'),  # Best case
+            'mean_estimate': sensitivity.get('mean_value'),
+            'std_dev': sensitivity.get('std_value'),
+            'confidence_95': {
+                'lower': sensitivity.get('mean_value', 0) - 1.96 * sensitivity.get('std_value', 0),
+                'upper': sensitivity.get('mean_value', 0) + 1.96 * sensitivity.get('std_value', 0)
+            } if sensitivity.get('mean_value') and sensitivity.get('std_value') else None
+        }
+
+    def _generate_dcf_recommendation(self, base_dcf: Dict, sensitivity: Dict,
+                                    confidence: Dict) -> Dict[str, Any]:
+        """Generate recommendation based on DCF sensitivity analysis"""
+        if not confidence or not confidence.get('low_estimate'):
+            return {'verdict': 'UNKNOWN', 'reason': 'Insufficient DCF data'}
+
+        current_price = self.current_price
+        base_value = base_dcf.get('intrinsic_value_per_share', 0)
+
+        # Check if current price is below even the worst case
+        if current_price < confidence['low_estimate']:
+            margin = ((confidence['low_estimate'] - current_price) / current_price) * 100
+            return {
+                'verdict': 'STRONG_BUY',
+                'reason': f'Price ${current_price:.2f} below worst-case estimate ${confidence["low_estimate"]:.2f}',
+                'margin_of_safety': round(margin, 1),
+                'confidence_level': 'Very High'
+            }
+
+        # Check if within confidence interval
+        if confidence.get('confidence_95'):
+            lower = confidence['confidence_95']['lower']
+            upper = confidence['confidence_95']['upper']
+            if lower <= current_price <= upper:
+                return {
+                    'verdict': 'FAIRLY_VALUED',
+                    'reason': f'Price within 95% confidence interval (${lower:.2f} - ${upper:.2f})',
+                    'margin_of_safety': 0,
+                    'confidence_level': 'Medium'
+                }
+
+        # Check if above best case
+        if current_price > confidence['high_estimate']:
+            overvaluation = ((current_price - confidence['high_estimate']) / current_price) * 100
+            return {
+                'verdict': 'OVERVALUED',
+                'reason': f'Price ${current_price:.2f} above best-case estimate ${confidence["high_estimate"]:.2f}',
+                'margin_of_safety': round(-overvaluation, 1),
+                'confidence_level': 'High'
+            }
+
+        # Default: use base case
+        margin = ((base_value - current_price) / current_price) * 100
+        if margin > 20:
+            return {
+                'verdict': 'BUY',
+                'reason': f'Base case shows {margin:.1f}% upside',
+                'margin_of_safety': round(margin, 1),
+                'confidence_level': 'Medium'
+            }
+        elif margin < -20:
+            return {
+                'verdict': 'SELL',
+                'reason': f'Base case shows {abs(margin):.1f}% downside',
+                'margin_of_safety': round(margin, 1),
+                'confidence_level': 'Medium'
+            }
+        else:
+            return {
+                'verdict': 'HOLD',
+                'reason': f'Within ±20% of base case (margin: {margin:.1f}%)',
+                'margin_of_safety': round(margin, 1),
+                'confidence_level': 'Low'
+            }
 
     def _assess_financial_risk(self, ratios: Dict[str, Any]) -> Dict[str, Any]:
         """Assess financial risk factors"""

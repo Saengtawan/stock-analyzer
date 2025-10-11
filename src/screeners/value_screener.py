@@ -989,7 +989,7 @@ Focus on companies that combine growth with improving profitability, not just re
 
         logger.info(f"🤖 Generating AI-powered volatile trading universe...")
         criteria = {
-            'max_stocks': max_stocks * 3,  # Generate more for filtering
+            'max_stocks': max_stocks * 8,  # Generate more for filtering (increased from 6x to 8x)
             'time_horizon': time_horizon,
             'screen_type': 'volatile_trading',
             'min_volatility': min_volatility,
@@ -999,12 +999,8 @@ Focus on companies that combine growth with improving profitability, not just re
 
         # Fallback if AI returns empty
         if not stock_universe:
-            logger.warning("AI returned empty universe, using fallback volatile stocks")
-            stock_universe = [
-                'NVDA', 'AMD', 'TSLA', 'MSTR', 'COIN', 'SMCI',
-                'RIVN', 'LCID', 'PLUG', 'MARA', 'RIOT', 'MRNA',
-                'SNAP', 'RBLX', 'SOXL', 'TQQQ', 'SQQQ', 'AMC', 'GME'
-            ][:max_stocks * 3]
+            logger.error("AI returned empty universe - cannot proceed")
+            return []
 
         logger.info(f"✅ Generated {len(stock_universe)} AI-selected volatile symbols")
 
@@ -1092,9 +1088,9 @@ Focus on companies that combine growth with improving profitability, not just re
                 logger.debug(f"✗ {opp['symbol']} filtered: Large-cap stable (${market_cap/1e9:.0f}B, {vol:.1f}%)")
                 continue
 
-            # 6. Require minimum trading opportunity score of 5.0 (quality threshold)
-            if trading_score < 5.0:
-                logger.debug(f"✗ {opp['symbol']} filtered: Low trading score ({trading_score:.1f} < 5.0)")
+            # 6. Require minimum trading opportunity score of 4.5 (quality threshold - relaxed for more opportunities)
+            if trading_score < 4.5:
+                logger.debug(f"✗ {opp['symbol']} filtered: Low trading score ({trading_score:.1f} < 4.5)")
                 continue
 
             # 4. Add trading_score to response (use this instead of volatility_score)

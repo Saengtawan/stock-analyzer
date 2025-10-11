@@ -796,6 +796,10 @@ def api_enhanced_analysis():
         ai_data = ai_analysis.get('ai_analysis', {})
         ai_summary = ai_data.get('analysis_summary', {})
 
+        # Extract enhanced_analysis which contains price_change_analysis
+        enhanced_analysis_data = ai_analysis.get('enhanced_analysis', {})
+        price_change_analysis = enhanced_analysis_data.get('price_change_analysis', {})
+
         # Combine the analyses
         enhanced_result = {
             'symbol': symbol,
@@ -810,6 +814,9 @@ def api_enhanced_analysis():
                 'key_insights': ai_data.get('key_insights', ai_analysis.get('key_insights', [])),
                 'price_target': ai_data.get('price_targets', {}).get('average_target', {}).get('price', 0),
                 'stop_loss': ai_data.get('price_targets', {}).get('stop_loss', {}).get('price', 0)
+            },
+            'enhanced_analysis': {
+                'price_change_analysis': price_change_analysis
             },
             'timestamp': datetime.now().isoformat(),
             'has_real_data': yahoo_analysis.get('has_real_data', False) or sec_edgar_data.get('has_real_data', False),

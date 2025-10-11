@@ -67,12 +67,29 @@ class NewsService:
             List of general financial news articles
         """
         try:
-            # News sources from AIMarketAnalyst
+            # Enhanced news sources with better coverage of international trade, politics, and economics
             feeds = [
+                # Original feeds
                 "https://rss.cnn.com/rss/money_topstories.rss",
                 "https://feeds.reuters.com/reuters/businessNews",
                 "https://www.cnbc.com/id/10001147/device/rss/rss.html",
-                "https://feeds.marketwatch.com/marketwatch/topstories/"
+                "https://feeds.marketwatch.com/marketwatch/topstories/",
+
+                # NEW: Additional high-quality sources
+                # World & Politics - ข่าวโลกและการเมืองที่ส่งผลต่อตลาด
+                "https://feeds.reuters.com/Reuters/worldNews",
+                "https://feeds.reuters.com/reuters/topNews",
+
+                # Economics & Policy - ข่าวเศรษฐกิจและนโยบาย
+                "https://feeds.bbci.co.uk/news/business/rss.xml",  # BBC Business
+                "https://feeds.a.dj.com/rss/RSSWorldNews.xml",     # Wall Street Journal World
+
+                # Market & Trading - ข่าวตลาดและการซื้อขาย
+                "https://www.ft.com/?format=rss",                  # Financial Times
+                "https://seekingalpha.com/feed.xml",               # Seeking Alpha
+
+                # US Politics & Trade - การเมืองสหรัฐและการค้า (สำคัญมากสำหรับข่าวทรัมป์-จีน!)
+                "https://feeds.reuters.com/reuters/politicsNews",
             ]
 
             all_articles = []
@@ -82,7 +99,8 @@ class NewsService:
                     logger.info(f"Fetching general news from: {feed_url}")
                     feed = feedparser.parse(feed_url)
 
-                    for entry in feed.entries[:5]:  # Limit per source
+                    # Increase limit per source from 5 to 8 to get more coverage
+                    for entry in feed.entries[:8]:  # Limit per source
                         article = self._parse_feed_entry(entry, feed_url)
                         if article:
                             all_articles.append(article)

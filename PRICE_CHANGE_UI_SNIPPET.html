@@ -1,0 +1,248 @@
+<!-- =================================================================== -->
+<!-- เพิ่มส่วนนี้หลังบรรทัด 2608 ใน analyze.html -->
+<!-- ใส่หลัง "Data Quality Summary" -->
+<!-- =================================================================== -->
+
+<!-- Price Change Analysis Section (NEW!) -->
+${priceChangeAnalysis && priceChangeAnalysis.direction ? `
+    <div class="row mt-4">
+        <div class="col-12">
+            <h6 class="text-warning mb-3">
+                <i class="fas fa-chart-line me-2"></i>
+                📊 การวิเคราะห์การเปลี่ยนแปลงราคา (Price Change Analysis)
+            </h6>
+
+            <!-- Price Movement Summary -->
+            <div class="card border-warning border-opacity-25 mb-3">
+                <div class="card-header bg-warning bg-opacity-10">
+                    <h6 class="mb-0">
+                        ${priceChangeAnalysis.direction === 'UP' ? '📈' : priceChangeAnalysis.direction === 'DOWN' ? '📉' : '↔️'}
+                        การเปลี่ยนแปลงราคา
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <small class="text-muted d-block">ราคาปัจจุบัน</small>
+                            <span class="h4 text-primary">$${formatNumber(priceChangeAnalysis.current_price)}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted d-block">ราคาก่อนหน้า</small>
+                            <span class="h5 text-secondary">$${formatNumber(priceChangeAnalysis.previous_price)}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted d-block">การเปลี่ยนแปลง</small>
+                            <span class="h5 ${priceChangeAnalysis.change_percent >= 0 ? 'text-success' : 'text-danger'}">
+                                ${priceChangeAnalysis.change_percent >= 0 ? '+' : ''}${formatNumber(priceChangeAnalysis.change_percent)}%
+                                (${priceChangeAnalysis.change_percent >= 0 ? '+' : ''}$${formatNumber(priceChangeAnalysis.change_amount)})
+                            </span>
+                        </div>
+                    </div>
+
+                    ${priceChangeAnalysis.summary ? `
+                        <div class="alert alert-info mt-3 mb-0">
+                            <small><strong>สรุป:</strong> ${priceChangeAnalysis.summary}</small>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+
+            <!-- Reasons for Price Movement -->
+            ${priceChangeAnalysis.reasons && priceChangeAnalysis.reasons.length > 0 ? `
+                <div class="card border-info border-opacity-25 mb-3">
+                    <div class="card-header bg-info bg-opacity-10">
+                        <h6 class="mb-0">
+                            🔍 ทำไมราคา${priceChangeAnalysis.direction === 'UP' ? 'ขึ้น' : priceChangeAnalysis.direction === 'DOWN' ? 'ลง' : 'ไม่เปลี่ยนแปลง'}?
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        ${priceChangeAnalysis.reasons.slice(0, 5).map((reason, index) => {
+                            const stars = '⭐'.repeat(Math.min(Math.ceil(reason.importance / 20), 5));
+                            return `
+                                <div class="alert alert-light border-start border-primary border-3 mb-2">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <strong>${index + 1}. ${reason.reason}</strong> ${stars}
+                                            <p class="mb-0 mt-1"><small class="text-muted">📌 ${reason.detail}</small></p>
+                                        </div>
+                                        <span class="badge bg-primary">${reason.importance}</span>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            ` : ''}
+
+            <!-- Profit Taking Analysis (ควรขายกำไรหรือยัง?) -->
+            ${priceChangeAnalysis.profit_taking_analysis && priceChangeAnalysis.profit_taking_analysis.applicable ? `
+                <div class="card border-success border-opacity-25 mb-3">
+                    <div class="card-header bg-success bg-opacity-10">
+                        <h6 class="mb-0">💡 ควรขายกำไรหรือยัง?</h6>
+                    </div>
+                    <div class="card-body">
+                        <!-- Recommendation Badge -->
+                        <div class="text-center mb-3">
+                            <span class="badge ${priceChangeAnalysis.profit_taking_analysis.confidence === 'HIGH' ? 'bg-success' : priceChangeAnalysis.profit_taking_analysis.confidence === 'MEDIUM' ? 'bg-warning' : 'bg-secondary'} fs-6 px-4 py-2">
+                                ${priceChangeAnalysis.profit_taking_analysis.confidence === 'HIGH' ? '🟢' : priceChangeAnalysis.profit_taking_analysis.confidence === 'MEDIUM' ? '🟡' : '🔴'}
+                                ${priceChangeAnalysis.profit_taking_analysis.action}
+                            </span>
+                            <p class="text-muted mt-2 mb-0">
+                                <small>ความมั่นใจ: ${priceChangeAnalysis.profit_taking_analysis.confidence}</small>
+                            </p>
+                        </div>
+
+                        <!-- Probability Progress Bars -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <small class="text-muted d-block mb-1">💎 โอกาสที่ควรถือต่อ</small>
+                                <div class="progress" style="height: 25px;">
+                                    <div class="progress-bar bg-primary" role="progressbar"
+                                         style="width: ${priceChangeAnalysis.profit_taking_analysis.hold_probability}%"
+                                         aria-valuenow="${priceChangeAnalysis.profit_taking_analysis.hold_probability}"
+                                         aria-valuemin="0" aria-valuemax="100">
+                                        ${formatNumber(priceChangeAnalysis.profit_taking_analysis.hold_probability)}%
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block mb-1">💰 โอกาสที่ควรขายกำไร</small>
+                                <div class="progress" style="height: 25px;">
+                                    <div class="progress-bar bg-warning" role="progressbar"
+                                         style="width: ${priceChangeAnalysis.profit_taking_analysis.sell_probability}%"
+                                         aria-valuenow="${priceChangeAnalysis.profit_taking_analysis.sell_probability}"
+                                         aria-valuemin="0" aria-valuemax="100">
+                                        ${formatNumber(priceChangeAnalysis.profit_taking_analysis.sell_probability)}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reasons to Hold -->
+                        ${priceChangeAnalysis.profit_taking_analysis.reasons_to_hold && priceChangeAnalysis.profit_taking_analysis.reasons_to_hold.length > 0 ? `
+                            <div class="mb-3">
+                                <h6 class="text-success mb-2">✅ เหตุผลที่ควรถือต่อ:</h6>
+                                ${priceChangeAnalysis.profit_taking_analysis.reasons_to_hold.map((reason, index) => `
+                                    <div class="alert alert-success border-success py-2 mb-2">
+                                        <small>
+                                            <strong>${index + 1}. ${reason.reason}</strong><br>
+                                            <span class="text-muted">📝 ${reason.detail}</span>
+                                        </small>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+
+                        <!-- Reasons to Sell -->
+                        ${priceChangeAnalysis.profit_taking_analysis.reasons_to_sell && priceChangeAnalysis.profit_taking_analysis.reasons_to_sell.length > 0 ? `
+                            <div class="mb-3">
+                                <h6 class="text-warning mb-2">⚠️ เหตุผลที่ควรขายกำไร:</h6>
+                                ${priceChangeAnalysis.profit_taking_analysis.reasons_to_sell.map((reason, index) => `
+                                    <div class="alert alert-warning border-warning py-2 mb-2">
+                                        <small>
+                                            <strong>${index + 1}. ${reason.reason}</strong><br>
+                                            <span class="text-muted">📝 ${reason.detail}</span>
+                                        </small>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+
+                        <!-- Detailed Explanation -->
+                        ${priceChangeAnalysis.profit_taking_analysis.explanation ? `
+                            <div class="alert alert-light border-start border-info border-3">
+                                <h6 class="text-info mb-2">📖 คำอธิบายเพิ่มเติม:</h6>
+                                <small style="white-space: pre-line;">${priceChangeAnalysis.profit_taking_analysis.explanation}</small>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            ` : ''}
+
+            <!-- Additional Insights -->
+            <div class="row g-2">
+                <!-- Trend Strength -->
+                ${priceChangeAnalysis.trend_strength ? `
+                    <div class="col-md-6">
+                        <div class="card border-secondary border-opacity-25 h-100">
+                            <div class="card-header bg-secondary bg-opacity-10">
+                                <small class="fw-bold">📈 ความแข็งแกร่งของเทรนด์</small>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="badge ${priceChangeAnalysis.trend_strength.trend === 'UPTREND' ? 'bg-success' : priceChangeAnalysis.trend_strength.trend === 'DOWNTREND' ? 'bg-danger' : 'bg-secondary'}">
+                                        ${priceChangeAnalysis.trend_strength.trend}
+                                    </span>
+                                    <span class="fw-bold">${formatNumber(priceChangeAnalysis.trend_strength.strength)}/100</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar ${priceChangeAnalysis.trend_strength.trend === 'UPTREND' ? 'bg-success' : priceChangeAnalysis.trend_strength.trend === 'DOWNTREND' ? 'bg-danger' : 'bg-secondary'}"
+                                         style="width: ${priceChangeAnalysis.trend_strength.strength}%"></div>
+                                </div>
+                                ${priceChangeAnalysis.trend_strength.interpretation ? `
+                                    <p class="mb-0 mt-2"><small class="text-muted">${priceChangeAnalysis.trend_strength.interpretation}</small></p>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- Buying/Selling Pressure -->
+                ${priceChangeAnalysis.buying_selling_pressure ? `
+                    <div class="col-md-6">
+                        <div class="card border-secondary border-opacity-25 h-100">
+                            <div class="card-header bg-secondary bg-opacity-10">
+                                <small class="fw-bold">💪 แรงซื้อ/แรงขาย</small>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="badge ${priceChangeAnalysis.buying_selling_pressure.pressure === 'BUYING' ? 'bg-success' : priceChangeAnalysis.buying_selling_pressure.pressure === 'SELLING' ? 'bg-danger' : 'bg-secondary'}">
+                                        ${priceChangeAnalysis.buying_selling_pressure.pressure === 'BUYING' ? '🟢 แรงซื้อ' : priceChangeAnalysis.buying_selling_pressure.pressure === 'SELLING' ? '🔴 แรงขาย' : '⚪ สมดุล'}
+                                    </span>
+                                    <span class="fw-bold">${formatNumber(priceChangeAnalysis.buying_selling_pressure.strength)}%</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar ${priceChangeAnalysis.buying_selling_pressure.pressure === 'BUYING' ? 'bg-success' : priceChangeAnalysis.buying_selling_pressure.pressure === 'SELLING' ? 'bg-danger' : 'bg-secondary'}"
+                                         style="width: ${priceChangeAnalysis.buying_selling_pressure.strength}%"></div>
+                                </div>
+                                ${priceChangeAnalysis.buying_selling_pressure.interpretation ? `
+                                    <p class="mb-0 mt-2"><small class="text-muted">${priceChangeAnalysis.buying_selling_pressure.interpretation}</small></p>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    </div>
+` : ''}
+
+<!-- =================================================================== -->
+<!-- จบส่วนที่เพิ่ม -->
+<!-- =================================================================== -->
+
+
+<!-- เพิ่ม JavaScript นี้ใน <script> section ด้านล่างของไฟล์ -->
+<!-- =================================================================== -->
+<script>
+// เพิ่มในฟังก์ชัน displayEnhancedResults หรือ displayResults
+
+function displayPriceChangeAnalysis(results) {
+    // Extract price_change_analysis from enhanced_analysis
+    const priceChangeAnalysis = results?.enhanced_analysis?.price_change_analysis;
+
+    if (!priceChangeAnalysis) {
+        console.log('No price change analysis available');
+        return;
+    }
+
+    console.log('Price Change Analysis:', priceChangeAnalysis);
+
+    // ข้อมูลจะถูกแสดงโดยอัตโนมัติผ่าน template string ด้านบน
+    // เพราะเราใช้ ${priceChangeAnalysis} ใน HTML template
+}
+
+// เรียกใช้งานหลังจากได้ผลลัพธ์
+// displayPriceChangeAnalysis(analysisResults);
+</script>
+<!-- =================================================================== -->

@@ -46,7 +46,7 @@ class AIMarketAnalyst:
 
         # Fetch latest news from multiple financial sources using News Service
         logger.info("Fetching latest financial news...")
-        recent_news = self.news_service.fetch_general_financial_news(max_articles=8)
+        recent_news = self.news_service.fetch_general_financial_news(max_articles=20)
 
         # Format news for context
         news_context = ""
@@ -65,13 +65,42 @@ class AIMarketAnalyst:
                   "- Focus on forward-looking events that build upon current market themes\n" +
                   "- Include Fed meetings, earnings seasons, economic data releases, geopolitical events\n" +
                   "- Rank by expected market impact (1 = highest impact)\n\n" +
+                  "🔥 ENHANCED ANALYSIS REQUIREMENTS (NEW):\n" +
+                  "For EACH event, you MUST analyze BOTH positive AND negative impacts:\n\n" +
+                  "1. **ROOT CAUSE**: Explain WHY this event is happening\n" +
+                  "   - Example: 'Trump raises tariffs BECAUSE China restricts rare earth exports'\n" +
+                  "   - Example: 'Fed may cut rates BECAUSE inflation is cooling down'\n\n" +
+                  "2. **EVENT DATE & TIMELINE**: Specify WHEN this will happen\n" +
+                  "   - event_date: Exact date (YYYY-MM-DD) or approximate month\n" +
+                  "   - impact_timeline: Break down impacts into time periods:\n" +
+                  "     • Immediate (announcement day - 3 days): Market reaction\n" +
+                  "     • Short-term (1-2 weeks): Which stocks start moving\n" +
+                  "     • Medium-term (1-3 months): Full impact realized\n" +
+                  "     • buy_timing: WHEN to buy winner stocks (specific dates/period)\n" +
+                  "     • sell_timing: WHEN to sell loser stocks (before which date)\n" +
+                  "   - Example: 'Trump announces tariff Oct 10 → Implement Nov 1'\n" +
+                  "     - Immediate: S&P 500 drops 2.7% (happened)\n" +
+                  "     - Short-term: AAPL continues falling (Oct 15-20)\n" +
+                  "     - Medium-term: MP Materials rises (Oct 25 - Nov 30)\n" +
+                  "     - buy_timing: Buy MP/CAT around Oct 20-25 before Nov 1\n" +
+                  "     - sell_timing: Sell AAPL/TGT by Oct 15 before bigger drop\n\n" +
+                  "3. **NEGATIVE IMPACT**: Which stocks/sectors will FALL and WHY?\n" +
+                  "   - List specific stocks that will be hurt (with reasons)\n" +
+                  "   - Example: AAPL, NVDA (rely on China manufacturing)\n\n" +
+                  "4. **POSITIVE IMPACT**: Which stocks/sectors will RISE and WHY?\n" +
+                  "   - List specific stocks that will benefit (with reasons)\n" +
+                  "   - Example: MP (rare earth mining), LMT (defense), CAT (made in USA)\n\n" +
+                  "5. **COMPREHENSIVE STOCK EXAMPLES**: Include BOTH winners AND losers\n" +
+                  "   - Winners: Companies that benefit from the event\n" +
+                  "   - Losers: Companies that are hurt by the event\n\n" +
                   "CRITICAL REQUIREMENTS:\n" +
                   "1. MUST respond with VALID JSON format ONLY\n" +
                   "2. NO additional text before or after JSON\n" +
                   "3. Use Thai language for content\n" +
                   "4. Include exactly 7 events ranked by market impact\n" +
-                  "5. Base analysis on realistic upcoming events informed by current news\n\n" +
-                  "JSON STRUCTURE (copy exactly):\n" +
+                  "5. Base analysis on realistic upcoming events informed by current news\n" +
+                  "6. MUST explain root cause, negative impact, AND positive impact for EVERY event\n\n" +
+                  "JSON STRUCTURE (copy exactly, with NEW fields):\n" +
                   "{\n" +
                   '  "generated_at": "' + current_date + '",\n' +
                   '  "analysis_period": "1-3 เดือนข้างหน้า",\n' +
@@ -81,110 +110,104 @@ class AIMarketAnalyst:
                   '      "rank": 1,\n' +
                   '      "event_name": "ชื่อเหตุการณ์",\n' +
                   '      "category": "เศรษฐกิจ",\n' +
-                  '      "description": "รายละเอียด",\n' +
+                  '      "description": "รายละเอียดเหตุการณ์",\n' +
+                  '      "root_cause": "สาเหตุที่แท้จริงว่าทำไมเหตุการณ์นี้เกิดขึ้น",\n' +
                   '      "current_status": "สถานะปัจจุบัน",\n' +
-                  '      "stock_impact": {"direction": "ขึ้น", "reason": "เหตุผล"},\n' +
+                  '      "event_date": "2025-11-01",\n' +
+                  '      "event_date_description": "วันที่เหตุการณ์จะเกิดขึ้นจริง (ถ้ารู้แน่นอน) หรือประมาณเดือน",\n' +
+                  '      "impact_timeline": {\n' +
+                  '        "immediate": "ผลกระทบทันที (วันประกาศ-3 วันแรก): ตลาดตอบสนองอย่างไร",\n' +
+                  '        "short_term": "ระยะสั้น (1-2 สัปดาห์): หุ้นไหนเริ่มเคลื่อนไหว",\n' +
+                  '        "medium_term": "ระยะกลาง (1-3 เดือน): ผลกระทบเต็มรูปแบบ",\n' +
+                  '        "buy_timing": "จังหวะเข้าซื้อหุ้นที่จะขึ้น: ช่วงเวลาที่เหมาะสม",\n' +
+                  '        "sell_timing": "จังหวะขายหุ้นที่จะลง: ควรขายก่อนวันไหน"\n' +
+                  '      },\n' +
+                  '      "stock_impact": {"direction": "ลง", "reason": "เหตุผลที่ทำให้หุ้นส่วนใหญ่ลง"},\n' +
                   '      "gold_impact": {"direction": "ขึ้น", "reason": "เหตุผล"},\n' +
-                  '      "affected_sectors": ["เทคโนโลยี", "การเงิน"],\n' +
-                  '      "example_stocks": ["AAPL", "MSFT"]\n' +
+                  '      "negative_impact": {\n' +
+                  '        "affected_sectors": ["เทคโนโลยี", "การผลิต"],\n' +
+                  '        "loser_stocks": ["AAPL", "NVDA", "TGT"],\n' +
+                  '        "reason": "เหตุผลที่หุ้นพวกนี้ได้รับผลกระทบเชิงลบ"\n' +
+                  '      },\n' +
+                  '      "positive_impact": {\n' +
+                  '        "beneficiary_sectors": ["พลังงาน", "วัตถุดิบ", "ป้องกันประเทศ"],\n' +
+                  '        "winner_stocks": ["MP", "LMT", "CAT"],\n' +
+                  '        "reason": "เหตุผลที่หุ้นพวกนี้ได้รับประโยชน์"\n' +
+                  '      },\n' +
+                  '      "example_stocks": ["AAPL", "NVDA", "MP", "LMT"]\n' +
                   '    }\n' +
                   '  ]\n' +
                   '}')
 
         try:
-            # Use longer timeout for detailed analysis
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-
-            payload = {
-                "model": "deepseek-chat",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 4000,  # Increased for 7 events
-                "temperature": 0.7,
-                "stream": False
-            }
-
             logger.info("Calling DeepSeek API for detailed market analysis...")
-            response = requests.post(
-                self.api_url,
-                headers=headers,
-                json=payload,
-                timeout=90  # Extended timeout for 7 events analysis
-            )
+            ai_response = self._call_deepseek_api(prompt, max_tokens=6000)  # Increased for enhanced analysis
 
-            if response.status_code == 200:
-                result = response.json()
-                if 'choices' in result and len(result['choices']) > 0:
-                    ai_response = result['choices'][0]['message']['content']
-                    logger.info("Successfully received detailed AI response")
+            if ai_response:
+                logger.info("Successfully received detailed AI response")
 
-                    # Try to extract JSON from response with improved parsing
-                    import re
+                # Try to extract JSON from response with improved parsing
+                import re
 
-                    def find_complete_json(text):
-                        """Find complete JSON object by counting braces"""
-                        start_idx = text.find('{')
-                        if start_idx == -1:
-                            return None
-
-                        brace_count = 0
-                        for i, char in enumerate(text[start_idx:], start_idx):
-                            if char == '{':
-                                brace_count += 1
-                            elif char == '}':
-                                brace_count -= 1
-                                if brace_count == 0:
-                                    return text[start_idx:i+1]
+                def find_complete_json(text):
+                    """Find complete JSON object by counting braces"""
+                    start_idx = text.find('{')
+                    if start_idx == -1:
                         return None
 
-                    # With strict JSON format, AI should return pure JSON
-                    logger.info(f"AI response length: {len(ai_response)}")
+                    brace_count = 0
+                    for i, char in enumerate(text[start_idx:], start_idx):
+                        if char == '{':
+                            brace_count += 1
+                        elif char == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                return text[start_idx:i+1]
+                    return None
 
-                    # Try direct JSON parsing first (no markdown wrapper expected)
-                    json_str = ai_response.strip()
+                # With strict JSON format, AI should return pure JSON
+                logger.info(f"AI response length: {len(ai_response)}")
 
-                    # Fallback: look for JSON in response if direct parsing fails
-                    if not json_str.startswith('{'):
-                        json_str = find_complete_json(ai_response)
-                        if json_str:
-                            logger.info("Found JSON using brace counting method")
+                # Try direct JSON parsing first (no markdown wrapper expected)
+                json_str = ai_response.strip()
 
+                # Fallback: look for JSON in response if direct parsing fails
+                if not json_str.startswith('{'):
+                    json_str = find_complete_json(ai_response)
                     if json_str:
-                        try:
-                            logger.info(f"Attempting to parse JSON of length: {len(json_str)}")
-                            analysis_data = json.loads(json_str)
+                        logger.info("Found JSON using brace counting method")
 
-                            # Check if key_events exists and has data
-                            if 'key_events' in analysis_data and len(analysis_data['key_events']) > 0:
-                                analysis_data['success'] = True
-                                analysis_data['raw_response'] = ai_response
-                                logger.info(f"Successfully generated market analysis with {len(analysis_data['key_events'])} events")
-                                return analysis_data
-                            else:
-                                logger.warning("Parsed JSON but key_events is empty or missing")
-                                logger.info(f"JSON keys: {list(analysis_data.keys()) if isinstance(analysis_data, dict) else 'Not a dict'}")
-                                # Try to save the events from raw response anyway
-                                analysis_data['success'] = True
-                                analysis_data['raw_response'] = ai_response
-                                return analysis_data
+                if json_str:
+                    try:
+                        logger.info(f"Attempting to parse JSON of length: {len(json_str)}")
+                        analysis_data = json.loads(json_str)
 
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Failed to parse JSON from AI response: {e}")
-                            logger.info(f"JSON string preview: {json_str[:500]}...")
-                            # Return structured fallback
-                            return self._get_fallback_analysis(ai_response)
-                    else:
-                        logger.warning("No JSON found in AI response")
-                        logger.info(f"Response preview: {ai_response[:500]}...")
+                        # Check if key_events exists and has data
+                        if 'key_events' in analysis_data and len(analysis_data['key_events']) > 0:
+                            analysis_data['success'] = True
+                            analysis_data['raw_response'] = ai_response
+                            logger.info(f"Successfully generated market analysis with {len(analysis_data['key_events'])} events")
+                            return analysis_data
+                        else:
+                            logger.warning("Parsed JSON but key_events is empty or missing")
+                            logger.info(f"JSON keys: {list(analysis_data.keys()) if isinstance(analysis_data, dict) else 'Not a dict'}")
+                            # Try to save the events from raw response anyway
+                            analysis_data['success'] = True
+                            analysis_data['raw_response'] = ai_response
+                            return analysis_data
+
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Failed to parse JSON from AI response: {e}")
+                        logger.info(f"JSON string preview: {json_str[:500]}...")
+                        # Return structured fallback
                         return self._get_fallback_analysis(ai_response)
                 else:
-                    logger.warning("No choices in detailed AI response")
-                    return self._get_error_response("ไม่ได้รับการตอบสนองจาก AI")
+                    logger.warning("No JSON found in AI response")
+                    logger.info(f"Response preview: {ai_response[:500]}...")
+                    return self._get_fallback_analysis(ai_response)
             else:
-                logger.error(f"DeepSeek API error for detailed analysis: {response.status_code} - {response.text}")
-                return self._get_error_response("AI service ส่งคืนข้อผิดพลาด")
+                logger.warning("No AI response received")
+                return self._get_error_response("ไม่ได้รับการตอบสนองจาก AI")
 
         except Exception as e:
             logger.error(f"Error in generate_market_analysis: {e}")
@@ -202,7 +225,7 @@ class AIMarketAnalyst:
 
         # Fetch latest news from multiple sources using News Service
         logger.info("Fetching latest financial news for additional events...")
-        recent_news = self.news_service.fetch_general_financial_news(max_articles=5)
+        recent_news = self.news_service.fetch_general_financial_news(max_articles=15)
 
         # Format news for context
         news_context = ""
@@ -246,68 +269,44 @@ class AIMarketAnalyst:
                   '}')
 
         try:
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-
-            payload = {
-                "model": "deepseek-chat",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 4000,
-                "temperature": 0.7,
-                "stream": False
-            }
-
             logger.info("Calling DeepSeek API for additional events...")
-            response = requests.post(
-                self.api_url,
-                headers=headers,
-                json=payload,
-                timeout=90  # Extended timeout for 8 events
-            )
+            ai_response = self._call_deepseek_api(prompt, max_tokens=4000)
 
-            if response.status_code == 200:
-                result = response.json()
-                if 'choices' in result and len(result['choices']) > 0:
-                    ai_response = result['choices'][0]['message']['content']
-                    logger.info("Successfully received additional events response")
+            if ai_response:
+                logger.info("Successfully received additional events response")
 
-                    # Try direct JSON parsing
-                    json_str = ai_response.strip()
+                # Try direct JSON parsing
+                json_str = ai_response.strip()
 
-                    if not json_str.startswith('{'):
-                        # Fallback: find JSON in response
-                        start_idx = ai_response.find('{')
-                        if start_idx != -1:
-                            brace_count = 0
-                            for i, char in enumerate(ai_response[start_idx:], start_idx):
-                                if char == '{':
-                                    brace_count += 1
-                                elif char == '}':
-                                    brace_count -= 1
-                                    if brace_count == 0:
-                                        json_str = ai_response[start_idx:i+1]
-                                        break
+                if not json_str.startswith('{'):
+                    # Fallback: find JSON in response
+                    start_idx = ai_response.find('{')
+                    if start_idx != -1:
+                        brace_count = 0
+                        for i, char in enumerate(ai_response[start_idx:], start_idx):
+                            if char == '{':
+                                brace_count += 1
+                            elif char == '}':
+                                brace_count -= 1
+                                if brace_count == 0:
+                                    json_str = ai_response[start_idx:i+1]
+                                    break
 
-                    if json_str:
-                        try:
-                            additional_data = json.loads(json_str)
-                            if 'additional_events' in additional_data:
-                                additional_data['success'] = True
-                                return additional_data
-                            else:
-                                return {"additional_events": [], "success": False, "error": "No additional events found"}
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Failed to parse additional events JSON: {e}")
-                            return {"additional_events": [], "success": False, "error": "JSON parsing failed"}
-                    else:
-                        return {"additional_events": [], "success": False, "error": "No valid JSON found"}
+                if json_str:
+                    try:
+                        additional_data = json.loads(json_str)
+                        if 'additional_events' in additional_data:
+                            additional_data['success'] = True
+                            return additional_data
+                        else:
+                            return {"additional_events": [], "success": False, "error": "No additional events found"}
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Failed to parse additional events JSON: {e}")
+                        return {"additional_events": [], "success": False, "error": "JSON parsing failed"}
                 else:
-                    return {"additional_events": [], "success": False, "error": "No AI response"}
+                    return {"additional_events": [], "success": False, "error": "No valid JSON found"}
             else:
-                logger.error(f"DeepSeek API error for additional events: {response.status_code}")
-                return {"additional_events": [], "success": False, "error": "API error"}
+                return {"additional_events": [], "success": False, "error": "No AI response"}
 
         except Exception as e:
             logger.error(f"Error in generate_additional_events: {e}")
