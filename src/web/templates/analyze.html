@@ -125,6 +125,165 @@
             </div>
         </div>
 
+        <!-- NEW: Unified Recommendation Section -->
+        <div id="unified-recommendation-section" class="row mb-4" style="display: none;">
+            <div class="col-12">
+                <div class="card mb-4 border-primary shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-bullseye me-2"></i>
+                            🎯 คำแนะนำการลงทุนแบบครบวงจร
+                        </h5>
+                        <small class="text-white-50">รวมสัญญาณจากทุกมิติเป็นคำแนะนำเดียว</small>
+                    </div>
+                    <div class="card-body">
+                        <!-- Main Recommendation Display -->
+                        <div class="row mb-4">
+                            <!-- Recommendation Badge -->
+                            <div class="col-md-4 text-center">
+                                <div id="unified-rec-badge" class="p-4 rounded bg-success text-white shadow-lg">
+                                    <h2 class="mb-2 fw-bold" id="unified-rec-text">-</h2>
+                                    <p class="mb-0">คะแนน: <strong id="unified-rec-score">0</strong>/10</p>
+                                </div>
+                            </div>
+
+                            <!-- Confidence Display -->
+                            <div class="col-md-4 text-center">
+                                <h6 class="text-muted mb-2">ระดับความมั่นใจ</h6>
+                                <div class="progress" style="height: 40px;">
+                                    <div id="unified-confidence-bar" class="progress-bar bg-success" style="width: 0%">
+                                        <strong id="unified-confidence-text">-</strong>
+                                    </div>
+                                </div>
+                                <small class="text-muted mt-2 d-block">
+                                    อิงจากความสอดคล้องของสัญญาณและระยะห่างจากขีดเกณฑ์
+                                </small>
+                            </div>
+
+                            <!-- Risk/Reward Display -->
+                            <div class="col-md-4 text-center">
+                                <h6 class="text-muted mb-2">อัตราส่วนความเสี่ยง/ผลตอบแทน</h6>
+                                <h1 id="unified-rr-ratio" class="text-success">-:1</h1>
+                                <small id="unified-rr-status" class="d-block text-success">
+                                    ✅ เหมาะสม (>1.5:1)
+                                </small>
+                                <small class="text-muted d-block mt-1" id="unified-rr-details">
+                                    ความเสี่ยง: -% | ผลตอบแทน: -%
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Component Breakdown -->
+                        <div class="card bg-light mb-3">
+                            <div class="card-body">
+                                <h6 class="card-title mb-3">
+                                    <i class="fas fa-chart-pie me-2"></i>คะแนนแยกตามมิติ
+                                </h6>
+                                <div class="row" id="unified-component-scores">
+                                    <!-- Component scores will be dynamically inserted here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reasoning Section -->
+                        <div class="row mb-3">
+                            <!-- Summary -->
+                            <div class="col-12 mb-3">
+                                <div class="alert alert-info mb-0">
+                                    <h6 class="alert-heading">
+                                        <i class="fas fa-info-circle me-2"></i>สรุปการวิเคราะห์
+                                    </h6>
+                                    <p class="mb-0" id="unified-summary">-</p>
+                                </div>
+                            </div>
+
+                            <!-- Reasons For & Against -->
+                            <div class="col-md-6">
+                                <div class="card border-success h-100">
+                                    <div class="card-body">
+                                        <h6 class="text-success">
+                                            <i class="fas fa-thumbs-up me-2"></i>จุดเด่น (<span id="unified-reasons-for-count">0</span>)
+                                        </h6>
+                                        <ul id="unified-reasons-for" class="mb-0">
+                                            <!-- Reasons for will be inserted here -->
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="card border-danger h-100">
+                                    <div class="card-body">
+                                        <h6 class="text-danger">
+                                            <i class="fas fa-thumbs-down me-2"></i>จุดอ่อน (<span id="unified-reasons-against-count">0</span>)
+                                        </h6>
+                                        <ul id="unified-reasons-against" class="mb-0">
+                                            <!-- Reasons against will be inserted here -->
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Position Sizing Recommendations -->
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="fas fa-chart-pie me-2"></i>
+                                    💰 แนะนำขนาดการลงทุน
+                                </h6>
+                                <p class="text-muted small mb-3" id="unified-account-value">
+                                    อิงจากพอร์ตขนาด $100,000
+                                </p>
+
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>กลยุทธ์</th>
+                                            <th>% ของพอร์ต</th>
+                                            <th>จำนวนเงิน</th>
+                                            <th>จำนวนหุ้น (โดยประมาณ)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="unified-position-sizing">
+                                        <!-- Position sizing rows will be inserted here -->
+                                    </tbody>
+                                </table>
+
+                                <div class="alert alert-info mt-3 mb-0">
+                                    <small>
+                                        <i class="fas fa-lightbulb me-1"></i>
+                                        <strong>เหตุผล:</strong> <span id="unified-position-rationale">-</span>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Veto Warnings (if any) -->
+                        <div id="unified-veto-section" class="alert alert-warning mt-3 mb-0" style="display: none;">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                มีการปรับคำแนะนำจากปัจจัยสำคัญ
+                            </h6>
+                            <p class="mb-2">คำแนะนำถูกปรับเนื่องจากปัญหาร้ายแรงดังนี้:</p>
+                            <ul id="unified-veto-reasons" class="mb-0">
+                                <!-- Veto reasons will be inserted here -->
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Card Footer -->
+                    <div class="card-footer bg-light">
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            สร้างเมื่อ: <span id="unified-timestamp">-</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Unified Recommendation Section -->
+
         <!-- Technical Indicators Charts -->
         <div class="row mb-4">
             <div class="col-md-6">
@@ -410,6 +569,9 @@ function displayAnalysisResults(data) {
     // Display technical analysis
     displayTechnicalAnalysis(data.technical_analysis);
 
+    // Display unified recommendation (NEW!)
+    displayUnifiedRecommendation(data);
+
     // Display AI insights
     displayAIInsights(data);
 
@@ -427,6 +589,174 @@ function displayAnalysisResults(data) {
 
     // Show results
     document.getElementById('analysis-results').style.display = 'block';
+}
+
+function displayUnifiedRecommendation(data) {
+    const unified = data.unified_recommendation;
+
+    // Hide section if no unified recommendation or if using fallback data
+    if (!unified ||
+        !unified.component_scores ||
+        Object.keys(unified.component_scores).length === 0) {
+        document.getElementById('unified-recommendation-section').style.display = 'none';
+        console.log('ℹ️ Unified recommendation not available - hiding section');
+        return;
+    }
+
+    // Show the section only when we have real data
+    document.getElementById('unified-recommendation-section').style.display = 'block';
+    console.log('✅ Unified recommendation loaded with full data');
+
+    // Update recommendation badge
+    const recText = unified.recommendation || 'HOLD';
+    const recScore = unified.score || 5.0;
+    document.getElementById('unified-rec-text').textContent = recText;
+    document.getElementById('unified-rec-score').textContent = formatNumber(recScore, 1);
+
+    // Set badge color
+    const badgeEl = document.getElementById('unified-rec-badge');
+    if (recText.includes('STRONG BUY') || recText === 'BUY') {
+        badgeEl.className = 'p-4 rounded bg-success text-white shadow-lg';
+    } else if (recText.includes('SELL')) {
+        badgeEl.className = 'p-4 rounded bg-danger text-white shadow-lg';
+    } else {
+        badgeEl.className = 'p-4 rounded bg-warning text-white shadow-lg';
+    }
+
+    // Update confidence
+    const confidence = unified.confidence || 'MEDIUM';
+    const confidencePct = unified.confidence_percentage || 50;
+    document.getElementById('unified-confidence-text').textContent = `${confidence} (${confidencePct}%)`;
+
+    const confBar = document.getElementById('unified-confidence-bar');
+    confBar.style.width = `${confidencePct}%`;
+    if (confidence === 'HIGH') {
+        confBar.className = 'progress-bar bg-success';
+    } else if (confidence === 'MEDIUM') {
+        confBar.className = 'progress-bar bg-info';
+    } else {
+        confBar.className = 'progress-bar bg-warning';
+    }
+
+    // Update R:R ratio
+    const rrAnalysis = unified.risk_reward_analysis || {};
+    const rrRatio = rrAnalysis.ratio || 1.0;
+    const isFavorable = rrAnalysis.is_favorable || false;
+    document.getElementById('unified-rr-ratio').textContent = `${formatNumber(rrRatio, 2)}:1`;
+    document.getElementById('unified-rr-ratio').className = rrRatio >= 1.5 ? 'text-success' : (rrRatio >= 1.0 ? 'text-warning' : 'text-danger');
+
+    const rrStatus = document.getElementById('unified-rr-status');
+    if (isFavorable) {
+        rrStatus.innerHTML = '✅ เหมาะสม (>1.5:1)';
+        rrStatus.className = 'd-block text-success';
+    } else {
+        rrStatus.innerHTML = '⚠️ ไม่เหมาะสม (<1.5:1)';
+        rrStatus.className = 'd-block text-danger';
+    }
+
+    const riskPct = rrAnalysis.risk_percent || 0;
+    const rewardPct = rrAnalysis.reward_percent || 0;
+    document.getElementById('unified-rr-details').textContent =
+        `ความเสี่ยง: ${formatNumber(riskPct, 1)}% | ผลตอบแทน: ${formatNumber(rewardPct, 1)}%`;
+
+    // Update component scores
+    const componentScores = unified.component_scores || {};
+    let componentHTML = '';
+    for (const [name, score] of Object.entries(componentScores)) {
+        const displayName = {
+            'technical': 'เทคนิคัล',
+            'fundamental': 'ปัจจัยพื้นฐาน',
+            'price_action': 'การเคลื่อนไหวราคา',
+            'insider': 'Insider',
+            'risk_reward': 'ความเสี่ยง/ผลตอบแทน'
+        }[name] || name;
+
+        let barColor = 'bg-danger';
+        if (score >= 7) barColor = 'bg-success';
+        else if (score >= 5) barColor = 'bg-info';
+        else if (score >= 3) barColor = 'bg-warning';
+
+        componentHTML += `
+            <div class="col-md">
+                <div class="text-center">
+                    <small class="text-muted d-block mb-1">${displayName}</small>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar ${barColor}" style="width: ${(score/10)*100}%">
+                            ${formatNumber(score, 1)}/10
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    document.getElementById('unified-component-scores').innerHTML = componentHTML;
+
+    // Update reasoning
+    const reasoning = unified.reasoning || {};
+    document.getElementById('unified-summary').textContent = reasoning.summary || '-';
+
+    const reasonsFor = reasoning.reasons_for || [];
+    const reasonsAgainst = reasoning.reasons_against || [];
+
+    document.getElementById('unified-reasons-for-count').textContent = reasonsFor.length;
+    document.getElementById('unified-reasons-against-count').textContent = reasonsAgainst.length;
+
+    document.getElementById('unified-reasons-for').innerHTML = reasonsFor.length > 0 ?
+        reasonsFor.map(r => `<li>${r}</li>`).join('') :
+        '<p class="text-muted mb-0">ไม่มีจุดเด่นโดดเด่น</p>';
+
+    document.getElementById('unified-reasons-against').innerHTML = reasonsAgainst.length > 0 ?
+        reasonsAgainst.map(r => `<li>${r}</li>`).join('') :
+        '<p class="text-muted mb-0">ไม่มีจุดอ่อนที่สำคัญ</p>';
+
+    // Update position sizing
+    const positioning = unified.position_sizing || {};
+    const accountValue = data.account_value || 100000;
+    const currentPrice = data.current_price || 1;
+
+    document.getElementById('unified-account-value').textContent =
+        `อิงจากพอร์ตขนาด ${formatCurrency(accountValue)}`;
+
+    const strategies = [
+        {name: 'Conservative', pct: positioning.conservative_percentage || 5.0, class: 'bg-info'},
+        {name: 'Recommended', pct: positioning.recommended_percentage || 7.5, class: 'table-success'},
+        {name: 'Aggressive', pct: positioning.aggressive_percentage || 10.0, class: 'bg-warning'}
+    ];
+
+    let positionHTML = '';
+    for (const strat of strategies) {
+        const dollarAmount = (strat.pct / 100) * accountValue;
+        const shares = Math.floor(dollarAmount / currentPrice);
+        const badge = strat.name === 'Recommended' ? 'bg-success' : (strat.name === 'Conservative' ? 'bg-info' : 'bg-warning');
+
+        positionHTML += `
+            <tr class="${strat.class}">
+                <td>${strat.name === 'Conservative' ? 'อนุรักษ์นิยม' :
+                       strat.name === 'Recommended' ? '<strong>แนะนำ</strong>' : 'ก้าวร้าว'}</td>
+                <td><span class="badge ${badge}">${strat.name === 'Recommended' ? '<strong>' : ''}${formatNumber(strat.pct, 1)}%${strat.name === 'Recommended' ? '</strong>' : ''}</span></td>
+                <td>${strat.name === 'Recommended' ? '<strong>' : ''}${formatCurrency(dollarAmount)}${strat.name === 'Recommended' ? '</strong>' : ''}</td>
+                <td>${strat.name === 'Recommended' ? '<strong>' : ''}${shares.toLocaleString()}${strat.name === 'Recommended' ? '</strong>' : ''}</td>
+            </tr>
+        `;
+    }
+    document.getElementById('unified-position-sizing').innerHTML = positionHTML;
+    document.getElementById('unified-position-rationale').textContent = positioning.rationale || '-';
+
+    // Update veto warnings
+    const vetoApplied = unified.veto_applied || false;
+    const vetoReasons = unified.veto_reasons || [];
+
+    if (vetoApplied && vetoReasons.length > 0) {
+        document.getElementById('unified-veto-section').style.display = 'block';
+        document.getElementById('unified-veto-reasons').innerHTML =
+            vetoReasons.map(r => `<li><strong>${r}</strong></li>`).join('');
+    } else {
+        document.getElementById('unified-veto-section').style.display = 'none';
+    }
+
+    // Update timestamp
+    document.getElementById('unified-timestamp').textContent =
+        unified.analysis_timestamp ? new Date(unified.analysis_timestamp).toLocaleString('th-TH') : '-';
 }
 
 function displayFundamentalAnalysis(fundamental) {

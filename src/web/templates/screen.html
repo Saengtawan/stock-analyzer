@@ -1037,6 +1037,7 @@ function displayVolatileScreeningResults(data) {
         <tr>
             <th>Rank</th>
             <th>รหัสหุ้น</th>
+            <th>ประเภท</th>
             <th>ราคาปัจจุบัน</th>
             <th>Volatility (%)</th>
             <th>Avg Volume</th>
@@ -1130,17 +1131,33 @@ function createVolatileStockRow(opp, rank = '-') {
     const strategy = recommendation.strategy || 'N/A';
     const riskLevel = recommendation.risk_level || 'Unknown';
 
+    // Get trend category
+    const trendCategory = opp.trend_category || 'trending_up';
+
+    // Get entry zone warning
+    const entryZoneWarning = opp.entry_zone_warning || null;
+
     // Calculate Entry Zone and Stop Loss
     const currentPrice = opp.current_price || 0;
     const supportLevel = technical.support_level || currentPrice * 0.97;
     const entryZone = `$${supportLevel.toFixed(2)} - $${(supportLevel * 1.02).toFixed(2)}`;
 
-    // Stop Loss based on risk level
+    // IMPROVED: Stop Loss based on actual volatility (not just risk level)
+    // Higher volatility = wider stop loss to avoid getting stopped out by noise
     let stopLossPct = 5; // default
-    if (riskLevel.includes('Very High')) stopLossPct = 3;
-    else if (riskLevel.includes('High')) stopLossPct = 4;
-    else if (riskLevel.includes('Medium-High')) stopLossPct = 5;
-    else if (riskLevel.includes('Medium')) stopLossPct = 6;
+    if (volatility >= 70) {
+        stopLossPct = 8; // Very high volatility
+    } else if (volatility >= 60) {
+        stopLossPct = 7; // High volatility
+    } else if (volatility >= 50) {
+        stopLossPct = 6; // Above average
+    } else if (volatility >= 40) {
+        stopLossPct = 5; // Average
+    } else if (volatility >= 30) {
+        stopLossPct = 4; // Below average
+    } else {
+        stopLossPct = 3; // Low volatility
+    }
 
     // Format functions
     const formatCurrency = (val) => val ? `$${val.toFixed(2)}` : 'N/A';
@@ -1163,6 +1180,16 @@ function createVolatileStockRow(opp, rank = '-') {
         return 'bg-info';
     };
 
+    const getCategoryBadge = (category) => {
+        const categoryMap = {
+            'trending_up': { icon: '📈', text: 'Trending Up', class: 'bg-success', desc: 'Momentum ดี' },
+            'bouncing': { icon: '📉', text: 'Bouncing', class: 'bg-warning', desc: 'ใกล้ support กำลังกลับตัว' },
+            'breakout': { icon: '⚡', text: 'Breakout', class: 'bg-primary', desc: 'ใกล้จะทะลุ' }
+        };
+        const info = categoryMap[category] || categoryMap['trending_up'];
+        return `<span class="badge ${info.class}" title="${info.desc}">${info.icon} ${info.text}</span>`;
+    };
+
     row.innerHTML = `
         <td class="text-center">
             ${rank !== '-' ? `<span class="badge bg-primary">#${rank}</span>` : '<span class="text-muted">-</span>'}
@@ -1173,7 +1200,13 @@ function createVolatileStockRow(opp, rank = '-') {
             ${opp.fundamental_summary?.sector ? `<br><small class="badge bg-secondary">${opp.fundamental_summary.sector}</small>` : ''}
         </td>
         <td>
+            ${getCategoryBadge(trendCategory)}
+        </td>
+        <td>
             ${formatCurrency(opp.current_price)}
+            ${entryZoneWarning ? `<br><span class="badge bg-${entryZoneWarning.severity} mt-1" title="${entryZoneWarning.suggestion}" style="font-size: 0.7rem; cursor: help;">
+                ${entryZoneWarning.severity === 'danger' ? '⛔' : entryZoneWarning.severity === 'warning' ? '⚠️' : 'ℹ️'} ${entryZoneWarning.distance_pct > 0 ? '+' : ''}${entryZoneWarning.distance_pct}%
+            </span>` : ''}
         </td>
         <td>
             <span class="badge ${volatility >= 50 ? 'bg-danger' : volatility >= 40 ? 'bg-warning' : 'bg-info'}">
@@ -1197,6 +1230,7 @@ function createVolatileStockRow(opp, rank = '-') {
         </td>
         <td>
             <small class="text-success">${entryZone}</small>
+            ${entryZoneWarning ? `<br><small class="text-muted" style="font-size: 0.7rem;">${entryZoneWarning.entry_zone}</small>` : ''}
         </td>
         <td>
             <span class="badge bg-danger">${stopLossPct}%</span>
@@ -1232,6 +1266,16 @@ function showVolatileDetailModal(opp) {
     const rec = opp.recommendation || {};
     const metrics = opp.volatility_metrics || {};
     const technical = opp.technical_analysis || {};
+    const entryZoneWarning = opp.entry_zone_warning || null;
+    const trendCategory = opp.trend_category || 'trending_up';
+
+    // Get category info
+    const categoryMap = {
+        'trending_up': { icon: '📈', text: 'Trending Up', desc: 'หุ้นมี Momentum ดี กำลังทรงตัวขึ้น' },
+        'bouncing': { icon: '📉', text: 'Bouncing', desc: 'หุ้นอยู่ใกล้ Support กำลังกลับตัว เหมาะซื้อรอ Bounce' },
+        'breakout': { icon: '⚡', text: 'Breakout Potential', desc: 'หุ้นใกล้จะทะลุ Resistance มีโอกาส Breakout' }
+    };
+    const categoryInfo = categoryMap[trendCategory] || categoryMap['trending_up'];
 
     const modalContent = `
         <div class="modal fade" id="volatileDetailModal" tabindex="-1">
@@ -1242,6 +1286,19 @@ function showVolatileDetailModal(opp) {
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
+                        ${entryZoneWarning ? `
+                        <div class="alert alert-${entryZoneWarning.severity} border-${entryZoneWarning.severity}">
+                            <h6 class="mb-2"><i class="fas fa-exclamation-triangle me-2"></i>คำเตือน Entry Zone</h6>
+                            <p class="mb-1"><strong>${entryZoneWarning.message}</strong></p>
+                            <p class="mb-0"><small>${entryZoneWarning.suggestion}</small></p>
+                        </div>
+                        ` : ''}
+
+                        <div class="alert alert-info">
+                            <strong>${categoryInfo.icon} ประเภท: ${categoryInfo.text}</strong><br>
+                            <small>${categoryInfo.desc}</small>
+                        </div>
+
                         <div class="alert alert-warning">
                             <strong>${rec.description_thai || 'N/A'}</strong>
                         </div>

@@ -326,6 +326,29 @@ class StockAnalyzer:
         risk_assessment = enhanced_results.get('risk_assessment', {})
         ai_analysis = enhanced_results.get('ai_analysis', {})
 
+        # Calculate price data needed for unified recommendation
+        current_price = enhanced_results.get('technical_analysis', {}).get('last_price')
+        suggested_entry = self._calculate_entry_price(enhanced_results, entry_exit)
+        suggested_stop_loss = self._calculate_stop_loss_price(enhanced_results, entry_exit)
+        suggested_targets = self._calculate_target_prices(enhanced_results, entry_exit)
+
+        # Add these to enhanced_results for unified recommendation
+        enhanced_results_with_prices = enhanced_results.copy()
+        enhanced_results_with_prices['current_price'] = current_price
+        enhanced_results_with_prices['suggested_entry'] = suggested_entry
+        enhanced_results_with_prices['suggested_stop_loss'] = suggested_stop_loss
+        enhanced_results_with_prices['suggested_targets'] = suggested_targets
+
+        # NEW: Generate unified recommendation
+        try:
+            from analysis.unified_recommendation import create_unified_recommendation
+            unified_recommendation = create_unified_recommendation(enhanced_results_with_prices)
+        except Exception as e:
+            import traceback
+            logger.error(f"Unified recommendation failed: {e}")
+            logger.error(f"Full traceback:\n{traceback.format_exc()}")
+            unified_recommendation = None
+
         # Get ETF status from enhanced results fundamental data
         fundamental_data = enhanced_results.get('fundamental_analysis', {})
         is_etf = fundamental_data.get('is_etf', False)
@@ -342,6 +365,10 @@ class StockAnalyzer:
             'time_horizon': time_horizon,
             'account_value': account_value,
             'is_etf': is_etf,
+
+            # ===== NEW: Unified Recommendation =====
+            'unified_recommendation': unified_recommendation,
+            # =======================================
 
             # Enhanced analysis results (including AI analysis)
             'enhanced_analysis': enhanced_results,
@@ -395,10 +422,10 @@ class StockAnalyzer:
             'confidence_level': self._convert_confidence_to_text(analysis_summary.get('confidence', 0.5)),
             'key_insights': analysis_summary.get('key_reasons', []),
 
-            # Entry/Exit guidance
-            'suggested_entry': self._calculate_entry_price(enhanced_results, entry_exit),
-            'suggested_stop_loss': self._calculate_stop_loss_price(enhanced_results, entry_exit),
-            'suggested_targets': self._calculate_target_prices(enhanced_results, entry_exit),
+            # Entry/Exit guidance (already calculated above)
+            'suggested_entry': suggested_entry,
+            'suggested_stop_loss': suggested_stop_loss,
+            'suggested_targets': suggested_targets,
             'risk_reward_ratio': self._calculate_risk_reward_ratio(entry_exit),
 
             # Enhanced features indicators

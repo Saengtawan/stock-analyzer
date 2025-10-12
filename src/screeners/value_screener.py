@@ -1082,22 +1082,33 @@ Focus on companies that combine growth with improving profitability, not just re
                 logger.debug(f"✗ {opp['symbol']} filtered: Extreme volatility ({vol:.1f}% > 80%)")
                 continue
 
-            # 5. Filter out large-cap stable stocks with low volatility
-            # (GOOGL, AAPL type - market cap > $500B and volatility < 35%)
-            if market_cap > 500_000_000_000 and vol < 35:
-                logger.debug(f"✗ {opp['symbol']} filtered: Large-cap stable (${market_cap/1e9:.0f}B, {vol:.1f}%)")
+            # 5. Filter out large-cap STABLE stocks with low volatility
+            # BUT KEEP large-cap volatile stocks (NVDA, TSLA, etc.)
+            # Only filter if: market cap > $500B AND volatility < 35% AND momentum < 5
+            if market_cap > 500_000_000_000 and vol < 35 and momentum < 5:
+                logger.debug(f"✗ {opp['symbol']} filtered: Large-cap stable low momentum (${market_cap/1e9:.0f}B, {vol:.1f}%, momentum {momentum:.1f})")
                 continue
 
-            # 6. Require minimum trading opportunity score of 4.5 (quality threshold - relaxed for more opportunities)
-            if trading_score < 4.5:
-                logger.debug(f"✗ {opp['symbol']} filtered: Low trading score ({trading_score:.1f} < 4.5)")
+            # KEEP large-cap volatile stocks if they have good momentum and volatility
+            # Example: NVDA ($3T market cap, 60% volatility, 8.0 momentum) should PASS
+
+            # 6. Require minimum trading opportunity score of 4.0 (quality threshold)
+            # Lowered from 4.5 to 4.0 to include more quality volatile stocks
+            if trading_score < 4.0:
+                logger.debug(f"✗ {opp['symbol']} filtered: Low trading score ({trading_score:.1f} < 4.0)")
                 continue
 
             # 4. Add trading_score to response (use this instead of volatility_score)
             opp['trading_score'] = trading_score
 
+            # 5. Add trend category based on technical analysis
+            opp['trend_category'] = self._categorize_stock_trend(opp)
+
+            # 6. Add entry zone warning if price is far from entry zone
+            opp['entry_zone_warning'] = self._check_entry_zone(opp)
+
             filtered.append(opp)
-            logger.info(f"✓ {opp['symbol']}: trading_score={trading_score:.1f}, vol={vol:.1f}%, momentum={momentum:.1f}")
+            logger.info(f"✓ {opp['symbol']}: trading_score={trading_score:.1f}, vol={vol:.1f}%, momentum={momentum:.1f}, category={opp['trend_category']}")
 
         # Sort by Trading Opportunity Score (not volatility score)
         filtered.sort(key=lambda x: x['trading_score'], reverse=True)
@@ -1124,8 +1135,9 @@ Focus on companies that combine growth with improving profitability, not just re
             current_price = float(price_data['close'].iloc[-1])
 
             # Basic filtering criteria
-            # 1. Price filter: $10-$500 (exclude penny stocks and extremely high-priced)
-            if current_price < 10.0 or current_price > 500.0:
+            # 1. Price filter: $5-$1000 (relaxed to include more quality stocks)
+            # Exclude true penny stocks (<$5) but allow high-priced quality stocks
+            if current_price < 5.0 or current_price > 1000.0:
                 return None
 
             # Get company info early for market cap check
@@ -1148,8 +1160,9 @@ Focus on companies that combine growth with improving profitability, not just re
                     'beta': 1.0
                 }
 
-            # 2. Market cap filter: Minimum $500M (exclude micro-caps)
-            if market_cap > 0 and market_cap < 500_000_000:
+            # 2. Market cap filter: Minimum $300M (lowered to catch more opportunities)
+            # Exclude true micro-caps but allow small-cap volatility plays
+            if market_cap > 0 and market_cap < 300_000_000:
                 return None
 
             # Calculate volatility metrics
@@ -1415,6 +1428,185 @@ Focus on companies that combine growth with improving profitability, not just re
         except Exception as e:
             logger.error(f"Error calculating volatility metrics: {e}")
             return {}
+
+    def _categorize_stock_trend(self, opportunity: Dict[str, Any]) -> str:
+        """
+        Categorize stock based on trend type for better organization
+
+        Categories:
+        - trending_up: Strong upward momentum
+        - bouncing: Near support, showing reversal signs
+        - breakout: Near resistance, potential breakout
+
+        Args:
+            opportunity: Stock opportunity data
+
+        Returns:
+            Trend category string
+        """
+        try:
+            technical = opportunity.get('technical_analysis', {})
+            momentum = technical.get('momentum_score', 0)
+            trend = technical.get('trend', 'unknown')
+            rsi = technical.get('rsi', 50)
+            distance_from_52w = technical.get('distance_from_52w_high', 50)
+            distance_from_30d = technical.get('distance_from_30d_high', 20)
+            support_level = technical.get('support_level', 0)
+            resistance_level = technical.get('resistance_level', 0)
+            current_price = opportunity.get('current_price', 0)
+
+            # Calculate distance from support and resistance
+            if support_level > 0 and current_price > 0:
+                distance_from_support = ((current_price - support_level) / support_level * 100)
+            else:
+                distance_from_support = 999
+
+            if resistance_level > 0 and current_price > 0:
+                distance_from_resistance = ((resistance_level - current_price) / current_price * 100)
+            else:
+                distance_from_resistance = 999
+
+            # Categorization logic
+            # 1. Trending Up: Strong momentum, bullish trend, not overextended
+            if (momentum >= 6.0 and trend == 'bullish' and
+                distance_from_52w > 10 and distance_from_support > 5):
+                return 'trending_up'
+
+            # 2. Bouncing: Near support, showing reversal signs
+            elif (distance_from_support <= 5 or
+                  (rsi < 40 and momentum >= 3.0) or
+                  (distance_from_52w > 20 and momentum >= 4.0 and trend == 'bullish')):
+                return 'bouncing'
+
+            # 3. Breakout Potential: Near resistance with strong momentum
+            elif (distance_from_resistance <= 5 and momentum >= 5.0) or \
+                 (distance_from_52w < 10 and momentum >= 6.5):
+                return 'breakout'
+
+            # Default: Trending Up (if positive momentum) or Bouncing (if lower momentum)
+            elif momentum >= 5.0:
+                return 'trending_up'
+            else:
+                return 'bouncing'
+
+        except Exception as e:
+            logger.warning(f"Error categorizing trend: {e}")
+            return 'trending_up'  # Default category
+
+    def _check_entry_zone(self, opportunity: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Check if current price is significantly different from entry zone
+        and generate appropriate warning
+
+        IMPROVED LOGIC:
+        - For stocks far from highs (>20%): Use support level as entry zone
+        - For stocks near highs (<20%): Use pullback zone (current -5% to -8%)
+        - This prevents showing unrealistic entry zones for extended stocks
+
+        Args:
+            opportunity: Stock opportunity data
+
+        Returns:
+            Warning dict with message and severity, or None if no warning
+        """
+        try:
+            technical = opportunity.get('technical_analysis', {})
+            current_price = opportunity.get('current_price', 0)
+            support_level = technical.get('support_level', 0)
+            distance_from_52w = technical.get('distance_from_52w_high', 50)
+            distance_from_30d = technical.get('distance_from_30d_high', 20)
+            momentum = technical.get('momentum_score', 0)
+            high_30d = technical.get('high_30d', 0)
+
+            if current_price <= 0:
+                return None
+
+            # SMART ENTRY ZONE CALCULATION
+            # 1. For stocks FAR from highs (>20% away) - use support-based entry
+            if distance_from_52w > 20 and support_level > 0:
+                entry_zone_low = support_level
+                entry_zone_high = support_level * 1.03  # Support + 3%
+                zone_type = "support"
+
+            # 2. For stocks NEAR highs (<20% away) - use pullback zone
+            else:
+                # Entry zone = current price -5% to -10%
+                # This is more realistic for stocks that already ran up
+                entry_zone_high = current_price * 0.95  # Current -5%
+                entry_zone_low = current_price * 0.90   # Current -10%
+                zone_type = "pullback"
+
+            # Check if current price is within entry zone
+            if entry_zone_low <= current_price <= entry_zone_high:
+                return None  # No warning, price is in entry zone
+
+            # Calculate distance from entry zone
+            if current_price > entry_zone_high:
+                distance_pct = ((current_price - entry_zone_high) / entry_zone_high * 100)
+
+                # Adjust messages based on zone type
+                zone_desc = "Support Zone" if zone_type == "support" else "Pullback Zone"
+
+                # Different severity levels based on distance
+                if distance_pct > 15:
+                    suggestion = f'รอราคาปรับลงใกล้ ${entry_zone_high:.2f}' if zone_type == "support" else f'รอ pullback 5-10% หรือรอ breakout confirmation'
+                    return {
+                        'severity': 'danger',
+                        'message': f'⚠️ ราคาสูงกว่า {zone_desc} มาก (+{distance_pct:.1f}%) - แนะนำรอปรับฐานก่อนเข้า',
+                        'suggestion': suggestion,
+                        'entry_zone': f'${entry_zone_low:.2f} - ${entry_zone_high:.2f}',
+                        'distance_pct': round(distance_pct, 1),
+                        'zone_type': zone_type
+                    }
+                elif distance_pct > 8:
+                    suggestion = f'รอราคาปรับลงใกล้ ${entry_zone_high:.2f}' if zone_type == "support" else 'รอ pullback 5-8% หรือเข้าด้วย position size เล็กกว่า'
+                    return {
+                        'severity': 'warning',
+                        'message': f'⚠️ ราคาสูงกว่า {zone_desc} (+{distance_pct:.1f}%) - พิจารณารอจังหวะที่ดีกว่า',
+                        'suggestion': suggestion,
+                        'entry_zone': f'${entry_zone_low:.2f} - ${entry_zone_high:.2f}',
+                        'distance_pct': round(distance_pct, 1),
+                        'zone_type': zone_type
+                    }
+                elif distance_pct > 3:
+                    return {
+                        'severity': 'info',
+                        'message': f'ℹ️ ราคาสูงกว่า {zone_desc} เล็กน้อย (+{distance_pct:.1f}%)',
+                        'suggestion': 'สามารถเข้าได้ แต่ตั้ง Stop Loss ให้แน่น',
+                        'entry_zone': f'${entry_zone_low:.2f} - ${entry_zone_high:.2f}',
+                        'distance_pct': round(distance_pct, 1),
+                        'zone_type': zone_type
+                    }
+            elif current_price < entry_zone_low:
+                # Price below entry zone
+                distance_pct = ((entry_zone_low - current_price) / current_price * 100)
+
+                if zone_type == "support" and distance_pct > 5:
+                    # Only warn about breakdown for support-based zones
+                    return {
+                        'severity': 'danger',
+                        'message': f'⚠️ ราคาทะลุ Support แล้ว (-{distance_pct:.1f}%) - ระวัง breakdown',
+                        'suggestion': 'รอให้มี confirmation ว่า support ใหม่เกิดขึ้นก่อนเข้า',
+                        'entry_zone': f'${entry_zone_low:.2f} - ${entry_zone_high:.2f}',
+                        'distance_pct': round(-distance_pct, 1),
+                        'zone_type': zone_type
+                    }
+                # For pullback zones, being below is actually good (better entry)
+                elif zone_type == "pullback" and distance_pct > 5:
+                    return {
+                        'severity': 'success',
+                        'message': f'✅ ราคา pullback สวย (-{distance_pct:.1f}%) - เหมาะเข้าได้',
+                        'suggestion': 'ราคาอยู่ในโซนที่ดี สามารถเข้าได้',
+                        'entry_zone': f'${entry_zone_low:.2f} - ${entry_zone_high:.2f}',
+                        'distance_pct': round(-distance_pct, 1),
+                        'zone_type': zone_type
+                    }
+
+            return None  # No significant warning
+
+        except Exception as e:
+            logger.warning(f"Error checking entry zone: {e}")
+            return None
 
     def _generate_volatile_trading_recommendation(self,
                                                   volatility_metrics: Dict[str, Any],

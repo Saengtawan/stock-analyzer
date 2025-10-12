@@ -90,6 +90,20 @@ class EnhancedStockAnalyzer:
             # 3. Technical Analysis
             technical_results = self._perform_technical_analysis(price_data)
 
+            # 3.5 Insider/Institutional Analysis (NEW - SEC EDGAR)
+            try:
+                from analysis.fundamental.insider_institutional import InsiderInstitutionalAnalyzer
+                insider_analyzer = InsiderInstitutionalAnalyzer(symbol)
+                insider_institutional_results = insider_analyzer.get_comprehensive_analysis()
+            except Exception as e:
+                logger.warning(f"Insider/institutional analysis failed: {e}")
+                insider_institutional_results = {
+                    'insider_score': 5.0,
+                    'institutional_score': 5.0,
+                    'combined_score': 5.0,
+                    'has_real_data': False
+                }
+
             # 4. Price Change Analysis (NEW - ทำไมราคาขึ้น/ลง)
             try:
                 price_change_analysis = self.price_change_analyzer.analyze_price_change(
@@ -181,6 +195,9 @@ class EnhancedStockAnalyzer:
 
                 # Price Change Analysis (NEW - ทำไมราคาขึ้น/ลง)
                 'price_change_analysis': price_change_analysis,
+
+                # Insider/Institutional Analysis (NEW - SEC EDGAR)
+                'insider_institutional': insider_institutional_results,
 
                 # Signal Processing
                 'signal_processing': {
