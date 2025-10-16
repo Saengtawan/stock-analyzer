@@ -87,6 +87,13 @@ def api_analyze():
         # Perform analysis
         results = analyzer.analyze_stock(symbol, time_horizon, account_value)
 
+        # DEBUG: Log unified_recommendation structure
+        unified_rec = results.get('unified_recommendation', {})
+        weights = unified_rec.get('weights_applied', {})
+        logger.info(f"🔍 API DEBUG - unified_recommendation exists: {bool(unified_rec)}")
+        logger.info(f"🔍 API DEBUG - weights_applied exists: {bool(weights)}")
+        logger.info(f"🔍 API DEBUG - weights_applied content: {weights}")
+
         # Add ETF information
         etf_info = SymbolUtils.get_etf_info(symbol)
         if etf_info:
@@ -94,6 +101,11 @@ def api_analyze():
 
         # Clean results for JSON serialization
         cleaned_results = clean_analysis_results(results)
+
+        # DEBUG: Log after cleaning
+        cleaned_unified_rec = cleaned_results.get('unified_recommendation', {})
+        cleaned_weights = cleaned_unified_rec.get('weights_applied', {})
+        logger.info(f"🔍 API DEBUG (after clean) - weights_applied: {cleaned_weights}")
 
         return jsonify(cleaned_results)
 
@@ -134,6 +146,7 @@ def api_support_screen():
         max_distance_from_support = data.get('max_distance_from_support', 0.05)
         min_fundamental_score = data.get('min_fundamental_score', 5.0)
         min_technical_score = data.get('min_technical_score', 4.0)
+        min_momentum_score = data.get('min_momentum_score', 5.0)
         max_stocks = data.get('max_stocks', 10)
         time_horizon = data.get('time_horizon', 'medium')
 
@@ -142,6 +155,7 @@ def api_support_screen():
             max_distance_from_support=max_distance_from_support,
             min_fundamental_score=min_fundamental_score,
             min_technical_score=min_technical_score,
+            min_momentum_score=min_momentum_score,
             max_stocks=max_stocks,
             time_horizon=time_horizon
         )
@@ -160,6 +174,7 @@ def api_support_screen():
                 'max_distance_from_support': max_distance_from_support,
                 'min_fundamental_score': min_fundamental_score,
                 'min_technical_score': min_technical_score,
+                'min_momentum_score': min_momentum_score,
                 'max_stocks': max_stocks,
                 'time_horizon': time_horizon
             }
@@ -451,6 +466,7 @@ def api_ai_support_screen():
         max_distance_from_support = data.get('max_distance_from_support', 0.05)
         min_fundamental_score = data.get('min_fundamental_score', 5.0)
         min_technical_score = data.get('min_technical_score', 4.0)
+        min_momentum_score = data.get('min_momentum_score', 5.0)
         max_stocks = data.get('max_stocks', 10)
         time_horizon = data.get('time_horizon', 'medium')
 
@@ -461,6 +477,7 @@ def api_ai_support_screen():
             max_distance_from_support=max_distance_from_support,
             min_fundamental_score=min_fundamental_score,
             min_technical_score=min_technical_score,
+            min_momentum_score=min_momentum_score,
             max_stocks=max_stocks,
             time_horizon=time_horizon,
             use_ai_universe=True  # Force AI universe generation
@@ -481,6 +498,7 @@ def api_ai_support_screen():
                 'max_distance_from_support': max_distance_from_support,
                 'min_fundamental_score': min_fundamental_score,
                 'min_technical_score': min_technical_score,
+                'min_momentum_score': min_momentum_score,
                 'max_stocks': max_stocks,
                 'time_horizon': time_horizon
             }

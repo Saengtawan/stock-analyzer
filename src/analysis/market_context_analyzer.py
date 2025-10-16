@@ -464,3 +464,153 @@ class MarketContextAnalyzer:
             'market_bias': market_context.get('market_bias'),
             'context_recommendations': adjustments.get('recommendations', [])
         }
+
+    def calculate_relative_strength(self,
+                                    stock_return: float,
+                                    sector_return: Optional[float] = None,
+                                    market_return: Optional[float] = None,
+                                    stock_symbol: str = '') -> Dict[str, Any]:
+        """
+        Calculate relative strength of stock vs sector and market
+
+        Args:
+            stock_return: Stock's return over period (e.g., 1-month %)
+            sector_return: Sector's return over same period
+            market_return: Market (S&P 500) return over same period
+            stock_symbol: Stock symbol for logging
+
+        Returns:
+            Relative strength analysis with scores and interpretation
+        """
+        logger.info(f"Calculating relative strength for {stock_symbol}")
+
+        results = {
+            'stock_return': round(stock_return, 2) if stock_return is not None else None,
+            'sector_return': round(sector_return, 2) if sector_return is not None else None,
+            'market_return': round(market_return, 2) if market_return is not None else None,
+        }
+
+        # Calculate relative strength vs sector
+        if sector_return is not None and stock_return is not None:
+            rs_vs_sector = stock_return - sector_return
+            results['rs_vs_sector'] = round(rs_vs_sector, 2)
+
+            # Interpret
+            if rs_vs_sector > 5:
+                results['sector_interpretation'] = 'STRONG_OUTPERFORMER'
+                results['sector_description'] = f"Outperforming sector by {rs_vs_sector:.1f}% - very strong relative strength"
+                results['sector_score'] = 9.0
+            elif rs_vs_sector > 2:
+                results['sector_interpretation'] = 'OUTPERFORMER'
+                results['sector_description'] = f"Outperforming sector by {rs_vs_sector:.1f}% - strong relative strength"
+                results['sector_score'] = 7.5
+            elif rs_vs_sector > 0:
+                results['sector_interpretation'] = 'SLIGHT_OUTPERFORMER'
+                results['sector_description'] = f"Outperforming sector by {rs_vs_sector:.1f}% - positive momentum"
+                results['sector_score'] = 6.0
+            elif rs_vs_sector > -2:
+                results['sector_interpretation'] = 'SLIGHT_UNDERPERFORMER'
+                results['sector_description'] = f"Underperforming sector by {abs(rs_vs_sector):.1f}% - watch closely"
+                results['sector_score'] = 4.5
+            elif rs_vs_sector > -5:
+                results['sector_interpretation'] = 'UNDERPERFORMER'
+                results['sector_description'] = f"Underperforming sector by {abs(rs_vs_sector):.1f}% - weak relative strength"
+                results['sector_score'] = 3.0
+            else:
+                results['sector_interpretation'] = 'STRONG_UNDERPERFORMER'
+                results['sector_description'] = f"Underperforming sector by {abs(rs_vs_sector):.1f}% - very weak"
+                results['sector_score'] = 1.5
+        else:
+            results['rs_vs_sector'] = None
+            results['sector_interpretation'] = 'NO_DATA'
+            results['sector_description'] = 'Sector data not available'
+            results['sector_score'] = 5.0
+
+        # Calculate relative strength vs market
+        if market_return is not None and stock_return is not None:
+            rs_vs_market = stock_return - market_return
+            results['rs_vs_market'] = round(rs_vs_market, 2)
+
+            # Interpret
+            if rs_vs_market > 5:
+                results['market_interpretation'] = 'STRONG_OUTPERFORMER'
+                results['market_description'] = f"Outperforming market by {rs_vs_market:.1f}% - market leader"
+                results['market_score'] = 9.0
+            elif rs_vs_market > 2:
+                results['market_interpretation'] = 'OUTPERFORMER'
+                results['market_description'] = f"Outperforming market by {rs_vs_market:.1f}% - strong performance"
+                results['market_score'] = 7.5
+            elif rs_vs_market > 0:
+                results['market_interpretation'] = 'SLIGHT_OUTPERFORMER'
+                results['market_description'] = f"Outperforming market by {rs_vs_market:.1f}% - above average"
+                results['market_score'] = 6.0
+            elif rs_vs_market > -2:
+                results['market_interpretation'] = 'SLIGHT_UNDERPERFORMER'
+                results['market_description'] = f"Underperforming market by {abs(rs_vs_market):.1f}% - below average"
+                results['market_score'] = 4.5
+            elif rs_vs_market > -5:
+                results['market_interpretation'] = 'UNDERPERFORMER'
+                results['market_description'] = f"Underperforming market by {abs(rs_vs_market):.1f}% - weak performance"
+                results['market_score'] = 3.0
+            else:
+                results['market_interpretation'] = 'STRONG_UNDERPERFORMER'
+                results['market_description'] = f"Underperforming market by {abs(rs_vs_market):.1f}% - very weak"
+                results['market_score'] = 1.5
+        else:
+            results['rs_vs_market'] = None
+            results['market_interpretation'] = 'NO_DATA'
+            results['market_description'] = 'Market data not available'
+            results['market_score'] = 5.0
+
+        # Calculate combined RS score
+        sector_score = results.get('sector_score', 5.0)
+        market_score = results.get('market_score', 5.0)
+        combined_rs_score = (sector_score + market_score) / 2
+        results['combined_rs_score'] = round(combined_rs_score, 1)
+
+        # Overall interpretation
+        if combined_rs_score >= 7.5:
+            results['overall_interpretation'] = 'STRONG_RELATIVE_STRENGTH'
+            results['overall_description'] = "Strong relative strength - stock is a leader"
+            results['recommendation'] = "Favor this stock - showing leadership"
+        elif combined_rs_score >= 6.0:
+            results['overall_interpretation'] = 'POSITIVE_RELATIVE_STRENGTH'
+            results['overall_description'] = "Positive relative strength - stock performing well"
+            results['recommendation'] = "Good candidate - outperforming peers"
+        elif combined_rs_score >= 4.5:
+            results['overall_interpretation'] = 'NEUTRAL_RELATIVE_STRENGTH'
+            results['overall_description'] = "Neutral relative strength - in line with benchmarks"
+            results['recommendation'] = "Average performance - no edge from RS"
+        elif combined_rs_score >= 3.0:
+            results['overall_interpretation'] = 'WEAK_RELATIVE_STRENGTH'
+            results['overall_description'] = "Weak relative strength - lagging benchmarks"
+            results['recommendation'] = "Caution - underperforming peers"
+        else:
+            results['overall_interpretation'] = 'VERY_WEAK_RELATIVE_STRENGTH'
+            results['overall_description'] = "Very weak relative strength - significant underperformance"
+            results['recommendation'] = "Avoid - showing significant weakness"
+
+        # Generate key insights
+        insights = []
+        if results.get('rs_vs_sector') is not None:
+            if results['rs_vs_sector'] > 3:
+                insights.append(f"📈 Sector leader: +{results['rs_vs_sector']:.1f}% vs sector")
+            elif results['rs_vs_sector'] < -3:
+                insights.append(f"📉 Sector laggard: {results['rs_vs_sector']:.1f}% vs sector")
+
+        if results.get('rs_vs_market') is not None:
+            if results['rs_vs_market'] > 3:
+                insights.append(f"🚀 Market leader: +{results['rs_vs_market']:.1f}% vs S&P 500")
+            elif results['rs_vs_market'] < -3:
+                insights.append(f"⚠️ Market laggard: {results['rs_vs_market']:.1f}% vs S&P 500")
+
+        # Trading signal based on RS
+        if combined_rs_score >= 7.0:
+            insights.append("✅ Strong buy signal from relative strength")
+        elif combined_rs_score <= 3.5:
+            insights.append("❌ Avoid - weak relative strength")
+
+        results['key_insights'] = insights
+
+        logger.info(f"RS for {stock_symbol}: Combined score = {combined_rs_score:.1f}/10")
+        return results

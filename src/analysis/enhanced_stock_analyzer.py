@@ -76,6 +76,9 @@ class EnhancedStockAnalyzer:
         Returns:
             Comprehensive analysis results
         """
+        # Store time_horizon as instance variable so it can be accessed by other methods
+        self.current_time_horizon = time_horizon
+
         logger.info(f"Starting enhanced analysis for {symbol} with time horizon: {time_horizon}")
 
         try:
@@ -1249,12 +1252,13 @@ class EnhancedStockAnalyzer:
         # Adjust for risk
         risk_adjusted_return = expected_return * (1 - overall_risk)
 
+        # Store time_horizon as instance variable so it can be accessed here
         return {
             'expected_win_rate': round(expected_win_rate, 2),
             'expected_return': round(risk_adjusted_return, 3),
             'risk_adjusted': True,
             'confidence_level': 0.8,  # 80% confidence interval
-            'time_horizon': self._get_time_horizon(),
+            'time_horizon': getattr(self, 'current_time_horizon', 'medium'),  # Use the time_horizon from analyze_stock
             'key_assumptions': [
                 "Based on historical pattern analysis",
                 "Assumes current market regime continues",

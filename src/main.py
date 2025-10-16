@@ -341,13 +341,35 @@ class StockAnalyzer:
 
         # NEW: Generate unified recommendation
         try:
-            from analysis.unified_recommendation import create_unified_recommendation
+            from analysis.unified_recommendation import create_unified_recommendation, generate_action_plan
             unified_recommendation = create_unified_recommendation(enhanced_results_with_prices)
+
+            # CRITICAL FIX: Make unified_recommendation the SINGLE SOURCE OF TRUTH
+            # Override analysis_summary with unified recommendation to prevent signal inconsistency
+            if unified_recommendation:
+                analysis_summary['recommendation'] = unified_recommendation['recommendation']
+                analysis_summary['overall_score'] = unified_recommendation['score']
+                analysis_summary['confidence'] = unified_recommendation['confidence_percentage'] / 100
+                logger.info(f"✅ Unified recommendation overriding AI summary: {unified_recommendation['recommendation']} (Score: {unified_recommendation['score']:.1f}, Confidence: {unified_recommendation['confidence']})")
+
+                # NEW: Generate action plan from unified recommendation
+                action_plan = generate_action_plan(
+                    unified_rec=unified_recommendation,
+                    current_price=current_price,
+                    entry=suggested_entry,
+                    stop=suggested_stop_loss,
+                    targets=suggested_targets,
+                    symbol=enhanced_results.get('symbol', '')
+                )
+                logger.info(f"✅ Action plan generated: {action_plan.get('action_instruction', 'N/A')}")
+            else:
+                action_plan = None
         except Exception as e:
             import traceback
             logger.error(f"Unified recommendation failed: {e}")
             logger.error(f"Full traceback:\n{traceback.format_exc()}")
             unified_recommendation = None
+            action_plan = None
 
         # Get ETF status from enhanced results fundamental data
         fundamental_data = enhanced_results.get('fundamental_analysis', {})
@@ -369,6 +391,10 @@ class StockAnalyzer:
             # ===== NEW: Unified Recommendation =====
             'unified_recommendation': unified_recommendation,
             # =======================================
+
+            # ===== NEW: Action Plan =====
+            'action_plan': action_plan,
+            # ============================
 
             # Enhanced analysis results (including AI analysis)
             'enhanced_analysis': enhanced_results,
@@ -569,45 +595,38 @@ class StockAnalyzer:
             bb_upper = indicators.get('bb_upper', current_price * 1.04)
 
             if recommendation == 'BUY':
-                # Stop loss below entry - use technical support levels
+                # ATR-BASED DYNAMIC STOP LOSS (v2.0)
+                # Risk = 1.5 × ATR (as recommended)
 
-                # Option 1: Support-based stop (preferred)
-                support_stop = support_1 * 0.995  # Slightly below support to avoid whipsaws
+                atr_multiplier = 1.5  # Standard multiplier for swing trading
+                stop_price = current_price - (atr * atr_multiplier)
 
-                # Option 2: ATR-based stop (for volatility adjustment)
-                atr_multiplier = 1.5  # 1.5x ATR below entry
-                atr_stop = current_price - (atr * atr_multiplier)
+                # Use support as floor (don't let stop go too far below support)
+                support_floor = support_1 * 0.99  # 1% below support
+                stop_price = max(stop_price, support_floor)
 
-                # Option 3: Bollinger Band lower as stop
-                bb_stop = bb_lower * 0.99
+                # Ensure stop is reasonable (max 8% for safety)
+                max_stop = current_price * 0.92  # Max 8% stop loss
+                stop_price = max(stop_price, max_stop)
 
-                # Use the highest (least aggressive) stop that makes sense
-                candidate_stops = [support_stop, atr_stop, bb_stop]
-                stop_price = max([s for s in candidate_stops if s < current_price * 0.9])  # Max 10% stop
-
-                # Ensure minimum distance from current price (at least 1%)
-                min_stop = current_price * 0.99
-                stop_price = min(stop_price, min_stop)
+                logger.debug(f"BUY stop: ATR={atr:.2f}, ATR-based stop=${stop_price:.2f} ({((current_price-stop_price)/current_price)*100:.1f}% below entry)")
 
             elif recommendation == 'SELL':
-                # Stop loss above entry for short positions
+                # ATR-BASED DYNAMIC STOP LOSS FOR SHORT (v2.0)
+                # Risk = 1.5 × ATR (as recommended)
 
-                # Resistance-based stop
-                resistance_stop = resistance_1 * 1.005
+                atr_multiplier = 1.5
+                stop_price = current_price + (atr * atr_multiplier)
 
-                # ATR-based stop
-                atr_stop = current_price + (atr * 1.5)
+                # Use resistance as ceiling (don't let stop go too far above resistance)
+                resistance_ceiling = resistance_1 * 1.01  # 1% above resistance
+                stop_price = min(stop_price, resistance_ceiling)
 
-                # Bollinger Band upper as stop
-                bb_stop = bb_upper * 1.01
+                # Ensure stop is reasonable (max 8% for safety)
+                min_stop = current_price * 1.08  # Max 8% stop loss
+                stop_price = min(stop_price, min_stop)
 
-                # Use the lowest (least aggressive) stop
-                candidate_stops = [resistance_stop, atr_stop, bb_stop]
-                stop_price = min([s for s in candidate_stops if s > current_price * 1.1])  # Max 10% stop
-
-                # Ensure minimum distance from current price
-                max_stop = current_price * 1.01
-                stop_price = max(stop_price, max_stop)
+                logger.debug(f"SELL stop: ATR={atr:.2f}, ATR-based stop=${stop_price:.2f} ({((stop_price-current_price)/current_price)*100:.1f}% above entry)")
 
             else:  # HOLD
                 # Conservative stop loss
@@ -654,21 +673,27 @@ class StockAnalyzer:
             fib_261 = fibonacci.get('extension_261.8', current_price * 1.12) if isinstance(fibonacci, dict) else current_price * 1.12
 
             if recommendation == 'BUY':
-                # Calculate BUY targets based on resistance levels
+                # DYNAMIC TARGET CALCULATION (v2.0)
+                # Reward = Resistance - Entry (as recommended)
 
-                # Target 1: First resistance or BB upper
-                target_1_options = [resistance_1, bb_upper]
-                valid_targets_1 = [t for t in target_1_options if t > current_price * 1.005]
-                target_1 = min(valid_targets_1) if valid_targets_1 else current_price * 1.02
+                # Target 1: First resistance (primary target)
+                target_1 = resistance_1
 
                 # Target 2: Second resistance or Fibonacci extension
-                target_2_options = [resistance_2, resistance_3, fib_161]
-                valid_targets_2 = [t for t in target_2_options if t > target_1 * 1.01]
-                target_2 = min(valid_targets_2) if valid_targets_2 else target_1 * 1.03
+                target_2 = max(resistance_2, fib_161)
 
-                # Ensure reasonable targets (not too ambitious)
-                target_1 = min(target_1, current_price * 1.08)  # Max 8% for target 1
-                target_2 = min(target_2, current_price * 1.15)  # Max 15% for target 2
+                # Calculate R:R for Target 1
+                entry_price = current_price  # Assuming entry at current
+                stop_loss_est = current_price - (indicators.get('atr', current_price * 0.02) * 1.5)
+                risk_dollars = entry_price - stop_loss_est
+                reward_dollars = target_1 - entry_price
+                rr_ratio = reward_dollars / risk_dollars if risk_dollars > 0 else 0
+
+                # Ensure reasonable targets and minimum R:R
+                target_1 = max(target_1, current_price * 1.015)  # Min 1.5% gain
+                target_2 = max(target_2, target_1 * 1.02)  # Min 2% above target 1
+
+                logger.debug(f"BUY targets: T1=${target_1:.2f} (+{((target_1-current_price)/current_price)*100:.1f}%), T2=${target_2:.2f}, R:R={rr_ratio:.2f}:1")
 
             elif recommendation == 'SELL':
                 # Calculate SELL targets (for short positions) based on support levels

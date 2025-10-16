@@ -70,12 +70,25 @@ class AIStockAnalyzer:
                     summary = ai_analysis.get('summary', {})
                     confidence_breakdown = ai_analysis.get('confidence_breakdown', {})
 
-                    # Priority: summary.confidence > confidence_breakdown.overall_confidence > fallback
-                    ai_confidence = (
+                    # ENHANCED AI CONFIDENCE (v2.0)
+                    # Formula: AI_Confidence = (Technical_Agreement × 0.4) + (Analyst_Consensus × 0.3) + (Sentiment_Consistency × 0.3)
+
+                    # Base AI confidence from analysis
+                    base_confidence = (
                         summary.get('confidence') or
                         confidence_breakdown.get('overall_confidence') or
                         ai_analysis.get('confidence', 0.5)
                     )
+
+                    # Calculate enhanced confidence with analyst consensus
+                    enhanced_confidence = self._calculate_enhanced_confidence(
+                        base_confidence=base_confidence,
+                        technical_data=technical_data,
+                        analyst_consensus=ai_analysis.get('analyst_consensus', {}),
+                        ai_recommendation=summary.get('recommendation', 'HOLD')
+                    )
+
+                    ai_confidence = enhanced_confidence
 
                     return {
                         'ai_analysis_available': True,
@@ -480,6 +493,99 @@ CRITICAL REQUIREMENTS - FAILURE TO COMPLY WILL RESULT IN REJECTION:
             logger.error(f"Failed to parse AI analysis: {e}")
             return None
 
+
+    def _calculate_enhanced_confidence(self,
+                                       base_confidence: float,
+                                       technical_data: Dict[str, Any],
+                                       analyst_consensus: Dict[str, Any],
+                                       ai_recommendation: str) -> float:
+        """
+        Calculate enhanced AI confidence using the formula:
+        AI_Confidence = (Technical_Agreement × 0.4) + (Analyst_Consensus × 0.3) + (Sentiment_Consistency × 0.3)
+
+        Args:
+            base_confidence: Base confidence from AI analysis (0.0-1.0)
+            technical_data: Technical analysis results
+            analyst_consensus: Analyst consensus data
+            ai_recommendation: AI recommendation (BUY/HOLD/SELL)
+
+        Returns:
+            Enhanced confidence score (0.0-1.0)
+        """
+        try:
+            # 1. TECHNICAL AGREEMENT (40%)
+            # Check if technical indicators agree with AI recommendation
+            tech_indicators = technical_data.get('indicators', {})
+            tech_score = technical_data.get('technical_score', {}).get('total_score', 5.0)
+
+            # Convert technical score (0-10) to agreement score (0-1)
+            if ai_recommendation == 'BUY':
+                # For BUY: higher tech score = higher agreement
+                technical_agreement = tech_score / 10.0
+            elif ai_recommendation == 'SELL':
+                # For SELL: lower tech score = higher agreement
+                technical_agreement = 1.0 - (tech_score / 10.0)
+            else:  # HOLD
+                # For HOLD: mid-range tech score (4-6) = higher agreement
+                distance_from_neutral = abs(tech_score - 5.0) / 5.0
+                technical_agreement = 1.0 - distance_from_neutral
+
+            # 2. ANALYST CONSENSUS (30%)
+            # Check if analyst consensus aligns with AI recommendation
+            analyst_agreement = 0.5  # Default neutral
+
+            if analyst_consensus:
+                consensus_summary = analyst_consensus.get('consensus_summary', {})
+                wall_street = analyst_consensus.get('wall_street_consensus', {})
+
+                # Get sentiment and recommendation
+                sentiment = consensus_summary.get('overall_sentiment', '').lower()
+                ws_recommendation = wall_street.get('recommendation', '').lower()
+                bullish_pct = consensus_summary.get('bullish_percentage', 50.0) / 100.0
+
+                # Calculate alignment based on recommendation
+                if ai_recommendation == 'BUY':
+                    if 'bullish' in sentiment or 'buy' in ws_recommendation:
+                        analyst_agreement = bullish_pct
+                    else:
+                        analyst_agreement = 0.3  # Low agreement
+                elif ai_recommendation == 'SELL':
+                    if 'bearish' in sentiment or 'sell' in ws_recommendation:
+                        analyst_agreement = 1.0 - bullish_pct
+                    else:
+                        analyst_agreement = 0.3  # Low agreement
+                else:  # HOLD
+                    if 'neutral' in sentiment or 'hold' in ws_recommendation:
+                        analyst_agreement = 0.7
+                    else:
+                        # Moderate agreement if sentiment not extreme
+                        analyst_agreement = 1.0 - abs(bullish_pct - 0.5) * 2
+
+            # 3. SENTIMENT CONSISTENCY (30%)
+            # Check if base confidence is consistent with recommendation strength
+            sentiment_consistency = base_confidence
+
+            # Apply formula with weights
+            enhanced_confidence = (
+                technical_agreement * 0.4 +
+                analyst_agreement * 0.3 +
+                sentiment_consistency * 0.3
+            )
+
+            # Ensure result is in valid range
+            enhanced_confidence = max(0.0, min(1.0, enhanced_confidence))
+
+            logger.info(f"Enhanced confidence calculation:")
+            logger.info(f"  Technical Agreement (40%): {technical_agreement:.2f}")
+            logger.info(f"  Analyst Consensus (30%): {analyst_agreement:.2f}")
+            logger.info(f"  Sentiment Consistency (30%): {sentiment_consistency:.2f}")
+            logger.info(f"  Final Enhanced Confidence: {enhanced_confidence:.2f} (was {base_confidence:.2f})")
+
+            return enhanced_confidence
+
+        except Exception as e:
+            logger.error(f"Error calculating enhanced confidence: {e}")
+            return base_confidence  # Fallback to base confidence
 
     def _get_fallback_analysis(self) -> Dict[str, Any]:
         """Fallback analysis when AI is unavailable - returns minimal unavailable status"""

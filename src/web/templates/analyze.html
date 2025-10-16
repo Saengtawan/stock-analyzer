@@ -260,7 +260,7 @@
                         </div>
 
                         <!-- Veto Warnings (if any) -->
-                        <div id="unified-veto-section" class="alert alert-warning mt-3 mb-0" style="display: none;">
+                        <div id="unified-veto-section" class="alert alert-warning mt-3 mb-3" style="display: none;">
                             <h6 class="alert-heading">
                                 <i class="fas fa-exclamation-triangle me-2"></i>
                                 มีการปรับคำแนะนำจากปัจจัยสำคัญ
@@ -269,6 +269,91 @@
                             <ul id="unified-veto-reasons" class="mb-0">
                                 <!-- Veto reasons will be inserted here -->
                             </ul>
+                        </div>
+
+                        <!-- Recommendation Comparison (AI vs Wall Street) -->
+                        <div id="recommendation-comparison-card" class="card border-info border-opacity-25 mt-3 mb-0">
+                            <div class="card-header bg-info bg-opacity-10">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">🔍 Recommendation Comparison</h6>
+                                    <span id="comparison-agreement-badge" class="badge bg-secondary">-</span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <!-- Overall Summary (TL;DR) -->
+                                <div id="comparison-summary" class="alert alert-secondary mb-3" role="alert" style="display: none;">
+                                    <small class="fw-bold">🧠 Quick Summary</small><br>
+                                    <small id="comparison-summary-text">-</small>
+                                </div>
+
+                                <!-- Signal Divergence Alert -->
+                                <div id="comparison-divergence-alert" class="alert alert-warning mb-3" role="alert" style="display: none;">
+                                    <small class="fw-bold">⚠️ Signal Divergence Detected</small><br>
+                                    <small id="comparison-divergence-text">-</small>
+                                </div>
+
+                                <!-- Recommendations -->
+                                <div class="row mb-3">
+                                    <div class="col-md-6 mb-2">
+                                        <div class="border rounded p-3 h-100">
+                                            <small class="text-muted d-block mb-2">
+                                                <i class="fas fa-robot me-1"></i>AI Analysis
+                                            </small>
+                                            <div class="mb-2">
+                                                <span class="badge fs-6" id="comparison-ai-rec">-</span>
+                                            </div>
+                                            <small class="text-muted d-block">
+                                                Score: <strong id="comparison-ai-score">-</strong>/10
+                                            </small>
+                                            <small class="text-muted d-block">
+                                                Time: <strong id="comparison-ai-horizon">-</strong>
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <div class="border rounded p-3 h-100">
+                                            <small class="text-muted d-block mb-2">
+                                                <i class="fas fa-building me-1"></i>Wall Street Consensus
+                                            </small>
+                                            <div class="mb-2">
+                                                <span class="badge fs-6" id="comparison-analyst-rec">-</span>
+                                            </div>
+                                            <small class="text-muted d-block">
+                                                Analysts: <strong id="comparison-analyst-count">-</strong>
+                                            </small>
+                                            <small class="text-muted d-block">
+                                                Target: <strong id="comparison-price-target">-</strong> (<strong id="comparison-upside">-</strong>)
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Valuation Analysis -->
+                                <div id="comparison-valuation" class="alert mb-3" role="alert" style="display: none;">
+                                    <small class="fw-bold">💰 Valuation Analysis</small><br>
+                                    <small id="comparison-valuation-text">-</small>
+                                </div>
+
+                                <!-- Signal Alignment -->
+                                <div id="comparison-signal-alignment" class="alert alert-light mb-3" role="alert" style="display: none;">
+                                    <small class="fw-bold">📊 Signal Alignment</small><br>
+                                    <small id="comparison-signal-alignment-text">-</small>
+                                </div>
+
+                                <!-- Risk/Reward Optimization -->
+                                <div id="comparison-rr-optimization" class="alert alert-info mb-3" role="alert" style="display: none;">
+                                    <small class="fw-bold">💡 Risk/Reward Optimization</small><br>
+                                    <small id="comparison-rr-optimization-text">-</small>
+                                </div>
+
+                                <!-- Explanation -->
+                                <div class="alert alert-info mb-0" role="alert">
+                                    <small class="fw-bold">📊 Analysis Breakdown</small><br>
+                                    <small id="recommendation-explanation">
+                                        Loading comparison...
+                                    </small>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -531,6 +616,11 @@ function performAnalysis() {
     .then(data => {
         hideLoading('analysis-loading');
 
+        // DEBUG: Log the full response to see if weights_applied exists
+        console.log('🔍 API Response received:');
+        console.log('  unified_recommendation exists:', !!data.unified_recommendation);
+        console.log('  weights_applied:', data.unified_recommendation?.weights_applied);
+
         if (data.error) {
             showError(data.error);
         } else {
@@ -587,8 +677,394 @@ function displayAnalysisResults(data) {
     // Create fundamental charts
     createFundamentalCharts(data);
 
+    // Update recommendation comparison with actual data
+    updateRecommendationComparison(data);
+
     // Show results
     document.getElementById('analysis-results').style.display = 'block';
+}
+
+function updateRecommendationComparison(data) {
+    // Find elements
+    const card = document.getElementById('recommendation-comparison-card');
+    const element = document.getElementById('recommendation-explanation');
+    const aiRecEl = document.getElementById('comparison-ai-rec');
+    const analystRecEl = document.getElementById('comparison-analyst-rec');
+    const agreementBadge = document.getElementById('comparison-agreement-badge');
+    const aiScoreEl = document.getElementById('comparison-ai-score');
+    const aiHorizonEl = document.getElementById('comparison-ai-horizon');
+    const analystCountEl = document.getElementById('comparison-analyst-count');
+    const priceTargetEl = document.getElementById('comparison-price-target');
+    const upsideEl = document.getElementById('comparison-upside');
+
+    if (!element || !card) {
+        console.log('⚠️ Recommendation comparison elements not found');
+        return;
+    }
+
+    try {
+        // Extract data
+        const unifiedRec = data.unified_recommendation || {};
+        const weights = unifiedRec.weights_applied || {};
+        const timeHorizon = data.time_horizon || 'medium';
+        const finalRec = data.final_recommendation || {};
+        const aiRec = (finalRec.recommendation || 'HOLD').toUpperCase();
+        const aiScore = unifiedRec.score || 5.0;
+
+        // Get analyst data from enhanced analysis (if available)
+        const analystCoverage = data.enhanced_analysis?.yahoo_data?.analyst_coverage || {};
+        const analystRec = (analystCoverage.recommendation || analystCoverage.consensus || 'hold').toUpperCase();
+        const analystUpside = analystCoverage.upside_potential || 0;
+        const analystCount = analystCoverage.number_of_analysts || 0;
+        const currentPrice = data.current_price || 0;
+        const targetPrice = analystCoverage.target_price || currentPrice;
+
+        console.log('🔍 Updating Recommendation Comparison:');
+        console.log('  weights:', weights);
+        console.log('  timeHorizon:', timeHorizon);
+        console.log('  AI rec:', aiRec, 'Score:', aiScore);
+        console.log('  Analyst rec:', analystRec, 'Count:', analystCount);
+
+        // Always show card
+        card.style.display = 'block';
+
+        // Update AI section
+        aiRecEl.textContent = aiRec;
+        aiRecEl.className = `badge ${getRecommendationClass(aiRec)} fs-6`;
+        aiScoreEl.textContent = aiScore.toFixed(1);
+
+        // Time horizon mapping
+        const horizonMap = {
+            'short': '1-14 days',
+            'medium': '1-6 months',
+            'long': '6+ months'
+        };
+        aiHorizonEl.textContent = horizonMap[timeHorizon] || timeHorizon;
+
+        // Update Wall Street section
+        analystRecEl.textContent = analystRec;
+        analystRecEl.className = `badge ${getRecommendationClass(analystRec)} fs-6`;
+        analystCountEl.textContent = analystCount > 0 ? analystCount : 'N/A';
+
+        if (targetPrice > 0 && currentPrice > 0) {
+            priceTargetEl.textContent = `$${targetPrice.toFixed(2)}`;
+            const upsideSign = analystUpside >= 0 ? '+' : '';
+            upsideEl.textContent = `${upsideSign}${analystUpside.toFixed(1)}%`;
+            upsideEl.className = analystUpside >= 0 ? 'text-success' : 'text-danger';
+        } else {
+            priceTargetEl.textContent = 'N/A';
+            upsideEl.textContent = 'N/A';
+        }
+
+        // Determine agreement level
+        const isStrongAgree = (
+            (aiRec.includes('BUY') && analystRec.includes('BUY')) ||
+            (aiRec.includes('SELL') && analystRec.includes('SELL'))
+        );
+        const isAgree = aiRec === analystRec;
+        const isConflict = (
+            (aiRec.includes('BUY') && (analystRec === 'HOLD' || analystRec.includes('SELL'))) ||
+            (aiRec === 'HOLD' && (analystRec.includes('BUY') || analystRec.includes('SELL'))) ||
+            (aiRec.includes('SELL') && (analystRec === 'HOLD' || analystRec.includes('BUY')))
+        );
+
+        // Update agreement badge
+        if (isStrongAgree || isAgree) {
+            agreementBadge.textContent = '✓ Agreement';
+            agreementBadge.className = 'badge bg-success';
+        } else if (isConflict) {
+            agreementBadge.textContent = '⚠ Divergence';
+            agreementBadge.className = 'badge bg-warning';
+        } else {
+            agreementBadge.textContent = '◐ Partial';
+            agreementBadge.className = 'badge bg-info';
+        }
+
+        // ===== NEW FEATURES =====
+
+        // 1. Overall Summary (TL;DR)
+        const summaryEl = document.getElementById('comparison-summary');
+        const summaryTextEl = document.getElementById('comparison-summary-text');
+        const componentScores = unifiedRec.component_scores || {};
+        const techScore = componentScores.technical || 5;
+        const fundScore = componentScores.fundamental || 5;
+        const momentumScore = componentScores.momentum || 5;
+
+        // Generate quick summary
+        let summaryText = '';
+        const scoreGap = Math.abs(techScore - fundScore);
+        if (scoreGap > 3) {
+            const stronger = techScore > fundScore ? 'technicals' : 'fundamentals';
+            const weaker = techScore > fundScore ? 'fundamentals' : 'technicals';
+            summaryText = `Mixed outlook — Strong ${stronger} (${(techScore > fundScore ? techScore : fundScore).toFixed(1)}/10) offset by weak ${weaker} (${(techScore > fundScore ? fundScore : techScore).toFixed(1)}/10). `;
+        } else {
+            summaryText = `Balanced outlook — Technicals and fundamentals aligned around ${((techScore + fundScore) / 2).toFixed(1)}/10. `;
+        }
+
+        // Add price context
+        if (currentPrice > 0 && targetPrice > 0) {
+            if (analystUpside > 15) {
+                summaryText += `Significant upside potential (+${analystUpside.toFixed(0)}%). `;
+            } else if (analystUpside < -10) {
+                summaryText += `Limited upside, potential downside (${analystUpside.toFixed(0)}%). `;
+            } else {
+                summaryText += `Moderate upside to target (+${analystUpside.toFixed(0)}%). `;
+            }
+        }
+
+        // Add action
+        if (isStrongAgree && aiRec.includes('BUY')) {
+            summaryText += `<strong class="text-success">Strong buy signal</strong> from both AI and analysts.`;
+        } else if (isStrongAgree && aiRec.includes('SELL')) {
+            summaryText += `<strong class="text-danger">Strong sell signal</strong> from both AI and analysts.`;
+        } else if (isConflict) {
+            summaryText += `<strong class="text-warning">Divergent signals</strong> — review detailed analysis below.`;
+        } else {
+            summaryText += `<strong class="text-info">Neutral stance</strong> — monitor for clearer signals.`;
+        }
+
+        summaryTextEl.innerHTML = summaryText;
+        summaryEl.style.display = 'block';
+
+        // 2. Signal Divergence Alert (only if AI rec differs from unified)
+        const divergenceAlertEl = document.getElementById('comparison-divergence-alert');
+        const divergenceTextEl = document.getElementById('comparison-divergence-text');
+        const unifiedRecText = (unifiedRec.recommendation || 'HOLD').toUpperCase();
+
+        if (aiRec !== unifiedRecText) {
+            let divergenceText = `<strong>Unified Recommendation: ${unifiedRecText}</strong> (blended consensus)<br>`;
+            divergenceText += `<strong>AI Model: ${aiRec}</strong> (${(aiScore * 10).toFixed(0)}% confidence)<br>`;
+            divergenceText += `<strong>Wall Street: ${analystRec}</strong> (${analystCount} analysts)<br><br>`;
+
+            divergenceText += `<strong>Why divergence?</strong><br>`;
+            divergenceText += `• AI weighs ${timeHorizon}-term factors heavily (Technical ${(weights.technical * 100).toFixed(0)}%, Momentum ${(weights.momentum * 100).toFixed(0)}%)<br>`;
+            divergenceText += `• Unified blends all timeframes and factors<br>`;
+            divergenceText += `• Wall Street focuses on 12-month fundamentals<br><br>`;
+
+            divergenceText += `<strong>Which to follow?</strong><br>`;
+            if (timeHorizon === 'short') {
+                divergenceText += `• <span class="text-primary fw-bold">Short-term traders (&lt;2 weeks):</span> Follow AI → ${aiRec}<br>`;
+                divergenceText += `• <span class="text-secondary">Position traders (1-6 months):</span> Follow Unified → ${unifiedRecText}<br>`;
+                divergenceText += `• <span class="text-secondary">Long-term investors (6+ months):</span> Follow Wall Street → ${analystRec}`;
+            } else if (timeHorizon === 'medium') {
+                divergenceText += `• <span class="text-secondary">Short-term traders (&lt;2 weeks):</span> Follow AI → ${aiRec}<br>`;
+                divergenceText += `• <span class="text-primary fw-bold">Position traders (1-6 months):</span> Follow Unified → ${unifiedRecText}<br>`;
+                divergenceText += `• <span class="text-secondary">Long-term investors (6+ months):</span> Follow Wall Street → ${analystRec}`;
+            } else {
+                divergenceText += `• <span class="text-secondary">Short-term traders (&lt;2 weeks):</span> Follow AI → ${aiRec}<br>`;
+                divergenceText += `• <span class="text-secondary">Position traders (1-6 months):</span> Follow Unified → ${unifiedRecText}<br>`;
+                divergenceText += `• <span class="text-primary fw-bold">Long-term investors (6+ months):</span> Follow Wall Street → ${analystRec}`;
+            }
+
+            divergenceTextEl.innerHTML = divergenceText;
+            divergenceAlertEl.style.display = 'block';
+        }
+
+        // 3. Valuation Analysis
+        const valuationEl = document.getElementById('comparison-valuation');
+        const valuationTextEl = document.getElementById('comparison-valuation-text');
+        const fundamentalData = data.fundamental_analysis || {};
+        const fairValue = fundamentalData.fair_value || fundamentalData.intrinsic_value || 0;
+
+        if (fairValue > 0 && currentPrice > 0) {
+            const valuationGap = ((currentPrice - fairValue) / fairValue) * 100;
+            let valuationText = `<strong>Current Price:</strong> $${currentPrice.toFixed(2)}<br>`;
+            valuationText += `<strong>Fair Value:</strong> $${fairValue.toFixed(2)}<br>`;
+
+            if (valuationGap > 15) {
+                valuationText += `<strong class="text-danger">Overvaluation: +${valuationGap.toFixed(1)}% ⚠️</strong><br><br>`;
+                valuationText += `<em>Interpretation:</em> Stock trading ${valuationGap.toFixed(0)}% above intrinsic value. Expect mean reversion pressure. Consider waiting for correction to $${(fairValue * 1.1).toFixed(2)}-$${(fairValue * 1.05).toFixed(2)} range.`;
+                valuationEl.className = 'alert alert-danger mb-3';
+            } else if (valuationGap < -10) {
+                valuationText += `<strong class="text-success">Undervaluation: ${valuationGap.toFixed(1)}% ✓</strong><br><br>`;
+                valuationText += `<em>Interpretation:</em> Stock trading ${Math.abs(valuationGap).toFixed(0)}% below intrinsic value. Potential value opportunity. Target fair value around $${fairValue.toFixed(2)}.`;
+                valuationEl.className = 'alert alert-success mb-3';
+            } else {
+                valuationText += `<strong class="text-warning">Fair Value: ${valuationGap >= 0 ? '+' : ''}${valuationGap.toFixed(1)}%</strong><br><br>`;
+                valuationText += `<em>Interpretation:</em> Stock trading close to intrinsic value (within ${Math.abs(valuationGap).toFixed(0)}%). Limited valuation upside, focus on momentum and catalysts.`;
+                valuationEl.className = 'alert alert-warning mb-3';
+            }
+
+            valuationTextEl.innerHTML = valuationText;
+            valuationEl.style.display = 'block';
+        }
+
+        // 4. Signal Alignment Matrix
+        const signalAlignmentEl = document.getElementById('comparison-signal-alignment');
+        const signalAlignmentTextEl = document.getElementById('comparison-signal-alignment-text');
+
+        if (Object.keys(componentScores).length > 0) {
+            // Calculate alignment
+            const scores = Object.entries(componentScores).map(([name, score]) => ({name, score}));
+            const avgScore = scores.reduce((sum, s) => sum + s.score, 0) / scores.length;
+            const variance = scores.reduce((sum, s) => sum + Math.pow(s.score - avgScore, 2), 0) / scores.length;
+            const stdDev = Math.sqrt(variance);
+
+            // Alignment percentage (inverse of coefficient of variation)
+            const alignment = Math.max(0, Math.min(100, 100 - (stdDev / avgScore * 100)));
+
+            let alignmentText = `<strong>Alignment Score: ${alignment.toFixed(0)}%</strong> `;
+            if (alignment > 75) {
+                alignmentText += `<span class="text-success">(High consensus)</span><br><br>`;
+            } else if (alignment > 50) {
+                alignmentText += `<span class="text-warning">(Moderate conflict)</span><br><br>`;
+            } else {
+                alignmentText += `<span class="text-danger">(High conflict)</span><br><br>`;
+            }
+
+            // Show agreements and conflicts
+            const sortedScores = scores.sort((a, b) => b.score - a.score);
+            const highest = sortedScores[0];
+            const lowest = sortedScores[sortedScores.length - 1];
+            const gap = highest.score - lowest.score;
+
+            if (gap > 3) {
+                alignmentText += `<strong>Major Conflict:</strong><br>`;
+                alignmentText += `• ✓ <span class="text-success">${highest.name.charAt(0).toUpperCase() + highest.name.slice(1)} (${highest.score.toFixed(1)})</span> strongly supports position<br>`;
+                alignmentText += `• ✗ <span class="text-danger">${lowest.name.charAt(0).toUpperCase() + lowest.name.slice(1)} (${lowest.score.toFixed(1)})</span> conflicts [±${gap.toFixed(1)} gap]<br><br>`;
+                alignmentText += `<em>Interpretation:</em> Significant divergence suggests different timeframes favor different actions. Consider your investment horizon.`;
+            } else {
+                alignmentText += `<strong>Component Breakdown:</strong><br>`;
+                sortedScores.forEach(s => {
+                    const icon = s.score >= avgScore ? '✓' : '◐';
+                    const color = s.score >= avgScore ? 'text-success' : 'text-muted';
+                    alignmentText += `• ${icon} <span class="${color}">${s.name.charAt(0).toUpperCase() + s.name.slice(1)}: ${s.score.toFixed(1)}/10</span><br>`;
+                });
+                alignmentText += `<br><em>Interpretation:</em> Signals are generally aligned around ${avgScore.toFixed(1)}/10. Consistent consensus across factors.`;
+            }
+
+            signalAlignmentTextEl.innerHTML = alignmentText;
+            signalAlignmentEl.style.display = 'block';
+        }
+
+        // 5. Risk/Reward Optimization
+        const rrOptimizationEl = document.getElementById('comparison-rr-optimization');
+        const rrOptimizationTextEl = document.getElementById('comparison-rr-optimization-text');
+        const riskRewardData = data.risk_reward || {};
+        const currentRR = riskRewardData.ratio || 0;
+        const entryPrice = riskRewardData.entry || currentPrice;
+        const targetPrice_rr = riskRewardData.target || targetPrice;
+        const stopLoss = riskRewardData.stop_loss || currentPrice * 0.95;
+
+        if (currentRR > 0) {
+            let rrText = `<strong>Current R:R Ratio: ${currentRR.toFixed(2)}:1</strong> `;
+
+            if (currentRR >= 1.5) {
+                rrText += `<span class="text-success">✓ Acceptable</span><br><br>`;
+                rrText += `<strong>Current Setup:</strong><br>`;
+                rrText += `• Entry: $${entryPrice.toFixed(2)}<br>`;
+                rrText += `• Target: $${targetPrice_rr.toFixed(2)} (+${((targetPrice_rr - entryPrice) / entryPrice * 100).toFixed(1)}%)<br>`;
+                rrText += `• Stop: $${stopLoss.toFixed(2)} (${((stopLoss - entryPrice) / entryPrice * 100).toFixed(1)}%)<br><br>`;
+                rrText += `<em>No optimization needed.</em> R:R ratio meets minimum threshold.`;
+            } else {
+                rrText += `<span class="text-danger">⚠️ Below minimum (1.5:1)</span><br><br>`;
+
+                // Calculate optimization scenarios
+                const risk = entryPrice - stopLoss;
+                const optimalTarget1 = entryPrice + (risk * 1.5);
+                const optimalEntry = targetPrice_rr / 2.5 + stopLoss / 1.5;
+                const tighterStop = entryPrice - (targetPrice_rr - entryPrice) / 1.5;
+
+                rrText += `<strong>💡 Optimization Suggestions:</strong><br><br>`;
+
+                rrText += `<strong>Option 1: Wait for better entry</strong><br>`;
+                rrText += `• Entry: $${Math.max(stopLoss * 1.02, optimalEntry).toFixed(2)} (wait for pullback)<br>`;
+                rrText += `• Target: $${targetPrice_rr.toFixed(2)}<br>`;
+                rrText += `• Stop: $${stopLoss.toFixed(2)}<br>`;
+                rrText += `• New R:R: ~1.50:1 ✓<br><br>`;
+
+                rrText += `<strong>Option 2: Raise target</strong><br>`;
+                rrText += `• Entry: $${entryPrice.toFixed(2)}<br>`;
+                rrText += `• Target: $${optimalTarget1.toFixed(2)} (higher target)<br>`;
+                rrText += `• Stop: $${stopLoss.toFixed(2)}<br>`;
+                rrText += `• New R:R: 1.50:1 ✓<br><br>`;
+
+                if (tighterStop > stopLoss && tighterStop < entryPrice * 0.98) {
+                    rrText += `<strong>Option 3: Tighter stop</strong><br>`;
+                    rrText += `• Entry: $${entryPrice.toFixed(2)}<br>`;
+                    rrText += `• Target: $${targetPrice_rr.toFixed(2)}<br>`;
+                    rrText += `• Stop: $${tighterStop.toFixed(2)} (tighter stop)<br>`;
+                    rrText += `• New R:R: 1.50:1 ✓<br>`;
+                    rrText += `• <em class="text-warning">⚠️ Warning: Higher risk of premature stop-out</em><br><br>`;
+                }
+
+                rrText += `<strong>Recommendation:</strong> <span class="text-primary fw-bold">Option 1</span> (wait for pullback) offers best risk-adjusted entry.`;
+            }
+
+            rrOptimizationTextEl.innerHTML = rrText;
+            rrOptimizationEl.style.display = 'block';
+        }
+
+        // Generate AI weights breakdown
+        const weightsList = Object.entries(weights)
+            .sort((a, b) => b[1] - a[1])
+            .map(([key, val]) => `${key.charAt(0).toUpperCase() + key.slice(1)} ${(val * 100).toFixed(0)}%`)
+            .join(', ');
+
+        // Generate AI explanation based on time horizon
+        let aiExplanation = '';
+        if (timeHorizon === 'short') {
+            const techWeight = (weights.technical || 0) * 100;
+            const momentumWeight = (weights.momentum || 0) * 100;
+            aiExplanation = `<strong>🤖 AI Strategy (${timeHorizon}):</strong> Focuses on <u>Technical ${techWeight.toFixed(0)}%</u> + <u>Momentum ${momentumWeight.toFixed(0)}%</u> for short-term trades (1-14 days)`;
+        } else if (timeHorizon === 'medium') {
+            const fundWeight = (weights.fundamental || 0) * 100;
+            const techWeight = (weights.technical || 0) * 100;
+            aiExplanation = `<strong>🤖 AI Strategy (${timeHorizon}):</strong> Balances <u>Fundamentals ${fundWeight.toFixed(0)}%</u> + <u>Technical ${techWeight.toFixed(0)}%</u> for swing positions (1-6 months)`;
+        } else {
+            const fundWeight = (weights.fundamental || 0) * 100;
+            const insiderWeight = (weights.insider || 0) * 100;
+            aiExplanation = `<strong>🤖 AI Strategy (${timeHorizon}):</strong> Emphasizes <u>Fundamentals ${fundWeight.toFixed(0)}%</u> + <u>Insider ${insiderWeight.toFixed(0)}%</u> for long-term holds (6+ months)`;
+        }
+
+        // Generate Wall Street explanation
+        let wallStreetExplanation = '';
+        const analystInfo = analystCount > 0 ? `${analystCount} analysts` : 'Wall Street';
+        if (analystUpside > 15) {
+            wallStreetExplanation = `<strong>🏢 ${analystInfo}:</strong> See <u class="text-success">+${analystUpside.toFixed(0)}% upside</u> to $${targetPrice.toFixed(2)} target, driven by strong fundamental valuation`;
+        } else if (analystUpside > 0) {
+            wallStreetExplanation = `<strong>🏢 ${analystInfo}:</strong> Expect <u class="text-success">+${analystUpside.toFixed(0)}% gain</u> to $${targetPrice.toFixed(2)}, supported by earnings growth and valuation expansion`;
+        } else if (analystUpside < -10) {
+            wallStreetExplanation = `<strong>🏢 ${analystInfo}:</strong> See <u class="text-danger">${analystUpside.toFixed(0)}% downside</u> to $${targetPrice.toFixed(2)}, citing overvaluation concerns`;
+        } else {
+            wallStreetExplanation = `<strong>🏢 ${analystInfo}:</strong> View stock as fairly valued around $${targetPrice.toFixed(2)} with limited near-term catalysts`;
+        }
+
+        // Generate reconciliation based on agreement level
+        let recommendation = '';
+        if (isStrongAgree || isAgree) {
+            const confidence = isStrongAgree ? 'High confidence' : 'Moderate confidence';
+            const color = aiRec.includes('BUY') ? 'success' : (aiRec.includes('SELL') ? 'danger' : 'warning');
+            recommendation = `<strong>✅ Consensus Reached:</strong> Both AI and Wall Street agree on <span class="text-${color} fw-bold">${aiRec}</span>. ${confidence} signal.`;
+        } else if (isConflict) {
+            if (aiRec.includes('BUY') && !analystRec.includes('BUY')) {
+                recommendation = `<strong>⚠️ Divergence:</strong> AI sees <span class="text-success fw-bold">short-term momentum</span> opportunity, while analysts remain cautious on fundamentals. Consider <span class="text-warning fw-bold">quick trade with tight stops</span>.`;
+            } else if (aiRec.includes('SELL') && !analystRec.includes('SELL')) {
+                recommendation = `<strong>⚠️ Divergence:</strong> AI detects <span class="text-danger fw-bold">near-term weakness</span>, while analysts see long-term value. Consider <span class="text-info fw-bold">waiting for better entry point</span>.`;
+            } else if (aiRec === 'HOLD' && analystRec.includes('BUY')) {
+                recommendation = `<strong>⚠️ Divergence:</strong> AI suggests caution due to technical factors, while analysts favor fundamentals. <span class="text-warning fw-bold">Monitor closely</span> for entry opportunity.`;
+            } else if (aiRec === 'HOLD' && analystRec.includes('SELL')) {
+                recommendation = `<strong>⚠️ Divergence:</strong> AI neutral on technicals, but analysts concerned about fundamentals. <span class="text-warning fw-bold">Stay on sidelines</span> for now.`;
+            } else {
+                recommendation = `<strong>⚠️ Divergence:</strong> Mixed signals between technical and fundamental analysis. Consider your <span class="text-primary fw-bold">time horizon</span> and <span class="text-primary fw-bold">risk tolerance</span>.`;
+            }
+        } else {
+            recommendation = `<strong>◐ Partial Agreement:</strong> Views aligned but with different conviction levels. Consider combining both perspectives in your decision.`;
+        }
+
+        // Update HTML with complete breakdown
+        element.innerHTML = `
+            ${aiExplanation}<br>
+            <small class="text-muted">Weight breakdown: ${weightsList}</small><br><br>
+            ${wallStreetExplanation}<br><br>
+            ${recommendation}
+        `;
+
+        console.log('✅ Recommendation comparison updated successfully');
+    } catch (error) {
+        console.error('❌ Error updating recommendation comparison:', error);
+        element.innerHTML = `<span class="text-danger">Error: ${error.message}</span>`;
+    }
 }
 
 function displayUnifiedRecommendation(data) {
@@ -2414,50 +2890,6 @@ function displayEnhancedAnalysis(data) {
                     </div>
                 </div>
 
-                <!-- Recommendation Comparison & Explanation -->
-                ${(() => {
-                    const aiRec = (data.final_recommendation?.recommendation || 'HOLD').toUpperCase();
-                    const analystRec = (analystCoverage.recommendation || analystCoverage.consensus || 'hold').toUpperCase();
-
-                    // Check if there's a conflict
-                    const isConflict = (
-                        (aiRec.includes('BUY') && (analystRec === 'HOLD' || analystRec === 'SELL')) ||
-                        (aiRec === 'HOLD' && (analystRec.includes('BUY') || analystRec === 'SELL')) ||
-                        (aiRec.includes('SELL') && (analystRec === 'HOLD' || analystRec.includes('BUY')))
-                    );
-
-                    if (isConflict) {
-                        return `
-                        <div class="card border-info border-opacity-25 mt-3">
-                            <div class="card-header bg-info bg-opacity-10">
-                                <h6 class="mb-0">🔍 Recommendation Comparison</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row mb-3">
-                                    <div class="col-6">
-                                        <small class="text-muted d-block">AI Analysis</small>
-                                        <span class="badge ${getRecommendationClass(aiRec)} fs-6">${aiRec}</span>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block">Wall Street Consensus</small>
-                                        <span class="badge ${getRecommendationClass(analystRec)} fs-6">${analystRec}</span>
-                                    </div>
-                                </div>
-                                <div class="alert alert-info mb-0" role="alert">
-                                    <small class="fw-bold">📊 Why the difference?</small><br>
-                                    <small>
-                                        • <strong>AI Analysis</strong> focuses on <u>technical signals</u>, <u>recent price action</u>, and <u>short-to-medium term momentum</u><br>
-                                        • <strong>Wall Street</strong> focuses on <u>fundamental valuation</u>, <u>long-term earnings growth</u>, and <u>12-month price targets</u><br>
-                                        • Both can be correct for different <u>time horizons</u> and <u>trading styles</u><br>
-                                        • Consider your <strong>investment goals</strong>: Short-term trade vs Long-term hold
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                        `;
-                    }
-                    return '';
-                })()}
             </div>
         </div>
 

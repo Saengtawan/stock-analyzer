@@ -128,6 +128,12 @@
                                                    min="0" max="10" step="0.1" value="4.0">
                                         </div>
                                         <div class="mb-3">
+                                            <label for="support-momentum-score" class="form-label">คะแนน Momentum ขั้นต่ำ</label>
+                                            <input type="number" class="form-control" id="support-momentum-score"
+                                                   min="0" max="10" step="0.1" value="5.0">
+                                            <div class="form-text">ขั้นต่ำ 5.0 = Moderate momentum ขึ้นไป</div>
+                                        </div>
+                                        <div class="mb-3">
                                             <label for="support-time-horizon" class="form-label">ระยะเวลาการลงทุน</label>
                                             <select class="form-select" id="support-time-horizon">
                                                 <option value="short">ระยะสั้น (1-14 วัน)</option>
@@ -644,6 +650,7 @@ function runSupportScreening() {
     const supportDistance = parseFloat(document.getElementById('support-distance').value);
     const fundamentalScore = parseFloat(document.getElementById('support-fundamental-score').value);
     const technicalScore = parseFloat(document.getElementById('support-technical-score').value);
+    const momentumScore = parseFloat(document.getElementById('support-momentum-score').value);
     const timeHorizon = document.getElementById('support-time-horizon').value;
     const maxStocks = parseInt(document.getElementById('max-stocks').value);
 
@@ -656,6 +663,7 @@ function runSupportScreening() {
         max_distance_from_support: supportDistance,
         min_fundamental_score: fundamentalScore,
         min_technical_score: technicalScore,
+        min_momentum_score: momentumScore,
         max_stocks: maxStocks,
         time_horizon: timeHorizon
     };
@@ -698,10 +706,11 @@ function displaySupportScreeningResults(data) {
             <th>ราคาปัจจุบัน</th>
             <th>แนวรับ</th>
             <th>ระยะจากแนวรับ</th>
+            <th>Momentum</th>
             <th>คะแนนรวม</th>
             <th>Risk/Reward</th>
             <th>คำแนะนำ</th>
-            <th>การดำเนินการ</th>
+            <th>รายละเอียด</th>
         </tr>
     `;
 
@@ -744,10 +753,20 @@ function createSupportResultRow(opp) {
     const riskReward = opp.risk_reward_ratio || 0;
     const distance = opp.distance_from_support_pct || 0;
     const recommendation = opp.recommendation || 'Hold';
+    const momentumScore = opp.momentum_score || 5.0;
+    const momentumTier = opp.momentum_tier || 'Moderate';
+
+    // Get momentum tier badge class
+    const getMomentumTierClass = (tier) => {
+        if (tier === 'Strong') return 'bg-success';
+        if (tier === 'Moderate') return 'bg-warning';
+        return 'bg-secondary';
+    };
 
     row.innerHTML = `
         <td>
             <strong>${opp.symbol}</strong>
+            ${opp.is_etf ? '<span class="badge bg-info ms-1">ETF</span>' : ''}
         </td>
         <td>
             ${formatCurrency(opp.current_price)}
@@ -759,6 +778,13 @@ function createSupportResultRow(opp) {
             <span class="badge ${distance <= 0 ? 'bg-success' : distance <= 2 ? 'bg-warning' : 'bg-secondary'}">
                 ${distance > 0 ? '+' : ''}${distance.toFixed(1)}%
             </span>
+        </td>
+        <td>
+            <div class="metric-card ${getScoreClass(momentumScore)}" style="padding: 5px 10px; border-radius: 5px; display: inline-block;">
+                <span class="text-white">${formatNumber(momentumScore, 1)}/10</span>
+            </div>
+            <br>
+            <span class="badge ${getMomentumTierClass(momentumTier)} mt-1">${momentumTier}</span>
         </td>
         <td>
             <div class="metric-card ${getScoreClass(attractiveness)}" style="padding: 5px 10px; border-radius: 5px; display: inline-block;">
@@ -774,6 +800,10 @@ function createSupportResultRow(opp) {
             <span class="badge ${getRecommendationClass(recommendation)}">${recommendation}</span>
         </td>
         <td>
+            <button class="btn btn-sm btn-info me-1" onclick='showSupportDetailModal(${JSON.stringify(opp).replace(/'/g, "\\'")})'>
+                <i class="fas fa-info-circle me-1"></i>
+                รายละเอียด
+            </button>
             <a href="/analyze?symbol=${opp.symbol}" class="btn btn-sm btn-primary">
                 <i class="fas fa-chart-line me-1"></i>
                 วิเคราะห์
@@ -782,6 +812,197 @@ function createSupportResultRow(opp) {
     `;
 
     return row;
+}
+
+function showSupportDetailModal(opp) {
+    // Extract data
+    const atrZones = opp.atr_zones || [];
+    const atr = opp.atr || 0;
+    const atrPercent = opp.atr_percent || 0;
+    const relVolumeData = opp.relative_volume_data || {};
+    const momentumBreakdown = opp.momentum_breakdown || {};
+
+    // Build ATR Zones HTML
+    let atrZonesHTML = '';
+    if (atrZones && atrZones.length > 0) {
+        atrZones.forEach((zone, index) => {
+            atrZonesHTML += `
+                <div class="alert alert-${zone.risk_reward >= 2 ? 'success' : 'warning'} mb-2">
+                    <strong>${index + 1}. ${zone.name}</strong> (${zone.description})
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <small class="d-block"><strong>Entry Range:</strong> $${zone.entry_low} - $${zone.entry_high}</small>
+                            <small class="d-block"><strong>Stop Loss:</strong> $${zone.stop_loss}</small>
+                            <small class="d-block"><strong>Target:</strong> $${zone.target}</small>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="d-block"><strong>Risk/Reward:</strong> <span class="badge bg-${zone.risk_reward >= 2 ? 'success' : 'warning'}">${zone.risk_reward}:1</span></small>
+                            <small class="d-block"><strong>Zone Width:</strong> $${zone.width} (${zone.width_atr} ATR)</small>
+                            <small class="d-block"><strong>Type:</strong> ${zone.type}</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        atrZonesHTML = '<p class="text-muted">No ATR zones with R:R >= 1.5 found</p>';
+    }
+
+    // Build Relative Volume HTML
+    const rvSignalClass = relVolumeData.signal?.includes('Above') ? 'success' : relVolumeData.signal?.includes('Below') ? 'danger' : 'secondary';
+    const relVolumeHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <p class="mb-1"><strong>Current Volume:</strong> ${relVolumeData.current_volume?.toLocaleString() || 'N/A'}</p>
+                <p class="mb-1"><strong>20-Day Avg:</strong> ${relVolumeData.avg_volume_20?.toLocaleString() || 'N/A'}</p>
+                <p class="mb-1"><strong>50-Day Avg:</strong> ${relVolumeData.avg_volume_50?.toLocaleString() || 'N/A'}</p>
+            </div>
+            <div class="col-md-6">
+                <p class="mb-1"><strong>Relative Volume:</strong> ${relVolumeData.relative_volume || 'N/A'}x</p>
+                <p class="mb-1"><strong>Volume Trend:</strong> ${relVolumeData.volume_trend_pct >= 0 ? '+' : ''}${relVolumeData.volume_trend_pct || 0}%</p>
+                <p class="mb-1"><strong>Volume-Price Correlation:</strong> ${relVolumeData.volume_price_correlation || 0}</p>
+            </div>
+        </div>
+        <div class="alert alert-${rvSignalClass} mt-2">
+            <p class="mb-1"><strong>Signal:</strong> ${relVolumeData.signal || 'Unknown'}</p>
+            <p class="mb-1"><strong>Volume Score:</strong> ${relVolumeData.volume_score || 'N/A'}/10</p>
+            <p class="mb-0"><small>${relVolumeData.interpretation || ''}</small></p>
+            ${relVolumeData.unusual_volume ? '<p class="mb-0 mt-1"><span class="badge bg-warning">⚠️ Unusual Volume Detected</span></p>' : ''}
+        </div>
+    `;
+
+    // Build Momentum Breakdown HTML
+    let momentumHTML = '';
+    if (momentumBreakdown && momentumBreakdown.components) {
+        const rsiComp = momentumBreakdown.rsi_component || {};
+        const macdComp = momentumBreakdown.macd_component || {};
+        const emaComp = momentumBreakdown.ema_component || {};
+
+        momentumHTML = `
+            <div class="alert alert-${momentumBreakdown.overall_score >= 7 ? 'success' : momentumBreakdown.overall_score >= 5 ? 'warning' : 'danger'}">
+                <h6><strong>Overall: ${momentumBreakdown.overall_score}/10</strong></h6>
+                <p class="mb-0">${momentumBreakdown.overall_signal || ''}</p>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">RSI (${rsiComp.weight * 100}%)</h6>
+                            <p class="mb-1"><strong>Value:</strong> ${rsiComp.value || 'N/A'}</p>
+                            <p class="mb-1"><strong>Score:</strong> <span class="badge bg-${rsiComp.score >= 7 ? 'success' : rsiComp.score >= 5 ? 'warning' : 'danger'}">${rsiComp.score || 0}/10</span></p>
+                            <p class="mb-0"><small>${rsiComp.signal || ''}</small></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">MACD (${macdComp.weight * 100}%)</h6>
+                            <p class="mb-1"><strong>Line:</strong> ${macdComp.line || 'N/A'}</p>
+                            <p class="mb-1"><strong>Signal:</strong> ${macdComp.signal_value || macdComp.signal || 'N/A'}</p>
+                            <p class="mb-1"><strong>Histogram:</strong> ${macdComp.histogram || 'N/A'}</p>
+                            <p class="mb-1"><strong>Score:</strong> <span class="badge bg-${macdComp.score >= 7 ? 'success' : macdComp.score >= 5 ? 'warning' : 'danger'}">${macdComp.score || 0}/10</span></p>
+                            <p class="mb-0"><small>${macdComp.signal_text || macdComp.signal || ''}</small></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">EMA Trend (${emaComp.weight * 100}%)</h6>
+                            <p class="mb-1"><strong>EMA 9:</strong> ${emaComp.ema_9 || 'N/A'}</p>
+                            <p class="mb-1"><strong>EMA 21:</strong> ${emaComp.ema_21 || 'N/A'}</p>
+                            <p class="mb-1"><strong>EMA 50:</strong> ${emaComp.ema_50 || 'N/A'}</p>
+                            <p class="mb-1"><strong>Score:</strong> <span class="badge bg-${emaComp.score >= 7 ? 'success' : emaComp.score >= 5 ? 'warning' : 'danger'}">${emaComp.score || 0}/10</span></p>
+                            <p class="mb-0"><small>${emaComp.signal || ''}</small></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        momentumHTML = '<p class="text-muted">Momentum breakdown data not available</p>';
+    }
+
+    const modalContent = `
+        <div class="modal fade" id="supportDetailModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning">
+                        <h5 class="modal-title"><i class="fas fa-chart-line me-2"></i>${opp.symbol} - Swing Trading Analysis</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Summary -->
+                        <div class="alert alert-info">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <strong>Current Price:</strong> $${opp.current_price?.toFixed(2) || 'N/A'}
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Support:</strong> $${opp.support_1?.toFixed(2) || 'N/A'}
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Resistance:</strong> $${opp.resistance_1?.toFixed(2) || 'N/A'}
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>ATR:</strong> $${atr?.toFixed(2) || 'N/A'} (${atrPercent?.toFixed(2) || 0}%)
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ATR Entry Zones -->
+                        <h6 class="mt-3"><i class="fas fa-crosshairs me-2"></i>ATR-Based Entry Zones</h6>
+                        ${atrZonesHTML}
+
+                        <!-- Relative Volume Analysis -->
+                        <h6 class="mt-3"><i class="fas fa-chart-bar me-2"></i>Relative Volume Analysis</h6>
+                        ${relVolumeHTML}
+
+                        <!-- Momentum Breakdown -->
+                        <h6 class="mt-3"><i class="fas fa-tachometer-alt me-2"></i>Momentum Breakdown</h6>
+                        ${momentumHTML}
+
+                        <!-- Additional Info -->
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <p><strong>Fundamental Score:</strong> ${opp.fundamental_score || 'N/A'}/10</p>
+                                <p><strong>Technical Score:</strong> ${opp.technical_score || 'N/A'}/10</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Attractiveness:</strong> ${opp.attractiveness_score || 'N/A'}/10</p>
+                                <p><strong>Momentum Tier:</strong> <span class="badge bg-${opp.momentum_tier === 'Strong' ? 'success' : opp.momentum_tier === 'Moderate' ? 'warning' : 'secondary'}">${opp.momentum_tier || 'N/A'}</span></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+                        <a href="/analyze?symbol=${opp.symbol}" class="btn btn-primary">
+                            <i class="fas fa-chart-line me-1"></i>
+                            วิเคราะห์เพิ่มเติม
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('supportDetailModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to body and show
+    document.body.insertAdjacentHTML('beforeend', modalContent);
+    const modal = new bootstrap.Modal(document.getElementById('supportDetailModal'));
+    modal.show();
+
+    // Clean up after modal is hidden
+    document.getElementById('supportDetailModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
 }
 
 // Dividend Screening Functions

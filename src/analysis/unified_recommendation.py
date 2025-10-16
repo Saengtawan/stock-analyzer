@@ -57,7 +57,9 @@ class UnifiedRecommendationEngine:
         logger.debug(f"  stop_loss: {type(stop_loss)} = {stop_loss}")
 
         # 1. Calculate component weights based on time horizon
+        logger.info(f"Generating unified recommendation for time_horizon: {time_horizon}")
         weights = self._get_component_weights(time_horizon)
+        logger.info(f"Weights applied for {time_horizon}: {weights}")
 
         # 2. Score each component (0-10 scale)
         technical_component = technical_score
@@ -106,7 +108,15 @@ class UnifiedRecommendationEngine:
             )
             veto_reasons = []
 
-        # 5. Generate detailed reasoning
+        # 5. Calculate Signal Integrity Index (SII)
+        sii_result = self._calculate_signal_integrity_index(
+            [technical_component, fundamental_component, price_action_component,
+             insider_component, risk_reward_component, momentum_component],
+            weights,
+            final_recommendation
+        )
+
+        # 5b. Generate detailed reasoning
         reasoning = self._generate_detailed_reasoning(
             final_recommendation,
             {
@@ -150,6 +160,8 @@ class UnifiedRecommendationEngine:
 
             'weights_applied': weights,
 
+            'signal_integrity_index': sii_result,  # NEW: SII for signal consistency
+
             'risk_reward_analysis': {
                 'ratio': realistic_rr,
                 'risk_dollars': round(current_price - stop_loss, 2),
@@ -170,31 +182,38 @@ class UnifiedRecommendationEngine:
         }
 
     def _get_component_weights(self, time_horizon: str) -> Dict[str, float]:
-        """Get component weights based on time horizon"""
+        """
+        Get component weights based on time horizon
+
+        OPTIMIZED WEIGHTS (v2.0):
+        - Short (1-14 days): Focus on Technical + Momentum
+        - Medium (1-6 months): Balanced approach
+        - Long (6+ months): Focus on Fundamentals + Insider conviction
+        """
         weights = {
             'short': {
-                'technical': 0.30,
-                'fundamental': 0.05,
-                'price_action': 0.30,
-                'insider': 0.05,
-                'risk_reward': 0.20,  # Increased importance for short-term
-                'momentum': 0.10  # NEW: Momentum weight
+                'technical': 0.40,      # ↑ Chart patterns, S/R, breakouts (was 0.30)
+                'momentum': 0.30,       # ↑ RSI, MACD, EMA crossovers (was 0.10)
+                'price_action': 0.10,   # ↓ Candle patterns, volume (was 0.30)
+                'risk_reward': 0.15,    # ↓ Entry/Exit timing (was 0.20)
+                'fundamental': 0.03,    # ↓ Basic screening only (was 0.05)
+                'insider': 0.02         # ↓ Minimal impact (was 0.05)
             },
             'medium': {
-                'technical': 0.25,
-                'fundamental': 0.25,
-                'price_action': 0.20,
-                'insider': 0.05,
-                'risk_reward': 0.18,
-                'momentum': 0.07  # NEW: Momentum weight
+                'fundamental': 0.30,    # ↑ Earnings, growth, valuation (was 0.25)
+                'technical': 0.25,      # = Trend direction, key levels
+                'momentum': 0.15,       # ↑ Trend strength (was 0.07)
+                'price_action': 0.10,   # ↓ Confirmation signals (was 0.20)
+                'insider': 0.12,        # ↑ Insider trades (3-6 month horizon) (was 0.05)
+                'risk_reward': 0.08     # ↓ Position sizing (was 0.18)
             },
             'long': {
-                'technical': 0.15,
-                'fundamental': 0.45,
-                'price_action': 0.10,
-                'insider': 0.10,
-                'risk_reward': 0.15,
-                'momentum': 0.05  # NEW: Momentum weight
+                'fundamental': 0.55,    # ↑ Growth, moat, management, sector (was 0.45)
+                'insider': 0.18,        # ↑ Long-term insider conviction (was 0.10)
+                'technical': 0.10,      # ↓ Entry timing only (was 0.15)
+                'risk_reward': 0.10,    # ↓ Valuation margin of safety (was 0.15)
+                'momentum': 0.04,       # ↓ Minimal weight (was 0.05)
+                'price_action': 0.03    # ↓ Minimal weight (was 0.10)
             }
         }
 
@@ -524,6 +543,126 @@ class UnifiedRecommendationEngine:
         }
         return mapping.get(confidence, 50)
 
+    def _calculate_signal_integrity_index(self,
+                                          component_scores: List[float],
+                                          weights: Dict[str, float],
+                                          final_recommendation: str) -> Dict[str, Any]:
+        """
+        Calculate Signal Integrity Index (SII) - measures signal consistency
+
+        SII Formula:
+        SII = (Component_Agreement × 0.5) + (Directional_Consistency × 0.3) + (Weight_Alignment × 0.2)
+
+        Thresholds:
+        - SII > 0.7 → BUY/SELL (High confidence, strong signal)
+        - SII 0.4-0.7 → HOLD (Mixed signals, moderate confidence)
+        - SII < 0.4 → AVOID (Conflicting signals, low confidence)
+
+        Args:
+            component_scores: List of component scores (0-10)
+            weights: Component weights
+            final_recommendation: Final recommendation (BUY/HOLD/SELL)
+
+        Returns:
+            Dictionary with SII score, interpretation, and details
+        """
+        # 1. COMPONENT AGREEMENT (50%)
+        # Measures how much components agree with each other
+        mean_score = np.mean(component_scores)
+        std_dev = np.std(component_scores)
+
+        # Lower std dev = higher agreement
+        # Normalize: std_dev of 0 = 1.0, std_dev of 5 = 0.0
+        component_agreement = max(0, 1.0 - (std_dev / 5.0))
+
+        # 2. DIRECTIONAL CONSISTENCY (30%)
+        # Measures if components point in same direction as final recommendation
+        if final_recommendation in ['STRONG BUY', 'BUY']:
+            # For BUY: count how many components > 6
+            bullish_count = sum(1 for score in component_scores if score >= 6.0)
+            directional_consistency = bullish_count / len(component_scores)
+        elif final_recommendation in ['STRONG SELL', 'SELL']:
+            # For SELL: count how many components < 4
+            bearish_count = sum(1 for score in component_scores if score <= 4.0)
+            directional_consistency = bearish_count / len(component_scores)
+        else:  # HOLD
+            # For HOLD: count how many components in neutral zone (4-6)
+            neutral_count = sum(1 for score in component_scores if 4.0 <= score <= 6.0)
+            directional_consistency = neutral_count / len(component_scores)
+
+        # 3. WEIGHT ALIGNMENT (20%)
+        # Check if highest-weighted components agree with recommendation
+        component_names = list(weights.keys())
+        sorted_by_weight = sorted(zip(component_names, component_scores, weights.values()),
+                                 key=lambda x: x[2], reverse=True)
+
+        # Check top 3 weighted components
+        top_3 = sorted_by_weight[:3]
+        aligned_count = 0
+
+        for name, score, weight in top_3:
+            if final_recommendation in ['STRONG BUY', 'BUY']:
+                if score >= 6.0:
+                    aligned_count += 1
+            elif final_recommendation in ['STRONG SELL', 'SELL']:
+                if score <= 4.0:
+                    aligned_count += 1
+            else:  # HOLD
+                if 4.0 <= score <= 6.0:
+                    aligned_count += 1
+
+        weight_alignment = aligned_count / 3
+
+        # Calculate final SII
+        sii_score = (
+            component_agreement * 0.5 +
+            directional_consistency * 0.3 +
+            weight_alignment * 0.2
+        )
+
+        # Determine SII interpretation
+        if sii_score > 0.7:
+            sii_interpretation = 'STRONG SIGNAL'
+            sii_action = 'BUY/SELL'
+            sii_quality = 'High confidence - All signals align'
+            sii_color = '🟢'
+        elif sii_score >= 0.4:
+            sii_interpretation = 'MODERATE SIGNAL'
+            sii_action = 'HOLD'
+            sii_quality = 'Mixed signals - Wait for clarity'
+            sii_color = '🟡'
+        else:
+            sii_interpretation = 'WEAK SIGNAL'
+            sii_action = 'AVOID'
+            sii_quality = 'Conflicting signals - High risk'
+            sii_color = '🔴'
+
+        logger.info(f"Signal Integrity Index (SII) = {sii_score:.2f}")
+        logger.info(f"  Component Agreement (50%): {component_agreement:.2f}")
+        logger.info(f"  Directional Consistency (30%): {directional_consistency:.2f}")
+        logger.info(f"  Weight Alignment (20%): {weight_alignment:.2f}")
+        logger.info(f"  → {sii_interpretation} ({sii_action})")
+
+        return {
+            'sii_score': round(sii_score, 2),
+            'sii_percentage': round(sii_score * 100, 1),
+            'interpretation': sii_interpretation,
+            'recommended_action': sii_action,
+            'quality': sii_quality,
+            'color': sii_color,
+            'components': {
+                'component_agreement': round(component_agreement, 2),
+                'directional_consistency': round(directional_consistency, 2),
+                'weight_alignment': round(weight_alignment, 2)
+            },
+            'details': {
+                'mean_score': round(mean_score, 2),
+                'std_deviation': round(std_dev, 2),
+                'component_count': len(component_scores),
+                'aligned_components': int(directional_consistency * len(component_scores))
+            }
+        }
+
     def _calculate_realistic_rr(self, current_price: float, target_price: float, stop_loss: float) -> float:
         """Calculate realistic R:R ratio"""
         logger.debug(f"_calculate_realistic_rr: cp={type(current_price)}, tp={type(target_price)}, sl={type(stop_loss)}")
@@ -683,6 +822,169 @@ class UnifiedRecommendationEngine:
             return "Low"
 
 
+def generate_action_plan(unified_rec: Dict[str, Any],
+                         current_price: float,
+                         entry: float,
+                         stop: float,
+                         targets: List[float],
+                         symbol: str = '') -> Dict[str, Any]:
+    """
+    Generate clear actionable trading plan from unified recommendation
+
+    Args:
+        unified_rec: Unified recommendation dict
+        current_price: Current stock price
+        entry: Entry price
+        stop: Stop loss price
+        targets: List of target prices [target_1, target_2]
+        symbol: Stock symbol (optional)
+
+    Returns:
+        Actionable trading plan with clear instructions
+    """
+    recommendation = unified_rec.get('recommendation', 'HOLD')
+    score = unified_rec.get('score', 5.0)
+    confidence = unified_rec.get('confidence', 'MEDIUM')
+    confidence_pct = unified_rec.get('confidence_percentage', 50)
+    rr_analysis = unified_rec.get('risk_reward_analysis', {})
+    position_sizing = unified_rec.get('position_sizing', {})
+    reasoning = unified_rec.get('reasoning', {})
+
+    # Calculate entry zone (±1% around entry)
+    entry_low = entry * 0.99
+    entry_high = entry * 1.01
+
+    # Calculate stop loss details
+    stop_loss_pct = rr_analysis.get('risk_percent', 0)
+    stop_loss_dollars = abs(entry - stop)
+
+    # Calculate target details
+    target_1 = targets[0] if len(targets) > 0 else entry * 1.03
+    target_2 = targets[1] if len(targets) > 1 else entry * 1.06
+
+    target_1_pct = ((target_1 - entry) / entry) * 100
+    target_2_pct = ((target_2 - entry) / entry) * 100
+    target_1_dollars = target_1 - entry
+    target_2_dollars = target_2 - entry
+
+    # Risk/Reward ratio
+    rr_ratio = rr_analysis.get('ratio', 1.0)
+    is_favorable = rr_analysis.get('is_favorable', False)
+
+    # Position sizing
+    recommended_size = position_sizing.get('recommended_percentage', 2.0)
+    conservative_size = position_sizing.get('conservative_percentage', 1.0)
+    aggressive_size = position_sizing.get('aggressive_percentage', 3.0)
+
+    # Key reasons
+    reasons_for = reasoning.get('reasons_for', [])
+    reasons_against = reasoning.get('reasons_against', [])
+    key_factors = reasoning.get('key_factors', [])
+
+    # Generate action instruction based on recommendation
+    if recommendation in ['STRONG BUY', 'BUY']:
+        action_instruction = f"BUY {symbol}" if symbol else "BUY"
+        action_detail = "เปิดสถานะซื้อ (Long Position)"
+        stop_direction = "ต่ำกว่า"
+        target_direction = "สูงกว่า"
+        risk_color = "🔴"
+        reward_color = "🟢"
+    elif recommendation in ['STRONG SELL', 'SELL']:
+        action_instruction = f"SELL {symbol}" if symbol else "SELL"
+        action_detail = "เปิดสถานะขาย (Short Position) หรือออกจากฐานะ"
+        stop_direction = "สูงกว่า"
+        target_direction = "ต่ำกว่า"
+        risk_color = "🟢"
+        reward_color = "🔴"
+    else:  # HOLD
+        action_instruction = "HOLD / WAIT"
+        action_detail = "รอสัญญาณที่ชัดเจนกว่า - ยังไม่มี edge"
+        stop_direction = "ต่ำกว่า"
+        target_direction = "สูงกว่า"
+        risk_color = "🔴"
+        reward_color = "🟢"
+
+    # Format the action plan
+    action_plan = {
+        # Primary instruction
+        'action': recommendation,
+        'action_instruction': action_instruction,
+        'action_detail': action_detail,
+        'symbol': symbol,
+
+        # Entry zone
+        'entry_zone': f"${entry_low:.2f} - ${entry_high:.2f}",
+        'entry_price': f"${entry:.2f}",
+        'current_price': f"${current_price:.2f}",
+        'entry_vs_current': f"{((entry - current_price) / current_price) * 100:+.2f}%",
+
+        # Stop loss
+        'stop_loss': f"${stop:.2f} ({stop_direction} entry {abs(stop_loss_pct):.1f}%)",
+        'stop_loss_price': f"${stop:.2f}",
+        'stop_loss_percent': f"{abs(stop_loss_pct):.1f}%",
+        'stop_loss_dollars': f"{risk_color} -${stop_loss_dollars:.2f}",
+
+        # Targets
+        'target_1': f"${target_1:.2f} ({target_direction} entry +{abs(target_1_pct):.1f}%)",
+        'target_1_price': f"${target_1:.2f}",
+        'target_1_percent': f"+{abs(target_1_pct):.1f}%",
+        'target_1_dollars': f"{reward_color} +${target_1_dollars:.2f}",
+
+        'target_2': f"${target_2:.2f} ({target_direction} entry +{abs(target_2_pct):.1f}%)",
+        'target_2_price': f"${target_2:.2f}",
+        'target_2_percent': f"+{abs(target_2_pct):.1f}%",
+        'target_2_dollars': f"{reward_color} +${target_2_dollars:.2f}",
+
+        # Risk/Reward
+        'risk_reward_ratio': f"{rr_ratio:.2f}:1",
+        'rr_ratio_value': rr_ratio,
+        'rr_is_favorable': is_favorable,
+        'rr_quality': 'Good' if rr_ratio >= 2.0 else 'Fair' if rr_ratio >= 1.5 else 'Poor',
+
+        # Position sizing
+        'position_size': f"{recommended_size:.1f}% of portfolio",
+        'position_size_value': recommended_size,
+        'position_size_conservative': f"{conservative_size:.1f}%",
+        'position_size_aggressive': f"{aggressive_size:.1f}%",
+
+        # Confidence
+        'confidence': confidence,
+        'confidence_percentage': f"{confidence_pct}%",
+        'confidence_value': confidence_pct,
+        'score': f"{score:.1f}/10",
+        'score_value': score,
+
+        # Rationale
+        'summary': reasoning.get('summary', ''),
+        'reasons_for': reasons_for[:3],  # Top 3 reasons
+        'reasons_against': reasons_against[:3],  # Top 3 concerns
+        'key_factors': key_factors,
+
+        # Exit strategy
+        'exit_strategy': {
+            'partial_exit_1': f"ขายออก 50% ที่ Target 1 (${target_1:.2f})",
+            'partial_exit_2': f"ขายออก 50% ที่ Target 2 (${target_2:.2f})",
+            'stop_loss': f"ตัดขาดทุนที่ ${stop:.2f} (ไม่มีข้อยกเว้น)",
+            'trailing_stop': f"ใช้ Trailing Stop หลังราคาผ่าน Target 1"
+        },
+
+        # Timing
+        'time_horizon': unified_rec.get('time_horizon', 'short'),
+        'timeframe': 'Days to weeks' if unified_rec.get('time_horizon', 'short') == 'short' else 'Weeks to months' if unified_rec.get('time_horizon') == 'medium' else 'Months to years',
+
+        # Checklist
+        'pre_trade_checklist': [
+            f"✓ R:R ratio = {rr_ratio:.2f}:1 {'(Good)' if is_favorable else '(Review)'}",
+            f"✓ Position size = {recommended_size:.1f}% of portfolio",
+            f"✓ Stop loss set at ${stop:.2f}",
+            f"✓ Confidence level = {confidence} ({confidence_pct}%)",
+            f"✓ Account for commissions and slippage"
+        ]
+    }
+
+    return action_plan
+
+
 # Helper function to make it easy to use
 import pandas as pd
 
@@ -764,7 +1066,11 @@ def create_unified_recommendation(analysis_results: Dict[str, Any]) -> Dict[str,
         logger.error(f"  Error: {e}")
         raise
 
-    time_horizon = analysis_results.get('time_horizon', 'short')
+    # ===== GET TIME HORIZON FROM analysis_results (CRITICAL FIX!) =====
+    # Extract time_horizon from performance_expectations which contains the correct value from analyze_stock()
+    performance_expectations = analysis_results.get('performance_expectations', {})
+    time_horizon = performance_expectations.get('time_horizon', analysis_results.get('time_horizon', 'short'))
+    logger.info(f"✅ Extracted time_horizon from performance_expectations: {time_horizon}")
 
     return engine.generate_unified_recommendation(
         technical_score=technical_score,

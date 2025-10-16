@@ -943,3 +943,203 @@ class TechnicalAnalyzer:
 
         except Exception:
             return {'support_1': None, 'resistance_1': None}
+
+    def calculate_obv_divergence(self) -> Dict[str, Any]:
+        """
+        Calculate OBV (On-Balance Volume) and detect divergence
+
+        OBV tracks cumulative volume flow:
+        - Price up + Volume up = Bullish confirmation
+        - Price up + Volume down = Bearish divergence (warning)
+        - Price down + Volume up = Bullish divergence (reversal signal)
+
+        Returns:
+            OBV analysis with divergence detection
+        """
+        try:
+            if len(self.price_data) < 20:
+                return {'has_data': False, 'error': 'Insufficient data'}
+
+            close = self.price_data['close']
+            volume = self.price_data['volume'] if 'volume' in self.price_data.columns else None
+
+            if volume is None or volume.isna().all():
+                return {'has_data': False, 'error': 'No volume data'}
+
+            # Calculate OBV
+            obv = []
+            obv_value = 0
+            for i in range(len(self.price_data)):
+                if i == 0:
+                    obv.append(volume.iloc[i])
+                    obv_value = volume.iloc[i]
+                else:
+                    if close.iloc[i] > close.iloc[i-1]:
+                        obv_value += volume.iloc[i]
+                    elif close.iloc[i] < close.iloc[i-1]:
+                        obv_value -= volume.iloc[i]
+                    obv.append(obv_value)
+
+            obv_series = pd.Series(obv, index=self.price_data.index)
+
+            # Calculate OBV trend (20-period SMA)
+            obv_sma = obv_series.rolling(window=20).mean()
+
+            # Detect divergence (last 20 periods)
+            lookback = 20
+            price_trend = 'up' if close.iloc[-1] > close.iloc[-lookback] else 'down'
+            obv_trend = 'up' if obv_series.iloc[-1] > obv_series.iloc[-lookback] else 'down'
+
+            # Calculate trend strength
+            price_change_pct = ((close.iloc[-1] - close.iloc[-lookback]) / close.iloc[-lookback]) * 100
+            obv_change_pct = ((obv_series.iloc[-1] - obv_series.iloc[-lookback]) / abs(obv_series.iloc[-lookback])) * 100 if obv_series.iloc[-lookback] != 0 else 0
+
+            # Divergence detection
+            if price_trend == 'up' and obv_trend == 'down':
+                divergence = 'bearish_div'
+                signal = 'SELL'
+                strength = 8.0
+                interpretation = f"⚠️ Bearish Divergence: Price up {price_change_pct:.1f}% but OBV down - weak rally, potential reversal"
+            elif price_trend == 'down' and obv_trend == 'up':
+                divergence = 'bullish_div'
+                signal = 'BUY'
+                strength = 8.0
+                interpretation = f"✅ Bullish Divergence: Price down {price_change_pct:.1f}% but OBV up - strong buying pressure, potential reversal"
+            elif price_trend == obv_trend:
+                divergence = 'none'
+                if price_trend == 'up':
+                    signal = 'BUY'
+                    strength = 7.0
+                    interpretation = f"📈 Confirmed Uptrend: Price and OBV both up - strong bullish momentum"
+                else:
+                    signal = 'SELL'
+                    strength = 7.0
+                    interpretation = f"📉 Confirmed Downtrend: Price and OBV both down - strong bearish momentum"
+            else:
+                divergence = 'none'
+                signal = 'NEUTRAL'
+                strength = 5.0
+                interpretation = "Neutral - no clear divergence"
+
+            return {
+                'has_data': True,
+                'obv_current': float(obv_series.iloc[-1]),
+                'obv_sma_20': float(obv_sma.iloc[-1]) if not pd.isna(obv_sma.iloc[-1]) else None,
+                'obv_trend': obv_trend,
+                'price_trend': price_trend,
+                'divergence': divergence,
+                'signal': signal,
+                'strength': strength,
+                'interpretation': interpretation,
+                'price_change_pct': round(price_change_pct, 2),
+                'obv_change_pct': round(obv_change_pct, 2)
+            }
+
+        except Exception as e:
+            logger.error(f"OBV calculation failed: {e}")
+            return {'has_data': False, 'error': str(e)}
+
+    def calculate_volume_profile(self, bins: int = 50) -> Dict[str, Any]:
+        """
+        Calculate Volume-by-Price histogram (Volume Profile)
+
+        Identifies price levels with highest trading activity:
+        - POC (Point of Control): Price level with highest volume
+        - HVN (High Volume Nodes): Support/Resistance areas
+        - LVN (Low Volume Nodes): Quick price movement areas
+
+        Args:
+            bins: Number of price bins (default 50)
+
+        Returns:
+            Volume Profile analysis with POC and key levels
+        """
+        try:
+            if len(self.price_data) < 50:
+                return {'has_data': False, 'error': 'Insufficient data'}
+
+            close = self.price_data['close']
+            volume = self.price_data['volume'] if 'volume' in self.price_data.columns else None
+
+            if volume is None or volume.isna().all():
+                return {'has_data': False, 'error': 'No volume data'}
+
+            # Create price bins
+            price_min = self.price_data['low'].min()
+            price_max = self.price_data['high'].max()
+            price_bins = np.linspace(price_min, price_max, bins)
+
+            # Calculate volume for each price bin
+            volume_profile = []
+            for i in range(len(price_bins) - 1):
+                # Find candles that traded in this price range
+                mask = (
+                    (self.price_data['low'] <= price_bins[i+1]) &
+                    (self.price_data['high'] >= price_bins[i])
+                )
+                total_volume = self.price_data.loc[mask, 'volume'].sum()
+                mid_price = (price_bins[i] + price_bins[i+1]) / 2
+
+                volume_profile.append({
+                    'price_level': mid_price,
+                    'volume': total_volume
+                })
+
+            # Sort by volume
+            volume_profile_sorted = sorted(volume_profile, key=lambda x: x['volume'], reverse=True)
+
+            # POC (Point of Control) - highest volume price
+            poc = volume_profile_sorted[0]
+
+            # High Volume Nodes (top 10%)
+            hvn_count = max(1, int(len(volume_profile_sorted) * 0.10))
+            high_volume_nodes = volume_profile_sorted[:hvn_count]
+
+            # Low Volume Nodes (bottom 10%)
+            lvn_count = max(1, int(len(volume_profile_sorted) * 0.10))
+            low_volume_nodes = volume_profile_sorted[-lvn_count:]
+
+            # Current price analysis
+            current_price = close.iloc[-1]
+
+            # Find nearest HVN (likely support/resistance)
+            hvn_prices = [node['price_level'] for node in high_volume_nodes]
+            nearest_hvn_above = min([p for p in hvn_prices if p > current_price], default=None)
+            nearest_hvn_below = max([p for p in hvn_prices if p < current_price], default=None)
+
+            # Interpretation
+            distance_to_poc = ((current_price - poc['price_level']) / current_price) * 100
+
+            if abs(distance_to_poc) < 1:
+                poc_interpretation = f"🎯 Price at POC (${poc['price_level']:.2f}) - high activity area, expect consolidation"
+            elif distance_to_poc > 2:
+                poc_interpretation = f"⬆️ Price {distance_to_poc:.1f}% above POC - may pull back to ${poc['price_level']:.2f}"
+            elif distance_to_poc < -2:
+                poc_interpretation = f"⬇️ Price {abs(distance_to_poc):.1f}% below POC - may rally to ${poc['price_level']:.2f}"
+            else:
+                poc_interpretation = f"Near POC (${poc['price_level']:.2f})"
+
+            return {
+                'has_data': True,
+                'poc': {
+                    'price': float(poc['price_level']),
+                    'volume': float(poc['volume']),
+                    'interpretation': poc_interpretation
+                },
+                'high_volume_nodes': [
+                    {'price': float(node['price_level']), 'volume': float(node['volume'])}
+                    for node in high_volume_nodes[:5]  # Top 5 HVNs
+                ],
+                'low_volume_nodes': [
+                    {'price': float(node['price_level']), 'volume': float(node['volume'])}
+                    for node in low_volume_nodes[:3]  # Top 3 LVNs
+                ],
+                'nearest_resistance_hvn': float(nearest_hvn_above) if nearest_hvn_above else None,
+                'nearest_support_hvn': float(nearest_hvn_below) if nearest_hvn_below else None,
+                'distance_to_poc_pct': round(distance_to_poc, 2),
+                'recommendation': 'Use HVN levels as support/resistance - expect price reactions at these levels'
+            }
+
+        except Exception as e:
+            logger.error(f"Volume Profile calculation failed: {e}")
+            return {'has_data': False, 'error': str(e)}
