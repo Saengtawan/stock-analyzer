@@ -74,6 +74,18 @@ class UnifiedRecommendationEngine:
         else:
             momentum_component = 5.0  # Neutral if not available
 
+        # NEW: Market State component (v3.0) - ใช้ Entry Readiness Score
+        if analysis_results:
+            market_state_component = self._score_market_state(analysis_results)
+        else:
+            market_state_component = 5.0  # Neutral if not available
+
+        # NEW v3.1: Divergence component (RSI-Price, MACD-Price divergence)
+        if analysis_results:
+            divergence_component = self._score_divergence(analysis_results)
+        else:
+            divergence_component = 5.0  # Neutral if not available
+
         # 3. Calculate weighted score
         weighted_score = (
             technical_component * weights['technical'] +
@@ -81,7 +93,9 @@ class UnifiedRecommendationEngine:
             price_action_component * weights['price_action'] +
             insider_component * weights['insider'] +
             risk_reward_component * weights['risk_reward'] +
-            momentum_component * weights['momentum']
+            momentum_component * weights['momentum'] +
+            market_state_component * weights['market_state'] +  # NEW v3.0
+            divergence_component * weights['divergence']  # NEW v3.1
         )
 
         # 4. Apply critical filters (veto conditions)
@@ -104,14 +118,14 @@ class UnifiedRecommendationEngine:
             confidence = self._calculate_confidence(
                 weighted_score,
                 [technical_component, fundamental_component, price_action_component,
-                 insider_component, risk_reward_component]
+                 insider_component, risk_reward_component, momentum_component, market_state_component, divergence_component]
             )
             veto_reasons = []
 
         # 5. Calculate Signal Integrity Index (SII)
         sii_result = self._calculate_signal_integrity_index(
             [technical_component, fundamental_component, price_action_component,
-             insider_component, risk_reward_component, momentum_component],
+             insider_component, risk_reward_component, momentum_component, market_state_component, divergence_component],
             weights,
             final_recommendation
         )
@@ -124,7 +138,10 @@ class UnifiedRecommendationEngine:
                 'fundamental': fundamental_component,
                 'price_action': price_action_component,
                 'insider': insider_component,
-                'risk_reward': risk_reward_component
+                'risk_reward': risk_reward_component,
+                'momentum': momentum_component,
+                'market_state': market_state_component,
+                'divergence': divergence_component
             },
             weights,
             price_change_analysis,
@@ -133,8 +150,9 @@ class UnifiedRecommendationEngine:
             veto_reasons
         )
 
-        # 6. Calculate realistic R:R ratio
-        realistic_rr = self._calculate_realistic_rr(current_price, target_price, stop_loss)
+        # 6. Use the ALREADY CALCULATED risk_reward_ratio (from Market State entry price)
+        # DO NOT recalculate using current_price - that causes inconsistency!
+        logger.info(f"✅ Using pre-calculated R/R ratio: {risk_reward_ratio:.2f}:1 (from Market State entry price)")
 
         # 7. Generate position sizing recommendation
         position_sizing = self._calculate_position_sizing(
@@ -142,6 +160,13 @@ class UnifiedRecommendationEngine:
             risk_reward_ratio,
             confidence
         )
+
+        # 8. Calculate risk/reward in dollars and percentages
+        # These are for display only - they show CURRENT vs targets (not entry vs targets)
+        risk_dollars = abs(current_price - stop_loss)
+        reward_dollars = abs(target_price - current_price)
+        risk_percent = (risk_dollars / current_price) * 100
+        reward_percent = (reward_dollars / current_price) * 100
 
         return {
             'recommendation': final_recommendation,
@@ -155,7 +180,9 @@ class UnifiedRecommendationEngine:
                 'price_action': round(price_action_component, 1),
                 'insider': round(insider_component, 1),
                 'risk_reward': round(risk_reward_component, 1),
-                'momentum': round(momentum_component, 1)  # NEW
+                'momentum': round(momentum_component, 1),
+                'market_state': round(market_state_component, 1),  # NEW v3.0
+                'divergence': round(divergence_component, 1)  # NEW v3.1
             },
 
             'weights_applied': weights,
@@ -163,17 +190,27 @@ class UnifiedRecommendationEngine:
             'signal_integrity_index': sii_result,  # NEW: SII for signal consistency
 
             'risk_reward_analysis': {
-                'ratio': realistic_rr,
-                'risk_dollars': round(current_price - stop_loss, 2),
-                'reward_dollars': round(target_price - current_price, 2),
-                'risk_percent': round(((current_price - stop_loss) / current_price) * 100, 2),
-                'reward_percent': round(((target_price - current_price) / current_price) * 100, 2),
-                'is_favorable': realistic_rr >= 1.5
+                'ratio': risk_reward_ratio,  # ✅ FIXED: Use the pre-calculated R/R from Market State
+                'risk_dollars': round(risk_dollars, 2),
+                'reward_dollars': round(reward_dollars, 2),
+                'risk_percent': round(risk_percent, 2),
+                'reward_percent': round(reward_percent, 2),
+                'is_favorable': risk_reward_ratio >= 1.5
             },
 
             'position_sizing': position_sizing,
 
             'reasoning': reasoning,
+
+            # NEW v3.1: Enhanced Final Verdict
+            'final_verdict': self._generate_final_verdict(
+                final_recommendation,
+                final_score,
+                confidence,
+                reasoning,
+                risk_reward_ratio,
+                veto_reasons
+            ),
 
             'veto_applied': bool(veto_reasons),
             'veto_reasons': veto_reasons,
@@ -185,35 +222,41 @@ class UnifiedRecommendationEngine:
         """
         Get component weights based on time horizon
 
-        OPTIMIZED WEIGHTS (v2.0):
-        - Short (1-14 days): Focus on Technical + Momentum
-        - Medium (1-6 months): Balanced approach
+        OPTIMIZED WEIGHTS (v3.1 - with Market State + Divergence):
+        - Short (1-14 days): Focus on Technical + Market State + Momentum + Divergence
+        - Medium (1-6 months): Balanced approach with more Fundamental
         - Long (6+ months): Focus on Fundamentals + Insider conviction
         """
         weights = {
             'short': {
-                'technical': 0.40,      # ↑ Chart patterns, S/R, breakouts (was 0.30)
-                'momentum': 0.30,       # ↑ RSI, MACD, EMA crossovers (was 0.10)
-                'price_action': 0.10,   # ↓ Candle patterns, volume (was 0.30)
-                'risk_reward': 0.15,    # ↓ Entry/Exit timing (was 0.20)
-                'fundamental': 0.03,    # ↓ Basic screening only (was 0.05)
-                'insider': 0.02         # ↓ Minimal impact (was 0.05)
+                'technical': 0.22,      # ↓ Chart patterns, S/R (was 0.25)
+                'market_state': 0.18,   # ↓ Entry timing, market regime (was 0.20)
+                'momentum': 0.13,       # ↓ RSI, MACD, EMA (was 0.15)
+                'risk_reward': 0.18,    # ↓ R/R ratio critical (was 0.20)
+                'divergence': 0.12,     # ⭐ NEW v3.1: RSI/MACD-Price divergence
+                'fundamental': 0.10,    # = Basic screening
+                'price_action': 0.05,   # ↓ Volume, candles (was 0.07)
+                'insider': 0.02         # ↓ Minimal (was 0.03)
             },
             'medium': {
-                'fundamental': 0.30,    # ↑ Earnings, growth, valuation (was 0.25)
-                'technical': 0.25,      # = Trend direction, key levels
-                'momentum': 0.15,       # ↑ Trend strength (was 0.07)
-                'price_action': 0.10,   # ↓ Confirmation signals (was 0.20)
-                'insider': 0.12,        # ↑ Insider trades (3-6 month horizon) (was 0.05)
-                'risk_reward': 0.08     # ↓ Position sizing (was 0.18)
+                'fundamental': 0.28,    # ↓ Earnings, growth, valuation (was 0.30)
+                'technical': 0.18,      # ↓ Trend direction (was 0.20)
+                'market_state': 0.14,   # ↓ Entry timing (was 0.15)
+                'momentum': 0.11,       # ↓ Trend strength (was 0.12)
+                'risk_reward': 0.10,    # = Position sizing
+                'insider': 0.10,        # = Insider trades
+                'divergence': 0.06,     # ⭐ NEW v3.1: Moderate weight for medium-term
+                'price_action': 0.03    # = Confirmation
             },
             'long': {
-                'fundamental': 0.55,    # ↑ Growth, moat, management, sector (was 0.45)
-                'insider': 0.18,        # ↑ Long-term insider conviction (was 0.10)
-                'technical': 0.10,      # ↓ Entry timing only (was 0.15)
-                'risk_reward': 0.10,    # ↓ Valuation margin of safety (was 0.15)
-                'momentum': 0.04,       # ↓ Minimal weight (was 0.05)
-                'price_action': 0.03    # ↓ Minimal weight (was 0.10)
+                'fundamental': 0.60,    # ↑ DOMINANT: Growth, valuation, moat (increased from 0.55)
+                'insider': 0.22,        # ↑ Long-term conviction signal (increased from 0.20)
+                'risk_reward': 0.08,    # ↓ Less critical (reduced from 0.10)
+                'technical': 0.06,      # ↓ Entry timing only (reduced from 0.08)
+                'market_state': 0.02,   # ↓ Minimal for long-term (reduced from 0.03)
+                'momentum': 0.01,       # ↓ Almost irrelevant (reduced from 0.02)
+                'divergence': 0.01,     # ↓ Irrelevant for long-term (same)
+                'price_action': 0.00    # ↓ Completely irrelevant (reduced from 0.01)
             }
         }
 
@@ -377,6 +420,153 @@ class UnifiedRecommendationEngine:
 
         return max(0, min(10, score))
 
+    def _score_market_state(self, analysis_results: Dict[str, Any]) -> float:
+        """
+        Score Market State Analysis (0-10) - NEW in v3.0
+
+        Uses Entry Readiness Score และ Market State confidence:
+        - Entry Readiness 0-100 → convert to 0-10 scale
+        - Market State confidence → modifier
+        - Action Signal (BUY_NOW/READY/WAIT) → additional weight
+
+        ตัวอย่าง:
+        - Entry Readiness 80%, Confidence 75% → Score ~8.5/10
+        - Entry Readiness 50%, Confidence 65% → Score ~5.5/10
+        """
+        try:
+            technical_analysis = analysis_results.get('technical_analysis', {})
+            market_state_analysis = technical_analysis.get('market_state_analysis', {})
+
+            if not market_state_analysis:
+                return 5.0  # Neutral if no market state data
+
+            strategy = market_state_analysis.get('strategy', {})
+            confidence_data = market_state_analysis.get('confidence', {})
+
+            # 1. Base score from Entry Readiness (0-100 → 0-10)
+            entry_readiness = strategy.get('entry_readiness', 50.0)
+            base_score = entry_readiness / 10.0  # Convert 0-100 to 0-10
+
+            # 2. Confidence modifier
+            confidence_pct = confidence_data.get('confidence', 50)
+            confidence_modifier = (confidence_pct - 50) / 50  # -1 to +1
+
+            # 3. Action Signal modifier
+            action_signal = strategy.get('action_signal', 'WAIT')
+            if action_signal == 'BUY_NOW':
+                action_modifier = 1.5  # Strong positive
+            elif action_signal == 'READY':
+                action_modifier = 0.5  # Moderate positive
+            elif action_signal == 'WAIT':
+                action_modifier = -0.5  # Slight negative
+            else:
+                action_modifier = 0.0
+
+            # 4. Volume confirmation bonus
+            volume_confirmation = confidence_data.get('volume_confirmation', False)
+            volume_bonus = 0.5 if volume_confirmation else 0.0
+
+            # 5. Calculate final score
+            final_score = base_score + (confidence_modifier * 2.0) + action_modifier + volume_bonus
+
+            logger.debug(f"Market State Score: entry_readiness={entry_readiness:.1f} → base={base_score:.1f}, "
+                        f"conf_mod={confidence_modifier:.2f}, action_mod={action_modifier:.1f}, "
+                        f"vol_bonus={volume_bonus:.1f} → final={final_score:.1f}")
+
+            return max(0, min(10, final_score))
+
+        except Exception as e:
+            logger.warning(f"Market state scoring failed: {e}")
+            return 5.0  # Neutral on error
+
+    def _score_divergence(self, analysis_results: Dict[str, Any]) -> float:
+        """
+        Score Divergence Analysis (0-10) - NEW in v3.1
+
+        Detects RSI-Price and MACD-Price divergences:
+        - Bullish Divergence: Price ลง แต่ indicator ขึ้น → สัญญาณกลับตัวขึ้น (Strong BUY)
+        - Bearish Divergence: Price ขึ้น แต่ indicator ลง → สัญญาณกลับตัวลง (Strong SELL)
+        - No Divergence: Price และ indicator เป็นทิศทางเดียวกัน → สัญญาณยืนยัน
+
+        Returns:
+            Score 0-10 (10 = Strong Bullish Div, 5 = No Div, 0 = Strong Bearish Div)
+        """
+        try:
+            technical_analysis = analysis_results.get('technical_analysis', {})
+            indicators = technical_analysis.get('indicators', {})
+
+            score = 5.0  # Neutral base
+
+            # Get price data for trend calculation
+            current_price = indicators.get('current_price', 0)
+            sma_50 = indicators.get('sma_50', current_price)
+
+            # Calculate price trend (simple: compare current vs SMA50)
+            if current_price and sma_50:
+                price_trend_pct = ((current_price - sma_50) / sma_50) * 100
+            else:
+                price_trend_pct = 0
+
+            # 1. RSI DIVERGENCE
+            rsi = indicators.get('rsi')
+            if rsi is not None:
+                # RSI Bullish Divergence: Price down (< SMA50) but RSI oversold/rising
+                if price_trend_pct < -5 and rsi < 35:
+                    # Strong bullish divergence signal
+                    score += 3.0
+                    logger.debug(f"Divergence: Bullish RSI divergence detected (Price down {price_trend_pct:.1f}%, RSI {rsi:.0f})")
+                elif price_trend_pct < -2 and rsi < 45:
+                    # Moderate bullish divergence
+                    score += 1.5
+
+                # RSI Bearish Divergence: Price up (> SMA50) but RSI overbought/falling
+                elif price_trend_pct > 5 and rsi > 65:
+                    # Strong bearish divergence signal
+                    score -= 3.0
+                    logger.debug(f"Divergence: Bearish RSI divergence detected (Price up {price_trend_pct:.1f}%, RSI {rsi:.0f})")
+                elif price_trend_pct > 2 and rsi > 55:
+                    # Moderate bearish divergence
+                    score -= 1.5
+
+            # 2. MACD DIVERGENCE
+            macd_line = indicators.get('macd_line')
+            macd_signal = indicators.get('macd_signal')
+            macd_histogram = indicators.get('macd_histogram')
+
+            if all(x is not None for x in [macd_line, macd_signal, macd_histogram]):
+                # MACD Bullish Divergence: Price down but MACD turning up
+                if price_trend_pct < -3 and macd_line > macd_signal and macd_histogram > 0:
+                    score += 2.0
+                    logger.debug(f"Divergence: Bullish MACD divergence (Price down, MACD bullish crossover)")
+                # MACD Bearish Divergence: Price up but MACD turning down
+                elif price_trend_pct > 3 and macd_line < macd_signal and macd_histogram < 0:
+                    score -= 2.0
+                    logger.debug(f"Divergence: Bearish MACD divergence (Price up, MACD bearish crossover)")
+
+            # 3. Volume Divergence (OBV) - if available
+            obv = indicators.get('obv')
+            obv_sma = indicators.get('obv_sma_20')  # Assume we have OBV SMA
+
+            if obv and obv_sma:
+                obv_trend_pct = ((obv - obv_sma) / abs(obv_sma)) * 100 if obv_sma != 0 else 0
+
+                # Bullish Volume Divergence: Price down but OBV up (buying pressure)
+                if price_trend_pct < -3 and obv_trend_pct > 5:
+                    score += 1.0
+                    logger.debug(f"Divergence: Bullish OBV divergence (Price down, OBV up)")
+                # Bearish Volume Divergence: Price up but OBV down (no buying support)
+                elif price_trend_pct > 3 and obv_trend_pct < -5:
+                    score -= 1.0
+                    logger.debug(f"Divergence: Bearish OBV divergence (Price up, OBV down)")
+
+            logger.debug(f"Divergence Score: {score:.1f}/10 (price_trend={price_trend_pct:.1f}%, rsi={rsi}, macd_hist={macd_histogram})")
+
+            return max(0, min(10, score))
+
+        except Exception as e:
+            logger.warning(f"Divergence scoring failed: {e}")
+            return 5.0  # Neutral on error
+
     def _score_risk_reward(self, rr_ratio: float) -> float:
         """
         Score risk/reward ratio (0-10)
@@ -487,6 +677,8 @@ class UnifiedRecommendationEngine:
         2. Distance from threshold boundaries
         3. Score consistency (how aligned are all components)
         4. Overall score strength
+
+        FIXED v3.4: Adjusted thresholds to be achievable
         """
         # 1. Calculate agreement (standard deviation)
         std_dev = np.std(component_scores)
@@ -506,28 +698,35 @@ class UnifiedRecommendationEngine:
         # Calculate confidence score (0-1)
         conf_score = 0
 
-        # Factor 1: Low std_dev = more agreement
-        if std_dev < 1.0:
-            conf_score += 0.4
-        elif std_dev < 2.0:
-            conf_score += 0.25
-        elif std_dev < 3.0:
-            conf_score += 0.1
+        # Factor 1: Low std_dev = more agreement (40% max)
+        if std_dev < 0.8:
+            conf_score += 0.4  # Perfect agreement
+        elif std_dev < 1.2:
+            conf_score += 0.3  # Very good agreement
+        elif std_dev < 1.8:
+            conf_score += 0.2  # Good agreement
+        elif std_dev < 2.5:
+            conf_score += 0.1  # Fair agreement
+        # else: 0 (poor agreement)
 
-        # Factor 2: Far from threshold = more certain
-        if min_distance > 1.5:
-            conf_score += 0.3
-        elif min_distance > 0.8:
-            conf_score += 0.15
+        # Factor 2: Far from threshold = more certain (30% max)
+        # FIXED: More realistic distance thresholds
+        if min_distance > 1.2:
+            conf_score += 0.3  # Very far from threshold
+        elif min_distance > 0.7:
+            conf_score += 0.2  # Far from threshold
+        elif min_distance > 0.4:
+            conf_score += 0.1  # Moderate distance
+        # else: 0 (too close to threshold)
 
-        # Factor 3: High consistency
+        # Factor 3: High consistency (20% max)
         conf_score += consistency * 0.2
 
-        # Factor 4: Strong scores = more conviction
+        # Factor 4: Strong scores = more conviction (10% max)
         conf_score += score_strength * 0.1
 
-        # Convert to category
-        if conf_score >= 0.75:
+        # Convert to category (FIXED thresholds)
+        if conf_score >= 0.70:  # Was 0.75 (unreachable)
             return 'HIGH'
         elif conf_score >= 0.45:
             return 'MEDIUM'
@@ -663,19 +862,9 @@ class UnifiedRecommendationEngine:
             }
         }
 
-    def _calculate_realistic_rr(self, current_price: float, target_price: float, stop_loss: float) -> float:
-        """Calculate realistic R:R ratio"""
-        logger.debug(f"_calculate_realistic_rr: cp={type(current_price)}, tp={type(target_price)}, sl={type(stop_loss)}")
-
-        risk = abs(current_price - stop_loss)
-        reward = abs(target_price - current_price)
-
-        logger.debug(f"_calculate_realistic_rr: risk={type(risk)}={risk}, reward={type(reward)}={reward}")
-
-        if risk == 0:
-            return 0.0
-
-        return round(reward / risk, 2)
+    # REMOVED: _calculate_realistic_rr() method
+    # We now use the pre-calculated risk_reward_ratio from Market State entry price
+    # to ensure consistency across all displays
 
     def _calculate_position_sizing(self, score: float, rr_ratio: float, confidence: str) -> Dict[str, Any]:
         """
@@ -820,6 +1009,158 @@ class UnifiedRecommendationEngine:
             return "Moderate"
         else:
             return "Low"
+
+    def _generate_final_verdict(self,
+                                recommendation: str,
+                                score: float,
+                                confidence: str,
+                                reasoning: Dict[str, Any],
+                                rr_ratio: float,
+                                veto_reasons: List[str]) -> Dict[str, Any]:
+        """
+        Generate clear and actionable Final Verdict - NEW v3.1
+
+        Returns a structured verdict with:
+        1. Verdict Level (STRONG / MODERATE / WEAK)
+        2. Clear Action Summary (one-line instruction)
+        3. Risk Warnings (if any critical concerns)
+        4. Confidence Assessment (why confident or not)
+        """
+
+        # 1. Determine Verdict Level (strength of recommendation)
+        conviction = reasoning.get('conviction_level', 'Moderate')
+        reasons_for = reasoning.get('reasons_for', [])
+        reasons_against = reasoning.get('reasons_against', [])
+
+        # Calculate verdict strength
+        if recommendation in ['STRONG BUY', 'STRONG SELL']:
+            base_strength = 'STRONG'
+        elif recommendation in ['BUY', 'SELL']:
+            base_strength = 'MODERATE'
+        else:  # HOLD
+            base_strength = 'WEAK'
+
+        # Adjust based on confidence and conviction
+        if confidence == 'HIGH' and conviction in ['High', 'Very High']:
+            verdict_level = 'STRONG'
+        elif confidence == 'LOW' or len(reasons_against) > len(reasons_for):
+            verdict_level = 'WEAK'
+        else:
+            verdict_level = base_strength
+
+        # 2. Generate Clear Action Summary
+        if recommendation in ['STRONG BUY', 'BUY']:
+            if verdict_level == 'STRONG':
+                action_summary = f"✅ STRONG BUY: เข้าซื้อได้เลย - สัญญาณชัดเจน (Score {score:.1f}/10, R:R {rr_ratio:.2f}:1)"
+            elif verdict_level == 'MODERATE':
+                action_summary = f"✅ BUY: เข้าซื้อได้ แต่ควรระวัง - สัญญาณปานกลาง (Score {score:.1f}/10)"
+            else:
+                action_summary = f"⚠️ WEAK BUY: พิจารณาเข้าซื้อ - สัญญาณอ่อน ควรรอยืนยันเพิ่ม (Score {score:.1f}/10)"
+
+        elif recommendation in ['STRONG SELL', 'SELL']:
+            if verdict_level == 'STRONG':
+                action_summary = f"❌ STRONG SELL: ขายออกหรือเข้า Short - สัญญาณชัดเจน (Score {score:.1f}/10)"
+            elif verdict_level == 'MODERATE':
+                action_summary = f"❌ SELL: พิจารณาขายออก - สัญญาณปานกลาง (Score {score:.1f}/10)"
+            else:
+                action_summary = f"⚠️ WEAK SELL: พิจารณาขาย - สัญญาณอ่อน ควรรอยืนยันเพิ่ม (Score {score:.1f}/10)"
+
+        else:  # HOLD
+            if len(reasons_against) > 0:
+                action_summary = f"⏸️ HOLD: รอดูต่อ - สัญญาณไม่ชัดเจน มีข้อกังวล (Score {score:.1f}/10)"
+            else:
+                action_summary = f"⏸️ HOLD: รอสัญญาณที่ดีกว่า - ยังไม่มี edge ชัดเจน (Score {score:.1f}/10)"
+
+        # 3. Generate Risk Warnings
+        risk_warnings = []
+
+        # Critical risks from veto reasons
+        if veto_reasons:
+            risk_warnings.append({
+                'level': 'CRITICAL',
+                'icon': '🔴',
+                'message': 'มีข้อจำกัดสำคัญ',
+                'details': veto_reasons
+            })
+
+        # High-risk concerns from reasons_against
+        critical_concerns = [r for r in reasons_against if any(word in r.lower() for word in ['poor', 'weak', 'unfavorable', 'negative'])]
+        if critical_concerns:
+            risk_warnings.append({
+                'level': 'HIGH',
+                'icon': '🟠',
+                'message': 'มีปัจจัยเสี่ยงสูง',
+                'details': critical_concerns[:2]
+            })
+
+        # Low R:R warning
+        if rr_ratio < 1.5 and recommendation not in ['HOLD', 'SELL', 'STRONG SELL']:
+            risk_warnings.append({
+                'level': 'MODERATE',
+                'icon': '🟡',
+                'message': f'R:R ratio ต่ำกว่าที่แนะนำ ({rr_ratio:.2f}:1)',
+                'details': [f'ควร R:R >= 1.5:1 สำหรับการซื้อ (ปัจจุบัน {rr_ratio:.2f}:1)']
+            })
+
+        # Low confidence warning
+        if confidence == 'LOW':
+            risk_warnings.append({
+                'level': 'MODERATE',
+                'icon': '🟡',
+                'message': f'Confidence ต่ำ ({confidence})',
+                'details': ['สัญญาณไม่ชัดเจน - indicators ขัดแย้งกัน']
+            })
+
+        # 4. Confidence Assessment (why confident or not)
+        if confidence == 'HIGH':
+            confidence_assessment = {
+                'status': 'HIGH_CONFIDENCE',
+                'icon': '🟢',
+                'message': 'มีความเชื่อมั่นสูง',
+                'reasons': reasons_for[:3]
+            }
+        elif confidence == 'MEDIUM':
+            confidence_assessment = {
+                'status': 'MODERATE_CONFIDENCE',
+                'icon': '🟡',
+                'message': 'ความเชื่อมั่นปานกลาง',
+                'reasons': ['มี indicators ที่สนับสนุน แต่ยังมีบางส่วนขัดแย้ง'] + reasons_for[:2]
+            }
+        else:  # LOW
+            confidence_assessment = {
+                'status': 'LOW_CONFIDENCE',
+                'icon': '🔴',
+                'message': 'ความเชื่อมั่นต่ำ',
+                'reasons': ['Indicators ขัดแย้งกัน', 'สัญญาณไม่ชัดเจน'] + (reasons_against[:2] if reasons_against else ['ควรรอสัญญาณที่ชัดเจนกว่า'])
+            }
+
+        # 5. Bottom Line (final one-sentence summary)
+        if verdict_level == 'STRONG' and len(risk_warnings) == 0:
+            bottom_line = f"🎯 สรุป: {recommendation} ด้วยความเชื่อมั่น{confidence} - เข้าได้เลย"
+        elif verdict_level == 'MODERATE' or (verdict_level == 'STRONG' and len(risk_warnings) > 0):
+            bottom_line = f"⚖️ สรุป: {recommendation} แต่มีข้อควรระวัง - พิจารณาก่อนตัดสินใจ"
+        else:
+            bottom_line = f"⏳ สรุป: {recommendation} แต่สัญญาณอ่อน - ควรรอยืนยันเพิ่มเติม"
+
+        return {
+            'verdict_level': verdict_level,  # STRONG / MODERATE / WEAK
+            'action_summary': action_summary,  # One-line clear instruction
+            'risk_warnings': risk_warnings,  # List of warnings (if any)
+            'confidence_assessment': confidence_assessment,  # Why confident or not
+            'bottom_line': bottom_line,  # Final one-sentence summary
+
+            # Supporting data
+            'recommendation': recommendation,
+            'score': round(score, 1),
+            'confidence': confidence,
+            'conviction': conviction,
+            'rr_ratio': round(rr_ratio, 2),
+
+            # Counts
+            'reasons_for_count': len(reasons_for),
+            'reasons_against_count': len(reasons_against),
+            'risk_warning_count': len(risk_warnings)
+        }
 
 
 def generate_action_plan(unified_rec: Dict[str, Any],
@@ -1052,15 +1393,40 @@ def create_unified_recommendation(analysis_results: Dict[str, Any]) -> Dict[str,
     logger.debug(f"After conversion - target_price: {type(target_price)} = {target_price}")
     logger.debug(f"After conversion - stop_loss: {type(stop_loss)} = {stop_loss}")
 
-    # Calculate R:R ratio (fixed calculation) - ensure all are floats
+    # ===== FIXED: Use Market State entry price for R:R calculation =====
+    # Extract Market State entry price from technical analysis
+    market_state_analysis = technical_analysis.get('market_state_analysis', {})
+    strategy_recommendation = market_state_analysis.get('strategy', {})
+    trading_plan = strategy_recommendation.get('trading_plan', {})
+
+    # Get entry range from Market State
+    entry_range = trading_plan.get('entry_range', [current_price * 0.995, current_price * 1.005])
+    entry_price = sum(entry_range) / 2 if entry_range and len(entry_range) == 2 else current_price
+
+    # Use Market State targets if available (more accurate than generic targets)
+    market_state_tp = trading_plan.get('take_profit')
+    market_state_sl = trading_plan.get('stop_loss')
+
+    if market_state_tp and market_state_sl:
+        # Use Market State values (preferred - most accurate)
+        logger.info(f"✅ Using Market State trading plan: Entry=${entry_price:.2f}, TP=${market_state_tp:.2f}, SL=${market_state_sl:.2f}")
+        target_price = float(market_state_tp)
+        stop_loss = float(market_state_sl)
+    else:
+        # Fallback to generic values
+        logger.warning(f"⚠️ Market State trading plan not available, using generic values")
+        entry_price = float(current_price)
+
+    # Calculate R:R ratio using ENTRY PRICE (not current price!)
     try:
-        risk = abs(float(current_price) - float(stop_loss))
-        reward = abs(float(target_price) - float(current_price))
+        risk = abs(float(entry_price) - float(stop_loss))
+        reward = abs(float(target_price) - float(entry_price))
         rr_ratio = float(reward / risk) if risk > 0 else 0.0
+        logger.info(f"📊 R/R Calculation: Risk=${risk:.2f} ({((risk/entry_price)*100):.1f}%), Reward=${reward:.2f} ({((reward/entry_price)*100):.1f}%), R/R={rr_ratio:.2f}:1")
     except (TypeError, ValueError) as e:
         # Debug logging
         logger.error(f"Type conversion error in R:R calculation:")
-        logger.error(f"  current_price: {current_price} (type: {type(current_price)})")
+        logger.error(f"  entry_price: {entry_price} (type: {type(entry_price)})")
         logger.error(f"  target_price: {target_price} (type: {type(target_price)})")
         logger.error(f"  stop_loss: {stop_loss} (type: {type(stop_loss)})")
         logger.error(f"  Error: {e}")
@@ -1084,3 +1450,240 @@ def create_unified_recommendation(analysis_results: Dict[str, Any]) -> Dict[str,
         time_horizon=time_horizon,
         analysis_results=analysis_results  # NEW: Pass full analysis for momentum scoring
     )
+
+
+def generate_multi_timeframe_analysis(analysis_results: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Generate recommendations for all 3 timeframes (SHORT/MEDIUM/LONG) - NEW v3.0
+
+    Returns multi-timeframe analysis with warnings if timeframes don't align.
+    Used for "แบบที่ 3" - show selected timeframe + warnings for others.
+
+    Args:
+        analysis_results: Full analysis results
+
+    Returns:
+        {
+            'short': {...},    # Recommendation for short-term
+            'medium': {...},   # Recommendation for medium-term
+            'long': {...},     # Recommendation for long-term
+            'selected': 'short',  # Which one user selected
+            'alignment': {
+                'all_aligned': False,
+                'warnings': [...],
+                'summary': '...'
+            }
+        }
+    """
+    engine = UnifiedRecommendationEngine()
+
+    # Extract common data (same for all timeframes)
+    technical_analysis = analysis_results.get('technical_analysis', {})
+    fundamental_analysis = analysis_results.get('fundamental_analysis', {})
+
+    technical_score = technical_analysis.get('technical_score', 5.0)
+    if isinstance(technical_score, dict):
+        technical_score = technical_score.get('total_score', 5.0)
+
+    fundamental_score = fundamental_analysis.get('overall_score', 5.0)
+    price_change_analysis = analysis_results.get('price_change_analysis', {})
+    insider_data = analysis_results.get('insider_institutional', {})
+
+    # Get prices
+    current_price = float(analysis_results.get('current_price', 100.0))
+    suggested_targets = analysis_results.get('suggested_targets', [])
+    suggested_stop_loss = analysis_results.get('suggested_stop_loss')
+
+    target_price = float(suggested_targets[0]) if suggested_targets else current_price * 1.05
+    stop_loss = float(suggested_stop_loss) if suggested_stop_loss else current_price * 0.95
+
+    # Calculate R/R ratio (same for all)
+    market_state_analysis = technical_analysis.get('market_state_analysis', {})
+    trading_plan = market_state_analysis.get('strategy', {}).get('trading_plan', {})
+    entry_range = trading_plan.get('entry_range', [current_price * 0.995, current_price * 1.005])
+    entry_price = sum(entry_range) / 2 if entry_range and len(entry_range) == 2 else current_price
+
+    risk = abs(entry_price - stop_loss)
+    reward = abs(target_price - entry_price)
+    rr_ratio = reward / risk if risk > 0 else 0.0
+
+    # Get selected timeframe
+    performance_expectations = analysis_results.get('performance_expectations', {})
+    selected_timeframe = performance_expectations.get('time_horizon', 'short')
+
+    # Generate recommendations for ALL 3 timeframes
+    recommendations = {}
+
+    logger.info(f"🔍 Generating Multi-Timeframe Analysis...")
+    logger.info(f"  Base Scores: Tech={technical_score:.1f}, Fund={fundamental_score:.1f}, R/R={rr_ratio:.2f}")
+
+    for horizon in ['short', 'medium', 'long']:
+        rec = engine.generate_unified_recommendation(
+            technical_score=technical_score,
+            fundamental_score=fundamental_score,
+            price_change_analysis=price_change_analysis,
+            insider_data=insider_data,
+            risk_reward_ratio=rr_ratio,
+            current_price=current_price,
+            target_price=target_price,
+            stop_loss=stop_loss,
+            time_horizon=horizon,
+            analysis_results=analysis_results
+        )
+
+        # DEBUG: Log each timeframe result
+        logger.info(f"  {horizon.upper()}: {rec['recommendation']} {rec['score']:.1f}/10 ({rec['confidence']})")
+
+        recommendations[horizon] = rec
+
+    # Analyze alignment and generate warnings
+    alignment_analysis = _analyze_timeframe_alignment(
+        recommendations,
+        selected_timeframe
+    )
+
+    return {
+        'short': recommendations['short'],
+        'medium': recommendations['medium'],
+        'long': recommendations['long'],
+        'selected': selected_timeframe,
+        'alignment': alignment_analysis
+    }
+
+
+def _analyze_timeframe_alignment(recommendations: Dict[str, Dict], selected: str) -> Dict[str, Any]:
+    """
+    Analyze if timeframes are aligned or conflicting
+
+    Returns warnings for timeframes that differ from selected one.
+    """
+    selected_rec = recommendations[selected]
+    selected_action = selected_rec['recommendation']
+    selected_score = selected_rec['score']
+
+    warnings = []
+    all_aligned = True
+
+    # Check other timeframes
+    for horizon in ['short', 'medium', 'long']:
+        if horizon == selected:
+            continue
+
+        other_rec = recommendations[horizon]
+        other_action = other_rec['recommendation']
+        other_score = other_rec['score']
+
+        # Check if different recommendation
+        if other_action != selected_action:
+            all_aligned = False
+
+            # Generate warning message
+            horizon_thai = {
+                'short': 'ระยะสั้น (1-14 วัน)',
+                'medium': 'ระยะกลาง (1-3 เดือน)',
+                'long': 'ระยะยาว (6-12 เดือน)'
+            }
+
+            # Determine severity
+            action_diff = abs(_action_to_score(other_action) - _action_to_score(selected_action))
+
+            if action_diff >= 2:  # BUY vs SELL
+                severity = 'critical'
+                icon = '🔴'
+                message = f"{horizon_thai[horizon]}: {other_action} ({other_score:.1f}/10)"
+                reason = _get_alignment_reason(horizon, other_action, other_rec)
+                warnings.append({
+                    'timeframe': horizon,
+                    'severity': severity,
+                    'icon': icon,
+                    'message': message,
+                    'reason': reason
+                })
+            elif action_diff == 1:  # BUY vs HOLD or HOLD vs SELL
+                severity = 'warning'
+                icon = '🟡'
+                message = f"{horizon_thai[horizon]}: {other_action} ({other_score:.1f}/10)"
+                reason = _get_alignment_reason(horizon, other_action, other_rec)
+                warnings.append({
+                    'timeframe': horizon,
+                    'severity': severity,
+                    'icon': icon,
+                    'message': message,
+                    'reason': reason
+                })
+
+    # Generate summary
+    if all_aligned:
+        summary = f"✅ สัญญาณสอดคล้องกันทุก timeframe - {selected_action} signal ชัดเจน"
+    elif len(warnings) == 1:
+        summary = f"⚠️ หุ้นนี้เหมาะกับ {_get_thai_timeframe(selected)} เป็นหลัก"
+    else:
+        summary = f"⚠️ คำเตือน: สัญญาณแตกต่างกันในแต่ละ timeframe"
+
+    return {
+        'all_aligned': all_aligned,
+        'warnings': warnings,
+        'summary': summary,
+        'warning_count': len(warnings)
+    }
+
+
+def _action_to_score(action: str) -> int:
+    """Convert action to numeric score for comparison"""
+    mapping = {
+        'STRONG BUY': 2,
+        'BUY': 1,
+        'HOLD': 0,
+        'SELL': -1,
+        'STRONG SELL': -2
+    }
+    return mapping.get(action, 0)
+
+
+def _get_thai_timeframe(horizon: str) -> str:
+    """Get Thai name for timeframe"""
+    mapping = {
+        'short': 'ระยะสั้น',
+        'medium': 'ระยะกลาง',
+        'long': 'ระยะยาว'
+    }
+    return mapping.get(horizon, horizon)
+
+
+def _get_alignment_reason(horizon: str, action: str, recommendation: Dict) -> str:
+    """Get reason why this timeframe has different recommendation"""
+    component_scores = recommendation.get('component_scores', {})
+
+    if horizon == 'medium':
+        # Medium-term focuses on fundamentals
+        fund_score = component_scores.get('fundamental', 5.0)
+        if action in ['SELL', 'STRONG SELL']:
+            return f"Fundamentals อ่อนแรง ({fund_score:.1f}/10) - ไม่เหมาะถือกลางถึงยาว"
+        elif action == 'HOLD':
+            return f"Fundamentals ปานกลาง ({fund_score:.1f}/10) - รอดูต่อก่อน"
+        else:
+            return f"Fundamentals ดี ({fund_score:.1f}/10)"
+
+    elif horizon == 'long':
+        # Long-term focuses on fundamentals + insider
+        fund_score = component_scores.get('fundamental', 5.0)
+        insider_score = component_scores.get('insider', 5.0)
+
+        if action in ['SELL', 'STRONG SELL']:
+            return f"Fundamentals อ่อน ({fund_score:.1f}/10) และ Insider ไม่สนับสนุน - ไม่แนะนำถือยาว"
+        elif action == 'HOLD':
+            return f"Fundamentals ปานกลาง ({fund_score:.1f}/10) - ยังไม่เหมาะลงทุนยาว"
+        else:
+            return f"Fundamentals แข็งแรง ({fund_score:.1f}/10)"
+
+    else:  # short
+        # Short-term focuses on technicals + momentum
+        tech_score = component_scores.get('technical', 5.0)
+        mom_score = component_scores.get('momentum', 5.0)
+
+        if action in ['SELL', 'STRONG SELL']:
+            return f"Technicals อ่อน ({tech_score:.1f}/10) + Momentum ลง ({mom_score:.1f}/10)"
+        elif action == 'HOLD':
+            return f"Technicals ปานกลาง ({tech_score:.1f}/10) - รอ momentum"
+        else:
+            return f"Technicals + Momentum แข็งแรง"

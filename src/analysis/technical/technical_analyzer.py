@@ -123,6 +123,11 @@ class TechnicalAnalyzer:
                 latest_values, current_regime, risk_metrics
             )
 
+            # NEW: Market State Analysis
+            market_state = self._detect_market_state(latest_values)
+            strategy_recommendation = self._get_strategy_recommendation(market_state, latest_values, filtered_signals)
+            confidence_score = self._calculate_confidence_score(market_state, latest_values, filtered_signals)
+
             return {
                 'symbol': self.symbol,
                 'analysis_date': datetime.now().isoformat(),
@@ -164,7 +169,14 @@ class TechnicalAnalyzer:
                 'target_levels': self._calculate_target_levels(latest_values),
 
                 # Adaptability insights
-                'adaptability_insights': self._generate_adaptability_insights(current_regime, advanced_analysis)
+                'adaptability_insights': self._generate_adaptability_insights(current_regime, advanced_analysis),
+
+                # NEW: Market State Strategy Analysis
+                'market_state_analysis': {
+                    'current_state': market_state,
+                    'strategy': strategy_recommendation,
+                    'confidence': confidence_score
+                }
             }
 
         except Exception as e:
@@ -1143,3 +1155,626 @@ class TechnicalAnalyzer:
         except Exception as e:
             logger.error(f"Volume Profile calculation failed: {e}")
             return {'has_data': False, 'error': str(e)}
+
+    def _detect_market_state(self, indicators: Dict[str, Any]) -> str:
+        """
+        ตรวจสอบสภาวะตลาดปัจจุบัน
+
+        Returns:
+            'TRENDING_BULLISH', 'SIDEWAY', หรือ 'BEARISH'
+        """
+        try:
+            current_price = indicators['current_price']
+            ema_10 = indicators.get('ema_10') or indicators.get('sma_20')  # Fallback to SMA20
+            ema_30 = indicators.get('ema_30') or indicators.get('sma_50')  # Fallback to SMA50
+            volume = indicators.get('current_volume')
+            volume_sma = indicators.get('volume_sma')
+            atr = indicators.get('atr')
+
+            # ตรวจสอบ Trend จาก EMA
+            if ema_10 and ema_30:
+                # Bullish: EMA10 > EMA30 และราคา > EMA
+                if ema_10 > ema_30 and current_price > ema_10:
+                    # ตรวจสอบ Volume ยืนยัน
+                    if volume and volume_sma and volume > volume_sma:
+                        return 'TRENDING_BULLISH'
+                    else:
+                        # Volume ไม่ยืนยัน อาจเป็น Sideway
+                        return 'SIDEWAY'
+
+                # Bearish: EMA10 < EMA30 และราคา < EMA
+                elif ema_10 < ema_30 and current_price < ema_10:
+                    return 'BEARISH'
+
+                # Sideway: EMA ใกล้กัน หรือราคาอยู่ระหว่าง EMA
+                else:
+                    return 'SIDEWAY'
+
+            # ถ้าไม่มี EMA ให้ดูจาก ATR และ Price movement
+            if atr and current_price:
+                volatility_pct = (atr / current_price) * 100
+                if volatility_pct < 1.5:
+                    return 'SIDEWAY'  # Low volatility = Sideway
+
+            return 'SIDEWAY'  # Default
+
+        except Exception as e:
+            logger.warning(f"Market state detection failed: {e}")
+            return 'SIDEWAY'
+
+    def _get_strategy_recommendation(self, market_state: str, indicators: Dict[str, Any],
+                                    signals: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        แนะนำ Strategy ตามสภาวะตลาด
+
+        Args:
+            market_state: สภาวะตลาด (TRENDING_BULLISH, SIDEWAY, BEARISH)
+            indicators: ค่า indicators
+            signals: สัญญาณต่างๆ
+
+        Returns:
+            Strategy recommendation พร้อมเงื่อนไขเข้า/ออก
+        """
+        try:
+            current_price = indicators['current_price']
+            ema_10 = indicators.get('ema_10') or indicators.get('sma_20', current_price)
+            ema_30 = indicators.get('ema_30') or indicators.get('sma_50', current_price)
+            rsi = indicators.get('rsi', 50)
+            volume = indicators.get('current_volume', 0)
+            volume_sma = indicators.get('volume_sma', 1)
+            support = indicators.get('support_resistance', {}).get('support_1', current_price * 0.98)
+            resistance = indicators.get('support_resistance', {}).get('resistance_1', current_price * 1.02)
+            macd_line = indicators.get('macd_line', 0)
+            macd_signal = indicators.get('macd_signal', 0)
+            bb_upper = indicators.get('bb_upper', current_price * 1.02)
+            bb_lower = indicators.get('bb_lower', current_price * 0.98)
+
+            if market_state == 'TRENDING_BULLISH':
+                # Strategy: EMA Cross + Volume
+                entry_conditions = []
+                exit_conditions = []
+                warnings = []
+
+                # Entry conditions
+                if ema_10 > ema_30:
+                    entry_conditions.append({
+                        'condition': f'EMA10 ({ema_10:.2f}) > EMA30 ({ema_30:.2f})',
+                        'status': '✅',
+                        'reason': 'แนวโน้มขาขึ้น'
+                    })
+                else:
+                    entry_conditions.append({
+                        'condition': f'EMA10 ({ema_10:.2f}) < EMA30 ({ema_30:.2f})',
+                        'status': '❌',
+                        'reason': 'รอ EMA ตัดขึ้น'
+                    })
+
+                volume_ratio = volume / volume_sma if volume_sma > 0 else 1
+                if volume > volume_sma:
+                    entry_conditions.append({
+                        'condition': f'Volume ({volume_ratio:.1f}x) > SMA5',
+                        'status': '✅',
+                        'reason': 'แรงซื้อจริง'
+                    })
+                else:
+                    entry_conditions.append({
+                        'condition': f'Volume ({volume_ratio:.1f}x) < SMA5',
+                        'status': '⚠️',
+                        'reason': 'Volume อ่อน รอยืนยัน'
+                    })
+
+                if current_price > ema_10 and current_price > ema_30:
+                    entry_conditions.append({
+                        'condition': f'ราคา ({current_price:.2f}) > EMA ทั้งสอง',
+                        'status': '✅',
+                        'reason': 'ยืนยัน trend'
+                    })
+
+                # Exit conditions
+                exit_conditions.append({
+                    'condition': 'EMA10 ตัดลง EMA30',
+                    'status': '❌' if ema_10 < ema_30 else '✗',
+                    'reason': 'Trend กลับ'
+                })
+
+                if rsi > 70:
+                    exit_conditions.append({
+                        'condition': f'RSI ({rsi:.0f}) > 70',
+                        'status': '⚠️',
+                        'reason': 'Overbought'
+                    })
+                    warnings.append(f'RSI ({rsi:.0f}) ใกล้ overbought → ระวังปรับฐาน')
+                else:
+                    exit_conditions.append({
+                        'condition': f'RSI ({rsi:.0f}) < 70',
+                        'status': '✗',
+                        'reason': f'ปกติ (ตอนนี้ {rsi:.0f})'
+                    })
+
+                exit_conditions.append({
+                    'condition': f'ราคาหลุด EMA30 ({ema_30:.2f})',
+                    'status': '❌' if current_price < ema_30 else '✗',
+                    'reason': 'แนวรับสำคัญหลุด'
+                })
+
+                # Trading plan
+                atr = indicators.get('atr', current_price * 0.02)
+                entry_range = [current_price * 0.995, current_price * 1.005]
+                entry_price = sum(entry_range) / 2  # ใช้ mid-point ของ entry range
+                take_profit = min(resistance, current_price * 1.07)  # 7% หรือแนวต้าน
+                stop_loss = max(ema_30 - atr, current_price * 0.97)  # 3% หรือต่ำกว่า EMA30
+
+                # Overall Action Signal สำหรับ TRENDING_BULLISH
+                volume_ratio = volume / volume_sma if volume_sma > 0 else 1
+
+                # Entry Readiness Score สำหรับ Trending
+                # คำนวณจาก: EMA alignment + Volume + Price position
+                ema_score = 100 if ema_10 > ema_30 else 0
+                price_score = 100 if current_price > ema_10 else max(0, 50 - abs((current_price - ema_10) / ema_10) * 100)
+                volume_score = min(100, volume_ratio * 50)  # 2.0x = 100, 1.0x = 50
+                entry_readiness = (ema_score * 0.4 + price_score * 0.3 + volume_score * 0.3)
+
+                # คำนวณระยะห่างจาก EMA (เพื่อให้ข้อมูลเชิงตัวเลข)
+                price_above_ema10 = current_price - ema_10
+                price_above_ema10_pct = ((current_price - ema_10) / ema_10) * 100 if ema_10 > 0 else 0
+
+                if ema_10 > ema_30 and current_price > ema_10 and volume_ratio > 1.2:
+                    # Perfect: Trend + Volume + Price
+                    action_signal = 'BUY_NOW'
+                    action_reason = f'เข้าได้เลย: Trend ขึ้นชัด + ราคาเหนือ EMA10 (${price_above_ema10:.2f} / {price_above_ema10_pct:.1f}%) + Volume {volume_ratio:.1f}x แรง'
+                    action_color = 'green'
+                elif ema_10 > ema_30 and current_price > ema_10 and volume_ratio > 0.8:
+                    # Trend ดี แต่ Volume ปานกลาง
+                    action_signal = 'READY'
+                    action_reason = f'เตรียมพร้อม: Trend ขึ้น + ราคาเหนือ EMA10 (${price_above_ema10:.2f}) - Volume {volume_ratio:.1f}x พอใช้'
+                    action_color = 'yellow'
+                elif ema_10 > ema_30:
+                    # Trend ดีแต่ราคาต่ำกว่า EMA หรือ Volume อ่อน
+                    price_below_ema10 = abs(current_price - ema_10)
+                    action_signal = 'READY'
+                    action_reason = f'เตรียมพร้อม: Trend ขึ้น - รอราคากลับมาเหนือ EMA10 (อีก ${price_below_ema10:.2f}) หรือ Volume เพิ่ม'
+                    action_color = 'yellow'
+                else:
+                    # EMA ยังไม่ตัดขึ้น
+                    ema_gap = abs(ema_10 - ema_30)
+                    action_signal = 'WAIT'
+                    action_reason = f'รอ: EMA10-EMA30 ห่าง ${ema_gap:.2f} - รอให้ตัดขึ้นก่อน'
+                    action_color = 'red'
+
+                return {
+                    'strategy_name': 'EMA Cross + Volume Breakout',
+                    'market_state': 'Trending / Bullish Momentum',
+                    'action_signal': action_signal,
+                    'action_reason': action_reason,
+                    'action_color': action_color,
+                    'entry_readiness': round(entry_readiness, 1),  # Entry Readiness Score (0-100)
+                    'entry_conditions': entry_conditions,
+                    'exit_conditions': exit_conditions,
+                    'warnings': warnings,
+                    'trading_plan': {
+                        'entry_range': entry_range,
+                        'take_profit': take_profit,
+                        'stop_loss': stop_loss,
+                        'risk_reward_ratio': round((take_profit - entry_price) / (entry_price - stop_loss), 2) if entry_price > stop_loss else 0
+                    }
+                }
+
+            elif market_state == 'SIDEWAY':
+                # Strategy: Support/Resistance + RSI
+                entry_conditions = []
+                exit_conditions = []
+                warnings = []
+
+                # Entry conditions (ซื้อใกล้รับ)
+                distance_to_support = abs((current_price - support) / support) * 100
+                if distance_to_support <= 2:
+                    entry_conditions.append({
+                        'condition': f'ราคา ({current_price:.2f}) ใกล้รับ ({support:.2f})',
+                        'status': '✅',
+                        'reason': 'โอกาสดีดขึ้น'
+                    })
+                else:
+                    entry_conditions.append({
+                        'condition': f'ราคาห่างรับ {distance_to_support:.1f}%',
+                        'status': '⚠️',
+                        'reason': 'รอราคาลงใกล้รับก่อน'
+                    })
+
+                if rsi < 50:
+                    entry_conditions.append({
+                        'condition': f'RSI ({rsi:.0f}) < 50',
+                        'status': '✅',
+                        'reason': 'Oversold เริ่มดีดขึ้น'
+                    })
+                else:
+                    entry_conditions.append({
+                        'condition': f'RSI ({rsi:.0f}) > 50',
+                        'status': '⚠️',
+                        'reason': 'รอ RSI ต่ำกว่า'
+                    })
+
+                if current_price <= bb_lower:
+                    entry_conditions.append({
+                        'condition': f'ราคาชน Lower BB ({bb_lower:.2f})',
+                        'status': '✅',
+                        'reason': 'โอกาสกลับตัว'
+                    })
+
+                # Exit conditions (ขายใกล้ต้าน)
+                distance_to_resistance = abs((resistance - current_price) / resistance) * 100
+                if distance_to_resistance <= 2:
+                    exit_conditions.append({
+                        'condition': f'ราคา ({current_price:.2f}) ใกล้ต้าน ({resistance:.2f})',
+                        'status': '⚠️',
+                        'reason': 'ควรขายทำกำไร'
+                    })
+                else:
+                    exit_conditions.append({
+                        'condition': f'ราคาห่างต้าน {distance_to_resistance:.1f}%',
+                        'status': '✗',
+                        'reason': 'ยังมีที่วิ่ง'
+                    })
+
+                if rsi > 70:
+                    exit_conditions.append({
+                        'condition': f'RSI ({rsi:.0f}) > 70',
+                        'status': '⚠️',
+                        'reason': 'Overbought'
+                    })
+
+                if current_price >= bb_upper:
+                    exit_conditions.append({
+                        'condition': f'ราคาชน Upper BB ({bb_upper:.2f})',
+                        'status': '⚠️',
+                        'reason': 'ควรขาย'
+                    })
+
+                warnings.append('ตลาดแกว่งในกรอบ → เทรดระยะสั้นที่แนวรับ-ต้าน')
+
+                # Overall Action Signal สำหรับ SIDEWAY (ปรับให้ยืดหยุ่นขึ้น)
+                # คำนวณ distance และ entry readiness
+                distance_to_support = abs((current_price - support) / support) * 100
+                distance_to_resistance = abs((resistance - current_price) / resistance) * 100
+
+                # Entry Readiness Score (0-100)
+                # ยิ่งใกล้รับ + RSI ต่ำ = Score สูง
+                distance_score = max(0, 100 - (distance_to_support * 10))  # 0% = 100, 5% = 50, 10% = 0
+                rsi_score = max(0, 100 - rsi) if rsi < 50 else max(0, 50 - (rsi - 50))  # RSI < 30 = 100, 50 = 50, 70 = 30
+                entry_readiness = (distance_score * 0.6 + rsi_score * 0.4)  # Distance สำคัญกว่า
+
+                # ตัดสินใจ Action Signal
+                price_distance_dollars = abs(current_price - support)
+
+                if distance_to_support <= 2 and rsi < 50:
+                    # Perfect entry: ใกล้รับ + RSI ดี
+                    action_signal = 'BUY_NOW'
+                    action_reason = f'เข้าได้เลย: ราคาชนรับ ({distance_to_support:.1f}% / ${price_distance_dollars:.2f}) + RSI {rsi:.0f} ต่ำ โอกาสดีดขึ้น'
+                    action_color = 'green'
+                elif distance_to_support <= 5 and rsi <= 60:
+                    # ใกล้รับพอสมควร - เตรียมพร้อม
+                    action_signal = 'READY'
+                    action_reason = f'เตรียมพร้อม: ราคาห่างรับ {distance_to_support:.1f}% (อีก ${price_distance_dollars:.2f}) RSI {rsi:.0f} - ติดตามใกล้ชิด'
+                    action_color = 'yellow'
+                elif distance_to_support <= 2 and rsi > 60:
+                    # ราคาดีแต่ RSI สูง
+                    action_signal = 'READY'
+                    action_reason = f'เตรียมพร้อม: ราคาใกล้รับ ({distance_to_support:.1f}% / ${price_distance_dollars:.2f}) แต่ RSI {rsi:.0f} สูง - รอ pullback'
+                    action_color = 'yellow'
+                else:
+                    # ห่างเกินไป
+                    action_signal = 'WAIT'
+                    if distance_to_support > 10:
+                        action_reason = f'รอ: ราคาห่างรับมาก ({distance_to_support:.1f}% / ${price_distance_dollars:.2f}) - ยังไม่ใช่จังหวะ'
+                    else:
+                        action_reason = f'รอ: ราคาห่างรับ {distance_to_support:.1f}% (อีก ${price_distance_dollars:.2f}) - รอให้ลงใกล้รับก่อน'
+                    action_color = 'red'
+
+                # Trading plan for SIDEWAY
+                entry_range = [support * 0.99, support * 1.01]
+                entry_price = sum(entry_range) / 2  # ใช้ mid-point ของ entry range
+                take_profit = resistance * 0.99
+                stop_loss = support * 0.98
+
+                return {
+                    'strategy_name': 'Support/Resistance + RSI Swing',
+                    'market_state': 'Sideway / Range Bound',
+                    'action_signal': action_signal,
+                    'action_reason': action_reason,
+                    'action_color': action_color,
+                    'entry_readiness': round(entry_readiness, 1),  # Entry Readiness Score (0-100)
+                    'entry_conditions': entry_conditions,
+                    'exit_conditions': exit_conditions,
+                    'warnings': warnings,
+                    'trading_plan': {
+                        'entry_range': entry_range,
+                        'take_profit': take_profit,
+                        'stop_loss': stop_loss,
+                        'risk_reward_ratio': round((take_profit - entry_price) / (entry_price - stop_loss), 2) if entry_price > stop_loss else 0
+                    }
+                }
+
+            else:  # BEARISH
+                # Strategy: MACD + RSI (รอ reversal)
+                entry_conditions = []
+                exit_conditions = []
+                warnings = []
+
+                # Entry conditions (รอสัญญาณกลับตัว)
+                if macd_line > macd_signal:
+                    entry_conditions.append({
+                        'condition': 'MACD line ขึ้นตัด Signal line',
+                        'status': '✅',
+                        'reason': 'สัญญาณ reversal'
+                    })
+                else:
+                    entry_conditions.append({
+                        'condition': 'MACD line ยังต่ำกว่า Signal line',
+                        'status': '⏸️',
+                        'reason': 'รอ MACD กลับขึ้น'
+                    })
+
+                if rsi >= 30 and rsi <= 40:
+                    entry_conditions.append({
+                        'condition': f'RSI ({rsi:.0f}) กลับจาก 30-40',
+                        'status': '✅',
+                        'reason': 'Momentum กลับมา'
+                    })
+                elif rsi < 30:
+                    entry_conditions.append({
+                        'condition': f'RSI ({rsi:.0f}) < 30',
+                        'status': '⏸️',
+                        'reason': 'Oversold มาก รอดีดขึ้น'
+                    })
+                else:
+                    entry_conditions.append({
+                        'condition': f'RSI ({rsi:.0f}) ยังสูง',
+                        'status': '⏸️',
+                        'reason': 'รอ RSI ลงก่อน'
+                    })
+
+                # Exit conditions
+                if macd_line < macd_signal:
+                    exit_conditions.append({
+                        'condition': 'MACD line ตัดลง Signal line',
+                        'status': '❌',
+                        'reason': 'Trend ยังลง'
+                    })
+
+                if rsi < 50:
+                    exit_conditions.append({
+                        'condition': f'RSI ({rsi:.0f}) < 50',
+                        'status': '❌',
+                        'reason': 'แรงขายยังอยู่'
+                    })
+
+                if current_price < support:
+                    exit_conditions.append({
+                        'condition': f'ราคาหลุดรับ ({support:.2f})',
+                        'status': '❌',
+                        'reason': 'ควรหยุดซื้อ'
+                    })
+                    warnings.append('ราคาหลุดแนวรับสำคัญ → ไม่ควรเข้าซื้อ')
+
+                warnings.append('ตลาดอ่อนแรง → รอสัญญาณชัดเจนก่อนเข้า')
+
+                # Overall Action Signal สำหรับ BEARISH
+                # Entry Readiness สำหรับ Reversal
+                macd_score = 100 if macd_line > macd_signal else max(0, 50 + (macd_line - macd_signal) * 10)
+                rsi_score = 100 if (rsi >= 30 and rsi <= 40) else max(0, 50 if rsi < 50 else 0)
+                support_score = 100 if current_price <= support * 1.02 else max(0, 100 - ((current_price - support) / support) * 1000)
+                entry_readiness = (macd_score * 0.4 + rsi_score * 0.4 + support_score * 0.2)
+
+                if macd_line > macd_signal and rsi >= 30 and rsi <= 45:
+                    # สัญญาณกลับตัวชัดเจน
+                    action_signal = 'BUY_NOW'
+                    action_reason = f'เข้าได้เลย: MACD กลับขึ้น + RSI {rsi:.0f} กลับจาก oversold - สัญญาณ reversal'
+                    action_color = 'green'
+                elif macd_line > macd_signal or (rsi >= 25 and rsi <= 50):
+                    # มีบางสัญญาณกลับตัว
+                    action_signal = 'READY'
+                    action_reason = f'เตรียมพร้อม: มีสัญญาณกลับตัว (MACD: {macd_line > macd_signal}, RSI: {rsi:.0f}) - รอยืนยันเพิ่ม'
+                    action_color = 'yellow'
+                else:
+                    # ยังไม่มีสัญญาณ
+                    action_signal = 'WAIT'
+                    action_reason = f'รอ: ยังไม่มีสัญญาณกลับตัวชัดเจน (RSI {rsi:.0f}, MACD ลบ) - ตลาดยังอ่อนแรง'
+                    action_color = 'red'
+
+                # Trading plan for BEARISH
+                entry_range = [support * 1.01, support * 1.03]
+                entry_price = sum(entry_range) / 2  # ใช้ mid-point ของ entry range
+                take_profit = current_price * 1.05
+                stop_loss = support * 0.97
+
+                # คำนวณ R/R ratio ถ้ามีสัญญาณกลับตัว ถ้าไม่มีให้เป็น 0
+                if entry_price > stop_loss and (macd_line > macd_signal or (rsi >= 30 and rsi <= 40)):
+                    r_r_ratio = round((take_profit - entry_price) / (entry_price - stop_loss), 2)
+                else:
+                    r_r_ratio = 0  # ไม่แนะนำเข้าในตลาดขาลง
+
+                return {
+                    'strategy_name': 'MACD + RSI Reversal',
+                    'market_state': 'Bearish / Correction',
+                    'action_signal': action_signal,
+                    'action_reason': action_reason,
+                    'action_color': action_color,
+                    'entry_readiness': round(entry_readiness, 1),  # Entry Readiness Score (0-100)
+                    'entry_conditions': entry_conditions,
+                    'exit_conditions': exit_conditions,
+                    'warnings': warnings,
+                    'trading_plan': {
+                        'entry_range': entry_range,
+                        'take_profit': take_profit,
+                        'stop_loss': stop_loss,
+                        'risk_reward_ratio': r_r_ratio
+                    }
+                }
+
+        except Exception as e:
+            logger.error(f"Strategy recommendation failed: {e}")
+            return {
+                'strategy_name': 'Unknown',
+                'market_state': 'Unknown',
+                'action_signal': 'WAIT',
+                'action_reason': 'ไม่สามารถวิเคราะห์ได้ - รอข้อมูลเพิ่มเติม',
+                'action_color': 'red',
+                'entry_readiness': 0,
+                'entry_conditions': [],
+                'exit_conditions': [],
+                'warnings': ['ไม่สามารถวิเคราะห์ได้'],
+                'trading_plan': {}
+            }
+
+    def _calculate_confidence_score(self, market_state: str, indicators: Dict[str, Any],
+                                    signals: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        คำนวณ Confidence Score ของสัญญาณ
+
+        Returns:
+            Confidence score พร้อมรายละเอียด
+        """
+        try:
+            total_indicators = 0
+            aligned_indicators = 0
+            conflicting_indicators = 0
+
+            # ตรวจสอบแต่ละ indicator
+            # เก็บ list ของทิศทาง เพื่อหาทิศทางหลัก
+            directions = []
+
+            for signal_name, signal_data in signals.items():
+                if isinstance(signal_data, dict):
+                    signal_type = signal_data.get('signal', 'NEUTRAL')
+                    total_indicators += 1
+
+                    current_direction = 0
+                    if signal_type in ['BUY', 'BULLISH']:
+                        current_direction = 1
+                    elif signal_type in ['SELL', 'BEARISH']:
+                        current_direction = -1
+
+                    directions.append(current_direction)
+
+            # หาทิศทางหลัก (ทิศทางที่มีมากที่สุด)
+            if directions:
+                # นับจำนวน BUY, SELL, NEUTRAL
+                buy_count = directions.count(1)
+                sell_count = directions.count(-1)
+                neutral_count = directions.count(0)
+
+                # ทิศทางหลักคือทิศทางที่มีมากที่สุด
+                if buy_count >= sell_count and buy_count >= neutral_count:
+                    signal_direction = 1
+                elif sell_count >= buy_count and sell_count >= neutral_count:
+                    signal_direction = -1
+                else:
+                    signal_direction = 0
+
+                # นับ indicator ที่ชี้ทิศทางเดียวกัน
+                # ถ้าทิศทางหลักเป็น NEUTRAL (0) ให้นับจำนวน NEUTRAL
+                if signal_direction != 0:
+                    aligned_indicators = directions.count(signal_direction)
+                else:
+                    # ตลาด Sideway: นับ NEUTRAL indicators
+                    aligned_indicators = neutral_count
+
+                # นับ indicator ที่ขัดแย้ง
+                if signal_direction == 1:
+                    conflicting_indicators = sell_count
+                elif signal_direction == -1:
+                    conflicting_indicators = buy_count
+                else:
+                    conflicting_indicators = 0
+
+            # คำนวณ confidence
+            if total_indicators > 0:
+                alignment_ratio = aligned_indicators / total_indicators
+                conflict_penalty = conflicting_indicators / total_indicators
+                confidence = (alignment_ratio - (conflict_penalty * 0.5)) * 100
+                confidence = max(0, min(100, confidence))  # 0-100
+            else:
+                confidence = 50  # Neutral
+
+            # Sideway Confidence Boost
+            # เมื่อตลาด Sideway และ NEUTRAL indicators เยอะ → นั่นคือสัญญาณที่ชัดเจน
+            if market_state == 'SIDEWAY' and signal_direction == 0:
+                neutral_ratio = neutral_count / total_indicators if total_indicators > 0 else 0
+                if neutral_ratio >= 0.5:  # ถ้า NEUTRAL >= 50%
+                    # Bonus สำหรับการตรวจจับ Sideway ที่แม่นยำ
+                    sideway_boost = min(20, neutral_ratio * 30)  # Max +20
+                    confidence = min(100, confidence + sideway_boost)
+
+            # Volume confirmation bonus (ปรับตามสภาวะตลาด)
+            volume = indicators.get('current_volume', 0)
+            volume_sma = indicators.get('volume_sma', 1)
+            volume_ratio = volume / volume_sma if volume_sma > 0 else 1
+
+            volume_bonus = 0
+            if market_state == 'TRENDING_BULLISH':
+                # Trending: Volume สูงดี, Volume ต่ำแย่
+                if volume_ratio > 1.2:
+                    volume_bonus = 10
+                elif volume_ratio < 0.8:
+                    volume_bonus = -10
+            elif market_state == 'SIDEWAY':
+                # Sideway: Volume ต่ำเป็นเรื่องปกติ (ไม่ penalty มาก)
+                if volume_ratio > 1.5:
+                    volume_bonus = 5  # Breakout potential
+                elif volume_ratio < 0.5:
+                    volume_bonus = -5  # Very low volume
+            elif market_state == 'BEARISH':
+                # Bearish: Volume สูงเป็นสัญญาณแย่ (selling pressure)
+                if volume_ratio > 1.5:
+                    volume_bonus = -10  # High volume in bearish = bad
+                elif volume_ratio < 0.8:
+                    volume_bonus = 5  # Low volume = less selling pressure
+
+            confidence = max(0, min(100, confidence + volume_bonus))
+
+            # สรุปเหตุผล
+            reasons = []
+            reasons.append(f'Indicators {aligned_indicators}/{total_indicators} ตัวชี้ทิศทางเดียวกัน')
+
+            if volume_ratio > 1.2:
+                reasons.append(f'Volume ยืนยันแนวโน้ม (+{(volume_ratio - 1) * 100:.0f}% vs average)')
+            elif volume_ratio < 0.8:
+                reasons.append(f'Volume อ่อน ({volume_ratio * 100:.0f}% of average)')
+
+            if conflicting_indicators > 0:
+                reasons.append(f'{conflicting_indicators} indicators ขัดแย้ง')
+            else:
+                reasons.append('ไม่มี indicator ขัดแย้งรุนแรง')
+
+            # ระดับความเชื่อมั่น
+            if confidence >= 80:
+                level = 'สัญญาณแรงมาก'
+            elif confidence >= 65:
+                level = 'สัญญาณแรง'
+            elif confidence >= 50:
+                level = 'สัญญาณปานกลาง'
+            elif confidence >= 35:
+                level = 'สัญญาณอ่อน'
+            else:
+                level = 'สัญญาณอ่อนมาก / ควรรอ'
+
+            return {
+                'confidence': round(confidence, 0),
+                'level': level,
+                'aligned_count': aligned_indicators,
+                'total_count': total_indicators,
+                'conflict_count': conflicting_indicators,
+                'volume_confirmation': volume_ratio > 1.0,
+                'reasons': reasons
+            }
+
+        except Exception as e:
+            logger.error(f"Confidence calculation failed: {e}")
+            return {
+                'confidence': 50,
+                'level': 'Unknown',
+                'aligned_count': 0,
+                'total_count': 0,
+                'conflict_count': 0,
+                'volume_confirmation': False,
+                'reasons': ['ไม่สามารถคำนวณได้']
+            }

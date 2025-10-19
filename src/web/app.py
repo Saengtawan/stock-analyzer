@@ -931,5 +931,63 @@ def api_volatile_screen():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/ai-second-opinion', methods=['POST'])
+def api_ai_second_opinion():
+    """API endpoint for AI Second Opinion (on-demand only)"""
+    try:
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+        time_horizon = data.get('time_horizon', 'medium')
+
+        # Get cached analysis results if provided
+        cached_analysis = data.get('cached_analysis')
+
+        if not symbol:
+            return jsonify({'error': 'Symbol is required'}), 400
+
+        logger.info(f"🤖 Generating AI Second Opinion for {symbol} (on-demand)")
+
+        # If cached analysis provided, use it; otherwise analyze fresh
+        if cached_analysis:
+            analysis_results = cached_analysis
+            logger.info(f"Using cached analysis for {symbol}")
+        else:
+            # Perform fresh analysis (without AI to save cost, will add AI Second Opinion separately)
+            analysis_results = analyzer.analyze_stock(symbol, time_horizon, include_ai_analysis=False)
+            logger.info(f"Performed fresh analysis for {symbol}")
+
+        # Generate AI Second Opinion
+        from ai_second_opinion import ai_second_opinion_service
+        ai_opinion_result = ai_second_opinion_service.analyze(analysis_results)
+
+        if ai_opinion_result.get('success'):
+            ai_opinion = ai_opinion_result.get('ai_second_opinion')
+            expectancy = ai_opinion.get('expectancy', {})
+            logger.info(f"✅ Performance Expectancy calculated: Win Rate {expectancy.get('win_rate', 'N/A')}, Expectancy {expectancy.get('expectancy_per_trade', 'N/A')}")
+
+            # Clean for JSON
+            cleaned_opinion = clean_analysis_results(ai_opinion)
+
+            return jsonify({
+                'success': True,
+                'symbol': symbol,
+                'ai_second_opinion': cleaned_opinion
+            })
+        else:
+            logger.warning(f"AI Second Opinion generation failed for {symbol}")
+            return jsonify({
+                'success': False,
+                'error': 'AI Second Opinion generation failed',
+                'symbol': symbol
+            }), 500
+
+    except Exception as e:
+        logger.error(f"AI Second Opinion API error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5002)

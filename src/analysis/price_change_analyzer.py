@@ -71,8 +71,8 @@ class PriceChangeAnalyzer:
             # ประเมินความแข็งแกร่งของเทรนด์
             trend_strength = self._analyze_trend_strength(price_data, technical_indicators)
 
-            # หาจุดสำคัญที่ส่งผลต่อราคา
-            key_levels = self._identify_key_price_levels(price_data, current_price)
+            # หาจุดสำคัญที่ส่งผลต่อราคา (ส่ง technical_indicators เพื่อใช้ S/R ที่สอดคล้องกัน)
+            key_levels = self._identify_key_price_levels(price_data, current_price, technical_indicators)
 
             # วิเคราะห์ปริมาณการซื้อขาย (volume)
             volume_analysis = self._analyze_volume_impact(price_data)
@@ -715,15 +715,21 @@ class PriceChangeAnalyzer:
 
     def _identify_key_price_levels(self,
                                    price_data: pd.DataFrame,
-                                   current_price: float) -> Dict[str, Any]:
+                                   current_price: float,
+                                   technical_indicators: Dict[str, Any] = None) -> Dict[str, Any]:
         """หาจุดสำคัญที่ส่งผลต่อราคา"""
         try:
-            # หา Support/Resistance
-            highs = price_data['high'].rolling(20).max()
-            lows = price_data['low'].rolling(20).min()
-
-            resistance_1 = highs.iloc[-10:].max()
-            support_1 = lows.iloc[-10:].min()
+            # ลองใช้ Support/Resistance จาก TechnicalAnalyzer ก่อน (เพื่อความสอดคล้อง)
+            if technical_indicators and 'support_resistance' in technical_indicators:
+                sr_data = technical_indicators['support_resistance']
+                resistance_1 = sr_data.get('resistance_1')
+                support_1 = sr_data.get('support_1')
+            else:
+                # Fallback: คำนวณเอง
+                recent_highs = price_data['high'].tail(20)
+                recent_lows = price_data['low'].tail(20)
+                resistance_1 = recent_highs.max()
+                support_1 = recent_lows.min()
 
             # หา Pivot Points
             high = price_data['high'].iloc[-1]
@@ -1033,6 +1039,10 @@ class PriceChangeAnalyzer:
                         })
 
             # 7. คำนวณคะแนนรวมและสรุป
+            # เพิ่ม baseline เพื่อป้องกันค่า 100%/0% ที่ไม่สมจริง
+            hold_score = max(hold_score, 10)  # ขั้นต่ำ 10
+            sell_score = max(sell_score, 10)  # ขั้นต่ำ 10
+
             total_score = hold_score + sell_score
             hold_probability = (hold_score / total_score * 100) if total_score > 0 else 50
             sell_probability = (sell_score / total_score * 100) if total_score > 0 else 50

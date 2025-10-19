@@ -21,6 +21,7 @@ try:
     from risk.risk_manager import AdvancedRiskManager
     from backtesting.backtest_engine import BacktestEngine
     from ai_stock_analyzer import AIStockAnalyzer
+    from ai_second_opinion import ai_second_opinion_service
 except ImportError as e:
     logger.error(f"Import error: {e}")
     logger.info("Make sure to run this script from the src directory or add src to PYTHONPATH")
@@ -111,6 +112,25 @@ class StockAnalyzer:
 
             # 4. Format results for backward compatibility
             analysis_results = self._format_enhanced_results(enhanced_results, time_horizon, account_value)
+
+            # 5. Generate AI Second Opinion (NEW v3.2)
+            if include_ai_analysis:
+                try:
+                    logger.info(f"Generating AI Second Opinion for {symbol}")
+                    ai_second_opinion_result = ai_second_opinion_service.analyze(analysis_results)
+
+                    if ai_second_opinion_result.get('success'):
+                        analysis_results['ai_second_opinion'] = ai_second_opinion_result.get('ai_second_opinion')
+                        expectancy = ai_second_opinion_result.get('ai_second_opinion', {}).get('expectancy', {})
+                        logger.info(f"✅ Performance Expectancy calculated: Win Rate {expectancy.get('win_rate', 'N/A')}, Expectancy {expectancy.get('expectancy_per_trade', 'N/A')}")
+                    else:
+                        analysis_results['ai_second_opinion'] = None
+                        logger.warning("AI Second Opinion generation failed")
+                except Exception as e:
+                    logger.error(f"AI Second Opinion error: {e}")
+                    analysis_results['ai_second_opinion'] = None
+            else:
+                analysis_results['ai_second_opinion'] = None
 
             logger.info(f"Enhanced analysis completed for {symbol}. Recommendation: {enhanced_results.get('analysis_summary', {}).get('recommendation', 'N/A')}")
             return analysis_results
@@ -341,7 +361,7 @@ class StockAnalyzer:
 
         # NEW: Generate unified recommendation
         try:
-            from analysis.unified_recommendation import create_unified_recommendation, generate_action_plan
+            from analysis.unified_recommendation import create_unified_recommendation, generate_action_plan, generate_multi_timeframe_analysis
             unified_recommendation = create_unified_recommendation(enhanced_results_with_prices)
 
             # CRITICAL FIX: Make unified_recommendation the SINGLE SOURCE OF TRUTH
@@ -362,14 +382,20 @@ class StockAnalyzer:
                     symbol=enhanced_results.get('symbol', '')
                 )
                 logger.info(f"✅ Action plan generated: {action_plan.get('action_instruction', 'N/A')}")
+
+                # NEW v3.0: Generate multi-timeframe analysis
+                multi_timeframe = generate_multi_timeframe_analysis(enhanced_results_with_prices)
+                logger.info(f"✅ Multi-timeframe analysis generated for {multi_timeframe.get('selected')} (with warnings: {len(multi_timeframe.get('alignment', {}).get('warnings', []))})")
             else:
                 action_plan = None
+                multi_timeframe = None
         except Exception as e:
             import traceback
             logger.error(f"Unified recommendation failed: {e}")
             logger.error(f"Full traceback:\n{traceback.format_exc()}")
             unified_recommendation = None
             action_plan = None
+            multi_timeframe = None
 
         # Get ETF status from enhanced results fundamental data
         fundamental_data = enhanced_results.get('fundamental_analysis', {})
@@ -395,6 +421,10 @@ class StockAnalyzer:
             # ===== NEW: Action Plan =====
             'action_plan': action_plan,
             # ============================
+
+            # ===== NEW v3.0: Multi-Timeframe Analysis =====
+            'multi_timeframe_analysis': multi_timeframe,
+            # ==============================================
 
             # Enhanced analysis results (including AI analysis)
             'enhanced_analysis': enhanced_results,

@@ -109,9 +109,12 @@ class EnhancedStockAnalyzer:
 
             # 4. Price Change Analysis (NEW - ทำไมราคาขึ้น/ลง)
             try:
+                # ส่ง support/resistance จาก TechnicalAnalyzer เพื่อให้สอดคล้องกัน
+                technical_with_sr = technical_results.get('indicators', {})
+
                 price_change_analysis = self.price_change_analyzer.analyze_price_change(
                     price_data,
-                    technical_indicators=technical_results.get('indicators', {}),
+                    technical_indicators=technical_with_sr,
                     fundamental_data=fundamental_data
                 )
             except Exception as e:

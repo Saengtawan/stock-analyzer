@@ -125,6 +125,198 @@
             </div>
         </div>
 
+        <!-- NEW: Market State & Strategy Analysis Section -->
+        <div id="market-state-section" class="row mb-4" style="display: none;">
+            <div class="col-12">
+                <div class="card mb-4 border-info shadow-sm">
+                    <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <h5 class="mb-0 text-white">
+                            <i class="fas fa-chart-line me-2"></i>
+                            📊 วิเคราะห์สภาวะตลาด & Strategy แนะนำ
+                        </h5>
+                        <small class="text-white-50">ระบบตรวจสอบสภาวะตลาดอัตโนมัติและแนะนำ Strategy ที่เหมาะสม</small>
+                    </div>
+                    <div class="card-body">
+                        <!-- Market State Header -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <div>
+                                        <h6 class="text-muted mb-1">สภาวะตลาดปัจจุบัน</h6>
+                                        <h4 class="mb-0 fw-bold" id="market-state-text">
+                                            <span id="market-state-icon">🟢</span>
+                                            <span id="market-state-name">-</span>
+                                        </h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                <h6 class="text-muted mb-1">
+                                    Market Detection
+                                    <i class="fas fa-info-circle ms-1" data-bs-toggle="tooltip" data-bs-placement="top"
+                                       title="ความมั่นใจว่าระบบตรวจจับสภาวะตลาดถูกต้อง" style="font-size: 0.8rem;"></i>
+                                </h6>
+                                <h3 class="mb-0">
+                                    <span class="badge bg-info fs-5" id="confidence-badge">-</span>
+                                </h3>
+                                <small class="text-muted" id="confidence-level">-</small>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Strategy Recommendation -->
+                        <div class="mb-4">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-lightbulb me-1"></i>
+                                💡 Strategy แนะนำ: <strong id="strategy-name">-</strong>
+                            </h6>
+                        </div>
+
+                        <!-- Overall Action Signal -->
+                        <div class="mb-4" id="overall-action-box">
+                            <div class="card border-2" id="action-card" style="border-color: #6c757d;">
+                                <div class="card-body py-3">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-8 text-center text-md-start">
+                                            <h5 class="mb-1">
+                                                <span id="action-emoji" style="font-size: 2rem;">⚪</span>
+                                                <span class="ms-2 fw-bold" id="action-signal" style="color: #6c757d;">-</span>
+                                            </h5>
+                                            <p class="mb-0 text-muted small" id="action-reason">-</p>
+                                        </div>
+                                        <div class="col-md-4 text-center text-md-end mt-2 mt-md-0">
+                                            <div class="d-inline-block">
+                                                <div class="text-muted small mb-1">
+                                                    Entry Timing Score
+                                                    <i class="fas fa-info-circle ms-1" data-bs-toggle="tooltip" data-bs-placement="top"
+                                                       title="ความพร้อมของจังหวะเข้าซื้อในตอนนี้: <40% WAIT, 40-70% READY, >70% BUY_NOW" style="font-size: 0.7rem;"></i>
+                                                </div>
+                                                <div class="position-relative" style="width: 140px;">
+                                                    <div class="progress" style="height: 24px;">
+                                                        <div id="readiness-bar" class="progress-bar" role="progressbar" style="width: 0%; background-color: #6c757d;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                                            <span id="readiness-text" class="fw-bold small">0%</span>
+                                                        </div>
+                                                    </div>
+                                                    <!-- Threshold markers -->
+                                                    <div class="position-absolute top-100 start-0 w-100 mt-1" style="font-size: 0.65rem;">
+                                                        <div class="d-flex justify-content-between text-muted">
+                                                            <span>0</span>
+                                                            <span style="margin-left: -10px;">40</span>
+                                                            <span style="margin-left: -8px;">70</span>
+                                                            <span>100</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Entry & Exit Conditions -->
+                        <div class="row">
+                            <!-- Entry Conditions -->
+                            <div class="col-md-6 mb-3">
+                                <div class="card border-success border-opacity-50 h-100">
+                                    <div class="card-header bg-success bg-opacity-10">
+                                        <h6 class="mb-0 text-success">
+                                            <i class="fas fa-sign-in-alt me-1"></i>
+                                            ✅ สัญญาณเข้า (Entry)
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="entry-conditions-list">
+                                            <p class="text-muted mb-0"><small>กำลังโหลด...</small></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Exit Conditions -->
+                            <div class="col-md-6 mb-3">
+                                <div class="card border-danger border-opacity-50 h-100">
+                                    <div class="card-header bg-danger bg-opacity-10">
+                                        <h6 class="mb-0 text-danger">
+                                            <i class="fas fa-sign-out-alt me-1"></i>
+                                            ❌ สัญญาณออก (Exit)
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="exit-conditions-list">
+                                            <p class="text-muted mb-0"><small>กำลังโหลด...</small></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Warnings -->
+                        <div id="strategy-warnings" class="alert alert-warning mb-3" style="display: none;">
+                            <h6 class="alert-heading mb-2">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                ⚠️ ข้อควรระวัง
+                            </h6>
+                            <ul id="warnings-list" class="mb-0">
+                            </ul>
+                        </div>
+
+                        <!-- Trading Plan -->
+                        <div class="card border-primary border-opacity-25 bg-light">
+                            <div class="card-header bg-primary bg-opacity-10">
+                                <h6 class="mb-0 text-primary">
+                                    <i class="fas fa-map-marked-alt me-1"></i>
+                                    📍 แนวทางการเทรด
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <div class="text-center p-2 rounded bg-white border">
+                                            <small class="text-muted d-block mb-1">จุดเข้า</small>
+                                            <strong class="text-success" id="entry-range">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center p-2 rounded bg-white border">
+                                            <small class="text-muted d-block mb-1">Take Profit</small>
+                                            <strong class="text-primary" id="take-profit">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center p-2 rounded bg-white border">
+                                            <small class="text-muted d-block mb-1">Stop Loss</small>
+                                            <strong class="text-danger" id="stop-loss">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center p-2 rounded bg-white border">
+                                            <small class="text-muted d-block mb-1">Risk/Reward</small>
+                                            <strong class="text-info" id="risk-reward">-</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Confidence Score Breakdown -->
+                        <div class="mt-3">
+                            <h6 class="text-muted mb-2">
+                                <i class="fas fa-chart-bar me-1"></i>
+                                🎯 Confidence Score Breakdown
+                            </h6>
+                            <div id="confidence-reasons">
+                                <ul class="mb-0 small text-muted" id="confidence-reasons-list">
+                                    <li>กำลังโหลด...</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- NEW: Unified Recommendation Section -->
         <div id="unified-recommendation-section" class="row mb-4" style="display: none;">
             <div class="col-12">
@@ -368,6 +560,52 @@
             </div>
         </div>
         <!-- End Unified Recommendation Section -->
+
+        <!-- Performance Expectancy Section (On-Demand) -->
+        <div class="row mb-4" id="aiSecondOpinionSection" style="display: none;">
+            <div class="col-12">
+                <div class="card border-primary shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            📊 Performance Expectancy
+                            <span class="badge bg-warning text-dark ms-2">DeepSeek Chat</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading State -->
+                        <div id="aiSecondOpinionLoading" style="display: none;" class="text-center py-5">
+                            <div class="spinner-border text-primary mb-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="text-muted">📊 กำลังคำนวณ Performance Expectancy...</p>
+                            <small class="text-muted">โปรดรอสักครู่ (~20-30 วินาที)</small>
+                        </div>
+                        <!-- Content -->
+                        <div id="aiSecondOpinionContent">
+                            <!-- Performance Expectancy content will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Expectancy Button (Hidden - Auto-loaded) -->
+        <div class="row mb-4" style="display: none;">
+            <div class="col-12 text-center">
+                <button id="btnAISecondOpinion" class="btn btn-lg btn-primary shadow" onclick="requestAISecondOpinion()">
+                    <i class="fas fa-robot me-2"></i>
+                    📊 Calculate Performance Expectancy
+                    <small class="d-block mt-1" style="font-size: 0.75rem; opacity: 0.9;">
+                        Win/Loss probability and expectancy analysis (~30s)
+                    </small>
+                </button>
+                <button id="btnAISecondOpinionLoading" class="btn btn-lg btn-secondary shadow" style="display: none;" disabled>
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    Calculating Performance Expectancy...
+                </button>
+            </div>
+        </div>
 
         <!-- Technical Indicators Charts -->
         <div class="row mb-4">
@@ -629,6 +867,11 @@ function performAnalysis() {
             loadImportantNews(symbol);
             // Load enhanced Yahoo + AI analysis
             loadEnhancedAnalysis(symbol);
+
+            // AUTO: Request Performance Expectancy automatically
+            setTimeout(() => {
+                requestAISecondOpinion();
+            }, 500);  // รอ 0.5 วินาทีเพื่อให้หน้าเว็บโหลดเสร็จก่อน
         }
     })
     .catch(error => {
@@ -639,6 +882,9 @@ function performAnalysis() {
 }
 
 function displayAnalysisResults(data) {
+    // Save analysis results globally for Performance Expectancy caching
+    currentAnalysisResults = data;
+
     // Update summary cards
     const score = data.signal_analysis?.final_score?.total_score || 0;
     const recommendation = data.final_recommendation?.recommendation || 'Hold';
@@ -658,6 +904,9 @@ function displayAnalysisResults(data) {
 
     // Display technical analysis
     displayTechnicalAnalysis(data.technical_analysis);
+
+    // Display market state strategy (NEW!)
+    displayMarketStateStrategy(data);
 
     // Display unified recommendation (NEW!)
     displayUnifiedRecommendation(data);
@@ -1235,6 +1484,127 @@ function displayUnifiedRecommendation(data) {
         unified.analysis_timestamp ? new Date(unified.analysis_timestamp).toLocaleString('th-TH') : '-';
 }
 
+function displayMarketStateStrategy(data) {
+    // ดึงข้อมูล market_state_analysis จาก technical_analysis
+    const marketStateAnalysis = data.technical_analysis?.market_state_analysis;
+
+    if (!marketStateAnalysis || !marketStateAnalysis.strategy) {
+        document.getElementById('market-state-section').style.display = 'none';
+        console.log('ℹ️ Market state analysis not available');
+        return;
+    }
+
+    // แสดง section
+    document.getElementById('market-state-section').style.display = 'block';
+
+    const { current_state, strategy, confidence } = marketStateAnalysis;
+
+    // อัพเดตสภาวะตลาด
+    const stateIcon = current_state === 'TRENDING_BULLISH' ? '🟢' :
+                      current_state === 'SIDEWAY' ? '🟡' : '🔴';
+    document.getElementById('market-state-icon').textContent = stateIcon;
+    document.getElementById('market-state-name').textContent = strategy.market_state || '-';
+
+    // อัพเดต Confidence
+    document.getElementById('confidence-badge').textContent = `${confidence.confidence}%`;
+    document.getElementById('confidence-level').textContent = confidence.level || '-';
+
+    // อัพเดต Strategy name
+    document.getElementById('strategy-name').textContent = strategy.strategy_name || '-';
+
+    // อัพเดต Overall Action Signal
+    const actionSignal = strategy.action_signal || 'UNKNOWN';
+    const actionReason = strategy.action_reason || '-';
+    const actionColor = strategy.action_color || 'gray';
+    const entryReadiness = strategy.entry_readiness || 0;
+
+    // Map color to emoji and styling
+    const colorConfig = {
+        'green': { emoji: '🟢', color: '#28a745', borderColor: '#28a745' },
+        'yellow': { emoji: '🟡', color: '#ffc107', borderColor: '#ffc107' },
+        'red': { emoji: '🔴', color: '#dc3545', borderColor: '#dc3545' },
+        'gray': { emoji: '⚪', color: '#6c757d', borderColor: '#6c757d' }
+    };
+    const config = colorConfig[actionColor] || colorConfig['gray'];
+
+    document.getElementById('action-emoji').textContent = config.emoji;
+    document.getElementById('action-signal').textContent = actionSignal;
+    document.getElementById('action-signal').style.color = config.color;
+    document.getElementById('action-reason').textContent = actionReason;
+    document.getElementById('action-card').style.borderColor = config.borderColor;
+
+    // อัพเดต Entry Readiness Score
+    document.getElementById('readiness-bar').style.width = `${entryReadiness}%`;
+    document.getElementById('readiness-bar').style.backgroundColor = config.color;
+    document.getElementById('readiness-bar').setAttribute('aria-valuenow', entryReadiness);
+    document.getElementById('readiness-text').textContent = `${entryReadiness.toFixed(0)}%`;
+
+    // แสดง Entry Conditions
+    const entryConditionsList = document.getElementById('entry-conditions-list');
+    if (strategy.entry_conditions && strategy.entry_conditions.length > 0) {
+        entryConditionsList.innerHTML = strategy.entry_conditions.map(cond => `
+            <div class="mb-2">
+                <span class="me-2">${cond.status}</span>
+                <strong>${cond.condition}</strong>
+                <br>
+                <small class="text-muted ms-4">${cond.reason}</small>
+            </div>
+        `).join('');
+    } else {
+        entryConditionsList.innerHTML = '<p class="text-muted mb-0">-</p>';
+    }
+
+    // แสดง Exit Conditions
+    const exitConditionsList = document.getElementById('exit-conditions-list');
+    if (strategy.exit_conditions && strategy.exit_conditions.length > 0) {
+        exitConditionsList.innerHTML = strategy.exit_conditions.map(cond => `
+            <div class="mb-2">
+                <span class="me-2">${cond.status}</span>
+                <strong>${cond.condition}</strong>
+                <br>
+                <small class="text-muted ms-4">${cond.reason}</small>
+            </div>
+        `).join('');
+    } else {
+        exitConditionsList.innerHTML = '<p class="text-muted mb-0">-</p>';
+    }
+
+    // แสดง Warnings
+    const warningsSection = document.getElementById('strategy-warnings');
+    const warningsList = document.getElementById('warnings-list');
+    if (strategy.warnings && strategy.warnings.length > 0) {
+        warningsSection.style.display = 'block';
+        warningsList.innerHTML = strategy.warnings.map(w => `<li>${w}</li>`).join('');
+    } else {
+        warningsSection.style.display = 'none';
+    }
+
+    // แสดง Trading Plan
+    const tradingPlan = strategy.trading_plan || {};
+    if (tradingPlan.entry_range && tradingPlan.entry_range.length === 2) {
+        document.getElementById('entry-range').textContent =
+            `${formatNumber(tradingPlan.entry_range[0], 2)} - ${formatNumber(tradingPlan.entry_range[1], 2)}`;
+    } else {
+        document.getElementById('entry-range').textContent = '-';
+    }
+    document.getElementById('take-profit').textContent = tradingPlan.take_profit ?
+        formatNumber(tradingPlan.take_profit, 2) : '-';
+    document.getElementById('stop-loss').textContent = tradingPlan.stop_loss ?
+        formatNumber(tradingPlan.stop_loss, 2) : '-';
+    document.getElementById('risk-reward').textContent = tradingPlan.risk_reward_ratio ?
+        `${tradingPlan.risk_reward_ratio}:1` : '-';
+
+    // แสดง Confidence Reasons
+    const confidenceReasonsList = document.getElementById('confidence-reasons-list');
+    if (confidence.reasons && confidence.reasons.length > 0) {
+        confidenceReasonsList.innerHTML = confidence.reasons.map(r => `<li>${r}</li>`).join('');
+    } else {
+        confidenceReasonsList.innerHTML = '<li>-</li>';
+    }
+
+    console.log('✅ Market state strategy displayed successfully');
+}
+
 function displayFundamentalAnalysis(fundamental) {
     if (!fundamental) {
         document.getElementById('fundamental-content').innerHTML = '<p class="text-muted">ไม่มีข้อมูล Fundamental Analysis</p>';
@@ -1329,7 +1699,9 @@ function displayTechnicalAnalysis(technical) {
                 <h6 class="text-primary">Key Indicators</h6>
                 <table class="table table-sm">
                     <tr><td>RSI (14)</td><td class="text-end">${formatNumber(indicators.rsi)}</td></tr>
-                    <tr><td>MACD</td><td class="text-end">${formatNumber(indicators.macd_line)}</td></tr>
+                    <tr><td>MACD Line</td><td class="text-end">${formatNumber(indicators.macd_line)}</td></tr>
+                    <tr><td>MACD Signal</td><td class="text-end">${formatNumber(indicators.macd_signal)}</td></tr>
+                    <tr><td>MACD Histogram</td><td class="text-end">${formatNumber(indicators.macd_histogram)}</td></tr>
                     <tr><td>EMA 20</td><td class="text-end">${formatCurrency(indicators.sma_20)}</td></tr>
                 </table>
             </div>
@@ -2798,6 +3170,7 @@ function displayEnhancedAnalysis(data) {
     const earningsPerformance = yahooData.earnings_performance || {};
     const analystCoverage = yahooData.analyst_coverage || {};
 
+
     // SEC EDGAR data
     const insiderTrading = secEdgarData.insider_trading || {};
     const institutionalOwnership = secEdgarData.institutional_ownership || {};
@@ -4186,6 +4559,160 @@ function createScoresChart(data) {
             }
         }
     });
+}
+
+// Global variable to store current analysis results
+let currentAnalysisResults = null;
+
+// Performance Expectancy Function
+function requestAISecondOpinion() {
+    // Get current symbol and time horizon
+    const symbol = document.getElementById('symbol').value.toUpperCase();
+    const timeHorizon = document.getElementById('time-horizon').value;
+
+    if (!symbol) {
+        alert('Please enter a stock symbol first');
+        return;
+    }
+
+    // Show Performance Expectancy section with loading state
+    const section = document.getElementById('aiSecondOpinionSection');
+    const loadingDiv = document.getElementById('aiSecondOpinionLoading');
+    const contentDiv = document.getElementById('aiSecondOpinionContent');
+
+    section.style.display = 'block';
+    loadingDiv.style.display = 'block';
+    contentDiv.innerHTML = '';
+
+    // Scroll to Performance Expectancy section
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Call API
+    fetch('/api/ai-second-opinion', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            symbol: symbol,
+            time_horizon: timeHorizon,
+            cached_analysis: currentAnalysisResults  // Pass cached results if available
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Hide loading state
+        loadingDiv.style.display = 'none';
+
+        if (data.success && data.ai_second_opinion) {
+            displayAISecondOpinion(data.ai_second_opinion);
+        } else {
+            contentDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Failed to calculate Performance Expectancy: ${data.error || 'Unknown error'}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        // Hide loading state
+        loadingDiv.style.display = 'none';
+
+        console.error('Performance Expectancy error:', error);
+        contentDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Error calculating Performance Expectancy. Please try again.
+            </div>
+        `;
+    });
+}
+
+// Display Performance Expectancy
+function displayAISecondOpinion(opinion) {
+    const section = document.getElementById('aiSecondOpinionSection');
+    const content = document.getElementById('aiSecondOpinionContent');
+
+    // Build HTML - Show only Probability and Expectancy
+    let html = `
+        <div class="row mb-4">
+            <!-- Probability Section -->
+            <div class="col-md-6">
+                <h5><i class="fas fa-chart-pie text-primary me-2"></i>โอกาสความสำเร็จ (Probability):</h5>
+                <div class="card border-primary">
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>โอกาสชนะ (Win)</span>
+                                <strong class="text-success">${opinion.probability?.win_probability || 50}%</strong>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-success" style="width: ${opinion.probability?.win_probability || 50}%"></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>โอกาสแพ้ (Loss)</span>
+                                <strong class="text-danger">${opinion.probability?.lose_probability || 50}%</strong>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-danger" style="width: ${opinion.probability?.lose_probability || 50}%"></div>
+                            </div>
+                        </div>
+                        <div class="alert alert-info mb-0">
+                            <strong>การเคลื่อนไหวที่คาดว่าจะเกิด:</strong><br>
+                            ${opinion.probability?.expected_move || 'N/A'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Expectancy Section -->
+            <div class="col-md-6">
+                <h5><i class="fas fa-calculator text-success me-2"></i>ความคาดหวังผลตอบแทน (Expectancy):</h5>
+                <div class="card border-success">
+                    <div class="card-body">
+                        <div class="row text-center mb-3">
+                            <div class="col-6">
+                                <h6 class="text-muted mb-1">อัตราชนะ</h6>
+                                <h4 class="mb-0 text-primary">${opinion.expectancy?.win_rate || 'N/A'}</h4>
+                            </div>
+                            <div class="col-6">
+                                <h6 class="text-muted mb-1">จำนวนครั้ง</h6>
+                                <h4 class="mb-0">${opinion.expectancy?.total_trades || 'N/A'}</h4>
+                            </div>
+                        </div>
+                        <div class="row text-center mb-3">
+                            <div class="col-6">
+                                <h6 class="text-muted mb-1">กำไรเฉลี่ย</h6>
+                                <h5 class="mb-0 text-success">${opinion.expectancy?.avg_win || 'N/A'}</h5>
+                            </div>
+                            <div class="col-6">
+                                <h6 class="text-muted mb-1">ขาดทุนเฉลี่ย</h6>
+                                <h5 class="mb-0 text-danger">${opinion.expectancy?.avg_loss || 'N/A'}</h5>
+                            </div>
+                        </div>
+                        <div class="alert alert-${opinion.expectancy?.has_edge ? 'success' : 'warning'} mb-0">
+                            <h6 class="mb-1"><i class="fas fa-chart-line me-2"></i>Expectancy Per Trade:</h6>
+                            <h4 class="mb-0 ${parseFloat(opinion.expectancy?.expectancy_per_trade) > 0 ? 'text-success' : 'text-danger'}">
+                                ${opinion.expectancy?.expectancy_per_trade || 'N/A'}
+                            </h4>
+                            <small class="text-muted">
+                                ${opinion.expectancy?.has_edge ? '✅ มี Edge (ควรเทรด)' : '❌ ไม่มี Edge (ควรระวัง)'}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // That's it! No more verdict, recommendations, simulation, or conflicts
+    content.innerHTML = html;
+    section.style.display = 'block';
+
+    // No need to scroll - already scrolled in requestAISecondOpinion()
 }
 
 </script>

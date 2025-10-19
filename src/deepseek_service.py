@@ -18,7 +18,7 @@ class DeepSeekService:
         self.retry_delay = 2  # seconds (increased)
         self.timeout = 60  # seconds (increased from 30)
 
-    def call_api(self, prompt: str, max_tokens: int = 2000, temperature: float = 0.3) -> Optional[str]:
+    def call_api(self, prompt: str, max_tokens: int = 2000, temperature: float = 0.3, model: str = 'deepseek-chat') -> Optional[str]:
         """
         Call DeepSeek API with error handling and retries
 
@@ -26,6 +26,7 @@ class DeepSeekService:
             prompt: The prompt to send to AI
             max_tokens: Maximum tokens for response
             temperature: Temperature for response randomness (0.0-1.0)
+            model: Model to use ('deepseek-chat' or 'deepseek-reasoner')
 
         Returns:
             AI response text or None if failed
@@ -36,7 +37,7 @@ class DeepSeekService:
         }
 
         payload = {
-            'model': 'deepseek-chat',
+            'model': model,  # Support both deepseek-chat and deepseek-reasoner
             'messages': [
                 {
                     'role': 'user',
@@ -93,7 +94,7 @@ class DeepSeekService:
 
         return None
 
-    def call_api_json(self, prompt: str, max_tokens: int = 2000, temperature: float = 0.3) -> Optional[Dict[str, Any]]:
+    def call_api_json(self, prompt: str, max_tokens: int = 2000, temperature: float = 0.3, model: str = 'deepseek-chat') -> Optional[Dict[str, Any]]:
         """
         Call DeepSeek API and parse JSON response
 
@@ -101,11 +102,12 @@ class DeepSeekService:
             prompt: The prompt to send to AI
             max_tokens: Maximum tokens for response
             temperature: Temperature for response randomness
+            model: Model to use ('deepseek-chat' or 'deepseek-reasoner')
 
         Returns:
             Parsed JSON dict or None if failed
         """
-        response_text = self.call_api(prompt, max_tokens, temperature)
+        response_text = self.call_api(prompt, max_tokens, temperature, model)
 
         if not response_text:
             return None
