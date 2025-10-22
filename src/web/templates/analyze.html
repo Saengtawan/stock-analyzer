@@ -1629,7 +1629,8 @@ function displayFundamentalAnalysis(fundamental) {
                 <table class="table table-sm">
                     <tr><td>ROE</td><td class="text-end">${formatPercentageFromDecimal(ratios.roe)}</td></tr>
                     <tr><td>ROA</td><td class="text-end">${formatPercentageFromDecimal(ratios.roa)}</td></tr>
-                    <tr><td>Profit Margin</td><td class="text-end">${formatPercentageFromDecimal(ratios.profit_margin)}</td></tr>
+                    <tr><td>Net Profit Margin</td><td class="text-end">${formatPercentageFromDecimal(ratios.profit_margin)}</td></tr>
+                    <tr><td>Gross Margin</td><td class="text-end">${formatPercentageFromDecimal(ratios.gross_margin)}</td></tr>
                 </table>
             </div>
         </div>
@@ -4633,6 +4634,15 @@ function requestAISecondOpinion() {
 function displayAISecondOpinion(opinion) {
     const section = document.getElementById('aiSecondOpinionSection');
     const content = document.getElementById('aiSecondOpinionContent');
+
+    // Debug logging
+    console.log('🔍 AI Second Opinion Data:', opinion);
+    console.log('📊 Expectancy Data:', opinion.expectancy);
+    console.log('  - Win Rate:', opinion.expectancy?.win_rate);
+    console.log('  - Avg Win:', opinion.expectancy?.avg_win);
+    console.log('  - Avg Loss:', opinion.expectancy?.avg_loss);
+    console.log('  - Expectancy Per Trade:', opinion.expectancy?.expectancy_per_trade);
+    console.log('  - Has Edge:', opinion.expectancy?.has_edge);
 
     // Build HTML - Show only Probability and Expectancy
     let html = `

@@ -86,74 +86,93 @@ class FinancialRatios:
         """
         ratios = {}
 
-        # ROE (Return on Equity)
-        net_income = self.data.get('net_income')
-        shareholders_equity = self.data.get('shareholders_equity')
+        # ROE (Return on Equity) - Prefer Yahoo Finance data over manual calculation
         roe_raw = self.data.get('return_on_equity')
 
-        # Try direct calculation first
-        calculated_roe = None
-        if net_income and shareholders_equity and shareholders_equity > 0:
-            calculated_roe = net_income / shareholders_equity
-
-        # Use fallback if calculation seems unreasonable (>100% or <-50%) or if calculation failed
-        if (calculated_roe is None or
-            calculated_roe > 1.0 or
-            calculated_roe < -0.5):
-
-            if roe_raw is not None:
-                # Convert from percentage to decimal if needed (values > 1 are assumed to be percentages)
-                if abs(roe_raw) > 1:
-                    ratios['roe'] = roe_raw / 100
-                else:
-                    ratios['roe'] = roe_raw
+        if roe_raw is not None:
+            # Use Yahoo Finance ROE as primary source (more accurate, uses trailing 12 months)
+            if abs(roe_raw) > 1:
+                ratios['roe'] = roe_raw / 100  # Convert from percentage
             else:
-                ratios['roe'] = calculated_roe  # Use calculated even if unreasonable
+                ratios['roe'] = roe_raw  # Already in decimal format
         else:
-            ratios['roe'] = calculated_roe
+            # Fallback: Calculate from financial statements if Yahoo Finance data unavailable
+            net_income = self.data.get('net_income')
+            shareholders_equity = self.data.get('shareholders_equity')
+            if net_income and shareholders_equity and shareholders_equity > 0:
+                ratios['roe'] = net_income / shareholders_equity
+            else:
+                ratios['roe'] = None
 
-        # ROA (Return on Assets)
-        total_assets = self.data.get('total_assets')
-        if net_income and total_assets and total_assets > 0:
-            ratios['roa'] = net_income / total_assets
+        # ROA (Return on Assets) - Prefer Yahoo Finance data over manual calculation
+        roa_raw = self.data.get('return_on_assets')
+
+        if roa_raw is not None:
+            # Use Yahoo Finance ROA as primary source (more accurate, uses trailing 12 months)
+            if abs(roa_raw) > 1:
+                ratios['roa'] = roa_raw / 100  # Convert from percentage
+            else:
+                ratios['roa'] = roa_raw  # Already in decimal format
         else:
-            # Fallback to return_on_assets from data source
-            roa_raw = self.data.get('return_on_assets')
-            if roa_raw is not None:
-                # Convert from percentage to decimal if needed (values > 1 are assumed to be percentages)
-                if abs(roa_raw) > 1:
-                    ratios['roa'] = roa_raw / 100
-                else:
-                    ratios['roa'] = roa_raw
+            # Fallback: Calculate from financial statements if Yahoo Finance data unavailable
+            net_income = self.data.get('net_income')
+            total_assets = self.data.get('total_assets')
+            if net_income and total_assets and total_assets > 0:
+                ratios['roa'] = net_income / total_assets
             else:
                 ratios['roa'] = None
 
         # ROIC (Return on Invested Capital)
         ratios['roic'] = self._calculate_roic()
 
-        # Profit Margin
-        revenue = self.data.get('revenue')
-        if net_income and revenue and revenue > 0:
-            ratios['profit_margin'] = net_income / revenue
+        # Profit Margin (Net) - Prefer Yahoo Finance data
+        profit_margin_raw = self.data.get('profit_margin')
+        if profit_margin_raw is not None:
+            # Use Yahoo Finance profit margin as primary source
+            if abs(profit_margin_raw) > 1:
+                ratios['profit_margin'] = profit_margin_raw / 100
+            else:
+                ratios['profit_margin'] = profit_margin_raw
         else:
-            ratios['profit_margin'] = self.data.get('profit_margin')
+            # Fallback: Calculate from financial statements
+            revenue = self.data.get('revenue')
+            net_income = self.data.get('net_income')
+            if net_income and revenue and revenue > 0:
+                ratios['profit_margin'] = net_income / revenue
+            else:
+                ratios['profit_margin'] = None
 
-        # Operating Margin
-        operating_income = self.data.get('operating_income')
-        if operating_income and revenue and revenue > 0:
-            ratios['operating_margin'] = operating_income / revenue
+        # Operating Margin - Prefer Yahoo Finance data
+        operating_margin_raw = self.data.get('operating_margin')
+        if operating_margin_raw is not None:
+            # Use Yahoo Finance operating margin as primary source
+            if abs(operating_margin_raw) > 1:
+                ratios['operating_margin'] = operating_margin_raw / 100
+            else:
+                ratios['operating_margin'] = operating_margin_raw
         else:
-            ratios['operating_margin'] = self.data.get('operating_margin')
+            # Fallback: Calculate from financial statements
+            revenue = self.data.get('revenue')
+            operating_income = self.data.get('operating_income')
+            if operating_income and revenue and revenue > 0:
+                ratios['operating_margin'] = operating_income / revenue
+            else:
+                ratios['operating_margin'] = None
 
-        # Gross Margin
-        gross_profit = self.data.get('gross_profit')
-        if gross_profit and revenue and revenue > 0:
-            ratios['gross_margin'] = gross_profit / revenue
+        # Gross Margin - Prefer Yahoo Finance data (from grossMargins in info)
+        gross_margin_raw = self.data.get('gross_margin')
+        if gross_margin_raw is not None:
+            # Use Yahoo Finance gross margin as primary source
+            if abs(gross_margin_raw) > 1:
+                ratios['gross_margin'] = gross_margin_raw / 100
+            else:
+                ratios['gross_margin'] = gross_margin_raw
         else:
-            # Calculate from profit margin if available
-            profit_margin = self.data.get('profit_margin')
-            if profit_margin:
-                ratios['gross_margin'] = profit_margin * 1.5  # Rough estimate
+            # Fallback: Calculate from financial statements
+            revenue = self.data.get('revenue')
+            gross_profit = self.data.get('gross_profit')
+            if gross_profit and revenue and revenue > 0:
+                ratios['gross_margin'] = gross_profit / revenue
             else:
                 ratios['gross_margin'] = None
 

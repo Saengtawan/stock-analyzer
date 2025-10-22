@@ -134,6 +134,7 @@ class YahooFinanceClient(BaseAPIClient):
                 'earnings_growth': info.get('earningsGrowth'),
                 'profit_margin': info.get('profitMargins'),
                 'operating_margin': info.get('operatingMargins'),
+                'gross_margin': info.get('grossMargins'),
                 'return_on_equity': info.get('returnOnEquity'),
                 'return_on_assets': info.get('returnOnAssets'),
                 'debt_to_equity': info.get('debtToEquity'),

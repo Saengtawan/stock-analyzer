@@ -253,7 +253,9 @@ class AISecondOpinion:
 - Score: {fundamental['score']:.1f}/10 | P/E: {fundamental.get('pe_ratio', 'N/A')} | ROE: {fundamental.get('roe', 'N/A')}
 - Debt/Equity: {fundamental.get('debt_to_equity', 'N/A')} | Insider: {fundamental['insider_activity']}
 
-**Trend** (30d/60d): {historical.get('price_changes', {}).get('30_days', 0):+.1f}% / {historical.get('price_changes', {}).get('60_days', 0):+.1f}%
+**Price Momentum**:
+- **1 Day**: {historical.get('price_changes', {}).get('1_day', 0):+.1f}% (TODAY'S MOMENTUM - CRITICAL FOR SHORT-TERM ENTRY)
+- 5 Days: {historical.get('price_changes', {}).get('5_days', 0):+.1f}% | 30 Days: {historical.get('price_changes', {}).get('30_days', 0):+.1f}% | 60 Days: {historical.get('price_changes', {}).get('60_days', 0):+.1f}%
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -278,16 +280,41 @@ Calculate the **Performance Expectancy** using this EXACT formula:
 - Avg Trend < -5% → Subtract -3%
 - Avg Trend < -10% → Subtract -5%
 
-**Final Win Probability** = Base + R/R Adjustment + Trend Adjustment
+**Step 4: MOMENTUM CONTRADICTION CHECK** (CRITICAL!)
+⚠️ **IF 1-day momentum contradicts 30d/60d trend:**
+- If 1-day < -2% BUT 30d/60d > +5% → Subtract -5% (short-term weakness despite long-term uptrend)
+- If 1-day > +2% BUT 30d/60d < -5% → Subtract -5% (short-term spike may not sustain)
+- This prevents recommending BUY when TODAY's price is falling sharply!
+
+**Final Win Probability** = Base + R/R Adjustment + Trend Adjustment + Momentum Contradiction Penalty
 **Loss Probability** = 100% - Win Probability
 
-**Expectancy Calculation**:
-- Use R/R ratio to estimate Avg Win/Loss
-- Avg Win ≈ Reward %
-- Avg Loss ≈ Risk %
-- Expectancy = (Win% × Avg Win) - (Loss% × Avg Loss)
+**Expectancy Calculation** (YOU MUST CALCULATE ACTUAL VALUES):
+Step 1: Calculate Avg Win and Avg Loss from the Risk/Reward data above
+- Current Price: ${rr.get('entry', current_price):.2f}
+- Stop Loss: ${rr.get('stop', 0):.2f}
+- Target: ${rr.get('target', 0):.2f}
+- Avg Loss = ((Entry - Stop) / Entry) × 100 = {rr.get('risk_percentage', 0):.1f}%
+- Avg Win = ((Target - Entry) / Entry) × 100 = {rr.get('reward_percentage', 0):.1f}%
 
-**CRITICAL**: Respond in **THAI LANGUAGE** using this JSON format:
+Step 2: Calculate Expectancy Per Trade
+- Expectancy = (Win Probability ÷ 100 × Avg Win) - (Loss Probability ÷ 100 × Avg Loss)
+- Example: If Win Rate = 60%, Avg Win = 5.0%, Avg Loss = 3.0%
+  Then: (0.60 × 5.0) - (0.40 × 3.0) = 3.0 - 1.2 = +1.8% per trade
+
+**YOU MUST CALCULATE THESE VALUES**:
+- Win Rate: XX% (from Steps 1-4 calculation above)
+- Avg Win: +{rr.get('reward_percentage', 0):.1f}% (distance to target from entry)
+- Avg Loss: -{rr.get('risk_percentage', 0):.1f}% (distance to stop loss from entry)
+- Expectancy: (Win Rate ÷ 100 × Avg Win) - ((100 - Win Rate) ÷ 100 × Avg Loss) = +X.X% per trade
+- Has Edge: true if expectancy > 0, false otherwise
+
+**CRITICAL**:
+- DO NOT USE PLACEHOLDERS LIKE "X.X"!
+- CALCULATE THE ACTUAL EXPECTANCY NUMBER!
+- If Avg Win or Avg Loss = 0, set expectancy = 0 and has_edge = false
+
+Respond in **THAI LANGUAGE** using this JSON format with ACTUAL CALCULATED VALUES:
 
 {{
   "probability": {{
@@ -297,12 +324,13 @@ Calculate the **Performance Expectancy** using this EXACT formula:
   }},
 
   "expectancy": {{
-    "total_trades": "ประมาณ X ครั้ง (ตามความถี่ของสัญญาณคล้ายกัน)",
     "win_rate": "XX%",
+    "total_trades": "N/A",
     "avg_win": "+X.X%",
     "avg_loss": "-X.X%",
     "expectancy_per_trade": "+X.X% per trade",
-    "has_edge": true or false
+    "has_edge": true,
+    "sample_note": "⚠️ นี่คือการประมาณทางทฤษฎี ไม่ใช่สถิติจากข้อมูลจริง"
   }}
 }}
 

@@ -598,127 +598,85 @@ CRITICAL REQUIREMENTS - FAILURE TO COMPLY WILL RESULT IN REJECTION:
 
     def _get_analyst_consensus(self, symbol: str, current_price: float) -> dict:
         """
-        Get analyst consensus separately with focused prompt
+        Get REAL analyst consensus from Yahoo Finance (not AI-generated)
 
         Args:
             symbol: Stock symbol
             current_price: Current stock price
 
         Returns:
-            Dictionary with analyst consensus data
+            Dictionary with analyst consensus data from Yahoo Finance
         """
         try:
-            # Create enhanced analyst consensus prompt with strict accuracy requirements
-            prompt = f"""You are a financial analyst assistant providing CURRENT Wall Street analyst consensus for {symbol} stock.
+            import yfinance as yf
 
-TIMEFRAME REQUIREMENT: Data must reflect Q4 2024 / Q1 2025 consensus only. Ignore outdated pre-2024 analyst data.
+            # Get real data from Yahoo Finance
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
 
-Current Price: ${current_price:.2f} (As of September 2024)
+            # Extract real analyst data
+            target_mean = info.get('targetMeanPrice')
+            target_high = info.get('targetHighPrice')
+            target_low = info.get('targetLowPrice')
+            analyst_count = info.get('numberOfAnalystOpinions', 0)
+            recommendation_key = info.get('recommendationKey', 'hold')  # buy, hold, sell
+            recommendation_mean = info.get('recommendationMean')  # 1-5 scale
 
-Please respond with ONLY a valid JSON object in this exact format:
-{{
-    "wall_street_consensus": {{
-        "recommendation": "Buy",
-        "target_price": 250.00,
-        "analyst_count": 35,
-        "data_quality": "estimated"
-    }},
-    "major_banks": {{
-        "goldman_sachs_rating": "Buy",
-        "morgan_stanley_rating": "Overweight",
-        "average_target": 245.00,
-        "data_quality": "estimated"
-    }},
-    "consensus_summary": {{
-        "overall_sentiment": "Bullish",
-        "bullish_percentage": 75.0,
-        "last_updated": "Q4 2024"
-    }}
-}}
+            # Map recommendation_key to standard format
+            recommendation_map = {
+                'strong_buy': 'Strong Buy',
+                'buy': 'Buy',
+                'hold': 'Hold',
+                'sell': 'Sell',
+                'strong_sell': 'Strong Sell'
+            }
+            recommendation = recommendation_map.get(recommendation_key, 'Hold')
 
-ENHANCED ACCURACY REQUIREMENTS:
-
-TARGET PRICE VALIDATION:
-- Target price must be within ±50% of current price (${current_price * 0.5:.2f} to ${current_price * 1.5:.2f}) unless recent major events justify otherwise
-- If target price exceeds this range, provide clear justification (e.g., "Post-earnings revision", "Merger speculation")
-- Use conservative estimates based on P/E and growth metrics if no reliable data exists
-- Cross-validate targets against fundamental valuation models
-
-ANALYST COUNT CONSTRAINTS:
-- Large-cap stocks (>$50B market cap): 15-45 analysts (typical range: 25-35)
-- Mid-cap stocks ($2B-$50B market cap): 8-25 analysts (typical range: 12-18)
-- Small-cap stocks (<$2B market cap): 3-12 analysts (typical range: 5-8)
-- ETFs and niche stocks: 2-10 analysts
-- Popular tech/mega-cap stocks: 30-50+ analysts
-- Consider {symbol} sector popularity and trading volume
-
-DATA QUALITY INDICATORS & SOURCE-LEVEL GRANULARITY:
-- "real": Verified recent analyst reports from last 90 days with specific dates
-- "estimated": Reasonable projections based on historical patterns and current market conditions
-- "not_available": Insufficient data, explicitly state this rather than guessing
-- If estimated, specify confidence level (High/Medium/Low) and basis for estimate
-- Include data freshness indicator: "Recent" (0-30 days), "Moderate" (30-90 days), "Stale" (90+ days)
-
-VALIDATION RULES & CONSISTENCY CHECKS:
-- Recommendation: Strong Buy, Buy, Hold, Sell, Strong Sell (must align with target price)
-- Goldman ratings: Buy, Neutral, Sell (standardized format)
-- Morgan Stanley ratings: Overweight, Equal-weight, Underweight (standardized format)
-- Sentiment: Very Bullish, Bullish, Neutral, Bearish, Very Bearish
-- Bullish percentage: 0-100 (must align with recommendation consensus and sentiment)
-- Cross-validate: If recommendation is "Buy" but bullish_percentage < 60%, flag inconsistency
-
-QUALITY CONTROL MECHANISMS:
-- If you lack current analyst data, explicitly mark as "estimated" with confidence level
-- Provide reasoning for estimates: "Based on sector averages", "Historical analyst patterns"
-- Flag uncertainty: If target price range is wide, include range instead of single value
-- Conservative bias: When uncertain, lean toward neutral recommendations and middle-range targets
-- Avoid fabricating specific analyst names, dates, or price targets without verification
-
-MARKET CONTEXT INTEGRATION:
-- Consider current market volatility and sector-specific factors
-- Adjust analyst count based on {symbol} trading volume and institutional interest
-- Factor in recent earnings, guidance updates, or major corporate events
-- Align recommendations with broader market sentiment and sector rotation trends"""
-
-            # Call DeepSeek API with focused prompt
-            response = self._call_deepseek_api(prompt)
-
-            if response:
-                # Log what AI returned for debugging
-                logger.info(f"AI response for {symbol} analyst consensus: {response[:200]}...")
-
-                # Parse JSON response
-                try:
-                    import json
-                    response_clean = response.strip()
-
-                    # Remove any markdown code blocks if present
-                    if response_clean.startswith('```'):
-                        lines = response_clean.split('\n')
-                        # Find first line that looks like JSON
-                        json_start = 0
-                        for i, line in enumerate(lines):
-                            if line.strip().startswith('{'):
-                                json_start = i
-                                break
-                        # Find last }
-                        json_end = len(lines)
-                        for i in range(len(lines)-1, -1, -1):
-                            if '}' in lines[i]:
-                                json_end = i + 1
-                                break
-                        response_clean = '\n'.join(lines[json_start:json_end])
-
-                    consensus_data = json.loads(response_clean)
-                    logger.info(f"✅ Parsed analyst consensus for {symbol}")
-                    return consensus_data
-                except json.JSONDecodeError as e:
-                    logger.warning(f"Failed to parse analyst consensus JSON for {symbol}: {e}")
-                    logger.warning(f"Raw response: {response}")
-                    return {}
+            # Calculate bullish percentage from recommendation_mean (1=Strong Buy, 5=Strong Sell)
+            # Lower is better, so invert: 1 → 100%, 3 → 50%, 5 → 0%
+            if recommendation_mean:
+                bullish_pct = max(0, min(100, (5 - recommendation_mean) / 4 * 100))
             else:
-                logger.warning(f"No response from AI for analyst consensus for {symbol}")
-                return {}
+                bullish_pct = 50.0  # Neutral if no data
+
+            # Determine sentiment
+            if bullish_pct >= 75:
+                sentiment = 'Very Bullish'
+            elif bullish_pct >= 60:
+                sentiment = 'Bullish'
+            elif bullish_pct >= 40:
+                sentiment = 'Neutral'
+            elif bullish_pct >= 25:
+                sentiment = 'Bearish'
+            else:
+                sentiment = 'Very Bearish'
+
+            # Build consensus data with REAL data
+            consensus_data = {
+                "wall_street_consensus": {
+                    "recommendation": recommendation,
+                    "target_price": target_mean if target_mean else current_price,
+                    "target_high": target_high,
+                    "target_low": target_low,
+                    "analyst_count": analyst_count,
+                    "data_quality": "real_yahoo_finance"  # Mark as REAL data
+                },
+                "consensus_summary": {
+                    "overall_sentiment": sentiment,
+                    "bullish_percentage": round(bullish_pct, 1),
+                    "recommendation_mean": recommendation_mean,
+                    "last_updated": "Real-time Yahoo Finance"
+                }
+            }
+
+            # Note: We DO NOT include major_banks (Goldman Sachs, Morgan Stanley)
+            # because Yahoo Finance doesn't provide individual bank ratings for free
+            # This prevents AI from fabricating bank ratings
+
+            logger.info(f"✅ Got REAL analyst consensus for {symbol} from Yahoo Finance")
+            logger.info(f"   Target: ${target_mean:.2f}, Analysts: {analyst_count}, Recommendation: {recommendation}")
+
+            return consensus_data
 
         except Exception as e:
             logger.error(f"Error getting analyst consensus for {symbol}: {e}")
