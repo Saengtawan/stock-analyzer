@@ -8,6 +8,7 @@ from datetime import datetime
 from loguru import logger
 
 from .indicators import TechnicalIndicators, TrendAnalysis
+from .pattern_recognizer import PatternRecognizer
 
 try:
     from ...data_quality.data_validator import DataQualityValidator
@@ -56,6 +57,7 @@ class TechnicalAnalyzer:
         # Initialize core components
         self.indicators = TechnicalIndicators(self.price_data)
         self.trend_analysis = TrendAnalysis(self.price_data)
+        self.pattern_recognizer = PatternRecognizer(self.price_data, self.symbol)
 
         # Initialize enhanced modules
         self.timeframe_manager = TimeFrameManager()
@@ -128,6 +130,37 @@ class TechnicalAnalyzer:
             strategy_recommendation = self._get_strategy_recommendation(market_state, latest_values, filtered_signals)
             confidence_score = self._calculate_confidence_score(market_state, latest_values, filtered_signals)
 
+            # NEW: Overextension & Dip Detection (Anti-Doji Protection)
+            # Add price_data to indicators for these detections
+            indicators_with_price = {**latest_values, 'price_data': self.price_data}
+            overextension_analysis = self._detect_overextension(indicators_with_price)
+            dip_analysis = self._detect_pullback_opportunity(indicators_with_price)
+
+            # NEW: Falling Knife Detection (ตกต่อเนื่อง vs ตกชั่วคราว)
+            falling_knife_analysis = self._detect_falling_knife(indicators_with_price)
+
+            # ปรับ Dip Quality ตาม Falling Knife Risk
+            if dip_analysis['is_dip'] and falling_knife_analysis['is_falling_knife']:
+                # ถ้าเป็น Dip แต่ก็เป็น Falling Knife ด้วย -> ลดคะแนน
+                original_score = dip_analysis['opportunity_score']
+                penalty = falling_knife_analysis['risk_score'] * 0.5  # ลดตาม risk
+                adjusted_score = max(0, original_score - penalty)
+
+                dip_analysis['opportunity_score'] = int(adjusted_score)
+                dip_analysis['falling_knife_penalty'] = int(penalty)
+
+                # ปรับ Quality และ Suggestion
+                if adjusted_score < 40:
+                    dip_analysis['is_dip'] = False
+                    dip_analysis['dip_quality'] = 'POOR'
+                    dip_analysis['entry_suggestion'] = f'⚠️ ระวัง! แม้ดูเหมือนจุดช้อน แต่มี Falling Knife Risk ({falling_knife_analysis["risk_level"]}) - {falling_knife_analysis["recommendation"]}'
+                elif adjusted_score < 60:
+                    dip_analysis['dip_quality'] = 'FAIR'
+                    dip_analysis['entry_suggestion'] = f'⚡ ระวัง! มี Falling Knife Risk - {falling_knife_analysis["recommendation"]}'
+
+            # NEW: Pattern Recognition
+            pattern_analysis = self.pattern_recognizer.detect_all_patterns()
+
             return {
                 'symbol': self.symbol,
                 'analysis_date': datetime.now().isoformat(),
@@ -175,8 +208,14 @@ class TechnicalAnalyzer:
                 'market_state_analysis': {
                     'current_state': market_state,
                     'strategy': strategy_recommendation,
-                    'confidence': confidence_score
-                }
+                    'confidence': confidence_score,
+                    'overextension': overextension_analysis,  # NEW: ตรวจจับติดดอย
+                    'dip_opportunity': dip_analysis,  # NEW: ตรวจจับจุดช้อน
+                    'falling_knife': falling_knife_analysis  # NEW: ตรวจจับตกต่อเนื่อง
+                },
+
+                # NEW: Pattern Recognition
+                'pattern_recognition': pattern_analysis
             }
 
         except Exception as e:
@@ -1155,6 +1194,468 @@ class TechnicalAnalyzer:
         except Exception as e:
             logger.error(f"Volume Profile calculation failed: {e}")
             return {'has_data': False, 'error': str(e)}
+
+    def _detect_overextension(self, indicators: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        ตรวจจับว่าราคาพุ่งขึ้นเกินจนอันตราย (Overextended Rally)
+        สำหรับป้องกันการติดดอย
+
+        Criteria (RELAXED for real-world detection):
+        1. RSI > 70 (extreme overbought)
+        2. ราคาห่าง SMA20 มากกว่า 5%
+        3. ราคาขึ้น > 10% ใน 5 วัน (rapid rally)
+        4. ราคาเหนือ Upper Bollinger Band
+
+        Returns:
+            {
+                'is_overextended': True/False,
+                'risk_level': 'EXTREME/HIGH/MODERATE/LOW',
+                'severity_score': 0-100,
+                'warnings': [...],
+                'recommendation': 'คำแนะนำ',
+                'details': {...}
+            }
+        """
+        try:
+            current_price = indicators.get('current_price')
+            rsi = indicators.get('rsi', 50)
+            sma_20 = indicators.get('sma_20')
+            bb_upper = indicators.get('bb_upper')
+
+            # คำนวณ 5-day price change
+            price_data = indicators.get('price_data')
+            price_5d_change = 0
+            if price_data is not None and len(price_data) >= 6:
+                price_5d_ago = price_data['close'].iloc[-6]
+                price_5d_change = ((current_price - price_5d_ago) / price_5d_ago) * 100
+
+            # เก็บคะแนนความรุนแรง
+            severity_score = 0
+            warnings = []
+            details = {}
+
+            # 1. เช็ค RSI extreme overbought (RELAXED: start at 70)
+            if rsi > 80:
+                severity_score += 35
+                warnings.append(f'RSI {rsi:.1f} (extreme overbought > 80)')
+                details['rsi_extreme'] = True
+            elif rsi > 75:
+                severity_score += 28
+                warnings.append(f'RSI {rsi:.1f} (very overbought > 75)')
+                details['rsi_very_high'] = True
+            elif rsi > 70:
+                severity_score += 20
+                warnings.append(f'RSI {rsi:.1f} (overbought > 70)')
+                details['rsi_high'] = True
+
+            # 2. เช็คระยะห่างจาก SMA20 (RELAXED: start at 5%)
+            if sma_20:
+                price_vs_sma20_pct = ((current_price - sma_20) / sma_20) * 100
+                details['price_vs_sma20_pct'] = round(price_vs_sma20_pct, 2)
+
+                if price_vs_sma20_pct > 10:
+                    severity_score += 30
+                    warnings.append(f'ราคาห่าง SMA20 ถึง {price_vs_sma20_pct:.1f}% (มากเกิน)')
+                    details['far_from_sma20'] = True
+                elif price_vs_sma20_pct > 7:
+                    severity_score += 22
+                    warnings.append(f'ราคาห่าง SMA20 {price_vs_sma20_pct:.1f}% (ค่อนข้างมาก)')
+                    details['above_sma20_far'] = True
+                elif price_vs_sma20_pct > 5:
+                    severity_score += 15
+                    warnings.append(f'ราคาห่าง SMA20 {price_vs_sma20_pct:.1f}% (เริ่มห่าง)')
+                    details['above_sma20'] = True
+
+            # 3. เช็คการขึ้นเร็วเกินไป (rapid rally - RELAXED: start at 10%)
+            details['price_5d_change'] = round(price_5d_change, 2)
+            if price_5d_change > 20:
+                severity_score += 28
+                warnings.append(f'ราคาพุ่งขึ้น {price_5d_change:.1f}% ใน 5 วัน (rapid rally)')
+                details['rapid_rally'] = True
+            elif price_5d_change > 15:
+                severity_score += 20
+                warnings.append(f'ราคาขึ้นเร็ว {price_5d_change:.1f}% ใน 5 วัน')
+                details['fast_rally'] = True
+            elif price_5d_change > 10:
+                severity_score += 12
+                warnings.append(f'ราคาขึ้น {price_5d_change:.1f}% ใน 5 วัน (เริ่มเร็ว)')
+                details['moderate_rally'] = True
+
+            # 4. เช็คราคาเหนือ Upper Bollinger Band
+            if bb_upper and current_price > bb_upper:
+                price_vs_bb = ((current_price - bb_upper) / bb_upper) * 100
+                severity_score += 15
+                warnings.append(f'ราคาเหนือ Upper BB {price_vs_bb:.1f}%')
+                details['above_bb_upper'] = True
+
+            # กำหนด Risk Level (RELAXED: trigger at 35 instead of 40)
+            is_overextended = severity_score >= 35
+
+            if severity_score >= 70:
+                risk_level = 'EXTREME'
+                recommendation = '🔴 อย่าซื้อตอนนี้! ราคาขึ้นเกินจนอันตราย - เข้าแล้วติดดอยแน่'
+            elif severity_score >= 50:
+                risk_level = 'HIGH'
+                recommendation = '⚠️ ระวังติดดอย! ราคาขึ้นมามาก - รอ pullback ลงมา 5-10% ก่อน'
+            elif severity_score >= 35:
+                risk_level = 'MODERATE'
+                recommendation = '⚡ ระวัง! ราคาเริ่มขึ้นเกิน - ควรรอจังหวะที่ดีกว่า'
+            else:
+                risk_level = 'LOW'
+                recommendation = 'ราคายังไม่ขึ้นเกิน - สามารถพิจารณาเข้าได้'
+
+            return {
+                'is_overextended': is_overextended,
+                'risk_level': risk_level,
+                'severity_score': severity_score,
+                'warnings': warnings,
+                'recommendation': recommendation,
+                'details': details,
+                'expected_pullback': 'ราคาอาจปรับฐานลง 5-10% ภายใน 2-5 วัน' if is_overextended else None
+            }
+
+        except Exception as e:
+            logger.warning(f"Overextension detection failed: {e}")
+            return {
+                'is_overextended': False,
+                'risk_level': 'UNKNOWN',
+                'severity_score': 0,
+                'warnings': [],
+                'recommendation': 'ไม่สามารถตรวจสอบได้'
+            }
+
+    def _detect_pullback_opportunity(self, indicators: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        ตรวจจับจุดช้อนที่ดี (Buying the Dip / Pullback)
+
+        Criteria (RELAXED for real-world detection):
+        1. ราคาลงมา 5-25% จากจุดสูงสุด 20 วัน (wider range)
+        2. RSI ลงมา 30-55 (wider oversold recovery zone)
+        3. ราคาใกล้ Support (±2-3%)
+        4. แรงขายเริ่มลดลง
+
+        Returns:
+            {
+                'is_dip': True/False,
+                'dip_quality': 'EXCELLENT/GOOD/FAIR/POOR',
+                'opportunity_score': 0-100,
+                'entry_suggestion': 'คำแนะนำ',
+                'details': {...}
+            }
+        """
+        try:
+            current_price = indicators.get('current_price')
+            rsi = indicators.get('rsi', 50)
+            support = indicators.get('support')
+            volume = indicators.get('current_volume')
+            volume_sma = indicators.get('volume_sma')
+
+            # หาจุดสูงสุด 20 วัน
+            price_data = indicators.get('price_data')
+            pullback_pct = 0
+            recent_high = current_price
+
+            if price_data is not None and len(price_data) >= 20:
+                recent_high = price_data['high'].tail(20).max()
+                pullback_pct = ((current_price - recent_high) / recent_high) * 100
+
+            opportunity_score = 0
+            positives = []
+            details = {}
+
+            # 1. เช็คขนาดของ pullback (RELAXED: 5-25% range, better scoring)
+            details['pullback_from_high_pct'] = round(pullback_pct, 2)
+            if pullback_pct < -25:
+                # ลงมากเกินไป อาจมีปัญหา แต่ยังให้คะแนนบ้าง
+                opportunity_score += 15
+                positives.append(f'ลงมา {abs(pullback_pct):.1f}% (ลงมาก อาจมีปัญหา)')
+                details['deep_pullback'] = True
+            elif -25 <= pullback_pct < -15:
+                opportunity_score += 38
+                positives.append(f'ลงมา {abs(pullback_pct):.1f}% จากจุดสูงสุด (จุดช้อนดีมาก)')
+                details['excellent_pullback'] = True
+            elif -15 <= pullback_pct < -10:
+                opportunity_score += 35
+                positives.append(f'ลงมา {abs(pullback_pct):.1f}% จากจุดสูงสุด (จุดช้อนดี)')
+                details['ideal_pullback'] = True
+            elif -10 <= pullback_pct < -5:
+                opportunity_score += 28
+                positives.append(f'ลงมา {abs(pullback_pct):.1f}% (pullback ปานกลาง)')
+                details['moderate_pullback'] = True
+
+            # 2. เช็ค RSI oversold recovery (RELAXED: 30-55 range)
+            details['rsi'] = round(rsi, 1)
+            if 38 <= rsi <= 48:
+                opportunity_score += 32
+                positives.append(f'RSI {rsi:.1f} (oversold recovery zone - ดีเด่น)')
+                details['rsi_recovery_excellent'] = True
+            elif 30 <= rsi <= 55:
+                opportunity_score += 25
+                positives.append(f'RSI {rsi:.1f} (โซนกลับตัว)')
+                details['rsi_recovery'] = True
+            elif rsi < 30:
+                opportunity_score += 18
+                positives.append(f'RSI {rsi:.1f} (oversold มาก)')
+                details['rsi_oversold'] = True
+
+            # 3. เช็คระยะห่างจาก Support
+            if support:
+                distance_to_support = abs((current_price - support) / support) * 100
+                details['distance_to_support_pct'] = round(distance_to_support, 2)
+
+                if distance_to_support <= 2:
+                    opportunity_score += 25
+                    positives.append(f'ใกล้ Support มาก (ห่างเพียง {distance_to_support:.1f}%)')
+                    details['near_support'] = True
+                elif distance_to_support <= 3:
+                    opportunity_score += 15
+                    positives.append(f'ค่อนข้างใกล้ Support ({distance_to_support:.1f}%)')
+                    details['close_to_support'] = True
+
+            # 4. เช็ค Volume (selling exhaustion)
+            if volume and volume_sma and volume_sma > 0:
+                volume_ratio = volume / volume_sma
+                details['volume_ratio'] = round(volume_ratio, 2)
+
+                if volume_ratio < 0.8:
+                    opportunity_score += 10
+                    positives.append(f'Volume ลดลง ({volume_ratio:.1f}x - selling exhaustion)')
+                    details['volume_decreasing'] = True
+
+            # กำหนด Quality (RELAXED: trigger at 40 instead of 50)
+            is_dip = opportunity_score >= 40
+
+            if opportunity_score >= 75:
+                dip_quality = 'EXCELLENT'
+                entry_suggestion = '💰 เข้าได้เลย! จุดช้อนคุณภาพดีมาก - โอกาสดีดขึ้นสูง'
+                expected_bounce = 'คาดว่าราคาอาจดีดขึ้น 5-10% ใน 2-5 วัน'
+            elif opportunity_score >= 60:
+                dip_quality = 'GOOD'
+                entry_suggestion = '✅ จุดช้อนที่ดี - เข้าได้ โอกาสดีดขึ้นปานกลาง'
+                expected_bounce = 'คาดว่าราคาอาจดีดขึ้น 3-7% ใน 3-7 วัน'
+            elif opportunity_score >= 40:
+                dip_quality = 'FAIR'
+                entry_suggestion = '⚡ จุดช้อนพอใช้ได้ - เข้าได้แต่ระวัง'
+                expected_bounce = 'คาดว่าราคาอาจดีดขึ้น 2-5% ใน 5-10 วัน'
+            else:
+                dip_quality = 'POOR'
+                entry_suggestion = 'ยังไม่ใช่จุดช้อนที่ดี - รอดูต่อ'
+                expected_bounce = None
+
+            return {
+                'is_dip': is_dip,
+                'dip_quality': dip_quality,
+                'opportunity_score': opportunity_score,
+                'entry_suggestion': entry_suggestion,
+                'expected_bounce': expected_bounce,
+                'positives': positives,
+                'details': details
+            }
+
+        except Exception as e:
+            logger.warning(f"Pullback detection failed: {e}")
+            return {
+                'is_dip': False,
+                'dip_quality': 'UNKNOWN',
+                'opportunity_score': 0,
+                'entry_suggestion': 'ไม่สามารถตรวจสอบได้'
+            }
+
+    def _detect_falling_knife(self, indicators: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        ตรวจจับ Falling Knife (ตกต่อเนื่อง) vs Healthy Pullback (ตกชั่วคราว)
+
+        เช็ค 5 อย่าง:
+        1. Trend Context - Uptrend pullback (ดี) vs Downtrend breakdown (แย่)
+        2. Decline Velocity - ตกเร็วมาก (panic) vs ตกช้า (correction)
+        3. Volume Pattern - Capitulation (ดี) vs Distribution (แย่)
+        4. MA Structure - เหนือ MA200 (แข็งแรง) vs ต่ำกว่าทุก MA (อ่อนแอ)
+        5. Price Structure - Higher Lows (uptrend) vs Lower Lows (downtrend)
+
+        Returns:
+            {
+                'is_falling_knife': True/False,
+                'risk_level': 'EXTREME/HIGH/MODERATE/LOW',
+                'risk_score': 0-100,
+                'warnings': [...],
+                'reasons': [...],
+                'recommendation': 'คำแนะนำ'
+            }
+        """
+        try:
+            price_data = indicators.get('price_data')
+            current_price = indicators.get('current_price')
+
+            if price_data is None or len(price_data) < 60:
+                return {'is_falling_knife': False, 'risk_level': 'UNKNOWN', 'risk_score': 0}
+
+            risk_score = 0
+            warnings = []
+            reasons = []
+            details = {}
+
+            # 1. TREND CONTEXT - เช็คเทรนด์ระยะยาว
+            ma_50 = indicators.get('sma_50')
+            ma_100 = price_data['close'].tail(100).mean() if len(price_data) >= 100 else None
+            ma_200 = price_data['close'].tail(200).mean() if len(price_data) >= 200 else None
+
+            # เช็คราคาเทียบกับ MA
+            below_ma50 = current_price < ma_50 if ma_50 else False
+            below_ma100 = current_price < ma_100 if ma_100 else False
+            below_ma200 = current_price < ma_200 if ma_200 else False
+
+            if below_ma200 and below_ma100 and below_ma50:
+                risk_score += 30
+                warnings.append('ราคาต่ำกว่า MA50/100/200 ทั้งหมด (โครงสร้างอ่อนแอมาก)')
+                details['weak_ma_structure'] = True
+            elif below_ma100 and below_ma50:
+                risk_score += 20
+                warnings.append('ราคาต่ำกว่า MA50/100 (เทรนด์อ่อนแอ)')
+                details['below_major_mas'] = True
+            elif below_ma50:
+                risk_score += 10
+                warnings.append('ราคาต่ำกว่า MA50 (ระวังเทรนด์กลับ)')
+                details['below_ma50'] = True
+            else:
+                reasons.append('ราคายังเหนือ MA50 (โครงสร้างยังแข็งแรง)')
+                details['above_ma50'] = True
+
+            # 2. DECLINE VELOCITY - ความเร็วในการตก
+            if len(price_data) >= 10:
+                last_10_closes = price_data['close'].tail(10)
+                daily_changes = last_10_closes.pct_change().dropna() * 100
+
+                # หาจำนวนวันติดลบ
+                negative_days = (daily_changes < 0).sum()
+                avg_decline = daily_changes[daily_changes < 0].mean() if len(daily_changes[daily_changes < 0]) > 0 else 0
+
+                details['negative_days_last_10'] = int(negative_days)
+                details['avg_daily_decline'] = round(avg_decline, 2)
+
+                if negative_days >= 7 and avg_decline < -2.5:
+                    risk_score += 35
+                    warnings.append(f'ตกหนักติดต่อกัน {negative_days}/10 วัน เฉลี่ย {avg_decline:.1f}%/วัน (Panic Selling)')
+                    details['panic_selling'] = True
+                elif negative_days >= 6 and avg_decline < -2:
+                    risk_score += 25
+                    warnings.append(f'ตกติดต่อกัน {negative_days}/10 วัน (Selling Pressure สูง)')
+                    details['high_selling_pressure'] = True
+                elif negative_days >= 5 and avg_decline < -1.5:
+                    risk_score += 15
+                    warnings.append(f'ตกติดต่อกัน {negative_days}/10 วัน')
+                    details['moderate_selling'] = True
+                else:
+                    reasons.append(f'การตกไม่รุนแรง ({negative_days}/10 วันลบ)')
+                    details['gradual_decline'] = True
+
+            # 3. VOLUME PATTERN - แพทเทิร์น Volume
+            volume = indicators.get('current_volume')
+            volume_sma = indicators.get('volume_sma')
+
+            if volume and volume_sma and volume_sma > 0:
+                volume_ratio = volume / volume_sma
+                details['volume_ratio'] = round(volume_ratio, 2)
+
+                # เช็ค Volume Spike ขณะตก
+                if len(price_data) >= 5:
+                    last_5_closes = price_data['close'].tail(5)
+                    price_declining = (last_5_closes.iloc[-1] < last_5_closes.iloc[0])
+
+                    if volume_ratio > 2.5 and price_declining:
+                        # Volume spike ขณะตก อาจเป็น Capitulation (ดี)
+                        reasons.append(f'Volume Spike {volume_ratio:.1f}x ขณะตก (อาจเป็น Capitulation - แรงขายหมด)')
+                        details['possible_capitulation'] = True
+                        risk_score -= 10  # ลดความเสี่ยง
+                    elif volume_ratio > 1.5 and price_declining:
+                        # Volume สูงต่อเนื่องขณะตก = Distribution (แย่)
+                        recent_volumes = price_data['volume'].tail(10)
+                        high_volume_days = (recent_volumes > volume_sma * 1.3).sum()
+
+                        if high_volume_days >= 5:
+                            risk_score += 20
+                            warnings.append('Volume สูงต่อเนื่องขณะตก (Distribution - คนเทขาย)')
+                            details['distribution_pattern'] = True
+
+            # 4. PRICE STRUCTURE - เช็ค Higher Lows vs Lower Lows
+            if len(price_data) >= 60:
+                # หา Swing Lows ล่าสุด 3 จุด
+                lows = price_data['low'].tail(60)
+
+                # หา Local Lows (ใช้ rolling min)
+                swing_lows = []
+                for i in range(10, len(lows) - 10, 10):
+                    local_min = lows.iloc[i-10:i+10].min()
+                    if lows.iloc[i] == local_min:
+                        swing_lows.append(local_min)
+
+                if len(swing_lows) >= 2:
+                    # เช็คว่า Lows ต่ำลงเรื่อยๆ หรือไม่
+                    lower_lows = all(swing_lows[i] > swing_lows[i+1] for i in range(len(swing_lows)-1))
+                    higher_lows = all(swing_lows[i] < swing_lows[i+1] for i in range(len(swing_lows)-1))
+
+                    details['swing_lows_count'] = len(swing_lows)
+
+                    if lower_lows:
+                        risk_score += 25
+                        warnings.append('ทำ Lower Lows ติดต่อกัน (Downtrend ชัดเจน)')
+                        details['lower_lows_pattern'] = True
+                    elif higher_lows:
+                        reasons.append('ทำ Higher Lows (Uptrend Pullback)')
+                        details['higher_lows_pattern'] = True
+                        risk_score -= 15  # ลดความเสี่ยง
+
+            # 5. RECENT BREAKDOWN - เช็คทะลุ Support สำคัญ
+            support = indicators.get('support')
+            if support:
+                distance_below_support = ((current_price - support) / support) * 100
+                details['distance_from_support_pct'] = round(distance_below_support, 2)
+
+                if distance_below_support < -5:
+                    risk_score += 15
+                    warnings.append(f'ทะลุ Support ไปแล้ว {abs(distance_below_support):.1f}% (Breakdown)')
+                    details['support_breakdown'] = True
+                elif distance_below_support < -2:
+                    risk_score += 8
+                    warnings.append('ใกล้ทะลุ Support')
+                    details['near_support_break'] = True
+
+            # คำนวณระดับความเสี่ยง
+            # RELAXED: 40 เพื่อจับ MODERATE risk ที่มี warnings ชัดเจน (เช่น COIN = 45)
+            is_falling_knife = risk_score >= 40
+
+            if risk_score >= 80:
+                risk_level = 'EXTREME'
+                recommendation = '🔪 FALLING KNIFE! อย่าช้อน - ตกต่อเนื่องแน่ รอให้หยุดตกก่อน'
+            elif risk_score >= 60:
+                risk_level = 'HIGH'
+                recommendation = '⚠️ เสี่ยงสูง! อาจตกต่อ - ถ้าจะเข้ารอให้เห็นสัญญาณกลับตัวก่อน'
+            elif risk_score >= 40:
+                risk_level = 'MODERATE'
+                recommendation = '⚡ เสี่ยงปานกลาง - ระวังอาจตกต่อ ควรรอดูอีก 2-3 วัน'
+            else:
+                risk_level = 'LOW'
+                recommendation = '✅ Healthy Pullback - ไม่ใช่ Falling Knife ช้อนได้ถ้าสัญญาณดี'
+
+            return {
+                'is_falling_knife': is_falling_knife,
+                'risk_level': risk_level,
+                'risk_score': risk_score,
+                'warnings': warnings,
+                'reasons': reasons,
+                'recommendation': recommendation,
+                'details': details
+            }
+
+        except Exception as e:
+            logger.warning(f"Falling knife detection failed: {e}")
+            return {
+                'is_falling_knife': False,
+                'risk_level': 'UNKNOWN',
+                'risk_score': 0,
+                'warnings': [],
+                'reasons': [],
+                'recommendation': 'ไม่สามารถตรวจสอบได้'
+            }
 
     def _detect_market_state(self, indicators: Dict[str, Any]) -> str:
         """

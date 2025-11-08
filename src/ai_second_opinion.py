@@ -204,7 +204,12 @@ class AISecondOpinion:
                 'target': unified.get('risk_reward_analysis', {}).get('target_price', analysis_results.get('suggested_targets', [None])[0]),
                 'risk_percentage': unified.get('risk_reward_analysis', {}).get('risk_percentage', 0),
                 'reward_percentage': unified.get('risk_reward_analysis', {}).get('reward_percentage', 0)
-            }
+            },
+
+            # NEW: Overextension & Dip Detection (Anti-Doji Protection)
+            'overextension': market_state.get('overextension', {}),
+            'dip_opportunity': market_state.get('dip_opportunity', {}),
+            'falling_knife': market_state.get('falling_knife', {})  # NEW: Falling Knife Detection
         }
 
     def _create_prompt(self, data: Dict[str, Any]) -> str:
@@ -257,6 +262,25 @@ class AISecondOpinion:
 - **1 Day**: {historical.get('price_changes', {}).get('1_day', 0):+.1f}% (TODAY'S MOMENTUM - CRITICAL FOR SHORT-TERM ENTRY)
 - 5 Days: {historical.get('price_changes', {}).get('5_days', 0):+.1f}% | 30 Days: {historical.get('price_changes', {}).get('30_days', 0):+.1f}% | 60 Days: {historical.get('price_changes', {}).get('60_days', 0):+.1f}%
 
+**OVEREXTENSION ANALYSIS** (ติดดอย Warning):
+- Is Overextended: {data.get('overextension', {}).get('is_overextended', False)}
+- Risk Level: {data.get('overextension', {}).get('risk_level', 'UNKNOWN')}
+- Severity Score: {data.get('overextension', {}).get('severity_score', 0)}/100
+- Warnings: {', '.join(data.get('overextension', {}).get('warnings', ['None']))}
+
+**DIP OPPORTUNITY ANALYSIS** (ช้อน Opportunity):
+- Is Dip: {data.get('dip_opportunity', {}).get('is_dip', False)}
+- Dip Quality: {data.get('dip_opportunity', {}).get('dip_quality', 'UNKNOWN')}
+- Opportunity Score: {data.get('dip_opportunity', {}).get('opportunity_score', 0)}/100
+- Entry Suggestion: {data.get('dip_opportunity', {}).get('entry_suggestion', 'N/A')}
+
+**FALLING KNIFE ANALYSIS** (ตกต่อเนื่อง Warning - NEW!):
+- Is Falling Knife: {data.get('falling_knife', {}).get('is_falling_knife', False)}
+- Risk Level: {data.get('falling_knife', {}).get('risk_level', 'UNKNOWN')}
+- Risk Score: {data.get('falling_knife', {}).get('risk_score', 0)}/100
+- Warnings: {', '.join(data.get('falling_knife', {}).get('warnings', ['None']))}
+- Positive Signs: {', '.join(data.get('falling_knife', {}).get('reasons', ['None']))}
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ## YOUR TASK:
@@ -286,8 +310,72 @@ Calculate the **Performance Expectancy** using this EXACT formula:
 - If 1-day > +2% BUT 30d/60d < -5% → Subtract -5% (short-term spike may not sustain)
 - This prevents recommending BUY when TODAY's price is falling sharply!
 
-**Final Win Probability** = Base + R/R Adjustment + Trend Adjustment + Momentum Contradiction Penalty
+**Step 5: OVEREXTENSION / DIP ADJUSTMENT** (ANTI-DOJI PROTECTION - CRITICAL!)
+
+⚠️ **IF Overextended** (ราคาขึ้นเกินจนอันตราย - ซื้อตอนนี้ติดดอยแน่):
+Current Status: {"⚠️ OVEREXTENDED" if data.get('overextension', {}).get('is_overextended') else "✅ Not Overextended"}
+- Severity Score: {data.get('overextension', {}).get('severity_score', 0)}/100
+
+**PENALTY RULES** (ใช้ Severity Score):
+- Severity >= 70 → Subtract -20% (EXTREME)
+- Severity >= 50 → Subtract -15% (HIGH)
+- Severity >= 40 → Subtract -10% (MODERATE)
+- Severity < 40 → Subtract 0% (OK)
+
+✅ **IF Pullback/Dip** (จุดช้อนที่ดี - โอกาสทอง):
+Current Status: {"💰 DIP DETECTED!" if data.get('dip_opportunity', {}).get('is_dip') else "❌ Not a Dip"}
+- Dip Quality: {data.get('dip_opportunity', {}).get('dip_quality', 'NONE')}
+- Opportunity Score: {data.get('dip_opportunity', {}).get('opportunity_score', 0)}/100
+
+**BONUS RULES** (ใช้ Dip Quality โดยตรง - ห้ามคำนวณเอง!):
+- Quality = EXCELLENT → Add +20%
+- Quality = GOOD → Add +15%
+- Quality = FAIR → Add +10%
+- Quality = POOR → Add 0%
+
+**ตัวอย่างการคำนวณ:**
+CASE 1: Dip Quality = "GOOD" → เพิ่ม +15% เข้า Win Rate
+  Before: Win Rate = 52%
+  After Step 5: Win Rate = 52% + 15% = 67%
+
+CASE 2: Overextended, Severity = 55 → ลด -15% จาก Win Rate
+  Before: Win Rate = 58%
+  After Step 5: Win Rate = 58% - 15% = 43%
+
+CASE 3: Not Dip, Not Overextended → ไม่เปลี่ยนแปลง
+  Win Rate ยังคงเดิม
+
+**Step 6: FALLING KNIFE PENALTY** (ป้องกันช้อนมีดตก - CRITICAL!)
+
+🔪 **IF Falling Knife** (ตกต่อเนื่อง - อย่าช้อน!):
+Current Status: {"🔪 FALLING KNIFE!" if data.get('falling_knife', {}).get('is_falling_knife') else "✅ Not Falling Knife"}
+- Risk Level: {data.get('falling_knife', {}).get('risk_level', 'NONE')}
+- Risk Score: {data.get('falling_knife', {}).get('risk_score', 0)}/100
+
+**PENALTY RULES** (ใช้ Risk Level โดยตรง - ห้ามคำนวณเอง!):
+- Risk Level = EXTREME → Subtract -25%
+- Risk Level = HIGH → Subtract -18%
+- Risk Level = MODERATE → Subtract -12%
+- Risk Level = LOW → Subtract 0%
+
+**ตัวอย่างการคำนวณ:**
+CASE 1: Falling Knife = True, Risk Level = "MODERATE" → ลด -12%
+  Before: Win Rate = 67% (after Dip bonus)
+  After Step 6: Win Rate = 67% - 12% = 55%
+
+CASE 2: Falling Knife = False → ไม่เปลี่ยนแปลง
+  Win Rate ยังคงเดิม
+
+⚠️ **IMPORTANT**: IF both Dip (ช้อนดี) AND Falling Knife (มีดตก) are TRUE:
+- Apply BOTH adjustments in order!
+- Example: Dip GOOD (+15%) + Falling Knife MODERATE (-12%) → Net = +3%
+  Step 5: 52% + 15% = 67%
+  Step 6: 67% - 12% = 55% (Final)
+- This protects users from "fake dips" that look good but are actually dangerous!
+
+**Final Win Probability** = Base + R/R + Trend + Momentum + Overextension/Dip + Falling Knife
 **Loss Probability** = 100% - Win Probability
+**CAPPED**: Win% must be between 35% - 85% (ป้องกันค่าสุดโต่ง)
 
 **Expectancy Calculation** (YOU MUST CALCULATE ACTUAL VALUES):
 Step 1: Calculate Avg Win and Avg Loss from the Risk/Reward data above

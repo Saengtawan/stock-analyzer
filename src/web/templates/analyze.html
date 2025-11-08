@@ -262,6 +262,72 @@
                             </ul>
                         </div>
 
+                        <!-- NEW: Overextension Warning (ติดดอย) -->
+                        <div id="overextension-warning" class="alert alert-danger mb-3" style="display: none;">
+                            <h6 class="alert-heading mb-2">
+                                <i class="fas fa-exclamation-circle me-1"></i>
+                                🔴 <strong>คำเตือน: ราคาขึ้นเกินแล้ว - อย่าซื้อตอนนี้!</strong>
+                            </h6>
+                            <div class="mb-2">
+                                <strong>ระดับเสี่ยง:</strong> <span id="overextension-risk-level" class="badge bg-danger">-</span>
+                                <span class="ms-2"><strong>คะแนน:</strong> <span id="overextension-score">-</span>/100</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>สาเหตุ:</strong>
+                                <ul id="overextension-warnings-list" class="mb-0 mt-1">
+                                </ul>
+                            </div>
+                            <div class="alert alert-light border-danger mb-0 mt-2">
+                                <small><strong>💡 คำแนะนำ:</strong> <span id="overextension-recommendation">-</span></small>
+                            </div>
+                        </div>
+
+                        <!-- NEW: Dip Opportunity (ช้อน) -->
+                        <div id="dip-opportunity" class="alert alert-success mb-3" style="display: none;">
+                            <h6 class="alert-heading mb-2">
+                                <i class="fas fa-check-circle me-1"></i>
+                                💰 <strong>จุดช้อนที่ดี - โอกาสเข้าซื้อ!</strong>
+                            </h6>
+                            <div class="mb-2">
+                                <strong>คุณภาพ:</strong> <span id="dip-quality" class="badge bg-success">-</span>
+                                <span class="ms-2"><strong>คะแนนโอกาส:</strong> <span id="dip-score">-</span>/100</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>จุดเด่น:</strong>
+                                <ul id="dip-positives-list" class="mb-0 mt-1">
+                                </ul>
+                            </div>
+                            <div class="alert alert-light border-success mb-0 mt-2">
+                                <small><strong>💡 คำแนะนำ:</strong> <span id="dip-suggestion">-</span></small><br>
+                                <small id="dip-expected-bounce" class="text-muted">-</small>
+                            </div>
+                        </div>
+
+                        <!-- NEW: Falling Knife Warning (ตกต่อเนื่อง) -->
+                        <div id="falling-knife-warning" class="alert alert-warning mb-3" style="display: none;">
+                            <h6 class="alert-heading mb-2">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                🔪 <strong>คำเตือน: Falling Knife - ตกต่อเนื่อง!</strong>
+                            </h6>
+                            <div class="mb-2">
+                                <strong>ระดับเสี่ยง:</strong> <span id="falling-knife-risk-level" class="badge bg-warning text-dark">-</span>
+                                <span class="ms-2"><strong>คะแนนความเสี่ยง:</strong> <span id="falling-knife-score">-</span>/100</span>
+                            </div>
+                            <div class="mb-2" id="falling-knife-warnings-section" style="display: none;">
+                                <strong>⚠️ สัญญาณอันตราย:</strong>
+                                <ul id="falling-knife-warnings-list" class="mb-0 mt-1">
+                                </ul>
+                            </div>
+                            <div class="mb-2" id="falling-knife-reasons-section" style="display: none;">
+                                <strong>✅ สัญญาณดี:</strong>
+                                <ul id="falling-knife-reasons-list" class="mb-0 mt-1">
+                                </ul>
+                            </div>
+                            <div class="alert alert-light border-warning mb-0 mt-2">
+                                <small><strong>💡 คำแนะนำ:</strong> <span id="falling-knife-recommendation">-</span></small>
+                            </div>
+                        </div>
+
                         <!-- Trading Plan -->
                         <div class="card border-primary border-opacity-25 bg-light">
                             <div class="card-header bg-primary bg-opacity-10">
@@ -641,6 +707,46 @@
             </div>
         </div>
 
+        <!-- NEW: Pattern Recognition Section -->
+        <div id="pattern-recognition-section" class="row mb-4" style="display: none;">
+            <div class="col-12">
+                <div class="card mb-4 border-info shadow-sm">
+                    <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; border: none;">
+                        <h5 class="mb-0 text-white">
+                            <i class="fas fa-shapes me-2"></i>
+                            📐 Chart Pattern Recognition
+                        </h5>
+                        <small class="text-white-50">ตรวจจับรูปแบบกราฟ (Chart Patterns) ที่สำคัญ</small>
+                    </div>
+                    <div class="card-body">
+                        <!-- Pattern Summary -->
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <h6 class="text-muted mb-1">สรุปผลการตรวจจับ</h6>
+                                <p id="pattern-summary" class="mb-0 lead">-</p>
+                            </div>
+                            <div class="col-md-4 text-md-end">
+                                <span class="badge bg-success fs-6" id="pattern-count">0 Patterns</span>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Pattern Cards -->
+                        <div id="pattern-cards-container" class="row g-3">
+                            <!-- Pattern cards will be inserted here -->
+                        </div>
+
+                        <!-- No Pattern Message -->
+                        <div id="no-pattern-message" class="text-center text-muted py-4" style="display: none;">
+                            <i class="fas fa-search fa-3x mb-3 opacity-50"></i>
+                            <p class="mb-0">ไม่พบ Pattern ที่ชัดเจนในช่วงเวลานี้</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Fundamental Metrics Charts -->
         <div class="row mb-4">
             <div class="col-md-6">
@@ -910,6 +1016,9 @@ function displayAnalysisResults(data) {
 
     // Display unified recommendation (NEW!)
     displayUnifiedRecommendation(data);
+
+    // Display pattern recognition (NEW!)
+    displayPatternRecognition(data);
 
     // Display AI insights
     displayAIInsights(data);
@@ -1579,6 +1688,111 @@ function displayMarketStateStrategy(data) {
         warningsSection.style.display = 'none';
     }
 
+    // NEW: แสดง Overextension Warning (ติดดอย)
+    const overextension = marketStateAnalysis.overextension || {};
+    const overextensionSection = document.getElementById('overextension-warning');
+    if (overextension.is_overextended) {
+        overextensionSection.style.display = 'block';
+        document.getElementById('overextension-risk-level').textContent = overextension.risk_level || 'UNKNOWN';
+        document.getElementById('overextension-score').textContent = overextension.severity_score || 0;
+
+        const overextensionWarningsList = document.getElementById('overextension-warnings-list');
+        if (overextension.warnings && overextension.warnings.length > 0) {
+            overextensionWarningsList.innerHTML = overextension.warnings.map(w => `<li>${w}</li>`).join('');
+        } else {
+            overextensionWarningsList.innerHTML = '<li>ราคาขึ้นเกินแล้ว</li>';
+        }
+
+        document.getElementById('overextension-recommendation').textContent = overextension.recommendation || 'ควรระวัง';
+    } else {
+        overextensionSection.style.display = 'none';
+    }
+
+    // NEW: แสดง Dip Opportunity (ช้อน)
+    const dip = marketStateAnalysis.dip_opportunity || {};
+    const dipSection = document.getElementById('dip-opportunity');
+    if (dip.is_dip) {
+        dipSection.style.display = 'block';
+
+        // Set quality badge color
+        const dipQualityBadge = document.getElementById('dip-quality');
+        dipQualityBadge.textContent = dip.dip_quality || 'UNKNOWN';
+        if (dip.dip_quality === 'EXCELLENT') {
+            dipQualityBadge.className = 'badge bg-success';
+        } else if (dip.dip_quality === 'GOOD') {
+            dipQualityBadge.className = 'badge bg-info';
+        } else {
+            dipQualityBadge.className = 'badge bg-warning';
+        }
+
+        document.getElementById('dip-score').textContent = dip.opportunity_score || 0;
+
+        const dipPositivesList = document.getElementById('dip-positives-list');
+        if (dip.positives && dip.positives.length > 0) {
+            dipPositivesList.innerHTML = dip.positives.map(p => `<li>${p}</li>`).join('');
+        } else {
+            dipPositivesList.innerHTML = '<li>จุดช้อนที่ดี</li>';
+        }
+
+        document.getElementById('dip-suggestion').textContent = dip.entry_suggestion || '-';
+
+        const dipExpectedBounce = document.getElementById('dip-expected-bounce');
+        if (dip.expected_bounce) {
+            dipExpectedBounce.textContent = dip.expected_bounce;
+            dipExpectedBounce.style.display = 'block';
+        } else {
+            dipExpectedBounce.style.display = 'none';
+        }
+    } else {
+        dipSection.style.display = 'none';
+    }
+
+    // NEW: แสดง Falling Knife Warning (ตกต่อเนื่อง)
+    const fallingKnife = marketStateAnalysis.falling_knife || {};
+    const fallingKnifeSection = document.getElementById('falling-knife-warning');
+    if (fallingKnife.is_falling_knife) {
+        fallingKnifeSection.style.display = 'block';
+
+        // Set risk level badge color
+        const riskLevelBadge = document.getElementById('falling-knife-risk-level');
+        riskLevelBadge.textContent = fallingKnife.risk_level || 'UNKNOWN';
+        if (fallingKnife.risk_level === 'EXTREME') {
+            riskLevelBadge.className = 'badge bg-danger';
+        } else if (fallingKnife.risk_level === 'HIGH') {
+            riskLevelBadge.className = 'badge bg-warning text-dark';
+        } else if (fallingKnife.risk_level === 'MODERATE') {
+            riskLevelBadge.className = 'badge bg-info';
+        } else {
+            riskLevelBadge.className = 'badge bg-secondary';
+        }
+
+        document.getElementById('falling-knife-score').textContent = fallingKnife.risk_score || 0;
+
+        // แสดง Warnings
+        const warningsSection = document.getElementById('falling-knife-warnings-section');
+        const warningsList = document.getElementById('falling-knife-warnings-list');
+        if (fallingKnife.warnings && fallingKnife.warnings.length > 0) {
+            warningsSection.style.display = 'block';
+            warningsList.innerHTML = fallingKnife.warnings.map(w => `<li>${w}</li>`).join('');
+        } else {
+            warningsSection.style.display = 'none';
+        }
+
+        // แสดง Positive Reasons
+        const reasonsSection = document.getElementById('falling-knife-reasons-section');
+        const reasonsList = document.getElementById('falling-knife-reasons-list');
+        if (fallingKnife.reasons && fallingKnife.reasons.length > 0) {
+            reasonsSection.style.display = 'block';
+            reasonsList.innerHTML = fallingKnife.reasons.map(r => `<li>${r}</li>`).join('');
+        } else {
+            reasonsSection.style.display = 'none';
+        }
+
+        document.getElementById('falling-knife-recommendation').textContent = fallingKnife.recommendation || '-';
+    } else {
+        fallingKnifeSection.style.display = 'none';
+    }
+
     // แสดง Trading Plan
     const tradingPlan = strategy.trading_plan || {};
     if (tradingPlan.entry_range && tradingPlan.entry_range.length === 2) {
@@ -1755,6 +1969,141 @@ function displayTechnicalAnalysis(technical) {
     `;
 
     document.getElementById('technical-content').innerHTML = html;
+}
+
+function displayPatternRecognition(data) {
+    // Extract pattern recognition data
+    const technical = data.technical_analysis || {};
+    const patternData = technical.pattern_recognition || {};
+
+    const section = document.getElementById('pattern-recognition-section');
+    const summaryEl = document.getElementById('pattern-summary');
+    const countEl = document.getElementById('pattern-count');
+    const cardsContainer = document.getElementById('pattern-cards-container');
+    const noPatternMsg = document.getElementById('no-pattern-message');
+
+    if (!section || !patternData) {
+        console.log('⚠️ Pattern recognition section or data not found');
+        return;
+    }
+
+    const patterns = patternData.patterns_detected || [];
+    const summary = patternData.summary || 'ไม่พบ Pattern';
+    const totalPatterns = patterns.length;
+
+    // Show section
+    section.style.display = 'block';
+
+    // Update summary
+    summaryEl.textContent = summary;
+    countEl.textContent = `${totalPatterns} Pattern${totalPatterns !== 1 ? 's' : ''}`;
+
+    // Update badge color based on patterns found
+    if (totalPatterns > 0) {
+        countEl.className = 'badge bg-success fs-6';
+    } else {
+        countEl.className = 'badge bg-secondary fs-6';
+    }
+
+    // Clear previous cards
+    cardsContainer.innerHTML = '';
+
+    if (totalPatterns === 0) {
+        // Show "no pattern" message
+        noPatternMsg.style.display = 'block';
+        cardsContainer.style.display = 'none';
+    } else {
+        // Hide "no pattern" message
+        noPatternMsg.style.display = 'none';
+        cardsContainer.style.display = 'flex';
+
+        // Render pattern cards
+        patterns.forEach((pattern, index) => {
+            const card = createPatternCard(pattern, index);
+            cardsContainer.innerHTML += card;
+        });
+    }
+}
+
+function createPatternCard(pattern, index) {
+    // Determine colors and icons based on signal
+    let borderColor = 'secondary';
+    let bgClass = 'bg-light';
+    let signalIcon = '🔵';
+    let signalColor = 'secondary';
+
+    if (pattern.signal === 'BULLISH') {
+        borderColor = 'success';
+        bgClass = 'bg-success-subtle';
+        signalIcon = '📈';
+        signalColor = 'success';
+    } else if (pattern.signal === 'BEARISH') {
+        borderColor = 'danger';
+        bgClass = 'bg-danger-subtle';
+        signalIcon = '📉';
+        signalColor = 'danger';
+    } else if (pattern.signal === 'NEUTRAL') {
+        borderColor = 'warning';
+        bgClass = 'bg-warning-subtle';
+        signalIcon = '🔄';
+        signalColor = 'warning';
+    }
+
+    // Build key levels section
+    let keyLevelsHtml = '';
+    if (pattern.key_levels) {
+        keyLevelsHtml = '<div class="mt-2"><small class="text-muted fw-bold">Key Levels:</small><ul class="list-unstyled ms-3 small">';
+        for (const [key, value] of Object.entries(pattern.key_levels)) {
+            const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            keyLevelsHtml += `<li>• ${formattedKey}: <strong>$${value.toFixed(2)}</strong></li>`;
+        }
+        keyLevelsHtml += '</ul></div>';
+    }
+
+    // Build strategy section
+    let strategyHtml = '';
+    if (pattern.entry_strategy) {
+        strategyHtml = `
+            <div class="mt-2">
+                <small class="text-primary fw-bold">📍 Entry Strategy:</small>
+                <p class="mb-1 small">${pattern.entry_strategy}</p>
+            </div>
+        `;
+    }
+
+    // Build target section
+    let targetHtml = '';
+    if (pattern.target) {
+        targetHtml = `<div class="mt-1"><small class="text-success">🎯 Target: <strong>$${pattern.target.toFixed(2)}</strong></small></div>`;
+    }
+
+    return `
+        <div class="col-md-6 col-lg-4">
+            <div class="card border-${borderColor} h-100 shadow-sm">
+                <div class="card-header ${bgClass} border-${borderColor}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold">${signalIcon} ${pattern.name}</h6>
+                        <span class="badge bg-${signalColor}">${pattern.confidence}%</span>
+                    </div>
+                    <small class="text-muted">${pattern.type} Pattern</small>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <span class="badge bg-${signalColor} mb-2">${pattern.signal}</span>
+                        <p class="mb-1">${pattern.description}</p>
+                    </div>
+                    <hr>
+                    <div>
+                        <small class="text-muted fw-bold">💡 Interpretation:</small>
+                        <p class="mb-0 small">${pattern.interpretation}</p>
+                    </div>
+                    ${keyLevelsHtml}
+                    ${strategyHtml}
+                    ${targetHtml}
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 function displayInvestmentGuidance(data) {

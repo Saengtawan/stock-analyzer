@@ -112,10 +112,14 @@ class EnhancedStockAnalyzer:
                 # ส่ง support/resistance จาก TechnicalAnalyzer เพื่อให้สอดคล้องกัน
                 technical_with_sr = technical_results.get('indicators', {})
 
+                # ส่ง market_state_analysis เพื่อให้ Price Change ใช้ข้อมูล Dip/Falling Knife
+                market_state_analysis = technical_results.get('market_state_analysis', {})
+
                 price_change_analysis = self.price_change_analyzer.analyze_price_change(
                     price_data,
                     technical_indicators=technical_with_sr,
-                    fundamental_data=fundamental_data
+                    fundamental_data=fundamental_data,
+                    market_state_analysis=market_state_analysis  # NEW
                 )
             except Exception as e:
                 logger.warning(f"Price change analysis failed: {e}")

@@ -20,7 +20,8 @@ class PriceChangeAnalyzer:
     def analyze_price_change(self,
                            price_data: pd.DataFrame,
                            technical_indicators: Dict[str, Any] = None,
-                           fundamental_data: Dict[str, Any] = None) -> Dict[str, Any]:
+                           fundamental_data: Dict[str, Any] = None,
+                           market_state_analysis: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         วิเคราะห์การเปลี่ยนแปลงราคาและหาสาเหตุ
 
@@ -28,6 +29,7 @@ class PriceChangeAnalyzer:
             price_data: ข้อมูลราคาหุ้น
             technical_indicators: ตัวชี้วัดทางเทคนิค
             fundamental_data: ข้อมูลพื้นฐาน
+            market_state_analysis: ข้อมูล Dip/Falling Knife/Overextension (NEW)
 
         Returns:
             Dict ที่มีข้อมูลการวิเคราะห์การเปลี่ยนแปลงราคา
@@ -87,7 +89,8 @@ class PriceChangeAnalyzer:
             profit_taking_analysis = self._analyze_profit_taking_opportunity(
                 price_data, direction, change_percent,
                 technical_indicators, trend_strength,
-                buying_selling_pressure, key_levels
+                buying_selling_pressure, key_levels,
+                market_state_analysis  # NEW: ส่ง Dip/Falling Knife data
             )
 
             return {
@@ -848,9 +851,13 @@ class PriceChangeAnalyzer:
                                           technical_indicators: Dict[str, Any],
                                           trend_strength: Dict[str, Any],
                                           buying_selling_pressure: Dict[str, Any],
-                                          key_levels: Dict[str, Any]) -> Dict[str, Any]:
+                                          key_levels: Dict[str, Any],
+                                          market_state_analysis: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         วิเคราะห์ว่าควรขายกำไรหรือยัง หรือมีโอกาสขึ้นต่ออีก
+
+        Args:
+            market_state_analysis: ข้อมูล Dip/Falling Knife/Overextension (NEW)
 
         Returns:
             Dict ที่มีคำแนะนำว่าควรขายกำไรหรือยัง พร้อมเหตุผล
@@ -864,6 +871,87 @@ class PriceChangeAnalyzer:
 
             reasons_to_hold = []  # เหตุผลที่ควรถือต่อ
             reasons_to_sell = []  # เหตุผลที่ควรขายกำไร
+
+            # ========== PRIORITY CHECK: Dip/Falling Knife Analysis ==========
+            # ตรวจสอบก่อนว่าเป็น Dip หรือ Falling Knife หรือไม่
+            if market_state_analysis:
+                dip = market_state_analysis.get('dip_opportunity', {})
+                falling_knife = market_state_analysis.get('falling_knife', {})
+                overext = market_state_analysis.get('overextension', {})
+
+                # กรณี 1: ถ้าเป็น DIP (จุดช้อน) → ไม่ควรขาย ควรถือ/เข้าซื้อ
+                if dip.get('is_dip'):
+                    dip_quality = dip.get('dip_quality', 'NONE')
+                    dip_score = dip.get('opportunity_score', 0)
+
+                    if dip_quality == 'EXCELLENT':
+                        hold_score += 60  # Bonus สูงมาก
+                        reasons_to_hold.append({
+                            'reason': '💎 จุดช้อนคุณภาพยอดเยี่ยม',
+                            'detail': f'Dip Quality: {dip_quality} (Score: {dip_score}/100) - โอกาสเข้าทองครับ!',
+                            'weight': 60
+                        })
+                    elif dip_quality == 'GOOD':
+                        hold_score += 50
+                        reasons_to_hold.append({
+                            'reason': '💰 จุดช้อนที่ดี',
+                            'detail': f'Dip Quality: {dip_quality} (Score: {dip_score}/100) - ควรถือ/เข้าซื้อ',
+                            'weight': 50
+                        })
+                    elif dip_quality == 'FAIR':
+                        hold_score += 30
+                        reasons_to_hold.append({
+                            'reason': '📉 จุดช้อนปานกลาง',
+                            'detail': f'Dip Quality: {dip_quality} (Score: {dip_score}/100) - พิจารณาถือต่อ',
+                            'weight': 30
+                        })
+
+                # กรณี 2: ถ้าเป็น FALLING KNIFE → ควรออก/อย่าเข้า
+                if falling_knife.get('is_falling_knife'):
+                    risk_level = falling_knife.get('risk_level', 'UNKNOWN')
+                    risk_score = falling_knife.get('risk_score', 0)
+
+                    if risk_level == 'EXTREME':
+                        sell_score += 70
+                        reasons_to_sell.append({
+                            'reason': '🔪 Falling Knife ระดับอันตราย!',
+                            'detail': f'Risk: {risk_level} (Score: {risk_score}/100) - ตกต่อเนื่อง ออกก่อน!',
+                            'weight': 70
+                        })
+                    elif risk_level == 'HIGH':
+                        sell_score += 50
+                        reasons_to_sell.append({
+                            'reason': '⚠️ Falling Knife เสี่ยงสูง',
+                            'detail': f'Risk: {risk_level} (Score: {risk_score}/100) - อาจตกต่อ ควรออก',
+                            'weight': 50
+                        })
+                    elif risk_level == 'MODERATE':
+                        sell_score += 30
+                        reasons_to_sell.append({
+                            'reason': '⚡ Falling Knife เสี่ยงปานกลาง',
+                            'detail': f'Risk: {risk_level} (Score: {risk_score}/100) - ระวัง รอดูอีก 2-3 วัน',
+                            'weight': 30
+                        })
+
+                # กรณี 3: ถ้าเป็น OVEREXTENDED → ควรขาย
+                if overext.get('is_overextended'):
+                    severity = overext.get('severity_score', 0)
+                    if severity >= 70:
+                        sell_score += 50
+                        reasons_to_sell.append({
+                            'reason': '🔴 ราคาขึ้นเกินจนอันตราย',
+                            'detail': f'Severity: {severity}/100 - ติดดอยแน่ ขายเลย!',
+                            'weight': 50
+                        })
+                    elif severity >= 50:
+                        sell_score += 35
+                        reasons_to_sell.append({
+                            'reason': '⚠️ ราคาขึ้นเกินไปแล้ว',
+                            'detail': f'Severity: {severity}/100 - ควรขายบางส่วน',
+                            'weight': 35
+                        })
+
+            # ========== ต่อด้วย Logic เดิม (ถ้ายังไม่มี Dip/Falling Knife ชัดเจน) ==========
 
             # 1. ตรวจสอบตำแหน่งราคาเทียบกับ Resistance
             if key_levels:
