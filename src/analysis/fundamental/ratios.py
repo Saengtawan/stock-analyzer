@@ -60,20 +60,31 @@ class FinancialRatios:
         else:
             ratios['peg_ratio'] = None
 
-        # EV/Revenue
-        enterprise_value = self.data.get('enterprise_value')
-        revenue = self.data.get('revenue')
-        if enterprise_value and revenue and revenue > 0:
-            ratios['ev_revenue'] = enterprise_value / revenue
+        # 🆕 v5.0: EV/Revenue - Prefer Yahoo Finance data over manual calculation
+        ev_revenue_yf = self.data.get('enterprise_to_revenue')
+        if ev_revenue_yf is not None:
+            ratios['ev_revenue'] = ev_revenue_yf
         else:
-            ratios['ev_revenue'] = None
+            # Fallback: Calculate from enterprise_value / revenue
+            enterprise_value = self.data.get('enterprise_value')
+            revenue = self.data.get('revenue')
+            if enterprise_value and revenue and revenue > 0:
+                ratios['ev_revenue'] = enterprise_value / revenue
+            else:
+                ratios['ev_revenue'] = None
 
-        # EV/EBITDA
-        ebitda = self.data.get('ebitda')
-        if enterprise_value and ebitda and ebitda > 0:
-            ratios['ev_ebitda'] = enterprise_value / ebitda
+        # 🆕 v5.0: EV/EBITDA - Prefer Yahoo Finance data over manual calculation
+        ev_ebitda_yf = self.data.get('enterprise_to_ebitda')
+        if ev_ebitda_yf is not None:
+            ratios['ev_ebitda'] = ev_ebitda_yf
         else:
-            ratios['ev_ebitda'] = None
+            # Fallback: Calculate from enterprise_value / ebitda
+            enterprise_value = self.data.get('enterprise_value')
+            ebitda = self.data.get('ebitda')
+            if enterprise_value and ebitda and ebitda > 0:
+                ratios['ev_ebitda'] = enterprise_value / ebitda
+            else:
+                ratios['ev_ebitda'] = None
 
         return ratios
 

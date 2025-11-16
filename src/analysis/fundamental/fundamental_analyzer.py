@@ -220,6 +220,36 @@ class FundamentalAnalyzer:
             elif dcf_premium < 0.9:
                 score -= 0.5  # 10%+ overvalued
 
+        # 🆕 v5.0: EV/Revenue scoring (especially useful for high-debt companies)
+        ev_revenue = ratios.get('ev_revenue')
+        if ev_revenue is not None and ev_revenue > 0:
+            # Lower EV/Revenue is generally better (cheaper relative to sales)
+            if ev_revenue < 1.0:
+                score += 0.4  # Very cheap relative to revenue
+            elif ev_revenue < 2.0:
+                score += 0.3  # Reasonable valuation
+            elif ev_revenue < 3.0:
+                score += 0.1  # Fair valuation
+            elif ev_revenue > 10.0:
+                score -= 0.6  # Very expensive (tech stocks often high)
+            elif ev_revenue > 6.0:
+                score -= 0.3  # Expensive relative to revenue
+
+        # 🆕 v5.0: EV/EBITDA scoring (better than P/E for leveraged companies)
+        ev_ebitda = ratios.get('ev_ebitda')
+        if ev_ebitda is not None and ev_ebitda > 0:
+            # Typical benchmarks: <10 = cheap, 10-15 = fair, >15 = expensive
+            if ev_ebitda < 8:
+                score += 0.5  # Undervalued
+            elif ev_ebitda < 12:
+                score += 0.3  # Fair value
+            elif ev_ebitda < 15:
+                score += 0.1  # Slightly expensive
+            elif ev_ebitda > 25:
+                score -= 0.7  # Very expensive
+            elif ev_ebitda > 18:
+                score -= 0.4  # Expensive
+
         return max(0, min(score, 2))
 
     def _score_profitability(self, ratios: Dict[str, Any]) -> float:
