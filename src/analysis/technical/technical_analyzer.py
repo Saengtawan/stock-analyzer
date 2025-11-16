@@ -161,10 +161,19 @@ class TechnicalAnalyzer:
             # NEW: Pattern Recognition
             pattern_analysis = self.pattern_recognizer.detect_all_patterns()
 
+            # Extract support/resistance for easy access
+            support_resistance = latest_values.get('support_resistance', {})
+            support_1 = support_resistance.get('support_1')
+            resistance_1 = support_resistance.get('resistance_1')
+
             return {
                 'symbol': self.symbol,
                 'analysis_date': datetime.now().isoformat(),
                 'last_price': latest_values['current_price'],
+
+                # Add support/resistance at top level for Enhanced Features
+                'support_1': support_1,
+                'resistance_1': resistance_1,
 
                 # Data quality
                 'data_quality': quality_report,
@@ -198,7 +207,7 @@ class TechnicalAnalyzer:
                 # Recommendations
                 'recommendation': self._get_enhanced_recommendation(technical_score, current_regime),
                 'key_signals': self._identify_key_signals(filtered_signals),
-                'support_resistance': latest_values.get('support_resistance', {}),
+                'support_resistance': support_resistance,
                 'target_levels': self._calculate_target_levels(latest_values),
 
                 # Adaptability insights
@@ -365,6 +374,80 @@ class TechnicalAnalyzer:
             'recommended_units': int(account_size * volatility_adjusted_size),
             'risk_per_trade': max_risk_per_trade * 100,
             'volatility_factor': volatility
+        }
+
+    def _calculate_position_size_for_sl(self,
+                                       account_value: float,
+                                       entry_price: float,
+                                       stop_loss: float,
+                                       risk_per_trade_pct: float = 3.0,
+                                       max_position_value_pct: float = 20.0) -> Dict[str, Any]:
+        """
+        คำนวณ Position Size ตาม Stop Loss Distance
+
+        🆕 ตามแนวคิด Stop Loss Hunting:
+        - ถ้า SL ห่าง → ลด shares เพื่อให้ความเสี่ยงต่อรอบคงที่
+        - ถ้า SL แคบ → เพิ่ม shares ได้
+
+        Args:
+            account_value: มูลค่าพอร์ต (บาท)
+            entry_price: ราคา entry
+            stop_loss: ราคา stop loss
+            risk_per_trade_pct: ความเสี่ยงต่อรอบ (% ของพอร์ต) default = 3%
+            max_position_value_pct: มูลค่า position สูงสุด (% ของพอร์ต) default = 20%
+
+        Returns:
+            Dictionary with position sizing details
+        """
+        # คำนวณความเสี่ยงต่อหุ้น
+        price_risk_per_share = abs(entry_price - stop_loss)
+        price_risk_pct = (price_risk_per_share / entry_price) * 100 if entry_price > 0 else 0
+
+        # คำนวณจำนวนเงินที่เสี่ยงต่อรอบ
+        risk_amount = account_value * (risk_per_trade_pct / 100)
+
+        # คำนวณจำนวนหุ้นที่ควรซื้อ
+        if price_risk_per_share > 0:
+            shares = int(risk_amount / price_risk_per_share)
+        else:
+            shares = 0
+
+        # คำนวณมูลค่า position
+        position_value = shares * entry_price
+        position_value_pct = (position_value / account_value) * 100 if account_value > 0 else 0
+
+        # เช็คว่า position value ไม่เกิน max (20% ของพอร์ต)
+        if position_value_pct > max_position_value_pct:
+            # ลด shares ลง
+            max_position_value = account_value * (max_position_value_pct / 100)
+            shares = int(max_position_value / entry_price)
+            position_value = shares * entry_price
+            position_value_pct = (position_value / account_value) * 100
+
+            # คำนวณความเสี่ยงจริง (ลดลง)
+            actual_risk_amount = shares * price_risk_per_share
+            actual_risk_pct = (actual_risk_amount / account_value) * 100
+
+            warning = f"⚠️ Position ถูกจำกัดที่ {max_position_value_pct}% ของพอร์ต (ความเสี่ยงลดเหลือ {actual_risk_pct:.2f}%)"
+        else:
+            actual_risk_amount = risk_amount
+            actual_risk_pct = risk_per_trade_pct
+            warning = None
+
+        # สร้าง summary
+        return {
+            'shares': shares,
+            'position_value': round(position_value, 2),
+            'position_value_pct': round(position_value_pct, 2),
+            'risk_amount': round(actual_risk_amount, 2),
+            'risk_pct': round(actual_risk_pct, 2),
+            'risk_per_share': round(price_risk_per_share, 2),
+            'price_risk_pct': round(price_risk_pct, 2),
+            'entry_price': entry_price,
+            'stop_loss': stop_loss,
+            'warning': warning,
+            'calculation_method': 'Fixed Risk per Trade (based on SL distance)',
+            'max_loss_if_hit_sl': round(actual_risk_amount, 2)
         }
 
     def _assess_signal_quality(self, signals: Dict[str, Any]) -> Dict[str, Any]:
@@ -543,13 +626,21 @@ class TechnicalAnalyzer:
             else:
                 signals['volume_signal'] = {'signal': 'NEUTRAL', 'strength': 'Weak', 'reason': 'Normal volume'}
 
-        # Support/Resistance Signals
+        # Support/Resistance Signals (🆕 v5.0: includes 52W high/low)
         support_resistance = indicators.get('support_resistance', {})
         if support_resistance:
             s1 = support_resistance.get('support_1')
             r1 = support_resistance.get('resistance_1')
+            s52w = support_resistance.get('support_52w')  # 🆕 v5.0
+            r52w = support_resistance.get('resistance_52w')  # 🆕 v5.0
 
-            if s1 and current_price <= s1 * 1.01:  # Within 1% of support
+            # 🆕 v5.0: Check 52W levels first (stronger psychological levels)
+            if s52w and current_price <= s52w * 1.02:  # Within 2% of 52W low
+                signals['sr_signal'] = {'signal': 'BUY', 'strength': 'Very Strong', 'reason': f'Price near 52-week low at {s52w:.2f} (strong support)'}
+            elif r52w and current_price >= r52w * 0.98:  # Within 2% of 52W high
+                signals['sr_signal'] = {'signal': 'SELL', 'strength': 'Very Strong', 'reason': f'Price near 52-week high at {r52w:.2f} (strong resistance)'}
+            # Recent support/resistance (20-day levels)
+            elif s1 and current_price <= s1 * 1.01:  # Within 1% of support
                 signals['sr_signal'] = {'signal': 'BUY', 'strength': 'Strong', 'reason': f'Price near support at {s1:.2f}'}
             elif r1 and current_price >= r1 * 0.99:  # Within 1% of resistance
                 signals['sr_signal'] = {'signal': 'SELL', 'strength': 'Strong', 'reason': f'Price near resistance at {r1:.2f}'}
@@ -672,7 +763,11 @@ class TechnicalAnalyzer:
             return 1.0
 
     def _score_support_resistance(self, sr_signal: Optional[Dict]) -> float:
-        """Score support/resistance levels (0-2 points)"""
+        """
+        Score support/resistance levels (0-2 points)
+
+        🆕 v5.0: Now includes "Very Strong" scoring for 52W levels
+        """
         if not sr_signal:
             return 1.0
 
@@ -680,13 +775,17 @@ class TechnicalAnalyzer:
         strength = sr_signal.get('strength')
 
         if signal == 'BUY':
-            if strength == 'Strong':
+            if strength == 'Very Strong':  # 🆕 v5.0: 52W low
                 return 2.0
+            elif strength == 'Strong':
+                return 1.8
             else:
                 return 1.5
         elif signal == 'SELL':
-            if strength == 'Strong':
+            if strength == 'Very Strong':  # 🆕 v5.0: 52W high
                 return 0.0
+            elif strength == 'Strong':
+                return 0.2
             else:
                 return 0.5
         else:
@@ -799,6 +898,908 @@ class TechnicalAnalyzer:
             'short_take_profit_2': take_profit_short_2,
             'atr_used': atr
         }
+
+    def _detect_volatility_class(self, atr: float, current_price: float) -> str:
+        """
+        Detect volatility class based on ATR percentage
+
+        Args:
+            atr: Average True Range
+            current_price: Current stock price
+
+        Returns:
+            'HIGH', 'MEDIUM', or 'LOW'
+        """
+        if current_price <= 0 or atr <= 0:
+            return 'MEDIUM'  # Default fallback
+
+        atr_pct = (atr / current_price) * 100
+
+        if atr_pct >= 5.0:
+            volatility_class = 'HIGH'
+        elif atr_pct >= 3.0:
+            volatility_class = 'MEDIUM'
+        else:
+            volatility_class = 'LOW'
+
+        logger.info(f"📊 Volatility Detection: ATR={atr:.2f}, Price=${current_price:.2f}, ATR%={atr_pct:.2f}% → {volatility_class}")
+        return volatility_class
+
+    def _get_dynamic_atr_multipliers(self, market_state: str, volatility_class: str) -> Dict[str, Any]:
+        """
+        Get dynamic ATR multipliers based on market state and volatility class
+
+        🆕 v6.0: Volatility-aware multipliers for better TP/SL targeting
+
+        Logic:
+        - HIGH volatility: More aggressive TPs (wider targets), tighter SLs (accept volatility)
+        - MEDIUM volatility: Standard multipliers (balanced)
+        - LOW volatility: More conservative TPs (closer targets), wider SLs (less volatility)
+
+        Args:
+            market_state: TRENDING_BULLISH, SIDEWAY, or BEARISH
+            volatility_class: HIGH, MEDIUM, or LOW
+
+        Returns:
+            Dict with tp1_mult, tp2_mult, tp3_mult, sl_mult
+        """
+
+        # Define multipliers by market state and volatility
+        multipliers = {
+            'TRENDING_BULLISH': {
+                'HIGH': {'tp1': 2.5, 'tp2': 3.0, 'tp3': 3.5, 'sl': 1.5},    # Aggressive
+                'MEDIUM': {'tp1': 2.0, 'tp2': 2.5, 'tp3': 3.0, 'sl': 2.0},  # Balanced
+                'LOW': {'tp1': 1.5, 'tp2': 2.0, 'tp3': 2.5, 'sl': 2.5}      # Conservative
+            },
+            'SIDEWAY': {
+                'HIGH': {'tp1': 2.0, 'tp2': 2.5, 'tp3': 3.0, 'sl': 1.5},    # Moderate
+                'MEDIUM': {'tp1': 1.5, 'tp2': 2.0, 'tp3': 2.5, 'sl': 2.0},  # Balanced
+                'LOW': {'tp1': 1.2, 'tp2': 1.5, 'tp3': 2.0, 'sl': 2.5}      # Conservative
+            },
+            'BEARISH': {
+                'HIGH': {'tp1': 2.0, 'tp2': 2.5, 'tp3': 3.0, 'sl': 1.5},    # Quick profits
+                'MEDIUM': {'tp1': 1.5, 'tp2': 2.0, 'tp3': 2.5, 'sl': 2.0},  # Balanced
+                'LOW': {'tp1': 1.2, 'tp2': 1.5, 'tp3': 2.0, 'sl': 2.5}      # Very conservative
+            }
+        }
+
+        # Get multipliers for this combination
+        state_multipliers = multipliers.get(market_state, multipliers['SIDEWAY'])
+        vol_multipliers = state_multipliers.get(volatility_class, state_multipliers['MEDIUM'])
+
+        logger.info(f"📊 Dynamic ATR Multipliers ({market_state}, {volatility_class}): "
+                   f"TP={vol_multipliers['tp1']:.1f}x/{vol_multipliers['tp2']:.1f}x/{vol_multipliers['tp3']:.1f}x, "
+                   f"SL={vol_multipliers['sl']:.1f}x")
+
+        return vol_multipliers
+
+    def _detect_swing_points(self, lookback: int = 20) -> Dict[str, Any]:
+        """
+        Detect swing highs and lows using lookback window
+
+        Swing High = Highest high in lookback period where price declined after
+        Swing Low = Lowest low in lookback period where price rallied after
+
+        Args:
+            lookback: Number of bars to look back for swing detection (default: 20)
+
+        Returns:
+            Dict with swing_high, swing_low, swing_high_idx, swing_low_idx
+        """
+        try:
+            # Get recent price data
+            if len(self.price_data) < lookback + 5:
+                # Not enough data, use what we have
+                recent_data = self.price_data
+            else:
+                recent_data = self.price_data.tail(lookback + 5)
+
+            # Ensure we have High and Low columns (case-insensitive)
+            high_col = 'High' if 'High' in recent_data.columns else 'high'
+            low_col = 'Low' if 'Low' in recent_data.columns else 'low'
+            close_col = 'Close' if 'Close' in recent_data.columns else 'close'
+
+            if high_col not in recent_data.columns or low_col not in recent_data.columns:
+                # Fallback to Close if High/Low not available
+                recent_data[high_col] = recent_data[close_col]
+                recent_data[low_col] = recent_data[close_col]
+
+            highs = recent_data[high_col].values
+            lows = recent_data[low_col].values
+
+            # Find swing high (highest point with lower highs on both sides)
+            swing_high_idx = 0
+            swing_high = highs[0]
+
+            for i in range(2, len(highs) - 2):
+                # Check if this is a local maximum
+                if (highs[i] > highs[i-1] and highs[i] > highs[i-2] and
+                    highs[i] > highs[i+1] and highs[i] > highs[i+2]):
+                    if highs[i] > swing_high:
+                        swing_high = highs[i]
+                        swing_high_idx = i
+
+            # If no swing high found, use recent high
+            if swing_high_idx == 0:
+                swing_high_idx = np.argmax(highs)
+                swing_high = highs[swing_high_idx]
+
+            # Find swing low (lowest point with higher lows on both sides)
+            swing_low_idx = 0
+            swing_low = lows[0]
+
+            for i in range(2, len(lows) - 2):
+                # Check if this is a local minimum
+                if (lows[i] < lows[i-1] and lows[i] < lows[i-2] and
+                    lows[i] < lows[i+1] and lows[i] < lows[i+2]):
+                    if swing_low == lows[0] or lows[i] < swing_low:
+                        swing_low = lows[i]
+                        swing_low_idx = i
+
+            # If no swing low found, use recent low
+            if swing_low_idx == 0:
+                swing_low_idx = np.argmin(lows)
+                swing_low = lows[swing_low_idx]
+
+            return {
+                'swing_high': float(swing_high),
+                'swing_low': float(swing_low),
+                'swing_high_idx': int(swing_high_idx),
+                'swing_low_idx': int(swing_low_idx),
+                'lookback_bars': len(recent_data)
+            }
+
+        except Exception as e:
+            logger.warning(f"Error detecting swing points: {e}")
+            # Fallback: use simple high/low from recent data
+            close_col = 'Close' if 'Close' in self.price_data.columns else 'close'
+            current_price = self.price_data[close_col].iloc[-1]
+            return {
+                'swing_high': float(current_price * 1.05),
+                'swing_low': float(current_price * 0.95),
+                'swing_high_idx': 0,
+                'swing_low_idx': 0,
+                'lookback_bars': 0
+            }
+
+    def _calculate_fibonacci_levels(self,
+                                    swing_high: float,
+                                    swing_low: float,
+                                    direction: str = 'retracement') -> Dict[str, float]:
+        """
+        Calculate Fibonacci levels for entries (retracement) or targets (extension)
+
+        Retracement levels (for entry zones in uptrend):
+        - 0.236 (23.6%) - Aggressive entry
+        - 0.382 (38.2%) - Aggressive-moderate entry
+        - 0.500 (50.0%) - Moderate entry (most common)
+        - 0.618 (61.8%) - Conservative entry (golden ratio)
+        - 0.786 (78.6%) - Very conservative entry
+
+        Extension levels (for take profit targets):
+        - 1.000 (100%) - Swing high breakout
+        - 1.272 (127.2%) - Moderate target
+        - 1.414 (141.4%) - Strong target
+        - 1.618 (161.8%) - Aggressive target (golden ratio)
+        - 2.000 (200%) - Very aggressive target
+        - 2.618 (261.8%) - Extreme target
+
+        Args:
+            swing_high: Recent swing high price
+            swing_low: Recent swing low price
+            direction: 'retracement' for entries, 'extension' for targets
+
+        Returns:
+            Dictionary of Fibonacci levels
+        """
+        swing_range = swing_high - swing_low
+
+        if direction == 'retracement':
+            # Retracement from swing_high (for entries in uptrend)
+            return {
+                'fib_0.236': swing_high - (swing_range * 0.236),
+                'fib_0.382': swing_high - (swing_range * 0.382),
+                'fib_0.500': swing_high - (swing_range * 0.500),
+                'fib_0.618': swing_high - (swing_range * 0.618),
+                'fib_0.786': swing_high - (swing_range * 0.786)
+            }
+        elif direction == 'extension':
+            # Extension from swing_low (for targets in uptrend)
+            return {
+                'fib_1.000': swing_low + swing_range,
+                'fib_1.272': swing_low + (swing_range * 1.272),
+                'fib_1.414': swing_low + (swing_range * 1.414),
+                'fib_1.618': swing_low + (swing_range * 1.618),
+                'fib_2.000': swing_low + (swing_range * 2.000),
+                'fib_2.618': swing_low + (swing_range * 2.618)
+            }
+        else:
+            return {}
+
+    def _check_immediate_entry_conditions(self,
+                                         current_price: float,
+                                         recommended_entry: float,
+                                         support: float,
+                                         resistance: float,
+                                         indicators: Dict[str, Any],
+                                         market_state: str) -> Dict[str, Any]:
+        """
+        Check if conditions warrant IMMEDIATE entry at current price
+        instead of waiting for pullback to entry zone
+
+        Immediate Entry Conditions:
+        1. Already at or very close to entry zone (< 1% distance)
+        2. Strong breakout with volume spike (> 150%)
+        3. Strong momentum (RSI 50-70, MACD positive)
+        4. Gap up opening (> 2% gap)
+        5. Near support in sideways (< 1% from support)
+        6. Reversal confirmation (MACD cross + RSI bounce)
+
+        Args:
+            current_price: Current stock price
+            recommended_entry: Calculated entry price from Fibonacci
+            support: Support level
+            resistance: Resistance level
+            indicators: Technical indicators dict
+            market_state: Market state (TRENDING_BULLISH, SIDEWAY, BEARISH)
+
+        Returns:
+            Dictionary with immediate_entry (bool) and reasons (list)
+        """
+        immediate_entry = False
+        reasons = []
+        confidence_score = 0
+
+        # Get indicators
+        volume = indicators.get('volume', 0)
+        volume_sma = indicators.get('volume_sma_20', 1)
+        rsi = indicators.get('rsi', 50)
+        macd_line = indicators.get('macd_line', 0)
+        macd_signal = indicators.get('macd_signal', 0)
+        macd_histogram = indicators.get('macd_histogram', 0)
+
+        # Calculate distance to entry zone
+        distance_to_entry_pct = abs((current_price - recommended_entry) / current_price) * 100
+        distance_to_support_pct = abs((current_price - support) / support) * 100 if support > 0 else 100
+        distance_to_resistance_pct = abs((resistance - current_price) / current_price) * 100 if resistance > 0 else 100
+
+        # Condition 1: Already in Entry Zone (< 1% distance)
+        if distance_to_entry_pct < 1.0:
+            immediate_entry = True
+            confidence_score += 30
+            reasons.append(f"✅ Already at entry zone (distance: {distance_to_entry_pct:.2f}% only)")
+
+        # Condition 2: Strong Breakout with Volume
+        volume_ratio = volume / volume_sma if volume_sma > 0 else 1
+        if market_state == 'TRENDING_BULLISH':
+            if current_price > resistance and volume_ratio > 1.5:
+                immediate_entry = True
+                confidence_score += 25
+                reasons.append(f"✅ Breakout above resistance with volume spike ({volume_ratio:.1f}x)")
+
+            # Strong momentum continuation
+            if rsi > 55 and rsi < 75 and macd_histogram > 0 and volume_ratio > 1.2:
+                immediate_entry = True
+                confidence_score += 20
+                reasons.append(f"✅ Strong momentum (RSI: {rsi:.0f}, Volume: {volume_ratio:.1f}x)")
+
+        # Condition 3: Near Support in Sideways (< 1.5% from support)
+        if market_state == 'SIDEWAY':
+            if distance_to_support_pct < 1.5 and rsi < 50:
+                immediate_entry = True
+                confidence_score += 25
+                reasons.append(f"✅ Near support in sideways (distance: {distance_to_support_pct:.2f}%)")
+
+        # Condition 4: Reversal Confirmation (MACD cross + RSI bounce)
+        if market_state in ['BEARISH', 'SIDEWAY']:
+            # MACD just crossed up (histogram positive and increasing)
+            if macd_line > macd_signal and macd_histogram > 0:
+                # RSI bounced from oversold
+                if rsi >= 35 and rsi <= 50:
+                    immediate_entry = True
+                    confidence_score += 25
+                    reasons.append(f"✅ Reversal confirmed (MACD cross + RSI bounce from {rsi:.0f})")
+
+        # Condition 5: Already very close to recommended entry (< 0.5%)
+        if distance_to_entry_pct < 0.5:
+            immediate_entry = True
+            confidence_score += 20
+            reasons.append(f"✅ Too close to wait ({distance_to_entry_pct:.2f}% from entry)")
+
+        # Condition 6: Strong trend continuation (don't wait for pullback)
+        if market_state == 'TRENDING_BULLISH':
+            # Check if price consistently above entry zone (already pulled back and bounced)
+            if current_price > recommended_entry and distance_to_entry_pct < 2.0:
+                if volume_ratio > 1.0 and rsi > 50:
+                    immediate_entry = True
+                    confidence_score += 15
+                    reasons.append(f"✅ Already bounced from pullback zone (current > entry by {distance_to_entry_pct:.2f}%)")
+
+        # If no conditions met
+        if not reasons:
+            reasons.append(f"⏳ Wait for pullback to entry zone (distance: {distance_to_entry_pct:.2f}%)")
+
+        return {
+            'immediate_entry': immediate_entry,
+            'confidence_score': min(100, confidence_score),
+            'reasons': reasons,
+            'distance_to_entry_pct': distance_to_entry_pct,
+            'volume_ratio': volume_ratio,
+            'action': 'ENTER_NOW' if immediate_entry else 'WAIT_FOR_PULLBACK'
+        }
+
+    def _calculate_smart_entry_zone(self,
+                                    current_price: float,
+                                    swing_high: float,
+                                    swing_low: float,
+                                    ema_50: float,
+                                    market_state: str,
+                                    support: float,
+                                    resistance: float) -> Dict[str, Any]:
+        """
+        Calculate intelligent entry zone based on market structure
+
+        TRENDING_BULLISH:
+        - Use Fibonacci retracement from swing high
+        - Entry 1 (Aggressive): 38.2% retracement
+        - Entry 2 (Moderate): 50.0% retracement (RECOMMENDED)
+        - Entry 3 (Conservative): 61.8% retracement
+        - Must be above EMA50 for confirmation
+
+        SIDEWAY:
+        - Use support level with buffer
+        - Entry zone: Support to Support + 2%
+
+        BEARISH:
+        - Wait for reversal confirmation
+        - Entry after MACD cross + RSI > 30
+
+        Args:
+            current_price: Current stock price
+            swing_high: Recent swing high
+            swing_low: Recent swing low
+            ema_50: 50-period EMA
+            market_state: TRENDING_BULLISH, SIDEWAY, or BEARISH
+            support: Support level
+            resistance: Resistance level
+
+        Returns:
+            Dictionary with entry_aggressive, entry_moderate, entry_conservative,
+            recommended_entry, entry_range, distance_from_current_pct
+        """
+        if market_state == 'TRENDING_BULLISH':
+            # Calculate Fibonacci retracement levels
+            fib_levels = self._calculate_fibonacci_levels(swing_high, swing_low, 'retracement')
+
+            entry_aggressive = fib_levels['fib_0.382']
+            entry_moderate = fib_levels['fib_0.500']
+            entry_conservative = fib_levels['fib_0.618']
+
+            # Choose recommended entry based on position relative to EMA50
+            if current_price > ema_50:
+                # Price above EMA50 - prefer aggressive entry (closer to current price)
+                recommended = entry_aggressive
+                entry_reason = "ราคาเหนือ EMA50 → Entry aggressive ที่ Fib 38.2%"
+            elif current_price > entry_moderate:
+                # Price between moderate and EMA50 - use moderate entry
+                recommended = entry_moderate
+                entry_reason = "ราคาใกล้ EMA50 → Entry moderate ที่ Fib 50%"
+            else:
+                # Price below moderate - wait for better entry
+                recommended = entry_conservative
+                entry_reason = "ราคาต่ำกว่า Fib 50% → Entry conservative ที่ Fib 61.8%"
+
+            # Entry range: ±1% from recommended
+            entry_range = [recommended * 0.99, recommended * 1.01]
+            distance_pct = ((recommended - current_price) / current_price) * 100
+
+            return {
+                'entry_aggressive': round(entry_aggressive, 2),
+                'entry_moderate': round(entry_moderate, 2),
+                'entry_conservative': round(entry_conservative, 2),
+                'recommended_entry': round(recommended, 2),
+                'entry_range': [round(entry_range[0], 2), round(entry_range[1], 2)],
+                'distance_from_current_pct': round(distance_pct, 2),
+                'entry_reason': entry_reason,
+                'calculation_method': 'Fibonacci Retracement'
+            }
+
+        elif market_state == 'SIDEWAY':
+            # Use support level with small buffer
+            entry_aggressive = support * 1.005  # 0.5% above support
+            entry_moderate = support * 1.010   # 1.0% above support
+            entry_conservative = support * 0.995  # 0.5% below support
+
+            # Recommended entry: slightly above support
+            recommended = entry_moderate
+            entry_range = [support * 0.99, support * 1.02]
+            distance_pct = ((recommended - current_price) / current_price) * 100
+
+            return {
+                'entry_aggressive': round(entry_aggressive, 2),
+                'entry_moderate': round(entry_moderate, 2),
+                'entry_conservative': round(entry_conservative, 2),
+                'recommended_entry': round(recommended, 2),
+                'entry_range': [round(entry_range[0], 2), round(entry_range[1], 2)],
+                'distance_from_current_pct': round(distance_pct, 2),
+                'entry_reason': f"Sideway → Entry ที่แนวรับ ${support:.2f} + 1%",
+                'calculation_method': 'Support Level'
+            }
+
+        else:  # BEARISH
+            # Conservative entry after reversal confirmation
+            entry_aggressive = current_price * 0.97  # 3% below current
+            entry_moderate = current_price * 0.95    # 5% below current
+            entry_conservative = current_price * 0.93  # 7% below current
+
+            recommended = entry_moderate
+            entry_range = [current_price * 0.94, current_price * 0.96]
+            distance_pct = ((recommended - current_price) / current_price) * 100
+
+            return {
+                'entry_aggressive': round(entry_aggressive, 2),
+                'entry_moderate': round(entry_moderate, 2),
+                'entry_conservative': round(entry_conservative, 2),
+                'recommended_entry': round(recommended, 2),
+                'entry_range': [round(entry_range[0], 2), round(entry_range[1], 2)],
+                'distance_from_current_pct': round(distance_pct, 2),
+                'entry_reason': "Bearish → รอ reversal + entry 5% ต่ำกว่า current",
+                'calculation_method': 'Percentage Below Current'
+            }
+
+    def _calculate_intelligent_tp_levels(self,
+                                        entry_price: float,
+                                        swing_high: float,
+                                        swing_low: float,
+                                        resistance: float,
+                                        market_state: str,
+                                        atr: float) -> Dict[str, Any]:
+        """
+        Calculate intelligent Take Profit levels using Fibonacci extensions
+
+        TRENDING_BULLISH:
+        - TP1 (Conservative): Fib 1.0 (100% - swing high breakout)
+        - TP2 (Moderate): Fib 1.272 (127.2%)
+        - TP3 (Aggressive): Fib 1.618 (161.8% - golden ratio)
+
+        SIDEWAY:
+        - TP1: Resistance - 1%
+        - TP2: Resistance + 1%
+
+        BEARISH:
+        - TP1: Entry + (ATR * 2) - Quick profit target
+
+        Args:
+            entry_price: Recommended entry price
+            swing_high: Recent swing high
+            swing_low: Recent swing low
+            resistance: Resistance level
+            market_state: Market state
+            atr: Average True Range
+
+        Returns:
+            Dictionary with tp1, tp2, tp3, recommended_tp, calculation_method
+        """
+        if market_state == 'TRENDING_BULLISH':
+            # Calculate Fibonacci extension levels
+            fib_ext = self._calculate_fibonacci_levels(swing_high, swing_low, 'extension')
+
+            tp1 = fib_ext['fib_1.000']  # Swing high breakout
+            tp2 = fib_ext['fib_1.272']  # Moderate target
+            tp3 = fib_ext['fib_1.618']  # Aggressive target
+
+            # Use resistance as cap if it's below Fib levels
+            if resistance < tp2:
+                tp2 = resistance * 0.99  # 1% before resistance
+                tp3 = resistance * 1.02  # 2% after resistance break
+
+            # Recommended: Fib 1.272 (balance between conservative and aggressive)
+            recommended = tp2
+
+            return {
+                'tp1': round(tp1, 2),
+                'tp2': round(tp2, 2),
+                'tp3': round(tp3, 2),
+                'recommended_tp': round(recommended, 2),
+                'tp1_return_pct': round(((tp1 - entry_price) / entry_price) * 100, 2),
+                'tp2_return_pct': round(((tp2 - entry_price) / entry_price) * 100, 2),
+                'tp3_return_pct': round(((tp3 - entry_price) / entry_price) * 100, 2),
+                'calculation_method': 'Fibonacci Extension'
+            }
+
+        elif market_state == 'SIDEWAY':
+            tp1 = resistance * 0.99  # 1% before resistance (conservative)
+            tp2 = resistance * 1.01  # 1% after resistance break (aggressive)
+            tp3 = resistance * 1.03  # 3% after resistance (very aggressive)
+
+            recommended = tp1  # Conservative in sideways
+
+            return {
+                'tp1': round(tp1, 2),
+                'tp2': round(tp2, 2),
+                'tp3': round(tp3, 2),
+                'recommended_tp': round(recommended, 2),
+                'tp1_return_pct': round(((tp1 - entry_price) / entry_price) * 100, 2),
+                'tp2_return_pct': round(((tp2 - entry_price) / entry_price) * 100, 2),
+                'tp3_return_pct': round(((tp3 - entry_price) / entry_price) * 100, 2),
+                'calculation_method': 'Resistance Level'
+            }
+
+        else:  # BEARISH
+            tp1 = entry_price + (atr * 2)  # Quick profit (2 ATR)
+            tp2 = entry_price + (atr * 3)  # Moderate profit (3 ATR)
+            tp3 = entry_price + (atr * 4)  # Aggressive profit (4 ATR)
+
+            recommended = tp1  # Quick profit in bearish
+
+            return {
+                'tp1': round(tp1, 2),
+                'tp2': round(tp2, 2),
+                'tp3': round(tp3, 2),
+                'recommended_tp': round(recommended, 2),
+                'tp1_return_pct': round(((tp1 - entry_price) / entry_price) * 100, 2),
+                'tp2_return_pct': round(((tp2 - entry_price) / entry_price) * 100, 2),
+                'tp3_return_pct': round(((tp3 - entry_price) / entry_price) * 100, 2),
+                'calculation_method': 'ATR Multiple'
+            }
+
+    # ==================== Anti-Stop Hunt Helper Functions ====================
+
+    def _get_adaptive_atr_multiplier(self, current_price: float, atr: float,
+                                     historical_volatility: Optional[float] = None) -> float:
+        """
+        Calculate adaptive ATR multiplier based on current volatility
+
+        ตามแนวคิด Stop Loss Hunting:
+        - ตลาดผันผวนมาก → ใช้ buffer มากขึ้น
+        - ตลาดสงบ → ใช้ buffer ปกติ
+
+        Args:
+            current_price: ราคาปัจจุบัน
+            atr: Average True Range
+            historical_volatility: ATR เฉลี่ยในอดีต (optional)
+
+        Returns:
+            ATR multiplier (1.5 - 3.0)
+        """
+        # คำนวณ volatility % ของราคา
+        volatility_pct = (atr / current_price) * 100 if current_price > 0 else 2.0
+
+        # ถ้ามี historical volatility ให้เปรียบเทียบ
+        if historical_volatility and historical_volatility > 0:
+            volatility_ratio = volatility_pct / historical_volatility
+
+            if volatility_ratio > 1.5:  # ผันผวนมากกว่าปกติ 50%
+                return 2.5
+            elif volatility_ratio > 1.2:  # ผันผวนมากกว่าปกติ 20%
+                return 2.0
+            else:
+                return 1.5
+
+        # ถ้าไม่มี historical ให้ดูจาก absolute volatility
+        if volatility_pct > 5.0:  # ผันผวนมากกว่า 5%
+            return 2.5
+        elif volatility_pct > 3.0:  # ผันผวน 3-5%
+            return 2.0
+        else:
+            return 1.5  # ผันผวนต่ำกว่า 3%
+
+    def _avoid_round_numbers(self, price: float, atr: float, direction: str = 'down') -> float:
+        """
+        ปรับราคาให้ห่างจากเลขกลมที่มี Stop Loss กองอยู่เยอะ
+
+        ตามแนวคิด Stop Loss Hunting:
+        - เลขกลม (50.00, 100.00) มี SL เยอะ = เป้าหมายของสถาบัน
+        - ควรวาง SL ห่างออกไป (เช่น 48.73 แทน 49.00)
+
+        Args:
+            price: ราคาที่คำนวณได้
+            atr: Average True Range
+            direction: 'down' = ปรับลง, 'up' = ปรับขึ้น
+
+        Returns:
+            ราคาที่ปรับแล้ว (ไม่เป็นเลขกลม)
+        """
+        # ตรวจสอบว่าเป็นเลขกลมหรือไม่
+        buffer = atr * 0.3  # เผื่อ 30% ของ ATR
+
+        # เลขกลมที่ต้องหลีก: .00, .50
+        decimal_part = price - int(price)
+
+        # ถ้าใกล้ .00 (0.95-1.00 or 0.00-0.05)
+        if decimal_part >= 0.95 or decimal_part <= 0.05:
+            if direction == 'down':
+                # ปรับลงห่าง (เช่น 50.00 → 49.27)
+                adjusted = int(price) - (buffer if decimal_part <= 0.05 else 1 - buffer)
+            else:
+                # ปรับขึ้นห่าง (เช่น 50.00 → 50.73)
+                adjusted = int(price) + (1 + buffer if decimal_part <= 0.05 else buffer)
+            return round(adjusted, 2)
+
+        # ถ้าใกล้ .50 (0.45-0.55)
+        if 0.45 <= decimal_part <= 0.55:
+            if direction == 'down':
+                # ปรับลงห่าง (เช่น 50.50 → 50.23)
+                adjusted = int(price) + 0.50 - buffer
+            else:
+                # ปรับขึ้นห่าง (เช่น 50.50 → 50.77)
+                adjusted = int(price) + 0.50 + buffer
+            return round(adjusted, 2)
+
+        # ถ้าไม่ใกล้เลขกลม ใช้ได้เลย
+        return round(price, 2)
+
+    def _avoid_ma_levels(self, stop_loss: float, ma_levels: Dict[str, float],
+                        atr: float, direction: str = 'down') -> float:
+        """
+        ปรับ Stop Loss ให้ห่างจาก MA levels ที่สำคัญ
+
+        ตามแนวคิด Stop Loss Hunting:
+        - MA ที่นิยม (50, 200) มี SL กองอยู่เยอะ
+        - ควรวาง SL ห่างจาก MA อย่างน้อย 0.5 ATR
+
+        Args:
+            stop_loss: Stop Loss ที่คำนวณได้
+            ma_levels: Dictionary ของ MA levels
+            atr: Average True Range
+            direction: 'down' = ปรับลง, 'up' = ปรับขึ้น
+
+        Returns:
+            Stop Loss ที่ปรับแล้ว
+        """
+        critical_mas = ['sma_50', 'sma_200', 'ema_50', 'ema_200']
+        min_buffer = atr * 0.5  # ระยะห่างขั้นต่ำ
+
+        adjusted_sl = stop_loss
+
+        for ma_name in critical_mas:
+            ma_value = ma_levels.get(ma_name)
+
+            if ma_value is None or ma_value == 0:
+                continue
+
+            # ตรวจสอบว่า SL ใกล้ MA เกินไปหรือไม่
+            distance = abs(stop_loss - ma_value)
+
+            if distance < min_buffer:
+                # ปรับ SL ให้ห่างจาก MA
+                if direction == 'down':
+                    # Stop Loss ควรอยู่ด้านล่าง MA
+                    if stop_loss > ma_value:
+                        adjusted_sl = min(adjusted_sl, ma_value - min_buffer)
+                    else:
+                        adjusted_sl = min(adjusted_sl, stop_loss - min_buffer)
+                else:
+                    # Stop Loss ควรอยู่ด้านบน MA
+                    if stop_loss < ma_value:
+                        adjusted_sl = max(adjusted_sl, ma_value + min_buffer)
+                    else:
+                        adjusted_sl = max(adjusted_sl, stop_loss + min_buffer)
+
+        return round(adjusted_sl, 2)
+
+    def _validate_stop_loss(self, stop_loss: float, entry_price: float,
+                           support_level: float, ma_levels: Dict[str, float],
+                           atr: float, current_price: float) -> Dict[str, Any]:
+        """
+        Validate Stop Loss ก่อน return - ตาม Checklist จากแนวคิด Stop Loss Hunting
+
+        Checklist:
+        ☐ ไม่ได้วางที่เลขกลม
+        ☐ ไม่ได้วางใกล้ support/resistance เกินไป
+        ☐ ไม่ได้วางบน MA สำคัญ
+        ☐ ห่างจาก entry ตาม ATR
+        ☐ ความเสี่ยงไม่เกิน 10%
+
+        Returns:
+            Dictionary with validation result และ warnings
+        """
+        warnings = []
+        suggestions = []
+
+        # Check 1: เลขกลม
+        decimal_part = stop_loss - int(stop_loss)
+        if (decimal_part >= 0.95 or decimal_part <= 0.05 or
+            (0.45 <= decimal_part <= 0.55)):
+            warnings.append("⚠️ SL อยู่ที่เลขกลม - เสี่ยงโดน Stop Hunt")
+            suggestions.append(f"แนะนำปรับเป็น {self._avoid_round_numbers(stop_loss, atr, 'down')}")
+
+        # Check 2: ใกล้ support เกินไป
+        buffer = atr * 0.5
+        if support_level and abs(stop_loss - support_level) < buffer:
+            warnings.append(f"⚠️ SL ใกล้ support เกินไป - ควรห่าง {buffer:.2f}")
+            suggestions.append(f"แนะนำวางที่ {support_level - buffer:.2f}")
+
+        # Check 3: บน MA สำคัญ
+        critical_mas = ['sma_50', 'sma_200', 'ema_50', 'ema_200']
+        for ma_name in critical_mas:
+            ma_value = ma_levels.get(ma_name, 0)
+            if ma_value and abs(stop_loss - ma_value) < atr * 0.3:
+                warnings.append(f"⚠️ SL ใกล้ {ma_name.upper()} ({ma_value:.2f}) - อาจโดนล่า")
+
+        # Check 4: ระยะจาก entry
+        sl_distance = abs(entry_price - stop_loss)
+        min_distance = atr * 1.5
+        if sl_distance < min_distance:
+            warnings.append(f"⚠️ SL แคบเกินไป - ควรห่างอย่างน้อย {min_distance:.2f}")
+            suggestions.append(f"แนะนำวางที่ {entry_price - min_distance:.2f}")
+
+        # Check 5: ความเสี่ยงต่อรอบ
+        risk_pct = ((entry_price - stop_loss) / entry_price) * 100
+        if risk_pct > 10:
+            warnings.append(f"⚠️ ความเสี่ยง {risk_pct:.1f}% สูงเกินไป (>10%)")
+            suggestions.append("พิจารณาลด position size แทน")
+
+        return {
+            'valid': len(warnings) == 0,
+            'warnings': warnings,
+            'suggestions': suggestions,
+            'stop_loss': stop_loss,
+            'risk_pct': risk_pct
+        }
+
+    # ==================== End of Anti-Stop Hunt Helpers ====================
+
+    def _calculate_intelligent_stop_loss(self,
+                                        entry_price: float,
+                                        swing_low: float,
+                                        support: float,
+                                        market_state: str,
+                                        atr: float,
+                                        indicators: Optional[Dict[str, Any]] = None,
+                                        enable_anti_hunt: bool = True) -> Dict[str, Any]:
+        """
+        Calculate intelligent Stop Loss based on market structure
+
+        🆕 ENHANCED WITH ANTI-STOP HUNT PROTECTION
+        Based on "Stop Loss Hunting" insights from professional traders
+
+        TRENDING_BULLISH:
+        - Place SL below swing low with ADAPTIVE ATR buffer (ปรับตาม volatility)
+        - Avoid round numbers and MA levels
+
+        SIDEWAY:
+        - Place SL below support with ATR-based buffer (ไม่ใช้ 2% แบบตายตัว)
+        - Avoid psychological levels
+
+        BEARISH:
+        - Adaptive SL based on current volatility
+        - Protect against excessive slippage
+
+        Args:
+            entry_price: Recommended entry price
+            swing_low: Recent swing low
+            support: Support level
+            market_state: Market state
+            atr: Average True Range
+            indicators: Optional indicators dict (for MA levels, current_price)
+            enable_anti_hunt: Enable anti-stop hunt protection (default: True)
+
+        Returns:
+            Dictionary with stop_loss, risk_pct, calculation_method, warnings
+        """
+        # Extract data from indicators (if available)
+        current_price = entry_price
+        ma_levels = {}
+
+        if indicators:
+            current_price = indicators.get('current_price', entry_price)
+
+            # Extract MA levels for anti-hunt logic
+            ma_levels = {
+                'sma_50': indicators.get('sma_50'),
+                'sma_200': indicators.get('sma_200'),
+                'ema_50': indicators.get('ema_50'),
+                'ema_200': indicators.get('ema_200')
+            }
+
+        # Get adaptive ATR multiplier based on volatility
+        if enable_anti_hunt:
+            atr_multiplier = self._get_adaptive_atr_multiplier(current_price, atr)
+        else:
+            atr_multiplier = 1.5  # Default
+
+        # Calculate Stop Loss based on market state
+        if market_state == 'TRENDING_BULLISH':
+            # Structure-based SL: Below swing low with ADAPTIVE ATR buffer
+            stop_loss = swing_low - (atr * atr_multiplier)
+
+            # Make sure SL is reasonable (not too far from entry)
+            max_risk_pct = 10  # Maximum 10% risk
+            min_sl = entry_price * (1 - max_risk_pct / 100)
+
+            if stop_loss < min_sl:
+                stop_loss = min_sl
+
+            calculation_method = f'Below Swing Low + Adaptive ATR ({atr_multiplier}x)'
+            atr_buffer = round(atr * atr_multiplier, 2)
+
+        elif market_state == 'SIDEWAY':
+            # 🆕 แก้ไข: ใช้ ATR-based แทน 2% แบบตายตัว
+            # Below support with ATR buffer (more dynamic than fixed 2%)
+            stop_loss = support - (atr * atr_multiplier * 0.75)  # 0.75 = tighter for sideway
+
+            calculation_method = f'Below Support + ATR Buffer ({atr_multiplier * 0.75}x)'
+            atr_buffer = round(atr * atr_multiplier * 0.75, 2)
+
+        else:  # BEARISH
+            # 🆕 แก้ไข: ใช้ Adaptive ATR
+            # Adaptive SL in bearish market
+            bearish_multiplier = min(atr_multiplier * 1.2, 3.0)  # Slightly wider for bearish
+            stop_loss = entry_price - (atr * bearish_multiplier)
+
+            calculation_method = f'ATR-based Adaptive ({bearish_multiplier}x)'
+            atr_buffer = round(atr * bearish_multiplier, 2)
+
+        # 🆕 ANTI-STOP HUNT PROTECTION
+        original_sl = stop_loss
+        warnings = []
+
+        if enable_anti_hunt:
+            # 1. Avoid round numbers
+            stop_loss = self._avoid_round_numbers(stop_loss, atr, direction='down')
+
+            if abs(stop_loss - original_sl) > 0.01:
+                warnings.append(f"Adjusted SL to avoid round number: {original_sl:.2f} → {stop_loss:.2f}")
+
+            # 2. Avoid MA levels (if indicators provided)
+            if ma_levels and any(ma_levels.values()):
+                stop_loss_before_ma = stop_loss
+                stop_loss = self._avoid_ma_levels(stop_loss, ma_levels, atr, direction='down')
+
+                if abs(stop_loss - stop_loss_before_ma) > 0.01:
+                    warnings.append(f"Adjusted SL to avoid MA levels: {stop_loss_before_ma:.2f} → {stop_loss:.2f}")
+
+        # Calculate final risk percentage
+        risk_pct = ((entry_price - stop_loss) / entry_price) * 100 if entry_price > 0 else 0
+
+        # 🆕 VALIDATION
+        validation = None
+        if enable_anti_hunt and indicators:
+            validation = self._validate_stop_loss(
+                stop_loss=stop_loss,
+                entry_price=entry_price,
+                support_level=support,
+                ma_levels=ma_levels,
+                atr=atr,
+                current_price=current_price
+            )
+
+            # Add validation warnings
+            if validation['warnings']:
+                warnings.extend(validation['warnings'])
+
+        # Build result
+        result = {
+            'stop_loss': round(stop_loss, 2),
+            'risk_pct': round(risk_pct, 2),
+            'calculation_method': calculation_method,
+            'atr_buffer': atr_buffer,
+            'atr_multiplier': round(atr_multiplier, 2),
+        }
+
+        # Add market-specific info
+        if market_state == 'TRENDING_BULLISH':
+            result['swing_low_used'] = round(swing_low, 2)
+        elif market_state == 'SIDEWAY':
+            result['support_used'] = round(support, 2)
+        else:
+            result['atr_used'] = round(atr, 2)
+
+        # Add anti-hunt info
+        if enable_anti_hunt:
+            result['anti_hunt_enabled'] = True
+            result['original_sl'] = round(original_sl, 2) if abs(stop_loss - original_sl) > 0.01 else None
+            result['adjustments'] = warnings if warnings else []
+
+            if validation:
+                result['validation'] = {
+                    'valid': validation['valid'],
+                    'warnings': validation['warnings'],
+                    'suggestions': validation['suggestions']
+                }
+
+        return result
 
     def _assess_technical_risk(self, indicators: Dict[str, Any]) -> Dict[str, Any]:
         """Assess technical risk factors"""
@@ -977,23 +1978,38 @@ class TechnicalAnalyzer:
             return None
 
     def _calculate_basic_support_resistance(self, close: pd.Series) -> Dict[str, Optional[float]]:
-        """Calculate basic support and resistance levels"""
+        """
+        Calculate basic support and resistance levels
+
+        🆕 v5.0: Now includes 52-week high/low as key S/R levels
+        """
         try:
             if len(close) < 20:
-                return {'support_1': None, 'resistance_1': None}
+                return {'support_1': None, 'resistance_1': None,
+                        'support_52w': None, 'resistance_52w': None}
 
-            # Simple method: recent lows and highs
+            # Recent lows and highs (20 days)
             recent_data = close.tail(20)
             support_1 = recent_data.min()
             resistance_1 = recent_data.max()
 
+            # 🆕 v5.0: 52-week high/low (important psychological levels)
+            # Use 252 trading days ~= 1 year, fallback to available data
+            lookback_52w = min(252, len(close))
+            data_52w = close.tail(lookback_52w)
+            support_52w = data_52w.min()  # 52-week low
+            resistance_52w = data_52w.max()  # 52-week high
+
             return {
                 'support_1': support_1,
-                'resistance_1': resistance_1
+                'resistance_1': resistance_1,
+                'support_52w': support_52w,      # 🆕 v5.0
+                'resistance_52w': resistance_52w  # 🆕 v5.0
             }
 
         except Exception:
-            return {'support_1': None, 'resistance_1': None}
+            return {'support_1': None, 'resistance_1': None,
+                    'support_52w': None, 'resistance_52w': None}
 
     def calculate_obv_divergence(self) -> Dict[str, Any]:
         """
@@ -1798,12 +2814,109 @@ class TechnicalAnalyzer:
                     'reason': 'แนวรับสำคัญหลุด'
                 })
 
-                # Trading plan
+                # Trading plan - INTELLIGENT CALCULATION (v5.0)
                 atr = indicators.get('atr', current_price * 0.02)
-                entry_range = [current_price * 0.995, current_price * 1.005]
-                entry_price = sum(entry_range) / 2  # ใช้ mid-point ของ entry range
-                take_profit = min(resistance, current_price * 1.07)  # 7% หรือแนวต้าน
-                stop_loss = max(ema_30 - atr, current_price * 0.97)  # 3% หรือต่ำกว่า EMA30
+
+                # Detect volatility class early (before using it)
+                volatility_class = self._detect_volatility_class(atr, current_price)
+
+                # Step 1: Detect swing points
+                swing_points = self._detect_swing_points(lookback=20)
+                swing_high = swing_points['swing_high']
+                swing_low = swing_points['swing_low']
+
+                # Step 2: Calculate smart entry zone using Fibonacci
+                entry_analysis = self._calculate_smart_entry_zone(
+                    current_price=current_price,
+                    swing_high=swing_high,
+                    swing_low=swing_low,
+                    ema_50=ema_30,  # Use EMA30 as proxy for EMA50
+                    market_state='TRENDING_BULLISH',
+                    support=support,
+                    resistance=resistance
+                )
+
+                # Step 2.5: Check if immediate entry is warranted
+                immediate_entry_check = self._check_immediate_entry_conditions(
+                    current_price=current_price,
+                    recommended_entry=entry_analysis['recommended_entry'],
+                    support=support,
+                    resistance=resistance,
+                    indicators=indicators,
+                    market_state='TRENDING_BULLISH'
+                )
+
+                # Use current price if immediate entry, otherwise use recommended entry
+                if immediate_entry_check['immediate_entry']:
+                    entry_price = current_price
+                    entry_range = [current_price * 0.995, current_price * 1.005]
+                    entry_analysis['entry_reason'] = f"IMMEDIATE ENTRY: {', '.join(immediate_entry_check['reasons'])}"
+                    entry_analysis['calculation_method'] = 'Immediate Entry (Current Price)'
+                else:
+                    entry_price = entry_analysis['recommended_entry']
+                    entry_range = entry_analysis['entry_range']
+
+                # Step 3: Calculate intelligent TP levels
+                # For immediate entry, use ATR-based TP from current price
+                # For pullback entry, use Fibonacci extension
+                if immediate_entry_check['immediate_entry']:
+                    # Immediate entry: ATR-based TP from current price
+                    logger.info(f"🎯 IMMEDIATE ENTRY detected - Using ATR-based TP from entry ${entry_price:.2f}, ATR=${atr:.2f}")
+
+                    # 🆕 v6.0: Get dynamic multipliers based on volatility
+                    multipliers = self._get_dynamic_atr_multipliers('TRENDING_BULLISH', volatility_class)
+
+                    tp1 = entry_price + (atr * multipliers['tp1'])
+                    tp2 = entry_price + (atr * multipliers['tp2'])
+                    tp3 = entry_price + (atr * multipliers['tp3'])
+                    logger.info(f"   Calculated TP1=${tp1:.2f}, TP2=${tp2:.2f}, TP3=${tp3:.2f}")
+
+                    # Cap at resistance if nearby (but only if it doesn't make TP < entry!)
+                    if resistance > entry_price and resistance < tp2:
+                        tp2_capped = resistance * 0.99
+                        # Only apply cap if it doesn't make TP < entry
+                        if tp2_capped > entry_price:
+                            logger.info(f"   Capping TP2 at resistance: ${tp2:.2f} → ${tp2_capped:.2f}")
+                            tp2 = tp2_capped
+                            tp3 = resistance * 1.02
+                        else:
+                            logger.info(f"   ⚠️ Resistance too close! Keeping uncapped ATR-based TP")
+
+                    tp_analysis = {
+                        'tp1': round(tp1, 2),
+                        'tp2': round(tp2, 2),
+                        'tp3': round(tp3, 2),
+                        'recommended_tp': round(tp2, 2),
+                        'tp1_return_pct': round(((tp1 - entry_price) / entry_price) * 100, 2),
+                        'tp2_return_pct': round(((tp2 - entry_price) / entry_price) * 100, 2),
+                        'tp3_return_pct': round(((tp3 - entry_price) / entry_price) * 100, 2),
+                        'calculation_method': 'ATR Multiple (Immediate Entry)'
+                    }
+                else:
+                    # Pullback entry: Fibonacci extension
+                    tp_analysis = self._calculate_intelligent_tp_levels(
+                        entry_price=entry_price,
+                        swing_high=swing_high,
+                        swing_low=swing_low,
+                        resistance=resistance,
+                        market_state='TRENDING_BULLISH',
+                        atr=atr
+                    )
+
+                take_profit = tp_analysis['recommended_tp']
+
+                # Step 4: Calculate intelligent SL below swing low (with Anti-Hunt Protection)
+                sl_analysis = self._calculate_intelligent_stop_loss(
+                    entry_price=entry_price,
+                    swing_low=swing_low,
+                    support=support,
+                    market_state='TRENDING_BULLISH',
+                    atr=atr,
+                    indicators=indicators,  # 🆕 ส่ง indicators เพื่อใช้ anti-hunt logic
+                    enable_anti_hunt=True   # 🆕 เปิดใช้ anti-hunt protection
+                )
+
+                stop_loss = sl_analysis['stop_loss']
 
                 # Overall Action Signal สำหรับ TRENDING_BULLISH
                 volume_ratio = volume / volume_sma if volume_sma > 0 else 1
@@ -1853,10 +2966,42 @@ class TechnicalAnalyzer:
                     'exit_conditions': exit_conditions,
                     'warnings': warnings,
                     'trading_plan': {
+                        # Volatility classification
+                        'volatility_class': volatility_class,
+                        'atr': atr,
+                        'atr_pct': round((atr / current_price) * 100, 2) if current_price > 0 else 0,
+                        # Entry details
                         'entry_range': entry_range,
+                        'entry_price': entry_price,
+                        'entry_aggressive': entry_analysis['entry_aggressive'],
+                        'entry_moderate': entry_analysis['entry_moderate'],
+                        'entry_conservative': entry_analysis['entry_conservative'],
+                        'entry_distance_pct': entry_analysis['distance_from_current_pct'],
+                        'entry_method': entry_analysis['calculation_method'],
+                        'entry_reason': entry_analysis['entry_reason'],
+                        # Immediate entry check
+                        'immediate_entry': immediate_entry_check['immediate_entry'],
+                        'immediate_entry_confidence': immediate_entry_check['confidence_score'],
+                        'immediate_entry_reasons': immediate_entry_check['reasons'],
+                        'entry_action': immediate_entry_check['action'],
+                        # Take profit details
                         'take_profit': take_profit,
+                        'tp1': tp_analysis['tp1'],
+                        'tp2': tp_analysis['tp2'],
+                        'tp3': tp_analysis['tp3'],
+                        'tp1_return_pct': tp_analysis['tp1_return_pct'],
+                        'tp2_return_pct': tp_analysis['tp2_return_pct'],
+                        'tp3_return_pct': tp_analysis['tp3_return_pct'],
+                        'tp_method': tp_analysis['calculation_method'],
+                        # Stop loss details
                         'stop_loss': stop_loss,
-                        'risk_reward_ratio': round((take_profit - entry_price) / (entry_price - stop_loss), 2) if entry_price > stop_loss else 0
+                        'risk_pct': sl_analysis['risk_pct'],
+                        'sl_method': sl_analysis['calculation_method'],
+                        # Risk/Reward
+                        'risk_reward_ratio': round((take_profit - entry_price) / (entry_price - stop_loss), 2) if entry_price > stop_loss else 0,
+                        # Swing points used
+                        'swing_high': swing_high,
+                        'swing_low': swing_low
                     }
                 }
 
@@ -1970,11 +3115,114 @@ class TechnicalAnalyzer:
                         action_reason = f'รอ: ราคาห่างรับ {distance_to_support:.1f}% (อีก ${price_distance_dollars:.2f}) - รอให้ลงใกล้รับก่อน'
                     action_color = 'red'
 
-                # Trading plan for SIDEWAY
-                entry_range = [support * 0.99, support * 1.01]
-                entry_price = sum(entry_range) / 2  # ใช้ mid-point ของ entry range
-                take_profit = resistance * 0.99
-                stop_loss = support * 0.98
+                # Trading plan for SIDEWAY - INTELLIGENT CALCULATION (v5.0)
+                atr = indicators.get('atr', current_price * 0.02)
+
+                # Detect volatility class early (before using it)
+                volatility_class = self._detect_volatility_class(atr, current_price)
+
+                # Step 1: Detect swing points
+                swing_points = self._detect_swing_points(lookback=20)
+                swing_high = swing_points['swing_high']
+                swing_low = swing_points['swing_low']
+
+                # Step 2: Calculate smart entry zone at support
+                entry_analysis = self._calculate_smart_entry_zone(
+                    current_price=current_price,
+                    swing_high=swing_high,
+                    swing_low=swing_low,
+                    ema_50=ema_30,
+                    market_state='SIDEWAY',
+                    support=support,
+                    resistance=resistance
+                )
+
+                # Step 2.5: Check if immediate entry is warranted
+                immediate_entry_check = self._check_immediate_entry_conditions(
+                    current_price=current_price,
+                    recommended_entry=entry_analysis['recommended_entry'],
+                    support=support,
+                    resistance=resistance,
+                    indicators=indicators,
+                    market_state='SIDEWAY'
+                )
+
+                # Use current price if immediate entry, otherwise use recommended entry
+                if immediate_entry_check['immediate_entry']:
+                    entry_price = current_price
+                    entry_range = [current_price * 0.995, current_price * 1.005]
+                    entry_analysis['entry_reason'] = f"IMMEDIATE ENTRY: {', '.join(immediate_entry_check['reasons'])}"
+                    entry_analysis['calculation_method'] = 'Immediate Entry (Current Price)'
+                else:
+                    entry_price = entry_analysis['recommended_entry']
+                    entry_range = entry_analysis['entry_range']
+
+                # Step 3: Calculate intelligent TP at resistance
+                # For immediate entry, use ATR-based TP from current price
+                # For pullback entry, use resistance-based TP
+                if immediate_entry_check['immediate_entry']:
+                    # Immediate entry: ATR-based TP from current price (conservative for sideway)
+                    logger.info(f"🎯 IMMEDIATE ENTRY (SIDEWAY) detected - Using ATR-based TP from entry ${entry_price:.2f}, ATR=${atr:.2f}")
+
+                    # 🆕 v6.0: Get dynamic multipliers based on volatility
+                    multipliers = self._get_dynamic_atr_multipliers('SIDEWAY', volatility_class)
+
+                    tp1 = entry_price + (atr * multipliers['tp1'])
+                    tp2 = entry_price + (atr * multipliers['tp2'])
+                    tp3 = entry_price + (atr * multipliers['tp3'])
+                    logger.info(f"   Calculated TP1=${tp1:.2f}, TP2=${tp2:.2f}, TP3=${tp3:.2f}")
+
+                    # Cap at resistance (but only if it doesn't make TP < entry!)
+                    if resistance > entry_price:
+                        logger.info(f"   Resistance ${resistance:.2f} > Entry ${entry_price:.2f}")
+                        tp1_capped = min(tp1, resistance * 0.99)
+                        tp2_capped = min(tp2, resistance * 0.99)
+
+                        # Only apply cap if it doesn't make TP < entry
+                        if tp1_capped > entry_price:
+                            logger.info(f"   Applying resistance cap: TP1=${tp1:.2f} → ${tp1_capped:.2f}")
+                            tp1 = tp1_capped
+                            tp2 = tp2_capped
+                            tp3 = resistance * 1.01
+                        else:
+                            logger.info(f"   ⚠️ Resistance too close! Cap would make TP < Entry. Using uncapped ATR-based TP")
+                            # Keep original ATR-based TPs
+
+                    tp_analysis = {
+                        'tp1': round(tp1, 2),
+                        'tp2': round(tp2, 2),
+                        'tp3': round(tp3, 2),
+                        'recommended_tp': round(tp1, 2),  # Conservative for sideway
+                        'tp1_return_pct': round(((tp1 - entry_price) / entry_price) * 100, 2),
+                        'tp2_return_pct': round(((tp2 - entry_price) / entry_price) * 100, 2),
+                        'tp3_return_pct': round(((tp3 - entry_price) / entry_price) * 100, 2),
+                        'calculation_method': 'ATR Multiple (Immediate Entry - Sideway)'
+                    }
+                else:
+                    # Pullback entry: Resistance-based TP
+                    tp_analysis = self._calculate_intelligent_tp_levels(
+                        entry_price=entry_price,
+                        swing_high=swing_high,
+                        swing_low=swing_low,
+                        resistance=resistance,
+                        market_state='SIDEWAY',
+                        atr=atr
+                    )
+
+                take_profit = tp_analysis['recommended_tp']
+
+                # Step 4: Calculate intelligent SL below support (with Anti-Hunt Protection)
+                sl_analysis = self._calculate_intelligent_stop_loss(
+                    entry_price=entry_price,
+                    swing_low=swing_low,
+                    support=support,
+                    market_state='SIDEWAY',
+                    atr=atr,
+                    indicators=indicators,  # 🆕 ส่ง indicators เพื่อใช้ anti-hunt logic
+                    enable_anti_hunt=True   # 🆕 เปิดใช้ anti-hunt protection
+                )
+
+                stop_loss = sl_analysis['stop_loss']
 
                 return {
                     'strategy_name': 'Support/Resistance + RSI Swing',
@@ -1987,10 +3235,42 @@ class TechnicalAnalyzer:
                     'exit_conditions': exit_conditions,
                     'warnings': warnings,
                     'trading_plan': {
+                        # Volatility classification
+                        'volatility_class': volatility_class,
+                        'atr': atr,
+                        'atr_pct': round((atr / current_price) * 100, 2) if current_price > 0 else 0,
+                        # Entry details
                         'entry_range': entry_range,
+                        'entry_price': entry_price,
+                        'entry_aggressive': entry_analysis['entry_aggressive'],
+                        'entry_moderate': entry_analysis['entry_moderate'],
+                        'entry_conservative': entry_analysis['entry_conservative'],
+                        'entry_distance_pct': entry_analysis['distance_from_current_pct'],
+                        'entry_method': entry_analysis['calculation_method'],
+                        'entry_reason': entry_analysis['entry_reason'],
+                        # Immediate entry check
+                        'immediate_entry': immediate_entry_check['immediate_entry'],
+                        'immediate_entry_confidence': immediate_entry_check['confidence_score'],
+                        'immediate_entry_reasons': immediate_entry_check['reasons'],
+                        'entry_action': immediate_entry_check['action'],
+                        # Take profit details
                         'take_profit': take_profit,
+                        'tp1': tp_analysis['tp1'],
+                        'tp2': tp_analysis['tp2'],
+                        'tp3': tp_analysis['tp3'],
+                        'tp1_return_pct': tp_analysis['tp1_return_pct'],
+                        'tp2_return_pct': tp_analysis['tp2_return_pct'],
+                        'tp3_return_pct': tp_analysis['tp3_return_pct'],
+                        'tp_method': tp_analysis['calculation_method'],
+                        # Stop loss details
                         'stop_loss': stop_loss,
-                        'risk_reward_ratio': round((take_profit - entry_price) / (entry_price - stop_loss), 2) if entry_price > stop_loss else 0
+                        'risk_pct': sl_analysis['risk_pct'],
+                        'sl_method': sl_analysis['calculation_method'],
+                        # Risk/Reward
+                        'risk_reward_ratio': round((take_profit - entry_price) / (entry_price - stop_loss), 2) if entry_price > stop_loss else 0,
+                        # Swing points used
+                        'swing_high': swing_high,
+                        'swing_low': swing_low
                     }
                 }
 
@@ -2081,11 +3361,95 @@ class TechnicalAnalyzer:
                     action_reason = f'รอ: ยังไม่มีสัญญาณกลับตัวชัดเจน (RSI {rsi:.0f}, MACD ลบ) - ตลาดยังอ่อนแรง'
                     action_color = 'red'
 
-                # Trading plan for BEARISH
-                entry_range = [support * 1.01, support * 1.03]
-                entry_price = sum(entry_range) / 2  # ใช้ mid-point ของ entry range
-                take_profit = current_price * 1.05
-                stop_loss = support * 0.97
+                # Trading plan for BEARISH - INTELLIGENT CALCULATION (v5.0)
+                atr = indicators.get('atr', current_price * 0.02)
+
+                # Detect volatility class early (before using it)
+                volatility_class = self._detect_volatility_class(atr, current_price)
+
+                # Step 1: Detect swing points
+                swing_points = self._detect_swing_points(lookback=20)
+                swing_high = swing_points['swing_high']
+                swing_low = swing_points['swing_low']
+
+                # Step 2: Calculate conservative entry in bearish market
+                entry_analysis = self._calculate_smart_entry_zone(
+                    current_price=current_price,
+                    swing_high=swing_high,
+                    swing_low=swing_low,
+                    ema_50=ema_30,
+                    market_state='BEARISH',
+                    support=support,
+                    resistance=resistance
+                )
+
+                # Step 2.5: Check if immediate entry is warranted (reversal confirmed)
+                immediate_entry_check = self._check_immediate_entry_conditions(
+                    current_price=current_price,
+                    recommended_entry=entry_analysis['recommended_entry'],
+                    support=support,
+                    resistance=resistance,
+                    indicators=indicators,
+                    market_state='BEARISH'
+                )
+
+                # Use current price if immediate entry, otherwise use recommended entry
+                if immediate_entry_check['immediate_entry']:
+                    entry_price = current_price
+                    entry_range = [current_price * 0.995, current_price * 1.005]
+                    entry_analysis['entry_reason'] = f"IMMEDIATE ENTRY: {', '.join(immediate_entry_check['reasons'])}"
+                    entry_analysis['calculation_method'] = 'Immediate Entry (Current Price)'
+                else:
+                    entry_price = entry_analysis['recommended_entry']
+                    entry_range = entry_analysis['entry_range']
+
+                # Step 3: Calculate quick profit targets in bearish
+                # For immediate entry, use ATR-based TP from current price
+                # For pullback entry, use ATR multiple (quick profit in bearish)
+                if immediate_entry_check['immediate_entry']:
+                    # Immediate entry: Quick profit ATR-based (very conservative for bearish)
+                    # 🆕 v6.0: Get dynamic multipliers based on volatility
+                    multipliers = self._get_dynamic_atr_multipliers('BEARISH', volatility_class)
+
+                    tp1 = entry_price + (atr * multipliers['tp1'])
+                    tp2 = entry_price + (atr * multipliers['tp2'])
+                    tp3 = entry_price + (atr * multipliers['tp3'])
+
+                    tp_analysis = {
+                        'tp1': round(tp1, 2),
+                        'tp2': round(tp2, 2),
+                        'tp3': round(tp3, 2),
+                        'recommended_tp': round(tp1, 2),  # Very conservative for bearish
+                        'tp1_return_pct': round(((tp1 - entry_price) / entry_price) * 100, 2),
+                        'tp2_return_pct': round(((tp2 - entry_price) / entry_price) * 100, 2),
+                        'tp3_return_pct': round(((tp3 - entry_price) / entry_price) * 100, 2),
+                        'calculation_method': 'ATR Multiple (Immediate Entry - Bearish)'
+                    }
+                else:
+                    # Pullback entry: ATR-based (already conservative for bearish)
+                    tp_analysis = self._calculate_intelligent_tp_levels(
+                        entry_price=entry_price,
+                        swing_high=swing_high,
+                        swing_low=swing_low,
+                        resistance=resistance,
+                        market_state='BEARISH',
+                        atr=atr
+                    )
+
+                take_profit = tp_analysis['recommended_tp']
+
+                # Step 4: Calculate tight SL in bearish market (with Anti-Hunt Protection)
+                sl_analysis = self._calculate_intelligent_stop_loss(
+                    entry_price=entry_price,
+                    swing_low=swing_low,
+                    support=support,
+                    market_state='BEARISH',
+                    atr=atr,
+                    indicators=indicators,  # 🆕 ส่ง indicators เพื่อใช้ anti-hunt logic
+                    enable_anti_hunt=True   # 🆕 เปิดใช้ anti-hunt protection
+                )
+
+                stop_loss = sl_analysis['stop_loss']
 
                 # คำนวณ R/R ratio ถ้ามีสัญญาณกลับตัว ถ้าไม่มีให้เป็น 0
                 if entry_price > stop_loss and (macd_line > macd_signal or (rsi >= 30 and rsi <= 40)):
@@ -2104,10 +3468,42 @@ class TechnicalAnalyzer:
                     'exit_conditions': exit_conditions,
                     'warnings': warnings,
                     'trading_plan': {
+                        # Volatility classification
+                        'volatility_class': volatility_class,
+                        'atr': atr,
+                        'atr_pct': round((atr / current_price) * 100, 2) if current_price > 0 else 0,
+                        # Entry details
                         'entry_range': entry_range,
+                        'entry_price': entry_price,
+                        'entry_aggressive': entry_analysis['entry_aggressive'],
+                        'entry_moderate': entry_analysis['entry_moderate'],
+                        'entry_conservative': entry_analysis['entry_conservative'],
+                        'entry_distance_pct': entry_analysis['distance_from_current_pct'],
+                        'entry_method': entry_analysis['calculation_method'],
+                        'entry_reason': entry_analysis['entry_reason'],
+                        # Immediate entry check
+                        'immediate_entry': immediate_entry_check['immediate_entry'],
+                        'immediate_entry_confidence': immediate_entry_check['confidence_score'],
+                        'immediate_entry_reasons': immediate_entry_check['reasons'],
+                        'entry_action': immediate_entry_check['action'],
+                        # Take profit details
                         'take_profit': take_profit,
+                        'tp1': tp_analysis['tp1'],
+                        'tp2': tp_analysis['tp2'],
+                        'tp3': tp_analysis['tp3'],
+                        'tp1_return_pct': tp_analysis['tp1_return_pct'],
+                        'tp2_return_pct': tp_analysis['tp2_return_pct'],
+                        'tp3_return_pct': tp_analysis['tp3_return_pct'],
+                        'tp_method': tp_analysis['calculation_method'],
+                        # Stop loss details
                         'stop_loss': stop_loss,
-                        'risk_reward_ratio': r_r_ratio
+                        'risk_pct': sl_analysis['risk_pct'],
+                        'sl_method': sl_analysis['calculation_method'],
+                        # Risk/Reward
+                        'risk_reward_ratio': r_r_ratio,
+                        # Swing points used
+                        'swing_high': swing_high,
+                        'swing_low': swing_low
                     }
                 }
 
