@@ -31,7 +31,7 @@ class YahooFinanceClient(BaseAPIClient):
             DataFrame with OHLCV data
         """
         cache_key = f"price_{symbol}_{period}_{interval}"
-        cached_data = self.cache.get(cache_key)
+        cached_data = self.cache.get(cache_key, data_type='price')
         if cached_data is not None:
             return cached_data
 
@@ -55,7 +55,7 @@ class YahooFinanceClient(BaseAPIClient):
             if 'date' in data.columns:
                 data['date'] = pd.to_datetime(data['date'])
 
-            self.cache.set(cache_key, data)
+            self.cache.set(cache_key, data, data_type='price')
             logger.info(f"Retrieved {len(data)} rows of price data for {symbol}")
 
             return data
@@ -75,7 +75,7 @@ class YahooFinanceClient(BaseAPIClient):
             Dictionary containing financial data
         """
         cache_key = f"financial_{symbol}"
-        cached_data = self.cache.get(cache_key)
+        cached_data = self.cache.get(cache_key, data_type='financial')
         if cached_data is not None:
             return cached_data
 
@@ -145,9 +145,40 @@ class YahooFinanceClient(BaseAPIClient):
                 # Industry data
                 'sector': info.get('sector'),
                 'industry': info.get('industry'),
+
+                # Analyst Recommendations (NEW)
+                'recommendation_key': info.get('recommendationKey'),
+                'number_of_analyst_opinions': info.get('numberOfAnalystOpinions'),
+                'target_mean_price': info.get('targetMeanPrice'),
+                'target_high_price': info.get('targetHighPrice'),
+                'target_low_price': info.get('targetLowPrice'),
+
+                # Risk Assessment (NEW)
+                'audit_risk': info.get('auditRisk'),
+                'board_risk': info.get('boardRisk'),
+                'compensation_risk': info.get('compensationRisk'),
+                'shareholder_rights_risk': info.get('shareHolderRightsRisk'),
+                'overall_risk': info.get('overallRisk'),
+
+                # Trading & Price Levels (NEW)
+                'fifty_two_week_high': info.get('fiftyTwoWeekHigh'),
+                'fifty_two_week_low': info.get('fiftyTwoWeekLow'),
+                'fifty_day_average': info.get('fiftyDayAverage'),
+                'two_hundred_day_average': info.get('twoHundredDayAverage'),
+
+                # Ownership & Short Interest (NEW)
+                'held_percent_insiders': info.get('heldPercentInsiders'),
+                'held_percent_institutions': info.get('heldPercentInstitutions'),
+                'shares_short': info.get('sharesShort'),
+                'short_ratio': info.get('shortRatio'),
+                'short_percent_of_float': info.get('shortPercentOfFloat'),
+
+                # Enterprise Value Ratios (NEW)
+                'enterprise_to_revenue': info.get('enterpriseToRevenue'),
+                'enterprise_to_ebitda': info.get('enterpriseToEbitda'),
             }
 
-            self.cache.set(cache_key, financial_data)
+            self.cache.set(cache_key, financial_data, data_type='financial')
             logger.info(f"Retrieved financial data for {symbol}")
 
             return financial_data
@@ -166,11 +197,16 @@ class YahooFinanceClient(BaseAPIClient):
         Returns:
             Dictionary containing company info
         """
+        cache_key = f"company_{symbol}"
+        cached_data = self.cache.get(cache_key, data_type='company')
+        if cached_data is not None:
+            return cached_data
+
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info
 
-            return {
+            company_data = {
                 'symbol': symbol,
                 'company_name': info.get('longName', info.get('shortName')),
                 'sector': info.get('sector'),
@@ -184,13 +220,16 @@ class YahooFinanceClient(BaseAPIClient):
                 'exchange': info.get('exchange'),
             }
 
+            self.cache.set(cache_key, company_data, data_type='company')
+            return company_data
+
         except Exception as e:
             logger.error(f"Failed to get company info for {symbol}: {e}")
             raise APIError(f"Failed to get company info: {e}")
 
     def get_real_time_price(self, symbol: str) -> Dict[str, Any]:
         """
-        Get real-time price data
+        Get real-time price data (NO CACHE - always fresh)
 
         Args:
             symbol: Stock symbol
@@ -198,11 +237,12 @@ class YahooFinanceClient(BaseAPIClient):
         Returns:
             Dictionary containing current price info
         """
+        # NO CACHE for real-time data - always fetch fresh
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info
 
-            return {
+            price_data = {
                 'symbol': symbol,
                 'current_price': info.get('currentPrice', info.get('regularMarketPrice')),
                 'previous_close': info.get('previousClose'),
@@ -215,8 +255,13 @@ class YahooFinanceClient(BaseAPIClient):
                 'pe_ratio': info.get('trailingPE'),
                 'change': info.get('regularMarketChange'),
                 'change_percent': info.get('regularMarketChangePercent'),
+                'fifty_two_week_high': info.get('fiftyTwoWeekHigh'),
+                'fifty_two_week_low': info.get('fiftyTwoWeekLow'),
                 'timestamp': datetime.now().isoformat(),
             }
+
+            # Do NOT cache realtime data
+            return price_data
 
         except Exception as e:
             logger.error(f"Failed to get real-time price for {symbol}: {e}")
