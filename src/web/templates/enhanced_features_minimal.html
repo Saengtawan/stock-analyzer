@@ -1,0 +1,95 @@
+<!-- Enhanced Features (2 Features: Position Tracker, Trailing Stop) -->
+<div id="enhanced-features-minimal" style="display: none; margin-top: 30px;">
+
+    <!-- Section 1: Position Tracker (P&L) -->
+    <div class="row mb-4" id="pnl-tracker-section" style="display: none;">
+        <div class="col-12">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        💰 Position Tracker (Auto-Entry Detection)
+                    </h5>
+                    <small>ตรวจจับจุดเข้าอัตโนมัติและติดตามกำไร/ขาดทุน</small>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="bg-light p-3 rounded">
+                                <div class="text-muted small mb-1">Entry Price (Auto-Detected)</div>
+                                <div class="h4 mb-0" id="pnl-entry-price">$0.00</div>
+                                <div class="text-muted small" id="pnl-entry-method">-</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="bg-light p-3 rounded">
+                                <div class="text-muted small mb-1">Current P/L</div>
+                                <div class="h4 mb-0" id="pnl-profit-pct">+0.00%</div>
+                                <div class="text-muted small" id="pnl-profit-dollars">$0.00</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="bg-light p-3 rounded">
+                                <div class="text-muted small mb-1">Progress to TP1</div>
+                                <div class="h4 mb-0" id="pnl-tp1-progress">0%</div>
+                                <div class="progress mt-2" style="height: 6px;">
+                                    <div id="pnl-progress-bar" class="progress-bar bg-success" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <small class="text-muted">Target 1 (TP1):</small>
+                            <strong id="pnl-tp1-price">$0.00</strong>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted">Target 2 (TP2):</small>
+                            <strong id="pnl-tp2-price">$0.00</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Trailing Stop Manager -->
+    <div class="row mb-4" id="trailing-stop-section" style="display: none;">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-shield-alt me-2"></i>
+                        🛡️ Trailing Stop Loss Manager
+                    </h5>
+                    <small>แนะนำการปรับ Stop Loss แบบ Dynamic</small>
+                </div>
+                <div class="card-body">
+                    <div class="alert" id="trailing-alert">
+                        <h6 class="mb-1" id="trailing-recommendation">-</h6>
+                        <p class="mb-0 small" id="trailing-detail">-</p>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="bg-light p-3 rounded">
+                                <div class="text-muted small">Original SL</div>
+                                <div class="h5 mb-0" id="trailing-original-sl">$0.00</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-success bg-opacity-10 p-3 rounded border border-success">
+                                <div class="text-muted small">Recommended SL</div>
+                                <div class="h5 mb-0 text-success" id="trailing-new-sl">$0.00</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-warning bg-opacity-10 p-3 rounded">
+                        <strong>🔒 Locked Profit:</strong>
+                        <span id="trailing-locked-profit" class="ms-2">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>

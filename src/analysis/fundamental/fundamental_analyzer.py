@@ -14,6 +14,21 @@ from core.data_source_transparency import TransparentFinancialData
 class FundamentalAnalyzer:
     """Main fundamental analysis engine"""
 
+    # 🆕 v5.0 Phase 2: Sector EV Benchmarks (median values from market research)
+    SECTOR_EV_BENCHMARKS = {
+        'Technology': {'ev_revenue': 6.5, 'ev_ebitda': 20.0},
+        'Healthcare': {'ev_revenue': 4.0, 'ev_ebitda': 15.0},
+        'Consumer Cyclical': {'ev_revenue': 2.0, 'ev_ebitda': 12.5},
+        'Consumer Defensive': {'ev_revenue': 2.0, 'ev_ebitda': 12.5},
+        'Financial Services': {'ev_revenue': 3.0, 'ev_ebitda': None},  # Use P/E instead
+        'Energy': {'ev_revenue': 1.5, 'ev_ebitda': 7.5},
+        'Industrials': {'ev_revenue': 1.5, 'ev_ebitda': 12.5},
+        'Basic Materials': {'ev_revenue': 1.5, 'ev_ebitda': 10.0},
+        'Real Estate': {'ev_revenue': 10.0, 'ev_ebitda': 17.5},
+        'Utilities': {'ev_revenue': 2.5, 'ev_ebitda': 11.0},
+        'Communication Services': {'ev_revenue': 3.0, 'ev_ebitda': 12.5},
+    }
+
     def __init__(self, financial_data: Dict[str, Any], current_price: float):
         """
         Initialize fundamental analyzer
@@ -113,7 +128,20 @@ class FundamentalAnalyzer:
                 'recommendation': self._get_recommendation(fundamental_score),
                 'key_strengths': self._identify_strengths(ratios, dcf_results),
                 'key_concerns': self._identify_concerns(ratios, dcf_results),
-                'price_targets': self._calculate_price_targets(dcf_results, ratios)
+                'price_targets': self._calculate_price_targets(dcf_results, ratios),
+
+                # 🆕 v7.3.1: Include raw financial data for risk warnings
+                # This ensures fields like held_percent_institutions flow through to UnifiedRecommendation
+                'held_percent_institutions': self.financial_data.get('held_percent_institutions'),
+                'held_percent_insiders': self.financial_data.get('held_percent_insiders'),
+                'short_percent_of_float': self.financial_data.get('short_percent_of_float'),
+                'short_ratio': self.financial_data.get('short_ratio'),
+                'fifty_two_week_high': self.financial_data.get('fifty_two_week_high'),
+                'fifty_two_week_low': self.financial_data.get('fifty_two_week_low'),
+                'trailing_eps': self.financial_data.get('trailing_eps'),
+                'operating_cash_flow': self.financial_data.get('operating_cash_flow'),
+                'revenue_growth': self.financial_data.get('revenue_growth'),
+                'debt_to_equity': self.financial_data.get('debt_to_equity')
             }
 
         except Exception as e:
@@ -220,37 +248,113 @@ class FundamentalAnalyzer:
             elif dcf_premium < 0.9:
                 score -= 0.5  # 10%+ overvalued
 
-        # 🆕 v5.0: EV/Revenue scoring (especially useful for high-debt companies)
-        ev_revenue = ratios.get('ev_revenue')
-        if ev_revenue is not None and ev_revenue > 0:
-            # Lower EV/Revenue is generally better (cheaper relative to sales)
-            if ev_revenue < 1.0:
-                score += 0.4  # Very cheap relative to revenue
-            elif ev_revenue < 2.0:
-                score += 0.3  # Reasonable valuation
-            elif ev_revenue < 3.0:
-                score += 0.1  # Fair valuation
-            elif ev_revenue > 10.0:
-                score -= 0.6  # Very expensive (tech stocks often high)
-            elif ev_revenue > 6.0:
-                score -= 0.3  # Expensive relative to revenue
-
-        # 🆕 v5.0: EV/EBITDA scoring (better than P/E for leveraged companies)
-        ev_ebitda = ratios.get('ev_ebitda')
-        if ev_ebitda is not None and ev_ebitda > 0:
-            # Typical benchmarks: <10 = cheap, 10-15 = fair, >15 = expensive
-            if ev_ebitda < 8:
-                score += 0.5  # Undervalued
-            elif ev_ebitda < 12:
-                score += 0.3  # Fair value
-            elif ev_ebitda < 15:
-                score += 0.1  # Slightly expensive
-            elif ev_ebitda > 25:
-                score -= 0.7  # Very expensive
-            elif ev_ebitda > 18:
-                score -= 0.4  # Expensive
+        # 🆕 v5.0 Phase 2: Sector-Relative EV Scoring (replaces absolute thresholds)
+        ev_score = self._score_ev_sector_relative(ratios)
+        score += ev_score
 
         return max(0, min(score, 2))
+
+    def _score_ev_sector_relative(self, ratios: Dict[str, Any]) -> float:
+        """
+        🆕 v5.0 Phase 2: Score EV ratios relative to sector benchmarks
+
+        This provides better context than absolute thresholds:
+        - Tech stocks naturally have higher EV/Revenue (6-8x is normal)
+        - Energy stocks have lower EV/Revenue (1-2x is normal)
+        - Comparing AAPL (EV/Rev=7x) to AMC (EV/Rev=2x) without sector context is misleading
+
+        Returns:
+            float: Score adjustment (-0.7 to +0.9)
+        """
+        score = 0
+
+        # Get sector benchmark (if available)
+        sector_benchmark = self.SECTOR_EV_BENCHMARKS.get(self.sector)
+
+        if not sector_benchmark:
+            logger.debug(f"No sector benchmark for '{self.sector}' - using absolute thresholds")
+            # Fall back to generic absolute scoring
+            ev_revenue = ratios.get('ev_revenue')
+            if ev_revenue is not None and ev_revenue > 0:
+                if ev_revenue < 2.0:
+                    score += 0.3
+                elif ev_revenue > 8.0:
+                    score -= 0.5
+
+            ev_ebitda = ratios.get('ev_ebitda')
+            if ev_ebitda is not None and ev_ebitda > 0:
+                if ev_ebitda < 12:
+                    score += 0.4
+                elif ev_ebitda > 20:
+                    score -= 0.6
+
+            return score
+
+        # === Sector-Relative EV/Revenue Scoring ===
+        ev_revenue = ratios.get('ev_revenue')
+        sector_ev_revenue = sector_benchmark.get('ev_revenue')
+
+        if ev_revenue is not None and ev_revenue > 0 and sector_ev_revenue:
+            # Calculate relative premium/discount
+            relative_valuation = (ev_revenue / sector_ev_revenue - 1) * 100  # % difference
+
+            logger.debug(f"EV/Revenue: {ev_revenue:.2f}x vs sector avg {sector_ev_revenue:.2f}x ({relative_valuation:+.1f}%)")
+
+            # Score based on relative valuation
+            if relative_valuation < -40:
+                score += 0.5  # 40%+ cheaper than sector → very undervalued
+                logger.debug(f"   ✅ VERY CHEAP vs sector (+0.5)")
+            elif relative_valuation < -20:
+                score += 0.3  # 20-40% cheaper → undervalued
+                logger.debug(f"   ✅ Cheap vs sector (+0.3)")
+            elif relative_valuation < -10:
+                score += 0.2  # 10-20% cheaper → slightly undervalued
+                logger.debug(f"   ✅ Slightly cheap vs sector (+0.2)")
+            elif relative_valuation > 50:
+                score -= 0.6  # 50%+ more expensive → very overvalued
+                logger.debug(f"   ❌ VERY EXPENSIVE vs sector (-0.6)")
+            elif relative_valuation > 25:
+                score -= 0.4  # 25-50% more expensive → overvalued
+                logger.debug(f"   ❌ Expensive vs sector (-0.4)")
+            elif relative_valuation > 10:
+                score -= 0.2  # 10-25% more expensive → slightly overvalued
+                logger.debug(f"   ⚠️  Slightly expensive vs sector (-0.2)")
+            else:
+                logger.debug(f"   ➡️  Fair value vs sector (±10%)")
+
+        # === Sector-Relative EV/EBITDA Scoring ===
+        ev_ebitda = ratios.get('ev_ebitda')
+        sector_ev_ebitda = sector_benchmark.get('ev_ebitda')
+
+        if ev_ebitda is not None and ev_ebitda > 0 and sector_ev_ebitda:
+            # Calculate relative premium/discount
+            relative_valuation = (ev_ebitda / sector_ev_ebitda - 1) * 100
+
+            logger.debug(f"EV/EBITDA: {ev_ebitda:.2f}x vs sector avg {sector_ev_ebitda:.2f}x ({relative_valuation:+.1f}%)")
+
+            # Score based on relative valuation
+            if relative_valuation < -40:
+                score += 0.4  # 40%+ cheaper than sector
+                logger.debug(f"   ✅ VERY CHEAP vs sector (+0.4)")
+            elif relative_valuation < -20:
+                score += 0.3  # 20-40% cheaper
+                logger.debug(f"   ✅ Cheap vs sector (+0.3)")
+            elif relative_valuation < -10:
+                score += 0.1  # 10-20% cheaper
+                logger.debug(f"   ✅ Slightly cheap vs sector (+0.1)")
+            elif relative_valuation > 50:
+                score -= 0.7  # 50%+ more expensive
+                logger.debug(f"   ❌ VERY EXPENSIVE vs sector (-0.7)")
+            elif relative_valuation > 25:
+                score -= 0.4  # 25-50% more expensive
+                logger.debug(f"   ❌ Expensive vs sector (-0.4)")
+            elif relative_valuation > 10:
+                score -= 0.2  # 10-25% more expensive
+                logger.debug(f"   ⚠️  Slightly expensive vs sector (-0.2)")
+            else:
+                logger.debug(f"   ➡️  Fair value vs sector (±10%)")
+
+        return score
 
     def _score_profitability(self, ratios: Dict[str, Any]) -> float:
         """Score profitability (0-2 points)"""

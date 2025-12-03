@@ -133,6 +133,130 @@ class TechnicalIndicators:
 
         return indicators
 
+    def detect_ma_crossover(self) -> Dict[str, Any]:
+        """
+        🆕 v5.0: Detect MA 50/200 crossovers (Golden Cross / Death Cross)
+
+        Golden Cross: MA 50 crosses ABOVE MA 200 → Very bullish long-term signal
+        Death Cross: MA 50 crosses BELOW MA 200 → Very bearish long-term signal
+
+        Returns:
+            Dict with:
+            - crossover_type: 'golden_cross', 'death_cross', or 'none'
+            - signal: 'BUY', 'SELL', or 'NEUTRAL'
+            - strength: Signal strength
+            - days_since_cross: Days since crossover occurred
+            - ma_50_current: Current MA 50 value
+            - ma_200_current: Current MA 200 value
+        """
+        try:
+            sma_50 = talib.SMA(self.close, timeperiod=50)
+            sma_200 = talib.SMA(self.close, timeperiod=200)
+
+            # Need at least 200 days of data
+            if len(sma_50) < 200 or len(sma_200) < 200:
+                return {
+                    'crossover_type': 'none',
+                    'signal': 'NEUTRAL',
+                    'strength': 'N/A',
+                    'days_since_cross': None,
+                    'ma_50_current': None,
+                    'ma_200_current': None,
+                    'reason': 'Insufficient data (need 200+ days)'
+                }
+
+            # Get current values (skip NaN)
+            sma_50_valid = sma_50[~np.isnan(sma_50)]
+            sma_200_valid = sma_200[~np.isnan(sma_200)]
+
+            if len(sma_50_valid) < 2 or len(sma_200_valid) < 2:
+                return {
+                    'crossover_type': 'none',
+                    'signal': 'NEUTRAL',
+                    'strength': 'N/A',
+                    'days_since_cross': None,
+                    'ma_50_current': None,
+                    'ma_200_current': None,
+                    'reason': 'Insufficient valid data'
+                }
+
+            ma_50_curr = sma_50_valid[-1]
+            ma_200_curr = sma_200_valid[-1]
+            ma_50_prev = sma_50_valid[-2]
+            ma_200_prev = sma_200_valid[-2]
+
+            # Detect crossover (happened in the last bar)
+            crossover_type = 'none'
+            signal = 'NEUTRAL'
+            strength = 'Weak'
+            days_since_cross = None
+
+            # Golden Cross: MA 50 crosses ABOVE MA 200
+            if ma_50_prev <= ma_200_prev and ma_50_curr > ma_200_curr:
+                crossover_type = 'golden_cross'
+                signal = 'BUY'
+                strength = 'Very Strong'
+                days_since_cross = 0
+                reason = f'Golden Cross detected! MA 50 ({ma_50_curr:.2f}) crossed above MA 200 ({ma_200_curr:.2f})'
+
+            # Death Cross: MA 50 crosses BELOW MA 200
+            elif ma_50_prev >= ma_200_prev and ma_50_curr < ma_200_curr:
+                crossover_type = 'death_cross'
+                signal = 'SELL'
+                strength = 'Very Strong'
+                days_since_cross = 0
+                reason = f'Death Cross detected! MA 50 ({ma_50_curr:.2f}) crossed below MA 200 ({ma_200_curr:.2f})'
+
+            # No recent crossover - check if we're near a crossover or in established trend
+            else:
+                # Calculate distance between MAs (as % of MA 200)
+                distance_pct = abs(ma_50_curr - ma_200_curr) / ma_200_curr * 100 if ma_200_curr != 0 else 0
+
+                if ma_50_curr > ma_200_curr:
+                    # MA 50 above MA 200 (bullish setup from past golden cross)
+                    if distance_pct < 1.0:
+                        signal = 'BUY'
+                        strength = 'Moderate'
+                        reason = f'Near Golden Cross (MA 50 {distance_pct:.1f}% above MA 200)'
+                    else:
+                        signal = 'NEUTRAL'
+                        strength = 'Weak'
+                        reason = f'MA 50 above MA 200 (established uptrend, {distance_pct:.1f}% gap)'
+
+                elif ma_50_curr < ma_200_curr:
+                    # MA 50 below MA 200 (bearish setup from past death cross)
+                    if distance_pct < 1.0:
+                        signal = 'SELL'
+                        strength = 'Moderate'
+                        reason = f'Near Death Cross (MA 50 {distance_pct:.1f}% below MA 200)'
+                    else:
+                        signal = 'NEUTRAL'
+                        strength = 'Weak'
+                        reason = f'MA 50 below MA 200 (established downtrend, {distance_pct:.1f}% gap)'
+                else:
+                    reason = 'MA 50 and MA 200 are equal'
+
+            return {
+                'crossover_type': crossover_type,
+                'signal': signal,
+                'strength': strength,
+                'days_since_cross': days_since_cross,
+                'ma_50_current': float(ma_50_curr),
+                'ma_200_current': float(ma_200_curr),
+                'reason': reason
+            }
+
+        except Exception as e:
+            return {
+                'crossover_type': 'none',
+                'signal': 'NEUTRAL',
+                'strength': 'N/A',
+                'days_since_cross': None,
+                'ma_50_current': None,
+                'ma_200_current': None,
+                'reason': f'Error: {str(e)}'
+            }
+
     def calculate_volume_indicators(self) -> Dict[str, np.ndarray]:
         """Calculate volume-based indicators"""
         if self.volume is None:
@@ -288,6 +412,9 @@ class TechnicalIndicators:
 
         # Momentum indicators
         indicators.update(self.calculate_momentum_indicators())
+
+        # 🆕 v5.0: MA Crossover detection (Golden Cross / Death Cross)
+        indicators['ma_crossover'] = self.detect_ma_crossover()
 
         # Volume indicators
         indicators.update(self.calculate_volume_indicators())

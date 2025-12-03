@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Stock Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .fade-in {
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg shadow-lg p-8 mb-8">
+            <h1 class="text-4xl font-bold mb-2">🚀 Enhanced Stock Analysis</h1>
+            <p class="text-lg opacity-90">6 Powerful Features for Better Trading Decisions</p>
+        </div>
+
+        <!-- Input Form -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">Analyze Stock</h2>
+            <form id="analyze-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Stock Symbol</label>
+                    <input type="text" id="symbol-input"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="AAPL" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Time Horizon</label>
+                    <select id="time-horizon-input"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="short">Short (1-14 days)</option>
+                        <option value="medium" selected>Medium (2-8 weeks)</option>
+                        <option value="long">Long (3-12 months)</option>
+                    </select>
+                </div>
+
+                <div class="flex items-end">
+                    <button type="submit"
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition duration-200">
+                        Analyze
+                    </button>
+                </div>
+            </form>
+
+            <div id="loading" class="hidden mt-4 text-center">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p class="text-gray-600 mt-2">Analyzing...</p>
+            </div>
+
+            <div id="error-message" class="hidden mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded"></div>
+        </div>
+
+        <!-- Enhanced Features Section -->
+        {% include 'enhanced_features_section.html' %}
+    </div>
+
+    <script src="{{ url_for('static', filename='enhanced_features.js') }}"></script>
+    <script>
+        document.getElementById('analyze-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const symbol = document.getElementById('symbol-input').value.toUpperCase();
+            const timeHorizon = document.getElementById('time-horizon-input').value;
+
+            // Show loading
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('error-message').classList.add('hidden');
+            document.getElementById('enhanced-features-section').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        symbol: symbol,
+                        time_horizon: timeHorizon,
+                        account_value: 100000
+                    })
+                });
+
+                const data = await response.json();
+
+                // Hide loading
+                document.getElementById('loading').classList.add('hidden');
+
+                if (data.error) {
+                    document.getElementById('error-message').textContent = data.error;
+                    document.getElementById('error-message').classList.remove('hidden');
+                    return;
+                }
+
+                // Display enhanced features
+                if (data.enhanced_features) {
+                    displayEnhancedFeatures(data.enhanced_features);
+
+                    // Smooth scroll to results
+                    setTimeout(() => {
+                        document.getElementById('enhanced-features-section').scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }, 100);
+                } else {
+                    document.getElementById('error-message').textContent =
+                        'Enhanced features not available for this stock';
+                    document.getElementById('error-message').classList.remove('hidden');
+                }
+
+            } catch (error) {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('error-message').textContent =
+                    'Error: ' + error.message;
+                document.getElementById('error-message').classList.remove('hidden');
+            }
+        });
+
+        // Auto-analyze if symbol in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlSymbol = urlParams.get('symbol');
+        if (urlSymbol) {
+            document.getElementById('symbol-input').value = urlSymbol;
+            document.getElementById('analyze-form').dispatchEvent(new Event('submit'));
+        }
+    </script>
+</body>
+</html>

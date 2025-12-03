@@ -80,25 +80,37 @@ class BaseAPIClient(ABC):
 
 
 class DataCache:
-    """Simple in-memory cache for API responses"""
+    """Simple in-memory cache for API responses with TTL per data type"""
 
     def __init__(self, ttl_minutes: int = 60):
         self.cache = {}
-        self.ttl = timedelta(minutes=ttl_minutes)
+        self.default_ttl = timedelta(minutes=ttl_minutes)
 
-    def get(self, key: str) -> Optional[Any]:
+        # Different TTLs for different data types
+        self.ttl_by_type = {
+            'price': timedelta(minutes=15),        # Historical price: 15 min (OK for daily bars)
+            # 'realtime': NO CACHE - always fetch fresh for accuracy
+            'financial': timedelta(hours=24),      # Financial data: 24h (quarterly reports)
+            'company': timedelta(days=30),         # Company info: 30 days (rarely changes)
+            'sec_edgar': timedelta(hours=24),      # SEC data: 24h (quarterly filings)
+            'insider': timedelta(hours=12),        # Insider data: 12h (can change daily)
+            'default': self.default_ttl            # Default: original TTL
+        }
+
+    def get(self, key: str, data_type: str = 'default') -> Optional[Any]:
         """Get cached data if not expired"""
         if key in self.cache:
-            data, timestamp = self.cache[key]
-            if datetime.now() - timestamp < self.ttl:
+            data, timestamp, cached_type = self.cache[key]
+            ttl = self.ttl_by_type.get(cached_type, self.default_ttl)
+            if datetime.now() - timestamp < ttl:
                 return data
             else:
                 del self.cache[key]
         return None
 
-    def set(self, key: str, data: Any):
-        """Cache data with timestamp"""
-        self.cache[key] = (data, datetime.now())
+    def set(self, key: str, data: Any, data_type: str = 'default'):
+        """Cache data with timestamp and type"""
+        self.cache[key] = (data, datetime.now(), data_type)
 
     def clear(self):
         """Clear all cached data"""

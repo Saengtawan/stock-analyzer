@@ -20,6 +20,7 @@ from screeners.dividend_screener import DividendGrowthScreener
 from screeners.value_screener import ValueStockScreener
 from ai_market_analyst import AIMarketAnalyst
 from analysis.fundamental.earnings_analyst import EarningsAnalystAnalyzer
+from analysis.enhanced_features import analyze_stock as enhanced_analyze
 
 
 app = Flask(__name__)
@@ -99,6 +100,134 @@ def api_analyze():
         if etf_info:
             results['etf_info'] = etf_info
 
+        # === Enhanced Features ===
+        try:
+            # Extract data for enhanced analysis
+            tech = results.get('technical_analysis', {})
+            fund = results.get('fundamental_analysis', {})
+            unified = results.get('unified_recommendation', {})
+
+            # Get current price - try multiple sources
+            # Debug: Check each source
+            last_price = tech.get('last_price')
+            tech_current = tech.get('current_price')
+            unified_current = unified.get('current_price')
+            unified_entry = unified.get('entry_point')
+
+            logger.info(f"Price sources - last_price: {last_price}, tech_current: {tech_current}, unified_current: {unified_current}, unified_entry: {unified_entry}")
+
+            current_price = (
+                last_price or
+                tech_current or
+                unified_current or
+                unified_entry or
+                0
+            )
+
+            # Skip if current_price is 0
+            if current_price == 0:
+                logger.warning(f"Enhanced features skipped: current_price is 0. Tech keys: {list(tech.keys())[:10]}, Unified keys: {list(unified.keys())[:10]}")
+                results['enhanced_features'] = None
+            else:
+                # Get technical indicators
+                rsi = tech.get('rsi', 50)
+                volume_ratio = tech.get('volume_vs_avg', 1.0) if tech.get('volume_vs_avg', 0) != 0 else 1.0
+
+                # Get support/resistance
+                support = tech.get('support_1', current_price * 0.95)
+                resistance = tech.get('resistance_1', current_price * 1.05)
+
+                # Ensure support and resistance are not 0
+                if support == 0:
+                    support = current_price * 0.95
+                if resistance == 0:
+                    resistance = current_price * 1.05
+
+                # Get targets from recommendation
+                entry_zone_low = support
+                entry_zone_high = unified.get('entry_point', current_price * 0.98) if unified.get('entry_point') else current_price * 0.98
+                tp1 = unified.get('target_price', resistance) if unified.get('target_price') else resistance
+                tp2 = tp1 * 1.05 if tp1 != 0 else current_price * 1.1
+                stop_loss = unified.get('stop_loss', support * 0.98) if unified.get('stop_loss') else support * 0.98
+
+                # Ensure tp1, tp2, stop_loss are not 0
+                if tp1 == 0:
+                    tp1 = current_price * 1.05
+                if tp2 == 0:
+                    tp2 = current_price * 1.1
+                if stop_loss == 0:
+                    stop_loss = current_price * 0.95
+
+                # Market regime - extract string from dict if needed
+                market_regime_data = tech.get('market_regime', 'sideways')
+                if isinstance(market_regime_data, dict):
+                    # Extract regime name from nested structure
+                    current_regime = market_regime_data.get('current', {})
+                    regime_name = current_regime.get('current_regime', 'sideways')
+                    # Convert enum to string if needed
+                    market_regime = str(regime_name).split('.')[-1].lower() if hasattr(regime_name, 'name') else str(regime_name)
+                elif isinstance(market_regime_data, str):
+                    market_regime = market_regime_data
+                else:
+                    market_regime = 'sideways'
+
+                logger.info(f"Enhanced features params: price={current_price}, support={support}, resistance={resistance}, tp1={tp1}, tp2={tp2}, sl={stop_loss}")
+
+                # Run enhanced analysis
+                enhanced_results = enhanced_analyze(
+                    symbol=symbol,
+                    current_price=current_price,
+                    entry_zone=(entry_zone_low, entry_zone_high),
+                    support=support,
+                    resistance=resistance,
+                    tp1=tp1,
+                    tp2=tp2,
+                    stop_loss=stop_loss,
+                    rsi=rsi,
+                    volume_vs_avg=volume_ratio,
+                    market_regime=market_regime,
+                    has_position=True,  # Changed to True to show all 4 enhanced features
+                    shares=100
+                )
+
+                # Add to results
+                results['enhanced_features'] = enhanced_results
+
+        except Exception as e:
+            logger.warning(f"Enhanced features error: {e}")
+            import traceback
+            logger.warning(f"Traceback: {traceback.format_exc()}")
+            results['enhanced_features'] = None
+
+        # 🆕 v5.0 + v5.1: Extract intelligent features to top-level for easy frontend access
+        if 'unified_recommendation' in results:
+            unified = results['unified_recommendation']
+
+            # Extract immediate entry info
+            if 'immediate_entry_info' in unified:
+                results['immediate_entry_info'] = unified['immediate_entry_info']
+                logger.info(f"🆕 Added immediate_entry_info to top-level: {unified['immediate_entry_info'].get('immediate_entry')}")
+
+            # Extract entry levels
+            if 'entry_levels' in unified:
+                results['entry_levels'] = unified['entry_levels']
+                logger.info(f"🆕 Added entry_levels to top-level (method: {unified['entry_levels'].get('method')})")
+
+            # Extract TP levels
+            if 'tp_levels' in unified:
+                results['tp_levels'] = unified['tp_levels']
+                logger.info(f"🆕 Added tp_levels to top-level (method: {unified['tp_levels'].get('method')})")
+
+            # Extract SL details
+            if 'sl_details' in unified:
+                results['sl_details'] = unified['sl_details']
+                logger.info(f"🆕 Added sl_details to top-level (method: {unified['sl_details'].get('method')})")
+
+            # Extract swing points
+            if 'swing_points' in unified:
+                results['swing_points'] = unified['swing_points']
+                logger.info(f"🆕 Added swing_points to top-level: high={unified['swing_points'].get('swing_high')}, low={unified['swing_points'].get('swing_low')}")
+
         # Clean results for JSON serialization
         cleaned_results = clean_analysis_results(results)
 
@@ -106,6 +235,7 @@ def api_analyze():
         cleaned_unified_rec = cleaned_results.get('unified_recommendation', {})
         cleaned_weights = cleaned_unified_rec.get('weights_applied', {})
         logger.info(f"🔍 API DEBUG (after clean) - weights_applied: {cleaned_weights}")
+        logger.info(f"🆕 Top-level v5.0+v5.1 fields present: immediate_entry={('immediate_entry_info' in cleaned_results)}, entry_levels={('entry_levels' in cleaned_results)}, tp_levels={('tp_levels' in cleaned_results)}")
 
         return jsonify(cleaned_results)
 
@@ -186,16 +316,30 @@ def api_support_screen():
 
 @app.route('/api/chart-data/<symbol>')
 def api_chart_data(symbol):
-    """API endpoint for chart data"""
+    """API endpoint for chart data - adjusts range based on time horizon"""
     try:
+        # Get time_horizon parameter (default: medium)
+        time_horizon = request.args.get('time_horizon', 'medium')
+
+        # Map time horizon to period and trading days
+        horizon_mapping = {
+            'swing': {'period': '2mo', 'days': 42},      # 2 months for swing trading (1-7 days)
+            'short': {'period': '3mo', 'days': 63},      # 3 months for short-term
+            'medium': {'period': '1y', 'days': 252},     # 1 year for medium-term
+            'long': {'period': '2y', 'days': 504}        # 2 years for long-term
+        }
+
+        # Get mapping or use default (medium)
+        config = horizon_mapping.get(time_horizon, horizon_mapping['medium'])
+
         # Get price data for charts
-        price_data = analyzer.data_manager.get_price_data(symbol.upper(), period='1y')
+        price_data = analyzer.data_manager.get_price_data(symbol.upper(), period=config['period'])
 
         if price_data is None or price_data.empty:
             return jsonify({'error': 'No price data available'}), 404
 
-        # Convert to chart format
-        price_data = price_data.tail(252)  # Last year of trading days
+        # Convert to chart format - limit to specified days
+        price_data = price_data.tail(config['days'])
 
         # Prepare dates
         try:
@@ -886,15 +1030,27 @@ def api_volatile_screen():
     try:
         data = request.get_json()
 
-        # Extract criteria
-        min_volatility = data.get('min_volatility', 30.0)
-        min_avg_volume = data.get('min_avg_volume', 1000000)
-        min_price_range = data.get('min_price_range', 5.0)
-        min_momentum_score = data.get('min_momentum_score', 4.0)
+        # Extract criteria (updated defaults - more realistic)
+        min_volatility = data.get('min_volatility', 35.0)
+        min_avg_volume = data.get('min_avg_volume', 2000000)
+        min_price_range = data.get('min_price_range', 8.0)
+        min_momentum_score = data.get('min_momentum_score', 3.5)
         max_stocks = data.get('max_stocks', 20)
         time_horizon = data.get('time_horizon', 'short')
 
+        # New parameters
+        min_atr_pct = data.get('min_atr_pct', 2.0)
+        min_price = data.get('min_price', 5.0)
+
+        # Advanced filters
+        exclude_falling_knife = data.get('exclude_falling_knife', True)
+        exclude_overextended = data.get('exclude_overextended', False)
+        only_uptrend = data.get('only_uptrend', False)
+        require_dip = data.get('require_dip', False)
+
         logger.info(f"🚀 Starting volatile trading screening with {max_stocks} target stocks")
+        logger.info(f"   Volatility: {min_volatility}%+, ATR%: {min_atr_pct}%+, Price: ${min_price}+")
+        logger.info(f"   Filters: Falling Knife={not exclude_falling_knife}, Overextended={not exclude_overextended}, Uptrend Only={only_uptrend}, Require Dip={require_dip}")
 
         # Run volatile trading screening
         opportunities = value_screener.screen_volatile_trading_opportunities(
@@ -903,7 +1059,13 @@ def api_volatile_screen():
             min_price_range=min_price_range,
             min_momentum_score=min_momentum_score,
             max_stocks=max_stocks,
-            time_horizon=time_horizon
+            time_horizon=time_horizon,
+            min_atr_pct=min_atr_pct,
+            min_price=min_price,
+            exclude_falling_knife=exclude_falling_knife,
+            exclude_overextended=exclude_overextended,
+            only_uptrend=only_uptrend,
+            require_dip=require_dip
         )
 
         # Enrich with ETF information

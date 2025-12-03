@@ -7,6 +7,7 @@ import json
 import time
 from typing import Dict, Any, Optional
 from loguru import logger
+from .base_client import DataCache
 
 
 class SECEdgarClient:
@@ -26,6 +27,9 @@ class SECEdgarClient:
         # Rate limiting - SEC allows ~10 requests/second
         self.last_request_time = 0
         self.min_interval = 0.1  # 100ms between requests
+
+        # Cache for SEC data (24h TTL)
+        self.cache = DataCache(ttl_minutes=1440)  # 24 hours
 
     def _rate_limit(self):
         """Ensure we don't exceed SEC rate limits"""
@@ -97,6 +101,11 @@ class SECEdgarClient:
 
     def get_insider_transactions(self, cik: str) -> Dict[str, Any]:
         """Get enhanced insider transaction data with trend analysis"""
+        cache_key = f"insider_{cik}"
+        cached_data = self.cache.get(cache_key, data_type='insider')
+        if cached_data is not None:
+            return cached_data
+
         submissions = self.get_company_submissions(cik)
 
         if not submissions:
@@ -126,7 +135,7 @@ class SECEdgarClient:
 
         sentiment = self._determine_insider_sentiment(form4_count, trend_analysis)
 
-        return {
+        insider_data = {
             'recent_transactions': [],  # Would need detailed parsing
             'insider_sentiment': sentiment,
             'total_transactions': form4_count,
@@ -139,8 +148,16 @@ class SECEdgarClient:
             'filing_distribution': self._get_filing_distribution(form4_indices, filing_dates)
         }
 
+        self.cache.set(cache_key, insider_data, data_type='insider')
+        return insider_data
+
     def get_institutional_ownership(self, cik: str) -> Dict[str, Any]:
         """Get enhanced institutional ownership data with flow analysis"""
+        cache_key = f"institutional_{cik}"
+        cached_data = self.cache.get(cache_key, data_type='sec_edgar')
+        if cached_data is not None:
+            return cached_data
+
         submissions = self.get_company_submissions(cik)
 
         if not submissions:
@@ -167,7 +184,7 @@ class SECEdgarClient:
         smart_money_score = self._calculate_smart_money_score(form13f_count, flow_analysis)
         institutional_alerts = self._generate_institutional_alerts(form13f_count, flow_analysis)
 
-        return {
+        institutional_data = {
             'total_shares_held': 0,  # Would need detailed parsing
             'ownership_percentage': 0,  # Would need detailed analysis
             'top_institutions': [],  # Would need detailed parsing
@@ -179,6 +196,9 @@ class SECEdgarClient:
             'institutional_alerts': institutional_alerts,
             'filing_trend': self._get_institutional_trend(forms, filing_dates)
         }
+
+        self.cache.set(cache_key, institutional_data, data_type='sec_edgar')
+        return institutional_data
 
     def _analyze_insider_trends(self, forms: list, filing_dates: list) -> Dict[str, Any]:
         """Analyze insider trading trends over time"""

@@ -4,7 +4,22 @@
       "Bash(python:*)",
       "Bash(curl:*)",
       "Bash(python3:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(chmod:*)",
+      "Bash(bash /tmp/test_web_features_simple.sh:*)",
+      "Bash(tee:*)",
+      "WebSearch",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(/dev/null)",
+      "Bash(./quick_backtest_v7.sh)",
+      "Bash(timeout 180 python3:*)",
+      "Bash(timeout 600 python3:*)",
+      "Bash(timeout 1200 python3:*)",
+      "Bash(/tmp/fufu_test.log)",
+      "Bash(timeout 1800 python3:*)",
+      "Bash(timeout 900 python3:*)",
+      "Bash(timeout 240 python3:*)"
     ],
     "deny": [],
     "ask": []

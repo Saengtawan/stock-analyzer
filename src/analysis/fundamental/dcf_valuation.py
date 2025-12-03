@@ -67,9 +67,13 @@ class DCFValuation:
             intrinsic_value_per_share = equity_value / shares_outstanding if shares_outstanding > 0 else 0
 
             # Final sanity check: cap intrinsic value at reasonable multiple of current price
-            current_price = self.data.get('current_price', 0)
+            current_price = self.data.get('current_price') or 0
             if not current_price and self.data.get('market_cap') and shares_outstanding:
-                current_price = self.data.get('market_cap') / shares_outstanding
+                market_cap_val = self.data.get('market_cap') or 0
+                current_price = market_cap_val / shares_outstanding if shares_outstanding > 0 else 0
+
+            # Ensure current_price is never None
+            current_price = current_price or 0
 
             if current_price > 0 and intrinsic_value_per_share > current_price * 5:
                 # Cap at 5x current price for extreme valuations
@@ -326,6 +330,16 @@ class DCFValuation:
             Dictionary containing sensitivity analysis results
         """
         base_dcf = self.calculate_dcf_value()
+
+        # Check if DCF calculation failed
+        if 'error' in base_dcf or 'wacc' not in base_dcf:
+            logger.warning(f"Cannot perform sensitivity analysis - base DCF failed: {base_dcf.get('error', 'Missing wacc')}")
+            return {
+                'base_intrinsic_value': None,
+                'scenarios': [],
+                'error': base_dcf.get('error', 'DCF calculation failed')
+            }
+
         base_wacc = base_dcf['wacc']
         base_growth = base_dcf['terminal_growth_rate']
 

@@ -6,7 +6,6 @@ from typing import Dict, Any
 from datetime import datetime
 from loguru import logger
 from api.sec_edgar_client import SECEdgarClient
-from analysis.sector_comparison import SectorComparison
 
 
 class InsiderInstitutionalAnalyzer:
@@ -15,7 +14,6 @@ class InsiderInstitutionalAnalyzer:
     def __init__(self, symbol: str):
         self.symbol = symbol.upper()
         self.sec_client = SECEdgarClient()
-        self.sector_comparison = SectorComparison()
 
     def get_comprehensive_analysis(self) -> Dict[str, Any]:
         """Get real insider and institutional analysis from SEC EDGAR"""
@@ -40,14 +38,8 @@ class InsiderInstitutionalAnalyzer:
         # Generate insights
         insights = self._generate_insights(insider_data, institutional_data)
 
-        # Add sector comparison
-        sector_analysis = self.sector_comparison.compare_to_sector(self.symbol, {
-            'insider_trading': insider_data,
-            'institutional_ownership': institutional_data,
-            'insider_score': insider_score,
-            'institutional_score': institutional_score,
-            'combined_score': combined_score
-        })
+        # Sector comparison removed (sector_comparison.py deleted)
+        # sector_analysis = None  # Placeholder for backward compatibility
 
         return {
             'symbol': self.symbol,
@@ -58,7 +50,7 @@ class InsiderInstitutionalAnalyzer:
             'institutional_score': institutional_score,
             'combined_score': combined_score,
             'key_insights': insights,
-            'sector_analysis': sector_analysis,
+            'sector_analysis': None,  # Removed - sector_comparison.py deleted
             'data_quality': 'real_sec_edgar',
             'timestamp': datetime.now().isoformat(),
             'has_real_data': True

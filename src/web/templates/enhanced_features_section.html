@@ -1,0 +1,211 @@
+<!-- Enhanced Features Section -->
+<!-- Insert this into analyze.html after main analysis results -->
+
+<div id="enhanced-features-section" style="display: none; margin-top: 30px;">
+    <h2 class="text-2xl font-bold mb-6 text-blue-600">
+        🚀 Enhanced Analysis Features
+    </h2>
+
+    <!-- Feature 1: Real-Time Price Monitor -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <h3 class="text-xl font-semibold mb-4 flex items-center">
+            <span class="mr-2">🚦</span>
+            Real-Time Price Action + Entry Readiness
+        </h3>
+
+        <div id="price-monitor-content">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="bg-gray-50 p-4 rounded">
+                    <div class="text-sm text-gray-600">Entry Readiness Score</div>
+                    <div id="readiness-score" class="text-3xl font-bold"></div>
+                    <div id="readiness-status" class="text-lg mt-2"></div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded">
+                    <div class="text-sm text-gray-600">Current Price</div>
+                    <div id="current-price-display" class="text-3xl font-bold"></div>
+                    <div id="entry-zone-display" class="text-sm mt-2"></div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <h4 class="font-semibold mb-2">Entry Conditions Checklist:</h4>
+                <div id="entry-conditions-list" class="space-y-2"></div>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded">
+                <div class="font-semibold">💡 Next Action:</div>
+                <div id="next-action-text" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature 2: P&L Tracker -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <h3 class="text-xl font-semibold mb-4 flex items-center">
+            <span class="mr-2">💰</span>
+            Position Tracker (Auto-Entry)
+        </h3>
+
+        <div id="pnl-tracker-content">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div class="bg-gray-50 p-4 rounded">
+                    <div class="text-sm text-gray-600">Entry Price</div>
+                    <div id="entry-price-display" class="text-2xl font-bold"></div>
+                    <div id="entry-method-display" class="text-xs text-gray-500 mt-1"></div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded">
+                    <div class="text-sm text-gray-600">Current Profit/Loss</div>
+                    <div id="profit-display" class="text-2xl font-bold"></div>
+                    <div id="profit-dollars-display" class="text-sm text-gray-600 mt-1"></div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded">
+                    <div class="text-sm text-gray-600">Progress to TP1</div>
+                    <div id="tp1-progress-pct" class="text-2xl font-bold"></div>
+                    <div id="tp1-progress-bar" class="mt-2 bg-gray-200 rounded-full h-2"></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <div class="text-sm text-gray-600">Target 1 (TP1)</div>
+                    <div id="tp1-price" class="text-lg font-semibold"></div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-600">Target 2 (TP2)</div>
+                    <div id="tp2-price" class="text-lg font-semibold"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature 3: Trailing Stop -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <h3 class="text-xl font-semibold mb-4 flex items-center">
+            <span class="mr-2">🛡️</span>
+            Trailing Stop Loss Manager
+        </h3>
+
+        <div id="trailing-stop-content">
+            <div class="mb-4">
+                <div id="trailing-stop-recommendation" class="text-lg font-semibold mb-2"></div>
+                <div id="trailing-stop-detail" class="text-gray-600"></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="bg-gray-50 p-3 rounded">
+                    <div class="text-sm text-gray-600">Original SL</div>
+                    <div id="original-sl" class="text-xl font-bold"></div>
+                </div>
+                <div class="bg-blue-50 p-3 rounded">
+                    <div class="text-sm text-gray-600">Recommended SL</div>
+                    <div id="recommended-sl" class="text-xl font-bold text-blue-600"></div>
+                </div>
+            </div>
+
+            <div class="bg-yellow-50 p-4 rounded">
+                <div class="font-semibold">🔒 Locked Profit:</div>
+                <div id="locked-profit" class="text-lg mt-1"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature 4: Short Interest -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <h3 class="text-xl font-semibold mb-4 flex items-center">
+            <span class="mr-2">🎯</span>
+            Short Interest Analysis
+        </h3>
+
+        <div id="short-interest-content">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div class="bg-gray-50 p-4 rounded">
+                    <div class="text-sm text-gray-600">Short Interest</div>
+                    <div id="short-interest-pct" class="text-2xl font-bold"></div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded">
+                    <div class="text-sm text-gray-600">Days to Cover</div>
+                    <div id="days-to-cover" class="text-2xl font-bold"></div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded">
+                    <div class="text-sm text-gray-600">Squeeze Potential</div>
+                    <div id="squeeze-potential" class="text-2xl font-bold"></div>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded">
+                <div class="font-semibold mb-2">💡 Interpretation:</div>
+                <div id="short-interpretation" class="text-gray-700"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature 5: Decision Matrix (MOST IMPORTANT!) -->
+    <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-6 mb-6 text-white">
+        <h3 class="text-2xl font-bold mb-4 flex items-center">
+            <span class="mr-2">🧠</span>
+            AI Decision Matrix
+        </h3>
+
+        <div id="decision-matrix-content">
+            <div class="bg-white bg-opacity-20 rounded-lg p-6 mb-4">
+                <div id="decision-action" class="text-4xl font-bold mb-2"></div>
+                <div class="flex items-center space-x-4">
+                    <div>
+                        <span class="text-sm opacity-80">Confidence:</span>
+                        <span id="decision-confidence" class="text-2xl font-bold ml-2"></span>
+                    </div>
+                    <div id="confidence-bar" class="flex-1 bg-white bg-opacity-30 rounded-full h-4"></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="bg-white bg-opacity-10 p-4 rounded">
+                    <h4 class="font-semibold mb-2">✅ Reasons For:</h4>
+                    <ul id="reasons-for" class="list-disc list-inside space-y-1"></ul>
+                </div>
+                <div class="bg-white bg-opacity-10 p-4 rounded">
+                    <h4 class="font-semibold mb-2">⚠️ Reasons Against:</h4>
+                    <ul id="reasons-against" class="list-disc list-inside space-y-1"></ul>
+                </div>
+            </div>
+
+            <div class="bg-white bg-opacity-20 p-4 rounded">
+                <h4 class="font-semibold mb-3">📋 Action Plan:</h4>
+                <ol id="action-plan" class="list-decimal list-inside space-y-2"></ol>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature 6: Risk Alerts -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6" id="risk-alerts-container" style="display: none;">
+        <h3 class="text-xl font-semibold mb-4 flex items-center">
+            <span class="mr-2">⚠️</span>
+            Risk Status Change Alerts
+        </h3>
+
+        <div id="risk-alerts-content">
+            <div class="mb-4">
+                <div class="flex items-center space-x-4">
+                    <div id="risk-status" class="text-2xl font-bold"></div>
+                    <div class="text-sm text-gray-600">
+                        Risk Score: <span id="risk-score" class="font-semibold"></span>/10
+                    </div>
+                </div>
+            </div>
+
+            <div id="active-alerts" class="space-y-3 mb-4">
+                <!-- Alerts will be inserted here -->
+            </div>
+
+            <div class="bg-yellow-50 p-4 rounded">
+                <h4 class="font-semibold mb-2">💡 Recommended Actions:</h4>
+                <ul id="risk-actions" class="list-disc list-inside space-y-1"></ul>
+            </div>
+        </div>
+    </div>
+</div>

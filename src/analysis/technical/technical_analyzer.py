@@ -901,7 +901,10 @@ class TechnicalAnalyzer:
 
     def _detect_volatility_class(self, atr: float, current_price: float) -> str:
         """
-        Detect volatility class based on ATR percentage
+        🆕 v7.3.2: Dynamic volatility classification using adaptive thresholds
+
+        Uses both absolute thresholds AND relative percentile ranking for better accuracy.
+        This approach adapts to changing market regimes while maintaining reasonable baselines.
 
         Args:
             atr: Average True Range
@@ -915,14 +918,66 @@ class TechnicalAnalyzer:
 
         atr_pct = (atr / current_price) * 100
 
-        if atr_pct >= 5.0:
+        # Calculate historical ATR percentiles if we have enough data
+        if len(self.price_data) >= 60:  # Need at least 60 days
+            try:
+                # Calculate rolling ATR% for last 252 days (1 year) or available data
+                lookback = min(252, len(self.price_data))
+                historical_atr_pcts = []
+
+                for i in range(lookback):
+                    if i >= len(self.price_data):
+                        break
+                    hist_price = self.price_data['close'].iloc[-(i+1)]
+                    # Calculate ATR for each historical point (simplified)
+                    if hist_price > 0:
+                        hist_atr_pct = (atr / hist_price) * 100
+                        historical_atr_pcts.append(hist_atr_pct)
+
+                if len(historical_atr_pcts) >= 30:
+                    # Calculate percentile rank of current ATR%
+                    percentile = (sum(1 for x in historical_atr_pcts if x < atr_pct) / len(historical_atr_pcts)) * 100
+
+                    # 🆕 v7.3.2: Hybrid approach - use BOTH percentile AND absolute thresholds
+                    # This balances adaptation to market regime with realistic volatility assessment
+
+                    # Absolute thresholds (baseline - prevents extreme misclassification)
+                    absolute_class = None
+                    if atr_pct >= 5.0:  # Very high absolute volatility
+                        absolute_class = 'HIGH'
+                    elif atr_pct < 0.8:  # Very low absolute volatility
+                        absolute_class = 'LOW'
+
+                    # Percentile-based classification (adaptive to market regime)
+                    if percentile >= 70:  # Top 30% = HIGH
+                        percentile_class = 'HIGH'
+                    elif percentile >= 35:  # Middle 35% = MEDIUM
+                        percentile_class = 'MEDIUM'
+                    else:  # Bottom 35% = LOW
+                        percentile_class = 'LOW'
+
+                    # Use absolute class if defined, otherwise use percentile
+                    if absolute_class:
+                        volatility_class = absolute_class
+                    else:
+                        volatility_class = percentile_class
+
+                    logger.info(f"📊 Volatility (Adaptive): ATR={atr:.2f}, Price=${current_price:.2f}, ATR%={atr_pct:.2f}%, Percentile={percentile:.1f}% → {volatility_class}")
+                    return volatility_class
+
+            except Exception as e:
+                logger.warning(f"Percentile calculation failed: {e}, falling back to absolute thresholds")
+
+        # Fallback to absolute thresholds if not enough data or calculation failed
+        # 🆕 v7.3.2: Slightly relaxed thresholds (was 4.0/1.5)
+        if atr_pct >= 4.5:
             volatility_class = 'HIGH'
-        elif atr_pct >= 3.0:
+        elif atr_pct >= 2.0:
             volatility_class = 'MEDIUM'
         else:
             volatility_class = 'LOW'
 
-        logger.info(f"📊 Volatility Detection: ATR={atr:.2f}, Price=${current_price:.2f}, ATR%={atr_pct:.2f}% → {volatility_class}")
+        logger.info(f"📊 Volatility (Absolute): ATR={atr:.2f}, Price=${current_price:.2f}, ATR%={atr_pct:.2f}% → {volatility_class}")
         return volatility_class
 
     def _get_dynamic_atr_multipliers(self, market_state: str, volatility_class: str) -> Dict[str, Any]:
@@ -1704,31 +1759,65 @@ class TechnicalAnalyzer:
             # Structure-based SL: Below swing low with ADAPTIVE ATR buffer
             stop_loss = swing_low - (atr * atr_multiplier)
 
-            # Make sure SL is reasonable (not too far from entry)
-            max_risk_pct = 10  # Maximum 10% risk
+            # 🆕 v7.2: TIGHTER risk management - Cap at 7% max risk (was 10%)
+            max_risk_pct = 7.0  # Maximum 7% risk (tighter than before)
             min_sl = entry_price * (1 - max_risk_pct / 100)
 
+            # 🆕 v7.2: If SL is too far (swing_low is very far from entry), use ATR-based SL instead
+            swing_low_risk_pct = ((entry_price - stop_loss) / entry_price) * 100 if entry_price > 0 else 0
+
+            if swing_low_risk_pct > max_risk_pct:
+                # Swing low is too far - use ATR-based SL from entry instead
+                stop_loss = entry_price - (atr * atr_multiplier)
+                calculation_method = f'ATR-based SL ({atr_multiplier}x) - Swing low too far'
+                logger.info(f"⚠️ Swing low SL would be {swing_low_risk_pct:.1f}% risk - using ATR-based SL instead")
+            else:
+                calculation_method = f'Below Swing Low + Adaptive ATR ({atr_multiplier}x)'
+
+            # Final safety check
             if stop_loss < min_sl:
                 stop_loss = min_sl
+                calculation_method += ' (capped at 7% max risk)'
 
-            calculation_method = f'Below Swing Low + Adaptive ATR ({atr_multiplier}x)'
             atr_buffer = round(atr * atr_multiplier, 2)
 
         elif market_state == 'SIDEWAY':
-            # 🆕 แก้ไข: ใช้ ATR-based แทน 2% แบบตายตัว
+            # 🆕 v7.2: TIGHTER risk management for sideway - Cap at 5% max risk
+            max_risk_pct = 5.0  # Maximum 5% risk for sideway (very tight)
+
             # Below support with ATR buffer (more dynamic than fixed 2%)
             stop_loss = support - (atr * atr_multiplier * 0.75)  # 0.75 = tighter for sideway
 
-            calculation_method = f'Below Support + ATR Buffer ({atr_multiplier * 0.75}x)'
+            # Calculate risk percentage
+            sideway_risk_pct = ((entry_price - stop_loss) / entry_price) * 100 if entry_price > 0 else 0
+
+            # 🆕 v7.2: FORCE cap at max_risk_pct
+            if sideway_risk_pct > max_risk_pct:
+                # Too much risk - cap SL at max_risk_pct
+                stop_loss = entry_price * (1 - max_risk_pct / 100)
+                calculation_method = f'ATR-based SL (capped at {max_risk_pct}% max risk)'
+                logger.info(f"⚠️ Sideway SL would be {sideway_risk_pct:.1f}% risk - capped at {max_risk_pct}%")
+            else:
+                calculation_method = f'Below Support + ATR Buffer ({atr_multiplier * 0.75}x)'
+
             atr_buffer = round(atr * atr_multiplier * 0.75, 2)
 
         else:  # BEARISH
-            # 🆕 แก้ไข: ใช้ Adaptive ATR
+            # 🆕 v7.2: TIGHTER risk management for bearish - Cap at 7% max risk
             # Adaptive SL in bearish market
             bearish_multiplier = min(atr_multiplier * 1.2, 3.0)  # Slightly wider for bearish
             stop_loss = entry_price - (atr * bearish_multiplier)
 
-            calculation_method = f'ATR-based Adaptive ({bearish_multiplier}x)'
+            # 🆕 v7.2: Cap max risk for bearish
+            max_risk_pct = 7.0  # Maximum 7% risk
+            min_sl = entry_price * (1 - max_risk_pct / 100)
+
+            if stop_loss < min_sl:
+                stop_loss = min_sl
+                calculation_method = f'ATR-based Adaptive ({bearish_multiplier}x, capped at 7% max risk)'
+            else:
+                calculation_method = f'ATR-based Adaptive ({bearish_multiplier}x)'
+
             atr_buffer = round(atr * bearish_multiplier, 2)
 
         # 🆕 ANTI-STOP HUNT PROTECTION
@@ -1749,6 +1838,22 @@ class TechnicalAnalyzer:
 
                 if abs(stop_loss - stop_loss_before_ma) > 0.01:
                     warnings.append(f"Adjusted SL to avoid MA levels: {stop_loss_before_ma:.2f} → {stop_loss:.2f}")
+
+        # 🆕 v7.2: FINAL SAFETY CAP - Re-apply max risk after anti-hunt protection
+        # Anti-hunt may have moved SL too far, need to re-cap
+        if market_state == 'SIDEWAY':
+            max_allowed_risk = 5.0  # Sideway max risk
+        elif market_state == 'TRENDING_BULLISH':
+            max_allowed_risk = 7.0  # Bullish max risk
+        else:  # BEARISH
+            max_allowed_risk = 7.0  # Bearish max risk
+
+        min_allowed_sl = entry_price * (1 - max_allowed_risk / 100)
+        if stop_loss < min_allowed_sl:
+            sl_before_final_cap = stop_loss
+            stop_loss = min_allowed_sl
+            logger.info(f"🛡️ FINAL CAP: SL {sl_before_final_cap:.2f} → {stop_loss:.2f} (max {max_allowed_risk}% risk)")
+            calculation_method += f' [final capped at {max_allowed_risk}%]'
 
         # Calculate final risk percentage
         risk_pct = ((entry_price - stop_loss) / entry_price) * 100 if entry_price > 0 else 0

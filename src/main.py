@@ -55,28 +55,71 @@ class StockAnalyzer:
 
     def analyze_stock(self,
                      symbol: str,
-                     time_horizon: str = 'medium',
+                     time_horizon: str = 'swing',
                      account_value: float = 100000,
-                     include_ai_analysis: bool = True) -> Dict[str, Any]:
+                     include_ai_analysis: bool = True,
+                     historical_price_data: pd.DataFrame = None,
+                     analysis_date: datetime = None) -> Dict[str, Any]:
         """
         Perform comprehensive enhanced stock analysis
 
         Args:
             symbol: Stock symbol to analyze
-            time_horizon: Investment time horizon ('short', 'medium', 'long')
+            time_horizon: Investment time horizon ('swing' [1-7d], 'short' [1-14d], 'medium' [14-90d], 'long' [6mo+])
             account_value: Account value for position sizing
             include_ai_analysis: Whether to include AI analysis (can be skipped for screening)
+            historical_price_data: Optional historical price data for backtesting
+            analysis_date: Optional analysis date for backtesting context
 
         Returns:
             Complete enhanced analysis results
         """
         logger.info(f"Starting enhanced analysis for {symbol}")
 
+        # Check if backtest mode
+        backtest_mode = historical_price_data is not None
+        if backtest_mode:
+            logger.info(f"🔬 BACKTEST MODE: Using historical data up to {analysis_date or 'unknown date'}")
+
         try:
-            # 1. Get data
-            price_data = self.data_manager.get_price_data(symbol, period='2y', interval='1d')
-            financial_data = self.data_manager.get_financial_data(symbol)
-            current_price = self.data_manager.get_real_time_price(symbol)['current_price']
+            # 1. Get data (Parallel execution for better performance OR use historical data)
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            import time
+
+            start_time = time.time()
+
+            if backtest_mode:
+                # Use provided historical data
+                price_data = historical_price_data
+
+                # Get current price from last row of historical data
+                if 'close' in price_data.columns:
+                    current_price = float(price_data['close'].iloc[-1])
+                else:
+                    current_price = float(price_data['Close'].iloc[-1]) if 'Close' in price_data.columns else 0
+
+                # For backtest, we still need financial data (assumed to be available at analysis date)
+                # In real backtest, this should also be historical
+                financial_data = self.data_manager.get_financial_data(symbol)
+
+                logger.info(f"📊 Using historical data: {len(price_data)} rows, current price: ${current_price:.2f}")
+
+            else:
+                # Execute API calls in parallel (live mode)
+                with ThreadPoolExecutor(max_workers=3) as executor:
+                    # Submit all tasks
+                    future_price = executor.submit(self.data_manager.get_price_data, symbol, '1y', '1d')
+                    future_financial = executor.submit(self.data_manager.get_financial_data, symbol)
+                    future_realtime = executor.submit(self.data_manager.get_real_time_price, symbol)
+
+                    # Wait for all to complete and get results
+                    price_data = future_price.result()
+                    financial_data = future_financial.result()
+                    realtime_data = future_realtime.result()
+                    current_price = realtime_data['current_price']
+
+            elapsed = time.time() - start_time
+            logger.info(f"⚡ Data fetching completed in {elapsed:.2f}s")
 
             # Add current price to financial data for enhanced analysis
             if financial_data:
@@ -143,6 +186,34 @@ class StockAnalyzer:
                 'analysis_date': datetime.now().isoformat(),
                 'enhanced_analysis_available': False
             }
+
+    def analyze(self,
+                symbol: str,
+                time_horizon: str = 'short',
+                account_size: float = 100000,
+                historical_price_data: pd.DataFrame = None,
+                analysis_date: datetime = None) -> Dict[str, Any]:
+        """
+        Alias for analyze_stock with parameter names matching backtest script
+
+        Args:
+            symbol: Stock symbol
+            time_horizon: short/medium/long
+            account_size: Account size for position sizing
+            historical_price_data: Historical data for backtesting
+            analysis_date: Analysis date for backtesting
+
+        Returns:
+            Analysis results
+        """
+        return self.analyze_stock(
+            symbol=symbol,
+            time_horizon=time_horizon,
+            account_value=account_size,
+            include_ai_analysis=False,  # Skip AI for backtest (faster)
+            historical_price_data=historical_price_data,
+            analysis_date=analysis_date
+        )
 
     def analyze_stock_fast(self,
                           symbol: str,
@@ -1069,7 +1140,7 @@ def main():
     parser.add_argument('command', choices=['analyze', 'screen', 'backtest'], help='Command to run')
     parser.add_argument('--symbol', type=str, help='Stock symbol to analyze')
     parser.add_argument('--symbols', type=str, nargs='+', help='Multiple stock symbols')
-    parser.add_argument('--time-horizon', choices=['short', 'medium', 'long'], default='medium')
+    parser.add_argument('--time-horizon', choices=['swing', 'short', 'medium', 'long'], default='medium')
     parser.add_argument('--strategy', choices=['day_trading', 'swing_trading', 'position_trading', 'long_term_investing'], default='swing_trading')
     parser.add_argument('--start-date', type=str, default='2023-01-01')
     parser.add_argument('--end-date', type=str, default='2024-01-01')

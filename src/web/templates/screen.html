@@ -79,8 +79,9 @@
                                         <div class="mb-3">
                                             <label for="time-horizon" class="form-label">ระยะเวลาการลงทุน</label>
                                             <select class="form-select" id="time-horizon">
+                                                <option value="swing" selected>Swing Trading (1-7 วัน)</option>
                                                 <option value="short">ระยะสั้น (1-14 วัน)</option>
-                                                <option value="medium" selected>ระยะกลาง (1-6 เดือน)</option>
+                                                <option value="medium">ระยะกลาง (1-6 เดือน)</option>
                                                 <option value="long">ระยะยาว (6+ เดือน)</option>
                                             </select>
                                         </div>
@@ -136,8 +137,9 @@
                                         <div class="mb-3">
                                             <label for="support-time-horizon" class="form-label">ระยะเวลาการลงทุน</label>
                                             <select class="form-select" id="support-time-horizon">
+                                                <option value="swing" selected>Swing Trading (1-7 วัน)</option>
                                                 <option value="short">ระยะสั้น (1-14 วัน)</option>
-                                                <option value="medium" selected>ระยะกลาง (1-6 เดือน)</option>
+                                                <option value="medium">ระยะกลาง (1-6 เดือน)</option>
                                                 <option value="long">ระยะยาว (6+ เดือน)</option>
                                             </select>
                                         </div>
@@ -299,8 +301,9 @@
                                         <div class="mb-3">
                                             <label for="smallmid-time-horizon" class="form-label">ระยะเวลาการลงทุน</label>
                                             <select class="form-select" id="smallmid-time-horizon">
+                                                <option value="swing" selected>Swing Trading (1-7 วัน)</option>
                                                 <option value="short">ระยะสั้น (1-6 เดือน)</option>
-                                                <option value="medium" selected>ระยะกลาง (6-18 เดือน)</option>
+                                                <option value="medium">ระยะกลาง (6-18 เดือน)</option>
                                                 <option value="long">ระยะยาว (1-3 ปี)</option>
                                             </select>
                                         </div>
@@ -352,7 +355,31 @@
                             <form id="volatile-screening-form">
                                 <div class="alert alert-warning">
                                     <i class="fas fa-exclamation-triangle me-2"></i>
-                                    <strong>คำเตือน:</strong> หุ้นที่มีความผันผวนสูงมีความเสี่ยงสูง เหมาะสำหรับผู้มีประสบการณ์และควรใช้ Stop Loss กระชับ
+                                    <strong>คำเตือน:</strong> หุ้นที่มีความผันผวนสูงมีความเสี่ยงสูงมาก เหมาะสำหรับผู้มีประสบการณ์เท่านั้น
+                                    <ul class="mb-0 mt-2">
+                                        <li>ใช้ Stop Loss กระชับ (ไม่เกิน 3-5% ของพอร์ต)</li>
+                                        <li>ไม่ควรลงทุนเกิน 10-15% ของเงินทุนรวมต่อหุ้น</li>
+                                        <li>ระวังหุ้น Falling Knife (ราคาดิ่งลงติดต่อกันหลายวัน)</li>
+                                    </ul>
+                                </div>
+
+                                <!-- Quick Preset Buttons -->
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">เลือกระดับความผันผวนที่ต้องการ:</label>
+                                    <div class="btn-group w-100" role="group">
+                                        <button type="button" class="btn btn-outline-warning" onclick="setVolatilePreset('moderate')">
+                                            <i class="fas fa-chart-line me-2"></i>
+                                            Moderate (35-50%)
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger" onclick="setVolatilePreset('high')">
+                                            <i class="fas fa-fire me-2"></i>
+                                            High Volatile (50-70%)
+                                        </button>
+                                        <button type="button" class="btn btn-outline-dark" onclick="setVolatilePreset('extreme')">
+                                            <i class="fas fa-bolt me-2"></i>
+                                            Extreme (70%+)
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div class="row">
@@ -360,32 +387,45 @@
                                         <div class="mb-3">
                                             <label for="min-volatility" class="form-label">ความผันผวนขั้นต่ำ (%)</label>
                                             <input type="number" class="form-control" id="min-volatility"
-                                                   min="15" max="100" step="5" value="20.0">
-                                            <div class="form-text">Annualized Volatility - ยิ่งสูงยิ่งเหวี่ยงมาก</div>
+                                                   min="15" max="100" step="5" value="35.0">
+                                            <div class="form-text">Annualized Volatility - ค่าแนะนำ: 35-45% สำหรับหุ้นเหวี่ยง</div>
                                         </div>
                                         <div class="mb-3">
                                             <label for="min-avg-volume" class="form-label">Volume เฉลี่ยต่อวันขั้นต่ำ</label>
                                             <select class="form-select" id="min-avg-volume">
                                                 <option value="500000">500K</option>
-                                                <option value="1000000" selected>1M</option>
-                                                <option value="2000000">2M</option>
+                                                <option value="1000000">1M</option>
+                                                <option value="2000000" selected>2M</option>
                                                 <option value="5000000">5M+</option>
+                                                <option value="10000000">10M+</option>
                                             </select>
-                                            <div class="form-text">ปริมาณการซื้อขายที่สูง = Liquidity ดี</div>
+                                            <div class="form-text">ปริมาณการซื้อขายที่สูง = Liquidity ดี (แนะนำ 2M+)</div>
                                         </div>
                                         <div class="mb-3">
                                             <label for="min-price-range" class="form-label">ช่วงราคาขั้นต่ำ 30 วัน (%)</label>
                                             <input type="number" class="form-control" id="min-price-range"
-                                                   min="2" max="50" step="1" value="3.0">
-                                            <div class="form-text">High-Low range - ช่วงราคากว้าง = เหวี่ยงมาก</div>
+                                                   min="5" max="80" step="1" value="8.0">
+                                            <div class="form-text">High-Low range - ค่าแนะนำ: 8-12% สำหรับช่วงกว้าง</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="min-atr-pct" class="form-label">ATR% ขั้นต่ำ</label>
+                                            <input type="number" class="form-control" id="min-atr-pct"
+                                                   min="1" max="20" step="0.5" value="2.0">
+                                            <div class="form-text">Average True Range - วัดความผันผวนจริง (แนะนำ 2-3%)</div>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label for="volatile-momentum-score" class="form-label">คะแนน Momentum ขั้นต่ำ</label>
                                             <input type="number" class="form-control" id="volatile-momentum-score"
-                                                   min="2" max="10" step="0.5" value="3.0">
-                                            <div class="form-text">แรงขับเคลื่อนราคา - สำคัญสำหรับ short-term trading</div>
+                                                   min="2" max="10" step="0.5" value="3.5">
+                                            <div class="form-text">แรงขับเคลื่อนราคา - แนะนำ 3.5-4.5 สำหรับ short-term trading</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="min-price" class="form-label">ราคาหุ้นขั้นต่ำ ($)</label>
+                                            <input type="number" class="form-control" id="min-price"
+                                                   min="1" max="100" step="1" value="5.0">
+                                            <div class="form-text">กรองหุ้น Penny Stock - แนะนำ $5+ เพื่อลดความเสี่ยง</div>
                                         </div>
                                         <div class="mb-3">
                                             <label for="volatile-time-horizon" class="form-label">ระยะเวลาการเทรด</label>
@@ -407,6 +447,52 @@
                                     </div>
                                 </div>
 
+                                <!-- Advanced Filters (Collapsible) -->
+                                <div class="mb-3">
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#advanced-volatile-filters">
+                                        <i class="fas fa-sliders-h me-2"></i>
+                                        ตัวกรองขั้นสูง
+                                    </button>
+                                </div>
+                                <div class="collapse" id="advanced-volatile-filters">
+                                    <div class="card card-body mb-3">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" id="exclude-falling-knife" checked>
+                                                    <label class="form-check-label" for="exclude-falling-knife">
+                                                        <i class="fas fa-shield-alt me-1"></i>
+                                                        ไม่รวมหุ้น Falling Knife (ดิ่งลงติดต่อกัน)
+                                                    </label>
+                                                </div>
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" id="exclude-overextended">
+                                                    <label class="form-check-label" for="exclude-overextended">
+                                                        <i class="fas fa-exclamation-circle me-1"></i>
+                                                        ไม่รวมหุ้น Overextended (ขึ้นเกินไป)
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" id="only-uptrend">
+                                                    <label class="form-check-label" for="only-uptrend">
+                                                        <i class="fas fa-arrow-trend-up me-1"></i>
+                                                        เฉพาะหุ้นที่อยู่ใน Uptrend เท่านั้น
+                                                    </label>
+                                                </div>
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" id="require-dip">
+                                                    <label class="form-check-label" for="require-dip">
+                                                        <i class="fas fa-thumbs-up me-1"></i>
+                                                        ต้องมี Dip Opportunity (pullback ในเทรนด์ขึ้น)
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div class="row">
                                     <div class="col-md-12">
                                         <button type="submit" class="btn btn-danger btn-lg me-3">
@@ -415,7 +501,7 @@
                                         </button>
                                         <div class="form-text mt-2">
                                             <i class="fas fa-info-circle me-1"></i>
-                                            ระบบจะใช้ AI หาหุ้นที่มีความผันผวนสูง Volume ดี เหมาะสำหรับ Day Trading และ Swing Trading
+                                            ระบบจะใช้ AI หาหุ้นที่มีความผันผวนสูง Volume ดี มี Momentum แรง เหมาะสำหรับ Day Trading และ Swing Trading
                                         </div>
                                     </div>
                                 </div>
@@ -1201,6 +1287,51 @@ function runSmallMidCapScreening() {
     });
 }
 
+// Preset configurations for volatile screening
+function setVolatilePreset(level) {
+    const presets = {
+        'moderate': {
+            volatility: 35.0,
+            priceRange: 8.0,
+            atrPct: 2.0,
+            momentum: 3.5,
+            volume: 2000000
+        },
+        'high': {
+            volatility: 50.0,
+            priceRange: 12.0,
+            atrPct: 3.0,
+            momentum: 4.5,
+            volume: 2000000
+        },
+        'extreme': {
+            volatility: 70.0,
+            priceRange: 18.0,
+            atrPct: 4.5,
+            momentum: 6.0,
+            volume: 5000000
+        }
+    };
+
+    const preset = presets[level];
+    if (!preset) return;
+
+    // Apply preset values
+    document.getElementById('min-volatility').value = preset.volatility;
+    document.getElementById('min-price-range').value = preset.priceRange;
+    document.getElementById('min-atr-pct').value = preset.atrPct;
+    document.getElementById('volatile-momentum-score').value = preset.momentum;
+    document.getElementById('min-avg-volume').value = preset.volume;
+
+    // Show feedback
+    const levelNames = {
+        'moderate': 'Moderate Volatile (35-50%)',
+        'high': 'High Volatile (50-70%)',
+        'extreme': 'Extreme Volatile (70%+)'
+    };
+    showAlert(`ตั้งค่าระดับ ${levelNames[level]} เรียบร้อยแล้ว`, 'success');
+}
+
 function runVolatileScreening() {
     const minVolatility = parseFloat(document.getElementById('min-volatility').value);
     const minAvgVolume = parseInt(document.getElementById('min-avg-volume').value);
@@ -1208,6 +1339,16 @@ function runVolatileScreening() {
     const minMomentumScore = parseFloat(document.getElementById('volatile-momentum-score').value);
     const timeHorizon = document.getElementById('volatile-time-horizon').value;
     const maxStocks = parseInt(document.getElementById('volatile-max-stocks').value);
+
+    // New parameters
+    const minAtrPct = parseFloat(document.getElementById('min-atr-pct').value);
+    const minPrice = parseFloat(document.getElementById('min-price').value);
+
+    // Advanced filters
+    const excludeFallingKnife = document.getElementById('exclude-falling-knife').checked;
+    const excludeOverextended = document.getElementById('exclude-overextended').checked;
+    const onlyUptrend = document.getElementById('only-uptrend').checked;
+    const requireDip = document.getElementById('require-dip').checked;
 
     // Show loading
     showLoading('screening-loading');
@@ -1220,7 +1361,13 @@ function runVolatileScreening() {
         min_price_range: minPriceRange,
         min_momentum_score: minMomentumScore,
         time_horizon: timeHorizon,
-        max_stocks: maxStocks
+        max_stocks: maxStocks,
+        min_atr_pct: minAtrPct,
+        min_price: minPrice,
+        exclude_falling_knife: excludeFallingKnife,
+        exclude_overextended: excludeOverextended,
+        only_uptrend: onlyUptrend,
+        require_dip: requireDip
     };
 
     // Make API request

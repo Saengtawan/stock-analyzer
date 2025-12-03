@@ -14,33 +14,116 @@ class UnifiedRecommendationEngine:
     """
 
     def __init__(self):
-        # 🆕 v6.0: Volatility-aware recommendation thresholds
+        # 🆕 v7.3: Comprehensive metrics tracking
+        self.metrics = {
+            'total_analyses': 0,
+            'recommendations': {'BUY': 0, 'STRONG_BUY': 0, 'HOLD': 0, 'SELL': 0, 'AVOID': 0},
+            'veto_count': 0,
+            'veto_reasons': {},
+            'component_scores_sum': {},
+            'rr_ratios': [],
+            'scores': []
+        }
+
+        # 🆕 v7.0: Timeframe-aware + Volatility-aware recommendation thresholds
         self.recommendation_thresholds = {
-            'HIGH': {      # High volatility stocks (ATR% >= 5%)
-                'STRONG_BUY': 8.0,
-                'BUY': 5.5,     # More lenient - easier to qualify for BUY
-                'HOLD': 4.5,
-                'SELL': 3.0,
-                'AVOID': 2.0
+            # Timeframe dimension
+            'swing': {  # 🆕 Swing Trade (1-7 days) - Very short-term momentum plays
+                'HIGH': {      # High volatility swing
+                    'STRONG_BUY': 7.0,  # Very easy - quick momentum plays
+                    'BUY': 4.5,         # Very easy - allow aggressive entries
+                    'HOLD': 3.5,
+                    'SELL': 2.0,
+                    'AVOID': 1.0
+                },
+                'MEDIUM': {    # Medium volatility swing
+                    'STRONG_BUY': 7.0,
+                    'BUY': 5.0,         # Easy - swing momentum
+                    'HOLD': 4.0,
+                    'SELL': 2.5,
+                    'AVOID': 1.5
+                },
+                'LOW': {       # Low volatility swing
+                    'STRONG_BUY': 7.5,
+                    'BUY': 5.5,         # Moderate - need stronger signal for low vol
+                    'HOLD': 4.0,
+                    'SELL': 2.5,
+                    'AVOID': 1.5
+                }
             },
-            'MEDIUM': {    # Medium volatility stocks (ATR% >= 3%)
-                'STRONG_BUY': 8.0,
-                'BUY': 6.0,     # Moderate threshold
-                'HOLD': 4.5,
-                'SELL': 3.0,
-                'AVOID': 2.0
+            'short': {  # 1-14 days - Day/Week trading
+                'HIGH': {      # High volatility + Short timeframe
+                    'STRONG_BUY': 7.5,  # ↓ easier (เดิม 8.0)
+                    'BUY': 5.0,         # ↓ much easier (เดิม 5.5)
+                    'HOLD': 4.0,        # ↓ easier (เดิม 4.5)
+                    'SELL': 2.5,        # ↓ easier (เดิม 3.0)
+                    'AVOID': 1.5        # ↓ easier (เดิม 2.0)
+                },
+                'MEDIUM': {    # Medium volatility + Short timeframe
+                    'STRONG_BUY': 7.5,
+                    'BUY': 5.5,         # ↓ easier (เดิม 6.0)
+                    'HOLD': 4.5,
+                    'SELL': 2.5,        # ↓ easier (เดิม 3.0)
+                    'AVOID': 1.5        # ↓ easier (เดิม 2.0)
+                },
+                'LOW': {       # Low volatility + Short timeframe
+                    'STRONG_BUY': 8.0,
+                    'BUY': 6.0,         # ↓ easier (เดิม 6.5)
+                    'HOLD': 4.5,
+                    'SELL': 3.0,
+                    'AVOID': 2.0
+                }
             },
-            'LOW': {       # Low volatility stocks (ATR% < 3%)
-                'STRONG_BUY': 8.0,
-                'BUY': 6.5,     # Stricter - higher bar for BUY
-                'HOLD': 4.5,
-                'SELL': 3.0,
-                'AVOID': 2.0
+            'medium': {  # Position trading (14-90 days)
+                'HIGH': {
+                    'STRONG_BUY': 7.5,
+                    'BUY': 5.2,         # ↓ easier (เดิม 5.5)
+                    'HOLD': 4.0,
+                    'SELL': 2.5,
+                    'AVOID': 1.5
+                },
+                'MEDIUM': {
+                    'STRONG_BUY': 7.5,
+                    'BUY': 5.8,         # ↓ easier (เดิม 6.0)
+                    'HOLD': 4.5,
+                    'SELL': 2.5,
+                    'AVOID': 1.5
+                },
+                'LOW': {
+                    'STRONG_BUY': 8.0,
+                    'BUY': 6.2,         # ↓ easier (เดิม 6.5)
+                    'HOLD': 4.5,
+                    'SELL': 3.0,
+                    'AVOID': 2.0
+                }
+            },
+            'long': {  # Position trading (6+ months) - เข้มงวดขึ้น ต้อง conviction สูง
+                'HIGH': {
+                    'STRONG_BUY': 8.0,  # ↑ harder (เดิม 7.5) - ต้อง conviction สูง
+                    'BUY': 6.0,         # ↑ harder (เดิม 5.5)
+                    'HOLD': 4.5,
+                    'SELL': 3.0,
+                    'AVOID': 2.0
+                },
+                'MEDIUM': {
+                    'STRONG_BUY': 8.0,
+                    'BUY': 6.5,         # ↑ harder (เดิม 6.0)
+                    'HOLD': 4.5,
+                    'SELL': 3.0,
+                    'AVOID': 2.0
+                },
+                'LOW': {
+                    'STRONG_BUY': 8.5,  # ↑ harder (เดิม 8.0)
+                    'BUY': 7.0,         # ↑ harder (เดิม 6.5)
+                    'HOLD': 5.0,        # ↑ harder (เดิม 4.5)
+                    'SELL': 3.5,        # ↑ harder (เดิม 3.0)
+                    'AVOID': 2.5        # ↑ harder (เดิม 2.0)
+                }
             }
         }
 
-        # Default thresholds (backward compatibility)
-        self.default_thresholds = self.recommendation_thresholds['LOW']
+        # Default: use swing trade MEDIUM thresholds (1-7 days momentum plays)
+        self.default_thresholds = self.recommendation_thresholds['swing']['MEDIUM']
 
     def generate_unified_recommendation(self,
                                        technical_score: float,
@@ -83,16 +166,23 @@ class UnifiedRecommendationEngine:
         logger.debug(f"  target_price: {type(target_price)} = {target_price}")
         logger.debug(f"  stop_loss: {type(stop_loss)} = {stop_loss}")
 
-        # 1. Calculate component weights based on time horizon
+        # 1. Calculate component weights based on time horizon, volatility, and market state
+        # 🆕 v7.3: Extract market state for adaptive weights
+        market_state = 'UNKNOWN'
+        if analysis_results:
+            tech_analysis = analysis_results.get('technical_analysis', {})
+            market_state_data = tech_analysis.get('market_state_analysis', {})
+            market_state = market_state_data.get('market_state', 'UNKNOWN')
+
         logger.info(f"Generating unified recommendation for time_horizon: {time_horizon}")
-        weights = self._get_component_weights(time_horizon)
+        weights = self._get_component_weights(time_horizon, volatility_class, market_state)
         logger.info(f"Weights applied for {time_horizon}: {weights}")
 
         # 2. Score each component (0-10 scale)
         technical_component = technical_score
         fundamental_component = fundamental_score
         price_action_component = self._score_price_action(price_change_analysis)
-        insider_component = self._score_insider_activity(insider_data)
+        insider_component = self._score_insider_activity(insider_data, analysis_results)
         risk_reward_component = self._score_risk_reward(risk_reward_ratio)
 
         # 🆕 2a. Data Quality Check - Detect missing data vs bad data
@@ -192,7 +282,35 @@ class UnifiedRecommendationEngine:
         )
 
         logger.info(f"⚖️  WEIGHTED SCORE: {weighted_score:.2f}/10")
-        logger.info(f"📋 Initial Recommendation ({volatility_class} volatility): {self._score_to_recommendation(weighted_score, volatility_class)}")
+        logger.info(f"📋 Initial Recommendation ({volatility_class} volatility, {time_horizon} timeframe): {self._score_to_recommendation(weighted_score, volatility_class, time_horizon)}")
+
+        # 🆕 v5.0 Phase 2: Ensure current_price is in fundamental_analysis for conflict detection
+        if analysis_results and 'fundamental_analysis' in analysis_results:
+            if 'current_price' not in analysis_results['fundamental_analysis'] or analysis_results['fundamental_analysis'].get('current_price', 0) == 0:
+                analysis_results['fundamental_analysis']['current_price'] = current_price
+                logger.debug(f"🔧 Set current_price=${current_price:.2f} in fundamental_analysis for conflict detection")
+
+        # 🆕 v5.0 Phase 2: Detect signal conflicts
+        conflict_result = self._detect_signal_conflicts(
+            analysis_results=analysis_results,
+            technical_score=technical_component,
+            fundamental_score=fundamental_component,
+            risk_assessment_score=risk_assessment_component,
+            weighted_score=weighted_score
+        )
+
+        # Apply conflict resolution adjustments
+        if conflict_result['has_conflicts']:
+            weighted_score = conflict_result['adjusted_score']
+            logger.warning(f"🚨 Score adjusted due to conflicts: {weighted_score:.2f}/10 (position size: {conflict_result['position_size_suggestion']}%)")
+            logger.warning(f"📋 Resolution: {conflict_result['resolution']}")
+
+        # 🆕 v5.0 Phase 2: Generate risk warnings
+        risk_warnings = self._generate_risk_warnings(analysis_results)
+
+        if risk_warnings['has_warnings']:
+            logger.warning(f"⚠️  {risk_warnings['warning_count']} risk warning(s) - Level: {risk_warnings['risk_level']}")
+            logger.warning(f"📋 Action Required: {risk_warnings['action_required']}")
 
         # 4. Apply critical filters (veto conditions) - 🆕 ENHANCED with analysis_results
         veto_result = self._apply_veto_conditions(
@@ -201,6 +319,7 @@ class UnifiedRecommendationEngine:
             insider_data,
             weighted_score,
             volatility_class,  # 🆕 v6.0: Pass volatility class for threshold selection
+            time_horizon,  # 🆕 v7.0: Pass time horizon for timeframe-aware veto thresholds
             analysis_results=analysis_results  # 🆕 Pass full analysis for regime/volatility/etc checks
         )
 
@@ -215,7 +334,7 @@ class UnifiedRecommendationEngine:
                 logger.warning(f"  • {reason}")
         else:
             final_score = weighted_score
-            final_recommendation = self._score_to_recommendation(weighted_score, volatility_class)
+            final_recommendation = self._score_to_recommendation(weighted_score, volatility_class, time_horizon)
             confidence = self._calculate_confidence(
                 weighted_score,
                 [technical_component, fundamental_component, price_action_component,
@@ -287,6 +406,23 @@ class UnifiedRecommendationEngine:
         risk_percent = (risk_dollars / current_price) * 100
         reward_percent = (reward_dollars / current_price) * 100
 
+        # 🆕 v7.3: Track metrics for monitoring
+        self._update_metrics(
+            recommendation=final_recommendation,
+            score=final_score,
+            rr_ratio=risk_reward_ratio,
+            veto_applied=veto_result.get('veto', False),
+            veto_reasons=veto_reasons,
+            component_scores={
+                'technical': technical_component,
+                'fundamental': fundamental_component,
+                'momentum': momentum_component,
+                'market_state': market_state_component,
+                'risk_reward': risk_reward_component,
+                'divergence': divergence_component
+            }
+        )
+
         return {
             'recommendation': final_recommendation,
             'score': round(final_score, 1),
@@ -357,61 +493,144 @@ class UnifiedRecommendationEngine:
                 analysis_results
             ),
 
+            # 🆕 v5.0 Phase 2: Signal Conflict Detection & Resolution
+            'signal_conflicts': conflict_result,
+
+            # 🆕 v5.0 Phase 2: Risk Warning System
+            'risk_warnings': risk_warnings,
+
             'analysis_timestamp': pd.Timestamp.now().isoformat()
         }
 
-    def _get_component_weights(self, time_horizon: str) -> Dict[str, float]:
+    def _get_component_weights(self, time_horizon: str, volatility_class: str = 'MEDIUM', market_state: str = 'UNKNOWN') -> Dict[str, float]:
         """
-        Get component weights based on time horizon
+        🆕 v7.3: ADAPTIVE component weights based on context
 
-        OPTIMIZED WEIGHTS (v3.1 - with Market State + Divergence):
-        - Short (1-14 days): Focus on Technical + Market State + Momentum + Divergence
-        - Medium (1-6 months): Balanced approach with more Fundamental
-        - Long (6+ months): Focus on Fundamentals + Insider conviction
+        Adjusts weights based on:
+        - Time horizon (swing/short/medium/long)
+        - Volatility class (HIGH/MEDIUM/LOW)
+        - Market state (TRENDING_BULLISH/SIDEWAY/BEARISH)
+
+        v7.2 OPTIMIZED WEIGHTS (Based on Backtest Results):
+        - Adjusted for better swing/short/medium/long-term accuracy
+        - Reduced over-reliance on fundamental for long-term
+        - Increased technical/momentum for short-term
+        - Target: Swing 65-70%, Short 65-70%, Medium 62-65%, Long 65-70% accuracy
         """
         weights = {
-            'short': {
-                'technical': 0.18,      # ↓ Chart patterns, S/R
-                'market_state': 0.16,   # ↓ Entry timing, market regime
-                'risk_reward': 0.16,    # ↓ R/R ratio critical
-                'momentum': 0.11,       # ↓ RSI, MACD, EMA
-                'divergence': 0.10,     # ⭐ v3.1: RSI/MACD-Price divergence
-                'fundamental': 0.09,    # = Basic screening
-                'short_interest': 0.08, # 🆕 v4.0: Squeeze potential
-                'price_action': 0.04,   # ↓ Volume, candles
-                'analyst': 0.03,        # 🆕 v5.0: Less relevant for short-term
-                'risk_score': 0.04,     # 🆕 v5.0: Important to avoid high-risk stocks
-                'insider': 0.01         # ↓ Minimal
+            'swing': {  # 🆕 v7.2: 1-7 days - Swing Trade (OPTIMIZED weights after momentum fix)
+                'technical': 0.26,      # ↑ Increased - Chart patterns critical (was 24%)
+                'market_state': 0.22,   # ↑ Increased - Entry timing is everything (was 20%)
+                'momentum': 0.14,       # ↓ Reduced - Fixed scoring, less weight needed (was 18%)
+                'divergence': 0.14,     # ↑ Increased - Reversal signals important (was 12%)
+                'risk_reward': 0.12,    # = Same - Quick R/R assessment
+                'fundamental': 0.05,    # = Same - Not relevant for 1-7 days
+                'short_interest': 0.04, # ↓ Slightly reduced (was 5%)
+                'risk_score': 0.02,     # ↓ Reduced - Safety check (was 3%)
+                'price_action': 0.01,   # = Same - Noise
+                'analyst': 0.00,        # = Same - Irrelevant for swing
+                'insider': 0.00         # = Same - Irrelevant for swing
             },
-            'medium': {
-                'fundamental': 0.24,    # ↓ Earnings, growth, valuation
-                'technical': 0.15,      # ↓ Trend direction
-                'market_state': 0.12,   # ↓ Entry timing
-                'insider': 0.10,        # = Insider trades
-                'momentum': 0.09,       # ↓ Trend strength
-                'risk_reward': 0.09,    # = Position sizing
-                'analyst': 0.06,        # 🆕 v5.0: Moderate weight
-                'risk_score': 0.05,     # 🆕 v5.0: Risk penalty
-                'divergence': 0.05,     # ⭐ v3.1: Moderate weight
-                'short_interest': 0.03, # 🆕 v4.0: Moderate relevance
-                'price_action': 0.02    # = Confirmation
+            'short': {  # 1-14 days - ต้องการ accuracy 65-70%
+                'technical': 0.22,      # ↑ +4% (เดิม 0.18) - Chart patterns สำคัญมาก
+                'market_state': 0.18,   # ↑ +2% (เดิม 0.16) - Entry timing critical
+                'momentum': 0.14,       # ↑ +3% (เดิม 0.11) - RSI, MACD ต้องสูง
+                'risk_reward': 0.13,    # ↓ -3% (เดิม 0.16) - ลดลง เพราะ veto จะปรับ
+                'divergence': 0.10,     # = เดิม - RSI/MACD divergence ดี
+                'fundamental': 0.08,    # ↓ -1% (เดิม 0.09) - ลดลงเล็กน้อย
+                'short_interest': 0.07, # ↓ -1% (เดิม 0.08) - ลดลงเล็กน้อย
+                'risk_score': 0.04,     # = เดิม - Safety check
+                'price_action': 0.03,   # ↓ -1% (เดิม 0.04) - ลดลง
+                'analyst': 0.01,        # ↓ -2% (เดิม 0.03) - ไม่สำคัญสำหรับ short-term
+                'insider': 0.00         # ↓ -1% (เดิม 0.01) - ไม่เกี่ยวกับ short-term
             },
-            'long': {
-                'fundamental': 0.52,    # ↑ DOMINANT: Growth, valuation, moat
-                'insider': 0.19,        # ↑ Long-term conviction signal
-                'analyst': 0.08,        # 🆕 v5.0: Important for long-term
-                'risk_reward': 0.07,    # ↓ Less critical
-                'risk_score': 0.06,     # 🆕 v5.0: Long-term risk matters
-                'technical': 0.05,      # ↓ Entry timing only
-                'market_state': 0.02,   # ↓ Minimal for long-term
-                'short_interest': 0.02, # 🆕 v4.0: Can indicate squeeze but not primary factor
-                'momentum': 0.01,       # ↓ Almost irrelevant
-                'divergence': 0.01,     # ↓ Irrelevant for long-term
-                'price_action': 0.00    # ↓ Completely irrelevant
+            'medium': {  # 1-6 months - Swing trading (ต้องการ accuracy 62-65%)
+                'technical': 0.18,      # ↑ +3% (เดิม 0.15) - Trend ยังสำคัญ
+                'fundamental': 0.20,    # ↓ -4% (เดิม 0.24) - ลดลง เพราะ backtest แสดงว่าไม่ช่วย
+                'market_state': 0.14,   # ↑ +2% (เดิม 0.12) - Entry timing สำคัญ
+                'momentum': 0.12,       # ↑ +3% (เดิม 0.09) - Trend strength สำคัญ
+                'insider': 0.11,        # ↑ +1% (เดิม 0.10) - Insider conviction
+                'risk_reward': 0.08,    # ↓ -1% (เดิม 0.09) - ลดลงเล็กน้อย
+                'divergence': 0.06,     # ↑ +1% (เดิม 0.05) - ช่วยจับ reversal
+                'analyst': 0.05,        # ↓ -1% (เดิม 0.06) - ลดลง
+                'risk_score': 0.04,     # ↓ -1% (เดิม 0.05) - ลดลง
+                'short_interest': 0.02, # ↓ -1% (เดิม 0.03) - ลดลง
+                'price_action': 0.00    # ↓ -2% (เดิม 0.02) - ไม่สำคัญ
+            },
+            'long': {  # 6+ months - Position trading (ต้องการ accuracy 65-70%)
+                'fundamental': 0.42,    # ↓↓ -10% (เดิม 0.52) - **KEY FIX**: ลด fundamental
+                'technical': 0.12,      # ↑↑ +7% (เดิม 0.05) - **KEY FIX**: เพิ่ม technical
+                'insider': 0.16,        # ↓ -3% (เดิม 0.19) - ลดลง
+                'analyst': 0.10,        # ↑ +2% (เดิม 0.08) - Analyst สำคัญสำหรับ long-term
+                'risk_reward': 0.08,    # ↑ +1% (เดิม 0.07) - เพิ่มขึ้นเล็กน้อย
+                'momentum': 0.05,       # ↑ +4% (เดิม 0.01) - ต้องมี momentum ด้วย
+                'risk_score': 0.04,     # ↓ -2% (เดิม 0.06) - ลดลง
+                'market_state': 0.02,   # = เดิม - Minimal
+                'short_interest': 0.01, # ↓ -1% (เดิม 0.02) - ลดลง
+                'divergence': 0.00,     # ↓ -1% (เดิม 0.01) - ไม่สำคัญ
+                'price_action': 0.00    # = เดิม - Irrelevant
             }
         }
 
-        return weights.get(time_horizon, weights['short'])
+        # Get base weights for time horizon
+        base_weights = weights.get(time_horizon, weights['swing']).copy()
+
+        # 🆕 v7.3: ADAPTIVE ADJUSTMENTS based on volatility and market state
+        adjustments = {}
+
+        # Volatility-based adjustments
+        if volatility_class == 'HIGH':
+            # High volatility → increase technical/momentum, reduce fundamental
+            adjustments['technical'] = 0.04
+            adjustments['momentum'] = 0.03
+            adjustments['fundamental'] = -0.05
+            adjustments['risk_reward'] = -0.02
+            logger.debug(f"🔥 HIGH volatility: +technical/momentum, -fundamental")
+        elif volatility_class == 'LOW':
+            # Low volatility → increase fundamental, reduce momentum
+            adjustments['fundamental'] = 0.04
+            adjustments['technical'] = -0.02
+            adjustments['momentum'] = -0.02
+            logger.debug(f"📊 LOW volatility: +fundamental, -technical/momentum")
+
+        # Market state adjustments
+        if market_state == 'TRENDING_BULLISH':
+            # Strong trend → increase momentum/technical
+            adjustments['momentum'] = adjustments.get('momentum', 0) + 0.03
+            adjustments['market_state'] = adjustments.get('market_state', 0) + 0.02
+            adjustments['divergence'] = adjustments.get('divergence', 0) - 0.03
+            adjustments['fundamental'] = adjustments.get('fundamental', 0) - 0.02
+            logger.debug(f"📈 TRENDING_BULLISH: +momentum/market_state, -divergence/fundamental")
+        elif market_state == 'SIDEWAY':
+            # Sideways → increase mean reversion signals
+            adjustments['divergence'] = adjustments.get('divergence', 0) + 0.04
+            adjustments['market_state'] = adjustments.get('market_state', 0) + 0.02
+            adjustments['momentum'] = adjustments.get('momentum', 0) - 0.04
+            adjustments['technical'] = adjustments.get('technical', 0) - 0.02
+            logger.debug(f"↔️  SIDEWAY: +divergence/market_state, -momentum/technical")
+        elif market_state == 'BEARISH':
+            # Bearish → increase risk awareness
+            adjustments['risk_score'] = adjustments.get('risk_score', 0) + 0.03
+            adjustments['risk_reward'] = adjustments.get('risk_reward', 0) + 0.03
+            adjustments['momentum'] = adjustments.get('momentum', 0) - 0.03
+            adjustments['market_state'] = adjustments.get('market_state', 0) - 0.03
+            logger.debug(f"📉 BEARISH: +risk_score/risk_reward, -momentum/market_state")
+
+        # Apply adjustments
+        for component, adjustment in adjustments.items():
+            if component in base_weights:
+                base_weights[component] = max(0.0, base_weights[component] + adjustment)
+
+        # Normalize to ensure sum = 1.0
+        total = sum(base_weights.values())
+        if total > 0:
+            for key in base_weights:
+                base_weights[key] /= total
+
+        logger.info(f"📊 Adaptive Weights ({time_horizon}/{volatility_class}/{market_state}):")
+        logger.info(f"   New weights: technical={base_weights.get('technical', 0):.2f}, market_state={base_weights.get('market_state', 0):.2f}, momentum={base_weights.get('momentum', 0):.2f}")
+
+        return base_weights
 
     def _score_price_action(self, price_change_analysis: Dict[str, Any]) -> float:
         """
@@ -459,7 +678,8 @@ class UnifiedRecommendationEngine:
 
         return max(0, min(10, score))
 
-    def _score_insider_activity(self, insider_data: Dict[str, Any]) -> float:
+    def _score_insider_activity(self, insider_data: Dict[str, Any],
+                                analysis_results: Optional[Dict[str, Any]] = None) -> float:
         """
         Score insider activity (0-10)
 
@@ -468,15 +688,30 @@ class UnifiedRecommendationEngine:
         - Activity trends (increasing/decreasing)
         - Activity spikes
         - Smart money signals (institutional 13F filings)
+
+        🆕 v5.0: Fallback to Yahoo Finance ownership data when SEC data unavailable:
+        - held_percent_insiders (insider ownership %)
+        - held_percent_institutions (institutional ownership %)
         """
         if not insider_data:
-            return 5.0  # Neutral
+            insider_data = {}
 
         # Check if we have real SEC data
         has_real_data = insider_data.get('has_real_data', False)
 
         if not has_real_data:
-            return 5.0  # Neutral if no real data
+            # 🆕 v5.0: Fallback to Yahoo Finance ownership percentages
+            if analysis_results:
+                fund_data = analysis_results.get('fundamental_analysis', {})
+                insider_pct = fund_data.get('held_percent_insiders', 0)
+                institution_pct = fund_data.get('held_percent_institutions', 0)
+
+                if insider_pct > 0 or institution_pct > 0:
+                    # We have Yahoo Finance ownership data - use it!
+                    return self._score_ownership_from_yahoo(insider_pct, institution_pct)
+
+            # No data at all
+            return 5.0  # Neutral if no data
 
         # Use pre-calculated scores from SEC analyzer
         insider_score = insider_data.get('insider_score', 5.0)  # From SEC Form 4 analysis
@@ -517,57 +752,111 @@ class UnifiedRecommendationEngine:
         """
         Score momentum indicators (0-10)
 
-        Combines RSI, MACD, and EMA crossover signals
+        Combines RSI, MACD, EMA crossover, and MA 50/200 crossover signals
+
+        🆕 v5.0: Added MA 50/200 Crossover detection:
+        - Golden Cross (MA 50 > MA 200): +2.0 points (very bullish long-term)
+        - Death Cross (MA 50 < MA 200): -2.0 points (very bearish long-term)
+        - Near crossover: ±0.5 points
         """
         score = 5.0  # Neutral base
 
         technical_analysis = analysis_results.get('technical_analysis', {})
         indicators = technical_analysis.get('indicators', {})
 
-        # 1. RSI scoring (0-3 points)
+        # 1. RSI scoring (0-3 points) - 🆕 v7.3: SMOOTH LINEAR interpolation (no more steps!)
         rsi = indicators.get('rsi')
         if rsi is not None:
+            # Smooth curve from oversold to overbought
             if rsi <= 30:
-                score += 3.0  # Oversold - strong buy signal
-            elif rsi <= 40:
-                score += 1.5  # Approaching oversold
-            elif rsi >= 70:
-                score -= 3.0  # Overbought - strong sell signal
-            elif rsi >= 60:
-                score -= 1.5  # Approaching overbought
+                # Oversold zone: flat max bonus
+                score += 3.0
+            elif rsi <= 70:
+                # Main zone: LINEAR interpolation from +3.0 (RSI=30) to -2.5 (RSI=70)
+                # Formula: y = y1 + ((x - x1) / (x2 - x1)) * (y2 - y1)
+                score += 3.0 - ((rsi - 30) / 40) * 5.5  # Smooth slope from +3.0 to -2.5
+            else:
+                # Overbought zone: flat max penalty
+                score -= 2.5
+            logger.debug(f"RSI={rsi:.1f} → score adjustment: {3.0 - ((min(max(rsi, 30), 70) - 30) / 40) * 5.5 - 3.0:+.2f}")
 
-        # 2. MACD scoring (0-3 points)
+        # 2. MACD scoring (0-3 points) - 🆕 v7.3: SMOOTH proportional to histogram strength
         macd_line = indicators.get('macd_line')
         macd_signal = indicators.get('macd_signal')
         macd_histogram = indicators.get('macd_histogram')
 
         if all(x is not None for x in [macd_line, macd_signal, macd_histogram]):
-            if macd_line > macd_signal and macd_histogram > 0:
-                if macd_line > 0:
-                    score += 3.0  # Bullish crossover above zero
-                else:
-                    score += 2.0  # Bullish crossover below zero
-            elif macd_line < macd_signal and macd_histogram < 0:
-                if macd_line < 0:
-                    score -= 3.0  # Bearish crossover below zero
-                else:
-                    score -= 2.0  # Bearish crossover above zero
+            # SMOOTH scoring based on histogram strength (proportional, not binary)
+            # Histogram range typically -10 to +10, normalize to -1 to +1
+            hist_normalized = max(-1.0, min(1.0, macd_histogram / 10))
 
-        # 3. EMA crossover (0-4 points)
+            if macd_line > macd_signal and macd_histogram > 0:
+                # Bullish: scale 0 to +3.0 based on strength
+                if macd_line > 0:
+                    score += 1.5 + (hist_normalized * 1.5)  # 1.5 to 3.0
+                else:
+                    score += 1.0 + (hist_normalized * 1.0)  # 1.0 to 2.0
+                logger.debug(f"MACD bullish: hist={macd_histogram:.2f} → +{1.5 + (hist_normalized * 1.5):.2f}")
+            elif macd_line < macd_signal and macd_histogram < 0:
+                # Bearish: scale 0 to -2.0 based on strength
+                if macd_line < 0:
+                    score += -1.0 + (hist_normalized * 1.0)  # -2.0 to -1.0
+                else:
+                    score += -0.75 + (hist_normalized * 0.75)  # -1.5 to -0.75
+                logger.debug(f"MACD bearish: hist={macd_histogram:.2f} → {-1.0 + (hist_normalized * 1.0):.2f}")
+            else:
+                # Near crossover - small adjustment based on direction
+                score += hist_normalized * 0.5  # -0.5 to +0.5
+                logger.debug(f"MACD neutral: hist={macd_histogram:.2f} → {hist_normalized * 0.5:+.2f}")
+
+        # 3. EMA crossover (0-4 points) - 🆕 v7.3: SMOOTH proportional scoring
         current_price = indicators.get('current_price')
         ema_9 = indicators.get('ema_9')
         ema_21 = indicators.get('ema_21')
         ema_50 = indicators.get('ema_50')
 
         if all(x is not None for x in [current_price, ema_9, ema_21, ema_50]):
-            if current_price > ema_9 > ema_21 > ema_50:
-                score += 4.0  # Perfect bullish alignment
-            elif current_price > ema_9 > ema_21:
-                score += 2.0  # Strong bullish
-            elif current_price < ema_9 < ema_21 < ema_50:
-                score -= 4.0  # Perfect bearish alignment
-            elif current_price < ema_9 < ema_21:
-                score -= 2.0  # Strong bearish
+            # Calculate alignment score based on actual distances (smooth, not stepped)
+            ema_alignment_score = 0.0
+
+            # Price vs EMA9 (max ±1.5 points)
+            price_ema9_pct = ((current_price - ema_9) / ema_9) * 100
+            ema_alignment_score += max(-1.5, min(1.5, price_ema9_pct * 0.5))  # ±3% = ±1.5pts
+
+            # EMA9 vs EMA21 (max ±1.5 points)
+            ema9_ema21_pct = ((ema_9 - ema_21) / ema_21) * 100
+            ema_alignment_score += max(-1.5, min(1.5, ema9_ema21_pct * 0.75))  # ±2% = ±1.5pts
+
+            # EMA21 vs EMA50 (max ±1.0 points)
+            ema21_ema50_pct = ((ema_21 - ema_50) / ema_50) * 100
+            ema_alignment_score += max(-1.0, min(1.0, ema21_ema50_pct))  # ±1% = ±1.0pts
+
+            score += ema_alignment_score
+            logger.debug(f"EMA alignment: P/E9={price_ema9_pct:+.1f}% E9/E21={ema9_ema21_pct:+.1f}% E21/E50={ema21_ema50_pct:+.1f}% → {ema_alignment_score:+.2f}")
+
+        # 🆕 v5.0: MA 50/200 Crossover (Golden Cross / Death Cross) - Long-term momentum
+        ma_crossover = indicators.get('ma_crossover', {})
+        if ma_crossover:
+            crossover_type = ma_crossover.get('crossover_type', 'none')
+            crossover_signal = ma_crossover.get('signal', 'NEUTRAL')
+            crossover_strength = ma_crossover.get('strength', 'Weak')
+
+            if crossover_type == 'golden_cross':
+                # Golden Cross - very bullish long-term signal
+                score += 2.0
+                logger.info(f"🌟 GOLDEN CROSS detected! MA 50 crossed above MA 200 → +2.0 momentum boost")
+            elif crossover_type == 'death_cross':
+                # Death Cross - very bearish long-term signal
+                score -= 2.0
+                logger.warning(f"💀 DEATH CROSS detected! MA 50 crossed below MA 200 → -2.0 momentum penalty")
+            elif crossover_signal == 'BUY' and crossover_strength == 'Moderate':
+                # Near Golden Cross
+                score += 0.5
+                logger.debug(f"MA Crossover: Near Golden Cross → +0.5")
+            elif crossover_signal == 'SELL' and crossover_strength == 'Moderate':
+                # Near Death Cross
+                score -= 0.5
+                logger.debug(f"MA Crossover: Near Death Cross → -0.5")
 
         return max(0, min(10, score))
 
@@ -824,12 +1113,18 @@ class UnifiedRecommendationEngine:
             enhanced_features = analysis_results.get('enhanced_features', {})
             short_interest_data = enhanced_features.get('short_interest', {})
 
-            # If not in enhanced features, try from symbol info
+            # 🆕 v5.0: Try from fundamental_analysis (Yahoo Finance data)
             if not short_interest_data or 'short_interest' not in short_interest_data:
-                # Try alternative location
-                symbol_info = analysis_results.get('symbol_info', {})
-                short_pct = symbol_info.get('short_percent_of_float', 0)
-                days_to_cover = symbol_info.get('short_ratio', 0)
+                # Try from fundamental_analysis (preferred)
+                fund_data = analysis_results.get('fundamental_analysis', {})
+                short_pct = fund_data.get('short_percent_of_float', 0)
+                days_to_cover = fund_data.get('short_ratio', 0)
+
+                # Fallback: Try alternative location (symbol_info)
+                if short_pct == 0:
+                    symbol_info = analysis_results.get('symbol_info', {})
+                    short_pct = symbol_info.get('short_percent_of_float', 0)
+                    days_to_cover = symbol_info.get('short_ratio', 0)
 
                 if short_pct == 0:
                     # No short interest data available
@@ -1044,6 +1339,463 @@ class UnifiedRecommendationEngine:
             logger.warning(f"Risk assessment scoring failed: {e}")
             return 5.0  # Neutral on error
 
+    def _generate_risk_warnings(self, analysis_results: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        🆕 v5.0 Phase 2: Generate comprehensive risk warnings
+
+        Analyzes multiple risk factors and generates actionable warnings:
+        - Overall risk score
+        - Financial health (debt, profitability, cash flow)
+        - Technical risks (falling knife, death cross)
+        - Fundamental deterioration
+        - Analyst downgrades
+
+        Returns:
+            Dict with:
+            - has_warnings: bool
+            - warnings: list of warning dicts with severity, message, category
+            - risk_level: CRITICAL/HIGH/MEDIUM/LOW
+            - action_required: immediate action needed
+        """
+        warnings = []
+
+        try:
+            fund_data = analysis_results.get('fundamental_analysis', {})
+            tech_data = analysis_results.get('technical_analysis', {})
+            indicators = tech_data.get('indicators', {}) if tech_data else {}
+
+            # === CRITICAL WARNINGS ===
+
+            # 1. Very High Overall Risk (9-10)
+            overall_risk = fund_data.get('overall_risk', 5)
+            if overall_risk >= 9:
+                warnings.append({
+                    'severity': 'CRITICAL',
+                    'category': 'Company Risk',
+                    'message': f'VERY HIGH RISK COMPANY! Overall risk score: {overall_risk}/10',
+                    'detail': 'Yahoo Finance rates this as extremely high risk. Consider avoiding or position sizing <10%.',
+                    'action': 'AVOID or use VERY small position (5-10% max)'
+                })
+            elif overall_risk >= 7:
+                warnings.append({
+                    'severity': 'HIGH',
+                    'category': 'Company Risk',
+                    'message': f'High risk company (risk score: {overall_risk}/10)',
+                    'detail': 'Above-average risk. Requires careful risk management.',
+                    'action': 'Reduce position size to 25-50%'
+                })
+
+            # 2. Negative Earnings
+            trailing_eps = fund_data.get('trailing_eps')
+            if trailing_eps is not None and trailing_eps < 0:
+                warnings.append({
+                    'severity': 'HIGH',
+                    'category': 'Profitability',
+                    'message': f'Company is UNPROFITABLE (EPS: ${trailing_eps:.2f})',
+                    'detail': 'Negative earnings increase bankruptcy risk and limit upside.',
+                    'action': 'Avoid unless turnaround story with catalyst'
+                })
+
+            # 3. Excessive Debt
+            debt_equity = fund_data.get('debt_to_equity')
+            if debt_equity is not None and debt_equity > 2.0:
+                warnings.append({
+                    'severity': 'HIGH' if debt_equity > 3.0 else 'MEDIUM',
+                    'category': 'Financial Health',
+                    'message': f'VERY HIGH DEBT! Debt/Equity: {debt_equity:.2f}x',
+                    'detail': 'High leverage increases bankruptcy risk, especially in downturns.',
+                    'action': 'Avoid if rising interest rates or recession risk'
+                })
+
+            # 4. Death Cross (MA 50 crossed below MA 200)
+            ma_crossover = indicators.get('ma_crossover', {})
+            if ma_crossover.get('crossover_type') == 'death_cross':
+                warnings.append({
+                    'severity': 'HIGH',
+                    'category': 'Technical',
+                    'message': '💀 DEATH CROSS DETECTED! MA 50 crossed below MA 200',
+                    'detail': 'Strong bearish long-term signal. Trend has reversed to downside.',
+                    'action': 'Consider exiting or wait for confirmation of reversal'
+                })
+
+            # 5. Falling Knife
+            volatility_regime = tech_data.get('volatility_regime', {})
+            vol_level = volatility_regime.get('level', 'unknown')
+            if vol_level == 'extreme':
+                warnings.append({
+                    'severity': 'CRITICAL',
+                    'category': 'Price Action',
+                    'message': '⚠️  EXTREME VOLATILITY! Possible falling knife',
+                    'detail': 'Price dropping rapidly with high volatility - very dangerous.',
+                    'action': 'WAIT! Do not try to catch falling knife. Wait for stabilization.'
+                })
+
+            # === MEDIUM WARNINGS ===
+
+            # 6. Declining Revenue Growth
+            revenue_growth = fund_data.get('revenue_growth')
+            if revenue_growth is not None and revenue_growth < -10:
+                warnings.append({
+                    'severity': 'MEDIUM',
+                    'category': 'Growth',
+                    'message': f'Declining revenue: {revenue_growth:+.1f}%',
+                    'detail': 'Revenue shrinking indicates business headwinds.',
+                    'action': 'Investigate reason - temporary or structural issue?'
+                })
+
+            # 7. Weak Cash Flow
+            operating_cf = fund_data.get('operating_cash_flow')
+            if operating_cf is not None and operating_cf < 0:
+                warnings.append({
+                    'severity': 'MEDIUM',
+                    'category': 'Cash Flow',
+                    'message': 'Negative operating cash flow',
+                    'detail': 'Company burning cash from operations.',
+                    'action': 'Check if company has enough runway (cash reserves)'
+                })
+
+            # 8. Overbought (RSI > 75)
+            rsi = indicators.get('rsi')
+            if rsi and rsi > 75:
+                warnings.append({
+                    'severity': 'MEDIUM',
+                    'category': 'Technical',
+                    'message': f'OVERBOUGHT! RSI: {rsi:.1f}',
+                    'detail': 'Price may have run up too fast. Pullback likely.',
+                    'action': 'Consider waiting for pullback to buy, or take partial profits'
+                })
+
+            # 9. Near 52W High + High Risk
+            current_price = fund_data.get('current_price', 0)
+            w52_high = fund_data.get('fifty_two_week_high')
+            if w52_high and current_price > 0 and overall_risk >= 7:
+                distance_from_high = abs(current_price - w52_high) / w52_high * 100
+                if distance_from_high <= 5:
+                    warnings.append({
+                        'severity': 'MEDIUM',
+                        'category': 'Valuation',
+                        'message': f'Near 52W high (${w52_high:.2f}) but HIGH RISK company',
+                        'detail': 'High risk companies near highs often face sharp corrections.',
+                        'action': 'Be cautious - may be better entry points ahead'
+                    })
+
+            # === LOW WARNINGS (Informational) ===
+
+            # 10. Low Institutional Ownership
+            institution_pct = fund_data.get('held_percent_institutions')
+            # Only warn if we have actual data (not None or 0 from missing data)
+            if institution_pct is not None and institution_pct > 0 and institution_pct < 0.1:  # <10% but has real data
+                institution_pct_display = institution_pct * 100 if institution_pct < 1 else institution_pct
+                warnings.append({
+                    'severity': 'LOW',
+                    'category': 'Ownership',
+                    'message': f'Low institutional ownership ({institution_pct_display:.1f}%)',
+                    'detail': 'Limited smart money interest. Higher volatility risk.',
+                    'action': 'Understand why institutions are avoiding this stock'
+                })
+
+            # Determine overall risk level
+            critical_count = sum(1 for w in warnings if w['severity'] == 'CRITICAL')
+            high_count = sum(1 for w in warnings if w['severity'] == 'HIGH')
+
+            if critical_count > 0:
+                risk_level = 'CRITICAL'
+                action_required = 'IMMEDIATE - Avoid or exit position'
+            elif high_count >= 2:
+                risk_level = 'HIGH'
+                action_required = 'Reduce position size or exit'
+            elif high_count >= 1:
+                risk_level = 'HIGH'
+                action_required = 'Use tight stop-loss and small position'
+            elif len(warnings) >= 3:
+                risk_level = 'MEDIUM'
+                action_required = 'Proceed with caution'
+            elif len(warnings) > 0:
+                risk_level = 'LOW'
+                action_required = 'Monitor situation'
+            else:
+                risk_level = 'LOW'
+                action_required = 'No immediate concerns'
+
+            # Sort warnings by severity
+            severity_order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3}
+            warnings.sort(key=lambda x: severity_order[x['severity']])
+
+            logger.info(f"Risk Warning System: {len(warnings)} warning(s) generated (Risk Level: {risk_level})")
+
+            return {
+                'has_warnings': len(warnings) > 0,
+                'warnings': warnings,
+                'warning_count': len(warnings),
+                'risk_level': risk_level,
+                'action_required': action_required,
+                'severity_breakdown': {
+                    'critical': critical_count,
+                    'high': high_count,
+                    'medium': sum(1 for w in warnings if w['severity'] == 'MEDIUM'),
+                    'low': sum(1 for w in warnings if w['severity'] == 'LOW')
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Risk warning generation failed: {e}")
+            return {
+                'has_warnings': False,
+                'warnings': [],
+                'warning_count': 0,
+                'risk_level': 'UNKNOWN',
+                'action_required': 'Error generating warnings',
+                'severity_breakdown': {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}
+            }
+
+    def _score_ownership_from_yahoo(self, insider_pct: float, institution_pct: float) -> float:
+        """
+        🆕 v5.0: Score based on Yahoo Finance ownership percentages (0-10)
+
+        Scoring logic:
+
+        Insider Ownership (held_percent_insiders):
+        - High (>10%) → Strong confidence, management has skin in the game → Bullish
+        - Very high (>70%) → Potential control issues, low float → Context-dependent
+        - Low (<2%) → Neutral to slightly bearish
+
+        Institutional Ownership (held_percent_institutions):
+        - High (>60%) → Smart money invested → Bullish
+        - Moderate (30-60%) → Healthy mix → Neutral to bullish
+        - Very high (>90%) → Low float, potential liquidity issues → Slightly bearish
+        - Low (<20%) → Less institutional interest → Neutral to bearish
+
+        Returns:
+            float: Score from 0-10
+        """
+        try:
+            score = 5.0  # Neutral base
+
+            # Convert to percentage if needed (Yahoo gives decimal like 0.017 = 1.7%)
+            if insider_pct < 1.0 and insider_pct > 0:
+                insider_pct = insider_pct * 100
+            if institution_pct < 1.0 and institution_pct > 0:
+                institution_pct = institution_pct * 100
+
+            # === INSIDER OWNERSHIP SCORING ===
+            if insider_pct > 0:
+                if insider_pct >= 70:
+                    # Very high insider ownership - could be family business or control situation
+                    # Context-dependent: good for stability, bad for liquidity
+                    score += 0.5  # Slight boost (management has strong stake)
+                    logger.debug(f"Insider ownership very high ({insider_pct:.1f}%): +0.5 (control situation)")
+                elif insider_pct >= 20:
+                    # High insider ownership - very bullish
+                    score += 1.5
+                    logger.debug(f"Insider ownership high ({insider_pct:.1f}%): +1.5 (very bullish)")
+                elif insider_pct >= 10:
+                    # Moderate-high insider ownership - bullish
+                    score += 1.0
+                    logger.debug(f"Insider ownership moderate ({insider_pct:.1f}%): +1.0 (bullish)")
+                elif insider_pct >= 5:
+                    # Some insider ownership - slightly bullish
+                    score += 0.5
+                    logger.debug(f"Insider ownership some ({insider_pct:.1f}%): +0.5 (slightly bullish)")
+                elif insider_pct < 2:
+                    # Very low insider ownership - slightly bearish
+                    score -= 0.3
+                    logger.debug(f"Insider ownership low ({insider_pct:.1f}%): -0.3 (management not invested)")
+
+            # === INSTITUTIONAL OWNERSHIP SCORING ===
+            if institution_pct > 0:
+                if institution_pct >= 90:
+                    # Very high institutional - potential liquidity issues
+                    score += 0.3  # Still positive but limited upside
+                    logger.debug(f"Institutional ownership very high ({institution_pct:.1f}%): +0.3 (liquidity concerns)")
+                elif institution_pct >= 70:
+                    # High institutional - strong smart money interest
+                    score += 1.2
+                    logger.debug(f"Institutional ownership high ({institution_pct:.1f}%): +1.2 (strong smart money)")
+                elif institution_pct >= 50:
+                    # Moderate-high institutional - good balance
+                    score += 1.0
+                    logger.debug(f"Institutional ownership moderate-high ({institution_pct:.1f}%): +1.0 (healthy)")
+                elif institution_pct >= 30:
+                    # Moderate institutional - decent interest
+                    score += 0.5
+                    logger.debug(f"Institutional ownership moderate ({institution_pct:.1f}%): +0.5 (decent interest)")
+                elif institution_pct < 20:
+                    # Low institutional - less professional interest
+                    score -= 0.5
+                    logger.debug(f"Institutional ownership low ({institution_pct:.1f}%): -0.5 (limited interest)")
+
+            # === COMBINATION BONUSES ===
+            # Strong insider + strong institutional = best of both worlds
+            if insider_pct >= 10 and institution_pct >= 50:
+                score += 0.5
+                logger.debug(f"Strong combo (insider {insider_pct:.1f}% + inst {institution_pct:.1f}%): +0.5 bonus")
+
+            # Cap at 0-10
+            score = max(0, min(10, score))
+
+            logger.info(f"Ownership Score (Yahoo Finance): {score:.1f}/10 (Insider: {insider_pct:.1f}%, Institution: {institution_pct:.1f}%)")
+
+            return score
+
+        except Exception as e:
+            logger.warning(f"Ownership scoring from Yahoo Finance failed: {e}")
+            return 5.0  # Neutral on error
+
+    def _detect_signal_conflicts(self,
+                                 analysis_results: Dict[str, Any],
+                                 technical_score: float,
+                                 fundamental_score: float,
+                                 risk_assessment_score: float,
+                                 weighted_score: float) -> Dict[str, Any]:
+        """
+        🆕 v5.0 Phase 2: Detect conflicting signals and provide intelligent resolution
+
+        Conflicts to detect:
+        1. High Risk + Strong Technical (>7 risk but >7 tech)
+        2. Near 52W Low + High Risk (strong support but risky company)
+        3. Golden Cross + High Risk (long-term bullish but risky)
+        4. Strong Fundamental + Weak Technical (good value but bad timing)
+        5. Death Cross + Oversold RSI (bearish long-term but oversold short-term)
+
+        Returns:
+            Dict with:
+            - has_conflicts: bool
+            - conflicts: list of conflict descriptions
+            - warnings: list of warning messages
+            - resolution: recommended action
+            - adjusted_score: score after conflict resolution
+            - position_size_suggestion: recommended position size (%)
+        """
+        conflicts = []
+        warnings = []
+        resolution = ""
+        adjusted_score = weighted_score
+        position_size = 100  # Default 100% of intended position
+
+        try:
+            fund_data = analysis_results.get('fundamental_analysis', {})
+            tech_data = analysis_results.get('technical_analysis', {})
+            indicators = tech_data.get('indicators', {}) if tech_data else {}
+
+            # Get key metrics
+            overall_risk = fund_data.get('overall_risk', 5)
+            ma_crossover = indicators.get('ma_crossover', {})
+            rsi = indicators.get('rsi')
+            support_resistance = indicators.get('support_resistance', {})
+            current_price = fund_data.get('current_price', 0)
+            w52_low = fund_data.get('fifty_two_week_low')
+            w52_high = fund_data.get('fifty_two_week_high')
+
+            # === CONFLICT 1: High Risk + Strong Technical ===
+            if overall_risk >= 7 and technical_score >= 7:
+                conflicts.append({
+                    'type': 'high_risk_strong_technical',
+                    'severity': 'MEDIUM',
+                    'description': f'High risk ({overall_risk}/10) but strong technical setup ({technical_score:.1f}/10)'
+                })
+                warnings.append(f"⚠️ HIGH RISK STOCK! Despite strong technical signals, overall risk is {overall_risk}/10")
+                position_size = min(position_size, 50)  # Max 50% position
+                adjusted_score -= 1.0  # Penalty for high risk
+                resolution = "Reduce position size to 50% or less. Use tight stop-loss. Consider swing trade only."
+
+            # === CONFLICT 2: Near 52W Low + High Risk ===
+            if w52_low and current_price > 0 and overall_risk >= 7:
+                distance_from_low = abs(current_price - w52_low) / w52_low * 100
+                if distance_from_low <= 5:  # Within 5% of 52W low
+                    conflicts.append({
+                        'type': 'near_52w_low_high_risk',
+                        'severity': 'HIGH',
+                        'description': f'Near 52W low (strong support) but very high risk ({overall_risk}/10)'
+                    })
+                    warnings.append(f"🎯 Near 52W low ${w52_low:.2f} but ⚠️ VERY HIGH RISK ({overall_risk}/10)!")
+                    position_size = min(position_size, 25)  # Max 25% position
+                    resolution = "Scalping opportunity ONLY (1-3 days). Not for long-term hold. Risk of further decline is high."
+
+            # === CONFLICT 3: Golden Cross + High Risk ===
+            if ma_crossover.get('crossover_type') == 'golden_cross' and overall_risk >= 7:
+                conflicts.append({
+                    'type': 'golden_cross_high_risk',
+                    'severity': 'MEDIUM',
+                    'description': f'Golden Cross (bullish long-term) but high risk ({overall_risk}/10)'
+                })
+                warnings.append(f"🌟 Golden Cross detected but ⚠️ High Risk ({overall_risk}/10)")
+                position_size = min(position_size, 40)  # Max 40% position
+                adjusted_score -= 0.5
+                resolution = "Swing trade only. Exit on first signs of weakness. Not suitable for buy-and-hold."
+
+            # === CONFLICT 4: Strong Fundamental + Weak Technical ===
+            if fundamental_score >= 7 and technical_score <= 3:
+                conflicts.append({
+                    'type': 'strong_fundamental_weak_technical',
+                    'severity': 'LOW',
+                    'description': f'Strong fundamentals ({fundamental_score:.1f}/10) but weak technical timing ({technical_score:.1f}/10)'
+                })
+                warnings.append(f"💎 Good value but ⏰ Bad timing (weak technical)")
+                resolution = "Add to watchlist. Wait for technical improvement before entering. Dollar-cost average if committed."
+
+            # === CONFLICT 5: Death Cross + Oversold RSI ===
+            if ma_crossover.get('crossover_type') == 'death_cross' and rsi and rsi <= 30:
+                conflicts.append({
+                    'type': 'death_cross_oversold',
+                    'severity': 'MEDIUM',
+                    'description': f'Death Cross (bearish long-term) but oversold RSI ({rsi:.1f})'
+                })
+                warnings.append(f"💀 Death Cross but oversold RSI {rsi:.1f} - possible counter-trend bounce")
+                resolution = "SHORT-TERM BOUNCE ONLY. Do not confuse with trend reversal. Exit quickly on resistance."
+
+            # === CONFLICT 6: Near 52W High + Overbought ===
+            if w52_high and current_price > 0 and rsi and rsi >= 70:
+                distance_from_high = abs(current_price - w52_high) / w52_high * 100
+                if distance_from_high <= 2:  # Within 2% of 52W high
+                    conflicts.append({
+                        'type': 'near_52w_high_overbought',
+                        'severity': 'MEDIUM',
+                        'description': f'Near 52W high (resistance) and overbought RSI ({rsi:.1f})'
+                    })
+                    warnings.append(f"⚠️ Near 52W high ${w52_high:.2f} AND overbought RSI {rsi:.1f}")
+                    adjusted_score -= 1.5  # Strong penalty
+                    resolution = "High probability of pullback. Take profits if holding. Do NOT enter new position."
+
+            # === CONFLICT 7: Low Risk + Weak Fundamentals ===
+            if overall_risk > 0 and overall_risk <= 2 and fundamental_score <= 3:
+                conflicts.append({
+                    'type': 'low_risk_weak_fundamentals',
+                    'severity': 'LOW',
+                    'description': f'Very low risk ({overall_risk}/10) but weak fundamentals ({fundamental_score:.1f}/10)'
+                })
+                warnings.append(f"✅ Low risk but ⚠️ Weak fundamentals - may be value trap")
+                resolution = "Safe company but poor performance. Only for income/dividend investors."
+
+            # Summary
+            has_conflicts = len(conflicts) > 0
+
+            if has_conflicts:
+                logger.warning(f"🚨 SIGNAL CONFLICTS DETECTED: {len(conflicts)} conflict(s) found")
+                for conflict in conflicts:
+                    logger.warning(f"   {conflict['severity']}: {conflict['description']}")
+
+            return {
+                'has_conflicts': has_conflicts,
+                'conflicts': conflicts,
+                'warnings': warnings,
+                'resolution': resolution if resolution else "No conflicts detected",
+                'adjusted_score': adjusted_score,
+                'position_size_suggestion': position_size,
+                'conflict_count': len(conflicts)
+            }
+
+        except Exception as e:
+            logger.error(f"Conflict detection failed: {e}")
+            return {
+                'has_conflicts': False,
+                'conflicts': [],
+                'warnings': [],
+                'resolution': 'Error in conflict detection',
+                'adjusted_score': weighted_score,
+                'position_size_suggestion': 100,
+                'conflict_count': 0
+            }
+
     def _check_data_quality(self,
                            fundamental_score: float,
                            technical_score: float,
@@ -1152,6 +1904,7 @@ class UnifiedRecommendationEngine:
                                insider_data: Dict[str, Any],
                                current_score: float,
                                volatility_class: str = 'LOW',
+                               time_horizon: str = 'short',
                                analysis_results: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Apply veto conditions that can override the recommendation
@@ -1173,37 +1926,55 @@ class UnifiedRecommendationEngine:
         forced_recommendation = None
         position_size_multiplier = 1.0  # Default: no adjustment
 
-        # Veto 1: R:R ratio < 1.5 for BUY signals - 🆕 v6.0: Volatility-aware threshold
-        # Get volatility-aware BUY threshold
-        buy_threshold = self.recommendation_thresholds.get(volatility_class, self.default_thresholds)['BUY']
+        # Veto 1: R:R ratio < 1.2 for BUY signals - 🆕 v7.3.2: Based on backtest analysis
+        # Backtest showed 19% of BUYs had R/R < 1.0, leading to poor trade quality
+        # Minimum 1.2:1 R/R ensures proper risk/reward balance for all BUY signals
+        # Get timeframe + volatility-aware BUY threshold
+        buy_threshold = self.recommendation_thresholds.get(time_horizon, {}).get(
+            volatility_class, self.default_thresholds
+        )['BUY']
 
-        if risk_reward_ratio < 1.5 and current_score >= buy_threshold:  # Would be BUY or STRONG BUY
+        if risk_reward_ratio < 1.2 and current_score >= buy_threshold:  # Would be BUY or STRONG BUY
             veto = True
             adjusted_score = 4.5  # Force to HOLD
             forced_recommendation = 'HOLD'
-            reasons.append(f"R:R ratio {risk_reward_ratio:.2f} < 1.5 - Insufficient reward for BUY signal ({volatility_class} volatility, threshold={buy_threshold})")
+            reasons.append(f"R:R ratio {risk_reward_ratio:.2f} < 1.2 - Insufficient reward for BUY signal. Minimum 1.2:1 required for quality trade setup ({volatility_class} volatility, {time_horizon} timeframe)")
 
-        # Veto 2: Poor risk/reward ratio - 🆕 v6.0: Volatility-aware thresholds
-        elif risk_reward_ratio < 1.0:
+        # Veto 2: Poor risk/reward ratio - 🆕 v7.2: VERY RELAXED thresholds (was 0.6, too strict!)
+        elif risk_reward_ratio < 0.4:  # Only veto if R/R < 0.4 (was 0.6)
             veto = True
-            # Define volatility-aware R/R thresholds
+            # Define timeframe + volatility-aware R/R thresholds - 🆕 v7.2: EXTREMELY LENIENT!
             rr_thresholds = {
-                'HIGH': 0.5,      # More lenient for high volatility stocks
-                'MEDIUM': 0.65,   # Moderate threshold
-                'LOW': 0.8        # Strict for low volatility stocks
+                'short': {
+                    'HIGH': 0.15,    # ↓↓↓ Extremely lenient - Allow aggressive short-term trades
+                    'MEDIUM': 0.20,  # ↓↓↓ Extremely lenient - Quick trades
+                    'LOW': 0.25      # ↓↓↓ Very lenient - Blue chips
+                },
+                'medium': {
+                    'HIGH': 0.20,    # ↓↓↓ Very lenient - Swing stocks
+                    'MEDIUM': 0.25,  # ↓↓↓ Very lenient - Normal stocks
+                    'LOW': 0.30      # ↓↓ More lenient - Stable stocks
+                },
+                'long': {
+                    'HIGH': 0.25,    # ↓↓ More lenient - Long-term
+                    'MEDIUM': 0.30,  # ↓↓ More lenient - Long-term conviction
+                    'LOW': 0.35      # ↓↓ More lenient - High conviction
+                }
             }
-            threshold = rr_thresholds.get(volatility_class, 0.8)  # Default to LOW volatility
 
-            # R/R < threshold = AVOID (don't enter at all)
-            # R/R threshold-1.0 = HOLD (risky but not terrible)
+            # Get appropriate threshold for timeframe + volatility
+            threshold = rr_thresholds.get(time_horizon, {}).get(volatility_class, 0.25)
+
+            # R/R < threshold = AVOID (only for very bad R/R)
+            # R/R threshold-0.4 = HOLD (not great but acceptable)
             if risk_reward_ratio < threshold:
                 adjusted_score = min(current_score, 3.5)
                 forced_recommendation = 'AVOID'
-                reasons.append(f"R:R ratio {risk_reward_ratio:.2f} < {threshold} ({volatility_class} volatility) - Risk significantly exceeds reward - AVOID entry")
+                reasons.append(f"R:R ratio {risk_reward_ratio:.2f} < {threshold} ({volatility_class} volatility, {time_horizon} timeframe) - Risk significantly exceeds reward - AVOID entry")
             else:
                 adjusted_score = min(current_score, 4.5)
                 forced_recommendation = 'HOLD'
-                reasons.append(f"R:R ratio {risk_reward_ratio:.2f} < 1.0 ({volatility_class} volatility) - Risk exceeds reward slightly - HOLD or wait for better entry")
+                reasons.append(f"R:R ratio {risk_reward_ratio:.2f} < 0.4 ({volatility_class} volatility, {time_horizon} timeframe) - Moderate risk/reward - HOLD or wait for better entry")
 
         # Veto 3: Strong price decline with heavy selling
         if price_change_analysis:
@@ -1338,10 +2109,16 @@ class UnifiedRecommendationEngine:
             'position_size_multiplier': position_size_multiplier  # 🆕 ส่งค่า multiplier กลับไปด้วย
         }
 
-    def _score_to_recommendation(self, score: float, volatility_class: str = 'LOW') -> str:
-        """Convert score to recommendation (🆕 v6.0: Volatility-aware thresholds)"""
-        # Get thresholds for the specific volatility class
-        thresholds = self.recommendation_thresholds.get(volatility_class, self.default_thresholds)
+    def _score_to_recommendation(self, score: float, volatility_class: str = 'MEDIUM',
+                                 time_horizon: str = 'short') -> str:
+        """
+        Convert score to recommendation
+        🆕 v7.0: Timeframe-aware + Volatility-aware thresholds
+        """
+        # Get appropriate thresholds for timeframe + volatility
+        thresholds = self.recommendation_thresholds.get(time_horizon, {}).get(
+            volatility_class, self.default_thresholds
+        )
 
         if score >= thresholds['STRONG_BUY']:
             return 'STRONG BUY'
@@ -2036,6 +2813,132 @@ class UnifiedRecommendationEngine:
                 'error': str(e)
             }
 
+    def _update_metrics(self, recommendation, score, rr_ratio, veto_applied, veto_reasons, component_scores):
+        """🆕 v7.3: Update comprehensive metrics for monitoring"""
+        self.metrics['total_analyses'] += 1
+        self.metrics['recommendations'][recommendation] = self.metrics['recommendations'].get(recommendation, 0) + 1
+
+        if veto_applied:
+            self.metrics['veto_count'] += 1
+            for reason in veto_reasons:
+                self.metrics['veto_reasons'][reason] = self.metrics['veto_reasons'].get(reason, 0) + 1
+
+        self.metrics['rr_ratios'].append(rr_ratio)
+        self.metrics['scores'].append(score)
+
+        # Track component scores
+        for name, value in component_scores.items():
+            if name not in self.metrics['component_scores_sum']:
+                self.metrics['component_scores_sum'][name] = []
+            self.metrics['component_scores_sum'][name].append(value)
+
+    def get_metrics_summary(self):
+        """🆕 v7.3: Get comprehensive metrics summary"""
+        if self.metrics['total_analyses'] == 0:
+            return "No analyses performed yet"
+
+        total = self.metrics['total_analyses']
+        recs = self.metrics['recommendations']
+
+        summary = []
+        summary.append("="*80)
+        summary.append("📊 COMPREHENSIVE METRICS SUMMARY")
+        summary.append("="*80)
+        summary.append(f"Total Analyses: {total}")
+        summary.append("")
+        summary.append("Recommendation Distribution:")
+        for rec, count in sorted(recs.items(), key=lambda x: x[1], reverse=True):
+            pct = (count / total * 100) if total > 0 else 0
+            summary.append(f"  {rec:12s}: {count:3d} ({pct:5.1f}%)")
+
+        summary.append("")
+        summary.append(f"Veto Rate: {self.metrics['veto_count']}/{total} ({self.metrics['veto_count']/total*100:.1f}%)")
+
+        if self.metrics['veto_reasons']:
+            summary.append("Veto Reasons:")
+            for reason, count in sorted(self.metrics['veto_reasons'].items(), key=lambda x: x[1], reverse=True):
+                summary.append(f"  • {reason}: {count}")
+
+        summary.append("")
+        if self.metrics['rr_ratios']:
+            avg_rr = sum(self.metrics['rr_ratios']) / len(self.metrics['rr_ratios'])
+            summary.append(f"Average R/R Ratio: {avg_rr:.2f}:1")
+
+        if self.metrics['scores']:
+            avg_score = sum(self.metrics['scores']) / len(self.metrics['scores'])
+            summary.append(f"Average Score: {avg_score:.1f}/10")
+
+        summary.append("")
+        summary.append("Average Component Scores:")
+        for name, values in sorted(self.metrics['component_scores_sum'].items()):
+            avg = sum(values) / len(values)
+            summary.append(f"  {name:15s}: {avg:4.1f}/10")
+
+        summary.append("="*80)
+
+        return "\n".join(summary)
+
+
+def _determine_entry_timing(current_price: float, entry: float, targets: list, unified_rec: Dict[str, Any]) -> tuple:
+    """
+    🆕 v7.3.2: Determine optimal entry timing based on market conditions
+
+    Returns:
+        tuple: (entry_timing, reason)
+            - IMMEDIATE: Enter at current price, strong momentum
+            - WAIT_FOR_PULLBACK: Wait for price to pull back to support
+            - ON_BREAKOUT: Wait for breakout confirmation above resistance
+
+    Logic:
+    - IMMEDIATE: Strong momentum, price not overextended, clear uptrend
+    - WAIT_FOR_PULLBACK: Near resistance, overbought, or price extended
+    - ON_BREAKOUT: Consolidating near resistance, needs breakout confirmation
+    """
+    try:
+        # Get technical indicators if available
+        technical = unified_rec.get('component_scores', {})
+        momentum_score = technical.get('momentum', 5.0)
+        technical_score = technical.get('technical', 5.0)
+
+        # Calculate price position relative to entry and target
+        if not targets or len(targets) == 0:
+            target = entry * 1.05  # Default 5% target
+        else:
+            target = targets[0]
+
+        # Calculate price extension
+        price_vs_entry_pct = ((current_price - entry) / entry) * 100 if entry > 0 else 0
+        price_to_target_pct = ((target - current_price) / current_price) * 100 if current_price > 0 else 5
+
+        # Decision logic
+        # IMMEDIATE: Strong momentum + reasonable entry (not overextended)
+        if momentum_score >= 6.0 and technical_score >= 5.5 and abs(price_vs_entry_pct) < 2.0:
+            return ('IMMEDIATE',
+                    f'Strong momentum ({momentum_score:.1f}/10) and technical setup ({technical_score:.1f}/10). '
+                    f'Current price ${current_price:.2f} is near optimal entry ${entry:.2f}.')
+
+        # WAIT_FOR_PULLBACK: Price is above entry or weak momentum
+        elif price_vs_entry_pct > 2.0 or momentum_score < 4.5:
+            return ('WAIT_FOR_PULLBACK',
+                    f'Current price ${current_price:.2f} is {abs(price_vs_entry_pct):.1f}% {"above" if price_vs_entry_pct > 0 else "below"} optimal entry ${entry:.2f}. '
+                    f'Wait for pullback to support around ${entry:.2f} for better R/R.')
+
+        # ON_BREAKOUT: Consolidating, needs confirmation
+        elif technical_score >= 5.0 and momentum_score >= 4.5 and price_to_target_pct < 3.0:
+            return ('ON_BREAKOUT',
+                    f'Price consolidating near resistance. Wait for breakout above ${target:.2f} '
+                    f'with volume confirmation before entering.')
+
+        # Default: WAIT_FOR_PULLBACK (conservative)
+        else:
+            return ('WAIT_FOR_PULLBACK',
+                    f'Mixed signals (momentum: {momentum_score:.1f}/10, technical: {technical_score:.1f}/10). '
+                    f'Wait for clearer setup or pullback to ${entry:.2f}.')
+
+    except Exception as e:
+        logger.warning(f"Entry timing determination failed: {e}")
+        return ('IMMEDIATE', 'Entry timing analysis unavailable - use discretion')
+
 
 def generate_action_plan(unified_rec: Dict[str, Any],
                          current_price: float,
@@ -2096,6 +2999,14 @@ def generate_action_plan(unified_rec: Dict[str, Any],
     reasons_against = reasoning.get('reasons_against', [])
     key_factors = reasoning.get('key_factors', [])
 
+    # 🆕 v7.3.2: Determine entry timing guidance
+    entry_timing, entry_timing_reason = _determine_entry_timing(
+        current_price=current_price,
+        entry=entry,
+        targets=targets,
+        unified_rec=unified_rec
+    )
+
     # Generate action instruction based on recommendation
     if recommendation in ['STRONG BUY', 'BUY']:
         action_instruction = f"BUY {symbol}" if symbol else "BUY"
@@ -2132,6 +3043,10 @@ def generate_action_plan(unified_rec: Dict[str, Any],
         'entry_price': f"${entry:.2f}",
         'current_price': f"${current_price:.2f}",
         'entry_vs_current': f"{((entry - current_price) / current_price) * 100:+.2f}%",
+
+        # 🆕 v7.3.2: Entry timing guidance
+        'entry_timing': entry_timing,  # IMMEDIATE, WAIT_FOR_PULLBACK, or ON_BREAKOUT
+        'entry_timing_reason': entry_timing_reason,
 
         # Stop loss
         'stop_loss': f"${stop:.2f} ({stop_direction} entry {abs(stop_loss_pct):.1f}%)",
@@ -2445,13 +3360,13 @@ def generate_multi_timeframe_analysis(analysis_results: Dict[str, Any]) -> Dict[
     performance_expectations = analysis_results.get('performance_expectations', {})
     selected_timeframe = performance_expectations.get('time_horizon', 'short')
 
-    # Generate recommendations for ALL 3 timeframes
+    # Generate recommendations for ALL 4 timeframes (swing/short/medium/long)
     recommendations = {}
 
     logger.info(f"🔍 Generating Multi-Timeframe Analysis...")
     logger.info(f"  Base Scores: Tech={technical_score:.1f}, Fund={fundamental_score:.1f}, R/R={rr_ratio:.2f}")
 
-    for horizon in ['short', 'medium', 'long']:
+    for horizon in ['swing', 'short', 'medium', 'long']:
         rec = engine.generate_unified_recommendation(
             technical_score=technical_score,
             fundamental_score=fundamental_score,
@@ -2477,6 +3392,7 @@ def generate_multi_timeframe_analysis(analysis_results: Dict[str, Any]) -> Dict[
     )
 
     return {
+        'swing': recommendations['swing'],
         'short': recommendations['short'],
         'medium': recommendations['medium'],
         'long': recommendations['long'],
@@ -2499,7 +3415,7 @@ def _analyze_timeframe_alignment(recommendations: Dict[str, Dict], selected: str
     all_aligned = True
 
     # Check other timeframes
-    for horizon in ['short', 'medium', 'long']:
+    for horizon in ['swing', 'short', 'medium', 'long']:
         if horizon == selected:
             continue
 
@@ -2513,6 +3429,7 @@ def _analyze_timeframe_alignment(recommendations: Dict[str, Dict], selected: str
 
             # Generate warning message
             horizon_thai = {
+                'swing': 'สวิง (1-7 วัน)',
                 'short': 'ระยะสั้น (1-14 วัน)',
                 'medium': 'ระยะกลาง (1-3 เดือน)',
                 'long': 'ระยะยาว (6-12 เดือน)'
@@ -2574,32 +3491,23 @@ def _action_to_score(action: str) -> int:
     return mapping.get(action, 0)
 
 
-def _get_thai_timeframe(horizon: str) -> str:
+def _get_thai_timeframe(timeframe: str) -> str:
     """Get Thai name for timeframe"""
-    mapping = {
-        'short': 'ระยะสั้น',
-        'medium': 'ระยะกลาง',
-        'long': 'ระยะยาว'
+    thai_names = {
+        'swing': 'สวิงเทรด (1-7 วัน)',
+        'short': 'ระยะสั้น (1-14 วัน)',
+        'medium': 'ระยะกลาง (1-3 เดือน)',
+        'long': 'ระยะยาว (6-12 เดือน)'
     }
-    return mapping.get(horizon, horizon)
+    return thai_names.get(timeframe, timeframe)
 
 
-def _get_alignment_reason(horizon: str, action: str, recommendation: Dict) -> str:
+def _get_alignment_reason(horizon: str, action: str, rec_data: Dict) -> str:
     """Get reason why this timeframe has different recommendation"""
-    component_scores = recommendation.get('component_scores', {})
+    component_scores = rec_data.get('component_scores', {})
 
-    if horizon == 'medium':
-        # Medium-term focuses on fundamentals
-        fund_score = component_scores.get('fundamental', 5.0)
-        if action in ['SELL', 'STRONG SELL']:
-            return f"Fundamentals อ่อนแรง ({fund_score:.1f}/10) - ไม่เหมาะถือกลางถึงยาว"
-        elif action == 'HOLD':
-            return f"Fundamentals ปานกลาง ({fund_score:.1f}/10) - รอดูต่อก่อน"
-        else:
-            return f"Fundamentals ดี ({fund_score:.1f}/10)"
-
-    elif horizon == 'long':
-        # Long-term focuses on fundamentals + insider
+    if horizon == 'long':
+        # Long-term focuses on fundamentals
         fund_score = component_scores.get('fundamental', 5.0)
         insider_score = component_scores.get('insider', 5.0)
 
@@ -2610,7 +3518,7 @@ def _get_alignment_reason(horizon: str, action: str, recommendation: Dict) -> st
         else:
             return f"Fundamentals แข็งแรง ({fund_score:.1f}/10)"
 
-    else:  # short
+    else:  # short/swing/medium
         # Short-term focuses on technicals + momentum
         tech_score = component_scores.get('technical', 5.0)
         mom_score = component_scores.get('momentum', 5.0)
@@ -2621,3 +3529,6 @@ def _get_alignment_reason(horizon: str, action: str, recommendation: Dict) -> st
             return f"Technicals ปานกลาง ({tech_score:.1f}/10) - รอ momentum"
         else:
             return f"Technicals + Momentum แข็งแรง"
+
+
+# The following were accidentally added outside the class and have been removed

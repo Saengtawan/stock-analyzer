@@ -555,11 +555,12 @@ class AdvancedTechnicalAnalyzer:
 
         # Simplified pattern detection
         # In practice, this would use more sophisticated algorithms
-        close_prices = data['close'].values
+        close_prices = data['close']  # Keep as Series for pattern detection
+        close_values = close_prices.values  # Use values for find_peaks
 
         # Find peaks and valleys
-        peaks, _ = find_peaks(close_prices, distance=20)
-        valleys, _ = find_peaks(-close_prices, distance=20)
+        peaks, _ = find_peaks(close_values, distance=20)
+        valleys, _ = find_peaks(-close_values, distance=20)
 
         # Double top/bottom detection
         if len(peaks) >= 2:
@@ -587,7 +588,7 @@ class AdvancedTechnicalAnalyzer:
 
         # Simplified Elliott Wave detection
         # This is a complex topic that would require extensive implementation
-        close_prices = data['close'].values
+        close_prices = data['close']  # Keep as Series for swing detection
 
         # Find significant swing points
         swing_points = self._find_significant_swings(close_prices)

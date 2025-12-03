@@ -679,7 +679,7 @@ Focus on companies that combine growth with improving profitability, not just re
             logger.debug(f"{symbol}: Processed growth - Rev: {revenue_growth:.1f}%, Earn: {earnings_growth:.1f}%")
 
             # Get other key metrics
-            current_price = fundamental_analysis.get('current_price', 0) or 0
+            current_price = results.get('current_price', 0) or 0  # Get from top-level results, not fundamental_analysis
             pe_ratio = fundamental_analysis.get('pe_ratio', 0) or 0
 
             # Get profitability metrics
@@ -961,24 +961,36 @@ Focus on companies that combine growth with improving profitability, not just re
         return max(0, min(160, base_upside))  # Increased max to 160% for exceptional profitable growth
 
     def screen_volatile_trading_opportunities(self,
-                                             min_volatility: float = 20.0,
-                                             min_avg_volume: float = 1000000,
-                                             min_price_range: float = 3.0,
-                                             min_momentum_score: float = 3.0,
+                                             min_volatility: float = 35.0,
+                                             min_avg_volume: float = 2000000,
+                                             min_price_range: float = 8.0,
+                                             min_momentum_score: float = 3.5,
                                              max_stocks: int = 20,
-                                             time_horizon: str = 'short'
+                                             time_horizon: str = 'short',
+                                             min_atr_pct: float = 2.0,
+                                             min_price: float = 5.0,
+                                             exclude_falling_knife: bool = True,
+                                             exclude_overextended: bool = False,
+                                             only_uptrend: bool = False,
+                                             require_dip: bool = False
     ) -> List[Dict[str, Any]]:
         """
         Screen for volatile stocks suitable for short-term trading
         หาหุ้นที่มีความผันผวนสูง เหมาะสำหรับเทรดระยะสั้น
 
         Args:
-            min_volatility: ความผันผวนขั้นต่ำ (%) - หุ้นที่มี ATR%/Volatility สูง
-            min_avg_volume: Volume เฉลี่ยต่อวันขั้นต่ำ
-            min_price_range: ช่วงราคาขั้นต่ำใน % (High-Low range)
-            min_momentum_score: คะแนน momentum ขั้นต่ำ
+            min_volatility: ความผันผวนขั้นต่ำ (%) - หุ้นที่มี ATR%/Volatility สูง (updated default: 40%)
+            min_avg_volume: Volume เฉลี่ยต่อวันขั้นต่ำ (updated default: 2M)
+            min_price_range: ช่วงราคาขั้นต่ำใน % (High-Low range) (updated default: 10%)
+            min_momentum_score: คะแนน momentum ขั้นต่ำ (updated default: 5.0)
             max_stocks: จำนวนหุ้นสูงสุดที่จะส่งกลับ
             time_horizon: ระยะเวลาการเทรด (short, very_short)
+            min_atr_pct: ATR% ขั้นต่ำ (NEW - Average True Range percentage)
+            min_price: ราคาหุ้นขั้นต่ำ (NEW - exclude penny stocks)
+            exclude_falling_knife: กรองหุ้น Falling Knife ออก (NEW)
+            exclude_overextended: กรองหุ้น Overextended ออก (NEW)
+            only_uptrend: เฉพาะหุ้นที่อยู่ใน Uptrend (NEW)
+            require_dip: ต้องมี Dip Opportunity (NEW)
 
         Returns:
             List of volatile trading opportunities
@@ -1037,6 +1049,7 @@ Focus on companies that combine growth with improving profitability, not just re
             technical = opp.get('technical_analysis', {})
             fundamental = opp.get('fundamental_summary', {})
             recommendation = opp.get('recommendation', {})
+            special_conditions = opp.get('special_conditions', {})
 
             vol = metrics.get('volatility_30d', 0)
             volume = metrics.get('avg_volume_30d', 0)
@@ -1047,55 +1060,96 @@ Focus on companies that combine growth with improving profitability, not just re
             strategy = recommendation.get('strategy', '')
             sector = fundamental.get('sector', '')
             market_cap = fundamental.get('market_cap', 0)
+            current_price = opp.get('current_price', 0)
+            # Use intraday_range_pct as ATR% (average true range percentage)
+            atr_pct = metrics.get('intraday_range_pct', 0)
+            market_state = technical.get('market_state', '')
 
-            # Basic criteria check
+            # NEW: Get special condition flags
+            falling_knife = special_conditions.get('falling_knife', {})
+            overextension = special_conditions.get('overextension', {})
+            dip_opportunity = special_conditions.get('dip_opportunity', {})
+
+            # Basic criteria check (including new parameters)
             if not (vol >= min_volatility and
                     volume >= min_avg_volume and
                     price_range >= min_price_range and
-                    momentum >= min_momentum_score):
+                    momentum >= min_momentum_score and
+                    atr_pct >= min_atr_pct and
+                    current_price >= min_price):
                 reasons = []
                 if vol < min_volatility: reasons.append(f"vol={vol:.1f}<{min_volatility}")
                 if volume < min_avg_volume: reasons.append(f"volume={volume:,.0f}<{min_avg_volume:,.0f}")
                 if price_range < min_price_range: reasons.append(f"range={price_range:.1f}<{min_price_range}")
                 if momentum < min_momentum_score: reasons.append(f"momentum={momentum:.1f}<{min_momentum_score}")
+                if atr_pct < min_atr_pct: reasons.append(f"atr%={atr_pct:.1f}<{min_atr_pct}")
+                if current_price < min_price: reasons.append(f"price=${current_price:.2f}<${min_price}")
                 logger.debug(f"✗ {opp['symbol']} filtered out: {', '.join(reasons)}")
                 continue
 
-            # Additional quality filters
-            # 1. Filter out "Broken Stock" recommendations
+            # NEW: Advanced filters (only apply if data is available)
+            # 1. Exclude Falling Knife (if enabled AND data available)
+            if exclude_falling_knife and special_conditions and falling_knife.get('detected', False):
+                risk_level_fk = falling_knife.get('risk_level', 'UNKNOWN')
+                if risk_level_fk in ['EXTREME', 'HIGH']:  # Only exclude severe cases (removed MODERATE)
+                    logger.debug(f"✗ {opp['symbol']} filtered: Falling Knife ({risk_level_fk})")
+                    continue
+
+            # 2. Exclude Overextended (if enabled AND data available)
+            if exclude_overextended and special_conditions and overextension.get('detected', False):
+                severity = overextension.get('severity', 0)
+                if severity >= 70:  # Only exclude high overextension (raised from 50 to 70)
+                    logger.debug(f"✗ {opp['symbol']} filtered: Overextended (severity={severity})")
+                    continue
+
+            # 3. Only Uptrend (if enabled AND state is available)
+            if only_uptrend and market_state:
+                if market_state not in ['TRENDING_BULLISH', 'UPTREND', 'BULLISH']:
+                    logger.debug(f"✗ {opp['symbol']} filtered: Not in uptrend (state={market_state})")
+                    continue
+
+            # 4. Require Dip Opportunity (if enabled AND data available)
+            if require_dip and special_conditions:
+                if not dip_opportunity.get('detected', False):
+                    logger.debug(f"✗ {opp['symbol']} filtered: No dip opportunity")
+                    continue
+                # Require at least FAIR quality
+                quality = dip_opportunity.get('quality', 'POOR')
+                if quality not in ['EXCELLENT', 'GOOD', 'FAIR']:
+                    logger.debug(f"✗ {opp['symbol']} filtered: Dip quality too low ({quality})")
+                    continue
+
+            # Additional quality filters (RELAXED for volatile screening)
+            # 1. Filter out "Broken Stock" recommendations (KEEP THIS - truly bad stocks)
             if "Broken Stock" in strategy:
                 logger.debug(f"✗ {opp['symbol']} filtered: Broken stock")
                 continue
 
-            # 2. Filter out "Wait for Pullback" - not ready to enter yet
-            if "Wait for Pullback" in strategy:
-                logger.debug(f"✗ {opp['symbol']} filtered: Wait for pullback (too extended)")
-                continue
+            # 2. REMOVED: "Wait for Pullback" filter - volatile stocks can still be good even if extended
+            # Volatile traders may want stocks at highs with momentum
 
-            # 3. Filter out "Monitor for Reversal" - too close to highs, risky
-            if "Monitor for Reversal" in strategy:
-                logger.debug(f"✗ {opp['symbol']} filtered: Monitor for reversal (too close to high)")
-                continue
+            # 3. REMOVED: "Monitor for Reversal" filter - too restrictive for volatile screening
 
-            # 4. Filter out extremely high volatility (>80%) - too unpredictable
-            if vol > 80.0:
-                logger.debug(f"✗ {opp['symbol']} filtered: Extreme volatility ({vol:.1f}% > 80%)")
+            # 4. Filter out EXTREMELY high volatility (>100%) - too unpredictable
+            # Raised from 80% to 100% to allow more extreme volatility
+            if vol > 100.0:
+                logger.debug(f"✗ {opp['symbol']} filtered: Extreme volatility ({vol:.1f}% > 100%)")
                 continue
 
             # 5. Filter out large-cap STABLE stocks with low volatility
             # BUT KEEP large-cap volatile stocks (NVDA, TSLA, etc.)
-            # Only filter if: market cap > $500B AND volatility < 35% AND momentum < 5
-            if market_cap > 500_000_000_000 and vol < 35 and momentum < 5:
+            # Relaxed: Only filter if market cap > $500B AND volatility < 30% AND momentum < 3
+            if market_cap > 500_000_000_000 and vol < 30 and momentum < 3:
                 logger.debug(f"✗ {opp['symbol']} filtered: Large-cap stable low momentum (${market_cap/1e9:.0f}B, {vol:.1f}%, momentum {momentum:.1f})")
                 continue
 
             # KEEP large-cap volatile stocks if they have good momentum and volatility
-            # Example: NVDA ($3T market cap, 60% volatility, 8.0 momentum) should PASS
+            # Example: NVDA ($3T market cap, 36% volatility, 2.5 momentum) should NOW PASS
 
-            # 6. Require minimum trading opportunity score of 4.0 (quality threshold)
-            # Lowered from 4.5 to 4.0 to include more quality volatile stocks
-            if trading_score < 4.0:
-                logger.debug(f"✗ {opp['symbol']} filtered: Low trading score ({trading_score:.1f} < 4.0)")
+            # 6. Require minimum trading opportunity score of 3.5 (quality threshold)
+            # Lowered from 4.0 to 3.5 to include more quality volatile stocks
+            if trading_score < 3.5:
+                logger.debug(f"✗ {opp['symbol']} filtered: Low trading score ({trading_score:.1f} < 3.5)")
                 continue
 
             # 4. Add trading_score to response (use this instead of volatility_score)
