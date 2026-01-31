@@ -1,0 +1,514 @@
+{% extends "base.html" %}
+
+{% block title %}Rapid Trader - 5-15%/month{% endblock %}
+
+{% block extra_css %}
+<style>
+    .alert-card {
+        border-left: 5px solid;
+        margin-bottom: 15px;
+    }
+    .alert-critical { border-color: #e74c3c; background: #fdf2f2; }
+    .alert-warning { border-color: #f39c12; background: #fef9e7; }
+    .alert-profit { border-color: #27ae60; background: #eafaf1; }
+    .alert-hold { border-color: #3498db; background: #ebf5fb; }
+
+    .signal-card {
+        border: 2px solid #27ae60;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background: white;
+    }
+    .signal-card:hover {
+        box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+    }
+
+    .price-tag {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    .sl-tag { color: #e74c3c; }
+    .tp-tag { color: #27ae60; }
+
+    .action-btn {
+        padding: 10px 25px;
+        font-weight: bold;
+        border-radius: 25px;
+    }
+
+    .summary-box {
+        background: linear-gradient(135deg, #2c3e50, #3498db);
+        color: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+    }
+
+    .summary-value {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+
+    .rules-box {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+
+    .rules-box h5 {
+        color: #2c3e50;
+        margin-bottom: 15px;
+    }
+
+    .rule-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .rule-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+        color: white;
+        font-size: 0.8rem;
+    }
+
+    .refresh-info {
+        font-size: 0.85rem;
+        color: #666;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-rocket me-2"></i>Rapid Trader</h2>
+        <p class="text-muted mb-0">Target: 5-15% per month | Quick trades, fast rotation</p>
+    </div>
+    <div>
+        <button class="btn btn-primary" onclick="refreshAll()">
+            <i class="fas fa-sync-alt me-1"></i> Refresh
+        </button>
+        <span class="refresh-info ms-2">Last update: <span id="lastUpdate">-</span></span>
+    </div>
+</div>
+
+<!-- Summary Box -->
+<div class="summary-box">
+    <div class="row">
+        <div class="col-md-3 text-center">
+            <div class="summary-value" id="totalPositions">0</div>
+            <div>Positions</div>
+        </div>
+        <div class="col-md-3 text-center">
+            <div class="summary-value" id="totalPnL">$0</div>
+            <div>Total P&L</div>
+        </div>
+        <div class="col-md-3 text-center">
+            <div class="summary-value" id="todaySignals">0</div>
+            <div>Buy Signals</div>
+        </div>
+        <div class="col-md-3 text-center">
+            <div class="summary-value" id="alertCount">0</div>
+            <div>Alerts</div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Column: Portfolio Alerts -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-bell me-2"></i>Portfolio Alerts</span>
+                <span class="badge bg-light text-dark" id="alertBadge">0</span>
+            </div>
+            <div class="card-body" id="alertsContainer">
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-check-circle fa-3x mb-3" style="color: #27ae60;"></i>
+                    <p>No positions yet</p>
+                    <small>Add positions from Buy Signals</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trading Rules v2.1 - Anti-PDT -->
+        <div class="rules-box">
+            <h5><i class="fas fa-shield-alt me-2"></i>Trading Rules v2.1 (Anti-PDT)</h5>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #e74c3c;">SL</div>
+                <div>Stop Loss: <strong>1.5-2.5%</strong> (ATR-based, wider for volatile)</div>
+            </div>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #27ae60;">TP</div>
+                <div>Take Profit: <strong>+4-6%</strong> = Take profit</div>
+            </div>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #f39c12;">T</div>
+                <div>Time Stop: <strong>4 days</strong> max hold</div>
+            </div>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #9b59b6;">⚡</div>
+                <div>Entry: <strong>True dips only</strong> (Mom1d < 0, below SMA5)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Buy Signals -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-shopping-cart me-2"></i>Buy Signals</span>
+                <span class="badge bg-success" id="signalBadge">0</span>
+            </div>
+            <div class="card-body" id="signalsContainer">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Scanning for opportunities...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Position Modal -->
+<div class="modal fade" id="addPositionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Add Position</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addPositionForm">
+                    <input type="hidden" id="addSymbol">
+                    <input type="hidden" id="addStopLoss">
+                    <input type="hidden" id="addTakeProfit">
+
+                    <div class="mb-3">
+                        <label class="form-label">Symbol</label>
+                        <input type="text" class="form-control" id="displaySymbol" readonly>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Entry Price</label>
+                            <input type="number" class="form-control" id="addEntryPrice" step="0.01" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Shares</label>
+                            <input type="number" class="form-control" id="addShares" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <label class="form-label text-danger">Stop Loss</label>
+                            <input type="text" class="form-control" id="displaySL" readonly>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-success">Take Profit</label>
+                            <input type="text" class="form-control" id="displayTP" readonly>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="confirmAddPosition()">
+                    <i class="fas fa-check me-1"></i>Add to Portfolio
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let positionModal;
+
+document.addEventListener('DOMContentLoaded', function() {
+    positionModal = new bootstrap.Modal(document.getElementById('addPositionModal'));
+    refreshAll();
+
+    // Auto refresh every 5 minutes
+    setInterval(refreshAll, 5 * 60 * 1000);
+});
+
+function refreshAll() {
+    loadAlerts();
+    loadSignals();
+    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('th-TH');
+}
+
+function loadAlerts() {
+    fetch('/api/rapid/portfolio')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error(data.error);
+                return;
+            }
+
+            // Update summary
+            document.getElementById('totalPositions').textContent = data.summary.positions || 0;
+            document.getElementById('totalPnL').textContent =
+                (data.summary.total_pnl_usd >= 0 ? '+' : '') +
+                '$' + (data.summary.total_pnl_usd || 0).toFixed(2);
+
+            const container = document.getElementById('alertsContainer');
+            const statuses = data.statuses || [];
+
+            // Count alerts
+            const alertCount = statuses.filter(s =>
+                ['CRITICAL', 'WARNING', 'TAKE_PROFIT'].includes(s.signal)
+            ).length;
+            document.getElementById('alertCount').textContent = alertCount;
+            document.getElementById('alertBadge').textContent = alertCount;
+
+            if (statuses.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <p>No positions in portfolio</p>
+                        <small>Add positions from Buy Signals</small>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            statuses.forEach(status => {
+                const alertClass = getAlertClass(status.signal);
+                const icon = getAlertIcon(status.signal);
+                const pnlClass = status.pnl_pct >= 0 ? 'text-success' : 'text-danger';
+
+                html += `
+                    <div class="alert-card ${alertClass} p-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h5 class="mb-1">
+                                    ${icon} ${status.symbol}
+                                    <small class="text-muted">Day ${status.days_held}</small>
+                                </h5>
+                                <div class="${pnlClass} fw-bold">
+                                    ${status.pnl_pct >= 0 ? '+' : ''}${status.pnl_pct.toFixed(2)}%
+                                    ($${status.pnl_usd.toFixed(2)})
+                                </div>
+                                <small class="text-muted">${status.action}</small>
+                            </div>
+                            <div class="text-end">
+                                ${getActionButton(status)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        })
+        .catch(err => {
+            console.error('Error loading alerts:', err);
+        });
+}
+
+function loadSignals() {
+    fetch('/api/rapid/signals')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error(data.error);
+                return;
+            }
+
+            const signals = data.signals || [];
+            document.getElementById('todaySignals').textContent = signals.length;
+            document.getElementById('signalBadge').textContent = signals.length;
+
+            const container = document.getElementById('signalsContainer');
+
+            if (signals.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-search fa-3x mb-3"></i>
+                        <p>No signals found today</p>
+                        <small>Check back later</small>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            signals.forEach((signal, idx) => {
+                html += `
+                    <div class="signal-card">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h5 class="mb-0">
+                                    <span class="badge bg-success me-2">#${idx + 1}</span>
+                                    ${signal.symbol}
+                                </h5>
+                                <small class="text-muted">Score: ${signal.score}</small>
+                            </div>
+                            <div class="price-tag">$${signal.entry_price.toFixed(2)}</div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <small class="text-muted">Stop Loss</small>
+                                <div class="sl-tag fw-bold">$${signal.stop_loss.toFixed(2)} (-${signal.max_loss.toFixed(1)}%)</div>
+                            </div>
+                            <div class="col-6 text-end">
+                                <small class="text-muted">Take Profit</small>
+                                <div class="tp-tag fw-bold">$${signal.take_profit.toFixed(2)} (+${signal.expected_gain.toFixed(1)}%)</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <small class="text-muted">RSI: ${signal.rsi.toFixed(0)} | Mom: ${signal.momentum_5d >= 0 ? '+' : ''}${signal.momentum_5d.toFixed(1)}%</small>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-success btn-sm flex-grow-1"
+                                    onclick="openAddPosition('${signal.symbol}', ${signal.entry_price}, ${signal.stop_loss}, ${signal.take_profit})">
+                                <i class="fas fa-plus me-1"></i>Add to Portfolio
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        })
+        .catch(err => {
+            console.error('Error loading signals:', err);
+            document.getElementById('signalsContainer').innerHTML = `
+                <div class="text-center text-danger py-4">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                    <p>Error loading signals</p>
+                </div>
+            `;
+        });
+}
+
+function getAlertClass(signal) {
+    switch(signal) {
+        case 'CRITICAL': return 'alert-critical';
+        case 'WARNING': return 'alert-warning';
+        case 'TAKE_PROFIT': return 'alert-profit';
+        default: return 'alert-hold';
+    }
+}
+
+function getAlertIcon(signal) {
+    switch(signal) {
+        case 'CRITICAL': return '<i class="fas fa-exclamation-circle text-danger"></i>';
+        case 'WARNING': return '<i class="fas fa-exclamation-triangle text-warning"></i>';
+        case 'TAKE_PROFIT': return '<i class="fas fa-trophy text-success"></i>';
+        default: return '<i class="fas fa-check-circle text-primary"></i>';
+    }
+}
+
+function getActionButton(status) {
+    if (status.signal === 'CRITICAL' || status.signal === 'WARNING') {
+        return `<button class="btn btn-danger btn-sm" onclick="sellPosition('${status.symbol}')">
+                    <i class="fas fa-times me-1"></i>SELL
+                </button>`;
+    } else if (status.signal === 'TAKE_PROFIT') {
+        return `<button class="btn btn-success btn-sm" onclick="sellPosition('${status.symbol}')">
+                    <i class="fas fa-hand-holding-usd me-1"></i>Take Profit
+                </button>`;
+    }
+    return `<button class="btn btn-outline-secondary btn-sm" onclick="sellPosition('${status.symbol}')">
+                <i class="fas fa-sign-out-alt me-1"></i>Close
+            </button>`;
+}
+
+function openAddPosition(symbol, entryPrice, stopLoss, takeProfit) {
+    document.getElementById('addSymbol').value = symbol;
+    document.getElementById('displaySymbol').value = symbol;
+    document.getElementById('addEntryPrice').value = entryPrice.toFixed(2);
+    document.getElementById('addStopLoss').value = stopLoss.toFixed(2);
+    document.getElementById('addTakeProfit').value = takeProfit.toFixed(2);
+    document.getElementById('displaySL').value = '$' + stopLoss.toFixed(2);
+    document.getElementById('displayTP').value = '$' + takeProfit.toFixed(2);
+
+    // Calculate suggested shares (25% of $100,000)
+    const positionSize = 25000;
+    const shares = Math.floor(positionSize / entryPrice);
+    document.getElementById('addShares').value = shares;
+
+    positionModal.show();
+}
+
+function confirmAddPosition() {
+    const symbol = document.getElementById('addSymbol').value;
+    const shares = parseInt(document.getElementById('addShares').value);
+    const entryPrice = parseFloat(document.getElementById('addEntryPrice').value);
+    const stopLoss = parseFloat(document.getElementById('addStopLoss').value);
+    const takeProfit = parseFloat(document.getElementById('addTakeProfit').value);
+
+    fetch('/api/rapid/position', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            symbol: symbol,
+            shares: shares,
+            entry_price: entryPrice,
+            stop_loss: stopLoss,
+            take_profit: takeProfit
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            positionModal.hide();
+            refreshAll();
+            showSuccess(`Added ${symbol} to portfolio!`);
+        } else {
+            showError(data.error || 'Failed to add position');
+        }
+    })
+    .catch(err => {
+        showError('Error adding position: ' + err.message);
+    });
+}
+
+function sellPosition(symbol) {
+    if (!confirm(`Sell ${symbol}?`)) return;
+
+    fetch(`/api/rapid/position/${symbol}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            refreshAll();
+            showSuccess(`Sold ${symbol}!`);
+        } else {
+            showError(data.error || 'Failed to sell');
+        }
+    })
+    .catch(err => {
+        showError('Error: ' + err.message);
+    });
+}
+
+function showSuccess(message) {
+    alert(message);  // Simple alert for now
+}
+
+function showError(message) {
+    alert('Error: ' + message);
+}
+</script>
+{% endblock %}
