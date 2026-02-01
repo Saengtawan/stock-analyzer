@@ -37,12 +37,12 @@ class FilterConfig:
     ATR_SL_MULTIPLIER = 1.5
     ATR_TP_MULTIPLIER = 3.0
     MIN_SL_PCT = 2.0
-    MAX_SL_PCT = 8.0
+    MAX_SL_PCT = 2.5   # v3.6: Tight SL for fast rotation
     MIN_TP_PCT = 4.0
     MAX_TP_PCT = 15.0
 
     # Base SL/TP for simplified calculation
-    BASE_SL_PCT = 3.5
+    BASE_SL_PCT = 2.5  # v3.6: Fixed 2.5% SL
     BASE_TP_PCT = 6.0
 
 

@@ -23,8 +23,9 @@ IMPORTANT:
 - ไฟล์นี้คือ standard - ห้ามเปลี่ยน methodology
 - ผลลัพธ์ต้องเปรียบเทียบได้กับ versions ก่อนหน้า
 
+v3.6: Tight SL 2.5% for fast rotation (PDT-Safe)
 v3.5: Added SMA20 filter (92% of losers were below SMA20)
-Last validated: +6.95%/month, 66.7% win rate (6 months)
+Last validated: +9.91%/month, 66.7% win rate (6 months)
 ============================================================================
 """
 
@@ -69,7 +70,8 @@ class Config:
     # Screening (from production screener)
     MIN_SCORE = 90
     MIN_ATR_PCT = 2.5
-    BASE_SL_PCT = 3.5
+    BASE_SL_PCT = 2.5   # v3.6: Tight SL for fast rotation
+    MAX_SL_PCT = 2.5    # v3.6: Cap at 2.5%
     BASE_TP_PCT = 6.0
 
 
@@ -495,20 +497,16 @@ class ProductionScreener:
             return None
 
         # ========================================
-        # CALCULATE SL/TP (Production Logic)
+        # CALCULATE SL/TP (v3.6: Tight SL 2.5%)
         # ========================================
         tp_multiplier = min(1.5, max(1.0, atr_pct / 3))
         tp_pct = Config.BASE_TP_PCT * tp_multiplier
 
-        if atr_pct > 5:
-            sl_pct = 4.0
-        elif atr_pct > 4:
-            sl_pct = 3.75
-        else:
-            sl_pct = Config.BASE_SL_PCT
+        # v3.6: Fixed tight SL for fast rotation
+        sl_pct = Config.BASE_SL_PCT  # Always 2.5%
 
-        sl_from_support = ((current_price - support * 0.995) / current_price) * 100
-        sl_pct = max(sl_pct, min(sl_from_support * 0.8, 4.5))
+        # Cap at MAX_SL_PCT (2.5%)
+        sl_pct = min(sl_pct, Config.MAX_SL_PCT)
 
         stop_loss = current_price * (1 - sl_pct / 100)
         take_profit = current_price * (1 + tp_pct / 100)

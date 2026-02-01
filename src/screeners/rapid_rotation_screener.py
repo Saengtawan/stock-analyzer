@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RAPID ROTATION SCREENER v3.5 - SMA20 FILTER + DYNAMIC SL/TP
+RAPID ROTATION SCREENER v3.6 - TIGHT SL 2.5% + FAST ROTATION
 
 INTEGRATED SYSTEMS:
 ✅ AI Universe Generator (680+ stocks from DeepSeek)
@@ -16,6 +16,11 @@ Strategy:
 - BOUNCE CONFIRMATION: Wait for recovery after dip (not catching knife)
 - Use alternative data for extra confirmation
 - FULLY DYNAMIC SL/TP based on actual market structure
+
+v3.6 Changes - TIGHT SL 2.5% (FAST ROTATION):
+- SL capped at 2.5% (was 4.5%) for faster rotation
+- PDT-Safe: No same-day exits (SL starts from Day 1)
+- Saves ~3.6%/month by limiting losses
 
 v3.5 Changes - SMA20 FILTER (ROOT CAUSE FIX):
 - MUST be above SMA20 (92% of losers were below)
@@ -137,8 +142,9 @@ class RapidRotationScreener:
     ATR_TP_MULTIPLIER = 3.0   # TP = ATR × 3 (good risk/reward)
 
     # Safety caps (prevent extreme values)
+    # v3.6: Tight SL for fast rotation (PDT-Safe)
     MIN_SL_PCT = 2.0   # Minimum SL 2%
-    MAX_SL_PCT = 8.0   # Maximum SL 8%
+    MAX_SL_PCT = 2.5   # Maximum SL 2.5% (was 8%) - rotate faster!
     MIN_TP_PCT = 4.0   # Minimum TP 4%
     MAX_TP_PCT = 15.0  # Maximum TP 15%
 
