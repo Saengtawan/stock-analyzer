@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RAPID ROTATION SCREENER v3.3 - BOUNCE CONFIRMATION + TRAILING STOP
+RAPID ROTATION SCREENER v3.4 - FULLY DYNAMIC SL/TP
 
 INTEGRATED SYSTEMS:
 ✅ AI Universe Generator (680+ stocks from DeepSeek)
@@ -15,15 +15,18 @@ Strategy:
 - Focus on hot sectors
 - BOUNCE CONFIRMATION: Wait for recovery after dip (not catching knife)
 - Use alternative data for extra confirmation
-- Dynamic SL based on ATR (3.5%-4.5%) - wider for safety
+- FULLY DYNAMIC SL/TP based on actual market structure
 
-v3.3 Improvements (achieved +8.23%/month in backtest):
+v3.4 Changes - FULLY DYNAMIC SL/TP:
+- SL = MAX(ATR × 1.5, Below Swing Low 5d, Below EMA5)
+- TP = MIN(ATR × 3, Resistance Level, +15% cap)
+- No more fixed % ranges - adapts to each stock
+- Uses actual price structure (swing high/low)
+
+v3.3 Base (achieved +8.23%/month in backtest):
 - BOUNCE CONFIRMATION: Yesterday down, today recovering
-- Wider SL: 3.5%-4.5% (was 2.0%-3.0%)
-- Higher score threshold: 90 (was 60)
-- Higher TP target: 6.0% (was 4.0%)
-- Trailing stop: Activate at +3%, trail at 60%
-- Focus on quality: Fewer, higher-quality trades
+- Higher score threshold: 90
+- Trailing stop: Activate at +3%, trail dynamically
 """
 
 import numpy as np
@@ -60,6 +63,11 @@ class RapidRotationSignal:
     market_regime: str = ""
     sector_score: float = 0.0
     alt_data_score: float = 0.0
+    # v3.4: Dynamic SL/TP info
+    sl_method: str = ""       # Which method determined SL
+    tp_method: str = ""       # Which method determined TP
+    swing_low: float = 0.0    # Swing low reference
+    resistance: float = 0.0   # Resistance reference
 
     @property
     def expected_gain(self) -> float:
@@ -72,7 +80,7 @@ class RapidRotationSignal:
 
 class RapidRotationScreener:
     """
-    Rapid Rotation Screener v3.3 - BOUNCE CONFIRMATION
+    Rapid Rotation Screener v3.4 - FULLY DYNAMIC SL/TP
 
     Achieved +8.23%/month in realistic backtest (70.8% win rate)
 
@@ -83,11 +91,12 @@ class RapidRotationScreener:
     4. Alternative Data - Insider, Sentiment, etc.
     5. Bounce Confirmation - Wait for recovery, not falling knife
 
-    Key Success Factors:
-    - BOUNCE CONFIRMATION: Yesterday down + today recovering
-    - Higher quality threshold (score >= 90)
-    - Wider SL (3.5-4.5%) to avoid premature stop-outs
-    - Trailing stop at +3% with 60% lock-in
+    v3.4 FULLY DYNAMIC SL/TP:
+    - SL calculated from: ATR × 1.5, Swing Low, EMA5
+    - TP calculated from: ATR × 3, Resistance, +15% cap
+    - No fixed percentages - adapts to each stock's volatility and structure
+    - Example: Volatile stock ATR=5% → SL=7.5%, TP=15%
+    - Example: Stable stock ATR=2% → SL=3%, TP=6%
     """
 
     # Fallback universe if AI fails
@@ -113,18 +122,23 @@ class RapidRotationScreener:
         'ROKU', 'PATH', 'S', 'BILL', 'CFLT', 'CHWY', 'DXCM',
     ]
 
-    # Configuration (v3.3: Optimized for quality)
-    MIN_ATR_PCT = 2.5  # Minimum volatility (was 2.0)
-    MIN_SCORE = 90     # Higher score threshold (was 60)
+    # Configuration (v3.4: Fully dynamic)
+    MIN_ATR_PCT = 2.5  # Minimum volatility
+    MIN_SCORE = 90     # Higher score threshold
+    MAX_HOLD_DAYS = 5  # Max hold days
 
-    # Exit parameters (v3.3: Wider for safety)
-    BASE_TP_PCT = 6.0  # Base take profit % (was 4.0)
-    BASE_SL_PCT = 3.5  # Base stop loss % (was 2.0)
-    MAX_HOLD_DAYS = 5  # Max hold days (was 4)
+    # v3.4: ATR Multipliers for FULLY DYNAMIC SL/TP
+    ATR_SL_MULTIPLIER = 1.5   # SL = ATR × 1.5 (gives room to breathe)
+    ATR_TP_MULTIPLIER = 3.0   # TP = ATR × 3 (good risk/reward)
 
-    # Trailing stop parameters (v3.3: New)
+    # Safety caps (prevent extreme values)
+    MIN_SL_PCT = 2.0   # Minimum SL 2%
+    MAX_SL_PCT = 8.0   # Maximum SL 8%
+    MIN_TP_PCT = 4.0   # Minimum TP 4%
+    MAX_TP_PCT = 15.0  # Maximum TP 15%
+
+    # Trailing stop parameters
     TRAIL_ACTIVATION = 3.0  # Activate trailing at +3%
-    TRAIL_PERCENT = 60      # Trail at 60% of peak
 
     def __init__(self):
         """Initialize with all integrated systems"""
@@ -571,32 +585,71 @@ class RapidRotationScreener:
             return None
 
         # ==============================
-        # CALCULATE SL/TP (v3.3: Wider SL 3.5-4.5%)
+        # v3.4: FULLY DYNAMIC SL/TP
         # ==============================
-        tp_multiplier = min(1.5, max(1.0, atr_pct / 3))
-        tp_pct = self.BASE_TP_PCT * tp_multiplier
 
-        # Dynamic SL based on ATR (v3.3: wider range 3.5-4.5%)
-        if atr_pct > 5:
-            sl_pct = 4.5  # Very volatile
-        elif atr_pct > 4:
-            sl_pct = 4.0
-        elif atr_pct > 3:
-            sl_pct = 3.75
-        else:
-            sl_pct = self.BASE_SL_PCT  # 3.5%
+        # --- DYNAMIC STOP LOSS ---
+        # Method 1: ATR-based (adapts to volatility)
+        atr_sl_distance = atr * self.ATR_SL_MULTIPLIER
+        atr_based_sl = current_price - atr_sl_distance
 
-        # Support level consideration
-        sl_from_support = (current_price - support * 0.995) / current_price * 100
-        sl_pct = max(sl_pct, min(sl_from_support * 0.8, 4.5))  # Cap at 4.5%
+        # Method 2: Swing Low based (structure)
+        swing_low_5d = low.iloc[idx-5:idx].min() if idx >= 5 else low.min()
+        swing_low_sl = swing_low_5d * 0.995  # 0.5% below swing low
 
+        # Method 3: EMA based (trend)
+        ema5 = close.ewm(span=5).mean().iloc[idx]
+        ema_based_sl = ema5 * 0.99  # 1% below EMA5
+
+        # Choose HIGHEST SL = best protection + track method
+        sl_options = {
+            'ATR': atr_based_sl,
+            'SwingLow': swing_low_sl,
+            'EMA5': ema_based_sl
+        }
+        sl_method = max(sl_options, key=sl_options.get)
+        stop_loss = sl_options[sl_method]
+
+        # Apply safety caps
+        sl_pct_raw = (current_price - stop_loss) / current_price * 100
+        sl_pct = max(self.MIN_SL_PCT, min(sl_pct_raw, self.MAX_SL_PCT))
         stop_loss = current_price * (1 - sl_pct / 100)
+
+        # --- DYNAMIC TAKE PROFIT ---
+        # Method 1: ATR-based (scales with volatility)
+        atr_tp_distance = atr * self.ATR_TP_MULTIPLIER
+        atr_based_tp = current_price + atr_tp_distance
+
+        # Method 2: Resistance based (structure)
+        resistance = high.iloc[idx-20:idx].max() if idx >= 20 else high.max()
+        resistance_tp = resistance * 0.995  # Just below resistance
+
+        # Method 3: 52-week high consideration
+        high_52w = high.max()
+        high_52w_tp = high_52w * 0.98  # 2% below 52w high
+
+        # Choose LOWEST TP = most realistic target + track method
+        tp_options = {
+            'ATR': atr_based_tp,
+            'Resistance': resistance_tp,
+            '52wHigh': high_52w_tp
+        }
+        tp_method = min(tp_options, key=tp_options.get)
+        take_profit = tp_options[tp_method]
+
+        # Apply safety caps
+        tp_pct_raw = (take_profit - current_price) / current_price * 100
+        tp_pct = max(self.MIN_TP_PCT, min(tp_pct_raw, self.MAX_TP_PCT))
         take_profit = current_price * (1 + tp_pct / 100)
         risk_reward = tp_pct / sl_pct
 
         # Get market regime
         market_regime = self._get_market_regime()
         regime_str = market_regime.get('regime', 'UNKNOWN')
+
+        # Add SL/TP method info to reasons
+        reasons.append(f"SL:{sl_method}({sl_pct:.1f}%)")
+        reasons.append(f"TP:{tp_method}({tp_pct:.1f}%)")
 
         return RapidRotationSignal(
             symbol=symbol,
@@ -614,7 +667,12 @@ class RapidRotationScreener:
             sector=sector,
             market_regime=regime_str,
             sector_score=sector_score,
-            alt_data_score=alt_score
+            alt_data_score=alt_score,
+            # v3.4: Dynamic SL/TP info
+            sl_method=sl_method,
+            tp_method=tp_method,
+            swing_low=round(swing_low_5d, 2),
+            resistance=round(resistance, 2)
         )
 
     def screen(self, top_n: int = 10) -> List[RapidRotationSignal]:
