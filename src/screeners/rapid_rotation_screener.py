@@ -257,14 +257,19 @@ class RapidRotationScreener:
 
         Returns:
             Tuple of (score, reasons)
+
+        Note: Alt data calls are DISABLED for now due to slow API responses.
+        To re-enable, set ENABLE_ALT_DATA = True
         """
+        ENABLE_ALT_DATA = False  # Disabled for faster response
+
         if symbol in self._alt_data_cache:
             return self._alt_data_cache[symbol]
 
         score = 0
         reasons = []
 
-        if self.alt_data:
+        if self.alt_data and ENABLE_ALT_DATA:
             try:
                 data = self.alt_data.get_comprehensive_data(symbol)
 
