@@ -1,0 +1,481 @@
+{% extends "base.html" %}
+
+{% block title %}Draft Stocks - Auto Scanner{% endblock %}
+
+{% block extra_css %}
+<style>
+    .scanner-status {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .draft-card {
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        transition: all 0.3s;
+    }
+    .draft-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .draft-card.high-conviction {
+        border-color: #28a745;
+        background: #f8fff9;
+    }
+    .draft-card.medium-conviction {
+        border-color: #ffc107;
+        background: #fffef8;
+    }
+    .score-badge {
+        font-size: 1.2em;
+        font-weight: bold;
+        padding: 5px 15px;
+        border-radius: 20px;
+    }
+    .score-high {
+        background: #28a745;
+        color: white;
+    }
+    .score-medium {
+        background: #ffc107;
+        color: #333;
+    }
+    .score-low {
+        background: #6c757d;
+        color: white;
+    }
+    .entry-levels {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 10px;
+    }
+    .action-buttons {
+        margin-top: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-clipboard-list me-2"></i>
+                Draft Stocks - Auto Scanner
+            </h1>
+            <p class="text-muted">หุ้นที่ระบบหาให้อัตโนมัติ - เลือก Pick เข้า Portfolio ได้ตามต้องการ</p>
+        </div>
+    </div>
+
+    <!-- Scanner Status -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="scanner-status" id="scanner-status">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="mb-2">
+                            <i class="fas fa-robot me-2"></i>
+                            Scanner Status
+                        </h5>
+                        <div id="scanner-status-text">Loading...</div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button class="btn btn-light" onclick="loadDrafts()">
+                            <i class="fas fa-sync-alt me-2"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4" id="quick-stats">
+        <div class="col-md-3 col-6 mb-2">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="mb-0" id="total-drafts">0</h3>
+                    <small class="text-muted">Total Drafts</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-2">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="mb-0 text-success" id="high-conviction">0</h3>
+                    <small class="text-muted">High Conviction (60+)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-2">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="mb-0 text-warning" id="medium-conviction">0</h3>
+                    <small class="text-muted">Medium (50-59)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-2">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="mb-0" id="picked-count">0</h3>
+                    <small class="text-muted">Picked to Portfolio</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Buttons -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-primary active" onclick="filterDrafts('all')">All</button>
+                <button type="button" class="btn btn-outline-success" onclick="filterDrafts('high')">High Conviction 🔥</button>
+                <button type="button" class="btn btn-outline-warning" onclick="filterDrafts('medium')">Medium</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="filterDrafts('new')">New Today</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drafts List -->
+    <div class="row" id="drafts-container">
+        <div class="col-12 text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Loading drafts...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Pick Modal -->
+<div class="modal fade" id="pickModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    Pick to Portfolio
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Symbol</label>
+                    <input type="text" class="form-control" id="pick-symbol" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Entry Price</label>
+                    <input type="number" class="form-control" id="pick-entry-price" step="0.01">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Number of Shares</label>
+                    <input type="number" class="form-control" id="pick-shares" value="100">
+                </div>
+                <div class="alert alert-info">
+                    <small>
+                        <i class="fas fa-info-circle me-1"></i>
+                        Stop Loss และ Targets จะถูกกำหนดอัตโนมัติตามกลยุทธ์ Pullback Catalyst
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="confirmPick()">
+                    <i class="fas fa-check me-2"></i>
+                    Add to Portfolio
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let allDrafts = [];
+let currentFilter = 'all';
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadScannerStatus();
+    loadDrafts();
+
+    // Auto-refresh every 2 minutes
+    setInterval(() => {
+        loadScannerStatus();
+        loadDrafts();
+    }, 2 * 60 * 1000);
+});
+
+async function loadScannerStatus() {
+    try {
+        const response = await fetch('/api/scanner/status');
+        const data = await response.json();
+
+        let statusHtml = '';
+        if (data.running) {
+            statusHtml = `
+                <span class="badge bg-success me-2">Running</span>
+                Last Scan: ${data.stats?.last_scan || 'N/A'}
+                <br>
+                <small>Total Scans: ${data.stats?.total_scans || 0} | Opportunities Found: ${data.stats?.opportunities_found || 0}</small>
+            `;
+        } else {
+            statusHtml = `
+                <span class="badge bg-warning me-2">Not Running</span>
+                <br>
+                <small>Start scanner: <code>python src/auto_scanner_draft.py</code></small>
+            `;
+        }
+        document.getElementById('scanner-status-text').innerHTML = statusHtml;
+
+    } catch (error) {
+        document.getElementById('scanner-status-text').innerHTML = `
+            <span class="badge bg-danger me-2">Error</span>
+            Could not fetch scanner status
+        `;
+    }
+}
+
+async function loadDrafts() {
+    try {
+        const response = await fetch('/api/drafts');
+        const data = await response.json();
+
+        allDrafts = data.drafts || [];
+
+        // Update stats
+        document.getElementById('total-drafts').textContent = allDrafts.length;
+        document.getElementById('high-conviction').textContent = allDrafts.filter(d => d.catalyst_score >= 60).length;
+        document.getElementById('medium-conviction').textContent = allDrafts.filter(d => d.catalyst_score >= 50 && d.catalyst_score < 60).length;
+        document.getElementById('picked-count').textContent = allDrafts.filter(d => d.status === 'PICKED').length;
+
+        displayDrafts();
+
+    } catch (error) {
+        console.error('Error loading drafts:', error);
+        document.getElementById('drafts-container').innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-danger">Error loading drafts: ${error.message}</div>
+            </div>
+        `;
+    }
+}
+
+function filterDrafts(filter) {
+    currentFilter = filter;
+
+    // Update button states
+    document.querySelectorAll('.btn-group .btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    displayDrafts();
+}
+
+function displayDrafts() {
+    let filtered = [...allDrafts];
+
+    // Apply filter
+    const today = new Date().toISOString().split('T')[0];
+
+    switch (currentFilter) {
+        case 'high':
+            filtered = filtered.filter(d => d.catalyst_score >= 60);
+            break;
+        case 'medium':
+            filtered = filtered.filter(d => d.catalyst_score >= 50 && d.catalyst_score < 60);
+            break;
+        case 'new':
+            filtered = filtered.filter(d => d.added_date?.startsWith(today));
+            break;
+    }
+
+    // Sort by catalyst score (highest first)
+    filtered.sort((a, b) => b.catalyst_score - a.catalyst_score);
+
+    const container = document.getElementById('drafts-container');
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No drafts found. Start the auto scanner to find opportunities.
+                    <br><br>
+                    <code>python src/auto_scanner_draft.py</code>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    filtered.forEach(draft => {
+        const scoreClass = draft.catalyst_score >= 60 ? 'high-conviction' : draft.catalyst_score >= 50 ? 'medium-conviction' : '';
+        const scoreBadgeClass = draft.catalyst_score >= 60 ? 'score-high' : draft.catalyst_score >= 50 ? 'score-medium' : 'score-low';
+        const isPicked = draft.status === 'PICKED';
+
+        html += `
+            <div class="col-md-6 col-lg-4">
+                <div class="draft-card ${scoreClass} ${isPicked ? 'opacity-50' : ''}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h5 class="mb-1">
+                                <a href="/analyze?symbol=${draft.symbol}" target="_blank" class="text-decoration-none">
+                                    ${draft.symbol}
+                                </a>
+                                ${isPicked ? '<span class="badge bg-secondary ms-2">Picked</span>' : ''}
+                            </h5>
+                            <small class="text-muted">${draft.company_name || ''}</small>
+                            <br>
+                            <small class="text-muted">${draft.sector || ''}</small>
+                        </div>
+                        <span class="score-badge ${scoreBadgeClass}">
+                            ${draft.catalyst_score?.toFixed(0) || 0}
+                        </span>
+                    </div>
+
+                    <div class="entry-levels mt-3">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <small class="text-muted">Price</small>
+                                <div class="fw-bold">$${draft.current_price?.toFixed(2) || 0}</div>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted">Entry</small>
+                                <div class="fw-bold text-primary">$${draft.entry_price?.toFixed(2) || 0}</div>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted">RSI</small>
+                                <div class="fw-bold">${draft.rsi?.toFixed(1) || 0}</div>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row text-center">
+                            <div class="col-3">
+                                <small class="text-danger">SL</small>
+                                <div class="small text-danger">$${draft.stop_loss?.toFixed(2) || 0}</div>
+                            </div>
+                            <div class="col-3">
+                                <small class="text-success">T1</small>
+                                <div class="small text-success">$${draft.target1?.toFixed(2) || 0}</div>
+                            </div>
+                            <div class="col-3">
+                                <small class="text-success">T2</small>
+                                <div class="small text-success">$${draft.target2?.toFixed(2) || 0}</div>
+                            </div>
+                            <div class="col-3">
+                                <small class="text-muted">R:R</small>
+                                <div class="small">${draft.risk_reward?.toFixed(1) || 0}:1</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            ${draft.recommendation || ''}
+                        </small>
+                    </div>
+
+                    <div class="action-buttons">
+                        ${isPicked ? `
+                            <button class="btn btn-sm btn-secondary me-2" disabled>
+                                <i class="fas fa-check me-1"></i>
+                                Already Picked
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="removeDraft('${draft.symbol}')" title="Remove from drafts">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : `
+                            <button class="btn btn-sm btn-success me-2" onclick="showPickModal('${draft.symbol}', ${draft.entry_price || draft.current_price})">
+                                <i class="fas fa-plus me-1"></i>
+                                Pick to Portfolio
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="removeDraft('${draft.symbol}')" title="Remove from drafts">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        `}
+                    </div>
+
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            Added: ${new Date(draft.added_date).toLocaleDateString()}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function showPickModal(symbol, entryPrice) {
+    document.getElementById('pick-symbol').value = symbol;
+    document.getElementById('pick-entry-price').value = entryPrice.toFixed(2);
+    document.getElementById('pick-shares').value = 100;
+
+    const modal = new bootstrap.Modal(document.getElementById('pickModal'));
+    modal.show();
+}
+
+async function confirmPick() {
+    const symbol = document.getElementById('pick-symbol').value;
+    const entryPrice = parseFloat(document.getElementById('pick-entry-price').value);
+    const shares = parseInt(document.getElementById('pick-shares').value);
+
+    try {
+        const response = await fetch('/api/drafts/pick', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                symbol: symbol,
+                entry_price: entryPrice,
+                shares: shares
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`✅ ${symbol} added to portfolio!`);
+            bootstrap.Modal.getInstance(document.getElementById('pickModal')).hide();
+            loadDrafts();
+        } else {
+            alert(`❌ Error: ${data.error}`);
+        }
+
+    } catch (error) {
+        alert(`❌ Error: ${error.message}`);
+    }
+}
+
+async function removeDraft(symbol) {
+    if (!confirm(`Remove ${symbol} from drafts?`)) return;
+
+    try {
+        const response = await fetch('/api/drafts/remove', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol: symbol })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            loadDrafts();
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,90 @@
+[
+  {
+    "config": "v9.1 Baseline (no stop)",
+    "trades": 129,
+    "winners": 75,
+    "losers": 54,
+    "stopped": 0,
+    "win_rate": 58.139534883720934,
+    "avg_return": 0.8762548647205649,
+    "max_loss": -15.064854235600308,
+    "max_gain": 26.971967679206504
+  },
+  {
+    "config": "v9.1 + Stop -2%",
+    "trades": 129,
+    "winners": 66,
+    "losers": 63,
+    "stopped": 48,
+    "win_rate": 51.162790697674424,
+    "avg_return": 1.1576320627545202,
+    "max_loss": -2.0,
+    "max_gain": 26.971967679206504
+  },
+  {
+    "config": "v9.1 + Vol>1.2",
+    "trades": 23,
+    "winners": 16,
+    "losers": 7,
+    "stopped": 0,
+    "win_rate": 69.56521739130434,
+    "avg_return": 3.237535414172792,
+    "max_loss": -15.39505051674783,
+    "max_gain": 26.971967679206504
+  },
+  {
+    "config": "v9.1 + Vol>1.2 + Stop -2%",
+    "trades": 23,
+    "winners": 15,
+    "losers": 8,
+    "stopped": 5,
+    "win_rate": 65.21739130434783,
+    "avg_return": 3.6568917867236035,
+    "max_loss": -2.0,
+    "max_gain": 26.971967679206504
+  },
+  {
+    "config": "v9.1 + Vol>1.2 + Mom3d>0",
+    "trades": 13,
+    "winners": 9,
+    "losers": 4,
+    "stopped": 0,
+    "win_rate": 69.23076923076923,
+    "avg_return": 4.167027087909518,
+    "max_loss": -15.39505051674783,
+    "max_gain": 26.971967679206504
+  },
+  {
+    "config": "v9.1 + Vol + Mom3d + Stop",
+    "trades": 13,
+    "winners": 8,
+    "losers": 5,
+    "stopped": 4,
+    "win_rate": 61.53846153846154,
+    "avg_return": 4.966943987847096,
+    "max_loss": -2.0,
+    "max_gain": 26.971967679206504
+  },
+  {
+    "config": "Relaxed + Vol>1.2",
+    "trades": 74,
+    "winners": 41,
+    "losers": 33,
+    "stopped": 0,
+    "win_rate": 55.4054054054054,
+    "avg_return": 1.3013156719028778,
+    "max_loss": -16.4672108485786,
+    "max_gain": 26.971967679206504
+  },
+  {
+    "config": "Strict: Vol>1.5 + Mom3d>1",
+    "trades": 13,
+    "winners": 7,
+    "losers": 6,
+    "stopped": 0,
+    "win_rate": 53.84615384615385,
+    "avg_return": 4.490300608015065,
+    "max_loss": -15.39505051674783,
+    "max_gain": 26.971967679206504
+  }
+]

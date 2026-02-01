@@ -1,0 +1,207 @@
+2026-01-12 08:58:36.632 | INFO     | __main__:backtest_v5:162 - 🔬 COMPREHENSIVE BACKTEST - v5.1 MOMENTUM CONTINUATION (RELAXED)
+2026-01-12 08:58:36.632 | INFO     | __main__:backtest_v5:163 - ================================================================================
+2026-01-12 08:58:36.632 | INFO     | __main__:backtest_v5:164 - v5.1 Changes: Momentum 10-25% (relaxed from v5.0's 15-25%)
+2026-01-12 08:58:36.632 | INFO     | __main__:backtest_v5:165 - 
+2026-01-12 08:58:36.632 | INFO     | api.data_manager:__init__:46 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: fmp
+2026-01-12 08:58:36.632 | INFO     | __main__:backtest_v5:192 - Testing 48 stocks across 13 dates
+2026-01-12 08:58:36.632 | INFO     | __main__:backtest_v5:193 - Total scenarios: 624
+2026-01-12 08:58:36.632 | INFO     | __main__:backtest_v5:194 - 
+2026-01-12 08:58:36.632 | INFO     | __main__:backtest_v5:200 - 📅 Testing entry date: 2025-10-15
+2026-01-12 08:58:37.210 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for AAPL
+2026-01-12 08:58:37.294 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for GOOGL
+2026-01-12 08:58:37.425 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for MSFT
+2026-01-12 08:58:37.586 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for AMZN
+2026-01-12 08:58:37.689 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for NVDA
+2026-01-12 08:58:37.768 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for TSLA
+2026-01-12 08:58:37.850 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for META
+2026-01-12 08:58:37.951 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for AVGO
+2026-01-12 08:58:38.058 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for ASML
+2026-01-12 08:58:38.173 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for AMD
+2026-01-12 08:58:38.306 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for QCOM
+2026-01-12 08:58:38.446 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for MU
+2026-01-12 08:58:38.571 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for INTC
+2026-01-12 08:58:38.688 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for TSM
+2026-01-12 08:58:38.799 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for AMAT
+2026-01-12 08:58:38.909 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for LRCX
+2026-01-12 08:58:39.032 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for KLAC
+2026-01-12 08:58:39.111 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for SNPS
+2026-01-12 08:58:39.192 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for CDNS
+2026-01-12 08:58:39.280 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for MRVL
+2026-01-12 08:58:39.370 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for SNOW
+2026-01-12 08:58:39.458 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for CRWD
+2026-01-12 08:58:39.554 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for DDOG
+2026-01-12 08:58:39.629 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for NET
+2026-01-12 08:58:39.708 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for ZS
+2026-01-12 08:58:39.790 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for OKTA
+2026-01-12 08:58:39.876 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for SHOP
+$SQ: possibly delisted; no price data found  (period=2y) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-12 08:58:40.727 | ERROR    | api.yahoo_finance_client:get_price_data:64 - Failed to get price data for SQ: No data found for symbol SQ
+2026-01-12 08:58:40.727 | WARNING  | api.data_manager:get_price_data:69 - Primary source (yahoo) failed for SQ: Failed to get price data: No data found for symbol SQ
+2026-01-12 08:58:40.727 | ERROR    | __main__:backtest_v5:271 - Error testing SQ: Failed to get price data for SQ from all sources
+2026-01-12 08:58:40.816 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for COIN
+2026-01-12 08:58:40.905 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for HOOD
+2026-01-12 08:58:40.980 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for RBLX
+2026-01-12 08:58:41.047 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for U
+2026-01-12 08:58:41.127 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for ARWR
+2026-01-12 08:58:41.216 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for VRTX
+2026-01-12 08:58:41.450 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for MRNA
+2026-01-12 08:58:41.535 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for ILMN
+2026-01-12 08:58:41.615 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for REGN
+2026-01-12 08:58:41.707 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for BIIB
+2026-01-12 08:58:41.846 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for SCCO
+2026-01-12 08:58:41.999 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for FCX
+2026-01-12 08:58:42.132 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for NEM
+2026-01-12 08:58:42.241 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for GOLD
+2026-01-12 08:58:42.332 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for PATH
+2026-01-12 08:58:42.409 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for PLTR
+2026-01-12 08:58:42.500 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for DKNG
+2026-01-12 08:58:42.596 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for PENN
+2026-01-12 08:58:42.671 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for RIVN
+2026-01-12 08:58:42.752 | INFO     | api.yahoo_finance_client:get_price_data:59 - Retrieved 502 rows of price data for LCID
+2026-01-12 08:58:42.753 | INFO     | __main__:backtest_v5:274 -    Passed v5.0 filters: 2 stocks
+2026-01-12 08:58:42.754 | INFO     | __main__:backtest_v5:200 - 📅 Testing entry date: 2025-10-20
+$SQ: possibly delisted; no price data found  (period=2y) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-12 08:58:43.237 | ERROR    | api.yahoo_finance_client:get_price_data:64 - Failed to get price data for SQ: No data found for symbol SQ
+2026-01-12 08:58:43.237 | WARNING  | api.data_manager:get_price_data:69 - Primary source (yahoo) failed for SQ: Failed to get price data: No data found for symbol SQ
+2026-01-12 08:58:43.237 | ERROR    | __main__:backtest_v5:271 - Error testing SQ: Failed to get price data for SQ from all sources
+2026-01-12 08:58:43.270 | INFO     | __main__:backtest_v5:274 -    Passed v5.0 filters: 2 stocks
+2026-01-12 08:58:43.270 | INFO     | __main__:backtest_v5:200 - 📅 Testing entry date: 2025-10-25
+$SQ: possibly delisted; no price data found  (period=2y) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-12 08:58:43.687 | ERROR    | api.yahoo_finance_client:get_price_data:64 - Failed to get price data for SQ: No data found for symbol SQ
+2026-01-12 08:58:43.687 | WARNING  | api.data_manager:get_price_data:69 - Primary source (yahoo) failed for SQ: Failed to get price data: No data found for symbol SQ
+2026-01-12 08:58:43.688 | ERROR    | __main__:backtest_v5:271 - Error testing SQ: Failed to get price data for SQ from all sources
+2026-01-12 08:58:43.735 | INFO     | __main__:backtest_v5:274 -    Passed v5.0 filters: 5 stocks
+2026-01-12 08:58:43.735 | INFO     | __main__:backtest_v5:200 - 📅 Testing entry date: 2025-11-05
+$SQ: possibly delisted; no price data found  (period=2y) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-12 08:58:44.145 | ERROR    | api.yahoo_finance_client:get_price_data:64 - Failed to get price data for SQ: No data found for symbol SQ
+2026-01-12 08:58:44.145 | WARNING  | api.data_manager:get_price_data:69 - Primary source (yahoo) failed for SQ: Failed to get price data: No data found for symbol SQ
+2026-01-12 08:58:44.145 | ERROR    | __main__:backtest_v5:271 - Error testing SQ: Failed to get price data for SQ from all sources
+2026-01-12 08:58:44.193 | INFO     | __main__:backtest_v5:274 -    Passed v5.0 filters: 5 stocks
+2026-01-12 08:58:44.193 | INFO     | __main__:backtest_v5:200 - 📅 Testing entry date: 2025-11-10
+$SQ: possibly delisted; no price data found  (period=2y) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-12 08:58:44.606 | ERROR    | api.yahoo_finance_client:get_price_data:64 - Failed to get price data for SQ: No data found for symbol SQ
+2026-01-12 08:58:44.607 | WARNING  | api.data_manager:get_price_data:69 - Primary source (yahoo) failed for SQ: Failed to get price data: No data found for symbol SQ
+2026-01-12 08:58:44.607 | ERROR    | __main__:backtest_v5:271 - Error testing SQ: Failed to get price data for SQ from all sources
+2026-01-12 08:58:44.656 | INFO     | __main__:backtest_v5:274 -    Passed v5.0 filters: 4 stocks
+2026-01-12 08:58:44.656 | INFO     | __main__:backtest_v5:200 - 📅 Testing entry date: 2025-11-15
+$SQ: possibly delisted; no price data found  (period=2y) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-12 08:58:45.057 | ERROR    | api.yahoo_finance_client:get_price_data:64 - Failed to get price data for SQ: No data found for symbol SQ
+2026-01-12 08:58:45.057 | WARNING  | api.data_manager:get_price_data:69 - Primary source (yahoo) failed for SQ: Failed to get price data: No data found for symbol SQ
+2026-01-12 08:58:45.058 | ERROR    | __main__:backtest_v5:271 - Error testing SQ: Failed to get price data for SQ from all sources
+2026-01-12 08:58:45.100 | INFO     | __main__:backtest_v5:274 -    Passed v5.0 filters: 2 stocks
+2026-01-12 08:58:45.100 | INFO     | __main__:backtest_v5:200 - 📅 Testing entry date: 2025-11-20
+$SQ: possibly delisted; no price data found  (period=2y) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-12 08:58:45.565 | ERROR    | api.yahoo_finance_client:get_price_data:64 - Failed to get price data for SQ: No data found for symbol SQ
+2026-01-12 08:58:45.565 | WARNING  | api.data_manager:get_price_data:69 - Primary source (yahoo) failed for SQ: Failed to get price data: No data found for symbol SQ
+2026-01-12 08:58:45.565 | ERROR    | __main__:backtest_v5:271 - Error testing SQ: Failed to get price data for SQ from all sources
+2026-01-12 08:58:45.601 | INFO     | __main__:backtest_v5:274 -    Passed v5.0 filters: 1 stocks
+2026-01-12 08:58:45.601 | INFO     | __main__:backtest_v5:200 - 📅 Testing entry date: 2025-11-25
+$SQ: possibly delisted; no price data found  (period=2y) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-12 08:58:45.990 | ERROR    | api.yahoo_finance_client:get_price_data:64 - Failed to get price data for SQ: No data found for symbol SQ
+2026-01-12 08:58:45.990 | WARNING  | api.data_manager:get_price_data:69 - Primary source (yahoo) failed for SQ: Failed to get price data: No data found for symbol SQ
+2026-01-12 08:58:45.990 | ERROR    | __main__:backtest_v5:271 - Error testing SQ: Failed to get price data for SQ from all sources
+2026-01-12 08:58:46.026 | INFO     | __main__:backtest_v5:274 -    Passed v5.0 filters: 1 stocks
+2026-01-12 08:58:46.026 | INFO     | __main__:backtest_v5:200 - 📅 Testing entry date: 2025-12-01
+$SQ: possibly delisted; no price data found  (period=2y) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-12 08:58:46.430 | ERROR    | api.yahoo_finance_client:get_price_data:64 - Failed to get price data for SQ: No data found for symbol SQ
+2026-01-12 08:58:46.430 | WARNING  | api.data_manager:get_price_data:69 - Primary source (yahoo) failed for SQ: Failed to get price data: No data found for symbol SQ
+2026-01-12 08:58:46.430 | ERROR    | __main__:backtest_v5:271 - Error testing SQ: Failed to get price data for SQ from all sources
+2026-01-12 08:58:46.476 | INFO     | __main__:backtest_v5:274 -    Passed v5.0 filters: 3 stocks
+2026-01-12 08:58:46.476 | INFO     | __main__:backtest_v5:200 - 📅 Testing entry date: 2025-12-05
+$SQ: possibly delisted; no price data found  (period=2y) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-12 08:58:46.867 | ERROR    | api.yahoo_finance_client:get_price_data:64 - Failed to get price data for SQ: No data found for symbol SQ
+2026-01-12 08:58:46.867 | WARNING  | api.data_manager:get_price_data:69 - Primary source (yahoo) failed for SQ: Failed to get price data: No data found for symbol SQ
+2026-01-12 08:58:46.867 | ERROR    | __main__:backtest_v5:271 - Error testing SQ: Failed to get price data for SQ from all sources
+2026-01-12 08:58:46.904 | INFO     | __main__:backtest_v5:274 -    Passed v5.0 filters: 1 stocks
+2026-01-12 08:58:46.904 | INFO     | __main__:backtest_v5:200 - 📅 Testing entry date: 2025-12-10
+$SQ: possibly delisted; no price data found  (period=2y) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-12 08:58:47.279 | ERROR    | api.yahoo_finance_client:get_price_data:64 - Failed to get price data for SQ: No data found for symbol SQ
+2026-01-12 08:58:47.279 | WARNING  | api.data_manager:get_price_data:69 - Primary source (yahoo) failed for SQ: Failed to get price data: No data found for symbol SQ
+2026-01-12 08:58:47.280 | ERROR    | __main__:backtest_v5:271 - Error testing SQ: Failed to get price data for SQ from all sources
+2026-01-12 08:58:47.315 | INFO     | __main__:backtest_v5:274 -    Passed v5.0 filters: 2 stocks
+2026-01-12 08:58:47.315 | INFO     | __main__:backtest_v5:200 - 📅 Testing entry date: 2025-12-15
+$SQ: possibly delisted; no price data found  (period=2y) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-12 08:58:47.715 | ERROR    | api.yahoo_finance_client:get_price_data:64 - Failed to get price data for SQ: No data found for symbol SQ
+2026-01-12 08:58:47.715 | WARNING  | api.data_manager:get_price_data:69 - Primary source (yahoo) failed for SQ: Failed to get price data: No data found for symbol SQ
+2026-01-12 08:58:47.715 | ERROR    | __main__:backtest_v5:271 - Error testing SQ: Failed to get price data for SQ from all sources
+2026-01-12 08:58:47.752 | INFO     | __main__:backtest_v5:274 -    Passed v5.0 filters: 2 stocks
+2026-01-12 08:58:47.752 | INFO     | __main__:backtest_v5:200 - 📅 Testing entry date: 2025-12-20
+$SQ: possibly delisted; no price data found  (period=2y) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-12 08:58:48.144 | ERROR    | api.yahoo_finance_client:get_price_data:64 - Failed to get price data for SQ: No data found for symbol SQ
+2026-01-12 08:58:48.144 | WARNING  | api.data_manager:get_price_data:69 - Primary source (yahoo) failed for SQ: Failed to get price data: No data found for symbol SQ
+2026-01-12 08:58:48.144 | ERROR    | __main__:backtest_v5:271 - Error testing SQ: Failed to get price data for SQ from all sources
+2026-01-12 08:58:48.192 | INFO     | __main__:backtest_v5:274 -    Passed v5.0 filters: 1 stocks
+2026-01-12 08:58:48.192 | INFO     | __main__:backtest_v5:276 - 
+2026-01-12 08:58:48.192 | INFO     | __main__:backtest_v5:277 - ================================================================================
+2026-01-12 08:58:48.192 | INFO     | __main__:backtest_v5:278 - 📊 BACKTEST RESULTS - v5.1 MOMENTUM CONTINUATION (RELAXED)
+2026-01-12 08:58:48.192 | INFO     | __main__:backtest_v5:279 - ================================================================================
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:300 - Total scenarios tested: 624
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:301 - Passed v5.1 filters: 31 (5.0%)
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:302 - Total trades: 31
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:303 - 
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:305 - 🎯 OVERALL PERFORMANCE:
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:306 -    Win Rate: 58.1%
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:307 -    Avg Return: +5.59%
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:308 -    Median Return: +2.39%
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:309 -    Hit 12% Target: 38.7%
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:310 -    Hit 15% Target: 25.8%
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:311 - 
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:313 - 📈 WINNERS:
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:314 -    Count: 18
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:315 -    Avg Return: +13.98%
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:316 -    Best: +72.82%
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:317 - 
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:319 - 📉 LOSERS:
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:320 -    Count: 13
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:321 -    Avg Return: -6.03%
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:322 -    Worst: -13.20%
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:323 - 
+2026-01-12 08:58:48.193 | INFO     | __main__:backtest_v5:326 - 🏆 TOP 10 PERFORMERS:
+2026-01-12 08:58:48.194 | INFO     | __main__:backtest_v5:329 -    ARWR   2025-11-10 →  +72.82% (Max: +79.4%)
+2026-01-12 08:58:48.194 | INFO     | __main__:backtest_v5:329 -    ARWR   2025-11-15 →  +65.90% (Max: +75.4%)
+2026-01-12 08:58:48.194 | INFO     | __main__:backtest_v5:329 -    AMAT   2025-11-10 →  +17.27% (Max: +17.7%)
+2026-01-12 08:58:48.194 | INFO     | __main__:backtest_v5:329 -    NEM    2025-12-10 →  +15.46% (Max: +15.8%)
+2026-01-12 08:58:48.194 | INFO     | __main__:backtest_v5:329 -    GOOGL  2025-11-15 →  +11.58% (Max: +19.0%)
+2026-01-12 08:58:48.194 | INFO     | __main__:backtest_v5:329 -    AMAT   2025-11-05 →  +11.47% (Max: +13.8%)
+2026-01-12 08:58:48.194 | INFO     | __main__:backtest_v5:329 -    REGN   2025-12-10 →   +9.69% (Max: +13.1%)
+2026-01-12 08:58:48.194 | INFO     | __main__:backtest_v5:329 -    BIIB   2025-12-15 →   +6.76% (Max: +8.2%)
+2026-01-12 08:58:48.194 | INFO     | __main__:backtest_v5:329 -    GOOGL  2025-11-20 →   +6.19% (Max: +13.6%)
+2026-01-12 08:58:48.194 | INFO     | __main__:backtest_v5:329 -    SCCO   2025-12-05 →   +5.90% (Max: +8.4%)
+2026-01-12 08:58:48.194 | INFO     | __main__:backtest_v5:330 - 
+2026-01-12 08:58:48.194 | INFO     | __main__:backtest_v5:333 - 💔 BOTTOM 10 PERFORMERS:
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:336 -    ZS     2025-10-25 →  -13.20% (Min: -16.7%)
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:336 -    NET    2025-11-10 →  -11.25% (Min: -24.7%)
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:336 -    SHOP   2025-10-25 →  -10.20% (Min: -21.3%)
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:336 -    AVGO   2025-12-01 →  -10.18% (Min: -16.7%)
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:336 -    HOOD   2025-11-05 →   -7.39% (Min: -28.3%)
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:336 -    SNOW   2025-10-25 →   -6.18% (Min: -11.4%)
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:336 -    TSM    2025-10-20 →   -5.15% (Min: -8.4%)
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:336 -    CRWD   2025-10-25 →   -3.89% (Min: -9.4%)
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:336 -    U      2025-12-20 →   -3.79% (Min: -5.8%)
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:336 -    AVGO   2025-10-15 →   -2.52% (Min: -6.3%)
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:337 - 
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:340 - ================================================================================
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:341 - 📊 COMPARISON: v5.1 vs v5.0 vs v4.2
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:342 - ================================================================================
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:343 - 
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:344 - v4.2 Comprehensive Test:
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:345 -    Win Rate: 47.9%
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:346 -    Avg Return: +2.67%
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:347 -    Median Return: +4.80%
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:348 -    Pass Rate: N/A
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:349 - 
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:350 - v5.0 Debug Test (Dec 20, 2025):
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:351 -    Pass Rate: 4.3% (1/23 stocks) - TOO STRICT!
+2026-01-12 08:58:48.195 | INFO     | __main__:backtest_v5:352 -    Momentum required: 15-25%
+2026-01-12 08:58:48.196 | INFO     | __main__:backtest_v5:353 - 
+2026-01-12 08:58:48.196 | INFO     | __main__:backtest_v5:354 - v5.1 Actual Results (THIS TEST):
+2026-01-12 08:58:48.196 | INFO     | __main__:backtest_v5:355 -    Win Rate: 58.1% (+10.2% vs v4.2)
+2026-01-12 08:58:48.196 | INFO     | __main__:backtest_v5:356 -    Avg Return: +5.59% (+2.92% vs v4.2)
+2026-01-12 08:58:48.196 | INFO     | __main__:backtest_v5:357 -    Median Return: +2.39% (-2.41% vs v4.2)
+2026-01-12 08:58:48.196 | INFO     | __main__:backtest_v5:358 -    Pass Rate: 5.0%
+2026-01-12 08:58:48.196 | INFO     | __main__:backtest_v5:359 -    Momentum required: 10-25% (RELAXED)
+2026-01-12 08:58:48.196 | INFO     | __main__:backtest_v5:360 - 
+2026-01-12 08:58:48.196 | INFO     | __main__:backtest_v5:363 - ✅ v5.1 WIN RATE IMPROVED vs v4.2!
+2026-01-12 08:58:48.196 | INFO     | __main__:backtest_v5:368 - ✅ v5.1 AVG RETURN IMPROVED vs v4.2!
+2026-01-12 08:58:48.197 | INFO     | __main__:backtest_v5:374 - 
+2026-01-12 08:58:48.197 | INFO     | __main__:backtest_v5:375 - 💾 Results saved to: backtest_v5.1_results.csv

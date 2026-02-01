@@ -1,0 +1,601 @@
+$NOVA: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$KAMN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$IMGN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$ASTR: possibly delisted; no price data found  (period=1mo)
+$MRNS: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$KAMN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$VLD: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$IMGN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$ASTR: possibly delisted; no price data found  (period=1mo)
+$SAGE: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+HTTP Error 500: {"quoteSummary":{"result":null,"error":{"code":"internal-error","description":"internal-error"}}}
+$VLD: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$IMGN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+HTTP Error 500: {"quoteSummary":{"result":null,"error":{"code":"internal-error","description":"internal-error"}}}
+$ASTR: possibly delisted; no price data found  (period=1mo)
+$ASTR: possibly delisted; no price data found  (period=1mo)
+$IMGN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$MRNS: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$LILM: possibly delisted; no price data found  (period=1mo)
+HTTP Error 500: {"quoteSummary":{"result":null,"error":{"code":"internal-error","description":"internal-error"}}}
+$ASTR: possibly delisted; no price data found  (period=1mo)
+$VERV: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$FSR: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+HTTP Error 500: {"quoteSummary":{"result":null,"error":{"code":"internal-error","description":"internal-error"}}}
+$SQ: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$IMGN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$IMGN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$SAGE: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$ATNX: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$KAMN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$ZUO: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-01 15:52:43.366 | ERROR    | analysis.fundamental.fundamental_analyzer:calculate_basic_fundamentals:900 - Basic fundamentals calculation failed: '<=' not supported between instances of 'int' and 'str'
+$ASTR: possibly delisted; no price data found  (period=1mo)
+$IMGN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$KAMN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$MRNS: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$BLUE: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-01 15:53:32.872 | ERROR    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:825 - Comprehensive analysis failed for BPMC: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:53:32.967 | ERROR    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:825 - Comprehensive analysis failed for RVNC: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:53:33.138 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for KYMR: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:53:33.138 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for KYMR: Failed to get real-time price for KYMR from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:53:33.359 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for AXSM: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:53:33.364 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for AXSM: Failed to get real-time price for AXSM from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:53:33.469 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for SRPT: argument of type 'NoneType' is not iterable
+2026-01-01 15:53:33.470 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for SRPT: Failed to get real-time price for SRPT from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:53:33.634 | ERROR    | api.yahoo_finance_client:get_financial_data:187 - Failed to get financial data for PRTA: argument of type 'NoneType' is not iterable
+2026-01-01 15:53:33.634 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for PRTA: Failed to get financial data for PRTA from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:53:33.676 | ERROR    | api.yahoo_finance_client:get_financial_data:187 - Failed to get financial data for VERA: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:53:33.679 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for VERA: Failed to get financial data for VERA from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:53:33.728 | ERROR    | api.yahoo_finance_client:get_financial_data:187 - Failed to get financial data for DNLI: argument of type 'NoneType' is not iterable
+2026-01-01 15:53:33.728 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for DNLI: Failed to get financial data for DNLI from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:53:33.813 | ERROR    | api.yahoo_finance_client:get_financial_data:187 - Failed to get financial data for ABCL: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:53:33.813 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for ABCL: Failed to get financial data for ABCL from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:53:33.934 | ERROR    | api.yahoo_finance_client:get_financial_data:187 - Failed to get financial data for INSM: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:53:33.935 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for INSM: Failed to get financial data for INSM from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+SRPT: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+SRPT: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+VERA: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+VERA: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+OMCL: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+OMCL: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+INSM: Error fetching analyst data: argument of type 'NoneType' is not iterable
+KYMR: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+KYMR: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+DNLI: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+INSM: Error fetching short interest: argument of type 'NoneType' is not iterable
+DNLI: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+SRPT: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+OMCL: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+DNLI: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+VERA: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+KYMR: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+INSM: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:54:08.124 | ERROR    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:825 - Comprehensive analysis failed for MRNS: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+$BLUE: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-01 15:54:08.367 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for KROS: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:54:08.369 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for KROS: Failed to get real-time price for KROS from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+$BPMC: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:54:08.558 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for AVXL: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:54:08.564 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for AVXL: Failed to get real-time price for AVXL from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:54:08.658 | ERROR    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:825 - Comprehensive analysis failed for DCPH: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:54:08.737 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for IONS: argument of type 'NoneType' is not iterable
+2026-01-01 15:54:08.739 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for IONS: Failed to get real-time price for IONS from all sources
+2026-01-01 15:54:08.778 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for ACAD: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:54:08.778 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for ACAD: Failed to get real-time price for ACAD from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:54:08.824 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for SRPT: argument of type 'NoneType' is not iterable
+2026-01-01 15:54:08.824 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for SRPT: Failed to get real-time price for SRPT from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:54:08.825 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for EXAS: argument of type 'NoneType' is not iterable
+2026-01-01 15:54:08.826 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for EXAS: Failed to get real-time price for EXAS from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:54:08.828 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for CYTK: argument of type 'NoneType' is not iterable
+2026-01-01 15:54:08.829 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for CYTK: Failed to get real-time price for CYTK from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:54:08.831 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for CRDF: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:54:08.831 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for CRDF: Failed to get real-time price for CRDF from all sources
+2026-01-01 15:54:08.831 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for ATEC: argument of type 'NoneType' is not iterable
+2026-01-01 15:54:08.831 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for ATEC: Failed to get real-time price for ATEC from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:54:08.832 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for RXRX: argument of type 'NoneType' is not iterable
+2026-01-01 15:54:08.832 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for RXRX: Failed to get real-time price for RXRX from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:54:09.275 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for RCUS: argument of type 'NoneType' is not iterable
+2026-01-01 15:54:09.276 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for RCUS: Failed to get real-time price for RCUS from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:54:09.314 | ERROR    | api.yahoo_finance_client:get_financial_data:187 - Failed to get financial data for UTHR: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:54:09.322 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for UTHR: Failed to get financial data for UTHR from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:54:09.372 | ERROR    | api.yahoo_finance_client:get_financial_data:187 - Failed to get financial data for NVAX: argument of type 'NoneType' is not iterable
+2026-01-01 15:54:09.372 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for NVAX: Failed to get financial data for NVAX from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:54:09.379 | ERROR    | api.yahoo_finance_client:get_financial_data:187 - Failed to get financial data for IRWD: argument of type 'NoneType' is not iterable
+2026-01-01 15:54:09.379 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for IRWD: Failed to get financial data for IRWD from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:54:09.481 | ERROR    | api.yahoo_finance_client:get_financial_data:187 - Failed to get financial data for ALKS: argument of type 'NoneType' is not iterable
+2026-01-01 15:54:09.482 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for ALKS: Failed to get financial data for ALKS from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:54:09.822 | ERROR    | api.yahoo_finance_client:get_financial_data:187 - Failed to get financial data for KNSA: argument of type 'NoneType' is not iterable
+2026-01-01 15:54:09.827 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for KNSA: Failed to get financial data for KNSA from all sources
+2026-01-01 15:54:09.911 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for TGTX: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:54:09.912 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for TGTX: Failed to get real-time price for TGTX from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+SRPT: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+SRPT: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+SRPT: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:54:15.544 | ERROR    | api.yahoo_finance_client:get_financial_data:187 - Failed to get financial data for VERA: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:54:15.545 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for VERA: Failed to get financial data for VERA from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:54:16.803 | ERROR    | api.yahoo_finance_client:get_financial_data:187 - Failed to get financial data for ZYME: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:54:16.803 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for ZYME: Failed to get financial data for ZYME from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+ACAD: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+ALKS: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+TGTX: Error fetching analyst data: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+ACAD: Error fetching short interest: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:54:17.176 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for ARQT: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:54:17.177 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for ARQT: Failed to get real-time price for ARQT from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+IONS: Error fetching analyst data: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+ALKS: Error fetching short interest: argument of type 'NoneType' is not iterable
+TGTX: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+IRWD: Error fetching analyst data: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+$CERE: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+IONS: Error fetching short interest: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+RCUS: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+IRWD: Error fetching short interest: argument of type 'NoneType' is not iterable
+CYTK: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:54:17.713 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for DAWN: argument of type 'NoneType' is not iterable
+2026-01-01 15:54:17.713 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for DAWN: Failed to get real-time price for DAWN from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+NVAX: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+RCUS: Error fetching short interest: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:54:17.816 | ERROR    | api.yahoo_finance_client:get_financial_data:187 - Failed to get financial data for BCRX: argument of type 'NoneType' is not iterable
+2026-01-01 15:54:17.816 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for BCRX: Failed to get financial data for BCRX from all sources
+CYTK: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+NVAX: Error fetching short interest: argument of type 'NoneType' is not iterable
+UTHR: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:54:18.284 | ERROR    | api.yahoo_finance_client:get_financial_data:187 - Failed to get financial data for FOLD: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:54:18.286 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for FOLD: Failed to get financial data for FOLD from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+UTHR: Error fetching short interest: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+KNSA: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+KNSA: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+VERA: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+VERA: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+VERA: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:54:23.511 | ERROR    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:825 - Comprehensive analysis failed for IMGN: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:54:23.599 | ERROR    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:825 - Comprehensive analysis failed for KRTX: Too Many Requests. Rate limited. Try after a while.
+ZYME: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+ZYME: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+DAWN: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+DAWN: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+FOLD: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+FOLD: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+BCRX: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+BCRX: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+IRWD: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+ALKS: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+ACAD: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+UTHR: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+RCUS: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+TGTX: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+NVAX: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+IONS: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+CYTK: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+KNSA: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+ZYME: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+FOLD: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+DAWN: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+BCRX: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:55:39.172 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for PLTR: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:55:39.173 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for PLTR: Failed to get real-time price for PLTR from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:39.481 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for PATH: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:55:39.484 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for PATH: Failed to get real-time price for PATH from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:39.541 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for ZS: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:55:39.541 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for ZS: Failed to get real-time price for ZS from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:55:39.645 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for EXAS: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:55:39.650 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for EXAS: Failed to get real-time price for EXAS from all sources
+2026-01-01 15:55:39.693 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for RXRX: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:55:39.695 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for RXRX: Failed to get real-time price for RXRX from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:55:39.760 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for NTLA: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:55:39.760 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for NTLA: Failed to get real-time price for NTLA from all sources
+2026-01-01 15:55:39.857 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for NET: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:55:39.861 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for NET: Failed to get real-time price for NET from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:39.911 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for CRWD: argument of type 'NoneType' is not iterable
+2026-01-01 15:55:39.911 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for CRWD: Failed to get real-time price for CRWD from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:39.992 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for TDOC: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:55:39.992 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for TDOC: Failed to get real-time price for TDOC from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:40.001 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for TXG: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:40.004 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for AXON: argument of type 'NoneType' is not iterable
+2026-01-01 15:55:40.005 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for AXON: Failed to get real-time price for AXON from all sources
+2026-01-01 15:55:40.006 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for TXG: Failed to get real-time price for TXG from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:40.007 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for GH: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:55:40.007 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for GH: Failed to get real-time price for GH from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:40.016 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for IONS: argument of type 'NoneType' is not iterable
+2026-01-01 15:55:40.016 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for IONS: Failed to get real-time price for IONS from all sources
+2026-01-01 15:55:40.051 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for CRSP: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:55:40.054 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for CRSP: Failed to get real-time price for CRSP from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:40.101 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for BEAM: argument of type 'NoneType' is not iterable
+2026-01-01 15:55:40.101 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for BEAM: Failed to get real-time price for BEAM from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:40.204 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for ALNY: argument of type 'NoneType' is not iterable
+2026-01-01 15:55:40.204 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for ALNY: Failed to get real-time price for ALNY from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:55:40.803 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for SNOW: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:55:40.810 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for SNOW: Failed to get real-time price for SNOW from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:40.855 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for MDB: argument of type 'NoneType' is not iterable
+2026-01-01 15:55:40.855 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for MDB: Failed to get real-time price for MDB from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:55:46.953 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for DDOG: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:55:46.954 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for DDOG: Failed to get real-time price for DDOG from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+PLTR: Error fetching analyst data: argument of type 'NoneType' is not iterable
+IONS: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+IONS: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+PLTR: Error fetching short interest: argument of type 'NoneType' is not iterable
+IONS: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+BEAM: Error fetching analyst data: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+TXG: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+ALNY: Error fetching analyst data: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+BEAM: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:48.028 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for TEAM: argument of type 'NoneType' is not iterable
+2026-01-01 15:55:48.028 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for TEAM: Failed to get real-time price for TEAM from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+TXG: Error fetching short interest: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+ALNY: Error fetching short interest: argument of type 'NoneType' is not iterable
+$ASTR: possibly delisted; no price data found  (period=1mo)
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+TDOC: Error fetching analyst data: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+TDOC: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:48.400 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for ASTS: argument of type 'NoneType' is not iterable
+2026-01-01 15:55:48.400 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for ASTS: Failed to get real-time price for ASTS from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:48.443 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for SPCE: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:55:48.444 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for SPCE: Failed to get real-time price for SPCE from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:48.521 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for RKLB: argument of type 'NoneType' is not iterable
+2026-01-01 15:55:48.521 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for RKLB: Failed to get real-time price for RKLB from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:55:48.692 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for LCID: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:55:48.693 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for LCID: Failed to get real-time price for LCID from all sources
+$FSR: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-01-01 15:55:48.827 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for RDW: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:55:48.827 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for RDW: Failed to get real-time price for RDW from all sources
+2026-01-01 15:55:48.871 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for PL: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:55:48.872 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for PL: Failed to get real-time price for PL from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+NTLA: Error fetching analyst data: argument of type 'NoneType' is not iterable
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+NTLA: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-01-01 15:55:49.347 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for RIVN: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:55:49.347 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for RIVN: Failed to get real-time price for RIVN from all sources
+AXON: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+AXON: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+DDOG: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+DDOG: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:55:55.395 | ERROR    | api.yahoo_finance_client:get_real_time_price:267 - Failed to get real-time price for PSNY: Too Many Requests. Rate limited. Try after a while.
+2026-01-01 15:55:55.395 | ERROR    | main:analyze_stock_fast:253 - Fast analysis failed for PSNY: Failed to get real-time price for PSNY from all sources
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+ASTS: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+ASTS: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+RKLB: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+RKLB: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+PL: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+PL: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+RDW: Error fetching analyst data: Too Many Requests. Rate limited. Try after a while.
+RDW: Error fetching short interest: Too Many Requests. Rate limited. Try after a while.
+ALNY: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+PLTR: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+TDOC: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+BEAM: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+NTLA: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+TXG: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+AXON: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+DDOG: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+ASTS: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+RKLB: Error fetching macro data: Too Many Requests. Rate limited. Try after a while.
+$ASTR: possibly delisted; no price data found  (period=1mo)
+$LILM: possibly delisted; no price data found  (period=1mo)
+$NOVA: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$ASTR: possibly delisted; no price data found  (period=1mo)
+$MRNS: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$RVNC: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$IMGN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$KAMN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$NOVA: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$ASTR: possibly delisted; no price data found  (period=1mo)
+$ASTR: possibly delisted; no price data found  (period=1mo)
+$SAGE: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+HTTP Error 500: {"quoteSummary":{"result":null,"error":{"code":"internal-error","description":"internal-error"}}}
+$ASTR: possibly delisted; no price data found  (period=1mo)
+$BPMC: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$IMGN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$RVNC: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$KAMN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$IMGN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$NOVA: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$IMGN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$KAMN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$NOVA: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$ZUO: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+2026-01-01 16:06:42.669 | ERROR    | analysis.fundamental.fundamental_analyzer:calculate_basic_fundamentals:900 - Basic fundamentals calculation failed: '<=' not supported between instances of 'int' and 'str'
+$ASTR: possibly delisted; no price data found  (period=1mo)
+$LILM: possibly delisted; no price data found  (period=1mo)

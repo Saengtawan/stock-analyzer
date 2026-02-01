@@ -1,0 +1,419 @@
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+/home/saengtawan/work/project/cc/stock-analyzer/backtest_v4_comprehensive.py:84: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  score_data = yf.download(symbol, start=score_start, end=test_date, progress=False)
+====================================================================================================
+🔬 COMPREHENSIVE BACKTEST: Growth Catalyst v4.0
+====================================================================================================
+
+📅 Test Period: 2025-10-04 to 2026-01-02 (90 days)
+
+🎯 Running backtests...
+
+
+====================================================================================================
+📅 Testing: 2025-10-04
+====================================================================================================
+Testing 30 stocks...
+
+====================================================================================================
+📅 Testing: 2025-10-11
+====================================================================================================
+Testing 30 stocks...
+
+====================================================================================================
+📅 Testing: 2025-10-18
+====================================================================================================
+Testing 30 stocks...
+
+====================================================================================================
+📅 Testing: 2025-10-25
+====================================================================================================
+Testing 30 stocks...
+
+====================================================================================================
+📅 Testing: 2025-11-01
+====================================================================================================
+Testing 30 stocks...
+
+====================================================================================================
+📅 Testing: 2025-11-08
+====================================================================================================
+Testing 30 stocks...
+
+====================================================================================================
+📅 Testing: 2025-11-15
+====================================================================================================
+Testing 30 stocks...
+
+====================================================================================================
+📅 Testing: 2025-11-22
+====================================================================================================
+Testing 30 stocks...
+
+====================================================================================================
+📅 Testing: 2025-11-29
+====================================================================================================
+Testing 30 stocks...
+
+====================================================================================================
+📊 BACKTEST RESULTS
+====================================================================================================
+
+⚠️  No trades found - backtest period may need adjustment

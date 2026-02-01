@@ -1,0 +1,1027 @@
+{% extends "base.html" %}
+
+{% block title %}Portfolio Monitor{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .stat-value {
+        font-size: 2em;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    .stat-label {
+        font-size: 0.9em;
+        opacity: 0.9;
+    }
+    .position-card {
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        transition: all 0.3s;
+    }
+    .position-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .position-card.profit {
+        border-color: #28a745;
+        background: #f8fff9;
+    }
+    .position-card.loss {
+        border-color: #dc3545;
+        background: #fff8f8;
+    }
+    .exit-signal {
+        background: #fff3cd;
+        border: 2px solid #ffc107;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+    }
+    .exit-signal.critical {
+        background: #f8d7da;
+        border-color: #dc3545;
+    }
+    .hold-signal {
+        background: #d4edda;
+        border: 2px solid #28a745;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+    }
+    .regime-badge {
+        display: inline-block;
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
+    .regime-bull {
+        background: #d4edda;
+        color: #155724;
+    }
+    .regime-bear {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    .regime-sideways {
+        background: #fff3cd;
+        color: #856404;
+    }
+    .perf-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+        height: 100%;
+    }
+    .perf-card.winner {
+        border-left: 4px solid #28a745;
+    }
+    .perf-card.loser {
+        border-left: 4px solid #dc3545;
+    }
+    .perf-card.neutral {
+        border-left: 4px solid #6c757d;
+    }
+    .perf-value {
+        font-size: 1.5em;
+        font-weight: bold;
+    }
+    .perf-label {
+        font-size: 0.85em;
+        color: #6c757d;
+    }
+    .trade-table {
+        font-size: 0.9em;
+    }
+    .trade-table th {
+        background: #f8f9fa;
+        position: sticky;
+        top: 0;
+    }
+    .trade-row.winner {
+        background: #f8fff9;
+    }
+    .trade-row.loser {
+        background: #fff8f8;
+    }
+    .exit-reason-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2>
+                <i class="fas fa-chart-line me-3"></i>
+                Portfolio Monitor
+            </h2>
+            <p class="text-muted">
+                Growth Catalyst v3.4 - Real-time Exit Signals + SECTOR-AWARE + SMART EXITS
+            </p>
+        </div>
+    </div>
+
+    <!-- Market Regime -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div id="regime-section">
+                <!-- Will be populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Portfolio Stats -->
+    <div class="row" id="stats-section">
+        <!-- Will be populated by JS -->
+    </div>
+
+    <!-- Active Positions -->
+    <div class="row">
+        <div class="col-12">
+            <h4 class="mb-3">
+                <i class="fas fa-briefcase me-2"></i>
+                Active Positions
+            </h4>
+            <div id="positions-container">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">กำลังโหลด portfolio...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <button class="btn btn-primary me-2" onclick="updatePortfolio()">
+                <i class="fas fa-sync-alt me-2"></i>
+                Update Portfolio
+            </button>
+            <a href="{{ url_for('screen_page') }}" class="btn btn-success me-2">
+                <i class="fas fa-search me-2"></i>
+                Find New Opportunities
+            </a>
+        </div>
+    </div>
+
+    <!-- Performance Stats Section -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <h4 class="mb-3">
+                <i class="fas fa-chart-bar me-2"></i>
+                Performance Stats
+            </h4>
+        </div>
+    </div>
+    <div class="row" id="performance-stats">
+        <div class="text-center py-3">
+            <span class="text-muted">Loading stats...</span>
+        </div>
+    </div>
+
+    <!-- Monthly Performance Section -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <h4 class="mb-3">
+                <i class="fas fa-calendar-alt me-2"></i>
+                Monthly Performance
+                <button class="btn btn-sm btn-outline-primary ms-3" onclick="loadMonthlyPerformance()">
+                    <i class="fas fa-sync-alt me-1"></i>
+                    Refresh
+                </button>
+            </h4>
+        </div>
+    </div>
+    <div class="row" id="monthly-performance">
+        <div class="text-center py-3">
+            <span class="text-muted">Loading monthly performance...</span>
+        </div>
+    </div>
+
+    <!-- Trade History Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">
+                    <i class="fas fa-history me-2"></i>
+                    Trade History
+                </h4>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-secondary btn-sm active" onclick="filterTrades('all')">All</button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="filterTrades('winners')">Winners</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="filterTrades('losers')">Losers</button>
+                </div>
+            </div>
+            <div id="trade-history">
+                <div class="text-center py-3">
+                    <span class="text-muted">Loading history...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exit Reasons Breakdown -->
+    <div class="row mt-4 mb-5">
+        <div class="col-12">
+            <h4 class="mb-3">
+                <i class="fas fa-door-open me-2"></i>
+                Exit Reasons Breakdown
+            </h4>
+            <div id="exit-reasons">
+                <div class="text-center py-3">
+                    <span class="text-muted">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Global variable to store all trades for filtering
+let allTrades = [];
+
+// Auto-load portfolio on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updatePortfolio();
+    loadTradeHistory();
+    loadMonthlyPerformance();
+
+    // Auto-refresh every 5 minutes
+    setInterval(updatePortfolio, 5 * 60 * 1000);
+});
+
+async function updatePortfolio() {
+    try {
+        const response = await fetch('/api/portfolio/status');
+        const data = await response.json();
+
+        if (response.ok) {
+            displayPortfolio(data);
+        } else {
+            throw new Error(data.error || 'Failed to load portfolio');
+        }
+    } catch (error) {
+        console.error('Error updating portfolio:', error);
+        showError('เกิดข้อผิดพลาดในการโหลด portfolio: ' + error.message);
+    }
+}
+
+function displayPortfolio(data) {
+    displayRegime(data.regime, data.sector_regime_summary);  // v3.3: Pass sector summary
+    displayStats(data.stats);
+    displayPositions(data.positions, data.sector_regime_summary);  // v3.3: Pass sector summary
+}
+
+function displayRegime(regime, sectorSummary) {
+    if (!regime) return;
+
+    const regimeSection = document.getElementById('regime-section');
+
+    let regimeClass = 'regime-sideways';
+    let regimeIcon = '➡️';
+
+    if (regime.regime === 'BULL') {
+        regimeClass = 'regime-bull';
+        regimeIcon = '🐂';
+    } else if (regime.regime === 'BEAR') {
+        regimeClass = 'regime-bear';
+        regimeIcon = '🐻';
+    }
+
+    // v3.3: Check for BULL sectors even if market is SIDEWAYS
+    let hasBullSectors = false;
+    let bullSectorsList = '';
+    let bearSectorsList = '';
+
+    if (sectorSummary && sectorSummary.length > 0) {
+        const bullSectors = sectorSummary.filter(s => s.Regime === 'BULL' || s.Regime === 'STRONG BULL');
+        const bearSectors = sectorSummary.filter(s => s.Regime === 'BEAR' || s.Regime === 'STRONG BEAR');
+
+        hasBullSectors = bullSectors.length > 0;
+
+        if (bullSectors.length > 0) {
+            bullSectorsList = bullSectors.map(s => `<span class="badge bg-success me-1">${s.Sector}</span>`).join('');
+        }
+
+        if (bearSectors.length > 0) {
+            bearSectorsList = bearSectors.map(s => `<span class="badge bg-danger me-1">${s.Sector}</span>`).join('');
+        }
+    }
+
+    regimeSection.innerHTML = `
+        <div class="regime-badge ${regimeClass}">
+            ${regimeIcon} Market Regime: ${regime.regime}
+            (Strength: ${regime.strength}/100)
+        </div>
+        ${!regime.should_trade && !hasBullSectors ? `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>⚠️ ไม่แนะนำให้ trade!</strong>
+                ตลาดและทุก sector ไม่เหมาะสม - ควร exit positions ทั้งหมด
+            </div>
+        ` : ''}
+        ${!regime.should_trade && hasBullSectors ? `
+            <div class="alert alert-warning">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>🌐 Sector-Aware Mode (v3.3):</strong>
+                ตลาดรวมเป็น ${regime.regime} แต่มี BULL sectors - ประเมินแต่ละ position ตาม sector
+                <div class="mt-2">
+                    <strong>🟢 BULL Sectors:</strong> ${bullSectorsList || '<span class="text-muted">None</span>'}
+                    <br>
+                    <strong>🔴 WEAK Sectors:</strong> ${bearSectorsList || '<span class="text-muted">None</span>'}
+                </div>
+            </div>
+        ` : ''}
+    `;
+}
+
+function displayStats(stats) {
+    if (!stats) return;
+
+    const statsSection = document.getElementById('stats-section');
+
+    const totalPnl = stats.total_pnl || 0;
+    const pnlClass = totalPnl >= 0 ? 'text-success' : 'text-danger';
+
+    statsSection.innerHTML = `
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">Active Positions</div>
+                <div class="stat-value">${stats.active_positions || 0}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">Total P&L</div>
+                <div class="stat-value ${pnlClass}">
+                    ${totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}%
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">Win Rate</div>
+                <div class="stat-value">${(stats.win_rate || 0).toFixed(1)}%</div>
+                <div class="stat-label">${stats.closed_trades || 0} trades</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">Avg Return</div>
+                <div class="stat-value">
+                    ${stats.avg_return >= 0 ? '+' : ''}${(stats.avg_return || 0).toFixed(2)}%
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function displayPositions(positions, sectorSummary) {
+    const container = document.getElementById('positions-container');
+
+    if (!positions || positions.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <p class="text-muted">ไม่มี positions ที่เปิดอยู่</p>
+                <a href="{{ url_for('screen_page') }}" class="btn btn-primary">
+                    <i class="fas fa-search me-2"></i>
+                    หาโอกาสใหม่
+                </a>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '<div class="row">';
+
+    positions.forEach(pos => {
+        const pnl = pos.pnl_pct || 0;
+        const isProfitable = pnl >= 0;
+        const cardClass = isProfitable ? 'profit' : 'loss';
+
+        const exitSignal = pos.exit_signal || null;
+        const shouldExit = exitSignal && exitSignal.should_exit;
+
+        // v3.3: Sector regime badge
+        const sector = pos.sector || 'Unknown';
+        const sectorRegime = pos.sector_regime || 'UNKNOWN';
+        const sectorRegimeAdj = pos.sector_regime_adjustment || 0;
+        const sectorAdjStr = sectorRegimeAdj >= 0 ? `+${sectorRegimeAdj}` : `${sectorRegimeAdj}`;
+
+        let sectorBadge = '';
+        if (sectorRegime === 'BULL' || sectorRegime === 'STRONG BULL') {
+            sectorBadge = `<span class="badge bg-success" style="font-size: 11px;" title="Sector: ${sector} (${sectorRegime}, ${sectorAdjStr} pts)">🟢 ${sectorRegime}</span>`;
+        } else if (sectorRegime === 'BEAR' || sectorRegime === 'STRONG BEAR') {
+            sectorBadge = `<span class="badge bg-danger" style="font-size: 11px;" title="Sector: ${sector} (${sectorRegime}, ${sectorAdjStr} pts)">🔴 ${sectorRegime}</span>`;
+        } else if (sectorRegime === 'SIDEWAYS') {
+            sectorBadge = `<span class="badge bg-secondary" style="font-size: 11px;" title="Sector: ${sector} (${sectorRegime}, ${sectorAdjStr} pts)">⚪ ${sectorRegime}</span>`;
+        }
+
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="position-card ${cardClass}">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h4 class="mb-1">
+                                ${pos.symbol}
+                                ${sectorBadge}
+                            </h4>
+                            <small class="text-muted">
+                                ${sector} | Entry: $${pos.entry_price.toFixed(2)} on ${pos.entry_date}
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <h3 class="mb-0 ${isProfitable ? 'text-success' : 'text-danger'}">
+                                ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%
+                            </h3>
+                            <small class="text-muted">
+                                ${pnl >= 0 ? '+' : ''}$${(pos.pnl_usd || 0).toFixed(2)}
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="row text-center mb-3">
+                        <div class="col-3">
+                            <small class="text-muted d-block">Current</small>
+                            <strong>$${(pos.current_price || 0).toFixed(2)}</strong>
+                        </div>
+                        <div class="col-3">
+                            <small class="text-muted d-block">Peak</small>
+                            <strong>$${(pos.highest_price || pos.entry_price).toFixed(2)}</strong>
+                        </div>
+                        <div class="col-3">
+                            <small class="text-muted d-block">Days</small>
+                            <strong>${pos.days_held || 0}/14</strong>
+                        </div>
+                        <div class="col-3">
+                            <small class="text-muted d-block">Shares</small>
+                            <strong>${pos.shares ? pos.shares.toFixed(0) : '-'}</strong>
+                        </div>
+                    </div>
+
+                    <!-- Smart Exit Levels v5.0 -->
+                    ${pos.sl_price ? `
+                    <div class="smart-exit-levels mb-3 p-2" style="background: #f8f9fa; border-radius: 8px; font-size: 0.9em;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong>🎯 Smart Exit Levels</strong>
+                            <span class="badge ${pos.tp1_hit ? 'bg-success' : 'bg-secondary'}">${pos.tp1_hit ? 'TP1 HIT ✓' : 'Waiting TP1'}</span>
+                        </div>
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="text-danger">
+                                    <small class="d-block">🔴 SL</small>
+                                    <strong>$${pos.sl_price.toFixed(2)}</strong>
+                                    <small class="d-block">${(((pos.current_price - pos.sl_price) / pos.current_price) * 100).toFixed(1)}% away</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="${pos.tp1_hit ? 'text-muted' : 'text-primary'}">
+                                    <small class="d-block">${pos.tp1_hit ? '✅' : '🎯'} TP1</small>
+                                    <strong ${pos.tp1_hit ? 'style="text-decoration: line-through;"' : ''}>$${pos.tp1_price.toFixed(2)}</strong>
+                                    <small class="d-block">${pos.tp1_hit ? 'SOLD 50%' : 'Sell 50%'}</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-success">
+                                    <small class="d-block">🎯 TP2</small>
+                                    <strong>$${pos.tp2_price.toFixed(2)}</strong>
+                                    <small class="d-block">${(((pos.tp2_price - pos.current_price) / pos.current_price) * 100).toFixed(1)}% to go</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <!-- Action Instructions -->
+                    <div class="action-instructions p-2 mb-3" style="background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3;">
+                        <strong>📋 Action:</strong>
+                        ${pos.sl_price ? `
+                            <ul class="mb-0 mt-1" style="font-size: 0.85em;">
+                                <li>ตั้ง Stop Loss ที่ <strong class="text-danger">$${pos.sl_price.toFixed(2)}</strong></li>
+                                ${!pos.tp1_hit ? `<li>ถ้าถึง <strong class="text-primary">$${pos.tp1_price.toFixed(2)}</strong> → ขาย 50%</li>` : ''}
+                                <li>ถ้าถึง <strong class="text-success">$${pos.tp2_price.toFixed(2)}</strong> → ขาย${pos.tp1_hit ? 'ที่เหลือ' : ' 50% ที่เหลือ'}</li>
+                                <li>ถือไม่เกิน <strong>14 วัน</strong> (Day ${pos.days_held || 0})</li>
+                            </ul>
+                        ` : `
+                            <span class="text-muted">No Smart Exit levels set</span>
+                        `}
+                    </div>
+
+                    ${shouldExit ? `
+                        <div class="exit-signal ${exitSignal.priority === 'CRITICAL' ? 'critical' : ''}">
+                            <h5>
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                ❌ EXIT SIGNAL: ${exitSignal.reason}
+                            </h5>
+                            <p class="mb-2">${getExitReasonDescription(exitSignal.reason)}</p>
+                            <p class="mb-3">
+                                <strong>แนะนำ:</strong> ขายที่ราคา ~$${(pos.current_price || 0).toFixed(2)}
+                            </p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-danger" onclick="closePosition('${pos.symbol}')">
+                                    <i class="fas fa-times-circle me-2"></i>
+                                    Close Position (บันทึกสถิติ)
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="removePosition('${pos.symbol}')">
+                                    <i class="fas fa-trash me-2"></i>
+                                    Remove (ลบโดยไม่นับสถิติ)
+                                </button>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="hold-signal">
+                            <h5>
+                                <i class="fas fa-check-circle me-2"></i>
+                                ✅ HOLD - ยังไม่ถึงจุด exit
+                            </h5>
+                            <p class="mb-2">
+                                ยังไม่มี exit signal ใดๆ ทั้งหมด - ถือต่อได้
+                                ${sectorRegime === 'BULL' || sectorRegime === 'STRONG BULL' ? `
+                                    <br><small class="text-success">✅ Sector ${sector} is ${sectorRegime} - มีแนวโน้มดี!</small>
+                                ` : ''}
+                                ${sectorRegime === 'SIDEWAYS' ? `
+                                    <br><small class="text-warning">⚠️ Sector ${sector} is ${sectorRegime} - monitor closely</small>
+                                ` : ''}
+                                ${sectorRegime === 'BEAR' || sectorRegime === 'STRONG BEAR' ? `
+                                    <br><small class="text-danger">⚠️ Sector ${sector} is ${sectorRegime} - พิจารณา exit หากไม่มีกำไร</small>
+                                ` : ''}
+                            </p>
+                            <div class="d-grid">
+                                <button class="btn btn-outline-secondary btn-sm" onclick="removePosition('${pos.symbol}')">
+                                    <i class="fas fa-trash me-2"></i>
+                                    Remove Position (ลบโดยไม่นับสถิติ)
+                                </button>
+                            </div>
+                        </div>
+                    `}
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function getExitReasonDescription(reason) {
+    const descriptions = {
+        'HARD_STOP': '⚠️ ขาดทุนถึง -6% แล้ว - ต้องตัดขาดทุนเร็ว!',
+        'REGIME_BEAR': '🐻 Sector กลายเป็น BEAR - ไม่ควร hold ต่อ!',
+        'REGIME_WEAK': '⚠️ Sector อ่อนแอและ position ไม่มีกำไร - ควร exit',
+        'TRAILING_STOP': '📉 ลดลงจาก peak -6% แล้ว - ขายเพื่อล็อคกำไร!',
+        'TRAILING_PEAK': '📉 ลดลงจาก peak -6% แล้ว - ขายเพื่อล็อคกำไร!',
+        'FILTER_FAIL': '📊 Filter score ต่ำเกิน - technical ทรุด!',
+        'MAX_HOLD': '⏳ ถือมานานเกิน 30 วัน - ควร exit แล้ว',
+        'TARGET_HIT': '🎯 ถึงเป้า take profit แล้ว - รับกำไร!',
+
+        // v3.5: SIGNAL-BASED EXITS (Root Cause)
+        'SIGNAL_SMA20_BREAK': '📉 ทะลุลง SMA20 แล้ว - แนวรับพัง, แนวโน้มเปลี่ยน!',
+        'SIGNAL_WEAK_RSI': '💪 RSI < 35 - Momentum หาย, อ่อนแอมาก!',
+        'SIGNAL_LOWER_LOWS': '📉 ทำ Lower Lows - Downtrend ชัดเจน!',
+        'SIGNAL_FAILED_BREAKOUT': '🟡 Breakout ล้มเหลว - ขึ้น 3%+ แล้วกลับติดลบ!'
+    };
+    return descriptions[reason] || 'ถึงเงื่อนไข exit แล้ว';
+}
+
+async function closePosition(symbol) {
+    if (!confirm(`ยืนยันการขาย ${symbol}?\n\n⚠️ จะบันทึกในสถิติ (stats) และประวัติการเทรด`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/portfolio/close', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                symbol: symbol,
+                exit_date: new Date().toISOString().split('T')[0]
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert(`✅ ปิด position ${symbol} สำเร็จ!\n\nReturn: ${data.return_pct.toFixed(2)}%\nReason: ${data.exit_reason}`);
+            updatePortfolio();
+        } else {
+            throw new Error(data.error || 'Failed to close position');
+        }
+    } catch (error) {
+        alert('เกิดข้อผิดพลาด: ' + error.message);
+    }
+}
+
+async function removePosition(symbol) {
+    if (!confirm(`ยืนยันการลบ ${symbol}?\n\n⚠️ ไม่บันทึกในสถิติ - ใช้เมื่อไม่ต้องการตำแหน่งนี้แล้ว`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/portfolio/remove', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol: symbol })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert(`🗑️ ลบ ${symbol} สำเร็จ!\n\n✅ ${data.message}`);
+            updatePortfolio();
+        } else {
+            throw new Error(data.error || 'Failed to remove position');
+        }
+    } catch (error) {
+        alert('เกิดข้อผิดพลาด: ' + error.message);
+    }
+}
+
+function showError(message) {
+    const container = document.getElementById('positions-container');
+    container.innerHTML = `
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            ${message}
+        </div>
+    `;
+}
+
+// ==================== TRADE HISTORY FUNCTIONS ====================
+
+async function loadTradeHistory() {
+    try {
+        const response = await fetch('/api/portfolio/history');
+        const data = await response.json();
+
+        if (response.ok) {
+            allTrades = data.trades || [];
+            displayPerformanceStats(data.insights);
+            displayTradeHistory(allTrades);
+            displayExitReasons(data.insights.exit_reasons);
+        } else {
+            throw new Error(data.error || 'Failed to load history');
+        }
+    } catch (error) {
+        console.error('Error loading trade history:', error);
+        document.getElementById('performance-stats').innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-warning">No trade history available yet</div>
+            </div>
+        `;
+        document.getElementById('trade-history').innerHTML = '';
+        document.getElementById('exit-reasons').innerHTML = '';
+    }
+}
+
+// ==================== MONTHLY PERFORMANCE FUNCTIONS ====================
+
+async function loadMonthlyPerformance() {
+    try {
+        const response = await fetch('/api/portfolio/monthly-performance');
+        const data = await response.json();
+
+        if (response.ok) {
+            displayMonthlyPerformance(data);
+        } else {
+            throw new Error(data.error || 'Failed to load monthly performance');
+        }
+    } catch (error) {
+        console.error('Error loading monthly performance:', error);
+        document.getElementById('monthly-performance').innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No monthly performance data available yet.
+                </div>
+            </div>
+        `;
+    }
+}
+
+function displayMonthlyPerformance(data) {
+    const container = document.getElementById('monthly-performance');
+    const monthly = data.monthly_performance || [];
+    const summary = data.summary || {};
+
+    if (monthly.length === 0) {
+        container.innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No monthly performance data available yet.
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    // Summary cards
+    let html = `
+        <div class="col-12 mb-3">
+            <div class="row">
+                <div class="col-md-2 col-sm-4 mb-2">
+                    <div class="perf-card ${summary.avg_monthly_pnl >= 0 ? 'winner' : 'loser'}">
+                        <div class="perf-value ${summary.avg_monthly_pnl >= 0 ? 'text-success' : 'text-danger'}">
+                            ${summary.avg_monthly_pnl >= 0 ? '+' : ''}$${summary.avg_monthly_pnl.toFixed(0)}
+                        </div>
+                        <div class="perf-label">Avg Monthly P&L</div>
+                    </div>
+                </div>
+                <div class="col-md-2 col-sm-4 mb-2">
+                    <div class="perf-card winner">
+                        <div class="perf-value text-success">${summary.positive_months_pct.toFixed(0)}%</div>
+                        <div class="perf-label">Positive Months (${summary.positive_months}/${summary.total_months})</div>
+                    </div>
+                </div>
+                <div class="col-md-2 col-sm-4 mb-2">
+                    <div class="perf-card ${summary.total_pnl >= 0 ? 'winner' : 'loser'}">
+                        <div class="perf-value ${summary.total_pnl >= 0 ? 'text-success' : 'text-danger'}">
+                            ${summary.total_pnl >= 0 ? '+' : ''}$${summary.total_pnl.toFixed(0)}
+                        </div>
+                        <div class="perf-label">Total P&L</div>
+                    </div>
+                </div>
+                <div class="col-md-2 col-sm-4 mb-2">
+                    <div class="perf-card winner">
+                        <div class="perf-value text-success">+$${summary.best_month.toFixed(0)}</div>
+                        <div class="perf-label">Best Month</div>
+                    </div>
+                </div>
+                <div class="col-md-2 col-sm-4 mb-2">
+                    <div class="perf-card loser">
+                        <div class="perf-value text-danger">$${summary.worst_month.toFixed(0)}</div>
+                        <div class="perf-label">Worst Month</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Monthly table
+    html += `
+        <div class="col-12">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Trades</th>
+                            <th>Win Rate</th>
+                            <th>P&L</th>
+                            <th>Gross Profit</th>
+                            <th>Gross Loss</th>
+                            <th>Profit Factor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+
+    monthly.forEach(m => {
+        const pnlClass = m.pnl >= 0 ? 'text-success' : 'text-danger';
+        const pfDisplay = m.profit_factor === Infinity ? '∞' : m.profit_factor.toFixed(2);
+        const pfClass = m.profit_factor >= 2 ? 'text-success fw-bold' : m.profit_factor >= 1 ? 'text-warning' : 'text-danger';
+
+        html += `
+            <tr>
+                <td class="fw-bold">${m.month}</td>
+                <td>${m.trades} (${m.wins}W)</td>
+                <td class="${m.win_rate >= 60 ? 'text-success' : 'text-warning'}">${m.win_rate.toFixed(1)}%</td>
+                <td class="${pnlClass} fw-bold">${m.pnl >= 0 ? '+' : ''}$${m.pnl.toFixed(2)}</td>
+                <td class="text-success">+$${m.gross_profit.toFixed(2)}</td>
+                <td class="text-danger">-$${m.gross_loss.toFixed(2)}</td>
+                <td class="${pfClass}">${pfDisplay}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+function displayPerformanceStats(insights) {
+    if (!insights || insights.total_trades === 0) {
+        document.getElementById('performance-stats').innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No closed trades yet. Stats will appear after you close positions.
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    const container = document.getElementById('performance-stats');
+    container.innerHTML = `
+        <div class="col-md-2 col-sm-4 mb-3">
+            <div class="perf-card neutral">
+                <div class="perf-value">${insights.total_trades}</div>
+                <div class="perf-label">Total Trades</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 mb-3">
+            <div class="perf-card winner">
+                <div class="perf-value text-success">${insights.win_rate.toFixed(1)}%</div>
+                <div class="perf-label">Win Rate (${insights.winners}W / ${insights.losers}L)</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 mb-3">
+            <div class="perf-card winner">
+                <div class="perf-value text-success">+${insights.avg_winner.toFixed(2)}%</div>
+                <div class="perf-label">Avg Winner</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 mb-3">
+            <div class="perf-card loser">
+                <div class="perf-value text-danger">${insights.avg_loser.toFixed(2)}%</div>
+                <div class="perf-label">Avg Loser</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 mb-3">
+            <div class="perf-card ${insights.largest_win > 0 ? 'winner' : 'neutral'}">
+                <div class="perf-value text-success">+${insights.largest_win.toFixed(2)}%</div>
+                <div class="perf-label">Best Trade</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 mb-3">
+            <div class="perf-card loser">
+                <div class="perf-value text-danger">${insights.largest_loss.toFixed(2)}%</div>
+                <div class="perf-label">Worst Trade</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="perf-card ${insights.total_pnl >= 0 ? 'winner' : 'loser'}">
+                <div class="perf-value ${insights.total_pnl >= 0 ? 'text-success' : 'text-danger'}">
+                    ${insights.total_pnl >= 0 ? '+' : ''}$${insights.total_pnl.toFixed(2)}
+                </div>
+                <div class="perf-label">Total P&L</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="perf-card neutral">
+                <div class="perf-value">${insights.avg_holding_days.toFixed(1)}</div>
+                <div class="perf-label">Avg Holding Days</div>
+            </div>
+        </div>
+    `;
+}
+
+function displayTradeHistory(trades) {
+    const container = document.getElementById('trade-history');
+
+    if (!trades || trades.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4 text-muted">
+                <i class="fas fa-inbox fa-2x mb-2"></i>
+                <p>No closed trades yet</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = `
+        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+            <table class="table table-hover trade-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Entry</th>
+                        <th>Exit</th>
+                        <th>Days</th>
+                        <th>Entry $</th>
+                        <th>Exit $</th>
+                        <th>Return</th>
+                        <th>P&L</th>
+                        <th>Exit Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    trades.forEach(trade => {
+        const isWinner = trade.return_pct > 0;
+        const rowClass = isWinner ? 'winner' : 'loser';
+        const returnClass = isWinner ? 'text-success' : 'text-danger';
+
+        html += `
+            <tr class="trade-row ${rowClass}">
+                <td><strong>${trade.symbol}</strong></td>
+                <td>${trade.entry_date || '-'}</td>
+                <td>${trade.exit_date || '-'}</td>
+                <td>${trade.days_held || 0}</td>
+                <td>$${(trade.entry_price || 0).toFixed(2)}</td>
+                <td>$${(trade.exit_price || 0).toFixed(2)}</td>
+                <td class="${returnClass}">
+                    <strong>${trade.return_pct >= 0 ? '+' : ''}${(trade.return_pct || 0).toFixed(2)}%</strong>
+                </td>
+                <td class="${returnClass}">
+                    ${trade.return_usd >= 0 ? '+' : ''}$${(trade.return_usd || 0).toFixed(2)}
+                </td>
+                <td><span class="badge bg-secondary">${trade.exit_reason || '-'}</span></td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+function filterTrades(filter) {
+    // Update button styles
+    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+
+    // Filter trades
+    let filtered = allTrades;
+    if (filter === 'winners') {
+        filtered = allTrades.filter(t => t.return_pct > 0);
+    } else if (filter === 'losers') {
+        filtered = allTrades.filter(t => t.return_pct <= 0);
+    }
+
+    displayTradeHistory(filtered);
+}
+
+function displayExitReasons(exitReasons) {
+    const container = document.getElementById('exit-reasons');
+
+    if (!exitReasons || Object.keys(exitReasons).length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-3 text-muted">
+                No exit data available yet
+            </div>
+        `;
+        return;
+    }
+
+    // Sort by count descending
+    const sorted = Object.entries(exitReasons).sort((a, b) => b[1].count - a[1].count);
+
+    let html = '<div class="row">';
+
+    sorted.forEach(([reason, data]) => {
+        const avgReturn = data.avg_return || 0;
+        const returnClass = avgReturn >= 0 ? 'text-success' : 'text-danger';
+
+        html += `
+            <div class="col-md-4 col-sm-6 mb-2">
+                <div class="exit-reason-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${reason}</strong>
+                            <div class="text-muted small">${data.count} trades</div>
+                        </div>
+                        <div class="text-end">
+                            <span class="${returnClass}">
+                                ${avgReturn >= 0 ? '+' : ''}${avgReturn.toFixed(2)}%
+                            </span>
+                            <div class="text-muted small">avg return</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+</script>
+{% endblock %}

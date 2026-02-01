@@ -1,0 +1,3 @@
+strategy,params,trades,losers,avg_return,accum,ma50,rsi,hold_days
+trend,"accum>1.5, ma50>2, rsi<50, ma_aligned",10,0,4.13949751273009,1.5,2,50,7
+trend,"accum>1.5, ma50>2, rsi<55, ma_aligned",10,0,4.13949751273009,1.5,2,55,7

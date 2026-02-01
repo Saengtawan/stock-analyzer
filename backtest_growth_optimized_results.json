@@ -1,0 +1,15 @@
+{
+  "strategy": "growth_catalyst_optimized",
+  "period": {
+    "start": "2025-12-11",
+    "end": "2026-01-01"
+  },
+  "exit_rules": {
+    "max_hold": 10,
+    "hard_stop": -2.5,
+    "trailing_stop": -2.5,
+    "target": 4.0
+  },
+  "metrics": {},
+  "trades": []
+}

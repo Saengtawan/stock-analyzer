@@ -1,0 +1,204 @@
+$META: possibly delisted; no price data found  (1d 2025-06-19 00:00:00 -> 2025-06-20 00:00:00)
+$LRCX: possibly delisted; no price data found  (1d 2025-06-19 00:00:00 -> 2025-06-20 00:00:00)
+$LRCX: possibly delisted; no price data found  (1d 2025-06-19 00:00:00 -> 2025-06-20 00:00:00)
+================================================================================
+🚀 QUICK BACKTEST V2 - 3 KEY MONTHS
+================================================================================
+Testing: June, September, October 2025
+Expected: ~15-20 trades in 3 months
+
+
+================================================================================
+📅 JUNE 2025
+================================================================================
+================================================================================
+🚀 COMPLETE 6-LAYER SYSTEM BACKTEST
+================================================================================
+Period: 2025-06-01 to 2025-06-30
+
+📈 2025-06-02: ENTER PLTR @ $132.04
+   TP: $151.85 (+15.0%), SL: $124.12 (-6.0%)
+   Score: 260/200 (Fund: 90, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+📈 2025-06-03: ENTER PLTR @ $133.17
+   TP: $153.15 (+15.0%), SL: $125.18 (-6.0%)
+   Score: 260/200 (Fund: 90, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+📈 2025-06-04: ENTER AVGO @ $259.52
+   TP: $298.45 (+15.0%), SL: $243.95 (-6.0%)
+   Score: 260/200 (Fund: 90, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+🔴 2025-06-05: EXIT PLTR @ $119.91 (-9.96%) - HARD_STOP (2d)
+🔴 2025-06-05: EXIT PLTR @ $119.91 (-9.19%) - HARD_STOP (3d)
+📈 2025-06-05: ENTER META @ $683.08
+   TP: $785.54 (+15.0%), SL: $642.09 (-6.0%)
+   Score: 230/200 (Fund: 60, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+📈 2025-06-06: ENTER LRCX @ $85.82
+   TP: $96.98 (+13.0%), SL: $80.68 (-6.0%)
+   Score: 250/200 (Fund: 80, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+🔴 2025-06-09: EXIT AVGO @ $242.82 (-6.43%) - HARD_STOP (5d)
+📈 2025-06-09: ENTER LRCX @ $87.76
+   TP: $99.17 (+13.0%), SL: $82.50 (-6.0%)
+   Score: 250/200 (Fund: 80, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+🟢 2025-06-30: EXIT LRCX @ $96.99 (+13.01%) - TARGET_HIT (24d)
+📈 2025-06-30: ENTER AVGO @ $274.65
+   TP: $315.85 (+15.0%), SL: $258.17 (-6.0%)
+   Score: 260/200 (Fund: 90, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+🟢 2025-06-30: EXIT META @ $736.99 (+7.89%) - BACKTEST_END (25d)
+🟢 2025-06-30: EXIT LRCX @ $96.99 (+10.51%) - BACKTEST_END (21d)
+🔴 2025-06-30: EXIT AVGO @ $274.65 (+0.00%) - BACKTEST_END (0d)
+
+================================================================================
+📊 COMPLETE 6-LAYER SYSTEM RESULTS
+================================================================================
+
+🎯 Overall Performance:
+   Total Trades: 7
+   Win Rate: 42.9% (3W / 4L)
+   Avg Return: +0.83%
+   Avg Winner: +10.47%
+   Avg Loser: -6.39%
+   Total Return: +5.83%
+   Monthly Return: +6.04%
+
+📈 Stock Quality:
+   Avg Volatility: 67.9%
+   Avg RS: +22.6%
+   Avg Fundamental Score: 83/100
+   Avg Catalyst Score: 70/100
+
+🚪 Exit Reasons:
+   HARD_STOP           :   3 ( 42.9%)
+   BACKTEST_END        :   3 ( 42.9%)
+   TARGET_HIT          :   1 ( 14.3%)
+
+📅 Monthly Breakdown:
+        return_pct                       
+             count <lambda_0>  mean   sum
+month                                    
+2025-06          7          3  0.83  5.83
+
+📋 All Trades:
+ 1. 🔴 2025-06-03 PLTR    -9.96% ( 2d) HARD_STOP       Score:260 EARLY_BULL
+ 2. 🔴 2025-06-02 PLTR    -9.19% ( 3d) HARD_STOP       Score:260 EARLY_BULL
+ 3. 🔴 2025-06-04 AVGO    -6.43% ( 5d) HARD_STOP       Score:260 EARLY_BULL
+ 4. 🟢 2025-06-06 LRCX   +13.01% (24d) TARGET_HIT      Score:250 EARLY_BULL
+ 5. 🟢 2025-06-05 META    +7.89% (25d) BACKTEST_END    Score:230 EARLY_BULL
+ 6. 🟢 2025-06-09 LRCX   +10.51% (21d) BACKTEST_END    Score:250 EARLY_BULL
+ 7. 🔴 2025-06-30 AVGO    +0.00% ( 0d) BACKTEST_END    Score:260 EARLY_BULL
+
+================================================================================
+🎯 TARGET COMPARISON:
+================================================================================
+   Win Rate:       42.9% (Target: 50-60%)
+   Avg Return:     +0.83% (Target: +5-8%)
+   Monthly Return: +6.04% (Target: +10-15%)
+
+⚠️  PARTIAL SUCCESS - Close to targets
+
+================================================================================
+📅 SEPTEMBER 2025
+================================================================================
+================================================================================
+🚀 COMPLETE 6-LAYER SYSTEM BACKTEST
+================================================================================
+Period: 2025-09-01 to 2025-09-30
+
+📈 2025-09-10: ENTER AVGO @ $368.23
+   TP: $412.42 (+12.0%), SL: $349.82 (-5.0%)
+   Score: 275/200 (Fund: 90, Cat: 100)
+   Macro: EARLY_BULL, Regime: BULL
+
+📈 2025-09-11: ENTER AVGO @ $358.33
+   TP: $401.33 (+12.0%), SL: $340.41 (-5.0%)
+   Score: 245/200 (Fund: 90, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+📈 2025-09-12: ENTER AVGO @ $358.57
+   TP: $401.60 (+12.0%), SL: $340.64 (-5.0%)
+   Score: 215/200 (Fund: 90, Cat: 40)
+   Macro: EARLY_BULL, Regime: BULL
+
+🔴 2025-09-17: EXIT AVGO @ $344.92 (-6.33%) - HARD_STOP (7d)
+🔴 2025-09-22: EXIT AVGO @ $338.14 (-5.70%) - HARD_STOP (10d)
+🔴 2025-09-22: EXIT AVGO @ $338.14 (-5.63%) - HARD_STOP (11d)
+
+================================================================================
+📊 COMPLETE 6-LAYER SYSTEM RESULTS
+================================================================================
+
+🎯 Overall Performance:
+   Total Trades: 3
+   Win Rate: 0.0% (0W / 3L)
+   Avg Return: -5.89%
+   Avg Winner: +0.00%
+   Avg Loser: -5.89%
+   Total Return: -17.66%
+   Monthly Return: -18.27%
+
+📈 Stock Quality:
+   Avg Volatility: 39.5%
+   Avg RS: +18.9%
+   Avg Fundamental Score: 90/100
+   Avg Catalyst Score: 70/100
+
+🚪 Exit Reasons:
+   HARD_STOP           :   3 (100.0%)
+
+📅 Monthly Breakdown:
+        return_pct                        
+             count <lambda_0>  mean    sum
+month                                     
+2025-09          3          0 -5.89 -17.66
+
+📋 All Trades:
+ 1. 🔴 2025-09-10 AVGO    -6.33% ( 7d) HARD_STOP       Score:275 EARLY_BULL
+ 2. 🔴 2025-09-12 AVGO    -5.70% (10d) HARD_STOP       Score:215 EARLY_BULL
+ 3. 🔴 2025-09-11 AVGO    -5.63% (11d) HARD_STOP       Score:245 EARLY_BULL
+
+================================================================================
+🎯 TARGET COMPARISON:
+================================================================================
+   Win Rate:       0.0% (Target: 50-60%)
+   Avg Return:     -5.89% (Target: +5-8%)
+   Monthly Return: -18.27% (Target: +10-15%)
+
+❌ TARGETS NOT MET - Need improvement
+
+================================================================================
+📅 OCTOBER 2025
+================================================================================
+================================================================================
+🚀 COMPLETE 6-LAYER SYSTEM BACKTEST
+================================================================================
+Period: 2025-10-01 to 2025-10-31
+
+
+❌ No trades executed!
+
+================================================================================
+📊 COMBINED 3-MONTH SUMMARY
+================================================================================
+
+🎯 Overall Performance:
+   Total Trades: 10
+   Win Rate: 30.0%
+   Avg Return: -1.18%
+   Total Return: -11.83%
+   Monthly Average: -3.94%
+
+📊 Comparison to V1:
+   V1 (June+Sept+Oct): 5 trades, +0.68%/month avg
+   V2 (June+Sept+Oct): 10 trades, -3.94%/month avg
+   Improvement: -679.8%

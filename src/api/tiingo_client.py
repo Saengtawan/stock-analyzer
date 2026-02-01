@@ -10,12 +10,13 @@ from .base_client import BaseAPIClient, DataCache, APIError
 
 
 class TiingoClient(BaseAPIClient):
-    """Tiingo API client"""
+    """Tiingo API client with improved caching"""
 
     def __init__(self, api_key: str):
-        super().__init__(api_key, rate_limit=500)  # 500 requests per hour
+        super().__init__(api_key, rate_limit=500)  # v6.10: Conservative rate limit
+        self.rate_limiter.min_delay = 0.3  # 300ms between calls
         self.base_url = "https://api.tiingo.com/tiingo"
-        self.cache = DataCache(ttl_minutes=15)  # 15 minutes cache for price data
+        self.cache = DataCache(ttl_minutes=120)  # v6.10: 2 hour cache (was 15 min)
 
     def get_price_data(self, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
         """

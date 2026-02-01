@@ -1,0 +1,302 @@
+$AVGO: possibly delisted; no price data found  (1d 2025-06-19 00:00:00 -> 2025-06-20 00:00:00)
+$META: possibly delisted; no price data found  (1d 2025-06-19 00:00:00 -> 2025-06-20 00:00:00)
+$LRCX: possibly delisted; no price data found  (1d 2025-06-19 00:00:00 -> 2025-06-20 00:00:00)
+================================================================================
+🚀 QUICK BACKTEST V2 - 3 KEY MONTHS
+================================================================================
+Testing: June, September, October 2025
+Expected: ~15-20 trades in 3 months
+
+
+================================================================================
+📅 JUNE 2025
+================================================================================
+================================================================================
+🚀 COMPLETE 6-LAYER SYSTEM BACKTEST
+================================================================================
+Period: 2025-06-01 to 2025-06-30
+
+📈 2025-06-02: ENTER PLTR @ $132.04
+   TP: $151.85 (+15.0%), SL: $124.12 (-6.0%)
+   Score: 260/200 (Fund: 90, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+📈 2025-06-03: ENTER AVGO @ $255.32
+   TP: $293.62 (+15.0%), SL: $240.00 (-6.0%)
+   Score: 260/200 (Fund: 90, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+📈 2025-06-04: ENTER META @ $686.40
+   TP: $789.36 (+15.0%), SL: $645.21 (-6.0%)
+   Score: 230/200 (Fund: 60, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+🔴 2025-06-05: EXIT PLTR @ $119.91 (-9.19%) - HARD_STOP (3d)
+📈 2025-06-05: ENTER LRCX @ $84.39
+   TP: $95.36 (+13.0%), SL: $79.33 (-6.0%)
+   Score: 210/200 (Fund: 80, Cat: 30)
+   Macro: EARLY_BULL, Regime: BULL
+
+🟢 2025-06-25: EXIT LRCX @ $95.67 (+13.37%) - TARGET_HIT (20d)
+📈 2025-06-25: ENTER AMD @ $143.40
+   TP: $164.91 (+15.0%), SL: $134.80 (-6.0%)
+   Score: 240/200 (Fund: 70, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+🟢 2025-06-30: EXIT AVGO @ $274.65 (+7.57%) - BACKTEST_END (27d)
+🟢 2025-06-30: EXIT META @ $736.99 (+7.37%) - BACKTEST_END (26d)
+🔴 2025-06-30: EXIT AMD @ $141.90 (-1.05%) - BACKTEST_END (5d)
+
+================================================================================
+📊 COMPLETE 6-LAYER SYSTEM RESULTS
+================================================================================
+
+🎯 Overall Performance:
+   Total Trades: 5
+   Win Rate: 60.0% (3W / 2L)
+   Avg Return: +3.62%
+   Avg Winner: +9.44%
+   Avg Loser: -5.12%
+   Total Return: +18.08%
+   Monthly Return: +18.70%
+
+📈 Stock Quality:
+   Avg Volatility: 68.8%
+   Avg RS: +24.9%
+   Avg Fundamental Score: 78/100
+   Avg Catalyst Score: 62/100
+
+🚪 Exit Reasons:
+   BACKTEST_END        :   3 ( 60.0%)
+   HARD_STOP           :   1 ( 20.0%)
+   TARGET_HIT          :   1 ( 20.0%)
+
+📅 Monthly Breakdown:
+        return_pct                        
+             count <lambda_0>  mean    sum
+month                                     
+2025-06          5          3  3.62  18.08
+
+📋 All Trades:
+ 1. 🔴 2025-06-02 PLTR    -9.19% ( 3d) HARD_STOP       Score:260 EARLY_BULL
+ 2. 🟢 2025-06-05 LRCX   +13.37% (20d) TARGET_HIT      Score:210 EARLY_BULL
+ 3. 🟢 2025-06-03 AVGO    +7.57% (27d) BACKTEST_END    Score:260 EARLY_BULL
+ 4. 🟢 2025-06-04 META    +7.37% (26d) BACKTEST_END    Score:230 EARLY_BULL
+ 5. 🔴 2025-06-25 AMD     -1.05% ( 5d) BACKTEST_END    Score:240 EARLY_BULL
+
+================================================================================
+🎯 TARGET COMPARISON:
+================================================================================
+   Win Rate:       60.0% (Target: 50-60%)
+   Avg Return:     +3.62% (Target: +5-8%)
+   Monthly Return: +18.70% (Target: +10-15%)
+
+✅ TARGETS ACHIEVED!
+
+================================================================================
+📅 SEPTEMBER 2025
+================================================================================
+================================================================================
+🚀 COMPLETE 6-LAYER SYSTEM BACKTEST
+================================================================================
+Period: 2025-09-01 to 2025-09-30
+
+📈 2025-09-10: ENTER AVGO @ $368.23
+   TP: $412.42 (+12.0%), SL: $349.82 (-5.0%)
+   Score: 275/200 (Fund: 90, Cat: 100)
+   Macro: EARLY_BULL, Regime: BULL
+
+📈 2025-09-11: ENTER LRCX @ $115.16
+   TP: $128.98 (+12.0%), SL: $109.40 (-5.0%)
+   Score: 235/200 (Fund: 80, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+📈 2025-09-12: ENTER PLTR @ $171.43
+   TP: $188.57 (+10.0%), SL: $161.14 (-6.0%)
+   Score: 180/200 (Fund: 90, Cat: 40)
+   Macro: EARLY_BULL, Regime: BULL
+
+🔴 2025-09-17: EXIT AVGO @ $344.92 (-6.33%) - HARD_STOP (7d)
+🟢 2025-09-22: EXIT LRCX @ $131.72 (+14.38%) - TARGET_HIT (11d)
+📈 2025-09-26: ENTER AMAT @ $203.52
+   TP: $227.94 (+12.0%), SL: $191.31 (-6.0%)
+   Score: 210/200 (Fund: 55, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+📈 2025-09-29: ENTER LRCX @ $130.87
+   TP: $146.58 (+12.0%), SL: $124.33 (-5.0%)
+   Score: 195/200 (Fund: 80, Cat: 30)
+   Macro: EARLY_BULL, Regime: BULL
+
+🟢 2025-09-30: EXIT PLTR @ $182.42 (+6.41%) - BACKTEST_END (18d)
+🟢 2025-09-30: EXIT AMAT @ $204.34 (+0.40%) - BACKTEST_END (4d)
+🟢 2025-09-30: EXIT LRCX @ $133.68 (+2.14%) - BACKTEST_END (1d)
+
+================================================================================
+📊 COMPLETE 6-LAYER SYSTEM RESULTS
+================================================================================
+
+🎯 Overall Performance:
+   Total Trades: 5
+   Win Rate: 80.0% (4W / 1L)
+   Avg Return: +3.40%
+   Avg Winner: +5.83%
+   Avg Loser: -6.33%
+   Total Return: +17.00%
+   Monthly Return: +17.59%
+
+📈 Stock Quality:
+   Avg Volatility: 39.8%
+   Avg RS: +19.0%
+   Avg Fundamental Score: 79/100
+   Avg Catalyst Score: 62/100
+
+🚪 Exit Reasons:
+   BACKTEST_END        :   3 ( 60.0%)
+   HARD_STOP           :   1 ( 20.0%)
+   TARGET_HIT          :   1 ( 20.0%)
+
+📅 Monthly Breakdown:
+        return_pct                      
+             count <lambda_0> mean   sum
+month                                   
+2025-09          5          4  3.4  17.0
+
+📋 All Trades:
+ 1. 🔴 2025-09-10 AVGO    -6.33% ( 7d) HARD_STOP       Score:275 EARLY_BULL
+ 2. 🟢 2025-09-11 LRCX   +14.38% (11d) TARGET_HIT      Score:235 EARLY_BULL
+ 3. 🟢 2025-09-12 PLTR    +6.41% (18d) BACKTEST_END    Score:180 EARLY_BULL
+ 4. 🟢 2025-09-26 AMAT    +0.40% ( 4d) BACKTEST_END    Score:210 EARLY_BULL
+ 5. 🟢 2025-09-29 LRCX    +2.14% ( 1d) BACKTEST_END    Score:195 EARLY_BULL
+
+================================================================================
+🎯 TARGET COMPARISON:
+================================================================================
+   Win Rate:       80.0% (Target: 50-60%)
+   Avg Return:     +3.40% (Target: +5-8%)
+   Monthly Return: +17.59% (Target: +10-15%)
+
+✅ TARGETS ACHIEVED!
+
+================================================================================
+📅 OCTOBER 2025
+================================================================================
+================================================================================
+🚀 COMPLETE 6-LAYER SYSTEM BACKTEST
+================================================================================
+Period: 2025-10-01 to 2025-10-31
+
+📈 2025-10-01: ENTER LRCX @ $142.56
+   TP: $159.66 (+12.0%), SL: $135.43 (-5.0%)
+   Score: 235/200 (Fund: 80, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+📈 2025-10-02: ENTER AMAT @ $223.15
+   TP: $249.93 (+12.0%), SL: $209.76 (-6.0%)
+   Score: 210/200 (Fund: 55, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+📈 2025-10-06: ENTER AMD @ $203.71
+   TP: $234.27 (+15.0%), SL: $191.49 (-6.0%)
+   Score: 240/200 (Fund: 70, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+🔴 2025-10-07: EXIT LRCX @ $140.12 (-1.71%) - HARD_STOP (6d)
+🟢 2025-10-08: EXIT AMD @ $235.56 (+15.63%) - TARGET_HIT (2d)
+📈 2025-10-08: ENTER AMD @ $235.56
+   TP: $270.89 (+15.0%), SL: $221.43 (-6.0%)
+   Score: 270/200 (Fund: 70, Cat: 100)
+   Macro: EARLY_BULL, Regime: BULL
+
+🔴 2025-10-10: EXIT AMD @ $214.90 (-8.77%) - HARD_STOP (2d)
+🔴 2025-10-10: EXIT AMAT @ $209.54 (-6.10%) - HARD_STOP (8d)
+📈 2025-10-10: ENTER AMD @ $214.90
+   TP: $247.13 (+15.0%), SL: $202.01 (-6.0%)
+   Score: 240/200 (Fund: 70, Cat: 70)
+   Macro: LATE_BULL, Regime: BULL
+
+🟢 2025-10-13: EXIT AMD @ $216.42 (+0.71%) - REGIME_BEAR (3d)
+📈 2025-10-16: ENTER TSM @ $299.03
+   TP: $334.92 (+12.0%), SL: $284.08 (-5.0%)
+   Score: 205/200 (Fund: 90, Cat: 30)
+   Macro: LATE_BULL, Regime: BULL
+
+📈 2025-10-21: ENTER AMD @ $238.03
+   TP: $273.73 (+15.0%), SL: $223.75 (-6.0%)
+   Score: 240/200 (Fund: 70, Cat: 70)
+   Macro: LATE_BULL, Regime: BULL
+
+📈 2025-10-27: ENTER LRCX @ $156.64
+   TP: $175.44 (+12.0%), SL: $147.24 (-6.0%)
+   Score: 235/200 (Fund: 80, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+🟢 2025-10-31: EXIT TSM @ $299.62 (+0.20%) - BACKTEST_END (15d)
+🟢 2025-10-31: EXIT AMD @ $256.12 (+7.60%) - BACKTEST_END (10d)
+🟢 2025-10-31: EXIT LRCX @ $157.20 (+0.36%) - BACKTEST_END (4d)
+
+================================================================================
+📊 COMPLETE 6-LAYER SYSTEM RESULTS
+================================================================================
+
+🎯 Overall Performance:
+   Total Trades: 8
+   Win Rate: 62.5% (5W / 3L)
+   Avg Return: +0.99%
+   Avg Winner: +4.90%
+   Avg Loser: -5.53%
+   Total Return: +7.92%
+   Monthly Return: +7.92%
+
+📈 Stock Quality:
+   Avg Volatility: 53.4%
+   Avg RS: +31.8%
+   Avg Fundamental Score: 73/100
+   Avg Catalyst Score: 69/100
+
+🚪 Exit Reasons:
+   HARD_STOP           :   3 ( 37.5%)
+   BACKTEST_END        :   3 ( 37.5%)
+   TARGET_HIT          :   1 ( 12.5%)
+   REGIME_BEAR         :   1 ( 12.5%)
+
+📅 Monthly Breakdown:
+        return_pct                       
+             count <lambda_0>  mean   sum
+month                                    
+2025-10          8          5  0.99  7.92
+
+📋 All Trades:
+ 1. 🔴 2025-10-01 LRCX    -1.71% ( 6d) HARD_STOP       Score:235 EARLY_BULL
+ 2. 🟢 2025-10-06 AMD    +15.63% ( 2d) TARGET_HIT      Score:240 EARLY_BULL
+ 3. 🔴 2025-10-08 AMD     -8.77% ( 2d) HARD_STOP       Score:270 EARLY_BULL
+ 4. 🔴 2025-10-02 AMAT    -6.10% ( 8d) HARD_STOP       Score:210 EARLY_BULL
+ 5. 🟢 2025-10-10 AMD     +0.71% ( 3d) REGIME_BEAR     Score:240 LATE_BULL
+ 6. 🟢 2025-10-16 TSM     +0.20% (15d) BACKTEST_END    Score:205 LATE_BULL
+ 7. 🟢 2025-10-21 AMD     +7.60% (10d) BACKTEST_END    Score:240 LATE_BULL
+ 8. 🟢 2025-10-27 LRCX    +0.36% ( 4d) BACKTEST_END    Score:235 EARLY_BULL
+
+================================================================================
+🎯 TARGET COMPARISON:
+================================================================================
+   Win Rate:       62.5% (Target: 50-60%)
+   Avg Return:     +0.99% (Target: +5-8%)
+   Monthly Return: +7.92% (Target: +10-15%)
+
+⚠️  PARTIAL SUCCESS - Close to targets
+
+================================================================================
+📊 COMBINED 3-MONTH SUMMARY
+================================================================================
+
+🎯 Overall Performance:
+   Total Trades: 18
+   Win Rate: 66.7%
+   Avg Return: +2.39%
+   Total Return: +43.00%
+   Monthly Average: +14.33%
+
+📊 Comparison to V1:
+   V1 (June+Sept+Oct): 5 trades, +0.68%/month avg
+   V2 (June+Sept+Oct): 18 trades, +14.33%/month avg
+   Improvement: +2007.7%

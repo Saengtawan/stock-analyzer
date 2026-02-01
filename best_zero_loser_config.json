@@ -1,0 +1,11 @@
+{
+  "hold_days": 14,
+  "accum_min": 1.5,
+  "rsi_max": 57,
+  "ma20_min": 0.0,
+  "ma50_min": 5.0,
+  "mom_min": 5.0,
+  "trades": 28,
+  "avg_return": 5.296074380730538,
+  "losers": 0
+}

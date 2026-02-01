@@ -1,0 +1,381 @@
+{
+  "generated_at": "2025-12-26T21:08:23.804427",
+  "period": {
+    "start": "2025-01-01",
+    "end": "2025-12-31"
+  },
+  "total_weeks": 53,
+  "regimes": {
+    "2025-W00": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "CUTTING",
+      "market_health": "WEAK",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W01": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "CUTTING",
+      "market_health": "MIXED",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W02": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "CUTTING",
+      "market_health": "MIXED",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W03": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W04": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "MID_BULL"
+    },
+    "2025-W05": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "CUTTING",
+      "market_health": "MIXED",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W06": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "CUTTING",
+      "market_health": "WEAK",
+      "sector_stage": "MID_BULL"
+    },
+    "2025-W07": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "CUTTING",
+      "market_health": "MIXED",
+      "sector_stage": "MID_BULL"
+    },
+    "2025-W08": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "CUTTING",
+      "market_health": "MIXED",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W09": {
+      "risk_on": false,
+      "risk_score": 1,
+      "fed_stance": "CUTTING",
+      "market_health": "WEAK",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W10": {
+      "risk_on": false,
+      "risk_score": 1,
+      "fed_stance": "PAUSING",
+      "market_health": "WEAK",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W11": {
+      "risk_on": false,
+      "risk_score": 1,
+      "fed_stance": "PAUSING",
+      "market_health": "WEAK",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W12": {
+      "risk_on": false,
+      "risk_score": 1,
+      "fed_stance": "PAUSING",
+      "market_health": "WEAK",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W13": {
+      "risk_on": false,
+      "risk_score": 1,
+      "fed_stance": "PAUSING",
+      "market_health": "WEAK",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W14": {
+      "risk_on": false,
+      "risk_score": 1,
+      "fed_stance": "PAUSING",
+      "market_health": "WEAK",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W15": {
+      "risk_on": false,
+      "risk_score": 1,
+      "fed_stance": "PAUSING",
+      "market_health": "WEAK",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W16": {
+      "risk_on": false,
+      "risk_score": 1,
+      "fed_stance": "PAUSING",
+      "market_health": "WEAK",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W17": {
+      "risk_on": false,
+      "risk_score": 1,
+      "fed_stance": "PAUSING",
+      "market_health": "WEAK",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W18": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "PAUSING",
+      "market_health": "MIXED",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W19": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "PAUSING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W20": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "PAUSING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W21": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "PAUSING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W22": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "PAUSING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W23": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "PAUSING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W24": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "PAUSING",
+      "market_health": "MIXED",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W25": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "PAUSING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W26": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "PAUSING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W27": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "PAUSING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W28": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "PAUSING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W29": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "PAUSING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W30": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "PAUSING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W31": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "PAUSING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W32": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "PAUSING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W33": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "PAUSING",
+      "market_health": "STRONG",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W34": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "PAUSING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W35": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W36": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W37": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W38": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W39": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W40": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W41": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W42": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W43": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "EARLY_BULL"
+    },
+    "2025-W44": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W45": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W46": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "CUTTING",
+      "market_health": "MIXED",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W47": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W48": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W49": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W50": {
+      "risk_on": true,
+      "risk_score": 2,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "LATE_BULL"
+    },
+    "2025-W51": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "MID_BULL"
+    },
+    "2025-W52": {
+      "risk_on": true,
+      "risk_score": 3,
+      "fed_stance": "CUTTING",
+      "market_health": "STRONG",
+      "sector_stage": "MID_BULL"
+    }
+  }
+}

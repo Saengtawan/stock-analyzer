@@ -1,0 +1,48 @@
+{
+  "active": [],
+  "closed": [
+    {
+      "symbol": "NVDA",
+      "entry_date": "2026-01-01",
+      "exit_date": "2026-01-01",
+      "entry_price": 186.5,
+      "exit_price": 186.5,
+      "return_pct": 0.0,
+      "return_usd": 0.0,
+      "days_held": 0,
+      "exit_reason": "BACKTEST_END"
+    },
+    {
+      "symbol": "TSLA",
+      "entry_date": "2026-01-01",
+      "exit_date": "2026-01-01",
+      "entry_price": 449.7200012207031,
+      "exit_price": 449.7200012207031,
+      "return_pct": 0.0,
+      "return_usd": 0.0,
+      "days_held": 0,
+      "exit_reason": "BACKTEST_END"
+    },
+    {
+      "symbol": "AMD",
+      "entry_date": "2026-01-01",
+      "exit_date": "2026-01-01",
+      "entry_price": 214.16000366210938,
+      "exit_price": 214.16000366210938,
+      "return_pct": 0.0,
+      "return_usd": 0.0,
+      "days_held": 0,
+      "exit_reason": "BACKTEST_END"
+    }
+  ],
+  "cash": 100000,
+  "initial_cash": 100000,
+  "stats": {
+    "total_trades": 3,
+    "win_rate": 0.0,
+    "total_pnl": 0.0,
+    "avg_return": 0.0,
+    "win_count": 0,
+    "loss_count": 3
+  }
+}

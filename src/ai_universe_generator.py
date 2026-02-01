@@ -24,7 +24,10 @@ class AIUniverseGenerator:
         Generate comprehensive dividend stock universe using AI
 
         Args:
-            criteria: User criteria for dividend screening
+            criteria: User criteria for dividend screening including:
+                - min_dividend_yield: Minimum dividend yield
+                - max_stocks: Maximum stocks to return
+                - universe_multiplier: Multiplier for universe size (default: 3)
 
         Returns:
             List of stock symbols for dividend screening
@@ -32,9 +35,11 @@ class AIUniverseGenerator:
         try:
             min_yield = criteria.get('min_dividend_yield', 3.0)
             max_stocks = criteria.get('max_stocks', 15)
+            universe_multiplier = criteria.get('universe_multiplier', 3)  # Default 3x for dividend
 
-            # Adjust universe size to 3x max_stocks for optimal screening efficiency
-            universe_size = max_stocks * 3
+            # Calculate universe size based on multiplier
+            universe_size = max_stocks * universe_multiplier
+            logger.info(f"📊 Generating dividend universe: {universe_size} stocks ({max_stocks} × {universe_multiplier}x multiplier)")
 
             prompt = f"""You are an experienced dividend stock analyst with expertise in quantitative metrics and current market data. Generate a focused universe of {universe_size} dividend stocks and ETFs using DATA CURRENT AS OF 2024-2025 timeframe for screening and selection.
 
@@ -221,12 +226,170 @@ Return ONLY a valid JSON array of ticker symbols:
             logger.error(f"Failed to generate support level universe: {e}")
             raise ValueError(f"AI universe generation failed: {e}")
 
+    def generate_premarket_universe(self, criteria: Dict[str, Any]) -> List[str]:
+        """
+        Generate stock universe for pre-market gap scanning
+
+        Args:
+            criteria: Scanning criteria including:
+                - min_gap_pct: Minimum gap percentage
+                - market_caps: List of market cap categories
+                - prioritize_tech: Whether to prioritize tech sector
+                - max_stocks: Maximum stocks to return
+
+        Returns:
+            List of stock symbols likely to have significant gaps
+        """
+        try:
+            min_gap_pct = criteria.get('min_gap_pct', 5.0)
+            market_caps = criteria.get('market_caps', ['large', 'mid'])
+            prioritize_tech = criteria.get('prioritize_tech', True)
+            max_stocks = criteria.get('max_stocks', 20)
+
+            # Adjust universe size to 4x max_stocks for gap scanning
+            universe_size = max_stocks * 4
+
+            # Build market cap description
+            market_cap_desc = {
+                'large': 'Large Cap ($10B+)',
+                'mid': 'Mid Cap ($2B-$10B)',
+                'small': 'Small Cap ($300M-$2B)'
+            }
+            market_cap_filter = ' and '.join([market_cap_desc.get(mc, mc) for mc in market_caps])
+
+            # Get current date for context
+            from datetime import datetime
+            import pytz
+            eastern = pytz.timezone('US/Eastern')
+            now = datetime.now(eastern)
+            current_date = now.strftime('%Y-%m-%d')
+            current_month = now.strftime('%B %Y')
+            day_of_week = now.strftime('%A')
+
+            prompt = f"""You are an elite pre-market trader and gap trading specialist with real-time market awareness. TODAY IS {current_date} ({day_of_week}). Generate {universe_size} stocks with HIGHEST PROBABILITY of gapping up {min_gap_pct}% or more in pre-market trading.
+
+🎯 CRITICAL SELECTION PRIORITY (Most Important):
+1. **IMMEDIATE CATALYSTS** (Next 24-48 hours):
+   - Earnings reports scheduled for TODAY or TOMORROW
+   - FDA decisions, drug approvals, clinical trial results (this week)
+   - Analyst upgrades/downgrades from YESTERDAY or TODAY
+   - Major product launches or announcements (within 48 hours)
+   - M&A rumors, activist investor activity (breaking news)
+   - Unusual options activity (large call purchases yesterday)
+
+2. **RECENT MOMENTUM DRIVERS** (Past 24-72 hours):
+   - Stocks that gapped yesterday and continuing uptrend
+   - Breaking news overnight (earnings beats, guidance raises)
+   - Sector rotation or thematic momentum (AI, quantum, biotech, etc.)
+   - Short squeeze candidates with high short interest (>20%)
+   - Stocks hitting new 52-week highs with momentum
+
+3. **HISTORICAL GAP PATTERNS**:
+   - Stocks known for volatile pre-market moves (ATR >4%)
+   - Companies that historically gap on {day_of_week}s
+   - Seasonal patterns relevant to {current_month}
+   - High beta stocks (β > 1.5) that amplify market moves
+   - Stocks with history of gaps >5% in past 30 days
+
+💰 MARKET CAP & SECTOR ALLOCATION:
+- Target: {market_cap_filter}
+- {'**Technology Sector: 40-50% MINIMUM** (AI, semiconductors, cloud, software)' if prioritize_tech else 'Technology Sector: 20-30%'}
+- Healthcare/Biotech: 20-30% (FDA catalysts, trial results)
+- Consumer Discretionary: 10-15% (retail earnings, e-commerce)
+- Financial: 5-10% (only if major economic data release)
+- Energy: 5-10% (only if oil volatility or geopolitical events)
+- Small allocation to high-conviction plays in other sectors
+
+🔥 SMART CATALYST DETECTION:
+**Earnings Season Focus** ({current_month}):
+- Prioritize stocks reporting earnings THIS WEEK
+- Companies with history of earnings surprises (>10% beats)
+- Stocks with raised guidance in recent quarters
+- High analyst estimate revisions (upward trend)
+
+**Sector-Specific Catalysts**:
+- Tech: Product launches, AI announcements, chip demand, cloud growth
+- Biotech: FDA PDUFA dates, Phase 3 results, pipeline updates
+- Retail: Same-store sales, e-commerce growth, holiday guidance
+- Finance: Fed decisions, interest rate impacts, loan growth
+
+**Social & Retail Sentiment**:
+- Reddit/WallStreetBets momentum stocks (high discussion volume)
+- Stocks with unusual options volume (call/put ratio >3)
+- Institutional buying pressure (13F filings showing new positions)
+- Insider buying clusters (multiple executives buying)
+
+📊 LIQUIDITY & QUALITY REQUIREMENTS:
+- Average daily volume: >2M shares (stocks), >500K (ETFs)
+- Pre-market volume capability: Must have active pre-market trading
+- Float size: Prefer 25-100M shares (sweet spot for volatility)
+- Bid-ask spread: <0.3% for large cap, <0.5% for mid cap
+- Share price: $15-$500 (avoid low-price volatility)
+- Analyst coverage: Minimum 5 analysts (large cap), 3 analysts (mid cap)
+
+⚡ HIGH-PROBABILITY GAP INDICATORS:
+- Stocks with earnings whisper numbers beating estimates
+- Recent analyst price target raises (>15% upside)
+- Sector ETFs showing strong pre-market momentum
+- Futures correlation (stocks that move with SPY/QQQ)
+- After-hours price action from yesterday (already gapping)
+- News flow: Breaking positive news in past 12 hours
+
+🚫 STRICT EXCLUSIONS:
+- No penny stocks (price <$10) or delisting warnings
+- No stocks with recent fraud/legal issues
+- No fresh IPOs (<3 months trading history)
+- No stocks that gapped DOWN yesterday (avoid falling knives)
+- No extremely illiquid stocks (<500K daily volume)
+- No inverse ETFs or leveraged bear ETFs
+
+🎯 OPTIMAL PORTFOLIO MIX:
+- 30%: High-confidence earnings plays (reporting today/tomorrow)
+- 25%: Momentum continuation (gapped up yesterday, strong follow-through)
+- 20%: Catalyst-driven (FDA, product launch, analyst upgrade)
+- 15%: Sector rotation plays (money flowing into sector)
+- 10%: Short squeeze candidates (high short interest + catalyst)
+
+**FINAL QUALITY CHECK**:
+- Prioritize stocks YOU WOULD ACTUALLY TRADE based on gap probability
+- Focus on SPECIFIC catalysts happening NOW, not generic characteristics
+- Balance between large cap safety and mid cap volatility
+- Ensure all symbols are US-listed, actively traded stocks
+
+Select {universe_size} stocks with MAXIMUM gap probability. Think like a professional trader: What's gapping UP TODAY?
+
+Return ONLY a valid JSON array of ticker symbols, no explanations:
+["SYMBOL1", "SYMBOL2", "SYMBOL3", ...]"""
+
+            logger.info(f"Generating pre-market gap universe: min_gap={min_gap_pct}%, size={universe_size}")
+
+            # Call DeepSeek API
+            response = self._call_deepseek_api(prompt)
+            if response:
+                symbols = self._parse_symbols_from_response(response)
+                if symbols and len(symbols) >= 10:
+                    logger.info(f"✅ DeepSeek generated {len(symbols)} pre-market gap symbols")
+                    return symbols[:universe_size]
+                else:
+                    logger.error("DeepSeek response had insufficient symbols")
+                    raise ValueError("AI universe generation failed")
+
+            logger.error("DeepSeek API failed for pre-market universe")
+            raise ValueError("AI universe generation failed")
+
+        except Exception as e:
+            logger.error(f"Failed to generate pre-market universe: {e}")
+            raise ValueError(f"AI universe generation failed: {e}")
+
     def generate_value_universe(self, criteria: Dict[str, Any]) -> List[str]:
         """
         Generate comprehensive stock universe for value/undervalued growth screening
 
         Args:
-            criteria: User criteria for value screening
+            criteria: User criteria for value screening including:
+                - max_stocks: Maximum stocks to return
+                - screen_type: Type of value screening
+                - universe_multiplier: Multiplier for universe size (default: 3)
 
         Returns:
             List of stock symbols for value analysis
@@ -238,9 +401,11 @@ Return ONLY a valid JSON array of ticker symbols:
             max_pe_ratio = criteria.get('max_pe_ratio', 15.0)
             max_pb_ratio = criteria.get('max_pb_ratio', 3.0)
             min_roe = criteria.get('min_roe', 10.0)
+            universe_multiplier = criteria.get('universe_multiplier', 3)  # Default 3x for value
 
-            # Adjust universe size to 3x max_stocks for optimal screening efficiency
-            universe_size = max_stocks * 3
+            # Calculate universe size based on multiplier
+            universe_size = max_stocks * universe_multiplier
+            logger.info(f"📊 Generating value universe: {universe_size} stocks ({max_stocks} × {universe_multiplier}x multiplier)")
 
             if screen_type == 'undervalued_growth':
                 prompt = f"""You are an experienced growth stock analyst specializing in identifying undervalued growth opportunities. Generate a focused universe of {universe_size} stocks and ETFs that represent undervalued growth companies with strong fundamentals and reasonable valuations.
@@ -599,6 +764,280 @@ Focus on QUALITY volatile stocks with clear entry setups that professional swing
 
         except Exception as e:
             logger.error(f"Error generating volatile universe: {e}")
+            return []
+
+    def generate_growth_catalyst_universe(self, criteria: Dict[str, Any]) -> List[str]:
+        """
+        Generate stock universe for 30-day growth catalyst screening
+
+        Args:
+            criteria: Screening criteria including:
+                - target_gain_pct: Target gain percentage (e.g., 10%)
+                - timeframe_days: Timeframe in days (e.g., 30)
+                - max_stocks: Maximum stocks to return
+                - universe_multiplier: Multiplier for universe size (default: 5 for growth catalyst)
+
+        Returns:
+            List of stock symbols with high growth catalyst potential
+        """
+        try:
+            target_gain_pct = criteria.get('target_gain_pct', 10.0)
+            timeframe_days = criteria.get('timeframe_days', 30)
+            max_stocks = criteria.get('max_stocks', 20)
+            universe_multiplier = criteria.get('universe_multiplier', 5)  # Default 5x for growth catalyst
+
+            # Calculate universe size based on multiplier
+            universe_size = max_stocks * universe_multiplier
+            logger.info(f"📊 Generating growth catalyst universe: {universe_size} stocks ({max_stocks} × {universe_multiplier}x multiplier)")
+
+            prompt = f"""You are an expert growth catalyst analyst specializing in identifying stocks with high-probability {target_gain_pct}%+ gain potential within {timeframe_days} days. Generate {universe_size} stocks using CURRENT 2024-2025 market data.
+
+🎯 MISSION: Find LOW-PRICE stocks with BIG catalysts - VALUE EXPLOSION plays!
+
+CRITICAL SHIFT: We want UNDERVALUED stocks with UPCOMING catalysts!
+- LOW PRICE stocks ($10-$100 range) not mega caps
+- UNDERVALUED (low P/E, low P/B) not overpriced
+- BIG CATALYST coming (FDA, contract, launch) not small news
+- HIDDEN GEMS not well-known stocks
+- EXPLOSIVE POTENTIAL (+30-100%) not modest gains
+
+Think: Small biotech before FDA approval, Defense stock before contract win
+NOT: MSFT, GOOGL, AMZN (already expensive!)
+
+═══════════════════════════════════════════════════════════
+📅 FORWARD-LOOKING CATALYSTS (PREDICTIVE)
+═══════════════════════════════════════════════════════════
+
+1. UPCOMING EARNINGS CATALYSTS (30% weight):
+   ✅ Earnings in next 7-21 days (NOT last week!)
+   ✅ Historical earnings beat rate >60%
+   ✅ Recent analyst estimate RAISES (last 7 days)
+   ✅ Positive pre-earnings drift starting
+   ✅ Options unusual call activity building
+
+2. BIG CATALYSTS (35% weight - MOST IMPORTANT!):
+   ✅ FDA APPROVAL DATES (biotech with PDUFA dates = EXPLOSIVE!)
+   ✅ GOVERNMENT CONTRACTS pending (defense, aerospace)
+   ✅ M&A TARGET potential (small companies in hot sectors)
+   ✅ MAJOR PRODUCT LAUNCHES (not incremental updates)
+   ✅ PATENT APPROVALS / BREAKTHROUGH (game-changing tech)
+   ✅ TURNAROUND STORIES (new CEO, restructuring working)
+   ✅ EARNINGS RECOVERY (losses → profits transition)
+
+3. SECTOR/MACRO CATALYSTS (20% weight):
+   ✅ Gold/Silver prices rising → Mining stocks BEFORE they react
+   ✅ Oil prices spiking → Energy stocks BEFORE rally
+   ✅ Dollar weakening → Export stocks BEFORE move
+   ✅ Fed rate cut expected → Rate-sensitive BEFORE announcement
+   ✅ Government contracts → Defense/Aerospace BEFORE award
+
+4. INSIDER/SMART MONEY SIGNALS (15% weight):
+   ✅ Recent insider BUYING (last 7-14 days)
+   ✅ Unusual options activity (calls > puts)
+   ✅ Institutional accumulation (13F filings)
+   ✅ Analyst UPGRADES (last 7 days)
+   ✅ Short interest declining (covering starting)
+
+   AVOID MEGA CAPS - Focus on VALUE PLAYS:
+   ❌ NO: MSFT, GOOGL, AMZN, AAPL, META, NVDA (too expensive!)
+   ✅ YES: Small biotech, small defense, small tech with catalysts
+
+   PRIORITY SECTORS FOR EXPLOSIVE MOVES:
+   - Biotech: Small caps with FDA catalysts ($500M-$5B)
+   - Defense: Mid caps with contract potential
+   - Clean Energy: Recovery plays with government support
+   - Semiconductor equipment: Undervalued with AI tailwinds
+   - SaaS: Small profitable software (not mega caps)
+
+2. NEWS/EVENT CATALYSTS (30% weight):
+   ✅ Product launches (Apple events, Tesla deliveries)
+   ✅ FDA decisions (biotech approvals)
+   ✅ Partnership announcements
+   ✅ M&A activity in sector
+   ✅ Conference presentations
+
+   HOT SECTORS:
+   - AI/ML: Companies announcing AI products
+   - Healthcare: FDA calendar, clinical trials
+   - EV/Clean Energy: Deliveries, new models
+   - Gaming: Game releases, consoles
+   - Streaming: Content releases, sub numbers
+
+3. INSIDER/ANALYST CATALYSTS (20% weight):
+   ✅ Recent insider buying (last 30 days)
+   ✅ Analyst upgrades or PT raises
+   ✅ Institutional accumulation
+   ✅ Short squeeze potential (>15% SI)
+   ✅ Options activity (unusual call volume)
+
+4. TECHNICAL SETUP CATALYSTS (10% weight):
+   ✅ Breakout from consolidation
+   ✅ Bottoming patterns after pullback
+   ✅ Volume surge on recent days
+   ✅ Moving average crossovers
+
+═══════════════════════════════════════════════════════════
+📊 FUNDAMENTAL QUALITY REQUIREMENTS
+═══════════════════════════════════════════════════════════
+
+CRITICAL REQUIREMENTS FOR VALUE EXPLOSIONS:
+✓ Market cap: $500M - $20B (Small/Mid caps - explosive potential!)
+✓ Price: $10 - $150 (Sweet spot - not too cheap, not too expensive)
+✓ P/E ratio: <20 or negative but improving (undervalued!)
+✓ Price/Book: <3 (not overvalued)
+✓ Analyst coverage: <15 analysts (under-the-radar!)
+✓ NOT mega caps (>$100B) - they move slowly!
+✓ Daily volume: >$5M (must have some liquidity)
+
+PREFERRED CHARACTERISTICS:
+✓ Profitable or path to profitability clear
+✓ Strong gross margins (>40%)
+✓ Growing market share
+✓ Institutional ownership 30-70%
+✓ Analyst coverage (at least 5 analysts)
+
+═══════════════════════════════════════════════════════════
+🎪 HIGH-CONVICTION CATALYST CATEGORIES
+═══════════════════════════════════════════════════════════
+
+A. EARNINGS PLAYS (Week 1-4):
+   - Check earnings calendar for next 30 days
+   - Focus on companies with:
+     * Beat rate >70% historically
+     * Rising analyst estimates
+     * Strong sector tailwinds
+   Examples: Tech giants, cloud leaders, AI plays
+
+B. FDA/REGULATORY EVENTS:
+   - Biotech with PDUFA dates
+   - Medical device approvals
+   - Drug trial results expected
+   Examples: Biotech small/mid-caps
+
+C. PRODUCT LAUNCHES:
+   - Tech companies with product events
+   - Auto companies with delivery numbers
+   - Gaming companies with releases
+   Examples: AAPL, TSLA, EA, TTWO
+
+D. M&A ACTIVITY:
+   - Sectors with active M&A
+   - Companies rumored as targets
+   - Acquirers with strong balance sheets
+   Examples: Healthcare consolidation, fintech
+
+E. MOMENTUM BREAKOUTS:
+   - Stocks consolidating near highs
+   - Building volume base
+   - Sector rotation beneficiaries
+   Examples: Sector leaders
+
+═══════════════════════════════════════════════════════════
+⚠️ CRITICAL EXCLUSIONS
+═══════════════════════════════════════════════════════════
+
+❌ NO stocks without clear catalyst in next 30 days
+❌ NO penny stocks (<$5)
+❌ NO low-volume stocks (<$5M daily)
+❌ NO meme stocks with no fundamentals (GME, AMC)
+❌ NO leveraged ETFs (TQQQ, SQQQ, etc.)
+❌ NO crypto miners (too volatile)
+❌ NO Chinese ADRs (regulatory risk)
+❌ NO SPACs pre-merger
+❌ NO companies with negative news overhang
+❌ NO companies in continuous decline (downtrend last 4+ weeks) unless showing recent reversal
+
+⚡ CRITICAL: PREDICTIVE SIGNALS (not reactive momentum):
+✅ Stocks CONSOLIDATING near support BEFORE breakout (not after)
+✅ Insider buying in last 7-14 days (smart money positioning)
+✅ Unusual options call buying (institutions positioning)
+✅ Analyst upgrades in last week (new positive thesis)
+✅ Stocks with upcoming catalysts but FLAT price (opportunity!)
+✅ Sector leaders BEFORE sector rotation (leading indicators)
+
+❌ EXCLUDE REACTIVE MOMENTUM:
+❌ Stocks already up 20%+ in last 2 weeks (too late!)
+❌ Stocks at 52-week highs without new catalyst (overextended)
+❌ Stocks rallying on old news (momentum chasers)
+
+═══════════════════════════════════════════════════════════
+✅ IDEAL SELECTION EXAMPLES
+═══════════════════════════════════════════════════════════
+
+PERFECT SETUPS:
+✓ NVDA - Earnings in 2 weeks + AI boom + analyst upgrades
+✓ TSLA - Delivery numbers next week + new model buzz
+✓ SHOP - E-commerce recovery + earnings beat expected
+✓ CRWD - Cybersecurity growth + analyst PT raise
+✓ AMD - GPU launch + earnings catalyst + insider buying
+
+GOOD SETUPS:
+✓ META - Strong ad revenue expected + AI monetization
+✓ GOOGL - Cloud growth + AI search features
+✓ MSFT - Azure growth + AI copilot momentum
+✓ SNOW - Beat and raise pattern + new products
+✓ NET - CDN growth + edge computing adoption
+
+═══════════════════════════════════════════════════════════
+📋 PORTFOLIO COMPOSITION
+═══════════════════════════════════════════════════════════
+
+BALANCE (adjust for market conditions):
+- 40%: Large-cap with earnings catalysts
+- 30%: Mid-cap with multiple catalysts
+- 20%: Small-cap with explosive catalysts
+- 10%: Sector rotation/special situations
+
+SECTOR DIVERSIFICATION:
+- Technology: 30-40%
+- Healthcare: 15-20%
+- Consumer: 10-15%
+- Financials: 10-15%
+- Others: 20-25%
+
+═══════════════════════════════════════════════════════════
+🎯 OUTPUT REQUIREMENTS
+═══════════════════════════════════════════════════════════
+
+Return ONLY a JSON array of {universe_size} ticker symbols:
+["NVDA", "TSLA", "AMD", "MSFT", "GOOGL", "META", ...]
+
+PRIORITIZE stocks with:
+1. Clear catalyst in next 2-4 weeks (HIGHEST PRIORITY)
+2. Multiple catalysts (earnings + news + analyst)
+3. Strong technical setup (momentum building)
+4. Institutional interest (not retail hype)
+5. Fundamental quality (not pump & dump)
+
+Focus on HIGH-PROBABILITY setups that professional traders actually trade, not lottery tickets.
+"""
+
+            # Single round generation - capped at 50-100 stocks to reduce hallucination
+            # AI is only a supplement to static universe, not the main source
+            ai_cap = min(100, max(50, universe_size))  # Always between 50-100
+            logger.info(f"🤖 AI supplement: requesting {ai_cap} stocks (capped to reduce hallucination)")
+
+            # Single API call with moderate token limit
+            response = self.deepseek_service.call_api(prompt, max_tokens=2000)
+
+            if not response:
+                logger.warning("Empty response from AI")
+                return []
+
+            # Extract symbols
+            symbols = self._parse_symbols_from_response(response)
+
+            if not symbols:
+                logger.warning("No symbols extracted from AI response")
+                return []
+
+            # Cap at 100 to reduce hallucination impact
+            symbols = symbols[:ai_cap]
+            logger.info(f"✅ AI generated {len(symbols)} growth catalyst symbols (capped at {ai_cap})")
+            return symbols
+
+        except Exception as e:
+            logger.error(f"Error generating growth catalyst universe: {e}")
             return []
 
 def main():

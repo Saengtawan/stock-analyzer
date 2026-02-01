@@ -1,0 +1,16 @@
+{
+  "hold_days": 5,
+  "type": "basic",
+  "gates": {
+    "accum": 1.3,
+    "rsi": 60.0,
+    "ma20": -2.0,
+    "ma50": 4.0,
+    "mom20": -5.0
+  },
+  "results": {
+    "trades": 23,
+    "losers": 0,
+    "avg_return": 2.1467512633898904
+  }
+}

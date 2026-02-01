@@ -1676,12 +1676,17 @@ Focus on companies that combine growth with improving profitability, not just re
         distance_from_52w = technical.get('distance_from_52w_high', 50)
         distance_from_30d = technical.get('distance_from_30d_high', 20)
         trading_score = technical.get('trading_opportunity_score', 5.0)
+        volume_ratio = technical.get('volume_ratio', 1.0)
+        rsi = technical.get('rsi', 50)
 
         # Check if price is extended (too high)
         is_extended = distance_from_52w < 10  # Within 10% of 52-week high
         is_overextended = distance_from_52w < 5  # Within 5% of 52-week high
         is_pullback_zone = 15 < distance_from_52w < 35  # Ideal pullback zone
         is_broken = distance_from_52w > 45  # Far from highs, possibly broken
+
+        # Initialize action
+        action = 'HOLD'
 
         # Determine trading strategy based on price position
         if is_overextended:
@@ -1690,44 +1695,96 @@ Focus on companies that combine growth with improving profitability, not just re
             thai_desc = '⚠️ ราคาพุ่งสูงเกินไปแล้ว - รอให้ปรับฐานก่อน'
             entry_suggestion = f'รอราคาปรับลง 10-15% จาก High (${technical.get("high_52w", 0):.2f})'
             exit_suggestion = 'ไม่แนะนำเข้าจุดนี้ - ความเสี่ยงสูงมาก'
+            action = 'HOLD'  # Too extended, wait
+
         elif is_extended:
             strategy = 'Monitor for Reversal'
             risk_level = 'High'
             thai_desc = 'ราคาใกล้ high แล้ว - ระวัง reversal'
             entry_suggestion = 'รอ confirmation ว่าจะ breakout หรือ reversal'
             exit_suggestion = 'ถ้าเข้าแล้วต้องตั้ง Stop Loss แน่น 3-5%'
+            # BUY only if very strong momentum + volume confirmation
+            if momentum >= 7.0 and volume_ratio >= 1.5 and trend == 'bullish':
+                action = 'BUY'  # Breakout continuation
+            else:
+                action = 'HOLD'
+
         elif is_pullback_zone and momentum >= 5 and trend == 'bullish':
             strategy = 'Swing Trading (2-5 days)'
             risk_level = 'Medium-High'
             thai_desc = '✅ ราคา pullback สวย - เหมาะซื้อ swing'
             entry_suggestion = f'เข้าได้ที่ราคาปัจจุบัน หรือรอ support ที่ ${technical.get("support_level", 0):.2f}'
             exit_suggestion = f'Target: ${technical.get("high_30d", 0):.2f}, Stop Loss: 5-7%'
+            # STRONG BUY - ideal setup
+            if trading_score >= 7.0 and volume_ratio >= 1.2:
+                action = 'STRONG_BUY'
+            else:
+                action = 'BUY'
+
         elif is_pullback_zone and momentum >= 3:
             strategy = 'Short-term Position'
             risk_level = 'Medium'
             thai_desc = 'ราคาอยู่ในโซนที่น่าสนใจ - พิจารณาได้'
             entry_suggestion = f'รอสัญญาณ reversal ก่อน (RSI < 40 หรือ volume surge)'
             exit_suggestion = 'ตั้ง Stop Loss 7-10%, Take Profit ตาม R:R 1:2'
+            # BUY if trading score is good
+            if trading_score >= 6.5:
+                action = 'BUY'
+            else:
+                action = 'HOLD'  # Wait for better setup
+
         elif is_broken:
             strategy = 'High Risk - Broken Stock?'
             risk_level = 'Very High'
             thai_desc = '⚠️ ราคาตกต่ำมาก - อาจมีปัญหาพื้นฐาน'
             entry_suggestion = 'ไม่แนะนำเว้นแต่มี catalyst ชัด (earnings, news)'
             exit_suggestion = 'ถ้าจะเข้าต้องเป็น speculation เท่านั้น'
+            # SELL or AVOID - too risky unless strong reversal
+            if momentum >= 6.0 and volume_ratio >= 2.0 and rsi < 35:
+                action = 'BUY'  # Speculative bounce play
+            else:
+                action = 'SELL'  # Avoid broken stocks
+
         elif vol >= 50 and momentum >= 6:
             strategy = 'Aggressive Day Trading'
             risk_level = 'Very High'
             thai_desc = 'เหมาะ Day Trading - ความผันผวนสูงมาก'
             entry_suggestion = 'จับจังหวะ intraday - ใช้ technical indicators'
             exit_suggestion = 'ตั้ง target 3-5%, Stop Loss 2-3%'
+            # BUY if momentum is strong
+            if trading_score >= 7.0 and trend == 'bullish':
+                action = 'BUY'
+            else:
+                action = 'HOLD'
+
         else:
             strategy = 'Monitor'
             risk_level = 'Medium'
             thai_desc = 'ติดตามต่อ - รอสัญญาณชัดเจน'
             entry_suggestion = 'รอให้มี setup ที่ดีกว่า'
             exit_suggestion = 'ตั้ง Stop Loss 5-8%'
+            action = 'HOLD'
+
+        # OVERRIDE: Universal BUY/SELL rules based on trading score + momentum
+        # These override strategy-based actions for edge cases
+
+        # STRONG BUY: Exceptional opportunity
+        if trading_score >= 8.0 and momentum >= 6.5 and trend == 'bullish' and volume_ratio >= 1.3:
+            action = 'STRONG_BUY'
+
+        # BUY: Good opportunity
+        elif trading_score >= 7.0 and momentum >= 5.0 and not is_overextended:
+            if action not in ['STRONG_BUY', 'BUY']:  # Don't downgrade from STRONG_BUY
+                action = 'BUY'
+
+        # SELL: Poor setup or bearish
+        elif trading_score < 4.0 or momentum < 2.0:
+            action = 'SELL'
+        elif trend == 'bearish' and momentum < 3.0 and distance_from_52w > 35:
+            action = 'SELL'
 
         return {
+            'action': action,  # NEW: BUY/HOLD/SELL/STRONG_BUY
             'strategy': strategy,
             'risk_level': risk_level,
             'description_thai': thai_desc,

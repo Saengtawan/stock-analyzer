@@ -1,0 +1,14 @@
+{
+  "strategy": "basic",
+  "accum": 1.3,
+  "rsi": "57",
+  "ma20": -3.0,
+  "ma50": 4.0,
+  "trades": "40",
+  "avg_return": 6.174742191635094,
+  "hold_days": "21",
+  "losers": "0",
+  "mom10": NaN,
+  "dist_high": NaN,
+  "atr": NaN
+}

@@ -1,0 +1,42 @@
+{
+  "CANSLIM": {
+    "trades": 401,
+    "winners": 142,
+    "losers": 259,
+    "stopped": 227,
+    "win_rate": 35.41147132169576,
+    "avg_return": 0.6396528813892047,
+    "total_return": 256.5008054370711,
+    "max_loss": -2.5
+  },
+  "SEPA": {
+    "trades": 661,
+    "winners": 269,
+    "losers": 392,
+    "stopped": 345,
+    "win_rate": 40.69591527987897,
+    "avg_return": 1.2208950596730557,
+    "total_return": 807.0116344438898,
+    "max_loss": -2.5
+  },
+  "Darvas Box": {
+    "trades": 96,
+    "winners": 34,
+    "losers": 62,
+    "stopped": 48,
+    "win_rate": 35.41666666666667,
+    "avg_return": 0.7365392948863355,
+    "total_return": 70.70777230908821,
+    "max_loss": -2.5
+  },
+  "Stage 2": {
+    "trades": 684,
+    "winners": 272,
+    "losers": 412,
+    "stopped": 362,
+    "win_rate": 39.76608187134503,
+    "avg_return": 1.1508485773936288,
+    "total_return": 787.180426937242,
+    "max_loss": -2.5
+  }
+}

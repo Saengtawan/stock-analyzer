@@ -1,0 +1,14 @@
+{
+  "positions": {
+    "ON": {
+      "symbol": "ON",
+      "entry_date": "2026-02-01",
+      "entry_price": 59.89,
+      "shares": 417,
+      "stop_loss": 58.69,
+      "take_profit": 63.47,
+      "cost_basis": 24974.13
+    }
+  },
+  "last_updated": "2026-02-01T11:23:25.730692"
+}

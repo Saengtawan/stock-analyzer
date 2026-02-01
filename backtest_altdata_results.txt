@@ -1,0 +1,324 @@
+2025-12-31 17:42:25.726 | INFO     | screeners.growth_catalyst_screener:__init__:72 - ✅ Alternative Data sources initialized (6 sources)
+2025-12-31 17:42:25.726 | INFO     | screeners.growth_catalyst_screener:__init__:81 - Growth Catalyst Screener v3.0 initialized with Alternative Data + Regime Detection
+2025-12-31 17:42:26.330 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - AAPL: Fast analysis failed - using minimal data
+2025-12-31 17:42:26.837 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - AAPL: Volatility 10.8% too low (<20%) - EXCLUDED
+2025-12-31 17:42:27.059 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - MSFT: Fast analysis failed - using minimal data
+2025-12-31 17:42:27.586 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - MSFT: Volatility 17.7% too low (<20%) - EXCLUDED
+2025-12-31 17:42:27.788 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - GOOGL: Fast analysis failed - using minimal data
+2025-12-31 17:42:28.378 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:42:34.461 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:42:34.464 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - GOOGL: Fetching alternative data...
+/home/saengtawan/work/project/cc/stock-analyzer/src/data_sources/correlation_pairs.py:124: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  data = yf.download(symbols, period=period, progress=False)['Close']
+2025-12-31 17:42:38.669 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - GOOGL: Alt data score 57.6/100, signals 2/6
+2025-12-31 17:42:38.900 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - META: Fast analysis failed - using minimal data
+2025-12-31 17:42:39.517 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:42:45.845 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:42:45.847 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - META: Fetching alternative data...
+/home/saengtawan/work/project/cc/stock-analyzer/src/data_sources/correlation_pairs.py:124: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  data = yf.download(symbols, period=period, progress=False)['Close']
+2025-12-31 17:42:49.845 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - META: Alt data score 43.1/100, signals 0/6
+2025-12-31 17:42:50.109 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - NVDA: Fast analysis failed - using minimal data
+2025-12-31 17:42:50.463 | DEBUG    | screeners.growth_catalyst_screener:_discover_catalysts:643 - Estimated next earnings for NVDA: 28 days
+2025-12-31 17:42:50.600 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:379 - NVDA: Beta 2.28 too high (>2.0) - EXCLUDED
+2025-12-31 17:42:50.814 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - AMD: Fast analysis failed - using minimal data
+2025-12-31 17:42:51.463 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:42:57.663 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:42:57.666 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - AMD: Fetching alternative data...
+/home/saengtawan/work/project/cc/stock-analyzer/src/data_sources/correlation_pairs.py:124: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  data = yf.download(symbols, period=period, progress=False)['Close']
+2025-12-31 17:43:02.273 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - AMD: Alt data score 53.3/100, signals 2/6
+2025-12-31 17:43:02.532 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - INTC: Fast analysis failed - using minimal data
+2025-12-31 17:43:03.076 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:406 - INTC: Valuation score 5.0 too low - EXCLUDED
+2025-12-31 17:43:03.308 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - AVGO: Fast analysis failed - using minimal data
+2025-12-31 17:43:03.667 | DEBUG    | screeners.growth_catalyst_screener:_discover_catalysts:643 - Estimated next earnings for AVGO: 28 days
+2025-12-31 17:43:03.928 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:43:10.377 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:43:10.380 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - AVGO: Fetching alternative data...
+/home/saengtawan/work/project/cc/stock-analyzer/src/data_sources/correlation_pairs.py:124: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  data = yf.download(symbols, period=period, progress=False)['Close']
+2025-12-31 17:43:14.698 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - AVGO: Alt data score 62.4/100, signals 3/6
+2025-12-31 17:43:14.920 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - SNOW: Fast analysis failed - using minimal data
+2025-12-31 17:43:15.281 | DEBUG    | screeners.growth_catalyst_screener:_discover_catalysts:643 - Estimated next earnings for SNOW: 28 days
+2025-12-31 17:43:15.523 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:43:20.995 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:43:20.997 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - SNOW: Fetching alternative data...
+/home/saengtawan/work/project/cc/stock-analyzer/src/data_sources/correlation_pairs.py:124: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  data = yf.download(symbols, period=period, progress=False)['Close']
+2025-12-31 17:43:25.035 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - SNOW: Alt data score 55.9/100, signals 2/6
+2025-12-31 17:43:25.236 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - CRWD: Fast analysis failed - using minimal data
+2025-12-31 17:43:25.591 | DEBUG    | screeners.growth_catalyst_screener:_discover_catalysts:643 - Estimated next earnings for CRWD: 28 days
+2025-12-31 17:43:25.864 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:43:32.376 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:43:32.379 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - CRWD: Fetching alternative data...
+/home/saengtawan/work/project/cc/stock-analyzer/src/data_sources/correlation_pairs.py:124: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  data = yf.download(symbols, period=period, progress=False)['Close']
+2025-12-31 17:43:36.465 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - CRWD: Alt data score 60.6/100, signals 2/6
+2025-12-31 17:43:36.674 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - DDOG: Fast analysis failed - using minimal data
+2025-12-31 17:43:36.998 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:406 - DDOG: Valuation score 5.0 too low - EXCLUDED
+2025-12-31 17:43:37.199 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - NET: Fast analysis failed - using minimal data
+2025-12-31 17:43:37.681 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:43:43.938 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:43:43.941 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - NET: Fetching alternative data...
+/home/saengtawan/work/project/cc/stock-analyzer/src/data_sources/correlation_pairs.py:124: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  data = yf.download(symbols, period=period, progress=False)['Close']
+2025-12-31 17:43:48.053 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - NET: Alt data score 45.2/100, signals 1/6
+2025-12-31 17:43:48.267 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - PLTR: Fast analysis failed - using minimal data
+2025-12-31 17:43:48.758 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:406 - PLTR: Valuation score 0.0 too low - EXCLUDED
+2025-12-31 17:43:48.953 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - DOCS: Fast analysis failed - using minimal data
+2025-12-31 17:43:49.374 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:43:54.871 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:43:54.872 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - DOCS: Fetching alternative data...
+2025-12-31 17:43:57.989 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - DOCS: Alt data score 49.3/100, signals 1/6
+2025-12-31 17:43:58.186 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - ZS: Fast analysis failed - using minimal data
+2025-12-31 17:43:58.389 | DEBUG    | screeners.growth_catalyst_screener:_discover_catalysts:643 - Estimated next earnings for ZS: 28 days
+2025-12-31 17:43:58.536 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - ZS: Volatility 19.8% too low (<20%) - EXCLUDED
+2025-12-31 17:43:58.777 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - JPM: Fast analysis failed - using minimal data
+2025-12-31 17:43:59.355 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:44:05.668 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:44:05.670 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - JPM: Fetching alternative data...
+/home/saengtawan/work/project/cc/stock-analyzer/src/data_sources/correlation_pairs.py:124: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  data = yf.download(symbols, period=period, progress=False)['Close']
+2025-12-31 17:44:09.796 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - JPM: Alt data score 46.1/100, signals 2/6
+2025-12-31 17:44:10.051 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - BAC: Fast analysis failed - using minimal data
+2025-12-31 17:44:10.600 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - BAC: Volatility 13.6% too low (<20%) - EXCLUDED
+2025-12-31 17:44:10.849 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - GS: Fast analysis failed - using minimal data
+2025-12-31 17:44:11.430 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:44:17.078 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:44:17.081 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - GS: Fetching alternative data...
+/home/saengtawan/work/project/cc/stock-analyzer/src/data_sources/correlation_pairs.py:124: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  data = yf.download(symbols, period=period, progress=False)['Close']
+2025-12-31 17:44:21.043 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - GS: Alt data score 36.2/100, signals 1/6
+2025-12-31 17:44:21.247 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - SOFI: Fast analysis failed - using minimal data
+2025-12-31 17:44:21.842 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:44:27.102 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:44:27.105 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - SOFI: Fetching alternative data...
+2025-12-31 17:44:29.898 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - SOFI: Alt data score 45.8/100, signals 1/6
+2025-12-31 17:44:30.100 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - COIN: Fast analysis failed - using minimal data
+2025-12-31 17:44:30.594 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:379 - COIN: Beta 3.69 too high (>2.0) - EXCLUDED
+2025-12-31 17:44:30.784 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - TSLA: Fast analysis failed - using minimal data
+2025-12-31 17:44:31.269 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:406 - TSLA: Valuation score 0.0 too low - EXCLUDED
+2025-12-31 17:44:31.479 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - RIVN: Fast analysis failed - using minimal data
+2025-12-31 17:44:32.015 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:44:38.353 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:44:38.356 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - RIVN: Fetching alternative data...
+/home/saengtawan/work/project/cc/stock-analyzer/src/data_sources/correlation_pairs.py:124: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  data = yf.download(symbols, period=period, progress=False)['Close']
+2025-12-31 17:44:43.032 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - RIVN: Alt data score 59.5/100, signals 3/6
+2025-12-31 17:44:43.232 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - LCID: Fast analysis failed - using minimal data
+2025-12-31 17:44:43.655 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:44:49.870 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:44:49.873 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - LCID: Fetching alternative data...
+/home/saengtawan/work/project/cc/stock-analyzer/src/data_sources/correlation_pairs.py:124: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  data = yf.download(symbols, period=period, progress=False)['Close']
+2025-12-31 17:44:53.719 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - LCID: Alt data score 70.8/100, signals 2/6
+2025-12-31 17:44:54.006 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - F: Fast analysis failed - using minimal data
+2025-12-31 17:44:54.565 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - F: Volatility 18.6% too low (<20%) - EXCLUDED
+2025-12-31 17:44:54.794 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - GM: Fast analysis failed - using minimal data
+2025-12-31 17:44:55.391 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:45:01.862 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:45:01.864 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - GM: Fetching alternative data...
+2025-12-31 17:45:05.763 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - GM: Alt data score 56.8/100, signals 2/6
+2025-12-31 17:45:05.962 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - NFLX: Fast analysis failed - using minimal data
+2025-12-31 17:45:06.584 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:45:12.900 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:45:12.902 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - NFLX: Fetching alternative data...
+2025-12-31 17:45:16.335 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - NFLX: Alt data score 59.3/100, signals 2/6
+2025-12-31 17:45:16.614 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - DIS: Fast analysis failed - using minimal data
+2025-12-31 17:45:17.180 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - DIS: Volatility 17.2% too low (<20%) - EXCLUDED
+2025-12-31 17:45:17.391 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - UBER: Fast analysis failed - using minimal data
+2025-12-31 17:45:17.964 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:45:23.881 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:45:23.883 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - UBER: Fetching alternative data...
+2025-12-31 17:45:27.350 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - UBER: Alt data score 60.2/100, signals 2/6
+2025-12-31 17:45:27.534 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - ABNB: Fast analysis failed - using minimal data
+2025-12-31 17:45:28.002 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - ABNB: Volatility 18.7% too low (<20%) - EXCLUDED
+2025-12-31 17:45:28.185 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - SHOP: Fast analysis failed - using minimal data
+2025-12-31 17:45:28.505 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:379 - SHOP: Beta 2.83 too high (>2.0) - EXCLUDED
+2025-12-31 17:45:29.790 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - AAPL: Fast analysis failed - using minimal data
+2025-12-31 17:45:30.312 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - AAPL: Volatility 10.8% too low (<20%) - EXCLUDED
+2025-12-31 17:45:30.503 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - MSFT: Fast analysis failed - using minimal data
+2025-12-31 17:45:30.997 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - MSFT: Volatility 17.7% too low (<20%) - EXCLUDED
+2025-12-31 17:45:31.176 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - GOOGL: Fast analysis failed - using minimal data
+2025-12-31 17:45:31.741 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:45:38.126 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:45:38.127 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - GOOGL: Fetching alternative data...
+2025-12-31 17:45:38.127 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - GOOGL: Alt data score 57.6/100, signals 2/6
+2025-12-31 17:45:38.286 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - META: Fast analysis failed - using minimal data
+2025-12-31 17:45:38.813 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:45:44.687 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:45:44.688 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - META: Fetching alternative data...
+2025-12-31 17:45:44.688 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - META: Alt data score 43.1/100, signals 0/6
+2025-12-31 17:45:44.864 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - NVDA: Fast analysis failed - using minimal data
+2025-12-31 17:45:45.231 | DEBUG    | screeners.growth_catalyst_screener:_discover_catalysts:643 - Estimated next earnings for NVDA: 28 days
+2025-12-31 17:45:45.383 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:379 - NVDA: Beta 2.28 too high (>2.0) - EXCLUDED
+2025-12-31 17:45:45.544 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - AMD: Fast analysis failed - using minimal data
+2025-12-31 17:45:46.139 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:45:52.636 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:45:52.639 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - AMD: Fetching alternative data...
+2025-12-31 17:45:52.639 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - AMD: Alt data score 53.3/100, signals 2/6
+2025-12-31 17:45:52.834 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - INTC: Fast analysis failed - using minimal data
+2025-12-31 17:45:53.350 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:406 - INTC: Valuation score 5.0 too low - EXCLUDED
+2025-12-31 17:45:53.520 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - AVGO: Fast analysis failed - using minimal data
+2025-12-31 17:45:53.876 | DEBUG    | screeners.growth_catalyst_screener:_discover_catalysts:643 - Estimated next earnings for AVGO: 28 days
+2025-12-31 17:45:54.074 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:46:00.850 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:46:00.851 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - AVGO: Fetching alternative data...
+2025-12-31 17:46:00.851 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - AVGO: Alt data score 62.4/100, signals 3/6
+2025-12-31 17:46:00.998 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - SNOW: Fast analysis failed - using minimal data
+2025-12-31 17:46:01.346 | DEBUG    | screeners.growth_catalyst_screener:_discover_catalysts:643 - Estimated next earnings for SNOW: 28 days
+2025-12-31 17:46:01.567 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:46:08.475 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:46:08.475 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - SNOW: Fetching alternative data...
+2025-12-31 17:46:08.475 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - SNOW: Alt data score 55.9/100, signals 2/6
+2025-12-31 17:46:08.640 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - CRWD: Fast analysis failed - using minimal data
+2025-12-31 17:46:08.995 | DEBUG    | screeners.growth_catalyst_screener:_discover_catalysts:643 - Estimated next earnings for CRWD: 28 days
+2025-12-31 17:46:09.165 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:46:14.715 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:46:14.716 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - CRWD: Fetching alternative data...
+2025-12-31 17:46:14.716 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - CRWD: Alt data score 60.6/100, signals 2/6
+2025-12-31 17:46:14.876 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - DDOG: Fast analysis failed - using minimal data
+2025-12-31 17:46:15.201 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:406 - DDOG: Valuation score 5.0 too low - EXCLUDED
+2025-12-31 17:46:15.361 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - NET: Fast analysis failed - using minimal data
+2025-12-31 17:46:15.812 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:46:21.863 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:46:21.865 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - NET: Fetching alternative data...
+2025-12-31 17:46:21.865 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - NET: Alt data score 45.2/100, signals 1/6
+2025-12-31 17:46:22.020 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - PLTR: Fast analysis failed - using minimal data
+2025-12-31 17:46:22.502 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:406 - PLTR: Valuation score 0.0 too low - EXCLUDED
+2025-12-31 17:46:22.663 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - DOCS: Fast analysis failed - using minimal data
+2025-12-31 17:46:23.050 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:46:28.886 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:46:28.889 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - DOCS: Fetching alternative data...
+2025-12-31 17:46:28.889 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - DOCS: Alt data score 49.3/100, signals 1/6
+2025-12-31 17:46:29.044 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - ZS: Fast analysis failed - using minimal data
+2025-12-31 17:46:29.250 | DEBUG    | screeners.growth_catalyst_screener:_discover_catalysts:643 - Estimated next earnings for ZS: 28 days
+2025-12-31 17:46:29.377 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - ZS: Volatility 19.8% too low (<20%) - EXCLUDED
+2025-12-31 17:46:29.609 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - JPM: Fast analysis failed - using minimal data
+2025-12-31 17:46:30.251 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:46:36.500 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:46:36.502 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - JPM: Fetching alternative data...
+2025-12-31 17:46:36.503 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - JPM: Alt data score 46.1/100, signals 2/6
+2025-12-31 17:46:36.719 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - BAC: Fast analysis failed - using minimal data
+2025-12-31 17:46:37.243 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - BAC: Volatility 13.6% too low (<20%) - EXCLUDED
+2025-12-31 17:46:37.427 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - GS: Fast analysis failed - using minimal data
+2025-12-31 17:46:37.992 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:46:44.299 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:46:44.301 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - GS: Fetching alternative data...
+2025-12-31 17:46:44.301 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - GS: Alt data score 36.2/100, signals 1/6
+2025-12-31 17:46:44.456 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - SOFI: Fast analysis failed - using minimal data
+2025-12-31 17:46:45.042 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:46:50.618 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:46:50.620 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - SOFI: Fetching alternative data...
+2025-12-31 17:46:50.620 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - SOFI: Alt data score 45.8/100, signals 1/6
+2025-12-31 17:46:50.775 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - COIN: Fast analysis failed - using minimal data
+2025-12-31 17:46:51.245 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:379 - COIN: Beta 3.69 too high (>2.0) - EXCLUDED
+2025-12-31 17:46:51.396 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - TSLA: Fast analysis failed - using minimal data
+2025-12-31 17:46:51.865 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:406 - TSLA: Valuation score 0.0 too low - EXCLUDED
+2025-12-31 17:46:52.019 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - RIVN: Fast analysis failed - using minimal data
+2025-12-31 17:46:52.547 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:46:58.636 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:46:58.639 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - RIVN: Fetching alternative data...
+2025-12-31 17:46:58.639 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - RIVN: Alt data score 59.5/100, signals 3/6
+2025-12-31 17:46:58.798 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - LCID: Fast analysis failed - using minimal data
+2025-12-31 17:46:59.221 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:47:05.608 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:47:05.610 | WARNING  | screeners.growth_catalyst_screener:_ai_predict_growth_probability:1446 - AI prediction failed for LCID: Expecting value: line 6 column 62 (char 581)
+2025-12-31 17:47:05.610 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - LCID: Fetching alternative data...
+2025-12-31 17:47:05.610 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - LCID: Alt data score 70.8/100, signals 2/6
+2025-12-31 17:47:05.820 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - F: Fast analysis failed - using minimal data
+2025-12-31 17:47:06.342 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - F: Volatility 18.6% too low (<20%) - EXCLUDED
+2025-12-31 17:47:06.529 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - GM: Fast analysis failed - using minimal data
+2025-12-31 17:47:07.094 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:47:12.968 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:47:12.971 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - GM: Fetching alternative data...
+2025-12-31 17:47:12.971 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - GM: Alt data score 56.8/100, signals 2/6
+2025-12-31 17:47:13.129 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - NFLX: Fast analysis failed - using minimal data
+2025-12-31 17:47:13.697 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:47:20.247 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:47:20.248 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - NFLX: Fetching alternative data...
+2025-12-31 17:47:20.248 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - NFLX: Alt data score 59.3/100, signals 2/6
+2025-12-31 17:47:20.507 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - DIS: Fast analysis failed - using minimal data
+2025-12-31 17:47:21.035 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - DIS: Volatility 17.2% too low (<20%) - EXCLUDED
+2025-12-31 17:47:21.202 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - UBER: Fast analysis failed - using minimal data
+2025-12-31 17:47:21.750 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:47:28.676 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:47:28.678 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - UBER: Fetching alternative data...
+2025-12-31 17:47:28.678 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - UBER: Alt data score 60.2/100, signals 2/6
+2025-12-31 17:47:28.827 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - ABNB: Fast analysis failed - using minimal data
+2025-12-31 17:47:29.328 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - ABNB: Volatility 18.7% too low (<20%) - EXCLUDED
+2025-12-31 17:47:29.499 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - SHOP: Fast analysis failed - using minimal data
+2025-12-31 17:47:29.853 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:379 - SHOP: Beta 2.83 too high (>2.0) - EXCLUDED
+2025-12-31 17:47:31.246 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - AAPL: Fast analysis failed - using minimal data
+2025-12-31 17:47:31.775 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - AAPL: Volatility 10.8% too low (<20%) - EXCLUDED
+2025-12-31 17:47:31.965 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - MSFT: Fast analysis failed - using minimal data
+2025-12-31 17:47:32.505 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - MSFT: Volatility 17.7% too low (<20%) - EXCLUDED
+2025-12-31 17:47:32.687 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - GOOGL: Fast analysis failed - using minimal data
+2025-12-31 17:47:33.295 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:47:39.710 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:47:39.713 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - GOOGL: Fetching alternative data...
+2025-12-31 17:47:39.713 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - GOOGL: Alt data score 57.6/100, signals 2/6
+2025-12-31 17:47:39.885 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - META: Fast analysis failed - using minimal data
+2025-12-31 17:47:40.418 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:47:46.560 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:47:46.561 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - META: Fetching alternative data...
+2025-12-31 17:47:46.561 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - META: Alt data score 43.1/100, signals 0/6
+2025-12-31 17:47:46.726 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - NVDA: Fast analysis failed - using minimal data
+2025-12-31 17:47:47.084 | DEBUG    | screeners.growth_catalyst_screener:_discover_catalysts:643 - Estimated next earnings for NVDA: 28 days
+2025-12-31 17:47:47.210 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:379 - NVDA: Beta 2.28 too high (>2.0) - EXCLUDED
+2025-12-31 17:47:47.366 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - AMD: Fast analysis failed - using minimal data
+2025-12-31 17:47:47.971 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:47:54.256 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:47:54.259 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - AMD: Fetching alternative data...
+2025-12-31 17:47:54.260 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - AMD: Alt data score 53.3/100, signals 2/6
+2025-12-31 17:47:54.485 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - INTC: Fast analysis failed - using minimal data
+2025-12-31 17:47:54.996 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:406 - INTC: Valuation score 5.0 too low - EXCLUDED
+2025-12-31 17:47:55.220 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - AVGO: Fast analysis failed - using minimal data
+2025-12-31 17:47:55.595 | DEBUG    | screeners.growth_catalyst_screener:_discover_catalysts:643 - Estimated next earnings for AVGO: 28 days
+2025-12-31 17:47:55.828 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:48:02.338 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:48:02.339 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - AVGO: Fetching alternative data...
+2025-12-31 17:48:02.339 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - AVGO: Alt data score 62.4/100, signals 3/6
+2025-12-31 17:48:02.509 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - SNOW: Fast analysis failed - using minimal data
+2025-12-31 17:48:02.864 | DEBUG    | screeners.growth_catalyst_screener:_discover_catalysts:643 - Estimated next earnings for SNOW: 28 days
+2025-12-31 17:48:03.107 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:48:08.604 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:48:08.606 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - SNOW: Fetching alternative data...
+2025-12-31 17:48:08.607 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - SNOW: Alt data score 55.9/100, signals 2/6
+2025-12-31 17:48:08.770 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - CRWD: Fast analysis failed - using minimal data
+2025-12-31 17:48:09.123 | DEBUG    | screeners.growth_catalyst_screener:_discover_catalysts:643 - Estimated next earnings for CRWD: 28 days
+2025-12-31 17:48:09.312 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:48:15.548 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:48:15.551 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - CRWD: Fetching alternative data...
+2025-12-31 17:48:15.551 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - CRWD: Alt data score 60.6/100, signals 2/6
+2025-12-31 17:48:15.700 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - DDOG: Fast analysis failed - using minimal data
+2025-12-31 17:48:16.007 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:406 - DDOG: Valuation score 5.0 too low - EXCLUDED
+2025-12-31 17:48:16.168 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - NET: Fast analysis failed - using minimal data
+2025-12-31 17:48:16.619 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:48:22.482 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:48:22.483 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - NET: Fetching alternative data...
+2025-12-31 17:48:22.483 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - NET: Alt data score 45.2/100, signals 1/6
+2025-12-31 17:48:22.638 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - PLTR: Fast analysis failed - using minimal data
+2025-12-31 17:48:23.106 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:406 - PLTR: Valuation score 0.0 too low - EXCLUDED
+2025-12-31 17:48:23.257 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - DOCS: Fast analysis failed - using minimal data
+2025-12-31 17:48:23.619 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:48:29.481 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:48:29.482 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - DOCS: Fetching alternative data...
+2025-12-31 17:48:29.482 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - DOCS: Alt data score 49.3/100, signals 1/6
+2025-12-31 17:48:29.634 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - ZS: Fast analysis failed - using minimal data
+2025-12-31 17:48:29.834 | DEBUG    | screeners.growth_catalyst_screener:_discover_catalysts:643 - Estimated next earnings for ZS: 28 days
+2025-12-31 17:48:29.960 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - ZS: Volatility 19.8% too low (<20%) - EXCLUDED
+2025-12-31 17:48:30.204 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - JPM: Fast analysis failed - using minimal data
+2025-12-31 17:48:30.897 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:48:36.536 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:48:36.539 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - JPM: Fetching alternative data...
+2025-12-31 17:48:36.539 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - JPM: Alt data score 46.1/100, signals 2/6
+2025-12-31 17:48:36.767 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - BAC: Fast analysis failed - using minimal data
+2025-12-31 17:48:37.293 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:394 - BAC: Volatility 13.6% too low (<20%) - EXCLUDED
+2025-12-31 17:48:37.478 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - GS: Fast analysis failed - using minimal data
+2025-12-31 17:48:38.023 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2025-12-31 17:48:44.026 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2025-12-31 17:48:44.028 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:473 - GS: Fetching alternative data...
+2025-12-31 17:48:44.029 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:490 - GS: Alt data score 36.2/100, signals 1/6
+2025-12-31 17:48:44.189 | DEBUG    | screeners.growth_catalyst_screener:_analyze_stock_comprehensive:346 - SOFI: Fast analysis failed - using minimal data
+2025-12-31 17:48:44.763 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3

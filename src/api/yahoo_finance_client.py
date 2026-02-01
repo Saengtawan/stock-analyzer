@@ -1,26 +1,108 @@
 """
-Yahoo Finance API Client
+Yahoo Finance API Client - v6.10 with Robust Rate Limit Handling
 """
 import yfinance as yf
 import pandas as pd
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
+import time
+import random
 from loguru import logger
 
 from .base_client import BaseAPIClient, DataCache, APIError
 
 
 class YahooFinanceClient(BaseAPIClient):
-    """Yahoo Finance data client"""
+    """
+    Yahoo Finance data client with robust rate limit handling (v6.10)
+
+    Implements:
+    - Long cache (4 hours) to minimize API calls
+    - Smart throttling with exponential backoff
+    - Jittered delays to avoid request patterns
+    - Session/crumb refresh on 401 errors
+    """
 
     def __init__(self):
         # Yahoo Finance doesn't require API key
-        super().__init__(api_key="", rate_limit=120)  # 2 requests per second
-        self.cache = DataCache(ttl_minutes=5)  # Short cache for real-time data
+        # v7.0: Balanced rate limit (fast but safe)
+        super().__init__(api_key="", rate_limit=30)  # 30 requests per minute
+        self.rate_limiter.min_delay = 1.0  # 1 second minimum between calls
+        self.cache = DataCache(ttl_minutes=240)  # 4 hour cache
+
+        # Track recent errors for adaptive throttling
+        self._error_count = 0
+        self._last_error_time = 0
+        self._cooldown_until = 0
+        self._session_started = False  # Track if we've made any requests yet
+
+    def _smart_throttle(self):
+        """
+        v7.0: Balanced throttling - fast but safe
+
+        Features:
+        - Initial 2s delay on first request
+        - Base 1-1.5s delay between requests
+        - Adaptive delay increase on errors
+        - Cooldown after rate limit hits
+        """
+        current_time = time.time()
+
+        # INITIAL DELAY: Wait 2s on first request
+        if not self._session_started:
+            self._session_started = True
+            logger.info("🚀 Starting Yahoo Finance session...")
+            time.sleep(2)
+            return
+
+        # If in cooldown period, wait
+        if current_time < self._cooldown_until:
+            wait_time = self._cooldown_until - current_time
+            logger.info(f"⏳ Cooldown: waiting {wait_time:.1f}s")
+            time.sleep(wait_time)
+
+        # Base delay with jitter (1-1.5 seconds)
+        base_delay = self.rate_limiter.min_delay
+        jitter = random.uniform(1.0, 1.5)
+        delay = base_delay * jitter
+
+        # Increase delay if recent errors
+        if self._error_count > 0:
+            error_multiplier = min(self._error_count * 3, 10)  # Max 10x delay
+            delay *= error_multiplier
+            logger.debug(f"Error-based delay: {delay:.1f}s (errors: {self._error_count})")
+
+        time.sleep(delay)
+
+    def _handle_rate_limit_error(self, error_msg: str):
+        """
+        v6.10: Handle rate limit errors with cooldown
+        """
+        self._error_count += 1
+        self._last_error_time = time.time()
+
+        # Set cooldown period based on error count
+        cooldown_seconds = min(30 * self._error_count, 300)  # Max 5 min cooldown
+        self._cooldown_until = time.time() + cooldown_seconds
+
+        logger.warning(f"⚠️ Rate limit hit (error #{self._error_count}). Cooldown: {cooldown_seconds}s")
+
+        # Try to refresh yfinance session/crumb
+        try:
+            import yfinance.shared as yf_shared
+            yf_shared._REQUESTS = None
+            logger.info("Cleared yfinance session for refresh")
+        except:
+            pass
+
+    def _record_success(self):
+        """v6.10: Record successful request, decay error count"""
+        if self._error_count > 0:
+            self._error_count = max(0, self._error_count - 1)
 
     def get_price_data(self, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
         """
-        Get historical price data from Yahoo Finance
+        Get historical price data from Yahoo Finance with robust rate limit handling (v6.10)
 
         Args:
             symbol: Stock symbol (e.g., 'AAPL')
@@ -33,36 +115,57 @@ class YahooFinanceClient(BaseAPIClient):
         cache_key = f"price_{symbol}_{period}_{interval}"
         cached_data = self.cache.get(cache_key, data_type='price')
         if cached_data is not None:
+            logger.debug(f"📦 Cache hit for {symbol}")
             return cached_data
 
-        try:
-            ticker = yf.Ticker(symbol)
-            data = ticker.history(period=period, interval=interval)
+        # v6.10: Retry logic with smart throttling and session refresh
+        max_retries = 4
+        for attempt in range(max_retries):
+            try:
+                # Smart throttle with adaptive delays
+                self._smart_throttle()
 
-            if data.empty:
-                raise APIError(f"No data found for symbol {symbol}")
+                ticker = yf.Ticker(symbol)
+                data = ticker.history(period=period, interval=interval)
 
-            # Reset index to have date as column
-            data = data.reset_index()
+                if data.empty:
+                    raise APIError(f"No data found for symbol {symbol}")
 
-            # Standardize column names (after reset_index to handle 'Date' column)
-            data.columns = data.columns.str.lower()
+                # Reset index to have date as column
+                data = data.reset_index()
 
-            # Add symbol column
-            data['symbol'] = symbol
+                # Standardize column names (after reset_index to handle 'Date' column)
+                data.columns = data.columns.str.lower()
 
-            # Ensure date column is datetime
-            if 'date' in data.columns:
-                data['date'] = pd.to_datetime(data['date'])
+                # Add symbol column
+                data['symbol'] = symbol
 
-            self.cache.set(cache_key, data, data_type='price')
-            logger.info(f"Retrieved {len(data)} rows of price data for {symbol}")
+                # Ensure date column is datetime
+                if 'date' in data.columns:
+                    data['date'] = pd.to_datetime(data['date'])
 
-            return data
+                self.cache.set(cache_key, data, data_type='price')
+                self._record_success()
+                logger.debug(f"✅ Retrieved {len(data)} rows for {symbol}")
 
-        except Exception as e:
-            logger.error(f"Failed to get price data for {symbol}: {e}")
-            raise APIError(f"Failed to get price data: {e}")
+                return data
+
+            except Exception as e:
+                error_str = str(e).lower()
+                is_rate_limit = any(x in error_str for x in ['rate', '429', '401', 'too many', 'unauthorized', 'crumb'])
+
+                if is_rate_limit:
+                    self._handle_rate_limit_error(str(e))
+
+                    if attempt < max_retries - 1:
+                        # Exponential backoff: 10s, 30s, 90s
+                        wait_time = 10 * (3 ** attempt)
+                        logger.warning(f"Rate limit on {symbol}, waiting {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                        time.sleep(wait_time)
+                        continue
+
+                logger.error(f"Failed to get price data for {symbol}: {e}")
+                raise APIError(f"Failed to get price data: {e}")
 
     def get_financial_data(self, symbol: str) -> Dict[str, Any]:
         """
@@ -326,3 +429,267 @@ class YahooFinanceClient(BaseAPIClient):
         except (TypeError, ZeroDivisionError):
             pass
         return None
+
+    def is_market_open(self) -> Dict[str, Any]:
+        """
+        Check if US market is currently open and return market state
+
+        Market states:
+        - PRE: Pre-market (4:00-9:30 AM ET)
+        - OPEN: Regular market hours (9:30 AM - 4:00 PM ET)
+        - AFTER: After-hours (4:00-8:00 PM ET)
+        - CLOSED: Market closed
+
+        Returns:
+            Dictionary with market_state and is_open boolean
+        """
+        import pytz
+        from datetime import datetime
+
+        try:
+            # Get current time in US/Eastern
+            eastern = pytz.timezone('US/Eastern')
+            now = datetime.now(eastern)
+
+            current_time = now.time()
+            current_day = now.weekday()  # 0=Monday, 6=Sunday
+
+            # Check if weekend
+            if current_day >= 5:  # Saturday or Sunday
+                return {
+                    'market_state': 'CLOSED',
+                    'is_open': False,
+                    'reason': 'Weekend'
+                }
+
+            # Define market hours
+            from datetime import time
+            pre_market_start = time(4, 0)
+            pre_market_end = time(9, 30)
+            regular_open = time(9, 30)
+            regular_close = time(16, 0)
+            after_hours_close = time(20, 0)
+
+            # Determine market state
+            if pre_market_start <= current_time < pre_market_end:
+                return {
+                    'market_state': 'PRE',
+                    'is_open': False,
+                    'reason': 'Pre-market hours'
+                }
+            elif regular_open <= current_time < regular_close:
+                return {
+                    'market_state': 'OPEN',
+                    'is_open': True,
+                    'reason': 'Regular market hours'
+                }
+            elif regular_close <= current_time < after_hours_close:
+                return {
+                    'market_state': 'AFTER',
+                    'is_open': False,
+                    'reason': 'After-hours trading'
+                }
+            else:
+                return {
+                    'market_state': 'CLOSED',
+                    'is_open': False,
+                    'reason': 'Outside trading hours'
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to check market status: {e}")
+            return {
+                'market_state': 'UNKNOWN',
+                'is_open': False,
+                'reason': f'Error: {e}'
+            }
+
+    def get_intraday_data(self, symbol: str, period: str = "5d", interval: str = "5m") -> pd.DataFrame:
+        """
+        Get intraday price data
+
+        Args:
+            symbol: Stock symbol
+            period: Time period (1d, 5d, 1mo, etc.)
+            interval: Data interval (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h)
+
+        Returns:
+            DataFrame with intraday OHLCV data
+        """
+        try:
+            ticker = yf.Ticker(symbol)
+            data = ticker.history(period=period, interval=interval)
+
+            if data.empty:
+                logger.warning(f"No intraday data found for {symbol}")
+                return pd.DataFrame()
+
+            # Reset index and standardize columns
+            data = data.reset_index()
+            data.columns = data.columns.str.lower()
+
+            logger.info(f"Retrieved {len(data)} rows of intraday data for {symbol} (interval={interval})")
+            return data
+
+        except Exception as e:
+            logger.error(f"Failed to get intraday data for {symbol}: {e}")
+            return pd.DataFrame()
+
+    def get_average_volume(self, symbol: str, days: int = 20) -> float:
+        """
+        Get average daily volume over specified days
+
+        Args:
+            symbol: Stock symbol
+            days: Number of days to average
+
+        Returns:
+            Average volume per 5-minute bar
+        """
+        try:
+            ticker = yf.Ticker(symbol)
+            data = ticker.history(period=f"{days}d", interval="1d")
+
+            if data.empty:
+                return 0
+
+            avg_daily_volume = data['Volume'].mean()
+
+            # Convert to 5-minute bar average
+            # Assuming 78 five-minute bars per day (6.5 hours * 12 bars/hour)
+            avg_volume_5min = avg_daily_volume / 78 if avg_daily_volume > 0 else 0
+
+            return avg_volume_5min
+
+        except Exception as e:
+            logger.error(f"Failed to get average volume for {symbol}: {e}")
+            return 0
+
+    def get_premarket_data(self, symbol: str, interval: str = "5m") -> Dict[str, Any]:
+        """
+        Get pre-market data for gap analysis (4:00 AM - 9:30 AM ET)
+
+        Args:
+            symbol: Stock symbol
+            interval: Data interval (default 5m)
+
+        Returns:
+            Dictionary containing:
+            - has_premarket_data: Boolean
+            - previous_close: Previous day's closing price
+            - current_premarket_price: Latest pre-market price
+            - premarket_high: Highest price in pre-market
+            - premarket_low: Lowest price in pre-market
+            - premarket_volume: Total pre-market volume
+            - gap_percent: Gap % from previous close
+            - gap_direction: 'up' or 'down'
+        """
+        try:
+            ticker = yf.Ticker(symbol)
+
+            # Get intraday data (1 day with 5-minute intervals covers pre-market + regular hours)
+            # IMPORTANT: prepost=True is required to get pre-market volume data
+            data = ticker.history(period="1d", interval=interval, prepost=True)
+
+            if data.empty:
+                raise APIError(f"No data found for {symbol}")
+
+            # Reset index and standardize columns
+            data = data.reset_index()
+            data.columns = data.columns.str.lower()
+
+            # Convert datetime column to timezone-aware (US/Eastern)
+            import pytz
+            eastern = pytz.timezone('US/Eastern')
+
+            # Handle both 'datetime' and 'date' column names
+            datetime_col = 'datetime' if 'datetime' in data.columns else 'date'
+            data[datetime_col] = pd.to_datetime(data[datetime_col])
+
+            # Convert to Eastern time if timezone-aware
+            if data[datetime_col].dt.tz is not None:
+                data[datetime_col] = data[datetime_col].dt.tz_convert(eastern)
+            else:
+                data[datetime_col] = data[datetime_col].dt.tz_localize('UTC').dt.tz_convert(eastern)
+
+            # Rename to datetime for consistency
+            if datetime_col == 'date':
+                data['datetime'] = data['date']
+
+            # Get previous day's close
+            # IMPORTANT: ticker.info['previousClose'] is often STALE (Yahoo Finance bug)
+            # Use historical data instead for accurate previous close
+            try:
+                # Get last 5 trading days to find most recent close
+                hist_data = ticker.history(period="5d", interval="1d", prepost=False)
+                if not hist_data.empty and len(hist_data) >= 1:
+                    # Get the most recent completed trading day close
+                    # (last row in 5d data is the most recent close)
+                    previous_close = float(hist_data['Close'].iloc[-1])
+                    logger.debug(f"Got previous close from 5d history: ${previous_close:.2f}")
+                else:
+                    # Fallback to ticker.info if history fails
+                    info = ticker.info
+                    previous_close = info.get('previousClose', info.get('regularMarketPreviousClose'))
+                    logger.warning(f"Using ticker.info previousClose (may be stale): ${previous_close}")
+            except Exception as e:
+                logger.warning(f"Failed to get history for previous close: {e}, falling back to ticker.info")
+                info = ticker.info
+                previous_close = info.get('previousClose', info.get('regularMarketPreviousClose'))
+
+            # Final fallback: get from current data
+            if previous_close is None or previous_close == 0:
+                previous_day_data = data[data['datetime'].dt.hour < 4]
+                if not previous_day_data.empty:
+                    previous_close = previous_day_data['close'].iloc[-1]
+                else:
+                    previous_close = data['close'].iloc[0] if not data.empty else 0
+
+            # Filter pre-market data (4:00 AM - 9:30 AM)
+            premarket_data = data[
+                ((data['datetime'].dt.hour >= 4) & (data['datetime'].dt.hour < 9)) |
+                ((data['datetime'].dt.hour == 9) & (data['datetime'].dt.minute < 30))
+            ]
+
+            if premarket_data.empty:
+                return {
+                    'symbol': symbol,
+                    'has_premarket_data': False,
+                    'previous_close': previous_close,
+                    'error': 'No pre-market data available'
+                }
+
+            # Calculate pre-market metrics
+            current_premarket_price = premarket_data['close'].iloc[-1]
+            premarket_high = premarket_data['high'].max()
+            premarket_low = premarket_data['low'].min()
+            premarket_volume = int(premarket_data['volume'].sum())
+
+            # Calculate gap
+            gap_amount = current_premarket_price - previous_close
+            gap_percent = (gap_amount / previous_close * 100) if previous_close > 0 else 0
+            gap_direction = 'up' if gap_amount > 0 else 'down'
+
+            logger.info(f"Pre-market data for {symbol}: Gap {gap_percent:.2f}%, Volume {premarket_volume:,}")
+
+            return {
+                'symbol': symbol,
+                'has_premarket_data': True,
+                'premarket_bars': premarket_data,
+                'previous_close': float(previous_close),
+                'current_premarket_price': float(current_premarket_price),
+                'premarket_high': float(premarket_high),
+                'premarket_low': float(premarket_low),
+                'premarket_volume': premarket_volume,
+                'gap_amount': float(gap_amount),
+                'gap_percent': float(gap_percent),
+                'gap_direction': gap_direction,
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to get pre-market data for {symbol}: {e}")
+            return {
+                'symbol': symbol,
+                'has_premarket_data': False,
+                'error': str(e)
+            }

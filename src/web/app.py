@@ -13,11 +13,15 @@ from loguru import logger
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from main import StockAnalyzer
-from utils import clean_analysis_results
+from utils import clean_analysis_results, make_json_serializable
 from symbol_utils import SymbolUtils
 from screeners.support_level_screener import SupportLevelScreener
 from screeners.dividend_screener import DividendGrowthScreener
 from screeners.value_screener import ValueStockScreener
+from screeners.premarket_scanner import PremarketScanner
+from screeners.growth_catalyst_screener import GrowthCatalystScreener
+from screeners.momentum_growth_screener import MomentumGrowthScreener
+from screeners.pullback_catalyst_screener import PullbackCatalystScreener
 from ai_market_analyst import AIMarketAnalyst
 from analysis.fundamental.earnings_analyst import EarningsAnalystAnalyzer
 from analysis.enhanced_features import analyze_stock as enhanced_analyze
@@ -31,6 +35,10 @@ analyzer = StockAnalyzer()
 support_screener = SupportLevelScreener(analyzer)
 dividend_screener = DividendGrowthScreener(analyzer)
 value_screener = ValueStockScreener(analyzer)
+premarket_scanner = PremarketScanner(analyzer.data_manager.yahoo_client)
+growth_catalyst_screener = GrowthCatalystScreener(analyzer)
+momentum_growth_screener = MomentumGrowthScreener(analyzer)
+pullback_catalyst_screener = PullbackCatalystScreener(analyzer)
 market_analyst = AIMarketAnalyst()
 
 
@@ -312,6 +320,65 @@ def api_support_screen():
 
     except Exception as e:
         logger.error(f"Support screening API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/premarket-scan', methods=['POST'])
+def api_premarket_scan():
+    """API endpoint for pre-market gap scanning"""
+    try:
+        data = request.get_json()
+
+        # Extract criteria
+        min_gap_pct = data.get('min_gap_pct', 2.0)
+        max_gap_pct = data.get('max_gap_pct', 4.0)  # v8.0: Expanded to 2-4% range
+        min_volume_ratio = data.get('min_volume_ratio', 3.0)
+        min_price = data.get('min_price', 5.0)
+        market_caps = data.get('market_caps', ['large', 'mid'])
+        prioritize_tech = data.get('prioritize_tech', True)
+        max_stocks = data.get('max_stocks', 20)
+
+        # Run pre-market scan (demo_mode auto-enabled outside pre-market hours)
+        scan_result = premarket_scanner.scan_premarket_opportunities(
+            min_gap_pct=min_gap_pct,
+            max_gap_pct=max_gap_pct,
+            min_volume_ratio=min_volume_ratio,
+            min_price=min_price,
+            market_caps=market_caps,
+            prioritize_tech=prioritize_tech,
+            max_stocks=max_stocks,
+            demo_mode=False  # Will auto-enable if not in pre-market hours
+        )
+
+        # Extract results from scanner
+        opportunities = scan_result['opportunities']
+        demo_mode_active = scan_result['demo_mode']
+        market_state = scan_result['market_state']
+
+        # Enrich with ETF information
+        opportunities_with_etf = enrich_with_etf_info(opportunities)
+
+        # Clean results for JSON serialization
+        cleaned_opportunities = clean_analysis_results(opportunities_with_etf)
+
+        return jsonify({
+            'opportunities': cleaned_opportunities,
+            'total_screened': "AI-generated universe",
+            'found_opportunities': len(opportunities),
+            'demo_mode': demo_mode_active,
+            'market_state': market_state,
+            'criteria': {
+                'min_gap_pct': min_gap_pct,
+                'max_gap_pct': max_gap_pct,
+                'min_volume_ratio': min_volume_ratio,
+                'min_price': min_price,
+                'market_caps': market_caps,
+                'prioritize_tech': prioritize_tech,
+                'max_stocks': max_stocks
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Pre-market scanning API error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/chart-data/<symbol>')
@@ -1093,6 +1160,217 @@ def api_volatile_screen():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/growth-catalyst-screen', methods=['POST'])
+def api_growth_catalyst_screen():
+    """API endpoint for 14-day growth catalyst screening"""
+    try:
+        data = request.get_json()
+
+        # Extract criteria
+        target_gain_pct = data.get('target_gain_pct', 15.0)
+        timeframe_days = data.get('timeframe_days', 30)
+        min_market_cap = data.get('min_market_cap', 500_000_000)  # $500M
+        max_market_cap = data.get('max_market_cap', None)  # No limit
+        min_price = data.get('min_price', 3.0)  # v3.2 Tiered: $3+ with strict quality for low price
+        max_price = data.get('max_price', 2000.0)  # Allow high-value stocks
+        min_daily_volume = data.get('min_daily_volume', 10_000_000)  # $10M
+        min_catalyst_score = data.get('min_catalyst_score', 0.0)  # v4.0: Inverted scoring, 0+ recommended
+        min_technical_score = data.get('min_technical_score', 0.0)  # v4.0: Momentum gates filter first
+        min_ai_probability = data.get('min_ai_probability', 0.0)  # v4.0: Momentum gates filter first
+        min_entry_score = data.get('min_entry_score', 55.0)  # v4.0: Quality Filter - 55+ recommended
+        max_stocks = data.get('max_stocks', 20)
+        universe_multiplier = data.get('universe_multiplier', 5)  # v7.1: Match UI default (5x = 150 stocks)
+
+        logger.info(f"🎯 Starting 14-Day Growth Catalyst screening")
+        logger.info(f"   Target: {target_gain_pct}%+ gain in {timeframe_days} days")
+        logger.info(f"   Filters: Catalyst≥{min_catalyst_score}, Technical≥{min_technical_score}, AI Prob≥{min_ai_probability}%, Entry Score≥{min_entry_score}")
+
+        # Run growth catalyst screening
+        opportunities = growth_catalyst_screener.screen_growth_catalyst_opportunities(
+            target_gain_pct=target_gain_pct,
+            timeframe_days=timeframe_days,
+            min_market_cap=min_market_cap,
+            max_market_cap=max_market_cap,
+            min_price=min_price,
+            max_price=max_price,
+            min_daily_volume=min_daily_volume,
+            min_catalyst_score=min_catalyst_score,
+            min_technical_score=min_technical_score,
+            min_ai_probability=min_ai_probability,
+            max_stocks=max_stocks,
+            universe_multiplier=universe_multiplier
+        )
+
+        # v6.5: Filter by Momentum Score (Sweet Spot Scoring - max 100)
+        # Backtest showed momentum_score >= 88 with Top 1 = 100% WR!
+        if min_entry_score > 0 and opportunities:
+            before_count = len(opportunities)
+            # Use momentum_score (Sweet Spot) instead of entry_score (includes bonuses)
+            opportunities = [opp for opp in opportunities if opp.get('momentum_score', 0) >= min_entry_score]
+            after_count = len(opportunities)
+            if before_count > after_count:
+                logger.info(f"   🎯 Momentum Score (Sweet Spot) filter: {before_count} → {after_count} stocks (filtered {before_count - after_count} stocks with Momentum Score < {min_entry_score})")
+
+        # v6.5: Sort by Momentum Score (Sweet Spot) - higher is better
+        if opportunities:
+            def sort_key(opp):
+                # Get sector regime (BULL, SIDEWAYS, BEAR, etc.)
+                sector_regime = opp.get('sector_regime', 'UNKNOWN')
+                momentum_score = opp.get('momentum_score', 0)
+
+                # Priority: BULL = 0, SIDEWAYS = 1, others = 2
+                if 'BULL' in sector_regime.upper():
+                    regime_priority = 0
+                elif 'SIDEWAYS' in sector_regime.upper():
+                    regime_priority = 1
+                else:
+                    regime_priority = 2
+
+                # Sort by regime priority first (ascending), then momentum_score (descending)
+                return (regime_priority, -momentum_score)
+
+            opportunities.sort(key=sort_key)
+            logger.info(f"   📊 Sorted by BULL sectors first, then Momentum Score")
+
+        # NEW: Check for regime warning
+        if opportunities and len(opportunities) > 0 and opportunities[0].get('regime_warning'):
+            regime_data = opportunities[0]
+            logger.warning(f"⚠️ Market regime filter: {regime_data['regime']} - not suitable for trading")
+
+            return jsonify({
+                'regime_warning': True,
+                'regime': regime_data['regime'],
+                'regime_strength': regime_data['regime_strength'],
+                'message': regime_data['message'],
+                'recommendation': regime_data['recommendation'],
+                'details': regime_data.get('details', {}),
+                'opportunities': [],
+                'found_opportunities': 0,
+                'criteria': {
+                    'target_gain_pct': target_gain_pct,
+                    'timeframe_days': timeframe_days,
+                }
+            })
+
+        # Enrich with ETF information
+        opportunities_with_etf = enrich_with_etf_info(opportunities)
+
+        # Clean results for JSON serialization
+        cleaned_opportunities = clean_analysis_results(opportunities_with_etf)
+
+        # Extract regime info if available
+        regime_info = None
+        sector_regime_summary = None
+        if opportunities and len(opportunities) > 0:
+            if 'regime_info' in opportunities[0]:
+                regime_info = opportunities[0]['regime_info']
+            # v3.3: Extract sector regime summary
+            if 'sector_regime_summary' in opportunities[0]:
+                sector_regime_summary = opportunities[0]['sector_regime_summary']
+
+        return jsonify({
+            'opportunities': cleaned_opportunities,
+            'regime_info': regime_info,  # Market regime info
+            'sector_regime_summary': sector_regime_summary,  # v3.3: Sector regime summary
+            'total_screened': 'AI-generated universe',
+            'found_opportunities': len(opportunities),
+            'criteria': {
+                'target_gain_pct': target_gain_pct,
+                'timeframe_days': timeframe_days,
+                'min_market_cap': min_market_cap,
+                'max_market_cap': max_market_cap,
+                'min_price': min_price,
+                'max_price': max_price,
+                'min_daily_volume': min_daily_volume,
+                'min_catalyst_score': min_catalyst_score,
+                'min_technical_score': min_technical_score,
+                'min_ai_probability': min_ai_probability,
+                'max_stocks': max_stocks,
+                'universe_multiplier': universe_multiplier
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Growth catalyst screening API error: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/momentum-growth-screen', methods=['POST'])
+def api_momentum_growth_screen():
+    """API endpoint for Momentum-Based Growth screening (RELAXED filters)"""
+    try:
+        data = request.get_json()
+
+        # Extract criteria - RELAXED configuration from backtest winner
+        min_rsi = data.get('min_rsi', 35.0)
+        max_rsi = data.get('max_rsi', 70.0)
+        min_price_above_ma20 = data.get('min_price_above_ma20', -2.0)
+        min_price_above_ma50 = data.get('min_price_above_ma50', -5.0)
+        min_momentum_10d = data.get('min_momentum_10d', -2.0)
+        min_momentum_30d = data.get('min_momentum_30d', 5.0)
+        min_market_cap = data.get('min_market_cap', 1_000_000_000)  # $1B
+        min_price = data.get('min_price', 5.0)
+        max_price = data.get('max_price', 500.0)
+        min_volume = data.get('min_volume', 500_000)
+        max_stocks = data.get('max_stocks', 20)
+        universe_size = data.get('universe_size', 100)
+
+        logger.info(f"🎯 Starting Momentum Growth Screening (RELAXED)")
+        logger.info(f"   Filters: RSI {min_rsi}-{max_rsi}, MA20 >{min_price_above_ma20}%, MA50 >{min_price_above_ma50}%")
+        logger.info(f"   Momentum: 10d >{min_momentum_10d}%, 30d >{min_momentum_30d}%")
+
+        # Run momentum screening
+        opportunities = momentum_growth_screener.screen_opportunities(
+            min_rsi=min_rsi,
+            max_rsi=max_rsi,
+            min_price_above_ma20=min_price_above_ma20,
+            min_price_above_ma50=min_price_above_ma50,
+            min_momentum_10d=min_momentum_10d,
+            min_momentum_30d=min_momentum_30d,
+            min_market_cap=min_market_cap,
+            min_price=min_price,
+            max_price=max_price,
+            min_volume=min_volume,
+            max_stocks=max_stocks,
+            universe_size=universe_size
+        )
+
+        # Enrich with ETF information
+        opportunities_with_etf = enrich_with_etf_info(opportunities)
+
+        # Clean results for JSON serialization
+        cleaned_opportunities = clean_analysis_results(opportunities_with_etf)
+
+        return jsonify({
+            'opportunities': cleaned_opportunities,
+            'total_screened': 'AI-generated universe',
+            'found_opportunities': len(opportunities),
+            'screener_version': 'MomentumGrowth_v1.0_Relaxed',
+            'criteria': {
+                'min_rsi': min_rsi,
+                'max_rsi': max_rsi,
+                'min_price_above_ma20': min_price_above_ma20,
+                'min_price_above_ma50': min_price_above_ma50,
+                'min_momentum_10d': min_momentum_10d,
+                'min_momentum_30d': min_momentum_30d,
+                'min_market_cap': min_market_cap,
+                'min_price': min_price,
+                'max_price': max_price,
+                'min_volume': min_volume,
+                'max_stocks': max_stocks,
+                'universe_size': universe_size
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Momentum growth screening API error: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/ai-second-opinion', methods=['POST'])
 def api_ai_second_opinion():
     """API endpoint for AI Second Opinion (on-demand only)"""
@@ -1151,5 +1429,1106 @@ def api_ai_second_opinion():
         }), 500
 
 
+@app.route('/portfolio')
+def portfolio_page():
+    """Portfolio monitoring page"""
+    return render_template('portfolio.html')
+
+
+@app.route('/drafts')
+def drafts_page():
+    """Draft stocks page - stocks found by auto scanner"""
+    return render_template('drafts.html')
+
+
+@app.route('/api/drafts', methods=['GET'])
+def api_get_drafts():
+    """Get all draft stocks"""
+    try:
+        drafts_file = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'draft_stocks.json')
+
+        if os.path.exists(drafts_file):
+            with open(drafts_file, 'r') as f:
+                data = json.load(f)
+            return jsonify(data)
+        else:
+            return jsonify({
+                'last_update': None,
+                'count': 0,
+                'drafts': [],
+                'message': 'No drafts yet. Start the auto scanner first.'
+            })
+
+    except Exception as e:
+        logger.error(f"Get drafts error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/drafts/pick', methods=['POST'])
+def api_pick_draft():
+    """Pick a draft stock and add to portfolio"""
+    try:
+        from portfolio_manager_v3 import PortfolioManagerV3
+
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+        entry_price = data.get('entry_price')
+        shares = data.get('shares')
+
+        if not symbol:
+            return jsonify({'error': 'Symbol is required'}), 400
+
+        # Load draft to get entry details
+        drafts_file = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'draft_stocks.json')
+        draft_data = None
+
+        if os.path.exists(drafts_file):
+            with open(drafts_file, 'r') as f:
+                all_drafts = json.load(f)
+                for d in all_drafts.get('drafts', []):
+                    if d['symbol'] == symbol:
+                        draft_data = d
+                        break
+
+        if not draft_data:
+            return jsonify({'error': f'{symbol} not found in drafts'}), 404
+
+        # Use draft entry price if not specified
+        if not entry_price:
+            entry_price = draft_data.get('entry_price', draft_data.get('current_price', 0))
+
+        # Add to portfolio
+        pm = PortfolioManagerV3()
+
+        # Calculate stop and targets from draft
+        stop_loss = draft_data.get('stop_loss', entry_price * 0.975)
+        target1 = draft_data.get('target1', entry_price * 1.05)
+        target2 = draft_data.get('target2', entry_price * 1.085)
+
+        # Calculate amount from shares
+        amount = (shares or 100) * entry_price
+
+        success = pm.add_position(
+            symbol=symbol,
+            entry_price=entry_price,
+            entry_date=datetime.now().strftime('%Y-%m-%d'),
+            amount=amount,
+        )
+
+        if success:
+            # Update draft status
+            for d in all_drafts.get('drafts', []):
+                if d['symbol'] == symbol:
+                    d['status'] = 'PICKED'
+                    d['picked_date'] = datetime.now().isoformat()
+                    break
+
+            with open(drafts_file, 'w') as f:
+                json.dump(all_drafts, f, indent=2)
+
+            return jsonify({
+                'success': True,
+                'symbol': symbol,
+                'message': f'{symbol} added to portfolio'
+            })
+        else:
+            return jsonify({'error': 'Failed to add to portfolio'}), 500
+
+    except Exception as e:
+        logger.error(f"Pick draft error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/drafts/remove', methods=['POST'])
+def api_remove_draft():
+    """Remove a draft stock"""
+    try:
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+
+        if not symbol:
+            return jsonify({'error': 'Symbol is required'}), 400
+
+        drafts_file = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'draft_stocks.json')
+
+        if os.path.exists(drafts_file):
+            with open(drafts_file, 'r') as f:
+                all_drafts = json.load(f)
+
+            original_count = len(all_drafts.get('drafts', []))
+            all_drafts['drafts'] = [d for d in all_drafts.get('drafts', []) if d['symbol'] != symbol]
+
+            if len(all_drafts['drafts']) < original_count:
+                all_drafts['count'] = len(all_drafts['drafts'])
+                with open(drafts_file, 'w') as f:
+                    json.dump(all_drafts, f, indent=2)
+
+                return jsonify({
+                    'success': True,
+                    'symbol': symbol,
+                    'message': f'{symbol} removed from drafts'
+                })
+
+        return jsonify({'error': f'{symbol} not found in drafts'}), 404
+
+    except Exception as e:
+        logger.error(f"Remove draft error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/scanner/status', methods=['GET'])
+def api_scanner_status():
+    """Get auto scanner status"""
+    try:
+        status_file = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'logs', 'scanner_status.json')
+
+        if os.path.exists(status_file):
+            with open(status_file, 'r') as f:
+                return jsonify(json.load(f))
+        else:
+            return jsonify({
+                'running': False,
+                'message': 'Scanner not started. Run: python src/auto_scanner_draft.py'
+            })
+
+    except Exception as e:
+        logger.error(f"Scanner status error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/portfolio/status', methods=['GET'])
+def api_portfolio_status():
+    """Get current portfolio status with exit signals"""
+    try:
+        from portfolio_manager_v3 import PortfolioManagerV3
+        from datetime import datetime
+
+        # Initialize portfolio manager v3 (6-layer system)
+        pm = PortfolioManagerV3()
+
+        # Update positions with current prices
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        updates = pm.update_positions(current_date)
+
+        # Get regime info
+        regime_info = None
+        if pm.regime_detector:
+            regime_info = pm.regime_detector.get_current_regime()
+
+        # Get stats
+        stats = pm.get_summary()
+
+        # Format positions with exit signals
+        positions_with_signals = []
+
+        for pos in updates.get('holding', []):
+            # Determine if should exit based on updates
+            exit_signal = None
+
+            # Check if in exit_positions list
+            for exit_pos in updates.get('exit_positions', []):
+                if exit_pos['symbol'] == pos['symbol']:
+                    exit_signal = {
+                        'should_exit': True,
+                        'reason': exit_pos['exit_reason'],
+                        'priority': 'CRITICAL' if 'STOP' in exit_pos['exit_reason'] or 'BEAR' in exit_pos['exit_reason'] else 'WARNING'
+                    }
+                    break
+
+            positions_with_signals.append({
+                'symbol': pos['symbol'],
+                'entry_date': pos['entry_date'],
+                'entry_price': pos['entry_price'],
+                'current_price': pos.get('current_price', 0),
+                'highest_price': pos.get('highest_price', pos['entry_price']),
+                'pnl_pct': pos.get('pnl_pct', 0),
+                'pnl_usd': pos.get('pnl_usd', 0),
+                'days_held': pos.get('days_held', 0),
+                'shares': pos.get('shares', 0),
+                'exit_signal': exit_signal,
+                # v3.3: Sector regime info
+                'sector': pos.get('sector', 'Unknown'),
+                'sector_regime': pos.get('sector_regime', 'UNKNOWN'),
+                'sector_regime_adjustment': pos.get('sector_regime_adjustment', 0),
+                'sector_confidence_threshold': pos.get('sector_confidence_threshold', 65)
+            })
+
+        # v3.3: Get sector regime summary (convert DataFrame to list of dicts)
+        sector_regime_summary = updates.get('sector_regime_summary')
+        if sector_regime_summary is not None:
+            # Convert DataFrame to list of dictionaries for JSON serialization
+            # Use make_json_serializable to handle NaN values properly
+            sector_regime_summary = make_json_serializable(sector_regime_summary)
+
+        # Clean all data to ensure JSON serializability (handles NaN, inf, etc.)
+        response_data = make_json_serializable({
+            'regime': regime_info,
+            'stats': stats,
+            'positions': positions_with_signals,
+            'sector_regime_summary': sector_regime_summary,  # v3.3
+            'last_updated': datetime.now().isoformat()
+        })
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        logger.error(f"Portfolio status API error: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/portfolio/add', methods=['POST'])
+def api_portfolio_add():
+    """Add a new position to portfolio"""
+    try:
+        from portfolio_manager_v3 import PortfolioManagerV3
+
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+        entry_price = data.get('entry_price')
+        entry_date = data.get('entry_date')
+        filters = data.get('filters', {})
+        amount = data.get('amount', 1000)
+
+        if not symbol or not entry_price or not entry_date:
+            return jsonify({'error': 'Missing required fields'}), 400
+
+        # Initialize portfolio manager v3
+        pm = PortfolioManagerV3()
+
+        # Add position
+        success = pm.add_position(
+            symbol=symbol,
+            entry_price=float(entry_price),
+            entry_date=entry_date,
+            filters=filters,
+            amount=float(amount)
+        )
+
+        if not success:
+            return jsonify({'error': 'Failed to add position (may already exist or portfolio full)'}), 400
+
+        # Get position with Smart Exit levels
+        positions = pm.get_active_positions()
+        position = next((p for p in positions if p.get('symbol') == symbol), None)
+        position_data = None
+        if position:
+            position_data = {
+                'symbol': symbol,
+                'entry_price': position.get('entry_price'),
+                'sl_price': position.get('sl_price'),
+                'tp1_price': position.get('tp1_price'),
+                'tp2_price': position.get('tp2_price'),
+            }
+
+        return jsonify({
+            'success': True,
+            'symbol': symbol,
+            'entry_price': entry_price,
+            'entry_date': entry_date,
+            'amount': amount,
+            'position': position_data,
+            'message': f'✅ Added {symbol} to portfolio'
+        })
+
+    except Exception as e:
+        logger.error(f"Add position API error: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/portfolio/close', methods=['POST'])
+def api_portfolio_close():
+    """Close a position"""
+    try:
+        from portfolio_manager_v3 import PortfolioManagerV3
+        from datetime import datetime
+        import yfinance as yf
+
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+        exit_date = data.get('exit_date', datetime.now().strftime('%Y-%m-%d'))
+
+        if not symbol:
+            return jsonify({'error': 'Symbol is required'}), 400
+
+        # Initialize portfolio manager v3
+        pm = PortfolioManagerV3()
+
+        # Get current price
+        ticker = yf.Ticker(symbol)
+        hist = ticker.history(period='1d')
+        if hist.empty:
+            return jsonify({'error': 'Could not fetch current price'}), 400
+
+        current_price = float(hist['Close'].iloc[-1])
+
+        # Close position
+        closed_pos = pm.close_position(
+            symbol=symbol,
+            exit_price=current_price,
+            exit_date=exit_date,
+            exit_reason='MANUAL_EXIT'
+        )
+
+        if not closed_pos:
+            return jsonify({'error': f'{symbol} not found in active positions'}), 404
+
+        return jsonify({
+            'success': True,
+            'symbol': symbol,
+            'exit_price': closed_pos['exit_price'],
+            'return_pct': closed_pos['return_pct'],
+            'return_usd': closed_pos['return_usd'],
+            'exit_reason': closed_pos['exit_reason'],
+            'days_held': closed_pos['days_held']
+        })
+
+    except Exception as e:
+        logger.error(f"Close position API error: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/portfolio/history', methods=['GET'])
+def api_portfolio_history():
+    """Get trade history and performance stats"""
+    try:
+        from portfolio_manager_v3 import PortfolioManagerV3
+
+        pm = PortfolioManagerV3()
+        closed_trades = pm.get_closed_trades()
+        stats = pm.portfolio.get('stats', {})
+
+        # Calculate additional insights
+        if closed_trades:
+            returns = [t['return_pct'] for t in closed_trades]
+            winners = [r for r in returns if r > 0]
+            losers = [r for r in returns if r <= 0]
+
+            # Exit reason breakdown
+            exit_reasons = {}
+            for t in closed_trades:
+                reason = t.get('exit_reason', 'UNKNOWN')
+                if reason not in exit_reasons:
+                    exit_reasons[reason] = {'count': 0, 'total_return': 0}
+                exit_reasons[reason]['count'] += 1
+                exit_reasons[reason]['total_return'] += t.get('return_pct', 0)
+
+            # Calculate avg return per reason
+            for reason in exit_reasons:
+                count = exit_reasons[reason]['count']
+                exit_reasons[reason]['avg_return'] = exit_reasons[reason]['total_return'] / count if count > 0 else 0
+
+            insights = {
+                'total_trades': len(closed_trades),
+                'winners': len(winners),
+                'losers': len(losers),
+                'win_rate': (len(winners) / len(closed_trades) * 100) if closed_trades else 0,
+                'avg_winner': sum(winners) / len(winners) if winners else 0,
+                'avg_loser': sum(losers) / len(losers) if losers else 0,
+                'largest_win': max(returns) if returns else 0,
+                'largest_loss': min(returns) if returns else 0,
+                'avg_holding_days': sum(t.get('days_held', 0) for t in closed_trades) / len(closed_trades) if closed_trades else 0,
+                'total_pnl': sum(t.get('return_usd', 0) for t in closed_trades),
+                'exit_reasons': exit_reasons
+            }
+        else:
+            insights = {
+                'total_trades': 0,
+                'winners': 0,
+                'losers': 0,
+                'win_rate': 0,
+                'avg_winner': 0,
+                'avg_loser': 0,
+                'largest_win': 0,
+                'largest_loss': 0,
+                'avg_holding_days': 0,
+                'total_pnl': 0,
+                'exit_reasons': {}
+            }
+
+        # Sort trades by exit date (newest first)
+        sorted_trades = sorted(closed_trades, key=lambda x: x.get('exit_date', ''), reverse=True)
+
+        return jsonify({
+            'trades': sorted_trades,
+            'insights': insights,
+            'stats': stats
+        })
+
+    except Exception as e:
+        logger.error(f"Portfolio history API error: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/portfolio/remove', methods=['POST'])
+def api_portfolio_remove():
+    """Remove a position without closing it (delete only)"""
+    try:
+        from portfolio_manager_v3 import PortfolioManagerV3
+
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+
+        if not symbol:
+            return jsonify({'error': 'Symbol is required'}), 400
+
+        # Initialize portfolio manager v3
+        pm = PortfolioManagerV3()
+
+        # Remove position
+        success = pm.remove_position(symbol=symbol)
+
+        if not success:
+            return jsonify({'error': f'{symbol} not found in active positions'}), 404
+
+        # Also remove from drafts if exists
+        drafts_file = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'draft_stocks.json')
+        if os.path.exists(drafts_file):
+            try:
+                with open(drafts_file, 'r') as f:
+                    drafts_data = json.load(f)
+
+                # Remove the symbol from drafts
+                original_count = len(drafts_data.get('drafts', []))
+                drafts_data['drafts'] = [d for d in drafts_data.get('drafts', []) if d['symbol'] != symbol]
+                drafts_data['count'] = len(drafts_data['drafts'])
+
+                if len(drafts_data['drafts']) < original_count:
+                    with open(drafts_file, 'w') as f:
+                        json.dump(drafts_data, f, indent=2)
+                    logger.info(f"Also removed {symbol} from drafts")
+            except Exception as e:
+                logger.warning(f"Could not remove from drafts: {e}")
+
+        return jsonify({
+            'success': True,
+            'symbol': symbol,
+            'message': f'{symbol} removed from portfolio and drafts'
+        })
+
+    except Exception as e:
+        logger.error(f"Remove position API error: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/pullback-catalyst-screen', methods=['POST'])
+def api_pullback_catalyst_screen():
+    """API endpoint for Pullback Catalyst screening"""
+    try:
+        data = request.get_json()
+
+        # Extract criteria
+        min_price = data.get('min_price', 20.0)
+        max_price = data.get('max_price', 500.0)
+        min_volume_ratio = data.get('min_volume_ratio', 1.8)
+        min_catalyst_score = data.get('min_catalyst_score', 45.0)
+        max_rsi = data.get('max_rsi', 76.0)
+        max_stocks = data.get('max_stocks', 20)
+        lookback_days = data.get('lookback_days', 5)
+
+        logger.info(f"🎯 Starting Pullback Catalyst screening")
+        logger.info(f"   Filters: Price ${min_price}-${max_price}, Vol Ratio >= {min_volume_ratio}x")
+        logger.info(f"   Catalyst Score >= {min_catalyst_score}, RSI <= {max_rsi}")
+
+        # Run pullback catalyst screening
+        opportunities = pullback_catalyst_screener.screen_pullback_opportunities(
+            min_price=min_price,
+            max_price=max_price,
+            min_volume_ratio=min_volume_ratio,
+            min_catalyst_score=min_catalyst_score,
+            max_rsi=max_rsi,
+            max_stocks=max_stocks,
+            lookback_days=lookback_days,
+        )
+
+        # Enrich with ETF information
+        opportunities_with_etf = enrich_with_etf_info(opportunities)
+
+        # Clean results for JSON serialization
+        cleaned_opportunities = clean_analysis_results(opportunities_with_etf)
+
+        return jsonify({
+            'opportunities': cleaned_opportunities,
+            'found_opportunities': len(opportunities),
+            'criteria': {
+                'min_price': min_price,
+                'max_price': max_price,
+                'min_volume_ratio': min_volume_ratio,
+                'min_catalyst_score': min_catalyst_score,
+                'max_rsi': max_rsi,
+                'lookback_days': lookback_days,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Pullback catalyst screening API error: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/portfolio/monthly-performance', methods=['GET'])
+def api_portfolio_monthly_performance():
+    """API endpoint for monthly performance breakdown"""
+    try:
+        from portfolio_manager_v3 import PortfolioManagerV3
+        from collections import defaultdict
+
+        pm = PortfolioManagerV3()
+        history = pm.get_trade_history()
+
+        # Group by month
+        monthly_data = defaultdict(lambda: {
+            'pnl': 0,
+            'trades': 0,
+            'wins': 0,
+            'gross_profit': 0,
+            'gross_loss': 0,
+        })
+
+        for trade in history:
+            exit_date = trade.get('exit_date', '')
+            if not exit_date:
+                continue
+
+            month = exit_date[:7]  # YYYY-MM
+            pnl = trade.get('pnl', 0)
+
+            monthly_data[month]['trades'] += 1
+            monthly_data[month]['pnl'] += pnl
+
+            if pnl > 0:
+                monthly_data[month]['wins'] += 1
+                monthly_data[month]['gross_profit'] += pnl
+            else:
+                monthly_data[month]['gross_loss'] += abs(pnl)
+
+        # Convert to list and calculate metrics
+        monthly_performance = []
+        for month in sorted(monthly_data.keys()):
+            data = monthly_data[month]
+            win_rate = (data['wins'] / data['trades'] * 100) if data['trades'] > 0 else 0
+            profit_factor = (data['gross_profit'] / data['gross_loss']) if data['gross_loss'] > 0 else float('inf')
+
+            monthly_performance.append({
+                'month': month,
+                'pnl': data['pnl'],
+                'trades': data['trades'],
+                'wins': data['wins'],
+                'win_rate': win_rate,
+                'profit_factor': profit_factor,
+                'gross_profit': data['gross_profit'],
+                'gross_loss': data['gross_loss'],
+            })
+
+        # Calculate summary stats
+        if monthly_performance:
+            pnls = [m['pnl'] for m in monthly_performance]
+            avg_monthly = sum(pnls) / len(pnls)
+            positive_months = sum(1 for p in pnls if p > 0)
+            total_pnl = sum(pnls)
+        else:
+            avg_monthly = 0
+            positive_months = 0
+            total_pnl = 0
+
+        return jsonify({
+            'monthly_performance': monthly_performance,
+            'summary': {
+                'total_months': len(monthly_performance),
+                'positive_months': positive_months,
+                'positive_months_pct': (positive_months / len(monthly_performance) * 100) if monthly_performance else 0,
+                'avg_monthly_pnl': avg_monthly,
+                'total_pnl': total_pnl,
+                'best_month': max(pnls) if pnls else 0,
+                'worst_month': min(pnls) if pnls else 0,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Monthly performance API error: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================================================
+# LOCAL LLM API ENDPOINTS
+# =====================================================
+
+# Initialize LLM (lazy loading)
+_llm_analyzer = None
+_llm_integration = None
+
+
+def get_llm_analyzer():
+    """Get or initialize LLM analyzer (lazy loading)"""
+    global _llm_analyzer
+    if _llm_analyzer is None:
+        try:
+            from local_llm import StockAnalyzerLLM
+            _llm_analyzer = StockAnalyzerLLM()
+        except Exception as e:
+            logger.error(f"Failed to initialize LLM: {e}")
+            _llm_analyzer = False
+    return _llm_analyzer if _llm_analyzer else None
+
+
+def get_llm_integration():
+    """Get or initialize LLM screener integration (lazy loading)"""
+    global _llm_integration
+    if _llm_integration is None:
+        try:
+            from local_llm.screener_integration import LLMScreenerIntegration
+            _llm_integration = LLMScreenerIntegration()
+        except Exception as e:
+            logger.error(f"Failed to initialize LLM integration: {e}")
+            _llm_integration = False
+    return _llm_integration if _llm_integration else None
+
+
+@app.route('/api/llm/status', methods=['GET'])
+def api_llm_status():
+    """Check LLM availability and status"""
+    try:
+        analyzer = get_llm_analyzer()
+
+        if analyzer is None:
+            return jsonify({
+                'available': False,
+                'error': 'LLM not initialized',
+                'setup_instructions': [
+                    '1. Install Ollama: curl -fsSL https://ollama.com/install.sh | sh',
+                    '2. Start Ollama: ollama serve',
+                    '3. Pull model: ollama pull llama3.2:3b'
+                ]
+            })
+
+        if not analyzer.is_available():
+            return jsonify({
+                'available': False,
+                'error': 'Ollama not running',
+                'setup_instructions': [
+                    '1. Start Ollama: ollama serve',
+                    '2. Check if running: curl http://localhost:11434/api/tags'
+                ]
+            })
+
+        # Get available models
+        models = analyzer.client.get_available_models()
+
+        return jsonify({
+            'available': True,
+            'model': analyzer.model,
+            'available_models': models,
+            'recommended_models': {
+                'fast': 'llama3.2:1b',
+                'balanced': 'llama3.2:3b',
+                'quality': 'mistral:7b'
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"LLM status error: {e}")
+        return jsonify({'error': str(e), 'available': False}), 500
+
+
+@app.route('/api/llm/analyze', methods=['POST'])
+def api_llm_analyze():
+    """Analyze a stock using Local LLM"""
+    try:
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+
+        if not symbol:
+            return jsonify({'error': 'Symbol is required'}), 400
+
+        analyzer = get_llm_analyzer()
+
+        if analyzer is None or not analyzer.is_available():
+            return jsonify({
+                'error': 'LLM not available',
+                'available': False
+            }), 503
+
+        # Get stock data
+        import yfinance as yf
+        import numpy as np
+
+        ticker = yf.Ticker(symbol)
+        hist = ticker.history(period="90d")
+
+        if hist.empty:
+            return jsonify({'error': f'No data for {symbol}'}), 400
+
+        # Calculate indicators
+        close = hist['Close']
+        high = hist['High']
+        low = hist['Low']
+        volume = hist['Volume']
+
+        current_price = float(close.iloc[-1])
+
+        # RSI
+        delta = close.diff()
+        gain = delta.where(delta > 0, 0).rolling(14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+        rs = gain / loss
+        rsi = float(100 - (100 / (1 + rs.iloc[-1]))) if not np.isnan(rs.iloc[-1]) else 50
+
+        # ATR
+        tr1 = high - low
+        tr2 = abs(high - close.shift(1))
+        tr3 = abs(low - close.shift(1))
+        tr = np.maximum(np.maximum(tr1, tr2), tr3)
+        atr = float(tr.rolling(14).mean().iloc[-1])
+
+        # SMAs
+        sma20 = float(close.rolling(20).mean().iloc[-1])
+        sma50 = float(close.rolling(50).mean().iloc[-1]) if len(close) >= 50 else sma20
+
+        # Support/Resistance
+        support = float(low.rolling(20).min().iloc[-1])
+        resistance = float(high.rolling(20).max().iloc[-1])
+
+        # Volume ratio
+        avg_volume = float(volume.rolling(20).mean().iloc[-1])
+        current_volume = float(volume.iloc[-1])
+        volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1.0
+
+        # Trend
+        if current_price > sma20 > sma50:
+            trend = "strong uptrend"
+        elif current_price > sma20:
+            trend = "uptrend"
+        elif current_price < sma20 < sma50:
+            trend = "strong downtrend"
+        elif current_price < sma20:
+            trend = "downtrend"
+        else:
+            trend = "neutral"
+
+        # Get sector info
+        info = ticker.info
+        sector = info.get('sector', 'Unknown')
+
+        # Run LLM analysis
+        result = analyzer.analyze_stock(
+            symbol=symbol,
+            price=current_price,
+            rsi=rsi,
+            atr=atr,
+            sma20=sma20,
+            sma50=sma50,
+            support=support,
+            resistance=resistance,
+            volume_ratio=volume_ratio,
+            trend=trend,
+            market_regime=data.get('market_regime', 'NEUTRAL'),
+            sector=sector,
+            sector_regime=data.get('sector_regime', 'NEUTRAL'),
+            additional_context=data.get('context', '')
+        )
+
+        if result is None:
+            return jsonify({'error': 'Analysis failed'}), 500
+
+        return jsonify({
+            'symbol': result.symbol,
+            'recommendation': result.recommendation,
+            'confidence': result.confidence,
+            'entry_price': result.entry_price,
+            'stop_loss': result.stop_loss,
+            'take_profit': result.take_profit,
+            'risk_level': result.risk_level,
+            'reasoning': result.reasoning,
+            'key_factors': result.key_factors,
+            'warnings': result.warnings,
+            'analysis_time': result.analysis_time,
+            'current_price': current_price,
+            'indicators': {
+                'rsi': rsi,
+                'atr': atr,
+                'sma20': sma20,
+                'sma50': sma50,
+                'support': support,
+                'resistance': resistance,
+                'volume_ratio': volume_ratio,
+                'trend': trend
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"LLM analyze error: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/llm/second-opinion', methods=['POST'])
+def api_llm_second_opinion():
+    """Get LLM second opinion on a trade"""
+    try:
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+        entry = data.get('entry_price')
+        stop_loss = data.get('stop_loss')
+        take_profit = data.get('take_profit')
+        action = data.get('action', 'BUY')
+
+        if not symbol or not entry:
+            return jsonify({'error': 'Symbol and entry_price required'}), 400
+
+        analyzer = get_llm_analyzer()
+
+        if analyzer is None or not analyzer.is_available():
+            return jsonify({
+                'error': 'LLM not available',
+                'available': False,
+                'proceed': True,
+                'message': 'LLM unavailable - proceeding without opinion'
+            })
+
+        analysis = {
+            'price': entry,
+            'entry': entry,
+            'stop_loss': stop_loss or entry * 0.95,
+            'take_profit': take_profit or entry * 1.10,
+        }
+
+        result = analyzer.get_second_opinion(
+            symbol=symbol,
+            current_analysis=analysis,
+            proposed_action=action
+        )
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"LLM second opinion error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/llm/filter-candidates', methods=['POST'])
+def api_llm_filter_candidates():
+    """Filter screener candidates using LLM"""
+    try:
+        data = request.get_json()
+        candidates = data.get('candidates', [])
+        max_analyze = data.get('max_analyze', 10)
+
+        if not candidates:
+            return jsonify({'error': 'No candidates provided'}), 400
+
+        integration = get_llm_integration()
+
+        if integration is None or not integration.available:
+            return jsonify({
+                'error': 'LLM not available',
+                'available': False,
+                'candidates': candidates  # Return unfiltered
+            })
+
+        filtered = integration.filter_candidates(candidates, max_analyze=max_analyze)
+
+        return jsonify({
+            'available': True,
+            'original_count': len(candidates),
+            'filtered_count': len(filtered),
+            'candidates': filtered
+        })
+
+    except Exception as e:
+        logger.error(f"LLM filter error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/llm/news-sentiment', methods=['POST'])
+def api_llm_news_sentiment():
+    """Analyze news sentiment using LLM"""
+    try:
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+        headlines = data.get('headlines', [])
+
+        if not symbol:
+            return jsonify({'error': 'Symbol is required'}), 400
+
+        analyzer = get_llm_analyzer()
+
+        if analyzer is None or not analyzer.is_available():
+            return jsonify({
+                'error': 'LLM not available',
+                'available': False
+            })
+
+        result = analyzer.analyze_news_sentiment(symbol, headlines)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"LLM news sentiment error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================
+# RAPID TRADER - Target 5-15%/month
+# ============================================================
+
+@app.route('/rapid')
+def rapid_trader_page():
+    """Rapid Trader page - quick trades, fast rotation"""
+    return render_template('rapid_trader.html')
+
+
+@app.route('/api/rapid/signals')
+def api_rapid_signals():
+    """Get rapid rotation buy signals"""
+    try:
+        from screeners.rapid_rotation_screener import RapidRotationScreener
+
+        screener = RapidRotationScreener()
+        screener.load_data()
+        signals = screener.screen(top_n=10)
+
+        # Convert to dict (v3.0 - includes sector, regime, alt data)
+        signals_data = []
+        for s in signals:
+            signals_data.append({
+                'symbol': s.symbol,
+                'score': s.score,
+                'entry_price': s.entry_price,
+                'stop_loss': s.stop_loss,
+                'take_profit': s.take_profit,
+                'risk_reward': s.risk_reward,
+                'max_loss': s.max_loss,
+                'expected_gain': s.expected_gain,
+                'rsi': s.rsi,
+                'atr_pct': s.atr_pct,
+                'momentum_5d': s.momentum_5d,
+                'momentum_20d': s.momentum_20d,
+                'distance_from_high': s.distance_from_high,
+                'reasons': s.reasons,
+                # v3.0 fields
+                'sector': getattr(s, 'sector', ''),
+                'market_regime': getattr(s, 'market_regime', ''),
+                'sector_score': getattr(s, 'sector_score', 0),
+                'alt_data_score': getattr(s, 'alt_data_score', 0),
+            })
+
+        return jsonify({
+            'count': len(signals_data),
+            'signals': signals_data,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Rapid signals error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/rapid/portfolio')
+def api_rapid_portfolio():
+    """Get rapid portfolio status with alerts"""
+    try:
+        from rapid_portfolio_manager import RapidPortfolioManager
+
+        pm = RapidPortfolioManager()
+        statuses = pm.check_all_positions()
+        summary = pm.get_portfolio_summary()
+
+        # Convert to dict
+        statuses_data = []
+        for s in statuses:
+            statuses_data.append({
+                'symbol': s.symbol,
+                'entry_price': s.entry_price,
+                'current_price': s.current_price,
+                'pnl_pct': s.pnl_pct,
+                'pnl_usd': s.pnl_usd,
+                'days_held': s.days_held,
+                'signal': s.signal.value,
+                'reasons': s.reasons,
+                'action': s.action,
+                'new_candidates': s.new_candidates
+            })
+
+        return jsonify({
+            'summary': summary,
+            'statuses': statuses_data,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Rapid portfolio error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/rapid/position', methods=['POST'])
+def api_rapid_add_position():
+    """Add position to rapid portfolio"""
+    try:
+        from rapid_portfolio_manager import RapidPortfolioManager
+
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+        shares = data.get('shares')
+        entry_price = data.get('entry_price')
+        stop_loss = data.get('stop_loss')
+        take_profit = data.get('take_profit')
+
+        if not all([symbol, shares, entry_price, stop_loss, take_profit]):
+            return jsonify({'error': 'Missing required fields'}), 400
+
+        pm = RapidPortfolioManager()
+        pm.add_position(
+            symbol=symbol,
+            shares=int(shares),
+            entry_price=float(entry_price),
+            stop_loss=float(stop_loss),
+            take_profit=float(take_profit)
+        )
+
+        return jsonify({
+            'success': True,
+            'message': f'Added {symbol} to portfolio'
+        })
+
+    except Exception as e:
+        logger.error(f"Add rapid position error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/rapid/position/<symbol>', methods=['DELETE'])
+def api_rapid_remove_position(symbol):
+    """Remove position from rapid portfolio"""
+    try:
+        from rapid_portfolio_manager import RapidPortfolioManager
+
+        pm = RapidPortfolioManager()
+        pos = pm.remove_position(symbol.upper())
+
+        if pos:
+            return jsonify({
+                'success': True,
+                'message': f'Removed {symbol} from portfolio'
+            })
+        else:
+            return jsonify({'error': f'{symbol} not found'}), 404
+
+    except Exception as e:
+        logger.error(f"Remove rapid position error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5002)
+    app.run(debug=True, host='0.0.0.0', port=5000)

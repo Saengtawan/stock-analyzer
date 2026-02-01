@@ -1,0 +1,40 @@
+{
+  "period": "2025-08 to 2026-01",
+  "months": 6,
+  "total_trades": 3,
+  "win_rate": 0.0,
+  "total_profit": 0.0,
+  "avg_profit_per_month": 0.0,
+  "monthly_breakdown": {
+    "2025-08": {
+      "profit": 0,
+      "trades": 0,
+      "entries": 3
+    },
+    "2025-09": {
+      "profit": 0,
+      "trades": 0,
+      "entries": 3
+    },
+    "2025-10": {
+      "profit": 0,
+      "trades": 0,
+      "entries": 3
+    },
+    "2025-11": {
+      "profit": 0,
+      "trades": 0,
+      "entries": 3
+    },
+    "2025-12": {
+      "profit": 0,
+      "trades": 0,
+      "entries": 2
+    },
+    "2026-01": {
+      "profit": 0.0,
+      "trades": 3,
+      "entries": 3
+    }
+  }
+}

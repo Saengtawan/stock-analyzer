@@ -1,0 +1,90 @@
+[
+  {
+    "config": "v9.1 Baseline",
+    "trades": 225,
+    "winners": 89,
+    "losers": 136,
+    "stopped": 0,
+    "win_rate": 39.55555555555556,
+    "avg_return": -14.677118666760355,
+    "max_loss": -64.961884039368,
+    "max_gain": 26.971967679206504
+  },
+  {
+    "config": "v9.1 + Vol Surge > 1.2",
+    "trades": 88,
+    "winners": 17,
+    "losers": 71,
+    "stopped": 0,
+    "win_rate": 19.318181818181817,
+    "avg_return": -30.887431916216677,
+    "max_loss": -64.86535851131771,
+    "max_gain": 26.971967679206504
+  },
+  {
+    "config": "v9.1 + Vol>1.2 + Mom3d>1%",
+    "trades": 77,
+    "winners": 10,
+    "losers": 67,
+    "stopped": 0,
+    "win_rate": 12.987012987012985,
+    "avg_return": -35.50876420632933,
+    "max_loss": -64.86535851131771,
+    "max_gain": 26.971967679206504
+  },
+  {
+    "config": "Relaxed + Vol>1.2",
+    "trades": 139,
+    "winners": 35,
+    "losers": 104,
+    "stopped": 0,
+    "win_rate": 25.179856115107913,
+    "avg_return": -20.702612816848298,
+    "max_loss": -64.86535851131771,
+    "max_gain": 26.971967679206504
+  },
+  {
+    "config": "Vol Surge Only (>1.3)",
+    "trades": 284,
+    "winners": 96,
+    "losers": 188,
+    "stopped": 0,
+    "win_rate": 33.80281690140845,
+    "avg_return": -9.732536366545324,
+    "max_loss": -64.94998174102327,
+    "max_gain": 26.694067541569318
+  },
+  {
+    "config": "v9.1 + Vol>1.2 + Stop -2%",
+    "trades": 88,
+    "winners": 16,
+    "losers": 72,
+    "stopped": 68,
+    "win_rate": 18.181818181818183,
+    "avg_return": 1.1377227840400659,
+    "max_loss": -2.0,
+    "max_gain": 26.971967679206504
+  },
+  {
+    "config": "Vol>1.2 + 7-day hold",
+    "trades": 98,
+    "winners": 23,
+    "losers": 75,
+    "stopped": 0,
+    "win_rate": 23.46938775510204,
+    "avg_return": -29.437175320040538,
+    "max_loss": -65.19117524716582,
+    "max_gain": 22.81892644260338
+  },
+  {
+    "config": "Vol>1.2 + 10-day hold",
+    "trades": 98,
+    "winners": 54,
+    "losers": 44,
+    "stopped": 0,
+    "win_rate": 55.10204081632652,
+    "avg_return": 2.33823686731991,
+    "max_loss": -19.577202040703305,
+    "max_gain": 31.827043494635358
+  }
+]

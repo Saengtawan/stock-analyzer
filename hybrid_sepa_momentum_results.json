@@ -1,0 +1,62 @@
+[
+  {
+    "config": "Momentum Only (v9.1)",
+    "trades": 97,
+    "winners": 39,
+    "losers": 58,
+    "stopped": 49,
+    "win_rate": 40.20618556701031,
+    "avg_return": 0.7664404095106552,
+    "max_loss": -2.0,
+    "max_gain": 11.909062269869402,
+    "stop_pct": -2.0
+  },
+  {
+    "config": "SEPA + Momentum",
+    "trades": 217,
+    "winners": 45,
+    "losers": 172,
+    "stopped": 158,
+    "win_rate": 20.737327188940093,
+    "avg_return": 0.20223725576849588,
+    "max_loss": -2.0,
+    "max_gain": 9.928079674125332,
+    "stop_pct": -2.0
+  },
+  {
+    "config": "SEPA + Strict Momentum",
+    "trades": 97,
+    "winners": 39,
+    "losers": 58,
+    "stopped": 49,
+    "win_rate": 40.20618556701031,
+    "avg_return": 0.7664404095106552,
+    "max_loss": -2.0,
+    "max_gain": 11.909062269869402,
+    "stop_pct": -2.0
+  },
+  {
+    "config": "SEPA + Volume Surge",
+    "trades": 81,
+    "winners": 21,
+    "losers": 60,
+    "stopped": 50,
+    "win_rate": 25.925925925925924,
+    "avg_return": -0.4646079251880054,
+    "max_loss": -2.0,
+    "max_gain": 6.870680166612243,
+    "stop_pct": -2.0
+  },
+  {
+    "config": "Relaxed + Tight Stop (-1.5%)",
+    "trades": 77,
+    "winners": 19,
+    "losers": 58,
+    "stopped": 56,
+    "win_rate": 24.675324675324674,
+    "avg_return": -0.18980485052492826,
+    "max_loss": -1.5,
+    "max_gain": 4.8457428024268046,
+    "stop_pct": -1.5
+  }
+]

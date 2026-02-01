@@ -1,0 +1,82 @@
+================================================================================
+🚀 SIMPLIFIED BACKTEST - 1 MONTH (API-Friendly)
+================================================================================
+Period: November 2025 (30 days)
+Scan Frequency: Every 7 days (4 scans total)
+Expected Runtime: 15-20 minutes
+================================================================================
+
+📦 Initializing...
+✅ Exit Rules Optimized:
+   - MAX_HOLD: 10 วัน
+   - HARD_STOP: -2.5%
+   - TRAILING_STOP: -2.5%
+
+📅 Backtest Period:
+   Start: 2025-10-01
+   End: 2025-10-31
+   Duration: 30 days (1 month)
+
+💰 Config:
+   Capital: $30,000
+   Max Positions: 3
+   Position Size: $10,000
+   Scan Interval: 7 days
+
+================================================================================
+📈 RUNNING BACKTEST...
+================================================================================
+
+Date       | Action
+------------------------------------------------------------
+2025-10-01 | Scan #1 (Active: 0/3) - Screening...$FSR: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+$NOVA: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+ No opportunities
+2025-10-08 | Scan #2 (Active: 0/3) - Screening...$BPMC: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$IMGN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$VERV: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$SWTX: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$SILK: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$NVRO: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+ No opportunities
+2025-10-15 | Scan #3 (Active: 0/3) - Screening...$AJRD: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$NOVA: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+ No opportunities
+2025-10-22 | Scan #4 (Active: 0/3) - Screening...$IMGN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$KAMN: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$NOVA: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+ No opportunities
+2025-10-29 | Scan #5 (Active: 0/3) - Screening...$ME: possibly delisted; no price data found  (period=1mo)
+$NVTA: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$BPMC: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$KRTX: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$SAGE: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+$NVRO: possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")
+ No opportunities
+
+------------------------------------------------------------
+🔚 Closing remaining positions...
+
+================================================================================
+⏱️  Backtest completed in 8.1 minutes
+================================================================================
+
+================================================================================
+📊 BACKTEST RESULTS
+================================================================================
+
+📈 Execution:
+   Scans: 5
+   Entries: 0
+   Exits: 0
+
+⚠️  No trades completed
+
+================================================================================
+✅ SIMPLIFIED BACKTEST COMPLETE
+================================================================================
+⏱️  Runtime: 8.1 minutes
+📊 No trades
+
+================================================================================

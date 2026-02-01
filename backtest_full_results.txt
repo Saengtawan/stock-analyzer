@@ -1,0 +1,117 @@
+$META: possibly delisted; no price data found  (1d 2025-06-19 00:00:00 -> 2025-06-20 00:00:00)
+$META: possibly delisted; no price data found  (1d 2025-07-04 00:00:00 -> 2025-07-05 00:00:00)
+$PLTR: possibly delisted; no price data found  (1d 2025-09-01 00:00:00 -> 2025-09-02 00:00:00)
+================================================================================
+🚀 COMPLETE 6-LAYER SYSTEM BACKTEST
+================================================================================
+Period: 2025-06-01 to 2025-12-26
+
+📈 2025-06-02: ENTER PLTR @ $132.04
+   TP: $151.85 (+15.0%), SL: $124.12 (-6.0%)
+   Score: 260/200 (Fund: 90, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+🔴 2025-06-05: EXIT PLTR @ $119.91 (-9.19%) - HARD_STOP (3d)
+📈 2025-06-05: ENTER META @ $683.08
+   TP: $785.54 (+15.0%), SL: $642.09 (-6.0%)
+   Score: 230/200 (Fund: 60, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+🟢 2025-07-07: EXIT META @ $717.28 (+5.01%) - MAX_HOLD (32d)
+📈 2025-07-07: ENTER AVGO @ $273.19
+   TP: $308.70 (+13.0%), SL: $256.80 (-6.0%)
+   Score: 220/200 (Fund: 90, Cat: 30)
+   Macro: EARLY_BULL, Regime: BULL
+
+🟢 2025-08-01: EXIT AVGO @ $287.60 (+5.27%) - TRAILING_PEAK (25d)
+📈 2025-08-01: ENTER META @ $748.89
+   TP: $823.78 (+10.0%), SL: $711.45 (-5.0%)
+   Score: 180/200 (Fund: 60, Cat: 70)
+   Macro: LATE_BULL, Regime: BULL
+
+🟢 2025-08-04: EXIT META @ $775.21 (+3.51%) - REGIME_BEAR (3d)
+📈 2025-08-05: ENTER PLTR @ $173.27
+   TP: $199.26 (+15.0%), SL: $162.87 (-6.0%)
+   Score: 260/200 (Fund: 90, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+🟢 2025-08-15: EXIT PLTR @ $177.17 (+2.25%) - TRAILING_PEAK (10d)
+📈 2025-08-20: ENTER PLTR @ $156.01
+   TP: $176.29 (+13.0%), SL: $146.65 (-6.0%)
+   Score: 185/200 (Fund: 90, Cat: 30)
+   Macro: LATE_BULL, Regime: BULL
+
+🔴 2025-09-05: EXIT PLTR @ $153.11 (-1.86%) - TRAILING_PEAK (16d)
+📈 2025-09-10: ENTER AVGO @ $368.23
+   TP: $412.42 (+12.0%), SL: $349.82 (-5.0%)
+   Score: 275/200 (Fund: 90, Cat: 100)
+   Macro: EARLY_BULL, Regime: BULL
+
+🔴 2025-09-17: EXIT AVGO @ $344.92 (-6.33%) - HARD_STOP (7d)
+📈 2025-09-26: ENTER AMAT @ $203.52
+   TP: $227.94 (+12.0%), SL: $191.31 (-6.0%)
+   Score: 210/200 (Fund: 55, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+🟢 2025-10-07: EXIT AMAT @ $211.15 (+3.75%) - TRAILING_PEAK (11d)
+📈 2025-10-07: ENTER AMD @ $211.51
+   TP: $243.24 (+15.0%), SL: $198.82 (-6.0%)
+   Score: 240/200 (Fund: 70, Cat: 70)
+   Macro: EARLY_BULL, Regime: BULL
+
+🟢 2025-10-13: EXIT AMD @ $216.42 (+2.32%) - REGIME_BEAR (6d)
+
+================================================================================
+📊 COMPLETE 6-LAYER SYSTEM RESULTS
+================================================================================
+
+🎯 Overall Performance:
+   Total Trades: 9
+   Win Rate: 66.7% (6W / 3L)
+   Avg Return: +0.53%
+   Avg Winner: +3.69%
+   Avg Loser: -5.79%
+   Total Return: +4.74%
+   Monthly Return: +0.68%
+
+📈 Stock Quality:
+   Avg Volatility: 53.1%
+   Avg RS: +17.6%
+   Avg Fundamental Score: 77/100
+   Avg Catalyst Score: 64/100
+
+🚪 Exit Reasons:
+   TRAILING_PEAK       :   4 ( 44.4%)
+   HARD_STOP           :   2 ( 22.2%)
+   REGIME_BEAR         :   2 ( 22.2%)
+   MAX_HOLD            :   1 ( 11.1%)
+
+📅 Monthly Breakdown:
+        return_pct                       
+             count <lambda_0>  mean   sum
+month                                    
+2025-06          2          1 -2.09 -4.18
+2025-07          1          1  5.27  5.27
+2025-08          3          2  1.30  3.91
+2025-09          2          1 -1.29 -2.59
+2025-10          1          1  2.32  2.32
+
+📋 All Trades:
+ 1. 🔴 2025-06-02 PLTR    -9.19% ( 3d) HARD_STOP       Score:260 EARLY_BULL
+ 2. 🟢 2025-06-05 META    +5.01% (32d) MAX_HOLD        Score:230 EARLY_BULL
+ 3. 🟢 2025-07-07 AVGO    +5.27% (25d) TRAILING_PEAK   Score:220 EARLY_BULL
+ 4. 🟢 2025-08-01 META    +3.51% ( 3d) REGIME_BEAR     Score:180 LATE_BULL
+ 5. 🟢 2025-08-05 PLTR    +2.25% (10d) TRAILING_PEAK   Score:260 EARLY_BULL
+ 6. 🔴 2025-08-20 PLTR    -1.86% (16d) TRAILING_PEAK   Score:185 LATE_BULL
+ 7. 🔴 2025-09-10 AVGO    -6.33% ( 7d) HARD_STOP       Score:275 EARLY_BULL
+ 8. 🟢 2025-09-26 AMAT    +3.75% (11d) TRAILING_PEAK   Score:210 EARLY_BULL
+ 9. 🟢 2025-10-07 AMD     +2.32% ( 6d) REGIME_BEAR     Score:240 EARLY_BULL
+
+================================================================================
+🎯 TARGET COMPARISON:
+================================================================================
+   Win Rate:       66.7% (Target: 50-60%)
+   Avg Return:     +0.53% (Target: +5-8%)
+   Monthly Return: +0.68% (Target: +10-15%)
+
+❌ TARGETS NOT MET - Need improvement

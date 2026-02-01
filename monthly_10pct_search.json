@@ -1,0 +1,74 @@
+[
+  {
+    "config": "ATR<2.5 (More trades)",
+    "trades": 97,
+    "trades_per_month": 8.083333333333334,
+    "winners": 60,
+    "losers": 37,
+    "stopped": 23,
+    "win_rate": 61.855670103092784,
+    "avg_return": 1.0151297928624707,
+    "total_return": 98.46758990765966,
+    "return_per_month": 8.205632492304971
+  },
+  {
+    "config": "ATR<3.0 (Even more)",
+    "trades": 202,
+    "trades_per_month": 16.833333333333332,
+    "winners": 109,
+    "losers": 93,
+    "stopped": 64,
+    "win_rate": 53.960396039603964,
+    "avg_return": 0.9341326689858918,
+    "total_return": 188.69479913515013,
+    "return_per_month": 15.724566594595844
+  },
+  {
+    "config": "3-day hold (Fast)",
+    "trades": 97,
+    "trades_per_month": 8.083333333333334,
+    "winners": 61,
+    "losers": 36,
+    "stopped": 17,
+    "win_rate": 62.88659793814433,
+    "avg_return": 0.9635958080937935,
+    "total_return": 93.46879338509797,
+    "return_per_month": 7.789066115424831
+  },
+  {
+    "config": "Relaxed + Tight Stop",
+    "trades": 410,
+    "trades_per_month": 34.166666666666664,
+    "winners": 211,
+    "losers": 199,
+    "stopped": 138,
+    "win_rate": 51.463414634146346,
+    "avg_return": 0.7568543578749132,
+    "total_return": 310.3102867287144,
+    "return_per_month": 25.8591905607262
+  },
+  {
+    "config": "High Momentum",
+    "trades": 47,
+    "trades_per_month": 3.9166666666666665,
+    "winners": 21,
+    "losers": 26,
+    "stopped": 22,
+    "win_rate": 44.680851063829785,
+    "avg_return": 0.5803213917313008,
+    "total_return": 27.275105411371136,
+    "return_per_month": 2.2729254509475947
+  },
+  {
+    "config": "High Volume Surge",
+    "trades": 49,
+    "trades_per_month": 4.083333333333333,
+    "winners": 28,
+    "losers": 21,
+    "stopped": 11,
+    "win_rate": 57.14285714285714,
+    "avg_return": 1.8068439125845641,
+    "total_return": 88.53535171664365,
+    "return_per_month": 7.377945976386971
+  }
+]
