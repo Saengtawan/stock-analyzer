@@ -75,6 +75,53 @@ class Config:
     MAX_SL_PCT = 2.5    # v3.6: Cap at 2.5%
     BASE_TP_PCT = 6.0
 
+    # v3.7: HYBRID SECTOR SCORING (asymmetric - defensive)
+    SECTOR_BULL_THRESHOLD = 3.0    # > +3% = BULL
+    SECTOR_BEAR_THRESHOLD = -3.0   # < -3% = BEAR
+    SECTOR_BULL_BONUS = 5          # BULL sector: +5 points
+    SECTOR_BEAR_PENALTY = -10      # BEAR sector: -10 points
+    SECTOR_SIDEWAYS_ADJ = 0        # SIDEWAYS: 0 points
+
+
+# ============================================================================
+# SECTOR ETF MAPPING
+# ============================================================================
+SECTOR_ETFS = {
+    'XLK': 'Technology',
+    'XLE': 'Energy',
+    'XLF': 'Financial Services',
+    'XLV': 'Healthcare',
+    'XLY': 'Consumer Cyclical',
+    'XLP': 'Consumer Defensive',
+    'XLI': 'Industrials',
+    'XLU': 'Utilities',
+    'XLB': 'Basic Materials',
+    'XLC': 'Communication Services',
+    'XLRE': 'Real Estate'
+}
+
+# Map sector names to ETF symbols
+SECTOR_TO_ETF = {
+    'Technology': 'XLK',
+    'Energy': 'XLE',
+    'Financial Services': 'XLF',
+    'Healthcare': 'XLV',
+    'Consumer Cyclical': 'XLY',
+    'Consumer Defensive': 'XLP',
+    'Industrials': 'XLI',
+    'Utilities': 'XLU',
+    'Basic Materials': 'XLB',
+    'Communication Services': 'XLC',
+    'Real Estate': 'XLRE',
+    # Aliases
+    'Financial': 'XLF',
+    'Financials': 'XLF',
+    'Consumer Discretionary': 'XLY',
+    'Consumer Staples': 'XLP',
+    'Materials': 'XLB',
+    'Communications': 'XLC',
+}
+
 
 # ============================================================================
 # PRODUCTION 680+ STOCK UNIVERSE
@@ -214,11 +261,15 @@ class ProductionScreener:
 
     DO NOT MODIFY THIS CLASS unless production screener changes.
     Any changes here must be reflected in src/screeners/rapid_rotation_screener.py
+
+    v3.7: Added Hybrid Sector Scoring
     """
 
     def __init__(self, universe: List[str]):
         self.universe = universe
         self.data_cache: Dict[str, pd.DataFrame] = {}
+        self.sector_regimes: Dict[str, Tuple[str, float]] = {}  # ETF -> (regime, return_20d)
+        self.stock_sectors: Dict[str, str] = {}  # symbol -> sector name
 
     def get_market_regime(self, end_date: datetime) -> str:
         """Detect market regime using SPY"""
@@ -246,6 +297,79 @@ class ProductionScreener:
                 return "NEUTRAL"
         except:
             return "UNKNOWN"
+
+    def load_sector_regimes(self, end_date: datetime):
+        """
+        Load sector ETF data and determine regime for each sector (v3.7)
+
+        Uses simple ±3% rule on 20-day performance:
+        - > +3% = BULL → +5 points
+        - -3% to +3% = SIDEWAYS → 0 points
+        - < -3% = BEAR → -10 points
+        """
+        self.sector_regimes = {}
+        start = end_date - timedelta(days=40)
+
+        for etf in SECTOR_ETFS.keys():
+            try:
+                ticker = yf.Ticker(etf)
+                hist = ticker.history(start=start, end=end_date + timedelta(days=1))
+
+                if len(hist) < 20:
+                    continue
+
+                hist = hist[hist.index.tz_localize(None) <= pd.Timestamp(end_date)]
+                if len(hist) < 20:
+                    continue
+
+                # Calculate 20-day return
+                prices = hist['Close'].tail(20)
+                return_20d = ((prices.iloc[-1] / prices.iloc[0]) - 1) * 100
+
+                # Determine regime
+                if return_20d > Config.SECTOR_BULL_THRESHOLD:
+                    regime = 'BULL'
+                elif return_20d < Config.SECTOR_BEAR_THRESHOLD:
+                    regime = 'BEAR'
+                else:
+                    regime = 'SIDEWAYS'
+
+                self.sector_regimes[etf] = (regime, return_20d)
+
+            except Exception as e:
+                pass
+
+    def get_sector_score_adjustment(self, symbol: str) -> Tuple[int, str]:
+        """
+        Get sector score adjustment for a stock (v3.7)
+
+        Returns:
+            Tuple of (score_adjustment, reason)
+        """
+        # Get sector for symbol (cached)
+        if symbol not in self.stock_sectors:
+            try:
+                ticker = yf.Ticker(symbol)
+                info = ticker.info
+                self.stock_sectors[symbol] = info.get('sector', 'Unknown')
+            except:
+                self.stock_sectors[symbol] = 'Unknown'
+
+        sector = self.stock_sectors[symbol]
+
+        # Get ETF for sector
+        etf = SECTOR_TO_ETF.get(sector)
+        if not etf or etf not in self.sector_regimes:
+            return 0, ''
+
+        regime, return_20d = self.sector_regimes[etf]
+
+        if regime == 'BULL':
+            return Config.SECTOR_BULL_BONUS, f"BULL sector +{return_20d:.1f}%"
+        elif regime == 'BEAR':
+            return Config.SECTOR_BEAR_PENALTY, f"BEAR sector {return_20d:.1f}%"
+        else:
+            return Config.SECTOR_SIDEWAYS_ADJ, ''
 
     def load_historical_data(self, end_date: datetime, days: int = 60):
         """Load historical data ending at simulation date"""
@@ -493,6 +617,15 @@ class ProductionScreener:
         elif volume_ratio > 1.2:
             score += 5
 
+        # ========================================
+        # v3.7: HYBRID SECTOR SCORING
+        # BEAR: -10 | SIDEWAYS: 0 | BULL: +5
+        # ========================================
+        sector_adj, sector_reason = self.get_sector_score_adjustment(symbol)
+        score += sector_adj
+        if sector_reason:
+            reasons.append(sector_reason)
+
         # Check minimum score
         if score < Config.MIN_SCORE:
             return None
@@ -721,6 +854,9 @@ class StandardBacktest:
             print(f"  Loading {len(PRODUCTION_UNIVERSE)} stocks...")
             loaded = self.screener.load_historical_data(current)
             print(f"  Loaded: {loaded}")
+
+            # v3.7: Load sector regimes for Hybrid Sector Scoring
+            self.screener.load_sector_regimes(current)
 
             if loaded < 20:
                 current += timedelta(days=7)
