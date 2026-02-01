@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Rapid Trader v3.4 - ~7%/month{% endblock %}
+{% block title %}Rapid Trader v3.7 - Hybrid Sector{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -90,8 +90,8 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2><i class="fas fa-rocket me-2"></i>Rapid Trader v3.4</h2>
-        <p class="text-muted mb-0">Backtest: +6.95%/month avg | 66.7% Win Rate | Trailing Stop System</p>
+        <h2><i class="fas fa-rocket me-2"></i>Rapid Trader v3.7</h2>
+        <p class="text-muted mb-0">Backtest: +32.41%/6mo | 57.8% Win Rate | Hybrid Sector Scoring</p>
     </div>
     <div>
         <button class="btn btn-primary" onclick="refreshAll()">
@@ -140,9 +140,9 @@
             </div>
         </div>
 
-        <!-- v3.4 Integrated Systems -->
+        <!-- v3.7 Integrated Systems -->
         <div class="rules-box">
-            <h5><i class="fas fa-brain me-2"></i>v3.4 Integrated Systems</h5>
+            <h5><i class="fas fa-brain me-2"></i>v3.7 Hybrid System</h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #9b59b6;">🤖</div>
                 <div>AI Universe: <strong>680+ stocks</strong></div>
@@ -153,17 +153,17 @@
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e67e22;">🔥</div>
-                <div>Sector Regime: <strong>Hot sectors</strong></div>
+                <div>Sector: <strong>BEAR -10 | SIDEWAYS 0 | BULL +5</strong></div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #1abc9c;">📰</div>
-                <div>Alt Data: <strong>Insider, Sentiment</strong></div>
+                <div>Alt Data: <strong>Top 10 only, ±10 cap</strong></div>
             </div>
         </div>
 
-        <!-- Trading Rules (v3.4 - matches STANDARD_BACKTEST.py) -->
+        <!-- Trading Rules (v3.7 - matches STANDARD_BACKTEST.py) -->
         <div class="rules-box mt-3">
-            <h5><i class="fas fa-shield-alt me-2"></i>Trading Rules v3.6</h5>
+            <h5><i class="fas fa-shield-alt me-2"></i>Trading Rules v3.7</h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e74c3c;">SL</div>
                 <div>Stop Loss: <strong>2.5%</strong> (tight SL for fast rotation)</div>

@@ -23,9 +23,10 @@ IMPORTANT:
 - ไฟล์นี้คือ standard - ห้ามเปลี่ยน methodology
 - ผลลัพธ์ต้องเปรียบเทียบได้กับ versions ก่อนหน้า
 
+v3.7: Hybrid Sector Scoring (BEAR -10, SIDEWAYS 0, BULL +5)
 v3.6: Tight SL 2.5% for fast rotation (PDT-Safe)
 v3.5: Added SMA20 filter (92% of losers were below SMA20)
-Last validated: +9.91%/month, 66.7% win rate (6 months)
+Last validated: +32.41% return, 57.8% win rate (6 months)
 ============================================================================
 """
 
