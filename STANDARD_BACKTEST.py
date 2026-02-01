@@ -23,6 +23,7 @@ IMPORTANT:
 - ไฟล์นี้คือ standard - ห้ามเปลี่ยน methodology
 - ผลลัพธ์ต้องเปรียบเทียบได้กับ versions ก่อนหน้า
 
+v3.5: Added SMA20 filter (92% of losers were below SMA20)
 Last validated: +6.95%/month, 66.7% win rate (6 months)
 ============================================================================
 """
@@ -405,6 +406,13 @@ class ProductionScreener:
             return None
         if atr_pct < Config.MIN_ATR_PCT:
             return None
+
+        # ========================================
+        # v3.5: SMA20 FILTER (ROOT CAUSE FIX)
+        # 92% of stop loss trades were below SMA20
+        # ========================================
+        if current_price < sma20:
+            return None  # Must be above SMA20 (uptrend)
 
         # ========================================
         # SCORING

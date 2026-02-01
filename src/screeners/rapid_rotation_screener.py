@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RAPID ROTATION SCREENER v3.4 - FULLY DYNAMIC SL/TP
+RAPID ROTATION SCREENER v3.5 - SMA20 FILTER + DYNAMIC SL/TP
 
 INTEGRATED SYSTEMS:
 ✅ AI Universe Generator (680+ stocks from DeepSeek)
@@ -16,6 +16,11 @@ Strategy:
 - BOUNCE CONFIRMATION: Wait for recovery after dip (not catching knife)
 - Use alternative data for extra confirmation
 - FULLY DYNAMIC SL/TP based on actual market structure
+
+v3.5 Changes - SMA20 FILTER (ROOT CAUSE FIX):
+- MUST be above SMA20 (92% of losers were below)
+- This single filter prevents most stop loss trades
+- Based on actual backtest root cause analysis
 
 v3.4 Changes - FULLY DYNAMIC SL/TP:
 - SL = MAX(ATR × 1.5, Below Swing Low 5d, Below EMA5)
@@ -484,6 +489,14 @@ class RapidRotationScreener:
         # FILTER 6: Minimum volatility
         if atr_pct < self.MIN_ATR_PCT:
             return None
+
+        # ==============================
+        # v3.5: SMA20 FILTER (ROOT CAUSE FIX)
+        # ==============================
+        # Based on root cause analysis: 92% of stop loss trades
+        # were below SMA20 (downtrend). This filter prevents most losers.
+        if current_price < sma20:
+            return None  # Must be above SMA20 (uptrend)
 
         # ==============================
         # v3.3 SCORING - Quality over quantity
