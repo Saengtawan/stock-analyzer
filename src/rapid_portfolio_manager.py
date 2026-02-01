@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RAPID PORTFOLIO MANAGER v3.4 - FULLY DYNAMIC SL/TP
+RAPID PORTFOLIO MANAGER v3.6 - TIGHT SL 2.5% + DYNAMIC TP
 
 v3.4 Changes - FULLY DYNAMIC ทั้ง SL และ TP:
 
@@ -137,7 +137,7 @@ class RapidPortfolioManager:
                     for symbol, pos_data in data.get('positions', {}).items():
                         # Handle old format without new fields
                         if 'initial_stop_loss' not in pos_data:
-                            pos_data['initial_stop_loss'] = pos_data.get('stop_loss', pos_data['entry_price'] * 0.965)
+                            pos_data['initial_stop_loss'] = pos_data.get('stop_loss', pos_data['entry_price'] * 0.975)  # v3.6: 2.5% SL
                         if 'current_stop_loss' not in pos_data:
                             pos_data['current_stop_loss'] = pos_data.get('stop_loss', pos_data['initial_stop_loss'])
                         if 'highest_price' not in pos_data:
@@ -234,14 +234,14 @@ class RapidPortfolioManager:
         """
         data = self.get_stock_data(symbol)
         if data is None or len(data) < 14:
-            # Fallback: use 3.5% from highest
-            fallback_sl = highest_price * 0.965
+            # Fallback: use 2.5% from highest (v3.6 tight SL)
+            fallback_sl = highest_price * 0.975
             return {
                 'atr_based_sl': fallback_sl,
                 'swing_low_sl': fallback_sl,
                 'ma_based_sl': fallback_sl,
                 'recommended_sl': fallback_sl,
-                'trailing_distance_pct': 3.5,
+                'trailing_distance_pct': 2.5,
                 'method': 'fallback'
             }
 
