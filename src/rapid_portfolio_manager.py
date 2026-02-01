@@ -117,10 +117,11 @@ class RapidPortfolioManager:
 
     PORTFOLIO_FILE = "rapid_portfolio.json"
 
-    # v3.3: Dynamic parameters
+    # v3.4: Dynamic parameters (matches STANDARD_BACKTEST.py)
     TRAIL_ACTIVATION_PCT = 3.0   # เริ่ม trailing หลังกำไร 3%
-    ATR_MULTIPLIER = 2.0         # Trail distance = ATR * 2
-    MAX_HOLD_DAYS = 5
+    TRAIL_PERCENT = 60           # Lock 60% of peak gains (backtest standard)
+    ATR_MULTIPLIER = 2.0         # Trail distance = ATR * 2 (alternative method)
+    MAX_HOLD_DAYS = 5            # Max hold days before force exit
 
     def __init__(self, portfolio_file: str = None):
         self.portfolio_file = portfolio_file or self.PORTFOLIO_FILE
@@ -647,10 +648,10 @@ class RapidPortfolioManager:
 def main():
     """Run portfolio check"""
     print("=" * 70)
-    print("🚀 RAPID PORTFOLIO MANAGER v3.3 - DYNAMIC TRAILING STOP")
+    print("🚀 RAPID PORTFOLIO MANAGER v3.4 - DYNAMIC TRAILING STOP")
     print("=" * 70)
     print()
-    print("v3.3 Features:")
+    print("v3.4 Features:")
     print("  - ATR-based dynamic trailing (volatile = wider trail)")
     print("  - Swing low protection (structure-based)")
     print("  - EMA-based trailing (trend following)")
