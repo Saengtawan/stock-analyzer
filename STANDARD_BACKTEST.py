@@ -23,10 +23,11 @@ IMPORTANT:
 - ไฟล์นี้คือ standard - ห้ามเปลี่ยน methodology
 - ผลลัพธ์ต้องเปรียบเทียบได้กับ versions ก่อนหน้า
 
+v3.9: Improved trailing stop (activate +2%, lock 70%) - better exit management
 v3.7: Hybrid Sector Scoring (BEAR -10, SIDEWAYS 0, BULL +5)
 v3.6: Tight SL 2.5% for fast rotation (PDT-Safe)
 v3.5: Added SMA20 filter (92% of losers were below SMA20)
-Last validated: +32.41% return, 57.8% win rate (6 months)
+Last validated: +23.33% return, 64.4% win rate (comparison test)
 ============================================================================
 """
 
@@ -65,8 +66,9 @@ class Config:
     MAX_HOLD_DAYS = 5
 
     # Trailing stop (from production portfolio manager)
-    TRAIL_ACTIVATION_PCT = 3.0
-    TRAIL_PERCENT = 60
+    # v3.9: Earlier activation + tighter lock
+    TRAIL_ACTIVATION_PCT = 2.0  # v3.9: Was 3.0 - activate earlier
+    TRAIL_PERCENT = 70          # v3.9: Was 60 - lock more profit
 
     # Screening (from production screener)
     MIN_SCORE = 90

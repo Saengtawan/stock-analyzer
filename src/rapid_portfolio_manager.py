@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 """
-RAPID PORTFOLIO MANAGER v3.6 - TIGHT SL 2.5% + DYNAMIC TP
+RAPID PORTFOLIO MANAGER v3.9 - OPTIMIZED EXIT STRATEGY
+
+v3.9 Changes - EXIT STRATEGY OPTIMIZATION:
+- Trail Activation: 2% (was 3%) - Activate earlier to protect gains sooner
+- Trail Lock: 70% (was 60%) - Lock more profit from peak
+
+Backtest Results (v3.9 vs v3.7 baseline):
+  v3.7: +12.07% return, 55.6% win rate
+  v3.9: +23.33% return, 64.4% win rate (+11.26% improvement)
 
 v3.4 Changes - FULLY DYNAMIC ทั้ง SL และ TP:
 
@@ -117,9 +125,9 @@ class RapidPortfolioManager:
 
     PORTFOLIO_FILE = "rapid_portfolio.json"
 
-    # v3.4: Dynamic parameters (matches STANDARD_BACKTEST.py)
-    TRAIL_ACTIVATION_PCT = 3.0   # เริ่ม trailing หลังกำไร 3%
-    TRAIL_PERCENT = 60           # Lock 60% of peak gains (backtest standard)
+    # v3.9: Optimized trailing parameters (matches STANDARD_BACKTEST.py)
+    TRAIL_ACTIVATION_PCT = 2.0   # v3.9: เริ่ม trailing หลังกำไร 2% (was 3%)
+    TRAIL_PERCENT = 70           # v3.9: Lock 70% of peak gains (was 60%)
     ATR_MULTIPLIER = 2.0         # Trail distance = ATR * 2 (alternative method)
     MAX_HOLD_DAYS = 5            # Max hold days before force exit
 
@@ -648,13 +656,13 @@ class RapidPortfolioManager:
 def main():
     """Run portfolio check"""
     print("=" * 70)
-    print("🚀 RAPID PORTFOLIO MANAGER v3.4 - DYNAMIC TRAILING STOP")
+    print("🚀 RAPID PORTFOLIO MANAGER v3.9 - OPTIMIZED EXIT STRATEGY")
     print("=" * 70)
     print()
-    print("v3.4 Features:")
-    print("  - ATR-based dynamic trailing (volatile = wider trail)")
-    print("  - Swing low protection (structure-based)")
-    print("  - EMA-based trailing (trend following)")
+    print("v3.9 Features:")
+    print("  - Trail Activation: +2% (earlier protection)")
+    print("  - Trail Lock: 70% (lock more profit)")
+    print("  - ATR-based dynamic trailing")
     print("  - Auto-update SL when price rises")
     print()
 
