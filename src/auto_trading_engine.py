@@ -111,6 +111,11 @@ class AutoTradingEngine:
     MAX_HOLD_DAYS = 5
     DAILY_LOSS_LIMIT_PCT = 5.0  # Stop trading if down 5% in a day
 
+    # Simulated capital for realistic testing
+    # Set to match real capital you'll use in live trading
+    # None = use actual Alpaca account value
+    SIMULATED_CAPITAL = 4000  # ~$4,000 = ~125,000 THB
+
     # Timing (ET timezone)
     MARKET_OPEN_HOUR = 9
     MARKET_OPEN_MINUTE = 30
@@ -312,8 +317,13 @@ class AutoTradingEngine:
                 return False
 
             # Calculate position size
-            account = self.trader.get_account()
-            capital = account['portfolio_value']
+            # Use simulated capital if set, otherwise use actual account value
+            if self.SIMULATED_CAPITAL:
+                capital = self.SIMULATED_CAPITAL
+                logger.info(f"Using simulated capital: ${capital:,.0f}")
+            else:
+                account = self.trader.get_account()
+                capital = account['portfolio_value']
             position_value = capital * (self.POSITION_SIZE_PCT / 100)
 
             # Get current price
