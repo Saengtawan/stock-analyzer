@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """
-TEST 17: Rapid Trader v3.10 — Smart Early Exit T+1 Backtest
+TEST 17: Rapid Trader v3.10 — Smart Early Exit T+1 Backtest (FIXED)
 เปรียบเทียบ: ระบบปกติ vs ระบบ + Signal Degradation Exit
 
-กฎสำคัญ: ห้ามขายวันเดียวกับที่ซื้อ (PDT protection)
-Smart Exit ทำงานเฉพาะ T+1 ขึ้นไปเท่านั้น
+กฎสำคัญ:
+1. ห้ามขายวันเดียวกับที่ซื้อ (PDT protection)
+2. SL -2.5% = HARD LIMIT (ห้ามเกินเด็ดขาด!)
+3. Smart Exit ทำงานเฉพาะเมื่อ -2.5% < loss < 0%
+
+FIX จากรอบแรก:
+- Priority: SL → TP → Smart Exit → Trail → Max Hold
+- Smart Exit avg loss ต้อง < -2.5% เสมอ
 """
 import sys
 import os
@@ -22,7 +28,7 @@ warnings.filterwarnings('ignore')
 SIMULATED_CAPITAL = 4000
 MAX_POSITIONS = 2
 POSITION_SIZE_PCT = 40
-STOP_LOSS_PCT = 2.5
+STOP_LOSS_PCT = 2.5  # HARD LIMIT - ห้ามเกิน!
 TAKE_PROFIT_PCT = 6.0
 MAX_HOLD_DAYS = 5
 TRAIL_ACTIVATION_PCT = 2.0
@@ -209,33 +215,31 @@ def screen_stock(symbol, df, idx):
     }
 
 
-def check_signal_degradation(pos, df, idx, entry_idx):
+def check_signal_degradation(pos, df, idx, entry_idx, unrealized_pnl):
     """
     Check if Entry Thesis is broken
-    Only for T+1+ (never same day = PDT safe)
+
+    ⚠️ IMPORTANT: This function is ONLY called when:
+    1. T+1 or later (not same day = PDT safe)
+    2. SL not hit yet (SL checked first)
+    3. Loss is between 0% and -2.5% ONLY
 
     Returns: (should_exit, degraded_count, reasons)
     """
     days_held = idx - entry_idx
 
-    # PDT GUARD: Never exit same day
+    # Safety checks (should already be validated by caller)
     if days_held < 1:
-        return False, 0, ["Same day - PDT blocked"]
-
-    current_price = get_val(df['Close'], idx)
-    entry_price = pos['entry_price']
-
-    if current_price is None:
-        return False, 0, ["No data"]
-
-    unrealized_pnl = (current_price / entry_price - 1) * 100
-
-    # Don't cut winners - let trail/TP handle
+        return False, 0, ["Same day"]
     if unrealized_pnl >= 0:
-        return False, 0, ["In profit - let trail handle"]
+        return False, 0, ["In profit"]
+    if unrealized_pnl <= -STOP_LOSS_PCT:
+        return False, 0, ["At SL - let SL handle"]
 
     degraded = 0
     reasons = []
+
+    current_price = get_val(df['Close'], idx)
 
     # Condition 1: Below SMA20 (uptrend broken)
     sma20 = get_val(df['SMA20'], idx)
@@ -255,17 +259,17 @@ def check_signal_degradation(pos, df, idx, entry_idx):
         degraded += 1
         reasons.append(f"Low volume")
 
-    # Condition 4: RSI crushed < 30 while losing
+    # Condition 4: RSI crushed < 30 while losing > 1%
     rsi = get_val(df['RSI'], idx) if 'RSI' in df.columns else 50
     if rsi and rsi < 30 and unrealized_pnl < -1.0:
         degraded += 1
-        reasons.append(f"RSI crushed ({rsi:.0f})")
+        reasons.append(f"RSI crushed")
 
     # Condition 5: Today crash > -3%
     today_move = get_val(df['today_move'], idx) if 'today_move' in df.columns else 0
     if today_move and today_move < -3.0:
         degraded += 1
-        reasons.append(f"Today crash {today_move:.1f}%")
+        reasons.append(f"Today crash")
 
     should_exit = degraded >= SMART_EXIT_MIN_DEGRADED
     return should_exit, degraded, reasons
@@ -338,46 +342,58 @@ def run_backtest(stock_data, smart_exit_enabled):
             exit_price = None
             exit_reason = None
 
-            # === SMART EXIT CHECK (before SL/TP) ===
-            if smart_exit_enabled and days_held >= 1:
-                should_exit, deg_count, reasons = check_signal_degradation(
-                    pos, df, pos_idx, entry_idx
-                )
-                if should_exit:
-                    exit_price = close
-                    exit_reason = 'SMART_EXIT'
-                    smart_exits += 1
+            # ═══════════════════════════════════════════════════════════
+            # EXIT PRIORITY ORDER (CRITICAL!)
+            # ═══════════════════════════════════════════════════════════
 
-                    # Check false exit: would price recover in next 3 days?
-                    future_high = 0
-                    for f in range(1, 4):
-                        if pos_idx + f < len(df):
-                            fh = get_val(df['High'], pos_idx + f)
-                            if fh:
-                                future_high = max(future_high, fh)
-                    if future_high > entry_price:
-                        false_exits += 1
+            # ═══ PRIORITY 1: SL HARD LIMIT (เช็คก่อนทุกอย่าง!) ═══
+            # SL -2.5% = Maximum Loss ห้ามเกินเด็ดขาด!
+            if low <= sl_price:
+                exit_price = sl_price
+                exit_reason = 'TRAIL' if pos['trail_active'] else 'SL'
 
-                    # Calculate saved loss vs waiting for SL
-                    actual_loss_pct = (close / entry_price - 1) * 100
-                    sl_loss_pct = -STOP_LOSS_PCT
-                    if actual_loss_pct > sl_loss_pct:  # Less negative = saved
-                        saved_loss_total += abs(actual_loss_pct - sl_loss_pct)
+            # ═══ PRIORITY 2: TAKE PROFIT ═══
+            elif high >= tp_price:
+                exit_price = tp_price
+                exit_reason = 'TP'
 
-            # === NORMAL EXIT LOGIC ===
-            if exit_price is None:
-                if low <= sl_price:
-                    exit_price = sl_price
-                    exit_reason = 'TRAIL' if pos['trail_active'] else 'SL'
-                elif high >= tp_price:
-                    exit_price = tp_price
-                    exit_reason = 'TP'
-                elif days_held >= MAX_HOLD_DAYS:
-                    current_pnl = ((close - entry_price) / entry_price) * 100
-                    if current_pnl < 1.0:
+            # ═══ PRIORITY 3: SMART EXIT (เฉพาะเมื่อยังไม่ถึง SL) ═══
+            elif smart_exit_enabled and days_held >= 1:
+                unrealized_pnl = (close / entry_price - 1) * 100
+
+                # Smart Exit ทำงานเฉพาะเมื่อ: -2.5% < loss < 0%
+                if -STOP_LOSS_PCT < unrealized_pnl < 0:
+                    should_exit, deg_count, reasons = check_signal_degradation(
+                        pos, df, pos_idx, entry_idx, unrealized_pnl
+                    )
+                    if should_exit:
                         exit_price = close
-                        exit_reason = 'TIME'
+                        exit_reason = 'SMART_EXIT'
+                        smart_exits += 1
 
+                        # Check false exit: would price recover in next 3 days?
+                        future_high = 0
+                        for f in range(1, 4):
+                            if pos_idx + f < len(df):
+                                fh = get_val(df['High'], pos_idx + f)
+                                if fh:
+                                    future_high = max(future_high, fh)
+                        if future_high > entry_price:
+                            false_exits += 1
+
+                        # Calculate saved loss vs waiting for SL
+                        # e.g., exit at -1.5% instead of waiting for -2.5% = saved 1%
+                        saved = abs(unrealized_pnl - (-STOP_LOSS_PCT))
+                        saved_loss_total += saved
+
+            # ═══ PRIORITY 4: MAX HOLD TIME ═══
+            if exit_price is None and days_held >= MAX_HOLD_DAYS:
+                current_pnl = ((close - entry_price) / entry_price) * 100
+                if current_pnl < 1.0:
+                    exit_price = close
+                    exit_reason = 'TIME'
+
+            # Process exit
             if exit_price:
                 shares = pos['shares']
                 pnl_usd = (exit_price - entry_price) * shares
@@ -484,6 +500,10 @@ def run_backtest(stock_data, smart_exit_enabled):
     losses = [t for t in all_trades if t['pnl_pct'] <= 0]
     day_trades_count = len([t for t in all_trades if t['days_held'] == 0])
 
+    # Verify SL hard limit
+    max_loss = min([t['pnl_pct'] for t in losses]) if losses else 0
+    sl_violation = max_loss < -STOP_LOSS_PCT - 0.1  # Allow 0.1% tolerance
+
     return {
         'capital': capital,
         'return_pct': (capital - SIMULATED_CAPITAL) / SIMULATED_CAPITAL * 100,
@@ -493,6 +513,8 @@ def run_backtest(stock_data, smart_exit_enabled):
         'win_rate': len(wins) / len(all_trades) * 100 if all_trades else 0,
         'avg_win': np.mean([t['pnl_pct'] for t in wins]) if wins else 0,
         'avg_loss': np.mean([t['pnl_pct'] for t in losses]) if losses else 0,
+        'max_loss': max_loss,
+        'sl_violation': sl_violation,
         'monthly': monthly_pnl,
         'day_trades': day_trades_count,
         'smart_exits': smart_exits,
@@ -504,7 +526,8 @@ def run_backtest(stock_data, smart_exit_enabled):
 
 def main():
     print("=" * 70)
-    print("  TEST 17: SMART EARLY EXIT T+1 BACKTEST")
+    print("  TEST 17: SMART EARLY EXIT T+1 BACKTEST (FIXED)")
+    print("  SL -2.5% = HARD LIMIT (checked FIRST)")
     print("=" * 70)
 
     # Download and prepare data
@@ -542,22 +565,29 @@ def main():
   Win Rate                {normal['win_rate']:>11.1f}% {smart['win_rate']:>11.1f}% {smart['win_rate']-normal['win_rate']:>+9.1f}%
   Avg Win                 {normal['avg_win']:>+11.2f}% {smart['avg_win']:>+11.2f}%
   Avg Loss                {normal['avg_loss']:>+11.2f}% {smart['avg_loss']:>+11.2f}%
+  Max Loss                {normal['max_loss']:>+11.2f}% {smart['max_loss']:>+11.2f}%
   Day Trades              {normal['day_trades']:>12} {smart['day_trades']:>12}
     """)
+
+    # Verify SL hard limit
+    print(f"  SL HARD LIMIT CHECK:")
+    print(f"  Normal max loss:  {normal['max_loss']:+.2f}% {'OK' if not normal['sl_violation'] else 'VIOLATION!'}")
+    print(f"  Smart max loss:   {smart['max_loss']:+.2f}% {'OK' if not smart['sl_violation'] else 'VIOLATION!'}")
 
     if smart['smart_exits'] > 0:
         false_rate = smart['false_exits'] / smart['smart_exits'] * 100
         correct_rate = 100 - false_rate
         avg_saved = smart['saved_loss'] / smart['smart_exits']
 
-        print(f"  SMART EXIT STATS:")
+        print(f"\n  SMART EXIT STATS:")
         print(f"  Smart Exits triggered:  {smart['smart_exits']}")
         print(f"  False Exits (mistake):  {smart['false_exits']} ({false_rate:.0f}%)")
         print(f"  Correct Exits:          {smart['smart_exits'] - smart['false_exits']} ({correct_rate:.0f}%)")
         print(f"  Avg Loss saved vs SL:   {avg_saved:.2f}% per exit")
     else:
-        print("  No smart exits triggered")
+        print("\n  No smart exits triggered")
         false_rate = 0
+        avg_saved = 0
 
     # Monthly comparison
     print(f"\n  {'Month':<10} {'NORMAL':>10} {'SMART':>10} {'Diff':>10}")
@@ -574,38 +604,48 @@ def main():
     print(f"\n{'='*70}")
 
     pdt_safe = normal['day_trades'] == 0 and smart['day_trades'] == 0
+    sl_ok = not normal['sl_violation'] and not smart['sl_violation']
 
-    if diff_return > 1.0:
+    if smart['sl_violation']:
+        verdict = "BUG - FIX SL"
+        print(f"  BUG: Smart Exit avg loss {smart['avg_loss']:.2f}% > SL limit -2.5%!")
+    elif diff_return > 1.0:
         verdict = "ENABLE"
         print(f"  VERDICT: SMART EXIT ดีกว่า {diff_return:+.2f}% --> ควรเปิดใช้")
     elif diff_return > -0.5 and smart['avg_loss'] > normal['avg_loss']:
         verdict = "ENABLE"
         print(f"  VERDICT: ใกล้เคียง ({diff_return:+.2f}%) แต่ avg loss ดีขึ้น --> เปิดใช้ได้")
-    elif false_rate > 40:
+    elif smart['smart_exits'] > 0 and false_rate > 40:
         verdict = "KEEP NORMAL"
         print(f"  VERDICT: False exits สูง ({false_rate:.0f}%) --> ยังไม่ควรเปิด")
     else:
         verdict = "KEEP NORMAL"
-        print(f"  VERDICT: SMART EXIT แย่กว่า {diff_return:+.2f}% --> ยังไม่ควรเปิด")
+        print(f"  VERDICT: SMART EXIT {'แย่กว่า' if diff_return < 0 else 'ไม่ดีกว่า'} {diff_return:+.2f}%")
 
     if pdt_safe:
         print(f"  PDT STATUS: SAFE (0 day trades ทั้ง 2 modes)")
     else:
         print(f"  PDT WARNING: มี day trades! Normal={normal['day_trades']}, Smart={smart['day_trades']}")
 
+    if sl_ok:
+        print(f"  SL LIMIT:   OK (max loss ไม่เกิน -2.5%)")
+
     print("=" * 70)
 
     # Summary for test report
     print(f"""
 ╔══════════════════════════════════════════════════════════╗
-║ TEST 17: Smart Early Exit T+1                            ║
+║ TEST 17: Smart Early Exit T+1 (FIXED)                    ║
 ╠══════════════════════════════════════════════════════════╣
 ║   NORMAL return:    {normal['return_pct']:>+6.2f}%                              ║
 ║   SMART return:     {smart['return_pct']:>+6.2f}%                              ║
 ║   Difference:       {diff_return:>+6.2f}%                              ║
-║   Avg loss saved:   {smart['saved_loss']/max(1,smart['smart_exits']):>6.2f}% per exit                     ║
+║   Avg loss NORMAL:  {normal['avg_loss']:>+6.2f}%                              ║
+║   Avg loss SMART:   {smart['avg_loss']:>+6.2f}%                              ║
+║   Avg loss saved:   {avg_saved:>6.2f}% per smart exit                ║
 ║   False exit rate:  {false_rate:>5.0f}%                               ║
 ║   Day trades:       {smart['day_trades']} (PDT {'SAFE' if pdt_safe else 'WARNING'})                        ║
+║   SL Hard Limit:    {'OK' if sl_ok else 'VIOLATION'}                                 ║
 ║   Verdict:          {verdict:<20}                   ║
 ╚══════════════════════════════════════════════════════════╝
     """)
@@ -614,7 +654,8 @@ def main():
         'normal': normal,
         'smart': smart,
         'verdict': verdict,
-        'pdt_safe': pdt_safe
+        'pdt_safe': pdt_safe,
+        'sl_ok': sl_ok
     }
 
 
