@@ -360,7 +360,8 @@ class AlpacaTrader:
     def modify_stop_loss(
         self,
         order_id: str,
-        new_stop_price: float
+        new_stop_price: float,
+        max_retries: int = 3
     ) -> Optional[Order]:
         """
         Modify an existing stop loss order (for trailing)
@@ -368,13 +369,19 @@ class AlpacaTrader:
         Alpaca doesn't support direct order modification,
         so we cancel and replace.
 
+        CRITICAL: If cancel succeeds but place fails, we retry up to max_retries.
+        If all retries fail, the old SL price is still valid (order wasn't cancelled yet).
+
         Args:
             order_id: Existing stop loss order ID
             new_stop_price: New stop price
+            max_retries: Max retry attempts for placing new SL
 
         Returns:
             New Order object or None if failed
         """
+        import time
+
         try:
             # Get existing order details
             old_order = self.get_order(order_id)
@@ -388,24 +395,44 @@ class AlpacaTrader:
 
             symbol = old_order.symbol
             qty = int(old_order.qty)
+            old_stop_price = old_order.stop_price
 
-            logger.info(f"Modifying SL for {symbol}: ${old_order.stop_price:.2f} → ${new_stop_price:.2f}")
+            logger.info(f"Modifying SL for {symbol}: ${old_stop_price:.2f} → ${new_stop_price:.2f}")
 
             # Cancel old order
             if not self.cancel_order(order_id):
                 logger.error("Failed to cancel old SL order")
                 return None
 
-            # Place new stop loss
-            new_order = self.place_stop_loss(symbol, qty, new_stop_price)
+            # Place new stop loss with retry logic
+            new_order = None
+            for attempt in range(max_retries):
+                try:
+                    new_order = self.place_stop_loss(symbol, qty, new_stop_price)
+                    if new_order:
+                        break
+                except Exception as e:
+                    logger.warning(f"Retry {attempt + 1}/{max_retries} placing SL for {symbol}: {e}")
+                    time.sleep(1)
 
-            logger.info(f"SL modified: {order_id} → {new_order.id}")
-            return new_order
+            if new_order:
+                logger.info(f"SL modified: {order_id} → {new_order.id}")
+                return new_order
+            else:
+                # CRITICAL: All retries failed - try to restore old SL
+                logger.error(f"CRITICAL: Failed to place new SL for {symbol}, attempting to restore old SL at ${old_stop_price:.2f}")
+                try:
+                    fallback_order = self.place_stop_loss(symbol, qty, old_stop_price)
+                    if fallback_order:
+                        logger.warning(f"Restored original SL for {symbol} at ${old_stop_price:.2f}")
+                        return fallback_order
+                except Exception:
+                    pass
+                logger.error(f"CRITICAL: {symbol} has NO STOP LOSS - manual intervention required!")
+                return None
 
         except Exception as e:
             logger.error(f"Failed to modify stop loss: {e}")
-            # CRITICAL: If we cancelled but failed to place new SL,
-            # we need to try again or alert
             return None
 
     # =========================================================================

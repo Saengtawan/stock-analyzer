@@ -429,7 +429,7 @@ class AutoTradingEngine:
             if new_sl > managed_pos.current_sl_price:
                 logger.info(f"📈 {symbol} updating SL: ${managed_pos.current_sl_price:.2f} → ${new_sl:.2f}")
 
-                # Modify SL order at Alpaca
+                # Modify SL order at Alpaca (has retry + fallback logic)
                 new_order = self.trader.modify_stop_loss(
                     managed_pos.sl_order_id,
                     new_sl
@@ -437,9 +437,14 @@ class AutoTradingEngine:
 
                 if new_order:
                     managed_pos.sl_order_id = new_order.id
-                    managed_pos.current_sl_price = new_sl
+                    # Use the order's actual stop_price (may be fallback to old price)
+                    managed_pos.current_sl_price = new_order.stop_price
+                    if new_order.stop_price != new_sl:
+                        logger.warning(f"{symbol} SL fallback to ${new_order.stop_price:.2f}")
                 else:
-                    logger.error(f"Failed to update SL for {symbol}")
+                    # CRITICAL: No SL protection - close position immediately
+                    logger.error(f"CRITICAL: {symbol} has no SL - closing position for safety")
+                    self._close_position(symbol, managed_pos, "NO_SL_PROTECTION")
 
         # Check days held
         days_held = (datetime.now() - managed_pos.entry_time).days
@@ -461,12 +466,22 @@ class AutoTradingEngine:
     def _close_position(self, symbol: str, managed_pos: ManagedPosition, reason: str):
         """Close a position"""
         try:
+            # CRITICAL: Check if position still exists before selling
+            # This prevents double-sell if SL was already triggered
+            alpaca_pos = self.trader.get_position(symbol)
+            if not alpaca_pos:
+                logger.info(f"{symbol} position already closed (SL may have triggered)")
+                del self.positions[symbol]
+                return
+
             # Cancel SL order first
             if managed_pos.sl_order_id:
                 self.trader.cancel_order(managed_pos.sl_order_id)
 
-            # Sell
-            sell_order = self.trader.place_market_sell(symbol, managed_pos.qty)
+            # Sell using actual qty from Alpaca (not managed_pos.qty)
+            # In case of partial fills or discrepancies
+            actual_qty = int(alpaca_pos.qty)
+            sell_order = self.trader.place_market_sell(symbol, actual_qty)
 
             # Wait for fill
             time.sleep(2)
