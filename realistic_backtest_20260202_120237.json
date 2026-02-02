@@ -1,0 +1,62 @@
+{
+  "config": {
+    "starting_capital": 4000,
+    "position_size_pct": 40,
+    "max_positions": 2,
+    "trail_activation": 2.0,
+    "trail_percent": 70
+  },
+  "results": {
+    "final_capital": 4162.540061950684,
+    "total_return": 4.06350154876709,
+    "total_trades": 3,
+    "win_rate": 100.0,
+    "day_trades": 0
+  },
+  "trades": [
+    {
+      "symbol": "SHOP",
+      "entry_date": "2025-09-29 00:00:00",
+      "exit_date": "2025-10-03 00:00:00",
+      "entry_price": 149.0,
+      "exit_price": 158.52000427246094,
+      "shares": 10,
+      "pnl_pct": 6.3892646123898915,
+      "pnl_usd": 95.20004272460938,
+      "exit_reason": "SL",
+      "days_held": 4,
+      "is_day_trade": false
+    },
+    {
+      "symbol": "DASH",
+      "entry_date": "2025-10-13 00:00:00",
+      "exit_date": "2025-10-16 00:00:00",
+      "entry_price": 273.5199890136719,
+      "exit_price": 281.90599670410154,
+      "shares": 5,
+      "pnl_pct": 3.0659578923902675,
+      "pnl_usd": 41.930038452148324,
+      "exit_reason": "SL",
+      "days_held": 3,
+      "is_day_trade": false
+    },
+    {
+      "symbol": "ROKU",
+      "entry_date": "2025-11-10 00:00:00",
+      "exit_date": "2025-11-11 00:00:00",
+      "entry_price": 105.0,
+      "exit_price": 106.69399871826172,
+      "shares": 15,
+      "pnl_pct": 1.6133321126302138,
+      "pnl_usd": 25.409980773925867,
+      "exit_reason": "SL",
+      "days_held": 1,
+      "is_day_trade": false
+    }
+  ],
+  "pdt_stats": {
+    "total_day_trades": 0,
+    "blocked_dates": 0,
+    "day_trade_list": []
+  }
+}
