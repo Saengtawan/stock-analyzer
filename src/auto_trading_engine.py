@@ -35,6 +35,7 @@ sys.path.insert(0, src_dir)
 sys.path.insert(0, os.path.dirname(src_dir))  # Add parent for 'src' imports
 
 from alpaca_trader import AlpacaTrader, Position, Order
+from trading_safety import TradingSafetySystem, SafetyStatus
 from loguru import logger
 
 # Try to import screener
@@ -135,6 +136,9 @@ class AutoTradingEngine:
             secret_key=secret_key,
             paper=paper
         )
+
+        # Safety system
+        self.safety = TradingSafetySystem(self.trader)
 
         # Screener
         self.screener = None
@@ -291,6 +295,12 @@ class AutoTradingEngine:
         try:
             symbol = signal.symbol
 
+            # Safety check first
+            can_trade, reason = self.safety.can_open_new_position()
+            if not can_trade:
+                logger.warning(f"Safety block: {reason}")
+                return False
+
             # Check if already have position
             if symbol in self.positions:
                 logger.warning(f"Already have position in {symbol}")
@@ -362,6 +372,9 @@ class AutoTradingEngine:
         """Monitor all positions and update trailing stops"""
         if not self.positions:
             return
+
+        # Ensure all positions have SL protection
+        self.safety.ensure_sl_protection()
 
         logger.debug(f"Monitoring {len(self.positions)} positions...")
 
@@ -616,6 +629,7 @@ class AutoTradingEngine:
     def get_status(self) -> Dict:
         """Get current engine status"""
         account = self.trader.get_account()
+        safety_status = self.safety.get_status_summary()
 
         return {
             'state': self.state.value,
@@ -625,6 +639,7 @@ class AutoTradingEngine:
             'account_value': account['portfolio_value'],
             'cash': account['cash'],
             'daily_stats': asdict(self.daily_stats),
+            'safety': safety_status,
         }
 
     def get_positions_status(self) -> List[Dict]:
