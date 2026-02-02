@@ -24,10 +24,10 @@ from collections import defaultdict
 import warnings
 warnings.filterwarnings('ignore')
 
-# === CONFIG (เหมือน production - ALL-IN MODE) ===
+# === CONFIG (เหมือน production v3.11) ===
 SIMULATED_CAPITAL = 4000
-MAX_POSITIONS = 1  # Focus on 1 position
-POSITION_SIZE_PCT = 90  # ALL-IN: 90% per position
+MAX_POSITIONS = 2
+POSITION_SIZE_PCT = 40
 STOP_LOSS_PCT = 2.5  # HARD LIMIT - ห้ามเกิน!
 TAKE_PROFIT_PCT = 6.0
 MAX_HOLD_DAYS = 5

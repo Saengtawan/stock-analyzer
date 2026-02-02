@@ -15,21 +15,21 @@ from collections import defaultdict
 import warnings
 warnings.filterwarnings('ignore')
 
-# ===== RAPID TRADER v3.10 ALL-IN MODE =====
+# ===== RAPID TRADER v3.11 CONFIGURATION =====
 SIMULATED_CAPITAL = 4000
-POSITION_SIZE_PCT = 90  # ALL-IN: 90% per position
-MAX_POSITIONS = 1  # Focus on 1 position
+POSITION_SIZE_PCT = 40  # 40% per position
+MAX_POSITIONS = 2
 STOP_LOSS_PCT = 2.5
 TAKE_PROFIT_PCT = 6.0
 TRAIL_ACTIVATION_PCT = 2.0
-TRAIL_LOCK_PCT = 70
+TRAIL_LOCK_PCT = 80  # v3.11: upgraded from 70 to 80
 MAX_HOLD_DAYS = 5
 
 # v3.10 Overextended Filter
 MAX_SINGLE_DAY_MOVE = 8.0
 MAX_SMA20_EXTENSION = 10.0
 LOOKBACK_DAYS = 10
-MIN_SCORE = 65  # Lower = more trades = more compound growth
+MIN_SCORE = 90  # Quality threshold
 
 # Universe - volatile stocks for swing trading
 UNIVERSE = [

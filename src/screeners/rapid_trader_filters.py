@@ -27,8 +27,8 @@ import numpy as np
 class FilterConfig:
     """Filter configuration - Single Source of Truth"""
 
-    # Minimum requirements (v3.10 ALL-IN: lower score = more trades)
-    MIN_SCORE = 65
+    # Minimum requirements
+    MIN_SCORE = 90
     MIN_ATR_PCT = 2.5
     MIN_PRICE = 10
     MAX_PRICE = 2000

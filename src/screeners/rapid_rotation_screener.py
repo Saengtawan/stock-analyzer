@@ -151,7 +151,7 @@ class RapidRotationScreener:
 
     # Configuration (v3.4: Fully dynamic)
     MIN_ATR_PCT = 2.5  # Minimum volatility
-    MIN_SCORE = 65     # v3.10 ALL-IN: lower = more trades
+    MIN_SCORE = 90     # Quality threshold
     MAX_HOLD_DAYS = 5  # Max hold days
 
     # v3.4: ATR Multipliers for FULLY DYNAMIC SL/TP
