@@ -15,10 +15,10 @@ from collections import defaultdict
 import warnings
 warnings.filterwarnings('ignore')
 
-# ===== RAPID TRADER v3.10 CONFIGURATION =====
+# ===== RAPID TRADER v3.10 ALL-IN MODE =====
 SIMULATED_CAPITAL = 4000
-POSITION_SIZE_PCT = 40
-MAX_POSITIONS = 2
+POSITION_SIZE_PCT = 90  # ALL-IN: 90% per position
+MAX_POSITIONS = 1  # Focus on 1 position
 STOP_LOSS_PCT = 2.5
 TAKE_PROFIT_PCT = 6.0
 TRAIL_ACTIVATION_PCT = 2.0
@@ -29,6 +29,7 @@ MAX_HOLD_DAYS = 5
 MAX_SINGLE_DAY_MOVE = 8.0
 MAX_SMA20_EXTENSION = 10.0
 LOOKBACK_DAYS = 10
+MIN_SCORE = 65  # Lower = more trades = more compound growth
 
 # Universe - volatile stocks for swing trading
 UNIVERSE = [
@@ -148,7 +149,7 @@ def screen_stock(symbol, close, high, low, volume, open_prices, date_idx):
     score += min(10, (today_volume / avg_volume - 1) * 20)  # Volume surge
     score += 5 if is_green else 0  # Green candle bonus
 
-    if score < 90:
+    if score < MIN_SCORE:
         return None
 
     return {
@@ -230,34 +231,34 @@ def run_backtest(start_date, end_date):
             if high is None or low is None or close is None:
                 continue
 
-            sl_price = entry_price * (1 - STOP_LOSS_PCT / 100)
+            sl_price = pos['sl_price']  # Use stored SL (includes trail!)
             tp_price = entry_price * (1 + TAKE_PROFIT_PCT / 100)
 
             # Update peak
             if high > pos['peak']:
                 pos['peak'] = high
 
-            # Check trailing
+            # Check and update trailing stop
             gain_pct = ((pos['peak'] - entry_price) / entry_price) * 100
             if gain_pct >= TRAIL_ACTIVATION_PCT:
+                pos['trail_active'] = True
                 locked = (pos['peak'] - entry_price) * (TRAIL_LOCK_PCT / 100)
                 new_trail = entry_price + locked
-                if new_trail > pos['trail_stop']:
-                    pos['trail_stop'] = new_trail
+                # Trail REPLACES SL when higher (this was the bug!)
+                if new_trail > pos['sl_price']:
+                    pos['sl_price'] = new_trail
+                    sl_price = new_trail
 
             exit_price = None
             exit_reason = None
 
-            # Check exits
+            # Check exits (SL/Trail combined as one check now)
             if low <= sl_price:
                 exit_price = sl_price
-                exit_reason = 'SL'
+                exit_reason = 'TRAIL' if pos['trail_active'] else 'SL'
             elif high >= tp_price:
                 exit_price = tp_price
                 exit_reason = 'TP'
-            elif pos['trail_stop'] > 0 and low <= pos['trail_stop']:
-                exit_price = pos['trail_stop']
-                exit_reason = 'TRAIL'
             elif days_held >= MAX_HOLD_DAYS:
                 current_pnl = ((close - entry_price) / entry_price) * 100
                 if current_pnl < 1.0:
@@ -351,7 +352,8 @@ def run_backtest(start_date, end_date):
                 'entry_idx': idx,
                 'shares': shares,
                 'peak': entry_price,
-                'trail_stop': 0
+                'sl_price': entry_price * (1 - STOP_LOSS_PCT / 100),  # Initial SL at -2.5%
+                'trail_active': False
             })
 
     # Close any remaining positions at end

@@ -101,9 +101,9 @@ class AutoTradingEngine:
     - Safety limits (max positions, daily loss limit)
     """
 
-    # Trading parameters (v3.9)
-    MAX_POSITIONS = 2
-    POSITION_SIZE_PCT = 40  # 40% of capital per position
+    # Trading parameters (v3.10 ALL-IN MODE)
+    MAX_POSITIONS = 1  # Focus on 1 high-quality position
+    POSITION_SIZE_PCT = 90  # 90% of capital per position (ALL-IN)
     STOP_LOSS_PCT = 2.5
     TAKE_PROFIT_PCT = 6.0
     TRAIL_ACTIVATION_PCT = 2.0
