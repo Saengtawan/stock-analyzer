@@ -301,6 +301,24 @@ class RealisticBacktest:
         if current_price < sma20:
             return None
 
+        # v3.10: OVEREXTENDED FILTER (ARM FIX)
+        # Calculate max single-day move in last 10 days (extended window)
+        if len(close) >= 11:
+            daily_returns = [(float(close.iloc[i]) / float(close.iloc[i-1]) - 1) * 100
+                           for i in range(-10, 0)]
+            max_daily_move = max(daily_returns)
+        else:
+            max_daily_move = 0
+
+        # Skip if any day had >8% move (overextended)
+        if max_daily_move > 8.0:
+            return None
+
+        # Skip if >10% above SMA20 (too extended)
+        sma20_extension = ((current_price / sma20) - 1) * 100
+        if sma20_extension > 10.0:
+            return None
+
         # SMA5 extension filter
         sma5 = float(close.rolling(5).mean().iloc[-1])
         if current_price > sma5 * 1.02:

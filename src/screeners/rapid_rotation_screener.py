@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RAPID ROTATION SCREENER v3.7 - HYBRID SECTOR + ALT DATA
+RAPID ROTATION SCREENER v3.10 - OVEREXTENDED FILTER
 
 INTEGRATED SYSTEMS:
 ✅ AI Universe Generator (680+ stocks from DeepSeek)
@@ -16,6 +16,12 @@ Strategy:
 - BOUNCE CONFIRMATION: Wait for recovery after dip (not catching knife)
 - ALT DATA TIE-BREAKER: Only check for Top 10 candidates (±10 cap)
 - FULLY DYNAMIC SL/TP based on actual market structure
+
+v3.10 Changes - OVEREXTENDED FILTER (ARM FIX):
+- Skip stocks with >8% single-day move in last 10 days
+- Skip stocks >10% above SMA20 (too extended)
+- Prevents entering after exhaustion moves (like ARM +9.5%)
+- Based on September 2025 ARM loss analysis
 
 v3.7 Changes - HYBRID SECTOR + ALT DATA:
 - Sector as SOFT FILTER (penalty/bonus, not exclusion)
@@ -530,6 +536,17 @@ class RapidRotationScreener:
         high_20d = high.iloc[idx-20:idx].max() if idx >= 20 else high.max()
         dist_from_high = (high_20d - current_price) / high_20d * 100
 
+        # v3.10: Overextended detection
+        # Calculate max single-day move in last 10 days (extended window)
+        if idx >= 11:
+            daily_returns = [(close.iloc[i] / close.iloc[i-1] - 1) * 100 for i in range(idx-10, idx)]
+            max_daily_move = max(daily_returns) if daily_returns else 0
+        else:
+            max_daily_move = 0
+
+        # Distance from SMA20 (how far price is above SMA20)
+        sma20_extension = ((current_price / sma20) - 1) * 100 if sma20 > 0 else 0
+
         # Volume
         avg_volume = volume.iloc[idx-20:idx].mean() if idx >= 20 else volume.mean()
         volume_ratio = volume.iloc[idx] / avg_volume if avg_volume > 0 else 1
@@ -581,6 +598,22 @@ class RapidRotationScreener:
         # were below SMA20 (downtrend). This filter prevents most losers.
         if current_price < sma20:
             return None  # Must be above SMA20 (uptrend)
+
+        # ==============================
+        # v3.10: OVEREXTENDED FILTER (ARM FIX)
+        # ==============================
+        # Prevents entering after big moves (like ARM +17% in 1 day)
+        # These often lead to mean reversion and stop loss hits
+
+        # FILTER 7: No big single-day moves in last 5 days
+        MAX_SINGLE_DAY_MOVE = 8.0  # Skip if any day had >8% move
+        if max_daily_move > MAX_SINGLE_DAY_MOVE:
+            return None  # Overextended - wait for consolidation
+
+        # FILTER 8: Price not too far above SMA20
+        MAX_SMA20_EXTENSION = 10.0  # Skip if >10% above SMA20
+        if sma20_extension > MAX_SMA20_EXTENSION:
+            return None  # Too extended above SMA20
 
         # ==============================
         # v3.3 SCORING - Quality over quantity
@@ -864,7 +897,7 @@ class RapidRotationScreener:
 def main():
     """Run the screener"""
     print("=" * 70)
-    print("RAPID ROTATION SCREENER v3.7 - HYBRID SECTOR + ALT DATA")
+    print("RAPID ROTATION SCREENER v3.10 - OVEREXTENDED FILTER")
     print("=" * 70)
     print()
     print("v3.7 Backtest Results: +32.41%/6mo, 57.8% win rate")
