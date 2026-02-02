@@ -2550,7 +2550,7 @@ def get_auto_trading_engine():
                 api_key=API_KEY,
                 secret_key=SECRET_KEY,
                 paper=True,
-                auto_start=False
+                auto_start=True  # Auto-start by default for background trading
             )
         except Exception as e:
             logger.error(f"Failed to create auto trading engine: {e}")

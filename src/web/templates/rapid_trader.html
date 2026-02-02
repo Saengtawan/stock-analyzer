@@ -304,8 +304,8 @@ document.addEventListener('DOMContentLoaded', function() {
     positionModal = new bootstrap.Modal(document.getElementById('addPositionModal'));
     refreshAll();
 
-    // Initialize in manual mode
-    setMode('manual');
+    // Initialize in auto mode (default)
+    setMode('auto');
 
     // Auto refresh every 5 minutes
     setInterval(refreshAll, 5 * 60 * 1000);
@@ -582,7 +582,7 @@ function showError(message) {
 // AUTO TRADING FUNCTIONS (Phase 4)
 // =============================================================================
 
-let currentMode = 'manual';
+let currentMode = 'auto';  // Default to auto mode
 let autoStatusInterval = null;
 
 function setMode(mode) {
