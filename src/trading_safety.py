@@ -3,13 +3,14 @@
 TRADING SAFETY SYSTEM - Phase 3
 Rapid Trader v3.9 Safety Layers
 
-6 Safety Layers:
+7 Safety Layers:
 1. Fallback SL Order - Every position MUST have SL at Alpaca
 2. Daily Loss Limit - Stop trading if down -5% in a day
 3. Max Positions - Never hold more than 2 positions
 4. Max Hold Days - Auto-sell after 5 days
 5. Health Check - Monitor system health
 6. Emergency Stop - Manual override to stop all trading
+7. PDT Protection - Pattern Day Trader rule (3 day trades / 5 days for <$25K)
 
 NOT INCLUDED (Phase 3):
 - Notifications (Line/Telegram) - will add later
@@ -75,6 +76,11 @@ class TradingSafetySystem:
     MAX_POSITIONS = 2               # Max concurrent positions
     MAX_HOLD_DAYS = 5               # Max days to hold a position
     MIN_BUYING_POWER_PCT = 10.0     # Min buying power to trade (% of equity)
+
+    # PDT Rule (Pattern Day Trader)
+    PDT_ACCOUNT_THRESHOLD = 25000   # PDT applies to accounts < $25K
+    PDT_DAY_TRADE_LIMIT = 3         # Max 3 day trades in rolling 5 days
+    PDT_ENFORCE_ALWAYS = True       # Enforce even on paper (for realistic testing)
 
     # Health check intervals
     HEALTH_CHECK_INTERVAL = 300     # 5 minutes
@@ -330,6 +336,76 @@ class TradingSafetySystem:
             message="Not active"
         )
 
+    def check_pdt_rule(self) -> SafetyCheck:
+        """
+        Check Pattern Day Trader rule compliance
+
+        PDT Rule: If account < $25K, max 3 day trades in rolling 5 days
+        A day trade = buy and sell same stock on same day
+
+        We enforce this even on paper trading for realistic testing.
+        """
+        try:
+            account = self.trader.get_account()
+            portfolio_value = account['portfolio_value']
+            daytrade_count = account.get('daytrade_count', 0)
+            is_pdt = account.get('pattern_day_trader', False)
+
+            # If account >= $25K, PDT doesn't apply
+            if portfolio_value >= self.PDT_ACCOUNT_THRESHOLD and not self.PDT_ENFORCE_ALWAYS:
+                return SafetyCheck(
+                    name="PDT Rule",
+                    status=SafetyStatus.OK,
+                    message=f"Above ${self.PDT_ACCOUNT_THRESHOLD:,} - PDT N/A",
+                    value=daytrade_count,
+                    threshold=self.PDT_DAY_TRADE_LIMIT
+                )
+
+            # Check if already flagged as PDT
+            if is_pdt:
+                return SafetyCheck(
+                    name="PDT Rule",
+                    status=SafetyStatus.CRITICAL,
+                    message="FLAGGED as Pattern Day Trader!",
+                    value=daytrade_count,
+                    threshold=self.PDT_DAY_TRADE_LIMIT
+                )
+
+            # Check day trade count
+            if daytrade_count >= self.PDT_DAY_TRADE_LIMIT:
+                return SafetyCheck(
+                    name="PDT Rule",
+                    status=SafetyStatus.CRITICAL,
+                    message=f"PDT LIMIT: {daytrade_count}/{self.PDT_DAY_TRADE_LIMIT} day trades",
+                    value=daytrade_count,
+                    threshold=self.PDT_DAY_TRADE_LIMIT
+                )
+
+            # Warning if approaching limit
+            if daytrade_count >= self.PDT_DAY_TRADE_LIMIT - 1:
+                return SafetyCheck(
+                    name="PDT Rule",
+                    status=SafetyStatus.WARNING,
+                    message=f"PDT Warning: {daytrade_count}/{self.PDT_DAY_TRADE_LIMIT} day trades",
+                    value=daytrade_count,
+                    threshold=self.PDT_DAY_TRADE_LIMIT
+                )
+
+            return SafetyCheck(
+                name="PDT Rule",
+                status=SafetyStatus.OK,
+                message=f"Day trades: {daytrade_count}/{self.PDT_DAY_TRADE_LIMIT}",
+                value=daytrade_count,
+                threshold=self.PDT_DAY_TRADE_LIMIT
+            )
+
+        except Exception as e:
+            return SafetyCheck(
+                name="PDT Rule",
+                status=SafetyStatus.WARNING,
+                message=f"Check failed: {e}"
+            )
+
     # =========================================================================
     # HEALTH CHECK
     # =========================================================================
@@ -345,6 +421,7 @@ class TradingSafetySystem:
             self.check_daily_loss(),
             self.check_position_count(),
             self.check_buying_power(),
+            self.check_pdt_rule(),  # Layer 7: PDT Protection
         ]
 
         # Determine overall status
@@ -379,6 +456,9 @@ class TradingSafetySystem:
                 elif check.name == "SL Protection":
                     # Can still trade but need to fix SL first
                     reasons.append("Unprotected positions - fix SL before new trades")
+                elif check.name == "PDT Rule":
+                    can_trade = False
+                    reasons.append(f"PDT limit reached: {check.message}")
 
         report = HealthReport(
             timestamp=datetime.now(),
