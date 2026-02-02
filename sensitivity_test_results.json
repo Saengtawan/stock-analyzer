@@ -1,0 +1,83 @@
+[
+  {
+    "total_return": 26.61,
+    "win_rate": 64.4,
+    "monthly_avg": 10.0,
+    "positive_months": 6,
+    "total_months": 6,
+    "activation": 2.0,
+    "lock": 75
+  },
+  {
+    "total_return": 24.4,
+    "win_rate": 64.4,
+    "monthly_avg": 9.26,
+    "positive_months": 6,
+    "total_months": 6,
+    "activation": 1.5,
+    "lock": 75
+  },
+  {
+    "total_return": 23.1,
+    "win_rate": 60.0,
+    "monthly_avg": 8.83,
+    "positive_months": 5,
+    "total_months": 6,
+    "activation": 2.5,
+    "lock": 75
+  },
+  {
+    "total_return": 20.13,
+    "win_rate": 64.4,
+    "monthly_avg": 7.78,
+    "positive_months": 6,
+    "total_months": 6,
+    "activation": 2.0,
+    "lock": 65
+  },
+  {
+    "total_return": 19.97,
+    "win_rate": 60.0,
+    "monthly_avg": 7.74,
+    "positive_months": 5,
+    "total_months": 6,
+    "activation": 2.5,
+    "lock": 70
+  },
+  {
+    "total_return": 19.52,
+    "win_rate": 62.2,
+    "monthly_avg": 7.58,
+    "positive_months": 6,
+    "total_months": 6,
+    "activation": 1.5,
+    "lock": 70
+  },
+  {
+    "total_return": 18.31,
+    "win_rate": 64.4,
+    "monthly_avg": 7.14,
+    "positive_months": 6,
+    "total_months": 6,
+    "activation": 1.5,
+    "lock": 65
+  },
+  {
+    "total_return": 17.56,
+    "win_rate": 60.0,
+    "monthly_avg": 6.89,
+    "positive_months": 6,
+    "total_months": 6,
+    "activation": 2.0,
+    "lock": 70
+  },
+  {
+    "total_return": 16.93,
+    "win_rate": 60.0,
+    "monthly_avg": 6.66,
+    "positive_months": 5,
+    "total_months": 6,
+    "activation": 2.5,
+    "lock": 65
+  }
+]

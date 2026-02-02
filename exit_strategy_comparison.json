@@ -1,0 +1,54 @@
+[
+  {
+    "total_return": 12.07,
+    "win_rate": 55.6,
+    "monthly_avg": 4.88,
+    "avg_win": 3.17,
+    "trail_stops": 25,
+    "trail_avg": 3.17,
+    "stop_losses": 20,
+    "take_profits": 0,
+    "name": "Baseline (v3.7)",
+    "activation": 3.0,
+    "lock": 60
+  },
+  {
+    "total_return": 17.01,
+    "win_rate": 64.4,
+    "monthly_avg": 6.67,
+    "avg_win": 2.76,
+    "trail_stops": 29,
+    "trail_avg": 2.76,
+    "stop_losses": 16,
+    "take_profits": 0,
+    "name": "Option A (+2%, 60%)",
+    "activation": 2.0,
+    "lock": 60
+  },
+  {
+    "total_return": 18.06,
+    "win_rate": 55.6,
+    "monthly_avg": 7.08,
+    "avg_win": 3.7,
+    "trail_stops": 25,
+    "trail_avg": 3.7,
+    "stop_losses": 20,
+    "take_profits": 0,
+    "name": "Option B (+3%, 70%)",
+    "activation": 3.0,
+    "lock": 70
+  },
+  {
+    "total_return": 23.33,
+    "win_rate": 64.4,
+    "monthly_avg": 8.89,
+    "avg_win": 3.22,
+    "trail_stops": 29,
+    "trail_avg": 3.22,
+    "stop_losses": 16,
+    "take_profits": 0,
+    "name": "Option A+B (+2%, 70%)",
+    "activation": 2.0,
+    "lock": 70
+  }
+]
