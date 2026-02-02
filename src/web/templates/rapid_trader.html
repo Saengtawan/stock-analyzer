@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Rapid Trader v3.7 - Hybrid Sector{% endblock %}
+{% block title %}Rapid Trader v3.9 - Auto Trading{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -90,14 +90,40 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2><i class="fas fa-rocket me-2"></i>Rapid Trader v3.7</h2>
-        <p class="text-muted mb-0">Backtest: +32.41%/6mo | 57.8% Win Rate | Hybrid Sector Scoring</p>
+        <h2><i class="fas fa-rocket me-2"></i>Rapid Trader v3.9</h2>
+        <p class="text-muted mb-0">Backtest: +23.33%/6mo | 64.4% Win Rate | Trail +2%/Lock 70%</p>
     </div>
-    <div>
+    <div class="d-flex align-items-center gap-2">
+        <!-- Auto Trading Toggle -->
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="modeManual" onclick="setMode('manual')">
+                <i class="fas fa-hand-paper me-1"></i> Manual
+            </button>
+            <button type="button" class="btn btn-outline-success" id="modeAuto" onclick="setMode('auto')">
+                <i class="fas fa-robot me-1"></i> Auto
+            </button>
+        </div>
         <button class="btn btn-primary" onclick="refreshAll()">
             <i class="fas fa-sync-alt me-1"></i> Refresh
         </button>
         <span class="refresh-info ms-2">Last update: <span id="lastUpdate">-</span></span>
+    </div>
+</div>
+
+<!-- Auto Trading Status Banner -->
+<div class="alert alert-info mb-3" id="autoStatusBanner" style="display: none;">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <i class="fas fa-robot me-2"></i>
+            <strong>Auto Trading:</strong>
+            <span id="autoStatusText">Checking...</span>
+            <span class="badge bg-secondary ms-2" id="marketStatusBadge">Market Closed</span>
+        </div>
+        <div>
+            <button class="btn btn-sm btn-danger" id="emergencyStopBtn" onclick="emergencyStop()">
+                <i class="fas fa-stop-circle me-1"></i> Emergency Stop
+            </button>
+        </div>
     </div>
 </div>
 
@@ -161,9 +187,9 @@
             </div>
         </div>
 
-        <!-- Trading Rules (v3.7 - matches STANDARD_BACKTEST.py) -->
+        <!-- Trading Rules (v3.9 - matches STANDARD_BACKTEST.py) -->
         <div class="rules-box mt-3">
-            <h5><i class="fas fa-shield-alt me-2"></i>Trading Rules v3.7</h5>
+            <h5><i class="fas fa-shield-alt me-2"></i>Trading Rules v3.9</h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e74c3c;">SL</div>
                 <div>Stop Loss: <strong>2.5%</strong> (tight SL for fast rotation)</div>
@@ -174,11 +200,28 @@
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #9b59b6;">📈</div>
-                <div>Trailing: <strong>+3% activation, lock 60%</strong></div>
+                <div>Trailing: <strong>+2% activation, lock 70%</strong></div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #f39c12;">⏱</div>
                 <div>Max Hold: <strong>5 days</strong></div>
+            </div>
+        </div>
+
+        <!-- Alpaca Account (Auto Mode) -->
+        <div class="rules-box mt-3" id="alpacaAccountBox" style="display: none;">
+            <h5><i class="fas fa-wallet me-2"></i>Alpaca Paper Account</h5>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #2ecc71;">💵</div>
+                <div>Cash: <strong id="alpacaCash">$0</strong></div>
+            </div>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #3498db;">📊</div>
+                <div>Portfolio: <strong id="alpacaPortfolio">$0</strong></div>
+            </div>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #9b59b6;">🛡️</div>
+                <div>Safety: <strong id="safetyStatus">OK</strong></div>
             </div>
         </div>
     </div>
@@ -260,6 +303,9 @@ let positionModal;
 document.addEventListener('DOMContentLoaded', function() {
     positionModal = new bootstrap.Modal(document.getElementById('addPositionModal'));
     refreshAll();
+
+    // Initialize in manual mode
+    setMode('manual');
 
     // Auto refresh every 5 minutes
     setInterval(refreshAll, 5 * 60 * 1000);
@@ -530,6 +576,210 @@ function showSuccess(message) {
 
 function showError(message) {
     alert('Error: ' + message);
+}
+
+// =============================================================================
+// AUTO TRADING FUNCTIONS (Phase 4)
+// =============================================================================
+
+let currentMode = 'manual';
+let autoStatusInterval = null;
+
+function setMode(mode) {
+    currentMode = mode;
+
+    // Update button states
+    document.getElementById('modeManual').classList.remove('btn-secondary', 'btn-outline-secondary');
+    document.getElementById('modeAuto').classList.remove('btn-success', 'btn-outline-success');
+
+    if (mode === 'manual') {
+        document.getElementById('modeManual').classList.add('btn-secondary');
+        document.getElementById('modeAuto').classList.add('btn-outline-success');
+        document.getElementById('autoStatusBanner').style.display = 'none';
+        document.getElementById('alpacaAccountBox').style.display = 'none';
+
+        // Stop auto status polling
+        if (autoStatusInterval) {
+            clearInterval(autoStatusInterval);
+            autoStatusInterval = null;
+        }
+
+        // Stop auto trading
+        fetch('/api/auto/stop', { method: 'POST' });
+
+    } else {
+        document.getElementById('modeManual').classList.add('btn-outline-secondary');
+        document.getElementById('modeAuto').classList.add('btn-success');
+        document.getElementById('autoStatusBanner').style.display = 'block';
+        document.getElementById('alpacaAccountBox').style.display = 'block';
+
+        // Start auto status polling
+        loadAutoStatus();
+        autoStatusInterval = setInterval(loadAutoStatus, 10000);  // Every 10 seconds
+
+        // Start auto trading
+        fetch('/api/auto/start', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                console.log('Auto trading:', data.message);
+            });
+    }
+}
+
+function loadAutoStatus() {
+    fetch('/api/auto/status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('autoStatusText').textContent = 'Error: ' + data.error;
+                return;
+            }
+
+            // Update status text
+            const stateText = {
+                'sleeping': 'Sleeping (Market Closed)',
+                'starting': 'Starting...',
+                'scanning': 'Scanning for signals...',
+                'trading': 'Trading',
+                'monitoring': 'Monitoring positions',
+                'closing': 'Pre-close check',
+                'error': 'Error'
+            };
+            document.getElementById('autoStatusText').textContent =
+                (data.running ? '🟢 Running - ' : '🔴 Stopped - ') +
+                (stateText[data.state] || data.state);
+
+            // Update market status
+            const marketBadge = document.getElementById('marketStatusBadge');
+            if (data.market_open) {
+                marketBadge.textContent = 'Market Open';
+                marketBadge.classList.remove('bg-secondary');
+                marketBadge.classList.add('bg-success');
+            } else {
+                marketBadge.textContent = 'Market Closed';
+                marketBadge.classList.remove('bg-success');
+                marketBadge.classList.add('bg-secondary');
+            }
+
+            // Update Alpaca account
+            document.getElementById('alpacaCash').textContent =
+                '$' + (data.cash || 0).toLocaleString();
+            document.getElementById('alpacaPortfolio').textContent =
+                '$' + (data.account_value || 0).toLocaleString();
+
+            // Update safety status
+            if (data.safety) {
+                const safetyEl = document.getElementById('safetyStatus');
+                const status = data.safety.overall_status;
+                if (status === 'ok') {
+                    safetyEl.textContent = '✅ OK';
+                    safetyEl.style.color = '#27ae60';
+                } else if (status === 'warning') {
+                    safetyEl.textContent = '⚠️ Warning';
+                    safetyEl.style.color = '#f39c12';
+                } else if (status === 'critical') {
+                    safetyEl.textContent = '🔴 Critical';
+                    safetyEl.style.color = '#e74c3c';
+                } else if (status === 'emergency') {
+                    safetyEl.textContent = '🚨 EMERGENCY STOP';
+                    safetyEl.style.color = '#e74c3c';
+                }
+
+                // Update emergency button
+                const emergencyBtn = document.getElementById('emergencyStopBtn');
+                if (data.safety.emergency_stop) {
+                    emergencyBtn.textContent = '🔄 Reset Emergency';
+                    emergencyBtn.onclick = resetEmergency;
+                    emergencyBtn.classList.remove('btn-danger');
+                    emergencyBtn.classList.add('btn-warning');
+                } else {
+                    emergencyBtn.innerHTML = '<i class="fas fa-stop-circle me-1"></i> Emergency Stop';
+                    emergencyBtn.onclick = emergencyStop;
+                    emergencyBtn.classList.remove('btn-warning');
+                    emergencyBtn.classList.add('btn-danger');
+                }
+            }
+        })
+        .catch(err => {
+            console.error('Error loading auto status:', err);
+            document.getElementById('autoStatusText').textContent = 'Connection error';
+        });
+}
+
+function emergencyStop() {
+    if (!confirm('⚠️ EMERGENCY STOP\n\nThis will:\n- Stop all trading\n- Keep existing positions (with SL)\n\nContinue?')) {
+        return;
+    }
+
+    fetch('/api/auto/emergency-stop', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            alert('🚨 Emergency stop activated');
+            loadAutoStatus();
+        })
+        .catch(err => {
+            alert('Error: ' + err.message);
+        });
+}
+
+function resetEmergency() {
+    if (!confirm('Reset emergency stop and allow trading again?')) {
+        return;
+    }
+
+    fetch('/api/auto/emergency-reset', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            alert('✅ Emergency stop deactivated');
+            loadAutoStatus();
+        })
+        .catch(err => {
+            alert('Error: ' + err.message);
+        });
+}
+
+function manualScan() {
+    document.getElementById('autoStatusText').textContent = 'Scanning...';
+
+    fetch('/api/auto/scan', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert('Scan error: ' + data.error);
+                return;
+            }
+            alert(`Found ${data.count} signals`);
+            loadAutoStatus();
+            loadSignals();
+        })
+        .catch(err => {
+            alert('Error: ' + err.message);
+        });
+}
+
+function autoBuy(symbol) {
+    if (!confirm(`Auto-buy ${symbol}?\n\nThis will:\n- Buy with market order\n- Set stop loss at -2.5%\n- Start trailing at +2%`)) {
+        return;
+    }
+
+    fetch('/api/auto/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: symbol })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(`✅ Bought ${symbol}!`);
+            loadAutoStatus();
+            loadSignals();
+        } else {
+            alert('Error: ' + (data.error || 'Failed'));
+        }
+    })
+    .catch(err => {
+        alert('Error: ' + err.message);
+    });
 }
 </script>
 {% endblock %}

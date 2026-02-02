@@ -2530,5 +2530,227 @@ def api_rapid_remove_position(symbol):
         return jsonify({'error': str(e)}), 500
 
 
+# =============================================================================
+# AUTO TRADING API ENDPOINTS (Phase 4)
+# =============================================================================
+
+# Global auto trading engine instance
+_auto_trading_engine = None
+
+def get_auto_trading_engine():
+    """Get or create auto trading engine singleton"""
+    global _auto_trading_engine
+    if _auto_trading_engine is None:
+        try:
+            from auto_trading_engine import AutoTradingEngine
+            # Credentials from environment or hardcoded for paper trading
+            API_KEY = os.environ.get('ALPACA_API_KEY', 'PK45CDQEE2WO7I7N4BH762VSMK')
+            SECRET_KEY = os.environ.get('ALPACA_SECRET_KEY', 'DFDhSeYmnsxS2YpyAZLX1MLm9ndfmYr9XaUEiyn78SH1')
+            _auto_trading_engine = AutoTradingEngine(
+                api_key=API_KEY,
+                secret_key=SECRET_KEY,
+                paper=True,
+                auto_start=False
+            )
+        except Exception as e:
+            logger.error(f"Failed to create auto trading engine: {e}")
+            return None
+    return _auto_trading_engine
+
+
+@app.route('/api/auto/status')
+def api_auto_status():
+    """Get auto trading engine status"""
+    try:
+        engine = get_auto_trading_engine()
+        if not engine:
+            return jsonify({'error': 'Engine not available'}), 500
+
+        status = engine.get_status()
+        return jsonify(status)
+
+    except Exception as e:
+        logger.error(f"Auto status error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/auto/start', methods=['POST'])
+def api_auto_start():
+    """Start auto trading engine"""
+    try:
+        engine = get_auto_trading_engine()
+        if not engine:
+            return jsonify({'error': 'Engine not available'}), 500
+
+        if engine.running:
+            return jsonify({'message': 'Already running', 'running': True})
+
+        engine.start()
+        return jsonify({'message': 'Auto trading started', 'running': True})
+
+    except Exception as e:
+        logger.error(f"Auto start error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/auto/stop', methods=['POST'])
+def api_auto_stop():
+    """Stop auto trading engine"""
+    try:
+        engine = get_auto_trading_engine()
+        if not engine:
+            return jsonify({'error': 'Engine not available'}), 500
+
+        engine.stop()
+        return jsonify({'message': 'Auto trading stopped', 'running': False})
+
+    except Exception as e:
+        logger.error(f"Auto stop error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/auto/emergency-stop', methods=['POST'])
+def api_auto_emergency_stop():
+    """Activate emergency stop"""
+    try:
+        engine = get_auto_trading_engine()
+        if not engine:
+            return jsonify({'error': 'Engine not available'}), 500
+
+        engine.safety.activate_emergency_stop("Web UI triggered")
+        engine.stop()
+
+        return jsonify({
+            'message': 'Emergency stop activated',
+            'emergency_stop': True
+        })
+
+    except Exception as e:
+        logger.error(f"Emergency stop error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/auto/emergency-reset', methods=['POST'])
+def api_auto_emergency_reset():
+    """Deactivate emergency stop"""
+    try:
+        engine = get_auto_trading_engine()
+        if not engine:
+            return jsonify({'error': 'Engine not available'}), 500
+
+        engine.safety.deactivate_emergency_stop()
+
+        return jsonify({
+            'message': 'Emergency stop deactivated',
+            'emergency_stop': False
+        })
+
+    except Exception as e:
+        logger.error(f"Emergency reset error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/auto/positions')
+def api_auto_positions():
+    """Get live positions from Alpaca"""
+    try:
+        engine = get_auto_trading_engine()
+        if not engine:
+            return jsonify({'error': 'Engine not available'}), 500
+
+        # Get positions status
+        positions = engine.get_positions_status()
+
+        # Get account info
+        account = engine.trader.get_account()
+
+        return jsonify({
+            'positions': positions,
+            'account': {
+                'cash': account['cash'],
+                'portfolio_value': account['portfolio_value'],
+                'buying_power': account['buying_power'],
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Auto positions error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/auto/scan', methods=['POST'])
+def api_auto_scan():
+    """Manually trigger a scan"""
+    try:
+        engine = get_auto_trading_engine()
+        if not engine:
+            return jsonify({'error': 'Engine not available'}), 500
+
+        signals = engine.scan_for_signals()
+
+        return jsonify({
+            'signals': [
+                {
+                    'symbol': s.symbol,
+                    'score': getattr(s, 'score', 0),
+                    'entry_price': getattr(s, 'entry_price', getattr(s, 'close', 0)),
+                    'sector': getattr(s, 'sector', 'Unknown'),
+                }
+                for s in signals[:10]
+            ],
+            'count': len(signals)
+        })
+
+    except Exception as e:
+        logger.error(f"Auto scan error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/auto/execute', methods=['POST'])
+def api_auto_execute():
+    """Manually execute a signal (semi-auto mode)"""
+    try:
+        engine = get_auto_trading_engine()
+        if not engine:
+            return jsonify({'error': 'Engine not available'}), 500
+
+        data = request.get_json()
+        symbol = data.get('symbol')
+
+        if not symbol:
+            return jsonify({'error': 'Symbol required'}), 400
+
+        # Check if market is open
+        if not engine.trader.is_market_open():
+            return jsonify({'error': 'Market is closed'}), 400
+
+        # Safety check
+        can_trade, reason = engine.safety.can_open_new_position()
+        if not can_trade:
+            return jsonify({'error': f'Safety block: {reason}'}), 400
+
+        # Find signal for this symbol
+        signals = engine.scan_for_signals()
+        signal = next((s for s in signals if s.symbol == symbol), None)
+
+        if not signal:
+            return jsonify({'error': f'No valid signal for {symbol}'}), 400
+
+        # Execute
+        success = engine.execute_signal(signal)
+
+        if success:
+            return jsonify({
+                'message': f'Executed buy for {symbol}',
+                'success': True
+            })
+        else:
+            return jsonify({'error': 'Execution failed'}), 500
+
+    except Exception as e:
+        logger.error(f"Auto execute error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
