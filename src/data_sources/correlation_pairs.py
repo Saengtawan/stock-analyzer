@@ -7,11 +7,16 @@ Identify stocks that move together and leader/follower relationships
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import time
 from datetime import datetime, timedelta
 import logging
 from typing import Dict, Optional, List, Tuple
 
 logger = logging.getLogger(__name__)
+
+# Rate limiting for yf.download
+_last_download_time = 0
+_download_delay = 1.0  # 1 second between batch downloads
 
 
 class CorrelationTracker:
@@ -119,8 +124,17 @@ class CorrelationTracker:
             return None
 
     def _get_peer_prices(self, symbols: List[str], period: str = '3mo') -> Optional[pd.DataFrame]:
-        """Download price data for a group of symbols"""
+        """Download price data for a group of symbols with rate limiting"""
+        global _last_download_time
+
         try:
+            # Rate limiting
+            now = time.time()
+            elapsed = now - _last_download_time
+            if elapsed < _download_delay:
+                time.sleep(_download_delay - elapsed)
+            _last_download_time = time.time()
+
             data = yf.download(symbols, period=period, progress=False)['Close']
 
             if isinstance(data, pd.Series):

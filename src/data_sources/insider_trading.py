@@ -5,11 +5,12 @@ Track when CEOs, CFOs, and directors buy/sell their own company stock
 Much more reliable than SEC EDGAR API
 """
 
-import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
 import logging
 from typing import Dict, Optional
+
+from .rate_limiter import get_rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +48,9 @@ class InsiderTradingTracker:
                 return cached_data
 
         try:
-            # Use yfinance to get insider transactions
-            ticker = yf.Ticker(symbol)
+            # Use yfinance to get insider transactions (via rate limiter)
+            limiter = get_rate_limiter()
+            ticker = limiter.get_ticker(symbol)
 
             # Try to get insider purchases
             try:

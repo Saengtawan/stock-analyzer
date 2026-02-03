@@ -4,11 +4,12 @@ Short Interest Data Source
 Track short interest and short squeeze potential
 """
 
-import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
 import logging
 from typing import Dict, Optional, List
+
+from .rate_limiter import get_rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +49,13 @@ class ShortInterestTracker:
                 return cached_data
 
         try:
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
+            limiter = get_rate_limiter()
+            ticker = limiter.get_ticker(symbol)
+            info = limiter.get_info(symbol)
+
+            if not info:
+                logger.debug(f"{symbol}: No info available")
+                return None
 
             # Get short interest data
             short_pct_float = info.get('shortPercentOfFloat', 0) * 100  # Convert to %

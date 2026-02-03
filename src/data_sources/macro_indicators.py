@@ -4,11 +4,12 @@ Macro Indicators Data Source
 Track Fed policy, interest rates, sector performance for rotation signals
 """
 
-import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
 import logging
 from typing import Dict, Optional, List
+
+from .rate_limiter import get_rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +65,11 @@ class MacroIndicatorsTracker:
                 return cached_data
 
         try:
-            # Get stock info to find sector
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
-            sector = info.get('sector', 'Unknown')
+            # Get stock info to find sector (via rate limiter)
+            limiter = get_rate_limiter()
+            ticker = limiter.get_ticker(symbol)
+            info = limiter.get_info(symbol)
+            sector = info.get('sector', 'Unknown') if info else 'Unknown'
 
             # Get SPY (market) performance
             spy_data = self._get_momentum('SPY')
@@ -135,8 +137,8 @@ class MacroIndicatorsTracker:
     def _get_momentum(self, symbol: str) -> Optional[Dict]:
         """Calculate momentum for a symbol"""
         try:
-            ticker = yf.Ticker(symbol)
-            hist = ticker.history(period='3mo')
+            limiter = get_rate_limiter()
+            hist = limiter.get_history(symbol, period='3mo')
 
             if len(hist) < 30:
                 return None
