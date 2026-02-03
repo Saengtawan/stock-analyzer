@@ -1725,8 +1725,6 @@ function loadSignals() {
             const signalBadge = document.getElementById('signalBadge');
             if (signalBadge) signalBadge.textContent = signals.length;
 
-            const container = document.getElementById('signalsContainer');
-
             if (signals.length === 0) {
                 container.innerHTML = `
                     <div class="text-center text-muted py-4">
