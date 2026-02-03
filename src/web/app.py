@@ -3259,6 +3259,9 @@ def background_monitor():
     update_interval = 10  # seconds between checks
     sync_counter = 0
     sync_interval = 3  # Sync with Alpaca every 3 cycles (30 seconds)
+    # Skip trade_event on first position load so existing positions at
+    # startup don't trigger spurious BUY snack messages
+    first_position_load = True
 
     logger.info("WebSocket background monitor started")
 
@@ -3279,27 +3282,34 @@ def background_monitor():
 
                 # Detect position changes
                 if current_positions != last_positions:
-                    # Detect changes BEFORE updating last_positions
-                    new_symbols = set(current_positions.keys()) - set(last_positions.keys())
-                    closed_symbols = set(last_positions.keys()) - set(current_positions.keys())
+                    if first_position_load:
+                        # First load: treat all positions as already known
+                        logger.info(f"Background monitor: first load, {len(current_positions)} existing positions (no trade events)")
+                        broadcast_update('positions_update', positions_data)
+                        last_positions = current_positions.copy()
+                        first_position_load = False
+                    else:
+                        # Detect changes BEFORE updating last_positions
+                        new_symbols = set(current_positions.keys()) - set(last_positions.keys())
+                        closed_symbols = set(last_positions.keys()) - set(current_positions.keys())
 
-                    broadcast_update('positions_update', positions_data)
-                    last_positions = current_positions.copy()
+                        broadcast_update('positions_update', positions_data)
+                        last_positions = current_positions.copy()
 
-                    for symbol in new_symbols:
-                        broadcast_update('trade_event', {
-                            'type': 'BUY',
-                            'symbol': symbol,
-                            'data': current_positions[symbol],
-                            'timestamp': datetime.now().isoformat()
-                        })
+                        for symbol in new_symbols:
+                            broadcast_update('trade_event', {
+                                'type': 'BUY',
+                                'symbol': symbol,
+                                'data': current_positions[symbol],
+                                'timestamp': datetime.now().isoformat()
+                            })
 
-                    for symbol in closed_symbols:
-                        broadcast_update('trade_event', {
-                            'type': 'SELL',
-                            'symbol': symbol,
-                            'timestamp': datetime.now().isoformat()
-                        })
+                        for symbol in closed_symbols:
+                            broadcast_update('trade_event', {
+                                'type': 'SELL',
+                                'symbol': symbol,
+                                'timestamp': datetime.now().isoformat()
+                            })
 
                 # Check signals (less frequently)
                 signals_data = get_signals_data()
@@ -3811,4 +3821,4 @@ if __name__ == '__main__':
     start_price_streamer()
 
     # Use socketio.run instead of app.run for WebSocket support
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
+    socketio.run(app, debug=False, host='0.0.0.0', port=5000, use_reloader=False, allow_unsafe_werkzeug=True)
