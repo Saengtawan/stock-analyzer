@@ -216,6 +216,7 @@ function updateSummary(s) {
         document.getElementById('winRate').textContent = '-';
         document.getElementById('totalPnl').textContent = '$0';
         document.getElementById('avgPnl').textContent = '$0';
+        document.getElementById('pnlCard').className = 'stat-card bg-pnl-pos';
         return;
     }
     document.getElementById('totalTrades').textContent = s.sells || 0;

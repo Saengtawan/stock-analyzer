@@ -14,9 +14,12 @@ Usage:
 import os
 import sys
 import time
+import json
 import signal
+import tempfile
 import threading
 from datetime import datetime
+from dataclasses import asdict
 
 # Add src to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -32,6 +35,11 @@ LOG_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'logs')
 os.makedirs(LOG_DIR, exist_ok=True)
 log_file = os.path.join(LOG_DIR, f"app_{datetime.now().strftime('%Y%m%d')}.log")
 logger.add(log_file, rotation="1 day", retention="7 days", level="INFO")
+
+# Signal cache file (shared between background scanner and Flask)
+SIGNALS_CACHE_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'cache')
+SIGNALS_CACHE_FILE = os.path.join(SIGNALS_CACHE_DIR, 'rapid_signals.json')
+os.makedirs(SIGNALS_CACHE_DIR, exist_ok=True)
 
 
 class ServiceManager:
@@ -56,6 +64,39 @@ class ServiceManager:
         logger.info("SHUTTING DOWN ALL SERVICES...")
         logger.info("=" * 60)
         self.running = False
+
+    def _save_signals_cache(self, signals, scan_duration: float = 0):
+        """Write signals to JSON cache file (atomic write)"""
+        try:
+            signals_data = []
+            for s in signals:
+                d = asdict(s)
+                # @property fields not included by asdict — add manually
+                d['expected_gain'] = s.expected_gain
+                d['max_loss'] = s.max_loss
+                signals_data.append(d)
+
+            cache_data = {
+                'timestamp': datetime.now().isoformat(),
+                'count': len(signals_data),
+                'signals': signals_data,
+                'scan_duration_seconds': round(scan_duration, 1),
+            }
+
+            # Atomic write: temp file + rename
+            fd, tmp_path = tempfile.mkstemp(dir=SIGNALS_CACHE_DIR, suffix='.tmp')
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(cache_data, f, indent=2, default=str)
+                os.replace(tmp_path, SIGNALS_CACHE_FILE)
+                logger.info(f"Signals cache written: {len(signals_data)} signals")
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
+
+        except Exception as e:
+            logger.error(f"Failed to write signals cache: {e}")
 
     def start_web_server(self):
         """Start Flask web server"""
@@ -159,18 +200,23 @@ class ServiceManager:
                 while self.running:
                     try:
                         logger.info("Rapid Rotation: Scanning...")
+                        scan_start = time.time()
                         self.rapid_screener.load_data()
-                        signals = self.rapid_screener.screen(top_n=5)
+                        signals = self.rapid_screener.screen(top_n=10)
+                        scan_duration = time.time() - scan_start
 
                         self.latest_rapid_signals = signals
                         self.last_scanner_run = datetime.now()
 
+                        # Write to cache file for Flask to read
+                        self._save_signals_cache(signals, scan_duration)
+
                         if signals:
-                            logger.info(f"Rapid Rotation: Found {len(signals)} signals")
+                            logger.info(f"Rapid Rotation: Found {len(signals)} signals ({scan_duration:.0f}s)")
                             top = signals[0]
                             logger.info(f"  Top pick: {top.symbol} @ ${top.entry_price:.2f} (Score: {top.score})")
                         else:
-                            logger.info("Rapid Rotation: No signals")
+                            logger.info(f"Rapid Rotation: No signals ({scan_duration:.0f}s)")
 
                         if not self.running:
                             break

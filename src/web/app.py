@@ -2505,46 +2505,33 @@ def api_rapid_spy_regime():
 
 @app.route('/api/rapid/signals')
 def api_rapid_signals():
-    """Get rapid rotation buy signals (direct call - no caching)"""
+    """Get rapid rotation buy signals from background scanner cache"""
     try:
-        logger.info("Signals scan started...")
-        from screeners.rapid_rotation_screener import RapidRotationScreener
+        import json as _json
 
-        screener = RapidRotationScreener()
-        screener.load_data()
-        signals = screener.screen(top_n=10)
+        cache_path = os.path.join(
+            os.path.dirname(__file__), '..', '..', 'data', 'cache', 'rapid_signals.json'
+        )
 
-        # Convert to dict
-        signals_data = []
-        for s in signals:
-            signals_data.append({
-                'symbol': s.symbol,
-                'score': s.score,
-                'entry_price': s.entry_price,
-                'stop_loss': s.stop_loss,
-                'take_profit': s.take_profit,
-                'risk_reward': s.risk_reward,
-                'max_loss': s.max_loss,
-                'expected_gain': s.expected_gain,
-                'rsi': s.rsi,
-                'atr_pct': s.atr_pct,
-                'momentum_5d': s.momentum_5d,
-                'momentum_20d': s.momentum_20d,
-                'distance_from_high': s.distance_from_high,
-                'reasons': s.reasons,
-                'sector': getattr(s, 'sector', ''),
-                'market_regime': getattr(s, 'market_regime', ''),
-                'sector_score': getattr(s, 'sector_score', 0),
-                'alt_data_score': getattr(s, 'alt_data_score', 0),
+        if not os.path.exists(cache_path):
+            return jsonify({
+                'count': 0,
+                'signals': [],
+                'timestamp': None,
+                'cache_age_seconds': None,
+                'status': 'waiting_for_first_scan'
             })
 
-        logger.info(f"Signals scan complete: {len(signals_data)} signals")
+        with open(cache_path, 'r') as f:
+            data = _json.load(f)
 
-        return jsonify({
-            'count': len(signals_data),
-            'signals': signals_data,
-            'timestamp': datetime.now().isoformat()
-        })
+        # Compute cache age
+        cache_ts = datetime.fromisoformat(data['timestamp'])
+        cache_age = (datetime.now() - cache_ts).total_seconds()
+        data['cache_age_seconds'] = round(cache_age, 0)
+        data['status'] = 'fresh' if cache_age < 1200 else 'stale'
+
+        return jsonify(data)
 
     except Exception as e:
         logger.error(f"Rapid signals error: {e}")

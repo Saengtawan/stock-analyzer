@@ -487,7 +487,7 @@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-shopping-cart me-2"></i>Buy Signals</span>
+                <span><i class="fas fa-shopping-cart me-2"></i>Buy Signals <small id="signalCacheAge" class="text-muted ms-2" style="font-size:0.7rem;opacity:0.8"></small></span>
                 <span class="badge bg-success" id="signalBadge">0</span>
             </div>
             <div class="card-body" id="signalsContainer">
@@ -1677,19 +1677,38 @@ function loadSignals() {
     container.innerHTML = `
         <div class="text-center text-muted py-4">
             <div class="spinner-border text-primary mb-3" role="status"></div>
-            <p>Scanning for signals...</p>
-            <small>This may take 1-2 minutes</small>
+            <p>Loading signals...</p>
         </div>
     `;
 
-    // Timeout 3 minutes (scan may take 1-2 minutes)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 180000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     fetch('/api/rapid/signals', { signal: controller.signal })
         .then(response => response.json())
         .then(data => {
             clearTimeout(timeoutId);
+
+            // Update cache age display
+            const ageEl = document.getElementById('signalCacheAge');
+            if (ageEl && data.cache_age_seconds != null) {
+                const mins = Math.floor(data.cache_age_seconds / 60);
+                ageEl.textContent = mins < 1 ? 'just now' : `${mins}m ago`;
+                ageEl.style.color = mins > 20 ? '#f39c12' : 'rgba(255,255,255,0.7)';
+            }
+
+            // Waiting for first scan
+            if (data.status === 'waiting_for_first_scan') {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <div class="spinner-border text-primary mb-3" role="status"></div>
+                        <p>Scanner starting up...</p>
+                        <small>First scan will complete in ~2 minutes</small>
+                    </div>
+                `;
+                return;
+            }
+
             if (data.error) {
                 console.error(data.error);
                 container.innerHTML = `
@@ -1703,7 +1722,6 @@ function loadSignals() {
             }
 
             const signals = data.signals || [];
-            // todaySignals element removed - use signalBadge only
             const signalBadge = document.getElementById('signalBadge');
             if (signalBadge) signalBadge.textContent = signals.length;
 
@@ -1713,8 +1731,8 @@ function loadSignals() {
                 container.innerHTML = `
                     <div class="text-center text-muted py-4">
                         <i class="fas fa-search fa-3x mb-3"></i>
-                        <p>No signals found today</p>
-                        <small>Check back later</small>
+                        <p>No signals found</p>
+                        <small>Next scan in ~15 minutes</small>
                     </div>
                 `;
                 return;
