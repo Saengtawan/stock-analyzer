@@ -3030,12 +3030,14 @@ class AutoTradingEngine:
                         logger.info(f"⏳ Waiting {wait_secs:.0f}s for market to settle (scan at {scan_time.strftime('%H:%M')} ET)")
                         time.sleep(wait_secs)
 
-                    # v4.9.1: Late start = warning only, never skip scan.
-                    # Gap filter already rejects stocks that ran up too much.
+                    # v4.4: Late start protection — skip morning scan if starting
+                    # too late (> 20 min after open). Mid-day rescan still runs at 11:00 ET.
                     is_late, late_reason = self._is_late_start()
                     if is_late:
-                        logger.warning(f"⏰ {late_reason} - scanning anyway (gap filter will guard)")
-                        self.daily_stats.late_start_skipped = False
+                        logger.warning(f"⏰ {late_reason} - skipping morning scan, mid-day rescan at {self.MIDDAY_RESCAN_HOUR}:{self.MIDDAY_RESCAN_MINUTE:02d} ET")
+                        self.daily_stats.late_start_skipped = True
+                        last_scan_date = today
+                        continue
 
                     # v4.0: Check market regime first
                     is_bull, regime_reason = self._check_market_regime()
