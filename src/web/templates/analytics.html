@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+
+{% block title %}Trade Analytics{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        color: white;
+        margin-bottom: 15px;
+    }
+    .stat-card .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    .stat-card .stat-label {
+        font-size: 0.85rem;
+        opacity: 0.9;
+    }
+    .stat-card.bg-trades { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .stat-card.bg-winrate { background: linear-gradient(135deg, #11998e, #38ef7d); }
+    .stat-card.bg-pnl-pos { background: linear-gradient(135deg, #00b09b, #96c93d); }
+    .stat-card.bg-pnl-neg { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+    .stat-card.bg-avg { background: linear-gradient(135deg, #667eea, #764ba2); }
+
+    .period-btn.active {
+        background-color: var(--primary-color) !important;
+        color: white !important;
+    }
+
+    .breakdown-table th { font-size: 0.8rem; text-transform: uppercase; color: #6c757d; }
+    .breakdown-table td { font-size: 0.9rem; }
+
+    .wr-bar {
+        height: 6px;
+        border-radius: 3px;
+        background: #eee;
+        margin-top: 4px;
+    }
+    .wr-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.5s;
+    }
+
+    .trade-row-buy { border-left: 3px solid #27ae60; }
+    .trade-row-sell-win { border-left: 3px solid #2ecc71; }
+    .trade-row-sell-loss { border-left: 3px solid #e74c3c; }
+    .trade-row-skip { border-left: 3px solid #95a5a6; }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+    .empty-state i { font-size: 4rem; margin-bottom: 20px; }
+
+    .filter-btn.active {
+        background-color: var(--primary-color) !important;
+        color: white !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-chart-bar me-2"></i>Trade Analytics</h2>
+        <p class="text-muted mb-0">Performance metrics and trade history</p>
+    </div>
+    <div class="btn-group" role="group">
+        <button class="btn btn-outline-secondary period-btn" data-days="7" onclick="loadAnalytics(7)">7d</button>
+        <button class="btn btn-outline-secondary period-btn active" data-days="30" onclick="loadAnalytics(30)">30d</button>
+        <button class="btn btn-outline-secondary period-btn" data-days="0" onclick="loadAnalytics(0)">All</button>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4" id="summaryCards">
+    <div class="col-md-3"><div class="stat-card bg-trades"><div class="stat-value" id="totalTrades">-</div><div class="stat-label">Total Trades</div></div></div>
+    <div class="col-md-3"><div class="stat-card bg-winrate"><div class="stat-value" id="winRate">-</div><div class="stat-label">Win Rate</div></div></div>
+    <div class="col-md-3"><div class="stat-card" id="pnlCard"><div class="stat-value" id="totalPnl">-</div><div class="stat-label">Total P&L</div></div></div>
+    <div class="col-md-3"><div class="stat-card bg-avg"><div class="stat-value" id="avgPnl">-</div><div class="stat-label">Avg P&L / Trade</div></div></div>
+</div>
+
+<!-- Equity Curve -->
+<div class="card mb-4">
+    <div class="card-header"><i class="fas fa-chart-line me-2"></i>Equity Curve</div>
+    <div class="card-body">
+        <div id="equityEmpty" class="empty-state" style="display:none;">
+            <i class="fas fa-chart-line"></i>
+            <p>No trade data yet. Start trading to see your equity curve.</p>
+        </div>
+        <canvas id="equityChart" height="80"></canvas>
+    </div>
+</div>
+
+<!-- Breakdowns Row -->
+<div class="row mb-4">
+    <!-- By Score -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-star me-2"></i>By Score Range</div>
+            <div class="card-body p-0">
+                <table class="table table-sm breakdown-table mb-0" id="scoreTable">
+                    <thead><tr><th>Range</th><th>Trades</th><th>Win Rate</th><th>Avg P&L</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <div class="empty-state py-4" id="scoreEmpty" style="display:none;"><small>No data</small></div>
+            </div>
+        </div>
+    </div>
+    <!-- By Sector -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-industry me-2"></i>By Sector</div>
+            <div class="card-body p-0">
+                <table class="table table-sm breakdown-table mb-0" id="sectorTable">
+                    <thead><tr><th>Sector</th><th>Trades</th><th>Win Rate</th><th>P&L</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <div class="empty-state py-4" id="sectorEmpty" style="display:none;"><small>No data</small></div>
+            </div>
+        </div>
+    </div>
+    <!-- By Hold Days -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-clock me-2"></i>By Hold Period</div>
+            <div class="card-body p-0">
+                <table class="table table-sm breakdown-table mb-0" id="holdTable">
+                    <thead><tr><th>Period</th><th>Trades</th><th>Win Rate</th><th>Avg P&L</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <div class="empty-state py-4" id="holdEmpty" style="display:none;"><small>No data</small></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trade History -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-history me-2"></i>Trade History</span>
+        <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary filter-btn active" data-filter="ALL" onclick="filterTrades('ALL')">All</button>
+            <button class="btn btn-outline-secondary filter-btn" data-filter="BUY" onclick="filterTrades('BUY')">Buy</button>
+            <button class="btn btn-outline-secondary filter-btn" data-filter="SELL" onclick="filterTrades('SELL')">Sell</button>
+            <button class="btn btn-outline-secondary filter-btn" data-filter="SKIP" onclick="filterTrades('SKIP')">Skip</button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0" id="tradeTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Symbol</th>
+                        <th>Action</th>
+                        <th>Price</th>
+                        <th>P&L $</th>
+                        <th>P&L %</th>
+                        <th>Score</th>
+                        <th>Sector</th>
+                        <th>Days</th>
+                        <th>Reason</th>
+                    </tr>
+                </thead>
+                <tbody id="tradeTableBody"></tbody>
+            </table>
+        </div>
+        <div class="empty-state py-4" id="tradeEmpty" style="display:none;">
+            <i class="fas fa-inbox"></i>
+            <p>No trades recorded yet.</p>
+            <small class="text-muted">Trades will appear here once the auto trading system executes orders.</small>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let equityChart = null;
+let allTrades = [];
+let currentFilter = 'ALL';
+
+function loadAnalytics(days) {
+    // Update period buttons
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.period-btn[data-days="${days}"]`).classList.add('active');
+
+    fetch(`/api/analytics?days=${days}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Analytics error:', data.error);
+                return;
+            }
+            updateSummary(data.summary);
+            updateEquityCurve(data.equity_curve);
+            updateBreakdown('scoreTable', 'scoreEmpty', data.by_score, 'range');
+            updateBreakdown('sectorTable', 'sectorEmpty', data.by_sector, 'sector');
+            updateBreakdown('holdTable', 'holdEmpty', data.by_hold_days, 'group');
+            allTrades = data.recent_trades || [];
+            filterTrades(currentFilter);
+        })
+        .catch(err => console.error('Failed to load analytics:', err));
+}
+
+function updateSummary(s) {
+    if (!s || s.total_trades === 0) {
+        document.getElementById('totalTrades').textContent = '0';
+        document.getElementById('winRate').textContent = '-';
+        document.getElementById('totalPnl').textContent = '$0';
+        document.getElementById('avgPnl').textContent = '$0';
+        return;
+    }
+    document.getElementById('totalTrades').textContent = s.sells || 0;
+    document.getElementById('winRate').textContent = s.win_rate + '%';
+    document.getElementById('totalPnl').textContent = (s.total_pnl >= 0 ? '+$' : '-$') + Math.abs(s.total_pnl).toFixed(2);
+    document.getElementById('avgPnl').textContent = (s.avg_pnl >= 0 ? '+$' : '-$') + Math.abs(s.avg_pnl).toFixed(2);
+
+    const pnlCard = document.getElementById('pnlCard');
+    pnlCard.className = 'stat-card ' + (s.total_pnl >= 0 ? 'bg-pnl-pos' : 'bg-pnl-neg');
+}
+
+function updateEquityCurve(curve) {
+    const canvas = document.getElementById('equityChart');
+    const empty = document.getElementById('equityEmpty');
+
+    if (!curve || curve.length === 0) {
+        canvas.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+    }
+    canvas.style.display = 'block';
+    empty.style.display = 'none';
+
+    const labels = curve.map((d, i) => d.date + ' ' + d.symbol);
+    const values = curve.map(d => d.cum_pnl);
+
+    if (equityChart) equityChart.destroy();
+
+    equityChart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Cumulative P&L ($)',
+                data: values,
+                borderColor: values[values.length - 1] >= 0 ? '#27ae60' : '#e74c3c',
+                backgroundColor: values[values.length - 1] >= 0
+                    ? 'rgba(39,174,96,0.1)' : 'rgba(231,76,60,0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            const d = curve[ctx.dataIndex];
+                            return `${d.symbol}: ${d.pnl >= 0 ? '+' : ''}$${d.pnl.toFixed(2)} (Total: $${d.cum_pnl.toFixed(2)})`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: v => '$' + v }
+                },
+                x: {
+                    ticks: { maxTicksLimit: 10, maxRotation: 45 }
+                }
+            }
+        }
+    });
+}
+
+function updateBreakdown(tableId, emptyId, data, nameKey) {
+    const tbody = document.querySelector(`#${tableId} tbody`);
+    const empty = document.getElementById(emptyId);
+
+    if (!data || data.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+
+    let html = '';
+    data.forEach(row => {
+        const wrColor = row.win_rate >= 55 ? '#27ae60' : row.win_rate >= 45 ? '#f39c12' : '#e74c3c';
+        const pnlColor = (row.avg_pnl_pct || row.total_pnl || 0) >= 0 ? '#27ae60' : '#e74c3c';
+        const pnlVal = nameKey === 'sector'
+            ? `$${(row.total_pnl || 0).toFixed(0)}`
+            : `${(row.avg_pnl_pct || 0).toFixed(1)}%`;
+
+        html += `<tr>
+            <td><strong>${row[nameKey]}</strong></td>
+            <td>${row.total} <small class="text-muted">(${row.winners}W/${row.losers}L)</small></td>
+            <td>
+                <span style="color:${wrColor};font-weight:bold">${row.win_rate}%</span>
+                <div class="wr-bar"><div class="wr-bar-fill" style="width:${row.win_rate}%;background:${wrColor}"></div></div>
+            </td>
+            <td style="color:${pnlColor}">${pnlVal}</td>
+        </tr>`;
+    });
+    tbody.innerHTML = html;
+}
+
+function filterTrades(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.filter-btn[data-filter="${filter}"]`).classList.add('active');
+
+    const filtered = filter === 'ALL' ? allTrades : allTrades.filter(t => t.action === filter);
+    const tbody = document.getElementById('tradeTableBody');
+    const empty = document.getElementById('tradeEmpty');
+    const table = document.getElementById('tradeTable');
+
+    if (filtered.length === 0) {
+        table.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+    }
+    table.style.display = 'table';
+    empty.style.display = 'none';
+
+    let html = '';
+    filtered.forEach(t => {
+        let rowClass = '';
+        if (t.action === 'BUY') rowClass = 'trade-row-buy';
+        else if (t.action === 'SELL') rowClass = t.pnl_usd >= 0 ? 'trade-row-sell-win' : 'trade-row-sell-loss';
+        else rowClass = 'trade-row-skip';
+
+        const pnlUsd = t.pnl_usd != null ? `<span style="color:${t.pnl_usd >= 0 ? '#27ae60' : '#e74c3c'}">${t.pnl_usd >= 0 ? '+' : ''}$${t.pnl_usd.toFixed(2)}</span>` : '-';
+        const pnlPct = t.pnl_pct != null ? `<span style="color:${t.pnl_pct >= 0 ? '#27ae60' : '#e74c3c'}">${t.pnl_pct >= 0 ? '+' : ''}${t.pnl_pct.toFixed(1)}%</span>` : '-';
+
+        const actionBadge = t.action === 'BUY'
+            ? '<span class="badge bg-success">BUY</span>'
+            : t.action === 'SELL'
+                ? `<span class="badge ${t.pnl_usd >= 0 ? 'bg-success' : 'bg-danger'}">SELL</span>`
+                : '<span class="badge bg-secondary">SKIP</span>';
+
+        html += `<tr class="${rowClass}">
+            <td><small>${t.date}</small></td>
+            <td><strong>${t.symbol}</strong></td>
+            <td>${actionBadge}</td>
+            <td>$${t.price ? t.price.toFixed(2) : '-'}</td>
+            <td>${pnlUsd}</td>
+            <td>${pnlPct}</td>
+            <td>${t.score ? Math.round(t.score) : '-'}</td>
+            <td><small>${t.sector || '-'}</small></td>
+            <td>${t.day_held != null ? t.day_held : '-'}</td>
+            <td><small class="text-muted">${t.reason || '-'}</small></td>
+        </tr>`;
+    });
+    tbody.innerHTML = html;
+}
+
+// Initial load
+loadAnalytics(30);
+</script>
+{% endblock %}

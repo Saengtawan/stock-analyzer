@@ -3478,6 +3478,35 @@ def api_trade_logs_stats():
         return jsonify({'error': str(e)}), 500
 
 
+# ============================================================
+# TRADE ANALYTICS DASHBOARD v1.0
+# ============================================================
+
+@app.route('/analytics')
+def analytics_page():
+    """Trade Performance Dashboard"""
+    return render_template('analytics.html')
+
+
+@app.route('/api/analytics')
+def api_analytics():
+    """Comprehensive analytics data for dashboard"""
+    try:
+        from trade_logger import get_trade_logger
+
+        trade_logger = get_trade_logger()
+        days = int(request.args.get('days', 30))
+
+        analytics = trade_logger.get_analytics(days=days)
+        analytics['timestamp'] = datetime.now().isoformat()
+
+        return jsonify(analytics)
+
+    except Exception as e:
+        logger.error(f"Analytics error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 # API endpoint to subscribe to new symbols
 @app.route('/api/stream/subscribe', methods=['POST'])
 def api_stream_subscribe():

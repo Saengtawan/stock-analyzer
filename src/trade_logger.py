@@ -557,6 +557,261 @@ class TradeLogger:
             logger.error(f"Error getting performance stats: {e}")
             return {}
 
+    # =========================================================================
+    # ANALYTICS QUERIES (v1.0 - Trade Performance Dashboard)
+    # =========================================================================
+
+    def get_analytics(self, days: int = 30) -> Dict:
+        """
+        Comprehensive analytics for dashboard.
+
+        Returns all metrics in a single call:
+        - summary: total trades, win rate, total P&L, avg P&L
+        - by_score: win rate grouped by score ranges
+        - by_sector: win rate grouped by sector
+        - by_hold_days: win rate grouped by holding period
+        - equity_curve: cumulative P&L over time
+        - recent_trades: last 50 trades for history table
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            if days == 0:
+                start_date = '2020-01-01'  # All time
+            else:
+                start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+
+            result = {
+                'summary': self._get_summary(cursor, start_date),
+                'by_score': self._get_by_score(cursor, start_date),
+                'by_sector': self._get_by_sector(cursor, start_date),
+                'by_hold_days': self._get_by_hold_days(cursor, start_date),
+                'equity_curve': self._get_equity_curve(cursor, start_date),
+                'recent_trades': self._get_recent_trades(cursor, start_date, limit=50),
+                'period_days': days,
+                'start_date': start_date,
+            }
+
+            conn.close()
+            return result
+
+        except Exception as e:
+            logger.error(f"Analytics error: {e}")
+            return {
+                'summary': {},
+                'by_score': [],
+                'by_sector': [],
+                'by_hold_days': [],
+                'equity_curve': [],
+                'recent_trades': [],
+                'period_days': days,
+                'error': str(e)
+            }
+
+    def _get_summary(self, cursor, start_date: str) -> Dict:
+        """Overall summary stats"""
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total_trades,
+                SUM(CASE WHEN action = 'BUY' THEN 1 ELSE 0 END) as buys,
+                SUM(CASE WHEN action = 'SELL' THEN 1 ELSE 0 END) as sells,
+                SUM(CASE WHEN action = 'SKIP' THEN 1 ELSE 0 END) as skips,
+                SUM(CASE WHEN action = 'SELL' AND pnl_usd > 0 THEN 1 ELSE 0 END) as winners,
+                SUM(CASE WHEN action = 'SELL' AND pnl_usd <= 0 THEN 1 ELSE 0 END) as losers,
+                SUM(CASE WHEN action = 'SELL' THEN pnl_usd ELSE 0 END) as total_pnl,
+                AVG(CASE WHEN action = 'SELL' THEN pnl_usd END) as avg_pnl,
+                AVG(CASE WHEN action = 'SELL' THEN pnl_pct END) as avg_pnl_pct,
+                MAX(CASE WHEN action = 'SELL' THEN pnl_usd END) as best_trade,
+                MIN(CASE WHEN action = 'SELL' THEN pnl_usd END) as worst_trade
+            FROM trades WHERE date >= ?
+        """, (start_date,))
+
+        row = cursor.fetchone()
+        if not row or row['total_trades'] == 0:
+            return {'total_trades': 0, 'sells': 0, 'win_rate': 0, 'total_pnl': 0}
+
+        sells = row['sells'] or 0
+        winners = row['winners'] or 0
+        return {
+            'total_trades': row['total_trades'],
+            'buys': row['buys'] or 0,
+            'sells': sells,
+            'skips': row['skips'] or 0,
+            'winners': winners,
+            'losers': row['losers'] or 0,
+            'win_rate': round(winners / sells * 100, 1) if sells > 0 else 0,
+            'total_pnl': round(row['total_pnl'] or 0, 2),
+            'avg_pnl': round(row['avg_pnl'] or 0, 2),
+            'avg_pnl_pct': round(row['avg_pnl_pct'] or 0, 2),
+            'best_trade': round(row['best_trade'] or 0, 2),
+            'worst_trade': round(row['worst_trade'] or 0, 2),
+        }
+
+    def _get_by_score(self, cursor, start_date: str) -> list:
+        """Win rate by score range"""
+        cursor.execute("""
+            SELECT
+                CASE
+                    WHEN signal_score >= 98 THEN '98-100'
+                    WHEN signal_score >= 95 THEN '95-97'
+                    WHEN signal_score >= 90 THEN '90-94'
+                    WHEN signal_score >= 85 THEN '85-89'
+                    ELSE '<85'
+                END as score_range,
+                COUNT(*) as total,
+                SUM(CASE WHEN pnl_usd > 0 THEN 1 ELSE 0 END) as winners,
+                ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
+                ROUND(SUM(pnl_usd), 2) as total_pnl
+            FROM trades
+            WHERE date >= ? AND action = 'SELL' AND signal_score IS NOT NULL
+            GROUP BY score_range
+            ORDER BY score_range DESC
+        """, (start_date,))
+
+        results = []
+        for row in cursor.fetchall():
+            total = row['total']
+            winners = row['winners'] or 0
+            results.append({
+                'range': row['score_range'],
+                'total': total,
+                'winners': winners,
+                'losers': total - winners,
+                'win_rate': round(winners / total * 100, 1) if total > 0 else 0,
+                'avg_pnl_pct': row['avg_pnl_pct'] or 0,
+                'total_pnl': row['total_pnl'] or 0,
+            })
+        return results
+
+    def _get_by_sector(self, cursor, start_date: str) -> list:
+        """Win rate by sector (extracted from full_data JSON)"""
+        cursor.execute("""
+            SELECT
+                json_extract(full_data, '$.sector') as sector,
+                COUNT(*) as total,
+                SUM(CASE WHEN pnl_usd > 0 THEN 1 ELSE 0 END) as winners,
+                ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
+                ROUND(SUM(pnl_usd), 2) as total_pnl
+            FROM trades
+            WHERE date >= ? AND action = 'SELL'
+                AND json_extract(full_data, '$.sector') IS NOT NULL
+                AND json_extract(full_data, '$.sector') != ''
+            GROUP BY sector
+            ORDER BY total DESC
+        """, (start_date,))
+
+        results = []
+        for row in cursor.fetchall():
+            total = row['total']
+            winners = row['winners'] or 0
+            results.append({
+                'sector': row['sector'],
+                'total': total,
+                'winners': winners,
+                'losers': total - winners,
+                'win_rate': round(winners / total * 100, 1) if total > 0 else 0,
+                'avg_pnl_pct': row['avg_pnl_pct'] or 0,
+                'total_pnl': row['total_pnl'] or 0,
+            })
+        return results
+
+    def _get_by_hold_days(self, cursor, start_date: str) -> list:
+        """Win rate by holding period"""
+        cursor.execute("""
+            SELECT
+                CASE
+                    WHEN day_held = 0 THEN 'Day 0'
+                    WHEN day_held = 1 THEN 'Day 1'
+                    WHEN day_held = 2 THEN 'Day 2'
+                    WHEN day_held = 3 THEN 'Day 3'
+                    WHEN day_held >= 4 THEN 'Day 4+'
+                    ELSE 'Unknown'
+                END as hold_group,
+                day_held as sort_key,
+                COUNT(*) as total,
+                SUM(CASE WHEN pnl_usd > 0 THEN 1 ELSE 0 END) as winners,
+                ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
+                ROUND(SUM(pnl_usd), 2) as total_pnl
+            FROM trades
+            WHERE date >= ? AND action = 'SELL' AND day_held IS NOT NULL
+            GROUP BY hold_group
+            ORDER BY MIN(day_held)
+        """, (start_date,))
+
+        results = []
+        for row in cursor.fetchall():
+            total = row['total']
+            winners = row['winners'] or 0
+            results.append({
+                'group': row['hold_group'],
+                'total': total,
+                'winners': winners,
+                'losers': total - winners,
+                'win_rate': round(winners / total * 100, 1) if total > 0 else 0,
+                'avg_pnl_pct': row['avg_pnl_pct'] or 0,
+                'total_pnl': row['total_pnl'] or 0,
+            })
+        return results
+
+    def _get_equity_curve(self, cursor, start_date: str) -> list:
+        """Cumulative P&L over time (by trade, not by date)"""
+        cursor.execute("""
+            SELECT timestamp, date, symbol, pnl_usd, pnl_pct
+            FROM trades
+            WHERE date >= ? AND action = 'SELL'
+            ORDER BY timestamp ASC
+        """, (start_date,))
+
+        curve = []
+        cum_pnl = 0
+        for row in cursor.fetchall():
+            pnl = row['pnl_usd'] or 0
+            cum_pnl += pnl
+            curve.append({
+                'date': row['date'],
+                'symbol': row['symbol'],
+                'pnl': round(pnl, 2),
+                'cum_pnl': round(cum_pnl, 2),
+            })
+        return curve
+
+    def _get_recent_trades(self, cursor, start_date: str, limit: int = 50) -> list:
+        """Recent trades for history table"""
+        cursor.execute("""
+            SELECT
+                timestamp, date, action, symbol, qty, price, reason,
+                entry_price, pnl_usd, pnl_pct, day_held, signal_score,
+                mode, regime, gap_pct, atr_pct,
+                json_extract(full_data, '$.sector') as sector
+            FROM trades
+            WHERE date >= ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+        """, (start_date, limit))
+
+        results = []
+        for row in cursor.fetchall():
+            results.append({
+                'timestamp': row['timestamp'],
+                'date': row['date'],
+                'action': row['action'],
+                'symbol': row['symbol'],
+                'qty': row['qty'],
+                'price': row['price'],
+                'reason': row['reason'],
+                'entry_price': row['entry_price'],
+                'pnl_usd': round(row['pnl_usd'], 2) if row['pnl_usd'] else None,
+                'pnl_pct': round(row['pnl_pct'], 2) if row['pnl_pct'] else None,
+                'day_held': row['day_held'],
+                'score': row['signal_score'],
+                'sector': row['sector'],
+                'mode': row['mode'],
+                'regime': row['regime'],
+            })
+        return results
+
 
 # Singleton instance
 _logger: Optional[TradeLogger] = None
