@@ -41,6 +41,11 @@ class ServiceManager:
         self.running = True
         self.services = {}
 
+        # Health check state
+        self.health_status = {}
+        self.last_portfolio_check = None
+        self.last_scanner_run = None
+
         # Handle shutdown
         signal.signal(signal.SIGINT, self._shutdown)
         signal.signal(signal.SIGTERM, self._shutdown)
@@ -93,6 +98,7 @@ class ServiceManager:
                     try:
                         if self.rapid_portfolio.positions:
                             statuses = self.rapid_portfolio.check_all_positions()
+                            self.last_portfolio_check = datetime.now()
 
                             # Check for critical alerts
                             for status in statuses:
@@ -104,6 +110,9 @@ class ServiceManager:
                                 elif status.signal == ExitSignal.TAKE_PROFIT:
                                     logger.info(f"🎯 TAKE PROFIT: {status.symbol} +{status.pnl_pct:.1f}%")
                                     print(f"\n🎯 {status.symbol} ถึงเป้า +{status.pnl_pct:.1f}% - ขายเอากำไร!\n")
+
+                        if not self.rapid_portfolio.positions:
+                            self.last_portfolio_check = datetime.now()
 
                         if not self.running:
                             break
@@ -154,6 +163,7 @@ class ServiceManager:
                         signals = self.rapid_screener.screen(top_n=5)
 
                         self.latest_rapid_signals = signals
+                        self.last_scanner_run = datetime.now()
 
                         if signals:
                             logger.info(f"Rapid Rotation: Found {len(signals)} signals")
@@ -189,6 +199,177 @@ class ServiceManager:
             traceback.print_exc()
             return False
 
+    def start_health_checker(self):
+        """Start health checker - เช็คระบบทุก 5 นาที"""
+        def run_health():
+            check_interval = 5 * 60  # 5 minutes
+
+            while self.running:
+                try:
+                    status = self._check_health()
+                    self.health_status = status
+
+                    if not status['healthy']:
+                        logger.warning("=" * 40)
+                        logger.warning("HEALTH CHECK FAILED")
+                        for issue in status['issues']:
+                            logger.warning(f"  HEALTH: {issue}")
+                        logger.warning("=" * 40)
+                    else:
+                        logger.debug("Health check: All OK")
+
+                except Exception as e:
+                    logger.error(f"Health checker error: {e}")
+                    self.health_status = {
+                        'healthy': False,
+                        'timestamp': datetime.now().isoformat(),
+                        'checks': {},
+                        'issues': [f'Health checker error: {e}']
+                    }
+
+                # Wait for next check (breakable)
+                for _ in range(check_interval):
+                    if not self.running:
+                        break
+                    time.sleep(1)
+
+        thread = threading.Thread(target=run_health, daemon=True)
+        thread.start()
+        self.services['health'] = thread
+        logger.info("Health Checker started (check every 5 minutes)")
+
+    def _check_health(self):
+        """Run all health checks and return status dict"""
+        checks = {}
+        issues = []
+        now = datetime.now()
+
+        # 1. Alpaca API
+        try:
+            from alpaca_trader import AlpacaTrader
+            trader = AlpacaTrader(paper=True)
+            account = trader.get_account()
+            checks['alpaca_api'] = {
+                'ok': True,
+                'detail': f"Connected, ${account['portfolio_value']:,.0f}"
+            }
+        except Exception as e:
+            checks['alpaca_api'] = {'ok': False, 'detail': str(e)}
+            issues.append(f"Alpaca API down: {e}")
+
+        # 2. Market clock
+        try:
+            clock = trader.get_clock()
+            market_status = "Open" if clock['is_open'] else "Closed"
+            checks['market_clock'] = {
+                'ok': True,
+                'detail': market_status
+            }
+        except Exception as e:
+            checks['market_clock'] = {'ok': False, 'detail': str(e)}
+            issues.append(f"Market clock error: {e}")
+
+        # 3. Thread liveness
+        alive_count = 0
+        total_count = 0
+        dead_threads = []
+        for name, thread in self.services.items():
+            if name == 'health':
+                continue  # Don't check self
+            total_count += 1
+            if thread.is_alive():
+                alive_count += 1
+            else:
+                dead_threads.append(name)
+
+        if dead_threads:
+            checks['threads'] = {
+                'ok': False,
+                'detail': f"{alive_count}/{total_count} alive, dead: {', '.join(dead_threads)}"
+            }
+            issues.append(f"Dead threads: {', '.join(dead_threads)}")
+        else:
+            checks['threads'] = {
+                'ok': True,
+                'detail': f"{alive_count}/{total_count} alive"
+            }
+
+        # 4. Portfolio monitor freshness
+        if self.last_portfolio_check:
+            age_sec = (now - self.last_portfolio_check).total_seconds()
+            age_min = age_sec / 60
+            if age_sec > 600:  # > 10 minutes
+                checks['portfolio_monitor'] = {
+                    'ok': False,
+                    'detail': f"Stale: last check {age_min:.0f}m ago"
+                }
+                issues.append(f"Portfolio monitor stale ({age_min:.0f}m)")
+            else:
+                checks['portfolio_monitor'] = {
+                    'ok': True,
+                    'detail': f"Last check {age_min:.0f}m ago"
+                }
+        else:
+            checks['portfolio_monitor'] = {
+                'ok': True,
+                'detail': 'Not started yet'
+            }
+
+        # 5. Scanner freshness
+        if self.last_scanner_run:
+            age_sec = (now - self.last_scanner_run).total_seconds()
+            age_min = age_sec / 60
+            if age_sec > 1800:  # > 30 minutes
+                checks['scanner'] = {
+                    'ok': False,
+                    'detail': f"Stale: last scan {age_min:.0f}m ago"
+                }
+                issues.append(f"Scanner stale ({age_min:.0f}m)")
+            else:
+                checks['scanner'] = {
+                    'ok': True,
+                    'detail': f"Last scan {age_min:.0f}m ago"
+                }
+        else:
+            checks['scanner'] = {
+                'ok': True,
+                'detail': 'Not started yet'
+            }
+
+        # 6. Positions sync (Alpaca vs in-memory)
+        try:
+            if hasattr(self, 'rapid_portfolio'):
+                alpaca_positions = trader.get_positions()
+                memory_count = len(self.rapid_portfolio.positions) if self.rapid_portfolio.positions else 0
+                alpaca_count = len(alpaca_positions)
+
+                if memory_count != alpaca_count:
+                    checks['positions_sync'] = {
+                        'ok': False,
+                        'detail': f"Mismatch: memory={memory_count}, Alpaca={alpaca_count}"
+                    }
+                    issues.append(f"Position mismatch: memory={memory_count}, Alpaca={alpaca_count}")
+                else:
+                    checks['positions_sync'] = {
+                        'ok': True,
+                        'detail': f"{alpaca_count} position(s), in sync"
+                    }
+            else:
+                checks['positions_sync'] = {
+                    'ok': True,
+                    'detail': 'Portfolio manager not loaded'
+                }
+        except Exception as e:
+            checks['positions_sync'] = {'ok': False, 'detail': str(e)}
+            issues.append(f"Position sync check error: {e}")
+
+        return {
+            'healthy': len(issues) == 0,
+            'timestamp': now.isoformat(),
+            'checks': checks,
+            'issues': issues
+        }
+
     def run(self):
         """Run all services"""
         print()
@@ -206,6 +387,8 @@ class ServiceManager:
         time.sleep(1)
 
         rapid_scanner_ok = self.start_rapid_rotation_scanner()
+
+        self.start_health_checker()
 
         print()
         print("=" * 60)

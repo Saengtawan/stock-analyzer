@@ -278,6 +278,12 @@ class AutoTradingEngine:
     QUEUE_FRESHNESS_WINDOW = 30       # Minutes - fresh signals get priority
     QUEUE_RESCAN_ON_EMPTY = True      # Rescan if queue empty/expired
 
+    # Smart Order Execution - Strategy 4 (v4.8 NEW!)
+    # Limit @ Ask + Market Fallback → ลด slippage ~0.1-0.2%
+    SMART_ORDER_ENABLED = True
+    SMART_ORDER_MAX_SPREAD_PCT = 0.5   # Skip ถ้า spread > 0.5%
+    SMART_ORDER_WAIT_SECONDS = 30      # รอ limit fill 30 วินาที
+
     # Gap Filter (v4.3 NEW!)
     # ไม่ซื้อหุ้นที่ gap up/down แรงเกินไป
     # เหตุผล: Gap up แรง = ไม่ใช่ dip bounce แล้ว
@@ -1482,24 +1488,26 @@ class AutoTradingEngine:
             should_place_sl, sl_reason = self.pdt_guard.should_place_sl_order(symbol)
 
             if should_place_sl:
-                # Normal flow: Buy with stop loss (use ATR-based SL price)
-                buy_order, sl_order = self.trader.buy_with_stop_loss(symbol, qty, stop_loss_price=sl_price)
+                # Normal flow: Buy with stop loss (use ATR-based SL%)
+                buy_order, sl_order = self.trader.buy_with_stop_loss(symbol, qty, sl_pct=sl_pct)
                 if not buy_order:
-                    logger.error(f"Failed to execute {symbol}")
+                    logger.error(f"Failed to execute {symbol} (spread too wide or order failed)")
                     return False
                 sl_order_id = sl_order.id if sl_order else None
                 if sl_order:
                     sl_price = sl_order.stop_price  # Use actual order price
             else:
                 # PDT Guard: Buy WITHOUT stop loss (Day 0)
+                # v4.8: Use smart buy (limit @ ask + market fallback)
                 logger.info(f"PDT Guard: {sl_reason} - buying without SL order")
-                buy_order = self.trader.place_market_buy(symbol, qty)
+                buy_order = self.trader.place_smart_buy(symbol, qty)
                 if not buy_order:
-                    logger.error(f"Failed to execute {symbol}")
+                    logger.warning(f"Smart buy SKIP {symbol}: spread too wide")
                     return False
-                # Wait for fill
-                time.sleep(2)
-                buy_order = self.trader.get_order(buy_order.id)
+                # Wait for fill if not already filled
+                if buy_order.status != 'filled':
+                    time.sleep(2)
+                    buy_order = self.trader.get_order(buy_order.id)
                 sl_order_id = None
 
             if not buy_order or buy_order.status != 'filled':

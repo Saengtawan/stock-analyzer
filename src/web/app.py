@@ -2401,6 +2401,80 @@ def rapid_trader_page():
     return render_template('rapid_trader.html')
 
 
+@app.route('/api/health')
+def api_health():
+    """System health check endpoint"""
+    try:
+        checks = {}
+        issues = []
+
+        # 1. Alpaca API
+        try:
+            from alpaca_trader import AlpacaTrader
+            trader = AlpacaTrader(paper=True)
+            account = trader.get_account()
+            checks['alpaca_api'] = {
+                'ok': True,
+                'detail': f"Connected, ${account['portfolio_value']:,.0f}"
+            }
+        except Exception as e:
+            checks['alpaca_api'] = {'ok': False, 'detail': str(e)}
+            issues.append(f"Alpaca API: {e}")
+
+        # 2. Market clock
+        try:
+            clock = trader.get_clock()
+            market_status = "Open" if clock['is_open'] else "Closed"
+            checks['market_clock'] = {'ok': True, 'detail': market_status}
+        except Exception as e:
+            checks['market_clock'] = {'ok': False, 'detail': str(e)}
+            issues.append(f"Market clock: {e}")
+
+        # 3. Portfolio data
+        try:
+            from rapid_portfolio_manager import RapidPortfolioManager
+            pm = RapidPortfolioManager()
+            positions = pm.positions or {}
+            alpaca_positions = trader.get_positions()
+
+            memory_count = len(positions)
+            alpaca_count = len(alpaca_positions)
+
+            if memory_count != alpaca_count:
+                checks['positions_sync'] = {
+                    'ok': False,
+                    'detail': f"Mismatch: tracked={memory_count}, Alpaca={alpaca_count}"
+                }
+                issues.append(f"Position mismatch: tracked={memory_count}, Alpaca={alpaca_count}")
+            else:
+                checks['positions_sync'] = {
+                    'ok': True,
+                    'detail': f"{alpaca_count} position(s), in sync"
+                }
+        except Exception as e:
+            checks['positions_sync'] = {'ok': False, 'detail': str(e)}
+            issues.append(f"Position sync: {e}")
+
+        # 4. Web server (obviously OK if we're responding)
+        checks['web_server'] = {'ok': True, 'detail': 'Responding'}
+
+        return jsonify({
+            'healthy': len(issues) == 0,
+            'timestamp': datetime.now().isoformat(),
+            'checks': checks,
+            'issues': issues
+        })
+
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        return jsonify({
+            'healthy': False,
+            'timestamp': datetime.now().isoformat(),
+            'checks': {},
+            'issues': [str(e)]
+        }), 500
+
+
 @app.route('/api/rapid/spy-regime')
 def api_rapid_spy_regime():
     """
