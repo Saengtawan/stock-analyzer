@@ -243,7 +243,15 @@ class AutoTradingEngine:
     TRAIL_LOCK_PCT = 80         # v3.11: 70 → 80
     MAX_HOLD_DAYS = 5
     DAILY_LOSS_LIMIT_PCT = 5.0  # Stop trading if down 5% in a day
-    MIN_SCORE = 85              # v4.0: Quality threshold
+    MIN_SCORE = 95              # v4.7: 85 → 95 (score 95+ = WR ~55%, ลด grey zone)
+
+    # Weekly Loss Limit (v4.7 NEW!)
+    # หยุดเทรดถ้าขาดทุนสะสม -5% ในสัปดาห์ ป้องกัน sector rotation / prolonged downturn
+    WEEKLY_LOSS_LIMIT_PCT = 5.0     # % - หยุดซื้อใหม่ถ้าขาดทุน -5%/สัปดาห์
+
+    # Consecutive Loss Stop (v4.7 NEW!)
+    # แพ้ติดกัน 3 ครั้ง → หยุด 1 วัน (strategy อาจไม่เข้ากับ market condition)
+    MAX_CONSECUTIVE_LOSSES = 3
 
     # Signal Queue (v4.1 Final)
     # When positions full → queue signals → execute when slot opens (if price still good)
@@ -260,6 +268,13 @@ class AutoTradingEngine:
     # เช่น AMD + NVDA + INTC = 3 ตัว Tech → ลงพร้อมกัน
     SECTOR_FILTER_ENABLED = True
     MAX_PER_SECTOR = 2              # ไม่เกิน 2 ตัว/sector
+
+    # Consecutive Sector Loss (v4.7 NEW!)
+    # sector แพ้ติดกัน → cooldown sector นั้น
+    # ป้องกัน dip-buying falling knife ซ้ำๆ ใน sector ที่กำลัง rotate out
+    SECTOR_LOSS_TRACKING_ENABLED = True
+    MAX_SECTOR_CONSECUTIVE_LOSS = 2     # แพ้ 2 ครั้งติดใน sector → cooldown
+    SECTOR_COOLDOWN_DAYS = 2            # หยุดซื้อ sector นั้น 2 วัน
     QUEUE_FRESHNESS_WINDOW = 30       # Minutes - fresh signals get priority
     QUEUE_RESCAN_ON_EMPTY = True      # Rescan if queue empty/expired
 
@@ -282,7 +297,7 @@ class AutoTradingEngine:
     # เหตุผล: ต้อง hold ข้ามคืนอยู่แล้ว → เลือกเฉพาะหุ้นปลอดภัยสุด
     LOW_RISK_MODE_ENABLED = True
     LOW_RISK_GAP_MAX_UP = 1.0       # % - เข้มขึ้น (ปกติ 2%)
-    LOW_RISK_MIN_SCORE = 90         # เข้มขึ้น (ปกติ 85)
+    LOW_RISK_MIN_SCORE = 100        # v4.7: เข้มขึ้น (ปกติ 95)
     LOW_RISK_POSITION_SIZE_PCT = 20 # % - เล็กลง (ปกติ 30%) = ~$800
     LOW_RISK_MAX_ATR_PCT = 4.0      # % - หุ้นไม่ผันผวนมาก
     EARNINGS_NO_DATA_ACTION = 'warn'  # 'allow', 'skip', 'warn'
@@ -368,6 +383,15 @@ class AutoTradingEngine:
         self.daily_stats = DailyStats(date=datetime.now().strftime('%Y-%m-%d'))
         self.running = False
         self.monitor_thread = None
+
+        # v4.7: Loss protection tracking
+        self.consecutive_losses = 0         # นับแพ้ติดกัน (reset เมื่อชนะ)
+        self.cooldown_until = None          # หยุดเทรดถึงวันที่นี้
+        self.weekly_realized_pnl = 0.0      # P&L สะสมในสัปดาห์ (reset ทุกจันทร์)
+        self.weekly_reset_date = None       # วันที่ reset ล่าสุด
+
+        # v4.7: Sector loss tracking {sector: {losses: int, cooldown_until: date}}
+        self.sector_loss_tracker: Dict[str, Dict] = {}
 
         # Signal Queue (v4.1)
         self.signal_queue: List[QueuedSignal] = []
@@ -792,6 +816,53 @@ class AutoTradingEngine:
             return False, f"Already {same_sector_count} positions in {sector}: {existing} (max {self.MAX_PER_SECTOR})"
 
         return True, f"{sector}: {same_sector_count}/{self.MAX_PER_SECTOR} positions"
+
+    def _check_sector_cooldown(self, sector: str) -> Tuple[bool, str]:
+        """
+        Check if sector is in cooldown from consecutive losses.
+        Tech แพ้ 2 ครั้งติด → skip Tech 2 วัน
+        """
+        if not self.SECTOR_LOSS_TRACKING_ENABLED or not sector:
+            return True, "Sector loss tracking disabled"
+
+        sector_key = sector.lower()
+        tracker = self.sector_loss_tracker.get(sector_key)
+        if not tracker:
+            return True, f"{sector}: no loss history"
+
+        # Check cooldown
+        if tracker.get('cooldown_until'):
+            today = datetime.now().date()
+            if today <= tracker['cooldown_until']:
+                return False, f"{sector} cooldown until {tracker['cooldown_until']} ({tracker['losses']} consecutive losses)"
+            else:
+                # Cooldown expired, reset
+                self.sector_loss_tracker[sector_key] = {'losses': 0, 'cooldown_until': None}
+                return True, f"{sector}: cooldown ended"
+
+        return True, f"{sector}: {tracker.get('losses', 0)}/{self.MAX_SECTOR_CONSECUTIVE_LOSS} losses"
+
+    def _record_sector_trade_result(self, sector: str, pnl_pct: float):
+        """Record trade result per sector for consecutive loss tracking."""
+        if not self.SECTOR_LOSS_TRACKING_ENABLED or not sector:
+            return
+
+        sector_key = sector.lower()
+        if sector_key not in self.sector_loss_tracker:
+            self.sector_loss_tracker[sector_key] = {'losses': 0, 'cooldown_until': None}
+
+        tracker = self.sector_loss_tracker[sector_key]
+
+        if pnl_pct > 0:
+            tracker['losses'] = 0  # Reset on win
+        else:
+            tracker['losses'] += 1
+            logger.info(f"📉 {sector} consecutive losses: {tracker['losses']}/{self.MAX_SECTOR_CONSECUTIVE_LOSS}")
+
+            if tracker['losses'] >= self.MAX_SECTOR_CONSECUTIVE_LOSS:
+                from datetime import timedelta
+                tracker['cooldown_until'] = datetime.now().date() + timedelta(days=self.SECTOR_COOLDOWN_DAYS)
+                logger.warning(f"🧊 {sector} cooldown {self.SECTOR_COOLDOWN_DAYS} days → until {tracker['cooldown_until']}")
 
     # =========================================================================
     # LATE START PROTECTION (v4.4 NEW!)
@@ -1371,6 +1442,25 @@ class AutoTradingEngine:
                     logger.warning(f"Trade log error: {log_err}")
                 return False
 
+            # v4.7: Sector Cooldown - sector แพ้ติดกัน → cooldown
+            sector_cd_ok, sector_cd_reason = self._check_sector_cooldown(signal_sector)
+            if not sector_cd_ok:
+                logger.warning(f"🧊 Sector Cooldown REJECT {symbol}: {sector_cd_reason}")
+                self.daily_stats.sector_rejected += 1
+                try:
+                    self.trade_logger.log_skip(
+                        symbol=symbol,
+                        price=current_price,
+                        reason="SECTOR_COOLDOWN",
+                        skip_detail=sector_cd_reason,
+                        filters={"sector_cooldown": {"passed": False, "detail": sector_cd_reason}},
+                        signal_score=signal_score,
+                        sector=signal_sector
+                    )
+                except Exception as log_err:
+                    logger.warning(f"Trade log error: {log_err}")
+                return False
+
             qty = int(position_value / current_price)
             if qty <= 0:
                 logger.warning(f"Position size too small for {symbol}")
@@ -1707,10 +1797,15 @@ class AutoTradingEngine:
 
                 # Update stats
                 self.daily_stats.realized_pnl += pnl_usd
+                self.weekly_realized_pnl += pnl_usd  # v4.7: Weekly tracking
                 if pnl_pct > 0:
                     self.daily_stats.trades_won += 1
                 else:
                     self.daily_stats.trades_lost += 1
+
+                # v4.7: Track consecutive losses + cooldown
+                self._record_trade_result(pnl_pct)
+                self._record_sector_trade_result(managed_pos.sector, pnl_pct)
 
                 # Trade Log: Log SELL
                 try:
@@ -1792,6 +1887,69 @@ class AutoTradingEngine:
             logger.warning(f"🚨 Daily loss limit hit: {daily_pnl_pct:.2f}%")
             return True
         return False
+
+    # =========================================================================
+    # WEEKLY LOSS LIMIT (v4.7 NEW!)
+    # =========================================================================
+
+    def check_weekly_loss_limit(self) -> bool:
+        """
+        Check if weekly loss limit exceeded.
+        Reset ทุกวันจันทร์ (start of trading week)
+        """
+        today = datetime.now().date()
+
+        # Reset on Monday
+        if today.weekday() == 0 and self.weekly_reset_date != today:
+            self.weekly_realized_pnl = 0.0
+            self.weekly_reset_date = today
+            logger.info("📅 Weekly P&L reset (Monday)")
+
+        account = self.trader.get_account()
+        capital = float(account.get('portfolio_value', self.SIMULATED_CAPITAL or 4000))
+        weekly_pnl_pct = (self.weekly_realized_pnl / capital) * 100
+
+        if weekly_pnl_pct <= -self.WEEKLY_LOSS_LIMIT_PCT:
+            logger.warning(f"🚨 Weekly loss limit hit: {weekly_pnl_pct:.2f}% (${self.weekly_realized_pnl:.2f})")
+            return True
+        return False
+
+    # =========================================================================
+    # CONSECUTIVE LOSS STOP (v4.7 NEW!)
+    # =========================================================================
+
+    def check_consecutive_loss_cooldown(self) -> bool:
+        """
+        Check if in cooldown from consecutive losses.
+        แพ้ 3 ครั้งติด → หยุด 1 วัน
+        """
+        if self.cooldown_until:
+            today = datetime.now().date()
+            if today <= self.cooldown_until:
+                logger.warning(f"🧊 Cooldown active: {self.consecutive_losses} consecutive losses (until {self.cooldown_until})")
+                return True
+            else:
+                # Cooldown expired
+                logger.info(f"✅ Cooldown ended, resuming trading")
+                self.cooldown_until = None
+                self.consecutive_losses = 0
+        return False
+
+    def _record_trade_result(self, pnl_pct: float):
+        """
+        Record trade result for consecutive loss tracking + weekly P&L.
+        Called after every closed trade.
+        """
+        if pnl_pct > 0:
+            self.consecutive_losses = 0  # Reset on win
+        else:
+            self.consecutive_losses += 1
+            logger.info(f"📉 Consecutive losses: {self.consecutive_losses}/{self.MAX_CONSECUTIVE_LOSSES}")
+
+            if self.consecutive_losses >= self.MAX_CONSECUTIVE_LOSSES:
+                from datetime import timedelta
+                self.cooldown_until = datetime.now().date() + timedelta(days=1)
+                logger.warning(f"🧊 {self.consecutive_losses} consecutive losses → cooldown until {self.cooldown_until}")
 
     def pre_close_check(self):
         """Pre-close check - handle max hold days"""
@@ -1923,6 +2081,10 @@ class AutoTradingEngine:
                         self.daily_stats.regime_skipped = True
                     elif self.check_daily_loss_limit():
                         logger.warning("Daily loss limit - no new trades today")
+                    elif self.check_weekly_loss_limit():
+                        logger.warning("Weekly loss limit - no new trades this week")
+                    elif self.check_consecutive_loss_cooldown():
+                        logger.warning("Consecutive loss cooldown - no new trades today")
                     else:
                         # v4.1: Clear queue from previous day
                         self._clear_queue_end_of_day()
