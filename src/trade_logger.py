@@ -101,9 +101,41 @@ class TradeLogEntry:
     beta: Optional[float] = None                 # Stock beta
     volume_ratio: Optional[float] = None         # Today volume / avg volume
 
+    # Execution Data (v4.8: Smart Buy tracking)
+    order_type: Optional[str] = None          # limit / market_fallback / market
+    signal_price: Optional[float] = None      # Price at signal time
+    limit_price: Optional[float] = None       # Limit price placed
+    fill_price: Optional[float] = None        # Actual fill price
+    slippage_pct: Optional[float] = None      # Slippage from signal price
+    bid_ask_spread_pct: Optional[float] = None  # Spread at order time
+    fill_time_sec: Optional[float] = None     # Seconds to fill
+    fill_status: Optional[str] = None         # filled / partial / cancelled
+
+    # Price Action (v4.8: Trailing Stop tracking)
+    trough_price: Optional[float] = None      # Lowest price during hold
+    max_gain_pct: Optional[float] = None      # Peak unrealized gain %
+    max_drawdown_pct: Optional[float] = None  # Max drawdown from entry %
+    exit_efficiency: Optional[float] = None   # exit P&L / max_gain (how much captured)
+
+    # Config Snapshot (v4.8: Version comparison)
+    config_version: Optional[str] = None
+    config_min_score: Optional[float] = None
+    config_position_size_pct: Optional[float] = None
+    config_sl_atr_mult: Optional[float] = None
+    config_tp_atr_mult: Optional[float] = None
+    config_trail_activation_pct: Optional[float] = None
+    config_trail_lock_pct: Optional[float] = None
+    config_max_hold_days: Optional[int] = None
+    config_max_per_sector: Optional[int] = None
+    config_gap_max_up_pct: Optional[float] = None
+    config_daily_loss_limit_pct: Optional[float] = None
+    config_weekly_loss_limit_pct: Optional[float] = None
+    config_max_consecutive_losses: Optional[int] = None
+    config_smart_order_enabled: Optional[bool] = None
+
     # Meta
     order_id: Optional[str] = None
-    version: str = "v4.5"
+    version: str = "v4.8"
     source: str = "AUTO"        # AUTO, MANUAL
     note: str = ""
 
@@ -122,7 +154,7 @@ class TradeLogger:
         # Set paths
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.log_dir = log_dir or os.path.join(base_dir, "trade_logs")
-        self.db_path = db_path or os.path.join(base_dir, "trade_history.db")
+        self.db_path = db_path or os.path.join(base_dir, "data", "trade_history.db")
 
         # Create log directory
         Path(self.log_dir).mkdir(parents=True, exist_ok=True)
@@ -251,7 +283,7 @@ class TradeLogger:
         queue_deviation_pct: float = None,
         queue_time_minutes: float = None,
         order_id: str = None,
-        # Analysis data (for future filter decisions)
+        # Analysis data
         dist_from_52w_high: float = None,
         return_5d: float = None,
         return_20d: float = None,
@@ -259,9 +291,21 @@ class TradeLogger:
         market_cap_tier: str = None,
         beta: float = None,
         volume_ratio: float = None,
+        # Execution data (v4.8)
+        order_type: str = None,
+        signal_price: float = None,
+        limit_price: float = None,
+        fill_price: float = None,
+        slippage_pct: float = None,
+        bid_ask_spread_pct: float = None,
+        fill_time_sec: float = None,
+        fill_status: str = None,
+        # Config snapshot (v4.8)
+        config_snapshot: Dict = None,
         note: str = ""
     ) -> TradeLogEntry:
         """Log a BUY trade"""
+        cs = config_snapshot or {}
         entry = TradeLogEntry(
             id=self._generate_id(),
             timestamp=self._get_et_timestamp(),
@@ -294,6 +338,30 @@ class TradeLogger:
             market_cap_tier=market_cap_tier,
             beta=beta,
             volume_ratio=volume_ratio,
+            # Execution data
+            order_type=order_type,
+            signal_price=signal_price,
+            limit_price=limit_price,
+            fill_price=fill_price,
+            slippage_pct=slippage_pct,
+            bid_ask_spread_pct=bid_ask_spread_pct,
+            fill_time_sec=fill_time_sec,
+            fill_status=fill_status,
+            # Config snapshot
+            config_version=cs.get('version'),
+            config_min_score=cs.get('min_score'),
+            config_position_size_pct=cs.get('position_size_pct'),
+            config_sl_atr_mult=cs.get('sl_atr_mult'),
+            config_tp_atr_mult=cs.get('tp_atr_mult'),
+            config_trail_activation_pct=cs.get('trail_activation_pct'),
+            config_trail_lock_pct=cs.get('trail_lock_pct'),
+            config_max_hold_days=cs.get('max_hold_days'),
+            config_max_per_sector=cs.get('max_per_sector'),
+            config_gap_max_up_pct=cs.get('gap_max_up_pct'),
+            config_daily_loss_limit_pct=cs.get('daily_loss_limit_pct'),
+            config_weekly_loss_limit_pct=cs.get('weekly_loss_limit_pct'),
+            config_max_consecutive_losses=cs.get('max_consecutive_losses'),
+            config_smart_order_enabled=cs.get('smart_order_enabled'),
             note=note
         )
 
@@ -319,6 +387,11 @@ class TradeLogger:
         trail_active: bool = False,
         peak_price: float = None,
         order_id: str = None,
+        # Price action (v4.8)
+        trough_price: float = None,
+        max_gain_pct: float = None,
+        max_drawdown_pct: float = None,
+        exit_efficiency: float = None,
         note: str = ""
     ) -> TradeLogEntry:
         """Log a SELL trade"""
@@ -342,6 +415,11 @@ class TradeLogger:
             trail_active=trail_active,
             peak_price=peak_price,
             order_id=order_id,
+            # Price action
+            trough_price=trough_price,
+            max_gain_pct=max_gain_pct,
+            max_drawdown_pct=max_drawdown_pct,
+            exit_efficiency=exit_efficiency,
             note=note
         )
 

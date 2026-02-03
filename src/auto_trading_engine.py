@@ -134,6 +134,8 @@ class ManagedPosition:
     atr_pct: float = 0.0         # ATR% at entry
     # v4.7: Sector diversification
     sector: str = ""             # Stock sector (e.g. "Technology")
+    # v4.8: Price action tracking
+    trough_price: float = 0.0   # Lowest price during hold
 
 
 @dataclass
@@ -1052,6 +1054,25 @@ class AutoTradingEngine:
             logger.debug(f"Analysis data error for {symbol}: {e}")
             return {}
 
+    def _get_config_snapshot(self) -> Dict:
+        """Get current config values for trade logging"""
+        return {
+            'version': 'v4.8',
+            'min_score': self.MIN_SCORE,
+            'position_size_pct': self.POSITION_SIZE_PCT,
+            'sl_atr_mult': self.SL_ATR_MULTIPLIER,
+            'tp_atr_mult': self.TP_ATR_MULTIPLIER,
+            'trail_activation_pct': self.TRAIL_ACTIVATION_PCT,
+            'trail_lock_pct': self.TRAIL_LOCK_PCT,
+            'max_hold_days': self.MAX_HOLD_DAYS,
+            'max_per_sector': self.MAX_PER_SECTOR,
+            'gap_max_up_pct': self.GAP_MAX_UP,
+            'daily_loss_limit_pct': self.DAILY_LOSS_LIMIT_PCT,
+            'weekly_loss_limit_pct': self.WEEKLY_LOSS_LIMIT_PCT,
+            'max_consecutive_losses': self.MAX_CONSECUTIVE_LOSSES,
+            'smart_order_enabled': self.SMART_ORDER_ENABLED,
+        }
+
     # =========================================================================
     # SCANNING
     # =========================================================================
@@ -1535,6 +1556,7 @@ class AutoTradingEngine:
                 tp_pct=tp_pct,
                 atr_pct=atr_sl_tp['atr_pct'],
                 sector=signal_sector,
+                trough_price=entry_price,
             )
 
             # PDT Guard: Record entry date
@@ -1559,6 +1581,13 @@ class AutoTradingEngine:
                 # Get analysis data for future filter decisions
                 analysis = self._get_analysis_data(symbol)
 
+                # Get execution metadata from smart buy
+                exec_meta = getattr(self.trader, 'last_execution_meta', {})
+                signal_price_val = getattr(signal, 'entry_price', None) or getattr(signal, 'close', None)
+                slippage = None
+                if signal_price_val and entry_price and signal_price_val > 0:
+                    slippage = round(((entry_price - signal_price_val) / signal_price_val) * 100, 3)
+
                 self.trade_logger.log_buy(
                     symbol=symbol,
                     qty=qty,
@@ -1578,14 +1607,25 @@ class AutoTradingEngine:
                     atr_pct=getattr(signal, 'atr_pct', None),
                     sector=getattr(signal, 'sector', None),
                     order_id=buy_order.id if buy_order else None,
-                    # Analysis data for future filter decisions
+                    # Analysis data
                     dist_from_52w_high=analysis.get('dist_from_52w_high'),
                     return_5d=analysis.get('return_5d'),
                     return_20d=analysis.get('return_20d'),
                     market_cap=analysis.get('market_cap'),
                     market_cap_tier=analysis.get('market_cap_tier'),
                     beta=analysis.get('beta'),
-                    volume_ratio=analysis.get('volume_ratio')
+                    volume_ratio=analysis.get('volume_ratio'),
+                    # Execution data (v4.8)
+                    order_type=exec_meta.get('order_type'),
+                    signal_price=signal_price_val,
+                    limit_price=exec_meta.get('limit_price'),
+                    fill_price=entry_price,
+                    slippage_pct=slippage,
+                    bid_ask_spread_pct=exec_meta.get('bid_ask_spread_pct'),
+                    fill_time_sec=exec_meta.get('fill_time_sec'),
+                    fill_status=exec_meta.get('fill_status'),
+                    # Config snapshot (v4.8)
+                    config_snapshot=self._get_config_snapshot(),
                 )
             except Exception as log_err:
                 logger.warning(f"Trade log error: {log_err}")
@@ -1638,9 +1678,11 @@ class AutoTradingEngine:
         current_price = alpaca_pos.current_price
         entry_price = managed_pos.entry_price
 
-        # Update peak
+        # Update peak and trough
         if current_price > managed_pos.peak_price:
             managed_pos.peak_price = current_price
+        if managed_pos.trough_price == 0 or current_price < managed_pos.trough_price:
+            managed_pos.trough_price = current_price
 
         # Calculate P&L
         pnl_pct = ((current_price - entry_price) / entry_price) * 100
@@ -1828,6 +1870,11 @@ class AutoTradingEngine:
                     hold_minutes = int((hold_delta.total_seconds() % 3600) / 60)
                     hold_duration = f"{hold_hours}h {hold_minutes}m" if hold_hours > 0 else f"{hold_minutes}m"
 
+                    # Calculate price action metrics
+                    max_gain = ((managed_pos.peak_price - managed_pos.entry_price) / managed_pos.entry_price) * 100 if managed_pos.peak_price > managed_pos.entry_price else 0
+                    max_dd = ((managed_pos.trough_price - managed_pos.entry_price) / managed_pos.entry_price) * 100 if managed_pos.trough_price > 0 and managed_pos.trough_price < managed_pos.entry_price else 0
+                    exit_eff = round(pnl_pct / max_gain * 100, 1) if max_gain > 0 else (0 if pnl_pct <= 0 else 100)
+
                     self.trade_logger.log_sell(
                         symbol=symbol,
                         qty=managed_pos.qty,
@@ -1843,7 +1890,12 @@ class AutoTradingEngine:
                         sl_price=managed_pos.current_sl_price,
                         trail_active=managed_pos.trailing_active,
                         peak_price=managed_pos.peak_price,
-                        order_id=order.id
+                        order_id=order.id,
+                        # Price action (v4.8)
+                        trough_price=managed_pos.trough_price if managed_pos.trough_price > 0 else None,
+                        max_gain_pct=round(max_gain, 2),
+                        max_drawdown_pct=round(max_dd, 2),
+                        exit_efficiency=exit_eff,
                     )
                 except Exception as log_err:
                     logger.warning(f"Trade log error: {log_err}")
