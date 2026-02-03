@@ -325,11 +325,15 @@ class AutoTradingEngine:
     MARKET_OPEN_SCAN_DELAY = 5      # รอ 5 นาทีหลังตลาดเปิดก่อน scan (09:35 ET)
     MARKET_OPEN_SCAN_WINDOW = 20    # นาที - ถ้าเริ่มหลัง 09:50 ET → skip scan
 
-    # Mid-Day Rescan (v4.9 NEW!)
-    # ถ้ายังมี slot ว่าง → rescan อีกครั้งตอนกลางวัน
-    MIDDAY_RESCAN_ENABLED = True
-    MIDDAY_RESCAN_HOUR = 11         # Rescan ตอน 11:00 ET
-    MIDDAY_RESCAN_MINUTE = 0
+    # Afternoon Scan (v4.9.1 — replaces Mid-day 11:00)
+    # 14:00 ET = หลัง lunch dip, ราคา settle แล้ว, pattern ชัดกว่า
+    # ใช้เกณฑ์เข้มกว่า morning scan เพราะเวลาเหลือน้อย (2 ชม.)
+    AFTERNOON_SCAN_ENABLED = True
+    AFTERNOON_SCAN_HOUR = 14        # 14:00 ET
+    AFTERNOON_SCAN_MINUTE = 0
+    AFTERNOON_MIN_SCORE = 96        # เข้มกว่าเช้า (95)
+    AFTERNOON_GAP_MAX_UP = 1.5      # เข้มกว่าเช้า (2.0)
+    AFTERNOON_GAP_MAX_DOWN = -3.0   # เข้มกว่าเช้า (-5.0)
 
     # Earnings Auto-Sell (v4.9 NEW!)
     # ถ้าถือหุ้นที่มี earnings วันนี้/พรุ่งนี้ → ขายก่อน close อัตโนมัติ
@@ -3031,10 +3035,10 @@ class AutoTradingEngine:
                         time.sleep(wait_secs)
 
                     # v4.4: Late start protection — skip morning scan if starting
-                    # too late (> 20 min after open). Mid-day rescan still runs at 11:00 ET.
+                    # too late (> 20 min after open). Afternoon scan still runs at 14:00 ET.
                     is_late, late_reason = self._is_late_start()
                     if is_late:
-                        logger.warning(f"⏰ {late_reason} - skipping morning scan, mid-day rescan at {self.MIDDAY_RESCAN_HOUR}:{self.MIDDAY_RESCAN_MINUTE:02d} ET")
+                        logger.warning(f"⏰ {late_reason} - skipping morning scan, afternoon scan at {self.AFTERNOON_SCAN_HOUR}:{self.AFTERNOON_SCAN_MINUTE:02d} ET")
                         self.daily_stats.late_start_skipped = True
                         last_scan_date = today
                         continue
@@ -3067,24 +3071,36 @@ class AutoTradingEngine:
 
                     last_scan_date = today
 
-                # v4.9: Mid-day rescan — fill empty slots with fresh signals
-                if self.MIDDAY_RESCAN_ENABLED and last_scan_date == today:
+                # v4.9.1: Afternoon scan — fill empty slots after lunch dip
+                if self.AFTERNOON_SCAN_ENABLED and last_scan_date == today:
                     et_now = self._get_et_time()
-                    midday_time = et_now.replace(
-                        hour=self.MIDDAY_RESCAN_HOUR,
-                        minute=self.MIDDAY_RESCAN_MINUTE,
+                    afternoon_time = et_now.replace(
+                        hour=self.AFTERNOON_SCAN_HOUR,
+                        minute=self.AFTERNOON_SCAN_MINUTE,
                         second=0, microsecond=0
                     )
-                    if not hasattr(self, '_midday_rescan_done') or self._midday_rescan_done != today:
-                        if et_now >= midday_time and len(self.positions) < self.MAX_POSITIONS:
-                            logger.info(f"Mid-day rescan: {len(self.positions)}/{self.MAX_POSITIONS} positions, scanning for more...")
-                            self._midday_rescan_done = today
+                    if not hasattr(self, '_afternoon_scan_done') or self._afternoon_scan_done != today:
+                        if et_now >= afternoon_time and len(self.positions) < self.MAX_POSITIONS:
+                            logger.info(f"☀️ Afternoon scan: {len(self.positions)}/{self.MAX_POSITIONS} positions, scanning for more...")
+                            self._afternoon_scan_done = today
                             is_bull, _ = self._check_market_regime()
                             if is_bull and not self.check_daily_loss_limit() and not self.check_weekly_loss_limit():
-                                signals = self.scan_for_signals()
-                                for signal in signals:
-                                    if len(self.positions) < self.MAX_POSITIONS:
-                                        self.execute_signal(signal)
+                                # Use stricter params for afternoon
+                                saved_min_score = self.MIN_SCORE
+                                saved_gap_up = self.GAP_MAX_UP
+                                saved_gap_down = self.GAP_MAX_DOWN
+                                self.MIN_SCORE = max(self.MIN_SCORE, self.AFTERNOON_MIN_SCORE)
+                                self.GAP_MAX_UP = self.AFTERNOON_GAP_MAX_UP
+                                self.GAP_MAX_DOWN = self.AFTERNOON_GAP_MAX_DOWN
+                                try:
+                                    signals = self.scan_for_signals()
+                                    for signal in signals:
+                                        if len(self.positions) < self.MAX_POSITIONS:
+                                            self.execute_signal(signal)
+                                finally:
+                                    self.MIN_SCORE = saved_min_score
+                                    self.GAP_MAX_UP = saved_gap_up
+                                    self.GAP_MAX_DOWN = saved_gap_down
 
                 # Pre-close check
                 if self._is_pre_close():
