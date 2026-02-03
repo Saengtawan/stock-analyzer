@@ -63,6 +63,7 @@ import os
 import sys
 import time
 import json
+import tempfile
 import threading
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
@@ -411,7 +412,12 @@ class AutoTradingEngine:
         # Timezone
         self.et_tz = pytz.timezone('US/Eastern')
 
-        # Load existing positions from Alpaca
+        # Position state file (persists peak_price, trailing_active, SL/TP etc.)
+        self._state_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+        os.makedirs(self._state_dir, exist_ok=True)
+        self._state_file = os.path.join(self._state_dir, 'active_positions.json')
+
+        # Load existing positions from Alpaca + persisted state
         self._sync_positions()
 
         logger.info(f"AutoTradingEngine initialized (paper={paper})")
@@ -420,14 +426,101 @@ class AutoTradingEngine:
             self.start()
 
     # =========================================================================
+    # POSITION STATE PERSISTENCE
+    # =========================================================================
+
+    def _save_positions_state(self):
+        """
+        Persist all ManagedPosition state to JSON file (atomic write).
+
+        Saves: peak_price, trough_price, trailing_active, sl_pct, tp_pct,
+        atr_pct, current_sl_price, tp_price, entry_time, sector — all fields
+        that would be lost on crash/restart.
+        """
+        try:
+            state = {}
+            for symbol, pos in self.positions.items():
+                state[symbol] = {
+                    'symbol': pos.symbol,
+                    'qty': pos.qty,
+                    'entry_price': pos.entry_price,
+                    'entry_time': pos.entry_time.isoformat(),
+                    'sl_order_id': pos.sl_order_id,
+                    'current_sl_price': pos.current_sl_price,
+                    'peak_price': pos.peak_price,
+                    'trailing_active': pos.trailing_active,
+                    'days_held': pos.days_held,
+                    'sl_pct': pos.sl_pct,
+                    'tp_price': pos.tp_price,
+                    'tp_pct': pos.tp_pct,
+                    'atr_pct': pos.atr_pct,
+                    'sector': pos.sector,
+                    'trough_price': pos.trough_price,
+                }
+
+            data = {
+                'saved_at': datetime.now().isoformat(),
+                'count': len(state),
+                'positions': state,
+            }
+
+            # Atomic write: temp file + rename
+            fd, tmp_path = tempfile.mkstemp(dir=self._state_dir, suffix='.tmp')
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(data, f, indent=2, default=str)
+                os.replace(tmp_path, self._state_file)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
+
+            logger.debug(f"Position state saved: {len(state)} positions")
+
+        except Exception as e:
+            logger.error(f"Failed to save position state: {e}")
+
+    def _load_positions_state(self) -> Dict[str, dict]:
+        """
+        Load persisted position state from JSON file.
+
+        Returns:
+            Dict mapping symbol → position state dict
+        """
+        try:
+            if not os.path.exists(self._state_file):
+                return {}
+
+            with open(self._state_file, 'r') as f:
+                data = json.load(f)
+
+            positions = data.get('positions', {})
+            saved_at = data.get('saved_at', 'unknown')
+            logger.info(f"Loaded persisted state: {len(positions)} positions (saved at {saved_at})")
+            return positions
+
+        except Exception as e:
+            logger.error(f"Failed to load position state: {e}")
+            return {}
+
+    # =========================================================================
     # POSITION SYNC
     # =========================================================================
 
     def _sync_positions(self):
-        """Sync positions from Alpaca and rapid_portfolio.json"""
+        """
+        Sync positions from Alpaca + merge persisted state.
+
+        Alpaca = source of truth for: symbol exists, qty, current_price
+        Persisted state = source of truth for: peak_price, trough_price,
+        trailing_active, sl_pct, tp_pct, atr_pct, entry_time, sector
+        """
         try:
             alpaca_positions = self.trader.get_positions()
             alpaca_orders = self.trader.get_orders(status='open')
+
+            # Load persisted state (peak_price, trailing_active, etc.)
+            persisted = self._load_positions_state()
 
             # Try to load entry dates from rapid_portfolio.json
             portfolio_entry_dates = {}
@@ -455,23 +548,53 @@ class AutoTradingEngine:
                 entry_time = datetime.combine(entry_date, datetime.min.time())
 
                 if pos.symbol not in self.positions:
+                    saved = persisted.get(pos.symbol, {})
+
+                    # Restore entry_time from persisted state if available
+                    if saved.get('entry_time'):
+                        try:
+                            entry_time = datetime.fromisoformat(saved['entry_time'])
+                        except (ValueError, TypeError):
+                            pass  # Fall back to portfolio_entry_dates
+
                     self.positions[pos.symbol] = ManagedPosition(
                         symbol=pos.symbol,
                         qty=int(pos.qty),
                         entry_price=pos.avg_entry_price,
                         entry_time=entry_time,
-                        sl_order_id=sl_order.id if sl_order else "",
-                        current_sl_price=sl_order.stop_price if sl_order else pos.avg_entry_price * 0.975,
-                        peak_price=pos.current_price,
-                        trailing_active=False
+                        sl_order_id=sl_order.id if sl_order else saved.get('sl_order_id', ''),
+                        current_sl_price=sl_order.stop_price if sl_order else saved.get('current_sl_price', pos.avg_entry_price * 0.975),
+                        # Restore dynamic state from persisted data
+                        peak_price=saved.get('peak_price', pos.current_price),
+                        trailing_active=saved.get('trailing_active', False),
+                        sl_pct=saved.get('sl_pct', self.STOP_LOSS_PCT),
+                        tp_price=saved.get('tp_price', 0.0),
+                        tp_pct=saved.get('tp_pct', self.TAKE_PROFIT_PCT),
+                        atr_pct=saved.get('atr_pct', 0.0),
+                        sector=saved.get('sector', ''),
+                        trough_price=saved.get('trough_price', 0.0),
                     )
-                    logger.info(f"Synced position: {pos.symbol}")
+
+                    if saved:
+                        logger.info(f"Restored position: {pos.symbol} (peak=${saved.get('peak_price', 0):.2f}, trail={'ON' if saved.get('trailing_active') else 'OFF'})")
+                    else:
+                        logger.info(f"Synced position: {pos.symbol} (no persisted state)")
 
                 # PDT Guard: Record entry date
                 self.pdt_guard.record_entry(pos.symbol, entry_date)
 
+            # Clean up persisted state for positions no longer at Alpaca
+            alpaca_symbols = {pos.symbol for pos in alpaca_positions}
+            stale = [s for s in persisted if s not in alpaca_symbols]
+            if stale:
+                logger.info(f"Stale persisted positions removed: {', '.join(stale)}")
+
             logger.info(f"Synced {len(self.positions)} positions")
             self.pdt_guard.log_status()
+
+            # Save clean state
+            if self.positions:
+                self._save_positions_state()
 
         except Exception as e:
             logger.error(f"Failed to sync positions: {e}")
@@ -1559,6 +1682,9 @@ class AutoTradingEngine:
                 trough_price=entry_price,
             )
 
+            # Persist position state immediately
+            self._save_positions_state()
+
             # PDT Guard: Record entry date
             self.pdt_guard.record_entry(symbol)
 
@@ -1672,6 +1798,7 @@ class AutoTradingEngine:
             logger.warning(f"{symbol} position not found - may have been closed")
             if symbol in self.positions:
                 del self.positions[symbol]
+                self._save_positions_state()
             self.pdt_guard.remove_entry(symbol)
             return
 
@@ -1679,10 +1806,13 @@ class AutoTradingEngine:
         entry_price = managed_pos.entry_price
 
         # Update peak and trough
+        _state_changed = False
         if current_price > managed_pos.peak_price:
             managed_pos.peak_price = current_price
+            _state_changed = True
         if managed_pos.trough_price == 0 or current_price < managed_pos.trough_price:
             managed_pos.trough_price = current_price
+            _state_changed = True
 
         # Calculate P&L
         pnl_pct = ((current_price - entry_price) / entry_price) * 100
@@ -1724,6 +1854,7 @@ class AutoTradingEngine:
                 if sl_order:
                     managed_pos.sl_order_id = sl_order.id
                     managed_pos.current_sl_price = sl_order.stop_price
+                    _state_changed = True
                     logger.info(f"✅ {symbol} SL order placed @ ${sl_order.stop_price:.2f}")
 
             # Check take profit (v4.6: use per-position TP)
@@ -1735,6 +1866,7 @@ class AutoTradingEngine:
             # Check trailing activation
             if not managed_pos.trailing_active and pnl_pct >= self.TRAIL_ACTIVATION_PCT:
                 managed_pos.trailing_active = True
+                _state_changed = True
                 logger.info(f"📈 {symbol} trailing activated at {pnl_pct:+.2f}%")
 
             # Update trailing stop (only if SL order exists)
@@ -1759,6 +1891,7 @@ class AutoTradingEngine:
                     if new_order:
                         managed_pos.sl_order_id = new_order.id
                         managed_pos.current_sl_price = new_order.stop_price
+                        _state_changed = True
                         if new_order.stop_price != new_sl:
                             logger.warning(f"{symbol} SL fallback to ${new_order.stop_price:.2f}")
                     else:
@@ -1774,6 +1907,10 @@ class AutoTradingEngine:
             logger.info(f"⏰ {symbol} held {days_held} days with {pnl_pct:+.2f}% - time exit")
             self._close_position(symbol, managed_pos, "TIME_EXIT")
             return
+
+        # Persist state if anything changed
+        if _state_changed:
+            self._save_positions_state()
 
         # Log status
         logger.debug(
@@ -1801,6 +1938,7 @@ class AutoTradingEngine:
                 logger.info(f"{symbol} position already closed (SL may have triggered)")
                 if symbol in self.positions:
                     del self.positions[symbol]
+                    self._save_positions_state()
                 self.pdt_guard.remove_entry(symbol)
                 return
 
@@ -1903,6 +2041,7 @@ class AutoTradingEngine:
             # Remove from managed positions and PDT guard
             if symbol in self.positions:
                 del self.positions[symbol]
+                self._save_positions_state()
             self.pdt_guard.remove_entry(symbol)
 
             # v4.1 Final: Check queue → Rescan if empty
@@ -2077,6 +2216,10 @@ class AutoTradingEngine:
     def stop(self):
         """Stop the trading engine"""
         self.running = False
+        # Persist final state before shutdown
+        if self.positions:
+            self._save_positions_state()
+            logger.info(f"Saved {len(self.positions)} position(s) state on shutdown")
         logger.info("Trading engine stopped")
 
     def _run_loop(self):

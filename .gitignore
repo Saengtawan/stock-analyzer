@@ -227,6 +227,9 @@ tmp/
 .ipynb_checkpoints/
 
 # Stock analyzer specific
+# Trade logs (runtime data, not source code)
+trade_logs/
+
 # Cache directories
 src/cache/
 src/data/cache/
