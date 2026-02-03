@@ -266,3 +266,17 @@ config/production.yaml
 # System test outputs
 SYSTEM_TEST_REPORT.*
 performance_report.*
+
+# Backtest result files
+realistic_backtest_*.json
+standard_backtest_*.json
+backtest_*_results*.json
+*_backtest_results*.json
+
+# Runtime state files
+trading_safety_state.json
+portfolio.json
+src/web/portfolio_v3.json
+
+# Pip install artifacts
+=*
