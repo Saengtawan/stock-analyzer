@@ -566,32 +566,46 @@ class RapidRotationScreener:
             return 0, 'UNKNOWN', ''
 
     def load_data(self, days: int = 60) -> None:
-        """Load historical data for universe"""
+        """Load historical data for universe (parallel for speed)"""
         import time
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
         if not self.universe:
             self.generate_universe()
 
-        logger.info(f"📊 Loading data for {len(self.universe)} stocks...")
+        logger.info(f"📊 Loading data for {len(self.universe)} stocks (parallel)...")
 
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days + 30)
-
-        loaded = 0
+        start_str = start_date.strftime('%Y-%m-%d')
         now = time.time()
-        for symbol in self.universe:
+
+        def _load_single(symbol: str):
+            """Load data for a single stock"""
             try:
                 ticker = yf.Ticker(symbol)
-                data = ticker.history(start=start_date.strftime('%Y-%m-%d'))
+                data = ticker.history(start=start_str)
                 if len(data) >= 30:
                     data.columns = [c.lower() for c in data.columns]
-                    self.data_cache[symbol] = data
-                    self._data_cache_time[symbol] = now
-                    loaded += 1
+                    return symbol, data
             except Exception as e:
                 logger.debug(f"Error loading {symbol}: {e}")
+            return symbol, None
 
-        logger.info(f"✅ Loaded {loaded}/{len(self.universe)} stocks")
+        loaded = 0
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {executor.submit(_load_single, sym): sym for sym in self.universe}
+            for future in as_completed(futures):
+                try:
+                    symbol, data = future.result()
+                    if data is not None:
+                        self.data_cache[symbol] = data
+                        self._data_cache_time[symbol] = now
+                        loaded += 1
+                except Exception as e:
+                    logger.debug(f"Future error: {e}")
+
+        logger.info(f"✅ Loaded {loaded}/{len(self.universe)} stocks (parallel)")
 
     def calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
         """Calculate RSI"""

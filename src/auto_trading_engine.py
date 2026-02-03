@@ -181,6 +181,8 @@ class QueuedSignal:
     queued_at: datetime         # When added to queue
     reasons: List[str]          # Signal reasons
     atr_pct: float = 5.0        # ATR% for deviation calculation
+    sl_pct: float = 0.0         # SL percentage from entry (for recalculation)
+    tp_pct: float = 0.0         # TP percentage from entry (for recalculation)
 
     def get_max_deviation(self, atr_mult: float, min_dev: float, max_dev: float) -> float:
         """
@@ -413,12 +415,15 @@ class AutoTradingEngine:
         # State
         self.state = TradingState.SLEEPING
         self.positions: Dict[str, ManagedPosition] = {}
-        self._positions_lock = threading.Lock()  # v4.9: Thread safety for positions dict
+        self._positions_lock = threading.RLock()  # v4.9: Reentrant lock for positions dict
+        self._close_locks: Dict[str, threading.Lock] = {}  # v4.9: Per-symbol close mutex
+        self._close_locks_lock = threading.Lock()  # Protects _close_locks dict
         self.daily_stats = DailyStats(date=datetime.now().strftime('%Y-%m-%d'))
         self.running = False
         self.monitor_thread = None
 
-        # v4.7: Loss protection tracking
+        # v4.7: Loss protection tracking (thread-safe via _stats_lock)
+        self._stats_lock = threading.Lock()
         self.consecutive_losses = 0         # นับแพ้ติดกัน (reset เมื่อชนะ)
         self.cooldown_until = None          # หยุดเทรดถึงวันที่นี้
         self.weekly_realized_pnl = 0.0      # P&L สะสมในสัปดาห์ (reset ทุกจันทร์)
@@ -465,10 +470,16 @@ class AutoTradingEngine:
         Saves: peak_price, trough_price, trailing_active, sl_pct, tp_pct,
         atr_pct, current_sl_price, tp_price, entry_time, sector — all fields
         that would be lost on crash/restart.
+
+        NOTE: Caller must hold _positions_lock OR this method takes a snapshot under lock.
         """
         try:
+            # Snapshot positions under lock (safe against concurrent modification)
+            with self._positions_lock:
+                positions_snapshot = dict(self.positions)
+
             state = {}
-            for symbol, pos in self.positions.items():
+            for symbol, pos in positions_snapshot.items():
                 state[symbol] = {
                     'symbol': pos.symbol,
                     'qty': pos.qty,
@@ -806,8 +817,8 @@ class AutoTradingEngine:
             return True, "Regime filter disabled"
 
         if not YFINANCE_AVAILABLE:
-            logger.warning("yfinance not available - skipping regime check")
-            return True, "yfinance not available"
+            logger.warning("yfinance not available — blocking trades (fail-closed)")
+            return False, "yfinance not available — data unavailable"
 
         # v4.2: Use cache to avoid repeated yfinance calls
         if not force_refresh and self._regime_cache:
@@ -823,8 +834,8 @@ class AutoTradingEngine:
                 spy = yf.download('SPY', period='60d', progress=False)
 
             if spy.empty or len(spy) < self.REGIME_SMA_PERIOD:
-                logger.warning("Not enough SPY data for regime check")
-                return True, "Insufficient data"
+                logger.warning("Not enough SPY data for regime check — blocking trades (fail-closed)")
+                return False, "Insufficient SPY data — data unavailable"
 
             # Get close prices (handle multi-index from yfinance)
             close = spy['Close']
@@ -888,9 +899,8 @@ class AutoTradingEngine:
             return is_bull, reason
 
         except Exception as e:
-            logger.error(f"Regime check failed: {e}")
-            # On error, allow trading (conservative fallback)
-            return True, f"Error: {e}"
+            logger.error(f"Regime check failed: {e} — blocking trades (fail-closed)")
+            return False, f"Data unavailable: {e}"
 
     @staticmethod
     def _calc_rsi(close_series, period: int = 14) -> float:
@@ -1004,8 +1014,8 @@ class AutoTradingEngine:
             hist = ticker.history(period='5d')  # Get 5 days to be safe
 
             if hist.empty or len(hist) < 1:
-                logger.warning(f"{symbol}: Not enough data for gap check")
-                return True, 0.0, "Insufficient data"
+                logger.warning(f"{symbol}: Not enough data for gap check — blocking (fail-closed)")
+                return False, 0.0, "Data unavailable — insufficient data"
 
             # iloc[-1] = most recent close (yesterday if during market hours)
             prev_close = float(hist['Close'].iloc[-1])
@@ -1027,9 +1037,8 @@ class AutoTradingEngine:
             return True, gap_pct, reason
 
         except Exception as e:
-            logger.error(f"{symbol}: Gap check failed: {e}")
-            # On error, allow trading (be conservative)
-            return True, 0.0, f"Error: {e}"
+            logger.error(f"{symbol}: Gap check failed: {e} — blocking (fail-closed)")
+            return False, 0.0, f"Data unavailable: {e}"
 
     # =========================================================================
     # EARNINGS FILTER (v4.4 NEW!)
@@ -1136,9 +1145,8 @@ class AutoTradingEngine:
                 return True, "No earnings data (allowed)"
 
         except Exception as e:
-            logger.error(f"{symbol}: Earnings check failed: {e}")
-            # On error, allow trading
-            return True, f"Error: {e}"
+            logger.error(f"{symbol}: Earnings check failed: {e} — blocking (fail-closed)")
+            return False, f"Data unavailable: {e}"
 
     # =========================================================================
     # SECTOR DIVERSIFICATION (v4.7 NEW!)
@@ -1192,25 +1200,26 @@ class AutoTradingEngine:
         return True, f"{sector}: {tracker.get('losses', 0)}/{self.MAX_SECTOR_CONSECUTIVE_LOSS} losses"
 
     def _record_sector_trade_result(self, sector: str, pnl_pct: float):
-        """Record trade result per sector for consecutive loss tracking."""
+        """Record trade result per sector for consecutive loss tracking. Thread-safe."""
         if not self.SECTOR_LOSS_TRACKING_ENABLED or not sector:
             return
 
-        sector_key = sector.lower()
-        if sector_key not in self.sector_loss_tracker:
-            self.sector_loss_tracker[sector_key] = {'losses': 0, 'cooldown_until': None}
+        with self._stats_lock:
+            sector_key = sector.lower()
+            if sector_key not in self.sector_loss_tracker:
+                self.sector_loss_tracker[sector_key] = {'losses': 0, 'cooldown_until': None}
 
-        tracker = self.sector_loss_tracker[sector_key]
+            tracker = self.sector_loss_tracker[sector_key]
 
-        if pnl_pct > 0:
-            tracker['losses'] = 0  # Reset on win
-        else:
-            tracker['losses'] += 1
-            logger.info(f"📉 {sector} consecutive losses: {tracker['losses']}/{self.MAX_SECTOR_CONSECUTIVE_LOSS}")
+            if pnl_pct > 0:
+                tracker['losses'] = 0  # Reset on win
+            else:
+                tracker['losses'] += 1
+                logger.info(f"📉 {sector} consecutive losses: {tracker['losses']}/{self.MAX_SECTOR_CONSECUTIVE_LOSS}")
 
-            if tracker['losses'] >= self.MAX_SECTOR_CONSECUTIVE_LOSS:
-                tracker['cooldown_until'] = datetime.now(self.et_tz).date() + timedelta(days=self.SECTOR_COOLDOWN_DAYS)
-                logger.warning(f"🧊 {sector} cooldown {self.SECTOR_COOLDOWN_DAYS} days → until {tracker['cooldown_until']}")
+                if tracker['losses'] >= self.MAX_SECTOR_CONSECUTIVE_LOSS:
+                    tracker['cooldown_until'] = datetime.now(self.et_tz).date() + timedelta(days=self.SECTOR_COOLDOWN_DAYS)
+                    logger.warning(f"🧊 {sector} cooldown {self.SECTOR_COOLDOWN_DAYS} days → until {tracker['cooldown_until']}")
 
     # =========================================================================
     # LATE START PROTECTION (v4.4 NEW!)
@@ -1497,15 +1506,25 @@ class AutoTradingEngine:
                 logger.debug(f"Queue: Full, {symbol} not better than worst")
                 return False
 
+        sig_price = getattr(signal, 'entry_price', getattr(signal, 'close', 0))
+        sig_sl = getattr(signal, 'stop_loss', 0)
+        sig_tp = getattr(signal, 'take_profit', 0)
+
+        # Calculate SL/TP as percentages for recalculation when executed later
+        sl_pct = ((sig_price - sig_sl) / sig_price * 100) if sig_price and sig_sl else self.STOP_LOSS_PCT
+        tp_pct = ((sig_tp - sig_price) / sig_price * 100) if sig_price and sig_tp else self.TAKE_PROFIT_PCT
+
         queued = QueuedSignal(
             symbol=symbol,
-            signal_price=getattr(signal, 'entry_price', getattr(signal, 'close', 0)),
+            signal_price=sig_price,
             score=getattr(signal, 'score', 0),
-            stop_loss=getattr(signal, 'stop_loss', 0),
-            take_profit=getattr(signal, 'take_profit', 0),
+            stop_loss=sig_sl,
+            take_profit=sig_tp,
             queued_at=datetime.now(),
             reasons=getattr(signal, 'reasons', []),
-            atr_pct=getattr(signal, 'atr_pct', 5.0)  # Default 5% if not available
+            atr_pct=getattr(signal, 'atr_pct', 5.0),  # Default 5% if not available
+            sl_pct=sl_pct,
+            tp_pct=tp_pct,
         )
 
         self.signal_queue.append(queued)
@@ -1589,7 +1608,7 @@ class AutoTradingEngine:
 
     def _execute_from_queue(self, queued: QueuedSignal) -> bool:
         """
-        Execute a queued signal
+        Execute a queued signal with recalculated SL/TP based on current price.
 
         Args:
             queued: QueuedSignal to execute
@@ -1600,17 +1619,39 @@ class AutoTradingEngine:
         try:
             symbol = queued.symbol
 
+            # Get current price for fresh SL/TP calculation
+            current_price = queued.signal_price  # fallback
+            try:
+                alpaca_pos = self.trader.get_position(symbol)
+                if alpaca_pos:
+                    # Already have position somehow — skip
+                    logger.warning(f"Queue: {symbol} already has position at Alpaca")
+                    return False
+                snapshot = self.trader.get_snapshot(symbol) if hasattr(self.trader, 'get_snapshot') else None
+                if snapshot and snapshot.get('last_price'):
+                    current_price = snapshot['last_price']
+            except Exception:
+                pass  # Use original signal_price as fallback
+
+            # Recalculate SL/TP from stored percentages + current price
+            sl_pct = queued.sl_pct if queued.sl_pct > 0 else self.STOP_LOSS_PCT
+            tp_pct = queued.tp_pct if queued.tp_pct > 0 else self.TAKE_PROFIT_PCT
+            fresh_sl = round(current_price * (1 - sl_pct / 100), 2)
+            fresh_tp = round(current_price * (1 + tp_pct / 100), 2)
+
             # Create a mock signal object for execute_signal
             class MockSignal:
                 pass
 
             signal = MockSignal()
             signal.symbol = symbol
-            signal.entry_price = queued.signal_price  # Use original signal price for calculations
-            signal.stop_loss = queued.stop_loss
-            signal.take_profit = queued.take_profit
+            signal.entry_price = current_price
+            signal.stop_loss = fresh_sl
+            signal.take_profit = fresh_tp
             signal.score = queued.score
             signal.reasons = queued.reasons
+
+            logger.info(f"📋 Queue: {symbol} SL/TP recalculated: SL ${fresh_sl:.2f} ({sl_pct:.1f}%), TP ${fresh_tp:.2f} ({tp_pct:.1f}%) @ ${current_price:.2f}")
 
             # Execute
             success = self.execute_signal(signal)
@@ -1622,7 +1663,7 @@ class AutoTradingEngine:
             return success
 
         except Exception as e:
-            logger.error(f"Queue: Error executing {symbol}: {e}")
+            logger.error(f"Queue: Error executing {queued.symbol}: {e}")
             return False
 
     def _clear_queue_end_of_day(self):
@@ -2281,7 +2322,23 @@ class AutoTradingEngine:
             reason: Reason for closing (TAKE_PROFIT, TIME_EXIT, etc.)
             force: If True, bypass PDT check (for manual sells)
         """
+        # Per-symbol close mutex — prevents concurrent close for same symbol
+        with self._close_locks_lock:
+            if symbol not in self._close_locks:
+                self._close_locks[symbol] = threading.Lock()
+            close_lock = self._close_locks[symbol]
+
+        if not close_lock.acquire(blocking=False):
+            logger.warning(f"{symbol} close already in progress — skipping duplicate")
+            return
+
         try:
+            # Double-check: symbol still in positions after acquiring lock
+            with self._positions_lock:
+                if symbol not in self.positions:
+                    logger.info(f"{symbol} already removed from positions — skipping close")
+                    return
+
             # CRITICAL: Check if position still exists before selling
             # This prevents double-sell if SL was already triggered
             alpaca_pos = self.trader.get_position(symbol)
@@ -2357,7 +2414,8 @@ class AutoTradingEngine:
 
             # Update stats
             self.daily_stats.realized_pnl += pnl_usd
-            self.weekly_realized_pnl += pnl_usd  # v4.7: Weekly tracking
+            with self._stats_lock:
+                self.weekly_realized_pnl += pnl_usd  # v4.7: Weekly tracking
             if pnl_pct > 0:
                 self.daily_stats.trades_won += 1
             else:
@@ -2445,6 +2503,8 @@ class AutoTradingEngine:
 
         except Exception as e:
             logger.error(f"Failed to close {symbol}: {e}")
+        finally:
+            close_lock.release()
 
     # =========================================================================
     # DAILY CHECKS
@@ -2467,22 +2527,25 @@ class AutoTradingEngine:
     def check_weekly_loss_limit(self) -> bool:
         """
         Check if weekly loss limit exceeded.
-        Reset ทุกวันจันทร์ (start of trading week)
+        Reset ทุกวันจันทร์ (start of trading week). Thread-safe.
         """
         today = datetime.now(self.et_tz).date()
 
-        # Reset on Monday
-        if today.weekday() == 0 and self.weekly_reset_date != today:
-            self.weekly_realized_pnl = 0.0
-            self.weekly_reset_date = today
-            logger.info("📅 Weekly P&L reset (Monday)")
+        with self._stats_lock:
+            # Reset on Monday
+            if today.weekday() == 0 and self.weekly_reset_date != today:
+                self.weekly_realized_pnl = 0.0
+                self.weekly_reset_date = today
+                logger.info("📅 Weekly P&L reset (Monday)")
+
+            weekly_pnl = self.weekly_realized_pnl
 
         account = self.trader.get_account()
         capital = float(account.get('portfolio_value', self.SIMULATED_CAPITAL or 4000))
-        weekly_pnl_pct = (self.weekly_realized_pnl / capital) * 100
+        weekly_pnl_pct = (weekly_pnl / capital) * 100
 
         if weekly_pnl_pct <= -self.WEEKLY_LOSS_LIMIT_PCT:
-            logger.warning(f"🚨 Weekly loss limit hit: {weekly_pnl_pct:.2f}% (${self.weekly_realized_pnl:.2f})")
+            logger.warning(f"🚨 Weekly loss limit hit: {weekly_pnl_pct:.2f}% (${weekly_pnl:.2f})")
             return True
         return False
 
@@ -2493,34 +2556,36 @@ class AutoTradingEngine:
     def check_consecutive_loss_cooldown(self) -> bool:
         """
         Check if in cooldown from consecutive losses.
-        แพ้ 3 ครั้งติด → หยุด 1 วัน
+        แพ้ 3 ครั้งติด → หยุด 1 วัน. Thread-safe.
         """
-        if self.cooldown_until:
-            today = datetime.now(self.et_tz).date()
-            if today <= self.cooldown_until:
-                logger.warning(f"🧊 Cooldown active: {self.consecutive_losses} consecutive losses (until {self.cooldown_until})")
-                return True
-            else:
-                # Cooldown expired
-                logger.info(f"✅ Cooldown ended, resuming trading")
-                self.cooldown_until = None
-                self.consecutive_losses = 0
+        with self._stats_lock:
+            if self.cooldown_until:
+                today = datetime.now(self.et_tz).date()
+                if today <= self.cooldown_until:
+                    logger.warning(f"🧊 Cooldown active: {self.consecutive_losses} consecutive losses (until {self.cooldown_until})")
+                    return True
+                else:
+                    # Cooldown expired
+                    logger.info(f"✅ Cooldown ended, resuming trading")
+                    self.cooldown_until = None
+                    self.consecutive_losses = 0
         return False
 
     def _record_trade_result(self, pnl_pct: float):
         """
         Record trade result for consecutive loss tracking + weekly P&L.
-        Called after every closed trade.
+        Called after every closed trade. Thread-safe.
         """
-        if pnl_pct > 0:
-            self.consecutive_losses = 0  # Reset on win
-        else:
-            self.consecutive_losses += 1
-            logger.info(f"📉 Consecutive losses: {self.consecutive_losses}/{self.MAX_CONSECUTIVE_LOSSES}")
+        with self._stats_lock:
+            if pnl_pct > 0:
+                self.consecutive_losses = 0  # Reset on win
+            else:
+                self.consecutive_losses += 1
+                logger.info(f"📉 Consecutive losses: {self.consecutive_losses}/{self.MAX_CONSECUTIVE_LOSSES}")
 
-            if self.consecutive_losses >= self.MAX_CONSECUTIVE_LOSSES:
-                self.cooldown_until = datetime.now(self.et_tz).date() + timedelta(days=1)
-                logger.warning(f"🧊 {self.consecutive_losses} consecutive losses → cooldown until {self.cooldown_until}")
+                if self.consecutive_losses >= self.MAX_CONSECUTIVE_LOSSES:
+                    self.cooldown_until = datetime.now(self.et_tz).date() + timedelta(days=1)
+                    logger.warning(f"🧊 {self.consecutive_losses} consecutive losses → cooldown until {self.cooldown_until}")
 
     def pre_close_check(self):
         """Pre-close check - handle max hold days"""

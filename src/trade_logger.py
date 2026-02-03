@@ -15,6 +15,7 @@ Author: Auto Trading System
 Version: 1.0
 """
 
+import atexit
 import os
 import json
 import queue
@@ -168,7 +169,8 @@ class TradeLogger:
         # Initialize SQLite
         self._init_db()
 
-        # Today's log cache
+        # Today's log cache (thread-safe)
+        self._logs_lock = threading.Lock()
         self._today_logs: List[TradeLogEntry] = []
         self._load_today_logs()
 
@@ -178,6 +180,9 @@ class TradeLogger:
             target=self._log_worker, daemon=True, name="TradeLogWorker"
         )
         self._log_worker_thread.start()
+
+        # Flush pending log entries on shutdown
+        atexit.register(self.flush)
 
         logger.info(f"TradeLogger initialized - logs: {self.log_dir}, db: {self.db_path}")
 
@@ -484,27 +489,36 @@ class TradeLogger:
         return entry
 
     def _add_entry(self, entry: TradeLogEntry):
-        """Add entry to today's logs and queue for async persistence"""
-        self._today_logs.append(entry)
-        # Queue for async save (non-blocking)
+        """Add entry to today's logs and queue for async DB archive"""
+        with self._logs_lock:
+            self._today_logs.append(entry)
+            # Sync JSON save (fast, ~1ms) — ensures no data loss
+            self._save_today_logs()
+        # Queue for async DB archive (slower, non-blocking)
         self._log_queue.put(entry)
 
     def _log_worker(self):
-        """Background worker that persists log entries asynchronously"""
+        """Background worker that archives log entries to DB asynchronously"""
         while True:
             try:
                 entry = self._log_queue.get(timeout=5)
                 try:
-                    self._save_today_logs()
                     self._archive_to_db(entry)
                 except Exception as e:
-                    logger.error(f"Async log persistence error: {e}")
+                    logger.error(f"Async DB archive error: {e}")
                 finally:
                     self._log_queue.task_done()
             except queue.Empty:
                 continue
             except Exception as e:
                 logger.error(f"Log worker error: {e}")
+
+    def flush(self):
+        """Flush pending log entries (blocks until queue empty)"""
+        try:
+            self._log_queue.join()
+        except Exception as e:
+            logger.error(f"Error flushing trade logger: {e}")
 
     def _archive_to_db(self, entry: TradeLogEntry):
         """Archive entry to SQLite"""
@@ -547,13 +561,15 @@ class TradeLogger:
 
     def get_today_logs(self, action: str = None) -> List[TradeLogEntry]:
         """Get today's logs, optionally filtered by action"""
-        if action:
-            return [e for e in self._today_logs if e.action == action]
-        return self._today_logs.copy()
+        with self._logs_lock:
+            if action:
+                return [e for e in self._today_logs if e.action == action]
+            return self._today_logs.copy()
 
     def get_today_summary(self) -> Dict:
         """Get summary of today's trading"""
-        logs = self._today_logs
+        with self._logs_lock:
+            logs = self._today_logs.copy()
 
         buys = [e for e in logs if e.action == "BUY"]
         sells = [e for e in logs if e.action == "SELL"]
@@ -580,8 +596,9 @@ class TradeLogger:
 
     def get_recent_logs(self, limit: int = 10) -> List[Dict]:
         """Get recent logs for UI display"""
-        logs = self._today_logs[-limit:] if len(self._today_logs) > limit else self._today_logs
-        return [asdict(e) for e in reversed(logs)]  # Most recent first
+        with self._logs_lock:
+            logs = self._today_logs[-limit:] if len(self._today_logs) > limit else self._today_logs
+            return [asdict(e) for e in reversed(logs)]  # Most recent first
 
     def query_history(
         self,

@@ -202,6 +202,7 @@ class AlpacaTrader:
             logger.error(f"Failed to get positions: {e}")
             raise
 
+    @_retry_api(max_retries=2, base_delay=0.5)
     def get_position(self, symbol: str) -> Optional[Position]:
         """Get position for a specific symbol"""
         try:
@@ -227,6 +228,7 @@ class AlpacaTrader:
     # ORDERS
     # =========================================================================
 
+    @_retry_api(max_retries=2, base_delay=0.5)
     def get_orders(self, status: str = 'open') -> List[Order]:
         """
         Get orders
@@ -498,6 +500,7 @@ class AlpacaTrader:
             logger.error(f"Failed to place sell order: {e}")
             raise
 
+    @_retry_api(max_retries=2, base_delay=0.5)
     def place_stop_loss(self, symbol: str, qty: int, stop_price: float) -> Order:
         """
         Place a stop loss order
@@ -538,15 +541,39 @@ class AlpacaTrader:
             raise
 
     def cancel_order(self, order_id: str) -> bool:
-        """Cancel an order"""
+        """Cancel an order with retry and verification"""
         try:
-            logger.info(f"Cancelling order: {order_id}")
-            self.api.cancel_order(order_id)
-            logger.info(f"Order cancelled: {order_id}")
-            return True
+            self._cancel_order_inner(order_id)
         except Exception as e:
-            logger.error(f"Failed to cancel order {order_id}: {e}")
+            err_str = str(e).lower()
+            # Order already cancelled/filled is fine
+            if 'not cancelable' in err_str or 'not found' in err_str:
+                logger.info(f"Order {order_id} already cancelled/filled")
+                return True
+            logger.error(f"Failed to cancel order {order_id} after retries: {e}")
             return False
+
+        # Verify cancellation by polling order status
+        for i in range(3):
+            time.sleep(0.5)
+            try:
+                order = self.get_order(order_id)
+                if order and order.status in ('canceled', 'cancelled', 'expired', 'filled'):
+                    logger.info(f"Cancel verified: {order_id} status={order.status}")
+                    return True
+            except Exception:
+                pass  # get_order retry handles transient errors
+
+        logger.warning(f"CRITICAL: Cancel NOT verified for {order_id} after 3 polls")
+        return True  # Cancel was accepted by API, verification is best-effort
+
+    @_retry_api(max_retries=2, base_delay=0.5)
+    def _cancel_order_inner(self, order_id: str) -> bool:
+        """Inner cancel with retry decorator"""
+        logger.info(f"Cancelling order: {order_id}")
+        self.api.cancel_order(order_id)
+        logger.info(f"Order cancel submitted: {order_id}")
+        return True
 
     def cancel_all_orders(self) -> bool:
         """Cancel all open orders"""

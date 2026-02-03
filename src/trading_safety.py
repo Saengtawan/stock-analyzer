@@ -20,6 +20,7 @@ import os
 import sys
 import time
 import json
+import tempfile
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
@@ -85,9 +86,6 @@ class TradingSafetySystem:
     # Health check intervals
     HEALTH_CHECK_INTERVAL = 300     # 5 minutes
 
-    # State file
-    STATE_FILE = "trading_safety_state.json"
-
     def __init__(self, trader: AlpacaTrader):
         """Initialize safety system"""
         self.trader = trader
@@ -95,6 +93,14 @@ class TradingSafetySystem:
         self.daily_loss_triggered = False
         self.last_health_check = None
         self.health_history: List[HealthReport] = []
+
+        # State file - absolute path in data/ directory
+        data_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), '..', 'data'
+        )
+        data_dir = os.path.abspath(data_dir)
+        os.makedirs(data_dir, exist_ok=True)
+        self._state_file = os.path.join(data_dir, 'trading_safety_state.json')
 
         # Load state
         self._load_state()
@@ -108,8 +114,8 @@ class TradingSafetySystem:
     def _load_state(self):
         """Load safety state from file"""
         try:
-            if os.path.exists(self.STATE_FILE):
-                with open(self.STATE_FILE, 'r') as f:
+            if os.path.exists(self._state_file):
+                with open(self._state_file, 'r') as f:
                     state = json.load(f)
                     self.emergency_stop = state.get('emergency_stop', False)
                     # Reset daily loss on new day
@@ -123,7 +129,7 @@ class TradingSafetySystem:
             logger.error(f"Failed to load safety state: {e}")
 
     def _save_state(self):
-        """Save safety state to file"""
+        """Save safety state to file (atomic write)"""
         try:
             state = {
                 'date': datetime.now().strftime('%Y-%m-%d'),
@@ -131,8 +137,16 @@ class TradingSafetySystem:
                 'daily_loss_triggered': self.daily_loss_triggered,
                 'last_updated': datetime.now().isoformat()
             }
-            with open(self.STATE_FILE, 'w') as f:
-                json.dump(state, f, indent=2)
+            dir_path = os.path.dirname(self._state_file)
+            fd, tmp_path = tempfile.mkstemp(dir=dir_path, suffix='.tmp')
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(state, f, indent=2)
+                os.replace(tmp_path, self._state_file)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
         except Exception as e:
             logger.error(f"Failed to save safety state: {e}")
 

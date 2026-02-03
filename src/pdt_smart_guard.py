@@ -37,6 +37,8 @@ from typing import Tuple, Optional, Dict
 from enum import Enum
 from loguru import logger
 import os
+import json
+import tempfile
 import pytz
 
 
@@ -82,15 +84,27 @@ class PDTSmartGuard:
     4. Reserve last day trade for emergencies
     """
 
-    def __init__(self, trader=None, config: PDTConfig = None):
+    def __init__(self, trader=None, config: PDTConfig = None, data_dir: str = None):
         self.trader = trader
         self.config = config or PDTConfig()
+
+        # Data directory for persistence
+        if data_dir is None:
+            data_dir = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), '..', 'data'
+            )
+        self._data_dir = os.path.abspath(data_dir)
+        os.makedirs(self._data_dir, exist_ok=True)
+        self._entry_dates_file = os.path.join(self._data_dir, 'pdt_entry_dates.json')
 
         # Cache for entry dates (symbol -> date in US Eastern Time)
         self._entry_dates: Dict[str, date] = {}
 
         # US Eastern timezone for trading day calculations
         self._et_tz = pytz.timezone('US/Eastern')
+
+        # Load persisted entry dates
+        self._load_entry_dates()
 
         logger.info(f"PDT Smart Guard v2.2 initialized (No Override Mode)")
         logger.info(f"  SL Threshold: {self.config.sl_threshold}%")
@@ -111,6 +125,35 @@ class PDTSmartGuard:
         """
         return datetime.now(self._et_tz).date()
 
+    def _save_entry_dates(self):
+        """Persist entry dates to disk (atomic write)"""
+        try:
+            data = {sym: d.isoformat() for sym, d in self._entry_dates.items()}
+            fd, tmp_path = tempfile.mkstemp(dir=self._data_dir, suffix='.tmp')
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(data, f, indent=2)
+                os.replace(tmp_path, self._entry_dates_file)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
+        except Exception as e:
+            logger.error(f"PDT Guard: Failed to save entry dates: {e}")
+
+    def _load_entry_dates(self):
+        """Load persisted entry dates from disk"""
+        try:
+            if not os.path.exists(self._entry_dates_file):
+                return
+            with open(self._entry_dates_file, 'r') as f:
+                data = json.load(f)
+            for sym, date_str in data.items():
+                self._entry_dates[sym] = date.fromisoformat(date_str)
+            logger.info(f"PDT Guard: Loaded {len(self._entry_dates)} entry dates from disk")
+        except Exception as e:
+            logger.error(f"PDT Guard: Failed to load entry dates: {e}")
+
     def record_entry(self, symbol: str, entry_date: date = None):
         """
         Record entry date for a position
@@ -120,12 +163,14 @@ class PDTSmartGuard:
         if entry_date is None:
             entry_date = self._get_et_date()
         self._entry_dates[symbol] = entry_date
+        self._save_entry_dates()
         logger.debug(f"PDT Guard: Recorded entry for {symbol} on {self._entry_dates[symbol]} (ET)")
 
     def remove_entry(self, symbol: str):
         """Remove entry record when position closed"""
         if symbol in self._entry_dates:
             del self._entry_dates[symbol]
+            self._save_entry_dates()
 
     def get_entry_date(self, symbol: str) -> Optional[date]:
         """Get entry date for a symbol"""
@@ -141,7 +186,7 @@ class PDTSmartGuard:
         """
         entry_date = self._entry_dates.get(symbol)
         if not entry_date:
-            return 999  # Unknown = assume safe
+            return 0  # Unknown = assume Day 0 (cautious)
 
         # CRITICAL: Use US Eastern date, not local date!
         today_et = self._get_et_date()
@@ -254,6 +299,34 @@ class PDTSmartGuard:
             return False, "Day 0 - PDT Guard active (no SL order)"
 
         return True, f"Day {days_held} - SL order allowed"
+
+    def should_place_eod_sl(self, symbol: str) -> Tuple[bool, str]:
+        """
+        Check if EOD (end-of-day) SL should be placed for Day 0 positions.
+
+        Day 0 positions normally have NO SL order (PDT control).
+        But near market close (15:50 ET+), they become overnight holds,
+        so we place SL to protect against overnight gaps.
+
+        Returns:
+            (should_place: bool, reason: str)
+        """
+        entry_date = self._entry_dates.get(symbol)
+        if not entry_date:
+            return False, "No entry date recorded"
+
+        days_held = self.get_days_held(symbol)
+        if days_held != 0:
+            return False, f"Day {days_held} - already has SL via should_place_sl_order()"
+
+        # Day 0: Check if near market close
+        now_et = datetime.now(self._et_tz)
+        market_close_soon = now_et.hour == 15 and now_et.minute >= 50
+
+        if market_close_soon:
+            return True, "Day 0 near close (15:50+ ET) - place overnight SL"
+
+        return False, "Day 0 before 15:50 ET - no SL (PDT control)"
 
     def get_guard_status(self) -> Dict:
         """Get full guard status for UI/API"""
