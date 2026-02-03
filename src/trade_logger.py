@@ -137,6 +137,9 @@ class TradeLogEntry:
     config_max_consecutive_losses: Optional[int] = None
     config_smart_order_enabled: Optional[bool] = None
 
+    # Correlation
+    correlation_id: Optional[str] = None  # Links BUY to its corresponding SELL
+
     # Meta
     order_id: Optional[str] = None
     version: str = "v4.8"
@@ -173,6 +176,7 @@ class TradeLogger:
         self._logs_lock = threading.Lock()
         self._today_logs: List[TradeLogEntry] = []
         self._load_today_logs()
+        self._loaded_date = datetime.now(self.et_tz).strftime('%Y-%m-%d')
 
         # v4.7 Fix #14: Async logging with background queue
         self._log_queue: queue.Queue = queue.Queue()
@@ -329,6 +333,7 @@ class TradeLogger:
         fill_status: str = None,
         # Config snapshot (v4.8)
         config_snapshot: Dict = None,
+        correlation_id: str = None,
         note: str = ""
     ) -> TradeLogEntry:
         """Log a BUY trade"""
@@ -389,6 +394,7 @@ class TradeLogger:
             config_weekly_loss_limit_pct=cs.get('weekly_loss_limit_pct'),
             config_max_consecutive_losses=cs.get('max_consecutive_losses'),
             config_smart_order_enabled=cs.get('smart_order_enabled'),
+            correlation_id=correlation_id,
             note=note
         )
 
@@ -419,6 +425,7 @@ class TradeLogger:
         max_gain_pct: float = None,
         max_drawdown_pct: float = None,
         exit_efficiency: float = None,
+        correlation_id: str = None,
         note: str = ""
     ) -> TradeLogEntry:
         """Log a SELL trade"""
@@ -447,6 +454,7 @@ class TradeLogger:
             max_gain_pct=max_gain_pct,
             max_drawdown_pct=max_drawdown_pct,
             exit_efficiency=exit_efficiency,
+            correlation_id=correlation_id,
             note=note
         )
 
@@ -491,6 +499,12 @@ class TradeLogger:
     def _add_entry(self, entry: TradeLogEntry):
         """Add entry to today's logs and queue for async DB archive"""
         with self._logs_lock:
+            # Check for midnight rollover
+            current_date = datetime.now(self.et_tz).strftime('%Y-%m-%d')
+            if self._today_logs and hasattr(self, '_loaded_date') and self._loaded_date != current_date:
+                logger.info(f"Midnight rollover: {self._loaded_date} -> {current_date}")
+                self._today_logs = []
+                self._loaded_date = current_date
             self._today_logs.append(entry)
             # Sync JSON save (fast, ~1ms) — ensures no data loss
             self._save_today_logs()

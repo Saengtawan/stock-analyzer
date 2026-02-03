@@ -15,6 +15,7 @@ If SL order fails after buy, immediately sell the position.
 
 import os
 import time
+import threading
 import functools
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
@@ -36,7 +37,14 @@ def _retry_api(max_retries: int = 3, base_delay: float = 1.0, max_delay: float =
             last_exc = None
             for attempt in range(max_retries + 1):
                 try:
-                    return func(*args, **kwargs)
+                    result = func(*args, **kwargs)
+                    # v4.9 Fix #37: Check for HTTP 200 with error body
+                    # Some Alpaca responses return 200 but contain error info
+                    if result is not None and hasattr(result, 'status') and hasattr(result, 'id'):
+                        status = str(getattr(result, 'status', '')).lower()
+                        if status in ('rejected', 'canceled', 'suspended'):
+                            logger.warning(f"API {func.__name__} returned {status} order: {getattr(result, 'id', '?')}")
+                    return result
                 except Exception as e:
                     last_exc = e
                     err_str = str(e).lower()
@@ -47,7 +55,7 @@ def _retry_api(max_retries: int = 3, base_delay: float = 1.0, max_delay: float =
                         raise
 
                     # Don't retry if it's clearly a business logic error
-                    if any(kw in err_str for kw in ['insufficient', 'not found', 'forbidden', 'invalid']):
+                    if any(kw in err_str for kw in ['insufficient', 'not found', 'forbidden', 'invalid', 'account is not active', 'market is closed']):
                         raise
 
                     if attempt < max_retries:
@@ -150,9 +158,7 @@ class AlpacaTrader:
             api_version='v2'
         )
 
-        # v4.7: Track positions needing manual intervention
-        self.needs_manual_intervention: List[str] = []
-        self._last_filled_qty: int = 0
+        self._buy_lock = threading.Lock()  # Prevent concurrent buys
 
         logger.info(f"Alpaca client initialized: {self.base_url}")
 
@@ -341,114 +347,120 @@ class AlpacaTrader:
         """
         import time
 
-        # Initialize execution metadata
-        self.last_execution_meta = {
-            'order_type': 'market',
-            'limit_price': None,
-            'bid_ask_spread_pct': None,
-            'fill_time_sec': None,
-            'fill_status': None,
-        }
-        start_time = time.time()
-
-        # Step 1: Get bid/ask
-        snapshot = self.get_snapshot(symbol)
-        if not snapshot or not snapshot.get('bid') or not snapshot.get('ask'):
-            logger.warning(f"Smart buy: No bid/ask for {symbol}, falling back to market")
-            result = self.place_market_buy(symbol, qty)
-            self.last_execution_meta['fill_time_sec'] = round(time.time() - start_time, 1)
-            self.last_execution_meta['fill_status'] = 'filled' if result else 'failed'
-            return result
-
-        bid = snapshot['bid']
-        ask = snapshot['ask']
-
-        if bid <= 0 or ask <= 0:
-            logger.warning(f"Smart buy: Invalid bid/ask for {symbol}, falling back to market")
-            result = self.place_market_buy(symbol, qty)
-            self.last_execution_meta['fill_time_sec'] = round(time.time() - start_time, 1)
-            self.last_execution_meta['fill_status'] = 'filled' if result else 'failed'
-            return result
-
-        spread_pct = ((ask - bid) / bid) * 100
-        self.last_execution_meta['bid_ask_spread_pct'] = round(spread_pct, 3)
-
-        logger.info(f"Smart buy: {symbol} Bid=${bid:.2f} Ask=${ask:.2f} Spread={spread_pct:.2f}%")
-
-        # Step 2: Spread check
-        if spread_pct > max_spread_pct:
-            logger.warning(f"Smart buy: {symbol} spread {spread_pct:.2f}% > {max_spread_pct}% - SKIP")
-            self.last_execution_meta['fill_status'] = 'spread_reject'
+        if not self._buy_lock.acquire(blocking=False):
+            logger.warning(f"Smart buy: Another buy in progress — skipping {symbol}")
             return None
-
-        # Step 3: Place limit @ ask
         try:
-            limit_price = round(ask, 2)
-            self.last_execution_meta['order_type'] = 'limit'
-            self.last_execution_meta['limit_price'] = limit_price
-            logger.info(f"Smart buy: Limit order {symbol} x{qty} @ ${limit_price:.2f}")
-            order = self.api.submit_order(
-                symbol=symbol,
-                qty=qty,
-                side='buy',
-                type='limit',
-                limit_price=limit_price,
-                time_in_force='day'
-            )
-            order_id = order.id
-            logger.info(f"Smart buy: Limit order placed: {order_id}")
+            # Initialize execution metadata
+            self.last_execution_meta = {
+                'order_type': 'market',
+                'limit_price': None,
+                'bid_ask_spread_pct': None,
+                'fill_time_sec': None,
+                'fill_status': None,
+            }
+            start_time = time.time()
 
-            # Step 4: Wait for fill
-            for i in range(wait_seconds):
-                time.sleep(1)
+            # Step 1: Get bid/ask
+            snapshot = self.get_snapshot(symbol)
+            if not snapshot or not snapshot.get('bid') or not snapshot.get('ask'):
+                logger.warning(f"Smart buy: No bid/ask for {symbol}, falling back to market")
+                result = self.place_market_buy(symbol, qty)
+                self.last_execution_meta['fill_time_sec'] = round(time.time() - start_time, 1)
+                self.last_execution_meta['fill_status'] = 'filled' if result else 'failed'
+                return result
+
+            bid = snapshot['bid']
+            ask = snapshot['ask']
+
+            if bid <= 0 or ask <= 0:
+                logger.warning(f"Smart buy: Invalid bid/ask for {symbol}, falling back to market")
+                result = self.place_market_buy(symbol, qty)
+                self.last_execution_meta['fill_time_sec'] = round(time.time() - start_time, 1)
+                self.last_execution_meta['fill_status'] = 'filled' if result else 'failed'
+                return result
+
+            spread_pct = ((ask - bid) / bid) * 100
+            self.last_execution_meta['bid_ask_spread_pct'] = round(spread_pct, 3)
+
+            logger.info(f"Smart buy: {symbol} Bid=${bid:.2f} Ask=${ask:.2f} Spread={spread_pct:.2f}%")
+
+            # Step 2: Spread check
+            if spread_pct > max_spread_pct:
+                logger.warning(f"Smart buy: {symbol} spread {spread_pct:.2f}% > {max_spread_pct}% - SKIP")
+                self.last_execution_meta['fill_status'] = 'spread_reject'
+                return None
+
+            # Step 3: Place limit @ ask
+            try:
+                limit_price = round(ask, 2)
+                self.last_execution_meta['order_type'] = 'limit'
+                self.last_execution_meta['limit_price'] = limit_price
+                logger.info(f"Smart buy: Limit order {symbol} x{qty} @ ${limit_price:.2f}")
+                order = self.api.submit_order(
+                    symbol=symbol,
+                    qty=qty,
+                    side='buy',
+                    type='limit',
+                    limit_price=limit_price,
+                    time_in_force='day'
+                )
+                order_id = order.id
+                logger.info(f"Smart buy: Limit order placed: {order_id}")
+
+                # Step 4: Wait for fill
+                for i in range(wait_seconds):
+                    time.sleep(1)
+                    check = self.get_order(order_id)
+                    if check.status == 'filled':
+                        saved = limit_price - check.filled_avg_price if check.filled_avg_price else 0
+                        logger.info(
+                            f"Smart buy: LIMIT FILLED {symbol} @ ${check.filled_avg_price:.2f} "
+                            f"(limit was ${limit_price:.2f}, saved ${saved:.2f})"
+                        )
+                        self.last_execution_meta['fill_time_sec'] = round(time.time() - start_time, 1)
+                        self.last_execution_meta['fill_status'] = 'filled'
+                        return check
+                    if check.status in ('cancelled', 'expired', 'rejected'):
+                        logger.warning(f"Smart buy: Order {check.status} for {symbol}")
+                        break
+
+                # Step 5: Not filled → cancel + market fallback
                 check = self.get_order(order_id)
                 if check.status == 'filled':
-                    saved = limit_price - check.filled_avg_price if check.filled_avg_price else 0
-                    logger.info(
-                        f"Smart buy: LIMIT FILLED {symbol} @ ${check.filled_avg_price:.2f} "
-                        f"(limit was ${limit_price:.2f}, saved ${saved:.2f})"
-                    )
                     self.last_execution_meta['fill_time_sec'] = round(time.time() - start_time, 1)
                     self.last_execution_meta['fill_status'] = 'filled'
                     return check
-                if check.status in ('cancelled', 'expired', 'rejected'):
-                    logger.warning(f"Smart buy: Order {check.status} for {symbol}")
-                    break
 
-            # Step 5: Not filled → cancel + market fallback
-            check = self.get_order(order_id)
-            if check.status == 'filled':
+                logger.info(f"Smart buy: Limit not filled in {wait_seconds}s, falling back to MARKET")
+                self.cancel_order(order_id)
+                time.sleep(0.5)  # Wait for cancel to process
+
+                # Verify cancel went through before market order
+                check = self.get_order(order_id)
+                if check.status == 'filled':
+                    logger.info(f"Smart buy: Filled during cancel! {symbol} @ ${check.filled_avg_price:.2f}")
+                    self.last_execution_meta['fill_time_sec'] = round(time.time() - start_time, 1)
+                    self.last_execution_meta['fill_status'] = 'filled'
+                    return check
+
+                self.last_execution_meta['order_type'] = 'market_fallback'
+                result = self.place_market_buy(symbol, qty)
                 self.last_execution_meta['fill_time_sec'] = round(time.time() - start_time, 1)
-                self.last_execution_meta['fill_status'] = 'filled'
-                return check
+                self.last_execution_meta['fill_status'] = 'filled' if result else 'failed'
+                self._track_slippage(result, limit_price)
+                return result
 
-            logger.info(f"Smart buy: Limit not filled in {wait_seconds}s, falling back to MARKET")
-            self.cancel_order(order_id)
-            time.sleep(0.5)  # Wait for cancel to process
-
-            # Verify cancel went through before market order
-            check = self.get_order(order_id)
-            if check.status == 'filled':
-                logger.info(f"Smart buy: Filled during cancel! {symbol} @ ${check.filled_avg_price:.2f}")
+            except Exception as e:
+                logger.error(f"Smart buy limit failed: {e}, falling back to market")
+                self.last_execution_meta['order_type'] = 'market_fallback'
+                result = self.place_market_buy(symbol, qty)
                 self.last_execution_meta['fill_time_sec'] = round(time.time() - start_time, 1)
-                self.last_execution_meta['fill_status'] = 'filled'
-                return check
-
-            self.last_execution_meta['order_type'] = 'market_fallback'
-            result = self.place_market_buy(symbol, qty)
-            self.last_execution_meta['fill_time_sec'] = round(time.time() - start_time, 1)
-            self.last_execution_meta['fill_status'] = 'filled' if result else 'failed'
-            self._track_slippage(result, limit_price)
-            return result
-
-        except Exception as e:
-            logger.error(f"Smart buy limit failed: {e}, falling back to market")
-            self.last_execution_meta['order_type'] = 'market_fallback'
-            result = self.place_market_buy(symbol, qty)
-            self.last_execution_meta['fill_time_sec'] = round(time.time() - start_time, 1)
-            self.last_execution_meta['fill_status'] = 'filled' if result else 'failed'
-            self._track_slippage(result, self.last_execution_meta.get('limit_price'))
-            return result
+                self.last_execution_meta['fill_status'] = 'filled' if result else 'failed'
+                self._track_slippage(result, self.last_execution_meta.get('limit_price'))
+                return result
+        finally:
+            self._buy_lock.release()
 
     def _track_slippage(self, order, reference_price: float = None):
         """
@@ -663,7 +675,6 @@ class AlpacaTrader:
                     pass
                 # v4.7 Fix #3: Emergency sell when SL completely fails
                 logger.error(f"CRITICAL: {symbol} has NO STOP LOSS - attempting emergency sell")
-                self.needs_manual_intervention.append(symbol)
                 try:
                     emergency = self.place_market_sell(symbol, qty)
                     if emergency:
@@ -737,7 +748,6 @@ class AlpacaTrader:
             actual_qty = int(float(buy_order.filled_qty)) if buy_order.filled_qty else qty
             if actual_qty != qty:
                 logger.warning(f"PARTIAL FILL: {symbol} requested {qty}, filled {actual_qty}")
-            self._last_filled_qty = actual_qty
             logger.info(f"Buy filled: {symbol} x{actual_qty} @ ${fill_price:.2f}")
 
             # 3. Calculate stop loss price
@@ -764,7 +774,6 @@ class AlpacaTrader:
                     else:
                         # v4.7 Fix #3: Track stuck positions + last resort sell
                         logger.critical(f"CRITICAL: Emergency sell NOT filled for {symbol} — MANUAL INTERVENTION REQUIRED!")
-                        self.needs_manual_intervention.append(symbol)
                         try:
                             last_resort = self.place_market_sell(symbol, actual_qty)
                             logger.critical(f"Last resort sell submitted: {last_resort.id if last_resort else 'FAILED'}")
@@ -844,6 +853,8 @@ class AlpacaTrader:
             snap = self.api.get_snapshot(symbol)
             return {
                 'latest_trade_price': snap.latest_trade.p,
+                'last_price': snap.latest_trade.p,       # alias for backward compat
+                'latest_price': snap.latest_trade.p,     # alias for backward compat
                 'latest_trade_time': str(snap.latest_trade.t),
                 'bid': snap.latest_quote.bp,
                 'ask': snap.latest_quote.ap,

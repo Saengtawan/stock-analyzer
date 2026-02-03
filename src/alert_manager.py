@@ -24,6 +24,11 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, asdict
 from loguru import logger
+try:
+    import pytz
+    _ET = pytz.timezone('US/Eastern')
+except ImportError:
+    _ET = None
 
 
 @dataclass
@@ -86,7 +91,7 @@ class AlertManager:
                 message=message,
                 category=category,
                 symbol=symbol,
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.now(_ET).isoformat() if _ET else datetime.now().isoformat(),
                 acknowledged=False,
             )
             self._next_id += 1

@@ -291,11 +291,30 @@ class ServiceManager:
         self.services['health'] = thread
         logger.info("Health Checker started (check every 5 minutes)")
 
+    def _check_and_restart_threads(self):
+        """Check if critical service threads are alive and restart if dead"""
+        for name, thread in list(self.services.items()):
+            if name == 'health':
+                continue
+            if not thread.is_alive():
+                logger.warning(f"Thread '{name}' died — restarting...")
+                try:
+                    if name == 'web':
+                        self.start_web_server()
+                    elif name == 'rapid_monitor':
+                        self.start_rapid_portfolio_monitor()
+                    elif name == 'rapid_scanner':
+                        self.start_rapid_rotation_scanner()
+                    logger.info(f"Thread '{name}' restarted successfully")
+                except Exception as e:
+                    logger.error(f"Failed to restart thread '{name}': {e}")
+
     def _check_health(self):
         """Run all health checks and return status dict"""
         checks = {}
         issues = []
         now = datetime.now()
+        trader = None  # Initialize to None
 
         # 1. Alpaca API
         try:
@@ -311,16 +330,20 @@ class ServiceManager:
             issues.append(f"Alpaca API down: {e}")
 
         # 2. Market clock
-        try:
-            clock = trader.get_clock()
-            market_status = "Open" if clock['is_open'] else "Closed"
-            checks['market_clock'] = {
-                'ok': True,
-                'detail': market_status
-            }
-        except Exception as e:
-            checks['market_clock'] = {'ok': False, 'detail': str(e)}
-            issues.append(f"Market clock error: {e}")
+        if trader:
+            try:
+                clock = trader.get_clock()
+                market_status = "Open" if clock['is_open'] else "Closed"
+                checks['market_clock'] = {
+                    'ok': True,
+                    'detail': market_status
+                }
+            except Exception as e:
+                checks['market_clock'] = {'ok': False, 'detail': str(e)}
+                issues.append(f"Market clock error: {e}")
+        else:
+            checks['market_clock'] = {'ok': False, 'detail': 'Trader not initialized'}
+            issues.append('Market clock: trader not available')
 
         # 3. Thread liveness
         alive_count = 0
@@ -390,31 +413,34 @@ class ServiceManager:
             }
 
         # 6. Positions sync (Alpaca vs in-memory)
-        try:
-            if hasattr(self, 'rapid_portfolio'):
-                alpaca_positions = trader.get_positions()
-                memory_count = len(self.rapid_portfolio.positions) if self.rapid_portfolio.positions else 0
-                alpaca_count = len(alpaca_positions)
+        if trader:
+            try:
+                if hasattr(self, 'rapid_portfolio'):
+                    alpaca_positions = trader.get_positions()
+                    memory_count = len(self.rapid_portfolio.positions) if self.rapid_portfolio.positions else 0
+                    alpaca_count = len(alpaca_positions)
 
-                if memory_count != alpaca_count:
-                    checks['positions_sync'] = {
-                        'ok': False,
-                        'detail': f"Mismatch: memory={memory_count}, Alpaca={alpaca_count}"
-                    }
-                    issues.append(f"Position mismatch: memory={memory_count}, Alpaca={alpaca_count}")
+                    if memory_count != alpaca_count:
+                        checks['positions_sync'] = {
+                            'ok': False,
+                            'detail': f"Mismatch: memory={memory_count}, Alpaca={alpaca_count}"
+                        }
+                        issues.append(f"Position mismatch: memory={memory_count}, Alpaca={alpaca_count}")
+                    else:
+                        checks['positions_sync'] = {
+                            'ok': True,
+                            'detail': f"{alpaca_count} position(s), in sync"
+                        }
                 else:
                     checks['positions_sync'] = {
                         'ok': True,
-                        'detail': f"{alpaca_count} position(s), in sync"
+                        'detail': 'Portfolio manager not loaded'
                     }
-            else:
-                checks['positions_sync'] = {
-                    'ok': True,
-                    'detail': 'Portfolio manager not loaded'
-                }
-        except Exception as e:
-            checks['positions_sync'] = {'ok': False, 'detail': str(e)}
-            issues.append(f"Position sync check error: {e}")
+            except Exception as e:
+                checks['positions_sync'] = {'ok': False, 'detail': str(e)}
+                issues.append(f"Position sync check error: {e}")
+        else:
+            checks['positions_sync'] = {'ok': False, 'detail': 'Trader not initialized'}
 
         return {
             'healthy': len(issues) == 0,
@@ -486,9 +512,14 @@ class ServiceManager:
         print()
 
         # Keep running
+        thread_check_counter = 0
         while self.running:
             try:
                 time.sleep(1)
+                thread_check_counter += 1
+                if thread_check_counter >= 60:
+                    thread_check_counter = 0
+                    self._check_and_restart_threads()
             except KeyboardInterrupt:
                 break
 

@@ -72,21 +72,25 @@ def load_config(path: Optional[str] = None) -> Dict[str, Any]:
 
 
 # Validation schema: attr_name → {type, min, max}
+# Values use whole-number percentages to match engine class attributes
+# (e.g. STOP_LOSS_PCT=2.5 means 2.5%, not 0.025)
 CONFIG_SCHEMA: Dict[str, Dict[str, Any]] = {
     'MAX_POSITIONS': {'type': int, 'min': 1, 'max': 10},
-    'MAX_POSITION_SIZE_PCT': {'type': float, 'min': 0.05, 'max': 0.5},
-    'STOP_LOSS_PCT': {'type': float, 'min': 0.01, 'max': 0.15},
-    'TAKE_PROFIT_PCT': {'type': float, 'min': 0.02, 'max': 0.30},
+    'MAX_POSITION_SIZE_PCT': {'type': (int, float), 'min': 5, 'max': 50},
+    'STOP_LOSS_PCT': {'type': (int, float), 'min': 1.0, 'max': 15.0},
+    'TAKE_PROFIT_PCT': {'type': (int, float), 'min': 2.0, 'max': 30.0},
     'MONITOR_INTERVAL_SECONDS': {'type': int, 'min': 5, 'max': 300},
     'CIRCUIT_BREAKER_MAX_ERRORS': {'type': int, 'min': 2, 'max': 20},
-    'MAX_SLIPPAGE_PCT': {'type': float, 'min': 0.1, 'max': 2.0},
-    'TRAIL_ACTIVATION_PCT': {'type': float, 'min': 0.01, 'max': 0.20},
-    'TRAIL_LOCK_PCT': {'type': float, 'min': 0.005, 'max': 0.10},
+    'MAX_SLIPPAGE_PCT': {'type': (int, float), 'min': 0.1, 'max': 5.0},
+    'TRAIL_ACTIVATION_PCT': {'type': (int, float), 'min': 1.0, 'max': 20.0},
+    'TRAIL_LOCK_PCT': {'type': (int, float), 'min': 10, 'max': 100},
     'MAX_HOLD_DAYS': {'type': int, 'min': 1, 'max': 30},
     'MAX_PER_SECTOR': {'type': int, 'min': 1, 'max': 5},
-    'DAILY_LOSS_LIMIT_PCT': {'type': float, 'min': 1.0, 'max': 20.0},
-    'WEEKLY_LOSS_LIMIT_PCT': {'type': float, 'min': 2.0, 'max': 30.0},
+    'DAILY_LOSS_LIMIT_PCT': {'type': (int, float), 'min': 1.0, 'max': 20.0},
+    'WEEKLY_LOSS_LIMIT_PCT': {'type': (int, float), 'min': 2.0, 'max': 30.0},
     'MAX_CONSECUTIVE_LOSSES': {'type': int, 'min': 1, 'max': 10},
+    'MIN_SCORE': {'type': int, 'min': 50, 'max': 100},
+    'POSITION_SIZE_PCT': {'type': (int, float), 'min': 5, 'max': 50},
 }
 
 
@@ -97,11 +101,17 @@ def _validate_config_value(attr_name: str, value: Any) -> Tuple[bool, str]:
         return True, ""  # No schema = allow anything
 
     expected_type = schema['type']
-    # Allow int for float fields
-    if expected_type == float and isinstance(value, int):
-        value = float(value)
-    if not isinstance(value, expected_type):
-        return False, f"expected {expected_type.__name__}, got {type(value).__name__}"
+    # Handle tuple of types (e.g. (int, float))
+    if isinstance(expected_type, tuple):
+        if not isinstance(value, expected_type):
+            type_names = '/'.join(t.__name__ for t in expected_type)
+            return False, f"expected {type_names}, got {type(value).__name__}"
+    else:
+        # Allow int for float fields
+        if expected_type == float and isinstance(value, int):
+            value = float(value)
+        if not isinstance(value, expected_type):
+            return False, f"expected {expected_type.__name__}, got {type(value).__name__}"
 
     if 'min' in schema and value < schema['min']:
         return False, f"value {value} below minimum {schema['min']}"
@@ -111,7 +121,7 @@ def _validate_config_value(attr_name: str, value: Any) -> Tuple[bool, str]:
     return True, ""
 
 
-def apply_config(engine, config: Optional[Dict[str, Any]] = None):
+def apply_config(engine, config: Optional[Dict[str, Any]] = None, trader=None):
     """
     Apply config values to an AutoTradingEngine instance.
     Only sets attributes that exist in config AND as class attributes.
@@ -120,6 +130,9 @@ def apply_config(engine, config: Optional[Dict[str, Any]] = None):
     Args:
         engine: AutoTradingEngine instance
         config: Config dict (loads from file if None)
+        trader: Optional AlpacaTrader instance. If provided,
+                max_slippage_pct → MAX_SLIPPAGE_PCT is applied to the trader
+                instead of the engine.
     """
     if config is None:
         config = load_config()
@@ -127,13 +140,36 @@ def apply_config(engine, config: Optional[Dict[str, Any]] = None):
     if not config:
         return
 
+    # Keys that should be applied to the trader, not the engine
+    TRADER_KEYS = {'MAX_SLIPPAGE_PCT'}
+
+    # Keys that affect open positions — skip if positions are open
+    POSITION_SENSITIVE_KEYS = {
+        'STOP_LOSS_PCT', 'TAKE_PROFIT_PCT', 'TRAIL_ACTIVATION_PCT',
+        'TRAIL_LOCK_PCT', 'POSITION_SIZE_PCT', 'MAX_POSITION_SIZE_PCT',
+    }
+
+    has_positions = hasattr(engine, 'positions') and bool(engine.positions)
+
     # Map YAML keys → class attribute names
     # Keys in YAML are lowercase_snake; class attrs are UPPERCASE_SNAKE
     applied = 0
     skipped = 0
     for key, value in config.items():
         attr_name = key.upper()
-        if hasattr(engine, attr_name) and value is not None:
+
+        # Determine target: trader or engine
+        target = engine
+        if attr_name in TRADER_KEYS and trader is not None:
+            target = trader
+
+        if hasattr(target, attr_name) and value is not None:
+            # v4.9: Skip position-sensitive params while positions are open
+            if has_positions and attr_name in POSITION_SENSITIVE_KEYS:
+                logger.warning(f"Config SKIPPED (positions open): {attr_name} = {value}")
+                skipped += 1
+                continue
+
             # Validate before applying
             valid, reason = _validate_config_value(attr_name, value)
             if not valid:
@@ -141,10 +177,10 @@ def apply_config(engine, config: Optional[Dict[str, Any]] = None):
                 skipped += 1
                 continue
 
-            old_val = getattr(engine, attr_name)
+            old_val = getattr(target, attr_name)
             if old_val != value:
-                setattr(engine, attr_name, value)
+                setattr(target, attr_name, value)
                 logger.debug(f"Config: {attr_name} = {value} (was {old_val})")
             applied += 1
 
-    logger.info(f"Config applied: {applied} parameters" + (f", {skipped} rejected" if skipped else ""))
+    logger.info(f"Config applied: {applied} parameters" + (f", {skipped} rejected/skipped" if skipped else ""))

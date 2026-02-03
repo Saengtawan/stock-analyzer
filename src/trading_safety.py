@@ -6,7 +6,7 @@ Rapid Trader v3.9 Safety Layers
 7 Safety Layers:
 1. Fallback SL Order - Every position MUST have SL at Alpaca
 2. Daily Loss Limit - Stop trading if down -5% in a day
-3. Max Positions - Never hold more than 2 positions
+3. Max Positions - Never hold more than 3 positions
 4. Max Hold Days - Auto-sell after 5 days
 5. Health Check - Monitor system health
 6. Emergency Stop - Manual override to stop all trading
@@ -74,7 +74,7 @@ class TradingSafetySystem:
 
     # Safety thresholds
     DAILY_LOSS_LIMIT_PCT = 5.0      # Stop trading if down 5% in a day
-    MAX_POSITIONS = 2               # Max concurrent positions
+    MAX_POSITIONS = 3               # Max concurrent positions
     MAX_HOLD_DAYS = 5               # Max days to hold a position
     MIN_BUYING_POWER_PCT = 10.0     # Min buying power to trade (% of equity)
 
@@ -208,7 +208,7 @@ class TradingSafetySystem:
             last_equity = account['last_equity']
 
             daily_pnl = equity - last_equity
-            daily_pnl_pct = (daily_pnl / last_equity) * 100
+            daily_pnl_pct = (daily_pnl / last_equity) * 100 if last_equity > 0 else 0
 
             if daily_pnl_pct <= -self.DAILY_LOSS_LIMIT_PCT:
                 self.daily_loss_triggered = True

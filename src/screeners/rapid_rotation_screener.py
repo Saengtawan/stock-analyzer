@@ -202,6 +202,10 @@ class RapidRotationScreener:
         self._init_sector_regime()
         self._init_alt_data()
 
+        # SPY regime cache (Fix #38: avoid downloading SPY every call)
+        self._spy_regime_cache = None  # (is_bull, reason, details, timestamp)
+        self._spy_cache_seconds = 300  # 5 minutes
+
         # Cache for regime data (with timestamps)
         self._market_regime_cache = None
         self._market_regime_cache_time: float = 0.0
@@ -399,6 +403,13 @@ class RapidRotationScreener:
         if not self.REGIME_FILTER_ENABLED:
             return True, "Regime filter disabled", {}
 
+        # Check cache first (avoid downloading SPY every call)
+        import time as _time
+        if self._spy_regime_cache:
+            is_bull, reason, details, cached_at = self._spy_regime_cache
+            if _time.time() - cached_at < self._spy_cache_seconds:
+                return is_bull, reason, details
+
         try:
             # Download SPY data (last 30 days is enough for SMA20)
             spy = yf.download('SPY', period='30d', progress=False)
@@ -435,11 +446,14 @@ class RapidRotationScreener:
                 reason = f"BEAR: SPY ${current_price:.2f} < SMA{self.REGIME_SMA_PERIOD} ${sma:.2f} ({pct_above:.1f}%)"
                 logger.warning(f"⚠️ SPY Regime: {reason} - SKIP NEW TRADES")
 
+            # Cache the result
+            self._spy_regime_cache = (is_bull, reason, details, _time.time())
+
             return is_bull, reason, details
 
         except Exception as e:
             logger.error(f"SPY regime check failed: {e}")
-            return True, f"Error: {e}", {}
+            return False, f"Data unavailable: {e}", {}
 
     def _get_alt_data_score(self, symbol: str, enable: bool = True) -> Tuple[float, List[str]]:
         """
@@ -668,10 +682,10 @@ class RapidRotationScreener:
         # Yesterday's move (key for bounce confirmation)
         yesterday_move = ((close.iloc[idx-1] / close.iloc[idx-2]) - 1) * 100 if idx >= 2 else 0
 
-        # SMAs
-        sma5 = close.iloc[idx-5:idx].mean() if idx >= 5 else close.mean()
-        sma20 = close.iloc[idx-20:idx].mean() if idx >= 20 else close.mean()
-        sma50 = close.iloc[idx-50:idx].mean() if idx >= 50 else close.mean()
+        # SMAs (include current bar: idx-N+1 to idx+1)
+        sma5 = close.iloc[idx-4:idx+1].mean() if idx >= 4 else close.iloc[:idx+1].mean()
+        sma20 = close.iloc[idx-19:idx+1].mean() if idx >= 19 else close.iloc[:idx+1].mean()
+        sma50 = close.iloc[idx-49:idx+1].mean() if idx >= 49 else close.iloc[:idx+1].mean()
 
         # Distance from recent high
         high_20d = high.iloc[idx-20:idx].max() if idx >= 20 else high.max()
@@ -681,7 +695,7 @@ class RapidRotationScreener:
         # Calculate max single-day move in last 10 days (extended window)
         if idx >= 11:
             daily_returns = [(close.iloc[i] / close.iloc[i-1] - 1) * 100 for i in range(idx-10, idx)]
-            max_daily_move = max(daily_returns) if daily_returns else 0
+            max_daily_move = max(abs(r) for r in daily_returns) if daily_returns else 0
         else:
             max_daily_move = 0
 

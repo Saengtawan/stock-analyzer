@@ -5,11 +5,14 @@ v4.0: Added WebSocket support for real-time updates
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
+from functools import wraps
 import json
 import sys
 import os
 import threading
 import time
+import secrets
+import hmac
 from datetime import datetime
 from loguru import logger
 
@@ -36,6 +39,24 @@ CORS(app)
 
 # v4.0: WebSocket for real-time updates
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+# v4.9: API authentication for dangerous endpoints
+# Set RAPID_API_SECRET in environment, or a random key is generated per session
+_API_SECRET = os.environ.get('RAPID_API_SECRET', '')
+if not _API_SECRET:
+    _API_SECRET = secrets.token_hex(32)
+    logger.warning(f"No RAPID_API_SECRET set — generated ephemeral key (set env var for persistence)")
+
+
+def require_api_auth(f):
+    """Decorator: require X-API-Key header matching RAPID_API_SECRET."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get('X-API-Key', '')
+        if not token or not hmac.compare_digest(token, _API_SECRET):
+            return jsonify({'error': 'Unauthorized — set X-API-Key header'}), 401
+        return f(*args, **kwargs)
+    return decorated
 
 # Initialize stock analyzer and screeners (now AI-only)
 analyzer = StockAnalyzer()
@@ -2791,6 +2812,7 @@ def api_auto_emergency_reset():
 
 
 @app.route('/api/auto/close-all', methods=['POST'])
+@require_api_auth
 def api_auto_close_all():
     """Emergency close ALL positions at market. Sells everything via Alpaca."""
     try:
@@ -2798,6 +2820,23 @@ def api_auto_close_all():
         if not engine:
             return jsonify({'error': 'Engine not available'}), 500
 
+        # v4.9 Fix #33: Prevent concurrent close-all
+        if not engine._close_all_lock.acquire(blocking=False):
+            return jsonify({'error': 'Close-all already in progress'}), 409
+
+        try:
+            return _do_close_all(engine)
+        finally:
+            engine._close_all_lock.release()
+
+    except Exception as e:
+        logger.error(f"Close-all error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+def _do_close_all(engine):
+    """Internal close-all logic (runs under _close_all_lock)."""
+    try:
         # 1. Stop engine first
         engine.safety.activate_emergency_stop("Close-all from Web UI")
         engine.stop()
@@ -2849,7 +2888,7 @@ def api_auto_close_all():
         try:
             from alert_manager import get_alert_manager
             symbols = [r['symbol'] for r in results]
-            get_alert_manager().add_alert(
+            get_alert_manager().add(
                 level='CRITICAL',
                 title='CLOSE ALL EXECUTED',
                 message=f"Emergency close-all: {', '.join(symbols)}",
@@ -2865,7 +2904,7 @@ def api_auto_close_all():
         })
 
     except Exception as e:
-        logger.error(f"Close-all error: {e}")
+        logger.error(f"Close-all internal error: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -2953,6 +2992,7 @@ def api_auto_scan():
 
 
 @app.route('/api/auto/execute', methods=['POST'])
+@require_api_auth
 def api_auto_execute():
     """Manually execute a signal (semi-auto mode)"""
     try:
@@ -2965,6 +3005,11 @@ def api_auto_execute():
 
         if not symbol:
             return jsonify({'error': 'Symbol required'}), 400
+
+        # v4.9 Fix #39: Reject if engine is currently scanning (race condition)
+        from auto_trading_engine import TradingState
+        if engine.state == TradingState.SCANNING:
+            return jsonify({'error': 'Engine is currently scanning — try again in a moment'}), 409
 
         # Check if market is open
         if not engine.trader.is_market_open():
@@ -3003,6 +3048,7 @@ def api_auto_execute():
 # ============================================
 
 # Store connected clients
+_clients_lock = threading.Lock()
 connected_clients = set()
 # Background monitor state
 monitor_thread = None
@@ -3011,16 +3057,20 @@ monitor_running = False
 @socketio.on('connect')
 def handle_connect():
     """Client connected"""
-    connected_clients.add(request.sid)
-    logger.info(f"WebSocket client connected: {request.sid} (total: {len(connected_clients)})")
+    with _clients_lock:
+        connected_clients.add(request.sid)
+        client_count = len(connected_clients)
+    logger.info(f"WebSocket client connected: {request.sid} (total: {client_count})")
     # Send initial data immediately
-    emit('connected', {'status': 'connected', 'clients': len(connected_clients)})
+    emit('connected', {'status': 'connected', 'clients': client_count})
 
 @socketio.on('disconnect')
 def handle_disconnect():
     """Client disconnected"""
-    connected_clients.discard(request.sid)
-    logger.info(f"WebSocket client disconnected: {request.sid} (total: {len(connected_clients)})")
+    with _clients_lock:
+        connected_clients.discard(request.sid)
+        client_count = len(connected_clients)
+    logger.info(f"WebSocket client disconnected: {request.sid} (total: {client_count})")
 
 @socketio.on('request_update')
 def handle_request_update(data=None):
@@ -3229,12 +3279,12 @@ def background_monitor():
 
                 # Detect position changes
                 if current_positions != last_positions:
-                    broadcast_update('positions_update', positions_data)
-                    last_positions = current_positions.copy()
-
-                    # Check for trade events
+                    # Detect changes BEFORE updating last_positions
                     new_symbols = set(current_positions.keys()) - set(last_positions.keys())
                     closed_symbols = set(last_positions.keys()) - set(current_positions.keys())
+
+                    broadcast_update('positions_update', positions_data)
+                    last_positions = current_positions.copy()
 
                     for symbol in new_symbols:
                         broadcast_update('trade_event', {
@@ -3717,6 +3767,7 @@ def api_alerts_acknowledge():
 
 
 @app.route('/api/config/reload', methods=['POST'])
+@require_api_auth
 def api_config_reload():
     """Hot-reload trading config from YAML file."""
     try:

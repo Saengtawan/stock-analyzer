@@ -114,6 +114,7 @@ class TradingState(Enum):
     MONITORING = "monitoring"
     CLOSING = "closing"
     ERROR = "error"
+    STOPPED = "stopped"
 
 
 @dataclass
@@ -418,6 +419,7 @@ class AutoTradingEngine:
         self._positions_lock = threading.RLock()  # v4.9: Reentrant lock for positions dict
         self._close_locks: Dict[str, threading.Lock] = {}  # v4.9: Per-symbol close mutex
         self._close_locks_lock = threading.Lock()  # Protects _close_locks dict
+        self._close_all_lock = threading.Lock()  # Prevent concurrent close-all
         self.daily_stats = DailyStats(date=datetime.now().strftime('%Y-%m-%d'))
         self.running = False
         self.monitor_thread = None
@@ -453,6 +455,9 @@ class AutoTradingEngine:
 
         # Load persisted signal queue
         self._load_queue_state()
+
+        # Load persisted loss counters
+        self._load_loss_counters()
 
         logger.info(f"AutoTradingEngine initialized (paper={paper})")
 
@@ -561,6 +566,8 @@ class AutoTradingEngine:
                     'queued_at': q.queued_at.isoformat(),
                     'reasons': q.reasons,
                     'atr_pct': q.atr_pct,
+                    'sl_pct': q.sl_pct,
+                    'tp_pct': q.tp_pct,
                 })
 
             data = {
@@ -606,6 +613,8 @@ class AutoTradingEngine:
                         queued_at=datetime.fromisoformat(entry['queued_at']),
                         reasons=entry.get('reasons', []),
                         atr_pct=entry.get('atr_pct', 5.0),
+                        sl_pct=entry.get('sl_pct', 0.0),
+                        tp_pct=entry.get('tp_pct', 0.0),
                     )
                     # Skip if already holding this symbol
                     if queued.symbol not in self.positions:
@@ -1221,6 +1230,66 @@ class AutoTradingEngine:
                     tracker['cooldown_until'] = datetime.now(self.et_tz).date() + timedelta(days=self.SECTOR_COOLDOWN_DAYS)
                     logger.warning(f"🧊 {sector} cooldown {self.SECTOR_COOLDOWN_DAYS} days → until {tracker['cooldown_until']}")
 
+        self._save_loss_counters()
+
+    # =========================================================================
+    # LOSS COUNTER PERSISTENCE (v4.9 NEW!)
+    # =========================================================================
+
+    def _save_loss_counters(self):
+        """Persist loss tracking counters (atomic write)"""
+        try:
+            state = {
+                'consecutive_losses': self.consecutive_losses,
+                'weekly_realized_pnl': self.weekly_realized_pnl,
+                'cooldown_until': self.cooldown_until.isoformat() if self.cooldown_until else None,
+                'weekly_reset_date': self.weekly_reset_date.isoformat() if self.weekly_reset_date else None,
+                'sector_loss_tracker': {
+                    k: {'losses': v['losses'], 'cooldown_until': v['cooldown_until'].isoformat() if v.get('cooldown_until') else None}
+                    for k, v in self.sector_loss_tracker.items()
+                },
+                'saved_at': datetime.now().isoformat(),
+            }
+            loss_file = os.path.join(self._state_dir, 'loss_counters.json')
+            fd, tmp_path = tempfile.mkstemp(dir=self._state_dir, suffix='.tmp')
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(state, f, indent=2)
+                os.replace(tmp_path, loss_file)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
+        except Exception as e:
+            logger.error(f"Failed to save loss counters: {e}")
+
+    def _load_loss_counters(self):
+        """Load persisted loss tracking counters"""
+        try:
+            loss_file = os.path.join(self._state_dir, 'loss_counters.json')
+            if not os.path.exists(loss_file):
+                return
+            with open(loss_file, 'r') as f:
+                state = json.load(f)
+            self.consecutive_losses = state.get('consecutive_losses', 0)
+            self.weekly_realized_pnl = state.get('weekly_realized_pnl', 0.0)
+            if state.get('cooldown_until'):
+                from datetime import date as date_type
+                self.cooldown_until = date_type.fromisoformat(state['cooldown_until'])
+            if state.get('weekly_reset_date'):
+                from datetime import date as date_type
+                self.weekly_reset_date = date_type.fromisoformat(state['weekly_reset_date'])
+            # Restore sector loss tracker
+            for k, v in state.get('sector_loss_tracker', {}).items():
+                from datetime import date as date_type
+                self.sector_loss_tracker[k] = {
+                    'losses': v['losses'],
+                    'cooldown_until': date_type.fromisoformat(v['cooldown_until']) if v.get('cooldown_until') else None
+                }
+            logger.info(f"Loaded loss counters: consecutive={self.consecutive_losses}, weekly_pnl=${self.weekly_realized_pnl:.2f}")
+        except Exception as e:
+            logger.error(f"Failed to load loss counters: {e}")
+
     # =========================================================================
     # LATE START PROTECTION (v4.4 NEW!)
     # =========================================================================
@@ -1779,12 +1848,13 @@ class AutoTradingEngine:
                 return False
 
             # Calculate position size (v4.5: use effective size)
-            # Use simulated capital if set, otherwise use actual account value
+            # Use simulated capital as a cap, but never exceed real buying power
+            account = self.trader.get_account()
+            real_buying_power = float(account.get('buying_power', 0))
             if self.SIMULATED_CAPITAL:
-                capital = self.SIMULATED_CAPITAL
-                logger.info(f"Using simulated capital: ${capital:,.0f}")
+                capital = min(self.SIMULATED_CAPITAL, real_buying_power)
+                logger.info(f"Using simulated capital: ${self.SIMULATED_CAPITAL:,.0f} (buying power: ${real_buying_power:,.0f}, effective: ${capital:,.0f})")
             else:
-                account = self.trader.get_account()
                 capital = account['portfolio_value']
             position_value = capital * (params['position_size_pct'] / 100)
 
@@ -2113,25 +2183,105 @@ class AutoTradingEngine:
 
     def _check_overnight_earnings(self):
         """
-        v4.7 Fix #11: Check if any held position has earnings today.
-        Alert user so they can decide to exit before close.
+        v4.9: Check if any held position has earnings TODAY or TOMORROW.
+        Alert user to consider exiting before close.
+        (Separate logic from buy filter — different timeframe)
         """
         if not self.positions:
             return
 
         for symbol in list(self.positions.keys()):
             try:
-                is_safe, reason = self._check_earnings_filter(symbol)
-                if not is_safe:
-                    logger.warning(f"⚠️ EARNINGS ALERT: {symbol} — {reason} — consider exiting before close")
-                    self.alerts.alert_earnings_warning(symbol, reason)
+                ticker = yf.Ticker(symbol)
+                now = datetime.now()
+
+                # Check calendar
+                try:
+                    calendar = ticker.calendar
+                    if calendar is not None and isinstance(calendar, dict):
+                        earnings_date = calendar.get('Earnings Date')
+                        if earnings_date:
+                            if isinstance(earnings_date, list) and len(earnings_date) > 0:
+                                earnings_date = earnings_date[0]
+                            if earnings_date:
+                                from datetime import date as date_type
+                                if isinstance(earnings_date, str):
+                                    earnings_date = pd.to_datetime(earnings_date).date()
+                                elif isinstance(earnings_date, datetime):
+                                    earnings_date = earnings_date.date()
+                                elif not isinstance(earnings_date, date_type):
+                                    earnings_date = pd.to_datetime(earnings_date).date()
+
+                                days_until = (earnings_date - now.date()).days
+                                # Alert only if earnings is TODAY or TOMORROW (overnight risk)
+                                if 0 <= days_until <= 1:
+                                    reason = f"EARNINGS {'TODAY' if days_until == 0 else 'TOMORROW'} ({earnings_date})"
+                                    logger.warning(f"EARNINGS ALERT: {symbol} — {reason} — consider exiting before close")
+                                    self.alerts.alert_earnings_warning(symbol, reason)
+                except Exception:
+                    pass
             except Exception as e:
                 logger.debug(f"Earnings check error for {symbol}: {e}")
+
+    def _detect_stock_split(self, symbol: str, alpaca_pos, managed_pos: ManagedPosition) -> Optional[float]:
+        """
+        Detect stock split by comparing Alpaca position with managed position.
+        Returns split ratio if detected (e.g., 2.0 for 2:1 split), None otherwise.
+        """
+        alpaca_qty = float(alpaca_pos.qty)
+        alpaca_price = alpaca_pos.avg_entry_price
+        managed_qty = managed_pos.qty
+        managed_price = managed_pos.entry_price
+
+        if managed_qty <= 0 or managed_price <= 0:
+            return None
+
+        qty_ratio = alpaca_qty / managed_qty
+        price_ratio = managed_price / alpaca_price if alpaca_price > 0 else 0
+
+        # Split detected if qty doubled+ AND price halved (or vice versa for reverse)
+        # Allow 5% tolerance for rounding
+        if qty_ratio > 1.5 and abs(qty_ratio - price_ratio) / qty_ratio < 0.05:
+            return qty_ratio
+        if qty_ratio < 0.67 and price_ratio > 0 and abs(1/qty_ratio - 1/price_ratio) / (1/qty_ratio) < 0.05:
+            return qty_ratio  # Reverse split
+
+        return None
 
     def monitor_positions(self):
         """Monitor all positions and update trailing stops"""
         if not self.positions:
             return
+
+        # v4.9: Detect stock splits and adjust tracking
+        for symbol, managed_pos in list(self.positions.items()):
+            try:
+                alpaca_pos = self.trader.get_position(symbol)
+                if alpaca_pos:
+                    split_ratio = self._detect_stock_split(symbol, alpaca_pos, managed_pos)
+                    if split_ratio:
+                        logger.critical(f"STOCK SPLIT DETECTED: {symbol} ratio={split_ratio:.1f}x")
+                        logger.critical(f"  Old: qty={managed_pos.qty}, entry=${managed_pos.entry_price:.2f}, SL=${managed_pos.current_sl_price:.2f}")
+                        # Adjust all position tracking
+                        managed_pos.qty = int(alpaca_pos.qty)
+                        managed_pos.entry_price = alpaca_pos.avg_entry_price
+                        managed_pos.current_sl_price = round(managed_pos.current_sl_price / split_ratio, 2)
+                        managed_pos.peak_price = round(managed_pos.peak_price / split_ratio, 2)
+                        if managed_pos.tp_price > 0:
+                            managed_pos.tp_price = round(managed_pos.tp_price / split_ratio, 2)
+                        if managed_pos.trough_price > 0:
+                            managed_pos.trough_price = round(managed_pos.trough_price / split_ratio, 2)
+                        logger.critical(f"  New: qty={managed_pos.qty}, entry=${managed_pos.entry_price:.2f}, SL=${managed_pos.current_sl_price:.2f}")
+                        try:
+                            self.alerts.alert_circuit_breaker(f"STOCK SPLIT: {symbol}")
+                        except Exception:
+                            pass
+                        self._save_positions_state()
+                        # Update SL order at Alpaca
+                        if managed_pos.sl_order_id:
+                            self.trader.modify_stop_loss(managed_pos.sl_order_id, managed_pos.current_sl_price)
+            except Exception as e:
+                logger.debug(f"Split check error for {symbol}: {e}")
 
         # v4.7 Fix #11: Check overnight gap and earnings risk
         for symbol, managed_pos in list(self.positions.items()):
@@ -2172,10 +2322,57 @@ class AutoTradingEngine:
         """
 
         # Get current position from Alpaca
-        alpaca_pos = self.trader.get_position(symbol)
+        try:
+            alpaca_pos = self.trader.get_position(symbol)
+        except Exception as e:
+            err_str = str(e).lower()
+            # v4.9 Fix #34: Handle Alpaca maintenance / API outage
+            if any(kw in err_str for kw in ['maintenance', '503', '502', 'service unavailable']):
+                logger.warning(f"{symbol}: Alpaca API unavailable (maintenance?) — skipping check")
+                return
+            # v4.9 Fix #32: Handle trading halt
+            if 'halted' in err_str or 'halt' in err_str:
+                logger.warning(f"{symbol}: Trading HALTED — keeping position, skipping check")
+                return
+            raise  # Re-raise other errors
+
         if not alpaca_pos:
             # Position closed externally (SL triggered at Alpaca)
-            logger.warning(f"{symbol} position not found - may have been closed")
+            logger.warning(f"{symbol} position not found - SL likely triggered at Alpaca")
+            # Record SL exit for stats tracking
+            try:
+                sl_price = managed_pos.current_sl_price
+                pnl_pct = ((sl_price - managed_pos.entry_price) / managed_pos.entry_price) * 100
+                pnl_usd = (sl_price - managed_pos.entry_price) * managed_pos.qty
+                logger.info(f"SL fill detected for {symbol}: {pnl_pct:+.2f}% (${pnl_usd:+.2f})")
+                # Update stats
+                self.daily_stats.realized_pnl += pnl_usd
+                with self._stats_lock:
+                    self.weekly_realized_pnl += pnl_usd
+                if pnl_pct > 0:
+                    self.daily_stats.trades_won += 1
+                else:
+                    self.daily_stats.trades_lost += 1
+                self._record_trade_result(pnl_pct)
+                self._record_sector_trade_result(managed_pos.sector, pnl_pct)
+                # Log the SL trade
+                try:
+                    days_held = self.pdt_guard.get_days_held(symbol)
+                    hold_delta = datetime.now() - managed_pos.entry_time
+                    hold_hours = int(hold_delta.total_seconds() / 3600)
+                    hold_minutes = int((hold_delta.total_seconds() % 3600) / 60)
+                    hold_duration = f"{hold_hours}h {hold_minutes}m" if hold_hours > 0 else f"{hold_minutes}m"
+                    self.trade_logger.log_sell(
+                        symbol=symbol, qty=managed_pos.qty, price=sl_price,
+                        reason="SL_FILLED_AT_ALPACA", entry_price=managed_pos.entry_price,
+                        pnl_usd=pnl_usd, pnl_pct=pnl_pct, hold_duration=hold_duration,
+                        day_held=days_held, sl_price=sl_price,
+                        trail_active=managed_pos.trailing_active, peak_price=managed_pos.peak_price,
+                    )
+                except Exception as log_err:
+                    logger.warning(f"Trade log error for SL fill: {log_err}")
+            except Exception as e:
+                logger.warning(f"Failed to track SL fill for {symbol}: {e}")
             with self._positions_lock:
                 if symbol in self.positions:
                     del self.positions[symbol]
@@ -2376,6 +2573,16 @@ class AutoTradingEngine:
             if managed_pos.sl_order_id:
                 self.trader.cancel_order(managed_pos.sl_order_id)
 
+            # v4.9: Check for existing pending sell orders (prevent duplication)
+            try:
+                open_orders = self.trader.get_orders(status='open')
+                pending_sells = [o for o in open_orders if o.symbol == symbol and o.side == 'sell' and o.type == 'market']
+                if pending_sells:
+                    logger.warning(f"{symbol}: Already has {len(pending_sells)} pending sell order(s) — skipping duplicate")
+                    return
+            except Exception as e:
+                logger.warning(f"{symbol}: Could not check pending orders: {e}")
+
             # Sell using actual qty from Alpaca (not managed_pos.qty)
             # In case of partial fills or discrepancies
             actual_qty = int(alpaca_pos.qty)
@@ -2475,6 +2682,15 @@ class AutoTradingEngine:
                     self._save_positions_state()
             self.pdt_guard.remove_entry(symbol)
 
+            # Re-verify position is actually gone from Alpaca before opening new
+            try:
+                verify_pos = self.trader.get_position(symbol)
+                if verify_pos:
+                    logger.warning(f"{symbol}: Still exists at Alpaca after sell — NOT opening new position")
+                    return
+            except Exception:
+                pass  # Position not found = good, it's closed
+
             # v4.1 Final: Check queue → Rescan if empty
             if len(self.positions) < self.MAX_POSITIONS:
                 executed = False
@@ -2513,10 +2729,13 @@ class AutoTradingEngine:
     def check_daily_loss_limit(self) -> bool:
         """Check if daily loss limit exceeded"""
         account = self.trader.get_account()
-        daily_pnl_pct = ((account['equity'] - account['last_equity']) / account['last_equity']) * 100
+        last_equity = account['last_equity']
+        if last_equity <= 0:
+            return False
+        daily_pnl_pct = ((account['equity'] - last_equity) / last_equity) * 100
 
         if daily_pnl_pct <= -self.DAILY_LOSS_LIMIT_PCT:
-            logger.warning(f"🚨 Daily loss limit hit: {daily_pnl_pct:.2f}%")
+            logger.warning(f"Daily loss limit hit: {daily_pnl_pct:.2f}%")
             return True
         return False
 
@@ -2536,7 +2755,8 @@ class AutoTradingEngine:
             if today.weekday() == 0 and self.weekly_reset_date != today:
                 self.weekly_realized_pnl = 0.0
                 self.weekly_reset_date = today
-                logger.info("📅 Weekly P&L reset (Monday)")
+                logger.info("Weekly P&L reset (Monday)")
+                self._save_loss_counters()
 
             weekly_pnl = self.weekly_realized_pnl
 
@@ -2577,8 +2797,8 @@ class AutoTradingEngine:
         Called after every closed trade. Thread-safe.
         """
         with self._stats_lock:
-            if pnl_pct > 0:
-                self.consecutive_losses = 0  # Reset on win
+            if pnl_pct >= 0:
+                self.consecutive_losses = 0  # Reset on win or breakeven
             else:
                 self.consecutive_losses += 1
                 logger.info(f"📉 Consecutive losses: {self.consecutive_losses}/{self.MAX_CONSECUTIVE_LOSSES}")
@@ -2587,14 +2807,34 @@ class AutoTradingEngine:
                     self.cooldown_until = datetime.now(self.et_tz).date() + timedelta(days=1)
                     logger.warning(f"🧊 {self.consecutive_losses} consecutive losses → cooldown until {self.cooldown_until}")
 
+        self._save_loss_counters()
+
     def pre_close_check(self):
-        """Pre-close check - handle max hold days"""
+        """Pre-close check - handle max hold days and Day 0 SL"""
         logger.info("Pre-close check...")
 
         for symbol, managed_pos in list(self.positions.items()):
             if managed_pos.days_held >= self.MAX_HOLD_DAYS:
                 logger.info(f"Closing {symbol} - held {managed_pos.days_held} days")
                 self._close_position(symbol, managed_pos, "MAX_HOLD_DAYS")
+
+        # v4.9: Place overnight SL for Day 0 positions near close
+        for symbol, managed_pos in list(self.positions.items()):
+            try:
+                should_place, reason = self.pdt_guard.should_place_eod_sl(symbol)
+                if should_place:
+                    # Calculate SL price using position's SL%
+                    sl_pct = managed_pos.sl_pct or self.STOP_LOSS_PCT
+                    sl_price = round(managed_pos.entry_price * (1 - sl_pct / 100), 2)
+                    logger.info(f"Placing EOD SL for {symbol} (Day 0): ${sl_price:.2f} (-{sl_pct}%)")
+                    sl_order = self.trader.place_stop_loss(symbol, managed_pos.qty, sl_price)
+                    if sl_order:
+                        managed_pos.sl_order_id = sl_order.id
+                        managed_pos.current_sl_price = sl_order.stop_price
+                        self._save_positions_state()
+                        logger.info(f"EOD SL placed for {symbol}: ${sl_order.stop_price:.2f}")
+            except Exception as e:
+                logger.error(f"EOD SL error for {symbol}: {e}")
 
     def daily_summary(self) -> Dict:
         """Generate daily summary"""
@@ -2677,7 +2917,16 @@ class AutoTradingEngine:
                     continue
 
                 # Check market status
-                clock = self.trader.get_clock()
+                try:
+                    clock = self.trader.get_clock()
+                except Exception as clock_err:
+                    # v4.9 Fix #34: Handle Alpaca maintenance
+                    err_str = str(clock_err).lower()
+                    if any(kw in err_str for kw in ['maintenance', '503', '502', 'service unavailable']):
+                        logger.warning(f"Alpaca API maintenance detected — waiting 60s")
+                        time.sleep(60)
+                        continue
+                    raise
 
                 if not clock['is_open']:
                     self.state = TradingState.SLEEPING
@@ -2806,6 +3055,16 @@ class AutoTradingEngine:
 
     def get_status(self) -> Dict:
         """Get current engine status"""
+        # Snapshot shared state under lock
+        with self._positions_lock:
+            positions_count = len(self.positions)
+            queue_size = len(self.signal_queue)
+            position_items = list(self.positions.items())
+
+        with self._stats_lock:
+            consecutive_losses = self.consecutive_losses
+            weekly_pnl = self.weekly_realized_pnl
+
         account = self.trader.get_account()
         safety_status = self.safety.get_status_summary()
 
@@ -2817,10 +3076,10 @@ class AutoTradingEngine:
 
         # v4.7 Fix #12: Sector exposure breakdown
         sector_counts = {}
-        for sym, pos in list(self.positions.items()):
+        for sym, pos in position_items:
             sect = getattr(pos, 'sector', 'Unknown') or 'Unknown'
             sector_counts[sect] = sector_counts.get(sect, 0) + 1
-        total_pos = len(self.positions) or 1
+        total_pos = positions_count or 1
         sector_exposure = {
             sect: {'count': cnt, 'pct': round(cnt / total_pos * 100, 1)}
             for sect, cnt in sector_counts.items()
@@ -2834,17 +3093,20 @@ class AutoTradingEngine:
             'regime_detail': regime_reason,  # v4.0
             'low_risk_mode': is_low_risk,  # v4.5
             'low_risk_reason': low_risk_reason,  # v4.5
-            'positions': len(self.positions),
+            'positions': positions_count,
             'account_value': account['portfolio_value'],
             'cash': account['cash'],
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v4.7 Critical Fixes',
+            'version': 'v4.9 Thread-Safe',
             # v4.1: Queue status
-            'queue_size': len(self.signal_queue),
+            'queue_size': queue_size,
             'queue': self.get_queue_status(),
             # v4.7: Sector exposure
             'sector_exposure': sector_exposure,
+            # v4.9: Loss protection snapshot
+            'consecutive_losses': consecutive_losses,
+            'weekly_pnl': weekly_pnl,
         }
 
     def get_positions_status(self) -> List[Dict]:

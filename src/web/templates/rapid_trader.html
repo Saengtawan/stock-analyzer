@@ -702,6 +702,13 @@ function initWebSocket() {
         updateConnectionIndicator(false);
     });
 
+    socket.on('reconnect_failed', function() {
+        console.log('Max reconnection attempts reached, switching to polling');
+        connectionStatus = 'failed';
+        updateConnectionIndicator(false);
+        startFallbackPolling();
+    });
+
     // Data update events
     socket.on('positions_update', function(data) {
         console.log('Positions update received');
@@ -936,9 +943,19 @@ function startMarketCountdown() {
     countdownInterval = setInterval(updateMarketCountdown, 1000);
 }
 
+function getETOffset() {
+    // Check if currently in EDT (Eastern Daylight Time)
+    const jan = new Date(new Date().getFullYear(), 0, 1);
+    const jul = new Date(new Date().getFullYear(), 6, 1);
+    const stdOffset = Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
+    const isDST = new Date().getTimezoneOffset() < stdOffset;
+    // ET is UTC-5 (EST) or UTC-4 (EDT)
+    return isDST ? -4 : -5;
+}
+
 function updateMarketCountdown() {
     const now = new Date();
-    const nyOffset = -5; // EST (adjust for DST if needed)
+    const nyOffset = getETOffset();
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
     const nyTime = new Date(utc + (3600000 * nyOffset));
 
@@ -1326,6 +1343,14 @@ function updatePositionsUI(data) {
         };
     });
 
+    // Clean up stale position data
+    const currentSymbols = new Set(statuses.map(s => s.symbol));
+    Object.keys(positionData).forEach(sym => {
+        if (!currentSymbols.has(sym)) {
+            delete positionData[sym];
+        }
+    });
+
     container.innerHTML = html;
 
     // Update P&L chart with current total
@@ -1710,6 +1735,9 @@ function loadAlerts() {
             console.error('Error loading alerts:', err);
         });
 }
+
+// Alias for loadAlerts (loads positions from /api/rapid/portfolio)
+const loadPositions = loadAlerts;
 
 function loadSignals() {
     const container = document.getElementById('signalsContainer');
