@@ -1,11 +1,15 @@
 """
 Flask Web Application for Stock Analyzer
+v4.0: Added WebSocket support for real-time updates
 """
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 import json
 import sys
 import os
+import threading
+import time
 from datetime import datetime
 from loguru import logger
 
@@ -30,6 +34,9 @@ from analysis.enhanced_features import analyze_stock as enhanced_analyze
 app = Flask(__name__)
 CORS(app)
 
+# v4.0: WebSocket for real-time updates
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
 # Initialize stock analyzer and screeners (now AI-only)
 analyzer = StockAnalyzer()
 support_screener = SupportLevelScreener(analyzer)
@@ -40,6 +47,9 @@ growth_catalyst_screener = GrowthCatalystScreener(analyzer)
 momentum_growth_screener = MomentumGrowthScreener(analyzer)
 pullback_catalyst_screener = PullbackCatalystScreener(analyzer)
 market_analyst = AIMarketAnalyst()
+
+# Note: Signals API does not use caching - user wants fresh data
+# Timeout is handled on client side (30 minutes)
 
 
 def enrich_with_etf_info(results):
@@ -2381,7 +2391,8 @@ def api_llm_news_sentiment():
 
 
 # ============================================================
-# RAPID TRADER - Target 5-15%/month
+# RAPID TRADER v4.0 - Smart Regime Edition
+# Target: +5.5%/mo, DD 8.9%, WR 49%
 # ============================================================
 
 @app.route('/rapid')
@@ -2390,17 +2401,46 @@ def rapid_trader_page():
     return render_template('rapid_trader.html')
 
 
+@app.route('/api/rapid/spy-regime')
+def api_rapid_spy_regime():
+    """
+    v4.0: Get SPY regime status
+
+    Returns:
+        is_bull: True if SPY > SMA20 (OK to trade)
+        reason: Human-readable status
+        details: SPY price, SMA20, pct_above_sma
+    """
+    try:
+        from screeners.rapid_rotation_screener import RapidRotationScreener
+
+        screener = RapidRotationScreener()
+        is_bull, reason, details = screener.check_spy_regime()
+
+        return jsonify({
+            'is_bull': is_bull,
+            'reason': reason,
+            'details': details,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"SPY regime check error: {e}")
+        return jsonify({'error': str(e), 'is_bull': True}), 500
+
+
 @app.route('/api/rapid/signals')
 def api_rapid_signals():
-    """Get rapid rotation buy signals"""
+    """Get rapid rotation buy signals (direct call - no caching)"""
     try:
+        logger.info("Signals scan started...")
         from screeners.rapid_rotation_screener import RapidRotationScreener
 
         screener = RapidRotationScreener()
         screener.load_data()
         signals = screener.screen(top_n=10)
 
-        # Convert to dict (v3.0 - includes sector, regime, alt data)
+        # Convert to dict
         signals_data = []
         for s in signals:
             signals_data.append({
@@ -2418,12 +2458,13 @@ def api_rapid_signals():
                 'momentum_20d': s.momentum_20d,
                 'distance_from_high': s.distance_from_high,
                 'reasons': s.reasons,
-                # v3.0 fields
                 'sector': getattr(s, 'sector', ''),
                 'market_regime': getattr(s, 'market_regime', ''),
                 'sector_score': getattr(s, 'sector_score', 0),
                 'alt_data_score': getattr(s, 'alt_data_score', 0),
             })
+
+        logger.info(f"Signals scan complete: {len(signals_data)} signals")
 
         return jsonify({
             'count': len(signals_data),
@@ -2446,10 +2487,18 @@ def api_rapid_portfolio():
         statuses = pm.check_all_positions()
         summary = pm.get_portfolio_summary()
 
-        # Convert to dict
+        # v4.6: Get extended hours prices in batch (Alpaca, no rate limit)
+        all_symbols = [s.symbol for s in statuses]
+        extended_prices = _get_extended_hours_prices(all_symbols)
+
+        # Convert to dict (include shares, SL, TP for real-time sync)
         statuses_data = []
         for s in statuses:
-            statuses_data.append({
+            # Get shares from position
+            pos = pm.positions.get(s.symbol)
+            shares = pos.shares if pos else 0
+
+            pos_data = {
                 'symbol': s.symbol,
                 'entry_price': s.entry_price,
                 'current_price': s.current_price,
@@ -2459,12 +2508,32 @@ def api_rapid_portfolio():
                 'signal': s.signal.value,
                 'reasons': s.reasons,
                 'action': s.action,
-                'new_candidates': s.new_candidates
-            })
+                'new_candidates': s.new_candidates,
+                # v4.0: Extra fields for real-time sync
+                'shares': shares,
+                'stop_loss': s.current_sl,
+                'take_profit': s.current_tp,
+                'trailing_active': s.trailing_active,
+                'highest_price': s.highest_price,
+                # v4.6: Per-position ATR-based SL/TP info
+                'sl_pct': getattr(pos, 'sl_pct', 2.5) if pos else 2.5,
+                'tp_pct': getattr(pos, 'tp_pct', 5.0) if pos else 5.0,
+                'atr_pct': getattr(pos, 'atr_pct', 0.0) if pos else 0.0,
+            }
+
+            # v4.6: Add extended hours price (from batch Alpaca call)
+            premarket = extended_prices.get(s.symbol, {})
+            pos_data.update(premarket)
+
+            statuses_data.append(pos_data)
+
+        # Get PDT info
+        pdt_info = get_pdt_info()
 
         return jsonify({
             'summary': summary,
             'statuses': statuses_data,
+            'pdt': pdt_info,
             'timestamp': datetime.now().isoformat()
         })
 
@@ -2752,5 +2821,635 @@ def api_auto_execute():
         return jsonify({'error': str(e)}), 500
 
 
+# ============================================
+# WebSocket Event Handlers (v4.0 Real-time)
+# ============================================
+
+# Store connected clients
+connected_clients = set()
+# Background monitor state
+monitor_thread = None
+monitor_running = False
+
+@socketio.on('connect')
+def handle_connect():
+    """Client connected"""
+    connected_clients.add(request.sid)
+    logger.info(f"WebSocket client connected: {request.sid} (total: {len(connected_clients)})")
+    # Send initial data immediately
+    emit('connected', {'status': 'connected', 'clients': len(connected_clients)})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Client disconnected"""
+    connected_clients.discard(request.sid)
+    logger.info(f"WebSocket client disconnected: {request.sid} (total: {len(connected_clients)})")
+
+@socketio.on('request_update')
+def handle_request_update(data=None):
+    """Client requests immediate update"""
+    emit('positions_update', get_positions_data())
+    emit('signals_update', get_signals_data())
+    emit('status_update', get_status_data())
+
+def _get_extended_hours_prices(symbols: list) -> dict:
+    """
+    Get extended hours prices using Alpaca snapshot API.
+    No rate limit issues. Returns {symbol: {premarket_price, premarket_change, premarket_session}}
+    """
+    results = {}
+    if not symbols:
+        return results
+    try:
+        engine = get_auto_trading_engine()
+        if not engine or not engine.trader:
+            return results
+
+        snapshots = engine.trader.get_snapshots(symbols)
+        market_open = engine.trader.is_market_open()
+
+        for symbol, snap in snapshots.items():
+            latest_price = snap.get('latest_trade_price')
+            daily_close = snap.get('daily_close')
+            prev_close = snap.get('prev_close')
+
+            if not latest_price or not daily_close:
+                continue
+
+            # If market is closed and latest trade != daily close → extended hours
+            if not market_open and latest_price != daily_close:
+                change = ((latest_price - daily_close) / daily_close) * 100
+                results[symbol] = {
+                    'premarket_price': round(latest_price, 2),
+                    'premarket_change': round(change, 2),
+                    'premarket_session': 'AH'
+                }
+            # Pre-market: latest trade time is before market open today
+            # Simplified: if market not open, show latest vs prev_close
+            elif not market_open and prev_close and latest_price:
+                change = ((latest_price - daily_close) / daily_close) * 100
+                if abs(change) > 0.01:  # Only show if there's actual movement
+                    results[symbol] = {
+                        'premarket_price': round(latest_price, 2),
+                        'premarket_change': round(change, 2),
+                        'premarket_session': 'Pre' if daily_close == prev_close else 'AH'
+                    }
+    except Exception as e:
+        logger.debug(f"Extended hours price error: {e}")
+    return results
+
+
+def get_positions_data():
+    """Get current positions data for WebSocket - uses RapidPortfolioManager for consistency"""
+    try:
+        from rapid_portfolio_manager import RapidPortfolioManager
+
+        pm = RapidPortfolioManager()
+        statuses = pm.check_all_positions()
+        summary = pm.get_portfolio_summary()
+
+        # v4.6: Get extended hours prices in batch (Alpaca, no rate limit)
+        all_symbols = [s.symbol for s in statuses]
+        extended_prices = _get_extended_hours_prices(all_symbols)
+
+        # Convert to dict (same format as REST API with extra fields for real-time sync)
+        statuses_data = []
+        for s in statuses:
+            # Get shares from position
+            pos = pm.positions.get(s.symbol)
+            shares = pos.shares if pos else 0
+
+            pos_data = {
+                'symbol': s.symbol,
+                'entry_price': s.entry_price,
+                'current_price': s.current_price,
+                'pnl_pct': s.pnl_pct,
+                'pnl_usd': s.pnl_usd,
+                'days_held': s.days_held,
+                'signal': s.signal.value,
+                'reasons': s.reasons,
+                'action': s.action,
+                'new_candidates': s.new_candidates,
+                # v4.0: Extra fields for real-time sync
+                'shares': shares,
+                'stop_loss': s.current_sl,
+                'take_profit': s.current_tp,
+                'trailing_active': s.trailing_active,
+                'highest_price': s.highest_price,
+                # v4.6: Per-position ATR-based SL/TP info
+                'sl_pct': getattr(pos, 'sl_pct', 2.5) if pos else 2.5,
+                'tp_pct': getattr(pos, 'tp_pct', 5.0) if pos else 5.0,
+                'atr_pct': getattr(pos, 'atr_pct', 0.0) if pos else 0.0,
+            }
+
+            # v4.6: Add extended hours price (from batch Alpaca call)
+            premarket = extended_prices.get(s.symbol, {})
+            pos_data.update(premarket)
+
+            statuses_data.append(pos_data)
+
+        return {'statuses': statuses_data, 'summary': summary}
+    except Exception as e:
+        logger.error(f"WebSocket positions error: {e}")
+        return {'error': str(e)}
+
+def get_signals_data():
+    """Get current signals data for WebSocket"""
+    try:
+        engine = get_auto_trading_engine()
+        if not engine:
+            return {'error': 'Engine not available'}
+
+        signals = engine.scan_for_signals()
+        return {
+            'signals': [
+                {
+                    'symbol': s.symbol,
+                    'score': s.score,
+                    'entry_price': s.entry_price,
+                    'stop_loss': s.stop_loss,
+                    'take_profit': s.take_profit,
+                    'rsi': s.rsi,
+                    'momentum_5d': s.momentum_5d,
+                    'max_loss': abs(s.stop_loss - s.entry_price) / s.entry_price * 100,
+                    'expected_gain': abs(s.take_profit - s.entry_price) / s.entry_price * 100
+                }
+                for s in signals
+            ],
+            'count': len(signals)
+        }
+    except Exception as e:
+        logger.error(f"WebSocket signals error: {e}")
+        return {'error': str(e)}
+
+def get_status_data():
+    """Get auto trading status for WebSocket"""
+    try:
+        engine = get_auto_trading_engine()
+        if not engine:
+            return {'error': 'Engine not available'}
+
+        return {
+            'running': engine.running,
+            'state': engine.state,
+            'market_open': engine.trader.is_market_open(),
+            'cash': float(engine.trader.get_account().get('cash', 0)),
+            'account_value': float(engine.trader.get_account().get('portfolio_value', 0)),
+            'safety': engine.safety.get_status_summary()
+        }
+    except Exception as e:
+        logger.error(f"WebSocket status error: {e}")
+        return {'error': str(e)}
+
+def get_regime_data():
+    """Get SPY regime data for WebSocket"""
+    try:
+        from screeners.rapid_rotation_screener import RapidRotationScreener
+        screener = RapidRotationScreener(analyzer)
+        is_bull, reason, details = screener.check_spy_regime()
+        return {
+            'is_bull': is_bull,
+            'reason': reason,
+            'details': details,
+            'regime': 'BULL' if is_bull else 'BEAR'
+        }
+    except Exception as e:
+        logger.error(f"WebSocket regime error: {e}")
+        return {'error': str(e)}
+
+def broadcast_update(event_type, data):
+    """Broadcast update to all connected clients"""
+    if connected_clients:
+        socketio.emit(event_type, data)  # emit to all clients (no broadcast param needed)
+
+def background_monitor():
+    """Background thread that monitors for changes and broadcasts updates"""
+    global monitor_running
+
+    last_positions = {}
+    last_signals_count = 0
+    last_regime = None
+    update_interval = 10  # seconds between checks
+    sync_counter = 0
+    sync_interval = 3  # Sync with Alpaca every 3 cycles (30 seconds)
+
+    logger.info("WebSocket background monitor started")
+
+    while monitor_running:
+        try:
+            if connected_clients:
+                # Periodically sync portfolio with Alpaca (every 30 seconds)
+                sync_counter += 1
+                if sync_counter >= sync_interval:
+                    sync_counter = 0
+                    changes = sync_portfolio_with_alpaca()
+                    if changes:
+                        logger.info(f"Auto-synced {len(changes)} position changes from Alpaca")
+
+                # Check positions
+                positions_data = get_positions_data()
+                current_positions = {s['symbol']: s for s in positions_data.get('statuses', [])}
+
+                # Detect position changes
+                if current_positions != last_positions:
+                    broadcast_update('positions_update', positions_data)
+                    last_positions = current_positions.copy()
+
+                    # Check for trade events
+                    new_symbols = set(current_positions.keys()) - set(last_positions.keys())
+                    closed_symbols = set(last_positions.keys()) - set(current_positions.keys())
+
+                    for symbol in new_symbols:
+                        broadcast_update('trade_event', {
+                            'type': 'BUY',
+                            'symbol': symbol,
+                            'data': current_positions[symbol],
+                            'timestamp': datetime.now().isoformat()
+                        })
+
+                    for symbol in closed_symbols:
+                        broadcast_update('trade_event', {
+                            'type': 'SELL',
+                            'symbol': symbol,
+                            'timestamp': datetime.now().isoformat()
+                        })
+
+                # Check signals (less frequently)
+                signals_data = get_signals_data()
+                if signals_data.get('count', 0) != last_signals_count:
+                    broadcast_update('signals_update', signals_data)
+                    last_signals_count = signals_data.get('count', 0)
+
+                # Check regime (every 5 cycles = 50 seconds)
+                regime_data = get_regime_data()
+                if regime_data.get('regime') != last_regime:
+                    broadcast_update('regime_update', regime_data)
+                    last_regime = regime_data.get('regime')
+
+                # Broadcast status update
+                broadcast_update('status_update', get_status_data())
+
+            time.sleep(update_interval)
+
+        except Exception as e:
+            logger.error(f"Background monitor error: {e}")
+            time.sleep(5)
+
+    logger.info("WebSocket background monitor stopped")
+
+def start_monitor():
+    """Start background monitor thread"""
+    global monitor_thread, monitor_running
+
+    if monitor_thread is None or not monitor_thread.is_alive():
+        monitor_running = True
+        monitor_thread = threading.Thread(target=background_monitor, daemon=True)
+        monitor_thread.start()
+        logger.info("Started WebSocket background monitor")
+
+def stop_monitor():
+    """Stop background monitor thread"""
+    global monitor_running
+    monitor_running = False
+    logger.info("Stopping WebSocket background monitor")
+
+
+def get_pdt_info():
+    """Get PDT (Pattern Day Trader) info from Alpaca account with Smart Guard v2.0"""
+    try:
+        import requests
+        headers = {
+            "APCA-API-KEY-ID": os.getenv('ALPACA_API_KEY'),
+            "APCA-API-SECRET-KEY": os.getenv('ALPACA_SECRET_KEY')
+        }
+        resp = requests.get("https://paper-api.alpaca.markets/v2/account", headers=headers)
+        if resp.status_code == 200:
+            account = resp.json()
+            day_trade_count = int(account.get('daytrade_count', 0))
+            day_trade_limit = 3
+            remaining = max(0, day_trade_limit - day_trade_count)
+            reserve = 1  # PDT Smart Guard reserve
+
+            return {
+                'day_trade_count': day_trade_count,
+                'pdt_flag': account.get('pattern_day_trader', False),
+                'day_trade_limit': day_trade_limit,
+                'remaining': remaining,
+                # PDT Smart Guard v2.0 additions
+                'smart_guard': {
+                    'version': '2.0',
+                    'enabled': True,
+                    'reserve': reserve,
+                    'reserve_active': remaining <= reserve,
+                    'sl_threshold': -2.5,
+                    'tp_threshold': 4.0  # 4% for faster profit lock
+                }
+            }
+    except Exception as e:
+        logger.error(f"PDT info error: {e}")
+    return {
+        'day_trade_count': 0, 'pdt_flag': False, 'day_trade_limit': 3, 'remaining': 3,
+        'smart_guard': {'version': '2.0', 'enabled': True, 'reserve': 1, 'reserve_active': False}
+    }
+
+
+def sync_portfolio_with_alpaca():
+    """Sync rapid_portfolio.json with actual Alpaca positions"""
+    try:
+        import requests
+        from rapid_portfolio_manager import RapidPortfolioManager
+
+        headers = {
+            "APCA-API-KEY-ID": os.getenv('ALPACA_API_KEY'),
+            "APCA-API-SECRET-KEY": os.getenv('ALPACA_SECRET_KEY')
+        }
+        resp = requests.get("https://paper-api.alpaca.markets/v2/positions", headers=headers)
+        alpaca_positions = resp.json()
+
+        # Get current portfolio
+        pm = RapidPortfolioManager()
+        current_symbols = set(pm.positions.keys())
+        alpaca_symbols = set(p['symbol'] for p in alpaca_positions)
+
+        # Detect changes
+        new_symbols = alpaca_symbols - current_symbols
+        sold_symbols = current_symbols - alpaca_symbols
+
+        changes = []
+
+        # Remove sold positions
+        for symbol in sold_symbols:
+            if symbol in pm.positions:
+                del pm.positions[symbol]
+                changes.append(('SELL', symbol))
+                logger.info(f"Portfolio sync: Removed {symbol} (sold)")
+
+        # Add new positions
+        for pos in alpaca_positions:
+            symbol = pos['symbol']
+            if symbol in new_symbols:
+                entry_price = float(pos['avg_entry_price'])
+                shares = int(pos['qty'])
+                current_price = float(pos['current_price'])
+
+                from rapid_portfolio_manager import Position
+                pm.positions[symbol] = Position(
+                    symbol=symbol,
+                    entry_date=datetime.now().strftime("%Y-%m-%d"),
+                    entry_price=entry_price,
+                    shares=shares,
+                    initial_stop_loss=entry_price * 0.975,
+                    current_stop_loss=entry_price * 0.975,
+                    take_profit=entry_price * 1.06,
+                    cost_basis=entry_price * shares,
+                    highest_price=current_price,
+                    trailing_active=False,
+                    initial_take_profit=entry_price * 1.06
+                )
+                changes.append(('BUY', symbol))
+                logger.info(f"Portfolio sync: Added {symbol} - {shares} shares @ ${entry_price:.2f}")
+
+        # Save if changes
+        if changes:
+            pm.save_portfolio()
+            logger.info(f"Portfolio synced: {len(changes)} changes")
+
+            # Broadcast changes via WebSocket
+            for change_type, symbol in changes:
+                broadcast_update('trade_event', {
+                    'type': change_type,
+                    'symbol': symbol,
+                    'timestamp': datetime.now().isoformat()
+                })
+
+            # Broadcast updated positions
+            broadcast_update('positions_update', get_positions_data())
+
+        return changes
+
+    except Exception as e:
+        logger.error(f"Portfolio sync error: {e}")
+        return []
+
+
+def start_price_streamer():
+    """Start Alpaca real-time price streamer"""
+    try:
+        from alpaca_streamer import init_streamer, get_streamer
+        from rapid_portfolio_manager import RapidPortfolioManager
+
+        # First sync portfolio with Alpaca
+        sync_portfolio_with_alpaca()
+
+        # Initialize streamer with socketio
+        streamer = init_streamer(
+            socketio=socketio,
+            api_key=os.getenv('ALPACA_API_KEY'),
+            secret_key=os.getenv('ALPACA_SECRET_KEY')
+        )
+
+        # Get current position symbols
+        pm = RapidPortfolioManager()
+        symbols = list(pm.positions.keys())
+
+        if symbols:
+            # Subscribe to position symbols (trades only - bars not available on IEX)
+            streamer.subscribe(symbols, trades=True, bars=False)
+            streamer.start()
+            logger.info(f"Price streamer started for: {symbols}")
+        else:
+            logger.info("No positions to stream prices for")
+
+        return streamer
+
+    except Exception as e:
+        logger.error(f"Failed to start price streamer: {e}")
+        return None
+
+
+# API endpoint to manually sync portfolio with Alpaca
+@app.route('/api/rapid/sync', methods=['POST'])
+def api_rapid_sync():
+    """Manually sync portfolio with Alpaca positions"""
+    try:
+        changes = sync_portfolio_with_alpaca()
+        return jsonify({
+            'success': True,
+            'changes': [{'type': c[0], 'symbol': c[1]} for c in changes],
+            'message': f'Synced {len(changes)} changes'
+        })
+    except Exception as e:
+        logger.error(f"Manual sync error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================
+# TRADE LOG API v1.0
+# ============================================================
+
+@app.route('/api/trade-logs')
+def api_trade_logs():
+    """
+    Get today's trade logs and summary for UI display
+
+    Returns:
+        summary: Today's trading summary (buys, sells, winners, losers, pnl)
+        logs: Recent trade log entries
+    """
+    try:
+        from trade_logger import get_trade_logger
+
+        trade_logger = get_trade_logger()
+        summary = trade_logger.get_today_summary()
+        logs = trade_logger.get_recent_logs(limit=20)
+
+        return jsonify({
+            'summary': summary,
+            'logs': logs,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Trade logs error: {e}")
+        return jsonify({
+            'summary': {
+                'date': datetime.now().strftime('%Y-%m-%d'),
+                'total_trades': 0,
+                'buys': 0,
+                'sells': 0,
+                'skips': 0,
+                'winners': 0,
+                'losers': 0,
+                'win_rate': 0,
+                'total_pnl_usd': 0
+            },
+            'logs': [],
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/trade-logs/history')
+def api_trade_logs_history():
+    """
+    Query historical trade logs
+
+    Query params:
+        start_date: YYYY-MM-DD (optional)
+        end_date: YYYY-MM-DD (optional)
+        symbol: Filter by symbol (optional)
+        action: BUY, SELL, or SKIP (optional)
+        limit: Max results (default 100)
+    """
+    try:
+        from trade_logger import get_trade_logger
+
+        trade_logger = get_trade_logger()
+
+        # Get query params
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        symbol = request.args.get('symbol')
+        action = request.args.get('action')
+        limit = int(request.args.get('limit', 100))
+
+        # Query history
+        logs = trade_logger.query_history(
+            start_date=start_date,
+            end_date=end_date,
+            symbol=symbol,
+            action=action,
+            limit=limit
+        )
+
+        return jsonify({
+            'count': len(logs),
+            'logs': logs,
+            'query': {
+                'start_date': start_date,
+                'end_date': end_date,
+                'symbol': symbol,
+                'action': action,
+                'limit': limit
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Trade logs history error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/trade-logs/stats')
+def api_trade_logs_stats():
+    """
+    Get performance statistics
+
+    Query params:
+        days: Number of days to analyze (default 30)
+    """
+    try:
+        from trade_logger import get_trade_logger
+
+        trade_logger = get_trade_logger()
+        days = int(request.args.get('days', 30))
+
+        stats = trade_logger.get_performance_stats(days=days)
+
+        return jsonify({
+            'stats': stats,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Trade logs stats error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# API endpoint to subscribe to new symbols
+@app.route('/api/stream/subscribe', methods=['POST'])
+def api_stream_subscribe():
+    """Subscribe to real-time prices for symbols"""
+    try:
+        from alpaca_streamer import get_streamer
+
+        data = request.get_json()
+        symbols = data.get('symbols', [])
+
+        streamer = get_streamer()
+        if streamer:
+            streamer.subscribe(symbols)
+            return jsonify({'success': True, 'symbols': symbols})
+        else:
+            return jsonify({'error': 'Streamer not running'}), 503
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/stream/prices')
+def api_stream_prices():
+    """Get all cached real-time prices"""
+    try:
+        from alpaca_streamer import get_streamer
+
+        streamer = get_streamer()
+        if streamer:
+            return jsonify({
+                'prices': streamer.get_all_prices(),
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            return jsonify({'error': 'Streamer not running'}), 503
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Start background monitor
+    start_monitor()
+
+    # Start Alpaca real-time price streamer
+    start_price_streamer()
+
+    # Use socketio.run instead of app.run for WebSocket support
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

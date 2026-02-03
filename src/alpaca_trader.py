@@ -559,6 +559,45 @@ class AlpacaTrader:
         clock = self.get_clock()
         return clock['is_open']
 
+    def get_snapshot(self, symbol: str) -> Optional[Dict]:
+        """
+        Get market snapshot for a symbol (includes extended hours data).
+        Returns latest trade, quote, daily bar, and prev daily bar.
+        """
+        try:
+            snap = self.api.get_snapshot(symbol)
+            return {
+                'latest_trade_price': snap.latest_trade.p,
+                'latest_trade_time': str(snap.latest_trade.t),
+                'bid': snap.latest_quote.bp,
+                'ask': snap.latest_quote.ap,
+                'daily_open': snap.daily_bar.o,
+                'daily_close': snap.daily_bar.c,
+                'daily_high': snap.daily_bar.h,
+                'daily_low': snap.daily_bar.l,
+                'daily_volume': snap.daily_bar.v,
+                'prev_close': snap.prev_daily_bar.c,
+            }
+        except Exception as e:
+            logger.debug(f"Snapshot error for {symbol}: {e}")
+            return None
+
+    def get_snapshots(self, symbols: list) -> Dict:
+        """Get snapshots for multiple symbols in one API call"""
+        results = {}
+        try:
+            snaps = self.api.get_snapshots(symbols)
+            for symbol, snap in snaps.items():
+                results[symbol] = {
+                    'latest_trade_price': snap.latest_trade.p,
+                    'latest_trade_time': str(snap.latest_trade.t),
+                    'daily_close': snap.daily_bar.c,
+                    'prev_close': snap.prev_daily_bar.c,
+                }
+        except Exception as e:
+            logger.debug(f"Snapshots error: {e}")
+        return results
+
 
 # =============================================================================
 # TEST FUNCTIONS

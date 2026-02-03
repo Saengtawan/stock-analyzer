@@ -1,35 +1,16 @@
 #!/usr/bin/env python3
 """
-RAPID PORTFOLIO MANAGER v3.9 - OPTIMIZED EXIT STRATEGY
+RAPID PORTFOLIO MANAGER v4.6 - ATR-BASED SL/TP
 
-v3.9 Changes - EXIT STRATEGY OPTIMIZATION:
-- Trail Activation: 2% (was 3%) - Activate earlier to protect gains sooner
-- Trail Lock: 70% (was 60%) - Lock more profit from peak
+v4.6 Changes - ATR-BASED DYNAMIC SL/TP:
+- SL: 1.5×ATR (clamped 2%-4%) per position
+- TP: 3×ATR (clamped 4%-8%) per position
+- PDT TP: = SL% (R:R 1:1 minimum for Day 0 sells)
+- Trail Activation: 3% (unchanged)
+- Trail Lock: 80% (unchanged)
+- Each position stores its own sl_pct, tp_pct, atr_pct
 
-Backtest Results (v3.9 vs v3.7 baseline):
-  v3.7: +12.07% return, 55.6% win rate
-  v3.9: +23.33% return, 64.4% win rate (+11.26% improvement)
-
-v3.4 Changes - FULLY DYNAMIC ทั้ง SL และ TP:
-
-Dynamic SL:
-- SL ปรับตาม ATR (volatile มาก = trail กว้าง)
-- Trail ตาม swing low ล่าสุด (structure-based)
-- Trail ใต้ EMA 5/10 (MA-based)
-- เลือกค่าสูงสุด = ป้องกันดีสุด
-
-Dynamic TP:
-- TP ปรับตาม ATR × 3 (target scales with volatility)
-- TP ตาม resistance (swing high 20d)
-- TP ขยับขึ้นตามราคา (trailing TP)
-- เลือกค่าต่ำสุด = เป้าที่ realistic
-
-หลักการ:
-1. เมื่อราคาขึ้น → Update highest_price
-2. คำนวณ SL ใหม่ = MAX(ATR*2, swing low, EMA5)
-3. คำนวณ TP ใหม่ = MIN(ATR*3, resistance, +15% cap)
-4. SL ขยับขึ้นได้อย่างเดียว (ไม่ลด protection)
-5. TP ขยับขึ้นได้อย่างเดียว (ไม่ลดเป้า)
+Design: Engine = source of truth, Portfolio Manager = display + monitor
 
 Exit Signals:
 🔴 CRITICAL - ต้องขายทันที (ถึง SL)
@@ -61,7 +42,7 @@ class ExitSignal(Enum):
 
 @dataclass
 class Position:
-    """Position in portfolio with dynamic SL/TP tracking"""
+    """Position in portfolio with ATR-based SL/TP tracking (v4.6)"""
     symbol: str
     entry_date: str
     entry_price: float
@@ -73,6 +54,10 @@ class Position:
     highest_price: float        # ราคาสูงสุดที่เคยถึง
     trailing_active: bool = False  # Trailing เริ่มทำงานแล้ว?
     initial_take_profit: float = 0.0  # TP ตอน entry (v3.4)
+    # v4.6: Per-position ATR-based SL/TP
+    sl_pct: float = 2.5         # SL% for this position
+    tp_pct: float = 5.0         # TP% for this position
+    atr_pct: float = 0.0        # ATR% at entry time
 
     @property
     def position_value(self) -> float:
@@ -106,29 +91,30 @@ class PositionStatus:
 
 class RapidPortfolioManager:
     """
-    Portfolio Manager v3.4 - FULLY DYNAMIC SL/TP
+    Portfolio Manager v4.6 - ATR-BASED SL/TP
 
-    Dynamic SL Logic:
-    1. ATR-based: trailing distance = 2 x ATR (ปรับตามความผันผวน)
-    2. Structure-based: ใช้ swing low ล่าสุดเป็น reference
-    3. MA-based: trail ใต้ EMA 5
-    → เลือก SL ที่สูงสุด = ป้องกันดีสุด
-
-    Dynamic TP Logic:
-    1. ATR-based: target = current + ATR × 3
-    2. Resistance-based: ใช้ swing high 20 วัน
-    3. Trailing TP: ถ้าทำ new high → ขยับ TP ขึ้น
-    → TP ขยับขึ้นได้อย่างเดียว (ไม่ลดเป้า)
-
-    Auto-update: SL/TP จะ update อัตโนมัติเมื่อราคาทำ new high
+    ATR-based per-position SL/TP (same as auto_trading_engine.py v4.6)
+    - SL: 1.5×ATR (clamped 2%-4%) per position
+    - TP: 3×ATR (clamped 4%-8%) per position
+    - Trailing: +3% activation, lock 80% of gains
+    - Max Hold: 5 calendar days
     """
 
-    PORTFOLIO_FILE = "rapid_portfolio.json"
+    # Use absolute path to project root for portfolio file
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    PORTFOLIO_FILE = os.path.join(PROJECT_ROOT, "rapid_portfolio.json")
 
-    # v3.9: Optimized trailing parameters (matches STANDARD_BACKTEST.py)
-    TRAIL_ACTIVATION_PCT = 2.0   # v3.9: เริ่ม trailing หลังกำไร 2% (was 3%)
-    TRAIL_PERCENT = 70           # v3.9: Lock 70% of peak gains (was 60%)
-    ATR_MULTIPLIER = 2.0         # Trail distance = ATR * 2 (alternative method)
+    # v4.6: ATR-based SL/TP (fallback defaults)
+    SL_ATR_MULTIPLIER = 1.5      # SL = 1.5 × ATR
+    SL_MIN_PCT = 2.0             # Minimum SL%
+    SL_MAX_PCT = 4.0             # Maximum SL%
+    TP_ATR_MULTIPLIER = 3.0      # TP = 3 × ATR
+    TP_MIN_PCT = 4.0             # Minimum TP%
+    TP_MAX_PCT = 8.0             # Maximum TP%
+    STOP_LOSS_PCT = 2.5          # Fallback fixed SL%
+    TAKE_PROFIT_PCT = 5.0        # Fallback fixed TP%
+    TRAIL_ACTIVATION_PCT = 3.0   # Start trailing at +3% gain
+    TRAIL_PERCENT = 80           # Lock 80% of peak gains
     MAX_HOLD_DAYS = 5            # Max hold days before force exit
 
     def __init__(self, portfolio_file: str = None):
@@ -155,6 +141,13 @@ class RapidPortfolioManager:
                         # v3.4: Handle initial_take_profit for old positions
                         if 'initial_take_profit' not in pos_data:
                             pos_data['initial_take_profit'] = pos_data.get('take_profit', pos_data['entry_price'] * 1.06)
+                        # v4.6: Handle per-position ATR fields
+                        if 'sl_pct' not in pos_data:
+                            pos_data['sl_pct'] = 2.5
+                        if 'tp_pct' not in pos_data:
+                            pos_data['tp_pct'] = 5.0
+                        if 'atr_pct' not in pos_data:
+                            pos_data['atr_pct'] = 0.0
                         # Remove old 'stop_loss' field if exists
                         pos_data.pop('stop_loss', None)
                         self.positions[symbol] = Position(**pos_data)
@@ -171,8 +164,25 @@ class RapidPortfolioManager:
             json.dump(data, f, indent=2, default=str)
 
     def add_position(self, symbol: str, shares: int, entry_price: float,
-                     stop_loss: float, take_profit: float) -> None:
-        """Add new position with dynamic SL/TP tracking (v3.4)"""
+                     stop_loss: float = None, take_profit: float = None,
+                     sl_pct: float = None, tp_pct: float = None,
+                     atr_pct: float = None) -> None:
+        """
+        Add new position with ATR-based SL/TP (v4.6)
+
+        If sl_pct/tp_pct provided (from engine), use those.
+        Otherwise calculate ATR-based or use fallback fixed values.
+        """
+        # v4.6: Use provided per-position percentages or fallback
+        pos_sl_pct = sl_pct or self.STOP_LOSS_PCT
+        pos_tp_pct = tp_pct or self.TAKE_PROFIT_PCT
+        pos_atr_pct = atr_pct or 0.0
+
+        if stop_loss is None:
+            stop_loss = round(entry_price * (1 - pos_sl_pct / 100), 2)
+        if take_profit is None:
+            take_profit = round(entry_price * (1 + pos_tp_pct / 100), 2)
+
         self.positions[symbol] = Position(
             symbol=symbol,
             entry_date=datetime.now().strftime('%Y-%m-%d'),
@@ -184,17 +194,19 @@ class RapidPortfolioManager:
             cost_basis=shares * entry_price,
             highest_price=entry_price,
             trailing_active=False,
-            initial_take_profit=take_profit  # v3.4: Track initial TP
+            initial_take_profit=take_profit,
+            sl_pct=pos_sl_pct,
+            tp_pct=pos_tp_pct,
+            atr_pct=pos_atr_pct
         )
         self.save_portfolio()
 
-        sl_pct = ((entry_price - stop_loss) / entry_price) * 100
-        tp_pct = ((take_profit - entry_price) / entry_price) * 100
-
         print(f"✅ Added: {symbol} x{shares} @ ${entry_price:.2f}")
-        print(f"   Initial SL: ${stop_loss:.2f} (-{sl_pct:.1f}%)")
-        print(f"   Initial TP: ${take_profit:.2f} (+{tp_pct:.1f}%)")
-        print(f"   💡 SL/TP will update dynamically as price rises")
+        print(f"   SL: ${stop_loss:.2f} (-{pos_sl_pct:.1f}%)")
+        print(f"   TP: ${take_profit:.2f} (+{pos_tp_pct:.1f}%)")
+        if pos_atr_pct > 0:
+            print(f"   ATR: {pos_atr_pct:.1f}% (SL={self.SL_ATR_MULTIPLIER}x, TP={self.TP_ATR_MULTIPLIER}x)")
+        print(f"   Trailing: +{self.TRAIL_ACTIVATION_PCT}% → lock {self.TRAIL_PERCENT}%")
 
     def remove_position(self, symbol: str) -> Optional[Position]:
         """Remove position"""
@@ -407,7 +419,12 @@ class RapidPortfolioManager:
 
     def update_position_sl_tp(self, symbol: str, current_price: float) -> Dict:
         """
-        Update position's SL and TP dynamically (v3.4)
+        Update position's SL using simple trailing stop (v4.6)
+
+        Synced with auto_trading_engine.py:
+        - SL: Per-position ATR-based (until trailing activates)
+        - Trailing: +3% activation, lock 80% of gains
+        - TP: Per-position ATR-based (never changes after entry)
 
         Returns:
             Dict with sl_updated, tp_updated, new_sl, new_tp
@@ -417,51 +434,38 @@ class RapidPortfolioManager:
 
         pos = self.positions[symbol]
         sl_updated = False
-        tp_updated = False
         new_sl = pos.current_stop_loss
-        new_tp = pos.take_profit
 
-        # Check if new high
+        # Update peak price
         if current_price > pos.highest_price:
             pos.highest_price = current_price
 
-            # Check if trailing should activate
-            pnl_pct = ((current_price - pos.entry_price) / pos.entry_price) * 100
+        # Calculate P&L from entry
+        pnl_pct = ((pos.highest_price - pos.entry_price) / pos.entry_price) * 100
 
-            if pnl_pct >= self.TRAIL_ACTIVATION_PCT:
-                pos.trailing_active = True
+        # v4.5: Simple trailing stop (same as engine)
+        if pnl_pct >= self.TRAIL_ACTIVATION_PCT:
+            pos.trailing_active = True
 
-                # Calculate new dynamic SL
-                sl_info = self.calculate_dynamic_sl(
-                    symbol, current_price, pos.highest_price, pos.entry_price
-                )
-                recommended_sl = sl_info['recommended_sl']
+            # Trailing SL = entry + (gain × lock_pct)
+            gain_from_entry = pos.highest_price - pos.entry_price
+            trailing_sl = pos.entry_price + (gain_from_entry * self.TRAIL_PERCENT / 100)
 
-                # Only update if new SL is higher than current
-                if recommended_sl > pos.current_stop_loss:
-                    pos.current_stop_loss = recommended_sl
-                    new_sl = recommended_sl
-                    sl_updated = True
+            # SL can only go UP (never reduce protection)
+            if trailing_sl > pos.current_stop_loss:
+                pos.current_stop_loss = round(trailing_sl, 2)
+                new_sl = pos.current_stop_loss
+                sl_updated = True
 
-                # Calculate new dynamic TP
-                tp_info = self.calculate_dynamic_tp(
-                    symbol, current_price, pos.highest_price, pos.entry_price
-                )
-                recommended_tp = tp_info['recommended_tp']
-
-                # Only update if new TP is higher than current (raise target)
-                if recommended_tp > pos.take_profit:
-                    pos.take_profit = recommended_tp
-                    new_tp = recommended_tp
-                    tp_updated = True
-
+        # Save if anything changed
+        if sl_updated or current_price > pos.highest_price:
             self.save_portfolio()
 
         return {
             'sl_updated': sl_updated,
-            'tp_updated': tp_updated,
+            'tp_updated': False,  # v4.5: TP never changes
             'new_sl': new_sl,
-            'new_tp': new_tp
+            'new_tp': pos.take_profit
         }
 
     def analyze_position(self, symbol: str) -> Optional[PositionStatus]:
@@ -656,14 +660,14 @@ class RapidPortfolioManager:
 def main():
     """Run portfolio check"""
     print("=" * 70)
-    print("🚀 RAPID PORTFOLIO MANAGER v3.9 - OPTIMIZED EXIT STRATEGY")
+    print("🚀 RAPID PORTFOLIO MANAGER v4.6 - ATR-BASED SL/TP")
     print("=" * 70)
     print()
-    print("v3.9 Features:")
-    print("  - Trail Activation: +2% (earlier protection)")
-    print("  - Trail Lock: 70% (lock more profit)")
-    print("  - ATR-based dynamic trailing")
-    print("  - Auto-update SL when price rises")
+    print("v4.6 Features:")
+    print("  - SL: 1.5×ATR (clamped 2%-4%) per position")
+    print("  - TP: 3×ATR (clamped 4%-8%) per position")
+    print("  - Trail: +3% activation, lock 80%")
+    print("  - PDT TP = SL% (R:R 1:1 minimum)")
     print()
 
     manager = RapidPortfolioManager()

@@ -1,17 +1,58 @@
 #!/usr/bin/env python3
 """
 AUTO TRADING ENGINE - Phase 2
-Rapid Trader v3.9 Full-Auto Trading
+Rapid Trader v4.5 - Low Risk Mode Edition
 
 Integrates:
 - Alpaca Module (Phase 1) for order execution
 - Rapid Rotation Screener for signal generation
-- Trailing stop logic (v3.9: +2% activation, 70% lock)
+- Trailing stop logic (v3.11: +3% activation, 80% lock)
+- Market Regime Filter (SPY > SMA20 = Bull → Trade)
+- Signal Queue (v4.1) - queue signals when positions full
+- Regime Cache (v4.2) - cache regime check for 5 min
+- Gap Filter (v4.3) - skip stocks that gap up/down too much
+- Earnings Filter (v4.4) - skip stocks with earnings within 5 days
+- Late Start Protection (v4.4) - skip scan if > 15 min after open
+- Low Risk Mode (v4.5) - stricter criteria when PDT budget = 0
+
+v4.5 Changes:
+- Low Risk Mode: เมื่อ PDT budget = 0 → ยังซื้อได้ แต่เข้มขึ้น
+  - Gap filter เข้มขึ้น: 1% (ปกติ 2%)
+  - Score สูงขึ้น: 90 (ปกติ 85)
+  - Position size เล็กลง: 25% (ปกติ 45%)
+  - ATR limit: < 4% (ไม่ซื้อหุ้นผันผวนมาก)
+  เหตุผล: ต้อง hold ข้ามคืนอยู่แล้ว → เลือกเฉพาะหุ้นปลอดภัยสุด
+
+v4.4 Changes:
+- Earnings Filter: Skip stocks with earnings within 5 days
+  เหตุผล: เสี่ยง gap ±10-20% หลัง earnings
+- Late Start Protection: Skip scan if started > 15 min after market open
+  เหตุผล: ราคาอาจขึ้นไปแล้ว ไม่ใช่ dip bounce
+- TAKE_PROFIT_PCT: 6% → 5% (เกิดบ่อยกว่า, trailing จับ upside)
+- PDT_TP_THRESHOLD: 6% → 4% (Day 0 sell, +4% เกิดบ่อยกว่า)
+
+v4.3 Changes:
+- Gap Filter: Skip stocks with gap > +2% or < -5% from prev close
+  เหตุผล: Gap up แรง = ไม่ใช่ dip bounce แล้ว
+  AMD case: gap +3.6% > +2% → SKIP
+
+v4.2 Changes:
+- Regime cache to avoid repeated yfinance calls (5 min cache)
+
+v4.1 Changes:
+- Signal Queue: Queue signals when positions full
+- ATR-based deviation check for queued signals
+- Freshness priority (< 30 min signals first)
+
+v4.0 Changes:
+- Added Market Regime Filter: Only trade when SPY > SMA20
+  Result: WR 49%, +5.5%/mo, DD 8.9% (meets both targets!)
+- Updated position sizing for optimal returns
 
 Daily Flow:
 - 06:00 ET: System wake up, health check
-- 09:00 ET: Pre-market scan
-- 09:30 ET: Market open → Execute signals
+- 09:00 ET: Pre-market scan + Regime check
+- 09:30 ET: Market open → Check late start → Execute signals
 - 09:31-15:59 ET: Monitor loop (every 1 min)
 - 15:50 ET: Pre-close check
 - 16:00 ET: Daily summary
@@ -28,6 +69,7 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
 from enum import Enum
 import pytz
+import pandas as pd
 
 # Add src to path
 src_dir = os.path.dirname(os.path.abspath(__file__))
@@ -36,7 +78,17 @@ sys.path.insert(0, os.path.dirname(src_dir))  # Add parent for 'src' imports
 
 from alpaca_trader import AlpacaTrader, Position, Order
 from trading_safety import TradingSafetySystem, SafetyStatus
+from pdt_smart_guard import PDTSmartGuard, PDTConfig, SellDecision, init_pdt_guard
+from trade_logger import get_trade_logger, TradeLogger
 from loguru import logger
+
+# For Market Regime Filter
+try:
+    import yfinance as yf
+    YFINANCE_AVAILABLE = True
+except ImportError:
+    YFINANCE_AVAILABLE = False
+    logger.warning("yfinance not available - regime filter disabled")
 
 # Try to import screener
 try:
@@ -65,7 +117,7 @@ class TradingState(Enum):
 
 @dataclass
 class ManagedPosition:
-    """Position with trailing stop management"""
+    """Position with trailing stop management (v4.6: ATR-based SL/TP)"""
     symbol: str
     qty: int
     entry_price: float
@@ -75,6 +127,11 @@ class ManagedPosition:
     peak_price: float
     trailing_active: bool = False
     days_held: int = 0
+    # v4.6: ATR-based per-position SL/TP
+    sl_pct: float = 2.5          # Actual SL% for this position
+    tp_price: float = 0.0        # Target TP price
+    tp_pct: float = 5.0          # Actual TP% for this position
+    atr_pct: float = 0.0         # ATR% at entry
 
 
 @dataclass
@@ -88,6 +145,66 @@ class DailyStats:
     realized_pnl: float = 0.0
     signals_found: int = 0
     signals_executed: int = 0
+    regime_status: str = "UNKNOWN"  # v4.0: Track market regime
+    regime_skipped: bool = False    # v4.0: True if skipped due to bear market
+    queue_added: int = 0            # v4.1: Signals added to queue
+    queue_executed: int = 0         # v4.1: Signals executed from queue
+    queue_expired: int = 0          # v4.1: Signals expired (price moved too much)
+    queue_rescans: int = 0          # v4.1: Times rescanned after queue empty
+    gap_rejected: int = 0           # v4.3: Signals rejected by gap filter
+    earnings_rejected: int = 0      # v4.4: Signals rejected by earnings filter
+    late_start_skipped: bool = False  # v4.4: True if scan skipped due to late start
+    low_risk_trades: int = 0        # v4.5: Trades executed in low risk mode
+
+
+@dataclass
+class QueuedSignal:
+    """
+    Signal Queue Entry - v4.1 Final
+
+    When positions are full at market open, good signals are queued.
+    When a slot opens, queued signals are checked and executed if price is still good.
+
+    Priority: Freshness (< 30 min) > Score
+    """
+    symbol: str
+    signal_price: float         # Price when signal was generated
+    score: float                # Signal score
+    stop_loss: float            # Original SL price
+    take_profit: float          # Original TP price
+    queued_at: datetime         # When added to queue
+    reasons: List[str]          # Signal reasons
+    atr_pct: float = 5.0        # ATR% for deviation calculation
+
+    def get_max_deviation(self, atr_mult: float, min_dev: float, max_dev: float) -> float:
+        """
+        Calculate max acceptable deviation based on ATR
+
+        Formula: min(max(ATR% * mult, min_dev), max_dev)
+        Example: ATR 6% * 0.5 = 3% → capped to 1.5%
+        """
+        atr_based = self.atr_pct * atr_mult
+        return min(max(atr_based, min_dev), max_dev)
+
+    def is_price_acceptable(self, current_price: float, atr_mult: float, min_dev: float, max_dev: float) -> Tuple[bool, float, float]:
+        """
+        Check if current price is still acceptable for entry
+
+        Returns:
+            (acceptable: bool, deviation_pct: float, max_allowed: float)
+        """
+        deviation_pct = ((current_price - self.signal_price) / self.signal_price) * 100
+        max_allowed = self.get_max_deviation(atr_mult, min_dev, max_dev)
+        acceptable = deviation_pct <= max_allowed
+        return acceptable, deviation_pct, max_allowed
+
+    def minutes_since_queued(self) -> float:
+        """Get minutes since signal was queued"""
+        return (datetime.now() - self.queued_at).total_seconds() / 60
+
+    def is_fresh(self, freshness_window_minutes: float) -> bool:
+        """Check if signal is still fresh (within window)"""
+        return self.minutes_since_queued() <= freshness_window_minutes
 
 
 class AutoTradingEngine:
@@ -101,15 +218,79 @@ class AutoTradingEngine:
     - Safety limits (max positions, daily loss limit)
     """
 
-    # Trading parameters (v3.11 - Lock 80% upgrade)
-    MAX_POSITIONS = 2
-    POSITION_SIZE_PCT = 40  # 40% per position
-    STOP_LOSS_PCT = 2.5
-    TAKE_PROFIT_PCT = 6.0
-    TRAIL_ACTIVATION_PCT = 2.0
-    TRAIL_LOCK_PCT = 80  # v3.11: 70 → 80 (+8.9% return improvement)
+    # Trading parameters (v4.6 - ATR-based SL/TP)
+    MAX_POSITIONS = 3           # v4.0: 2 → 3
+    POSITION_SIZE_PCT = 45      # v4.0: 40 → 45 ($1,800 per position)
+
+    # v4.6: ATR-based SL/TP (replaces fixed SL/TP)
+    SL_ATR_MULTIPLIER = 1.5     # SL = 1.5 × ATR%
+    SL_MIN_PCT = 2.0            # Floor: at least 2% SL
+    SL_MAX_PCT = 4.0            # Cap: max 4% SL
+    TP_ATR_MULTIPLIER = 3.0     # TP = 3 × ATR%
+    TP_MIN_PCT = 4.0            # Floor: at least 4% TP
+    TP_MAX_PCT = 8.0            # Cap: max 8% TP
+    # PDT TP = SL% (dynamic, R:R 1:1 minimum for Day 0)
+
+    # Fallback fixed values (when ATR not available)
+    STOP_LOSS_PCT = 2.5         # Fallback if no ATR data
+    TAKE_PROFIT_PCT = 5.0       # Fallback if no ATR data
+    PDT_TP_THRESHOLD = 4.0      # Fallback PDT TP (overridden per-position in v4.6)
+
+    TRAIL_ACTIVATION_PCT = 3.0  # v4.0: 2 → 3 (match backtest)
+    TRAIL_LOCK_PCT = 80         # v3.11: 70 → 80
     MAX_HOLD_DAYS = 5
     DAILY_LOSS_LIMIT_PCT = 5.0  # Stop trading if down 5% in a day
+    MIN_SCORE = 85              # v4.0: Quality threshold
+
+    # Signal Queue (v4.1 Final)
+    # When positions full → queue signals → execute when slot opens (if price still good)
+    # Priority: Freshness (< 30 min) > Score
+    # R:R analysis: +1.5% deviation → R:R ~1:1 (acceptable limit)
+    QUEUE_ENABLED = True
+    QUEUE_ATR_MULT = 0.5              # ATR multiplier for deviation
+    QUEUE_MIN_DEVIATION = 0.5         # % - minimum deviation allowed
+    QUEUE_MAX_DEVIATION = 1.5         # % - cap at R:R ~1:1
+    QUEUE_MAX_SIZE = 5                # Max signals in queue
+    QUEUE_FRESHNESS_WINDOW = 30       # Minutes - fresh signals get priority
+    QUEUE_RESCAN_ON_EMPTY = True      # Rescan if queue empty/expired
+
+    # Gap Filter (v4.3 NEW!)
+    # ไม่ซื้อหุ้นที่ gap up/down แรงเกินไป
+    # เหตุผล: Gap up แรง = ไม่ใช่ dip bounce แล้ว
+    # AMD case: gap +3.6% > +2% → SKIP
+    GAP_FILTER_ENABLED = True
+    GAP_MAX_UP = 2.0        # % - ไม่ซื้อหุ้น gap up เกิน (default 2%)
+    GAP_MAX_DOWN = -5.0     # % - ไม่ซื้อหุ้น gap down แรงเกิน (อาจมีปัญหา)
+
+    # Earnings Filter (v4.4 NEW!)
+    # ไม่ซื้อหุ้นที่มี earnings ใกล้ๆ (เสี่ยง gap ±10-20%)
+    EARNINGS_FILTER_ENABLED = True
+    EARNINGS_SKIP_DAYS_BEFORE = 5   # Skip ถ้า earnings ภายใน 5 วัน
+    EARNINGS_SKIP_DAYS_AFTER = 0    # ไม่ skip หลัง earnings (อาจมี momentum)
+
+    # Low Risk Mode (v4.5 NEW!)
+    # เมื่อ PDT budget = 0: ยังซื้อได้ แต่เข้มขึ้น + size เล็กลง
+    # เหตุผล: ต้อง hold ข้ามคืนอยู่แล้ว → เลือกเฉพาะหุ้นปลอดภัยสุด
+    LOW_RISK_MODE_ENABLED = True
+    LOW_RISK_GAP_MAX_UP = 1.0       # % - เข้มขึ้น (ปกติ 2%)
+    LOW_RISK_MIN_SCORE = 90         # เข้มขึ้น (ปกติ 85)
+    LOW_RISK_POSITION_SIZE_PCT = 25 # % - เล็กลง (ปกติ 45%) = ~$1,000
+    LOW_RISK_MAX_ATR_PCT = 4.0      # % - หุ้นไม่ผันผวนมาก
+    EARNINGS_NO_DATA_ACTION = 'warn'  # 'allow', 'skip', 'warn'
+
+    # Late Start Protection (v4.4 NEW!)
+    # ถ้าเริ่มหลัง market open ไปนาน → skip scan (ราคาอาจขึ้นไปแล้ว)
+    LATE_START_PROTECTION = True
+    MARKET_OPEN_SCAN_WINDOW = 15    # นาที - ถ้าเริ่มหลัง 09:45 ET → skip scan
+
+    # Market Regime Filter (v4.0 NEW!)
+    # Rule: SPY > SMA20 = Bull → Trade, SPY < SMA20 = Bear → Skip
+    REGIME_FILTER_ENABLED = True
+    REGIME_SMA_PERIOD = 20
+    # Backtest results: This single filter achieves target!
+    # - WR: 48% → 49%
+    # - DD: 12.6% → 8.9% ✅
+    # - Return: +5.5%/mo ✅
 
     # Simulated capital for realistic testing
     # Set to match real capital you'll use in live trading
@@ -145,6 +326,23 @@ class AutoTradingEngine:
         # Safety system
         self.safety = TradingSafetySystem(self.trader)
 
+        # PDT Smart Guard v2.2 (No Override Mode)
+        self.pdt_guard = init_pdt_guard(
+            trader=self.trader,
+            config=PDTConfig(
+                max_day_trades=3,
+                sl_threshold=-self.STOP_LOSS_PCT,  # -2.5%
+                tp_threshold=self.PDT_TP_THRESHOLD,  # v4.4: +4.0% (เกิดบ่อยกว่า +6%)
+                reserve=1  # Keep 1 day trade for SL emergencies
+                # v2.2: ไม่มี critical_threshold → ไม่ override PDT เด็ดขาด
+            )
+        )
+        logger.info("PDT Smart Guard v2.2 initialized (No Override - ไม่มีทางโดน PDT flag)")
+
+        # Trade Logger v1.0
+        self.trade_logger = get_trade_logger()
+        logger.info("Trade Logger v1.0 initialized")
+
         # Screener
         self.screener = None
         if SCREENER_AVAILABLE:
@@ -160,6 +358,13 @@ class AutoTradingEngine:
         self.daily_stats = DailyStats(date=datetime.now().strftime('%Y-%m-%d'))
         self.running = False
         self.monitor_thread = None
+
+        # Signal Queue (v4.1)
+        self.signal_queue: List[QueuedSignal] = []
+
+        # Regime cache (v4.2) - avoid repeated yfinance calls
+        self._regime_cache: Optional[Tuple[bool, str, datetime]] = None
+        self._regime_cache_seconds = 300  # 5 minutes
 
         # Timezone
         self.et_tz = pytz.timezone('US/Eastern')
@@ -177,10 +382,23 @@ class AutoTradingEngine:
     # =========================================================================
 
     def _sync_positions(self):
-        """Sync positions from Alpaca"""
+        """Sync positions from Alpaca and rapid_portfolio.json"""
         try:
             alpaca_positions = self.trader.get_positions()
             alpaca_orders = self.trader.get_orders(status='open')
+
+            # Try to load entry dates from rapid_portfolio.json
+            portfolio_entry_dates = {}
+            try:
+                portfolio_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "rapid_portfolio.json")
+                if os.path.exists(portfolio_file):
+                    with open(portfolio_file, 'r') as f:
+                        portfolio_data = json.load(f)
+                    for symbol, pos_data in portfolio_data.get('positions', {}).items():
+                        if 'entry_date' in pos_data:
+                            portfolio_entry_dates[symbol] = datetime.strptime(pos_data['entry_date'], '%Y-%m-%d').date()
+            except Exception as e:
+                logger.warning(f"Could not load portfolio entry dates: {e}")
 
             for pos in alpaca_positions:
                 # Find SL order for this position
@@ -190,12 +408,16 @@ class AutoTradingEngine:
                         sl_order = order
                         break
 
+                # Get entry date from portfolio file or use today
+                entry_date = portfolio_entry_dates.get(pos.symbol, datetime.now().date())
+                entry_time = datetime.combine(entry_date, datetime.min.time())
+
                 if pos.symbol not in self.positions:
                     self.positions[pos.symbol] = ManagedPosition(
                         symbol=pos.symbol,
                         qty=int(pos.qty),
                         entry_price=pos.avg_entry_price,
-                        entry_time=datetime.now(),  # Unknown actual entry
+                        entry_time=entry_time,
                         sl_order_id=sl_order.id if sl_order else "",
                         current_sl_price=sl_order.stop_price if sl_order else pos.avg_entry_price * 0.975,
                         peak_price=pos.current_price,
@@ -203,7 +425,11 @@ class AutoTradingEngine:
                     )
                     logger.info(f"Synced position: {pos.symbol}")
 
+                # PDT Guard: Record entry date
+                self.pdt_guard.record_entry(pos.symbol, entry_date)
+
             logger.info(f"Synced {len(self.positions)} positions")
+            self.pdt_guard.log_status()
 
         except Exception as e:
             logger.error(f"Failed to sync positions: {e}")
@@ -251,17 +477,488 @@ class AutoTradingEngine:
         return self._get_et_time().weekday() >= 5
 
     # =========================================================================
+    # MARKET REGIME FILTER (v4.0 NEW!)
+    # =========================================================================
+
+    def _check_market_regime(self, force_refresh: bool = False) -> Tuple[bool, str]:
+        """
+        Check if market is in Bull regime (OK to trade)
+
+        Rule: SPY > SMA20 = Bull → Trade
+              SPY < SMA20 = Bear → Skip all new entries
+
+        Returns:
+            (is_bull, reason)
+        """
+        if not self.REGIME_FILTER_ENABLED:
+            return True, "Regime filter disabled"
+
+        if not YFINANCE_AVAILABLE:
+            logger.warning("yfinance not available - skipping regime check")
+            return True, "yfinance not available"
+
+        # v4.2: Use cache to avoid repeated yfinance calls
+        if not force_refresh and self._regime_cache:
+            is_bull, reason, cached_at = self._regime_cache
+            age_seconds = (datetime.now() - cached_at).total_seconds()
+            if age_seconds < self._regime_cache_seconds:
+                return is_bull, reason
+
+        try:
+            # Download SPY data (last 30 days is enough for SMA20)
+            spy = yf.download('SPY', period='30d', progress=False)
+
+            if spy.empty or len(spy) < self.REGIME_SMA_PERIOD:
+                logger.warning("Not enough SPY data for regime check")
+                return True, "Insufficient data"
+
+            # Get current price and SMA
+            close = spy['Close']
+
+            # Handle multi-index columns from yfinance
+            if hasattr(close, 'iloc'):
+                current_price = float(close.iloc[-1])
+                sma = float(close.iloc[-self.REGIME_SMA_PERIOD:].mean())
+            else:
+                current_price = float(close[-1])
+                sma = float(close[-self.REGIME_SMA_PERIOD:].mean())
+
+            is_bull = current_price > sma
+            pct_above = ((current_price / sma) - 1) * 100
+
+            if is_bull:
+                reason = f"BULL: SPY ${current_price:.2f} > SMA{self.REGIME_SMA_PERIOD} ${sma:.2f} (+{pct_above:.1f}%)"
+                logger.info(f"✅ Market Regime: {reason}")
+            else:
+                reason = f"BEAR: SPY ${current_price:.2f} < SMA{self.REGIME_SMA_PERIOD} ${sma:.2f} ({pct_above:.1f}%)"
+                logger.warning(f"⚠️ Market Regime: {reason} - SKIPPING NEW TRADES")
+
+            # v4.2: Cache result
+            self._regime_cache = (is_bull, reason, datetime.now())
+            return is_bull, reason
+
+        except Exception as e:
+            logger.error(f"Regime check failed: {e}")
+            # On error, allow trading (conservative fallback)
+            return True, f"Error: {e}"
+
+    # =========================================================================
+    # LOW RISK MODE (v4.5 NEW!)
+    # =========================================================================
+
+    def _is_low_risk_mode(self) -> Tuple[bool, str]:
+        """
+        Check if we should use Low Risk Mode
+
+        Low Risk Mode activates when PDT budget = 0
+        ซื้อได้ แต่เข้มขึ้น + size เล็กลง
+
+        Returns:
+            (is_low_risk, reason)
+        """
+        if not self.LOW_RISK_MODE_ENABLED:
+            return False, "Low risk mode disabled"
+
+        pdt_status = self.pdt_guard.get_pdt_status()
+
+        if pdt_status.remaining <= 0:
+            return True, f"PDT budget = 0 → Low Risk Mode"
+
+        return False, f"PDT budget OK ({pdt_status.remaining}/{self.pdt_guard.config.max_day_trades})"
+
+    def _get_effective_params(self) -> Dict:
+        """
+        Get effective trading parameters based on mode
+
+        Returns parameters adjusted for normal or low-risk mode
+        """
+        is_low_risk, reason = self._is_low_risk_mode()
+
+        if is_low_risk:
+            logger.info(f"⚠️ LOW RISK MODE: {reason}")
+            return {
+                'gap_max_up': self.LOW_RISK_GAP_MAX_UP,
+                'min_score': self.LOW_RISK_MIN_SCORE,
+                'position_size_pct': self.LOW_RISK_POSITION_SIZE_PCT,
+                'max_atr_pct': self.LOW_RISK_MAX_ATR_PCT,
+                'mode': 'LOW_RISK'
+            }
+        else:
+            return {
+                'gap_max_up': self.GAP_MAX_UP,
+                'min_score': self.MIN_SCORE,
+                'position_size_pct': self.POSITION_SIZE_PCT,
+                'max_atr_pct': None,  # No ATR limit in normal mode
+                'mode': 'NORMAL'
+            }
+
+    # =========================================================================
+    # GAP FILTER (v4.3 NEW!)
+    # =========================================================================
+
+    def _check_gap_filter(self, symbol: str, current_price: float, max_up_override: float = None) -> Tuple[bool, float, str]:
+        """
+        Check if stock has gapped too much from previous close
+
+        Gap up แรง = ไม่ใช่ dip bounce แล้ว → SKIP
+        Gap down แรง = อาจมีปัญหา (bad news) → SKIP
+
+        Args:
+            max_up_override: Override GAP_MAX_UP (for low-risk mode)
+
+        Returns:
+            (is_acceptable, gap_pct, reason)
+        """
+        if not self.GAP_FILTER_ENABLED:
+            return True, 0.0, "Gap filter disabled"
+
+        # v4.5: Use override if provided (low-risk mode)
+        gap_max_up = max_up_override if max_up_override is not None else self.GAP_MAX_UP
+
+        try:
+            # Get previous close (yesterday's close)
+            ticker = yf.Ticker(symbol)
+            hist = ticker.history(period='5d')  # Get 5 days to be safe
+
+            if hist.empty or len(hist) < 1:
+                logger.warning(f"{symbol}: Not enough data for gap check")
+                return True, 0.0, "Insufficient data"
+
+            # iloc[-1] = most recent close (yesterday if during market hours)
+            prev_close = float(hist['Close'].iloc[-1])
+            gap_pct = ((current_price - prev_close) / prev_close) * 100
+
+            # Check gap limits
+            if gap_pct > gap_max_up:
+                reason = f"GAP UP TOO HIGH: {gap_pct:+.1f}% > {gap_max_up:+.1f}% (prev close ${prev_close:.2f})"
+                logger.warning(f"❌ {symbol}: {reason}")
+                return False, gap_pct, reason
+
+            if gap_pct < self.GAP_MAX_DOWN:
+                reason = f"GAP DOWN TOO HIGH: {gap_pct:+.1f}% < {self.GAP_MAX_DOWN:+.1f}% (prev close ${prev_close:.2f})"
+                logger.warning(f"❌ {symbol}: {reason}")
+                return False, gap_pct, reason
+
+            reason = f"Gap OK: {gap_pct:+.1f}% (prev close ${prev_close:.2f})"
+            logger.info(f"✅ {symbol}: {reason}")
+            return True, gap_pct, reason
+
+        except Exception as e:
+            logger.error(f"{symbol}: Gap check failed: {e}")
+            # On error, allow trading (be conservative)
+            return True, 0.0, f"Error: {e}"
+
+    # =========================================================================
+    # EARNINGS FILTER (v4.4 NEW!)
+    # =========================================================================
+
+    def _check_earnings_filter(self, symbol: str) -> Tuple[bool, str]:
+        """
+        Check if stock has earnings announcement coming soon
+
+        ไม่ซื้อหุ้นที่มี earnings ใกล้ๆ เพราะเสี่ยง gap ±10-20%
+
+        Returns:
+            (is_acceptable, reason)
+        """
+        if not self.EARNINGS_FILTER_ENABLED:
+            return True, "Earnings filter disabled"
+
+        try:
+            ticker = yf.Ticker(symbol)
+            now = datetime.now()
+
+            # Method 1: calendar (returns dict in newer yfinance)
+            try:
+                calendar = ticker.calendar
+                if calendar is not None:
+                    # Handle dict format (newer yfinance)
+                    if isinstance(calendar, dict):
+                        earnings_date = calendar.get('Earnings Date')
+                        if earnings_date:
+                            # Could be list of dates
+                            if isinstance(earnings_date, list) and len(earnings_date) > 0:
+                                earnings_date = earnings_date[0]
+                            if earnings_date:
+                                # Convert to date object
+                                from datetime import date as date_type
+                                if isinstance(earnings_date, str):
+                                    earnings_date = pd.to_datetime(earnings_date).date()
+                                elif isinstance(earnings_date, datetime):
+                                    earnings_date = earnings_date.date()
+                                elif not isinstance(earnings_date, date_type):
+                                    # Try to convert
+                                    earnings_date = pd.to_datetime(earnings_date).date()
+                                # earnings_date is now a date object
+                                days_until = (earnings_date - now.date()).days
+
+                                if 0 <= days_until <= self.EARNINGS_SKIP_DAYS_BEFORE:
+                                    reason = f"EARNINGS in {days_until} days ({earnings_date.strftime('%Y-%m-%d')})"
+                                    logger.warning(f"❌ {symbol}: {reason}")
+                                    return False, reason
+
+                                if self.EARNINGS_SKIP_DAYS_AFTER > 0 and -self.EARNINGS_SKIP_DAYS_AFTER <= days_until < 0:
+                                    reason = f"EARNINGS was {-days_until} days ago"
+                                    logger.warning(f"❌ {symbol}: {reason}")
+                                    return False, reason
+
+                                return True, f"Earnings OK ({days_until} days away)"
+
+                    # Handle DataFrame format (older yfinance)
+                    elif hasattr(calendar, 'empty') and not calendar.empty:
+                        if 'Earnings Date' in calendar.index:
+                            earnings_date = calendar.loc['Earnings Date']
+                            if hasattr(earnings_date, 'iloc'):
+                                earnings_date = earnings_date.iloc[0]
+                            if pd.notna(earnings_date):
+                                if isinstance(earnings_date, str):
+                                    earnings_date = pd.to_datetime(earnings_date)
+                                days_until = (earnings_date.date() - now.date()).days
+
+                                if 0 <= days_until <= self.EARNINGS_SKIP_DAYS_BEFORE:
+                                    reason = f"EARNINGS in {days_until} days ({earnings_date.strftime('%Y-%m-%d')})"
+                                    logger.warning(f"❌ {symbol}: {reason}")
+                                    return False, reason
+
+                                return True, f"Earnings OK ({days_until} days away)"
+            except Exception as e:
+                logger.debug(f"{symbol}: Calendar method failed: {e}")
+
+            # Method 2: info (has earningsDate field)
+            try:
+                info = ticker.info
+                if info:
+                    # earningsTimestamp or earningsDate
+                    earnings_ts = info.get('earningsTimestamp') or info.get('earningsTimestampStart')
+                    if earnings_ts:
+                        earnings_date = datetime.fromtimestamp(earnings_ts)
+                        days_until = (earnings_date.date() - now.date()).days
+
+                        if 0 <= days_until <= self.EARNINGS_SKIP_DAYS_BEFORE:
+                            reason = f"EARNINGS in {days_until} days ({earnings_date.strftime('%Y-%m-%d')})"
+                            logger.warning(f"❌ {symbol}: {reason}")
+                            return False, reason
+
+                        return True, f"Earnings OK ({days_until} days away)"
+            except Exception as e:
+                logger.debug(f"{symbol}: Info method failed: {e}")
+
+            # No earnings data found
+            if self.EARNINGS_NO_DATA_ACTION == 'skip':
+                return False, "No earnings data - skipping (conservative)"
+            elif self.EARNINGS_NO_DATA_ACTION == 'warn':
+                logger.warning(f"⚠️ {symbol}: No earnings data available")
+                return True, "No earnings data (warned)"
+            else:  # 'allow'
+                return True, "No earnings data (allowed)"
+
+        except Exception as e:
+            logger.error(f"{symbol}: Earnings check failed: {e}")
+            # On error, allow trading
+            return True, f"Error: {e}"
+
+    # =========================================================================
+    # LATE START PROTECTION (v4.4 NEW!)
+    # =========================================================================
+
+    def _is_late_start(self) -> Tuple[bool, str]:
+        """
+        Check if we started too late after market open
+
+        ถ้าเริ่มหลัง 09:30 + MARKET_OPEN_SCAN_WINDOW → skip scan
+
+        Returns:
+            (is_late, reason)
+        """
+        if not self.LATE_START_PROTECTION:
+            return False, "Late start protection disabled"
+
+        now = self._get_et_time()
+        market_open = now.replace(
+            hour=self.MARKET_OPEN_HOUR,
+            minute=self.MARKET_OPEN_MINUTE,
+            second=0,
+            microsecond=0
+        )
+        cutoff = market_open + timedelta(minutes=self.MARKET_OPEN_SCAN_WINDOW)
+
+        if now > cutoff:
+            minutes_late = (now - market_open).total_seconds() / 60
+            reason = f"Late start: {minutes_late:.0f} min after open (cutoff: {self.MARKET_OPEN_SCAN_WINDOW} min)"
+            logger.warning(f"⚠️ {reason}")
+            return True, reason
+
+        return False, f"On time ({(now - market_open).total_seconds() / 60:.0f} min after open)"
+
+    # =========================================================================
+    # ATR-BASED SL/TP CALCULATION (v4.6)
+    # =========================================================================
+
+    def _calculate_atr_sl_tp(self, symbol: str, entry_price: float, signal_atr_pct: float = None) -> Dict:
+        """
+        Calculate ATR-based SL/TP for a position (v4.6)
+
+        SL = 1.5 × ATR%, clamped [2%, 4%]
+        TP = 3 × ATR%, clamped [4%, 8%]
+        PDT TP = SL% (R:R 1:1 minimum for Day 0)
+
+        Returns:
+            Dict with sl_pct, tp_pct, sl_price, tp_price, pdt_tp_pct, atr_pct
+        """
+        # Get ATR% - prefer signal's ATR, fallback to yfinance
+        atr_pct = signal_atr_pct
+        if atr_pct is None or atr_pct <= 0:
+            try:
+                ticker = yf.Ticker(symbol)
+                hist = ticker.history(period="1mo")
+                if len(hist) >= 14:
+                    high = hist['High']
+                    low = hist['Low']
+                    close = hist['Close']
+                    tr = pd.concat([
+                        high - low,
+                        abs(high - close.shift(1)),
+                        abs(low - close.shift(1))
+                    ], axis=1).max(axis=1)
+                    atr = tr.rolling(14).mean().iloc[-1]
+                    atr_pct = (atr / close.iloc[-1]) * 100
+            except Exception as e:
+                logger.debug(f"ATR calculation error for {symbol}: {e}")
+
+        # Fallback to fixed values if ATR not available
+        if atr_pct is None or atr_pct <= 0:
+            logger.warning(f"{symbol}: No ATR data, using fixed SL/TP")
+            sl_pct = self.STOP_LOSS_PCT
+            tp_pct = self.TAKE_PROFIT_PCT
+        else:
+            # Calculate and clamp
+            sl_pct = self.SL_ATR_MULTIPLIER * atr_pct
+            sl_pct = max(self.SL_MIN_PCT, min(sl_pct, self.SL_MAX_PCT))
+
+            tp_pct = self.TP_ATR_MULTIPLIER * atr_pct
+            tp_pct = max(self.TP_MIN_PCT, min(tp_pct, self.TP_MAX_PCT))
+
+        # Round
+        sl_pct = round(sl_pct, 2)
+        tp_pct = round(tp_pct, 2)
+
+        # Calculate prices
+        sl_price = round(entry_price * (1 - sl_pct / 100), 2)
+        tp_price = round(entry_price * (1 + tp_pct / 100), 2)
+
+        # PDT TP = SL% (R:R 1:1 minimum for Day 0 sells)
+        pdt_tp_pct = sl_pct
+
+        logger.info(f"📊 {symbol} ATR-based SL/TP (ATR: {atr_pct:.1f}%)")
+        logger.info(f"   SL: -{sl_pct}% (${sl_price:.2f})")
+        logger.info(f"   TP: +{tp_pct}% (${tp_price:.2f})")
+        logger.info(f"   PDT TP: +{pdt_tp_pct}% (Day 0 threshold)")
+        logger.info(f"   R:R = 1:{tp_pct/sl_pct:.1f}")
+
+        return {
+            'sl_pct': sl_pct,
+            'tp_pct': tp_pct,
+            'sl_price': sl_price,
+            'tp_price': tp_price,
+            'pdt_tp_pct': pdt_tp_pct,
+            'atr_pct': round(atr_pct, 2) if atr_pct else 0
+        }
+
+    # =========================================================================
+    # ANALYSIS DATA (for logging - not for filtering)
+    # =========================================================================
+
+    def _get_analysis_data(self, symbol: str) -> Dict:
+        """
+        Get analysis data for logging purposes (future filter decisions)
+
+        Returns dict with:
+        - dist_from_52w_high: % below 52-week high
+        - return_5d: 5-day return
+        - return_20d: 20-day return
+        - market_cap: Market cap in billions
+        - market_cap_tier: MEGA/LARGE/MID/SMALL
+        - beta: Stock beta
+        - volume_ratio: Today volume / avg volume
+        """
+        try:
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
+            hist = ticker.history(period="1mo")
+
+            if hist.empty:
+                return {}
+
+            current_price = hist['Close'].iloc[-1]
+
+            # 52-week high distance
+            high_52w = info.get('fiftyTwoWeekHigh', 0)
+            dist_from_high = ((high_52w - current_price) / high_52w * 100) if high_52w > 0 else None
+
+            # Returns
+            return_5d = None
+            return_20d = None
+            if len(hist) >= 5:
+                return_5d = ((current_price / hist['Close'].iloc[-5]) - 1) * 100
+            if len(hist) >= 20:
+                return_20d = ((current_price / hist['Close'].iloc[-20]) - 1) * 100
+
+            # Market cap
+            market_cap = info.get('marketCap', 0)
+            market_cap_b = market_cap / 1e9 if market_cap else None
+
+            # Market cap tier
+            if market_cap >= 200e9:
+                tier = "MEGA"
+            elif market_cap >= 10e9:
+                tier = "LARGE"
+            elif market_cap >= 2e9:
+                tier = "MID"
+            else:
+                tier = "SMALL"
+
+            # Beta
+            beta = info.get('beta')
+
+            # Volume ratio
+            avg_vol = info.get('averageVolume', 0)
+            today_vol = hist['Volume'].iloc[-1] if 'Volume' in hist.columns else 0
+            volume_ratio = (today_vol / avg_vol) if avg_vol > 0 else None
+
+            return {
+                'dist_from_52w_high': round(dist_from_high, 1) if dist_from_high else None,
+                'return_5d': round(return_5d, 2) if return_5d else None,
+                'return_20d': round(return_20d, 2) if return_20d else None,
+                'market_cap': round(market_cap_b, 1) if market_cap_b else None,
+                'market_cap_tier': tier,
+                'beta': round(beta, 2) if beta else None,
+                'volume_ratio': round(volume_ratio, 2) if volume_ratio else None
+            }
+
+        except Exception as e:
+            logger.debug(f"Analysis data error for {symbol}: {e}")
+            return {}
+
+    # =========================================================================
     # SCANNING
     # =========================================================================
 
     def scan_for_signals(self) -> List[Dict]:
-        """Run screener to find signals"""
+        """Run screener to find signals (with regime filter)"""
         if not self.screener:
             logger.warning("Screener not available")
             return []
 
         try:
             self.state = TradingState.SCANNING
+
+            # v4.0: Check market regime FIRST
+            is_bull, regime_reason = self._check_market_regime()
+            if not is_bull:
+                logger.warning(f"Skipping scan - {regime_reason}")
+                self.daily_stats.signals_found = 0
+                return []
+
             logger.info("Scanning for signals...")
 
             # Load fresh data
@@ -274,14 +971,209 @@ class AutoTradingEngine:
                 existing_positions=existing
             )
 
+            # v4.0: Filter by MIN_SCORE if screener doesn't do it
+            if hasattr(self, 'MIN_SCORE'):
+                signals = [s for s in signals if getattr(s, 'score', 0) >= self.MIN_SCORE]
+
             self.daily_stats.signals_found = len(signals)
-            logger.info(f"Found {len(signals)} signals")
+            logger.info(f"Found {len(signals)} signals (regime: BULL)")
 
             return signals
 
         except Exception as e:
             logger.error(f"Scan failed: {e}")
             return []
+
+    # =========================================================================
+    # SIGNAL QUEUE (v4.1)
+    # =========================================================================
+
+    def _add_to_queue(self, signal) -> bool:
+        """
+        Add signal to queue when positions are full
+
+        Returns:
+            True if added successfully
+        """
+        if not self.QUEUE_ENABLED:
+            return False
+
+        symbol = signal.symbol
+
+        # Don't queue if already in queue
+        if any(q.symbol == symbol for q in self.signal_queue):
+            logger.debug(f"Queue: {symbol} already in queue")
+            return False
+
+        # Don't queue if already have position
+        if symbol in self.positions:
+            return False
+
+        # Check queue size limit
+        if len(self.signal_queue) >= self.QUEUE_MAX_SIZE:
+            # Remove lowest score signal if new one is better
+            lowest = min(self.signal_queue, key=lambda q: q.score)
+            new_score = getattr(signal, 'score', 0)
+            if new_score > lowest.score:
+                self.signal_queue.remove(lowest)
+                logger.debug(f"Queue: Removed {lowest.symbol} (score {lowest.score:.0f}) for {symbol} (score {new_score:.0f})")
+            else:
+                logger.debug(f"Queue: Full, {symbol} not better than worst")
+                return False
+
+        queued = QueuedSignal(
+            symbol=symbol,
+            signal_price=getattr(signal, 'entry_price', getattr(signal, 'close', 0)),
+            score=getattr(signal, 'score', 0),
+            stop_loss=getattr(signal, 'stop_loss', 0),
+            take_profit=getattr(signal, 'take_profit', 0),
+            queued_at=datetime.now(),
+            reasons=getattr(signal, 'reasons', []),
+            atr_pct=getattr(signal, 'atr_pct', 5.0)  # Default 5% if not available
+        )
+
+        self.signal_queue.append(queued)
+        self.daily_stats.queue_added += 1
+
+        logger.info(f"📋 Queue: Added {symbol} @ ${queued.signal_price:.2f} (score: {queued.score:.0f}, ATR: {queued.atr_pct:.1f}%)")
+        return True
+
+    def _check_queue_for_execution(self) -> Optional[QueuedSignal]:
+        """
+        Check queue for executable signals when slot opens
+
+        Priority: Freshness (< 30 min) > Score
+        Deviation: ATR-based with min/max caps
+
+        Returns:
+            QueuedSignal if found acceptable one, None otherwise
+        """
+        if not self.QUEUE_ENABLED or not self.signal_queue:
+            return None
+
+        # Sort queue: Fresh signals first (< QUEUE_FRESHNESS_WINDOW), then by score
+        def sort_key(q):
+            is_fresh = q.is_fresh(self.QUEUE_FRESHNESS_WINDOW)
+            return (0 if is_fresh else 1, -q.score)  # Fresh first, then highest score
+
+        sorted_queue = sorted(self.signal_queue, key=sort_key)
+
+        # Check each queued signal in priority order
+        for queued in sorted_queue:
+            symbol = queued.symbol
+            age_min = queued.minutes_since_queued()
+
+            # Skip if already have position now
+            if symbol in self.positions:
+                self.signal_queue.remove(queued)
+                continue
+
+            # Get current price
+            try:
+                pos = self.trader.get_position(symbol)
+                if pos:
+                    current_price = pos.current_price
+                else:
+                    # Fetch from Yahoo
+                    import yfinance as yf
+                    ticker = yf.Ticker(symbol)
+                    current_price = ticker.info.get('regularMarketPrice', 0)
+
+                if current_price <= 0:
+                    logger.warning(f"Queue: Could not get price for {symbol}")
+                    continue
+
+                # Check price deviation with ATR-based limits
+                acceptable, deviation, max_allowed = queued.is_price_acceptable(
+                    current_price,
+                    self.QUEUE_ATR_MULT,
+                    self.QUEUE_MIN_DEVIATION,
+                    self.QUEUE_MAX_DEVIATION
+                )
+
+                fresh_tag = "🆕" if queued.is_fresh(self.QUEUE_FRESHNESS_WINDOW) else "⏰"
+
+                if acceptable:
+                    logger.info(f"✅ Queue: {fresh_tag} {symbol} price OK - ${queued.signal_price:.2f} → ${current_price:.2f} ({deviation:+.1f}% <= {max_allowed:.1f}%) [age: {age_min:.0f}min]")
+                    self.signal_queue.remove(queued)
+                    return queued
+                else:
+                    logger.warning(f"❌ Queue: {fresh_tag} {symbol} price moved - ${queued.signal_price:.2f} → ${current_price:.2f} ({deviation:+.1f}% > {max_allowed:.1f}%) [age: {age_min:.0f}min]")
+                    self.signal_queue.remove(queued)
+                    self.daily_stats.queue_expired += 1
+
+            except Exception as e:
+                logger.error(f"Queue: Error checking {symbol}: {e}")
+
+        return None
+
+    def _execute_from_queue(self, queued: QueuedSignal) -> bool:
+        """
+        Execute a queued signal
+
+        Args:
+            queued: QueuedSignal to execute
+
+        Returns:
+            True if executed successfully
+        """
+        try:
+            symbol = queued.symbol
+
+            # Create a mock signal object for execute_signal
+            class MockSignal:
+                pass
+
+            signal = MockSignal()
+            signal.symbol = symbol
+            signal.entry_price = queued.signal_price  # Use original signal price for calculations
+            signal.stop_loss = queued.stop_loss
+            signal.take_profit = queued.take_profit
+            signal.score = queued.score
+            signal.reasons = queued.reasons
+
+            # Execute
+            success = self.execute_signal(signal)
+
+            if success:
+                self.daily_stats.queue_executed += 1
+                logger.info(f"✅ Queue: Executed {symbol} from queue")
+
+            return success
+
+        except Exception as e:
+            logger.error(f"Queue: Error executing {symbol}: {e}")
+            return False
+
+    def _clear_queue_end_of_day(self):
+        """Clear queue at end of day"""
+        if self.signal_queue:
+            expired_count = len(self.signal_queue)
+            symbols = [q.symbol for q in self.signal_queue]
+            self.signal_queue.clear()
+            self.daily_stats.queue_expired += expired_count
+            logger.info(f"📋 Queue: Cleared {expired_count} signals at EOD: {symbols}")
+
+    def get_queue_status(self) -> List[Dict]:
+        """Get current queue status for UI"""
+        return [
+            {
+                'symbol': q.symbol,
+                'signal_price': q.signal_price,
+                'score': q.score,
+                'atr_pct': q.atr_pct,
+                'max_deviation': q.get_max_deviation(
+                    self.QUEUE_ATR_MULT,
+                    self.QUEUE_MIN_DEVIATION,
+                    self.QUEUE_MAX_DEVIATION
+                ),
+                'queued_at': q.queued_at.isoformat(),
+                'age_minutes': round(q.minutes_since_queued(), 1),
+                'is_fresh': q.is_fresh(self.QUEUE_FRESHNESS_WINDOW),
+                'reasons': q.reasons
+            }
+            for q in self.signal_queue
+        ]
 
     # =========================================================================
     # EXECUTION
@@ -300,6 +1192,13 @@ class AutoTradingEngine:
         try:
             symbol = signal.symbol
 
+            # v4.5: Get effective parameters (normal vs low-risk mode)
+            params = self._get_effective_params()
+            mode = params['mode']
+
+            if mode == 'LOW_RISK':
+                logger.info(f"🛡️ {symbol}: Using LOW RISK parameters")
+
             # Safety check first
             can_trade, reason = self.safety.can_open_new_position()
             if not can_trade:
@@ -316,7 +1215,26 @@ class AutoTradingEngine:
                 logger.warning(f"Max positions ({self.MAX_POSITIONS}) reached")
                 return False
 
-            # Calculate position size
+            # v4.5: Check score against effective min_score
+            signal_score = getattr(signal, 'score', 0)
+            if signal_score < params['min_score']:
+                logger.warning(f"❌ Score Filter REJECT {symbol}: {signal_score} < {params['min_score']} (mode: {mode})")
+                # Trade Log: Log SKIP (score)
+                try:
+                    current_price = getattr(signal, 'entry_price', None) or getattr(signal, 'close', 0)
+                    self.trade_logger.log_skip(
+                        symbol=symbol,
+                        price=current_price,
+                        reason="SCORE_REJECT",
+                        skip_detail=f"Score {signal_score} < {params['min_score']} ({mode})",
+                        filters={"score": {"passed": False, "detail": f"{signal_score} < {params['min_score']}"}},
+                        signal_score=signal_score
+                    )
+                except Exception as log_err:
+                    logger.warning(f"Trade log error: {log_err}")
+                return False
+
+            # Calculate position size (v4.5: use effective size)
             # Use simulated capital if set, otherwise use actual account value
             if self.SIMULATED_CAPITAL:
                 capital = self.SIMULATED_CAPITAL
@@ -324,7 +1242,10 @@ class AutoTradingEngine:
             else:
                 account = self.trader.get_account()
                 capital = account['portfolio_value']
-            position_value = capital * (self.POSITION_SIZE_PCT / 100)
+            position_value = capital * (params['position_size_pct'] / 100)
+
+            if mode == 'LOW_RISK':
+                logger.info(f"🛡️ Position size: ${position_value:,.0f} (LOW RISK: {params['position_size_pct']}%)")
 
             # Get current price
             pos_check = self.trader.get_position(symbol)
@@ -334,39 +1255,185 @@ class AutoTradingEngine:
                 # Use signal's entry price as estimate
                 current_price = getattr(signal, 'entry_price', None) or getattr(signal, 'close', 100)
 
+            # v4.5: Check ATR in low risk mode
+            if mode == 'LOW_RISK' and params['max_atr_pct'] is not None:
+                signal_atr = getattr(signal, 'atr_pct', None)
+                if signal_atr and signal_atr > params['max_atr_pct']:
+                    logger.warning(f"❌ ATR Filter REJECT {symbol}: ATR {signal_atr:.1f}% > {params['max_atr_pct']}% (LOW RISK)")
+                    # Trade Log: Log SKIP (ATR)
+                    try:
+                        self.trade_logger.log_skip(
+                            symbol=symbol,
+                            price=current_price,
+                            reason="ATR_REJECT",
+                            skip_detail=f"ATR {signal_atr:.1f}% > {params['max_atr_pct']}% (LOW RISK)",
+                            filters={"atr": {"passed": False, "detail": f"{signal_atr:.1f}% > {params['max_atr_pct']}%"}},
+                            signal_score=signal_score
+                        )
+                    except Exception as log_err:
+                        logger.warning(f"Trade log error: {log_err}")
+                    return False
+
+            # v4.3: Gap Filter - ไม่ซื้อหุ้นที่ gap up/down แรงเกินไป
+            # v4.5: Use effective gap_max_up
+            gap_ok, gap_pct, gap_reason = self._check_gap_filter(symbol, current_price, max_up_override=params['gap_max_up'])
+            if not gap_ok:
+                logger.warning(f"❌ Gap Filter REJECT {symbol}: {gap_reason}")
+                self.daily_stats.gap_rejected += 1
+                # Trade Log: Log SKIP (gap)
+                try:
+                    self.trade_logger.log_skip(
+                        symbol=symbol,
+                        price=current_price,
+                        reason="GAP_REJECT",
+                        skip_detail=gap_reason,
+                        filters={"gap": {"passed": False, "detail": gap_reason}},
+                        signal_score=signal_score,
+                        gap_pct=gap_pct
+                    )
+                except Exception as log_err:
+                    logger.warning(f"Trade log error: {log_err}")
+                return False
+
+            # v4.4: Earnings Filter - ไม่ซื้อหุ้นที่มี earnings ใกล้ๆ
+            earnings_ok, earnings_reason = self._check_earnings_filter(symbol)
+            if not earnings_ok:
+                logger.warning(f"❌ Earnings Filter REJECT {symbol}: {earnings_reason}")
+                self.daily_stats.earnings_rejected += 1
+                # Trade Log: Log SKIP (earnings)
+                try:
+                    self.trade_logger.log_skip(
+                        symbol=symbol,
+                        price=current_price,
+                        reason="EARNINGS_REJECT",
+                        skip_detail=earnings_reason,
+                        filters={"earnings": {"passed": False, "detail": earnings_reason}},
+                        signal_score=signal_score,
+                        gap_pct=gap_pct
+                    )
+                except Exception as log_err:
+                    logger.warning(f"Trade log error: {log_err}")
+                return False
+
             qty = int(position_value / current_price)
             if qty <= 0:
                 logger.warning(f"Position size too small for {symbol}")
                 return False
 
+            # v4.6: Calculate ATR-based SL/TP
+            signal_atr = getattr(signal, 'atr_pct', None)
+            atr_sl_tp = self._calculate_atr_sl_tp(symbol, current_price, signal_atr)
+            sl_pct = atr_sl_tp['sl_pct']
+            tp_pct = atr_sl_tp['tp_pct']
+            sl_price = atr_sl_tp['sl_price']
+            tp_price = atr_sl_tp['tp_price']
+
             logger.info(f"Executing: BUY {symbol} x{qty} @ ~${current_price:.2f}")
 
-            # Buy with stop loss
-            buy_order, sl_order = self.trader.buy_with_stop_loss(symbol, qty)
+            # PDT Smart Guard v2.0: Check if we should place SL order
+            # Day 0: NO SL order (we monitor manually to control PDT)
+            # Day 1+: Place SL order normally
+            should_place_sl, sl_reason = self.pdt_guard.should_place_sl_order(symbol)
 
-            if not buy_order or not sl_order:
-                logger.error(f"Failed to execute {symbol}")
+            if should_place_sl:
+                # Normal flow: Buy with stop loss (use ATR-based SL price)
+                buy_order, sl_order = self.trader.buy_with_stop_loss(symbol, qty, stop_loss_price=sl_price)
+                if not buy_order:
+                    logger.error(f"Failed to execute {symbol}")
+                    return False
+                sl_order_id = sl_order.id if sl_order else None
+                if sl_order:
+                    sl_price = sl_order.stop_price  # Use actual order price
+            else:
+                # PDT Guard: Buy WITHOUT stop loss (Day 0)
+                logger.info(f"PDT Guard: {sl_reason} - buying without SL order")
+                buy_order = self.trader.place_market_buy(symbol, qty)
+                if not buy_order:
+                    logger.error(f"Failed to execute {symbol}")
+                    return False
+                # Wait for fill
+                time.sleep(2)
+                buy_order = self.trader.get_order(buy_order.id)
+                sl_order_id = None
+
+            if not buy_order or buy_order.status != 'filled':
+                logger.error(f"Buy order not filled for {symbol}")
                 return False
 
-            # Create managed position
+            # Create managed position with ATR-based SL/TP
             entry_price = buy_order.filled_avg_price
-            sl_price = sl_order.stop_price
+
+            # Recalculate SL/TP with actual fill price
+            sl_price = round(entry_price * (1 - sl_pct / 100), 2)
+            tp_price = round(entry_price * (1 + tp_pct / 100), 2)
 
             self.positions[symbol] = ManagedPosition(
                 symbol=symbol,
                 qty=qty,
                 entry_price=entry_price,
                 entry_time=datetime.now(),
-                sl_order_id=sl_order.id,
+                sl_order_id=sl_order_id,
                 current_sl_price=sl_price,
                 peak_price=entry_price,
-                trailing_active=False
+                trailing_active=False,
+                sl_pct=sl_pct,
+                tp_price=tp_price,
+                tp_pct=tp_pct,
+                atr_pct=atr_sl_tp['atr_pct']
             )
+
+            # PDT Guard: Record entry date
+            self.pdt_guard.record_entry(symbol)
 
             self.daily_stats.trades_executed += 1
             self.daily_stats.signals_executed += 1
 
-            logger.info(f"✅ Bought {symbol} x{qty} @ ${entry_price:.2f}, SL @ ${sl_price:.2f}")
+            # v4.5: Track low risk trades
+            if mode == 'LOW_RISK':
+                self.daily_stats.low_risk_trades += 1
+                logger.info(f"✅ Bought {symbol} x{qty} @ ${entry_price:.2f} [LOW RISK MODE]")
+            else:
+                logger.info(f"✅ Bought {symbol} x{qty} @ ${entry_price:.2f}")
+            logger.info(f"   SL: ${sl_price:.2f} (-{sl_pct}%) | TP: ${tp_price:.2f} (+{tp_pct}%) | ATR: {atr_sl_tp['atr_pct']}%")
+
+            # Trade Log: Log BUY
+            try:
+                pdt_status = self.pdt_guard.get_pdt_status()
+                regime_ok, regime_reason, _ = self._check_regime()
+
+                # Get analysis data for future filter decisions
+                analysis = self._get_analysis_data(symbol)
+
+                self.trade_logger.log_buy(
+                    symbol=symbol,
+                    qty=qty,
+                    price=entry_price,
+                    reason="SIGNAL",
+                    filters={
+                        "regime": {"passed": regime_ok, "detail": regime_reason},
+                        "gap": {"passed": True, "detail": f"{gap_pct:+.1f}%"},
+                        "earnings": {"passed": True, "detail": earnings_reason},
+                        "score": {"passed": True, "detail": f"{signal_score}"}
+                    },
+                    pdt_remaining=pdt_status.remaining,
+                    mode=mode,
+                    regime="BULL" if regime_ok else "BEAR",
+                    gap_pct=gap_pct,
+                    signal_score=signal_score,
+                    atr_pct=getattr(signal, 'atr_pct', None),
+                    sector=getattr(signal, 'sector', None),
+                    order_id=buy_order.id if buy_order else None,
+                    # Analysis data for future filter decisions
+                    dist_from_52w_high=analysis.get('dist_from_52w_high'),
+                    return_5d=analysis.get('return_5d'),
+                    return_20d=analysis.get('return_20d'),
+                    market_cap=analysis.get('market_cap'),
+                    market_cap_tier=analysis.get('market_cap_tier'),
+                    beta=analysis.get('beta'),
+                    volume_ratio=analysis.get('volume_ratio')
+                )
+            except Exception as log_err:
+                logger.warning(f"Trade log error: {log_err}")
 
             return True
 
@@ -395,14 +1462,22 @@ class AutoTradingEngine:
                 logger.error(f"Error monitoring {symbol}: {e}")
 
     def _check_position(self, symbol: str, managed_pos: ManagedPosition):
-        """Check single position and update trailing if needed"""
+        """
+        Check single position and update trailing if needed
+
+        PDT Smart Guard v2.0 integration:
+        - Day 0: No SL order at Alpaca, monitor manually
+        - Day 1+: Place/update SL order normally
+        """
 
         # Get current position from Alpaca
         alpaca_pos = self.trader.get_position(symbol)
         if not alpaca_pos:
-            # Position closed externally
+            # Position closed externally (SL triggered at Alpaca)
             logger.warning(f"{symbol} position not found - may have been closed")
-            del self.positions[symbol]
+            if symbol in self.positions:
+                del self.positions[symbol]
+            self.pdt_guard.remove_entry(symbol)
             return
 
         current_price = alpaca_pos.current_price
@@ -415,51 +1490,89 @@ class AutoTradingEngine:
         # Calculate P&L
         pnl_pct = ((current_price - entry_price) / entry_price) * 100
 
-        # Check take profit
-        if pnl_pct >= self.TAKE_PROFIT_PCT:
-            logger.info(f"🎯 {symbol} hit TP at {pnl_pct:+.2f}%")
-            self._close_position(symbol, managed_pos, "TAKE_PROFIT")
-            return
+        # Get PDT guard status for this position
+        days_held = self.pdt_guard.get_days_held(symbol)
+        is_day0 = days_held == 0
 
-        # Check trailing activation
-        if not managed_pos.trailing_active and pnl_pct >= self.TRAIL_ACTIVATION_PCT:
-            managed_pos.trailing_active = True
-            logger.info(f"📈 {symbol} trailing activated at {pnl_pct:+.2f}%")
+        # v4.6: Use per-position SL/TP
+        pos_sl_pct = managed_pos.sl_pct or self.STOP_LOSS_PCT
+        pos_tp_pct = managed_pos.tp_pct or self.TAKE_PROFIT_PCT
+        pos_tp_price = managed_pos.tp_price or (entry_price * (1 + pos_tp_pct / 100))
 
-        # Update trailing stop
-        if managed_pos.trailing_active:
-            new_sl, _ = self.trader.calculate_trailing_stop(
-                entry_price,
-                managed_pos.peak_price,
-                self.TRAIL_ACTIVATION_PCT,
-                self.TRAIL_LOCK_PCT
-            )
+        # ==== PDT Smart Guard v2.0: Day 0 Handling ====
+        if is_day0:
+            # Day 0: Manual SL monitoring (no SL order at Alpaca)
+            if pnl_pct <= -pos_sl_pct:
+                logger.warning(f"🛑 {symbol} Day 0 SL hit at {pnl_pct:.2f}% (SL: -{pos_sl_pct}%)")
+                self._close_position(symbol, managed_pos, "DAY0_SL")
+                return
 
-            # Only move SL up, never down
-            if new_sl > managed_pos.current_sl_price:
-                logger.info(f"📈 {symbol} updating SL: ${managed_pos.current_sl_price:.2f} → ${new_sl:.2f}")
+            # Day 0: Check TP (v4.6: use per-position TP)
+            if pnl_pct >= pos_tp_pct:
+                logger.info(f"🎯 {symbol} Day 0 TP at {pnl_pct:+.2f}% (TP: +{pos_tp_pct}%)")
+                self._close_position(symbol, managed_pos, "DAY0_TP")
+                return
 
-                # Modify SL order at Alpaca (has retry + fallback logic)
-                new_order = self.trader.modify_stop_loss(
-                    managed_pos.sl_order_id,
-                    new_sl
+            # Day 0: Log status
+            logger.debug(f"PDT Guard: {symbol} Day 0 - P&L {pnl_pct:+.2f}% (SL: -{pos_sl_pct}%, TP: +{pos_tp_pct}%)")
+
+        else:
+            # ==== Day 1+: Normal operation ====
+
+            # Place SL order if not exists (transition from Day 0)
+            if not managed_pos.sl_order_id:
+                logger.info(f"PDT Guard: {symbol} Day {days_held} - placing SL order now")
+                sl_price = managed_pos.current_sl_price  # v4.6: use stored SL price
+                sl_order = self.trader.place_stop_loss(symbol, managed_pos.qty, sl_price)
+                if sl_order:
+                    managed_pos.sl_order_id = sl_order.id
+                    managed_pos.current_sl_price = sl_order.stop_price
+                    logger.info(f"✅ {symbol} SL order placed @ ${sl_order.stop_price:.2f}")
+
+            # Check take profit (v4.6: use per-position TP)
+            if pnl_pct >= pos_tp_pct:
+                logger.info(f"🎯 {symbol} hit TP at {pnl_pct:+.2f}% (TP: +{pos_tp_pct}%)")
+                self._close_position(symbol, managed_pos, "TAKE_PROFIT")
+                return
+
+            # Check trailing activation
+            if not managed_pos.trailing_active and pnl_pct >= self.TRAIL_ACTIVATION_PCT:
+                managed_pos.trailing_active = True
+                logger.info(f"📈 {symbol} trailing activated at {pnl_pct:+.2f}%")
+
+            # Update trailing stop (only if SL order exists)
+            if managed_pos.trailing_active and managed_pos.sl_order_id:
+                new_sl, _ = self.trader.calculate_trailing_stop(
+                    entry_price,
+                    managed_pos.peak_price,
+                    self.TRAIL_ACTIVATION_PCT,
+                    self.TRAIL_LOCK_PCT
                 )
 
-                if new_order:
-                    managed_pos.sl_order_id = new_order.id
-                    # Use the order's actual stop_price (may be fallback to old price)
-                    managed_pos.current_sl_price = new_order.stop_price
-                    if new_order.stop_price != new_sl:
-                        logger.warning(f"{symbol} SL fallback to ${new_order.stop_price:.2f}")
-                else:
-                    # CRITICAL: No SL protection - close position immediately
-                    logger.error(f"CRITICAL: {symbol} has no SL - closing position for safety")
-                    self._close_position(symbol, managed_pos, "NO_SL_PROTECTION")
+                # Only move SL up, never down
+                if new_sl > managed_pos.current_sl_price:
+                    logger.info(f"📈 {symbol} updating SL: ${managed_pos.current_sl_price:.2f} → ${new_sl:.2f}")
 
-        # Check days held
-        days_held = (datetime.now() - managed_pos.entry_time).days
+                    # Modify SL order at Alpaca (has retry + fallback logic)
+                    new_order = self.trader.modify_stop_loss(
+                        managed_pos.sl_order_id,
+                        new_sl
+                    )
+
+                    if new_order:
+                        managed_pos.sl_order_id = new_order.id
+                        managed_pos.current_sl_price = new_order.stop_price
+                        if new_order.stop_price != new_sl:
+                            logger.warning(f"{symbol} SL fallback to ${new_order.stop_price:.2f}")
+                    else:
+                        # CRITICAL: No SL protection - close position immediately
+                        logger.error(f"CRITICAL: {symbol} has no SL - closing position for safety")
+                        self._close_position(symbol, managed_pos, "NO_SL_PROTECTION")
+
+        # Check days held (update for display)
         managed_pos.days_held = days_held
 
+        # Time exit (only for Day 1+)
         if days_held >= self.MAX_HOLD_DAYS and pnl_pct < 1:
             logger.info(f"⏰ {symbol} held {days_held} days with {pnl_pct:+.2f}% - time exit")
             self._close_position(symbol, managed_pos, "TIME_EXIT")
@@ -473,18 +1586,49 @@ class AutoTradingEngine:
             f"Trailing={'ON' if managed_pos.trailing_active else 'OFF'}"
         )
 
-    def _close_position(self, symbol: str, managed_pos: ManagedPosition, reason: str):
-        """Close a position"""
+    def _close_position(self, symbol: str, managed_pos: ManagedPosition, reason: str, force: bool = False):
+        """
+        Close a position with PDT Smart Guard v2.0 protection
+
+        Args:
+            symbol: Stock symbol
+            managed_pos: Managed position object
+            reason: Reason for closing (TAKE_PROFIT, TIME_EXIT, etc.)
+            force: If True, bypass PDT check (for manual sells)
+        """
         try:
             # CRITICAL: Check if position still exists before selling
             # This prevents double-sell if SL was already triggered
             alpaca_pos = self.trader.get_position(symbol)
             if not alpaca_pos:
                 logger.info(f"{symbol} position already closed (SL may have triggered)")
-                del self.positions[symbol]
+                if symbol in self.positions:
+                    del self.positions[symbol]
+                self.pdt_guard.remove_entry(symbol)
                 return
 
-            # Cancel SL order first
+            # Calculate current P&L for PDT check
+            current_price = alpaca_pos.current_price
+            pnl_pct = ((current_price - managed_pos.entry_price) / managed_pos.entry_price) * 100
+
+            # PDT Smart Guard v2.0: Check if sell is allowed
+            # v4.6: Pass per-position SL/TP to PDT guard (PDT TP = SL for R:R 1:1)
+            if not force:
+                pos_sl_pct = managed_pos.sl_pct or self.STOP_LOSS_PCT
+                can_sell, decision, pdt_reason = self.pdt_guard.can_sell(
+                    symbol, pnl_pct,
+                    sl_override=pos_sl_pct,
+                    tp_override=pos_sl_pct  # PDT TP = SL% (R:R 1:1 minimum)
+                )
+
+                if not can_sell:
+                    logger.warning(f"PDT Guard BLOCKED: {symbol} {reason} - {pdt_reason}")
+                    logger.warning(f"  Decision: {decision.value}, P&L: {pnl_pct:+.2f}%")
+                    return  # Do NOT sell
+
+                logger.info(f"PDT Guard ALLOWED: {symbol} - {pdt_reason}")
+
+            # Cancel SL order first (if exists)
             if managed_pos.sl_order_id:
                 self.trader.cancel_order(managed_pos.sl_order_id)
 
@@ -511,8 +1655,69 @@ class AutoTradingEngine:
                 else:
                     self.daily_stats.trades_lost += 1
 
-            # Remove from managed positions
-            del self.positions[symbol]
+                # Trade Log: Log SELL
+                try:
+                    days_held = self.pdt_guard.get_days_held(symbol)
+                    pdt_status = self.pdt_guard.get_pdt_status()
+                    pdt_used = days_held == 0  # Day 0 sell = PDT used
+
+                    # Calculate hold duration
+                    entry_time = managed_pos.entry_time
+                    hold_delta = datetime.now() - entry_time
+                    hold_hours = int(hold_delta.total_seconds() / 3600)
+                    hold_minutes = int((hold_delta.total_seconds() % 3600) / 60)
+                    hold_duration = f"{hold_hours}h {hold_minutes}m" if hold_hours > 0 else f"{hold_minutes}m"
+
+                    self.trade_logger.log_sell(
+                        symbol=symbol,
+                        qty=managed_pos.qty,
+                        price=exit_price,
+                        reason=reason,
+                        entry_price=managed_pos.entry_price,
+                        pnl_usd=pnl_usd,
+                        pnl_pct=pnl_pct,
+                        hold_duration=hold_duration,
+                        pdt_used=pdt_used,
+                        pdt_remaining=pdt_status.remaining - (1 if pdt_used else 0),
+                        day_held=days_held,
+                        sl_price=managed_pos.current_sl_price,
+                        trail_active=managed_pos.trailing_active,
+                        peak_price=managed_pos.peak_price,
+                        order_id=order.id
+                    )
+                except Exception as log_err:
+                    logger.warning(f"Trade log error: {log_err}")
+
+            # Remove from managed positions and PDT guard
+            if symbol in self.positions:
+                del self.positions[symbol]
+            self.pdt_guard.remove_entry(symbol)
+
+            # v4.1 Final: Check queue → Rescan if empty
+            if len(self.positions) < self.MAX_POSITIONS:
+                executed = False
+
+                # Step 1: Check queue first
+                if self.signal_queue:
+                    queued = self._check_queue_for_execution()
+                    if queued:
+                        logger.info(f"📋 Queue: Slot opened, executing {queued.symbol}")
+                        executed = self._execute_from_queue(queued)
+
+                # Step 2: If queue empty/expired and rescan enabled, scan fresh
+                if not executed and self.QUEUE_RESCAN_ON_EMPTY:
+                    logger.info(f"📋 Queue: Empty/expired, rescanning...")
+                    self.daily_stats.queue_rescans += 1
+                    signals = self.scan_for_signals()
+                    if signals:
+                        # Execute first signal (best one)
+                        signal = signals[0]
+                        logger.info(f"🔄 Rescan: Found {signal.symbol}, executing...")
+                        self.execute_signal(signal)
+
+                        # Queue remaining signals
+                        for remaining in signals[1:]:
+                            self._add_to_queue(remaining)
 
         except Exception as e:
             logger.error(f"Failed to close {symbol}: {e}")
@@ -546,6 +1751,8 @@ class AutoTradingEngine:
 
         summary = {
             'date': self.daily_stats.date,
+            'regime_status': self.daily_stats.regime_status,  # v4.0
+            'regime_skipped': self.daily_stats.regime_skipped,  # v4.0
             'signals_found': self.daily_stats.signals_found,
             'signals_executed': self.daily_stats.signals_executed,
             'trades_won': self.daily_stats.trades_won,
@@ -553,13 +1760,27 @@ class AutoTradingEngine:
             'realized_pnl': self.daily_stats.realized_pnl,
             'account_value': account['portfolio_value'],
             'positions_held': len(self.positions),
+            # v4.1: Queue stats
+            'queue_added': self.daily_stats.queue_added,
+            'queue_executed': self.daily_stats.queue_executed,
+            'queue_expired': self.daily_stats.queue_expired,
+            # v4.5: Low risk mode stats
+            'low_risk_trades': self.daily_stats.low_risk_trades,
         }
 
         logger.info("=" * 50)
-        logger.info("DAILY SUMMARY")
+        logger.info("DAILY SUMMARY (v4.5 Low Risk Mode)")
         logger.info("=" * 50)
+        logger.info(f"  Market Regime: {self.daily_stats.regime_status}")
+        if self.daily_stats.regime_skipped:
+            logger.info("  ⚠️ Skipped trading due to BEAR market")
         for k, v in summary.items():
-            logger.info(f"  {k}: {v}")
+            if k not in ['regime_status', 'regime_skipped']:
+                logger.info(f"  {k}: {v}")
+
+        # v4.1: Queue summary
+        if self.daily_stats.queue_added > 0:
+            logger.info(f"  📋 Queue: {self.daily_stats.queue_added} added, {self.daily_stats.queue_executed} executed, {self.daily_stats.queue_expired} expired")
 
         return summary
 
@@ -613,17 +1834,35 @@ class AutoTradingEngine:
                 # Pre-market scan (once per day at open)
                 today = now.strftime('%Y-%m-%d')
                 if last_scan_date != today:
-                    # Check daily loss limit
-                    if self.check_daily_loss_limit():
+                    # v4.4: Check late start protection
+                    is_late, late_reason = self._is_late_start()
+                    if is_late:
+                        logger.warning(f"⏰ {late_reason} - skipping scan, will only monitor")
+                        self.daily_stats.late_start_skipped = True
+                        last_scan_date = today  # Mark as scanned to not retry
+                        continue  # Skip to monitoring only
+
+                    # v4.0: Check market regime first
+                    is_bull, regime_reason = self._check_market_regime()
+                    self.daily_stats.regime_status = "BULL" if is_bull else "BEAR"
+
+                    if not is_bull:
+                        logger.warning(f"📉 BEAR market - skipping all new trades today")
+                        self.daily_stats.regime_skipped = True
+                    elif self.check_daily_loss_limit():
                         logger.warning("Daily loss limit - no new trades today")
                     else:
-                        # Scan and execute
+                        # v4.1: Clear queue from previous day
+                        self._clear_queue_end_of_day()
+
+                        # Scan and execute (regime is BULL)
                         signals = self.scan_for_signals()
                         for signal in signals:
                             if len(self.positions) < self.MAX_POSITIONS:
                                 self.execute_signal(signal)
                             else:
-                                break
+                                # v4.1: Queue remaining signals instead of breaking
+                                self._add_to_queue(signal)
 
                     last_scan_date = today
 
@@ -656,22 +1895,36 @@ class AutoTradingEngine:
         account = self.trader.get_account()
         safety_status = self.safety.get_status_summary()
 
+        # v4.0: Get current regime
+        is_bull, regime_reason = self._check_market_regime()
+
+        # v4.5: Get low risk mode status
+        is_low_risk, low_risk_reason = self._is_low_risk_mode()
+
         return {
             'state': self.state.value,
             'running': self.running,
             'market_open': self.trader.is_market_open(),
+            'market_regime': 'BULL' if is_bull else 'BEAR',  # v4.0
+            'regime_detail': regime_reason,  # v4.0
+            'low_risk_mode': is_low_risk,  # v4.5
+            'low_risk_reason': low_risk_reason,  # v4.5
             'positions': len(self.positions),
             'account_value': account['portfolio_value'],
             'cash': account['cash'],
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
+            'version': 'v4.5 Low Risk Mode',  # v4.5
+            # v4.1: Queue status
+            'queue_size': len(self.signal_queue),
+            'queue': self.get_queue_status(),
         }
 
     def get_positions_status(self) -> List[Dict]:
         """Get detailed positions status"""
         status = []
 
-        for symbol, managed_pos in self.positions.items():
+        for symbol, managed_pos in list(self.positions.items()):  # copy to avoid iteration error
             alpaca_pos = self.trader.get_position(symbol)
             if alpaca_pos:
                 pnl_pct = ((alpaca_pos.current_price - managed_pos.entry_price) / managed_pos.entry_price) * 100
@@ -696,9 +1949,9 @@ class AutoTradingEngine:
 # =============================================================================
 
 def test_engine():
-    """Test trading engine"""
+    """Test trading engine v4.0"""
     print("=" * 60)
-    print("AUTO TRADING ENGINE TEST")
+    print("AUTO TRADING ENGINE v4.0 - Smart Regime Edition")
     print("=" * 60)
 
     # Credentials
@@ -712,31 +1965,51 @@ def test_engine():
         auto_start=False  # Don't auto-start for testing
     )
 
+    # v4.0: Show config
+    print("\n[0] v4.0 Configuration:")
+    print(f"    MAX_POSITIONS: {engine.MAX_POSITIONS}")
+    print(f"    POSITION_SIZE_PCT: {engine.POSITION_SIZE_PCT}%")
+    print(f"    MIN_SCORE: {engine.MIN_SCORE}")
+    print(f"    TRAIL_ACTIVATION: {engine.TRAIL_ACTIVATION_PCT}%")
+    print(f"    TRAIL_LOCK: {engine.TRAIL_LOCK_PCT}%")
+    print(f"    REGIME_FILTER: {'ENABLED' if engine.REGIME_FILTER_ENABLED else 'DISABLED'}")
+    print(f"    REGIME_SMA: SMA{engine.REGIME_SMA_PERIOD}")
+
+    # v4.0: Test Market Regime Filter
+    print("\n[1] Market Regime Check:")
+    is_bull, regime_reason = engine._check_market_regime()
+    print(f"    Status: {'🟢 BULL - OK to trade' if is_bull else '🔴 BEAR - Skip new trades'}")
+    print(f"    Detail: {regime_reason}")
+
     # Get status
-    print("\n[1] Engine Status:")
+    print("\n[2] Engine Status:")
     status = engine.get_status()
     for k, v in status.items():
-        print(f"    {k}: {v}")
+        if k != 'daily_stats':
+            print(f"    {k}: {v}")
 
     # Check market
-    print("\n[2] Market Status:")
+    print("\n[3] Market Status:")
     clock = engine.trader.get_clock()
     print(f"    Open: {clock['is_open']}")
     print(f"    Next Open: {clock['next_open']}")
 
     # Test scan (if screener available)
     if engine.screener:
-        print("\n[3] Testing Scan:")
+        print("\n[4] Testing Scan (with Regime Filter):")
         signals = engine.scan_for_signals()
-        print(f"    Found {len(signals)} signals")
-        if signals:
-            for i, s in enumerate(signals[:3]):
-                print(f"    [{i+1}] {s.symbol}: Score={s.score}")
+        if not is_bull:
+            print("    ⚠️ Scan skipped due to BEAR market")
+        else:
+            print(f"    Found {len(signals)} signals (Score >= {engine.MIN_SCORE})")
+            if signals:
+                for i, s in enumerate(signals[:3]):
+                    print(f"    [{i+1}] {s.symbol}: Score={s.score}")
     else:
-        print("\n[3] Screener not available for testing")
+        print("\n[4] Screener not available for testing")
 
     # Test position monitoring (if any positions)
-    print("\n[4] Position Monitoring:")
+    print("\n[5] Position Monitoring:")
     positions = engine.get_positions_status()
     if positions:
         for p in positions:
@@ -745,7 +2018,8 @@ def test_engine():
         print("    No positions")
 
     print("\n" + "=" * 60)
-    print("ENGINE TEST COMPLETE")
+    print("v4.0 ENGINE TEST COMPLETE")
+    print("Expected: +5.5%/mo, DD 8.9%, WR 49%")
     print("=" * 60)
 
     return engine
