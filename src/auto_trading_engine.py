@@ -132,6 +132,8 @@ class ManagedPosition:
     tp_price: float = 0.0        # Target TP price
     tp_pct: float = 5.0          # Actual TP% for this position
     atr_pct: float = 0.0         # ATR% at entry
+    # v4.7: Sector diversification
+    sector: str = ""             # Stock sector (e.g. "Technology")
 
 
 @dataclass
@@ -155,6 +157,7 @@ class DailyStats:
     earnings_rejected: int = 0      # v4.4: Signals rejected by earnings filter
     late_start_skipped: bool = False  # v4.4: True if scan skipped due to late start
     low_risk_trades: int = 0        # v4.5: Trades executed in low risk mode
+    sector_rejected: int = 0        # v4.7: Signals rejected by sector filter
 
 
 @dataclass
@@ -251,6 +254,12 @@ class AutoTradingEngine:
     QUEUE_MIN_DEVIATION = 0.5         # % - minimum deviation allowed
     QUEUE_MAX_DEVIATION = 1.5         # % - cap at R:R ~1:1
     QUEUE_MAX_SIZE = 3                # Max signals in queue (= MAX_POSITIONS)
+
+    # Sector Diversification (v4.7 NEW!)
+    # ป้องกันถือหุ้น sector เดียวกันเยอะเกิน (correlated risk)
+    # เช่น AMD + NVDA + INTC = 3 ตัว Tech → ลงพร้อมกัน
+    SECTOR_FILTER_ENABLED = True
+    MAX_PER_SECTOR = 2              # ไม่เกิน 2 ตัว/sector
     QUEUE_FRESHNESS_WINDOW = 30       # Minutes - fresh signals get priority
     QUEUE_RESCAN_ON_EMPTY = True      # Rescan if queue empty/expired
 
@@ -757,6 +766,32 @@ class AutoTradingEngine:
             logger.error(f"{symbol}: Earnings check failed: {e}")
             # On error, allow trading
             return True, f"Error: {e}"
+
+    # =========================================================================
+    # SECTOR DIVERSIFICATION (v4.7 NEW!)
+    # =========================================================================
+
+    def _check_sector_filter(self, sector: str) -> Tuple[bool, str]:
+        """
+        Check if adding this sector would exceed MAX_PER_SECTOR
+
+        ป้องกันถือหุ้น sector เดียวกันเยอะเกิน (correlated risk)
+        เช่น AMD + NVDA + INTC = 3 ตัว Tech → ลงพร้อมกัน
+        """
+        if not self.SECTOR_FILTER_ENABLED or not sector:
+            return True, "Sector filter disabled or no sector data"
+
+        # Count current positions in same sector
+        same_sector_count = sum(
+            1 for pos in self.positions.values()
+            if pos.sector and pos.sector.lower() == sector.lower()
+        )
+
+        if same_sector_count >= self.MAX_PER_SECTOR:
+            existing = [s for s, p in self.positions.items() if p.sector and p.sector.lower() == sector.lower()]
+            return False, f"Already {same_sector_count} positions in {sector}: {existing} (max {self.MAX_PER_SECTOR})"
+
+        return True, f"{sector}: {same_sector_count}/{self.MAX_PER_SECTOR} positions"
 
     # =========================================================================
     # LATE START PROTECTION (v4.4 NEW!)
@@ -1316,6 +1351,26 @@ class AutoTradingEngine:
                     logger.warning(f"Trade log error: {log_err}")
                 return False
 
+            # v4.7: Sector Diversification - ไม่ซื้อหุ้น sector เดียวกันเกิน MAX_PER_SECTOR
+            signal_sector = getattr(signal, 'sector', '') or ''
+            sector_ok, sector_reason = self._check_sector_filter(signal_sector)
+            if not sector_ok:
+                logger.warning(f"❌ Sector Filter REJECT {symbol}: {sector_reason}")
+                self.daily_stats.sector_rejected += 1
+                try:
+                    self.trade_logger.log_skip(
+                        symbol=symbol,
+                        price=current_price,
+                        reason="SECTOR_REJECT",
+                        skip_detail=sector_reason,
+                        filters={"sector": {"passed": False, "detail": sector_reason}},
+                        signal_score=signal_score,
+                        sector=signal_sector
+                    )
+                except Exception as log_err:
+                    logger.warning(f"Trade log error: {log_err}")
+                return False
+
             qty = int(position_value / current_price)
             if qty <= 0:
                 logger.warning(f"Position size too small for {symbol}")
@@ -1380,7 +1435,8 @@ class AutoTradingEngine:
                 sl_pct=sl_pct,
                 tp_price=tp_price,
                 tp_pct=tp_pct,
-                atr_pct=atr_sl_tp['atr_pct']
+                atr_pct=atr_sl_tp['atr_pct'],
+                sector=signal_sector,
             )
 
             # PDT Guard: Record entry date
