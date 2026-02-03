@@ -220,7 +220,7 @@ class AutoTradingEngine:
 
     # Trading parameters (v4.6 - ATR-based SL/TP)
     MAX_POSITIONS = 3           # v4.0: 2 → 3
-    POSITION_SIZE_PCT = 45      # v4.0: 40 → 45 ($1,800 per position)
+    POSITION_SIZE_PCT = 30      # v4.7: 45 → 30 ($1,200/ตัว, 3×30%=90%, buffer 10%)
 
     # v4.6: ATR-based SL/TP (replaces fixed SL/TP)
     SL_ATR_MULTIPLIER = 1.5     # SL = 1.5 × ATR%
@@ -274,7 +274,7 @@ class AutoTradingEngine:
     LOW_RISK_MODE_ENABLED = True
     LOW_RISK_GAP_MAX_UP = 1.0       # % - เข้มขึ้น (ปกติ 2%)
     LOW_RISK_MIN_SCORE = 90         # เข้มขึ้น (ปกติ 85)
-    LOW_RISK_POSITION_SIZE_PCT = 25 # % - เล็กลง (ปกติ 45%) = ~$1,000
+    LOW_RISK_POSITION_SIZE_PCT = 20 # % - เล็กลง (ปกติ 30%) = ~$800
     LOW_RISK_MAX_ATR_PCT = 4.0      # % - หุ้นไม่ผันผวนมาก
     EARNINGS_NO_DATA_ACTION = 'warn'  # 'allow', 'skip', 'warn'
 
