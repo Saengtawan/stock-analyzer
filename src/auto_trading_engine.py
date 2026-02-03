@@ -297,7 +297,7 @@ class AutoTradingEngine:
     # เหตุผล: ต้อง hold ข้ามคืนอยู่แล้ว → เลือกเฉพาะหุ้นปลอดภัยสุด
     LOW_RISK_MODE_ENABLED = True
     LOW_RISK_GAP_MAX_UP = 1.0       # % - เข้มขึ้น (ปกติ 2%)
-    LOW_RISK_MIN_SCORE = 100        # v4.7: เข้มขึ้น (ปกติ 95)
+    LOW_RISK_MIN_SCORE = 98         # v4.7: เข้มขึ้น (ปกติ 95) แต่ไม่ถึง 100 ให้ยังเทรดได้บ้าง
     LOW_RISK_POSITION_SIZE_PCT = 20 # % - เล็กลง (ปกติ 30%) = ~$800
     LOW_RISK_MAX_ATR_PCT = 4.0      # % - หุ้นไม่ผันผวนมาก
     EARNINGS_NO_DATA_ACTION = 'warn'  # 'allow', 'skip', 'warn'
