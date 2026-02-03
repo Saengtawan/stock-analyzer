@@ -281,7 +281,8 @@ class AutoTradingEngine:
     # Late Start Protection (v4.4 NEW!)
     # ถ้าเริ่มหลัง market open ไปนาน → skip scan (ราคาอาจขึ้นไปแล้ว)
     LATE_START_PROTECTION = True
-    MARKET_OPEN_SCAN_WINDOW = 15    # นาที - ถ้าเริ่มหลัง 09:45 ET → skip scan
+    MARKET_OPEN_SCAN_DELAY = 5      # รอ 5 นาทีหลังตลาดเปิดก่อน scan (09:35 ET)
+    MARKET_OPEN_SCAN_WINDOW = 20    # นาที - ถ้าเริ่มหลัง 09:50 ET → skip scan
 
     # Market Regime Filter (v4.0 NEW!)
     # Rule: SPY > SMA20 = Bull → Trade, SPY < SMA20 = Bear → Skip
@@ -1834,6 +1835,21 @@ class AutoTradingEngine:
                 # Pre-market scan (once per day at open)
                 today = now.strftime('%Y-%m-%d')
                 if last_scan_date != today:
+                    # v4.7: Wait for market to settle before scanning
+                    # 09:30-09:35 = spread กว้าง, volatile, slippage สูง
+                    # 09:35+ = spread แคบ, ราคานิ่งขึ้น, ได้ราคาดีกว่า
+                    et_now = self._get_et_time()
+                    market_open = et_now.replace(
+                        hour=self.MARKET_OPEN_HOUR,
+                        minute=self.MARKET_OPEN_MINUTE,
+                        second=0, microsecond=0
+                    )
+                    scan_time = market_open + timedelta(minutes=self.MARKET_OPEN_SCAN_DELAY)
+                    if et_now < scan_time:
+                        wait_secs = (scan_time - et_now).total_seconds()
+                        logger.info(f"⏳ Waiting {wait_secs:.0f}s for market to settle (scan at {scan_time.strftime('%H:%M')} ET)")
+                        time.sleep(wait_secs)
+
                     # v4.4: Check late start protection
                     is_late, late_reason = self._is_late_start()
                     if is_late:
