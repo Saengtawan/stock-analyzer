@@ -2192,6 +2192,51 @@ class AutoTradingEngine:
         except Exception as e:
             logger.debug(f"Gap check error for {symbol}: {e}")
 
+    def _get_earnings_days_until(self, symbol: str) -> Optional[int]:
+        """
+        Return number of days until earnings for symbol, or None if unknown.
+        Cached per symbol with TTL: successful lookups cached for the day,
+        failed lookups retry after 5 minutes.
+        """
+        now = time.time()
+
+        if not hasattr(self, '_earnings_cache'):
+            self._earnings_cache = {}  # symbol → (days_until, expiry_timestamp)
+
+        cached = self._earnings_cache.get(symbol)
+        if cached is not None:
+            days_until, expiry = cached
+            if now < expiry:
+                return days_until
+
+        today = datetime.now().date()
+        days_until = None
+        cache_ttl = 300  # 5 min retry on failure
+        try:
+            ticker = yf.Ticker(symbol)
+            calendar = ticker.calendar
+            if calendar is not None and isinstance(calendar, dict):
+                earnings_date = calendar.get('Earnings Date')
+                if earnings_date:
+                    if isinstance(earnings_date, list) and len(earnings_date) > 0:
+                        earnings_date = earnings_date[0]
+                    if earnings_date:
+                        from datetime import date as date_type
+                        if isinstance(earnings_date, str):
+                            earnings_date = pd.to_datetime(earnings_date).date()
+                        elif isinstance(earnings_date, datetime):
+                            earnings_date = earnings_date.date()
+                        elif not isinstance(earnings_date, date_type):
+                            earnings_date = pd.to_datetime(earnings_date).date()
+                        days_until = (earnings_date - today).days
+            # Success: cache until end of day (6 hours)
+            cache_ttl = 21600
+        except Exception as e:
+            logger.debug(f"Earnings lookup error for {symbol}: {e}")
+
+        self._earnings_cache[symbol] = (days_until, now + cache_ttl)
+        return days_until
+
     def _check_overnight_earnings(self):
         """
         v4.9: Check if any held position has earnings TODAY or TOMORROW.
@@ -2214,35 +2259,12 @@ class AutoTradingEngine:
                 continue  # Still in cooldown
 
             try:
-                ticker = yf.Ticker(symbol)
-                now = datetime.now()
-
-                # Check calendar
-                try:
-                    calendar = ticker.calendar
-                    if calendar is not None and isinstance(calendar, dict):
-                        earnings_date = calendar.get('Earnings Date')
-                        if earnings_date:
-                            if isinstance(earnings_date, list) and len(earnings_date) > 0:
-                                earnings_date = earnings_date[0]
-                            if earnings_date:
-                                from datetime import date as date_type
-                                if isinstance(earnings_date, str):
-                                    earnings_date = pd.to_datetime(earnings_date).date()
-                                elif isinstance(earnings_date, datetime):
-                                    earnings_date = earnings_date.date()
-                                elif not isinstance(earnings_date, date_type):
-                                    earnings_date = pd.to_datetime(earnings_date).date()
-
-                                days_until = (earnings_date - now.date()).days
-                                # Alert only if earnings is TODAY or TOMORROW (overnight risk)
-                                if 0 <= days_until <= 1:
-                                    reason = f"EARNINGS {'TODAY' if days_until == 0 else 'TOMORROW'} ({earnings_date})"
-                                    logger.warning(f"EARNINGS ALERT: {symbol} — {reason} — consider exiting before close")
-                                    self.alerts.alert_earnings_warning(symbol, reason)
-                                    self._earnings_alert_times[symbol] = now_ts
-                except Exception:
-                    pass
+                days_until = self._get_earnings_days_until(symbol)
+                if days_until is not None and 0 <= days_until <= 1:
+                    reason = f"EARNINGS {'TODAY' if days_until == 0 else 'TOMORROW'}"
+                    logger.warning(f"EARNINGS ALERT: {symbol} — {reason} — consider exiting before close")
+                    self.alerts.alert_earnings_warning(symbol, reason)
+                    self._earnings_alert_times[symbol] = now_ts
             except Exception as e:
                 logger.debug(f"Earnings check error for {symbol}: {e}")
 
@@ -2521,6 +2543,17 @@ class AutoTradingEngine:
             logger.info(f"⏰ {symbol} held {days_held} days with {pnl_pct:+.2f}% - time exit")
             self._close_position(symbol, managed_pos, "TIME_EXIT")
             return
+
+        # v4.9.1: Earnings auto-sell — sell ASAP on Day 1+ if earnings today/tomorrow
+        if self.EARNINGS_AUTO_SELL and days_held >= 1:
+            try:
+                days_until = self._get_earnings_days_until(symbol)
+                if days_until is not None and 0 <= days_until <= 1:
+                    logger.warning(f"🚨 EARNINGS AUTO-SELL: {symbol} — earnings in {days_until} day(s), P&L {pnl_pct:+.2f}%")
+                    self._close_position(symbol, managed_pos, f"EARNINGS_AUTO_SELL")
+                    return
+            except Exception as e:
+                logger.debug(f"Earnings auto-sell check error for {symbol}: {e}")
 
         # Persist state if anything changed
         if _state_changed:
@@ -2843,34 +2876,18 @@ class AutoTradingEngine:
                 logger.info(f"Closing {symbol} - held {managed_pos.days_held} days")
                 self._close_position(symbol, managed_pos, "MAX_HOLD_DAYS")
 
-        # v4.9: Auto-sell positions with earnings TODAY/TOMORROW before close
+        # v4.9.1: Earnings auto-sell (safety net — primary check is in _check_position)
         if self.EARNINGS_AUTO_SELL:
             for symbol, managed_pos in list(self.positions.items()):
                 try:
-                    ticker = yf.Ticker(symbol)
-                    calendar = ticker.calendar
-                    if calendar is not None and isinstance(calendar, dict):
-                        earnings_date = calendar.get('Earnings Date')
-                        if earnings_date:
-                            if isinstance(earnings_date, list) and len(earnings_date) > 0:
-                                earnings_date = earnings_date[0]
-                            if earnings_date:
-                                from datetime import date as date_type
-                                if isinstance(earnings_date, str):
-                                    earnings_date = pd.to_datetime(earnings_date).date()
-                                elif isinstance(earnings_date, datetime):
-                                    earnings_date = earnings_date.date()
-                                elif not isinstance(earnings_date, date_type):
-                                    earnings_date = pd.to_datetime(earnings_date).date()
-
-                                days_until = (earnings_date - datetime.now().date()).days
-                                if 0 <= days_until <= 1:
-                                    days_held = self.pdt_guard.get_days_held(symbol)
-                                    if days_held >= 1:
-                                        logger.warning(f"EARNINGS AUTO-SELL: {symbol} — earnings in {days_until} day(s), closing position")
-                                        self._close_position(symbol, managed_pos, f"EARNINGS_AUTO_SELL_{earnings_date}")
-                                    else:
-                                        logger.warning(f"EARNINGS: {symbol} Day 0, cannot sell (PDT) — place tight SL instead")
+                    days_until = self._get_earnings_days_until(symbol)
+                    if days_until is not None and 0 <= days_until <= 1:
+                        days_held = self.pdt_guard.get_days_held(symbol)
+                        if days_held >= 1:
+                            logger.warning(f"EARNINGS AUTO-SELL (pre-close): {symbol} — earnings in {days_until} day(s)")
+                            self._close_position(symbol, managed_pos, "EARNINGS_AUTO_SELL")
+                        else:
+                            logger.warning(f"EARNINGS: {symbol} Day 0, cannot sell (PDT) — place tight SL instead")
                 except Exception as e:
                     logger.debug(f"Earnings auto-sell check error for {symbol}: {e}")
 
