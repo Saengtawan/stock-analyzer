@@ -3030,19 +3030,9 @@ class AutoTradingEngine:
                         logger.info(f"⏳ Waiting {wait_secs:.0f}s for market to settle (scan at {scan_time.strftime('%H:%M')} ET)")
                         time.sleep(wait_secs)
 
-                    # v4.4: Check late start protection
-                    # v4.9.1: Only skip if engine has been running since market open.
-                    # If this is a restart (positions exist or first loop), always scan.
-                    is_late, late_reason = self._is_late_start()
-                    is_restart = len(self.positions) > 0 or not hasattr(self, '_has_scanned_today')
-                    if is_late and not is_restart:
-                        logger.warning(f"⏰ {late_reason} - skipping scan, will only monitor")
-                        self.daily_stats.late_start_skipped = True
-                        last_scan_date = today  # Mark as scanned to not retry
-                        continue  # Skip to monitoring only
-                    elif is_late and is_restart:
-                        logger.info(f"⏰ {late_reason} - but this is a restart, scanning anyway")
-                    self._has_scanned_today = True
+                    # v4.9.1: Late start protection removed.
+                    # Gap filter + score filter already reject overpriced entries.
+                    # No reason to skip scanning just because engine started late.
 
                     # v4.0: Check market regime first
                     is_bull, regime_reason = self._check_market_regime()
