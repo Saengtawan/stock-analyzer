@@ -977,6 +977,9 @@ class AutoTradingEngine:
         if pdt_status.remaining <= 0:
             return True, f"PDT budget = 0 → Low Risk Mode"
 
+        if pdt_status.remaining <= self.pdt_guard.config.reserve:
+            return True, f"PDT budget = {pdt_status.remaining} (≤ reserve {self.pdt_guard.config.reserve}) → Low Risk Mode"
+
         return False, f"PDT budget OK ({pdt_status.remaining}/{self.pdt_guard.config.max_day_trades})"
 
     def _get_effective_params(self) -> Dict:
@@ -3028,12 +3031,18 @@ class AutoTradingEngine:
                         time.sleep(wait_secs)
 
                     # v4.4: Check late start protection
+                    # v4.9.1: Only skip if engine has been running since market open.
+                    # If this is a restart (positions exist or first loop), always scan.
                     is_late, late_reason = self._is_late_start()
-                    if is_late:
+                    is_restart = len(self.positions) > 0 or not hasattr(self, '_has_scanned_today')
+                    if is_late and not is_restart:
                         logger.warning(f"⏰ {late_reason} - skipping scan, will only monitor")
                         self.daily_stats.late_start_skipped = True
                         last_scan_date = today  # Mark as scanned to not retry
                         continue  # Skip to monitoring only
+                    elif is_late and is_restart:
+                        logger.info(f"⏰ {late_reason} - but this is a restart, scanning anyway")
+                    self._has_scanned_today = True
 
                     # v4.0: Check market regime first
                     is_bull, regime_reason = self._check_market_regime()
