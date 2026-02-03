@@ -250,7 +250,7 @@ class AutoTradingEngine:
     QUEUE_ATR_MULT = 0.5              # ATR multiplier for deviation
     QUEUE_MIN_DEVIATION = 0.5         # % - minimum deviation allowed
     QUEUE_MAX_DEVIATION = 1.5         # % - cap at R:R ~1:1
-    QUEUE_MAX_SIZE = 5                # Max signals in queue
+    QUEUE_MAX_SIZE = 3                # Max signals in queue (= MAX_POSITIONS)
     QUEUE_FRESHNESS_WINDOW = 30       # Minutes - fresh signals get priority
     QUEUE_RESCAN_ON_EMPTY = True      # Rescan if queue empty/expired
 

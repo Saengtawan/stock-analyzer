@@ -17,9 +17,9 @@ v2.2 Changes:
 - REMOVED Critical Override: ไม่ยอมโดน PDT flag ไม่ว่ากรณีใด
 - Budget = 0 → HOLD ทุกกรณี (แม้ขาดทุนหนัก)
 - Low Risk Mode ป้องกัน worst case:
-  - Position size เล็ก ($1,000)
+  - Position size เล็ก (20% × $4,000 = $800)
   - Gap filter เข้ม (1%)
-  - Worst case: -7% × $1,000 = -$70
+  - Worst case: -7% × $800 = -$56
 
 v2.1 Changes:
 - FIX: should_place_sl_order() now correctly returns False for NEW positions
