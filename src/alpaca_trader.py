@@ -113,6 +113,9 @@ class AlpacaTrader:
     TRAIL_ACTIVATION_PCT = 2.0  # Start trailing at +2%
     TRAIL_LOCK_PCT = 70      # Lock 70% of gains
 
+    # v4.7 Fix #16: Max slippage cap (observational)
+    MAX_SLIPPAGE_PCT = 0.5
+
     def __init__(
         self,
         api_key: str = None,
@@ -146,6 +149,10 @@ class AlpacaTrader:
             self.base_url,
             api_version='v2'
         )
+
+        # v4.7: Track positions needing manual intervention
+        self.needs_manual_intervention: List[str] = []
+        self._last_filled_qty: int = 0
 
         logger.info(f"Alpaca client initialized: {self.base_url}")
 
@@ -429,6 +436,7 @@ class AlpacaTrader:
             result = self.place_market_buy(symbol, qty)
             self.last_execution_meta['fill_time_sec'] = round(time.time() - start_time, 1)
             self.last_execution_meta['fill_status'] = 'filled' if result else 'failed'
+            self._track_slippage(result, limit_price)
             return result
 
         except Exception as e:
@@ -437,7 +445,29 @@ class AlpacaTrader:
             result = self.place_market_buy(symbol, qty)
             self.last_execution_meta['fill_time_sec'] = round(time.time() - start_time, 1)
             self.last_execution_meta['fill_status'] = 'filled' if result else 'failed'
+            self._track_slippage(result, self.last_execution_meta.get('limit_price'))
             return result
+
+    def _track_slippage(self, order, reference_price: float = None):
+        """
+        v4.7 Fix #16: Track slippage from reference price (observational).
+        Logs warning if slippage exceeds MAX_SLIPPAGE_PCT.
+        """
+        if not order or not reference_price or reference_price <= 0:
+            return
+        fill_price = getattr(order, 'filled_avg_price', None)
+        if not fill_price or fill_price <= 0:
+            return
+
+        slippage_pct = ((fill_price - reference_price) / reference_price) * 100
+        self.last_execution_meta['slippage_pct'] = round(slippage_pct, 3)
+
+        if abs(slippage_pct) > self.MAX_SLIPPAGE_PCT:
+            symbol = getattr(order, 'symbol', '?')
+            logger.warning(
+                f"⚠️ HIGH SLIPPAGE: {symbol} fill=${fill_price:.2f} vs ref=${reference_price:.2f} "
+                f"({slippage_pct:+.2f}% > ±{self.MAX_SLIPPAGE_PCT}%)"
+            )
 
     @_retry_api(max_retries=2, base_delay=1.0)
     def place_market_sell(self, symbol: str, qty: int) -> Order:
@@ -604,7 +634,15 @@ class AlpacaTrader:
                         return fallback_order
                 except Exception:
                     pass
-                logger.error(f"CRITICAL: {symbol} has NO STOP LOSS - manual intervention required!")
+                # v4.7 Fix #3: Emergency sell when SL completely fails
+                logger.error(f"CRITICAL: {symbol} has NO STOP LOSS - attempting emergency sell")
+                self.needs_manual_intervention.append(symbol)
+                try:
+                    emergency = self.place_market_sell(symbol, qty)
+                    if emergency:
+                        logger.warning(f"Emergency sell submitted for {symbol}: {emergency.id}")
+                except Exception as e_sell:
+                    logger.critical(f"Emergency sell ALSO failed for {symbol}: {e_sell}")
                 return None
 
         except Exception as e:
@@ -668,21 +706,26 @@ class AlpacaTrader:
                     return None, None
 
             fill_price = buy_order.filled_avg_price
-            logger.info(f"Buy filled: {symbol} x{qty} @ ${fill_price:.2f}")
+            # v4.7 Fix #1: Use actual filled qty, not requested qty
+            actual_qty = int(float(buy_order.filled_qty)) if buy_order.filled_qty else qty
+            if actual_qty != qty:
+                logger.warning(f"PARTIAL FILL: {symbol} requested {qty}, filled {actual_qty}")
+            self._last_filled_qty = actual_qty
+            logger.info(f"Buy filled: {symbol} x{actual_qty} @ ${fill_price:.2f}")
 
             # 3. Calculate stop loss price
             sl_price = fill_price * (1 - sl_pct / 100)
 
-            # 4. Place stop loss order
+            # 4. Place stop loss order (use actual_qty, not requested qty)
             try:
-                sl_order = self.place_stop_loss(symbol, qty, sl_price)
+                sl_order = self.place_stop_loss(symbol, actual_qty, sl_price)
                 logger.info(f"SL placed: {symbol} @ ${sl_price:.2f} (-{sl_pct}%)")
                 return buy_order, sl_order
 
             except Exception as e:
                 # CRITICAL: SL failed - must sell immediately
                 logger.error(f"SL FAILED - selling position immediately: {e}")
-                emergency_sell = self.place_market_sell(symbol, qty)
+                emergency_sell = self.place_market_sell(symbol, actual_qty)
                 # Verify emergency sell fills
                 if emergency_sell:
                     for _retry in range(5):
@@ -692,7 +735,14 @@ class AlpacaTrader:
                             logger.info(f"Emergency sell filled for {symbol}")
                             break
                     else:
-                        logger.error(f"CRITICAL: Emergency sell NOT filled for {symbol} — manual intervention needed!")
+                        # v4.7 Fix #3: Track stuck positions + last resort sell
+                        logger.critical(f"CRITICAL: Emergency sell NOT filled for {symbol} — MANUAL INTERVENTION REQUIRED!")
+                        self.needs_manual_intervention.append(symbol)
+                        try:
+                            last_resort = self.place_market_sell(symbol, actual_qty)
+                            logger.critical(f"Last resort sell submitted: {last_resort.id if last_resort else 'FAILED'}")
+                        except Exception as e2:
+                            logger.critical(f"Last resort sell also failed: {e2}")
                 return buy_order, None
 
         except Exception as e:
@@ -808,9 +858,12 @@ def test_connection():
     print("ALPACA CONNECTION TEST")
     print("=" * 60)
 
-    # Credentials (Paper Trading)
-    API_KEY = "PK45CDQEE2WO7I7N4BH762VSMK"
-    SECRET_KEY = "DFDhSeYmnsxS2YpyAZLX1MLm9ndfmYr9XaUEiyn78SH1"
+    # Credentials from environment
+    API_KEY = os.environ.get('ALPACA_API_KEY')
+    SECRET_KEY = os.environ.get('ALPACA_SECRET_KEY')
+    if not API_KEY or not SECRET_KEY:
+        print("ERROR: Set ALPACA_API_KEY and ALPACA_SECRET_KEY environment variables")
+        return
 
     try:
         trader = AlpacaTrader(

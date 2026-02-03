@@ -193,6 +193,7 @@ class RapidRotationScreener:
     def __init__(self):
         """Initialize with all integrated systems"""
         self.data_cache: Dict[str, pd.DataFrame] = {}
+        self._data_cache_time: Dict[str, float] = {}
         self.universe: List[str] = []
 
         # Initialize integrated systems
@@ -201,10 +202,63 @@ class RapidRotationScreener:
         self._init_sector_regime()
         self._init_alt_data()
 
-        # Cache for regime data
+        # Cache for regime data (with timestamps)
         self._market_regime_cache = None
+        self._market_regime_cache_time: float = 0.0
         self._sector_regime_cache = {}
+        self._sector_regime_cache_time: float = 0.0
         self._alt_data_cache = {}
+        self._alt_data_cache_time: float = 0.0
+
+        # Cache TTL in seconds
+        self._cache_ttl = {
+            'market_regime': 300,   # 5 min
+            'sector_regime': 600,   # 10 min
+            'alt_data': 300,        # 5 min
+            'data': 1800,           # 30 min
+        }
+
+    def _is_cache_valid(self, name: str, cache_time: float) -> bool:
+        """Check if a cache entry is still valid based on TTL"""
+        if cache_time == 0.0:
+            return False
+        import time
+        ttl = self._cache_ttl.get(name, 300)
+        return (time.time() - cache_time) < ttl
+
+    def _clear_stale_caches(self):
+        """Clear any caches that have exceeded their TTL"""
+        import time
+        now = time.time()
+
+        if self._market_regime_cache is not None:
+            if (now - self._market_regime_cache_time) >= self._cache_ttl['market_regime']:
+                self._market_regime_cache = None
+                self._market_regime_cache_time = 0.0
+                logger.debug("Cleared stale market regime cache")
+
+        if self._sector_regime_cache:
+            if (now - self._sector_regime_cache_time) >= self._cache_ttl['sector_regime']:
+                self._sector_regime_cache = {}
+                self._sector_regime_cache_time = 0.0
+                logger.debug("Cleared stale sector regime cache")
+
+        if self._alt_data_cache:
+            if (now - self._alt_data_cache_time) >= self._cache_ttl['alt_data']:
+                self._alt_data_cache = {}
+                self._alt_data_cache_time = 0.0
+                logger.debug("Cleared stale alt data cache")
+
+        # Clear per-symbol data caches that are stale
+        stale_symbols = [
+            sym for sym, t in self._data_cache_time.items()
+            if (now - t) >= self._cache_ttl['data']
+        ]
+        for sym in stale_symbols:
+            self.data_cache.pop(sym, None)
+            self._data_cache_time.pop(sym, None)
+        if stale_symbols:
+            logger.debug(f"Cleared stale data cache for {len(stale_symbols)} symbols")
 
     def _init_ai_universe(self):
         """Initialize AI Universe Generator"""
@@ -300,13 +354,15 @@ class RapidRotationScreener:
 
     def _get_market_regime(self) -> Dict[str, Any]:
         """Get current market regime"""
-        if self._market_regime_cache:
+        import time
+        if self._market_regime_cache and self._is_cache_valid('market_regime', self._market_regime_cache_time):
             return self._market_regime_cache
 
         if self.market_regime:
             try:
                 regime = self.market_regime.get_current_regime()
                 self._market_regime_cache = regime
+                self._market_regime_cache_time = time.time()
                 return regime
             except Exception as e:
                 logger.warning(f"⚠️ Market regime detection failed: {e}")
@@ -447,7 +503,9 @@ class RapidRotationScreener:
             except Exception as e:
                 logger.debug(f"Alt data failed for {symbol}: {e}")
 
+        import time
         self._alt_data_cache[symbol] = (score, reasons)
+        self._alt_data_cache_time = time.time()
         return score, reasons
 
     def _get_sector(self, symbol: str) -> str:
@@ -509,6 +567,8 @@ class RapidRotationScreener:
 
     def load_data(self, days: int = 60) -> None:
         """Load historical data for universe"""
+        import time
+
         if not self.universe:
             self.generate_universe()
 
@@ -518,6 +578,7 @@ class RapidRotationScreener:
         start_date = end_date - timedelta(days=days + 30)
 
         loaded = 0
+        now = time.time()
         for symbol in self.universe:
             try:
                 ticker = yf.Ticker(symbol)
@@ -525,6 +586,7 @@ class RapidRotationScreener:
                 if len(data) >= 30:
                     data.columns = [c.lower() for c in data.columns]
                     self.data_cache[symbol] = data
+                    self._data_cache_time[symbol] = now
                     loaded += 1
             except Exception as e:
                 logger.debug(f"Error loading {symbol}: {e}")
@@ -892,6 +954,9 @@ class RapidRotationScreener:
         5. Apply Alt Data scoring (±10 cap) to Top 10 only
         6. Re-sort and return Top N
         """
+        # Clear stale caches before scanning
+        self._clear_stale_caches()
+
         # v4.0: Check SPY regime FIRST!
         is_bull, spy_reason, spy_details = self.check_spy_regime()
 

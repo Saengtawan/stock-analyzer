@@ -17,8 +17,10 @@ Version: 1.0
 
 import os
 import json
+import queue
 import sqlite3
 import tempfile
+import threading
 import uuid
 from datetime import datetime, date, timedelta
 from dataclasses import dataclass, asdict, field
@@ -169,6 +171,13 @@ class TradeLogger:
         # Today's log cache
         self._today_logs: List[TradeLogEntry] = []
         self._load_today_logs()
+
+        # v4.7 Fix #14: Async logging with background queue
+        self._log_queue: queue.Queue = queue.Queue()
+        self._log_worker_thread = threading.Thread(
+            target=self._log_worker, daemon=True, name="TradeLogWorker"
+        )
+        self._log_worker_thread.start()
 
         logger.info(f"TradeLogger initialized - logs: {self.log_dir}, db: {self.db_path}")
 
@@ -475,10 +484,27 @@ class TradeLogger:
         return entry
 
     def _add_entry(self, entry: TradeLogEntry):
-        """Add entry to today's logs and save"""
+        """Add entry to today's logs and queue for async persistence"""
         self._today_logs.append(entry)
-        self._save_today_logs()
-        self._archive_to_db(entry)
+        # Queue for async save (non-blocking)
+        self._log_queue.put(entry)
+
+    def _log_worker(self):
+        """Background worker that persists log entries asynchronously"""
+        while True:
+            try:
+                entry = self._log_queue.get(timeout=5)
+                try:
+                    self._save_today_logs()
+                    self._archive_to_db(entry)
+                except Exception as e:
+                    logger.error(f"Async log persistence error: {e}")
+                finally:
+                    self._log_queue.task_done()
+            except queue.Empty:
+                continue
+            except Exception as e:
+                logger.error(f"Log worker error: {e}")
 
     def _archive_to_db(self, entry: TradeLogEntry):
         """Archive entry to SQLite"""

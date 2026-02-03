@@ -2673,9 +2673,12 @@ def get_auto_trading_engine():
     if _auto_trading_engine is None:
         try:
             from auto_trading_engine import AutoTradingEngine
-            # Credentials from environment or hardcoded for paper trading
-            API_KEY = os.environ.get('ALPACA_API_KEY', 'PK45CDQEE2WO7I7N4BH762VSMK')
-            SECRET_KEY = os.environ.get('ALPACA_SECRET_KEY', 'DFDhSeYmnsxS2YpyAZLX1MLm9ndfmYr9XaUEiyn78SH1')
+            # Credentials from environment
+            API_KEY = os.environ.get('ALPACA_API_KEY')
+            SECRET_KEY = os.environ.get('ALPACA_SECRET_KEY')
+            if not API_KEY or not SECRET_KEY:
+                logger.error("ALPACA_API_KEY and ALPACA_SECRET_KEY environment variables required")
+                return None
             _auto_trading_engine = AutoTradingEngine(
                 api_key=API_KEY,
                 secret_key=SECRET_KEY,
@@ -2864,6 +2867,33 @@ def api_auto_close_all():
     except Exception as e:
         logger.error(f"Close-all error: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/auto/heartbeat')
+def api_auto_heartbeat():
+    """v4.7 Fix #15: Get engine heartbeat status"""
+    try:
+        heartbeat_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'data', 'heartbeat.json'
+        )
+        if not os.path.exists(heartbeat_path):
+            return jsonify({'alive': False, 'stale': True, 'error': 'No heartbeat file'})
+
+        with open(heartbeat_path, 'r') as f:
+            hb = json.load(f)
+
+        # Check staleness (> 120 seconds = stale)
+        from datetime import datetime
+        ts = datetime.fromisoformat(hb['timestamp'])
+        age_seconds = (datetime.now() - ts).total_seconds()
+        hb['age_seconds'] = round(age_seconds, 1)
+        hb['stale'] = age_seconds > 120
+        hb['alive'] = not hb['stale'] and hb.get('running', False)
+
+        return jsonify(hb)
+    except Exception as e:
+        return jsonify({'alive': False, 'stale': True, 'error': str(e)}), 500
 
 
 @app.route('/api/auto/positions')

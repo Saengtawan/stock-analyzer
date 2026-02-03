@@ -85,6 +85,15 @@ late_start_protection: true
 market_open_scan_delay: 5      # minutes after open before scanning
 market_open_scan_window: 20    # minutes - skip scan if started after this
 
+# -- Monitor interval --
+monitor_interval_seconds: 15
+
+# -- Circuit breaker --
+circuit_breaker_max_errors: 5
+
+# -- Slippage tracking --
+max_slippage_pct: 0.5
+
 # -- Market Regime Filter (v4.9) --
 regime_filter_enabled: true
 regime_sma_period: 20

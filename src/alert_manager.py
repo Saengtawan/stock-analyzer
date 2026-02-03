@@ -223,6 +223,33 @@ class AlertManager:
             category='system',
         )
 
+    def alert_gap_risk(self, symbol: str, gap_pct: float, severity: str):
+        level = 'CRITICAL' if severity == 'CATASTROPHIC' else 'WARNING'
+        self.add(
+            level,
+            f'Gap Risk: {symbol}',
+            f'{severity} overnight gap {gap_pct:+.1f}% on {symbol}',
+            category='risk',
+            symbol=symbol,
+        )
+
+    def alert_earnings_warning(self, symbol: str, reason: str):
+        self.add(
+            'WARNING',
+            f'Earnings: {symbol}',
+            f'{symbol} has upcoming earnings: {reason}',
+            category='risk',
+            symbol=symbol,
+        )
+
+    def alert_circuit_breaker(self, error_count: int):
+        self.add(
+            'CRITICAL',
+            'Circuit Breaker Triggered',
+            f'Engine stopped after {error_count} consecutive errors',
+            category='system',
+        )
+
     def alert_health_check_fail(self, issues: List[str]):
         self.add(
             'WARNING',

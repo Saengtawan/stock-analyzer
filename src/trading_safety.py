@@ -654,9 +654,12 @@ def test_safety_system():
     print("TRADING SAFETY SYSTEM TEST")
     print("=" * 60)
 
-    # Credentials
-    API_KEY = "PK45CDQEE2WO7I7N4BH762VSMK"
-    SECRET_KEY = "DFDhSeYmnsxS2YpyAZLX1MLm9ndfmYr9XaUEiyn78SH1"
+    # Credentials from environment
+    API_KEY = os.environ.get('ALPACA_API_KEY')
+    SECRET_KEY = os.environ.get('ALPACA_SECRET_KEY')
+    if not API_KEY or not SECRET_KEY:
+        print("ERROR: Set ALPACA_API_KEY and ALPACA_SECRET_KEY environment variables")
+        return
 
     trader = AlpacaTrader(
         api_key=API_KEY,

@@ -348,7 +348,10 @@ class AutoTradingEngine:
     PRE_CLOSE_MINUTE = 50  # 15:50 ET
 
     # Monitor interval
-    MONITOR_INTERVAL_SECONDS = 60  # Check every 1 minute
+    MONITOR_INTERVAL_SECONDS = 15  # Check every 15 seconds (was 60)
+
+    # v4.7 Fix #13: Circuit breaker
+    CIRCUIT_BREAKER_MAX_ERRORS = 5
 
     def __init__(
         self,
@@ -748,6 +751,44 @@ class AutoTradingEngine:
     # MARKET REGIME FILTER (v4.0 NEW!)
     # =========================================================================
 
+    def _get_spy_data_from_alpaca(self, days: int = 60) -> Optional[pd.DataFrame]:
+        """
+        v4.7 Fix #8: Get SPY historical data from Alpaca bars API.
+        Returns a DataFrame with 'Close' column, or None on failure.
+        """
+        try:
+            from datetime import timezone
+            end = datetime.now(timezone.utc)
+            start = end - timedelta(days=days + 5)  # Extra buffer for weekends
+
+            bars = self.trader.api.get_bars(
+                'SPY',
+                '1Day',
+                start=start.strftime('%Y-%m-%d'),
+                end=end.strftime('%Y-%m-%d'),
+                limit=days + 5
+            )
+            if not bars:
+                return None
+
+            data = []
+            for bar in bars:
+                data.append({
+                    'Close': bar.c,
+                    'High': bar.h,
+                    'Low': bar.l,
+                    'Open': bar.o,
+                    'Volume': bar.v,
+                })
+            df = pd.DataFrame(data)
+            if len(df) >= 20:
+                logger.debug(f"SPY data from Alpaca: {len(df)} bars")
+                return df
+            return None
+        except Exception as e:
+            logger.debug(f"Alpaca SPY data failed: {e}")
+            return None
+
     def _check_market_regime(self, force_refresh: bool = False) -> Tuple[bool, str]:
         """
         Check if market is in Bull regime (OK to trade)
@@ -776,8 +817,10 @@ class AutoTradingEngine:
                 return is_bull, reason
 
         try:
-            # Download SPY data (40 days for SMA20 + RSI14 look-back)
-            spy = yf.download('SPY', period='60d', progress=False)
+            # v4.7 Fix #8: Try Alpaca bars first, fall back to yfinance
+            spy = self._get_spy_data_from_alpaca(60)
+            if spy is None or spy.empty:
+                spy = yf.download('SPY', period='60d', progress=False)
 
             if spy.empty or len(spy) < self.REGIME_SMA_PERIOD:
                 logger.warning("Not enough SPY data for regime check")
@@ -1643,10 +1686,32 @@ class AutoTradingEngine:
                 logger.warning(f"Safety block: {reason}")
                 return False
 
+            # v4.7 Fix #5: PDT pre-buy budget check
+            # If SL triggers on Day 0, we need PDT budget to sell.
+            # Skip buy in NORMAL mode if no PDT budget remaining for emergency exit.
+            if mode != 'LOW_RISK':
+                pdt_pre_check = self.pdt_guard.get_pdt_status()
+                if pdt_pre_check.remaining <= self.pdt_guard.config.reserve:
+                    logger.warning(f"❌ PDT pre-buy block: remaining={pdt_pre_check.remaining}, "
+                                   f"reserve={self.pdt_guard.config.reserve} → skip {symbol} in NORMAL mode")
+                    return False
+
             # Check if already have position
             if symbol in self.positions:
                 logger.warning(f"Already have position in {symbol}")
                 return False
+
+            # v4.7 Fix #9: Reconcile with Alpaca before buying
+            # Catches positions that engine doesn't know about
+            try:
+                alpaca_existing = self.trader.get_position(symbol)
+                if alpaca_existing:
+                    logger.warning(f"⚠️ RECONCILIATION: Alpaca already holds {symbol} "
+                                   f"(qty={alpaca_existing.qty}, current=${alpaca_existing.current_price:.2f}) "
+                                   f"but engine unaware — skipping buy")
+                    return False
+            except Exception:
+                pass  # get_position returns None for non-existent, exceptions are safe to ignore
 
             # Check max positions
             if len(self.positions) >= self.MAX_POSITIONS:
@@ -1853,6 +1918,12 @@ class AutoTradingEngine:
             # Create managed position with ATR-based SL/TP
             entry_price = buy_order.filled_avg_price
 
+            # v4.7 Fix #1: Use actual filled qty from trader
+            actual_qty = getattr(self.trader, '_last_filled_qty', qty)
+            if actual_qty and actual_qty != qty:
+                logger.warning(f"Using actual filled qty {actual_qty} (requested {qty})")
+                qty = actual_qty
+
             # Recalculate SL/TP with actual fill price
             sl_price = round(entry_price * (1 - sl_pct / 100), 2)
             tp_price = round(entry_price * (1 + tp_pct / 100), 2)
@@ -1960,10 +2031,71 @@ class AutoTradingEngine:
     # MONITORING & TRAILING
     # =========================================================================
 
+    def _check_overnight_gap(self, symbol: str, managed_pos):
+        """
+        v4.7 Fix #11: Check for overnight gap risk at market open.
+        Only runs within first 5 min of market open, for Day 1+ positions.
+        """
+        et_now = self._get_et_time()
+        minutes_since_open = (et_now.hour - self.MARKET_OPEN_HOUR) * 60 + (et_now.minute - self.MARKET_OPEN_MINUTE)
+        if minutes_since_open < 0 or minutes_since_open > 5:
+            return  # Only check in first 5 minutes after open
+
+        days_held = self.pdt_guard.get_days_held(symbol)
+        if days_held < 1:
+            return  # Only for positions held overnight
+
+        try:
+            snapshot = self.trader.get_snapshot(symbol)
+            if not snapshot or not snapshot.get('prev_close'):
+                return
+
+            prev_close = snapshot['prev_close']
+            current_price = snapshot.get('latest_price', 0)
+            if prev_close <= 0 or current_price <= 0:
+                return
+
+            gap_pct = ((current_price - prev_close) / prev_close) * 100
+            sl_pct = managed_pos.sl_pct or self.STOP_LOSS_PCT
+
+            if gap_pct < -(3 * sl_pct):
+                # Catastrophic gap: auto-close
+                logger.error(f"🚨 CATASTROPHIC GAP {symbol}: {gap_pct:+.1f}% (> 3x SL of {sl_pct}%) → AUTO CLOSE")
+                self.alerts.alert_gap_risk(symbol, gap_pct, 'CATASTROPHIC')
+                self._close_position(symbol, managed_pos, "GAP_CATASTROPHIC")
+            elif gap_pct < -(2 * sl_pct):
+                # Severe gap: alert
+                logger.warning(f"⚠️ SEVERE GAP {symbol}: {gap_pct:+.1f}% (> 2x SL of {sl_pct}%)")
+                self.alerts.alert_gap_risk(symbol, gap_pct, 'SEVERE')
+        except Exception as e:
+            logger.debug(f"Gap check error for {symbol}: {e}")
+
+    def _check_overnight_earnings(self):
+        """
+        v4.7 Fix #11: Check if any held position has earnings today.
+        Alert user so they can decide to exit before close.
+        """
+        if not self.positions:
+            return
+
+        for symbol in list(self.positions.keys()):
+            try:
+                is_safe, reason = self._check_earnings_filter(symbol)
+                if not is_safe:
+                    logger.warning(f"⚠️ EARNINGS ALERT: {symbol} — {reason} — consider exiting before close")
+                    self.alerts.alert_earnings_warning(symbol, reason)
+            except Exception as e:
+                logger.debug(f"Earnings check error for {symbol}: {e}")
+
     def monitor_positions(self):
         """Monitor all positions and update trailing stops"""
         if not self.positions:
             return
+
+        # v4.7 Fix #11: Check overnight gap and earnings risk
+        for symbol, managed_pos in list(self.positions.items()):
+            self._check_overnight_gap(symbol, managed_pos)
+        self._check_overnight_earnings()
 
         # Ensure all positions have SL protection
         self.safety.ensure_sl_protection()
@@ -2013,10 +2145,20 @@ class AutoTradingEngine:
         current_price = alpaca_pos.current_price
         entry_price = managed_pos.entry_price
 
+        # v4.7 Fix #7: Use intraday high from Alpaca snapshot for peak_price
+        # Prevents missing peaks between monitor intervals
+        intraday_high = current_price
+        try:
+            snapshot = self.trader.get_snapshot(symbol)
+            if snapshot and snapshot.get('daily_high'):
+                intraday_high = max(current_price, snapshot['daily_high'])
+        except Exception:
+            pass  # Fallback to current_price
+
         # Update peak and trough
         _state_changed = False
-        if current_price > managed_pos.peak_price:
-            managed_pos.peak_price = current_price
+        if intraday_high > managed_pos.peak_price:
+            managed_pos.peak_price = intraday_high
             _state_changed = True
         if managed_pos.trough_price == 0 or current_price < managed_pos.trough_price:
             managed_pos.trough_price = current_price
@@ -2457,6 +2599,7 @@ class AutoTradingEngine:
         logger.info("Trading loop started")
 
         last_scan_date = None
+        consecutive_errors = 0  # v4.7 Fix #13: Circuit breaker counter
 
         while self.running:
             try:
@@ -2542,12 +2685,28 @@ class AutoTradingEngine:
                 self.state = TradingState.MONITORING
                 self.monitor_positions()
 
+                # v4.7 Fix #15: Write heartbeat
+                self._write_heartbeat()
+
                 # Wait for next interval
                 time.sleep(self.MONITOR_INTERVAL_SECONDS)
+
+                # v4.7: Reset error counter on successful cycle
+                consecutive_errors = 0
 
             except Exception as e:
                 logger.error(f"Loop error: {e}")
                 self.state = TradingState.ERROR
+                consecutive_errors += 1
+
+                # v4.7 Fix #13: Circuit breaker
+                if consecutive_errors >= self.CIRCUIT_BREAKER_MAX_ERRORS:
+                    logger.critical(f"🚨 CIRCUIT BREAKER: {consecutive_errors} consecutive errors — EMERGENCY STOP")
+                    self.alerts.alert_circuit_breaker(consecutive_errors)
+                    self.running = False
+                    self.state = TradingState.STOPPED
+                    break
+
                 time.sleep(30)
 
         # Generate daily summary on stop
@@ -2556,6 +2715,29 @@ class AutoTradingEngine:
     # =========================================================================
     # STATUS & INFO
     # =========================================================================
+
+    def _write_heartbeat(self):
+        """v4.7 Fix #15: Write heartbeat file for external watchdog monitoring"""
+        try:
+            heartbeat_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                'data', 'heartbeat.json'
+            )
+            os.makedirs(os.path.dirname(heartbeat_path), exist_ok=True)
+
+            heartbeat = {
+                'timestamp': datetime.now().isoformat(),
+                'state': self.state.value,
+                'positions': len(self.positions),
+                'running': self.running,
+            }
+            # Atomic write
+            tmp_path = heartbeat_path + '.tmp'
+            with open(tmp_path, 'w') as f:
+                json.dump(heartbeat, f)
+            os.replace(tmp_path, heartbeat_path)
+        except Exception as e:
+            logger.debug(f"Heartbeat write error: {e}")
 
     def get_status(self) -> Dict:
         """Get current engine status"""
@@ -2567,6 +2749,17 @@ class AutoTradingEngine:
 
         # v4.5: Get low risk mode status
         is_low_risk, low_risk_reason = self._is_low_risk_mode()
+
+        # v4.7 Fix #12: Sector exposure breakdown
+        sector_counts = {}
+        for sym, pos in list(self.positions.items()):
+            sect = getattr(pos, 'sector', 'Unknown') or 'Unknown'
+            sector_counts[sect] = sector_counts.get(sect, 0) + 1
+        total_pos = len(self.positions) or 1
+        sector_exposure = {
+            sect: {'count': cnt, 'pct': round(cnt / total_pos * 100, 1)}
+            for sect, cnt in sector_counts.items()
+        }
 
         return {
             'state': self.state.value,
@@ -2581,10 +2774,12 @@ class AutoTradingEngine:
             'cash': account['cash'],
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v4.5 Low Risk Mode',  # v4.5
+            'version': 'v4.7 Critical Fixes',
             # v4.1: Queue status
             'queue_size': len(self.signal_queue),
             'queue': self.get_queue_status(),
+            # v4.7: Sector exposure
+            'sector_exposure': sector_exposure,
         }
 
     def get_positions_status(self) -> List[Dict]:
@@ -2621,9 +2816,12 @@ def test_engine():
     print("AUTO TRADING ENGINE v4.0 - Smart Regime Edition")
     print("=" * 60)
 
-    # Credentials
-    API_KEY = "PK45CDQEE2WO7I7N4BH762VSMK"
-    SECRET_KEY = "DFDhSeYmnsxS2YpyAZLX1MLm9ndfmYr9XaUEiyn78SH1"
+    # Credentials from environment
+    API_KEY = os.environ.get('ALPACA_API_KEY')
+    SECRET_KEY = os.environ.get('ALPACA_SECRET_KEY')
+    if not API_KEY or not SECRET_KEY:
+        print("ERROR: Set ALPACA_API_KEY and ALPACA_SECRET_KEY environment variables")
+        return
 
     engine = AutoTradingEngine(
         api_key=API_KEY,

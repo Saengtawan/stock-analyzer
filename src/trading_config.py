@@ -12,6 +12,7 @@ Usage:
 """
 
 import os
+import threading
 from typing import Dict, Any, Optional
 from loguru import logger
 
@@ -29,6 +30,7 @@ _CONFIG_PATH = os.path.join(
 
 _cached_config: Optional[Dict[str, Any]] = None
 _cached_mtime: float = 0.0
+_config_lock = threading.Lock()
 
 
 def load_config(path: Optional[str] = None) -> Dict[str, Any]:
@@ -50,22 +52,23 @@ def load_config(path: Optional[str] = None) -> Dict[str, Any]:
         logger.debug(f"Config file not found: {config_path}")
         return {}
 
-    try:
-        mtime = os.path.getmtime(config_path)
-        if _cached_config is not None and mtime == _cached_mtime:
-            return _cached_config
+    with _config_lock:
+        try:
+            mtime = os.path.getmtime(config_path)
+            if _cached_config is not None and mtime == _cached_mtime:
+                return _cached_config
 
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f) or {}
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f) or {}
 
-        _cached_config = config
-        _cached_mtime = mtime
-        logger.info(f"Config loaded: {config_path} ({len(config)} params)")
-        return config
+            _cached_config = config
+            _cached_mtime = mtime
+            logger.info(f"Config loaded: {config_path} ({len(config)} params)")
+            return config
 
-    except Exception as e:
-        logger.error(f"Failed to load config: {e}")
-        return _cached_config or {}
+        except Exception as e:
+            logger.error(f"Failed to load config: {e}")
+            return _cached_config or {}
 
 
 def apply_config(engine, config: Optional[Dict[str, Any]] = None):
