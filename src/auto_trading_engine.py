@@ -325,6 +325,17 @@ class AutoTradingEngine:
     MARKET_OPEN_SCAN_DELAY = 5      # รอ 5 นาทีหลังตลาดเปิดก่อน scan (09:35 ET)
     MARKET_OPEN_SCAN_WINDOW = 20    # นาที - ถ้าเริ่มหลัง 09:50 ET → skip scan
 
+    # Mid-Day Rescan (v4.9 NEW!)
+    # ถ้ายังมี slot ว่าง → rescan อีกครั้งตอนกลางวัน
+    MIDDAY_RESCAN_ENABLED = True
+    MIDDAY_RESCAN_HOUR = 11         # Rescan ตอน 11:00 ET
+    MIDDAY_RESCAN_MINUTE = 0
+
+    # Earnings Auto-Sell (v4.9 NEW!)
+    # ถ้าถือหุ้นที่มี earnings วันนี้/พรุ่งนี้ → ขายก่อน close อัตโนมัติ
+    EARNINGS_AUTO_SELL = True
+    EARNINGS_AUTO_SELL_BUFFER_MIN = 30  # ขายอย่างน้อย 30 นาทีก่อนปิด
+
     # Market Regime Filter (v4.0 NEW!)
     # Rule: SPY > SMA20 = Bull → Trade, SPY < SMA20 = Bear → Skip
     REGIME_FILTER_ENABLED = True
@@ -2190,15 +2201,17 @@ class AutoTradingEngine:
         if not self.positions:
             return
 
-        # Initialize dedup set if not exists, reset on new day
-        today_str = datetime.now(self.et_tz).strftime('%Y-%m-%d')
-        if not hasattr(self, '_earnings_alerted') or not hasattr(self, '_earnings_alert_date') or self._earnings_alert_date != today_str:
-            self._earnings_alerted = set()
-            self._earnings_alert_date = today_str
+        # Cooldown-based dedup: alert at most once per 1 minute per symbol
+        ALERT_COOLDOWN_SEC = 60  # 1 minute
+        if not hasattr(self, '_earnings_alert_times'):
+            self._earnings_alert_times = {}  # symbol → last alert timestamp
+
+        now_ts = time.time()
 
         for symbol in list(self.positions.keys()):
-            if symbol in self._earnings_alerted:
-                continue  # Already alerted today
+            last_alert = self._earnings_alert_times.get(symbol, 0)
+            if now_ts - last_alert < ALERT_COOLDOWN_SEC:
+                continue  # Still in cooldown
 
             try:
                 ticker = yf.Ticker(symbol)
@@ -2227,7 +2240,7 @@ class AutoTradingEngine:
                                     reason = f"EARNINGS {'TODAY' if days_until == 0 else 'TOMORROW'} ({earnings_date})"
                                     logger.warning(f"EARNINGS ALERT: {symbol} — {reason} — consider exiting before close")
                                     self.alerts.alert_earnings_warning(symbol, reason)
-                                    self._earnings_alerted.add(symbol)
+                                    self._earnings_alert_times[symbol] = now_ts
                 except Exception:
                     pass
             except Exception as e:
@@ -2830,6 +2843,37 @@ class AutoTradingEngine:
                 logger.info(f"Closing {symbol} - held {managed_pos.days_held} days")
                 self._close_position(symbol, managed_pos, "MAX_HOLD_DAYS")
 
+        # v4.9: Auto-sell positions with earnings TODAY/TOMORROW before close
+        if self.EARNINGS_AUTO_SELL:
+            for symbol, managed_pos in list(self.positions.items()):
+                try:
+                    ticker = yf.Ticker(symbol)
+                    calendar = ticker.calendar
+                    if calendar is not None and isinstance(calendar, dict):
+                        earnings_date = calendar.get('Earnings Date')
+                        if earnings_date:
+                            if isinstance(earnings_date, list) and len(earnings_date) > 0:
+                                earnings_date = earnings_date[0]
+                            if earnings_date:
+                                from datetime import date as date_type
+                                if isinstance(earnings_date, str):
+                                    earnings_date = pd.to_datetime(earnings_date).date()
+                                elif isinstance(earnings_date, datetime):
+                                    earnings_date = earnings_date.date()
+                                elif not isinstance(earnings_date, date_type):
+                                    earnings_date = pd.to_datetime(earnings_date).date()
+
+                                days_until = (earnings_date - datetime.now().date()).days
+                                if 0 <= days_until <= 1:
+                                    days_held = self.pdt_guard.get_days_held(symbol)
+                                    if days_held >= 1:
+                                        logger.warning(f"EARNINGS AUTO-SELL: {symbol} — earnings in {days_until} day(s), closing position")
+                                        self._close_position(symbol, managed_pos, f"EARNINGS_AUTO_SELL_{earnings_date}")
+                                    else:
+                                        logger.warning(f"EARNINGS: {symbol} Day 0, cannot sell (PDT) — place tight SL instead")
+                except Exception as e:
+                    logger.debug(f"Earnings auto-sell check error for {symbol}: {e}")
+
         # v4.9: Place overnight SL for Day 0 positions near close
         for symbol, managed_pos in list(self.positions.items()):
             try:
@@ -3001,6 +3045,25 @@ class AutoTradingEngine:
                                 self._add_to_queue(signal)
 
                     last_scan_date = today
+
+                # v4.9: Mid-day rescan — fill empty slots with fresh signals
+                if self.MIDDAY_RESCAN_ENABLED and last_scan_date == today:
+                    et_now = self._get_et_time()
+                    midday_time = et_now.replace(
+                        hour=self.MIDDAY_RESCAN_HOUR,
+                        minute=self.MIDDAY_RESCAN_MINUTE,
+                        second=0, microsecond=0
+                    )
+                    if not hasattr(self, '_midday_rescan_done') or self._midday_rescan_done != today:
+                        if et_now >= midday_time and len(self.positions) < self.MAX_POSITIONS:
+                            logger.info(f"Mid-day rescan: {len(self.positions)}/{self.MAX_POSITIONS} positions, scanning for more...")
+                            self._midday_rescan_done = today
+                            is_bull, _ = self._check_market_regime()
+                            if is_bull and not self.check_daily_loss_limit() and not self.check_weekly_loss_limit():
+                                signals = self.scan_for_signals()
+                                for signal in signals:
+                                    if len(self.positions) < self.MAX_POSITIONS:
+                                        self.execute_signal(signal)
 
                 # Pre-close check
                 if self._is_pre_close():
