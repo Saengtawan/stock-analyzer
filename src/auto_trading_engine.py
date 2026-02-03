@@ -2185,12 +2185,21 @@ class AutoTradingEngine:
         """
         v4.9: Check if any held position has earnings TODAY or TOMORROW.
         Alert user to consider exiting before close.
-        (Separate logic from buy filter — different timeframe)
+        Dedup: only alert once per symbol per day.
         """
         if not self.positions:
             return
 
+        # Initialize dedup set if not exists, reset on new day
+        today_str = datetime.now(self.et_tz).strftime('%Y-%m-%d')
+        if not hasattr(self, '_earnings_alerted') or not hasattr(self, '_earnings_alert_date') or self._earnings_alert_date != today_str:
+            self._earnings_alerted = set()
+            self._earnings_alert_date = today_str
+
         for symbol in list(self.positions.keys()):
+            if symbol in self._earnings_alerted:
+                continue  # Already alerted today
+
             try:
                 ticker = yf.Ticker(symbol)
                 now = datetime.now()
@@ -2218,6 +2227,7 @@ class AutoTradingEngine:
                                     reason = f"EARNINGS {'TODAY' if days_until == 0 else 'TOMORROW'} ({earnings_date})"
                                     logger.warning(f"EARNINGS ALERT: {symbol} — {reason} — consider exiting before close")
                                     self.alerts.alert_earnings_warning(symbol, reason)
+                                    self._earnings_alerted.add(symbol)
                 except Exception:
                     pass
             except Exception as e:
@@ -2273,7 +2283,9 @@ class AutoTradingEngine:
                             managed_pos.trough_price = round(managed_pos.trough_price / split_ratio, 2)
                         logger.critical(f"  New: qty={managed_pos.qty}, entry=${managed_pos.entry_price:.2f}, SL=${managed_pos.current_sl_price:.2f}")
                         try:
-                            self.alerts.alert_circuit_breaker(f"STOCK SPLIT: {symbol}")
+                            self.alerts.add('CRITICAL', f'Stock Split: {symbol}',
+                                            f'{symbol} split detected (ratio {split_ratio:.1f}x) — position adjusted',
+                                            category='risk', symbol=symbol)
                         except Exception:
                             pass
                         self._save_positions_state()
