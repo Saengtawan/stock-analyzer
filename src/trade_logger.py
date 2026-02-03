@@ -18,6 +18,7 @@ Version: 1.0
 import os
 import json
 import sqlite3
+import tempfile
 import uuid
 from datetime import datetime, date, timedelta
 from dataclasses import dataclass, asdict, field
@@ -235,12 +236,21 @@ class TradeLogger:
             self._today_logs = []
 
     def _save_today_logs(self):
-        """Save today's logs to JSON file"""
+        """Save today's logs to JSON file (atomic write)"""
         filepath = self._get_today_file()
         try:
             data = [asdict(entry) for entry in self._today_logs]
-            with open(filepath, 'w') as f:
-                json.dump(data, f, indent=2, default=str)
+            # Atomic write: temp file + rename (prevents corruption on crash)
+            dir_path = os.path.dirname(filepath)
+            fd, tmp_path = tempfile.mkstemp(dir=dir_path, suffix='.tmp')
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(data, f, indent=2, default=str)
+                os.replace(tmp_path, filepath)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
         except Exception as e:
             logger.error(f"Error saving today's logs: {e}")
 
@@ -471,32 +481,34 @@ class TradeLogger:
         """Archive entry to SQLite"""
         try:
             conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            try:
+                cursor = conn.cursor()
 
-            # Extract date from timestamp
-            dt = datetime.fromisoformat(entry.timestamp.replace('Z', '+00:00'))
-            trade_date = dt.strftime('%Y-%m-%d')
+                # Extract date from timestamp
+                dt = datetime.fromisoformat(entry.timestamp.replace('Z', '+00:00'))
+                trade_date = dt.strftime('%Y-%m-%d')
 
-            cursor.execute('''
-                INSERT OR REPLACE INTO trades (
-                    id, timestamp, date, action, symbol, qty, price, reason,
-                    entry_price, pnl_usd, pnl_pct, hold_duration,
-                    pdt_used, pdt_remaining, day_held, mode,
-                    regime, spy_price, signal_score, gap_pct, atr_pct,
-                    from_queue, version, source, full_data
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                entry.id, entry.timestamp, trade_date, entry.action,
-                entry.symbol, entry.qty, entry.price, entry.reason,
-                entry.entry_price, entry.pnl_usd, entry.pnl_pct, entry.hold_duration,
-                1 if entry.pdt_used else 0, entry.pdt_remaining, entry.day_held, entry.mode,
-                entry.regime, entry.spy_price, entry.signal_score, entry.gap_pct, entry.atr_pct,
-                1 if entry.from_queue else 0, entry.version, entry.source,
-                json.dumps(asdict(entry), default=str)
-            ))
+                cursor.execute('''
+                    INSERT OR REPLACE INTO trades (
+                        id, timestamp, date, action, symbol, qty, price, reason,
+                        entry_price, pnl_usd, pnl_pct, hold_duration,
+                        pdt_used, pdt_remaining, day_held, mode,
+                        regime, spy_price, signal_score, gap_pct, atr_pct,
+                        from_queue, version, source, full_data
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    entry.id, entry.timestamp, trade_date, entry.action,
+                    entry.symbol, entry.qty, entry.price, entry.reason,
+                    entry.entry_price, entry.pnl_usd, entry.pnl_pct, entry.hold_duration,
+                    1 if entry.pdt_used else 0, entry.pdt_remaining, entry.day_held, entry.mode,
+                    entry.regime, entry.spy_price, entry.signal_score, entry.gap_pct, entry.atr_pct,
+                    1 if entry.from_queue else 0, entry.version, entry.source,
+                    json.dumps(asdict(entry), default=str)
+                ))
 
-            conn.commit()
-            conn.close()
+                conn.commit()
+            finally:
+                conn.close()
         except Exception as e:
             logger.error(f"Error archiving to DB: {e}")
 

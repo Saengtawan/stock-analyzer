@@ -963,7 +963,7 @@ class AutoTradingEngine:
 
         # Check cooldown
         if tracker.get('cooldown_until'):
-            today = datetime.now().date()
+            today = datetime.now(self.et_tz).date()
             if today <= tracker['cooldown_until']:
                 return False, f"{sector} cooldown until {tracker['cooldown_until']} ({tracker['losses']} consecutive losses)"
             else:
@@ -991,8 +991,7 @@ class AutoTradingEngine:
             logger.info(f"📉 {sector} consecutive losses: {tracker['losses']}/{self.MAX_SECTOR_CONSECUTIVE_LOSS}")
 
             if tracker['losses'] >= self.MAX_SECTOR_CONSECUTIVE_LOSS:
-                from datetime import timedelta
-                tracker['cooldown_until'] = datetime.now().date() + timedelta(days=self.SECTOR_COOLDOWN_DAYS)
+                tracker['cooldown_until'] = datetime.now(self.et_tz).date() + timedelta(days=self.SECTOR_COOLDOWN_DAYS)
                 logger.warning(f"🧊 {sector} cooldown {self.SECTOR_COOLDOWN_DAYS} days → until {tracker['cooldown_until']}")
 
     # =========================================================================
@@ -1702,7 +1701,7 @@ class AutoTradingEngine:
             # Trade Log: Log BUY
             try:
                 pdt_status = self.pdt_guard.get_pdt_status()
-                regime_ok, regime_reason, _ = self._check_regime()
+                regime_ok, regime_reason = self._check_market_regime()
 
                 # Get analysis data for future filter decisions
                 analysis = self._get_analysis_data(symbol)
@@ -1781,6 +1780,18 @@ class AutoTradingEngine:
                 self._check_position(symbol, managed_pos)
             except Exception as e:
                 logger.error(f"Error monitoring {symbol}: {e}")
+
+        # Detect orphan positions (at Alpaca but not tracked by engine)
+        try:
+            alpaca_positions = self.trader.get_positions()
+            alpaca_symbols = {p.symbol for p in alpaca_positions}
+            engine_symbols = set(self.positions.keys())
+
+            orphans = alpaca_symbols - engine_symbols
+            if orphans:
+                logger.warning(f"⚠️ ORPHAN POSITIONS at Alpaca not tracked by engine: {', '.join(sorted(orphans))}")
+        except Exception as e:
+            logger.debug(f"Orphan check error: {e}")
 
     def _check_position(self, symbol: str, managed_pos: ManagedPosition):
         """
@@ -1972,73 +1983,82 @@ class AutoTradingEngine:
             actual_qty = int(alpaca_pos.qty)
             sell_order = self.trader.place_market_sell(symbol, actual_qty)
 
-            # Wait for fill
-            time.sleep(2)
-            order = self.trader.get_order(sell_order.id)
+            # Wait for fill with retry (max 10 seconds)
+            order = None
+            for _wait in range(10):
+                time.sleep(1)
+                order = self.trader.get_order(sell_order.id)
+                if order.status == 'filled':
+                    break
 
-            if order.status == 'filled':
-                exit_price = order.filled_avg_price
-                pnl_pct = ((exit_price - managed_pos.entry_price) / managed_pos.entry_price) * 100
-                pnl_usd = (exit_price - managed_pos.entry_price) * managed_pos.qty
+            if not order or order.status != 'filled':
+                # CRITICAL: Sell order NOT filled — keep position in tracking
+                logger.error(f"CRITICAL: {symbol} sell NOT filled (status={order.status if order else 'unknown'}), keeping in tracking")
+                logger.error(f"  Sell order {sell_order.id} may still be pending at Alpaca — will retry next monitor cycle")
+                return
 
-                logger.info(f"✅ Closed {symbol}: {pnl_pct:+.2f}% (${pnl_usd:+.2f}) - {reason}")
+            exit_price = order.filled_avg_price
+            pnl_pct = ((exit_price - managed_pos.entry_price) / managed_pos.entry_price) * 100
+            pnl_usd = (exit_price - managed_pos.entry_price) * actual_qty
 
-                # Update stats
-                self.daily_stats.realized_pnl += pnl_usd
-                self.weekly_realized_pnl += pnl_usd  # v4.7: Weekly tracking
-                if pnl_pct > 0:
-                    self.daily_stats.trades_won += 1
-                else:
-                    self.daily_stats.trades_lost += 1
+            logger.info(f"✅ Closed {symbol}: {pnl_pct:+.2f}% (${pnl_usd:+.2f}) - {reason}")
 
-                # v4.7: Track consecutive losses + cooldown
-                self._record_trade_result(pnl_pct)
-                self._record_sector_trade_result(managed_pos.sector, pnl_pct)
+            # Update stats
+            self.daily_stats.realized_pnl += pnl_usd
+            self.weekly_realized_pnl += pnl_usd  # v4.7: Weekly tracking
+            if pnl_pct > 0:
+                self.daily_stats.trades_won += 1
+            else:
+                self.daily_stats.trades_lost += 1
 
-                # Trade Log: Log SELL
-                try:
-                    days_held = self.pdt_guard.get_days_held(symbol)
-                    pdt_status = self.pdt_guard.get_pdt_status()
-                    pdt_used = days_held == 0  # Day 0 sell = PDT used
+            # v4.7: Track consecutive losses + cooldown
+            self._record_trade_result(pnl_pct)
+            self._record_sector_trade_result(managed_pos.sector, pnl_pct)
 
-                    # Calculate hold duration
-                    entry_time = managed_pos.entry_time
-                    hold_delta = datetime.now() - entry_time
-                    hold_hours = int(hold_delta.total_seconds() / 3600)
-                    hold_minutes = int((hold_delta.total_seconds() % 3600) / 60)
-                    hold_duration = f"{hold_hours}h {hold_minutes}m" if hold_hours > 0 else f"{hold_minutes}m"
+            # Trade Log: Log SELL
+            try:
+                days_held = self.pdt_guard.get_days_held(symbol)
+                pdt_status = self.pdt_guard.get_pdt_status()
+                pdt_used = days_held == 0  # Day 0 sell = PDT used
 
-                    # Calculate price action metrics
-                    max_gain = ((managed_pos.peak_price - managed_pos.entry_price) / managed_pos.entry_price) * 100 if managed_pos.peak_price > managed_pos.entry_price else 0
-                    max_dd = ((managed_pos.trough_price - managed_pos.entry_price) / managed_pos.entry_price) * 100 if managed_pos.trough_price > 0 and managed_pos.trough_price < managed_pos.entry_price else 0
-                    exit_eff = round(pnl_pct / max_gain * 100, 1) if max_gain > 0 else (0 if pnl_pct <= 0 else 100)
+                # Calculate hold duration
+                entry_time = managed_pos.entry_time
+                hold_delta = datetime.now() - entry_time
+                hold_hours = int(hold_delta.total_seconds() / 3600)
+                hold_minutes = int((hold_delta.total_seconds() % 3600) / 60)
+                hold_duration = f"{hold_hours}h {hold_minutes}m" if hold_hours > 0 else f"{hold_minutes}m"
 
-                    self.trade_logger.log_sell(
-                        symbol=symbol,
-                        qty=managed_pos.qty,
-                        price=exit_price,
-                        reason=reason,
-                        entry_price=managed_pos.entry_price,
-                        pnl_usd=pnl_usd,
-                        pnl_pct=pnl_pct,
-                        hold_duration=hold_duration,
-                        pdt_used=pdt_used,
-                        pdt_remaining=pdt_status.remaining - (1 if pdt_used else 0),
-                        day_held=days_held,
-                        sl_price=managed_pos.current_sl_price,
-                        trail_active=managed_pos.trailing_active,
-                        peak_price=managed_pos.peak_price,
-                        order_id=order.id,
-                        # Price action (v4.8)
-                        trough_price=managed_pos.trough_price if managed_pos.trough_price > 0 else None,
-                        max_gain_pct=round(max_gain, 2),
-                        max_drawdown_pct=round(max_dd, 2),
-                        exit_efficiency=exit_eff,
-                    )
-                except Exception as log_err:
-                    logger.warning(f"Trade log error: {log_err}")
+                # Calculate price action metrics
+                max_gain = ((managed_pos.peak_price - managed_pos.entry_price) / managed_pos.entry_price) * 100 if managed_pos.peak_price > managed_pos.entry_price else 0
+                max_dd = ((managed_pos.trough_price - managed_pos.entry_price) / managed_pos.entry_price) * 100 if managed_pos.trough_price > 0 and managed_pos.trough_price < managed_pos.entry_price else 0
+                exit_eff = round(pnl_pct / max_gain * 100, 1) if max_gain > 0 else (0 if pnl_pct <= 0 else 100)
 
-            # Remove from managed positions and PDT guard
+                self.trade_logger.log_sell(
+                    symbol=symbol,
+                    qty=actual_qty,
+                    price=exit_price,
+                    reason=reason,
+                    entry_price=managed_pos.entry_price,
+                    pnl_usd=pnl_usd,
+                    pnl_pct=pnl_pct,
+                    hold_duration=hold_duration,
+                    pdt_used=pdt_used,
+                    pdt_remaining=pdt_status.remaining - (1 if pdt_used else 0),
+                    day_held=days_held,
+                    sl_price=managed_pos.current_sl_price,
+                    trail_active=managed_pos.trailing_active,
+                    peak_price=managed_pos.peak_price,
+                    order_id=order.id,
+                    # Price action (v4.8)
+                    trough_price=managed_pos.trough_price if managed_pos.trough_price > 0 else None,
+                    max_gain_pct=round(max_gain, 2),
+                    max_drawdown_pct=round(max_dd, 2),
+                    exit_efficiency=exit_eff,
+                )
+            except Exception as log_err:
+                logger.warning(f"Trade log error: {log_err}")
+
+            # Remove from managed positions and PDT guard (only after confirmed fill)
             if symbol in self.positions:
                 del self.positions[symbol]
                 self._save_positions_state()
@@ -2096,7 +2116,7 @@ class AutoTradingEngine:
         Check if weekly loss limit exceeded.
         Reset ทุกวันจันทร์ (start of trading week)
         """
-        today = datetime.now().date()
+        today = datetime.now(self.et_tz).date()
 
         # Reset on Monday
         if today.weekday() == 0 and self.weekly_reset_date != today:
@@ -2123,7 +2143,7 @@ class AutoTradingEngine:
         แพ้ 3 ครั้งติด → หยุด 1 วัน
         """
         if self.cooldown_until:
-            today = datetime.now().date()
+            today = datetime.now(self.et_tz).date()
             if today <= self.cooldown_until:
                 logger.warning(f"🧊 Cooldown active: {self.consecutive_losses} consecutive losses (until {self.cooldown_until})")
                 return True
@@ -2146,8 +2166,7 @@ class AutoTradingEngine:
             logger.info(f"📉 Consecutive losses: {self.consecutive_losses}/{self.MAX_CONSECUTIVE_LOSSES}")
 
             if self.consecutive_losses >= self.MAX_CONSECUTIVE_LOSSES:
-                from datetime import timedelta
-                self.cooldown_until = datetime.now().date() + timedelta(days=1)
+                self.cooldown_until = datetime.now(self.et_tz).date() + timedelta(days=1)
                 logger.warning(f"🧊 {self.consecutive_losses} consecutive losses → cooldown until {self.cooldown_until}")
 
     def pre_close_check(self):

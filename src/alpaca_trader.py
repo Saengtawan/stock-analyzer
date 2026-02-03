@@ -614,7 +614,14 @@ class AlpacaTrader:
             if buy_order.status != 'filled':
                 logger.warning(f"Buy order not filled after wait, cancelling")
                 self.cancel_order(buy_order.id)
-                return None, None
+                time.sleep(0.5)
+                # Re-check: order may have filled between status check and cancel
+                final_check = self.get_order(buy_order.id)
+                if final_check.status == 'filled':
+                    logger.info(f"Order filled during cancel — proceeding with SL")
+                    buy_order = final_check
+                else:
+                    return None, None
 
             fill_price = buy_order.filled_avg_price
             logger.info(f"Buy filled: {symbol} x{qty} @ ${fill_price:.2f}")
@@ -631,7 +638,17 @@ class AlpacaTrader:
             except Exception as e:
                 # CRITICAL: SL failed - must sell immediately
                 logger.error(f"SL FAILED - selling position immediately: {e}")
-                self.place_market_sell(symbol, qty)
+                emergency_sell = self.place_market_sell(symbol, qty)
+                # Verify emergency sell fills
+                if emergency_sell:
+                    for _retry in range(5):
+                        time.sleep(1)
+                        check = self.get_order(emergency_sell.id)
+                        if check.status == 'filled':
+                            logger.info(f"Emergency sell filled for {symbol}")
+                            break
+                    else:
+                        logger.error(f"CRITICAL: Emergency sell NOT filled for {symbol} — manual intervention needed!")
                 return buy_order, None
 
         except Exception as e:
