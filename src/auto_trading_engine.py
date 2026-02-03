@@ -226,7 +226,11 @@ class AutoTradingEngine:
 
     # Trading parameters (v4.6 - ATR-based SL/TP)
     MAX_POSITIONS = 3           # v4.0: 2 → 3
-    POSITION_SIZE_PCT = 30      # v4.7: 45 → 30 ($1,200/ตัว, 3×30%=90%, buffer 10%)
+    POSITION_SIZE_PCT = 30      # Fallback: fixed 30% (used when risk-parity disabled)
+    # v4.9: Risk-parity position sizing
+    RISK_PARITY_ENABLED = True
+    RISK_BUDGET_PCT = 1.0       # Max risk per position = 1% of account
+    MAX_POSITION_PCT = 40       # Cap: never exceed 40% in one position
 
     # v4.6: ATR-based SL/TP (replaces fixed SL/TP)
     SL_ATR_MULTIPLIER = 1.5     # SL = 1.5 × ATR%
@@ -235,6 +239,7 @@ class AutoTradingEngine:
     TP_ATR_MULTIPLIER = 3.0     # TP = 3 × ATR%
     TP_MIN_PCT = 4.0            # Floor: at least 4% TP
     TP_MAX_PCT = 8.0            # Cap: max 8% TP
+    TARGET_RR = 2.0             # v4.9: Target R:R ratio (TP = SL * TARGET_RR)
     # PDT TP = SL% (dynamic, R:R 1:1 minimum for Day 0)
 
     # Fallback fixed values (when ATR not available)
@@ -321,6 +326,10 @@ class AutoTradingEngine:
     # Rule: SPY > SMA20 = Bull → Trade, SPY < SMA20 = Bear → Skip
     REGIME_FILTER_ENABLED = True
     REGIME_SMA_PERIOD = 20
+    # v4.9: Enhanced regime checks
+    REGIME_RSI_MIN = 40          # SPY RSI > 40 required
+    REGIME_RETURN_5D_MIN = -2.0  # SPY 5-day return > -2%
+    REGIME_VIX_MAX = 30.0        # VIX < 30 required
     # Backtest results: This single filter achieves target!
     # - WR: 48% → 49%
     # - DD: 12.6% → 8.9% ✅
@@ -377,6 +386,18 @@ class AutoTradingEngine:
         self.trade_logger = get_trade_logger()
         logger.info("Trade Logger v1.0 initialized")
 
+        # Alert Manager v1.0
+        from alert_manager import get_alert_manager
+        self.alerts = get_alert_manager()
+        logger.info("Alert Manager v1.0 initialized")
+
+        # v4.9: Load config from YAML (overrides class constants)
+        try:
+            from trading_config import apply_config
+            apply_config(self)
+        except Exception as e:
+            logger.warning(f"Config load skipped: {e}")
+
         # Screener
         self.screener = None
         if SCREENER_AVAILABLE:
@@ -389,6 +410,7 @@ class AutoTradingEngine:
         # State
         self.state = TradingState.SLEEPING
         self.positions: Dict[str, ManagedPosition] = {}
+        self._positions_lock = threading.Lock()  # v4.9: Thread safety for positions dict
         self.daily_stats = DailyStats(date=datetime.now().strftime('%Y-%m-%d'))
         self.running = False
         self.monitor_thread = None
@@ -416,9 +438,13 @@ class AutoTradingEngine:
         self._state_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
         os.makedirs(self._state_dir, exist_ok=True)
         self._state_file = os.path.join(self._state_dir, 'active_positions.json')
+        self._queue_file = os.path.join(self._state_dir, 'signal_queue.json')
 
         # Load existing positions from Alpaca + persisted state
         self._sync_positions()
+
+        # Load persisted signal queue
+        self._load_queue_state()
 
         logger.info(f"AutoTradingEngine initialized (paper={paper})")
 
@@ -502,6 +528,83 @@ class AutoTradingEngine:
         except Exception as e:
             logger.error(f"Failed to load position state: {e}")
             return {}
+
+    # =========================================================================
+    # QUEUE STATE PERSISTENCE
+    # =========================================================================
+
+    def _save_queue_state(self):
+        """Persist signal queue to JSON file (atomic write)."""
+        try:
+            entries = []
+            for q in self.signal_queue:
+                entries.append({
+                    'symbol': q.symbol,
+                    'signal_price': q.signal_price,
+                    'score': q.score,
+                    'stop_loss': q.stop_loss,
+                    'take_profit': q.take_profit,
+                    'queued_at': q.queued_at.isoformat(),
+                    'reasons': q.reasons,
+                    'atr_pct': q.atr_pct,
+                })
+
+            data = {
+                'saved_at': datetime.now().isoformat(),
+                'count': len(entries),
+                'queue': entries,
+            }
+
+            fd, tmp_path = tempfile.mkstemp(dir=self._state_dir, suffix='.tmp')
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(data, f, indent=2, default=str)
+                os.replace(tmp_path, self._queue_file)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
+
+            logger.debug(f"Queue state saved: {len(entries)} signals")
+
+        except Exception as e:
+            logger.error(f"Failed to save queue state: {e}")
+
+    def _load_queue_state(self):
+        """Load persisted signal queue from JSON file on startup."""
+        try:
+            if not os.path.exists(self._queue_file):
+                return
+
+            with open(self._queue_file, 'r') as f:
+                data = json.load(f)
+
+            entries = data.get('queue', [])
+            loaded = 0
+            for entry in entries:
+                try:
+                    queued = QueuedSignal(
+                        symbol=entry['symbol'],
+                        signal_price=entry['signal_price'],
+                        score=entry['score'],
+                        stop_loss=entry['stop_loss'],
+                        take_profit=entry['take_profit'],
+                        queued_at=datetime.fromisoformat(entry['queued_at']),
+                        reasons=entry.get('reasons', []),
+                        atr_pct=entry.get('atr_pct', 5.0),
+                    )
+                    # Skip if already holding this symbol
+                    if queued.symbol not in self.positions:
+                        self.signal_queue.append(queued)
+                        loaded += 1
+                except (KeyError, ValueError) as e:
+                    logger.warning(f"Skipping invalid queue entry: {e}")
+
+            if loaded:
+                logger.info(f"Loaded persisted queue: {loaded} signals (saved at {data.get('saved_at', 'unknown')})")
+
+        except Exception as e:
+            logger.error(f"Failed to load queue state: {e}")
 
     # =========================================================================
     # POSITION SYNC
@@ -649,8 +752,11 @@ class AutoTradingEngine:
         """
         Check if market is in Bull regime (OK to trade)
 
-        Rule: SPY > SMA20 = Bull → Trade
-              SPY < SMA20 = Bear → Skip all new entries
+        v4.9 Enhanced Regime Filter — must pass ALL:
+          1. SPY > SMA20 (trend)
+          2. SPY RSI(14) > 40 (momentum not oversold crash)
+          3. SPY Return 5d > -2% (no recent crash)
+          4. VIX < 30 (fear gauge)
 
         Returns:
             (is_bull, reason)
@@ -670,17 +776,15 @@ class AutoTradingEngine:
                 return is_bull, reason
 
         try:
-            # Download SPY data (last 30 days is enough for SMA20)
-            spy = yf.download('SPY', period='30d', progress=False)
+            # Download SPY data (40 days for SMA20 + RSI14 look-back)
+            spy = yf.download('SPY', period='60d', progress=False)
 
             if spy.empty or len(spy) < self.REGIME_SMA_PERIOD:
                 logger.warning("Not enough SPY data for regime check")
                 return True, "Insufficient data"
 
-            # Get current price and SMA
+            # Get close prices (handle multi-index from yfinance)
             close = spy['Close']
-
-            # Handle multi-index columns from yfinance
             if hasattr(close, 'iloc'):
                 current_price = float(close.iloc[-1])
                 sma = float(close.iloc[-self.REGIME_SMA_PERIOD:].mean())
@@ -688,14 +792,52 @@ class AutoTradingEngine:
                 current_price = float(close[-1])
                 sma = float(close[-self.REGIME_SMA_PERIOD:].mean())
 
-            is_bull = current_price > sma
+            # --- Check 1: SPY > SMA20 ---
             pct_above = ((current_price / sma) - 1) * 100
+            sma_ok = current_price > sma
+
+            # --- Check 2: RSI(14) > 40 ---
+            rsi_val = self._calc_rsi(close, period=14)
+
+            # --- Check 3: Return 5d > -2% ---
+            if len(close) >= 6:
+                price_5d_ago = float(close.iloc[-6]) if hasattr(close, 'iloc') else float(close[-6])
+                return_5d = ((current_price / price_5d_ago) - 1) * 100
+            else:
+                return_5d = 0.0
+
+            # --- Check 4: VIX < 30 ---
+            vix_val = self._get_vix()
+
+            # Evaluate
+            rsi_ok = rsi_val > self.REGIME_RSI_MIN
+            ret5d_ok = return_5d > self.REGIME_RETURN_5D_MIN
+            vix_ok = vix_val < self.REGIME_VIX_MAX
+
+            is_bull = sma_ok and rsi_ok and ret5d_ok and vix_ok
+
+            # Build detailed reason
+            checks = []
+            checks.append(f"SMA{self.REGIME_SMA_PERIOD}={'OK' if sma_ok else 'FAIL'}({pct_above:+.1f}%)")
+            checks.append(f"RSI={'OK' if rsi_ok else 'FAIL'}({rsi_val:.0f})")
+            checks.append(f"Ret5d={'OK' if ret5d_ok else 'FAIL'}({return_5d:+.1f}%)")
+            checks.append(f"VIX={'OK' if vix_ok else 'FAIL'}({vix_val:.1f})")
+            check_str = " | ".join(checks)
 
             if is_bull:
-                reason = f"BULL: SPY ${current_price:.2f} > SMA{self.REGIME_SMA_PERIOD} ${sma:.2f} (+{pct_above:.1f}%)"
+                reason = f"BULL: {check_str}"
                 logger.info(f"✅ Market Regime: {reason}")
             else:
-                reason = f"BEAR: SPY ${current_price:.2f} < SMA{self.REGIME_SMA_PERIOD} ${sma:.2f} ({pct_above:.1f}%)"
+                failed = []
+                if not sma_ok:
+                    failed.append(f"SPY < SMA{self.REGIME_SMA_PERIOD}")
+                if not rsi_ok:
+                    failed.append(f"RSI {rsi_val:.0f} < {self.REGIME_RSI_MIN}")
+                if not ret5d_ok:
+                    failed.append(f"Ret5d {return_5d:+.1f}% < {self.REGIME_RETURN_5D_MIN}%")
+                if not vix_ok:
+                    failed.append(f"VIX {vix_val:.1f} > {self.REGIME_VIX_MAX}")
+                reason = f"BEAR: {', '.join(failed)} [{check_str}]"
                 logger.warning(f"⚠️ Market Regime: {reason} - SKIPPING NEW TRADES")
 
             # v4.2: Cache result
@@ -706,6 +848,39 @@ class AutoTradingEngine:
             logger.error(f"Regime check failed: {e}")
             # On error, allow trading (conservative fallback)
             return True, f"Error: {e}"
+
+    @staticmethod
+    def _calc_rsi(close_series, period: int = 14) -> float:
+        """Calculate RSI from a pandas Series of close prices."""
+        try:
+            if hasattr(close_series, 'iloc'):
+                deltas = close_series.diff()
+            else:
+                deltas = pd.Series(close_series).diff()
+
+            gains = deltas.clip(lower=0)
+            losses = (-deltas).clip(lower=0)
+
+            avg_gain = gains.rolling(window=period, min_periods=period).mean().iloc[-1]
+            avg_loss = losses.rolling(window=period, min_periods=period).mean().iloc[-1]
+
+            if avg_loss == 0:
+                return 100.0
+            rs = avg_gain / avg_loss
+            return 100 - (100 / (1 + rs))
+        except Exception:
+            return 50.0  # default neutral
+
+    def _get_vix(self) -> float:
+        """Fetch current VIX value. Returns 20.0 on error (neutral)."""
+        try:
+            vix = yf.download('^VIX', period='5d', progress=False)
+            if vix.empty:
+                return 20.0
+            close = vix['Close']
+            return float(close.iloc[-1]) if hasattr(close, 'iloc') else float(close[-1])
+        except Exception:
+            return 20.0
 
     # =========================================================================
     # LOW RISK MODE (v4.5 NEW!)
@@ -1068,11 +1243,13 @@ class AutoTradingEngine:
             sl_pct = self.STOP_LOSS_PCT
             tp_pct = self.TAKE_PROFIT_PCT
         else:
-            # Calculate and clamp
+            # Calculate SL and clamp
             sl_pct = self.SL_ATR_MULTIPLIER * atr_pct
             sl_pct = max(self.SL_MIN_PCT, min(sl_pct, self.SL_MAX_PCT))
 
-            tp_pct = self.TP_ATR_MULTIPLIER * atr_pct
+            # v4.9: TP = SL * TARGET_RR (maintains R:R at all volatility levels)
+            # Then clamp within [TP_MIN, TP_MAX]
+            tp_pct = sl_pct * self.TARGET_RR
             tp_pct = max(self.TP_MIN_PCT, min(tp_pct, self.TP_MAX_PCT))
 
         # Round
@@ -1290,6 +1467,7 @@ class AutoTradingEngine:
 
         self.signal_queue.append(queued)
         self.daily_stats.queue_added += 1
+        self._save_queue_state()
 
         logger.info(f"📋 Queue: Added {symbol} @ ${queued.signal_price:.2f} (score: {queued.score:.0f}, ATR: {queued.atr_pct:.1f}%)")
         return True
@@ -1322,6 +1500,7 @@ class AutoTradingEngine:
             # Skip if already have position now
             if symbol in self.positions:
                 self.signal_queue.remove(queued)
+                self._save_queue_state()
                 continue
 
             # Get current price
@@ -1352,10 +1531,12 @@ class AutoTradingEngine:
                 if acceptable:
                     logger.info(f"✅ Queue: {fresh_tag} {symbol} price OK - ${queued.signal_price:.2f} → ${current_price:.2f} ({deviation:+.1f}% <= {max_allowed:.1f}%) [age: {age_min:.0f}min]")
                     self.signal_queue.remove(queued)
+                    self._save_queue_state()
                     return queued
                 else:
                     logger.warning(f"❌ Queue: {fresh_tag} {symbol} price moved - ${queued.signal_price:.2f} → ${current_price:.2f} ({deviation:+.1f}% > {max_allowed:.1f}%) [age: {age_min:.0f}min]")
                     self.signal_queue.remove(queued)
+                    self._save_queue_state()
                     self.daily_stats.queue_expired += 1
 
             except Exception as e:
@@ -1407,6 +1588,7 @@ class AutoTradingEngine:
             expired_count = len(self.signal_queue)
             symbols = [q.symbol for q in self.signal_queue]
             self.signal_queue.clear()
+            self._save_queue_state()
             self.daily_stats.queue_expired += expired_count
             logger.info(f"📋 Queue: Cleared {expired_count} signals at EOD: {symbols}")
 
@@ -1610,18 +1792,29 @@ class AutoTradingEngine:
                     logger.warning(f"Trade log error: {log_err}")
                 return False
 
-            qty = int(position_value / current_price)
-            if qty <= 0:
-                logger.warning(f"Position size too small for {symbol}")
-                return False
-
-            # v4.6: Calculate ATR-based SL/TP
+            # v4.6: Calculate ATR-based SL/TP (must happen before qty for risk-parity)
             signal_atr = getattr(signal, 'atr_pct', None)
             atr_sl_tp = self._calculate_atr_sl_tp(symbol, current_price, signal_atr)
             sl_pct = atr_sl_tp['sl_pct']
             tp_pct = atr_sl_tp['tp_pct']
             sl_price = atr_sl_tp['sl_price']
             tp_price = atr_sl_tp['tp_price']
+
+            # v4.9: Risk-parity position sizing
+            if self.RISK_PARITY_ENABLED and sl_pct > 0:
+                # position_value = capital * (risk_budget / sl_pct)
+                # If risk_budget=1% and sl=2%, position = 50% of capital
+                # If risk_budget=1% and sl=4%, position = 25% of capital
+                risk_parity_pct = (self.RISK_BUDGET_PCT / sl_pct) * 100
+                risk_parity_pct = min(risk_parity_pct, self.MAX_POSITION_PCT)
+                position_value = capital * (risk_parity_pct / 100)
+                logger.info(f"Risk-Parity: SL {sl_pct}% → size {risk_parity_pct:.0f}% (${position_value:,.0f})")
+            # else: uses fixed position_value from params['position_size_pct']
+
+            qty = int(position_value / current_price)
+            if qty <= 0:
+                logger.warning(f"Position size too small for {symbol}")
+                return False
 
             logger.info(f"Executing: BUY {symbol} x{qty} @ ~${current_price:.2f}")
 
@@ -1664,25 +1857,24 @@ class AutoTradingEngine:
             sl_price = round(entry_price * (1 - sl_pct / 100), 2)
             tp_price = round(entry_price * (1 + tp_pct / 100), 2)
 
-            self.positions[symbol] = ManagedPosition(
-                symbol=symbol,
-                qty=qty,
-                entry_price=entry_price,
-                entry_time=datetime.now(),
-                sl_order_id=sl_order_id,
-                current_sl_price=sl_price,
-                peak_price=entry_price,
-                trailing_active=False,
-                sl_pct=sl_pct,
-                tp_price=tp_price,
-                tp_pct=tp_pct,
-                atr_pct=atr_sl_tp['atr_pct'],
-                sector=signal_sector,
-                trough_price=entry_price,
-            )
-
-            # Persist position state immediately
-            self._save_positions_state()
+            with self._positions_lock:
+                self.positions[symbol] = ManagedPosition(
+                    symbol=symbol,
+                    qty=qty,
+                    entry_price=entry_price,
+                    entry_time=datetime.now(),
+                    sl_order_id=sl_order_id,
+                    current_sl_price=sl_price,
+                    peak_price=entry_price,
+                    trailing_active=False,
+                    sl_pct=sl_pct,
+                    tp_price=tp_price,
+                    tp_pct=tp_pct,
+                    atr_pct=atr_sl_tp['atr_pct'],
+                    sector=signal_sector,
+                    trough_price=entry_price,
+                )
+                self._save_positions_state()
 
             # PDT Guard: Record entry date
             self.pdt_guard.record_entry(symbol)
@@ -1697,6 +1889,9 @@ class AutoTradingEngine:
             else:
                 logger.info(f"✅ Bought {symbol} x{qty} @ ${entry_price:.2f}")
             logger.info(f"   SL: ${sl_price:.2f} (-{sl_pct}%) | TP: ${tp_price:.2f} (+{tp_pct}%) | ATR: {atr_sl_tp['atr_pct']}%")
+
+            # Alert: BUY executed
+            self.alerts.alert_trade_executed(symbol, 'BUY', entry_price, qty)
 
             # Trade Log: Log BUY
             try:
@@ -1790,6 +1985,7 @@ class AutoTradingEngine:
             orphans = alpaca_symbols - engine_symbols
             if orphans:
                 logger.warning(f"⚠️ ORPHAN POSITIONS at Alpaca not tracked by engine: {', '.join(sorted(orphans))}")
+                self.alerts.alert_orphan_positions(sorted(orphans))
         except Exception as e:
             logger.debug(f"Orphan check error: {e}")
 
@@ -1807,9 +2003,10 @@ class AutoTradingEngine:
         if not alpaca_pos:
             # Position closed externally (SL triggered at Alpaca)
             logger.warning(f"{symbol} position not found - may have been closed")
-            if symbol in self.positions:
-                del self.positions[symbol]
-                self._save_positions_state()
+            with self._positions_lock:
+                if symbol in self.positions:
+                    del self.positions[symbol]
+                    self._save_positions_state()
             self.pdt_guard.remove_entry(symbol)
             return
 
@@ -1879,6 +2076,7 @@ class AutoTradingEngine:
                 managed_pos.trailing_active = True
                 _state_changed = True
                 logger.info(f"📈 {symbol} trailing activated at {pnl_pct:+.2f}%")
+                self.alerts.alert_trailing_activated(symbol, current_price, managed_pos.peak_price)
 
             # Update trailing stop (only if SL order exists)
             if managed_pos.trailing_active and managed_pos.sl_order_id:
@@ -1947,9 +2145,10 @@ class AutoTradingEngine:
             alpaca_pos = self.trader.get_position(symbol)
             if not alpaca_pos:
                 logger.info(f"{symbol} position already closed (SL may have triggered)")
-                if symbol in self.positions:
-                    del self.positions[symbol]
-                    self._save_positions_state()
+                with self._positions_lock:
+                    if symbol in self.positions:
+                        del self.positions[symbol]
+                        self._save_positions_state()
                 self.pdt_guard.remove_entry(symbol)
                 return
 
@@ -1995,6 +2194,7 @@ class AutoTradingEngine:
                 # CRITICAL: Sell order NOT filled — keep position in tracking
                 logger.error(f"CRITICAL: {symbol} sell NOT filled (status={order.status if order else 'unknown'}), keeping in tracking")
                 logger.error(f"  Sell order {sell_order.id} may still be pending at Alpaca — will retry next monitor cycle")
+                self.alerts.alert_sell_failed(symbol, f"Status: {order.status if order else 'unknown'}, order {sell_order.id}")
                 return
 
             exit_price = order.filled_avg_price
@@ -2002,6 +2202,16 @@ class AutoTradingEngine:
             pnl_usd = (exit_price - managed_pos.entry_price) * actual_qty
 
             logger.info(f"✅ Closed {symbol}: {pnl_pct:+.2f}% (${pnl_usd:+.2f}) - {reason}")
+
+            # Alert: trade closed
+            if 'stop loss' in reason.lower() or 'sl' in reason.lower():
+                self.alerts.alert_sl_hit(symbol, exit_price, managed_pos.current_sl_price, pnl_pct)
+            elif 'take profit' in reason.lower() or 'tp' in reason.lower():
+                self.alerts.alert_tp_hit(symbol, exit_price, managed_pos.tp_price, pnl_pct)
+            elif 'max hold' in reason.lower():
+                self.alerts.alert_max_hold_exit(symbol, managed_pos.days_held, pnl_pct)
+            else:
+                self.alerts.alert_trade_executed(symbol, 'SELL', exit_price, actual_qty)
 
             # Update stats
             self.daily_stats.realized_pnl += pnl_usd
@@ -2059,9 +2269,10 @@ class AutoTradingEngine:
                 logger.warning(f"Trade log error: {log_err}")
 
             # Remove from managed positions and PDT guard (only after confirmed fill)
-            if symbol in self.positions:
-                del self.positions[symbol]
-                self._save_positions_state()
+            with self._positions_lock:
+                if symbol in self.positions:
+                    del self.positions[symbol]
+                    self._save_positions_state()
             self.pdt_guard.remove_entry(symbol)
 
             # v4.1 Final: Check queue → Rescan if empty

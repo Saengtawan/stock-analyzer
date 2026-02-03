@@ -248,8 +248,11 @@
             <span class="badge bg-secondary ms-2" id="marketStatusBadge">Market Closed</span>
         </div>
         <div>
-            <button class="btn btn-sm btn-danger" id="emergencyStopBtn" onclick="emergencyStop()">
+            <button class="btn btn-sm btn-danger me-2" id="emergencyStopBtn" onclick="emergencyStop()">
                 <i class="fas fa-stop-circle me-1"></i> Emergency Stop
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="closeAllPositions()">
+                <i class="fas fa-skull-crossbones me-1"></i> Close All
             </button>
         </div>
     </div>
@@ -544,6 +547,44 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Alerts Section -->
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center"
+                 data-bs-toggle="collapse" data-bs-target="#systemAlertsCollapse"
+                 style="cursor: pointer;">
+                <span>
+                    <i class="fas fa-exclamation-triangle me-2"></i>System Alerts
+                    <span class="badge bg-danger ms-2" id="systemAlertCount" style="display: none;">0</span>
+                </span>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary me-2" onclick="event.stopPropagation(); acknowledgeAllAlerts();" title="Mark all as read">
+                        <i class="fas fa-check-double"></i>
+                    </button>
+                    <select class="form-select form-select-sm d-inline-block" style="width: auto;" id="alertFilterLevel"
+                            onclick="event.stopPropagation();" onchange="loadSystemAlerts()">
+                        <option value="">All Levels</option>
+                        <option value="CRITICAL">Critical</option>
+                        <option value="WARNING">Warning</option>
+                        <option value="INFO">Info</option>
+                    </select>
+                    <i class="fas fa-chevron-down ms-2"></i>
+                </div>
+            </div>
+            <div class="collapse" id="systemAlertsCollapse">
+                <div class="card-body p-0">
+                    <div style="max-height: 350px; overflow-y: auto;" id="systemAlertsContainer">
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-bell-slash me-2"></i>No alerts yet
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2077,6 +2118,37 @@ function resetEmergency() {
         });
 }
 
+function closeAllPositions() {
+    if (!confirm('⚠️ CLOSE ALL POSITIONS\n\nThis will:\n- SELL ALL positions at market price\n- Stop the trading engine\n- Clear all tracked positions\n\nThis is IRREVERSIBLE. Continue?')) {
+        return;
+    }
+    // Double confirm for safety
+    if (!confirm('Are you absolutely sure? This will liquidate EVERYTHING.')) {
+        return;
+    }
+
+    fetch('/api/auto/close-all', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+                return;
+            }
+            let msg = data.message + '\n\n';
+            if (data.closed) {
+                data.closed.forEach(c => {
+                    msg += `${c.symbol}: ${c.qty} shares - ${c.status}\n`;
+                });
+            }
+            alert(msg);
+            loadAutoStatus();
+            loadPositions();
+        })
+        .catch(err => {
+            alert('Error: ' + err.message);
+        });
+}
+
 function manualScan() {
     document.getElementById('autoStatusText').textContent = 'Scanning...';
 
@@ -2205,5 +2277,113 @@ function showHealthDetail() {
 // Check health every 60 seconds
 setInterval(checkHealth, 60000);
 checkHealth();
+
+// ============================================================
+// SYSTEM ALERTS (v4.7)
+// ============================================================
+
+function loadSystemAlerts() {
+    const level = document.getElementById('alertFilterLevel')?.value || '';
+    const params = new URLSearchParams({ limit: '50' });
+    if (level) params.set('level', level);
+
+    fetch('/api/alerts?' + params.toString())
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Alerts error:', data.error);
+                return;
+            }
+
+            const container = document.getElementById('systemAlertsContainer');
+            const badge = document.getElementById('systemAlertCount');
+            const summary = data.summary || {};
+            const unack = summary.unacknowledged || 0;
+
+            // Update badge
+            if (unack > 0) {
+                badge.textContent = unack;
+                badge.style.display = 'inline';
+            } else {
+                badge.style.display = 'none';
+            }
+
+            const alerts = data.alerts || [];
+            if (alerts.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-bell-slash me-2"></i>No alerts
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = alerts.map(a => {
+                const levelColors = {
+                    'CRITICAL': { bg: '#fdf2f2', border: '#e74c3c', icon: 'fas fa-exclamation-circle text-danger', badgeCls: 'bg-danger' },
+                    'WARNING':  { bg: '#fef9e7', border: '#f39c12', icon: 'fas fa-exclamation-triangle text-warning', badgeCls: 'bg-warning text-dark' },
+                    'INFO':     { bg: '#ebf5fb', border: '#3498db', icon: 'fas fa-info-circle text-primary', badgeCls: 'bg-info text-dark' },
+                };
+                const style = levelColors[a.level] || levelColors['INFO'];
+                const opacity = a.acknowledged ? 'opacity: 0.5;' : '';
+                const timeStr = new Date(a.timestamp).toLocaleString('th-TH', {
+                    hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short'
+                });
+                const catBadge = a.category
+                    ? `<span class="badge bg-light text-dark ms-1" style="font-size: 0.65rem;">${a.category}</span>`
+                    : '';
+                const symbolBadge = a.symbol
+                    ? `<span class="badge bg-dark ms-1" style="font-size: 0.65rem;">${a.symbol}</span>`
+                    : '';
+
+                return `
+                    <div class="d-flex align-items-start px-3 py-2 border-bottom"
+                         style="border-left: 4px solid ${style.border}; background: ${style.bg}; ${opacity}">
+                        <i class="${style.icon} me-2 mt-1"></i>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong class="small">${a.title}</strong>
+                                    <span class="badge ${style.badgeCls} ms-1" style="font-size: 0.6rem;">${a.level}</span>
+                                    ${catBadge}${symbolBadge}
+                                </div>
+                                <small class="text-muted ms-2 text-nowrap">${timeStr}</small>
+                            </div>
+                            <div class="small text-muted">${a.message}</div>
+                        </div>
+                        ${!a.acknowledged ? `
+                            <button class="btn btn-sm btn-link text-muted ms-2 p-0" onclick="acknowledgeAlert(${a.id})" title="Dismiss">
+                                <i class="fas fa-times"></i>
+                            </button>` : ''}
+                    </div>`;
+            }).join('');
+        })
+        .catch(err => console.error('System alerts error:', err));
+}
+
+function acknowledgeAlert(id) {
+    fetch('/api/alerts/acknowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id })
+    })
+    .then(r => r.json())
+    .then(() => loadSystemAlerts())
+    .catch(err => console.error('Ack error:', err));
+}
+
+function acknowledgeAllAlerts() {
+    fetch('/api/alerts/acknowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: 'all' })
+    })
+    .then(r => r.json())
+    .then(() => loadSystemAlerts())
+    .catch(err => console.error('Ack all error:', err));
+}
+
+// Poll system alerts every 30 seconds
+loadSystemAlerts();
+setInterval(loadSystemAlerts, 30000);
 </script>
 {% endblock %}

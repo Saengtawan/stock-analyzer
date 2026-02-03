@@ -261,6 +261,13 @@ class ServiceManager:
                         for issue in status['issues']:
                             logger.warning(f"  HEALTH: {issue}")
                         logger.warning("=" * 40)
+
+                        # Send alert via AlertManager
+                        try:
+                            from alert_manager import get_alert_manager
+                            get_alert_manager().alert_health_check_fail(status['issues'])
+                        except Exception:
+                            pass
                     else:
                         logger.debug("Health check: All OK")
 

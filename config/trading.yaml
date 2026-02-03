@@ -1,0 +1,93 @@
+# =============================================================================
+# RAPID TRADER CONFIGURATION
+# =============================================================================
+# Edit this file to change trading parameters without modifying code.
+# Changes are loaded on engine start. Use /api/config/reload for hot-reload.
+#
+# IMPORTANT: Do not commit this file with production API keys!
+# =============================================================================
+
+# -- Position Management --
+max_positions: 3
+position_size_pct: 30          # Fallback fixed size (when risk-parity off)
+simulated_capital: 4000        # Set to null for real Alpaca account value
+
+# -- Risk-Parity Sizing (v4.9) --
+risk_parity_enabled: true
+risk_budget_pct: 1.0           # Max risk per position = 1% of account
+max_position_pct: 40           # Cap: never exceed 40% in one position
+
+# -- ATR-based SL/TP (v4.6) --
+sl_atr_multiplier: 1.5        # SL = 1.5 x ATR%
+sl_min_pct: 2.0               # Floor: at least 2% SL
+sl_max_pct: 4.0               # Cap: max 4% SL
+tp_atr_multiplier: 3.0        # TP = 3 x ATR%
+tp_min_pct: 4.0               # Floor: at least 4% TP
+tp_max_pct: 8.0               # Cap: max 8% TP
+
+# -- Fallback fixed SL/TP --
+stop_loss_pct: 2.5
+take_profit_pct: 5.0
+pdt_tp_threshold: 4.0
+
+# -- Trailing Stop --
+trail_activation_pct: 3.0
+trail_lock_pct: 80
+max_hold_days: 5
+
+# -- Risk Limits --
+daily_loss_limit_pct: 5.0
+weekly_loss_limit_pct: 5.0
+max_consecutive_losses: 3
+min_score: 95
+
+# -- Signal Queue (v4.1) --
+queue_enabled: true
+queue_atr_mult: 0.5
+queue_min_deviation: 0.5
+queue_max_deviation: 1.5
+queue_max_size: 3
+queue_freshness_window: 30     # minutes
+queue_rescan_on_empty: true
+
+# -- Sector Diversification (v4.7) --
+sector_filter_enabled: true
+max_per_sector: 2
+sector_loss_tracking_enabled: true
+max_sector_consecutive_loss: 2
+sector_cooldown_days: 2
+
+# -- Smart Order (v4.8) --
+smart_order_enabled: true
+smart_order_max_spread_pct: 0.5
+smart_order_wait_seconds: 30
+
+# -- Gap Filter (v4.3) --
+gap_filter_enabled: true
+gap_max_up: 2.0
+gap_max_down: -5.0
+
+# -- Earnings Filter (v4.4) --
+earnings_filter_enabled: true
+earnings_skip_days_before: 5
+earnings_skip_days_after: 0
+earnings_no_data_action: warn  # allow, skip, warn
+
+# -- Low Risk Mode (v4.5) --
+low_risk_mode_enabled: true
+low_risk_gap_max_up: 1.0
+low_risk_min_score: 98
+low_risk_position_size_pct: 20
+low_risk_max_atr_pct: 4.0
+
+# -- Late Start Protection (v4.4) --
+late_start_protection: true
+market_open_scan_delay: 5      # minutes after open before scanning
+market_open_scan_window: 20    # minutes - skip scan if started after this
+
+# -- Market Regime Filter (v4.9) --
+regime_filter_enabled: true
+regime_sma_period: 20
+regime_rsi_min: 40
+regime_return_5d_min: -2.0
+regime_vix_max: 30.0

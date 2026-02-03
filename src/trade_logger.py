@@ -177,6 +177,9 @@ class TradeLogger:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
+        # v4.9: Enable WAL mode for crash safety and concurrent reads
+        cursor.execute('PRAGMA journal_mode=WAL')
+
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS trades (
                 id TEXT PRIMARY KEY,

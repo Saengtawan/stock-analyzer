@@ -2750,6 +2750,13 @@ def api_auto_emergency_stop():
         engine.safety.activate_emergency_stop("Web UI triggered")
         engine.stop()
 
+        # Alert: Emergency stop
+        try:
+            from alert_manager import get_alert_manager
+            get_alert_manager().alert_emergency_stop("Activated from Web UI")
+        except Exception:
+            pass
+
         return jsonify({
             'message': 'Emergency stop activated',
             'emergency_stop': True
@@ -2777,6 +2784,85 @@ def api_auto_emergency_reset():
 
     except Exception as e:
         logger.error(f"Emergency reset error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/auto/close-all', methods=['POST'])
+def api_auto_close_all():
+    """Emergency close ALL positions at market. Sells everything via Alpaca."""
+    try:
+        engine = get_auto_trading_engine()
+        if not engine:
+            return jsonify({'error': 'Engine not available'}), 500
+
+        # 1. Stop engine first
+        engine.safety.activate_emergency_stop("Close-all from Web UI")
+        engine.stop()
+
+        # 2. Get all positions from Alpaca
+        positions = engine.trader.get_positions()
+        if not positions:
+            return jsonify({'message': 'No positions to close', 'closed': []})
+
+        results = []
+        for pos in positions:
+            try:
+                qty = int(float(pos.qty))
+                if qty <= 0:
+                    continue
+                sell_order = engine.trader.place_market_sell(pos.symbol, qty)
+                status = 'submitted'
+                if sell_order:
+                    # Wait briefly for fill
+                    import time
+                    for _wait in range(5):
+                        time.sleep(1)
+                        check = engine.trader.get_order(sell_order.id)
+                        if check.status == 'filled':
+                            status = 'filled'
+                            break
+                    else:
+                        status = check.status if check else 'unknown'
+                results.append({
+                    'symbol': pos.symbol,
+                    'qty': qty,
+                    'status': status,
+                })
+                logger.warning(f"CLOSE-ALL: {pos.symbol} x{qty} → {status}")
+            except Exception as e:
+                results.append({
+                    'symbol': pos.symbol,
+                    'qty': int(float(pos.qty)),
+                    'status': f'error: {e}',
+                })
+                logger.error(f"CLOSE-ALL: Failed to sell {pos.symbol}: {e}")
+
+        # 3. Clear engine tracked positions
+        with engine._positions_lock:
+            engine.positions.clear()
+        engine._save_positions_state()
+
+        # 4. Alert
+        try:
+            from alert_manager import get_alert_manager
+            symbols = [r['symbol'] for r in results]
+            get_alert_manager().add_alert(
+                level='CRITICAL',
+                title='CLOSE ALL EXECUTED',
+                message=f"Emergency close-all: {', '.join(symbols)}",
+                category='emergency',
+            )
+        except Exception:
+            pass
+
+        return jsonify({
+            'message': f'Closed {len(results)} positions',
+            'closed': results,
+            'emergency_stop': True,
+        })
+
+    except Exception as e:
+        logger.error(f"Close-all error: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -3529,6 +3615,108 @@ def api_stream_prices():
             })
         else:
             return jsonify({'error': 'Streamer not running'}), 503
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================
+# ALERTS API v1.0
+# ============================================================
+
+@app.route('/api/alerts')
+def api_alerts():
+    """
+    Get recent alerts for Rapid Trader page.
+
+    Query params:
+        limit: Max alerts (default 50)
+        level: Filter by level (CRITICAL, WARNING, INFO)
+        category: Filter by category (trade, system, health, regime)
+        unack: If 'true', only unacknowledged alerts
+    """
+    try:
+        from alert_manager import get_alert_manager
+
+        mgr = get_alert_manager()
+
+        limit = int(request.args.get('limit', 50))
+        level = request.args.get('level')
+        category = request.args.get('category')
+        unack = request.args.get('unack', '').lower() == 'true'
+
+        alerts = mgr.get_recent(
+            limit=limit,
+            level=level,
+            category=category,
+            unacknowledged_only=unack,
+        )
+        summary = mgr.get_summary()
+
+        return jsonify({
+            'alerts': alerts,
+            'summary': summary,
+            'timestamp': datetime.now().isoformat(),
+        })
+
+    except Exception as e:
+        logger.error(f"Alerts API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/alerts/acknowledge', methods=['POST'])
+def api_alerts_acknowledge():
+    """Acknowledge one or all alerts."""
+    try:
+        from alert_manager import get_alert_manager
+
+        mgr = get_alert_manager()
+        data = request.get_json() or {}
+        alert_id = data.get('id')
+
+        if alert_id == 'all' or alert_id is None:
+            count = mgr.acknowledge_all()
+            return jsonify({'success': True, 'acknowledged': count})
+        else:
+            ok = mgr.acknowledge(int(alert_id))
+            return jsonify({'success': ok})
+
+    except Exception as e:
+        logger.error(f"Alert acknowledge error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/config/reload', methods=['POST'])
+def api_config_reload():
+    """Hot-reload trading config from YAML file."""
+    try:
+        from trading_config import load_config, apply_config
+
+        # Force re-read
+        import trading_config
+        trading_config._cached_mtime = 0.0
+        config = load_config()
+
+        engine = get_auto_trading_engine()
+        if engine:
+            apply_config(engine, config)
+            return jsonify({'success': True, 'params': len(config)})
+        else:
+            return jsonify({'success': True, 'params': len(config), 'note': 'Engine not running'})
+
+    except Exception as e:
+        logger.error(f"Config reload error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/alerts/summary')
+def api_alerts_summary():
+    """Get alert count summary (lightweight, for polling)."""
+    try:
+        from alert_manager import get_alert_manager
+
+        mgr = get_alert_manager()
+        return jsonify(mgr.get_summary())
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500

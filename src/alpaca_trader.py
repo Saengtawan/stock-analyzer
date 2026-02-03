@@ -14,12 +14,51 @@ If SL order fails after buy, immediately sell the position.
 """
 
 import os
+import time
+import functools
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 import alpaca_trade_api as tradeapi
 from loguru import logger
+
+
+def _retry_api(max_retries: int = 3, base_delay: float = 1.0, max_delay: float = 10.0):
+    """
+    Decorator: exponential backoff retry for Alpaca API calls.
+    Retries on connection errors, rate limits, and 5xx server errors.
+    Does NOT retry on 4xx client errors (bad request, insufficient funds, etc.).
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exc = None
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_exc = e
+                    err_str = str(e).lower()
+                    status_code = getattr(e, 'status_code', None)
+
+                    # Don't retry on client errors (4xx) — they won't succeed
+                    if status_code and 400 <= status_code < 500:
+                        raise
+
+                    # Don't retry if it's clearly a business logic error
+                    if any(kw in err_str for kw in ['insufficient', 'not found', 'forbidden', 'invalid']):
+                        raise
+
+                    if attempt < max_retries:
+                        delay = min(base_delay * (2 ** attempt), max_delay)
+                        logger.warning(f"API retry {attempt + 1}/{max_retries} for {func.__name__}: {e} (wait {delay:.1f}s)")
+                        time.sleep(delay)
+                    else:
+                        logger.error(f"API failed after {max_retries} retries: {func.__name__}: {e}")
+                        raise last_exc
+        return wrapper
+    return decorator
 
 
 class OrderSide(Enum):
@@ -114,6 +153,7 @@ class AlpacaTrader:
     # ACCOUNT & POSITIONS
     # =========================================================================
 
+    @_retry_api(max_retries=3, base_delay=1.0)
     def get_account(self) -> Dict:
         """Get account information"""
         try:
@@ -134,6 +174,7 @@ class AlpacaTrader:
             logger.error(f"Failed to get account: {e}")
             raise
 
+    @_retry_api(max_retries=3, base_delay=1.0)
     def get_positions(self) -> List[Position]:
         """Get all open positions"""
         try:
@@ -207,6 +248,7 @@ class AlpacaTrader:
             logger.error(f"Failed to get orders: {e}")
             raise
 
+    @_retry_api(max_retries=3, base_delay=0.5)
     def get_order(self, order_id: str) -> Optional[Order]:
         """Get a specific order by ID"""
         try:
@@ -227,6 +269,7 @@ class AlpacaTrader:
             logger.error(f"Failed to get order {order_id}: {e}")
             raise
 
+    @_retry_api(max_retries=2, base_delay=1.0)
     def place_market_buy(self, symbol: str, qty: int) -> Order:
         """
         Place a market buy order
@@ -396,6 +439,7 @@ class AlpacaTrader:
             self.last_execution_meta['fill_status'] = 'filled' if result else 'failed'
             return result
 
+    @_retry_api(max_retries=2, base_delay=1.0)
     def place_market_sell(self, symbol: str, qty: int) -> Order:
         """Place a market sell order"""
         try:
@@ -694,6 +738,7 @@ class AlpacaTrader:
     # UTILITY
     # =========================================================================
 
+    @_retry_api(max_retries=3, base_delay=1.0)
     def get_clock(self) -> Dict:
         """Get market clock"""
         try:
