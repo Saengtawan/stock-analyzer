@@ -1842,16 +1842,20 @@ function loadAlerts() {
 // Alias for loadAlerts (loads positions from /api/rapid/portfolio)
 const loadPositions = loadAlerts;
 
+let _lastSignalCount = 0;  // Track if we had signals before
+
 function loadSignals() {
     const container = document.getElementById('signalsContainer');
 
-    // Show loading state
-    container.innerHTML = `
-        <div class="text-center text-muted py-4">
-            <div class="spinner-border text-primary mb-3" role="status"></div>
-            <p>Loading signals...</p>
-        </div>
-    `;
+    // Only show loading spinner on first load (no signals yet)
+    if (_lastSignalCount === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <div class="spinner-border text-primary mb-3" role="status"></div>
+                <p>Loading signals...</p>
+            </div>
+        `;
+    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -1894,6 +1898,7 @@ function loadSignals() {
             }
 
             const signals = data.signals || [];
+            _lastSignalCount = signals.length;
             const signalBadge = document.getElementById('signalBadge');
             if (signalBadge) signalBadge.textContent = signals.length;
 
@@ -2539,10 +2544,20 @@ setInterval(loadSignals, 15000);
 const scanFeedItems = [];
 let scanProgressActive = false;
 
-if (typeof socket !== 'undefined') {
+if (socket && typeof socket.on === 'function') {
     socket.on('scan_progress', function(data) {
         updateScanProgress(data);
     });
+} else {
+    // Socket not ready yet — register after initWebSocket
+    const _waitSocket = setInterval(function() {
+        if (socket && typeof socket.on === 'function') {
+            socket.on('scan_progress', function(data) {
+                updateScanProgress(data);
+            });
+            clearInterval(_waitSocket);
+        }
+    }, 500);
 }
 
 // Also poll scan-progress API every 2s as fallback
@@ -2566,6 +2581,9 @@ function updateScanProgress(data) {
     }
 
     if (data.phase === 'idle') return;
+
+    // Don't overwrite existing signals with progress panel
+    if (_lastSignalCount > 0) return;
 
     scanProgressActive = true;
     // Add to feed
