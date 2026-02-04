@@ -77,11 +77,18 @@ class ServiceManager:
                 d['max_loss'] = s.max_loss
                 signals_data.append(d)
 
+            # Include filter stats from screener (why no signals)
+            filter_stats = {}
+            if hasattr(self, 'rapid_screener') and self.rapid_screener and hasattr(self.rapid_screener, '_filter_stats'):
+                fs = self.rapid_screener._filter_stats
+                filter_stats = {k: v for k, v in fs.items() if not k.startswith('_')}
+
             cache_data = {
                 'timestamp': datetime.now().isoformat(),
                 'count': len(signals_data),
                 'signals': signals_data,
                 'scan_duration_seconds': round(scan_duration, 1),
+                'filter_stats': filter_stats,
             }
 
             # Atomic write: temp file + rename

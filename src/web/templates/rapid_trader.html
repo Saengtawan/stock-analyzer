@@ -1910,7 +1910,40 @@ function loadSignals() {
                     : '';
                 const durText = dur ? `(${Math.floor(dur)}s)` : '';
 
-                // Show scan progress if available, otherwise show last scan info
+                // Build filter stats display
+                const fs = data.filter_stats || {};
+                const total = Object.values(fs).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
+                const filterLabels = {
+                    no_dip: 'No dip (yesterday not down)',
+                    still_falling: 'Still falling',
+                    no_bounce: 'No bounce signal',
+                    below_sma20: 'Below SMA20',
+                    gap_up: 'Gap up (too high)',
+                    above_sma5: 'Above SMA5',
+                    low_atr: 'Low volatility',
+                    overextended: 'Overextended',
+                    sma20_extended: 'SMA20 extended',
+                    low_score: 'Low score',
+                };
+                let filterHtml = '';
+                if (total > 0) {
+                    const items = Object.entries(fs)
+                        .filter(([k, v]) => typeof v === 'number' && v > 0)
+                        .sort((a, b) => b[1] - a[1]);
+                    filterHtml = `
+                        <div class="text-start mt-2 mx-auto" style="max-width: 280px; font-size: 11px;">
+                            <div class="text-secondary mb-1">Filter breakdown (${total} rejected):</div>
+                            ${items.map(([k, v]) => {
+                                const pct = Math.round(v / total * 100);
+                                const label = filterLabels[k] || k;
+                                return `<div class="d-flex justify-content-between text-secondary">
+                                    <span>${label}</span>
+                                    <span>${v} <span class="text-muted">(${pct}%)</span></span>
+                                </div>`;
+                            }).join('')}
+                        </div>`;
+                }
+
                 container.innerHTML = `
                     <div id="scanProgressPanel" class="py-2">
                         <div class="text-center text-muted py-3">
@@ -1919,9 +1952,12 @@ function loadSignals() {
                             <small class="d-block text-secondary mb-2">
                                 Last scan: ${ageText} ${durText}
                             </small>
-                            <span class="badge bg-secondary bg-opacity-25 text-light">
-                                <i class="fas fa-sync-alt fa-spin me-1"></i> Continuous scan active
-                            </span>
+                            ${filterHtml}
+                            <div class="mt-2">
+                                <span class="badge bg-secondary bg-opacity-25 text-light">
+                                    <i class="fas fa-sync-alt fa-spin me-1"></i> Continuous scan active
+                                </span>
+                            </div>
                         </div>
                     </div>
                 `;
