@@ -91,6 +91,24 @@ CONFIG_SCHEMA: Dict[str, Dict[str, Any]] = {
     'MAX_CONSECUTIVE_LOSSES': {'type': int, 'min': 1, 'max': 10},
     'MIN_SCORE': {'type': int, 'min': 50, 'max': 100},
     'POSITION_SIZE_PCT': {'type': (int, float), 'min': 5, 'max': 50},
+    # v4.9.4: Conviction-Based Sizing
+    'CONVICTION_A_PLUS_PCT': {'type': (int, float), 'min': 20, 'max': 50},
+    'CONVICTION_A_PCT': {'type': (int, float), 'min': 20, 'max': 50},
+    'CONVICTION_B_PCT': {'type': (int, float), 'min': 15, 'max': 40},
+    # v4.9.4: Smart Day Trade
+    'DAY_TRADE_GAP_THRESHOLD': {'type': (int, float), 'min': 1.0, 'max': 10.0},
+    'DAY_TRADE_MOMENTUM_THRESHOLD': {'type': (int, float), 'min': 2.0, 'max': 15.0},
+    # v4.9.4: Overnight Gap
+    'OVERNIGHT_GAP_MIN_SCORE': {'type': int, 'min': 40, 'max': 100},
+    'OVERNIGHT_GAP_POSITION_PCT': {'type': (int, float), 'min': 10, 'max': 50},
+    'OVERNIGHT_GAP_TARGET_PCT': {'type': (int, float), 'min': 1.0, 'max': 10.0},
+    'OVERNIGHT_GAP_SL_PCT': {'type': (int, float), 'min': 0.5, 'max': 5.0},
+    # v4.9.4: Breakout Scanner
+    'BREAKOUT_MIN_VOLUME_MULT': {'type': (int, float), 'min': 1.0, 'max': 5.0},
+    'BREAKOUT_MIN_SCORE': {'type': int, 'min': 40, 'max': 100},
+    'BREAKOUT_TARGET_PCT': {'type': (int, float), 'min': 2.0, 'max': 15.0},
+    'BREAKOUT_SL_PCT': {'type': (int, float), 'min': 1.0, 'max': 10.0},
+    'MAX_POSITION_PCT': {'type': (int, float), 'min': 10, 'max': 60},
 }
 
 

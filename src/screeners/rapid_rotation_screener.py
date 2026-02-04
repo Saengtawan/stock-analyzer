@@ -190,8 +190,8 @@ class RapidRotationScreener:
     SECTOR_SIDEWAYS_ADJ = 0        # SIDEWAYS: 0 points
 
     # v3.7: ALT DATA SCORING (tie-breaker role, not dominant)
-    ALT_DATA_MAX_BONUS = 10        # Max +10 points
-    ALT_DATA_MAX_PENALTY = -10     # Max -10 points
+    ALT_DATA_MAX_BONUS = 15        # v4.9.4: Max +15 points (was 10)
+    ALT_DATA_MAX_PENALTY = -15     # v4.9.4: Max -15 points (was -10)
 
     # v4.9.3: Sector cache config
     SECTOR_CACHE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'sector_cache.json')
@@ -517,30 +517,30 @@ class RapidRotationScreener:
                 data = self.alt_data.get_comprehensive_data(symbol)
 
                 if data:
-                    # Insider buying (+5)
+                    # Insider buying (+7)
                     if data.get('has_insider_buying', False):
-                        score += 5
+                        score += 7
                         reasons.append("Insider buying")
 
                     # Overall score from alt data (normalized 0-100)
                     overall_alt = data.get('overall_score', 0)
                     if overall_alt > 70:
-                        score += 3
+                        score += 5
                         reasons.append(f"Strong alt ({overall_alt:.0f})")
                     elif overall_alt > 50:
-                        score += 2
+                        score += 3
                     elif overall_alt < 30:
                         score -= 3
                         reasons.append(f"Weak alt ({overall_alt:.0f})")
 
-                    # Short squeeze potential (+2)
+                    # Short squeeze potential (+3)
                     if data.get('has_squeeze_potential', False):
-                        score += 2
+                        score += 3
                         reasons.append("Squeeze")
 
-                    # Analyst upgrades (+3)
+                    # Analyst upgrades (+4)
                     if data.get('has_analyst_upgrade', False):
-                        score += 3
+                        score += 4
                         reasons.append("Analyst upgrade")
                     elif data.get('has_analyst_downgrade', False):
                         score -= 3
@@ -1150,9 +1150,45 @@ class RapidRotationScreener:
         if blocked_sectors:
             logger.info(f"🐂⛔ Blocking declining sectors: {blocked_sectors}")
 
+        # v4.9.4: Sector-prioritized scanning
+        # Analyze STRONG BULL sectors first, then BULL, then SIDEWAYS
+        # Skip BEAR sectors entirely (saves API calls)
+        universe = list(self.data_cache.keys())
+        sector_priority = {}
+        if self.sector_regime:
+            for symbol in universe:
+                sector = sector_cache.get(symbol) or self._get_sector(symbol)
+                sector_cache[symbol] = sector
+                if not sector or sector == 'Unknown':
+                    sector_priority[symbol] = 2  # UNKNOWN = SIDEWAYS
+                    continue
+                try:
+                    regime = self.sector_regime.get_sector_regime(sector)
+                    if regime == 'STRONG BULL':
+                        sector_priority[symbol] = 0
+                    elif regime == 'BULL':
+                        sector_priority[symbol] = 1
+                    elif regime in ('SIDEWAYS', 'UNKNOWN'):
+                        sector_priority[symbol] = 2
+                    else:  # BEAR, STRONG BEAR
+                        sector_priority[symbol] = -1
+                except Exception:
+                    sector_priority[symbol] = 2
+
+            # Filter out BEAR sectors and sort by priority
+            universe_sorted = sorted(
+                [s for s in universe if sector_priority.get(s, 2) >= 0],
+                key=lambda s: sector_priority.get(s, 2)
+            )
+            bear_skipped = len(universe) - len(universe_sorted)
+            if bear_skipped > 0:
+                logger.info(f"Sector priority: {len(universe_sorted)} stocks (skipped {bear_skipped} BEAR sector)")
+        else:
+            universe_sorted = universe
+
         signals = []
         skipped_sector = 0
-        for symbol in self.data_cache.keys():
+        for symbol in universe_sorted:
             try:
                 # v4.9.2/v4.9.3: Sector filter BEFORE analyze (performance optimization)
                 if allowed_sectors or blocked_sectors:

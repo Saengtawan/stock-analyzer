@@ -138,6 +138,8 @@ class ManagedPosition:
     sector: str = ""             # Stock sector (e.g. "Technology")
     # v4.8: Price action tracking
     trough_price: float = 0.0   # Lowest price during hold
+    # v4.9.4: Signal source tracking
+    source: str = "dip_bounce"   # "dip_bounce", "overnight_gap", "breakout"
 
 
 @dataclass
@@ -369,6 +371,34 @@ class AutoTradingEngine:
     BULL_SECTOR_FILTER_ENABLED = True
     BULL_SECTOR_MIN_RETURN = -5  # return_20d < -5% = sector ขาลง → block
 
+    # v4.9.4: Conviction-Based Sizing
+    CONVICTION_SIZING_ENABLED = True
+    CONVICTION_A_PLUS_PCT = 45    # STRONG BULL + insider/score 85+
+    CONVICTION_A_PCT = 40         # BULL + score 80+
+    CONVICTION_B_PCT = 30         # SIDEWAYS/UNKNOWN + score 80+
+
+    # v4.9.4: Smart Day Trade
+    SMART_DAY_TRADE_ENABLED = True
+    DAY_TRADE_GAP_THRESHOLD = 3.0       # % gap up to trigger
+    DAY_TRADE_MOMENTUM_THRESHOLD = 4.0  # % intraday gain
+    DAY_TRADE_EMERGENCY_ENABLED = True
+
+    # v4.9.4: Overnight Gap Scanner
+    OVERNIGHT_GAP_ENABLED = True
+    OVERNIGHT_GAP_SCAN_HOUR = 15
+    OVERNIGHT_GAP_SCAN_MINUTE = 30
+    OVERNIGHT_GAP_MIN_SCORE = 70
+    OVERNIGHT_GAP_POSITION_PCT = 35
+    OVERNIGHT_GAP_TARGET_PCT = 3.0
+    OVERNIGHT_GAP_SL_PCT = 1.5
+
+    # v4.9.4: Breakout Scanner
+    BREAKOUT_SCAN_ENABLED = True
+    BREAKOUT_MIN_VOLUME_MULT = 1.5
+    BREAKOUT_MIN_SCORE = 75
+    BREAKOUT_TARGET_PCT = 8.0
+    BREAKOUT_SL_PCT = 3.0
+
     # Market Regime Filter (v4.0 NEW!)
     # Rule: SPY > SMA20 = Bull → Trade, SPY < SMA20 = Bear → Skip
     REGIME_FILTER_ENABLED = True
@@ -456,6 +486,24 @@ class AutoTradingEngine:
                 logger.info("Screener initialized")
             except Exception as e:
                 logger.error(f"Failed to init screener: {e}")
+
+        # v4.9.4: Additional scanners (overnight gap + breakout)
+        self.overnight_scanner = None
+        self.breakout_scanner = None
+        if self.OVERNIGHT_GAP_ENABLED:
+            try:
+                from screeners.overnight_gap_scanner import OvernightGapScanner
+                self.overnight_scanner = OvernightGapScanner()
+                logger.info("OvernightGapScanner initialized")
+            except Exception as e:
+                logger.warning(f"OvernightGapScanner init failed: {e}")
+        if self.BREAKOUT_SCAN_ENABLED:
+            try:
+                from screeners.breakout_scanner import BreakoutScanner
+                self.breakout_scanner = BreakoutScanner()
+                logger.info("BreakoutScanner initialized")
+            except Exception as e:
+                logger.warning(f"BreakoutScanner init failed: {e}")
 
         # State
         self.state = TradingState.SLEEPING
@@ -1105,6 +1153,84 @@ class AutoTradingEngine:
         if blocked:
             logger.info(f"🐂 BULL blocked sectors: {blocked}")
         return blocked
+
+    def _get_conviction_size(self, signal, params) -> Tuple[float, str]:
+        """
+        v4.9.4: Conviction-based position sizing
+
+        A+ (45%): STRONG BULL sector + (insider buying OR score 85+)
+        A  (40%): BULL sector + score 80+
+        B  (30%): SIDEWAYS/UNKNOWN sector + score 80+
+        SKIP:     BEAR sector -> return 0
+        """
+        if not self.CONVICTION_SIZING_ENABLED:
+            return params['position_size_pct'], 'DEFAULT'
+
+        sector = getattr(signal, 'sector', '')
+        score = getattr(signal, 'score', 0)
+        alt_score = getattr(signal, 'alt_data_score', 0)
+        has_insider = alt_score >= 5  # insider buying gives +5
+
+        # Get sector regime
+        regime = 'UNKNOWN'
+        if self.screener and hasattr(self.screener, 'sector_regime') and self.screener.sector_regime:
+            try:
+                regime = self.screener.sector_regime.get_sector_regime(sector)
+            except Exception:
+                regime = 'UNKNOWN'
+
+        # BEAR sector -> skip
+        if regime in ('BEAR', 'STRONG BEAR'):
+            return 0, 'SKIP_BEAR'
+
+        # A+: STRONG BULL + insider/high score
+        if regime == 'STRONG BULL' and (has_insider or score >= 85):
+            return self.CONVICTION_A_PLUS_PCT, 'A+'
+
+        # A: BULL + score 80+
+        if regime in ('BULL', 'STRONG BULL') and score >= 80:
+            return self.CONVICTION_A_PCT, 'A'
+
+        # B: SIDEWAYS/UNKNOWN
+        return self.CONVICTION_B_PCT, 'B'
+
+    def _should_use_day_trade(self, symbol: str, managed_pos: 'ManagedPosition', current_price: float) -> Tuple[bool, str]:
+        """
+        v4.9.4: Decide if we should use a day trade to close this position.
+        Only for Day 0 positions (same-day round trip).
+
+        Returns: (should_day_trade, reason)
+        """
+        if not self.SMART_DAY_TRADE_ENABLED:
+            return False, "disabled"
+
+        # Only relevant for Day 0
+        days_held = self.pdt_guard.get_days_held(symbol)
+        if days_held > 0:
+            return False, "not day 0"
+
+        # Check PDT budget
+        pdt_status = self.pdt_guard.get_pdt_status()
+        if pdt_status.remaining <= self.pdt_guard.config.reserve:
+            return False, "no PDT budget"
+
+        pnl_pct = ((current_price - managed_pos.entry_price) / managed_pos.entry_price) * 100
+
+        # Case 1: Gap profit > threshold
+        if pnl_pct >= self.DAY_TRADE_GAP_THRESHOLD:
+            return True, f"GAP_PROFIT: +{pnl_pct:.1f}% >= {self.DAY_TRADE_GAP_THRESHOLD}%"
+
+        # Case 2: Intraday momentum > threshold
+        if pnl_pct >= self.DAY_TRADE_MOMENTUM_THRESHOLD:
+            return True, f"MOMENTUM: +{pnl_pct:.1f}% >= {self.DAY_TRADE_MOMENTUM_THRESHOLD}%"
+
+        # Case 3: Emergency SL (losing badly)
+        if self.DAY_TRADE_EMERGENCY_ENABLED:
+            sl_pct = managed_pos.sl_pct or self.STOP_LOSS_PCT
+            if pnl_pct <= -(sl_pct * 1.5):  # 1.5x SL = emergency
+                return True, f"EMERGENCY: {pnl_pct:.1f}% <= -{sl_pct * 1.5:.1f}%"
+
+        return False, "no trigger"
 
     def _get_effective_params(self) -> Dict:
         """
@@ -2055,7 +2181,13 @@ class AutoTradingEngine:
                 logger.info(f"Using simulated capital: ${self.SIMULATED_CAPITAL:,.0f} (buying power: ${real_buying_power:,.0f}, effective: ${capital:,.0f})")
             else:
                 capital = account['portfolio_value']
-            position_value = capital * (params['position_size_pct'] / 100)
+            # v4.9.4: Conviction-based position sizing
+            conviction_pct, conviction = self._get_conviction_size(signal, params)
+            if conviction == 'SKIP_BEAR':
+                logger.warning(f"Conviction SKIP: {symbol} in BEAR sector")
+                return False
+            position_value = capital * (conviction_pct / 100)
+            logger.info(f"Conviction {conviction}: {symbol} -> {conviction_pct}% (${position_value:,.0f})")
 
             if mode == 'LOW_RISK':
                 logger.info(f"🛡️ Position size: ${position_value:,.0f} (LOW RISK: {params['position_size_pct']}%)")
@@ -2700,6 +2832,13 @@ class AutoTradingEngine:
 
         # ==== PDT Smart Guard v2.0: Day 0 Handling ====
         if is_day0:
+            # v4.9.4: Smart Day Trade — check before normal SL/TP
+            should_dt, dt_reason = self._should_use_day_trade(symbol, managed_pos, current_price)
+            if should_dt:
+                logger.info(f"SMART DAY TRADE: {symbol} -- {dt_reason}")
+                self._close_position(symbol, managed_pos, f"SMART_DAY_TRADE:{dt_reason}")
+                return
+
             # Day 0: Manual SL monitoring (no SL order at Alpaca)
             if pnl_pct <= -pos_sl_pct:
                 logger.warning(f"🛑 {symbol} Day 0 SL hit at {pnl_pct:.2f}% (SL: -{pos_sl_pct}%)")
@@ -2774,6 +2913,14 @@ class AutoTradingEngine:
 
         # Check days held (update for display)
         managed_pos.days_held = days_held
+
+        # v4.9.4: Overnight gap position — sell at open next day (9:31-10:00 ET)
+        if getattr(managed_pos, 'source', '') == 'overnight_gap' and days_held >= 1:
+            et_now = self._get_et_time()
+            if (et_now.hour == 9 and et_now.minute >= 31) or (et_now.hour == 10 and et_now.minute < 1):
+                logger.info(f"OVERNIGHT_GAP_EXIT: {symbol} Day {days_held}, P&L {pnl_pct:+.2f}%")
+                self._close_position(symbol, managed_pos, "OVERNIGHT_GAP_EXIT")
+                return
 
         # Time exit (only for Day 1+)
         if days_held >= self.MAX_HOLD_DAYS and pnl_pct < 1:
@@ -3319,6 +3466,28 @@ class AutoTradingEngine:
 
                         # Scan and execute (regime is BULL)
                         signals = self.scan_for_signals()
+
+                        # v4.9.4: Add breakout scan signals to morning scan
+                        if self.breakout_scanner and self.BREAKOUT_SCAN_ENABLED:
+                            try:
+                                data_cache = self.screener.data_cache if self.screener else {}
+                                sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
+                                breakout_signals = self.breakout_scanner.scan(
+                                    universe=data_cache,
+                                    sector_regime=sector_regime,
+                                    min_score=self.BREAKOUT_MIN_SCORE,
+                                    min_volume_mult=self.BREAKOUT_MIN_VOLUME_MULT,
+                                    target_pct=self.BREAKOUT_TARGET_PCT,
+                                    sl_pct=self.BREAKOUT_SL_PCT,
+                                )
+                                if breakout_signals:
+                                    logger.info(f"Breakout scan: {len(breakout_signals)} signals found")
+                                    signals.extend(breakout_signals)
+                                    # Re-sort all signals by score
+                                    signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
+                            except Exception as e:
+                                logger.warning(f"Breakout scan error: {e}")
+
                         for signal in signals:
                             if len(self.positions) < self.MAX_POSITIONS:
                                 self.execute_signal(signal)
@@ -3354,6 +3523,27 @@ class AutoTradingEngine:
                                 self.GAP_MAX_DOWN = self.AFTERNOON_GAP_MAX_DOWN
                                 try:
                                     signals = self.scan_for_signals()
+
+                                    # v4.9.4: Add breakout scan to afternoon
+                                    if self.breakout_scanner and self.BREAKOUT_SCAN_ENABLED:
+                                        try:
+                                            data_cache = self.screener.data_cache if self.screener else {}
+                                            sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
+                                            breakout_signals = self.breakout_scanner.scan(
+                                                universe=data_cache,
+                                                sector_regime=sector_regime,
+                                                min_score=self.BREAKOUT_MIN_SCORE,
+                                                min_volume_mult=self.BREAKOUT_MIN_VOLUME_MULT,
+                                                target_pct=self.BREAKOUT_TARGET_PCT,
+                                                sl_pct=self.BREAKOUT_SL_PCT,
+                                            )
+                                            if breakout_signals:
+                                                logger.info(f"Afternoon breakout: {len(breakout_signals)} signals")
+                                                signals.extend(breakout_signals)
+                                                signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
+                                        except Exception as e:
+                                            logger.warning(f"Afternoon breakout error: {e}")
+
                                     for signal in signals:
                                         if len(self.positions) < afternoon_max:
                                             self.execute_signal(signal)
@@ -3361,6 +3551,41 @@ class AutoTradingEngine:
                                     self.MIN_SCORE = saved_min_score
                                     self.GAP_MAX_UP = saved_gap_up
                                     self.GAP_MAX_DOWN = saved_gap_down
+
+                # v4.9.4: Overnight gap scan (15:30-15:50 ET)
+                if self.overnight_scanner and self.OVERNIGHT_GAP_ENABLED and last_scan_date == today:
+                    et_now = self._get_et_time()
+                    gap_scan_start = et_now.replace(
+                        hour=self.OVERNIGHT_GAP_SCAN_HOUR,
+                        minute=self.OVERNIGHT_GAP_SCAN_MINUTE,
+                        second=0, microsecond=0
+                    )
+                    gap_scan_end = et_now.replace(hour=15, minute=50, second=0, microsecond=0)
+                    if not hasattr(self, '_overnight_scan_done') or self._overnight_scan_done != today:
+                        if gap_scan_start <= et_now < gap_scan_end:
+                            overnight_params = self._get_effective_params()
+                            overnight_max = overnight_params.get('max_positions') or self.MAX_POSITIONS
+                            if len(self.positions) < overnight_max:
+                                logger.info(f"Overnight gap scan: {len(self.positions)}/{overnight_max} positions")
+                                self._overnight_scan_done = today
+                                is_bull, _ = self._check_market_regime()
+                                if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit():
+                                    try:
+                                        data_cache = self.screener.data_cache if self.screener else {}
+                                        sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
+                                        gap_signals = self.overnight_scanner.scan(
+                                            universe=data_cache,
+                                            sector_regime=sector_regime,
+                                            min_score=self.OVERNIGHT_GAP_MIN_SCORE,
+                                            position_pct=self.OVERNIGHT_GAP_POSITION_PCT,
+                                            target_pct=self.OVERNIGHT_GAP_TARGET_PCT,
+                                            sl_pct=self.OVERNIGHT_GAP_SL_PCT,
+                                        )
+                                        for sig in gap_signals:
+                                            if len(self.positions) < overnight_max:
+                                                self.execute_signal(sig)
+                                    except Exception as e:
+                                        logger.warning(f"Overnight gap scan error: {e}")
 
                 # Pre-close check
                 if self._is_pre_close():
