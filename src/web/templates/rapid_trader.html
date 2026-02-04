@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Rapid Trader v4.9 - ATR-Based SL/TP{% endblock %}
+{% block title %}Rapid Trader v4.9.2 - Smart Bear Mode{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -214,7 +214,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2><i class="fas fa-rocket me-2"></i>Rapid Trader v4.9 <small class="text-success">ATR-Based SL/TP</small></h2>
+        <h2><i class="fas fa-rocket me-2"></i>Rapid Trader v4.9.2 <small class="text-success">Smart Bear Mode</small></h2>
         <p class="text-muted mb-0">SL: 1.5xATR [2-4%] | TP: 3xATR [4-8%] | Trail +3%/Lock 80%</p>
     </div>
     <div class="d-flex align-items-center gap-2">
@@ -334,9 +334,9 @@
             </div>
         </div>
 
-        <!-- v4.9 Smart Regime System -->
+        <!-- v4.9.2 Smart Regime System -->
         <div class="rules-box">
-            <h5><i class="fas fa-brain me-2"></i>v4.9 Filters & Protection</h5>
+            <h5><i class="fas fa-brain me-2"></i>v4.9.2 Filters & Protection</h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #27ae60;">📈</div>
                 <div>SPY Filter: <strong id="spyFilterStatus">SPY > SMA20 = Trade</strong></div>
@@ -351,7 +351,31 @@
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #9b59b6;">⏰</div>
-                <div>Late Start: <strong>Skip if > 15 min late</strong></div>
+                <div>Late Start: <strong>Skip if > 20 min late</strong></div>
+            </div>
+        </div>
+
+        <!-- Smart Bear Mode (v4.9.2) -->
+        <div class="rules-box mt-3" id="bearModeBox">
+            <h5><i class="fas fa-bear me-2"></i>Smart Bear Mode <small class="text-warning">(SPY BEAR)</small></h5>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #e67e22;">🐻</div>
+                <div>Defensive: <strong>Consumer Defensive, Utilities, Healthcare</strong></div>
+            </div>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #e67e22;">📊</div>
+                <div>Opportunistic: <strong>Energy, Materials, Industrials</strong> (ถ้า ETF return &gt; 0%)</div>
+            </div>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #e67e22;">⭐</div>
+                <div>Min Score: <strong>98</strong> | Gap: <strong>+1% / -2%</strong> | ATR: <strong>&le;3%</strong></div>
+            </div>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #e67e22;">💰</div>
+                <div>Position: <strong>20% ($800), Max 2</strong></div>
+            </div>
+            <div id="bearAllowedSectors" style="display:none; margin-top: 8px; padding: 6px 10px; background: rgba(230,126,34,0.1); border-radius: 6px; font-size: 0.85em;">
+                <strong>Allowed now:</strong> <span id="bearSectorsList">-</span>
             </div>
         </div>
 
@@ -378,18 +402,18 @@
 
         <!-- Low Risk Mode (v4.5) -->
         <div class="rules-box mt-3" id="lowRiskModeBox">
-            <h5><i class="fas fa-shield-virus me-2"></i>Low Risk Mode <small class="text-warning">(PDT Budget = 0)</small></h5>
+            <h5><i class="fas fa-shield-virus me-2"></i>Low Risk Mode <small class="text-warning">(PDT Budget &le; Reserve)</small></h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #f39c12;">📉</div>
                 <div>Gap Filter: <strong>1%</strong> (ปกติ 2%)</div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #f39c12;">⭐</div>
-                <div>Min Score: <strong>90</strong> (ปกติ 85)</div>
+                <div>Min Score: <strong>98</strong> (ปกติ 95)</div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #f39c12;">💵</div>
-                <div>Position: <strong>25% (~$1,000)</strong></div>
+                <div>Position: <strong>20% (~$800)</strong></div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #f39c12;">📊</div>
@@ -399,7 +423,7 @@
 
         <!-- Trading Rules (v4.9) -->
         <div class="rules-box mt-3">
-            <h5><i class="fas fa-list-check me-2"></i>Trading Rules v4.9 <small class="text-info">(ATR-Based)</small></h5>
+            <h5><i class="fas fa-list-check me-2"></i>Trading Rules v4.9.2 <small class="text-info">(ATR-Based)</small></h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e74c3c;">SL</div>
                 <div>Stop Loss: <strong>1.5xATR [2-4%]</strong> per position</div>
@@ -422,7 +446,7 @@
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #2ecc71;">💰</div>
-                <div>Position: <strong>45% ($1,800), Max 3</strong></div>
+                <div>Position: <strong>Risk-Parity (1% risk/trade), Max 3</strong></div>
             </div>
         </div>
 
@@ -1649,6 +1673,8 @@ function loadSpyRegime() {
 
             const isBull = data.is_bull;
             const details = data.details || {};
+            const bearSectorsEl = document.getElementById('bearAllowedSectors');
+            const bearSectorsListEl = document.getElementById('bearSectorsList');
 
             // Update badge and colors
             if (isBull) {
@@ -1657,12 +1683,39 @@ function loadSpyRegime() {
                 badge.textContent = 'BULL';
                 icon.textContent = '🟢';
                 text.textContent = 'OK to trade - SPY above SMA20';
+                if (bearSectorsEl) bearSectorsEl.style.display = 'none';
             } else {
-                banner.className = 'alert alert-danger mb-3';
-                badge.className = 'badge bg-danger ms-2';
-                badge.textContent = 'BEAR';
-                icon.textContent = '🔴';
-                text.textContent = 'SKIP new trades - SPY below SMA20';
+                // v4.9.2: Check if bear mode is active via auto status
+                fetch('/api/auto/status')
+                    .then(r => r.json())
+                    .then(status => {
+                        if (status.bear_mode_enabled) {
+                            banner.className = 'alert alert-warning mb-3';
+                            badge.className = 'badge bg-warning text-dark ms-2';
+                            badge.textContent = 'BEAR MODE';
+                            icon.textContent = '🐻';
+                            const sectors = status.bear_allowed_sectors || [];
+                            text.textContent = 'Smart Bear Mode - ' + sectors.length + ' defensive sectors';
+                            if (bearSectorsEl && sectors.length > 0) {
+                                bearSectorsEl.style.display = 'block';
+                                bearSectorsListEl.textContent = sectors.join(', ');
+                            }
+                        } else {
+                            banner.className = 'alert alert-danger mb-3';
+                            badge.className = 'badge bg-danger ms-2';
+                            badge.textContent = 'BEAR';
+                            icon.textContent = '🔴';
+                            text.textContent = 'SKIP new trades - SPY below SMA20';
+                            if (bearSectorsEl) bearSectorsEl.style.display = 'none';
+                        }
+                    })
+                    .catch(() => {
+                        banner.className = 'alert alert-danger mb-3';
+                        badge.className = 'badge bg-danger ms-2';
+                        badge.textContent = 'BEAR';
+                        icon.textContent = '🔴';
+                        text.textContent = 'SKIP new trades - SPY below SMA20';
+                    });
             }
 
             // Update details
