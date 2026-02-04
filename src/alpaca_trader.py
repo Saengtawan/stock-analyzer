@@ -392,6 +392,7 @@ class AlpacaTrader:
                 return None
 
             # Step 3: Place limit @ ask
+            order_id = None  # v4.9.3: Track for orphan cleanup
             try:
                 limit_price = round(ask, 2)
                 self.last_execution_meta['order_type'] = 'limit'
@@ -453,6 +454,19 @@ class AlpacaTrader:
 
             except Exception as e:
                 logger.error(f"Smart buy limit failed: {e}, falling back to market")
+                # v4.9.3: Cancel any orphan limit order before market fallback
+                if order_id:
+                    try:
+                        logger.warning(f"Smart buy: Cancelling orphan limit order {order_id} before market fallback")
+                        self.cancel_order(order_id)
+                        time.sleep(0.5)
+                        check = self.get_order(order_id)
+                        if check and check.status == 'filled':
+                            logger.info(f"Smart buy: Orphan order was actually filled! {symbol} @ ${check.filled_avg_price:.2f}")
+                            self.last_execution_meta['fill_status'] = 'filled'
+                            return check
+                    except Exception as cancel_err:
+                        logger.warning(f"Smart buy: Could not cancel orphan order: {cancel_err}")
                 self.last_execution_meta['order_type'] = 'market_fallback'
                 result = self.place_market_buy(symbol, qty)
                 self.last_execution_meta['fill_time_sec'] = round(time.time() - start_time, 1)

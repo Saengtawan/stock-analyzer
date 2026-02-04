@@ -172,11 +172,11 @@ class RapidRotationScreener:
     ATR_TP_MULTIPLIER = 3.0   # TP = ATR × 3 (good risk/reward)
 
     # Safety caps (prevent extreme values)
-    # v3.6: Tight SL for fast rotation (PDT-Safe)
-    MIN_SL_PCT = 2.0   # Minimum SL 2%
-    MAX_SL_PCT = 2.5   # Maximum SL 2.5% (was 8%) - rotate faster!
-    MIN_TP_PCT = 4.0   # Minimum TP 4%
-    MAX_TP_PCT = 15.0  # Maximum TP 15%
+    # v4.9.3: Synced with Engine caps (SL_MIN/MAX_PCT, TP_MIN/MAX_PCT)
+    MIN_SL_PCT = 2.0   # Minimum SL 2%  (= Engine SL_MIN_PCT)
+    MAX_SL_PCT = 4.0   # Maximum SL 4%  (= Engine SL_MAX_PCT, was 2.5%)
+    MIN_TP_PCT = 4.0   # Minimum TP 4%  (= Engine TP_MIN_PCT)
+    MAX_TP_PCT = 8.0   # Maximum TP 8%  (= Engine TP_MAX_PCT, was 15%)
 
     # Trailing stop parameters
     TRAIL_ACTIVATION = 3.0  # Activate trailing at +3%
