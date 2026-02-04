@@ -354,7 +354,7 @@ class AutoTradingEngine:
         'Basic Materials': 'XLB',
         'Industrials': 'XLI',
     }
-    BEAR_SECTOR_THRESHOLD = 0  # return_20d > 0% = sector ยังขึ้น
+    BEAR_SECTOR_THRESHOLD = 3  # return_20d > 3% = sector ขึ้นจริง (strict)
 
     # BEAR params (เข้มกว่าปกติ ลดความเสี่ยง)
     BEAR_MAX_POSITIONS = 2          # ลดจาก 3 → 2
@@ -363,6 +363,11 @@ class AutoTradingEngine:
     BEAR_GAP_MAX_DOWN = -2.0        # เข้มกว่าปกติ (-5.0)
     BEAR_POSITION_SIZE_PCT = 20     # เล็กกว่าปกติ (30%)
     BEAR_MAX_ATR_PCT = 3.0          # ผันผวนน้อยกว่า LOW_RISK (4.0)
+
+    # BULL Sector Filter (v4.9.3 NEW!)
+    # แม้ SPY BULL ก็ไม่ซื้อ sector ที่กำลังลง (เช่น Tech -3% ขณะ SPY ขึ้น)
+    BULL_SECTOR_FILTER_ENABLED = True
+    BULL_SECTOR_MIN_RETURN = -5  # return_20d < -5% = sector ขาลง → block
 
     # Market Regime Filter (v4.0 NEW!)
     # Rule: SPY > SMA20 = Bull → Trade, SPY < SMA20 = Bear → Skip
@@ -1063,6 +1068,42 @@ class AutoTradingEngine:
         logger.info(f"🐻 Bear allowed sectors ({len(allowed)}/{len(self.BEAR_SECTORS)}): {allowed}")
         return allowed
 
+    def _get_bull_blocked_sectors(self) -> List[str]:
+        """
+        Get sectors to block in BULL mode (sector ETF return_20d < threshold)
+
+        แม้ SPY BULL ก็ไม่ควรซื้อ sector ที่กำลังลง
+        เช่น Tech -3% ขณะ SPY ขึ้น → ไม่ซื้อ Tech
+
+        Returns:
+            List of sector names to block
+        """
+        if not self.BULL_SECTOR_FILTER_ENABLED:
+            return []
+
+        blocked = []
+        if self.screener and hasattr(self.screener, 'sector_regime') and self.screener.sector_regime:
+            sector_to_etf = self.screener.sector_regime.SECTOR_TO_ETF
+            for sector_name, etf in sector_to_etf.items():
+                # Skip aliases (only process canonical names)
+                if sector_name in ('Financial', 'Financials', 'Consumer Discretionary',
+                                   'Consumer Staples', 'Materials', 'Communications',
+                                   'Telecommunication Services'):
+                    continue
+                try:
+                    metrics = self.screener.sector_regime.sector_metrics.get(etf)
+                    if metrics:
+                        return_20d = metrics.get('return_20d', 0)
+                        if return_20d < self.BULL_SECTOR_MIN_RETURN:
+                            blocked.append(sector_name)
+                            logger.info(f"🐂⛔ {sector_name} ({etf}) return_20d={return_20d:+.1f}% < {self.BULL_SECTOR_MIN_RETURN}% → BLOCKED in BULL")
+                except Exception as e:
+                    logger.debug(f"Error checking sector {sector_name}: {e}")
+
+        if blocked:
+            logger.info(f"🐂 BULL blocked sectors: {blocked}")
+        return blocked
+
     def _get_effective_params(self) -> Dict:
         """
         Get effective trading parameters based on mode
@@ -1104,6 +1145,7 @@ class AutoTradingEngine:
                     'mode': 'BEAR'
                 }
         elif is_low_risk:
+            blocked = self._get_bull_blocked_sectors()
             logger.info(f"⚠️ LOW RISK MODE: {lr_reason}")
             return {
                 'gap_max_up': self.LOW_RISK_GAP_MAX_UP,
@@ -1112,9 +1154,11 @@ class AutoTradingEngine:
                 'max_atr_pct': self.LOW_RISK_MAX_ATR_PCT,
                 'max_positions': None,
                 'allowed_sectors': None,
+                'blocked_sectors': blocked,
                 'mode': 'LOW_RISK'
             }
         else:
+            blocked = self._get_bull_blocked_sectors()
             return {
                 'gap_max_up': self.GAP_MAX_UP,
                 'min_score': self.MIN_SCORE,
@@ -1122,6 +1166,7 @@ class AutoTradingEngine:
                 'max_atr_pct': None,  # No ATR limit in normal mode
                 'max_positions': None,
                 'allowed_sectors': None,
+                'blocked_sectors': blocked,
                 'mode': 'NORMAL'
             }
 
@@ -1653,20 +1698,27 @@ class AutoTradingEngine:
                     self.daily_stats.signals_found = 0
                     return []
 
+            # v4.9.3: Get effective params (includes blocked_sectors for BULL)
+            params = self._get_effective_params()
+            blocked_sectors = params.get('blocked_sectors') or []
+
             regime_label = "BEAR_MODE" if allowed_sectors else "BULL"
-            logger.info(f"Scanning for signals (regime: {regime_label})...")
+            if blocked_sectors:
+                logger.info(f"Scanning for signals (regime: {regime_label}, blocked: {blocked_sectors})...")
+            else:
+                logger.info(f"Scanning for signals (regime: {regime_label})...")
 
             # Load fresh data
             self.screener.load_data()
 
             # Get signals (excluding current positions)
             existing = list(self.positions.keys())
-            params = self._get_effective_params()
             effective_max = params.get('max_positions') or self.MAX_POSITIONS
             signals = self.screener.get_portfolio_signals(
                 max_positions=effective_max,
                 existing_positions=existing,
-                allowed_sectors=allowed_sectors
+                allowed_sectors=allowed_sectors,
+                blocked_sectors=blocked_sectors
             )
 
             # v4.0: Filter by MIN_SCORE if screener doesn't do it
@@ -2132,6 +2184,25 @@ class AutoTradingEngine:
                     except Exception as log_err:
                         logger.warning(f"Trade log error: {log_err}")
                     return False
+
+            # v4.9.3: BULL sector filter — block sectors with ETF return_20d < threshold
+            blocked_sectors = params.get('blocked_sectors') or []
+            if blocked_sectors and signal_sector and signal_sector in blocked_sectors:
+                logger.warning(f"⛔ BULL Sector Filter REJECT {symbol}: sector '{signal_sector}' ETF declining (return_20d < {self.BULL_SECTOR_MIN_RETURN}%)")
+                self.daily_stats.sector_rejected += 1
+                try:
+                    self.trade_logger.log_skip(
+                        symbol=symbol,
+                        price=current_price,
+                        reason="BULL_SECTOR_REJECT",
+                        skip_detail=f"Sector '{signal_sector}' ETF declining",
+                        filters={"bull_sector": {"passed": False, "detail": f"'{signal_sector}' in blocked {blocked_sectors}"}},
+                        signal_score=signal_score,
+                        sector=signal_sector
+                    )
+                except Exception as log_err:
+                    logger.warning(f"Trade log error: {log_err}")
+                return False
 
             # v4.6: Calculate ATR-based SL/TP (must happen before qty for risk-parity)
             signal_atr = getattr(signal, 'atr_pct', None)
@@ -3382,6 +3453,7 @@ class AutoTradingEngine:
             'regime_detail': regime_reason,  # v4.0
             'bear_mode_enabled': self.BEAR_MODE_ENABLED,  # v4.9.2
             'bear_allowed_sectors': self._get_bear_allowed_sectors() if not is_bull and self.BEAR_MODE_ENABLED else None,  # v4.9.2
+            'bull_blocked_sectors': self._get_bull_blocked_sectors() if is_bull else None,  # v4.9.3
             'low_risk_mode': is_low_risk,  # v4.5
             'low_risk_reason': low_risk_reason,  # v4.5
             'positions': positions_count,
@@ -3389,7 +3461,7 @@ class AutoTradingEngine:
             'cash': account['cash'],
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v4.9.2 Smart Bear Mode',
+            'version': 'v4.9.3 Smart Sector Filter',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),

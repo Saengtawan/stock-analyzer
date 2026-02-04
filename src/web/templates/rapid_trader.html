@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Rapid Trader v4.9.2 - Smart Bear Mode{% endblock %}
+{% block title %}Rapid Trader v4.9.3 - Smart Sector Filter{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -214,7 +214,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2><i class="fas fa-rocket me-2"></i>Rapid Trader v4.9.2 <small class="text-success">Smart Bear Mode</small></h2>
+        <h2><i class="fas fa-rocket me-2"></i>Rapid Trader v4.9.3 <small class="text-success">Smart Sector Filter</small></h2>
         <p class="text-muted mb-0">SL: 1.5xATR [2-4%] | TP: 3xATR [4-8%] | Trail +3%/Lock 80%</p>
     </div>
     <div class="d-flex align-items-center gap-2">
@@ -334,9 +334,9 @@
             </div>
         </div>
 
-        <!-- v4.9.2 Smart Regime System -->
+        <!-- v4.9.3 Smart Regime System -->
         <div class="rules-box">
-            <h5><i class="fas fa-brain me-2"></i>v4.9.2 Filters & Protection</h5>
+            <h5><i class="fas fa-brain me-2"></i>v4.9.3 Filters & Protection</h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #27ae60;">📈</div>
                 <div>SPY Filter: <strong id="spyFilterStatus">SPY > SMA20 = Trade</strong></div>
@@ -355,16 +355,16 @@
             </div>
         </div>
 
-        <!-- Smart Bear Mode (v4.9.2) -->
+        <!-- Smart Sector Filter (v4.9.3) -->
         <div class="rules-box mt-3" id="bearModeBox">
-            <h5><i class="fas fa-bear me-2"></i>Smart Bear Mode <small class="text-warning">(SPY BEAR)</small></h5>
+            <h5><i class="fas fa-bear me-2"></i>Smart Sector Filter <small class="text-warning">(SPY BEAR)</small></h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e67e22;">🐻</div>
                 <div>Sectors: <strong>Cons.Def, Utilities, Healthcare, Energy, Materials, Industrials</strong></div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e67e22;">📊</div>
-                <div>ทุก sector ต้อง <strong>ETF return_20d &gt; 0%</strong> ถึงจะซื้อได้</div>
+                <div>ทุก sector ต้อง <strong>ETF return_20d &gt; +3%</strong> ถึงจะซื้อได้</div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e67e22;">⭐</div>
@@ -376,6 +376,18 @@
             </div>
             <div id="bearAllowedSectors" style="display:none; margin-top: 8px; padding: 6px 10px; background: rgba(230,126,34,0.1); border-radius: 6px; font-size: 0.85em;">
                 <strong>Allowed now:</strong> <span id="bearSectorsList">-</span>
+            </div>
+        </div>
+
+        <!-- BULL Sector Filter (v4.9.3) -->
+        <div class="rules-box mt-3" id="bullSectorBox">
+            <h5><i class="fas fa-filter me-2"></i>BULL Sector Filter <small class="text-info">(v4.9.3)</small></h5>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #27ae60;">🐂</div>
+                <div>Block sectors with <strong>ETF return_20d &lt; -5%</strong> even in BULL mode</div>
+            </div>
+            <div id="bullBlockedSectors" style="display:none; margin-top: 8px; padding: 6px 10px; background: rgba(231,76,60,0.1); border-radius: 6px; font-size: 0.85em;">
+                <strong>Blocked now:</strong> <span id="bullBlockedList">none</span>
             </div>
         </div>
 
@@ -423,7 +435,7 @@
 
         <!-- Trading Rules (v4.9) -->
         <div class="rules-box mt-3">
-            <h5><i class="fas fa-list-check me-2"></i>Trading Rules v4.9.2 <small class="text-info">(ATR-Based)</small></h5>
+            <h5><i class="fas fa-list-check me-2"></i>Trading Rules v4.9.3 <small class="text-info">(ATR-Based)</small></h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e74c3c;">SL</div>
                 <div>Stop Loss: <strong>1.5xATR [2-4%]</strong> per position</div>
@@ -1677,6 +1689,9 @@ function loadSpyRegime() {
             const bearSectorsListEl = document.getElementById('bearSectorsList');
 
             // Update badge and colors
+            const bullBlockedEl = document.getElementById('bullBlockedSectors');
+            const bullBlockedListEl = document.getElementById('bullBlockedList');
+
             if (isBull) {
                 banner.className = 'alert alert-success mb-3';
                 badge.className = 'badge bg-success ms-2';
@@ -1684,8 +1699,21 @@ function loadSpyRegime() {
                 icon.textContent = '🟢';
                 text.textContent = 'OK to trade - SPY above SMA20';
                 if (bearSectorsEl) bearSectorsEl.style.display = 'none';
+                // v4.9.3: Show BULL blocked sectors
+                fetch('/api/auto/status')
+                    .then(r => r.json())
+                    .then(status => {
+                        const blocked = status.bull_blocked_sectors || [];
+                        if (bullBlockedEl && blocked.length > 0) {
+                            bullBlockedEl.style.display = 'block';
+                            bullBlockedListEl.textContent = blocked.join(', ');
+                        } else if (bullBlockedEl) {
+                            bullBlockedEl.style.display = 'block';
+                            bullBlockedListEl.textContent = 'none';
+                        }
+                    }).catch(() => {});
             } else {
-                // v4.9.2: Check if bear mode is active via auto status
+                // v4.9.3: Check if bear mode is active via auto status
                 fetch('/api/auto/status')
                     .then(r => r.json())
                     .then(status => {
@@ -1695,7 +1723,7 @@ function loadSpyRegime() {
                             badge.textContent = 'BEAR MODE';
                             icon.textContent = '🐻';
                             const sectors = status.bear_allowed_sectors || [];
-                            text.textContent = 'Smart Bear Mode - ' + sectors.length + ' defensive sectors';
+                            text.textContent = 'Bear Mode - ' + sectors.length + ' sectors allowed (return > +3%)';
                             if (bearSectorsEl && sectors.length > 0) {
                                 bearSectorsEl.style.display = 'block';
                                 bearSectorsListEl.textContent = sectors.join(', ');

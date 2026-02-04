@@ -345,7 +345,7 @@ class ServiceManager:
             checks['market_clock'] = {'ok': False, 'detail': 'Trader not initialized'}
             issues.append('Market clock: trader not available')
 
-        # 3. Thread liveness
+        # 3. Thread liveness (web uses HTTP check instead of thread.is_alive)
         alive_count = 0
         total_count = 0
         dead_threads = []
@@ -353,7 +353,19 @@ class ServiceManager:
             if name == 'health':
                 continue  # Don't check self
             total_count += 1
-            if thread.is_alive():
+            if name == 'web':
+                # Flask thread may exit but server still serves via internal threads
+                # Use HTTP check instead of thread.is_alive()
+                try:
+                    import urllib.request
+                    resp = urllib.request.urlopen('http://localhost:5000/api/auto/status', timeout=5)
+                    if resp.status == 200:
+                        alive_count += 1
+                    else:
+                        dead_threads.append(name)
+                except Exception:
+                    dead_threads.append(name)
+            elif thread.is_alive():
                 alive_count += 1
             else:
                 dead_threads.append(name)
