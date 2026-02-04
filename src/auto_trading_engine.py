@@ -978,15 +978,17 @@ class AutoTradingEngine:
             return 50.0  # default neutral
 
     def _get_vix(self) -> float:
-        """Fetch current VIX value. Returns 20.0 on error (neutral)."""
+        """Fetch current VIX value. Returns 50.0 on error (fail-safe → BEAR)."""
         try:
             vix = yf.download('^VIX', period='5d', progress=False)
             if vix.empty:
-                return 20.0
+                logger.warning("VIX data empty — fail-safe: returning 50.0 (assume high volatility)")
+                return 50.0
             close = vix['Close']
             return float(close.iloc[-1]) if hasattr(close, 'iloc') else float(close[-1])
-        except Exception:
-            return 20.0
+        except Exception as e:
+            logger.warning(f"VIX fetch failed ({e}) — fail-safe: returning 50.0 (assume high volatility)")
+            return 50.0
 
     # =========================================================================
     # LOW RISK MODE (v4.5 NEW!)
@@ -2276,6 +2278,16 @@ class AutoTradingEngine:
             tp_price = round(entry_price * (1 + tp_pct / 100), 2)
 
             with self._positions_lock:
+                # v4.9.3: Re-check max_positions under lock (prevent TOCTOU race)
+                effective_max = params.get('max_positions') or self.MAX_POSITIONS
+                if len(self.positions) >= effective_max:
+                    logger.warning(f"⚠️ Max positions ({effective_max}) reached under lock — cancelling order for {symbol}")
+                    try:
+                        self.trader.cancel_order(buy_order.id)
+                    except Exception:
+                        pass
+                    return False
+
                 self.positions[symbol] = ManagedPosition(
                     symbol=symbol,
                     qty=qty,
