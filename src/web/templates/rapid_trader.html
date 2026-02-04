@@ -1898,11 +1898,31 @@ function loadSignals() {
             if (signalBadge) signalBadge.textContent = signals.length;
 
             if (signals.length === 0) {
+                const age = data.cache_age_seconds;
+                const dur = data.scan_duration_seconds;
+                const isScanning = age != null && age < 30;
+                const ageText = age != null
+                    ? (age < 60 ? `${Math.floor(age)}s ago` : `${Math.floor(age/60)}m ago`)
+                    : '';
+                const durText = dur ? `(${Math.floor(dur)}s)` : '';
+
                 container.innerHTML = `
                     <div class="text-center text-muted py-4">
-                        <i class="fas fa-search fa-3x mb-3"></i>
-                        <p>No signals found</p>
-                        <small>Scanning continuously</small>
+                        <div class="mb-3">
+                            ${isScanning
+                                ? '<div class="spinner-border spinner-border-sm text-info me-2" role="status"></div><span class="text-info">Scanning...</span>'
+                                : '<i class="fas fa-search fa-2x text-secondary"></i>'
+                            }
+                        </div>
+                        <p class="mb-1">No signals found</p>
+                        <small class="d-block text-secondary">
+                            Last scan: ${ageText} ${durText}
+                        </small>
+                        <div class="mt-2">
+                            <span class="badge bg-secondary bg-opacity-25 text-light">
+                                <i class="fas fa-sync-alt fa-spin me-1"></i> Continuous scan active
+                            </span>
+                        </div>
                     </div>
                 `;
                 return;
@@ -2516,5 +2536,8 @@ function acknowledgeAllAlerts() {
 // Poll system alerts every 30 seconds
 loadSystemAlerts();
 setInterval(loadSystemAlerts, 30000);
+
+// v4.9.4: Auto-refresh signals every 15s (continuous scan mode)
+setInterval(loadSignals, 15000);
 </script>
 {% endblock %}
