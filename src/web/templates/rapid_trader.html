@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Rapid Trader v4.9.3 - Smart Sector Filter{% endblock %}
+{% block title %}Rapid Trader v4.9.4 - Aggressive Swing Mode{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -214,8 +214,8 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2><i class="fas fa-rocket me-2"></i>Rapid Trader v4.9.3 <small class="text-success">Smart Sector Filter</small></h2>
-        <p class="text-muted mb-0">SL: 1.5xATR [2-4%] | TP: 3xATR [4-8%] | Trail +3%/Lock 80%</p>
+        <h2><i class="fas fa-rocket me-2"></i>Rapid Trader v4.9.4 <small class="text-success">Aggressive Swing Mode</small></h2>
+        <p class="text-muted mb-0">SL: 1.5xATR [2-4%] | TP: 3xATR [4-10%] | Trail +4%/Lock 50% | Conviction Sizing</p>
     </div>
     <div class="d-flex align-items-center gap-2">
         <!-- Auto Trading Toggle -->
@@ -334,9 +334,9 @@
             </div>
         </div>
 
-        <!-- v4.9.3 Smart Regime System -->
+        <!-- v4.9.4 Smart Regime System -->
         <div class="rules-box">
-            <h5><i class="fas fa-brain me-2"></i>v4.9.3 Filters & Protection</h5>
+            <h5><i class="fas fa-brain me-2"></i>v4.9.4 Filters & Protection</h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #27ae60;">📈</div>
                 <div>SPY Filter: <strong id="spyFilterStatus">SPY > SMA20 = Trade</strong></div>
@@ -368,11 +368,11 @@
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e67e22;">⭐</div>
-                <div>Min Score: <strong>98</strong> | Gap: <strong>+1% / -2%</strong> | ATR: <strong>&le;3%</strong></div>
+                <div>Min Score: <strong>85</strong> | Gap: <strong>+1.5% / -3%</strong> | ATR: <strong>&le;4%</strong></div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e67e22;">💰</div>
-                <div>Position: <strong>20% ($800), Max 2</strong></div>
+                <div>Position: <strong>25% ($1,000), Max 2</strong> | Conviction: A+ 45% / A 40% / B 30%</div>
             </div>
             <div id="bearAllowedSectors" style="display:none; margin-top: 8px; padding: 6px 10px; background: rgba(230,126,34,0.1); border-radius: 6px; font-size: 0.85em;">
                 <strong>Allowed now:</strong> <span id="bearSectorsList">-</span>
@@ -388,6 +388,27 @@
             </div>
             <div id="bullBlockedSectors" style="display:none; margin-top: 8px; padding: 6px 10px; background: rgba(231,76,60,0.1); border-radius: 6px; font-size: 0.85em;">
                 <strong>Blocked now:</strong> <span id="bullBlockedList">none</span>
+            </div>
+        </div>
+
+        <!-- v4.9.4 New Features -->
+        <div class="rules-box mt-3">
+            <h5><i class="fas fa-fire me-2"></i>v4.9.4 New Features <small class="text-danger">(Aggressive Swing)</small></h5>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #e74c3c;">A+</div>
+                <div>Conviction Sizing: <strong>A+ 45% | A 40% | B 30%</strong> (BEAR skip)</div>
+            </div>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #f39c12;">DT</div>
+                <div>Smart Day Trade: <strong>Gap +3% | Mom +4% | Emergency 1.5xSL</strong></div>
+            </div>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #9b59b6;">ON</div>
+                <div>Overnight Gap: <strong>Buy 15:30, Sell 9:31 next day</strong> (not a day trade)</div>
+            </div>
+            <div class="rule-item">
+                <div class="rule-icon" style="background: #3498db;">BO</div>
+                <div>Breakout Scanner: <strong>20d high + Vol 1.5x</strong> (morning + afternoon)</div>
             </div>
         </div>
 
@@ -421,7 +442,7 @@
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #f39c12;">⭐</div>
-                <div>Min Score: <strong>98</strong> (ปกติ 95)</div>
+                <div>Min Score: <strong>85</strong> (ปกติ 80)</div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #f39c12;">💵</div>
@@ -435,14 +456,14 @@
 
         <!-- Trading Rules (v4.9) -->
         <div class="rules-box mt-3">
-            <h5><i class="fas fa-list-check me-2"></i>Trading Rules v4.9.3 <small class="text-info">(ATR-Based)</small></h5>
+            <h5><i class="fas fa-list-check me-2"></i>Trading Rules v4.9.4 <small class="text-info">(ATR-Based)</small></h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e74c3c;">SL</div>
                 <div>Stop Loss: <strong>1.5xATR [2-4%]</strong> per position</div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #27ae60;">TP</div>
-                <div>Take Profit: <strong>3xATR [4-8%]</strong> per position</div>
+                <div>Take Profit: <strong>3xATR [4-10%]</strong> per position</div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #3498db;">PDT</div>
@@ -450,7 +471,7 @@
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #9b59b6;">📈</div>
-                <div>Trailing: <strong>+3% activation, lock 80%</strong></div>
+                <div>Trailing: <strong>+4% activation, lock 50%</strong></div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #f39c12;">⏱</div>
