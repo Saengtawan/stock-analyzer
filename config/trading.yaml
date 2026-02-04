@@ -104,6 +104,14 @@ regime_rsi_min: 40
 regime_return_5d_min: -2.0
 regime_vix_max: 30.0
 
+# -- BEAR Mode Params (v4.9.4: relaxed — conviction sizing handles risk) --
+bear_max_positions: 2
+bear_min_score: 85                 # v4.9.4: 98→85
+bear_gap_max_up: 1.5               # v4.9.4: 1.0→1.5
+bear_gap_max_down: -3.0            # v4.9.4: -2.0→-3.0
+bear_position_size_pct: 25         # v4.9.4: 20→25
+bear_max_atr_pct: 4.0              # v4.9.4: 3.0→4.0
+
 # =============================================================================
 # v4.9.4 — AGGRESSIVE SWING MODE
 # =============================================================================

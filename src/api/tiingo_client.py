@@ -10,13 +10,64 @@ from .base_client import BaseAPIClient, DataCache, APIError
 
 
 class TiingoClient(BaseAPIClient):
-    """Tiingo API client with improved caching"""
+    """Tiingo API client with improved caching and circuit breaker"""
+
+    # v4.9.4: Circuit breaker — stop hammering API after repeated 429s
+    CIRCUIT_BREAKER_THRESHOLD = 5   # consecutive 429s before tripping
+    CIRCUIT_BREAKER_COOLDOWN = 300  # seconds to wait before retrying (5 min)
 
     def __init__(self, api_key: str):
-        super().__init__(api_key, rate_limit=500)  # v6.10: Conservative rate limit
-        self.rate_limiter.min_delay = 0.3  # 300ms between calls
+        super().__init__(api_key, rate_limit=40)  # v4.9.4: 500→40 (Tiingo free ~50/hr)
+        self.rate_limiter.min_delay = 1.5  # v4.9.4: 0.3→1.5s between calls
         self.base_url = "https://api.tiingo.com/tiingo"
         self.cache = DataCache(ttl_minutes=120)  # v6.10: 2 hour cache (was 15 min)
+        self._circuit_breaker_count = 0
+        self._circuit_breaker_until = 0  # timestamp
+
+    def _check_circuit_breaker(self):
+        """Raise immediately if circuit breaker is tripped"""
+        import time
+        if self._circuit_breaker_until > time.time():
+            remaining = int(self._circuit_breaker_until - time.time())
+            raise APIError(f"Tiingo circuit breaker: rate limited, retry in {remaining}s")
+
+    def _record_429(self):
+        """Record a 429 error for circuit breaker"""
+        import time
+        self._circuit_breaker_count += 1
+        if self._circuit_breaker_count >= self.CIRCUIT_BREAKER_THRESHOLD:
+            self._circuit_breaker_until = time.time() + self.CIRCUIT_BREAKER_COOLDOWN
+            logger.warning(f"Tiingo circuit breaker TRIPPED: {self._circuit_breaker_count} consecutive 429s, "
+                          f"cooling down for {self.CIRCUIT_BREAKER_COOLDOWN}s")
+
+    def _record_success(self):
+        """Reset circuit breaker on success"""
+        self._circuit_breaker_count = 0
+
+    def _make_request(self, url, params=None):
+        """Override with circuit breaker — skip base retry for 429s"""
+        import time as _time
+        self._check_circuit_breaker()
+        # Single attempt — no base class retry for Tiingo
+        self.rate_limiter.wait_if_needed()
+        try:
+            response = self.session.get(url, params=params, timeout=30)
+            if response.status_code == 429:
+                self.rate_limiter.record_error()
+                self._record_429()
+                raise APIError(f"429 Client Error: Too Many Requests for url: {url}")
+            response.raise_for_status()
+            self.rate_limiter.record_success()
+            self._record_success()
+            return response.json()
+        except APIError:
+            raise
+        except Exception as e:
+            self.rate_limiter.record_error()
+            if '429' in str(e):
+                self._record_429()
+            logger.error(f"API request failed: {e}")
+            raise
 
     def get_price_data(self, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
         """

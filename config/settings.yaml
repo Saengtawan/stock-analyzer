@@ -2,10 +2,10 @@
 
 # Data Sources
 data_sources:
-  primary: "yfinance"  # yfinance, fmp, tiingo
-  backup: "fmp"
+  primary: "yahoo"       # v4.9.4: Yahoo primary (no hard rate limit)
+  backup: "tiingo"       # v4.9.4: Tiingo backup (free tier ~50/hr)
   price_backup: "tiingo"
-  financial_data: "fmp"
+  financial_data: "yahoo"  # Tiingo doesn't support fundamentals
 
 # Analysis Parameters
 analysis:

@@ -26,23 +26,22 @@ class DataManager:
         self.yahoo_client = YahooFinanceClient()
 
         # FMP client (optional, requires API key)
-        # DISABLED: Quota too low (250/day), replaced by Tiingo (1000/hr)
         fmp_key = os.getenv('FMP_API_KEY')
         self.fmp_client = None
         # if fmp_key:
         #     self.fmp_client = FMPClient(fmp_key)
 
-        # Tiingo client (optional, requires API key)
+        # Tiingo client (optional — backup only, free tier rate limit too low for primary)
         tiingo_key = os.getenv('TIINGO_API_KEY')
         self.tiingo_client = None
         if tiingo_key:
             self.tiingo_client = TiingoClient(tiingo_key)
 
-        # Set primary and backup sources
-        # v6.10: Use Tiingo as primary to avoid Yahoo rate limits (1000 req/hr vs Yahoo's rate limit issues)
-        self.primary_source = self.config.get('primary_source', 'tiingo' if self.tiingo_client else 'yahoo')
-        self.backup_source = self.config.get('backup_source', 'yahoo')  # Yahoo as backup
-        self.price_backup = self.config.get('price_backup', 'fmp')  # FMP as last resort only
+        # v4.9.4: Yahoo primary (no hard rate limit, supports fundamentals + real-time)
+        # Tiingo demoted to backup (free tier ~50/hr, price-only, 429 issues)
+        self.primary_source = self.config.get('primary_source', 'yahoo')
+        self.backup_source = self.config.get('backup_source', 'tiingo' if self.tiingo_client else 'yahoo')
+        self.price_backup = self.config.get('price_backup', 'tiingo' if self.tiingo_client else 'yahoo')
 
         logger.info(f"DataManager initialized with primary: {self.primary_source}, backup: {self.backup_source}, price_backup: {self.price_backup}")
 

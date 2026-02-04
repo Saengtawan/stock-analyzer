@@ -70,16 +70,37 @@ class BaseAPIClient(ABC):
         })
 
     def _make_request(self, url: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Make rate-limited API request"""
-        self.rate_limiter.wait_if_needed()
-
-        try:
-            response = self.session.get(url, params=params, timeout=30)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"API request failed: {e}")
-            raise
+        """Make rate-limited API request with 429 retry"""
+        max_retries = 3
+        last_error = None
+        for attempt in range(max_retries):
+            self.rate_limiter.wait_if_needed()
+            try:
+                response = self.session.get(url, params=params, timeout=30)
+                if response.status_code == 429:
+                    self.rate_limiter.record_error()
+                    if attempt < max_retries - 1:
+                        wait = min(30, (attempt + 1) * 10)
+                        logger.warning(f"429 rate limited, waiting {wait}s (attempt {attempt+1}/{max_retries})")
+                        time.sleep(wait)
+                        continue
+                    # Last attempt — raise so fallback can kick in
+                    response.raise_for_status()
+                response.raise_for_status()
+                self.rate_limiter.record_success()
+                return response.json()
+            except requests.exceptions.RequestException as e:
+                self.rate_limiter.record_error()
+                last_error = e
+                if attempt < max_retries - 1 and '429' in str(e):
+                    wait = min(30, (attempt + 1) * 10)
+                    logger.warning(f"Rate limit error, retrying in {wait}s")
+                    time.sleep(wait)
+                    continue
+                logger.error(f"API request failed: {e}")
+                raise
+        # Should not reach here, but raise if it does
+        raise requests.exceptions.RequestException(f"Max retries exceeded: {last_error}")
 
     @abstractmethod
     def get_price_data(self, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:

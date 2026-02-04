@@ -358,13 +358,13 @@ class AutoTradingEngine:
     }
     BEAR_SECTOR_THRESHOLD = 3  # return_20d > 3% = sector ขึ้นจริง (strict)
 
-    # BEAR params (เข้มกว่าปกติ ลดความเสี่ยง)
+    # BEAR params (v4.9.4: relaxed — conviction sizing handles risk)
     BEAR_MAX_POSITIONS = 2          # ลดจาก 3 → 2
-    BEAR_MIN_SCORE = 98             # เข้มกว่าปกติ (95)
-    BEAR_GAP_MAX_UP = 1.0           # เข้มกว่าปกติ (2.0)
-    BEAR_GAP_MAX_DOWN = -2.0        # เข้มกว่าปกติ (-5.0)
-    BEAR_POSITION_SIZE_PCT = 20     # เล็กกว่าปกติ (30%)
-    BEAR_MAX_ATR_PCT = 3.0          # ผันผวนน้อยกว่า LOW_RISK (4.0)
+    BEAR_MIN_SCORE = 85             # v4.9.4: 98→85 (conviction sizing handles risk)
+    BEAR_GAP_MAX_UP = 1.5           # v4.9.4: 1.0→1.5 (less restrictive)
+    BEAR_GAP_MAX_DOWN = -3.0        # v4.9.4: -2.0→-3.0 (less restrictive)
+    BEAR_POSITION_SIZE_PCT = 25     # v4.9.4: 20→25 (conviction sizing overrides)
+    BEAR_MAX_ATR_PCT = 4.0          # v4.9.4: 3.0→4.0 (match LOW_RISK)
 
     # BULL Sector Filter (v4.9.3 NEW!)
     # แม้ SPY BULL ก็ไม่ซื้อ sector ที่กำลังลง (เช่น Tech -3% ขณะ SPY ขึ้น)
@@ -1033,7 +1033,15 @@ class AutoTradingEngine:
                 logger.warning("VIX data empty — fail-safe: returning 50.0 (assume high volatility)")
                 return 50.0
             close = vix['Close']
-            return float(close.iloc[-1]) if hasattr(close, 'iloc') else float(close[-1])
+            # Handle yfinance MultiIndex columns: ('Close', '^VIX')
+            if hasattr(close, 'columns'):
+                close = close.iloc[:, 0]
+            val = float(close.iloc[-1]) if hasattr(close, 'iloc') else float(close[-1])
+            # Sanity check: VIX should be 5-100, not a stock price
+            if val > 100 or val < 5:
+                logger.warning(f"VIX value {val} looks invalid — fail-safe: returning 25.0")
+                return 25.0
+            return val
         except Exception as e:
             logger.warning(f"VIX fetch failed ({e}) — fail-safe: returning 50.0 (assume high volatility)")
             return 50.0

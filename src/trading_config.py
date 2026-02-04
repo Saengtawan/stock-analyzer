@@ -109,6 +109,13 @@ CONFIG_SCHEMA: Dict[str, Dict[str, Any]] = {
     'BREAKOUT_TARGET_PCT': {'type': (int, float), 'min': 2.0, 'max': 15.0},
     'BREAKOUT_SL_PCT': {'type': (int, float), 'min': 1.0, 'max': 10.0},
     'MAX_POSITION_PCT': {'type': (int, float), 'min': 10, 'max': 60},
+    # v4.9.4: BEAR Mode params (configurable)
+    'BEAR_MAX_POSITIONS': {'type': int, 'min': 1, 'max': 5},
+    'BEAR_MIN_SCORE': {'type': int, 'min': 60, 'max': 100},
+    'BEAR_GAP_MAX_UP': {'type': (int, float), 'min': 0.5, 'max': 5.0},
+    'BEAR_GAP_MAX_DOWN': {'type': (int, float), 'min': -10.0, 'max': -1.0},
+    'BEAR_POSITION_SIZE_PCT': {'type': (int, float), 'min': 10, 'max': 40},
+    'BEAR_MAX_ATR_PCT': {'type': (int, float), 'min': 2.0, 'max': 6.0},
 }
 
 

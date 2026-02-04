@@ -658,8 +658,7 @@ class RapidRotationScreener:
     def load_data(self, days: int = 60) -> None:
         """Load historical data for universe
 
-        v4.9.3: Route through DataManager (Tiingo 500/min) instead of
-        direct yfinance (30/min) to avoid rate limits.
+        v4.9.4: Route through DataManager (Yahoo primary, Tiingo backup).
         Falls back to yfinance parallel if DataManager unavailable.
         """
         if not self.universe:
@@ -675,7 +674,7 @@ class RapidRotationScreener:
             self._save_sector_cache()
 
     def _load_data_via_manager(self, days: int = 60) -> None:
-        """v4.9.3: Load via DataManager (Tiingo primary, Yahoo backup)"""
+        """v4.9.4: Load via DataManager (Yahoo primary, Tiingo backup)"""
         logger.info(f"📊 Loading data for {len(self.universe)} stocks via DataManager...")
         now = time.time()
         period = '3mo'  # ~90 days covers days+30
