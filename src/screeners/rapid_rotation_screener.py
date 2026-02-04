@@ -850,26 +850,32 @@ class RapidRotationScreener:
 
         # FILTER 1: Yesterday MUST be down (the dip day)
         if yesterday_move > -1.0:
+            self._filter_stats['no_dip'] += 1
             return None  # Need yesterday to be a dip
 
         # FILTER 2: Today should show recovery (not falling further)
         if mom_1d < -1.0:
+            self._filter_stats['still_falling'] += 1
             return None  # Still falling hard, wait
 
         # FILTER 3: Strong preference for green candle (bounce signal)
         if not today_is_green and mom_1d < 0.5:
+            self._filter_stats['no_bounce'] += 1
             return None  # No clear bounce yet
 
         # FILTER 4: Skip big gap ups (exhaustion risk)
         if gap_pct > 2.0:
+            self._filter_stats['gap_up'] += 1
             return None
 
         # FILTER 5: Still in oversold zone (room to recover)
         if current_price > sma5 * 1.02:
+            self._filter_stats['above_sma5'] += 1
             return None
 
         # FILTER 6: Minimum volatility
         if atr_pct < self.MIN_ATR_PCT:
+            self._filter_stats['low_atr'] += 1
             return None
 
         # ==============================
@@ -878,6 +884,7 @@ class RapidRotationScreener:
         # Based on root cause analysis: 92% of stop loss trades
         # were below SMA20 (downtrend). This filter prevents most losers.
         if current_price < sma20:
+            self._filter_stats['below_sma20'] += 1
             return None  # Must be above SMA20 (uptrend)
 
         # ==============================
@@ -889,11 +896,13 @@ class RapidRotationScreener:
         # FILTER 7: No big single-day moves in last 5 days
         MAX_SINGLE_DAY_MOVE = 8.0  # Skip if any day had >8% move
         if max_daily_move > MAX_SINGLE_DAY_MOVE:
+            self._filter_stats['overextended'] += 1
             return None  # Overextended - wait for consolidation
 
         # FILTER 8: Price not too far above SMA20
         MAX_SMA20_EXTENSION = 10.0  # Skip if >10% above SMA20
         if sma20_extension > MAX_SMA20_EXTENSION:
+            self._filter_stats['sma20_extended'] += 1
             return None  # Too extended above SMA20
 
         # ==============================
@@ -993,6 +1002,8 @@ class RapidRotationScreener:
 
         # Check minimum score (v3.3: Higher threshold = 90)
         if score < self.MIN_SCORE:
+            self._filter_stats['low_score'] += 1
+            self._filter_stats['_low_score_values'].append((symbol, score))
             return None
 
         # ==============================
@@ -1187,6 +1198,13 @@ class RapidRotationScreener:
 
         signals = []
         skipped_sector = 0
+        # v4.9.4: Filter diagnostics — track why stocks get rejected
+        self._filter_stats = {
+            'no_dip': 0, 'still_falling': 0, 'no_bounce': 0,
+            'gap_up': 0, 'above_sma5': 0, 'low_atr': 0,
+            'below_sma20': 0, 'overextended': 0, 'sma20_extended': 0,
+            'low_score': 0, '_low_score_values': [],
+        }
         for symbol in universe_sorted:
             try:
                 # v4.9.2/v4.9.3: Sector filter BEFORE analyze (performance optimization)
@@ -1211,6 +1229,19 @@ class RapidRotationScreener:
             logger.info(f"🐻 Sector filter: {skipped_sector} skipped, {len(self.data_cache) - skipped_sector} analyzed, {len(signals)} signals")
         elif blocked_sectors:
             logger.info(f"🐂 Sector filter: {skipped_sector} blocked, {len(self.data_cache) - skipped_sector} analyzed, {len(signals)} signals")
+
+        # v4.9.4: Log filter diagnostics
+        fs = self._filter_stats
+        total_filtered = sum(v for k, v in fs.items() if k != '_low_score_values')
+        logger.info(f"📋 Filter breakdown ({total_filtered} rejected): "
+                    f"no_dip={fs['no_dip']} still_falling={fs['still_falling']} "
+                    f"no_bounce={fs['no_bounce']} gap_up={fs['gap_up']} "
+                    f"above_sma5={fs['above_sma5']} low_atr={fs['low_atr']} "
+                    f"below_sma20={fs['below_sma20']} overextended={fs['overextended']} "
+                    f"sma20_ext={fs['sma20_extended']} low_score={fs['low_score']}")
+        if fs['_low_score_values']:
+            top_near = sorted(fs['_low_score_values'], key=lambda x: x[1], reverse=True)[:5]
+            logger.info(f"📋 Near-miss scores: {[(s, sc) for s, sc in top_near]}")
 
         # Sort by BASE score (before alt data)
         signals.sort(key=lambda x: x.score, reverse=True)

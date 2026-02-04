@@ -5,7 +5,7 @@ RAPID TRADING SYSTEM - Target 5-15% per month
 Services:
 1. Web Server (Flask) - http://localhost:5000
 2. Rapid Portfolio Monitor - เช็ค portfolio ทุก 5 นาที (ตัดขาดทุนเร็ว!)
-3. Rapid Rotation Scanner - หาหุ้นใหม่ทุก 15 นาที
+3. Rapid Rotation Scanner - หาหุ้นใหม่ทุก 5 นาที
 
 Usage:
     python src/run_app.py
@@ -182,8 +182,24 @@ class ServiceManager:
             traceback.print_exc()
             return False
 
+    def _get_scanner_bear_sectors(self) -> list:
+        """Get allowed sectors for BEAR mode scan — ALL non-BEAR sectors"""
+        if not self.rapid_screener or not hasattr(self.rapid_screener, 'sector_regime'):
+            return []
+        sr = self.rapid_screener.sector_regime
+        if not sr:
+            return []
+        # Return ALL sectors that aren't in BEAR/STRONG BEAR regime
+        # (not just 6 defensive — we want Tech/Growth if they're still BULL)
+        allowed = []
+        for etf, sector_name in sr.SECTOR_ETFS.items():
+            regime = sr.sector_regimes.get(etf, 'UNKNOWN')
+            if regime not in ('BEAR', 'STRONG BEAR'):
+                allowed.append(sector_name)
+        return allowed
+
     def start_rapid_rotation_scanner(self):
-        """Start rapid rotation scanner - หาหุ้นใหม่ทุก 15 นาที"""
+        """Start rapid rotation scanner - หาหุ้นใหม่ทุก 5 นาที"""
         try:
             logger.info("Starting Rapid Rotation Scanner...")
 
@@ -195,14 +211,36 @@ class ServiceManager:
             self.latest_rapid_signals = []
 
             def run_rapid_scanner():
-                scan_interval = 15 * 60  # 15 minutes
+                scan_interval = 5 * 60  # v4.9.4: 15→5 minutes (aggressive mode)
 
                 while self.running:
                     try:
                         logger.info("Rapid Rotation: Scanning...")
                         scan_start = time.time()
                         self.rapid_screener.load_data()
-                        signals = self.rapid_screener.screen(top_n=10)
+
+                        # v4.9.4: Check SPY regime and pass allowed_sectors for BEAR mode
+                        is_bull, spy_reason, _ = self.rapid_screener.check_spy_regime()
+                        allowed_sectors = None
+                        blocked_sectors = None
+                        if not is_bull:
+                            allowed_sectors = self._get_scanner_bear_sectors()
+                            logger.info(f"Rapid Rotation: BEAR mode — {len(allowed_sectors)} sectors: {allowed_sectors}")
+                        else:
+                            # BULL mode: block declining sectors
+                            hot = self.rapid_screener._get_hot_sectors()
+                            if hot:
+                                all_sectors = ['Technology', 'Healthcare', 'Financial Services',
+                                               'Consumer Cyclical', 'Communication Services',
+                                               'Industrials', 'Consumer Defensive', 'Energy',
+                                               'Utilities', 'Real Estate', 'Basic Materials']
+                                blocked_sectors = [s for s in all_sectors if s not in hot]
+
+                        signals = self.rapid_screener.screen(
+                            top_n=10,
+                            allowed_sectors=allowed_sectors,
+                            blocked_sectors=blocked_sectors
+                        )
                         scan_duration = time.time() - scan_start
 
                         self.latest_rapid_signals = signals
@@ -235,7 +273,7 @@ class ServiceManager:
             scanner_thread.start()
 
             self.services['rapid_scanner'] = scanner_thread
-            logger.info("Rapid Rotation Scanner started (scan every 15 minutes)")
+            logger.info("Rapid Rotation Scanner started (scan every 5 minutes)")
 
             return True
 
