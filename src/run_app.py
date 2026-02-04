@@ -211,7 +211,7 @@ class ServiceManager:
             self.latest_rapid_signals = []
 
             def run_rapid_scanner():
-                scan_interval = 5 * 60  # v4.9.4: 15→5 minutes (aggressive mode)
+                scan_interval = 10  # v4.9.4: continuous — scan finishes (~90s) then 10s pause
 
                 while self.running:
                     try:
