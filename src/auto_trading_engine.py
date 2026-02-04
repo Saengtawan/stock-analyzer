@@ -341,20 +341,20 @@ class AutoTradingEngine:
     EARNINGS_AUTO_SELL_BUFFER_MIN = 30  # ขายอย่างน้อย 30 นาทีก่อนปิด
 
     # Smart Bear Mode (v4.9.2 NEW!)
-    # SPY BEAR → เทรดได้เฉพาะ defensive + opportunistic sectors ที่ยังขึ้น
+    # SPY BEAR → เทรดได้เฉพาะ sectors ที่ return_20d > 0%
     # ป้องกันระบบหยุดนิ่งทั้งวันเมื่อ SPY BEAR (เช่น 2022 Energy +65%)
     BEAR_MODE_ENABLED = True
 
-    # Tier 1: Defensive — ซื้อได้เสมอใน BEAR
-    BEAR_DEFENSIVE_SECTORS = ['Consumer Defensive', 'Utilities', 'Healthcare']
-
-    # Tier 2: Opportunistic — ซื้อได้ถ้า sector ETF return_20d > threshold
-    BEAR_OPPORTUNISTIC_SECTORS = {
+    # ทุก sector ใช้ logic เดียวกัน: return_20d > threshold ถึงจะซื้อได้
+    BEAR_SECTORS = {
+        'Consumer Defensive': 'XLP',
+        'Utilities': 'XLU',
+        'Healthcare': 'XLV',
         'Energy': 'XLE',
         'Basic Materials': 'XLB',
         'Industrials': 'XLI',
     }
-    BEAR_OPPORTUNISTIC_THRESHOLD = 0  # return_20d > 0% = sector ยังขึ้น
+    BEAR_SECTOR_THRESHOLD = 0  # return_20d > 0% = sector ยังขึ้น
 
     # BEAR params (เข้มกว่าปกติ ลดความเสี่ยง)
     BEAR_MAX_POSITIONS = 2          # ลดจาก 3 → 2
@@ -1036,32 +1036,31 @@ class AutoTradingEngine:
         """
         Get dynamic list of sectors allowed in Bear Mode
 
-        Tier 1: Defensive sectors (always allowed)
-        Tier 2: Opportunistic sectors (allowed if sector ETF return_20d > threshold)
+        ทุก sector ใช้ logic เดียวกัน: return_20d > threshold ถึงจะซื้อได้
+        ไม่แยก tier — sector ไหนกำลังลง ไม่ซื้อ
 
         Returns:
             List of sector names allowed for trading
         """
-        allowed = list(self.BEAR_DEFENSIVE_SECTORS)  # Copy defensive list
+        allowed = []
 
-        # Check opportunistic sectors via sector_regime_detector
         if self.screener and hasattr(self.screener, 'sector_regime') and self.screener.sector_regime:
-            for sector_name, etf in self.BEAR_OPPORTUNISTIC_SECTORS.items():
+            for sector_name, etf in self.BEAR_SECTORS.items():
                 try:
                     metrics = self.screener.sector_regime.sector_metrics.get(etf)
                     if metrics:
                         return_20d = metrics.get('return_20d', -999)
-                        if return_20d > self.BEAR_OPPORTUNISTIC_THRESHOLD:
+                        if return_20d > self.BEAR_SECTOR_THRESHOLD:
                             allowed.append(sector_name)
-                            logger.info(f"🐻 Opportunistic: {sector_name} ({etf}) return_20d={return_20d:+.1f}% > {self.BEAR_OPPORTUNISTIC_THRESHOLD}% → ALLOWED")
+                            logger.info(f"🐻 {sector_name} ({etf}) return_20d={return_20d:+.1f}% > {self.BEAR_SECTOR_THRESHOLD}% → ALLOWED")
                         else:
-                            logger.info(f"🐻 Opportunistic: {sector_name} ({etf}) return_20d={return_20d:+.1f}% ≤ {self.BEAR_OPPORTUNISTIC_THRESHOLD}% → BLOCKED")
+                            logger.info(f"🐻 {sector_name} ({etf}) return_20d={return_20d:+.1f}% ≤ {self.BEAR_SECTOR_THRESHOLD}% → BLOCKED")
                     else:
                         logger.debug(f"No sector metrics for {etf}")
                 except Exception as e:
-                    logger.debug(f"Error checking opportunistic sector {etf}: {e}")
+                    logger.debug(f"Error checking sector {etf}: {e}")
 
-        logger.info(f"🐻 Bear allowed sectors: {allowed}")
+        logger.info(f"🐻 Bear allowed sectors ({len(allowed)}/{len(self.BEAR_SECTORS)}): {allowed}")
         return allowed
 
     def _get_effective_params(self) -> Dict:
