@@ -3078,6 +3078,7 @@ def handle_request_update(data=None):
     emit('positions_update', get_positions_data())
     emit('signals_update', get_signals_data())
     emit('status_update', get_status_data())
+    emit('regime_update', get_regime_data())
 
 def _get_extended_hours_prices(symbols: list) -> dict:
     """
