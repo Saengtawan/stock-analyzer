@@ -655,7 +655,7 @@ class RapidRotationScreener:
             logger.debug(f"Sector regime score failed for {sector}: {e}")
             return 0, 'UNKNOWN', ''
 
-    def load_data(self, days: int = 60) -> None:
+    def load_data(self, days: int = 60, progress_callback=None) -> None:
         """Load historical data for universe
 
         v4.9.4: Route through DataManager (Yahoo primary, Tiingo backup).
@@ -665,15 +665,15 @@ class RapidRotationScreener:
             self.generate_universe()
 
         if self.data_manager:
-            self._load_data_via_manager(days)
+            self._load_data_via_manager(days, progress_callback=progress_callback)
         else:
-            self._load_data_via_yfinance(days)
+            self._load_data_via_yfinance(days, progress_callback=progress_callback)
 
         # v4.9.3: Save sector cache after loading (many new sectors discovered)
         if self._sector_cache:
             self._save_sector_cache()
 
-    def _load_data_via_manager(self, days: int = 60) -> None:
+    def _load_data_via_manager(self, days: int = 60, progress_callback=None) -> None:
         """v4.9.4: Load via DataManager (Yahoo primary, Tiingo backup)"""
         logger.info(f"📊 Loading data for {len(self.universe)} stocks via DataManager...")
         now = time.time()
@@ -702,15 +702,19 @@ class RapidRotationScreener:
                     self.data_cache[symbol] = df
                     self._data_cache_time[symbol] = now
                     loaded += 1
+                    if progress_callback and loaded % 20 == 0:
+                        progress_callback(phase="loading", current=loaded, total=len(self.universe), message=f"Loading data... {loaded}/{len(self.universe)}")
                 else:
                     errors += 1
             except Exception as e:
                 errors += 1
                 logger.debug(f"Error loading {symbol}: {e}")
 
+        if progress_callback:
+            progress_callback(phase="loading", current=loaded, total=len(self.universe), message=f"Loaded {loaded}/{len(self.universe)} stocks")
         logger.info(f"✅ Loaded {loaded}/{len(self.universe)} stocks via DataManager ({skipped} cached, {errors} errors)")
 
-    def _load_data_via_yfinance(self, days: int = 60) -> None:
+    def _load_data_via_yfinance(self, days: int = 60, progress_callback=None) -> None:
         """Legacy fallback: Load via yfinance parallel (no rate limiting)"""
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -742,9 +746,13 @@ class RapidRotationScreener:
                         self.data_cache[symbol] = data
                         self._data_cache_time[symbol] = now
                         loaded += 1
+                        if progress_callback and loaded % 20 == 0:
+                            progress_callback(phase="loading", current=loaded, total=len(self.universe), message=f"Loading data... {loaded}/{len(self.universe)}")
                 except Exception as e:
                     logger.debug(f"Future error: {e}")
 
+        if progress_callback:
+            progress_callback(phase="loading", current=loaded, total=len(self.universe), message=f"Loaded {loaded}/{len(self.universe)} stocks")
         logger.info(f"✅ Loaded {loaded}/{len(self.universe)} stocks via yfinance (parallel)")
 
     def calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
@@ -1097,7 +1105,7 @@ class RapidRotationScreener:
             resistance=round(resistance, 2)
         )
 
-    def screen(self, top_n: int = 10, enable_alt_data: bool = True, allowed_sectors: List[str] = None, blocked_sectors: List[str] = None) -> List[RapidRotationSignal]:
+    def screen(self, top_n: int = 10, enable_alt_data: bool = True, allowed_sectors: List[str] = None, blocked_sectors: List[str] = None, progress_callback=None) -> List[RapidRotationSignal]:
         """
         Screen universe for rapid rotation opportunities
 
@@ -1126,6 +1134,8 @@ class RapidRotationScreener:
 
         # v4.0: Check SPY regime FIRST!
         is_bull, spy_reason, spy_details = self.check_spy_regime()
+        if progress_callback:
+            progress_callback(phase="regime", message=f"SPY: {'BULL' if is_bull else 'BEAR'} ({spy_reason[:50]})")
 
         if not is_bull:
             if allowed_sectors:
@@ -1205,7 +1215,8 @@ class RapidRotationScreener:
             'below_sma20': 0, 'overextended': 0, 'sma20_extended': 0,
             'low_score': 0, '_low_score_values': [],
         }
-        for symbol in universe_sorted:
+        analyzed_count = 0
+        for i, symbol in enumerate(universe_sorted):
             try:
                 # v4.9.2/v4.9.3: Sector filter BEFORE analyze (performance optimization)
                 if allowed_sectors or blocked_sectors:
@@ -1219,9 +1230,23 @@ class RapidRotationScreener:
                         skipped_sector += 1
                         continue  # Skip blocked sectors (BULL)
 
+                analyzed_count += 1
+                # v4.9.4: Progress callback for live UI
+                if progress_callback:
+                    progress_callback(
+                        phase="analyzing",
+                        current=analyzed_count,
+                        total=len(universe_sorted) - skipped_sector,
+                        symbol=symbol,
+                    )
+
                 signal = self.analyze_stock(symbol)
                 if signal:
                     signals.append(signal)
+                    if progress_callback:
+                        progress_callback(phase="signal", symbol=symbol, score=signal.score, passed=True)
+                elif progress_callback and analyzed_count % 5 == 0:
+                    progress_callback(phase="analyzed", symbol=symbol, passed=False)
             except Exception as e:
                 logger.debug(f"Error analyzing {symbol}: {e}")
 
@@ -1247,6 +1272,8 @@ class RapidRotationScreener:
         signals.sort(key=lambda x: x.score, reverse=True)
 
         logger.info(f"📊 Found {len(signals)} signals from {len(self.data_cache)} stocks")
+        if progress_callback:
+            progress_callback(phase="done", signals_count=len(signals), total_analyzed=len(self.data_cache))
 
         # ==============================
         # v3.7: APPLY ALT DATA TO TOP 10 ONLY
@@ -1255,6 +1282,8 @@ class RapidRotationScreener:
         if enable_alt_data and signals:
             top_10 = signals[:10]
 
+            if progress_callback:
+                progress_callback(phase="alt_data", message=f"Fetching alt data for top {min(10, len(signals))}...")
             logger.info("🔍 Fetching alt data for Top 10 candidates...")
 
             for signal in top_10:
@@ -1288,7 +1317,8 @@ class RapidRotationScreener:
                               max_positions: int = 4,
                               existing_positions: List[str] = None,
                               allowed_sectors: List[str] = None,
-                              blocked_sectors: List[str] = None) -> List[RapidRotationSignal]:
+                              blocked_sectors: List[str] = None,
+                              progress_callback=None) -> List[RapidRotationSignal]:
         """Get signals for portfolio management
 
         Args:
@@ -1296,7 +1326,7 @@ class RapidRotationScreener:
             blocked_sectors: v4.9.3 BULL mode — skip signals from these sectors
         """
         existing = set(existing_positions or [])
-        signals = self.screen(top_n=20, allowed_sectors=allowed_sectors, blocked_sectors=blocked_sectors)
+        signals = self.screen(top_n=20, allowed_sectors=allowed_sectors, blocked_sectors=blocked_sectors, progress_callback=progress_callback)
         new_signals = [s for s in signals if s.symbol not in existing]
         available_slots = max_positions - len(existing)
         return new_signals[:available_slots]

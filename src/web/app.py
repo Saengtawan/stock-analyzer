@@ -2524,6 +2524,18 @@ def api_rapid_spy_regime():
         return jsonify({'error': str(e), 'is_bull': True}), 500
 
 
+@app.route('/api/rapid/scan-progress')
+def api_scan_progress():
+    """Get current scan progress for live UI display"""
+    try:
+        mgr = app.config.get('service_manager')
+        if mgr and hasattr(mgr, '_scan_progress') and mgr._scan_progress:
+            return jsonify(mgr._scan_progress)
+        return jsonify({'phase': 'idle', 'message': 'No scan in progress'})
+    except Exception as e:
+        return jsonify({'phase': 'error', 'message': str(e)})
+
+
 @app.route('/api/rapid/signals')
 def api_rapid_signals():
     """Get rapid rotation buy signals from background scanner cache"""

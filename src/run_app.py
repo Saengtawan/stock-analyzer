@@ -53,6 +53,7 @@ class ServiceManager:
         self.health_status = {}
         self.last_portfolio_check = None
         self.last_scanner_run = None
+        self._scan_progress = {}
 
         # Handle shutdown
         signal.signal(signal.SIGINT, self._shutdown)
@@ -104,6 +105,9 @@ class ServiceManager:
             logger.info("Starting Web Server...")
 
             from web.app import app
+
+            # Store reference to ServiceManager so web endpoints can access scan progress
+            app.config['service_manager'] = self
 
             # Run in thread
             def run_flask():
@@ -182,6 +186,19 @@ class ServiceManager:
             traceback.print_exc()
             return False
 
+    def _on_scan_progress(self, **kwargs):
+        """Broadcast scan progress via Socket.IO for live UI"""
+        progress = {
+            'timestamp': datetime.now().isoformat(),
+            **kwargs
+        }
+        self._scan_progress = progress
+        try:
+            from web.app import socketio
+            socketio.emit('scan_progress', progress)
+        except Exception:
+            pass  # Socket.IO not available yet
+
     def _get_scanner_bear_sectors(self) -> list:
         """Get allowed sectors for BEAR mode scan — ALL non-BEAR sectors"""
         if not self.rapid_screener or not hasattr(self.rapid_screener, 'sector_regime'):
@@ -217,7 +234,8 @@ class ServiceManager:
                     try:
                         logger.info("Rapid Rotation: Scanning...")
                         scan_start = time.time()
-                        self.rapid_screener.load_data()
+                        self._on_scan_progress(phase="start", message="Starting scan...")
+                        self.rapid_screener.load_data(progress_callback=self._on_scan_progress)
 
                         # v4.9.4: Check SPY regime and pass allowed_sectors for BEAR mode
                         is_bull, spy_reason, _ = self.rapid_screener.check_spy_regime()
@@ -239,7 +257,8 @@ class ServiceManager:
                         signals = self.rapid_screener.screen(
                             top_n=10,
                             allowed_sectors=allowed_sectors,
-                            blocked_sectors=blocked_sectors
+                            blocked_sectors=blocked_sectors,
+                            progress_callback=self._on_scan_progress
                         )
                         scan_duration = time.time() - scan_start
 
