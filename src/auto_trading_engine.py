@@ -1099,8 +1099,9 @@ class AutoTradingEngine:
         """
         Get dynamic list of sectors allowed in Bear Mode
 
-        ทุก sector ใช้ logic เดียวกัน: return_20d > threshold ถึงจะซื้อได้
-        ไม่แยก tier — sector ไหนกำลังลง ไม่ซื้อ
+        v4.9.5: Check ALL 11 sectors (not just 6 defensive)
+        ทุก sector ที่ return_20d > threshold ซื้อได้ — ไม่จำกัดแค่ defensive
+        ตรงกับ scanner ใน run_app.py ที่ใช้ sector_regime_detector
 
         Returns:
             List of sector names allowed for trading
@@ -1108,9 +1109,11 @@ class AutoTradingEngine:
         allowed = []
 
         if self.screener and hasattr(self.screener, 'sector_regime') and self.screener.sector_regime:
-            for sector_name, etf in self.BEAR_SECTORS.items():
+            sr = self.screener.sector_regime
+            # v4.9.5: Use ALL sectors from sector_regime_detector
+            for etf, sector_name in sr.SECTOR_ETFS.items():
                 try:
-                    metrics = self.screener.sector_regime.sector_metrics.get(etf)
+                    metrics = sr.sector_metrics.get(etf)
                     if metrics:
                         return_20d = metrics.get('return_20d', -999)
                         if return_20d > self.BEAR_SECTOR_THRESHOLD:
@@ -1123,7 +1126,7 @@ class AutoTradingEngine:
                 except Exception as e:
                     logger.debug(f"Error checking sector {etf}: {e}")
 
-        logger.info(f"🐻 Bear allowed sectors ({len(allowed)}/{len(self.BEAR_SECTORS)}): {allowed}")
+        logger.info(f"🐻 Bear allowed sectors ({len(allowed)}/11): {allowed}")
         return allowed
 
     def _get_bull_blocked_sectors(self) -> List[str]:
@@ -3419,12 +3422,53 @@ class AutoTradingEngine:
                         logger.info(f"⏳ Waiting {wait_secs:.0f}s for market to settle (scan at {scan_time.strftime('%H:%M')} ET)")
                         time.sleep(wait_secs)
 
-                    # v4.4: Late start protection — skip morning scan if starting
-                    # too late (> 20 min after open). Afternoon scan still runs at 14:00 ET.
+                    # v4.4→v4.9.5: Late start — scan immediately with afternoon strictness
+                    # Market has settled, no reason to wait until 14:00
                     is_late, late_reason = self._is_late_start()
                     if is_late:
-                        logger.warning(f"⏰ {late_reason} - skipping morning scan, afternoon scan at {self.AFTERNOON_SCAN_HOUR}:{self.AFTERNOON_SCAN_MINUTE:02d} ET")
+                        logger.info(f"⏰ {late_reason} — running immediate scan with afternoon parameters")
                         self.daily_stats.late_start_skipped = True
+
+                        is_bull, regime_reason = self._check_market_regime()
+                        if is_bull:
+                            self.daily_stats.regime_status = "BULL"
+                        elif self.BEAR_MODE_ENABLED:
+                            self.daily_stats.regime_status = "BEAR_MODE"
+                        else:
+                            self.daily_stats.regime_status = "BEAR"
+
+                        if not is_bull and not self.BEAR_MODE_ENABLED:
+                            logger.warning(f"📉 BEAR market + bear mode disabled — no trades")
+                        elif self.check_daily_loss_limit():
+                            logger.warning("Daily loss limit - no new trades today")
+                        elif self.check_weekly_loss_limit():
+                            logger.warning("Weekly loss limit - no new trades this week")
+                        elif self.check_consecutive_loss_cooldown():
+                            logger.warning("Consecutive loss cooldown - no new trades today")
+                        else:
+                            self._clear_queue_end_of_day()
+                            params = self._get_effective_params()
+                            effective_max = params.get('max_positions') or self.MAX_POSITIONS
+
+                            # Use afternoon strictness for late start
+                            saved_min_score = self.MIN_SCORE
+                            saved_gap_up = self.GAP_MAX_UP
+                            saved_gap_down = self.GAP_MAX_DOWN
+                            self.MIN_SCORE = max(self.MIN_SCORE, self.AFTERNOON_MIN_SCORE)
+                            self.GAP_MAX_UP = self.AFTERNOON_GAP_MAX_UP
+                            self.GAP_MAX_DOWN = self.AFTERNOON_GAP_MAX_DOWN
+                            try:
+                                signals = self.scan_for_signals()
+                                for signal in signals:
+                                    if len(self.positions) < effective_max:
+                                        self.execute_signal(signal)
+                                    else:
+                                        self._add_to_queue(signal)
+                            finally:
+                                self.MIN_SCORE = saved_min_score
+                                self.GAP_MAX_UP = saved_gap_up
+                                self.GAP_MAX_DOWN = saved_gap_down
+
                         last_scan_date = today
                         continue
 
