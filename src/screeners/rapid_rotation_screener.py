@@ -960,25 +960,26 @@ class RapidRotationScreener:
             resistance=round(resistance, 2)
         )
 
-    def screen(self, top_n: int = 10, enable_alt_data: bool = True) -> List[RapidRotationSignal]:
+    def screen(self, top_n: int = 10, enable_alt_data: bool = True, allowed_sectors: List[str] = None) -> List[RapidRotationSignal]:
         """
         Screen universe for rapid rotation opportunities
 
         v4.0: SPY Regime Filter + Hybrid Sector Scoring + Alt Data
+        v4.9.2: Smart Bear Mode — allowed_sectors filter before analyze
 
         Args:
             top_n: Number of top signals to return
             enable_alt_data: Whether to apply alt data scoring to Top 10
+            allowed_sectors: v4.9.2 Bear mode — only scan stocks in these sectors
 
         Returns:
             List of RapidRotationSignal sorted by score
-            Returns EMPTY LIST if SPY is in BEAR regime!
 
         Flow:
-        1. CHECK SPY REGIME (v4.0) - If BEAR, return empty list!
-        2. Score all stocks (with sector penalty/bonus)
-        3. Sort by base score
-        4. Take Top 10 candidates
+        1. CHECK SPY REGIME (v4.0) - If BEAR + no allowed_sectors, return empty!
+        2. If allowed_sectors: filter by sector BEFORE analyze (v4.9.2)
+        3. Score all stocks (with sector penalty/bonus)
+        4. Sort by base score
         5. Apply Alt Data scoring (±10 cap) to Top 10 only
         6. Re-sort and return Top N
         """
@@ -989,33 +990,56 @@ class RapidRotationScreener:
         is_bull, spy_reason, spy_details = self.check_spy_regime()
 
         if not is_bull:
-            logger.warning(f"🔴 SPY BEAR REGIME - SKIPPING ALL NEW SIGNALS")
-            logger.warning(f"   {spy_reason}")
-            return []  # Return empty list - no new trades in bear market!
-
-        logger.info(f"🟢 SPY BULL REGIME - Scanning for signals...")
-        logger.info(f"   {spy_reason}")
+            if allowed_sectors:
+                # v4.9.2: Bear mode — pass through with sector filtering
+                logger.info(f"🐻 SPY BEAR — Smart Bear Mode scan ({len(allowed_sectors)} sectors)")
+                logger.info(f"   {spy_reason}")
+                logger.info(f"   Allowed: {allowed_sectors}")
+            else:
+                logger.warning(f"🔴 SPY BEAR REGIME - SKIPPING ALL NEW SIGNALS")
+                logger.warning(f"   {spy_reason}")
+                return []  # Return empty list - no new trades in bear market!
+        else:
+            logger.info(f"🟢 SPY BULL REGIME - Scanning for signals...")
+            logger.info(f"   {spy_reason}")
 
         # Check market regime (internal detector)
         regime = self._get_market_regime()
         regime_name = regime.get('regime', 'UNKNOWN')
 
         if regime_name == 'BEAR':
-            logger.warning("🐻 Internal regime BEAR - still scanning (SPY is BULL)")
+            logger.warning("🐻 Internal regime BEAR - still scanning (SPY is BULL)" if is_bull else "🐻 Internal regime BEAR - bear mode active")
         elif regime_name == 'BULL':
             logger.info("🐂 Both SPY and internal regime BULL - optimal conditions")
 
         if not self.data_cache:
             self.load_data()
 
+        # v4.9.2: Build sector cache for bear mode filtering (before analyze loop)
+        sector_cache = {}
+        if allowed_sectors:
+            logger.info(f"🐻 Pre-filtering universe by sectors: {allowed_sectors}")
+
         signals = []
+        skipped_sector = 0
         for symbol in self.data_cache.keys():
             try:
+                # v4.9.2: Sector filter BEFORE analyze (performance optimization)
+                if allowed_sectors:
+                    if symbol not in sector_cache:
+                        sector_cache[symbol] = self._get_sector(symbol)
+                    if sector_cache[symbol] not in allowed_sectors:
+                        skipped_sector += 1
+                        continue  # Skip non-allowed sectors
+
                 signal = self.analyze_stock(symbol)
                 if signal:
                     signals.append(signal)
             except Exception as e:
                 logger.debug(f"Error analyzing {symbol}: {e}")
+
+        if allowed_sectors:
+            logger.info(f"🐻 Sector filter: {skipped_sector} skipped, {len(self.data_cache) - skipped_sector} analyzed, {len(signals)} signals")
 
         # Sort by BASE score (before alt data)
         signals.sort(key=lambda x: x.score, reverse=True)
@@ -1056,10 +1080,15 @@ class RapidRotationScreener:
 
     def get_portfolio_signals(self,
                               max_positions: int = 4,
-                              existing_positions: List[str] = None) -> List[RapidRotationSignal]:
-        """Get signals for portfolio management"""
+                              existing_positions: List[str] = None,
+                              allowed_sectors: List[str] = None) -> List[RapidRotationSignal]:
+        """Get signals for portfolio management
+
+        Args:
+            allowed_sectors: v4.9.2 Bear mode — only return signals from these sectors
+        """
         existing = set(existing_positions or [])
-        signals = self.screen(top_n=20)
+        signals = self.screen(top_n=20, allowed_sectors=allowed_sectors)
         new_signals = [s for s in signals if s.symbol not in existing]
         available_slots = max_positions - len(existing)
         return new_signals[:available_slots]

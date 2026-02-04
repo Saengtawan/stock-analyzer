@@ -340,6 +340,30 @@ class AutoTradingEngine:
     EARNINGS_AUTO_SELL = True
     EARNINGS_AUTO_SELL_BUFFER_MIN = 30  # ขายอย่างน้อย 30 นาทีก่อนปิด
 
+    # Smart Bear Mode (v4.9.2 NEW!)
+    # SPY BEAR → เทรดได้เฉพาะ defensive + opportunistic sectors ที่ยังขึ้น
+    # ป้องกันระบบหยุดนิ่งทั้งวันเมื่อ SPY BEAR (เช่น 2022 Energy +65%)
+    BEAR_MODE_ENABLED = True
+
+    # Tier 1: Defensive — ซื้อได้เสมอใน BEAR
+    BEAR_DEFENSIVE_SECTORS = ['Consumer Defensive', 'Utilities', 'Healthcare']
+
+    # Tier 2: Opportunistic — ซื้อได้ถ้า sector ETF return_20d > threshold
+    BEAR_OPPORTUNISTIC_SECTORS = {
+        'Energy': 'XLE',
+        'Basic Materials': 'XLB',
+        'Industrials': 'XLI',
+    }
+    BEAR_OPPORTUNISTIC_THRESHOLD = 0  # return_20d > 0% = sector ยังขึ้น
+
+    # BEAR params (เข้มกว่าปกติ ลดความเสี่ยง)
+    BEAR_MAX_POSITIONS = 2          # ลดจาก 3 → 2
+    BEAR_MIN_SCORE = 98             # เข้มกว่าปกติ (95)
+    BEAR_GAP_MAX_UP = 1.0           # เข้มกว่าปกติ (2.0)
+    BEAR_GAP_MAX_DOWN = -2.0        # เข้มกว่าปกติ (-5.0)
+    BEAR_POSITION_SIZE_PCT = 20     # เล็กกว่าปกติ (30%)
+    BEAR_MAX_ATR_PCT = 3.0          # ผันผวนน้อยกว่า LOW_RISK (4.0)
+
     # Market Regime Filter (v4.0 NEW!)
     # Rule: SPY > SMA20 = Bull → Trade, SPY < SMA20 = Bear → Skip
     REGIME_FILTER_ENABLED = True
@@ -986,21 +1010,109 @@ class AutoTradingEngine:
 
         return False, f"PDT budget OK ({pdt_status.remaining}/{self.pdt_guard.config.max_day_trades})"
 
+    # =========================================================================
+    # SMART BEAR MODE (v4.9.2 NEW!)
+    # =========================================================================
+
+    def _is_bear_mode(self) -> Tuple[bool, str]:
+        """
+        Check if Smart Bear Mode should activate
+
+        Bear Mode: SPY BEAR + BEAR_MODE_ENABLED → trade defensive sectors only
+
+        Returns:
+            (is_bear, reason)
+        """
+        if not self.BEAR_MODE_ENABLED:
+            return False, "Bear mode disabled"
+
+        is_bull, reason = self._check_market_regime()
+        if is_bull:
+            return False, "Market is BULL"
+
+        return True, f"BEAR MODE: {reason}"
+
+    def _get_bear_allowed_sectors(self) -> List[str]:
+        """
+        Get dynamic list of sectors allowed in Bear Mode
+
+        Tier 1: Defensive sectors (always allowed)
+        Tier 2: Opportunistic sectors (allowed if sector ETF return_20d > threshold)
+
+        Returns:
+            List of sector names allowed for trading
+        """
+        allowed = list(self.BEAR_DEFENSIVE_SECTORS)  # Copy defensive list
+
+        # Check opportunistic sectors via sector_regime_detector
+        if self.screener and hasattr(self.screener, 'sector_regime') and self.screener.sector_regime:
+            for sector_name, etf in self.BEAR_OPPORTUNISTIC_SECTORS.items():
+                try:
+                    metrics = self.screener.sector_regime.sector_metrics.get(etf)
+                    if metrics:
+                        return_20d = metrics.get('return_20d', -999)
+                        if return_20d > self.BEAR_OPPORTUNISTIC_THRESHOLD:
+                            allowed.append(sector_name)
+                            logger.info(f"🐻 Opportunistic: {sector_name} ({etf}) return_20d={return_20d:+.1f}% > {self.BEAR_OPPORTUNISTIC_THRESHOLD}% → ALLOWED")
+                        else:
+                            logger.info(f"🐻 Opportunistic: {sector_name} ({etf}) return_20d={return_20d:+.1f}% ≤ {self.BEAR_OPPORTUNISTIC_THRESHOLD}% → BLOCKED")
+                    else:
+                        logger.debug(f"No sector metrics for {etf}")
+                except Exception as e:
+                    logger.debug(f"Error checking opportunistic sector {etf}: {e}")
+
+        logger.info(f"🐻 Bear allowed sectors: {allowed}")
+        return allowed
+
     def _get_effective_params(self) -> Dict:
         """
         Get effective trading parameters based on mode
 
-        Returns parameters adjusted for normal or low-risk mode
-        """
-        is_low_risk, reason = self._is_low_risk_mode()
+        Priority: BEAR > LOW_RISK > NORMAL
+        If BEAR + LOW_RISK → use the stricter of both
 
-        if is_low_risk:
-            logger.info(f"⚠️ LOW RISK MODE: {reason}")
+        Returns parameters adjusted for current mode
+        """
+        is_bear, bear_reason = self._is_bear_mode()
+        is_low_risk, lr_reason = self._is_low_risk_mode()
+
+        if is_bear:
+            allowed_sectors = self._get_bear_allowed_sectors()
+
+            if is_low_risk:
+                # BEAR + LOW_RISK: use stricter of both
+                logger.info(f"🐻🛡️ BEAR+LOW_RISK MODE: {bear_reason} | {lr_reason}")
+                return {
+                    'gap_max_up': min(self.BEAR_GAP_MAX_UP, self.LOW_RISK_GAP_MAX_UP),
+                    'gap_max_down': self.BEAR_GAP_MAX_DOWN,
+                    'min_score': max(self.BEAR_MIN_SCORE, self.LOW_RISK_MIN_SCORE),
+                    'position_size_pct': min(self.BEAR_POSITION_SIZE_PCT, self.LOW_RISK_POSITION_SIZE_PCT),
+                    'max_atr_pct': min(self.BEAR_MAX_ATR_PCT, self.LOW_RISK_MAX_ATR_PCT),
+                    'max_positions': self.BEAR_MAX_POSITIONS,
+                    'allowed_sectors': allowed_sectors,
+                    'mode': 'BEAR+LOW_RISK'
+                }
+            else:
+                logger.info(f"🐻 BEAR MODE: {bear_reason}")
+                return {
+                    'gap_max_up': self.BEAR_GAP_MAX_UP,
+                    'gap_max_down': self.BEAR_GAP_MAX_DOWN,
+                    'min_score': self.BEAR_MIN_SCORE,
+                    'position_size_pct': self.BEAR_POSITION_SIZE_PCT,
+                    'max_atr_pct': self.BEAR_MAX_ATR_PCT,
+                    'max_positions': self.BEAR_MAX_POSITIONS,
+                    'allowed_sectors': allowed_sectors,
+                    'mode': 'BEAR'
+                }
+        elif is_low_risk:
+            logger.info(f"⚠️ LOW RISK MODE: {lr_reason}")
             return {
                 'gap_max_up': self.LOW_RISK_GAP_MAX_UP,
                 'min_score': self.LOW_RISK_MIN_SCORE,
                 'position_size_pct': self.LOW_RISK_POSITION_SIZE_PCT,
                 'max_atr_pct': self.LOW_RISK_MAX_ATR_PCT,
+                'max_positions': None,
+                'allowed_sectors': None,
                 'mode': 'LOW_RISK'
             }
         else:
@@ -1009,6 +1121,8 @@ class AutoTradingEngine:
                 'min_score': self.MIN_SCORE,
                 'position_size_pct': self.POSITION_SIZE_PCT,
                 'max_atr_pct': None,  # No ATR limit in normal mode
+                'max_positions': None,
+                'allowed_sectors': None,
                 'mode': 'NORMAL'
             }
 
@@ -1016,7 +1130,7 @@ class AutoTradingEngine:
     # GAP FILTER (v4.3 NEW!)
     # =========================================================================
 
-    def _check_gap_filter(self, symbol: str, current_price: float, max_up_override: float = None) -> Tuple[bool, float, str]:
+    def _check_gap_filter(self, symbol: str, current_price: float, max_up_override: float = None, max_down_override: float = None) -> Tuple[bool, float, str]:
         """
         Check if stock has gapped too much from previous close
 
@@ -1024,7 +1138,8 @@ class AutoTradingEngine:
         Gap down แรง = อาจมีปัญหา (bad news) → SKIP
 
         Args:
-            max_up_override: Override GAP_MAX_UP (for low-risk mode)
+            max_up_override: Override GAP_MAX_UP (for low-risk/bear mode)
+            max_down_override: Override GAP_MAX_DOWN (for bear mode)
 
         Returns:
             (is_acceptable, gap_pct, reason)
@@ -1032,7 +1147,7 @@ class AutoTradingEngine:
         if not self.GAP_FILTER_ENABLED:
             return True, 0.0, "Gap filter disabled"
 
-        # v4.5: Use override if provided (low-risk mode)
+        # v4.5: Use override if provided (low-risk/bear mode)
         gap_max_up = max_up_override if max_up_override is not None else self.GAP_MAX_UP
 
         try:
@@ -1054,8 +1169,9 @@ class AutoTradingEngine:
                 logger.warning(f"❌ {symbol}: {reason}")
                 return False, gap_pct, reason
 
-            if gap_pct < self.GAP_MAX_DOWN:
-                reason = f"GAP DOWN TOO HIGH: {gap_pct:+.1f}% < {self.GAP_MAX_DOWN:+.1f}% (prev close ${prev_close:.2f})"
+            gap_max_down = max_down_override if max_down_override is not None else self.GAP_MAX_DOWN
+            if gap_pct < gap_max_down:
+                reason = f"GAP DOWN TOO HIGH: {gap_pct:+.1f}% < {gap_max_down:+.1f}% (prev close ${prev_close:.2f})"
                 logger.warning(f"❌ {symbol}: {reason}")
                 return False, gap_pct, reason
 
@@ -1526,21 +1642,32 @@ class AutoTradingEngine:
 
             # v4.0: Check market regime FIRST
             is_bull, regime_reason = self._check_market_regime()
-            if not is_bull:
-                logger.warning(f"Skipping scan - {regime_reason}")
-                self.daily_stats.signals_found = 0
-                return []
 
-            logger.info("Scanning for signals...")
+            # v4.9.2: Bear mode pass-through
+            allowed_sectors = None
+            if not is_bull:
+                if self.BEAR_MODE_ENABLED:
+                    allowed_sectors = self._get_bear_allowed_sectors()
+                    logger.info(f"🐻 Bear mode scan — {len(allowed_sectors)} sectors allowed: {allowed_sectors}")
+                else:
+                    logger.warning(f"Skipping scan - {regime_reason}")
+                    self.daily_stats.signals_found = 0
+                    return []
+
+            regime_label = "BEAR_MODE" if allowed_sectors else "BULL"
+            logger.info(f"Scanning for signals (regime: {regime_label})...")
 
             # Load fresh data
             self.screener.load_data()
 
             # Get signals (excluding current positions)
             existing = list(self.positions.keys())
+            params = self._get_effective_params()
+            effective_max = params.get('max_positions') or self.MAX_POSITIONS
             signals = self.screener.get_portfolio_signals(
-                max_positions=self.MAX_POSITIONS,
-                existing_positions=existing
+                max_positions=effective_max,
+                existing_positions=existing,
+                allowed_sectors=allowed_sectors
             )
 
             # v4.0: Filter by MIN_SCORE if screener doesn't do it
@@ -1548,7 +1675,7 @@ class AutoTradingEngine:
                 signals = [s for s in signals if getattr(s, 'score', 0) >= self.MIN_SCORE]
 
             self.daily_stats.signals_found = len(signals)
-            logger.info(f"Found {len(signals)} signals (regime: BULL)")
+            logger.info(f"Found {len(signals)} signals (regime: {regime_label})")
 
             return signals
 
@@ -1841,9 +1968,10 @@ class AutoTradingEngine:
             except Exception:
                 pass  # get_position returns None for non-existent, exceptions are safe to ignore
 
-            # Check max positions
-            if len(self.positions) >= self.MAX_POSITIONS:
-                logger.warning(f"Max positions ({self.MAX_POSITIONS}) reached")
+            # Check max positions (v4.9.2: use effective max from params)
+            effective_max = params.get('max_positions') or self.MAX_POSITIONS
+            if len(self.positions) >= effective_max:
+                logger.warning(f"Max positions ({effective_max}) reached (mode: {mode})")
                 return False
 
             # v4.5: Check score against effective min_score
@@ -1908,7 +2036,7 @@ class AutoTradingEngine:
 
             # v4.3: Gap Filter - ไม่ซื้อหุ้นที่ gap up/down แรงเกินไป
             # v4.5: Use effective gap_max_up
-            gap_ok, gap_pct, gap_reason = self._check_gap_filter(symbol, current_price, max_up_override=params['gap_max_up'])
+            gap_ok, gap_pct, gap_reason = self._check_gap_filter(symbol, current_price, max_up_override=params['gap_max_up'], max_down_override=params.get('gap_max_down'))
             if not gap_ok:
                 logger.warning(f"❌ Gap Filter REJECT {symbol}: {gap_reason}")
                 self.daily_stats.gap_rejected += 1
@@ -1985,6 +2113,26 @@ class AutoTradingEngine:
                 except Exception as log_err:
                     logger.warning(f"Trade log error: {log_err}")
                 return False
+
+            # v4.9.2: Bear mode sector safety net (defense-in-depth)
+            # Catches signals from queue/manual that didn't go through screener sector filter
+            allowed_sectors = params.get('allowed_sectors')
+            if allowed_sectors:
+                if signal_sector and signal_sector not in allowed_sectors:
+                    logger.warning(f"❌ BEAR Sector Filter REJECT {symbol}: sector '{signal_sector}' not in {allowed_sectors}")
+                    try:
+                        self.trade_logger.log_skip(
+                            symbol=symbol,
+                            price=current_price,
+                            reason="BEAR_SECTOR_REJECT",
+                            skip_detail=f"Sector '{signal_sector}' not allowed in BEAR mode",
+                            filters={"bear_sector": {"passed": False, "detail": f"'{signal_sector}' not in {allowed_sectors}"}},
+                            signal_score=signal_score,
+                            sector=signal_sector
+                        )
+                    except Exception as log_err:
+                        logger.warning(f"Trade log error: {log_err}")
+                    return False
 
             # v4.6: Calculate ATR-based SL/TP (must happen before qty for risk-parity)
             signal_atr = getattr(signal, 'atr_pct', None)
@@ -3045,11 +3193,38 @@ class AutoTradingEngine:
 
                     # v4.0: Check market regime first
                     is_bull, regime_reason = self._check_market_regime()
-                    self.daily_stats.regime_status = "BULL" if is_bull else "BEAR"
 
-                    if not is_bull:
+                    # v4.9.2: Determine regime status with bear mode
+                    if is_bull:
+                        self.daily_stats.regime_status = "BULL"
+                    elif self.BEAR_MODE_ENABLED:
+                        self.daily_stats.regime_status = "BEAR_MODE"
+                    else:
+                        self.daily_stats.regime_status = "BEAR"
+
+                    if not is_bull and not self.BEAR_MODE_ENABLED:
+                        # v4.0: Hard block when bear mode disabled
                         logger.warning(f"📉 BEAR market - skipping all new trades today")
                         self.daily_stats.regime_skipped = True
+                    elif not is_bull and self.BEAR_MODE_ENABLED:
+                        # v4.9.2: Smart Bear Mode — trade defensive sectors only
+                        logger.info(f"🐻 BEAR market — Smart Bear Mode active (defensive sectors only)")
+                        if self.check_daily_loss_limit():
+                            logger.warning("Daily loss limit - no new trades today")
+                        elif self.check_weekly_loss_limit():
+                            logger.warning("Weekly loss limit - no new trades this week")
+                        elif self.check_consecutive_loss_cooldown():
+                            logger.warning("Consecutive loss cooldown - no new trades today")
+                        else:
+                            self._clear_queue_end_of_day()
+                            params = self._get_effective_params()
+                            effective_max = params.get('max_positions') or self.MAX_POSITIONS
+                            signals = self.scan_for_signals()
+                            for signal in signals:
+                                if len(self.positions) < effective_max:
+                                    self.execute_signal(signal)
+                                else:
+                                    self._add_to_queue(signal)
                     elif self.check_daily_loss_limit():
                         logger.warning("Daily loss limit - no new trades today")
                     elif self.check_weekly_loss_limit():
@@ -3080,11 +3255,14 @@ class AutoTradingEngine:
                         second=0, microsecond=0
                     )
                     if not hasattr(self, '_afternoon_scan_done') or self._afternoon_scan_done != today:
-                        if et_now >= afternoon_time and len(self.positions) < self.MAX_POSITIONS:
-                            logger.info(f"☀️ Afternoon scan: {len(self.positions)}/{self.MAX_POSITIONS} positions, scanning for more...")
+                        # v4.9.2: Use effective max_positions for afternoon scan too
+                        afternoon_params = self._get_effective_params()
+                        afternoon_max = afternoon_params.get('max_positions') or self.MAX_POSITIONS
+                        if et_now >= afternoon_time and len(self.positions) < afternoon_max:
+                            logger.info(f"☀️ Afternoon scan: {len(self.positions)}/{afternoon_max} positions, scanning for more...")
                             self._afternoon_scan_done = today
                             is_bull, _ = self._check_market_regime()
-                            if is_bull and not self.check_daily_loss_limit() and not self.check_weekly_loss_limit():
+                            if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit() and not self.check_weekly_loss_limit():
                                 # Use stricter params for afternoon
                                 saved_min_score = self.MIN_SCORE
                                 saved_gap_up = self.GAP_MAX_UP
@@ -3095,7 +3273,7 @@ class AutoTradingEngine:
                                 try:
                                     signals = self.scan_for_signals()
                                     for signal in signals:
-                                        if len(self.positions) < self.MAX_POSITIONS:
+                                        if len(self.positions) < afternoon_max:
                                             self.execute_signal(signal)
                                 finally:
                                     self.MIN_SCORE = saved_min_score
@@ -3201,8 +3379,10 @@ class AutoTradingEngine:
             'state': self.state.value,
             'running': self.running,
             'market_open': self.trader.is_market_open(),
-            'market_regime': 'BULL' if is_bull else 'BEAR',  # v4.0
+            'market_regime': 'BULL' if is_bull else ('BEAR_MODE' if self.BEAR_MODE_ENABLED else 'BEAR'),  # v4.9.2
             'regime_detail': regime_reason,  # v4.0
+            'bear_mode_enabled': self.BEAR_MODE_ENABLED,  # v4.9.2
+            'bear_allowed_sectors': self._get_bear_allowed_sectors() if not is_bull and self.BEAR_MODE_ENABLED else None,  # v4.9.2
             'low_risk_mode': is_low_risk,  # v4.5
             'low_risk_reason': low_risk_reason,  # v4.5
             'positions': positions_count,
@@ -3210,7 +3390,7 @@ class AutoTradingEngine:
             'cash': account['cash'],
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v4.9 Thread-Safe',
+            'version': 'v4.9.2 Smart Bear Mode',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
