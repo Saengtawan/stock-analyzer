@@ -149,7 +149,7 @@ class DataCache:
             'universe': timedelta(hours=6),        # Stock universe: 6h
 
             # SHORT CACHE - need fresher data
-            'sector_regime': timedelta(hours=2),   # Sector regime: 2h (market conditions)
+            'sector_regime': timedelta(minutes=20),  # Sector regime: 20min (v4.9.3 — matches SECTOR_REGIME_TTL_MINUTES)
             'insider': timedelta(hours=4),         # Insider activity: 4h
             'sec_edgar': timedelta(hours=6),       # SEC filings: 6h
 
@@ -159,6 +159,11 @@ class DataCache:
 
         # Load existing disk cache
         self._load_disk_cache()
+
+        # v4.9.3: Auto cleanup old/large disk cache
+        self.DISK_CLEANUP_DAYS = 14   # ไม่ลบ cache ที่ยังใช้ (conservative)
+        self.DISK_CLEANUP_MAX_MB = 100
+        self._cleanup_disk_cache()
 
     def _get_disk_path(self, key: str) -> str:
         """Get disk cache path for key"""
@@ -191,6 +196,62 @@ class DataCache:
                 logger.info(f"📦 Loaded {count} cached items from disk")
         except Exception as e:
             logger.debug(f"Could not load disk cache: {e}")
+
+    def _cleanup_disk_cache(self, max_age_days: int = None, max_size_mb: int = None):
+        """v4.9.3: Remove expired/oversized pickle files from disk cache"""
+        import os
+        import time as _time
+
+        try:
+            now = _time.time()
+            max_age_days = max_age_days or self.DISK_CLEANUP_DAYS
+            max_size_mb = max_size_mb or self.DISK_CLEANUP_MAX_MB
+            max_age_seconds = max_age_days * 86400
+            max_size_bytes = max_size_mb * 1024 * 1024
+
+            files = []
+            total_size = 0
+            for f in os.listdir(self.cache_dir):
+                if not f.endswith('.pkl'):
+                    continue
+                path = os.path.join(self.cache_dir, f)
+                try:
+                    stat = os.stat(path)
+                    files.append((path, stat.st_mtime, stat.st_size))
+                    total_size += stat.st_size
+                except OSError:
+                    continue
+
+            removed = 0
+
+            # 1. Remove files older than max_age_days
+            for path, mtime, size in files:
+                if now - mtime > max_age_seconds:
+                    try:
+                        os.unlink(path)
+                        total_size -= size
+                        removed += 1
+                    except OSError:
+                        pass
+
+            # 2. If still over max_size, remove oldest first
+            if total_size > max_size_bytes:
+                remaining = [(p, m, s) for p, m, s in files if os.path.exists(p)]
+                remaining.sort(key=lambda x: x[1])  # oldest first
+                for path, mtime, size in remaining:
+                    if total_size <= max_size_bytes:
+                        break
+                    try:
+                        os.unlink(path)
+                        total_size -= size
+                        removed += 1
+                    except OSError:
+                        pass
+
+            if removed > 0:
+                logger.info(f"🧹 Disk cache cleanup: removed {removed} files, {total_size / 1024 / 1024:.1f}MB remaining")
+        except Exception as e:
+            logger.debug(f"Disk cache cleanup error: {e}")
 
     def get(self, key: str, data_type: str = 'default') -> Optional[Any]:
         """Get cached data if not expired"""

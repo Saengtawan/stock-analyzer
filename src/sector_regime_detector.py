@@ -15,6 +15,9 @@ class SectorRegimeDetector:
     Detects market regime at the sector level for more granular trading decisions
     """
 
+    # v4.9.3: Configurable cache TTL
+    SECTOR_REGIME_TTL_MINUTES = 20  # ปรับได้ง่าย (ลดจาก 60min)
+
     # Major sector ETFs
     SECTOR_ETFS = {
         'XLK': 'Technology',
@@ -212,11 +215,11 @@ class SectorRegimeDetector:
         Returns:
             Dictionary mapping sector ETF to regime
         """
-        # Check if update needed (cache for 1 hour)
+        # Check if update needed (v4.9.3: configurable TTL)
         if not force_update and self.last_update:
             time_since_update = datetime.now() - self.last_update
-            if time_since_update < timedelta(hours=1):
-                logger.info("Using cached sector regimes (updated within last hour)")
+            if time_since_update < timedelta(minutes=self.SECTOR_REGIME_TTL_MINUTES):
+                logger.info(f"Using cached sector regimes (updated {time_since_update.seconds // 60}min ago)")
                 return self.sector_regimes
 
         if not self.data_manager:

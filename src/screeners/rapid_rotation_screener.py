@@ -57,6 +57,9 @@ v3.3 Base (achieved +8.23%/month in backtest):
 - Trailing stop: Activate at +3%, trail dynamically
 """
 
+import json
+import time
+import tempfile
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
@@ -190,11 +193,24 @@ class RapidRotationScreener:
     ALT_DATA_MAX_BONUS = 10        # Max +10 points
     ALT_DATA_MAX_PENALTY = -10     # Max -10 points
 
+    # v4.9.3: Sector cache config
+    SECTOR_CACHE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'sector_cache.json')
+    SECTOR_CACHE_TTL_DAYS = 3     # หุ้นอาจเปลี่ยน sector (M&A, reclassification)
+    SECTOR_CACHE_TTL = 86400 * 3  # computed from SECTOR_CACHE_TTL_DAYS
+
+    # v4.9.3: AI universe disk cache
+    AI_UNIVERSE_CACHE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'ai_universe_cache.json')
+
     def __init__(self):
         """Initialize with all integrated systems"""
         self.data_cache: Dict[str, pd.DataFrame] = {}
         self._data_cache_time: Dict[str, float] = {}
         self.universe: List[str] = []
+        self.data_manager = None  # v4.9.3: Shared DataManager for Tiingo routing
+
+        # v4.9.3: Persistent sector cache (memory + disk)
+        self._sector_cache: Dict[str, dict] = {}
+        self._load_sector_cache()
 
         # Initialize integrated systems
         self._init_ai_universe()
@@ -289,8 +305,8 @@ class RapidRotationScreener:
         try:
             from sector_regime_detector import SectorRegimeDetector
             from api.data_manager import DataManager
-            data_manager = DataManager()
-            self.sector_regime = SectorRegimeDetector(data_manager=data_manager)
+            self.data_manager = DataManager()  # v4.9.3: Store for load_data() Tiingo routing
+            self.sector_regime = SectorRegimeDetector(data_manager=self.data_manager)
             # Update sector regimes at startup
             self.sector_regime.update_all_sectors()
             logger.info("✅ Sector Regime Detector initialized")
@@ -335,13 +351,33 @@ class RapidRotationScreener:
                 if ai_universe and len(ai_universe) > 20:
                     universe = ai_universe
                     logger.info(f"✅ AI generated {len(universe)} stocks")
+                    # v4.9.3: Save to disk for fallback
+                    try:
+                        os.makedirs(os.path.dirname(self.AI_UNIVERSE_CACHE), exist_ok=True)
+                        with open(self.AI_UNIVERSE_CACHE, 'w') as f:
+                            json.dump({'symbols': universe, 'timestamp': datetime.now().isoformat(), 'count': len(universe)}, f)
+                        logger.info(f"💾 AI universe saved to {self.AI_UNIVERSE_CACHE}")
+                    except Exception as save_err:
+                        logger.debug(f"Failed to save AI universe cache: {save_err}")
             except Exception as e:
                 logger.warning(f"⚠️ AI universe generation failed: {e}")
 
-        # Fallback to default universe
+        # v4.9.3: Fallback 1 — try disk-cached AI universe
+        if not universe:
+            try:
+                with open(self.AI_UNIVERSE_CACHE) as f:
+                    cached = json.load(f)
+                cached_symbols = cached.get('symbols', [])
+                if cached_symbols and len(cached_symbols) > 20:
+                    universe = cached_symbols
+                    logger.info(f"📦 Using cached AI universe: {len(universe)} stocks (from {cached.get('timestamp', '?')})")
+            except Exception:
+                pass
+
+        # Fallback 2 — static hardcoded list
         if not universe:
             universe = self.FALLBACK_UNIVERSE.copy()
-            logger.info(f"📋 Using fallback universe: {len(universe)} stocks")
+            logger.info(f"📋 Using static fallback universe: {len(universe)} stocks")
 
         # Filter by sector regime if available
         if self.sector_regime:
@@ -522,14 +558,54 @@ class RapidRotationScreener:
         self._alt_data_cache_time = time.time()
         return score, reasons
 
-    def _get_sector(self, symbol: str) -> str:
-        """Get sector for a symbol"""
+    def _load_sector_cache(self):
+        """v4.9.3: Load sector cache from disk"""
         try:
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
-            return info.get('sector', 'Unknown')
-        except:
-            return 'Unknown'
+            with open(self.SECTOR_CACHE_FILE) as f:
+                data = json.load(f)
+            now = time.time()
+            self._sector_cache = {
+                k: v for k, v in data.items()
+                if now - v.get('ts', 0) < self.SECTOR_CACHE_TTL
+            }
+            if self._sector_cache:
+                logger.info(f"📦 Loaded {len(self._sector_cache)} sectors from cache")
+        except Exception:
+            self._sector_cache = {}
+
+    def _save_sector_cache(self):
+        """v4.9.3: Save sector cache to disk (atomic write)"""
+        try:
+            cache_dir = os.path.dirname(self.SECTOR_CACHE_FILE)
+            os.makedirs(cache_dir, exist_ok=True)
+            fd, tmp = tempfile.mkstemp(suffix='.tmp', dir=cache_dir)
+            with os.fdopen(fd, 'w') as f:
+                json.dump(self._sector_cache, f)
+            os.replace(tmp, self.SECTOR_CACHE_FILE)
+        except Exception as e:
+            logger.debug(f"Failed to save sector cache: {e}")
+
+    def _get_sector(self, symbol: str) -> str:
+        """Get sector for a symbol (v4.9.3: cached + rate-limited)"""
+        # Check memory/disk cache first
+        cached = self._sector_cache.get(symbol)
+        if cached and time.time() - cached.get('ts', 0) < self.SECTOR_CACHE_TTL:
+            return cached['sector']
+
+        # Fetch via rate-limited Yahoo (singleton limiter)
+        try:
+            from data_sources.rate_limiter import get_rate_limiter
+            rl = get_rate_limiter()
+            info = rl.get_info(symbol)
+            sector = info.get('sector', 'Unknown') if info else 'Unknown'
+        except Exception:
+            sector = 'Unknown'
+
+        # Cache if valid
+        if sector != 'Unknown':
+            self._sector_cache[symbol] = {'sector': sector, 'ts': time.time()}
+
+        return sector
 
     def _get_sector_regime_score(self, sector: str) -> Tuple[int, str, str]:
         """
@@ -580,14 +656,66 @@ class RapidRotationScreener:
             return 0, 'UNKNOWN', ''
 
     def load_data(self, days: int = 60) -> None:
-        """Load historical data for universe (parallel for speed)"""
-        import time
-        from concurrent.futures import ThreadPoolExecutor, as_completed
+        """Load historical data for universe
 
+        v4.9.3: Route through DataManager (Tiingo 500/min) instead of
+        direct yfinance (30/min) to avoid rate limits.
+        Falls back to yfinance parallel if DataManager unavailable.
+        """
         if not self.universe:
             self.generate_universe()
 
-        logger.info(f"📊 Loading data for {len(self.universe)} stocks (parallel)...")
+        if self.data_manager:
+            self._load_data_via_manager(days)
+        else:
+            self._load_data_via_yfinance(days)
+
+        # v4.9.3: Save sector cache after loading (many new sectors discovered)
+        if self._sector_cache:
+            self._save_sector_cache()
+
+    def _load_data_via_manager(self, days: int = 60) -> None:
+        """v4.9.3: Load via DataManager (Tiingo primary, Yahoo backup)"""
+        logger.info(f"📊 Loading data for {len(self.universe)} stocks via DataManager...")
+        now = time.time()
+        period = '3mo'  # ~90 days covers days+30
+        loaded = 0
+        skipped = 0
+        errors = 0
+
+        for symbol in self.universe:
+            # Skip if cached and fresh (30min TTL)
+            if symbol in self._data_cache_time:
+                if now - self._data_cache_time[symbol] < self._cache_ttl.get('data', 1800):
+                    loaded += 1
+                    skipped += 1
+                    continue
+            try:
+                df = self.data_manager.get_price_data(symbol, period=period, interval='1d')
+                if not df.empty and len(df) >= 30:
+                    df.columns = [c.lower() for c in df.columns]
+                    # v4.9.3: Validate required columns exist (Tiingo/Yahoo format check)
+                    required = {'open', 'high', 'low', 'close', 'volume'}
+                    if not required.issubset(set(df.columns)):
+                        logger.debug(f"Missing columns for {symbol}: {required - set(df.columns)}")
+                        errors += 1
+                        continue
+                    self.data_cache[symbol] = df
+                    self._data_cache_time[symbol] = now
+                    loaded += 1
+                else:
+                    errors += 1
+            except Exception as e:
+                errors += 1
+                logger.debug(f"Error loading {symbol}: {e}")
+
+        logger.info(f"✅ Loaded {loaded}/{len(self.universe)} stocks via DataManager ({skipped} cached, {errors} errors)")
+
+    def _load_data_via_yfinance(self, days: int = 60) -> None:
+        """Legacy fallback: Load via yfinance parallel (no rate limiting)"""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        logger.info(f"📊 Loading data for {len(self.universe)} stocks via yfinance (parallel)...")
 
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days + 30)
@@ -595,7 +723,6 @@ class RapidRotationScreener:
         now = time.time()
 
         def _load_single(symbol: str):
-            """Load data for a single stock"""
             try:
                 ticker = yf.Ticker(symbol)
                 data = ticker.history(start=start_str)
@@ -619,7 +746,7 @@ class RapidRotationScreener:
                 except Exception as e:
                     logger.debug(f"Future error: {e}")
 
-        logger.info(f"✅ Loaded {loaded}/{len(self.universe)} stocks (parallel)")
+        logger.info(f"✅ Loaded {loaded}/{len(self.universe)} stocks via yfinance (parallel)")
 
     def calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
         """Calculate RSI"""
@@ -980,6 +1107,13 @@ class RapidRotationScreener:
         # Clear stale caches before scanning
         self._clear_stale_caches()
 
+        # v4.9.3: Refresh sector regimes if stale (20min TTL)
+        if self.sector_regime:
+            try:
+                self.sector_regime.update_all_sectors()  # Uses internal 20min cache check
+            except Exception as e:
+                logger.debug(f"Sector regime refresh error: {e}")
+
         # v4.0: Check SPY regime FIRST!
         is_bull, spy_reason, spy_details = self.check_spy_regime()
 
@@ -1077,6 +1211,10 @@ class RapidRotationScreener:
 
             # Combine re-sorted top 10 with rest
             signals = top_10 + signals[10:]
+
+        # v4.9.3: Save sector cache after scan (new sectors discovered during analyze)
+        if self._sector_cache:
+            self._save_sector_cache()
 
         return signals[:top_n]
 
