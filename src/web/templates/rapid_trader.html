@@ -1084,6 +1084,12 @@ function loadSectorRegimes() {
                 strip.innerHTML = '<span class="sector-chip unknown">No sector data</span>';
                 return;
             }
+            const sectorLabel = {
+                'XLK': '\u{1F4BB} Tech', 'XLE': '\u{1F6E2}\uFE0F Energy', 'XLF': '\u{1F3E6} Finance',
+                'XLV': '\u{1FA7A} Health', 'XLY': '\u{1F6CD}\uFE0F Discret', 'XLP': '\u{1F6D2} Staples',
+                'XLI': '\u{1F3ED} Indust', 'XLU': '\u{26A1} Utility', 'XLB': '\u{26CF}\uFE0F Material',
+                'XLC': '\u{1F4E1} Comms', 'XLRE': '\u{1F3E0} RealEst',
+            };
             strip.innerHTML = sectors.map(s => {
                 const regimeMap = {
                     'STRONG BULL': 'strong-bull',
@@ -1096,7 +1102,8 @@ function loadSectorRegimes() {
                 const sign = s.return_20d >= 0 ? '+' : '';
                 const sign1d = (s.return_1d || 0) >= 0 ? '+' : '';
                 const src = s.return_1d_source === 'stock_ew' ? '' : '(ETF)';
-                return `<span class="sector-chip ${cls}" title="${s.sector}: ${s.regime} | 1d: ${sign1d}${s.return_1d || 0}% ${src} | 20d: ${sign}${s.return_20d}% | RSI ${s.rsi}">${s.etf} ${sign}${s.return_20d}%</span>`;
+                const label = sectorLabel[s.etf] || s.etf;
+                return `<span class="sector-chip ${cls}" title="${s.sector}: ${s.regime} | 1d: ${sign1d}${s.return_1d || 0}% ${src} | 20d: ${sign}${s.return_20d}% | RSI ${s.rsi}">${label} ${sign}${s.return_20d}%</span>`;
             }).join('');
         })
         .catch(err => console.warn('Sector regimes error:', err));
