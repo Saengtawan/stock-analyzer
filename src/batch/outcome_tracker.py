@@ -239,8 +239,8 @@ def track_sell_outcomes(dry_run: bool = False) -> int:
             "post_sell_close_5d": round(close_5d, 2) if close_5d else None,
             "post_sell_max_5d": round(max_5d, 2) if max_5d else None,
             "post_sell_min_5d": round(min_5d, 2) if min_5d else None,
-            "post_sell_pnl_1d": pnl_1d,
-            "post_sell_pnl_5d": pnl_5d,
+            "post_sell_pnl_pct_1d": pnl_1d,
+            "post_sell_pnl_pct_5d": pnl_5d,
             "tracked_at": datetime.now().isoformat(),
         }
         outcomes.append(outcome)
@@ -258,7 +258,7 @@ def track_sell_outcomes(dry_run: bool = False) -> int:
     elif outcomes and dry_run:
         print(f"  [DRY RUN] Would save {len(outcomes)} sell outcomes")
         for o in outcomes[:3]:
-            print(f"    {o['symbol']}: 1d={o['post_sell_pnl_1d']}, 5d={o['post_sell_pnl_5d']}")
+            print(f"    {o['symbol']}: 1d={o['post_sell_pnl_pct_1d']}%, 5d={o['post_sell_pnl_pct_5d']}%")
 
     return len(outcomes)
 
@@ -320,7 +320,7 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                             'signal_rank': sig.get('signal_rank'),
                             'action_taken': sig.get('action_taken', ''),
                             'symbol': symbol,
-                            'scan_price': sig.get('price', 0),
+                            'scan_price': sig.get('scan_price') or sig.get('price', 0),
                             'score': sig.get('score', 0),
                             'signal_source': sig.get('signal_source', ''),
                         })
@@ -438,6 +438,35 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
 
 
 # =========================================================================
+# LOG ROTATION
+# =========================================================================
+
+def cleanup_old_files(max_age_days: int = 90):
+    """Remove outcome and scan log files older than max_age_days."""
+    dirs_to_clean = [
+        os.path.join(PROJECT_ROOT, 'outcomes'),
+        os.path.join(PROJECT_ROOT, 'scan_logs'),
+    ]
+    import time as _time
+    cutoff = _time.time() - (max_age_days * 86400)
+    removed = 0
+    for d in dirs_to_clean:
+        if not os.path.exists(d):
+            continue
+        for fname in os.listdir(d):
+            if fname.endswith('.json'):
+                fpath = os.path.join(d, fname)
+                if os.path.getmtime(fpath) < cutoff:
+                    os.unlink(fpath)
+                    removed += 1
+                    print(f"  Cleaned up: {os.path.join(os.path.basename(d), fname)}")
+    if removed:
+        print(f"  Removed {removed} files older than {max_age_days} days")
+    else:
+        print(f"  No files older than {max_age_days} days")
+
+
+# =========================================================================
 # CLI
 # =========================================================================
 
@@ -446,17 +475,27 @@ def main():
     parser.add_argument('--sells-only', action='store_true', help='Track sell outcomes only')
     parser.add_argument('--signals-only', action='store_true', help='Track signal outcomes only')
     parser.add_argument('--dry-run', action='store_true', help='Preview without saving')
+    parser.add_argument('--cleanup', action='store_true', help='Remove files older than 90 days')
+    parser.add_argument('--cleanup-days', type=int, default=90, help='Max age in days for cleanup')
     args = parser.parse_args()
 
     print("=" * 60)
     print(f"OUTCOME TRACKER v1.0 — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     print("=" * 60)
 
+    if args.cleanup:
+        cleanup_old_files(max_age_days=args.cleanup_days)
+        return
+
     total = 0
     if not args.signals_only:
         total += track_sell_outcomes(dry_run=args.dry_run)
     if not args.sells_only:
         total += track_signal_outcomes(dry_run=args.dry_run)
+
+    # Auto-cleanup after tracking
+    print("\n=== Log Rotation ===")
+    cleanup_old_files(max_age_days=90)
 
     print(f"\n{'[DRY RUN] ' if args.dry_run else ''}Total outcomes tracked: {total}")
     print("=" * 60)

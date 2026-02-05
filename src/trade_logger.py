@@ -69,7 +69,6 @@ class TradeLogEntry:
 
     # Market Context
     spy_price: Optional[float] = None
-    spy_vs_sma: Optional[str] = None
     regime: Optional[str] = None
     vix: Optional[float] = None
     sector: Optional[str] = None
@@ -82,14 +81,12 @@ class TradeLogEntry:
     atr_pct: Optional[float] = None
     rsi: Optional[float] = None
     momentum_5d: Optional[float] = None
-    premarket_price: Optional[float] = None
 
     # Exit Context (SELL)
     sl_price: Optional[float] = None
     tp_price: Optional[float] = None
     trail_active: bool = False
     peak_price: Optional[float] = None
-    trail_sl: Optional[float] = None
 
     # Queue Context (if from queue)
     from_queue: bool = False

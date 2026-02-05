@@ -1968,7 +1968,7 @@ class AutoTradingEngine:
                 "signal_rank": rank + 1,
                 "action_taken": action,
                 "symbol": getattr(signal, 'symbol', ''),
-                "price": getattr(signal, 'entry_price', 0),
+                "scan_price": getattr(signal, 'entry_price', 0),
                 "score": getattr(signal, 'score', 0),
                 "rsi": getattr(signal, 'rsi', None),
                 "momentum_5d": getattr(signal, 'momentum_5d', None),
@@ -1979,6 +1979,18 @@ class AutoTradingEngine:
                 "stop_loss": getattr(signal, 'stop_loss', None),
                 "take_profit": getattr(signal, 'take_profit', None),
             })
+
+        # Summary counts for monitoring
+        from collections import Counter
+        action_counts = Counter(r['action_taken'] for r in scan_results)
+        bought = action_counts.get('BOUGHT', 0)
+        skipped = action_counts.get('SKIPPED_FILTER', 0)
+        queued = action_counts.get('QUEUED', 0)
+        queue_full = action_counts.get('QUEUE_FULL', 0)
+        logger.info(
+            f"📊 Scan [{scan_type}] {len(scan_results)} signals: "
+            f"{bought} bought, {skipped} skipped, {queued} queued, {queue_full} queue_full"
+        )
 
         # Log entire scan batch (failure must not affect trading)
         try:
@@ -2044,6 +2056,29 @@ class AutoTradingEngine:
                 if os.path.exists(tmp_path):
                     os.unlink(tmp_path)
                 raise
+
+        # Lightweight daily cleanup: remove scan logs older than 90 days
+        self._cleanup_old_scan_logs(scan_dir, max_age_days=90)
+
+    def _cleanup_old_scan_logs(self, scan_dir: str, max_age_days: int = 90):
+        """Remove scan log files older than max_age_days. Runs at most once per day."""
+        if not hasattr(self, '_last_scan_log_cleanup'):
+            self._last_scan_log_cleanup = None
+        today = datetime.now().date()
+        if self._last_scan_log_cleanup == today:
+            return
+        self._last_scan_log_cleanup = today
+        try:
+            import time as _time
+            cutoff = _time.time() - (max_age_days * 86400)
+            for fname in os.listdir(scan_dir):
+                if fname.startswith('scan_') and fname.endswith('.json'):
+                    fpath = os.path.join(scan_dir, fname)
+                    if os.path.getmtime(fpath) < cutoff:
+                        os.unlink(fpath)
+                        logger.debug(f"Cleaned up old scan log: {fname}")
+        except Exception as e:
+            logger.debug(f"Scan log cleanup error (non-fatal): {e}")
 
     # =========================================================================
     # SCANNING
