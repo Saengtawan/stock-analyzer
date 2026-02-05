@@ -128,12 +128,17 @@ def track_sell_outcomes(dry_run: bool = False) -> int:
         print("  No trade_logs directory found")
         return 0
 
-    # Load existing outcomes to avoid duplicates
-    existing_ids = set()
+    # Load existing outcomes — only skip fully-tracked (close_5d not null)
+    complete_ids = set()   # trade_ids with close_5d filled
+    incomplete_ids = set() # trade_ids still missing close_5d
     for f in os.listdir(outcomes_dir):
         if f.startswith('sell_outcomes_') and f.endswith('.json'):
             for entry in _load_json_file(os.path.join(outcomes_dir, f)):
-                existing_ids.add(entry.get('trade_id', ''))
+                tid = entry.get('trade_id', '')
+                if entry.get('post_sell_close_5d') is not None:
+                    complete_ids.add(tid)
+                else:
+                    incomplete_ids.add(tid)
 
     # Find SELL entries from last 10 days of trade logs
     sell_entries = []
@@ -144,7 +149,7 @@ def track_sell_outcomes(dry_run: bool = False) -> int:
         if os.path.exists(filepath):
             logs = _load_json_file(filepath)
             for log in logs:
-                if log.get('action') == 'SELL' and log.get('id') not in existing_ids:
+                if log.get('action') == 'SELL' and log.get('id') not in complete_ids:
                     sell_entries.append(log)
 
     if not sell_entries:
@@ -249,6 +254,21 @@ def track_sell_outcomes(dry_run: bool = False) -> int:
         print(f"1d: {pnl_1d:+.1f}% ({direction})" if pnl_1d else "partial")
 
     if outcomes and not dry_run:
+        # Remove old incomplete entries for re-tracked trade_ids
+        retracked_ids = {o['trade_id'] for o in outcomes if o['trade_id'] in incomplete_ids}
+        if retracked_ids:
+            for f in os.listdir(outcomes_dir):
+                if f.startswith('sell_outcomes_') and f.endswith('.json'):
+                    fpath = os.path.join(outcomes_dir, f)
+                    entries = _load_json_file(fpath)
+                    filtered = [e for e in entries if e.get('trade_id') not in retracked_ids]
+                    if len(filtered) < len(entries):
+                        if filtered:
+                            _save_json_atomic(fpath, filtered)
+                        else:
+                            os.unlink(fpath)
+                        print(f"  Removed {len(entries) - len(filtered)} old incomplete entries from {f}")
+
         outfile = os.path.join(outcomes_dir, f'sell_outcomes_{today.strftime("%Y-%m-%d")}.json')
         # Append to existing file
         existing = _load_json_file(outfile) if os.path.exists(outfile) else []
@@ -287,13 +307,17 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
         print("  No scan_logs directory found (Item #1 must run first)")
         return 0
 
-    # Load existing signal outcomes to avoid duplicates
-    existing_keys = set()
+    # Load existing signal outcomes — only skip fully-tracked (outcome_5d not null)
+    complete_keys = set()
+    incomplete_keys = set()
     for f in os.listdir(outcomes_dir):
         if f.startswith('signal_outcomes_') and f.endswith('.json'):
             for entry in _load_json_file(os.path.join(outcomes_dir, f)):
                 key = f"{entry.get('scan_id')}_{entry.get('symbol')}_{entry.get('signal_rank', 0)}"
-                existing_keys.add(key)
+                if entry.get('outcome_5d') is not None:
+                    complete_keys.add(key)
+                else:
+                    incomplete_keys.add(key)
 
     # Find signal entries from last 10 days of scan logs
     signals_to_track = []
@@ -312,7 +336,7 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                     symbol = sig.get('symbol', '')
                     sig_rank = sig.get('signal_rank', 0)
                     key = f"{scan_id}_{symbol}_{sig_rank}"
-                    if key not in existing_keys and symbol:
+                    if key not in complete_keys and symbol:
                         signals_to_track.append({
                             'scan_id': scan_id,
                             'scan_date': scan_date,
@@ -424,6 +448,26 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
         print(f"tracked {len([s for s in sigs if any(o['symbol'] == symbol for o in outcomes)])} signals")
 
     if outcomes and not dry_run:
+        # Remove old incomplete entries for re-tracked signals
+        retracked_keys = set()
+        for o in outcomes:
+            key = f"{o['scan_id']}_{o['symbol']}_{o['signal_rank']}"
+            if key in incomplete_keys:
+                retracked_keys.add(key)
+        if retracked_keys:
+            for f in os.listdir(outcomes_dir):
+                if f.startswith('signal_outcomes_') and f.endswith('.json'):
+                    fpath = os.path.join(outcomes_dir, f)
+                    entries = _load_json_file(fpath)
+                    filtered = [e for e in entries
+                                if f"{e.get('scan_id')}_{e.get('symbol')}_{e.get('signal_rank', 0)}" not in retracked_keys]
+                    if len(filtered) < len(entries):
+                        if filtered:
+                            _save_json_atomic(fpath, filtered)
+                        else:
+                            os.unlink(fpath)
+                        print(f"  Removed {len(entries) - len(filtered)} old incomplete signal entries from {f}")
+
         outfile = os.path.join(outcomes_dir, f'signal_outcomes_{today.strftime("%Y-%m-%d")}.json')
         existing = _load_json_file(outfile) if os.path.exists(outfile) else []
         existing.extend(outcomes)
