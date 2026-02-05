@@ -158,6 +158,20 @@ class RapidRotationScreener:
         'ROKU', 'PATH', 'S', 'BILL', 'CFLT', 'CHWY', 'DXCM',
     ]
 
+    # v4.9.5: BULL Sector Stocks (always included for BEAR mode trading)
+    # These sectors are often BULL/SIDEWAYS when Tech is BEAR
+    BULL_SECTOR_STOCKS = [
+        # Energy (20) - Often STRONG BULL in BEAR markets
+        'XOM', 'CVX', 'COP', 'EOG', 'SLB', 'MPC', 'VLO', 'PXD', 'HES', 'OXY',
+        'DVN', 'FANG', 'MRO', 'PSX', 'HAL', 'BKR', 'CTRA', 'KMI', 'WMB', 'OKE',
+        # Utilities (20) - Defensive, often BULL in downturns
+        'NEE', 'DUK', 'SO', 'D', 'SRE', 'AEP', 'XEL', 'WEC', 'ES', 'EXC',
+        'ED', 'ATO', 'CMS', 'NI', 'EVRG', 'PNW', 'AES', 'PPL', 'FE', 'CEG',
+        # Real Estate (20) - Often BULL with rate expectations
+        'PLD', 'AMT', 'EQIX', 'PSA', 'DLR', 'O', 'SPG', 'WELL', 'AVB', 'EQR',
+        'VTR', 'ARE', 'MAA', 'UDR', 'CPT', 'KIM', 'REG', 'HST', 'BXP', 'SUI',
+    ]
+
     # Configuration (v4.0: Smart Regime Edition)
     MIN_ATR_PCT = 2.5  # Minimum volatility
     MIN_SCORE = 85     # v4.0: 90 → 85 (regime filter compensates)
@@ -378,6 +392,18 @@ class RapidRotationScreener:
         if not universe:
             universe = self.FALLBACK_UNIVERSE.copy()
             logger.info(f"📋 Using static fallback universe: {len(universe)} stocks")
+
+        # v4.9.5: Always merge BULL sector stocks (Energy, Utilities, Real Estate)
+        # These sectors are critical for BEAR mode trading when Tech/Finance are down
+        existing = set(universe)
+        bull_added = 0
+        for sym in self.BULL_SECTOR_STOCKS:
+            if sym not in existing:
+                universe.append(sym)
+                existing.add(sym)
+                bull_added += 1
+        if bull_added > 0:
+            logger.info(f"🐂 Added {bull_added} BULL sector stocks (Energy/Utilities/Real Estate)")
 
         # Filter by sector regime if available
         if self.sector_regime:
