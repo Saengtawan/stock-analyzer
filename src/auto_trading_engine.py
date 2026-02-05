@@ -3897,7 +3897,7 @@ class AutoTradingEngine:
             'cash': account['cash'],
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v4.9.9 Analytics data gap fix',
+            'version': 'v5.0.0',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
