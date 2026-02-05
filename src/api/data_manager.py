@@ -297,3 +297,13 @@ class DataManager:
             'cache_status': cache_status,
             'timestamp': datetime.now().isoformat()
         }
+
+    def get_sector_top_companies(self, sector_key: str) -> 'pd.DataFrame':
+        """Get top 50 companies for a sector via Yahoo Finance (v5.2)."""
+        return self.yahoo_client.get_sector_top_companies(sector_key)
+
+    def batch_download_prices(self, symbols: list, period: str = '5d',
+                              interval: str = '1d',
+                              data_type: str = 'sector_price') -> 'pd.DataFrame':
+        """Batch download prices for multiple symbols (v5.2)."""
+        return self.yahoo_client.batch_download_prices(symbols, period, interval, data_type)

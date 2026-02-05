@@ -168,8 +168,10 @@ class DataCache:
             'company': timedelta(hours=24),        # Company info: 24h (sector/industry rarely change)
             'financial': timedelta(hours=12),      # Financial data: 12h (quarterly reports)
             'universe': timedelta(hours=6),        # Stock universe: 6h
+            'sector_companies': timedelta(days=7), # v5.2: Top-50 company list per sector (rarely changes)
 
             # SHORT CACHE - need fresher data
+            'sector_price': timedelta(minutes=20), # v5.2: Batch stock prices for sector 1d return
             'sector_regime': timedelta(minutes=20),  # Sector regime: 20min (v4.9.3 — matches SECTOR_REGIME_TTL_MINUTES)
             'insider': timedelta(hours=4),         # Insider activity: 4h
             'sec_edgar': timedelta(hours=6),       # SEC filings: 6h

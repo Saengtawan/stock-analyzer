@@ -75,7 +75,7 @@ earnings_no_data_action: warn  # allow, skip, warn
 
 # -- Low Risk Mode (v4.5) --
 low_risk_mode_enabled: true
-low_risk_gap_max_up: 1.5       # v5.1: 1.0→1.5 (1.0 rejected nearly all signals at open)
+low_risk_gap_max_up: 1.0       # % - gap filter for low risk mode
 low_risk_min_score: 90         # v4.9.7: 85→90 (balance: stricter than BEAR=85, looser than NORMAL=95)
 low_risk_position_size_pct: 20
 low_risk_max_atr_pct: 4.0

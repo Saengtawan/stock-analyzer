@@ -565,6 +565,87 @@ class YahooFinanceClient(BaseAPIClient):
             logger.error(f"Failed to get average volume for {symbol}: {e}")
             return 0
 
+    def get_sector_top_companies(self, sector_key: str) -> pd.DataFrame:
+        """
+        Get top 50 companies for a yfinance sector (v5.2).
+
+        Args:
+            sector_key: yfinance sector key (e.g., 'technology', 'healthcare')
+
+        Returns:
+            DataFrame with columns: name, rating, market weight. Index: symbol.
+            Empty DataFrame on failure.
+        """
+        cache_key = f"sector_companies_{sector_key}"
+        cached = self.cache.get(cache_key, data_type='sector_companies')
+        if cached is not None:
+            return cached
+
+        self._smart_throttle()
+
+        try:
+            sector = yf.Sector(sector_key)
+            companies = sector.top_companies
+
+            if companies is None or companies.empty:
+                logger.warning(f"No companies found for sector '{sector_key}'")
+                return pd.DataFrame()
+
+            self.cache.set(cache_key, companies, data_type='sector_companies')
+            self._record_success()
+            logger.info(f"Retrieved {len(companies)} companies for sector '{sector_key}'")
+            return companies
+
+        except Exception as e:
+            logger.error(f"Failed to get sector companies for '{sector_key}': {e}")
+            return pd.DataFrame()
+
+    def batch_download_prices(self, symbols: list, period: str = '5d',
+                              interval: str = '1d',
+                              data_type: str = 'sector_price') -> pd.DataFrame:
+        """
+        Batch download price data for multiple symbols in one yf.download() call (v5.2).
+
+        Args:
+            symbols: List of stock symbols
+            period: Time period (default '5d')
+            interval: Data interval (default '1d')
+            data_type: Cache data_type key (default 'sector_price' for 20min TTL)
+
+        Returns:
+            DataFrame with MultiIndex columns (metric, symbol).
+            Empty DataFrame on failure.
+        """
+        # Deterministic cache key from sorted first symbols + count
+        key_symbols = '_'.join(sorted(symbols)[:5])
+        cache_key = f"batch_{data_type}_{period}_{interval}_{key_symbols}_{len(symbols)}"
+        cached = self.cache.get(cache_key, data_type=data_type)
+        if cached is not None:
+            logger.debug(f"Cache hit for batch download ({len(symbols)} symbols)")
+            return cached
+
+        self._smart_throttle()
+
+        try:
+            import warnings
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                data = yf.download(symbols, period=period, interval=interval,
+                                   progress=False, threads=True)
+
+            if data.empty:
+                logger.warning(f"Batch download returned empty ({len(symbols)} symbols)")
+                return pd.DataFrame()
+
+            self.cache.set(cache_key, data, data_type=data_type)
+            self._record_success()
+            logger.info(f"Batch downloaded {len(symbols)} symbols ({len(data)} rows)")
+            return data
+
+        except Exception as e:
+            logger.error(f"Batch download failed: {e}")
+            return pd.DataFrame()
+
     def get_premarket_data(self, symbol: str, interval: str = "5m") -> Dict[str, Any]:
         """
         Get pre-market data for gap analysis (4:00 AM - 9:30 AM ET)
