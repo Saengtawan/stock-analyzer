@@ -36,8 +36,8 @@ trail_lock_pct: 50            # v4.9.4: 80→50 (lock less, let run more)
 max_hold_days: 5
 
 # -- Risk Limits --
-daily_loss_limit_pct: 5.0
-weekly_loss_limit_pct: 5.0
+daily_loss_limit_pct: 3.0
+weekly_loss_limit_pct: 7.0
 max_consecutive_losses: 3
 min_score: 80                  # v4.9.4: 95→80 (conviction sizing handles risk)
 
