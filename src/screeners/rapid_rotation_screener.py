@@ -949,10 +949,10 @@ class RapidRotationScreener:
         # ==============================
         # v5.1 P2-9: Score component breakdown (max ~245 pts):
         #   Bounce-specific (45%): Bounce Conf +25-40, Prior Dip +15-40, Yesterday Dip +10-30
-        #   General (47%):         RSI -8 to +35, Trend +15-25, Volatility +10-20,
-        #                          Room to Recover +10-20, Volume -5 to +15
+        #   General (47%):         RSI -4 to +35, Trend +15-25, Volatility +10-20,
+        #                          Room to Recover +10-20, Volume -3 to +15
         #   Other (8%):            Sector -10 to +5, Alt Data -15 to +15
-        # v5.3: Added RSI penalty (>60: -5, >70: -8) and Volume penalty (<0.5: -3, <0.3: -5).
+        # v5.3: Mild penalties — RSI (>60: -2, >70: -4) and Volume (<0.5: -2, <0.3: -3).
         # Note P2-11: Bounce weighting ~45% is BY DESIGN for dip-bounce strategy.
         # If adding new scoring components, update this breakdown and consider normalizing.
         score = 0
@@ -987,7 +987,7 @@ class RapidRotationScreener:
         elif yesterday_move <= -1:
             score += 10
 
-        # 4. RSI scoring (v5.3: penalty for high RSI — not a real dip)
+        # 4. RSI scoring (v5.3: mild penalty for high RSI)
         if 25 <= rsi <= 40:
             score += 35
             reasons.append(f"Very oversold RSI={rsi:.0f}")
@@ -995,10 +995,10 @@ class RapidRotationScreener:
             score += 20
             reasons.append(f"Low RSI={rsi:.0f}")
         elif rsi > 70:
-            score -= 8
+            score -= 4
             reasons.append(f"Overbought RSI={rsi:.0f}")
         elif rsi > 60:
-            score -= 5
+            score -= 2
             reasons.append(f"High RSI={rsi:.0f}")
 
         # 5. Trend context (important for bounce success)
@@ -1027,17 +1027,17 @@ class RapidRotationScreener:
             score += 10
             reasons.append(f"Some room {dist_from_high:.0f}%")
 
-        # 8. Volume confirmation (v5.3: penalty for low volume — fake bounce)
+        # 8. Volume confirmation (v5.3: mild penalty for low volume)
         if volume_ratio > 1.5:
             score += 15
             reasons.append("High vol bounce")
         elif volume_ratio > 1.2:
             score += 5
         elif volume_ratio < 0.3:
-            score -= 5
+            score -= 3
             reasons.append(f"Very low vol {volume_ratio:.1f}x")
         elif volume_ratio < 0.5:
-            score -= 3
+            score -= 2
             reasons.append(f"Low vol {volume_ratio:.1f}x")
 
         # ==============================
