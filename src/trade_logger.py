@@ -501,6 +501,13 @@ class TradeLogger:
         signal_score: float = None,
         gap_pct: float = None,
         regime: str = None,
+        # v5.0: Signal context for outcome tracking
+        sector: str = None,
+        signal_source: str = None,
+        atr_pct: float = None,
+        rsi: float = None,
+        momentum_5d: float = None,
+        mode: str = None,
         note: str = ""
     ) -> TradeLogEntry:
         """Log a SKIP (rejected signal)"""
@@ -517,6 +524,13 @@ class TradeLogger:
             signal_score=signal_score,
             gap_pct=gap_pct,
             regime=regime,
+            # v5.0: Signal context
+            sector=sector,
+            signal_source=signal_source,
+            atr_pct=atr_pct,
+            rsi=rsi,
+            momentum_5d=momentum_5d,
+            mode=mode,
             note=note
         )
 

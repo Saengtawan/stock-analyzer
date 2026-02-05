@@ -2198,8 +2198,18 @@ class AutoTradingEngine:
                 logger.warning(f"Max positions ({effective_max}) reached (mode: {mode})")
                 return False
 
-            # v4.5: Check score against effective min_score
+            # v5.0: Extract signal context early (used by all log_skip calls + log_buy)
             signal_score = getattr(signal, 'score', 0)
+            signal_sector = getattr(signal, 'sector', '') or ''
+            sl_method = getattr(signal, 'sl_method', '')
+            if 'overnight_gap' in sl_method:
+                signal_source = 'overnight_gap'
+            elif 'breakout' in sl_method:
+                signal_source = 'breakout'
+            else:
+                signal_source = 'dip_bounce'
+
+            # v4.5: Check score against effective min_score
             if signal_score < params['min_score']:
                 logger.warning(f"❌ Score Filter REJECT {symbol}: {signal_score} < {params['min_score']} (mode: {mode})")
                 # Trade Log: Log SKIP (score)
@@ -2211,7 +2221,12 @@ class AutoTradingEngine:
                         reason="SCORE_REJECT",
                         skip_detail=f"Score {signal_score} < {params['min_score']} ({mode})",
                         filters={"score": {"passed": False, "detail": f"{signal_score} < {params['min_score']}"}},
-                        signal_score=signal_score
+                        signal_score=signal_score,
+                        sector=signal_sector, signal_source=signal_source,
+                        atr_pct=getattr(signal, 'atr_pct', None),
+                        rsi=getattr(signal, 'rsi', None),
+                        momentum_5d=getattr(signal, 'momentum_5d', None),
+                        mode=mode,
                     )
                 except Exception as log_err:
                     logger.warning(f"Trade log error: {log_err}")
@@ -2258,7 +2273,12 @@ class AutoTradingEngine:
                             reason="ATR_REJECT",
                             skip_detail=f"ATR {signal_atr:.1f}% > {params['max_atr_pct']}% (LOW RISK)",
                             filters={"atr": {"passed": False, "detail": f"{signal_atr:.1f}% > {params['max_atr_pct']}%"}},
-                            signal_score=signal_score
+                            signal_score=signal_score,
+                            sector=signal_sector, signal_source=signal_source,
+                            atr_pct=signal_atr,
+                            rsi=getattr(signal, 'rsi', None),
+                            momentum_5d=getattr(signal, 'momentum_5d', None),
+                            mode=mode,
                         )
                     except Exception as log_err:
                         logger.warning(f"Trade log error: {log_err}")
@@ -2279,7 +2299,12 @@ class AutoTradingEngine:
                         skip_detail=gap_reason,
                         filters={"gap": {"passed": False, "detail": gap_reason}},
                         signal_score=signal_score,
-                        gap_pct=gap_pct
+                        gap_pct=gap_pct,
+                        sector=signal_sector, signal_source=signal_source,
+                        atr_pct=getattr(signal, 'atr_pct', None),
+                        rsi=getattr(signal, 'rsi', None),
+                        momentum_5d=getattr(signal, 'momentum_5d', None),
+                        mode=mode,
                     )
                 except Exception as log_err:
                     logger.warning(f"Trade log error: {log_err}")
@@ -2299,22 +2324,19 @@ class AutoTradingEngine:
                         skip_detail=earnings_reason,
                         filters={"earnings": {"passed": False, "detail": earnings_reason}},
                         signal_score=signal_score,
-                        gap_pct=gap_pct
+                        gap_pct=gap_pct,
+                        sector=signal_sector, signal_source=signal_source,
+                        atr_pct=getattr(signal, 'atr_pct', None),
+                        rsi=getattr(signal, 'rsi', None),
+                        momentum_5d=getattr(signal, 'momentum_5d', None),
+                        mode=mode,
                     )
                 except Exception as log_err:
                     logger.warning(f"Trade log error: {log_err}")
                 return False
 
             # v4.7: Sector Diversification - ไม่ซื้อหุ้น sector เดียวกันเกิน MAX_PER_SECTOR
-            signal_sector = getattr(signal, 'sector', '') or ''
-            # v4.9.5: Detect signal source from sl_method
-            sl_method = getattr(signal, 'sl_method', '')
-            if 'overnight_gap' in sl_method:
-                signal_source = 'overnight_gap'
-            elif 'breakout' in sl_method:
-                signal_source = 'breakout'
-            else:
-                signal_source = 'dip_bounce'
+            # signal_sector and signal_source already extracted at top of execute_signal
             sector_ok, sector_reason = self._check_sector_filter(signal_sector)
             if not sector_ok:
                 logger.warning(f"❌ Sector Filter REJECT {symbol}: {sector_reason}")
@@ -2327,7 +2349,11 @@ class AutoTradingEngine:
                         skip_detail=sector_reason,
                         filters={"sector": {"passed": False, "detail": sector_reason}},
                         signal_score=signal_score,
-                        sector=signal_sector
+                        sector=signal_sector, signal_source=signal_source,
+                        atr_pct=getattr(signal, 'atr_pct', None),
+                        rsi=getattr(signal, 'rsi', None),
+                        momentum_5d=getattr(signal, 'momentum_5d', None),
+                        mode=mode,
                     )
                 except Exception as log_err:
                     logger.warning(f"Trade log error: {log_err}")
@@ -2346,7 +2372,11 @@ class AutoTradingEngine:
                         skip_detail=sector_cd_reason,
                         filters={"sector_cooldown": {"passed": False, "detail": sector_cd_reason}},
                         signal_score=signal_score,
-                        sector=signal_sector
+                        sector=signal_sector, signal_source=signal_source,
+                        atr_pct=getattr(signal, 'atr_pct', None),
+                        rsi=getattr(signal, 'rsi', None),
+                        momentum_5d=getattr(signal, 'momentum_5d', None),
+                        mode=mode,
                     )
                 except Exception as log_err:
                     logger.warning(f"Trade log error: {log_err}")
@@ -2366,7 +2396,11 @@ class AutoTradingEngine:
                             skip_detail=f"Sector '{signal_sector}' not allowed in BEAR mode",
                             filters={"bear_sector": {"passed": False, "detail": f"'{signal_sector}' not in {allowed_sectors}"}},
                             signal_score=signal_score,
-                            sector=signal_sector
+                            sector=signal_sector, signal_source=signal_source,
+                            atr_pct=getattr(signal, 'atr_pct', None),
+                            rsi=getattr(signal, 'rsi', None),
+                            momentum_5d=getattr(signal, 'momentum_5d', None),
+                            mode=mode,
                         )
                     except Exception as log_err:
                         logger.warning(f"Trade log error: {log_err}")
@@ -2385,7 +2419,11 @@ class AutoTradingEngine:
                         skip_detail=f"Sector '{signal_sector}' ETF declining",
                         filters={"bull_sector": {"passed": False, "detail": f"'{signal_sector}' in blocked {blocked_sectors}"}},
                         signal_score=signal_score,
-                        sector=signal_sector
+                        sector=signal_sector, signal_source=signal_source,
+                        atr_pct=getattr(signal, 'atr_pct', None),
+                        rsi=getattr(signal, 'rsi', None),
+                        momentum_5d=getattr(signal, 'momentum_5d', None),
+                        mode=mode,
                     )
                 except Exception as log_err:
                     logger.warning(f"Trade log error: {log_err}")
@@ -2562,7 +2600,7 @@ class AutoTradingEngine:
                     market_cap=analysis.get('market_cap'),
                     market_cap_tier=analysis.get('market_cap_tier'),
                     beta=analysis.get('beta'),
-                    volume_ratio=analysis.get('volume_ratio'),
+                    volume_ratio=getattr(signal, 'volume_ratio', None) or analysis.get('volume_ratio'),
                     # Execution data (v4.8)
                     order_type=exec_meta.get('order_type'),
                     signal_price=signal_price_val,

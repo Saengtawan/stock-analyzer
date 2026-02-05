@@ -3248,7 +3248,8 @@ def get_signals_data():
                     'rsi': s.rsi,
                     'momentum_5d': s.momentum_5d,
                     'max_loss': abs(s.stop_loss - s.entry_price) / s.entry_price * 100,
-                    'expected_gain': abs(s.take_profit - s.entry_price) / s.entry_price * 100
+                    'expected_gain': abs(s.take_profit - s.entry_price) / s.entry_price * 100,
+                    'volume_ratio': getattr(s, 'volume_ratio', 1.0),
                 }
                 for s in signals
             ],

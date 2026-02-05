@@ -99,6 +99,7 @@ class RapidRotationSignal:
     tp_method: str = ""       # Which method determined TP
     swing_low: float = 0.0    # Swing low reference
     resistance: float = 0.0   # Resistance reference
+    volume_ratio: float = 1.0  # v5.0: today_vol / avg_20d_vol
 
     @property
     def expected_gain(self) -> float:
@@ -1129,7 +1130,8 @@ class RapidRotationScreener:
             sl_method=sl_method,
             tp_method=tp_method,
             swing_low=round(swing_low_5d, 2),
-            resistance=round(resistance, 2)
+            resistance=round(resistance, 2),
+            volume_ratio=round(volume_ratio, 2),
         )
 
     def screen(self, top_n: int = 10, enable_alt_data: bool = True, allowed_sectors: List[str] = None, blocked_sectors: List[str] = None, progress_callback=None) -> List[RapidRotationSignal]:

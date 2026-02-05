@@ -248,6 +248,7 @@ class OvernightGapScanner:
             alt_data_score=0,
             sl_method="overnight_gap_fixed",
             tp_method="overnight_gap_fixed",
+            volume_ratio=round(vol_ratio, 2),
         )
 
     def _calculate_rsi(self, close, period: int = 14) -> Optional[float]:

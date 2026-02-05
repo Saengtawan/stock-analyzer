@@ -263,6 +263,7 @@ class BreakoutScanner:
             alt_data_score=0,
             sl_method="breakout_level",
             tp_method="breakout_target",
+            volume_ratio=round(vol_ratio, 2),
         )
 
     def _calculate_rsi(self, close, period: int = 14) -> Optional[float]:
