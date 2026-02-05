@@ -322,7 +322,7 @@ class AutoTradingEngine:
     # เมื่อ PDT budget = 0: ยังซื้อได้ แต่เข้มขึ้น + size เล็กลง
     # เหตุผล: ต้อง hold ข้ามคืนอยู่แล้ว → เลือกเฉพาะหุ้นปลอดภัยสุด
     LOW_RISK_MODE_ENABLED = True
-    LOW_RISK_GAP_MAX_UP = 1.0       # % - เข้มขึ้น (ปกติ 2%)
+    LOW_RISK_GAP_MAX_UP = 1.5       # % - v5.1: 1.0→1.5 (1.0 rejected nearly all signals at open)
     LOW_RISK_MIN_SCORE = 90         # v4.9.7: 98→90 (6 other filters handle risk; 98 blocked breakouts entirely)
     LOW_RISK_POSITION_SIZE_PCT = 20 # % - เล็กลง (ปกติ 30%) = ~$800
     LOW_RISK_MAX_ATR_PCT = 4.0      # % - หุ้นไม่ผันผวนมาก
@@ -950,10 +950,13 @@ class AutoTradingEngine:
             return False, "yfinance not available — data unavailable"
 
         # v4.2: Use cache to avoid repeated yfinance calls
+        # v5.1: Shorter TTL (60s) when VIX was a fallback value
         if not force_refresh and self._regime_cache:
             is_bull, reason, cached_at = self._regime_cache[0], self._regime_cache[1], self._regime_cache[2]
+            details = self._regime_cache[3] if len(self._regime_cache) > 3 else {}
+            cache_ttl = 60 if details.get('vix_is_fallback') else self._regime_cache_seconds
             age_seconds = (datetime.now() - cached_at).total_seconds()
-            if age_seconds < self._regime_cache_seconds:
+            if age_seconds < cache_ttl:
                 return is_bull, reason
 
         try:
@@ -990,7 +993,7 @@ class AutoTradingEngine:
                 return_5d = 0.0
 
             # --- Check 4: VIX < 30 ---
-            vix_val = self._get_vix()
+            vix_val, vix_is_fallback = self._get_vix()
 
             # Evaluate
             rsi_ok = rsi_val > self.REGIME_RSI_MIN
@@ -1024,6 +1027,7 @@ class AutoTradingEngine:
                 logger.warning(f"⚠️ Market Regime: {reason} - SKIPPING NEW TRADES")
 
             # v4.2: Cache result (v4.9.5: add SPY details for UI)
+            # v5.1: Track VIX fallback — use shorter cache TTL if VIX was unreliable
             self._regime_cache = (is_bull, reason, datetime.now(), {
                 'spy_price': round(current_price, 2),
                 'spy_sma20': round(sma, 2),
@@ -1031,11 +1035,14 @@ class AutoTradingEngine:
                 'rsi': round(rsi_val, 1),
                 'return_5d': round(return_5d, 2),
                 'vix': round(vix_val, 1),
+                'vix_is_fallback': vix_is_fallback,
                 'sma_ok': sma_ok,
                 'rsi_ok': rsi_ok,
                 'ret5d_ok': ret5d_ok,
                 'vix_ok': vix_ok,
             })
+            if vix_is_fallback:
+                logger.warning(f"VIX={vix_val:.1f} is FALLBACK — cache TTL shortened to 60s")
             return is_bull, reason
 
         except Exception as e:
@@ -1069,26 +1076,37 @@ class AutoTradingEngine:
         except Exception:
             return 50.0  # default neutral
 
-    def _get_vix(self) -> float:
-        """Fetch current VIX value. Returns 50.0 on error (fail-safe → BEAR)."""
-        try:
-            vix = yf.download('^VIX', period='5d', progress=False)
-            if vix.empty:
-                logger.warning("VIX data empty — fail-safe: returning 50.0 (assume high volatility)")
-                return 50.0
-            close = vix['Close']
-            # Handle yfinance MultiIndex columns: ('Close', '^VIX')
-            if hasattr(close, 'columns'):
-                close = close.iloc[:, 0]
-            val = float(close.iloc[-1]) if hasattr(close, 'iloc') else float(close[-1])
-            # Sanity check: VIX should be 5-100, not a stock price
-            if val > 100 or val < 5:
-                logger.warning(f"VIX value {val} looks invalid — fail-safe: returning 25.0")
-                return 25.0
-            return val
-        except Exception as e:
-            logger.warning(f"VIX fetch failed ({e}) — fail-safe: returning 50.0 (assume high volatility)")
-            return 50.0
+    def _get_vix(self) -> Tuple[float, bool]:
+        """Fetch current VIX value with retry. Returns (value, is_fallback).
+        Returns (50.0, True) on error (fail-safe → BEAR)."""
+        for attempt in range(2):
+            try:
+                vix = yf.download('^VIX', period='5d', progress=False)
+                if vix.empty:
+                    if attempt == 0:
+                        logger.warning("VIX data empty — retrying in 3s...")
+                        time.sleep(3)
+                        continue
+                    logger.warning("VIX data empty after retry — fail-safe: 50.0")
+                    return 50.0, True
+                close = vix['Close']
+                # Handle yfinance MultiIndex columns: ('Close', '^VIX')
+                if hasattr(close, 'columns'):
+                    close = close.iloc[:, 0]
+                val = float(close.iloc[-1]) if hasattr(close, 'iloc') else float(close[-1])
+                # Sanity check: VIX should be 5-100, not a stock price
+                if val > 100 or val < 5:
+                    logger.warning(f"VIX value {val} looks invalid — fail-safe: 25.0")
+                    return 25.0, True
+                return val, False
+            except Exception as e:
+                if attempt == 0:
+                    logger.warning(f"VIX fetch failed ({e}) — retrying in 3s...")
+                    time.sleep(3)
+                else:
+                    logger.warning(f"VIX fetch failed after retry ({e}) — fail-safe: 50.0")
+                    return 50.0, True
+        return 50.0, True
 
     # =========================================================================
     # LOW RISK MODE (v4.5 NEW!)
@@ -1999,6 +2017,12 @@ class AutoTradingEngine:
         except Exception as e:
             logger.warning(f"Scan log save error (non-fatal): {e}")
 
+        # v5.1: Write execution status cache for UI signal status display
+        try:
+            self._save_execution_status(scan_results)
+        except Exception as e:
+            logger.debug(f"Execution status cache error (non-fatal): {e}")
+
     def _derive_signal_source(self, signal, scan_type: str = '') -> str:
         """Derive signal source from scan_type (primary) or signal attributes (fallback)."""
         # Primary: scan_type is authoritative (set by the scan loop)
@@ -2079,6 +2103,42 @@ class AutoTradingEngine:
                         logger.debug(f"Cleaned up old scan log: {fname}")
         except Exception as e:
             logger.debug(f"Scan log cleanup error (non-fatal): {e}")
+
+    def _save_execution_status(self, scan_results):
+        """Write latest execution results to cache for UI signal status display."""
+        import tempfile as _tmpfile
+        cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'cache')
+        os.makedirs(cache_dir, exist_ok=True)
+        filepath = os.path.join(cache_dir, 'execution_status.json')
+
+        status_map = {}
+        for r in scan_results:
+            symbol = r.get('symbol', '')
+            if symbol:
+                status_map[symbol] = {
+                    'action': r.get('action_taken', 'UNKNOWN'),
+                    'timestamp': datetime.now().isoformat(),
+                }
+
+        # Merge with existing (keep today's results)
+        existing = {}
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, 'r') as f:
+                    existing = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                existing = {}
+        existing.update(status_map)
+
+        fd, tmp_path = _tmpfile.mkstemp(dir=cache_dir, suffix='.tmp')
+        try:
+            with os.fdopen(fd, 'w') as f:
+                json.dump(existing, f, indent=2, default=str)
+            os.replace(tmp_path, filepath)
+        except Exception:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
 
     # =========================================================================
     # SCANNING
@@ -2339,6 +2399,42 @@ class AutoTradingEngine:
         except Exception as e:
             logger.error(f"Queue: Error executing {queued.symbol}: {e}")
             return False
+
+    def _reconcile_positions(self):
+        """Check for position mismatches between engine and Alpaca (once per day)."""
+        today = datetime.now().date()
+        if hasattr(self, '_last_reconcile') and self._last_reconcile == today:
+            return  # Already reconciled today
+        self._last_reconcile = today
+
+        try:
+            alpaca_positions = self.trader.get_positions()
+            if alpaca_positions is None:
+                return
+
+            alpaca_symbols = {p.symbol for p in alpaca_positions}
+            engine_symbols = set(self.positions.keys())
+
+            # Symbols in Alpaca but not in engine (ghost fills)
+            ghost = alpaca_symbols - engine_symbols
+            # Symbols in engine but not in Alpaca (stale positions)
+            stale = engine_symbols - alpaca_symbols
+
+            if ghost:
+                logger.warning(f"⚠️ RECONCILE: Ghost positions in Alpaca not tracked by engine: {ghost}")
+                for sym in ghost:
+                    pos = next((p for p in alpaca_positions if p.symbol == sym), None)
+                    if pos:
+                        logger.warning(f"  {sym}: qty={pos.qty} avg_entry=${float(pos.avg_entry_price):.2f} market_value=${float(pos.market_value):.2f}")
+
+            if stale:
+                logger.warning(f"⚠️ RECONCILE: Stale positions in engine not in Alpaca: {stale}")
+
+            if not ghost and not stale:
+                logger.info(f"✅ RECONCILE: OK ({len(engine_symbols)} positions match)")
+
+        except Exception as e:
+            logger.debug(f"Position reconciliation error: {e}")
 
     def _clear_queue_end_of_day(self):
         """Clear queue at end of day"""
@@ -2715,7 +2811,31 @@ class AutoTradingEngine:
                 sl_order_id = None
 
             if not buy_order or buy_order.status != 'filled':
-                logger.error(f"Buy order not filled for {symbol}")
+                order_status = getattr(buy_order, 'status', 'None')
+                logger.error(f"Buy order not filled for {symbol} (status={order_status})")
+                # v5.1: Log ORDER_NOT_FILLED to Trade Log (prevents data loss)
+                try:
+                    self.trade_logger.log_skip(
+                        symbol=symbol,
+                        price=current_price,
+                        reason="ORDER_NOT_FILLED",
+                        skip_detail=f"Order status: {order_status}",
+                        filters={"order_fill": {"passed": False, "detail": f"status={order_status}"}},
+                        signal_score=signal_score,
+                        sector=signal_sector, signal_source=signal_source,
+                        atr_pct=getattr(signal, 'atr_pct', None),
+                        rsi=getattr(signal, 'rsi', None),
+                        momentum_5d=getattr(signal, 'momentum_5d', None),
+                        mode=mode,
+                    )
+                except Exception as log_err:
+                    logger.warning(f"Trade log error: {log_err}")
+                # Cancel unfilled order to avoid ghost fills
+                try:
+                    if buy_order and hasattr(buy_order, 'id'):
+                        self.trader.cancel_order(buy_order.id)
+                except Exception:
+                    pass
                 return False
 
             # Create managed position with ATR-based SL/TP
@@ -3805,6 +3925,9 @@ class AutoTradingEngine:
                 # Market is open
                 self.state = TradingState.TRADING
 
+                # v5.1: Position reconciliation (once per day)
+                self._reconcile_positions()
+
                 # Pre-market scan (once per day at open)
                 today = now.strftime('%Y-%m-%d')
                 if last_scan_date != today:
@@ -3931,7 +4054,32 @@ class AutoTradingEngine:
                                 else:
                                     logger.info(f"BEAR breakout: SKIP morning (PDT budget=0, wait for afternoon)")
 
+                            # v5.1: Add overnight gap scanner to BEAR morning scan
+                            if self.overnight_scanner and self.OVERNIGHT_GAP_ENABLED:
+                                try:
+                                    data_cache = self.screener.data_cache if self.screener else {}
+                                    if not data_cache and self.screener:
+                                        universe = self.screener.generate_universe()[:100]
+                                        self.screener.load_data(universe)
+                                        data_cache = self.screener.data_cache
+                                    sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
+                                    overnight_signals = self.overnight_scanner.scan(
+                                        universe=data_cache,
+                                        sector_regime=sector_regime,
+                                        min_score=self.OVERNIGHT_GAP_MIN_SCORE,
+                                        position_pct=self.OVERNIGHT_GAP_POSITION_PCT,
+                                        target_pct=self.OVERNIGHT_GAP_TARGET_PCT,
+                                        sl_pct=self.OVERNIGHT_GAP_SL_PCT,
+                                    )
+                                    if overnight_signals:
+                                        logger.info(f"BEAR overnight gap (morning): {len(overnight_signals)} signals")
+                                        signals.extend(overnight_signals)
+                                        signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
+                                except Exception as e:
+                                    logger.warning(f"BEAR overnight gap scan error: {e}")
+
                             self._process_scan_signals(signals, "morning", max_positions=effective_max)
+                            self._overnight_scan_done = today  # Prevent duplicate 15:30 run
                     elif self.check_daily_loss_limit():
                         logger.warning("Daily loss limit - no new trades today")
                     elif self.check_weekly_loss_limit():
@@ -3972,7 +4120,32 @@ class AutoTradingEngine:
                             except Exception as e:
                                 logger.warning(f"Breakout scan error: {e}")
 
+                        # v5.1: Add overnight gap scanner to BULL morning scan
+                        if self.overnight_scanner and self.OVERNIGHT_GAP_ENABLED:
+                            try:
+                                data_cache = self.screener.data_cache if self.screener else {}
+                                if not data_cache and self.screener:
+                                    universe = self.screener.generate_universe()[:100]
+                                    self.screener.load_data(universe)
+                                    data_cache = self.screener.data_cache
+                                sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
+                                overnight_signals = self.overnight_scanner.scan(
+                                    universe=data_cache,
+                                    sector_regime=sector_regime,
+                                    min_score=self.OVERNIGHT_GAP_MIN_SCORE,
+                                    position_pct=self.OVERNIGHT_GAP_POSITION_PCT,
+                                    target_pct=self.OVERNIGHT_GAP_TARGET_PCT,
+                                    sl_pct=self.OVERNIGHT_GAP_SL_PCT,
+                                )
+                                if overnight_signals:
+                                    logger.info(f"BULL overnight gap (morning): {len(overnight_signals)} signals")
+                                    signals.extend(overnight_signals)
+                                    signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
+                            except Exception as e:
+                                logger.warning(f"BULL overnight gap scan error: {e}")
+
                         self._process_scan_signals(signals, "morning")
+                        self._overnight_scan_done = today  # Prevent duplicate 15:30 run
 
                     self._morning_scan_done = today
                     last_scan_date = today

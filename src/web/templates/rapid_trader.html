@@ -1648,14 +1648,22 @@ function loadSignals() {
 
             let html = '';
             signals.forEach((signal, idx) => {
+                const execStatus = signal.execution_status || 'PENDING';
+                const statusBadge = execStatus === 'BOUGHT' ? '<span class="badge bg-success ms-1" style="font-size:0.55em">BOUGHT</span>'
+                    : execStatus === 'SKIPPED_FILTER' ? '<span class="badge bg-danger ms-1" style="font-size:0.55em">SKIP</span>'
+                    : execStatus === 'QUEUED' ? '<span class="badge bg-warning text-dark ms-1" style="font-size:0.55em">QUEUED</span>'
+                    : execStatus === 'QUEUE_FULL' ? '<span class="badge bg-secondary ms-1" style="font-size:0.55em">FULL</span>'
+                    : '';
+                const isBought = execStatus === 'BOUGHT';
                 html += `
-                    <div class="signal-card">
+                    <div class="signal-card${isBought ? ' border-success' : ''}">
                         <div class="d-flex justify-content-between align-items-start mb-1">
                             <div>
                                 <h6 class="mb-0">
                                     <span class="badge bg-success me-1">#${idx + 1}</span>
                                     ${signal.symbol}
                                     ${(signal.sl_method || '').includes('overnight_gap') ? '<span class="badge bg-warning text-dark ms-1" style="font-size:0.6em">O/N</span>' : (signal.sl_method || '').includes('breakout') ? '<span class="badge bg-info text-dark ms-1" style="font-size:0.6em">BO</span>' : '<span class="badge bg-secondary ms-1" style="font-size:0.6em">Bounce</span>'}
+                                    ${statusBadge}
                                 </h6>
                                 <small class="text-muted">Score: ${signal.score}${signal.sector ? ' | ' + signal.sector : ''}</small>
                             </div>
@@ -1672,9 +1680,7 @@ function loadSignals() {
                             </div>
                         </div>
                         <div class="mb-1"><small class="text-muted">RSI: ${signal.rsi.toFixed(0)} | Mom: ${signal.momentum_5d >= 0 ? '+' : ''}${signal.momentum_5d.toFixed(1)}%</small></div>
-                        <button class="btn btn-success btn-sm w-100" onclick="openAddPosition('${signal.symbol}', ${signal.entry_price}, ${signal.stop_loss}, ${signal.take_profit})">
-                            <i class="fas fa-plus me-1"></i>Add to Portfolio
-                        </button>
+                        ${isBought ? '<div class="text-center"><span class="badge bg-success bg-opacity-25 text-success"><i class="fas fa-check me-1"></i>Already in Portfolio</span></div>' : `<button class="btn btn-success btn-sm w-100" onclick="openAddPosition('${signal.symbol}', ${signal.entry_price}, ${signal.stop_loss}, ${signal.take_profit})"><i class="fas fa-plus me-1"></i>Add to Portfolio</button>`}
                     </div>`;
             });
             container.innerHTML = html;

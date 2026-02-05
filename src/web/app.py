@@ -2600,6 +2600,25 @@ def api_rapid_signals():
         data['cache_age_seconds'] = round(cache_age, 0)
         data['status'] = 'fresh' if cache_age < 1200 else 'stale'
 
+        # v5.1: Enrich signals with execution status (BOUGHT/SKIPPED/QUEUED/PENDING)
+        exec_status_path = os.path.join(
+            os.path.dirname(__file__), '..', '..', 'data', 'cache', 'execution_status.json'
+        )
+        exec_status = {}
+        if os.path.exists(exec_status_path):
+            try:
+                with open(exec_status_path, 'r') as ef:
+                    exec_status = _json.load(ef)
+            except Exception:
+                pass
+
+        for sig in data.get('signals', []):
+            symbol = sig.get('symbol', '')
+            if symbol in exec_status:
+                sig['execution_status'] = exec_status[symbol].get('action', 'PENDING')
+            else:
+                sig['execution_status'] = 'PENDING'
+
         return jsonify(data)
 
     except Exception as e:
