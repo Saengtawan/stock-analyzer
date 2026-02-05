@@ -685,8 +685,8 @@ class AlpacaTrader:
                     if fallback_order:
                         logger.warning(f"Restored original SL for {symbol} at ${old_stop_price:.2f}")
                         return fallback_order
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"SL fallback restoration failed for {symbol}: {e}")
                 # v4.7 Fix #3: Emergency sell when SL completely fails
                 logger.error(f"CRITICAL: {symbol} has NO STOP LOSS - attempting emergency sell")
                 try:

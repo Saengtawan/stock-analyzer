@@ -235,7 +235,7 @@ class RapidRotationScreener:
 
         # SPY regime cache (Fix #38: avoid downloading SPY every call)
         self._spy_regime_cache = None  # (is_bull, reason, details, timestamp)
-        self._spy_cache_seconds = 300  # 5 minutes
+        self._spy_cache_seconds = 120  # v5.1 P2-17: 300→120s (align with engine)
 
         # Cache for regime data (with timestamps)
         self._market_regime_cache = None
@@ -247,8 +247,8 @@ class RapidRotationScreener:
 
         # Cache TTL in seconds
         self._cache_ttl = {
-            'market_regime': 300,   # 5 min
-            'sector_regime': 600,   # 10 min
+            'market_regime': 120,   # v5.1 P2-17: 300→120s (align with engine)
+            'sector_regime': 300,   # v5.1 P2-17: 600→300s (sector changes slower but still relevant)
             'alt_data': 300,        # 5 min
             'data': 1800,           # 30 min
         }
@@ -944,6 +944,13 @@ class RapidRotationScreener:
         # ==============================
         # v3.3 SCORING - Quality over quantity
         # ==============================
+        # v5.1 P2-9: Score component breakdown (max ~245 pts):
+        #   Bounce-specific (45%): Bounce Conf +25-40, Prior Dip +15-40, Yesterday Dip +10-30
+        #   General (47%):         RSI +20-35, Trend +15-25, Volatility +10-20,
+        #                          Room to Recover +10-20, Volume +5-15
+        #   Other (8%):            Sector -10 to +5, Alt Data -15 to +15
+        # Note P2-11: Bounce weighting ~45% is BY DESIGN for dip-bounce strategy.
+        # If adding new scoring components, update this breakdown and consider normalizing.
         score = 0
         reasons = []
 

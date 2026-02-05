@@ -117,6 +117,14 @@ class TradingState(Enum):
     STOPPED = "stopped"
 
 
+class SignalSource:
+    """v5.1 P2-10: Signal source constants — prevents typo bugs in string comparisons."""
+    DIP_BOUNCE = "dip_bounce"
+    OVERNIGHT_GAP = "overnight_gap"
+    BREAKOUT = "breakout"
+    ALL = (DIP_BOUNCE, OVERNIGHT_GAP, BREAKOUT)
+
+
 @dataclass
 class ManagedPosition:
     """Position with trailing stop management (v4.6: ATR-based SL/TP)"""
@@ -1956,8 +1964,8 @@ class AutoTradingEngine:
                         import math
                         if not math.isnan(rsi_val):
                             ctx['exit_rsi'] = round(rsi_val, 1)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Exit RSI context error: {e}")
 
             # 2. SPY change from regime cache (no API call)
             if hasattr(self, '_regime_cache') and self._regime_cache and len(self._regime_cache) >= 4:
@@ -1977,6 +1985,9 @@ class AutoTradingEngine:
         effective_max = max_positions or self.MAX_POSITIONS
         params = self._get_effective_params()
         mode = params.get('mode', 'NORMAL')
+
+        # v5.1 P2-22: Generate scan_id before processing so execute_signal can link BUY→scan
+        self._current_scan_id = f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_{scan_type}"
 
         scan_results = []
         for rank, signal in enumerate(signals):
@@ -2018,7 +2029,7 @@ class AutoTradingEngine:
 
         # Log entire scan batch (failure must not affect trading)
         try:
-            scan_id = f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_{scan_type}"
+            scan_id = self._current_scan_id
             self._save_scan_log(scan_id, scan_type, mode, scan_results)
         except Exception as e:
             logger.warning(f"Scan log save error (non-fatal): {e}")
@@ -2030,18 +2041,20 @@ class AutoTradingEngine:
             logger.warning(f"Execution status cache error: {e}")
 
     def _derive_signal_source(self, signal, scan_type: str = '') -> str:
-        """Derive signal source from scan_type (primary) or signal attributes (fallback)."""
+        """Derive signal source from scan_type (primary) or signal attributes (fallback).
+        v5.1 P2-10: Uses SignalSource constants to prevent typo bugs.
+        """
         # Primary: scan_type is authoritative (set by the scan loop)
         if scan_type == 'overnight_gap':
-            return 'overnight_gap'
+            return SignalSource.OVERNIGHT_GAP
         # sl_method from screener output (secondary)
         sl_method = getattr(signal, 'sl_method', '')
         if 'overnight_gap' in sl_method:
-            return 'overnight_gap'
+            return SignalSource.OVERNIGHT_GAP
         elif 'breakout' in sl_method:
-            return 'breakout'
+            return SignalSource.BREAKOUT
         # Default for morning/afternoon/late_start scans
-        return 'dip_bounce'
+        return SignalSource.DIP_BOUNCE
 
     def _save_scan_log(self, scan_id: str, scan_type: str, mode: str, results: list):
         """Append scan batch to today's scan log file (thread-safe atomic write)."""
@@ -2857,8 +2870,8 @@ class AutoTradingEngine:
                 try:
                     if buy_order and hasattr(buy_order, 'id'):
                         self.trader.cancel_order(buy_order.id)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to cancel unfilled order for {symbol}: {e}")
                 return False
 
             # Create managed position with ATR-based SL/TP
@@ -2883,8 +2896,8 @@ class AutoTradingEngine:
                     logger.warning(f"⚠️ Max positions ({effective_max}) reached under lock — engine={len(self.positions)}, alpaca={getattr(self, '_alpaca_position_count', 0)} — cancelling order for {symbol}")
                     try:
                         self.trader.cancel_order(buy_order.id)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Failed to cancel order at max positions for {symbol}: {e}")
                     return False
 
                 # v4.9.9: Capture regime before position creation (reused in log_buy)
@@ -2979,8 +2992,8 @@ class AutoTradingEngine:
                             etf_data = yf.Ticker(etf_sym).history(period='2d')
                             if etf_data is not None and len(etf_data) >= 2:
                                 entry_sector_change = round(((etf_data['Close'].iloc[-1] / etf_data['Close'].iloc[-2]) - 1) * 100, 2)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug(f"Sector ETF data error: {e}")
                 except Exception as ctx_err:
                     logger.debug(f"Entry timing context error: {ctx_err}")
 
@@ -3025,6 +3038,7 @@ class AutoTradingEngine:
                     fill_status=exec_meta.get('fill_status'),
                     # Config snapshot (v4.8)
                     config_snapshot=self._get_config_snapshot(),
+                    scan_id=getattr(self, '_current_scan_id', None),  # v5.1 P2-22
                     # v5.0: Entry timing context
                     entry_minutes_after_open=entry_minutes,
                     entry_spy_pct_above_sma=entry_spy_change,
@@ -3232,8 +3246,8 @@ class AutoTradingEngine:
                             self.alerts.add('CRITICAL', f'Stock Split: {symbol}',
                                             f'{symbol} split detected (ratio {split_ratio:.1f}x) — position adjusted',
                                             category='risk', symbol=symbol)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning(f"Failed to add split alert for {symbol}: {e}")
                         self._save_positions_state()
                         # Update SL order at Alpaca
                         if managed_pos.sl_order_id:
@@ -3471,7 +3485,7 @@ class AutoTradingEngine:
         managed_pos.days_held = days_held
 
         # v4.9.4: Overnight gap position — sell at open next day (9:31-10:00 ET)
-        if getattr(managed_pos, 'source', '') == 'overnight_gap' and days_held >= 1:
+        if getattr(managed_pos, 'source', '') == SignalSource.OVERNIGHT_GAP and days_held >= 1:
             et_now = self._get_et_time()
             if (et_now.hour == 9 and et_now.minute >= 31) or (et_now.hour == 10 and et_now.minute < 1):
                 logger.info(f"OVERNIGHT_GAP_EXIT: {symbol} Day {days_held}, P&L {pnl_pct:+.2f}%")
@@ -3951,21 +3965,34 @@ class AutoTradingEngine:
                     continue
 
                 # Check market status
+                # v5.1 P2-15: Fail-closed on clock error (assume market closed)
                 try:
                     clock = self.trader.get_clock()
                 except Exception as clock_err:
-                    # v4.9 Fix #34: Handle Alpaca maintenance
                     err_str = str(clock_err).lower()
                     if any(kw in err_str for kw in ['maintenance', '503', '502', 'service unavailable']):
                         logger.warning(f"Alpaca API maintenance detected — waiting 60s")
-                        time.sleep(60)
-                        continue
-                    raise
+                    else:
+                        logger.warning(f"Clock API failed ({clock_err}) — assuming market closed (fail-closed)")
+                    self.state = TradingState.SLEEPING
+                    time.sleep(60)
+                    continue
 
                 if not clock['is_open']:
                     self.state = TradingState.SLEEPING
                     time.sleep(60)
                     continue
+
+                # v5.1 P2-15: Detect early close (e.g., day before Thanksgiving = 1 PM close)
+                try:
+                    next_close = clock.get('next_close')
+                    if next_close and hasattr(next_close, 'hour'):
+                        if next_close.hour < 16:  # Normal close is 16:00 ET
+                            if not hasattr(self, '_early_close_warned') or self._early_close_warned != now.date():
+                                logger.warning(f"⚠️ EARLY CLOSE today at {next_close.strftime('%H:%M ET')} — adjusting scan windows")
+                                self._early_close_warned = now.date()
+                except Exception:
+                    pass  # next_close parsing is best-effort
 
                 # Market is open
                 self.state = TradingState.TRADING

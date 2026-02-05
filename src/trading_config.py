@@ -116,6 +116,39 @@ CONFIG_SCHEMA: Dict[str, Dict[str, Any]] = {
     'BEAR_GAP_MAX_DOWN': {'type': (int, float), 'min': -10.0, 'max': -1.0},
     'BEAR_POSITION_SIZE_PCT': {'type': (int, float), 'min': 10, 'max': 40},
     'BEAR_MAX_ATR_PCT': {'type': (int, float), 'min': 2.0, 'max': 6.0},
+    # v5.1 P2-16: ATR-based SL/TP
+    'SL_ATR_MULTIPLIER': {'type': (int, float), 'min': 0.5, 'max': 5.0},
+    'SL_MIN_PCT': {'type': (int, float), 'min': 0.5, 'max': 10.0},
+    'SL_MAX_PCT': {'type': (int, float), 'min': 1.0, 'max': 15.0},
+    'TP_ATR_MULTIPLIER': {'type': (int, float), 'min': 1.0, 'max': 10.0},
+    'TP_MIN_PCT': {'type': (int, float), 'min': 1.0, 'max': 20.0},
+    'TP_MAX_PCT': {'type': (int, float), 'min': 2.0, 'max': 30.0},
+    # v5.1 P2-16: Signal Queue
+    'QUEUE_ATR_MULT': {'type': (int, float), 'min': 0.1, 'max': 3.0},
+    'QUEUE_MIN_DEVIATION': {'type': (int, float), 'min': 0.1, 'max': 3.0},
+    'QUEUE_MAX_DEVIATION': {'type': (int, float), 'min': 0.5, 'max': 5.0},
+    'QUEUE_MAX_SIZE': {'type': int, 'min': 1, 'max': 20},
+    'QUEUE_FRESHNESS_WINDOW': {'type': int, 'min': 5, 'max': 120},
+    # v5.1 P2-16: Gap Filter
+    'GAP_MAX_UP': {'type': (int, float), 'min': 0.5, 'max': 10.0},
+    'GAP_MAX_DOWN': {'type': (int, float), 'min': -15.0, 'max': -1.0},
+    # v5.1 P2-16: Low Risk Mode
+    'LOW_RISK_GAP_MAX_UP': {'type': (int, float), 'min': 0.5, 'max': 5.0},
+    'LOW_RISK_MIN_SCORE': {'type': int, 'min': 50, 'max': 100},
+    'LOW_RISK_POSITION_SIZE_PCT': {'type': (int, float), 'min': 5, 'max': 40},
+    'LOW_RISK_MAX_ATR_PCT': {'type': (int, float), 'min': 1.0, 'max': 8.0},
+    # v5.1 P2-16: Regime Filter
+    'REGIME_SMA_PERIOD': {'type': int, 'min': 5, 'max': 50},
+    'REGIME_RSI_MIN': {'type': (int, float), 'min': 20, 'max': 60},
+    'REGIME_RETURN_5D_MIN': {'type': (int, float), 'min': -10.0, 'max': 0.0},
+    'REGIME_VIX_MAX': {'type': (int, float), 'min': 15.0, 'max': 50.0},
+    # v5.1 P2-16: Risk Parity
+    'RISK_BUDGET_PCT': {'type': (int, float), 'min': 0.5, 'max': 5.0},
+    # v5.1 P2-16: Sector
+    'MAX_SECTOR_CONSECUTIVE_LOSS': {'type': int, 'min': 1, 'max': 5},
+    'SECTOR_COOLDOWN_DAYS': {'type': int, 'min': 1, 'max': 10},
+    # v5.1 P2-16: Afternoon
+    'AFTERNOON_MIN_SCORE': {'type': int, 'min': 50, 'max': 100},
 }
 
 

@@ -136,6 +136,7 @@ class TradeLogEntry:
     config_smart_order_enabled: Optional[bool] = None
 
     # Correlation
+    scan_id: Optional[str] = None  # v5.1 P2-22: Links BUY to originating scan event
     correlation_id: Optional[str] = None  # Links BUY to its corresponding SELL
 
     # Meta
@@ -360,6 +361,7 @@ class TradeLogger:
         # Config snapshot (v4.8)
         config_snapshot: Dict = None,
         correlation_id: str = None,
+        scan_id: str = None,  # v5.1 P2-22: links BUY to originating scan
         # v5.0: Entry timing context
         entry_minutes_after_open: int = None,
         entry_spy_pct_above_sma: float = None,
@@ -429,6 +431,7 @@ class TradeLogger:
             config_max_consecutive_losses=cs.get('max_consecutive_losses'),
             config_smart_order_enabled=cs.get('smart_order_enabled'),
             correlation_id=correlation_id,
+            scan_id=scan_id,  # v5.1 P2-22
             # v5.0: Entry timing context
             entry_minutes_after_open=entry_minutes_after_open,
             entry_spy_pct_above_sma=entry_spy_pct_above_sma,
