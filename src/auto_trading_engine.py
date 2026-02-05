@@ -545,7 +545,7 @@ class AutoTradingEngine:
         self._regime_cache: Optional[Tuple[bool, str, datetime, Dict]] = None
         # v5.0: Scan log lock (prevent concurrent writes from losing data)
         self._scan_log_lock = threading.Lock()
-        self._regime_cache_seconds = 300  # 5 minutes
+        self._regime_cache_seconds = 120  # v5.1 P1-8: 300→120s (VIX can spike fast)
 
         # Timezone
         self.et_tz = pytz.timezone('US/Eastern')
@@ -555,6 +555,9 @@ class AutoTradingEngine:
         os.makedirs(self._state_dir, exist_ok=True)
         self._state_file = os.path.join(self._state_dir, 'active_positions.json')
         self._queue_file = os.path.join(self._state_dir, 'signal_queue.json')
+
+        # v5.1 P1-9: Track Alpaca position count for max_positions enforcement
+        self._alpaca_position_count = 0
 
         # Load existing positions from Alpaca + persisted state
         self._sync_positions()
@@ -1141,9 +1144,11 @@ class AutoTradingEngine:
 
     def _is_bear_mode(self) -> Tuple[bool, str]:
         """
-        Check if Smart Bear Mode should activate
+        Check if Smart Bear Mode should activate.
 
-        Bear Mode: SPY BEAR + BEAR_MODE_ENABLED → trade defensive sectors only
+        Precedence: REGIME_FILTER gates everything → BEAR_MODE decides defensive trading.
+        If REGIME_FILTER disabled: always BULL → bear mode never activates.
+        If REGIME_FILTER enabled + SPY BEAR + BEAR_MODE_ENABLED: trade defensive sectors only.
 
         Returns:
             (is_bear, reason)
@@ -1219,7 +1224,7 @@ class AutoTradingEngine:
                             blocked.append(sector_name)
                             logger.info(f"🐂⛔ {sector_name} ({etf}) return_20d={return_20d:+.1f}% < {self.BULL_SECTOR_MIN_RETURN}% → BLOCKED in BULL")
                 except Exception as e:
-                    logger.debug(f"Error checking sector {sector_name}: {e}")
+                    logger.warning(f"Error checking sector {sector_name}: {e}")
 
         if blocked:
             logger.info(f"🐂 BULL blocked sectors: {blocked}")
@@ -2022,7 +2027,7 @@ class AutoTradingEngine:
         try:
             self._save_execution_status(scan_results)
         except Exception as e:
-            logger.debug(f"Execution status cache error (non-fatal): {e}")
+            logger.warning(f"Execution status cache error: {e}")
 
     def _derive_signal_source(self, signal, scan_type: str = '') -> str:
         """Derive signal source from scan_type (primary) or signal attributes (fallback)."""
@@ -2402,7 +2407,11 @@ class AutoTradingEngine:
             return False
 
     def _reconcile_positions(self):
-        """Check for position mismatches between engine and Alpaca (once per day)."""
+        """Check for position mismatches between engine and Alpaca (once per day).
+
+        v5.1 P1-9: Also stores Alpaca position count so max_positions check
+        accounts for manual/external trades not tracked by engine.
+        """
         today = datetime.now().date()
         if hasattr(self, '_last_reconcile') and self._last_reconcile == today:
             return  # Already reconciled today
@@ -2413,29 +2422,38 @@ class AutoTradingEngine:
             if alpaca_positions is None:
                 return
 
+            # v5.1 P1-9: Store Alpaca count for max_positions enforcement
+            self._alpaca_position_count = len(alpaca_positions)
+
             alpaca_symbols = {p.symbol for p in alpaca_positions}
             engine_symbols = set(self.positions.keys())
 
-            # Symbols in Alpaca but not in engine (ghost fills)
+            # Symbols in Alpaca but not in engine (ghost fills / manual trades)
             ghost = alpaca_symbols - engine_symbols
             # Symbols in engine but not in Alpaca (stale positions)
             stale = engine_symbols - alpaca_symbols
 
             if ghost:
-                logger.warning(f"⚠️ RECONCILE: Ghost positions in Alpaca not tracked by engine: {ghost}")
+                logger.warning(f"⚠️ RECONCILE: {len(ghost)} Alpaca position(s) not tracked by engine: {ghost}")
                 for sym in ghost:
                     pos = next((p for p in alpaca_positions if p.symbol == sym), None)
                     if pos:
                         logger.warning(f"  {sym}: qty={pos.qty} avg_entry=${float(pos.avg_entry_price):.2f} market_value=${float(pos.market_value):.2f}")
+                logger.warning(f"⚠️ RECONCILE: max_positions will use Alpaca count ({self._alpaca_position_count}) to prevent over-leverage")
 
             if stale:
                 logger.warning(f"⚠️ RECONCILE: Stale positions in engine not in Alpaca: {stale}")
+                for sym in stale:
+                    logger.warning(f"  Removing stale engine position: {sym}")
+                with self._positions_lock:
+                    for sym in stale:
+                        self.positions.pop(sym, None)
 
             if not ghost and not stale:
                 logger.info(f"✅ RECONCILE: OK ({len(engine_symbols)} positions match)")
 
         except Exception as e:
-            logger.debug(f"Position reconciliation error: {e}")
+            logger.warning(f"Position reconciliation error: {e}")
 
     def _clear_queue_end_of_day(self):
         """Clear queue at end of day"""
@@ -2527,10 +2545,12 @@ class AutoTradingEngine:
 
             # Check max positions (v4.9.2: use effective max from params)
             # v5.1: Check under lock to prevent TOCTOU race (two threads passing simultaneously)
+            # v5.1 P1-9: Use max(engine, alpaca) to account for manual/external trades
             with self._positions_lock:
                 effective_max = params.get('max_positions') or self.MAX_POSITIONS
-                if len(self.positions) >= effective_max:
-                    logger.warning(f"Max positions ({effective_max}) reached (mode: {mode})")
+                actual_count = max(len(self.positions), getattr(self, '_alpaca_position_count', 0))
+                if actual_count >= effective_max:
+                    logger.warning(f"Max positions ({effective_max}) reached — engine={len(self.positions)}, alpaca={getattr(self, '_alpaca_position_count', 0)} (mode: {mode})")
                     return False
 
             # v5.0: Extract signal context early (used by all log_skip calls + log_buy)
@@ -2856,9 +2876,11 @@ class AutoTradingEngine:
 
             with self._positions_lock:
                 # v4.9.3: Re-check max_positions under lock (prevent TOCTOU race)
+                # v5.1 P1-9: Use max(engine, alpaca) to account for manual trades
                 effective_max = params.get('max_positions') or self.MAX_POSITIONS
-                if len(self.positions) >= effective_max:
-                    logger.warning(f"⚠️ Max positions ({effective_max}) reached under lock — cancelling order for {symbol}")
+                actual_count = max(len(self.positions), getattr(self, '_alpaca_position_count', 0))
+                if actual_count >= effective_max:
+                    logger.warning(f"⚠️ Max positions ({effective_max}) reached under lock — engine={len(self.positions)}, alpaca={getattr(self, '_alpaca_position_count', 0)} — cancelling order for {symbol}")
                     try:
                         self.trader.cancel_order(buy_order.id)
                     except Exception:

@@ -26,6 +26,10 @@ import sys
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
+import pytz
+
+ET = pytz.timezone('US/Eastern')
+
 # Add project root to path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, PROJECT_ROOT)
@@ -141,8 +145,9 @@ def track_sell_outcomes(dry_run: bool = False) -> int:
                     incomplete_ids.add(tid)
 
     # Find SELL entries from last 10 days of trade logs
+    # v5.1 P1-6: Use ET timezone (trade logs use ET timestamps)
     sell_entries = []
-    today = datetime.now()
+    today = datetime.now(ET)
     for days_ago in range(1, 11):
         log_date = (today - timedelta(days=days_ago)).strftime('%Y-%m-%d')
         filepath = os.path.join(trade_log_dir, f'trade_log_{log_date}.json')
@@ -246,7 +251,7 @@ def track_sell_outcomes(dry_run: bool = False) -> int:
             "post_sell_min_5d": round(min_5d, 2) if min_5d else None,
             "post_sell_pnl_pct_1d": pnl_1d,
             "post_sell_pnl_pct_5d": pnl_5d,
-            "tracked_at": datetime.now().isoformat(),
+            "tracked_at": datetime.now(ET).isoformat(),
         }
         outcomes.append(outcome)
 
@@ -320,8 +325,9 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                     incomplete_keys.add(key)
 
     # Find signal entries from last 10 days of scan logs
+    # v5.1 P1-6: Use ET timezone (scan logs use ET timestamps)
     signals_to_track = []
-    today = datetime.now()
+    today = datetime.now(ET)
     today_str = today.strftime('%Y-%m-%d')
 
     for days_ago in range(1, 11):
@@ -442,7 +448,7 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                 "outcome_5d": outcome_5d,
                 "outcome_max_gain_5d": max_gain,
                 "outcome_max_dd_5d": max_dd,
-                "tracked_at": datetime.now().isoformat(),
+                "tracked_at": datetime.now(ET).isoformat(),
             })
 
         print(f"tracked {len([s for s in sigs if any(o['symbol'] == symbol for o in outcomes)])} signals")
@@ -524,7 +530,7 @@ def main():
     args = parser.parse_args()
 
     print("=" * 60)
-    print(f"OUTCOME TRACKER v1.0 — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    print(f"OUTCOME TRACKER v1.0 — {datetime.now(ET).strftime('%Y-%m-%d %H:%M ET')}")
     print("=" * 60)
 
     if args.cleanup:
