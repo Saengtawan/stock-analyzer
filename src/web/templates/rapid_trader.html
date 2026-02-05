@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Rapid Trader v4.9.4 - Aggressive Swing Mode{% endblock %}
+{% block title %}Rapid Trader v4.9.5 - Aggressive Swing Mode{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -222,7 +222,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2><i class="fas fa-rocket me-2"></i>Rapid Trader v4.9.4 <small class="text-success">Aggressive Swing Mode</small></h2>
+        <h2><i class="fas fa-rocket me-2"></i>Rapid Trader v4.9.5 <small class="text-success">Aggressive Swing Mode</small></h2>
         <p class="text-muted mb-0">SL: 1.5xATR [2-4%] | TP: 3xATR [4-10%] | Trail +4%/Lock 50% | Conviction Sizing</p>
     </div>
     <div class="d-flex align-items-center gap-2">
@@ -342,9 +342,9 @@
             </div>
         </div>
 
-        <!-- v4.9.4 Smart Regime System -->
+        <!-- v4.9.5 Smart Regime System -->
         <div class="rules-box">
-            <h5><i class="fas fa-brain me-2"></i>v4.9.4 Filters & Protection</h5>
+            <h5><i class="fas fa-brain me-2"></i>v4.9.5 Filters & Protection</h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #27ae60;">📈</div>
                 <div>SPY Filter: <strong id="spyFilterStatus">SPY > SMA20 = Trade</strong></div>
@@ -368,7 +368,7 @@
             <h5><i class="fas fa-bear me-2"></i>Smart Sector Filter <small class="text-warning">(SPY BEAR)</small></h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e67e22;">🐻</div>
-                <div>Sectors: <strong>Cons.Def, Utilities, Healthcare, Energy, Materials, Industrials</strong></div>
+                <div>Sectors: <strong>All 11 GICS sectors</strong> (dynamically filtered by regime)</div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e67e22;">📊</div>
@@ -399,9 +399,9 @@
             </div>
         </div>
 
-        <!-- v4.9.4 New Features -->
+        <!-- v4.9.5 New Features -->
         <div class="rules-box mt-3">
-            <h5><i class="fas fa-fire me-2"></i>v4.9.4 New Features <small class="text-danger">(Aggressive Swing)</small></h5>
+            <h5><i class="fas fa-fire me-2"></i>v4.9.5 New Features <small class="text-danger">(Aggressive Swing)</small></h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e74c3c;">A+</div>
                 <div>Conviction Sizing: <strong>A+ 45% | A 40% | B 30%</strong> (BEAR skip)</div>
@@ -464,7 +464,7 @@
 
         <!-- Trading Rules (v4.9) -->
         <div class="rules-box mt-3">
-            <h5><i class="fas fa-list-check me-2"></i>Trading Rules v4.9.4 <small class="text-info">(ATR-Based)</small></h5>
+            <h5><i class="fas fa-list-check me-2"></i>Trading Rules v4.9.5 <small class="text-info">(ATR-Based)</small></h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e74c3c;">SL</div>
                 <div>Stop Loss: <strong>1.5xATR [2-4%]</strong> per position</div>
@@ -2541,10 +2541,10 @@ function acknowledgeAllAlerts() {
 loadSystemAlerts();
 setInterval(loadSystemAlerts, 30000);
 
-// v4.9.4: Auto-refresh signals every 15s (continuous scan mode)
+// v4.9.5: Auto-refresh signals every 15s (continuous scan mode)
 setInterval(loadSignals, 15000);
 
-// v4.9.4: Real-time scan progress via Socket.IO
+// v4.9.5: Real-time scan progress via Socket.IO
 const scanFeedItems = [];
 let scanProgressActive = false;
 
