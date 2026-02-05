@@ -316,7 +316,7 @@ class AutoTradingEngine:
     # เหตุผล: ต้อง hold ข้ามคืนอยู่แล้ว → เลือกเฉพาะหุ้นปลอดภัยสุด
     LOW_RISK_MODE_ENABLED = True
     LOW_RISK_GAP_MAX_UP = 1.0       # % - เข้มขึ้น (ปกติ 2%)
-    LOW_RISK_MIN_SCORE = 98         # v4.7: เข้มขึ้น (ปกติ 95) แต่ไม่ถึง 100 ให้ยังเทรดได้บ้าง
+    LOW_RISK_MIN_SCORE = 90         # v4.9.7: 98→90 (6 other filters handle risk; 98 blocked breakouts entirely)
     LOW_RISK_POSITION_SIZE_PCT = 20 # % - เล็กลง (ปกติ 30%) = ~$800
     LOW_RISK_MAX_ATR_PCT = 4.0      # % - หุ้นไม่ผันผวนมาก
     EARNINGS_NO_DATA_ACTION = 'warn'  # 'allow', 'skip', 'warn'
@@ -2137,7 +2137,7 @@ class AutoTradingEngine:
             params = self._get_effective_params()
             mode = params['mode']
 
-            if mode == 'LOW_RISK':
+            if 'LOW_RISK' in mode:
                 logger.info(f"🛡️ {symbol}: Using LOW RISK parameters")
 
             # Safety check first
@@ -2149,11 +2149,11 @@ class AutoTradingEngine:
             # v4.7 Fix #5: PDT pre-buy budget check
             # If SL triggers on Day 0, we need PDT budget to sell.
             # Skip buy in NORMAL mode if no PDT budget remaining for emergency exit.
-            if mode != 'LOW_RISK':
+            if 'LOW_RISK' not in mode:
                 pdt_pre_check = self.pdt_guard.get_pdt_status()
                 if pdt_pre_check.remaining <= self.pdt_guard.config.reserve:
                     logger.warning(f"❌ PDT pre-buy block: remaining={pdt_pre_check.remaining}, "
-                                   f"reserve={self.pdt_guard.config.reserve} → skip {symbol} in NORMAL mode")
+                                   f"reserve={self.pdt_guard.config.reserve} → skip {symbol} in {mode} mode")
                     return False
 
             # Check if already have position
@@ -2215,7 +2215,7 @@ class AutoTradingEngine:
             position_value = capital * (conviction_pct / 100)
             logger.info(f"Conviction {conviction}: {symbol} -> {conviction_pct}% (${position_value:,.0f})")
 
-            if mode == 'LOW_RISK':
+            if 'LOW_RISK' in mode:
                 logger.info(f"🛡️ Position size: ${position_value:,.0f} (LOW RISK: {params['position_size_pct']}%)")
 
             # Get current price
@@ -2227,7 +2227,7 @@ class AutoTradingEngine:
                 current_price = getattr(signal, 'entry_price', None) or getattr(signal, 'close', 100)
 
             # v4.5: Check ATR in low risk mode
-            if mode == 'LOW_RISK' and params['max_atr_pct'] is not None:
+            if 'LOW_RISK' in mode and params['max_atr_pct'] is not None:
                 signal_atr = getattr(signal, 'atr_pct', None)
                 if signal_atr and signal_atr > params['max_atr_pct']:
                     logger.warning(f"❌ ATR Filter REJECT {symbol}: ATR {signal_atr:.1f}% > {params['max_atr_pct']}% (LOW RISK)")
@@ -2480,7 +2480,7 @@ class AutoTradingEngine:
             self.daily_stats.signals_executed += 1
 
             # v4.5: Track low risk trades
-            if mode == 'LOW_RISK':
+            if 'LOW_RISK' in mode:
                 self.daily_stats.low_risk_trades += 1
                 logger.info(f"✅ Bought {symbol} x{qty} @ ${entry_price:.2f} [LOW RISK MODE]")
             else:
@@ -3846,7 +3846,7 @@ class AutoTradingEngine:
             'cash': account['cash'],
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v4.9.6 Dashboard Layout',
+            'version': 'v4.9.7 Fix BEAR+LOW_RISK mode',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
