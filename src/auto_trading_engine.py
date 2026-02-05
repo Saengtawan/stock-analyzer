@@ -3525,6 +3525,38 @@ class AutoTradingEngine:
                             params = self._get_effective_params()
                             effective_max = params.get('max_positions') or self.MAX_POSITIONS
                             signals = self.scan_for_signals()
+
+                            # v4.9.5: Add breakout scanner to BEAR morning scan
+                            # Only if PDT budget >= 1 (breakout = momentum play, may need day-trade exit)
+                            # PDT budget = 0 → skip morning breakout, wait for afternoon
+                            if self.breakout_scanner and self.BREAKOUT_SCAN_ENABLED:
+                                pdt_status = self.pdt_guard.get_pdt_status()
+                                if pdt_status.remaining >= 1:
+                                    try:
+                                        data_cache = self.screener.data_cache if self.screener else {}
+                                        if not data_cache and self.screener:
+                                            logger.info("BEAR breakout: Loading data (cache was empty)")
+                                            universe = self.screener.generate_universe()[:100]
+                                            self.screener.load_data(universe)
+                                            data_cache = self.screener.data_cache
+                                        sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
+                                        breakout_signals = self.breakout_scanner.scan(
+                                            universe=data_cache,
+                                            sector_regime=sector_regime,
+                                            min_score=self.BREAKOUT_MIN_SCORE,
+                                            min_volume_mult=self.BREAKOUT_MIN_VOLUME_MULT,
+                                            target_pct=self.BREAKOUT_TARGET_PCT,
+                                            sl_pct=self.BREAKOUT_SL_PCT,
+                                        )
+                                        if breakout_signals:
+                                            logger.info(f"BEAR breakout: {len(breakout_signals)} signals (PDT budget={pdt_status.remaining})")
+                                            signals.extend(breakout_signals)
+                                            signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
+                                    except Exception as e:
+                                        logger.warning(f"BEAR breakout scan error: {e}")
+                                else:
+                                    logger.info(f"BEAR breakout: SKIP morning (PDT budget=0, wait for afternoon)")
+
                             for signal in signals:
                                 if len(self.positions) < effective_max:
                                     self.execute_signal(signal)
