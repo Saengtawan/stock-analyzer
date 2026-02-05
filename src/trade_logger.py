@@ -144,6 +144,7 @@ class TradeLogEntry:
     order_id: Optional[str] = None
     version: str = "v4.8"
     source: str = "AUTO"        # AUTO, MANUAL
+    signal_source: Optional[str] = None  # v4.9.9: "dip_bounce", "overnight_gap", "breakout"
     note: str = ""
 
 
@@ -308,7 +309,9 @@ class TradeLogger:
         gap_pct: float = None,
         signal_score: float = None,
         atr_pct: float = None,
+        rsi: float = None,  # v4.9.9
         sector: str = None,
+        signal_source: str = None,  # v4.9.9: "dip_bounce", "overnight_gap", "breakout"
         from_queue: bool = False,
         queue_signal_price: float = None,
         queue_deviation_pct: float = None,
@@ -356,7 +359,9 @@ class TradeLogger:
             gap_pct=gap_pct,
             signal_score=signal_score,
             atr_pct=atr_pct,
+            rsi=rsi,  # v4.9.9
             sector=sector,
+            signal_source=signal_source,  # v4.9.9
             from_queue=from_queue,
             queue_signal_price=queue_signal_price,
             queue_deviation_pct=queue_deviation_pct,
@@ -431,6 +436,11 @@ class TradeLogger:
         signal_score: float = None,
         sector: str = None,
         atr_pct: float = None,
+        # v4.9.9: Additional entry context
+        signal_source: str = None,
+        mode: str = None,
+        regime: str = None,
+        rsi: float = None,
     ) -> TradeLogEntry:
         """Log a SELL trade"""
         entry = TradeLogEntry(
@@ -464,6 +474,11 @@ class TradeLogger:
             signal_score=signal_score,
             sector=sector,
             atr_pct=atr_pct,
+            # v4.9.9: Additional entry context
+            signal_source=signal_source,
+            mode=mode,
+            regime=regime,
+            rsi=rsi,
         )
 
         self._add_entry(entry)

@@ -142,6 +142,10 @@ class ManagedPosition:
     source: str = "dip_bounce"   # "dip_bounce", "overnight_gap", "breakout"
     # v4.9.8: Entry signal score for analytics (carry to SELL log)
     signal_score: float = 0.0
+    # v4.9.9: Entry context for analytics
+    entry_mode: str = "NORMAL"   # Mode at entry (NORMAL, LOW_RISK, BEAR+LOW_RISK)
+    entry_regime: str = "BULL"   # Regime at entry (BULL, BEAR)
+    rsi: float = 0.0            # RSI at entry
 
 
 @dataclass
@@ -602,6 +606,10 @@ class AutoTradingEngine:
                     'trough_price': pos.trough_price,
                     'source': pos.source,  # v4.9.5: Persist signal source
                     'signal_score': pos.signal_score,  # v4.9.8: Persist for analytics
+                    # v4.9.9: Entry context for analytics
+                    'entry_mode': pos.entry_mode,
+                    'entry_regime': pos.entry_regime,
+                    'rsi': pos.rsi,
                 }
 
             data = {
@@ -802,6 +810,10 @@ class AutoTradingEngine:
                         trough_price=saved.get('trough_price', 0.0),
                         source=saved.get('source', 'dip_bounce'),  # v4.9.5: Restore signal source
                         signal_score=saved.get('signal_score', 0.0),  # v4.9.8: Restore for analytics
+                        # v4.9.9: Restore entry context for analytics
+                        entry_mode=saved.get('entry_mode', 'NORMAL'),
+                        entry_regime=saved.get('entry_regime', 'BULL'),
+                        rsi=saved.get('rsi', 0.0),
                     )
 
                     if saved:
@@ -2458,6 +2470,9 @@ class AutoTradingEngine:
                         pass
                     return False
 
+                # v4.9.9: Capture regime before position creation (reused in log_buy)
+                regime_ok, regime_reason = self._check_market_regime()
+
                 self.positions[symbol] = ManagedPosition(
                     symbol=symbol,
                     qty=qty,
@@ -2475,6 +2490,10 @@ class AutoTradingEngine:
                     trough_price=entry_price,
                     source=signal_source,  # v4.9.5: Track signal source (overnight_gap, breakout, dip_bounce)
                     signal_score=signal_score,  # v4.9.8: Carry to SELL log for analytics
+                    # v4.9.9: Entry context for analytics
+                    entry_mode=mode,
+                    entry_regime="BULL" if regime_ok else "BEAR",
+                    rsi=getattr(signal, 'rsi', 0.0) or 0.0,
                 )
                 self._save_positions_state()
 
@@ -2498,7 +2517,7 @@ class AutoTradingEngine:
             # Trade Log: Log BUY
             try:
                 pdt_status = self.pdt_guard.get_pdt_status()
-                regime_ok, regime_reason = self._check_market_regime()
+                # regime_ok, regime_reason already captured before ManagedPosition creation (v4.9.9)
 
                 # Get analysis data for future filter decisions
                 analysis = self._get_analysis_data(symbol)
@@ -2527,7 +2546,9 @@ class AutoTradingEngine:
                     gap_pct=gap_pct,
                     signal_score=signal_score,
                     atr_pct=getattr(signal, 'atr_pct', None),
+                    rsi=getattr(signal, 'rsi', None),  # v4.9.9
                     sector=getattr(signal, 'sector', None),
+                    signal_source=signal_source,  # v4.9.9
                     order_id=buy_order.id if buy_order else None,
                     # Analysis data
                     dist_from_52w_high=analysis.get('dist_from_52w_high'),
@@ -2828,6 +2849,11 @@ class AutoTradingEngine:
                         signal_score=managed_pos.signal_score,
                         sector=managed_pos.sector,
                         atr_pct=managed_pos.atr_pct,
+                        # v4.9.9: Signal source, mode, regime, rsi
+                        signal_source=managed_pos.source,
+                        mode=managed_pos.entry_mode,
+                        regime=managed_pos.entry_regime,
+                        rsi=managed_pos.rsi,
                     )
                 except Exception as log_err:
                     logger.warning(f"Trade log error for SL fill: {log_err}")
@@ -3161,6 +3187,11 @@ class AutoTradingEngine:
                     signal_score=managed_pos.signal_score,
                     sector=managed_pos.sector,
                     atr_pct=managed_pos.atr_pct,
+                    # v4.9.9: Signal source, mode, regime, rsi
+                    signal_source=managed_pos.source,
+                    mode=managed_pos.entry_mode,
+                    regime=managed_pos.entry_regime,
+                    rsi=managed_pos.rsi,
                 )
             except Exception as log_err:
                 logger.warning(f"Trade log error: {log_err}")
