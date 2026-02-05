@@ -139,6 +139,9 @@ class SectorRegimeDetector:
         # 20-day return
         return_20d = ((prices[-1] - prices[0]) / prices[0]) * 100
 
+        # 1-day return (today's change)
+        return_1d = ((prices[-1] - prices[-2]) / prices[-2]) * 100 if len(prices) >= 2 else 0
+
         # 5-day return
         if len(prices) >= 5:
             return_5d = ((prices[-1] - prices[-5]) / prices[-5]) * 100
@@ -157,6 +160,7 @@ class SectorRegimeDetector:
         price_vs_ma20 = ((prices[-1] - ma_20) / ma_20) * 100
 
         return {
+            'return_1d': return_1d,
             'return_20d': return_20d,
             'return_5d': return_5d,
             'rsi': rsi,
@@ -177,19 +181,23 @@ class SectorRegimeDetector:
         if not metrics:
             return 'UNKNOWN'
 
+        return_1d = metrics.get('return_1d', 0)
         return_20d = metrics['return_20d']
         return_5d = metrics['return_5d']
         rsi = metrics['rsi']
         price_vs_ma10 = metrics['price_vs_ma10']
         price_vs_ma20 = metrics['price_vs_ma20']
 
-        # Strong Bull: Strong uptrend with momentum
-        if (return_20d > 5 and return_5d > 2 and
+        # Strong Bull: Strong uptrend + recent momentum still positive
+        # v5.1: require 1d > -1% (not selling off today)
+        if (return_20d > 5 and return_5d > 2 and return_1d > -1 and
             price_vs_ma10 > 1 and price_vs_ma20 > 2 and rsi > 60):
             return 'STRONG BULL'
 
-        # Bull: Positive trend
-        elif (return_20d > 2 and price_vs_ma20 > 0 and rsi > 50):
+        # Bull: Positive trend + 5d not declining + today not crashing
+        # v5.1: require 5d > 0% and 1d > -2%
+        elif (return_20d > 2 and return_5d > 0 and return_1d > -2 and
+              price_vs_ma20 > 0 and rsi > 50):
             return 'BULL'
 
         # Strong Bear: Strong downtrend with momentum
@@ -199,6 +207,10 @@ class SectorRegimeDetector:
 
         # Bear: Negative trend
         elif (return_20d < -2 and price_vs_ma20 < 0 and rsi < 50):
+            return 'BEAR'
+
+        # v5.1: Short-term crash override — sharp daily/weekly drop → BEAR
+        elif return_1d < -3 or return_5d < -5:
             return 'BEAR'
 
         # Sideways: Mixed signals or consolidation
@@ -253,7 +265,7 @@ class SectorRegimeDetector:
                 self.sector_regimes[etf] = regime
                 self.sector_metrics[etf] = metrics
 
-                logger.info(f"{etf} ({sector_name}): {regime} | Return: {metrics['return_20d']:.2f}% | RSI: {metrics['rsi']:.1f}")
+                logger.info(f"{etf} ({sector_name}): {regime} | 1d: {metrics.get('return_1d', 0):+.1f}% | 5d: {metrics['return_5d']:+.1f}% | 20d: {metrics['return_20d']:+.2f}% | RSI: {metrics['rsi']:.1f}")
 
             except Exception as e:
                 logger.error(f"Error analyzing {etf}: {e}")
@@ -359,6 +371,7 @@ class SectorRegimeDetector:
                 'ETF': etf,
                 'Sector': sector_name,
                 'Regime': regime,
+                'Return_1d': metrics.get('return_1d', 0),
                 'Return_20d': metrics.get('return_20d', 0),
                 'Return_5d': metrics.get('return_5d', 0),
                 'RSI': metrics.get('rsi', 50),
@@ -421,10 +434,12 @@ class SectorRegimeDetector:
                 lines.append(f"{regime}:")
                 for etf, name in sectors:
                     metrics = self.sector_metrics.get(etf, {})
+                    r1d = metrics.get('return_1d', 0)
+                    r5d = metrics.get('return_5d', 0)
                     ret = metrics.get('return_20d', 0)
                     rsi = metrics.get('rsi', 50)
                     adj = self.REGIME_ADJUSTMENTS.get(regime, 0)
-                    lines.append(f"  {etf} ({name:25s}) | Return: {ret:>6.2f}% | RSI: {rsi:>5.1f} | Score Adj: {adj:>+3d}")
+                    lines.append(f"  {etf} ({name:25s}) | 1d: {r1d:>+5.1f}% | 5d: {r5d:>+5.1f}% | 20d: {ret:>+6.2f}% | RSI: {rsi:>5.1f} | Adj: {adj:>+3d}")
                 lines.append("")
 
         return "\n".join(lines)
