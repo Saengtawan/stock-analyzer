@@ -79,7 +79,7 @@ class TradeLogEntry:
     gap_pct: Optional[float] = None
     signal_score: Optional[float] = None
     atr_pct: Optional[float] = None
-    rsi: Optional[float] = None
+    entry_rsi: Optional[float] = None  # v5.1 P3-23: renamed from 'rsi' for consistency with exit_rsi
     momentum_5d: Optional[float] = None
 
     # Exit Context (SELL)
@@ -332,7 +332,7 @@ class TradeLogger:
         gap_pct: float = None,
         signal_score: float = None,
         atr_pct: float = None,
-        rsi: float = None,  # v4.9.9
+        entry_rsi: float = None,  # v5.1 P3-23: renamed from rsi
         momentum_5d: float = None,  # v4.9.9
         sector: str = None,
         signal_source: str = None,  # v4.9.9: "dip_bounce", "overnight_gap", "breakout"
@@ -389,7 +389,7 @@ class TradeLogger:
             gap_pct=gap_pct,
             signal_score=signal_score,
             atr_pct=atr_pct,
-            rsi=rsi,  # v4.9.9
+            entry_rsi=entry_rsi,  # v5.1 P3-23
             momentum_5d=momentum_5d,  # v4.9.9
             sector=sector,
             signal_source=signal_source,  # v4.9.9
@@ -477,7 +477,7 @@ class TradeLogger:
         signal_source: str = None,
         mode: str = None,
         regime: str = None,
-        rsi: float = None,
+        entry_rsi: float = None,  # v5.1 P3-23: renamed from rsi
         momentum_5d: float = None,
         # v5.0: Exit-time indicators
         exit_rsi: float = None,
@@ -522,7 +522,7 @@ class TradeLogger:
             signal_source=signal_source,
             mode=mode,
             regime=regime,
-            rsi=rsi,
+            entry_rsi=entry_rsi,
             momentum_5d=momentum_5d,
             # v5.0: Exit-time indicators
             exit_rsi=exit_rsi,
@@ -551,7 +551,7 @@ class TradeLogger:
         sector: str = None,
         signal_source: str = None,
         atr_pct: float = None,
-        rsi: float = None,
+        entry_rsi: float = None,  # v5.1 P3-23: renamed from rsi
         momentum_5d: float = None,
         mode: str = None,
         # v5.0: Earnings context (EARNINGS_REJECT only)
@@ -587,7 +587,7 @@ class TradeLogger:
             sector=sector,
             signal_source=signal_source,
             atr_pct=atr_pct,
-            rsi=rsi,
+            entry_rsi=entry_rsi,
             momentum_5d=momentum_5d,
             mode=mode,
             # v5.0: Earnings context
@@ -1122,14 +1122,15 @@ class TradeLogger:
         return results
 
     def _get_by_rsi(self, cursor, start_date: str) -> list:
-        """Win rate by RSI range at entry (v4.9.9)"""
+        """Win rate by RSI range at entry (v4.9.9, v5.1 P3-23: entry_rsi compat)"""
+        # COALESCE handles both old ($.rsi) and new ($.entry_rsi) JSON field names
         cursor.execute("""
             SELECT
                 CASE
-                    WHEN json_extract(full_data, '$.rsi') < 30 THEN 'RSI <30'
-                    WHEN json_extract(full_data, '$.rsi') < 40 THEN 'RSI 30-39'
-                    WHEN json_extract(full_data, '$.rsi') < 50 THEN 'RSI 40-49'
-                    WHEN json_extract(full_data, '$.rsi') < 60 THEN 'RSI 50-59'
+                    WHEN COALESCE(json_extract(full_data, '$.entry_rsi'), json_extract(full_data, '$.rsi')) < 30 THEN 'RSI <30'
+                    WHEN COALESCE(json_extract(full_data, '$.entry_rsi'), json_extract(full_data, '$.rsi')) < 40 THEN 'RSI 30-39'
+                    WHEN COALESCE(json_extract(full_data, '$.entry_rsi'), json_extract(full_data, '$.rsi')) < 50 THEN 'RSI 40-49'
+                    WHEN COALESCE(json_extract(full_data, '$.entry_rsi'), json_extract(full_data, '$.rsi')) < 60 THEN 'RSI 50-59'
                     ELSE 'RSI 60+'
                 END as rsi_range,
                 COUNT(*) as total,
@@ -1138,10 +1139,10 @@ class TradeLogger:
                 ROUND(SUM(pnl_usd), 2) as total_pnl
             FROM trades
             WHERE date >= ? AND action = 'SELL'
-                AND json_extract(full_data, '$.rsi') IS NOT NULL
-                AND json_extract(full_data, '$.rsi') > 0
+                AND COALESCE(json_extract(full_data, '$.entry_rsi'), json_extract(full_data, '$.rsi')) IS NOT NULL
+                AND COALESCE(json_extract(full_data, '$.entry_rsi'), json_extract(full_data, '$.rsi')) > 0
             GROUP BY rsi_range
-            ORDER BY MIN(json_extract(full_data, '$.rsi'))
+            ORDER BY MIN(COALESCE(json_extract(full_data, '$.entry_rsi'), json_extract(full_data, '$.rsi')))
         """, (start_date,))
 
         results = []

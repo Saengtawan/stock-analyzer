@@ -153,7 +153,7 @@ class ManagedPosition:
     # v4.9.9: Entry context for analytics
     entry_mode: str = "NORMAL"   # Mode at entry (NORMAL, LOW_RISK, BEAR+LOW_RISK)
     entry_regime: str = "BULL"   # Regime at entry (BULL, BEAR)
-    rsi: float = 0.0            # RSI at entry
+    entry_rsi: float = 0.0      # RSI at entry (v5.1 P3-23: renamed from rsi)
     momentum_5d: float = 0.0    # 5-day momentum at entry
 
 
@@ -623,7 +623,7 @@ class AutoTradingEngine:
                     # v4.9.9: Entry context for analytics
                     'entry_mode': pos.entry_mode,
                     'entry_regime': pos.entry_regime,
-                    'rsi': pos.rsi,
+                    'entry_rsi': pos.entry_rsi,
                     'momentum_5d': pos.momentum_5d,
                 }
 
@@ -828,7 +828,7 @@ class AutoTradingEngine:
                         # v4.9.9: Restore entry context for analytics
                         entry_mode=saved.get('entry_mode', 'NORMAL'),
                         entry_regime=saved.get('entry_regime', 'BULL'),
-                        rsi=saved.get('rsi', 0.0),
+                        entry_rsi=saved.get('entry_rsi', saved.get('rsi', 0.0)),  # v5.1 P3-23: backward compat
                         momentum_5d=saved.get('momentum_5d', 0.0),
                     )
 
@@ -2512,10 +2512,22 @@ class AutoTradingEngine:
 
         Returns:
             True if executed successfully
+
+        # TODO P3-19/20: This method is ~550 lines. Future refactoring candidate:
+        #   BLOCK 1 (lines ~2516-2568): Pre-flight checks (safety, PDT, dupe, reconcile, max pos)
+        #   BLOCK 2 (lines ~2569-2595): Score filter
+        #   BLOCK 3 (lines ~2597-2648): Position sizing + ATR filter
+        #   BLOCK 4 (lines ~2649-2793): Gap filter + Earnings filter + Sector filters (3 inline)
+        #   BLOCK 5 (lines ~2795-2817): ATR SL/TP calculation + risk-parity sizing
+        #   BLOCK 6 (lines ~2819-2901): Order execution (buy + SL placement + fill check)
+        #   BLOCK 7 (lines ~2903-2928): ManagedPosition creation
+        #   BLOCK 8 (lines ~2931-3055): Post-trade logging (PDT, trade log, queue stats)
+        # Extract BLOCK 4 into _apply_pre_trade_filters(signal, params, mode) first.
         """
         try:
             symbol = signal.symbol
 
+            # --- BLOCK 1: Pre-flight checks ---
             # v4.5: Get effective parameters (normal vs low-risk mode)
             params = self._get_effective_params()
             mode = params['mode']
@@ -2566,6 +2578,7 @@ class AutoTradingEngine:
                     logger.warning(f"Max positions ({effective_max}) reached — engine={len(self.positions)}, alpaca={getattr(self, '_alpaca_position_count', 0)} (mode: {mode})")
                     return False
 
+            # --- BLOCK 2: Score filter ---
             # v5.0: Extract signal context early (used by all log_skip calls + log_buy)
             signal_score = getattr(signal, 'score', 0)
             signal_sector = getattr(signal, 'sector', '') or ''
@@ -2586,7 +2599,7 @@ class AutoTradingEngine:
                         signal_score=signal_score,
                         sector=signal_sector, signal_source=signal_source,
                         atr_pct=getattr(signal, 'atr_pct', None),
-                        rsi=getattr(signal, 'rsi', None),
+                        entry_rsi=getattr(signal, 'rsi', None),
                         momentum_5d=getattr(signal, 'momentum_5d', None),
                         mode=mode,
                     )
@@ -2594,6 +2607,7 @@ class AutoTradingEngine:
                     logger.warning(f"Trade log error: {log_err}")
                 return False
 
+            # --- BLOCK 3: Position sizing ---
             # Calculate position size (v4.5: use effective size)
             # Use simulated capital as a cap, but never exceed real buying power
             account = self.trader.get_account()
@@ -2638,7 +2652,7 @@ class AutoTradingEngine:
                             signal_score=signal_score,
                             sector=signal_sector, signal_source=signal_source,
                             atr_pct=signal_atr,
-                            rsi=getattr(signal, 'rsi', None),
+                            entry_rsi=getattr(signal, 'rsi', None),
                             momentum_5d=getattr(signal, 'momentum_5d', None),
                             mode=mode,
                         )
@@ -2646,6 +2660,7 @@ class AutoTradingEngine:
                         logger.warning(f"Trade log error: {log_err}")
                     return False
 
+            # --- BLOCK 4: Pre-trade filters (gap, earnings, sector) ---
             # v4.3: Gap Filter - ไม่ซื้อหุ้นที่ gap up/down แรงเกินไป
             # v4.5: Use effective gap_max_up
             gap_ok, gap_pct, gap_reason = self._check_gap_filter(symbol, current_price, max_up_override=params['gap_max_up'], max_down_override=params.get('gap_max_down'))
@@ -2664,7 +2679,7 @@ class AutoTradingEngine:
                         gap_pct=gap_pct,
                         sector=signal_sector, signal_source=signal_source,
                         atr_pct=getattr(signal, 'atr_pct', None),
-                        rsi=getattr(signal, 'rsi', None),
+                        entry_rsi=getattr(signal, 'rsi', None),
                         momentum_5d=getattr(signal, 'momentum_5d', None),
                         mode=mode,
                     )
@@ -2689,7 +2704,7 @@ class AutoTradingEngine:
                         gap_pct=gap_pct,
                         sector=signal_sector, signal_source=signal_source,
                         atr_pct=getattr(signal, 'atr_pct', None),
-                        rsi=getattr(signal, 'rsi', None),
+                        entry_rsi=getattr(signal, 'rsi', None),
                         momentum_5d=getattr(signal, 'momentum_5d', None),
                         mode=mode,
                         **earnings_data,
@@ -2714,7 +2729,7 @@ class AutoTradingEngine:
                         signal_score=signal_score,
                         sector=signal_sector, signal_source=signal_source,
                         atr_pct=getattr(signal, 'atr_pct', None),
-                        rsi=getattr(signal, 'rsi', None),
+                        entry_rsi=getattr(signal, 'rsi', None),
                         momentum_5d=getattr(signal, 'momentum_5d', None),
                         mode=mode,
                     )
@@ -2737,7 +2752,7 @@ class AutoTradingEngine:
                         signal_score=signal_score,
                         sector=signal_sector, signal_source=signal_source,
                         atr_pct=getattr(signal, 'atr_pct', None),
-                        rsi=getattr(signal, 'rsi', None),
+                        entry_rsi=getattr(signal, 'rsi', None),
                         momentum_5d=getattr(signal, 'momentum_5d', None),
                         mode=mode,
                     )
@@ -2761,7 +2776,7 @@ class AutoTradingEngine:
                             signal_score=signal_score,
                             sector=signal_sector, signal_source=signal_source,
                             atr_pct=getattr(signal, 'atr_pct', None),
-                            rsi=getattr(signal, 'rsi', None),
+                            entry_rsi=getattr(signal, 'rsi', None),
                             momentum_5d=getattr(signal, 'momentum_5d', None),
                             mode=mode,
                         )
@@ -2784,7 +2799,7 @@ class AutoTradingEngine:
                         signal_score=signal_score,
                         sector=signal_sector, signal_source=signal_source,
                         atr_pct=getattr(signal, 'atr_pct', None),
-                        rsi=getattr(signal, 'rsi', None),
+                        entry_rsi=getattr(signal, 'rsi', None),
                         momentum_5d=getattr(signal, 'momentum_5d', None),
                         mode=mode,
                     )
@@ -2792,6 +2807,7 @@ class AutoTradingEngine:
                     logger.warning(f"Trade log error: {log_err}")
                 return False
 
+            # --- BLOCK 5: ATR SL/TP + risk-parity sizing ---
             # v4.6: Calculate ATR-based SL/TP (must happen before qty for risk-parity)
             signal_atr = getattr(signal, 'atr_pct', None)
             atr_sl_tp = self._calculate_atr_sl_tp(symbol, current_price, signal_atr)
@@ -2816,6 +2832,7 @@ class AutoTradingEngine:
                 logger.warning(f"Position size too small for {symbol}")
                 return False
 
+            # --- BLOCK 6: Order execution ---
             logger.info(f"Executing: BUY {symbol} x{qty} @ ~${current_price:.2f}")
 
             # PDT Smart Guard v2.0: Check if we should place SL order
@@ -2860,7 +2877,7 @@ class AutoTradingEngine:
                         signal_score=signal_score,
                         sector=signal_sector, signal_source=signal_source,
                         atr_pct=getattr(signal, 'atr_pct', None),
-                        rsi=getattr(signal, 'rsi', None),
+                        entry_rsi=getattr(signal, 'rsi', None),
                         momentum_5d=getattr(signal, 'momentum_5d', None),
                         mode=mode,
                     )
@@ -2900,6 +2917,7 @@ class AutoTradingEngine:
                         logger.warning(f"Failed to cancel order at max positions for {symbol}: {e}")
                     return False
 
+                # --- BLOCK 7: ManagedPosition creation ---
                 # v4.9.9: Capture regime before position creation (reused in log_buy)
                 regime_ok, regime_reason = self._check_market_regime()
 
@@ -2923,11 +2941,12 @@ class AutoTradingEngine:
                     # v4.9.9: Entry context for analytics
                     entry_mode=mode,
                     entry_regime="BULL" if regime_ok else "BEAR",
-                    rsi=getattr(signal, 'rsi', 0.0) or 0.0,
+                    entry_rsi=getattr(signal, 'rsi', 0.0) or 0.0,
                     momentum_5d=getattr(signal, 'momentum_5d', 0.0) or 0.0,
                 )
                 self._save_positions_state()
 
+            # --- BLOCK 8: Post-trade logging & stats ---
             # PDT Guard: Record entry date
             self.pdt_guard.record_entry(symbol)
 
@@ -3014,7 +3033,7 @@ class AutoTradingEngine:
                     gap_pct=gap_pct,
                     signal_score=signal_score,
                     atr_pct=getattr(signal, 'atr_pct', None),
-                    rsi=getattr(signal, 'rsi', None),  # v4.9.9
+                    entry_rsi=getattr(signal, 'rsi', None),  # v4.9.9
                     momentum_5d=getattr(signal, 'momentum_5d', None),  # v4.9.9
                     sector=getattr(signal, 'sector', None),
                     signal_source=signal_source,  # v4.9.9
@@ -3216,7 +3235,12 @@ class AutoTradingEngine:
                     logger.critical(f"SL recovery FAILED for {symbol}: {e}")
 
     def monitor_positions(self):
-        """Monitor all positions and update trailing stops"""
+        """Monitor all positions and update trailing stops
+
+        # TODO P3-20: This method is ~500+ lines. Future refactoring candidate.
+        # Key sections: SL recovery → split detection → SL fill check →
+        # trailing stop update → TP check → max hold check → close execution
+        """
         if not self.positions:
             return
 
@@ -3350,7 +3374,7 @@ class AutoTradingEngine:
                         signal_source=managed_pos.source,
                         mode=managed_pos.entry_mode,
                         regime=managed_pos.entry_regime,
-                        rsi=managed_pos.rsi,
+                        entry_rsi=managed_pos.entry_rsi,
                         momentum_5d=managed_pos.momentum_5d,
                         # v5.0: Exit-time indicators
                         **exit_ctx,
@@ -3694,7 +3718,7 @@ class AutoTradingEngine:
                     signal_source=managed_pos.source,
                     mode=managed_pos.entry_mode,
                     regime=managed_pos.entry_regime,
-                    rsi=managed_pos.rsi,
+                    entry_rsi=managed_pos.entry_rsi,
                     momentum_5d=managed_pos.momentum_5d,
                     # v5.0: Exit-time indicators
                     **exit_ctx,
