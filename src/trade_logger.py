@@ -1139,7 +1139,8 @@ class TradeLogger:
                 timestamp, date, action, symbol, qty, price, reason,
                 entry_price, pnl_usd, pnl_pct, day_held, signal_score,
                 mode, regime, gap_pct, atr_pct,
-                json_extract(full_data, '$.sector') as sector
+                json_extract(full_data, '$.sector') as sector,
+                json_extract(full_data, '$.signal_source') as signal_source
             FROM trades
             WHERE date >= ?
             ORDER BY timestamp DESC
@@ -1164,6 +1165,7 @@ class TradeLogger:
                 'sector': row['sector'],
                 'mode': row['mode'],
                 'regime': row['regime'],
+                'signal_source': row['signal_source'],
             })
         return results
 

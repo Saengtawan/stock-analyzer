@@ -197,11 +197,19 @@
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="fas fa-history me-2"></i>Trade History</span>
-        <div class="btn-group btn-group-sm">
-            <button class="btn btn-outline-secondary filter-btn active" data-filter="ALL" onclick="filterTrades('ALL')">All</button>
-            <button class="btn btn-outline-secondary filter-btn" data-filter="BUY" onclick="filterTrades('BUY')">Buy</button>
-            <button class="btn btn-outline-secondary filter-btn" data-filter="SELL" onclick="filterTrades('SELL')">Sell</button>
-            <button class="btn btn-outline-secondary filter-btn" data-filter="SKIP" onclick="filterTrades('SKIP')">Skip</button>
+        <div>
+            <div class="btn-group btn-group-sm me-2">
+                <button class="btn btn-outline-secondary filter-btn active" data-filter="ALL" onclick="filterTrades('ALL')">All</button>
+                <button class="btn btn-outline-secondary filter-btn" data-filter="BUY" onclick="filterTrades('BUY')">Buy</button>
+                <button class="btn btn-outline-secondary filter-btn" data-filter="SELL" onclick="filterTrades('SELL')">Sell</button>
+                <button class="btn btn-outline-secondary filter-btn" data-filter="SKIP" onclick="filterTrades('SKIP')">Skip</button>
+            </div>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-info source-btn active" data-source="ALL" onclick="filterBySource('ALL')">All Types</button>
+                <button class="btn btn-outline-info source-btn" data-source="dip_bounce" onclick="filterBySource('dip_bounce')">Bounce</button>
+                <button class="btn btn-outline-info source-btn" data-source="overnight_gap" onclick="filterBySource('overnight_gap')">O/N Gap</button>
+                <button class="btn btn-outline-info source-btn" data-source="breakout" onclick="filterBySource('breakout')">Breakout</button>
+            </div>
         </div>
     </div>
     <div class="card-body p-0">
@@ -239,6 +247,7 @@
 let equityChart = null;
 let allTrades = [];
 let currentFilter = 'ALL';
+let currentSource = 'ALL';
 
 function loadAnalytics(days) {
     // Update period buttons
@@ -269,7 +278,7 @@ function loadAnalytics(days) {
 function updateSummary(s) {
     if (!s || s.total_trades === 0) {
         document.getElementById('totalTrades').textContent = '0';
-        document.getElementById('winRate').textContent = '-';
+        document.getElementById('winRate').textContent = 'N/A';
         document.getElementById('totalPnl').textContent = '$0';
         document.getElementById('avgPnl').textContent = '$0';
         document.getElementById('pnlCard').className = 'stat-card bg-pnl-pos';
@@ -378,8 +387,21 @@ function filterTrades(filter) {
     currentFilter = filter;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     document.querySelector(`.filter-btn[data-filter="${filter}"]`).classList.add('active');
+    renderTrades();
+}
 
-    const filtered = filter === 'ALL' ? allTrades : allTrades.filter(t => t.action === filter);
+function filterBySource(source) {
+    currentSource = source;
+    document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.source-btn[data-source="${source}"]`).classList.add('active');
+    renderTrades();
+}
+
+function renderTrades() {
+    let filtered = currentFilter === 'ALL' ? allTrades : allTrades.filter(t => t.action === currentFilter);
+    if (currentSource !== 'ALL') {
+        filtered = filtered.filter(t => t.signal_source === currentSource);
+    }
     const tbody = document.getElementById('tradeTableBody');
     const empty = document.getElementById('tradeEmpty');
     const table = document.getElementById('tradeTable');
@@ -392,6 +414,7 @@ function filterTrades(filter) {
     table.style.display = 'table';
     empty.style.display = 'none';
 
+    const sourceLabels = {dip_bounce: 'DT', overnight_gap: 'O/N', breakout: 'BO'};
     let html = '';
     filtered.forEach(t => {
         let rowClass = '';
@@ -408,9 +431,11 @@ function filterTrades(filter) {
                 ? `<span class="badge ${t.pnl_usd >= 0 ? 'bg-success' : 'bg-danger'}">SELL</span>`
                 : '<span class="badge bg-secondary">SKIP</span>';
 
+        const srcTag = t.signal_source ? `<span class="badge bg-info bg-opacity-25 text-info">${sourceLabels[t.signal_source] || t.signal_source}</span>` : '';
+
         html += `<tr class="${rowClass}">
             <td><small>${t.date}</small></td>
-            <td><strong>${t.symbol}</strong></td>
+            <td><strong>${t.symbol}</strong> ${srcTag}</td>
             <td>${actionBadge}</td>
             <td>$${t.price ? t.price.toFixed(2) : '-'}</td>
             <td>${pnlUsd}</td>
