@@ -543,6 +543,8 @@ class AutoTradingEngine:
 
         # Regime cache (v4.2) - avoid repeated yfinance calls
         self._regime_cache: Optional[Tuple[bool, str, datetime, Dict]] = None
+        # v5.0: Scan log lock (prevent concurrent writes from losing data)
+        self._scan_log_lock = threading.Lock()
         self._regime_cache_seconds = 300  # 5 minutes
 
         # Timezone
@@ -1972,7 +1974,7 @@ class AutoTradingEngine:
 
         # Log entire scan batch (failure must not affect trading)
         try:
-            scan_id = f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{scan_type}"
+            scan_id = f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_{scan_type}"
             self._save_scan_log(scan_id, scan_type, mode, scan_results)
         except Exception as e:
             logger.warning(f"Scan log save error (non-fatal): {e}")
@@ -1987,7 +1989,8 @@ class AutoTradingEngine:
         return 'dip_bounce'
 
     def _save_scan_log(self, scan_id: str, scan_type: str, mode: str, results: list):
-        """Append scan batch to today's scan log file (atomic write)."""
+        """Append scan batch to today's scan log file (thread-safe atomic write)."""
+        import tempfile
         scan_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'scan_logs')
         os.makedirs(scan_dir, exist_ok=True)
         today = datetime.now().strftime('%Y-%m-%d')
@@ -2007,21 +2010,27 @@ class AutoTradingEngine:
             "signals": results,
         }
 
-        # Append to existing file
-        existing = []
-        if os.path.exists(filepath):
-            try:
-                with open(filepath, 'r') as f:
-                    existing = json.load(f)
-            except (json.JSONDecodeError, IOError):
-                existing = []
+        # Thread-safe: lock prevents concurrent read-modify-write
+        with self._scan_log_lock:
+            existing = []
+            if os.path.exists(filepath):
+                try:
+                    with open(filepath, 'r') as f:
+                        existing = json.load(f)
+                except (json.JSONDecodeError, IOError):
+                    existing = []
 
-        existing.append(entry)
-        # Atomic write
-        tmp = filepath + '.tmp'
-        with open(tmp, 'w') as f:
-            json.dump(existing, f, indent=2, default=str)
-        os.replace(tmp, filepath)
+            existing.append(entry)
+            # Atomic write with tempfile (crash-safe)
+            fd, tmp_path = tempfile.mkstemp(dir=scan_dir, suffix='.tmp')
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(existing, f, indent=2, default=str)
+                os.replace(tmp_path, filepath)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
 
     # =========================================================================
     # SCANNING
@@ -2831,7 +2840,7 @@ class AutoTradingEngine:
                     config_snapshot=self._get_config_snapshot(),
                     # v5.0: Entry timing context
                     entry_minutes_after_open=entry_minutes,
-                    entry_spy_change_intraday=entry_spy_change,
+                    entry_spy_pct_above_sma=entry_spy_change,
                     entry_vix=entry_vix,
                     entry_sector_change_1d=entry_sector_change,
                 )

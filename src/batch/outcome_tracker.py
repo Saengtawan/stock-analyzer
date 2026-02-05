@@ -63,7 +63,17 @@ def _fetch_price_history(symbol: str, start_date: str, end_date: str) -> Optiona
 
         # Handle MultiIndex columns from yf.download (single ticker)
         if hasattr(df.columns, 'levels'):
-            df.columns = df.columns.get_level_values(0)
+            # Find which level has 'Close' — that's the price level
+            for lvl in range(df.columns.nlevels):
+                if 'Close' in df.columns.get_level_values(lvl):
+                    df.columns = df.columns.get_level_values(lvl)
+                    break
+            else:
+                # Fallback: flatten to first level
+                df.columns = df.columns.get_level_values(0)
+
+        if 'Close' not in df.columns:
+            return None
 
         return {
             'dates': [d.strftime('%Y-%m-%d') for d in df.index],
@@ -196,14 +206,9 @@ def track_sell_outcomes(dry_run: bool = False) -> int:
         for i, td in enumerate(trading_days):
             if td in date_idx:
                 idx = date_idx[td]
-                c = history['close'][idx]
-                h = history['high'][idx]
-                l = history['low'][idx]
-
-                # Handle both scalar and single-element list/array
-                c = float(c) if not hasattr(c, '__len__') else float(c)
-                h = float(h) if not hasattr(h, '__len__') else float(h)
-                l = float(l) if not hasattr(l, '__len__') else float(l)
+                c = float(history['close'][idx])
+                h = float(history['high'][idx])
+                l = float(history['low'][idx])
 
                 post_sell_closes.append(c)
                 post_sell_highs.append(h)
@@ -290,7 +295,7 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
     for f in os.listdir(outcomes_dir):
         if f.startswith('signal_outcomes_') and f.endswith('.json'):
             for entry in _load_json_file(os.path.join(outcomes_dir, f)):
-                key = f"{entry.get('scan_id')}_{entry.get('symbol')}"
+                key = f"{entry.get('scan_id')}_{entry.get('symbol')}_{entry.get('signal_rank', 0)}"
                 existing_keys.add(key)
 
     # Find signal entries from last 10 days of scan logs
@@ -308,7 +313,8 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                 scan_date = scan.get('scan_timestamp', '')[:10]
                 for sig in scan.get('signals', []):
                     symbol = sig.get('symbol', '')
-                    key = f"{scan_id}_{symbol}"
+                    sig_rank = sig.get('signal_rank', 0)
+                    key = f"{scan_id}_{symbol}_{sig_rank}"
                     if key not in existing_keys and symbol:
                         signals_to_track.append({
                             'scan_id': scan_id,

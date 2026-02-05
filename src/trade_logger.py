@@ -167,7 +167,7 @@ class TradeLogEntry:
     exit_bid_ask_spread: Optional[float] = None          # Bid-ask spread % at sell time
     # v5.0: Entry timing context (market context at buy time)
     entry_minutes_after_open: Optional[int] = None       # Minutes after 9:30 ET
-    entry_spy_change_intraday: Optional[float] = None    # SPY vs SMA20 at entry
+    entry_spy_pct_above_sma: Optional[float] = None    # SPY vs SMA20 at entry
     entry_vix: Optional[float] = None                    # VIX at entry time
     entry_sector_change_1d: Optional[float] = None       # Sector ETF 1d change at entry
     note: str = ""
@@ -365,7 +365,7 @@ class TradeLogger:
         correlation_id: str = None,
         # v5.0: Entry timing context
         entry_minutes_after_open: int = None,
-        entry_spy_change_intraday: float = None,
+        entry_spy_pct_above_sma: float = None,
         entry_vix: float = None,
         entry_sector_change_1d: float = None,
         note: str = ""
@@ -434,7 +434,7 @@ class TradeLogger:
             correlation_id=correlation_id,
             # v5.0: Entry timing context
             entry_minutes_after_open=entry_minutes_after_open,
-            entry_spy_change_intraday=entry_spy_change_intraday,
+            entry_spy_pct_above_sma=entry_spy_pct_above_sma,
             entry_vix=entry_vix,
             entry_sector_change_1d=entry_sector_change_1d,
             note=note
