@@ -903,7 +903,8 @@ class RapidRotationScreener:
             return None
 
         # FILTER 5: Still in oversold zone (room to recover)
-        if current_price > sma5 * 1.02:
+        # v4.9.5: 1.02→1.03 (allow slightly more extension for better signal count)
+        if current_price > sma5 * 1.03:
             self._filter_stats['above_sma5'] += 1
             return None
 

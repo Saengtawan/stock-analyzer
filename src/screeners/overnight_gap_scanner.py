@@ -29,7 +29,7 @@ class OvernightGapScanner:
     """
 
     # Default parameters
-    MIN_CLOSE_TO_HIGH_PCT = 99.0   # Close must be within 1% of daily high
+    MIN_CLOSE_TO_HIGH_PCT = 98.0   # v4.9.5: 99→98 (within 2% of daily high, more candidates)
     MIN_VOLUME_RATIO = 1.2          # Volume > 1.2x 20-day average
     RSI_MIN = 40
     RSI_MAX = 65
