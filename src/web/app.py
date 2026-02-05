@@ -2499,29 +2499,51 @@ def api_health():
 @app.route('/api/rapid/spy-regime')
 def api_rapid_spy_regime():
     """
-    v4.0: Get SPY regime status
-
-    Returns:
-        is_bull: True if SPY > SMA20 (OK to trade)
-        reason: Human-readable status
-        details: SPY price, SMA20, pct_above_sma
+    v4.9.5: Get SPY regime from ENGINE (4-criteria: SMA20 + RSI + Ret5d + VIX).
+    Falls back to screener only if engine unavailable.
     """
     try:
-        from screeners.rapid_rotation_screener import RapidRotationScreener
+        # v4.9.5: Use engine's regime (Single Source of Truth)
+        engine = get_auto_trading_engine()
+        if engine:
+            status = engine.get_status()
+            regime_details = status.get('regime_details') or {}
+            return jsonify({
+                'is_bull': status.get('market_regime') in ('BULL',),
+                'reason': status.get('regime_detail', ''),
+                'details': regime_details,
+                'source': 'engine',
+                'timestamp': datetime.now().isoformat()
+            })
 
+        # Fallback: use screener (SMA20-only) if engine not available
+        from screeners.rapid_rotation_screener import RapidRotationScreener
         screener = RapidRotationScreener()
         is_bull, reason, details = screener.check_spy_regime()
-
         return jsonify({
             'is_bull': is_bull,
             'reason': reason,
             'details': details,
+            'source': 'screener_fallback',
             'timestamp': datetime.now().isoformat()
         })
 
     except Exception as e:
         logger.error(f"SPY regime check error: {e}")
-        return jsonify({'error': str(e), 'is_bull': True}), 500
+        return jsonify({'error': str(e), 'is_bull': True, 'source': 'error_fallback'}), 500
+
+
+@app.route('/api/engine/config')
+def api_engine_config():
+    """v4.9.5: Return ALL engine config params for UI Single Source of Truth."""
+    try:
+        engine = get_auto_trading_engine()
+        if not engine:
+            return jsonify({'error': 'Engine not initialized'}), 503
+        return jsonify(engine.get_full_config())
+    except Exception as e:
+        logger.error(f"Engine config error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/rapid/scan-progress')

@@ -223,7 +223,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h2><i class="fas fa-rocket me-2"></i>Rapid Trader v4.9.5 <small class="text-success">Aggressive Swing Mode</small></h2>
-        <p class="text-muted mb-0">SL: 1.5xATR [2-4%] | TP: 3xATR [4-10%] | Trail +4%/Lock 50% | Conviction Sizing</p>
+        <p class="text-muted mb-0">SL: <span data-cfg="sl_atr_multiplier">?</span>xATR [<span data-cfg="sl_min_pct">?</span>-<span data-cfg="sl_max_pct">?</span>%] | TP: <span data-cfg="tp_atr_multiplier">?</span>xATR [<span data-cfg="tp_min_pct">?</span>-<span data-cfg="tp_max_pct">?</span>%] | Trail +<span data-cfg="trail_activation_pct">?</span>%/Lock <span data-cfg="trail_lock_pct">?</span>% | Conviction Sizing</p>
     </div>
     <div class="d-flex align-items-center gap-2">
         <!-- Auto Trading Toggle -->
@@ -279,7 +279,10 @@
             <small class="text-muted">
                 SPY: <span id="spyPrice">-</span> |
                 SMA20: <span id="spySMA">-</span> |
-                <span id="spyDistance">-</span>
+                <span id="spyDistance">-</span> |
+                RSI: <span id="spyRSI">-</span> |
+                Ret5d: <span id="spyRet5d">-</span> |
+                VIX: <span id="spyVIX">-</span>
             </small>
         </div>
     </div>
@@ -351,15 +354,15 @@
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e74c3c;">🚫</div>
-                <div>Gap Filter: <strong>Max +2% / -5%</strong></div>
+                <div>Gap Filter: <strong>Max +<span data-cfg="gap_max_up">?</span>% / <span data-cfg="gap_max_down">?</span>%</strong></div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #f39c12;">📅</div>
-                <div>Earnings Filter: <strong>Skip 5 days before</strong></div>
+                <div>Earnings Filter: <strong>Skip <span data-cfg="earnings_skip_days_before">?</span> days before</strong></div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #9b59b6;">⏰</div>
-                <div>Late Start: <strong>Skip if > 20 min late</strong></div>
+                <div>Late Start: <strong>Skip if > <span data-cfg="market_open_scan_window">?</span> min late</strong></div>
             </div>
         </div>
 
@@ -376,11 +379,11 @@
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e67e22;">⭐</div>
-                <div>Min Score: <strong>85</strong> | Gap: <strong>+1.5% / -3%</strong> | ATR: <strong>&le;4%</strong></div>
+                <div>Min Score: <strong><span data-cfg="bear_min_score">?</span></strong> | Gap: <strong>+<span data-cfg="bear_gap_max_up">?</span>% / <span data-cfg="bear_gap_max_down">?</span>%</strong> | ATR: <strong>&le;<span data-cfg="bear_max_atr_pct">?</span>%</strong></div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e67e22;">💰</div>
-                <div>Position: <strong>25% ($1,000), Max 2</strong> | Conviction: A+ 45% / A 40% / B 30%</div>
+                <div>Position: <strong><span data-cfg="bear_position_size_pct">?</span>%, Max <span data-cfg="bear_max_positions">?</span></strong> | Conviction: A+ <span data-cfg="conviction_a_plus_pct">?</span>% / A <span data-cfg="conviction_a_pct">?</span>% / B <span data-cfg="conviction_b_pct">?</span>%</div>
             </div>
             <div id="bearAllowedSectors" style="display:none; margin-top: 8px; padding: 6px 10px; background: rgba(230,126,34,0.1); border-radius: 6px; font-size: 0.85em;">
                 <strong>Allowed now:</strong> <span id="bearSectorsList">-</span>
@@ -404,11 +407,11 @@
             <h5><i class="fas fa-fire me-2"></i>v4.9.5 New Features <small class="text-danger">(Aggressive Swing)</small></h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e74c3c;">A+</div>
-                <div>Conviction Sizing: <strong>A+ 45% | A 40% | B 30%</strong> (BEAR skip)</div>
+                <div>Conviction Sizing: <strong>A+ <span data-cfg="conviction_a_plus_pct">?</span>% | A <span data-cfg="conviction_a_pct">?</span>% | B <span data-cfg="conviction_b_pct">?</span>%</strong> (BEAR skip)</div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #f39c12;">DT</div>
-                <div>Smart Day Trade: <strong>Gap +3% | Mom +4% | Emergency 1.5xSL</strong></div>
+                <div>Smart Day Trade: <strong>Gap +<span data-cfg="day_trade_gap_threshold">?</span>% | Mom +<span data-cfg="day_trade_momentum_threshold">?</span>% | Emergency 1.5xSL</strong></div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #9b59b6;">ON</div>
@@ -416,7 +419,7 @@
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #3498db;">BO</div>
-                <div>Breakout Scanner: <strong>20d high + Vol 1.5x</strong> (morning + afternoon)</div>
+                <div>Breakout Scanner: <strong>20d high + Vol <span data-cfg="breakout_min_volume_mult">?</span>x</strong> (morning + afternoon)</div>
             </div>
         </div>
 
@@ -446,19 +449,19 @@
             <h5><i class="fas fa-shield-virus me-2"></i>Low Risk Mode <small class="text-warning">(PDT Budget &le; Reserve)</small></h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #f39c12;">📉</div>
-                <div>Gap Filter: <strong>1%</strong> (ปกติ 2%)</div>
+                <div>Gap Filter: <strong><span data-cfg="low_risk_gap_max_up">?</span>%</strong> (ปกติ <span data-cfg="gap_max_up">?</span>%)</div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #f39c12;">⭐</div>
-                <div>Min Score: <strong>85</strong> (ปกติ 80)</div>
+                <div>Min Score: <strong><span data-cfg="low_risk_min_score">?</span></strong> (ปกติ <span data-cfg="min_score">?</span>)</div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #f39c12;">💵</div>
-                <div>Position: <strong>20% (~$800)</strong></div>
+                <div>Position: <strong><span data-cfg="low_risk_position_size_pct">?</span>%</strong></div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #f39c12;">📊</div>
-                <div>Max ATR: <strong>4%</strong> (low volatility)</div>
+                <div>Max ATR: <strong><span data-cfg="low_risk_max_atr_pct">?</span>%</strong> (low volatility)</div>
             </div>
         </div>
 
@@ -467,11 +470,11 @@
             <h5><i class="fas fa-list-check me-2"></i>Trading Rules v4.9.5 <small class="text-info">(ATR-Based)</small></h5>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e74c3c;">SL</div>
-                <div>Stop Loss: <strong>1.5xATR [2-4%]</strong> per position</div>
+                <div>Stop Loss: <strong><span data-cfg="sl_atr_multiplier">?</span>xATR [<span data-cfg="sl_min_pct">?</span>-<span data-cfg="sl_max_pct">?</span>%]</strong> per position</div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #27ae60;">TP</div>
-                <div>Take Profit: <strong>3xATR [4-10%]</strong> per position</div>
+                <div>Take Profit: <strong><span data-cfg="tp_atr_multiplier">?</span>xATR [<span data-cfg="tp_min_pct">?</span>-<span data-cfg="tp_max_pct">?</span>%]</strong> per position</div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #3498db;">PDT</div>
@@ -479,15 +482,15 @@
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #9b59b6;">📈</div>
-                <div>Trailing: <strong>+4% activation, lock 50%</strong></div>
+                <div>Trailing: <strong>+<span data-cfg="trail_activation_pct">?</span>% activation, lock <span data-cfg="trail_lock_pct">?</span>%</strong></div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #f39c12;">⏱</div>
-                <div>Max Hold: <strong>5 calendar days</strong></div>
+                <div>Max Hold: <strong><span data-cfg="max_hold_days">?</span> calendar days</strong></div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #2ecc71;">💰</div>
-                <div>Position: <strong>Risk-Parity (1% risk/trade), Max 3</strong></div>
+                <div>Position: <strong>Risk-Parity (<span data-cfg="risk_budget_pct">?</span>% risk/trade), Max <span data-cfg="max_positions">?</span></strong></div>
             </div>
         </div>
 
@@ -547,6 +550,51 @@
             <h5><i class="fas fa-list-ol me-2"></i>Signal Queue <span class="badge bg-info" id="queueCount">0</span></h5>
             <div id="queueContainer">
                 <small class="text-muted">No signals queued</small>
+            </div>
+        </div>
+
+        <!-- v4.9.5: Debug Panel (collapsible) -->
+        <div class="rules-box mt-3">
+            <h5 data-bs-toggle="collapse" data-bs-target="#debugPanelCollapse" style="cursor: pointer;">
+                <i class="fas fa-bug me-2"></i>Engine Debug
+                <span class="badge bg-dark ms-2" id="debugModeBadge">-</span>
+                <i class="fas fa-chevron-down ms-2" style="font-size:0.7rem;"></i>
+            </h5>
+            <div class="collapse" id="debugPanelCollapse">
+                <div class="small" style="font-family: monospace; font-size: 11px;">
+                    <div class="d-flex justify-content-between py-1 border-bottom">
+                        <span class="text-muted">Mode:</span>
+                        <span id="debugMode">-</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-1 border-bottom">
+                        <span class="text-muted">Regime Source:</span>
+                        <span id="debugRegimeSource">-</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-1 border-bottom">
+                        <span class="text-muted">Regime Cache Age:</span>
+                        <span id="debugCacheAge">-</span>
+                    </div>
+                    <div class="py-1 border-bottom">
+                        <span class="text-muted">Effective Params:</span>
+                        <pre id="debugEffectiveParams" class="mb-0 mt-1" style="font-size: 10px; background: #1a1a2e; color: #0f0; padding: 6px; border-radius: 4px; max-height: 150px; overflow-y: auto;">-</pre>
+                    </div>
+                    <div class="py-1 border-bottom">
+                        <span class="text-muted">Regime Details:</span>
+                        <pre id="debugRegimeDetails" class="mb-0 mt-1" style="font-size: 10px; background: #1a1a2e; color: #0f0; padding: 6px; border-radius: 4px; max-height: 100px; overflow-y: auto;">-</pre>
+                    </div>
+                    <div class="py-1 border-bottom">
+                        <span class="text-muted">Daily Stats:</span>
+                        <pre id="debugDailyStats" class="mb-0 mt-1" style="font-size: 10px; background: #1a1a2e; color: #0f0; padding: 6px; border-radius: 4px; max-height: 100px; overflow-y: auto;">-</pre>
+                    </div>
+                    <div class="py-1 border-bottom">
+                        <span class="text-muted">Safety:</span>
+                        <pre id="debugSafety" class="mb-0 mt-1" style="font-size: 10px; background: #1a1a2e; color: #0f0; padding: 6px; border-radius: 4px; max-height: 100px; overflow-y: auto;">-</pre>
+                    </div>
+                    <div class="d-flex justify-content-between py-1">
+                        <span class="text-muted">Loss Protection:</span>
+                        <span id="debugLossProtection">-</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -728,6 +776,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // v4.0: Initialize P&L mini chart
     initPnlChart();
+
+    // v4.9.5: Load engine config (Single Source of Truth)
+    loadEngineConfig();
 
     // Initial data load (fallback while WebSocket connects)
     refreshAll();
@@ -1540,6 +1591,78 @@ function stopFallbackPolling() {
     }
 }
 
+// v4.9.5: Load engine config and populate all data-cfg spans
+function loadEngineConfig() {
+    fetch('/api/engine/config')
+        .then(r => r.json())
+        .then(cfg => {
+            if (cfg.error) { console.warn('Engine config error:', cfg.error); return; }
+            applyConfigToUI(cfg);
+        })
+        .catch(err => console.warn('Engine config fetch failed:', err.message));
+}
+
+function applyConfigToUI(cfg) {
+    document.querySelectorAll('[data-cfg]').forEach(el => {
+        const key = el.getAttribute('data-cfg');
+        if (cfg[key] !== undefined && cfg[key] !== null) {
+            el.textContent = cfg[key];
+        }
+    });
+}
+
+// v4.9.5: Populate debug panel from auto status data
+function updateDebugPanel(data) {
+    // Mode badge
+    const ep = data.effective_params || {};
+    const mode = ep.mode || 'UNKNOWN';
+    const modeBadge = document.getElementById('debugModeBadge');
+    if (modeBadge) {
+        modeBadge.textContent = mode;
+        modeBadge.className = 'badge ms-2 ' + (
+            mode.includes('BEAR') ? 'bg-danger' :
+            mode === 'LOW_RISK' ? 'bg-warning text-dark' : 'bg-success'
+        );
+    }
+    const debugMode = document.getElementById('debugMode');
+    if (debugMode) debugMode.textContent = mode;
+
+    // Regime source
+    const debugRegimeSource = document.getElementById('debugRegimeSource');
+    if (debugRegimeSource) debugRegimeSource.textContent = 'engine (4-criteria)';
+
+    // Regime cache age
+    const rd = data.regime_details || {};
+    const debugCacheAge = document.getElementById('debugCacheAge');
+    if (debugCacheAge) {
+        const age = rd.cache_age_seconds;
+        debugCacheAge.textContent = age !== undefined ? age + 's' : '-';
+    }
+
+    // Effective params
+    const debugEP = document.getElementById('debugEffectiveParams');
+    if (debugEP) debugEP.textContent = JSON.stringify(ep, null, 2);
+
+    // Regime details
+    const debugRD = document.getElementById('debugRegimeDetails');
+    if (debugRD) debugRD.textContent = JSON.stringify(rd, null, 2);
+
+    // Daily stats
+    const debugDS = document.getElementById('debugDailyStats');
+    if (debugDS) debugDS.textContent = JSON.stringify(data.daily_stats || {}, null, 2);
+
+    // Safety
+    const debugSafety = document.getElementById('debugSafety');
+    if (debugSafety) debugSafety.textContent = JSON.stringify(data.safety || {}, null, 2);
+
+    // Loss protection
+    const debugLP = document.getElementById('debugLossProtection');
+    if (debugLP) {
+        debugLP.textContent = 'Consec: ' + (data.consecutive_losses || 0) +
+            ' | Weekly: $' + (data.weekly_pnl || 0).toFixed(2);
+    }
+}
+
 function refreshAll() {
     // v4.0: If WebSocket is connected, request update via socket
     if (socket && connectionStatus === 'connected') {
@@ -1715,7 +1838,7 @@ function loadSpyRegime() {
                     });
             }
 
-            // Update details
+            // Update details (v4.9.5: engine provides 4-criteria details)
             document.getElementById('spyPrice').textContent = '$' + (details.spy_price || '-');
             document.getElementById('spySMA').textContent = '$' + (details.spy_sma20 || '-');
 
@@ -1723,6 +1846,23 @@ function loadSpyRegime() {
             const distEl = document.getElementById('spyDistance');
             distEl.textContent = (pctAbove >= 0 ? '+' : '') + pctAbove.toFixed(2) + '%';
             distEl.style.color = pctAbove >= 0 ? '#27ae60' : '#e74c3c';
+
+            // v4.9.5: Extra regime details
+            const rsiEl = document.getElementById('spyRSI');
+            if (rsiEl && details.rsi !== undefined) {
+                rsiEl.textContent = details.rsi;
+                rsiEl.style.color = details.rsi_ok ? '#27ae60' : '#e74c3c';
+            }
+            const ret5dEl = document.getElementById('spyRet5d');
+            if (ret5dEl && details.return_5d !== undefined) {
+                ret5dEl.textContent = (details.return_5d >= 0 ? '+' : '') + details.return_5d + '%';
+                ret5dEl.style.color = details.ret5d_ok ? '#27ae60' : '#e74c3c';
+            }
+            const vixEl = document.getElementById('spyVIX');
+            if (vixEl && details.vix !== undefined) {
+                vixEl.textContent = details.vix;
+                vixEl.style.color = details.vix_ok ? '#27ae60' : '#e74c3c';
+            }
         })
         .catch(err => {
             console.error('Error loading SPY regime:', err);
@@ -2230,6 +2370,9 @@ function loadAutoStatus() {
                     emergencyBtn.classList.add('btn-danger');
                 }
             }
+
+            // v4.9.5: Update debug panel
+            updateDebugPanel(data);
         })
         .catch(err => {
             clearTimeout(timeoutId);

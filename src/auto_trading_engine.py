@@ -535,7 +535,7 @@ class AutoTradingEngine:
         self.signal_queue: List[QueuedSignal] = []
 
         # Regime cache (v4.2) - avoid repeated yfinance calls
-        self._regime_cache: Optional[Tuple[bool, str, datetime]] = None
+        self._regime_cache: Optional[Tuple[bool, str, datetime, Dict]] = None
         self._regime_cache_seconds = 300  # 5 minutes
 
         # Timezone
@@ -930,7 +930,7 @@ class AutoTradingEngine:
 
         # v4.2: Use cache to avoid repeated yfinance calls
         if not force_refresh and self._regime_cache:
-            is_bull, reason, cached_at = self._regime_cache
+            is_bull, reason, cached_at = self._regime_cache[0], self._regime_cache[1], self._regime_cache[2]
             age_seconds = (datetime.now() - cached_at).total_seconds()
             if age_seconds < self._regime_cache_seconds:
                 return is_bull, reason
@@ -1002,8 +1002,19 @@ class AutoTradingEngine:
                 reason = f"BEAR: {', '.join(failed)} [{check_str}]"
                 logger.warning(f"⚠️ Market Regime: {reason} - SKIPPING NEW TRADES")
 
-            # v4.2: Cache result
-            self._regime_cache = (is_bull, reason, datetime.now())
+            # v4.2: Cache result (v4.9.5: add SPY details for UI)
+            self._regime_cache = (is_bull, reason, datetime.now(), {
+                'spy_price': round(current_price, 2),
+                'spy_sma20': round(sma, 2),
+                'pct_above_sma': round(pct_above, 2),
+                'rsi': round(rsi_val, 1),
+                'return_5d': round(return_5d, 2),
+                'vix': round(vix_val, 1),
+                'sma_ok': sma_ok,
+                'rsi_ok': rsi_ok,
+                'ret5d_ok': ret5d_ok,
+                'vix_ok': vix_ok,
+            })
             return is_bull, reason
 
         except Exception as e:
@@ -3765,12 +3776,19 @@ class AutoTradingEngine:
             for sect, cnt in sector_counts.items()
         }
 
+        # v4.9.5: Get regime details from cache
+        regime_details = None
+        if self._regime_cache and len(self._regime_cache) >= 4:
+            regime_details = self._regime_cache[3]
+            regime_details['cache_age_seconds'] = int((datetime.now() - self._regime_cache[2]).total_seconds())
+
         return {
             'state': self.state.value,
             'running': self.running,
             'market_open': self.trader.is_market_open(),
             'market_regime': 'BULL' if is_bull else ('BEAR_MODE' if self.BEAR_MODE_ENABLED else 'BEAR'),  # v4.9.2
             'regime_detail': regime_reason,  # v4.0
+            'regime_details': regime_details,  # v4.9.5: SPY details for UI
             'bear_mode_enabled': self.BEAR_MODE_ENABLED,  # v4.9.2
             'bear_allowed_sectors': self._get_bear_allowed_sectors() if not is_bull and self.BEAR_MODE_ENABLED else None,  # v4.9.2
             'bull_blocked_sectors': self._get_bull_blocked_sectors() if is_bull else None,  # v4.9.3
@@ -3781,7 +3799,7 @@ class AutoTradingEngine:
             'cash': account['cash'],
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v4.9.3 Smart Sector Filter',
+            'version': 'v4.9.5 Single Source of Truth',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
@@ -3790,6 +3808,150 @@ class AutoTradingEngine:
             # v4.9: Loss protection snapshot
             'consecutive_losses': consecutive_losses,
             'weekly_pnl': weekly_pnl,
+            # v4.9.5: Effective runtime params
+            'effective_params': self._get_effective_params(),
+        }
+
+    def get_full_config(self) -> Dict:
+        """
+        v4.9.5: Return ALL runtime config values for UI Single Source of Truth.
+        Groups all 87+ parameters so the UI never needs hardcoded values.
+        """
+        return {
+            # --- Position Management ---
+            'max_positions': self.MAX_POSITIONS,
+            'position_size_pct': self.POSITION_SIZE_PCT,
+            'simulated_capital': self.SIMULATED_CAPITAL,
+            'risk_parity_enabled': self.RISK_PARITY_ENABLED,
+            'risk_budget_pct': self.RISK_BUDGET_PCT,
+            'max_position_pct': self.MAX_POSITION_PCT,
+
+            # --- ATR-based SL/TP ---
+            'sl_atr_multiplier': self.SL_ATR_MULTIPLIER,
+            'sl_min_pct': self.SL_MIN_PCT,
+            'sl_max_pct': self.SL_MAX_PCT,
+            'tp_atr_multiplier': self.TP_ATR_MULTIPLIER,
+            'tp_min_pct': self.TP_MIN_PCT,
+            'tp_max_pct': self.TP_MAX_PCT,
+            'target_rr': self.TARGET_RR,
+            'stop_loss_pct': self.STOP_LOSS_PCT,
+            'take_profit_pct': self.TAKE_PROFIT_PCT,
+            'pdt_tp_threshold': self.PDT_TP_THRESHOLD,
+
+            # --- Trailing Stop ---
+            'trail_activation_pct': self.TRAIL_ACTIVATION_PCT,
+            'trail_lock_pct': self.TRAIL_LOCK_PCT,
+            'max_hold_days': self.MAX_HOLD_DAYS,
+
+            # --- Risk Limits ---
+            'daily_loss_limit_pct': self.DAILY_LOSS_LIMIT_PCT,
+            'weekly_loss_limit_pct': self.WEEKLY_LOSS_LIMIT_PCT,
+            'max_consecutive_losses': self.MAX_CONSECUTIVE_LOSSES,
+            'min_score': self.MIN_SCORE,
+
+            # --- Signal Queue ---
+            'queue_enabled': self.QUEUE_ENABLED,
+            'queue_atr_mult': self.QUEUE_ATR_MULT,
+            'queue_min_deviation': self.QUEUE_MIN_DEVIATION,
+            'queue_max_deviation': self.QUEUE_MAX_DEVIATION,
+            'queue_max_size': self.QUEUE_MAX_SIZE,
+            'queue_freshness_window': self.QUEUE_FRESHNESS_WINDOW,
+            'queue_rescan_on_empty': self.QUEUE_RESCAN_ON_EMPTY,
+
+            # --- Sector Diversification ---
+            'sector_filter_enabled': self.SECTOR_FILTER_ENABLED,
+            'max_per_sector': self.MAX_PER_SECTOR,
+            'sector_loss_tracking_enabled': self.SECTOR_LOSS_TRACKING_ENABLED,
+            'max_sector_consecutive_loss': self.MAX_SECTOR_CONSECUTIVE_LOSS,
+            'sector_cooldown_days': self.SECTOR_COOLDOWN_DAYS,
+
+            # --- Smart Order Execution ---
+            'smart_order_enabled': self.SMART_ORDER_ENABLED,
+            'smart_order_max_spread_pct': self.SMART_ORDER_MAX_SPREAD_PCT,
+            'smart_order_wait_seconds': self.SMART_ORDER_WAIT_SECONDS,
+
+            # --- Gap Filter ---
+            'gap_filter_enabled': self.GAP_FILTER_ENABLED,
+            'gap_max_up': self.GAP_MAX_UP,
+            'gap_max_down': self.GAP_MAX_DOWN,
+
+            # --- Earnings Filter ---
+            'earnings_filter_enabled': self.EARNINGS_FILTER_ENABLED,
+            'earnings_skip_days_before': self.EARNINGS_SKIP_DAYS_BEFORE,
+            'earnings_skip_days_after': self.EARNINGS_SKIP_DAYS_AFTER,
+            'earnings_no_data_action': self.EARNINGS_NO_DATA_ACTION,
+            'earnings_auto_sell': self.EARNINGS_AUTO_SELL,
+            'earnings_auto_sell_buffer_min': self.EARNINGS_AUTO_SELL_BUFFER_MIN,
+
+            # --- Low Risk Mode ---
+            'low_risk_mode_enabled': self.LOW_RISK_MODE_ENABLED,
+            'low_risk_gap_max_up': self.LOW_RISK_GAP_MAX_UP,
+            'low_risk_min_score': self.LOW_RISK_MIN_SCORE,
+            'low_risk_position_size_pct': self.LOW_RISK_POSITION_SIZE_PCT,
+            'low_risk_max_atr_pct': self.LOW_RISK_MAX_ATR_PCT,
+
+            # --- Bear Mode ---
+            'bear_mode_enabled': self.BEAR_MODE_ENABLED,
+            'bear_sectors': self.BEAR_SECTORS,
+            'bear_sector_threshold': self.BEAR_SECTOR_THRESHOLD,
+            'bear_max_positions': self.BEAR_MAX_POSITIONS,
+            'bear_min_score': self.BEAR_MIN_SCORE,
+            'bear_gap_max_up': self.BEAR_GAP_MAX_UP,
+            'bear_gap_max_down': self.BEAR_GAP_MAX_DOWN,
+            'bear_position_size_pct': self.BEAR_POSITION_SIZE_PCT,
+            'bear_max_atr_pct': self.BEAR_MAX_ATR_PCT,
+
+            # --- Bull Sector Filter ---
+            'bull_sector_filter_enabled': self.BULL_SECTOR_FILTER_ENABLED,
+            'bull_sector_min_return': self.BULL_SECTOR_MIN_RETURN,
+
+            # --- Conviction Sizing ---
+            'conviction_sizing_enabled': self.CONVICTION_SIZING_ENABLED,
+            'conviction_a_plus_pct': self.CONVICTION_A_PLUS_PCT,
+            'conviction_a_pct': self.CONVICTION_A_PCT,
+            'conviction_b_pct': self.CONVICTION_B_PCT,
+
+            # --- Smart Day Trade ---
+            'smart_day_trade_enabled': self.SMART_DAY_TRADE_ENABLED,
+            'day_trade_gap_threshold': self.DAY_TRADE_GAP_THRESHOLD,
+            'day_trade_momentum_threshold': self.DAY_TRADE_MOMENTUM_THRESHOLD,
+            'day_trade_emergency_enabled': self.DAY_TRADE_EMERGENCY_ENABLED,
+
+            # --- Overnight Gap Scanner ---
+            'overnight_gap_enabled': self.OVERNIGHT_GAP_ENABLED,
+            'overnight_gap_scan_hour': self.OVERNIGHT_GAP_SCAN_HOUR,
+            'overnight_gap_scan_minute': self.OVERNIGHT_GAP_SCAN_MINUTE,
+            'overnight_gap_min_score': self.OVERNIGHT_GAP_MIN_SCORE,
+            'overnight_gap_position_pct': self.OVERNIGHT_GAP_POSITION_PCT,
+            'overnight_gap_target_pct': self.OVERNIGHT_GAP_TARGET_PCT,
+            'overnight_gap_sl_pct': self.OVERNIGHT_GAP_SL_PCT,
+
+            # --- Breakout Scanner ---
+            'breakout_scan_enabled': self.BREAKOUT_SCAN_ENABLED,
+            'breakout_min_volume_mult': self.BREAKOUT_MIN_VOLUME_MULT,
+            'breakout_min_score': self.BREAKOUT_MIN_SCORE,
+            'breakout_target_pct': self.BREAKOUT_TARGET_PCT,
+            'breakout_sl_pct': self.BREAKOUT_SL_PCT,
+
+            # --- Regime Filter ---
+            'regime_filter_enabled': self.REGIME_FILTER_ENABLED,
+            'regime_sma_period': self.REGIME_SMA_PERIOD,
+            'regime_rsi_min': self.REGIME_RSI_MIN,
+            'regime_return_5d_min': self.REGIME_RETURN_5D_MIN,
+            'regime_vix_max': self.REGIME_VIX_MAX,
+
+            # --- Timing ---
+            'market_open_scan_delay': self.MARKET_OPEN_SCAN_DELAY,
+            'market_open_scan_window': self.MARKET_OPEN_SCAN_WINDOW,
+            'late_start_protection': self.LATE_START_PROTECTION,
+            'afternoon_scan_enabled': self.AFTERNOON_SCAN_ENABLED,
+            'afternoon_scan_hour': self.AFTERNOON_SCAN_HOUR,
+            'afternoon_scan_minute': self.AFTERNOON_SCAN_MINUTE,
+            'afternoon_min_score': self.AFTERNOON_MIN_SCORE,
+            'afternoon_gap_max_up': self.AFTERNOON_GAP_MAX_UP,
+            'afternoon_gap_max_down': self.AFTERNOON_GAP_MAX_DOWN,
+            'monitor_interval_seconds': self.MONITOR_INTERVAL_SECONDS,
+            'pre_close_minute': self.PRE_CLOSE_MINUTE,
         }
 
     def get_positions_status(self) -> List[Dict]:
