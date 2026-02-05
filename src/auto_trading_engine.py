@@ -330,7 +330,7 @@ class AutoTradingEngine:
     # เมื่อ PDT budget = 0: ยังซื้อได้ แต่เข้มขึ้น + size เล็กลง
     # เหตุผล: ต้อง hold ข้ามคืนอยู่แล้ว → เลือกเฉพาะหุ้นปลอดภัยสุด
     LOW_RISK_MODE_ENABLED = True
-    LOW_RISK_GAP_MAX_UP = 1.5       # % - v5.1: 1.0→1.5 (1.0 rejected nearly all signals at open)
+    LOW_RISK_GAP_MAX_UP = 1.0       # % - gap filter for low risk mode
     LOW_RISK_MIN_SCORE = 90         # v4.9.7: 98→90 (6 other filters handle risk; 98 blocked breakouts entirely)
     LOW_RISK_POSITION_SIZE_PCT = 20 # % - เล็กลง (ปกติ 30%) = ~$800
     LOW_RISK_MAX_ATR_PCT = 4.0      # % - หุ้นไม่ผันผวนมาก
