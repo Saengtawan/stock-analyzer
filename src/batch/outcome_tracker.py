@@ -188,9 +188,10 @@ def track_sell_outcomes(dry_run: bool = False) -> int:
             print("no data")
             continue
 
-        # Find prices at 1d, 3d, 5d after sell
-        # Map dates to indices
-        date_idx = {d: i for i, d in enumerate(history['dates'])}
+        # Use actual trading days from history (handles holidays correctly)
+        post_sell_dates = [
+            (d, i) for i, d in enumerate(history['dates']) if d > sell_date
+        ]
 
         close_1d = None
         close_3d = None
@@ -198,28 +199,24 @@ def track_sell_outcomes(dry_run: bool = False) -> int:
         max_5d = None
         min_5d = None
 
-        # Collect post-sell data points
-        post_sell_closes = []
+        # Collect post-sell data points using real trading days
         post_sell_highs = []
         post_sell_lows = []
 
-        for i, td in enumerate(trading_days):
-            if td in date_idx:
-                idx = date_idx[td]
-                c = float(history['close'][idx])
-                h = float(history['high'][idx])
-                l = float(history['low'][idx])
+        for day_num, (d, idx) in enumerate(post_sell_dates[:5]):
+            c = float(history['close'][idx])
+            h = float(history['high'][idx])
+            l = float(history['low'][idx])
 
-                post_sell_closes.append(c)
-                post_sell_highs.append(h)
-                post_sell_lows.append(l)
+            post_sell_highs.append(h)
+            post_sell_lows.append(l)
 
-                if i == 0:
-                    close_1d = c
-                if i == 2:
-                    close_3d = c
-                if i == 4:
-                    close_5d = c
+            if day_num == 0:
+                close_1d = c
+            if day_num == 2:
+                close_3d = c
+            if day_num == 4:
+                close_5d = c
 
         if post_sell_highs:
             max_5d = max(post_sell_highs)
@@ -361,15 +358,17 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
             print("no data")
             continue
 
-        date_idx = {d: i for i, d in enumerate(history['dates'])}
-
         for sig in sigs:
             scan_price = sig['scan_price']
             if not scan_price or scan_price <= 0:
                 continue
 
             scan_date = sig['scan_date']
-            sig_trading_days = _get_trading_days_after(scan_date, 5)
+
+            # Use actual trading days from history (handles holidays correctly)
+            post_scan_dates = [
+                (d, i) for i, d in enumerate(history['dates']) if d > scan_date
+            ]
 
             outcome_1d = None
             outcome_3d = None
@@ -380,26 +379,24 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
             post_highs = []
             post_lows = []
 
-            for i, td in enumerate(sig_trading_days):
-                if td in date_idx:
-                    idx = date_idx[td]
-                    c = float(history['close'][idx])
-                    h = float(history['high'][idx])
-                    l = float(history['low'][idx])
+            for day_num, (d, idx) in enumerate(post_scan_dates[:5]):
+                c = float(history['close'][idx])
+                h = float(history['high'][idx])
+                l = float(history['low'][idx])
 
-                    pct = ((c - scan_price) / scan_price) * 100
-                    gain = ((h - scan_price) / scan_price) * 100
-                    dd = ((l - scan_price) / scan_price) * 100
+                pct = ((c - scan_price) / scan_price) * 100
+                gain = ((h - scan_price) / scan_price) * 100
+                dd = ((l - scan_price) / scan_price) * 100
 
-                    post_highs.append(gain)
-                    post_lows.append(dd)
+                post_highs.append(gain)
+                post_lows.append(dd)
 
-                    if i == 0:
-                        outcome_1d = round(pct, 2)
-                    if i == 2:
-                        outcome_3d = round(pct, 2)
-                    if i == 4:
-                        outcome_5d = round(pct, 2)
+                if day_num == 0:
+                    outcome_1d = round(pct, 2)
+                if day_num == 2:
+                    outcome_3d = round(pct, 2)
+                if day_num == 4:
+                    outcome_5d = round(pct, 2)
 
             if post_highs:
                 max_gain = round(max(post_highs), 2)

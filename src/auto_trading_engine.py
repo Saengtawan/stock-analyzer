@@ -1057,10 +1057,15 @@ class AutoTradingEngine:
             avg_gain = gains.rolling(window=period, min_periods=period).mean().iloc[-1]
             avg_loss = losses.rolling(window=period, min_periods=period).mean().iloc[-1]
 
+            # Guard against NaN from insufficient data
+            import math
+            if math.isnan(avg_gain) or math.isnan(avg_loss):
+                return 50.0
             if avg_loss == 0:
                 return 100.0
             rs = avg_gain / avg_loss
-            return 100 - (100 / (1 + rs))
+            rsi = 100 - (100 / (1 + rs))
+            return 50.0 if math.isnan(rsi) else rsi
         except Exception:
             return 50.0  # default neutral
 
@@ -1923,7 +1928,10 @@ class AutoTradingEngine:
                     # RSI from recent history
                     hist = ticker.history(period='1mo')
                     if hist is not None and len(hist) >= 15:
-                        ctx['exit_rsi'] = round(self._calc_rsi(hist['Close']), 1)
+                        rsi_val = self._calc_rsi(hist['Close'])
+                        import math
+                        if not math.isnan(rsi_val):
+                            ctx['exit_rsi'] = round(rsi_val, 1)
                 except Exception:
                     pass
 
@@ -1966,7 +1974,7 @@ class AutoTradingEngine:
                 "momentum_5d": getattr(signal, 'momentum_5d', None),
                 "atr_pct": getattr(signal, 'atr_pct', None),
                 "sector": getattr(signal, 'sector', ''),
-                "signal_source": self._derive_signal_source(signal),
+                "signal_source": self._derive_signal_source(signal, scan_type),
                 "volume_ratio": getattr(signal, 'volume_ratio', None),
                 "stop_loss": getattr(signal, 'stop_loss', None),
                 "take_profit": getattr(signal, 'take_profit', None),
@@ -1979,13 +1987,18 @@ class AutoTradingEngine:
         except Exception as e:
             logger.warning(f"Scan log save error (non-fatal): {e}")
 
-    def _derive_signal_source(self, signal) -> str:
-        """Derive signal source from signal attributes."""
+    def _derive_signal_source(self, signal, scan_type: str = '') -> str:
+        """Derive signal source from scan_type (primary) or signal attributes (fallback)."""
+        # Primary: scan_type is authoritative (set by the scan loop)
+        if scan_type == 'overnight_gap':
+            return 'overnight_gap'
+        # sl_method from screener output (secondary)
         sl_method = getattr(signal, 'sl_method', '')
         if 'overnight_gap' in sl_method:
             return 'overnight_gap'
         elif 'breakout' in sl_method:
             return 'breakout'
+        # Default for morning/afternoon/late_start scans
         return 'dip_bounce'
 
     def _save_scan_log(self, scan_id: str, scan_type: str, mode: str, results: list):
@@ -2389,13 +2402,7 @@ class AutoTradingEngine:
             # v5.0: Extract signal context early (used by all log_skip calls + log_buy)
             signal_score = getattr(signal, 'score', 0)
             signal_sector = getattr(signal, 'sector', '') or ''
-            sl_method = getattr(signal, 'sl_method', '')
-            if 'overnight_gap' in sl_method:
-                signal_source = 'overnight_gap'
-            elif 'breakout' in sl_method:
-                signal_source = 'breakout'
-            else:
-                signal_source = 'dip_bounce'
+            signal_source = self._derive_signal_source(signal)
 
             # v4.5: Check score against effective min_score
             if signal_score < params['min_score']:
