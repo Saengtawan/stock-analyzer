@@ -200,6 +200,13 @@
         flex-shrink: 0;
     }
 
+    /* Effective override highlight */
+    .cfg-override {
+        color: #f39c12 !important;
+        border-bottom: 1px dashed #f39c12;
+        cursor: help;
+    }
+
     /* ========================================
        PDT STYLING
        ======================================== */
@@ -765,6 +772,7 @@
 let positionModal;
 let socket = null;
 let connectionStatus = 'disconnected';
+let _baseConfig = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     positionModal = new bootstrap.Modal(document.getElementById('addPositionModal'));
@@ -1193,6 +1201,9 @@ function updateHeaderBar(data) {
             bullBlockedEl.style.display = 'none';
         }
     }
+
+    // Override base config display with effective params
+    applyEffectiveOverrides(ep, _baseConfig);
 }
 
 // ============================================
@@ -1203,6 +1214,7 @@ function loadEngineConfig() {
         .then(r => r.json())
         .then(cfg => {
             if (cfg.error) { console.warn('Engine config error:', cfg.error); return; }
+            _baseConfig = cfg;
             applyConfigToUI(cfg);
         })
         .catch(err => console.warn('Engine config fetch failed:', err.message));
@@ -1211,7 +1223,42 @@ function loadEngineConfig() {
 function applyConfigToUI(cfg) {
     document.querySelectorAll('[data-cfg]').forEach(el => {
         const key = el.getAttribute('data-cfg');
-        if (cfg[key] !== undefined && cfg[key] !== null) el.textContent = cfg[key];
+        if (cfg[key] !== undefined && cfg[key] !== null) {
+            el.textContent = cfg[key];
+            el.classList.remove('cfg-override');
+            el.removeAttribute('title');
+        }
+    });
+}
+
+function applyEffectiveOverrides(ep, baseCfg) {
+    if (!ep || !baseCfg) return;
+    // Map effective_params key → [data-cfg keys to override]
+    const overrideMap = {
+        'gap_max_up': ['gap_max_up', 'bear_gap_max_up', 'low_risk_gap_max_up'],
+        'gap_max_down': ['gap_max_down', 'bear_gap_max_down'],
+        'min_score': ['bear_min_score', 'low_risk_min_score'],
+        'max_positions': ['max_positions', 'bear_max_positions'],
+        'position_size_pct': ['bear_position_size_pct', 'low_risk_position_size_pct'],
+        'max_atr_pct': ['low_risk_max_atr_pct'],
+    };
+    const mode = ep.mode || '';
+    Object.entries(overrideMap).forEach(([epKey, cfgKeys]) => {
+        if (ep[epKey] === undefined || ep[epKey] === null) return;
+        const effVal = ep[epKey];
+        cfgKeys.forEach(cfgKey => {
+            const baseVal = baseCfg[cfgKey];
+            document.querySelectorAll(`[data-cfg="${cfgKey}"]`).forEach(el => {
+                el.textContent = effVal;
+                if (baseVal !== null && baseVal !== undefined && baseVal != effVal) {
+                    el.classList.add('cfg-override');
+                    el.title = `Base: ${baseVal} → Effective: ${effVal} (${mode})`;
+                } else {
+                    el.classList.remove('cfg-override');
+                    el.removeAttribute('title');
+                }
+            });
+        });
     });
 }
 
@@ -1261,6 +1308,7 @@ function refreshAll() {
         loadAutoStatus();
     }
     loadTradeLogs();
+    loadEngineConfig();
 }
 
 function loadTradeLogs() {
