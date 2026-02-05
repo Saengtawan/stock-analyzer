@@ -146,6 +146,7 @@ class ManagedPosition:
     entry_mode: str = "NORMAL"   # Mode at entry (NORMAL, LOW_RISK, BEAR+LOW_RISK)
     entry_regime: str = "BULL"   # Regime at entry (BULL, BEAR)
     rsi: float = 0.0            # RSI at entry
+    momentum_5d: float = 0.0    # 5-day momentum at entry
 
 
 @dataclass
@@ -610,6 +611,7 @@ class AutoTradingEngine:
                     'entry_mode': pos.entry_mode,
                     'entry_regime': pos.entry_regime,
                     'rsi': pos.rsi,
+                    'momentum_5d': pos.momentum_5d,
                 }
 
             data = {
@@ -814,6 +816,7 @@ class AutoTradingEngine:
                         entry_mode=saved.get('entry_mode', 'NORMAL'),
                         entry_regime=saved.get('entry_regime', 'BULL'),
                         rsi=saved.get('rsi', 0.0),
+                        momentum_5d=saved.get('momentum_5d', 0.0),
                     )
 
                     if saved:
@@ -2494,6 +2497,7 @@ class AutoTradingEngine:
                     entry_mode=mode,
                     entry_regime="BULL" if regime_ok else "BEAR",
                     rsi=getattr(signal, 'rsi', 0.0) or 0.0,
+                    momentum_5d=getattr(signal, 'momentum_5d', 0.0) or 0.0,
                 )
                 self._save_positions_state()
 
@@ -2547,6 +2551,7 @@ class AutoTradingEngine:
                     signal_score=signal_score,
                     atr_pct=getattr(signal, 'atr_pct', None),
                     rsi=getattr(signal, 'rsi', None),  # v4.9.9
+                    momentum_5d=getattr(signal, 'momentum_5d', None),  # v4.9.9
                     sector=getattr(signal, 'sector', None),
                     signal_source=signal_source,  # v4.9.9
                     order_id=buy_order.id if buy_order else None,
@@ -2849,11 +2854,12 @@ class AutoTradingEngine:
                         signal_score=managed_pos.signal_score,
                         sector=managed_pos.sector,
                         atr_pct=managed_pos.atr_pct,
-                        # v4.9.9: Signal source, mode, regime, rsi
+                        # v4.9.9: Signal source, mode, regime, rsi, momentum
                         signal_source=managed_pos.source,
                         mode=managed_pos.entry_mode,
                         regime=managed_pos.entry_regime,
                         rsi=managed_pos.rsi,
+                        momentum_5d=managed_pos.momentum_5d,
                     )
                 except Exception as log_err:
                     logger.warning(f"Trade log error for SL fill: {log_err}")
@@ -3187,11 +3193,12 @@ class AutoTradingEngine:
                     signal_score=managed_pos.signal_score,
                     sector=managed_pos.sector,
                     atr_pct=managed_pos.atr_pct,
-                    # v4.9.9: Signal source, mode, regime, rsi
+                    # v4.9.9: Signal source, mode, regime, rsi, momentum
                     signal_source=managed_pos.source,
                     mode=managed_pos.entry_mode,
                     regime=managed_pos.entry_regime,
                     rsi=managed_pos.rsi,
+                    momentum_5d=managed_pos.momentum_5d,
                 )
             except Exception as log_err:
                 logger.warning(f"Trade log error: {log_err}")

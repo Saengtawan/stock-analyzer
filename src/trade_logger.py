@@ -81,6 +81,7 @@ class TradeLogEntry:
     signal_score: Optional[float] = None
     atr_pct: Optional[float] = None
     rsi: Optional[float] = None
+    momentum_5d: Optional[float] = None
     premarket_price: Optional[float] = None
 
     # Exit Context (SELL)
@@ -310,6 +311,7 @@ class TradeLogger:
         signal_score: float = None,
         atr_pct: float = None,
         rsi: float = None,  # v4.9.9
+        momentum_5d: float = None,  # v4.9.9
         sector: str = None,
         signal_source: str = None,  # v4.9.9: "dip_bounce", "overnight_gap", "breakout"
         from_queue: bool = False,
@@ -360,6 +362,7 @@ class TradeLogger:
             signal_score=signal_score,
             atr_pct=atr_pct,
             rsi=rsi,  # v4.9.9
+            momentum_5d=momentum_5d,  # v4.9.9
             sector=sector,
             signal_source=signal_source,  # v4.9.9
             from_queue=from_queue,
@@ -441,6 +444,7 @@ class TradeLogger:
         mode: str = None,
         regime: str = None,
         rsi: float = None,
+        momentum_5d: float = None,
     ) -> TradeLogEntry:
         """Log a SELL trade"""
         entry = TradeLogEntry(
@@ -479,6 +483,7 @@ class TradeLogger:
             mode=mode,
             regime=regime,
             rsi=rsi,
+            momentum_5d=momentum_5d,
         )
 
         self._add_entry(entry)
