@@ -3859,7 +3859,7 @@ class AutoTradingEngine:
             'cash': account['cash'],
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v4.9.7 Fix BEAR+LOW_RISK mode',
+            'version': 'v4.9.8 Analytics SELL context fix',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
