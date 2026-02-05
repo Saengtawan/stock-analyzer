@@ -146,6 +146,19 @@ class TradeLogEntry:
     version: str = "v4.8"
     source: str = "AUTO"        # AUTO, MANUAL
     signal_source: Optional[str] = None  # v4.9.9: "dip_bounce", "overnight_gap", "breakout"
+    # v5.0: Earnings context (captured at SKIP time — irreplaceable after earnings)
+    earnings_date: Optional[str] = None           # Earnings announcement date
+    days_until_earnings: Optional[int] = None     # Days from skip to earnings
+    eps_estimate: Optional[float] = None          # Consensus EPS estimate
+    eps_estimate_high: Optional[float] = None     # Highest analyst EPS estimate
+    eps_estimate_low: Optional[float] = None      # Lowest analyst EPS estimate
+    revenue_estimate: Optional[float] = None      # Consensus revenue estimate
+    analyst_recommendation: Optional[float] = None # 1.0=Strong Buy to 5.0=Sell
+    analyst_count: Optional[int] = None           # Number of analysts covering
+    target_mean_price: Optional[float] = None     # Mean analyst price target
+    earnings_quarterly_growth: Optional[float] = None  # YoY quarterly earnings growth
+    revenue_growth: Optional[float] = None        # Revenue growth rate
+    short_percent_of_float: Optional[float] = None     # Short interest %
     note: str = ""
 
 
@@ -508,6 +521,19 @@ class TradeLogger:
         rsi: float = None,
         momentum_5d: float = None,
         mode: str = None,
+        # v5.0: Earnings context (EARNINGS_REJECT only)
+        earnings_date: str = None,
+        days_until_earnings: int = None,
+        eps_estimate: float = None,
+        eps_estimate_high: float = None,
+        eps_estimate_low: float = None,
+        revenue_estimate: float = None,
+        analyst_recommendation: float = None,
+        analyst_count: int = None,
+        target_mean_price: float = None,
+        earnings_quarterly_growth: float = None,
+        revenue_growth: float = None,
+        short_percent_of_float: float = None,
         note: str = ""
     ) -> TradeLogEntry:
         """Log a SKIP (rejected signal)"""
@@ -531,6 +557,19 @@ class TradeLogger:
             rsi=rsi,
             momentum_5d=momentum_5d,
             mode=mode,
+            # v5.0: Earnings context
+            earnings_date=earnings_date,
+            days_until_earnings=days_until_earnings,
+            eps_estimate=eps_estimate,
+            eps_estimate_high=eps_estimate_high,
+            eps_estimate_low=eps_estimate_low,
+            revenue_estimate=revenue_estimate,
+            analyst_recommendation=analyst_recommendation,
+            analyst_count=analyst_count,
+            target_mean_price=target_mean_price,
+            earnings_quarterly_growth=earnings_quarterly_growth,
+            revenue_growth=revenue_growth,
+            short_percent_of_float=short_percent_of_float,
             note=note
         )
 

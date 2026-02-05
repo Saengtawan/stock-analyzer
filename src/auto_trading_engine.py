@@ -1404,17 +1404,34 @@ class AutoTradingEngine:
     # EARNINGS FILTER (v4.4 NEW!)
     # =========================================================================
 
-    def _check_earnings_filter(self, symbol: str) -> Tuple[bool, str]:
+    def _enrich_earnings_data(self, ticker, earnings_data: Dict):
+        """v5.0: Fetch analyst/fundamental data from ticker.info for earnings context"""
+        try:
+            info = ticker.info
+            if info:
+                earnings_data['analyst_recommendation'] = info.get('recommendationMean')
+                earnings_data['analyst_count'] = info.get('numberOfAnalystOpinions')
+                earnings_data['target_mean_price'] = info.get('targetMeanPrice')
+                earnings_data['earnings_quarterly_growth'] = info.get('earningsQuarterlyGrowth')
+                earnings_data['revenue_growth'] = info.get('revenueGrowth')
+                earnings_data['short_percent_of_float'] = info.get('shortPercentOfFloat')
+        except Exception as e:
+            logger.debug(f"Earnings enrichment error: {e}")
+
+    def _check_earnings_filter(self, symbol: str) -> Tuple[bool, str, Dict]:
         """
         Check if stock has earnings announcement coming soon
 
         ไม่ซื้อหุ้นที่มี earnings ใกล้ๆ เพราะเสี่ยง gap ±10-20%
 
         Returns:
-            (is_acceptable, reason)
+            (is_acceptable, reason, earnings_data)
+            earnings_data: dict with 12 fields for EARNINGS_REJECT logging
         """
+        earnings_data = {}
+
         if not self.EARNINGS_FILTER_ENABLED:
-            return True, "Earnings filter disabled"
+            return True, "Earnings filter disabled", earnings_data
 
         try:
             ticker = yf.Ticker(symbol)
@@ -1426,6 +1443,12 @@ class AutoTradingEngine:
                 if calendar is not None:
                     # Handle dict format (newer yfinance)
                     if isinstance(calendar, dict):
+                        # v5.0: Extract estimates from calendar (free — already fetched)
+                        earnings_data['eps_estimate'] = calendar.get('Earnings Average')
+                        earnings_data['eps_estimate_high'] = calendar.get('Earnings High')
+                        earnings_data['eps_estimate_low'] = calendar.get('Earnings Low')
+                        earnings_data['revenue_estimate'] = calendar.get('Revenue Average')
+
                         earnings_date = calendar.get('Earnings Date')
                         if earnings_date:
                             # Could be list of dates
@@ -1444,17 +1467,24 @@ class AutoTradingEngine:
                                 # earnings_date is now a date object
                                 days_until = (earnings_date - now.date()).days
 
+                                # v5.0: Store date/days in earnings_data
+                                earnings_data['earnings_date'] = earnings_date.strftime('%Y-%m-%d')
+                                earnings_data['days_until_earnings'] = days_until
+
                                 if 0 <= days_until <= self.EARNINGS_SKIP_DAYS_BEFORE:
                                     reason = f"EARNINGS in {days_until} days ({earnings_date.strftime('%Y-%m-%d')})"
                                     logger.warning(f"❌ {symbol}: {reason}")
-                                    return False, reason
+                                    # v5.0: Fetch extra info fields on REJECT only
+                                    self._enrich_earnings_data(ticker, earnings_data)
+                                    return False, reason, earnings_data
 
                                 if self.EARNINGS_SKIP_DAYS_AFTER > 0 and -self.EARNINGS_SKIP_DAYS_AFTER <= days_until < 0:
                                     reason = f"EARNINGS was {-days_until} days ago"
                                     logger.warning(f"❌ {symbol}: {reason}")
-                                    return False, reason
+                                    self._enrich_earnings_data(ticker, earnings_data)
+                                    return False, reason, earnings_data
 
-                                return True, f"Earnings OK ({days_until} days away)"
+                                return True, f"Earnings OK ({days_until} days away)", earnings_data
 
                     # Handle DataFrame format (older yfinance)
                     elif hasattr(calendar, 'empty') and not calendar.empty:
@@ -1467,12 +1497,16 @@ class AutoTradingEngine:
                                     earnings_date = pd.to_datetime(earnings_date)
                                 days_until = (earnings_date.date() - now.date()).days
 
+                                earnings_data['earnings_date'] = earnings_date.strftime('%Y-%m-%d')
+                                earnings_data['days_until_earnings'] = days_until
+
                                 if 0 <= days_until <= self.EARNINGS_SKIP_DAYS_BEFORE:
                                     reason = f"EARNINGS in {days_until} days ({earnings_date.strftime('%Y-%m-%d')})"
                                     logger.warning(f"❌ {symbol}: {reason}")
-                                    return False, reason
+                                    self._enrich_earnings_data(ticker, earnings_data)
+                                    return False, reason, earnings_data
 
-                                return True, f"Earnings OK ({days_until} days away)"
+                                return True, f"Earnings OK ({days_until} days away)", earnings_data
             except Exception as e:
                 logger.debug(f"{symbol}: Calendar method failed: {e}")
 
@@ -1486,27 +1520,37 @@ class AutoTradingEngine:
                         earnings_date = datetime.fromtimestamp(earnings_ts)
                         days_until = (earnings_date.date() - now.date()).days
 
+                        earnings_data['earnings_date'] = earnings_date.strftime('%Y-%m-%d')
+                        earnings_data['days_until_earnings'] = days_until
+
                         if 0 <= days_until <= self.EARNINGS_SKIP_DAYS_BEFORE:
                             reason = f"EARNINGS in {days_until} days ({earnings_date.strftime('%Y-%m-%d')})"
                             logger.warning(f"❌ {symbol}: {reason}")
-                            return False, reason
+                            # info already fetched — enrich directly
+                            earnings_data['analyst_recommendation'] = info.get('recommendationMean')
+                            earnings_data['analyst_count'] = info.get('numberOfAnalystOpinions')
+                            earnings_data['target_mean_price'] = info.get('targetMeanPrice')
+                            earnings_data['earnings_quarterly_growth'] = info.get('earningsQuarterlyGrowth')
+                            earnings_data['revenue_growth'] = info.get('revenueGrowth')
+                            earnings_data['short_percent_of_float'] = info.get('shortPercentOfFloat')
+                            return False, reason, earnings_data
 
-                        return True, f"Earnings OK ({days_until} days away)"
+                        return True, f"Earnings OK ({days_until} days away)", earnings_data
             except Exception as e:
                 logger.debug(f"{symbol}: Info method failed: {e}")
 
             # No earnings data found
             if self.EARNINGS_NO_DATA_ACTION == 'skip':
-                return False, "No earnings data - skipping (conservative)"
+                return False, "No earnings data - skipping (conservative)", earnings_data
             elif self.EARNINGS_NO_DATA_ACTION == 'warn':
                 logger.warning(f"⚠️ {symbol}: No earnings data available")
-                return True, "No earnings data (warned)"
+                return True, "No earnings data (warned)", earnings_data
             else:  # 'allow'
-                return True, "No earnings data (allowed)"
+                return True, "No earnings data (allowed)", earnings_data
 
         except Exception as e:
             logger.error(f"{symbol}: Earnings check failed: {e} — blocking (fail-closed)")
-            return False, f"Data unavailable: {e}"
+            return False, f"Data unavailable: {e}", earnings_data
 
     # =========================================================================
     # SECTOR DIVERSIFICATION (v4.7 NEW!)
@@ -2311,11 +2355,11 @@ class AutoTradingEngine:
                 return False
 
             # v4.4: Earnings Filter - ไม่ซื้อหุ้นที่มี earnings ใกล้ๆ
-            earnings_ok, earnings_reason = self._check_earnings_filter(symbol)
+            earnings_ok, earnings_reason, earnings_data = self._check_earnings_filter(symbol)
             if not earnings_ok:
                 logger.warning(f"❌ Earnings Filter REJECT {symbol}: {earnings_reason}")
                 self.daily_stats.earnings_rejected += 1
-                # Trade Log: Log SKIP (earnings)
+                # Trade Log: Log SKIP (earnings) with v5.0 earnings context
                 try:
                     self.trade_logger.log_skip(
                         symbol=symbol,
@@ -2330,6 +2374,7 @@ class AutoTradingEngine:
                         rsi=getattr(signal, 'rsi', None),
                         momentum_5d=getattr(signal, 'momentum_5d', None),
                         mode=mode,
+                        **earnings_data,
                     )
                 except Exception as log_err:
                     logger.warning(f"Trade log error: {log_err}")
