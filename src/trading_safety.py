@@ -519,13 +519,28 @@ class TradingSafetySystem:
 
         return report
 
-    def can_open_new_position(self) -> Tuple[bool, str]:
-        """Check if safe to open a new position"""
+    def can_open_new_position(self, mode: str = '') -> Tuple[bool, str]:
+        """Check if safe to open a new position
+
+        Args:
+            mode: Trading mode (e.g. 'BEAR+LOW_RISK', 'LOW_RISK', 'NORMAL').
+                  In LOW_RISK mode, PDT limit doesn't block buying because
+                  positions are held overnight (no same-day sell).
+        """
         # Run fresh health check
         report = self.run_health_check()
 
         if not report.can_trade:
-            return False, "; ".join(report.reasons)
+            # v5.2: In LOW_RISK mode, PDT limit should not block buying.
+            # LOW_RISK holds overnight → no day trade → PDT irrelevant for entry.
+            if 'LOW_RISK' in mode:
+                non_pdt_reasons = [r for r in report.reasons if 'PDT' not in r]
+                if non_pdt_reasons:
+                    return False, "; ".join(non_pdt_reasons)
+                # Only PDT reasons → allow in LOW_RISK
+                logger.info(f"🛡️ PDT limit active but LOW_RISK mode allows overnight entry")
+            else:
+                return False, "; ".join(report.reasons)
 
         # Check position count
         positions = self.trader.get_positions()

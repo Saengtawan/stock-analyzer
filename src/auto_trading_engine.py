@@ -2556,8 +2556,8 @@ class AutoTradingEngine:
             if 'LOW_RISK' in mode:
                 logger.info(f"🛡️ {symbol}: Using LOW RISK parameters")
 
-            # Safety check first
-            can_trade, reason = self.safety.can_open_new_position()
+            # Safety check first (v5.2: pass mode so LOW_RISK can bypass PDT block)
+            can_trade, reason = self.safety.can_open_new_position(mode=mode)
             if not can_trade:
                 logger.warning(f"Safety block: {reason}")
                 return False
