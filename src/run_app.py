@@ -599,7 +599,7 @@ class ServiceManager:
         print("   🔍 Screen:        http://localhost:5000/screen")
         print()
         print("=" * 60)
-        print("  RAPID TRADER v3.0 - FULLY INTEGRATED")
+        print("  RAPID TRADER v5.1.0 - FULLY INTEGRATED")
         print("=" * 60)
         print("   🤖 AI Universe: 680+ stocks (DeepSeek)")
         print("   📊 Market Regime: Bull/Bear/Sideways")

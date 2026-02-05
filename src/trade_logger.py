@@ -140,7 +140,7 @@ class TradeLogEntry:
 
     # Meta
     order_id: Optional[str] = None
-    version: str = "v4.8"
+    version: str = "v5.1.0"
     source: str = "AUTO"        # AUTO, MANUAL
     signal_source: Optional[str] = None  # v4.9.9: "dip_bounce", "overnight_gap", "breakout"
     # v5.0: Earnings context (captured at SKIP time — irreplaceable after earnings)

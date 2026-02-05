@@ -4206,7 +4206,7 @@ class AutoTradingEngine:
             'cash': account['cash'],
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v5.0.0',
+            'version': 'v5.1.0',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
