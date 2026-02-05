@@ -2633,10 +2633,31 @@ def api_rapid_portfolio():
         statuses_data, summary = _build_positions_from_engine()
         pdt_info = get_pdt_info()
 
+        # Include daily_stats and queue from engine
+        from dataclasses import asdict
+        engine = get_auto_trading_engine()
+        daily_stats = None
+        queue_data = []
+        if engine:
+            ds = getattr(engine, 'daily_stats', None)
+            daily_stats = asdict(ds) if ds else None
+            queue = getattr(engine, 'signal_queue', [])
+            queue_data = []
+            for q in queue:
+                age = (datetime.now() - q.queued_at).total_seconds() / 60
+                queue_data.append({
+                    'symbol': q.symbol,
+                    'signal_price': q.signal_price,
+                    'score': q.score,
+                    'age_minutes': round(age, 1),
+                })
+
         return jsonify({
             'summary': summary,
             'statuses': statuses_data,
             'pdt': pdt_info,
+            'daily_stats': daily_stats,
+            'queue': queue_data,
             'timestamp': datetime.now().isoformat()
         })
 
