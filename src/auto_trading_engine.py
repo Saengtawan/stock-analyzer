@@ -598,6 +598,7 @@ class AutoTradingEngine:
                     'atr_pct': pos.atr_pct,
                     'sector': pos.sector,
                     'trough_price': pos.trough_price,
+                    'source': pos.source,  # v4.9.5: Persist signal source
                 }
 
             data = {
@@ -796,6 +797,7 @@ class AutoTradingEngine:
                         atr_pct=saved.get('atr_pct', 0.0),
                         sector=saved.get('sector', ''),
                         trough_price=saved.get('trough_price', 0.0),
+                        source=saved.get('source', 'dip_bounce'),  # v4.9.5: Restore signal source
                     )
 
                     if saved:
@@ -2275,6 +2277,14 @@ class AutoTradingEngine:
 
             # v4.7: Sector Diversification - ไม่ซื้อหุ้น sector เดียวกันเกิน MAX_PER_SECTOR
             signal_sector = getattr(signal, 'sector', '') or ''
+            # v4.9.5: Detect signal source from sl_method
+            sl_method = getattr(signal, 'sl_method', '')
+            if 'overnight_gap' in sl_method:
+                signal_source = 'overnight_gap'
+            elif 'breakout' in sl_method:
+                signal_source = 'breakout'
+            else:
+                signal_source = 'dip_bounce'
             sector_ok, sector_reason = self._check_sector_filter(signal_sector)
             if not sector_ok:
                 logger.warning(f"❌ Sector Filter REJECT {symbol}: {sector_reason}")
@@ -2448,6 +2458,7 @@ class AutoTradingEngine:
                     atr_pct=atr_sl_tp['atr_pct'],
                     sector=signal_sector,
                     trough_price=entry_price,
+                    source=signal_source,  # v4.9.5: Track signal source (overnight_gap, breakout, dip_bounce)
                 )
                 self._save_positions_state()
 
