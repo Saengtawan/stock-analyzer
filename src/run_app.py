@@ -267,6 +267,44 @@ class ServiceManager:
                             blocked_sectors=blocked_sectors,
                             progress_callback=self._on_scan_progress
                         )
+                        bounce_count = len(signals)
+
+                        # v4.9.5: Also run Breakout + Overnight Gap scanners
+                        data_cache = self.rapid_screener.data_cache or {}
+                        sector_regime = self.rapid_screener.sector_regime if hasattr(self.rapid_screener, 'sector_regime') else None
+
+                        try:
+                            from screeners.breakout_scanner import BreakoutScanner
+                            breakout = BreakoutScanner()
+                            breakout_signals = breakout.scan(
+                                universe=data_cache,
+                                sector_regime=sector_regime,
+                                min_score=75,
+                            )
+                            if breakout_signals:
+                                signals.extend(breakout_signals)
+                                logger.info(f"Breakout: {len(breakout_signals)} signals")
+                        except Exception as e:
+                            logger.debug(f"Breakout scan error in UI: {e}")
+
+                        try:
+                            from screeners.overnight_gap_scanner import OvernightGapScanner
+                            overnight = OvernightGapScanner()
+                            overnight_signals = overnight.scan(
+                                universe=data_cache,
+                                sector_regime=sector_regime,
+                                min_score=70,
+                            )
+                            if overnight_signals:
+                                signals.extend(overnight_signals)
+                                logger.info(f"OvernightGap: {len(overnight_signals)} signals")
+                        except Exception as e:
+                            logger.debug(f"Overnight gap scan error in UI: {e}")
+
+                        # Sort all signals by score
+                        if len(signals) > bounce_count:
+                            signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
+
                         scan_duration = time.time() - scan_start
 
                         self.latest_rapid_signals = signals
@@ -276,11 +314,11 @@ class ServiceManager:
                         self._save_signals_cache(signals, scan_duration)
 
                         if signals:
-                            logger.info(f"Rapid Rotation: Found {len(signals)} signals ({scan_duration:.0f}s)")
+                            logger.info(f"All scanners: {len(signals)} signals (Bounce:{bounce_count} Breakout:{len(breakout_signals) if 'breakout_signals' in dir() else 0} OvernightGap:{len(overnight_signals) if 'overnight_signals' in dir() else 0}) ({scan_duration:.0f}s)")
                             top = signals[0]
                             logger.info(f"  Top pick: {top.symbol} @ ${top.entry_price:.2f} (Score: {top.score})")
                         else:
-                            logger.info(f"Rapid Rotation: No signals ({scan_duration:.0f}s)")
+                            logger.info(f"All scanners: No signals ({scan_duration:.0f}s)")
 
                         if not self.running:
                             break

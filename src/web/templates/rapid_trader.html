@@ -1939,8 +1939,9 @@ function loadSignals() {
                                 <h5 class="mb-0">
                                     <span class="badge bg-success me-2">#${idx + 1}</span>
                                     ${signal.symbol}
+                                    ${(signal.sl_method || '').includes('overnight_gap') ? '<span class="badge bg-warning text-dark ms-1" style="font-size:0.65em">ON Gap</span>' : (signal.sl_method || '').includes('breakout') ? '<span class="badge bg-info text-dark ms-1" style="font-size:0.65em">Breakout</span>' : '<span class="badge bg-secondary ms-1" style="font-size:0.65em">Bounce</span>'}
                                 </h5>
-                                <small class="text-muted">Score: ${signal.score}</small>
+                                <small class="text-muted">Score: ${signal.score}${signal.sector ? ' | ' + signal.sector : ''}</small>
                             </div>
                             <div class="price-tag">$${signal.entry_price.toFixed(2)}</div>
                         </div>
