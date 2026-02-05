@@ -372,7 +372,7 @@
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e67e22;">📊</div>
-                <div>ทุก sector ต้อง <strong>ETF return_20d &gt; +3%</strong> ถึงจะซื้อได้</div>
+                <div>Block: <strong>BEAR/STRONG BEAR</strong> sectors | Allow: <strong>BULL/SIDEWAYS</strong></div>
             </div>
             <div class="rule-item">
                 <div class="rule-icon" style="background: #e67e22;">⭐</div>
@@ -1692,7 +1692,7 @@ function loadSpyRegime() {
                             badge.textContent = 'BEAR MODE';
                             icon.textContent = '🐻';
                             const sectors = status.bear_allowed_sectors || [];
-                            text.textContent = 'Bear Mode - ' + sectors.length + ' sectors allowed (return > +3%)';
+                            text.textContent = 'Bear Mode - ' + sectors.length + ' sectors allowed (regime-based)';
                             if (bearSectorsEl && sectors.length > 0) {
                                 bearSectorsEl.style.display = 'block';
                                 bearSectorsListEl.textContent = sectors.join(', ');
