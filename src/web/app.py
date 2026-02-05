@@ -2628,55 +2628,9 @@ def api_rapid_signals():
 
 @app.route('/api/rapid/portfolio')
 def api_rapid_portfolio():
-    """Get rapid portfolio status with alerts"""
+    """Get rapid portfolio status with alerts — reads from engine positions"""
     try:
-        from rapid_portfolio_manager import RapidPortfolioManager
-
-        pm = RapidPortfolioManager()
-        statuses = pm.check_all_positions()
-        summary = pm.get_portfolio_summary()
-
-        # v4.6: Get extended hours prices in batch (Alpaca, no rate limit)
-        all_symbols = [s.symbol for s in statuses]
-        extended_prices = _get_extended_hours_prices(all_symbols)
-
-        # Convert to dict (include shares, SL, TP for real-time sync)
-        statuses_data = []
-        for s in statuses:
-            # Get shares from position
-            pos = pm.positions.get(s.symbol)
-            shares = pos.shares if pos else 0
-
-            pos_data = {
-                'symbol': s.symbol,
-                'entry_price': s.entry_price,
-                'current_price': s.current_price,
-                'pnl_pct': s.pnl_pct,
-                'pnl_usd': s.pnl_usd,
-                'days_held': s.days_held,
-                'signal': s.signal.value,
-                'reasons': s.reasons,
-                'action': s.action,
-                'new_candidates': s.new_candidates,
-                # v4.0: Extra fields for real-time sync
-                'shares': shares,
-                'stop_loss': s.current_sl,
-                'take_profit': s.current_tp,
-                'trailing_active': s.trailing_active,
-                'highest_price': s.highest_price,
-                # v4.6: Per-position ATR-based SL/TP info
-                'sl_pct': getattr(pos, 'sl_pct', 2.5) if pos else 2.5,
-                'tp_pct': getattr(pos, 'tp_pct', 5.0) if pos else 5.0,
-                'atr_pct': getattr(pos, 'atr_pct', 0.0) if pos else 0.0,
-            }
-
-            # v4.6: Add extended hours price (from batch Alpaca call)
-            premarket = extended_prices.get(s.symbol, {})
-            pos_data.update(premarket)
-
-            statuses_data.append(pos_data)
-
-        # Get PDT info
+        statuses_data, summary = _build_positions_from_engine()
         pdt_info = get_pdt_info()
 
         return jsonify({
@@ -3194,55 +3148,105 @@ def _get_extended_hours_prices(symbols: list) -> dict:
     return results
 
 
-def get_positions_data():
-    """Get current positions data for WebSocket - uses RapidPortfolioManager for consistency"""
+def _build_positions_from_engine():
+    """Build position data from engine's ManagedPosition + Alpaca live prices.
+
+    Returns (statuses_data, summary) or raises on error.
+    This is the single source of truth — used by both REST and WebSocket.
+    """
+    engine = get_auto_trading_engine()
+    if not engine or not engine.positions:
+        return [], {'positions': 0, 'total_pnl_usd': 0, 'total_pnl_pct': 0}
+
+    # Fetch live prices from Alpaca in one call
+    symbols = list(engine.positions.keys())
+    alpaca_prices = {}
     try:
-        from rapid_portfolio_manager import RapidPortfolioManager
-
-        pm = RapidPortfolioManager()
-        statuses = pm.check_all_positions()
-        summary = pm.get_portfolio_summary()
-
-        # v4.6: Get extended hours prices in batch (Alpaca, no rate limit)
-        all_symbols = [s.symbol for s in statuses]
-        extended_prices = _get_extended_hours_prices(all_symbols)
-
-        # Convert to dict (same format as REST API with extra fields for real-time sync)
-        statuses_data = []
-        for s in statuses:
-            # Get shares from position
-            pos = pm.positions.get(s.symbol)
-            shares = pos.shares if pos else 0
-
-            pos_data = {
-                'symbol': s.symbol,
-                'entry_price': s.entry_price,
-                'current_price': s.current_price,
-                'pnl_pct': s.pnl_pct,
-                'pnl_usd': s.pnl_usd,
-                'days_held': s.days_held,
-                'signal': s.signal.value,
-                'reasons': s.reasons,
-                'action': s.action,
-                'new_candidates': s.new_candidates,
-                # v4.0: Extra fields for real-time sync
-                'shares': shares,
-                'stop_loss': s.current_sl,
-                'take_profit': s.current_tp,
-                'trailing_active': s.trailing_active,
-                'highest_price': s.highest_price,
-                # v4.6: Per-position ATR-based SL/TP info
-                'sl_pct': getattr(pos, 'sl_pct', 2.5) if pos else 2.5,
-                'tp_pct': getattr(pos, 'tp_pct', 5.0) if pos else 5.0,
-                'atr_pct': getattr(pos, 'atr_pct', 0.0) if pos else 0.0,
+        for ap in engine.trader.get_positions():
+            alpaca_prices[ap.symbol] = {
+                'current_price': ap.current_price,
+                'unrealized_pl': ap.unrealized_pl,
+                'unrealized_plpc': ap.unrealized_plpc,
             }
+    except Exception as e:
+        logger.warning(f"Failed to fetch Alpaca prices: {e}")
 
-            # v4.6: Add extended hours price (from batch Alpaca call)
-            premarket = extended_prices.get(s.symbol, {})
-            pos_data.update(premarket)
+    # Extended hours prices
+    extended_prices = _get_extended_hours_prices(symbols)
 
-            statuses_data.append(pos_data)
+    statuses_data = []
+    total_pnl_usd = 0.0
 
+    for symbol, mp in engine.positions.items():
+        ap = alpaca_prices.get(symbol, {})
+        current_price = ap.get('current_price', mp.entry_price)
+        pnl_pct = ((current_price - mp.entry_price) / mp.entry_price) * 100
+        pnl_usd = (current_price - mp.entry_price) * mp.qty
+        total_pnl_usd += pnl_usd
+
+        # Days held
+        days_held = max(0, (datetime.now() - mp.entry_time).days)
+
+        # Determine signal type
+        if mp.tp_price > 0 and current_price >= mp.tp_price:
+            signal = 'TAKE_PROFIT'
+            action = f'Take profit target ${mp.tp_price:.2f} reached'
+        elif current_price <= mp.current_sl_price:
+            signal = 'CRITICAL'
+            action = f'Price at/below stop loss ${mp.current_sl_price:.2f}'
+        elif pnl_pct <= -2.0:
+            signal = 'WARNING'
+            action = f'Down {pnl_pct:.1f}% — monitor closely'
+        elif days_held >= 5:
+            signal = 'WARNING'
+            action = f'Held {days_held} days — consider exit'
+        elif pnl_pct >= 3.0:
+            signal = 'HOLD'
+            action = f'Profitable +{pnl_pct:.1f}% — trailing {"active" if mp.trailing_active else "pending"}'
+        else:
+            signal = 'HOLD'
+            action = 'Position within normal range'
+
+        pos_data = {
+            'symbol': symbol,
+            'entry_price': mp.entry_price,
+            'current_price': current_price,
+            'pnl_pct': round(pnl_pct, 2),
+            'pnl_usd': round(pnl_usd, 2),
+            'days_held': days_held,
+            'signal': signal,
+            'reasons': [],
+            'action': action,
+            'new_candidates': [],
+            'shares': mp.qty,
+            'stop_loss': mp.current_sl_price,
+            'take_profit': mp.tp_price,
+            'trailing_active': mp.trailing_active,
+            'highest_price': mp.peak_price,
+            'sl_pct': mp.sl_pct,
+            'tp_pct': mp.tp_pct,
+            'atr_pct': mp.atr_pct,
+        }
+
+        # Extended hours price
+        premarket = extended_prices.get(symbol, {})
+        pos_data.update(premarket)
+
+        statuses_data.append(pos_data)
+
+    summary = {
+        'positions': len(statuses_data),
+        'total_pnl_usd': round(total_pnl_usd, 2),
+        'total_pnl_pct': round(sum(s['pnl_pct'] for s in statuses_data) / max(len(statuses_data), 1), 2),
+    }
+
+    return statuses_data, summary
+
+
+def get_positions_data():
+    """Get current positions data for WebSocket — reads from engine"""
+    try:
+        statuses_data, summary = _build_positions_from_engine()
         return {'statuses': statuses_data, 'summary': summary}
     except Exception as e:
         logger.error(f"WebSocket positions error: {e}")

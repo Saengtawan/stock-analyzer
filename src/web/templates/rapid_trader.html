@@ -1343,10 +1343,12 @@ function refreshAll() {
         socket.emit('request_update');
     } else {
         loadSpyRegime();
-        loadAlerts();
         loadSignals();
         loadAutoStatus();
     }
+    // Always load portfolio/alerts regardless of WebSocket status
+    // (WebSocket doesn't cover PDT stats, queue, daily stats)
+    loadAlerts();
     loadTradeLogs();
     loadEngineConfig();
 }
@@ -1903,6 +1905,7 @@ function acknowledgeAllAlerts() {
 loadSystemAlerts();
 setInterval(loadSystemAlerts, 30000);
 setInterval(loadSignals, 15000);
+setInterval(loadAlerts, 15000);  // Portfolio + PDT stats + queue (not covered by WebSocket)
 
 // ============================================
 // Scan Progress (Socket.IO + polling)
