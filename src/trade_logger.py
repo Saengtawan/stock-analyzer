@@ -426,7 +426,11 @@ class TradeLogger:
         max_drawdown_pct: float = None,
         exit_efficiency: float = None,
         correlation_id: str = None,
-        note: str = ""
+        note: str = "",
+        # Entry context for analytics (v4.9.8)
+        signal_score: float = None,
+        sector: str = None,
+        atr_pct: float = None,
     ) -> TradeLogEntry:
         """Log a SELL trade"""
         entry = TradeLogEntry(
@@ -455,7 +459,11 @@ class TradeLogger:
             max_drawdown_pct=max_drawdown_pct,
             exit_efficiency=exit_efficiency,
             correlation_id=correlation_id,
-            note=note
+            note=note,
+            # Entry context for analytics
+            signal_score=signal_score,
+            sector=sector,
+            atr_pct=atr_pct,
         )
 
         self._add_entry(entry)

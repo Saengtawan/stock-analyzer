@@ -140,6 +140,8 @@ class ManagedPosition:
     trough_price: float = 0.0   # Lowest price during hold
     # v4.9.4: Signal source tracking
     source: str = "dip_bounce"   # "dip_bounce", "overnight_gap", "breakout"
+    # v4.9.8: Entry signal score for analytics (carry to SELL log)
+    signal_score: float = 0.0
 
 
 @dataclass
@@ -599,6 +601,7 @@ class AutoTradingEngine:
                     'sector': pos.sector,
                     'trough_price': pos.trough_price,
                     'source': pos.source,  # v4.9.5: Persist signal source
+                    'signal_score': pos.signal_score,  # v4.9.8: Persist for analytics
                 }
 
             data = {
@@ -798,6 +801,7 @@ class AutoTradingEngine:
                         sector=saved.get('sector', ''),
                         trough_price=saved.get('trough_price', 0.0),
                         source=saved.get('source', 'dip_bounce'),  # v4.9.5: Restore signal source
+                        signal_score=saved.get('signal_score', 0.0),  # v4.9.8: Restore for analytics
                     )
 
                     if saved:
@@ -2470,6 +2474,7 @@ class AutoTradingEngine:
                     sector=signal_sector,
                     trough_price=entry_price,
                     source=signal_source,  # v4.9.5: Track signal source (overnight_gap, breakout, dip_bounce)
+                    signal_score=signal_score,  # v4.9.8: Carry to SELL log for analytics
                 )
                 self._save_positions_state()
 
@@ -2819,6 +2824,10 @@ class AutoTradingEngine:
                         pnl_usd=pnl_usd, pnl_pct=pnl_pct, hold_duration=hold_duration,
                         day_held=days_held, sl_price=sl_price,
                         trail_active=managed_pos.trailing_active, peak_price=managed_pos.peak_price,
+                        # v4.9.8: Carry entry context to SELL for analytics
+                        signal_score=managed_pos.signal_score,
+                        sector=managed_pos.sector,
+                        atr_pct=managed_pos.atr_pct,
                     )
                 except Exception as log_err:
                     logger.warning(f"Trade log error for SL fill: {log_err}")
@@ -3148,6 +3157,10 @@ class AutoTradingEngine:
                     max_gain_pct=round(max_gain, 2),
                     max_drawdown_pct=round(max_dd, 2),
                     exit_efficiency=exit_eff,
+                    # v4.9.8: Carry entry context to SELL for analytics
+                    signal_score=managed_pos.signal_score,
+                    sector=managed_pos.sector,
+                    atr_pct=managed_pos.atr_pct,
                 )
             except Exception as log_err:
                 logger.warning(f"Trade log error: {log_err}")
