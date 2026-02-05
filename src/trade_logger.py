@@ -761,6 +761,11 @@ class TradeLogger:
                 'by_score': self._get_by_score(cursor, start_date),
                 'by_sector': self._get_by_sector(cursor, start_date),
                 'by_hold_days': self._get_by_hold_days(cursor, start_date),
+                'by_signal_source': self._get_by_signal_source(cursor, start_date),  # v4.9.9
+                'by_mode': self._get_by_mode(cursor, start_date),  # v4.9.9
+                'by_regime': self._get_by_regime(cursor, start_date),  # v4.9.9
+                'by_rsi': self._get_by_rsi(cursor, start_date),  # v4.9.9
+                'by_exit_reason': self._get_by_exit_reason(cursor, start_date),  # v4.9.9
                 'equity_curve': self._get_equity_curve(cursor, start_date),
                 'recent_trades': self._get_recent_trades(cursor, start_date, limit=50),
                 'period_days': days,
@@ -777,6 +782,11 @@ class TradeLogger:
                 'by_score': [],
                 'by_sector': [],
                 'by_hold_days': [],
+                'by_signal_source': [],
+                'by_mode': [],
+                'by_regime': [],
+                'by_rsi': [],
+                'by_exit_reason': [],
                 'equity_curve': [],
                 'recent_trades': [],
                 'period_days': days,
@@ -919,6 +929,173 @@ class TradeLogger:
             winners = row['winners'] or 0
             results.append({
                 'group': row['hold_group'],
+                'total': total,
+                'winners': winners,
+                'losers': total - winners,
+                'win_rate': round(winners / total * 100, 1) if total > 0 else 0,
+                'avg_pnl_pct': row['avg_pnl_pct'] or 0,
+                'total_pnl': row['total_pnl'] or 0,
+            })
+        return results
+
+    def _get_by_signal_source(self, cursor, start_date: str) -> list:
+        """Win rate by signal source type (v4.9.9)"""
+        cursor.execute("""
+            SELECT
+                COALESCE(json_extract(full_data, '$.signal_source'), 'unknown') as signal_source,
+                COUNT(*) as total,
+                SUM(CASE WHEN pnl_usd > 0 THEN 1 ELSE 0 END) as winners,
+                ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
+                ROUND(SUM(pnl_usd), 2) as total_pnl
+            FROM trades
+            WHERE date >= ? AND action = 'SELL'
+                AND json_extract(full_data, '$.signal_source') IS NOT NULL
+            GROUP BY signal_source
+            ORDER BY total DESC
+        """, (start_date,))
+
+        labels = {'dip_bounce': 'Bounce', 'overnight_gap': 'O/N Gap', 'breakout': 'Breakout'}
+        results = []
+        for row in cursor.fetchall():
+            total = row['total']
+            winners = row['winners'] or 0
+            results.append({
+                'source': labels.get(row['signal_source'], row['signal_source']),
+                'total': total,
+                'winners': winners,
+                'losers': total - winners,
+                'win_rate': round(winners / total * 100, 1) if total > 0 else 0,
+                'avg_pnl_pct': row['avg_pnl_pct'] or 0,
+                'total_pnl': row['total_pnl'] or 0,
+            })
+        return results
+
+    def _get_by_mode(self, cursor, start_date: str) -> list:
+        """Win rate by trading mode (v4.9.9)"""
+        cursor.execute("""
+            SELECT
+                COALESCE(mode, 'UNKNOWN') as trade_mode,
+                COUNT(*) as total,
+                SUM(CASE WHEN pnl_usd > 0 THEN 1 ELSE 0 END) as winners,
+                ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
+                ROUND(SUM(pnl_usd), 2) as total_pnl
+            FROM trades
+            WHERE date >= ? AND action = 'SELL' AND mode IS NOT NULL
+            GROUP BY trade_mode
+            ORDER BY total DESC
+        """, (start_date,))
+
+        results = []
+        for row in cursor.fetchall():
+            total = row['total']
+            winners = row['winners'] or 0
+            results.append({
+                'mode': row['trade_mode'],
+                'total': total,
+                'winners': winners,
+                'losers': total - winners,
+                'win_rate': round(winners / total * 100, 1) if total > 0 else 0,
+                'avg_pnl_pct': row['avg_pnl_pct'] or 0,
+                'total_pnl': row['total_pnl'] or 0,
+            })
+        return results
+
+    def _get_by_regime(self, cursor, start_date: str) -> list:
+        """Win rate by market regime at entry (v4.9.9)"""
+        cursor.execute("""
+            SELECT
+                COALESCE(regime, 'UNKNOWN') as trade_regime,
+                COUNT(*) as total,
+                SUM(CASE WHEN pnl_usd > 0 THEN 1 ELSE 0 END) as winners,
+                ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
+                ROUND(SUM(pnl_usd), 2) as total_pnl
+            FROM trades
+            WHERE date >= ? AND action = 'SELL' AND regime IS NOT NULL
+            GROUP BY trade_regime
+            ORDER BY total DESC
+        """, (start_date,))
+
+        results = []
+        for row in cursor.fetchall():
+            total = row['total']
+            winners = row['winners'] or 0
+            results.append({
+                'regime': row['trade_regime'],
+                'total': total,
+                'winners': winners,
+                'losers': total - winners,
+                'win_rate': round(winners / total * 100, 1) if total > 0 else 0,
+                'avg_pnl_pct': row['avg_pnl_pct'] or 0,
+                'total_pnl': row['total_pnl'] or 0,
+            })
+        return results
+
+    def _get_by_rsi(self, cursor, start_date: str) -> list:
+        """Win rate by RSI range at entry (v4.9.9)"""
+        cursor.execute("""
+            SELECT
+                CASE
+                    WHEN json_extract(full_data, '$.rsi') < 30 THEN 'RSI <30'
+                    WHEN json_extract(full_data, '$.rsi') < 40 THEN 'RSI 30-39'
+                    WHEN json_extract(full_data, '$.rsi') < 50 THEN 'RSI 40-49'
+                    WHEN json_extract(full_data, '$.rsi') < 60 THEN 'RSI 50-59'
+                    ELSE 'RSI 60+'
+                END as rsi_range,
+                COUNT(*) as total,
+                SUM(CASE WHEN pnl_usd > 0 THEN 1 ELSE 0 END) as winners,
+                ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
+                ROUND(SUM(pnl_usd), 2) as total_pnl
+            FROM trades
+            WHERE date >= ? AND action = 'SELL'
+                AND json_extract(full_data, '$.rsi') IS NOT NULL
+                AND json_extract(full_data, '$.rsi') > 0
+            GROUP BY rsi_range
+            ORDER BY MIN(json_extract(full_data, '$.rsi'))
+        """, (start_date,))
+
+        results = []
+        for row in cursor.fetchall():
+            total = row['total']
+            winners = row['winners'] or 0
+            results.append({
+                'range': row['rsi_range'],
+                'total': total,
+                'winners': winners,
+                'losers': total - winners,
+                'win_rate': round(winners / total * 100, 1) if total > 0 else 0,
+                'avg_pnl_pct': row['avg_pnl_pct'] or 0,
+                'total_pnl': row['total_pnl'] or 0,
+            })
+        return results
+
+    def _get_by_exit_reason(self, cursor, start_date: str) -> list:
+        """Win rate by exit reason (v4.9.9)"""
+        cursor.execute("""
+            SELECT
+                CASE
+                    WHEN reason LIKE '%SL%' THEN 'Stop Loss'
+                    WHEN reason LIKE '%TAKE_PROFIT%' OR reason LIKE '%TP%' THEN 'Take Profit'
+                    WHEN reason LIKE '%TRAIL%' THEN 'Trailing Stop'
+                    WHEN reason LIKE '%TIME%' OR reason LIKE '%MAX_HOLD%' THEN 'Time Exit'
+                    WHEN reason LIKE '%EARNINGS%' THEN 'Earnings'
+                    ELSE reason
+                END as exit_type,
+                COUNT(*) as total,
+                SUM(CASE WHEN pnl_usd > 0 THEN 1 ELSE 0 END) as winners,
+                ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
+                ROUND(SUM(pnl_usd), 2) as total_pnl
+            FROM trades
+            WHERE date >= ? AND action = 'SELL'
+            GROUP BY exit_type
+            ORDER BY total DESC
+        """, (start_date,))
+
+        results = []
+        for row in cursor.fetchall():
+            total = row['total']
+            winners = row['winners'] or 0
+            results.append({
+                'reason': row['exit_type'],
                 'total': total,
                 'winners': winners,
                 'losers': total - winners,

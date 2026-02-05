@@ -140,6 +140,59 @@
     </div>
 </div>
 
+<!-- Breakdowns Row 2: Signal Source / Mode+Regime / RSI -->
+<div class="row mb-4">
+    <!-- By Signal Source -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-bolt me-2"></i>By Signal Type</div>
+            <div class="card-body p-0">
+                <table class="table table-sm breakdown-table mb-0" id="sourceTable">
+                    <thead><tr><th>Type</th><th>Trades</th><th>Win Rate</th><th>P&L</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <div class="empty-state py-4" id="sourceEmpty" style="display:none;"><small>No data</small></div>
+            </div>
+        </div>
+    </div>
+    <!-- By Mode + Regime -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-shield-alt me-2"></i>By Mode / Regime</div>
+            <div class="card-body p-0">
+                <table class="table table-sm breakdown-table mb-0" id="modeTable">
+                    <thead><tr><th>Mode</th><th>Trades</th><th>Win Rate</th><th>P&L</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <hr class="my-0">
+                <table class="table table-sm breakdown-table mb-0" id="regimeTable">
+                    <thead><tr><th>Regime</th><th>Trades</th><th>Win Rate</th><th>P&L</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <div class="empty-state py-4" id="modeEmpty" style="display:none;"><small>No data</small></div>
+            </div>
+        </div>
+    </div>
+    <!-- By RSI + Exit Reason -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-sign-out-alt me-2"></i>By RSI / Exit Reason</div>
+            <div class="card-body p-0">
+                <table class="table table-sm breakdown-table mb-0" id="rsiTable">
+                    <thead><tr><th>RSI</th><th>Trades</th><th>Win Rate</th><th>Avg P&L</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <hr class="my-0">
+                <table class="table table-sm breakdown-table mb-0" id="exitTable">
+                    <thead><tr><th>Exit</th><th>Trades</th><th>Win Rate</th><th>Avg P&L</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <div class="empty-state py-4" id="rsiEmpty" style="display:none;"><small>No data</small></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Trade History -->
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
@@ -204,6 +257,9 @@ function loadAnalytics(days) {
             updateBreakdown('scoreTable', 'scoreEmpty', data.by_score, 'range');
             updateBreakdown('sectorTable', 'sectorEmpty', data.by_sector, 'sector');
             updateBreakdown('holdTable', 'holdEmpty', data.by_hold_days, 'group');
+            updateBreakdown('sourceTable', 'sourceEmpty', data.by_signal_source, 'source');
+            updateModeRegime(data.by_mode, data.by_regime);
+            updateRsiExit(data.by_rsi, data.by_exit_reason);
             allTrades = data.recent_trades || [];
             filterTrades(currentFilter);
         })
@@ -368,7 +424,73 @@ function filterTrades(filter) {
     tbody.innerHTML = html;
 }
 
+function updateModeRegime(modeData, regimeData) {
+    const modeEmpty = document.getElementById('modeEmpty');
+    const hasData = (modeData && modeData.length) || (regimeData && regimeData.length);
+    modeEmpty.style.display = hasData ? 'none' : 'block';
+
+    const modeTbody = document.querySelector('#modeTable tbody');
+    const regimeTbody = document.querySelector('#regimeTable tbody');
+    modeTbody.innerHTML = '';
+    regimeTbody.innerHTML = '';
+
+    if (modeData && modeData.length) {
+        modeData.forEach(row => {
+            modeTbody.innerHTML += breakdownRow(row.mode, row);
+        });
+    }
+    if (regimeData && regimeData.length) {
+        regimeData.forEach(row => {
+            regimeTbody.innerHTML += breakdownRow(row.regime, row);
+        });
+    }
+}
+
+function updateRsiExit(rsiData, exitData) {
+    const rsiEmpty = document.getElementById('rsiEmpty');
+    const hasData = (rsiData && rsiData.length) || (exitData && exitData.length);
+    rsiEmpty.style.display = hasData ? 'none' : 'block';
+
+    const rsiTbody = document.querySelector('#rsiTable tbody');
+    const exitTbody = document.querySelector('#exitTable tbody');
+    rsiTbody.innerHTML = '';
+    exitTbody.innerHTML = '';
+
+    if (rsiData && rsiData.length) {
+        rsiData.forEach(row => {
+            rsiTbody.innerHTML += breakdownRow(row.range, row);
+        });
+    }
+    if (exitData && exitData.length) {
+        exitData.forEach(row => {
+            exitTbody.innerHTML += breakdownRow(row.reason, row);
+        });
+    }
+}
+
+function breakdownRow(name, row) {
+    const wrColor = row.win_rate >= 55 ? '#27ae60' : row.win_rate >= 45 ? '#f39c12' : '#e74c3c';
+    const pnlVal = row.avg_pnl_pct != null ? `${row.avg_pnl_pct.toFixed(1)}%` : `$${(row.total_pnl || 0).toFixed(0)}`;
+    const pnlColor = (row.avg_pnl_pct || row.total_pnl || 0) >= 0 ? '#27ae60' : '#e74c3c';
+    return `<tr>
+        <td><strong>${name}</strong></td>
+        <td>${row.total} <small class="text-muted">(${row.winners}W/${row.losers}L)</small></td>
+        <td>
+            <span style="color:${wrColor};font-weight:bold">${row.win_rate}%</span>
+            <div class="wr-bar"><div class="wr-bar-fill" style="width:${row.win_rate}%;background:${wrColor}"></div></div>
+        </td>
+        <td style="color:${pnlColor}">${pnlVal}</td>
+    </tr>`;
+}
+
 // Initial load
 loadAnalytics(30);
+
+// Auto-refresh every 60 seconds
+let _currentDays = 30;
+document.querySelectorAll('.period-btn').forEach(b => {
+    b.addEventListener('click', () => { _currentDays = parseInt(b.dataset.days); });
+});
+setInterval(() => loadAnalytics(_currentDays), 60000);
 </script>
 {% endblock %}
