@@ -326,7 +326,7 @@ class AutoTradingEngine:
     LOW_RISK_MIN_SCORE = 90         # v4.9.7: 98→90 (6 other filters handle risk; 98 blocked breakouts entirely)
     LOW_RISK_POSITION_SIZE_PCT = 20 # % - เล็กลง (ปกติ 30%) = ~$800
     LOW_RISK_MAX_ATR_PCT = 4.0      # % - หุ้นไม่ผันผวนมาก
-    EARNINGS_NO_DATA_ACTION = 'warn'  # 'allow', 'skip', 'warn'
+    EARNINGS_NO_DATA_ACTION = 'skip'  # 'allow', 'skip', 'warn' — v5.0: fail conservative
 
     # Late Start Protection (v4.4 NEW!)
     # ถ้าเริ่มหลัง market open ไปนาน → skip scan (ราคาอาจขึ้นไปแล้ว)
@@ -2702,8 +2702,8 @@ class AutoTradingEngine:
                         elif not isinstance(earnings_date, date_type):
                             earnings_date = pd.to_datetime(earnings_date).date()
                         days_until = (earnings_date - today).days
-            # Success: cache until end of day (6 hours)
-            cache_ttl = 21600
+            # Success: cache 30 min (v5.0: reduced from 6h for faster rescheduled earnings detection)
+            cache_ttl = 1800
         except Exception as e:
             logger.debug(f"Earnings lookup error for {symbol}: {e}")
 
@@ -3395,7 +3395,13 @@ class AutoTradingEngine:
                             logger.warning(f"EARNINGS AUTO-SELL (pre-close): {symbol} — earnings in {days_until} day(s)")
                             self._close_position(symbol, managed_pos, "EARNINGS_AUTO_SELL")
                         else:
-                            logger.warning(f"EARNINGS: {symbol} Day 0, cannot sell (PDT) — place tight SL instead")
+                            # v5.0: Day 0 — use PDT budget if available to avoid earnings overnight risk
+                            pdt_status = self.pdt_guard.get_pdt_status()
+                            if pdt_status.remaining >= 1:
+                                logger.warning(f"EARNINGS DAY0-SELL (pre-close): {symbol} — earnings in {days_until} day(s), using PDT budget ({pdt_status.remaining} remaining)")
+                                self._close_position(symbol, managed_pos, "EARNINGS_DAY0_SELL", force=True)
+                            else:
+                                logger.warning(f"EARNINGS: {symbol} Day 0, PDT budget=0 — hold for EARNINGS_AUTO_SELL on Day 1+")
                 except Exception as e:
                     logger.debug(f"Earnings auto-sell check error for {symbol}: {e}")
 
