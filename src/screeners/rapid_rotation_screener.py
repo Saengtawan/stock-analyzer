@@ -826,7 +826,9 @@ class RapidRotationScreener:
 
         current_price = close.iloc[idx]
 
-        # Skip penny stocks and very expensive stocks
+        # Skip penny stocks (< $1), low-priced stocks (< $10), and very expensive stocks
+        if current_price < 1:
+            return None
         if current_price < 10 or current_price > 2000:
             return None
 

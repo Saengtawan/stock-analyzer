@@ -16,12 +16,14 @@ Version: 1.0
 """
 
 import atexit
+import glob
 import os
 import json
 import queue
 import sqlite3
 import tempfile
 import threading
+import time
 import uuid
 from datetime import datetime, date, timedelta
 from dataclasses import dataclass, asdict, field
@@ -212,7 +214,32 @@ class TradeLogger:
         # Flush pending log entries on shutdown
         atexit.register(self.flush)
 
+        # v5.1: Clean up old log files on startup
+        self._cleanup_old_logs(max_age_days=30)
+
         logger.info(f"TradeLogger initialized - logs: {self.log_dir}, db: {self.db_path}")
+
+    def _cleanup_old_logs(self, max_age_days: int = 30):
+        """Delete JSON log files older than max_age_days (v5.1 log rotation)."""
+        try:
+            cutoff = datetime.now() - timedelta(days=max_age_days)
+            pattern = os.path.join(self.log_dir, "rapid_trade_log_*.json")
+            removed = 0
+            for filepath in glob.glob(pattern):
+                try:
+                    # Extract date from filename: rapid_trade_log_YYYY-MM-DD.json
+                    basename = os.path.basename(filepath)
+                    date_str = basename.replace("rapid_trade_log_", "").replace(".json", "")
+                    file_date = datetime.strptime(date_str, "%Y-%m-%d")
+                    if file_date < cutoff:
+                        os.remove(filepath)
+                        removed += 1
+                except (ValueError, OSError):
+                    continue
+            if removed:
+                logger.info(f"Log rotation: removed {removed} log files older than {max_age_days} days")
+        except Exception as e:
+            logger.warning(f"Log rotation error: {e}")
 
     def _init_db(self):
         """Initialize SQLite database"""
@@ -631,15 +658,29 @@ class TradeLogger:
             try:
                 entry = self._log_queue.get(timeout=5)
                 try:
-                    self._archive_to_db(entry)
+                    self._archive_to_db_with_retry(entry)
                 except Exception as e:
-                    logger.error(f"Async DB archive error: {e}")
+                    logger.error(f"Async DB archive error (all retries failed): {e}")
                 finally:
                     self._log_queue.task_done()
             except queue.Empty:
                 continue
             except Exception as e:
                 logger.error(f"Log worker error: {e}")
+
+    def _archive_to_db_with_retry(self, entry, max_retries: int = 3):
+        """Archive entry to DB with retry on failure (v5.1)."""
+        for attempt in range(max_retries):
+            try:
+                self._archive_to_db(entry)
+                return  # Success
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    delay = 2 ** attempt  # 1s, 2s, 4s
+                    logger.warning(f"DB archive retry {attempt + 1}/{max_retries} for {entry.id}: {e}")
+                    time.sleep(delay)
+                else:
+                    raise  # Re-raise on final attempt
 
     def flush(self):
         """Flush pending log entries (blocks until queue empty)"""

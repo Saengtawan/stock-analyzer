@@ -146,6 +146,12 @@ class AlpacaTrader:
         if paper:
             self.base_url = base_url or 'https://paper-api.alpaca.markets'
         else:
+            # Safety: require TRADING_MODE=LIVE env var for live trading
+            if os.environ.get('TRADING_MODE') != 'LIVE':
+                raise RuntimeError(
+                    "LIVE trading requires TRADING_MODE=LIVE environment variable. "
+                    "Set it explicitly to confirm live trading intent."
+                )
             self.base_url = base_url or 'https://api.alpaca.markets'
 
         if not self.api_key or not self.secret_key:

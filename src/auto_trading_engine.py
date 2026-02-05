@@ -2503,6 +2503,29 @@ class AutoTradingEngine:
     # EXECUTION
     # =========================================================================
 
+    def _log_filter_rejection(self, symbol, price, reason, skip_detail, filters,
+                                signal_score, signal_sector, signal_source, signal, mode,
+                                gap_pct=None, **extra_kwargs):
+        """Helper to log filter rejections (DRY: shared by all filter SKIP paths)."""
+        try:
+            self.trade_logger.log_skip(
+                symbol=symbol,
+                price=price,
+                reason=reason,
+                skip_detail=skip_detail,
+                filters=filters,
+                signal_score=signal_score,
+                gap_pct=gap_pct,
+                sector=signal_sector, signal_source=signal_source,
+                atr_pct=getattr(signal, 'atr_pct', None),
+                entry_rsi=getattr(signal, 'rsi', None),
+                momentum_5d=getattr(signal, 'momentum_5d', None),
+                mode=mode,
+                **extra_kwargs,
+            )
+        except Exception as log_err:
+            logger.warning(f"Trade log error: {log_err}")
+
     def execute_signal(self, signal) -> bool:
         """
         Execute a trading signal
@@ -2587,24 +2610,13 @@ class AutoTradingEngine:
             # v4.5: Check score against effective min_score
             if signal_score < params['min_score']:
                 logger.warning(f"❌ Score Filter REJECT {symbol}: {signal_score} < {params['min_score']} (mode: {mode})")
-                # Trade Log: Log SKIP (score)
-                try:
-                    current_price = getattr(signal, 'entry_price', None) or getattr(signal, 'close', 0)
-                    self.trade_logger.log_skip(
-                        symbol=symbol,
-                        price=current_price,
-                        reason="SCORE_REJECT",
-                        skip_detail=f"Score {signal_score} < {params['min_score']} ({mode})",
-                        filters={"score": {"passed": False, "detail": f"{signal_score} < {params['min_score']}"}},
-                        signal_score=signal_score,
-                        sector=signal_sector, signal_source=signal_source,
-                        atr_pct=getattr(signal, 'atr_pct', None),
-                        entry_rsi=getattr(signal, 'rsi', None),
-                        momentum_5d=getattr(signal, 'momentum_5d', None),
-                        mode=mode,
-                    )
-                except Exception as log_err:
-                    logger.warning(f"Trade log error: {log_err}")
+                current_price = getattr(signal, 'entry_price', None) or getattr(signal, 'close', 0)
+                self._log_filter_rejection(
+                    symbol, current_price, "SCORE_REJECT",
+                    f"Score {signal_score} < {params['min_score']} ({mode})",
+                    {"score": {"passed": False, "detail": f"{signal_score} < {params['min_score']}"}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
                 return False
 
             # --- BLOCK 3: Position sizing ---
@@ -2641,23 +2653,12 @@ class AutoTradingEngine:
                 signal_atr = getattr(signal, 'atr_pct', None)
                 if signal_atr and signal_atr > params['max_atr_pct']:
                     logger.warning(f"❌ ATR Filter REJECT {symbol}: ATR {signal_atr:.1f}% > {params['max_atr_pct']}% (LOW RISK)")
-                    # Trade Log: Log SKIP (ATR)
-                    try:
-                        self.trade_logger.log_skip(
-                            symbol=symbol,
-                            price=current_price,
-                            reason="ATR_REJECT",
-                            skip_detail=f"ATR {signal_atr:.1f}% > {params['max_atr_pct']}% (LOW RISK)",
-                            filters={"atr": {"passed": False, "detail": f"{signal_atr:.1f}% > {params['max_atr_pct']}%"}},
-                            signal_score=signal_score,
-                            sector=signal_sector, signal_source=signal_source,
-                            atr_pct=signal_atr,
-                            entry_rsi=getattr(signal, 'rsi', None),
-                            momentum_5d=getattr(signal, 'momentum_5d', None),
-                            mode=mode,
-                        )
-                    except Exception as log_err:
-                        logger.warning(f"Trade log error: {log_err}")
+                    self._log_filter_rejection(
+                        symbol, current_price, "ATR_REJECT",
+                        f"ATR {signal_atr:.1f}% > {params['max_atr_pct']}% (LOW RISK)",
+                        {"atr": {"passed": False, "detail": f"{signal_atr:.1f}% > {params['max_atr_pct']}%"}},
+                        signal_score, signal_sector, signal_source, signal, mode,
+                    )
                     return False
 
             # --- BLOCK 4: Pre-trade filters (gap, earnings, sector) ---
@@ -2667,24 +2668,12 @@ class AutoTradingEngine:
             if not gap_ok:
                 logger.warning(f"❌ Gap Filter REJECT {symbol}: {gap_reason}")
                 self.daily_stats.gap_rejected += 1
-                # Trade Log: Log SKIP (gap)
-                try:
-                    self.trade_logger.log_skip(
-                        symbol=symbol,
-                        price=current_price,
-                        reason="GAP_REJECT",
-                        skip_detail=gap_reason,
-                        filters={"gap": {"passed": False, "detail": gap_reason}},
-                        signal_score=signal_score,
-                        gap_pct=gap_pct,
-                        sector=signal_sector, signal_source=signal_source,
-                        atr_pct=getattr(signal, 'atr_pct', None),
-                        entry_rsi=getattr(signal, 'rsi', None),
-                        momentum_5d=getattr(signal, 'momentum_5d', None),
-                        mode=mode,
-                    )
-                except Exception as log_err:
-                    logger.warning(f"Trade log error: {log_err}")
+                self._log_filter_rejection(
+                    symbol, current_price, "GAP_REJECT", gap_reason,
+                    {"gap": {"passed": False, "detail": gap_reason}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                    gap_pct=gap_pct,
+                )
                 return False
 
             # v4.4: Earnings Filter - ไม่ซื้อหุ้นที่มี earnings ใกล้ๆ
@@ -2692,25 +2681,12 @@ class AutoTradingEngine:
             if not earnings_ok:
                 logger.warning(f"❌ Earnings Filter REJECT {symbol}: {earnings_reason}")
                 self.daily_stats.earnings_rejected += 1
-                # Trade Log: Log SKIP (earnings) with v5.0 earnings context
-                try:
-                    self.trade_logger.log_skip(
-                        symbol=symbol,
-                        price=current_price,
-                        reason="EARNINGS_REJECT",
-                        skip_detail=earnings_reason,
-                        filters={"earnings": {"passed": False, "detail": earnings_reason}},
-                        signal_score=signal_score,
-                        gap_pct=gap_pct,
-                        sector=signal_sector, signal_source=signal_source,
-                        atr_pct=getattr(signal, 'atr_pct', None),
-                        entry_rsi=getattr(signal, 'rsi', None),
-                        momentum_5d=getattr(signal, 'momentum_5d', None),
-                        mode=mode,
-                        **earnings_data,
-                    )
-                except Exception as log_err:
-                    logger.warning(f"Trade log error: {log_err}")
+                self._log_filter_rejection(
+                    symbol, current_price, "EARNINGS_REJECT", earnings_reason,
+                    {"earnings": {"passed": False, "detail": earnings_reason}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                    gap_pct=gap_pct, **earnings_data,
+                )
                 return False
 
             # v4.7: Sector Diversification - ไม่ซื้อหุ้น sector เดียวกันเกิน MAX_PER_SECTOR
@@ -2719,22 +2695,11 @@ class AutoTradingEngine:
             if not sector_ok:
                 logger.warning(f"❌ Sector Filter REJECT {symbol}: {sector_reason}")
                 self.daily_stats.sector_rejected += 1
-                try:
-                    self.trade_logger.log_skip(
-                        symbol=symbol,
-                        price=current_price,
-                        reason="SECTOR_REJECT",
-                        skip_detail=sector_reason,
-                        filters={"sector": {"passed": False, "detail": sector_reason}},
-                        signal_score=signal_score,
-                        sector=signal_sector, signal_source=signal_source,
-                        atr_pct=getattr(signal, 'atr_pct', None),
-                        entry_rsi=getattr(signal, 'rsi', None),
-                        momentum_5d=getattr(signal, 'momentum_5d', None),
-                        mode=mode,
-                    )
-                except Exception as log_err:
-                    logger.warning(f"Trade log error: {log_err}")
+                self._log_filter_rejection(
+                    symbol, current_price, "SECTOR_REJECT", sector_reason,
+                    {"sector": {"passed": False, "detail": sector_reason}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
                 return False
 
             # v4.7: Sector Cooldown - sector แพ้ติดกัน → cooldown
@@ -2742,22 +2707,11 @@ class AutoTradingEngine:
             if not sector_cd_ok:
                 logger.warning(f"🧊 Sector Cooldown REJECT {symbol}: {sector_cd_reason}")
                 self.daily_stats.sector_rejected += 1
-                try:
-                    self.trade_logger.log_skip(
-                        symbol=symbol,
-                        price=current_price,
-                        reason="SECTOR_COOLDOWN",
-                        skip_detail=sector_cd_reason,
-                        filters={"sector_cooldown": {"passed": False, "detail": sector_cd_reason}},
-                        signal_score=signal_score,
-                        sector=signal_sector, signal_source=signal_source,
-                        atr_pct=getattr(signal, 'atr_pct', None),
-                        entry_rsi=getattr(signal, 'rsi', None),
-                        momentum_5d=getattr(signal, 'momentum_5d', None),
-                        mode=mode,
-                    )
-                except Exception as log_err:
-                    logger.warning(f"Trade log error: {log_err}")
+                self._log_filter_rejection(
+                    symbol, current_price, "SECTOR_COOLDOWN", sector_cd_reason,
+                    {"sector_cooldown": {"passed": False, "detail": sector_cd_reason}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
                 return False
 
             # v4.9.2: Bear mode sector safety net (defense-in-depth)
@@ -2766,22 +2720,12 @@ class AutoTradingEngine:
             if allowed_sectors:
                 if signal_sector and signal_sector not in allowed_sectors:
                     logger.warning(f"❌ BEAR Sector Filter REJECT {symbol}: sector '{signal_sector}' not in {allowed_sectors}")
-                    try:
-                        self.trade_logger.log_skip(
-                            symbol=symbol,
-                            price=current_price,
-                            reason="BEAR_SECTOR_REJECT",
-                            skip_detail=f"Sector '{signal_sector}' not allowed in BEAR mode",
-                            filters={"bear_sector": {"passed": False, "detail": f"'{signal_sector}' not in {allowed_sectors}"}},
-                            signal_score=signal_score,
-                            sector=signal_sector, signal_source=signal_source,
-                            atr_pct=getattr(signal, 'atr_pct', None),
-                            entry_rsi=getattr(signal, 'rsi', None),
-                            momentum_5d=getattr(signal, 'momentum_5d', None),
-                            mode=mode,
-                        )
-                    except Exception as log_err:
-                        logger.warning(f"Trade log error: {log_err}")
+                    self._log_filter_rejection(
+                        symbol, current_price, "BEAR_SECTOR_REJECT",
+                        f"Sector '{signal_sector}' not allowed in BEAR mode",
+                        {"bear_sector": {"passed": False, "detail": f"'{signal_sector}' not in {allowed_sectors}"}},
+                        signal_score, signal_sector, signal_source, signal, mode,
+                    )
                     return False
 
             # v4.9.3: BULL sector filter — block sectors with ETF return_20d < threshold
@@ -2789,22 +2733,12 @@ class AutoTradingEngine:
             if blocked_sectors and signal_sector and signal_sector in blocked_sectors:
                 logger.warning(f"⛔ BULL Sector Filter REJECT {symbol}: sector '{signal_sector}' ETF declining (return_20d < {self.BULL_SECTOR_MIN_RETURN}%)")
                 self.daily_stats.sector_rejected += 1
-                try:
-                    self.trade_logger.log_skip(
-                        symbol=symbol,
-                        price=current_price,
-                        reason="BULL_SECTOR_REJECT",
-                        skip_detail=f"Sector '{signal_sector}' ETF declining",
-                        filters={"bull_sector": {"passed": False, "detail": f"'{signal_sector}' in blocked {blocked_sectors}"}},
-                        signal_score=signal_score,
-                        sector=signal_sector, signal_source=signal_source,
-                        atr_pct=getattr(signal, 'atr_pct', None),
-                        entry_rsi=getattr(signal, 'rsi', None),
-                        momentum_5d=getattr(signal, 'momentum_5d', None),
-                        mode=mode,
-                    )
-                except Exception as log_err:
-                    logger.warning(f"Trade log error: {log_err}")
+                self._log_filter_rejection(
+                    symbol, current_price, "BULL_SECTOR_REJECT",
+                    f"Sector '{signal_sector}' ETF declining",
+                    {"bull_sector": {"passed": False, "detail": f"'{signal_sector}' in blocked {blocked_sectors}"}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
                 return False
 
             # --- BLOCK 5: ATR SL/TP + risk-parity sizing ---
@@ -2866,23 +2800,12 @@ class AutoTradingEngine:
             if not buy_order or buy_order.status != 'filled':
                 order_status = getattr(buy_order, 'status', 'None')
                 logger.error(f"Buy order not filled for {symbol} (status={order_status})")
-                # v5.1: Log ORDER_NOT_FILLED to Trade Log (prevents data loss)
-                try:
-                    self.trade_logger.log_skip(
-                        symbol=symbol,
-                        price=current_price,
-                        reason="ORDER_NOT_FILLED",
-                        skip_detail=f"Order status: {order_status}",
-                        filters={"order_fill": {"passed": False, "detail": f"status={order_status}"}},
-                        signal_score=signal_score,
-                        sector=signal_sector, signal_source=signal_source,
-                        atr_pct=getattr(signal, 'atr_pct', None),
-                        entry_rsi=getattr(signal, 'rsi', None),
-                        momentum_5d=getattr(signal, 'momentum_5d', None),
-                        mode=mode,
-                    )
-                except Exception as log_err:
-                    logger.warning(f"Trade log error: {log_err}")
+                self._log_filter_rejection(
+                    symbol, current_price, "ORDER_NOT_FILLED",
+                    f"Order status: {order_status}",
+                    {"order_fill": {"passed": False, "detail": f"status={order_status}"}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
                 # Cancel unfilled order to avoid ghost fills
                 try:
                     if buy_order and hasattr(buy_order, 'id'):

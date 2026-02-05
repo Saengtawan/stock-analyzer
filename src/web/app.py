@@ -442,7 +442,7 @@ def api_chart_data(symbol):
         # Prepare dates
         try:
             dates = [date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date) for date in price_data.index]
-        except:
+        except (AttributeError, TypeError, ValueError):
             dates = list(range(len(price_data)))
 
         # Prepare price data with safe column access
