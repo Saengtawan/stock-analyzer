@@ -105,11 +105,18 @@ class BreakoutScanner:
         if df is None or len(df) < 25:
             return None
 
-        # Get arrays
-        close = df['Close'].values if 'Close' in df.columns else None
-        high = df['High'].values if 'High' in df.columns else None
-        low = df['Low'].values if 'Low' in df.columns else None
-        volume = df['Volume'].values if 'Volume' in df.columns else None
+        # Get arrays (support both 'close' and 'Close' column names)
+        def get_col(df, name):
+            if name.lower() in df.columns:
+                return df[name.lower()].values
+            elif name in df.columns:
+                return df[name].values
+            return None
+
+        close = get_col(df, 'Close')
+        high = get_col(df, 'High')
+        low = get_col(df, 'Low')
+        volume = get_col(df, 'Volume')
 
         if close is None or high is None or volume is None:
             return None

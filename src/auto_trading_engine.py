@@ -3524,7 +3524,13 @@ class AutoTradingEngine:
                         # v4.9.4: Add breakout scan signals to morning scan
                         if self.breakout_scanner and self.BREAKOUT_SCAN_ENABLED:
                             try:
+                                # Ensure data is loaded (may be empty if bounce scan early-returned)
                                 data_cache = self.screener.data_cache if self.screener else {}
+                                if not data_cache and self.screener:
+                                    logger.info("Breakout scan: Loading data (cache was empty)")
+                                    universe = self.screener.generate_universe()[:100]
+                                    self.screener.load_data(universe)
+                                    data_cache = self.screener.data_cache
                                 sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
                                 breakout_signals = self.breakout_scanner.scan(
                                     universe=data_cache,
@@ -3581,7 +3587,13 @@ class AutoTradingEngine:
                                     # v4.9.4: Add breakout scan to afternoon
                                     if self.breakout_scanner and self.BREAKOUT_SCAN_ENABLED:
                                         try:
+                                            # Ensure data is loaded
                                             data_cache = self.screener.data_cache if self.screener else {}
+                                            if not data_cache and self.screener:
+                                                logger.info("Afternoon breakout: Loading data (cache was empty)")
+                                                universe = self.screener.generate_universe()[:100]
+                                                self.screener.load_data(universe)
+                                                data_cache = self.screener.data_cache
                                             sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
                                             breakout_signals = self.breakout_scanner.scan(
                                                 universe=data_cache,
@@ -3625,7 +3637,13 @@ class AutoTradingEngine:
                                 is_bull, _ = self._check_market_regime()
                                 if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit():
                                     try:
+                                        # Ensure data is loaded for overnight scan
                                         data_cache = self.screener.data_cache if self.screener else {}
+                                        if not data_cache and self.screener:
+                                            logger.info("Overnight scan: Loading data (cache was empty)")
+                                            universe = self.screener.generate_universe()[:100]
+                                            self.screener.load_data(universe)
+                                            data_cache = self.screener.data_cache
                                         sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
                                         gap_signals = self.overnight_scanner.scan(
                                             universe=data_cache,

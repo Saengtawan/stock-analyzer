@@ -105,19 +105,22 @@ class OvernightGapScanner:
         if df is None or len(df) < 25:
             return None
 
-        # Get latest data
-        close = df['Close'].values if 'Close' in df.columns else None
-        high = df['High'].values if 'High' in df.columns else None
-        low = df['Low'].values if 'Low' in df.columns else None
-        open_prices = df['Open'].values if 'Open' in df.columns else None
-        volume = df['Volume'].values if 'Volume' in df.columns else None
+        # Get latest data (support both 'close' and 'Close' column names)
+        def get_col(df, name):
+            if name.lower() in df.columns:
+                return df[name.lower()].values
+            elif name in df.columns:
+                return df[name].values
+            return None
+
+        close = get_col(df, 'Close')
+        high = get_col(df, 'High')
+        low = get_col(df, 'Low')
+        open_prices = get_col(df, 'Open')
+        volume = get_col(df, 'Volume')
 
         if close is None or high is None or volume is None:
             return None
-
-        # Handle MultiIndex columns (yfinance sometimes returns these)
-        if hasattr(close, 'values'):
-            close = close.values if hasattr(close, 'values') else close
 
         current_close = float(close[-1])
         current_high = float(high[-1])
@@ -202,14 +205,13 @@ class OvernightGapScanner:
             except Exception:
                 pass
 
-        # 7. Price above SMA20
+        # 7. Price above SMA20 (bonus only, no penalty - overnight gap doesn't need uptrend)
         if len(close) >= 20:
             sma20 = float(np.mean(close[-20:]))
             if current_close > sma20:
                 score += 10
                 reasons.append("Above SMA20")
-            else:
-                score -= 15  # Penalty for below SMA20
+            # No penalty if below - overnight gap strategy works differently
 
         # Check minimum score
         if score < min_score:
