@@ -59,7 +59,7 @@ sector_cooldown_days: 2
 
 # -- Smart Order (v4.8) --
 smart_order_enabled: true
-smart_order_max_spread_pct: 0.5
+smart_order_max_spread_pct: 1.0
 smart_order_wait_seconds: 30
 
 # -- Gap Filter (v4.3) --

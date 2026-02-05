@@ -309,7 +309,7 @@ class AutoTradingEngine:
     # Smart Order Execution - Strategy 4 (v4.8 NEW!)
     # Limit @ Ask + Market Fallback → ลด slippage ~0.1-0.2%
     SMART_ORDER_ENABLED = True
-    SMART_ORDER_MAX_SPREAD_PCT = 0.5   # Skip ถ้า spread > 0.5%
+    SMART_ORDER_MAX_SPREAD_PCT = 1.0   # Skip ถ้า spread > 1.0%
     SMART_ORDER_WAIT_SECONDS = 30      # รอ limit fill 30 วินาที
 
     # Gap Filter (v4.3 NEW!)
