@@ -412,6 +412,10 @@
                     <div>SPY Regime: <strong id="spyFilterStatus">4-criteria</strong></div>
                 </div>
                 <div class="rule-item">
+                    <div class="rule-icon" style="background:#3498db;">🎯</div>
+                    <div>Score: <strong>≥<span data-cfg="min_score">?</span></strong></div>
+                </div>
+                <div class="rule-item">
                     <div class="rule-icon" style="background:#e74c3c;">🚫</div>
                     <div>Gap: <strong>+<span data-cfg="gap_max_up">?</span>% / <span data-cfg="gap_max_down">?</span>%</strong></div>
                 </div>
@@ -1233,32 +1237,53 @@ function applyConfigToUI(cfg) {
 
 function applyEffectiveOverrides(ep, baseCfg) {
     if (!ep || !baseCfg) return;
-    // Map effective_params key → [data-cfg keys to override]
-    const overrideMap = {
-        'gap_max_up': ['gap_max_up', 'bear_gap_max_up', 'low_risk_gap_max_up'],
-        'gap_max_down': ['gap_max_down', 'bear_gap_max_down'],
-        'min_score': ['bear_min_score', 'low_risk_min_score'],
-        'max_positions': ['max_positions', 'bear_max_positions'],
-        'position_size_pct': ['bear_position_size_pct', 'low_risk_position_size_pct'],
-        'max_atr_pct': ['low_risk_max_atr_pct'],
-    };
     const mode = ep.mode || '';
-    Object.entries(overrideMap).forEach(([epKey, cfgKeys]) => {
-        if (ep[epKey] === undefined || ep[epKey] === null) return;
-        const effVal = ep[epKey];
-        cfgKeys.forEach(cfgKey => {
-            const baseVal = baseCfg[cfgKey];
-            document.querySelectorAll(`[data-cfg="${cfgKey}"]`).forEach(el => {
-                el.textContent = effVal;
-                if (baseVal !== null && baseVal !== undefined && baseVal != effVal) {
-                    el.classList.add('cfg-override');
-                    el.title = `Base: ${baseVal} → Effective: ${effVal} (${mode})`;
-                } else {
-                    el.classList.remove('cfg-override');
-                    el.removeAttribute('title');
-                }
+    const isBear = mode.includes('BEAR');
+    const isLowRisk = mode.includes('LOW_RISK');
+
+    function apply(map) {
+        Object.entries(map).forEach(([epKey, cfgKeys]) => {
+            if (ep[epKey] === undefined || ep[epKey] === null) return;
+            const effVal = ep[epKey];
+            cfgKeys.forEach(cfgKey => {
+                const baseVal = baseCfg[cfgKey];
+                document.querySelectorAll(`[data-cfg="${cfgKey}"]`).forEach(el => {
+                    el.textContent = effVal;
+                    if (baseVal !== null && baseVal !== undefined && baseVal != effVal) {
+                        el.classList.add('cfg-override');
+                        el.title = `Base: ${baseVal} → Effective: ${effVal} (${mode})`;
+                    } else {
+                        el.classList.remove('cfg-override');
+                        el.removeAttribute('title');
+                    }
+                });
             });
         });
+    }
+
+    // Common keys — always override with effective value
+    apply({
+        'min_score': ['min_score'],
+        'gap_max_up': ['gap_max_up'],
+        'gap_max_down': ['gap_max_down'],
+        'max_positions': ['max_positions'],
+    });
+
+    // BEAR panel — only override when BEAR mode active
+    if (isBear) apply({
+        'min_score': ['bear_min_score'],
+        'gap_max_up': ['bear_gap_max_up'],
+        'gap_max_down': ['bear_gap_max_down'],
+        'max_positions': ['bear_max_positions'],
+        'position_size_pct': ['bear_position_size_pct'],
+    });
+
+    // LOW_RISK panel — only override when LOW_RISK mode active
+    if (isLowRisk) apply({
+        'min_score': ['low_risk_min_score'],
+        'gap_max_up': ['low_risk_gap_max_up'],
+        'position_size_pct': ['low_risk_position_size_pct'],
+        'max_atr_pct': ['low_risk_max_atr_pct'],
     });
 }
 
