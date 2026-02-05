@@ -1099,9 +1099,11 @@ class AutoTradingEngine:
         """
         Get dynamic list of sectors allowed in Bear Mode
 
-        v4.9.5: Check ALL 11 sectors (not just 6 defensive)
-        ทุก sector ที่ return_20d > threshold ซื้อได้ — ไม่จำกัดแค่ defensive
-        ตรงกับ scanner ใน run_app.py ที่ใช้ sector_regime_detector
+        v4.9.6: Use sector REGIME (not return_20d threshold)
+        - STRONG BULL, BULL, SIDEWAYS → ALLOWED (conviction sizing handles risk)
+        - BEAR, STRONG BEAR → BLOCKED
+
+        ตรงกับ scanner ใน run_app.py — ทั้งสองระบบใช้ logic เดียวกัน
 
         Returns:
             List of sector names allowed for trading
@@ -1110,19 +1112,14 @@ class AutoTradingEngine:
 
         if self.screener and hasattr(self.screener, 'sector_regime') and self.screener.sector_regime:
             sr = self.screener.sector_regime
-            # v4.9.5: Use ALL sectors from sector_regime_detector
             for etf, sector_name in sr.SECTOR_ETFS.items():
                 try:
-                    metrics = sr.sector_metrics.get(etf)
-                    if metrics:
-                        return_20d = metrics.get('return_20d', -999)
-                        if return_20d > self.BEAR_SECTOR_THRESHOLD:
-                            allowed.append(sector_name)
-                            logger.info(f"🐻 {sector_name} ({etf}) return_20d={return_20d:+.1f}% > {self.BEAR_SECTOR_THRESHOLD}% → ALLOWED")
-                        else:
-                            logger.info(f"🐻 {sector_name} ({etf}) return_20d={return_20d:+.1f}% ≤ {self.BEAR_SECTOR_THRESHOLD}% → BLOCKED")
+                    regime = sr.sector_regimes.get(etf, 'UNKNOWN')
+                    if regime not in ('BEAR', 'STRONG BEAR'):
+                        allowed.append(sector_name)
+                        logger.info(f"🐻 {sector_name} ({etf}) regime={regime} → ALLOWED")
                     else:
-                        logger.debug(f"No sector metrics for {etf}")
+                        logger.info(f"🐻 {sector_name} ({etf}) regime={regime} → BLOCKED")
                 except Exception as e:
                     logger.debug(f"Error checking sector {etf}: {e}")
 
