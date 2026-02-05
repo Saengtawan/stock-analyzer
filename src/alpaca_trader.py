@@ -774,10 +774,24 @@ class AlpacaTrader:
                 return buy_order, sl_order
 
             except Exception as e:
-                # CRITICAL: SL failed - must sell immediately
-                logger.error(f"SL FAILED - selling position immediately: {e}")
+                # v5.1: Retry SL placement 3x before emergency sell
+                logger.error(f"SL placement failed for {symbol}: {e} — retrying...")
+                sl_order = None
+                for _sl_retry in range(3):
+                    try:
+                        time.sleep(1)
+                        sl_order = self.place_stop_loss(symbol, actual_qty, sl_price)
+                        logger.info(f"SL retry #{_sl_retry+1} succeeded: {symbol} @ ${sl_price:.2f}")
+                        break
+                    except Exception as retry_err:
+                        logger.warning(f"SL retry #{_sl_retry+1} failed: {retry_err}")
+
+                if sl_order:
+                    return buy_order, sl_order
+
+                # SL truly failed after 3 retries — emergency sell
+                logger.critical(f"SL FAILED after 3 retries for {symbol} — emergency sell")
                 emergency_sell = self.place_market_sell(symbol, actual_qty)
-                # Verify emergency sell fills
                 if emergency_sell:
                     for _retry in range(5):
                         time.sleep(1)
@@ -786,7 +800,6 @@ class AlpacaTrader:
                             logger.info(f"Emergency sell filled for {symbol}")
                             break
                     else:
-                        # v4.7 Fix #3: Track stuck positions + last resort sell
                         logger.critical(f"CRITICAL: Emergency sell NOT filled for {symbol} — MANUAL INTERVENTION REQUIRED!")
                         try:
                             last_resort = self.place_market_sell(symbol, actual_qty)

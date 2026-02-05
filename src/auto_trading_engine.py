@@ -1177,13 +1177,14 @@ class AutoTradingEngine:
             for etf, sector_name in sr.SECTOR_ETFS.items():
                 try:
                     regime = sr.sector_regimes.get(etf, 'UNKNOWN')
-                    if regime not in ('BEAR', 'STRONG BEAR'):
+                    # v5.1: Allowlist (not blocklist) — UNKNOWN is BLOCKED for safety
+                    if regime in ('BULL', 'STRONG BULL', 'SIDEWAYS'):
                         allowed.append(sector_name)
                         logger.info(f"🐻 {sector_name} ({etf}) regime={regime} → ALLOWED")
                     else:
                         logger.info(f"🐻 {sector_name} ({etf}) regime={regime} → BLOCKED")
                 except Exception as e:
-                    logger.debug(f"Error checking sector {etf}: {e}")
+                    logger.warning(f"Error checking sector {etf}: {e} — BLOCKED (fail-closed)")
 
         logger.info(f"🐻 Bear allowed sectors ({len(allowed)}/11): {allowed}")
         return allowed
@@ -2525,10 +2526,12 @@ class AutoTradingEngine:
                 pass  # get_position returns None for non-existent, exceptions are safe to ignore
 
             # Check max positions (v4.9.2: use effective max from params)
-            effective_max = params.get('max_positions') or self.MAX_POSITIONS
-            if len(self.positions) >= effective_max:
-                logger.warning(f"Max positions ({effective_max}) reached (mode: {mode})")
-                return False
+            # v5.1: Check under lock to prevent TOCTOU race (two threads passing simultaneously)
+            with self._positions_lock:
+                effective_max = params.get('max_positions') or self.MAX_POSITIONS
+                if len(self.positions) >= effective_max:
+                    logger.warning(f"Max positions ({effective_max}) reached (mode: {mode})")
+                    return False
 
             # v5.0: Extract signal context early (used by all log_skip calls + log_buy)
             signal_score = getattr(signal, 'score', 0)
@@ -3159,10 +3162,30 @@ class AutoTradingEngine:
 
         return None
 
+    def _check_naked_positions(self):
+        """Re-place SL orders for positions missing them (recovery from SL placement failure)."""
+        for symbol, pos in list(self.positions.items()):
+            if not pos.sl_order_id:
+                logger.warning(f"⚠️ NAKED POSITION: {symbol} has no SL order — attempting to place")
+                try:
+                    sl_price = pos.stop_loss if hasattr(pos, 'stop_loss') else pos.current_sl_price
+                    qty = pos.qty
+                    sl_order = self.trader.place_stop_loss(symbol, qty, sl_price)
+                    if sl_order:
+                        pos.sl_order_id = sl_order.id
+                        logger.info(f"✅ SL recovered for {symbol} @ ${sl_price:.2f}")
+                    else:
+                        logger.critical(f"SL recovery returned None for {symbol}")
+                except Exception as e:
+                    logger.critical(f"SL recovery FAILED for {symbol}: {e}")
+
     def monitor_positions(self):
         """Monitor all positions and update trailing stops"""
         if not self.positions:
             return
+
+        # v5.1: Check for and recover naked positions (no SL order)
+        self._check_naked_positions()
 
         # v4.9: Detect stock splits and adjust tracking
         for symbol, managed_pos in list(self.positions.items()):
@@ -4166,7 +4189,7 @@ class AutoTradingEngine:
                             logger.info(f"☀️ Afternoon scan: {len(self.positions)}/{afternoon_max} positions, scanning for more...")
                             self._afternoon_scan_done = today
                             is_bull, _ = self._check_market_regime()
-                            if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit() and not self.check_weekly_loss_limit():
+                            if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit() and not self.check_weekly_loss_limit() and not self.check_consecutive_loss_cooldown():
                                 # Use stricter params for afternoon
                                 saved_min_score = self.MIN_SCORE
                                 saved_gap_up = self.GAP_MAX_UP
@@ -4226,7 +4249,7 @@ class AutoTradingEngine:
                                 logger.info(f"Overnight gap scan: {len(self.positions)}/{overnight_max} positions")
                                 self._overnight_scan_done = today
                                 is_bull, _ = self._check_market_regime()
-                                if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit():
+                                if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit() and not self.check_weekly_loss_limit() and not self.check_consecutive_loss_cooldown():
                                     try:
                                         # Ensure data is loaded for overnight scan
                                         data_cache = self.screener.data_cache if self.screener else {}

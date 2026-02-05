@@ -478,8 +478,8 @@ class RapidRotationScreener:
             spy = yf.download('SPY', period='30d', progress=False)
 
             if spy.empty or len(spy) < self.REGIME_SMA_PERIOD:
-                logger.warning("Not enough SPY data for regime check")
-                return True, "Insufficient data", {}
+                logger.warning("Not enough SPY data for regime check — defaulting to BEAR (fail-closed)")
+                return False, "Insufficient data — defaulting to BEAR for safety", {}
 
             # Get current price and SMA
             close = spy['Close']
