@@ -446,8 +446,13 @@ class AutoTradingEngine:
             paper=paper
         )
 
-        # Safety system
-        self.safety = TradingSafetySystem(self.trader)
+        # Safety system — pass shared config for single source of truth
+        safety_config = {
+            'DAILY_LOSS_LIMIT_PCT': self.DAILY_LOSS_LIMIT_PCT,
+            'MAX_POSITIONS': self.MAX_POSITIONS,
+            'MAX_HOLD_DAYS': self.MAX_HOLD_DAYS,
+        }
+        self.safety = TradingSafetySystem(self.trader, config=safety_config)
 
         # PDT Smart Guard v2.2 (No Override Mode)
         self.pdt_guard = init_pdt_guard(

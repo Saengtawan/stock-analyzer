@@ -72,7 +72,7 @@ class TradingSafetySystem:
     - System health
     """
 
-    # Safety thresholds
+    # Safety thresholds (defaults — can be overridden via set_config)
     DAILY_LOSS_LIMIT_PCT = 5.0      # Stop trading if down 5% in a day
     MAX_POSITIONS = 3               # Max concurrent positions
     MAX_HOLD_DAYS = 5               # Max days to hold a position
@@ -86,9 +86,19 @@ class TradingSafetySystem:
     # Health check intervals
     HEALTH_CHECK_INTERVAL = 300     # 5 minutes
 
-    def __init__(self, trader: AlpacaTrader):
-        """Initialize safety system"""
+    def __init__(self, trader: AlpacaTrader, config: dict = None):
+        """
+        Initialize safety system
+
+        Args:
+            trader: AlpacaTrader instance
+            config: Optional config dict to override defaults (e.g. from engine)
+        """
         self.trader = trader
+
+        # v4.9.6: Apply config overrides if provided
+        if config:
+            self.set_config(config)
         self.emergency_stop = False
         self.daily_loss_triggered = False
         self.last_health_check = None
@@ -106,6 +116,24 @@ class TradingSafetySystem:
         self._load_state()
 
         logger.info("Trading Safety System initialized")
+
+    def set_config(self, config: dict):
+        """
+        Update safety thresholds from config dict (e.g. from engine)
+
+        Allows single source of truth for shared constants like
+        DAILY_LOSS_LIMIT_PCT, MAX_POSITIONS, MAX_HOLD_DAYS
+        """
+        configurable = [
+            'DAILY_LOSS_LIMIT_PCT',
+            'MAX_POSITIONS',
+            'MAX_HOLD_DAYS',
+            'MIN_BUYING_POWER_PCT',
+        ]
+        for key in configurable:
+            if key in config:
+                setattr(self, key, config[key])
+                logger.debug(f"Safety config: {key} = {config[key]}")
 
     # =========================================================================
     # STATE PERSISTENCE
