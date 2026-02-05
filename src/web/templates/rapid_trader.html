@@ -311,13 +311,13 @@
      ============================================================ -->
 <div class="row g-3">
     <!-- ========== LEFT COLUMN: Buy Signals (most important) ========== -->
-    <div class="col-lg-5 col-md-6 order-1">
+    <div class="col-lg-4 col-md-6 order-1">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="fas fa-shopping-cart me-2"></i>Buy Signals <small id="signalCacheAge" class="text-muted ms-2" style="font-size:0.7rem;opacity:0.8"></small></span>
                 <span class="badge bg-success" id="signalBadge">0</span>
             </div>
-            <div class="card-body" id="signalsContainer" style="max-height: 70vh; overflow-y: auto;">
+            <div class="card-body" id="signalsContainer" style="max-height: 85vh; overflow-y: auto;">
                 <div class="text-center py-4">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Loading...</span>
@@ -329,7 +329,7 @@
     </div>
 
     <!-- ========== CENTER COLUMN: Portfolio ========== -->
-    <div class="col-lg-3 col-md-6 order-2">
+    <div class="col-lg-4 col-md-6 order-2">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="fas fa-bell me-2"></i>Portfolio Alerts</span>
@@ -441,108 +441,127 @@
             </div>
         </div>
 
-        <!-- Bull Sector Filter -->
-        <div class="card ops-card" id="bullSectorBox">
-            <div class="card-header py-2"><i class="fas fa-filter me-1"></i>BULL Filter</div>
-            <div class="card-body p-2">
-                <div class="rule-item">
-                    <div class="rule-icon" style="background:#27ae60;">🐂</div>
-                    <div>Block ETF ret_20d &lt; <strong><span data-cfg="bull_sector_min_return">?</span>%</strong></div>
+        <!-- 2-col grid: BULL Filter | Low Risk -->
+        <div class="row g-2">
+            <div class="col-6">
+                <div class="card ops-card" id="bullSectorBox">
+                    <div class="card-header py-1 px-2"><i class="fas fa-filter me-1"></i>BULL Filter</div>
+                    <div class="card-body p-2">
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#27ae60;">🐂</div>
+                            <div>Block ret_20d &lt; <strong><span data-cfg="bull_sector_min_return">?</span>%</strong></div>
+                        </div>
+                        <div id="bullBlockedSectors" style="display:none; margin-top: 4px; padding: 4px 6px; background: rgba(231,76,60,0.1); border-radius: 6px; font-size: 0.7em;">
+                            <strong>Blocked:</strong> <span id="bullBlockedList">none</span>
+                        </div>
+                    </div>
                 </div>
-                <div id="bullBlockedSectors" style="display:none; margin-top: 4px; padding: 4px 8px; background: rgba(231,76,60,0.1); border-radius: 6px; font-size: 0.75em;">
-                    <strong>Blocked:</strong> <span id="bullBlockedList">none</span>
+            </div>
+            <div class="col-6">
+                <div class="card ops-card" id="lowRiskModeBox">
+                    <div class="card-header py-1 px-2"><i class="fas fa-shield-virus me-1"></i>Low Risk</div>
+                    <div class="card-body p-2">
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#f39c12;">📉</div>
+                            <div>Gap: <strong><span data-cfg="low_risk_gap_max_up">?</span>%</strong> Score: <strong><span data-cfg="low_risk_min_score">?</span></strong></div>
+                        </div>
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#f39c12;">💵</div>
+                            <div>Pos: <strong><span data-cfg="low_risk_position_size_pct">?</span>%</strong> ATR: <strong>&le;<span data-cfg="low_risk_max_atr_pct">?</span>%</strong></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Low Risk Mode -->
-        <div class="card ops-card" id="lowRiskModeBox">
-            <div class="card-header py-2"><i class="fas fa-shield-virus me-1"></i>Low Risk Mode</div>
-            <div class="card-body p-2">
-                <div class="rule-item">
-                    <div class="rule-icon" style="background:#f39c12;">📉</div>
-                    <div>Gap: <strong><span data-cfg="low_risk_gap_max_up">?</span>%</strong> | Score: <strong><span data-cfg="low_risk_min_score">?</span></strong></div>
+        <!-- 2-col grid: Trading Rules | Features -->
+        <div class="row g-2 mt-1">
+            <div class="col-6">
+                <div class="card ops-card">
+                    <div class="card-header py-1 px-2"><i class="fas fa-list-check me-1"></i>Rules</div>
+                    <div class="card-body p-2">
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#e74c3c;">SL</div>
+                            <div><span data-cfg="sl_atr_multiplier">?</span>xATR [<span data-cfg="sl_min_pct">?</span>-<span data-cfg="sl_max_pct">?</span>%]</div>
+                        </div>
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#27ae60;">TP</div>
+                            <div><span data-cfg="tp_atr_multiplier">?</span>xATR [<span data-cfg="tp_min_pct">?</span>-<span data-cfg="tp_max_pct">?</span>%]</div>
+                        </div>
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#9b59b6;">📈</div>
+                            <div>Trail +<span data-cfg="trail_activation_pct">?</span>% lock <span data-cfg="trail_lock_pct">?</span>%</div>
+                        </div>
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#f39c12;">⏱</div>
+                            <div>Hold: <span data-cfg="max_hold_days">?</span>d Max <span data-cfg="max_positions">?</span></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="rule-item">
-                    <div class="rule-icon" style="background:#f39c12;">💵</div>
-                    <div>Pos: <strong><span data-cfg="low_risk_position_size_pct">?</span>%</strong> | ATR: <strong>&le;<span data-cfg="low_risk_max_atr_pct">?</span>%</strong></div>
+            </div>
+            <div class="col-6">
+                <div class="card ops-card">
+                    <div class="card-header py-1 px-2"><i class="fas fa-fire me-1"></i>Features</div>
+                    <div class="card-body p-2">
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#e74c3c;">A+</div>
+                            <div>Conv: <span data-cfg="conviction_a_plus_pct">?</span>/<span data-cfg="conviction_a_pct">?</span>/<span data-cfg="conviction_b_pct">?</span>%</div>
+                        </div>
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#f39c12;">DT</div>
+                            <div>DT: +<span data-cfg="day_trade_gap_threshold">?</span>%/+<span data-cfg="day_trade_momentum_threshold">?</span>%</div>
+                        </div>
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#9b59b6;">ON</div>
+                            <div>O/N: buy 15:30</div>
+                        </div>
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#3498db;">BO</div>
+                            <div>Breakout: <span data-cfg="breakout_min_volume_mult">?</span>x vol</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Trading Rules -->
-        <div class="card ops-card">
-            <div class="card-header py-2"><i class="fas fa-list-check me-1"></i>Trading Rules</div>
-            <div class="card-body p-2">
-                <div class="rule-item">
-                    <div class="rule-icon" style="background:#e74c3c;">SL</div>
-                    <div><span data-cfg="sl_atr_multiplier">?</span>xATR [<span data-cfg="sl_min_pct">?</span>-<span data-cfg="sl_max_pct">?</span>%]</div>
-                </div>
-                <div class="rule-item">
-                    <div class="rule-icon" style="background:#27ae60;">TP</div>
-                    <div><span data-cfg="tp_atr_multiplier">?</span>xATR [<span data-cfg="tp_min_pct">?</span>-<span data-cfg="tp_max_pct">?</span>%]</div>
-                </div>
-                <div class="rule-item">
-                    <div class="rule-icon" style="background:#9b59b6;">📈</div>
-                    <div>Trail +<span data-cfg="trail_activation_pct">?</span>% lock <span data-cfg="trail_lock_pct">?</span>%</div>
-                </div>
-                <div class="rule-item">
-                    <div class="rule-icon" style="background:#f39c12;">⏱</div>
-                    <div>Hold: <span data-cfg="max_hold_days">?</span>d | Max <span data-cfg="max_positions">?</span> pos</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Features -->
-        <div class="card ops-card">
-            <div class="card-header py-2"><i class="fas fa-fire me-1"></i>Features</div>
-            <div class="card-body p-2">
-                <div class="rule-item">
-                    <div class="rule-icon" style="background:#e74c3c;">A+</div>
-                    <div>Conv: <span data-cfg="conviction_a_plus_pct">?</span>/<span data-cfg="conviction_a_pct">?</span>/<span data-cfg="conviction_b_pct">?</span>%</div>
-                </div>
-                <div class="rule-item">
-                    <div class="rule-icon" style="background:#f39c12;">DT</div>
-                    <div>DayTrade: +<span data-cfg="day_trade_gap_threshold">?</span>%/+<span data-cfg="day_trade_momentum_threshold">?</span>%</div>
-                </div>
-                <div class="rule-item">
-                    <div class="rule-icon" style="background:#9b59b6;">ON</div>
-                    <div>O/N Gap: buy 15:30, sell 9:31</div>
-                </div>
-                <div class="rule-item">
-                    <div class="rule-icon" style="background:#3498db;">BO</div>
-                    <div>Breakout: Vol <span data-cfg="breakout_min_volume_mult">?</span>x</div>
+        <!-- 2-col grid: PDT Guard | Risk -->
+        <div class="row g-2 mt-1">
+            <div class="col-6">
+                <div class="card ops-card">
+                    <div class="card-header py-1 px-2"><i class="fas fa-shield-alt me-1"></i>PDT Guard</div>
+                    <div class="card-body p-2">
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#3498db;">📊</div>
+                            <div>D0 + Budget: Sell</div>
+                        </div>
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#e74c3c;">🛑</div>
+                            <div>D0 + No Budget: HOLD</div>
+                        </div>
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#27ae60;">✅</div>
+                            <div>D1+: Sell OK</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <!-- PDT Guard -->
-        <div class="card ops-card">
-            <div class="card-header py-2"><i class="fas fa-shield-alt me-1"></i>PDT Guard v2.2</div>
-            <div class="card-body p-2">
-                <div class="rule-item">
-                    <div class="rule-icon" style="background:#3498db;">📊</div>
-                    <div>Day 0 + Budget > 0: SL/TP Sell</div>
-                </div>
-                <div class="rule-item">
-                    <div class="rule-icon" style="background:#e74c3c;">🛑</div>
-                    <div>Day 0 + Budget = 0: HOLD</div>
-                </div>
-                <div class="rule-item">
-                    <div class="rule-icon" style="background:#27ae60;">✅</div>
-                    <div>Day 1+: Sell always OK</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Risk Budget -->
-        <div class="card ops-card">
-            <div class="card-header py-2"><i class="fas fa-calculator me-1"></i>Risk</div>
-            <div class="card-body p-2">
-                <div class="small">
-                    Risk/trade: <strong><span data-cfg="risk_budget_pct">?</span>%</strong> |
-                    Daily limit: <strong><span data-cfg="daily_loss_limit_pct">?</span>%</strong> |
-                    Weekly: <strong><span data-cfg="weekly_loss_limit_pct">?</span>%</strong>
+            <div class="col-6">
+                <div class="card ops-card">
+                    <div class="card-header py-1 px-2"><i class="fas fa-calculator me-1"></i>Risk</div>
+                    <div class="card-body p-2">
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#e74c3c;">⚠</div>
+                            <div>Per trade: <strong><span data-cfg="risk_budget_pct">?</span>%</strong></div>
+                        </div>
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#f39c12;">D</div>
+                            <div>Daily: <strong><span data-cfg="daily_loss_limit_pct">?</span>%</strong></div>
+                        </div>
+                        <div class="rule-item">
+                            <div class="rule-icon" style="background:#9b59b6;">W</div>
+                            <div>Weekly: <strong><span data-cfg="weekly_loss_limit_pct">?</span>%</strong></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
