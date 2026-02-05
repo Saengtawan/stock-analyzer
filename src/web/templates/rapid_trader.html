@@ -355,9 +355,13 @@
         <div class="card mt-2" id="alpacaAccountBox" style="display: none;">
             <div class="card-body p-2">
                 <div class="d-flex justify-content-between small">
-                    <span><i class="fas fa-wallet me-1"></i>Cash: <strong id="alpacaCash">$0</strong></span>
                     <span>Portfolio: <strong id="alpacaPortfolio">$0</strong></span>
                     <span>Safety: <strong id="safetyStatus">OK</strong></span>
+                </div>
+                <div class="d-flex justify-content-between small mt-1" id="cashInvestedRow">
+                    <span><i class="fas fa-wallet me-1"></i>Cash: <strong id="alpacaCash">$0</strong></span>
+                    <span><i class="fas fa-chart-pie me-1"></i>Invested: <strong id="alpacaInvested">$0</strong></span>
+                    <span id="unrealizedPnlBox"><i class="fas fa-chart-line me-1"></i>Unreal: <strong id="unrealizedPnl">$0</strong></span>
                 </div>
             </div>
         </div>
@@ -1493,7 +1497,7 @@ function updatePositionsUI(data) {
             <div class="alert-card ${alertClass} p-2" data-symbol="${status.symbol}" data-entry-price="${status.entry_price}" data-shares="${shares}" data-stop-loss="${slPrice}" data-take-profit="${tpPrice}">
                 <div class="d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
-                        <h6 class="mb-1">${icon} ${status.symbol} <span class="badge bg-secondary" style="font-size:0.6rem;">${shares}sh Day${status.days_held}</span></h6>
+                        <h6 class="mb-1">${icon} ${status.symbol} <span class="badge bg-secondary" style="font-size:0.6rem;">${shares} shares · Day ${status.days_held}</span></h6>
                         <div class="small">
                             <span class="text-muted">Entry:</span> <strong>$${status.entry_price.toFixed(2)}</strong>
                             <span class="text-muted ms-2">Now:</span> <span class="current-price text-primary fw-bold">$${status.current_price.toFixed(2)}</span>
@@ -1536,8 +1540,24 @@ function updateStatusUI(data) {
             safetyEl.style.color = s === 'ok' ? '#27ae60' : s === 'warning' ? '#f39c12' : '#e74c3c';
         }
     }
-    document.getElementById('alpacaCash').textContent = '$' + (data.cash || 0).toLocaleString();
-    document.getElementById('alpacaPortfolio').textContent = '$' + (data.account_value || 0).toLocaleString();
+    const cash = data.cash || 0;
+    const portfolio = data.account_value || 0;
+    const invested = portfolio - cash;
+    document.getElementById('alpacaCash').textContent = '$' + cash.toLocaleString(undefined, {maximumFractionDigits: 0});
+    document.getElementById('alpacaPortfolio').textContent = '$' + portfolio.toLocaleString(undefined, {maximumFractionDigits: 0});
+    document.getElementById('alpacaInvested').textContent = '$' + Math.abs(invested).toLocaleString(undefined, {maximumFractionDigits: 0});
+
+    // Unrealized P&L from open positions
+    let totalUnreal = 0;
+    Object.values(positionData).forEach(p => { if (p.pnlUsd != null) totalUnreal += p.pnlUsd; });
+    const unrealEl = document.getElementById('unrealizedPnl');
+    unrealEl.textContent = (totalUnreal >= 0 ? '+$' : '-$') + Math.abs(totalUnreal).toFixed(2);
+    unrealEl.style.color = totalUnreal >= 0 ? '#27ae60' : '#e74c3c';
+
+    // Show/hide invested row detail based on positions
+    const hasPositions = invested > 1;
+    document.getElementById('alpacaInvested').parentElement.style.display = hasPositions ? '' : 'none';
+    document.getElementById('unrealizedPnlBox').style.display = hasPositions ? '' : 'none';
 }
 
 function updateRegimeUI(data) {
