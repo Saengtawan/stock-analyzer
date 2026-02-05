@@ -159,6 +159,17 @@ class TradeLogEntry:
     earnings_quarterly_growth: Optional[float] = None  # YoY quarterly earnings growth
     revenue_growth: Optional[float] = None        # Revenue growth rate
     short_percent_of_float: Optional[float] = None     # Short interest %
+    # v5.0: Exit-time indicators (current market state at sell time)
+    exit_rsi: Optional[float] = None                     # RSI at sell time
+    exit_volume_ratio: Optional[float] = None            # Volume ratio at sell time
+    exit_momentum_1d: Optional[float] = None             # 1-day momentum at sell time
+    exit_spy_change: Optional[float] = None              # SPY 5d return at sell time
+    exit_bid_ask_spread: Optional[float] = None          # Bid-ask spread % at sell time
+    # v5.0: Entry timing context (market context at buy time)
+    entry_minutes_after_open: Optional[int] = None       # Minutes after 9:30 ET
+    entry_spy_change_intraday: Optional[float] = None    # SPY vs SMA20 at entry
+    entry_vix: Optional[float] = None                    # VIX at entry time
+    entry_sector_change_1d: Optional[float] = None       # Sector ETF 1d change at entry
     note: str = ""
 
 
@@ -352,6 +363,11 @@ class TradeLogger:
         # Config snapshot (v4.8)
         config_snapshot: Dict = None,
         correlation_id: str = None,
+        # v5.0: Entry timing context
+        entry_minutes_after_open: int = None,
+        entry_spy_change_intraday: float = None,
+        entry_vix: float = None,
+        entry_sector_change_1d: float = None,
         note: str = ""
     ) -> TradeLogEntry:
         """Log a BUY trade"""
@@ -416,6 +432,11 @@ class TradeLogger:
             config_max_consecutive_losses=cs.get('max_consecutive_losses'),
             config_smart_order_enabled=cs.get('smart_order_enabled'),
             correlation_id=correlation_id,
+            # v5.0: Entry timing context
+            entry_minutes_after_open=entry_minutes_after_open,
+            entry_spy_change_intraday=entry_spy_change_intraday,
+            entry_vix=entry_vix,
+            entry_sector_change_1d=entry_sector_change_1d,
             note=note
         )
 
@@ -458,6 +479,12 @@ class TradeLogger:
         regime: str = None,
         rsi: float = None,
         momentum_5d: float = None,
+        # v5.0: Exit-time indicators
+        exit_rsi: float = None,
+        exit_volume_ratio: float = None,
+        exit_momentum_1d: float = None,
+        exit_spy_change: float = None,
+        exit_bid_ask_spread: float = None,
     ) -> TradeLogEntry:
         """Log a SELL trade"""
         entry = TradeLogEntry(
@@ -497,6 +524,12 @@ class TradeLogger:
             regime=regime,
             rsi=rsi,
             momentum_5d=momentum_5d,
+            # v5.0: Exit-time indicators
+            exit_rsi=exit_rsi,
+            exit_volume_ratio=exit_volume_ratio,
+            exit_momentum_1d=exit_momentum_1d,
+            exit_spy_change=exit_spy_change,
+            exit_bid_ask_spread=exit_bid_ask_spread,
         )
 
         self._add_entry(entry)

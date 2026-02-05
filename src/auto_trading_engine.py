@@ -1889,6 +1889,141 @@ class AutoTradingEngine:
         }
 
     # =========================================================================
+    # v5.0: DATA COLLECTION HELPERS
+    # =========================================================================
+
+    def _get_exit_context(self, symbol: str, current_price: float) -> Dict:
+        """Fetch current market indicators at sell time (best-effort, never blocks sell)."""
+        ctx = {}
+        try:
+            # 1. Snapshot: bid/ask/volume/prev_close (single Alpaca API call)
+            snapshot = self.trader.get_snapshot(symbol)
+            if snapshot:
+                bid = snapshot.get('bid', 0)
+                ask = snapshot.get('ask', 0)
+                prev_close = snapshot.get('prev_close', 0)
+                daily_vol = snapshot.get('daily_volume', 0)
+
+                if bid and ask and bid > 0:
+                    ctx['exit_bid_ask_spread'] = round(((ask - bid) / bid) * 100, 3)
+                if prev_close and prev_close > 0:
+                    ctx['exit_momentum_1d'] = round(((current_price - prev_close) / prev_close) * 100, 2)
+
+                # Volume ratio (daily vs avg from yfinance)
+                try:
+                    import yfinance as yf
+                    ticker = yf.Ticker(symbol)
+                    info = ticker.fast_info if hasattr(ticker, 'fast_info') else ticker.info
+                    avg_vol = getattr(info, 'average_volume', None) or (info.get('averageVolume', 0) if isinstance(info, dict) else 0)
+                    if avg_vol and daily_vol:
+                        ctx['exit_volume_ratio'] = round(daily_vol / avg_vol, 2)
+
+                    # RSI from recent history
+                    hist = ticker.history(period='1mo')
+                    if hist is not None and len(hist) >= 15:
+                        ctx['exit_rsi'] = round(self._calc_rsi(hist['Close']), 1)
+                except Exception:
+                    pass
+
+            # 2. SPY change from regime cache (no API call)
+            if hasattr(self, '_regime_cache') and self._regime_cache and len(self._regime_cache) >= 4:
+                details = self._regime_cache[3]
+                if isinstance(details, dict):
+                    ctx['exit_spy_change'] = details.get('return_5d')
+
+        except Exception as e:
+            logger.debug(f"Exit context fetch error for {symbol}: {e}")
+        return ctx
+
+    def _process_scan_signals(self, signals, scan_type: str, max_positions: int = None):
+        """Process all signals from a scan: execute/queue + log ALL signals."""
+        if not signals:
+            return
+
+        effective_max = max_positions or self.MAX_POSITIONS
+        params = self._get_effective_params()
+        mode = params.get('mode', 'NORMAL')
+
+        scan_results = []
+        for rank, signal in enumerate(signals):
+            action = "SKIPPED_FILTER"
+            if len(self.positions) < effective_max:
+                result = self.execute_signal(signal)
+                action = "BOUGHT" if result else "SKIPPED_FILTER"
+            else:
+                queued = self._add_to_queue(signal)
+                action = "QUEUED" if queued else "QUEUE_FULL"
+
+            scan_results.append({
+                "signal_rank": rank + 1,
+                "action_taken": action,
+                "symbol": getattr(signal, 'symbol', ''),
+                "price": getattr(signal, 'entry_price', 0),
+                "score": getattr(signal, 'score', 0),
+                "rsi": getattr(signal, 'rsi', None),
+                "momentum_5d": getattr(signal, 'momentum_5d', None),
+                "atr_pct": getattr(signal, 'atr_pct', None),
+                "sector": getattr(signal, 'sector', ''),
+                "signal_source": self._derive_signal_source(signal),
+                "volume_ratio": getattr(signal, 'volume_ratio', None),
+                "stop_loss": getattr(signal, 'stop_loss', None),
+                "take_profit": getattr(signal, 'take_profit', None),
+            })
+
+        # Log entire scan batch (failure must not affect trading)
+        try:
+            scan_id = f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{scan_type}"
+            self._save_scan_log(scan_id, scan_type, mode, scan_results)
+        except Exception as e:
+            logger.warning(f"Scan log save error (non-fatal): {e}")
+
+    def _derive_signal_source(self, signal) -> str:
+        """Derive signal source from signal attributes."""
+        sl_method = getattr(signal, 'sl_method', '')
+        if 'overnight_gap' in sl_method:
+            return 'overnight_gap'
+        elif 'breakout' in sl_method:
+            return 'breakout'
+        return 'dip_bounce'
+
+    def _save_scan_log(self, scan_id: str, scan_type: str, mode: str, results: list):
+        """Append scan batch to today's scan log file (atomic write)."""
+        scan_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'scan_logs')
+        os.makedirs(scan_dir, exist_ok=True)
+        today = datetime.now().strftime('%Y-%m-%d')
+        filepath = os.path.join(scan_dir, f'scan_{today}.json')
+
+        regime = "UNKNOWN"
+        if hasattr(self, '_regime_cache') and self._regime_cache:
+            regime = self._regime_cache[1]
+
+        entry = {
+            "scan_id": scan_id,
+            "scan_timestamp": datetime.now().isoformat(),
+            "scan_type": scan_type,
+            "regime": regime,
+            "mode": mode,
+            "total_signals": len(results),
+            "signals": results,
+        }
+
+        # Append to existing file
+        existing = []
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, 'r') as f:
+                    existing = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                existing = []
+
+        existing.append(entry)
+        # Atomic write
+        tmp = filepath + '.tmp'
+        with open(tmp, 'w') as f:
+            json.dump(existing, f, indent=2, default=str)
+        os.replace(tmp, filepath)
+
+    # =========================================================================
     # SCANNING
     # =========================================================================
 
@@ -2616,6 +2751,43 @@ class AutoTradingEngine:
                 if signal_price_val and entry_price and signal_price_val > 0:
                     slippage = round(((entry_price - signal_price_val) / signal_price_val) * 100, 3)
 
+                # v5.0: Entry timing context (best-effort, never blocks buy)
+                entry_minutes = None
+                entry_spy_change = None
+                entry_vix = None
+                entry_sector_change = None
+                try:
+                    et_now = self._get_et_time()
+                    market_open = et_now.replace(hour=9, minute=30, second=0, microsecond=0)
+                    entry_minutes = max(0, int((et_now - market_open).total_seconds() / 60)) if et_now > market_open else 0
+
+                    # SPY/VIX from regime cache (no API call)
+                    if hasattr(self, '_regime_cache') and self._regime_cache and len(self._regime_cache) >= 4:
+                        rd = self._regime_cache[3]
+                        if isinstance(rd, dict):
+                            entry_spy_change = rd.get('pct_above_sma')
+                            entry_vix = rd.get('vix')
+
+                    # Sector ETF change (best-effort, skip if slow)
+                    sector_etf_map = {
+                        'Technology': 'XLK', 'Healthcare': 'XLV', 'Consumer Cyclical': 'XLY',
+                        'Financial Services': 'XLF', 'Communication Services': 'XLC',
+                        'Industrials': 'XLI', 'Consumer Defensive': 'XLP', 'Energy': 'XLE',
+                        'Utilities': 'XLU', 'Real Estate': 'XLRE', 'Basic Materials': 'XLB',
+                    }
+                    sig_sector = getattr(signal, 'sector', '')
+                    etf_sym = sector_etf_map.get(sig_sector)
+                    if etf_sym:
+                        try:
+                            import yfinance as yf
+                            etf_data = yf.Ticker(etf_sym).history(period='2d')
+                            if etf_data is not None and len(etf_data) >= 2:
+                                entry_sector_change = round(((etf_data['Close'].iloc[-1] / etf_data['Close'].iloc[-2]) - 1) * 100, 2)
+                        except Exception:
+                            pass
+                except Exception as ctx_err:
+                    logger.debug(f"Entry timing context error: {ctx_err}")
+
                 self.trade_logger.log_buy(
                     symbol=symbol,
                     qty=qty,
@@ -2657,6 +2829,11 @@ class AutoTradingEngine:
                     fill_status=exec_meta.get('fill_status'),
                     # Config snapshot (v4.8)
                     config_snapshot=self._get_config_snapshot(),
+                    # v5.0: Entry timing context
+                    entry_minutes_after_open=entry_minutes,
+                    entry_spy_change_intraday=entry_spy_change,
+                    entry_vix=entry_vix,
+                    entry_sector_change_1d=entry_sector_change,
                 )
             except Exception as log_err:
                 logger.warning(f"Trade log error: {log_err}")
@@ -2927,6 +3104,8 @@ class AutoTradingEngine:
                     hold_hours = int(hold_delta.total_seconds() / 3600)
                     hold_minutes = int((hold_delta.total_seconds() % 3600) / 60)
                     hold_duration = f"{hold_hours}h {hold_minutes}m" if hold_hours > 0 else f"{hold_minutes}m"
+                    # v5.0: Fetch exit context (best-effort, never blocks sell)
+                    exit_ctx = self._get_exit_context(symbol, sl_price)
                     self.trade_logger.log_sell(
                         symbol=symbol, qty=managed_pos.qty, price=sl_price,
                         reason="SL_FILLED_AT_ALPACA", entry_price=managed_pos.entry_price,
@@ -2943,6 +3122,8 @@ class AutoTradingEngine:
                         regime=managed_pos.entry_regime,
                         rsi=managed_pos.rsi,
                         momentum_5d=managed_pos.momentum_5d,
+                        # v5.0: Exit-time indicators
+                        **exit_ctx,
                     )
                 except Exception as log_err:
                     logger.warning(f"Trade log error for SL fill: {log_err}")
@@ -3251,6 +3432,9 @@ class AutoTradingEngine:
                 max_dd = ((managed_pos.trough_price - managed_pos.entry_price) / managed_pos.entry_price) * 100 if managed_pos.trough_price > 0 and managed_pos.trough_price < managed_pos.entry_price else 0
                 exit_eff = round(pnl_pct / max_gain * 100, 1) if max_gain > 0 else (0 if pnl_pct <= 0 else 100)
 
+                # v5.0: Fetch exit context (best-effort, never blocks sell)
+                exit_ctx = self._get_exit_context(symbol, exit_price)
+
                 self.trade_logger.log_sell(
                     symbol=symbol,
                     qty=actual_qty,
@@ -3282,6 +3466,8 @@ class AutoTradingEngine:
                     regime=managed_pos.entry_regime,
                     rsi=managed_pos.rsi,
                     momentum_5d=managed_pos.momentum_5d,
+                    # v5.0: Exit-time indicators
+                    **exit_ctx,
                 )
             except Exception as log_err:
                 logger.warning(f"Trade log error: {log_err}")
@@ -3623,11 +3809,7 @@ class AutoTradingEngine:
                             self.GAP_MAX_DOWN = self.AFTERNOON_GAP_MAX_DOWN
                             try:
                                 signals = self.scan_for_signals()
-                                for signal in signals:
-                                    if len(self.positions) < effective_max:
-                                        self.execute_signal(signal)
-                                    else:
-                                        self._add_to_queue(signal)
+                                self._process_scan_signals(signals, "late_start", max_positions=effective_max)
                             finally:
                                 self.MIN_SCORE = saved_min_score
                                 self.GAP_MAX_UP = saved_gap_up
@@ -3698,11 +3880,7 @@ class AutoTradingEngine:
                                 else:
                                     logger.info(f"BEAR breakout: SKIP morning (PDT budget=0, wait for afternoon)")
 
-                            for signal in signals:
-                                if len(self.positions) < effective_max:
-                                    self.execute_signal(signal)
-                                else:
-                                    self._add_to_queue(signal)
+                            self._process_scan_signals(signals, "morning", max_positions=effective_max)
                     elif self.check_daily_loss_limit():
                         logger.warning("Daily loss limit - no new trades today")
                     elif self.check_weekly_loss_limit():
@@ -3743,12 +3921,7 @@ class AutoTradingEngine:
                             except Exception as e:
                                 logger.warning(f"Breakout scan error: {e}")
 
-                        for signal in signals:
-                            if len(self.positions) < self.MAX_POSITIONS:
-                                self.execute_signal(signal)
-                            else:
-                                # v4.1: Queue remaining signals instead of breaking
-                                self._add_to_queue(signal)
+                        self._process_scan_signals(signals, "morning")
 
                     self._morning_scan_done = today
                     last_scan_date = today
@@ -3806,9 +3979,7 @@ class AutoTradingEngine:
                                         except Exception as e:
                                             logger.warning(f"Afternoon breakout error: {e}")
 
-                                    for signal in signals:
-                                        if len(self.positions) < afternoon_max:
-                                            self.execute_signal(signal)
+                                    self._process_scan_signals(signals, "afternoon", max_positions=afternoon_max)
                                 finally:
                                     self.MIN_SCORE = saved_min_score
                                     self.GAP_MAX_UP = saved_gap_up
@@ -3849,9 +4020,7 @@ class AutoTradingEngine:
                                             target_pct=self.OVERNIGHT_GAP_TARGET_PCT,
                                             sl_pct=self.OVERNIGHT_GAP_SL_PCT,
                                         )
-                                        for sig in gap_signals:
-                                            if len(self.positions) < overnight_max:
-                                                self.execute_signal(sig)
+                                        self._process_scan_signals(gap_signals, "overnight_gap", max_positions=overnight_max)
                                     except Exception as e:
                                         logger.warning(f"Overnight gap scan error: {e}")
 

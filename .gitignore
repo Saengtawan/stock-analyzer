@@ -229,6 +229,9 @@ tmp/
 # Stock analyzer specific
 # Trade logs (runtime data, not source code)
 trade_logs/
+# Scan logs and outcome tracking (runtime data)
+scan_logs/
+outcomes/
 
 # Cache directories
 src/cache/
