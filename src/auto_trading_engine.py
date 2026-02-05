@@ -3493,6 +3493,7 @@ class AutoTradingEngine:
                                 self.GAP_MAX_UP = saved_gap_up
                                 self.GAP_MAX_DOWN = saved_gap_down
 
+                        self._morning_scan_done = today
                         last_scan_date = today
                         continue
 
@@ -3609,6 +3610,7 @@ class AutoTradingEngine:
                                 # v4.1: Queue remaining signals instead of breaking
                                 self._add_to_queue(signal)
 
+                    self._morning_scan_done = today
                     last_scan_date = today
 
                 # v4.9.1: Afternoon scan — fill empty slots after lunch dip
@@ -3776,6 +3778,19 @@ class AutoTradingEngine:
         except Exception as e:
             logger.debug(f"Heartbeat write error: {e}")
 
+    def _get_scanner_schedule(self) -> Dict:
+        """Get scanner timing for UI timeline bar."""
+        today = datetime.now().strftime('%Y-%m-%d')
+        return {
+            'morning_scan': f"09:{30 + self.MARKET_OPEN_SCAN_DELAY:02d}",
+            'morning_done': getattr(self, '_morning_scan_done', None) == today,
+            'afternoon_scan': f"{self.AFTERNOON_SCAN_HOUR}:{self.AFTERNOON_SCAN_MINUTE:02d}",
+            'afternoon_done': getattr(self, '_afternoon_scan_done', None) == today,
+            'overnight_scan': f"{self.OVERNIGHT_GAP_SCAN_HOUR}:{self.OVERNIGHT_GAP_SCAN_MINUTE:02d}",
+            'overnight_done': getattr(self, '_overnight_scan_done', None) == today,
+            'pre_close': f"15:{self.PRE_CLOSE_MINUTE}",
+        }
+
     def get_status(self) -> Dict:
         """Get current engine status"""
         # Snapshot shared state under lock
@@ -3831,7 +3846,7 @@ class AutoTradingEngine:
             'cash': account['cash'],
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v4.9.5 Single Source of Truth',
+            'version': 'v4.9.6 Dashboard Layout',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
@@ -3842,6 +3857,8 @@ class AutoTradingEngine:
             'weekly_pnl': weekly_pnl,
             # v4.9.5: Effective runtime params
             'effective_params': self._get_effective_params(),
+            # v4.9.6: Scanner schedule for UI timeline
+            'scanner_schedule': self._get_scanner_schedule(),
         }
 
     def get_full_config(self) -> Dict:
@@ -3985,6 +4002,27 @@ class AutoTradingEngine:
             'monitor_interval_seconds': self.MONITOR_INTERVAL_SECONDS,
             'pre_close_minute': self.PRE_CLOSE_MINUTE,
         }
+
+    def get_sector_regimes(self) -> list:
+        """Return sector regime data for UI sector strip."""
+        if not self.screener or not hasattr(self.screener, 'sector_regime'):
+            return []
+        sr = self.screener.sector_regime
+        if not sr or not sr.sector_regimes:
+            return []
+        result = []
+        for etf, sector_name in sr.SECTOR_ETFS.items():
+            regime = sr.sector_regimes.get(etf, 'UNKNOWN')
+            metrics = sr.sector_metrics.get(etf, {})
+            result.append({
+                'etf': etf,
+                'sector': sector_name,
+                'regime': regime,
+                'return_20d': round(metrics.get('return_20d', 0), 2),
+                'rsi': round(metrics.get('rsi', 50), 1),
+            })
+        result.sort(key=lambda x: x['return_20d'], reverse=True)
+        return result
 
     def get_positions_status(self) -> List[Dict]:
         """Get detailed positions status"""

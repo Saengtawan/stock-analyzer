@@ -2546,6 +2546,20 @@ def api_engine_config():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/rapid/sector-regimes')
+def api_sector_regimes():
+    """Sector regime data for UI sector strip."""
+    engine = get_auto_trading_engine()
+    if not engine:
+        return jsonify({'error': 'Engine not running', 'sectors': []})
+    try:
+        sectors = engine.get_sector_regimes()
+        return jsonify({'sectors': sectors})
+    except Exception as e:
+        logger.error(f"Sector regimes error: {e}")
+        return jsonify({'error': str(e), 'sectors': []})
+
+
 @app.route('/api/rapid/scan-progress')
 def api_scan_progress():
     """Get current scan progress for live UI display"""
