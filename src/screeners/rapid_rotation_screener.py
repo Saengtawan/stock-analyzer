@@ -803,7 +803,7 @@ class RapidRotationScreener:
 
         return tr.rolling(period).mean()
 
-    def analyze_stock(self, symbol: str) -> Optional[RapidRotationSignal]:
+    def analyze_stock(self, symbol: str, min_score: int = None, gap_max_up: float = None) -> Optional[RapidRotationSignal]:
         """
         Analyze a single stock for rapid rotation opportunity
 
@@ -901,7 +901,8 @@ class RapidRotationScreener:
             return None  # No clear bounce yet
 
         # FILTER 4: Skip big gap ups (exhaustion risk)
-        if gap_pct > 2.0:
+        effective_gap_max = gap_max_up if gap_max_up is not None else 2.0
+        if gap_pct > effective_gap_max:
             self._filter_stats['gap_up'] += 1
             return None
 
@@ -1045,8 +1046,9 @@ class RapidRotationScreener:
         # See screen() method - alt_data_score will be added there
         alt_score = 0  # Placeholder - will be updated in screen()
 
-        # Check minimum score (v3.3: Higher threshold = 90)
-        if score < self.MIN_SCORE:
+        # Check minimum score (v5.2: uses engine's effective min_score when provided)
+        effective_min_score = min_score if min_score is not None else self.MIN_SCORE
+        if score < effective_min_score:
             self._filter_stats['low_score'] += 1
             self._filter_stats['_low_score_values'].append((symbol, score))
             return None
@@ -1143,7 +1145,7 @@ class RapidRotationScreener:
             volume_ratio=round(volume_ratio, 2),
         )
 
-    def screen(self, top_n: int = 10, enable_alt_data: bool = True, allowed_sectors: List[str] = None, blocked_sectors: List[str] = None, progress_callback=None) -> List[RapidRotationSignal]:
+    def screen(self, top_n: int = 10, enable_alt_data: bool = True, allowed_sectors: List[str] = None, blocked_sectors: List[str] = None, progress_callback=None, min_score: int = None, gap_max_up: float = None) -> List[RapidRotationSignal]:
         """
         Screen universe for rapid rotation opportunities
 
@@ -1278,7 +1280,7 @@ class RapidRotationScreener:
                         symbol=symbol,
                     )
 
-                signal = self.analyze_stock(symbol)
+                signal = self.analyze_stock(symbol, min_score=min_score, gap_max_up=gap_max_up)
                 if signal:
                     signals.append(signal)
                     if progress_callback:
@@ -1296,7 +1298,9 @@ class RapidRotationScreener:
         # v4.9.4: Log filter diagnostics
         fs = self._filter_stats
         total_filtered = sum(v for k, v in fs.items() if k != '_low_score_values')
-        logger.info(f"📋 Filter breakdown ({total_filtered} rejected): "
+        eff_score = min_score if min_score is not None else self.MIN_SCORE
+        eff_gap = gap_max_up if gap_max_up is not None else 2.0
+        logger.info(f"📋 Filter breakdown ({total_filtered} rejected, min_score={eff_score}, gap_max={eff_gap}%): "
                     f"no_dip={fs['no_dip']} still_falling={fs['still_falling']} "
                     f"no_bounce={fs['no_bounce']} gap_up={fs['gap_up']} "
                     f"above_sma5={fs['above_sma5']} low_atr={fs['low_atr']} "
@@ -1356,15 +1360,19 @@ class RapidRotationScreener:
                               existing_positions: List[str] = None,
                               allowed_sectors: List[str] = None,
                               blocked_sectors: List[str] = None,
-                              progress_callback=None) -> List[RapidRotationSignal]:
+                              progress_callback=None,
+                              min_score: int = None,
+                              gap_max_up: float = None) -> List[RapidRotationSignal]:
         """Get signals for portfolio management
 
         Args:
             allowed_sectors: v4.9.2 Bear mode — only return signals from these sectors
             blocked_sectors: v4.9.3 BULL mode — skip signals from these sectors
+            min_score: v5.2 — engine's effective min_score (syncs Buy Signals with engine)
+            gap_max_up: v5.2 — engine's effective gap_max_up (syncs Buy Signals with engine)
         """
         existing = set(existing_positions or [])
-        signals = self.screen(top_n=20, allowed_sectors=allowed_sectors, blocked_sectors=blocked_sectors, progress_callback=progress_callback)
+        signals = self.screen(top_n=20, allowed_sectors=allowed_sectors, blocked_sectors=blocked_sectors, progress_callback=progress_callback, min_score=min_score, gap_max_up=gap_max_up)
         new_signals = [s for s in signals if s.symbol not in existing]
         available_slots = max_positions - len(existing)
         return new_signals[:available_slots]

@@ -26,7 +26,7 @@
     .header-bar .hdr-left {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 10px;
         flex-wrap: wrap;
     }
     .header-bar .hdr-right {
@@ -34,6 +34,7 @@
         align-items: center;
         gap: 8px;
         flex-wrap: wrap;
+        flex-grow: 1;
     }
     .mode-badge {
         padding: 3px 10px;
@@ -218,7 +219,7 @@
     /* ========================================
        MINI P&L CHART
        ======================================== */
-    .pnl-mini-chart { height: 50px; background: #f8f9fa; border-radius: 6px; padding: 4px; }
+    .pnl-mini-chart { height: 32px; background: rgba(255,255,255,0.08); border-radius: 4px; padding: 2px; }
     .pnl-chart-canvas { width: 100%; height: 100%; }
 
     /* ========================================
@@ -267,13 +268,14 @@
         <span class="pdt-inline ok" id="hdrPDT">PDT -/-</span>
         <span>Pos <strong id="hdrPositions">0</strong>/<span data-cfg="max_positions">?</span></span>
         <span id="hdrPnL" class="fw-bold">$0.00</span>
-        <div class="pnl-mini-chart d-none d-lg-block" style="width: 80px;">
+        <div class="pnl-mini-chart d-none d-lg-block" style="width: 64px;">
             <canvas id="pnlMiniChart" class="pnl-chart-canvas"></canvas>
         </div>
     </div>
     <div class="hdr-right">
         <span class="countdown-inline" id="hdrCountdown">--:--:--</span>
         <small class="opacity-50" id="countdownLabel">Market</small>
+        <div class="flex-grow-1"></div>
         <div class="btn-group btn-group-sm">
             <button type="button" class="btn btn-outline-secondary btn-sm" id="modeManual" onclick="setMode('manual')">
                 <i class="fas fa-hand-paper"></i>
@@ -1085,10 +1087,10 @@ function loadSectorRegimes() {
                 return;
             }
             const sectorLabel = {
-                'XLK': '\u{1F4BB} Tech', 'XLE': '\u{1F6E2}\uFE0F Energy', 'XLF': '\u{1F3E6} Finance',
-                'XLV': '\u{1FA7A} Health', 'XLY': '\u{1F6CD}\uFE0F Discret', 'XLP': '\u{1F6D2} Staples',
-                'XLI': '\u{1F3ED} Indust', 'XLU': '\u{26A1} Utility', 'XLB': '\u{26CF}\uFE0F Material',
-                'XLC': '\u{1F4E1} Comms', 'XLRE': '\u{1F3E0} RealEst',
+                'XLK': 'Tech', 'XLE': 'Energy', 'XLF': 'Finance',
+                'XLV': 'Health', 'XLY': 'Discret', 'XLP': 'Staples',
+                'XLI': 'Indust', 'XLU': 'Utility', 'XLB': 'Material',
+                'XLC': 'Comms', 'XLRE': 'RealEst',
             };
             strip.innerHTML = sectors.map(s => {
                 const regimeMap = {

@@ -2206,12 +2206,10 @@ class AutoTradingEngine:
                 max_positions=effective_max,
                 existing_positions=existing,
                 allowed_sectors=allowed_sectors,
-                blocked_sectors=blocked_sectors
+                blocked_sectors=blocked_sectors,
+                min_score=params['min_score'],
+                gap_max_up=params['gap_max_up'],
             )
-
-            # v4.0: Filter by MIN_SCORE if screener doesn't do it
-            if hasattr(self, 'MIN_SCORE'):
-                signals = [s for s in signals if getattr(s, 'score', 0) >= self.MIN_SCORE]
 
             self.daily_stats.signals_found = len(signals)
             logger.info(f"Found {len(signals)} signals (regime: {regime_label})")
