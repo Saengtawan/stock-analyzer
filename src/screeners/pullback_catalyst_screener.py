@@ -110,7 +110,7 @@ class PullbackCatalystScreener:
             # Consumer Discretionary
             'TSLA', 'HD', 'NKE', 'SBUX', 'MCD', 'LOW', 'TGT', 'COST', 'DIS', 'CMG',
             # Energy
-            'XOM', 'CVX', 'COP', 'SLB', 'EOG', 'OXY', 'PSX', 'VLO', 'MPC', 'HES',
+            'XOM', 'CVX', 'COP', 'SLB', 'EOG', 'OXY', 'PSX', 'VLO', 'MPC', 'DVN',
             # Industrials
             'CAT', 'DE', 'UNP', 'HON', 'GE', 'BA', 'LMT', 'RTX', 'UPS', 'FDX',
         ]

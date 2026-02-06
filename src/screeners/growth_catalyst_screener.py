@@ -1076,7 +1076,7 @@ class GrowthCatalystScreener:
         'VTRS', 'OGN', 'CTLT', 'JAZZ', 'NBIX',
         # === HEALTHCARE - BIOTECH (30 stocks) ===
         'ALNY', 'BMRN', 'INCY', 'SRPT', 'RARE', 'UTHR', 'EXAS', 'ILMN', 'CRSP', 'NTLA',
-        'BEAM', 'IONS', 'SANA', 'VERV', 'EDIT', 'ARWR', 'ALLO', 'FATE', 'LEGN', 'IMVT',
+        'BEAM', 'IONS', 'SANA', 'EDIT', 'ARWR', 'ALLO', 'FATE', 'LEGN', 'IMVT', 'RXRX',
         'RCKT', 'RLAY', 'ARVN', 'KYMR', 'PTGX', 'MRSN', 'SNDX', 'XNCR', 'RGNX', 'ADPT',
         # === HEALTHCARE - DEVICES / SERVICES (30 stocks) ===
         'UNH', 'TMO', 'DHR', 'ABT', 'ISRG', 'CVS', 'CI', 'HUM', 'ELV', 'CNC',
@@ -1111,8 +1111,8 @@ class GrowthCatalystScreener:
         'FCX', 'NEM', 'NUE', 'STLD', 'CLF', 'X', 'AA', 'ATI', 'RS', 'CMC',
         'MP', 'LAC', 'ALB', 'LTHM', 'SQM',
         # === ENERGY - OIL & GAS (30 stocks) ===
-        'XOM', 'CVX', 'COP', 'SLB', 'EOG', 'OXY', 'MPC', 'VLO', 'PSX', 'PXD',
-        'DVN', 'FANG', 'HES', 'MRO', 'APA', 'HAL', 'BKR', 'NOV', 'CHK', 'RRC',
+        'XOM', 'CVX', 'COP', 'SLB', 'EOG', 'OXY', 'MPC', 'VLO', 'PSX', 'DVN',
+        'FANG', 'APA', 'HAL', 'BKR', 'NOV', 'CHK', 'RRC', 'ET', 'EPD', 'TRGP',
         'AR', 'EQT', 'SWN', 'CTRA', 'OVV', 'MGY', 'MTDR', 'CHRD', 'SM', 'PDCE',
         # === CLEAN ENERGY (20 stocks) ===
         'ENPH', 'SEDG', 'FSLR', 'RUN', 'NOVA', 'SHLS', 'ARRY', 'MAXN', 'JKS', 'CSIQ',

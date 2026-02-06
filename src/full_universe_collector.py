@@ -47,7 +47,7 @@ FULL_UNIVERSE = {
         'WTFC', 'PNFP', 'SFNC', 'GBCI', 'ABCB', 'CADE', 'FCNCA', 'SNV', 'BOKF', 'FNB',
     ],
     'Finance_Payments': [
-        'V', 'MA', 'AXP', 'PYPL', 'GPN', 'FIS', 'FISV', 'FLT', 'WU', 'AFRM',
+        'V', 'MA', 'AXP', 'PYPL', 'GPN', 'FIS', 'FISV', 'CPAY', 'WU', 'AFRM',
         'SQ', 'TOST', 'PAYX', 'ADP', 'FOUR', 'PAYO', 'RPAY', 'PSFE', 'ACIW', 'SSNC',
     ],
     'Finance_Asset_Mgmt': [
@@ -81,7 +81,7 @@ FULL_UNIVERSE = {
     'Healthcare_Pharma': [
         'JNJ', 'PFE', 'ABBV', 'MRK', 'LLY', 'BMY', 'AMGN', 'GILD', 'REGN', 'VRTX',
         'BIIB', 'MRNA', 'AZN', 'GSK', 'NVO', 'SNY', 'NVS', 'TAK', 'BNTX', 'JAZZ',
-        'SGEN', 'ALNY', 'INCY', 'EXEL', 'NBIX', 'UTHR', 'SRPT', 'BMRN', 'IONS', 'RARE',
+        'ALNY', 'INCY', 'EXEL', 'NBIX', 'UTHR', 'SRPT', 'BMRN', 'IONS', 'RARE', 'RPRX',
     ],
     'Healthcare_MedDevices': [
         'MDT', 'ABT', 'TMO', 'DHR', 'ISRG', 'SYK', 'BSX', 'EW', 'ZBH', 'HOLX',
@@ -114,8 +114,8 @@ FULL_UNIVERSE = {
         'CPB', 'HRL', 'TSN', 'KHC', 'CHD', 'CLX', 'USFD', 'PFGC', 'SFM', 'CHEF',
     ],
     'Energy_Oil': [
-        'XOM', 'CVX', 'COP', 'EOG', 'OXY', 'DVN', 'FANG', 'PXD', 'MRO', 'APA',
-        'HES', 'OVV', 'CTRA', 'MTDR', 'PR', 'SM', 'MGY', 'CHRD', 'CLR', 'NOG',
+        'XOM', 'CVX', 'COP', 'EOG', 'OXY', 'DVN', 'FANG', 'APA', 'OVV', 'CTRA',
+        'MTDR', 'PR', 'SM', 'MGY', 'CHRD', 'CLR', 'NOG', 'ET', 'EPD', 'TRGP',
         'PDCE', 'ESTE', 'REI', 'CPE', 'ROCC', 'VTLE', 'GPOR', 'BRY', 'RRC', 'SWN',
     ],
     'Energy_Services': [
@@ -127,7 +127,7 @@ FULL_UNIVERSE = {
     ],
     'Energy_Midstream': [
         'WMB', 'KMI', 'OKE', 'ET', 'EPD', 'MPLX', 'PAA', 'TRGP', 'ENB', 'TRP',
-        'WES', 'AM', 'HESM', 'DTM', 'ETRN', 'KNTK', 'GEL', 'NS', 'USAC', 'SMLP',
+        'WES', 'AM', 'DTM', 'ETRN', 'KNTK', 'GEL', 'NS', 'USAC', 'SMLP', 'MPLX',
     ],
     'Utilities_Electric': [
         'NEE', 'DUK', 'SO', 'D', 'AEP', 'SRE', 'EXC', 'XEL', 'ED', 'PEG',

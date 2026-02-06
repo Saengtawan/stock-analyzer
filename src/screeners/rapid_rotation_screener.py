@@ -163,8 +163,8 @@ class RapidRotationScreener:
     # These sectors are often BULL/SIDEWAYS when Tech is BEAR
     BULL_SECTOR_STOCKS = [
         # Energy (20) - Often STRONG BULL in BEAR markets
-        'XOM', 'CVX', 'COP', 'EOG', 'SLB', 'MPC', 'VLO', 'PXD', 'HES', 'OXY',
-        'DVN', 'FANG', 'MRO', 'PSX', 'HAL', 'BKR', 'CTRA', 'KMI', 'WMB', 'OKE',
+        'XOM', 'CVX', 'COP', 'EOG', 'SLB', 'MPC', 'VLO', 'OXY', 'DVN', 'FANG',
+        'PSX', 'HAL', 'BKR', 'CTRA', 'KMI', 'WMB', 'OKE', 'ET', 'EPD', 'TRGP',
         # Utilities (20) - Defensive, often BULL in downturns
         'NEE', 'DUK', 'SO', 'D', 'SRE', 'AEP', 'XEL', 'WEC', 'ES', 'EXC',
         'ED', 'ATO', 'CMS', 'NI', 'EVRG', 'PNW', 'AES', 'PPL', 'FE', 'CEG',
