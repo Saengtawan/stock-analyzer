@@ -4929,6 +4929,31 @@ class AutoTradingEngine:
     def _get_scanner_schedule(self) -> Dict:
         """Get scanner timing for UI timeline bar."""
         today = datetime.now().strftime('%Y-%m-%d')
+
+        # v6.3: Calculate next continuous scan time from engine state
+        next_continuous_scan = None
+        next_continuous_interval = None
+        if self.CONTINUOUS_SCAN_ENABLED:
+            et_now = self._get_et_time()
+            last_cont = getattr(self, '_last_continuous_scan', None)
+
+            # Determine interval based on current time (volatile vs normal)
+            is_volatile = et_now.hour < self.CONTINUOUS_SCAN_VOLATILE_END_HOUR
+            interval_min = self.CONTINUOUS_SCAN_VOLATILE_INTERVAL if is_volatile else self.CONTINUOUS_SCAN_INTERVAL_MINUTES
+            next_continuous_interval = interval_min
+
+            # Calculate next scan time
+            if last_cont:
+                next_scan = last_cont + timedelta(minutes=interval_min)
+            else:
+                # If no previous scan, next scan is now + interval
+                next_scan = et_now + timedelta(minutes=interval_min)
+
+            # Don't show past times or pre-close times
+            pre_close_cutoff = et_now.replace(hour=15, minute=45, second=0, microsecond=0)
+            if next_scan > et_now and next_scan < pre_close_cutoff:
+                next_continuous_scan = next_scan.isoformat()
+
         return {
             'morning_scan': f"09:{30 + self.MARKET_OPEN_SCAN_DELAY:02d}",
             'morning_done': getattr(self, '_morning_scan_done', None) == today,
@@ -4937,6 +4962,11 @@ class AutoTradingEngine:
             'overnight_scan': f"{self.OVERNIGHT_GAP_SCAN_HOUR}:{self.OVERNIGHT_GAP_SCAN_MINUTE:02d}",
             'overnight_done': getattr(self, '_overnight_scan_done', None) == today,
             'pre_close': f"15:{self.PRE_CLOSE_MINUTE}",
+            # v6.3: Continuous scan info from engine state
+            'continuous_enabled': self.CONTINUOUS_SCAN_ENABLED,
+            'next_continuous_scan': next_continuous_scan,
+            'next_continuous_interval': next_continuous_interval,
+            'last_continuous_scan': getattr(self, '_last_continuous_scan', None).isoformat() if getattr(self, '_last_continuous_scan', None) else None,
         }
 
     def get_status(self) -> Dict:

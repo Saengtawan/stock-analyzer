@@ -2636,6 +2636,17 @@ def api_rapid_signals():
                 sig['execution_status'] = 'PENDING'
                 sig['skip_reason'] = ''
 
+        # v6.3: Get next scan time from engine (single source of truth)
+        try:
+            engine = get_auto_trading_engine()
+            if engine and engine.running:
+                schedule = engine._get_scanner_schedule()
+                data['next_scan_timestamp'] = schedule.get('next_continuous_scan')
+                data['next_scan_interval'] = schedule.get('next_continuous_interval')
+                data['continuous_enabled'] = schedule.get('continuous_enabled', False)
+        except Exception as sched_err:
+            logger.debug(f"Could not get scanner schedule: {sched_err}")
+
         return jsonify(data)
 
     except Exception as e:
