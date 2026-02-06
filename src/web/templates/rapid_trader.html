@@ -92,25 +92,25 @@
     .sector-chip.unknown { background: #d5dbdb; color: #566573; }
 
     /* v6.3: Minimal Timeline */
-    .timeline-container { padding: 6px 0; margin-bottom: 6px; }
+    .timeline-container { padding: 8px 0; margin-bottom: 6px; }
     .timeline-bar { display: flex; align-items: center; }
-    .tl-session { flex: 1; text-align: center; padding: 4px 2px; }
-    .tl-session.done { opacity: 0.4; }
-    .tl-session.pending { opacity: 0.35; }
-    .tl-header { display: flex; align-items: center; justify-content: center; gap: 4px; }
-    .tl-indicator { width: 5px; height: 5px; border-radius: 50%; }
+    .tl-session { flex: 1; text-align: center; padding: 6px 4px; }
+    .tl-session.done { opacity: 0.5; }
+    .tl-session.pending { opacity: 0.4; }
+    .tl-header { display: flex; align-items: center; justify-content: center; gap: 5px; }
+    .tl-indicator { width: 6px; height: 6px; border-radius: 50%; }
     .tl-session.done .tl-indicator { background: #22c55e; }
     .tl-session.active .tl-indicator { background: #3b82f6; animation: blink 1s infinite; }
     .tl-session.pending .tl-indicator { background: #475569; }
     @keyframes blink { 50% { opacity: 0.3; } }
-    .tl-name { font-size: 0.6rem; color: #94a3b8; }
+    .tl-name { font-size: 0.75rem; color: #94a3b8; }
     .tl-session.active .tl-name { color: #60a5fa; font-weight: 600; }
-    .tl-time { font-size: 0.5rem; color: #64748b; }
+    .tl-time { font-size: 0.65rem; color: #64748b; }
     .tl-interval, .tl-connector { display: none; }
-    .tl-progress { height: 2px; background: rgba(255,255,255,0.06); border-radius: 1px; margin-top: 3px; }
+    .tl-progress { height: 3px; background: rgba(255,255,255,0.08); border-radius: 1px; margin-top: 4px; }
     .tl-progress-fill { height: 100%; background: #3b82f6; border-radius: 1px; transition: width 0.3s; }
     .tl-session.done .tl-progress-fill { background: #22c55e; width: 100% !important; }
-    .tl-next-scan { display: flex; justify-content: center; gap: 12px; padding-top: 4px; font-size: 0.6rem; color: #64748b; }
+    .tl-next-scan { display: flex; justify-content: center; gap: 16px; padding-top: 6px; font-size: 0.75rem; color: #64748b; }
     .tl-next-scan .countdown { color: #22c55e; font-weight: 600; }
 
     /* ========================================
