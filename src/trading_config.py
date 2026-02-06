@@ -149,6 +149,9 @@ CONFIG_SCHEMA: Dict[str, Dict[str, Any]] = {
     'SECTOR_COOLDOWN_DAYS': {'type': int, 'min': 1, 'max': 10},
     # v5.1 P2-16: Afternoon
     'AFTERNOON_MIN_SCORE': {'type': int, 'min': 50, 'max': 100},
+    # v5.3: Quant Research Findings
+    'STOCK_D_FILTER_ENABLED': {'type': bool},
+    'BEAR_DD_CONTROL_EXEMPT': {'type': bool},
 }
 
 

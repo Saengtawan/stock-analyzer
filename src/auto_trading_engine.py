@@ -179,6 +179,7 @@ class DailyStats:
     late_start_skipped: bool = False  # v4.4: True if scan skipped due to late start
     low_risk_trades: int = 0        # v4.5: Trades executed in low risk mode
     sector_rejected: int = 0        # v4.7: Signals rejected by sector filter
+    stock_d_rejected: int = 0       # v5.3: Signals rejected by Stock-D filter (no dip-bounce)
 
 
 @dataclass
@@ -385,6 +386,31 @@ class AutoTradingEngine:
     # แม้ SPY BULL ก็ไม่ซื้อ sector ที่กำลังลง (เช่น Tech -3% ขณะ SPY ขึ้น)
     BULL_SECTOR_FILTER_ENABLED = True
     BULL_SECTOR_MIN_RETURN = -5  # return_20d < -5% = sector ขาลง → block
+
+    # =========================================================================
+    # v5.3 QUANT RESEARCH FINDINGS
+    # =========================================================================
+    # Based on systematic backtest (backtest_quant_research.py):
+    # - Stock-D filter: +1.466% expectancy improvement
+    # - BEAR DD Control exemption: -0.537% expectancy loss if DD ctrl applied to BEAR
+    # - A_5d_only filter: Actually HURTS expectancy (-0.284%) → NOT recommended
+    #
+    # Key insight: BEAR regime uses mean-reversion (dip-bounce) which needs room
+    # to work. DD controls cut winning trades early and kill the edge.
+
+    # Stock-D Filter: Require dip-bounce pattern for Sector Rotation entries
+    # Backtest: E[R] +0.480% → +1.946% (+1.466% improvement)
+    # Trades: 620 → 110 (filters low-quality entries)
+    STOCK_D_FILTER_ENABLED = True
+
+    # BEAR DD Control Exemption: Don't apply DD controls in BEAR regime
+    # Backtest: BEAR E[R] +1.011% (no ctrl) → +0.474% (with ctrl) = -0.537% loss
+    # Reason: Mean-reversion needs room to work; cutting exposure kills edge
+    BEAR_DD_CONTROL_EXEMPT = True
+
+    # A_5d_only filter is NOT implemented (hurts expectancy)
+    # Backtest showed: sector_5d < 0 trades actually BETTER (+1.85% vs +0.20%)
+    # because dip-bounce is mean-reversion, works better when sector oversold
 
     # v4.9.4: Conviction-Based Sizing
     CONVICTION_SIZING_ENABLED = True
@@ -1438,6 +1464,72 @@ class AutoTradingEngine:
         except Exception as e:
             logger.error(f"{symbol}: Gap check failed: {e} — blocking (fail-closed)")
             return False, 0.0, f"Data unavailable: {e}"
+
+    # =========================================================================
+    # STOCK-D FILTER (v5.3 NEW! - Quant Research Finding)
+    # =========================================================================
+
+    def _check_stock_d_filter(self, symbol: str) -> Tuple[bool, str, Dict]:
+        """
+        Check if stock shows dip-bounce pattern (Stock-D filter).
+
+        v5.3 Quant Research Finding:
+        - Requiring dip-bounce pattern improves expectancy by +1.466%
+        - Pattern: Yesterday dip >= 2%, Today bounce >= 1%
+        - Filters out low-quality entries (620 → 110 trades, higher quality)
+
+        Returns:
+            (is_dip_bounce, reason, data)
+        """
+        if not self.STOCK_D_FILTER_ENABLED:
+            return True, "Stock-D filter disabled", {}
+
+        data = {}
+        try:
+            ticker = yf.Ticker(symbol)
+            hist = ticker.history(period='5d')
+
+            if hist.empty or len(hist) < 3:
+                logger.warning(f"{symbol}: Not enough data for Stock-D check — blocking (fail-closed)")
+                return False, "Data unavailable — insufficient data", data
+
+            # Get prices for pattern detection
+            # hist.iloc[-1] = today (most recent), hist.iloc[-2] = yesterday, hist.iloc[-3] = 2 days ago
+            today_close = float(hist['Close'].iloc[-1])
+            yesterday_close = float(hist['Close'].iloc[-2])
+            day_before_close = float(hist['Close'].iloc[-3])
+
+            # Calculate returns
+            yesterday_return = ((yesterday_close - day_before_close) / day_before_close) * 100
+            today_return = ((today_close - yesterday_close) / yesterday_close) * 100
+
+            data = {
+                'yesterday_return': round(yesterday_return, 2),
+                'today_return': round(today_return, 2),
+                'today_close': round(today_close, 2),
+                'yesterday_close': round(yesterday_close, 2),
+            }
+
+            # Dip-bounce pattern: Yesterday dip >= 2%, Today bounce >= 1%
+            is_dip = yesterday_return <= -2.0
+            is_bounce = today_return >= 1.0
+
+            if is_dip and is_bounce:
+                reason = f"Stock-D OK: Yesterday {yesterday_return:+.1f}% (dip), Today {today_return:+.1f}% (bounce)"
+                logger.info(f"✅ {symbol}: {reason}")
+                return True, reason, data
+            elif not is_dip:
+                reason = f"Stock-D REJECT: Yesterday {yesterday_return:+.1f}% (need <= -2%)"
+                logger.info(f"❌ {symbol}: {reason}")
+                return False, reason, data
+            else:  # dip but no bounce
+                reason = f"Stock-D REJECT: Today {today_return:+.1f}% (need >= 1%)"
+                logger.info(f"❌ {symbol}: {reason}")
+                return False, reason, data
+
+        except Exception as e:
+            logger.error(f"{symbol}: Stock-D check failed: {e} — blocking (fail-closed)")
+            return False, f"Data unavailable: {e}", data
 
     # =========================================================================
     # EARNINGS FILTER (v4.4 NEW!)
@@ -2659,7 +2751,7 @@ class AutoTradingEngine:
                     )
                     return False
 
-            # --- BLOCK 4: Pre-trade filters (gap, earnings, sector) ---
+            # --- BLOCK 4: Pre-trade filters (gap, stock-d, earnings, sector) ---
             # v4.3: Gap Filter - ไม่ซื้อหุ้นที่ gap up/down แรงเกินไป
             # v4.5: Use effective gap_max_up
             gap_ok, gap_pct, gap_reason = self._check_gap_filter(symbol, current_price, max_up_override=params['gap_max_up'], max_down_override=params.get('gap_max_down'))
@@ -2669,6 +2761,21 @@ class AutoTradingEngine:
                 self._log_filter_rejection(
                     symbol, current_price, "GAP_REJECT", gap_reason,
                     {"gap": {"passed": False, "detail": gap_reason}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                    gap_pct=gap_pct,
+                )
+                return False
+
+            # v5.3: Stock-D Filter - Require dip-bounce pattern (Quant Research: +1.466% expectancy)
+            stock_d_ok, stock_d_reason, stock_d_data = self._check_stock_d_filter(symbol)
+            if not stock_d_ok:
+                logger.warning(f"❌ Stock-D Filter REJECT {symbol}: {stock_d_reason}")
+                if not hasattr(self.daily_stats, 'stock_d_rejected'):
+                    self.daily_stats.stock_d_rejected = 0
+                self.daily_stats.stock_d_rejected += 1
+                self._log_filter_rejection(
+                    symbol, current_price, "STOCK_D_REJECT", stock_d_reason,
+                    {"stock_d": {"passed": False, "detail": stock_d_reason, **stock_d_data}},
                     signal_score, signal_sector, signal_source, signal, mode,
                     gap_pct=gap_pct,
                 )
@@ -3698,8 +3805,21 @@ class AutoTradingEngine:
     # DAILY CHECKS
     # =========================================================================
 
-    def check_daily_loss_limit(self) -> bool:
-        """Check if daily loss limit exceeded"""
+    def check_daily_loss_limit(self, mode: str = None) -> bool:
+        """
+        Check if daily loss limit exceeded.
+
+        v5.3: BEAR regime exempt from DD controls (Quant Research finding)
+        Mean-reversion strategy needs room to work; DD controls destroy edge.
+
+        Args:
+            mode: Trading mode ('BEAR', 'BEAR+LOW_RISK', 'LOW_RISK', 'NORMAL')
+        """
+        # v5.3: BEAR DD Control Exemption
+        if self.BEAR_DD_CONTROL_EXEMPT and mode and 'BEAR' in mode:
+            logger.debug(f"Daily loss limit check SKIPPED (BEAR DD exempt, mode={mode})")
+            return False
+
         account = self.trader.get_account()
         last_equity = account['last_equity']
         if last_equity <= 0:
@@ -3715,11 +3835,21 @@ class AutoTradingEngine:
     # WEEKLY LOSS LIMIT (v4.7 NEW!)
     # =========================================================================
 
-    def check_weekly_loss_limit(self) -> bool:
+    def check_weekly_loss_limit(self, mode: str = None) -> bool:
         """
         Check if weekly loss limit exceeded.
         Reset ทุกวันจันทร์ (start of trading week). Thread-safe.
+
+        v5.3: BEAR regime exempt from DD controls (Quant Research finding)
+
+        Args:
+            mode: Trading mode ('BEAR', 'BEAR+LOW_RISK', 'LOW_RISK', 'NORMAL')
         """
+        # v5.3: BEAR DD Control Exemption
+        if self.BEAR_DD_CONTROL_EXEMPT and mode and 'BEAR' in mode:
+            logger.debug(f"Weekly loss limit check SKIPPED (BEAR DD exempt, mode={mode})")
+            return False
+
         today = datetime.now(self.et_tz).date()
 
         with self._stats_lock:
@@ -3745,11 +3875,21 @@ class AutoTradingEngine:
     # CONSECUTIVE LOSS STOP (v4.7 NEW!)
     # =========================================================================
 
-    def check_consecutive_loss_cooldown(self) -> bool:
+    def check_consecutive_loss_cooldown(self, mode: str = None) -> bool:
         """
         Check if in cooldown from consecutive losses.
         แพ้ 3 ครั้งติด → หยุด 1 วัน. Thread-safe.
+
+        v5.3: BEAR regime exempt from DD controls (Quant Research finding)
+
+        Args:
+            mode: Trading mode ('BEAR', 'BEAR+LOW_RISK', 'LOW_RISK', 'NORMAL')
         """
+        # v5.3: BEAR DD Control Exemption
+        if self.BEAR_DD_CONTROL_EXEMPT and mode and 'BEAR' in mode:
+            logger.debug(f"Consecutive loss cooldown check SKIPPED (BEAR DD exempt, mode={mode})")
+            return False
+
         with self._stats_lock:
             if self.cooldown_until:
                 today = datetime.now(self.et_tz).date()
@@ -3980,19 +4120,23 @@ class AutoTradingEngine:
 
                         if not is_bull and not self.BEAR_MODE_ENABLED:
                             logger.warning(f"📉 BEAR market + bear mode disabled — no trades")
-                        elif self.check_daily_loss_limit():
-                            logger.warning("Daily loss limit - no new trades today")
-                        elif self.check_weekly_loss_limit():
-                            logger.warning("Weekly loss limit - no new trades this week")
-                        elif self.check_consecutive_loss_cooldown():
-                            logger.warning("Consecutive loss cooldown - no new trades today")
                         else:
-                            self._clear_queue_end_of_day()
+                            # v5.3: Get mode early for BEAR DD exemption
                             params = self._get_effective_params()
-                            effective_max = params.get('max_positions') or self.MAX_POSITIONS
+                            mode = params.get('mode', 'NORMAL')
 
-                            # Use afternoon strictness for late start
-                            saved_min_score = self.MIN_SCORE
+                            if self.check_daily_loss_limit(mode=mode):
+                                logger.warning("Daily loss limit - no new trades today")
+                            elif self.check_weekly_loss_limit(mode=mode):
+                                logger.warning("Weekly loss limit - no new trades this week")
+                            elif self.check_consecutive_loss_cooldown(mode=mode):
+                                logger.warning("Consecutive loss cooldown - no new trades today")
+                            else:
+                                self._clear_queue_end_of_day()
+                                effective_max = params.get('max_positions') or self.MAX_POSITIONS
+
+                                # Use afternoon strictness for late start
+                                saved_min_score = self.MIN_SCORE
                             saved_gap_up = self.GAP_MAX_UP
                             saved_gap_down = self.GAP_MAX_DOWN
                             self.MIN_SCORE = max(self.MIN_SCORE, self.AFTERNOON_MIN_SCORE)
@@ -4028,11 +4172,14 @@ class AutoTradingEngine:
                     elif not is_bull and self.BEAR_MODE_ENABLED:
                         # v4.9.2: Smart Bear Mode — trade defensive sectors only
                         logger.info(f"🐻 BEAR market — Smart Bear Mode active (defensive sectors only)")
-                        if self.check_daily_loss_limit():
+                        # v5.3: Get mode for BEAR DD exemption
+                        params = self._get_effective_params()
+                        mode = params.get('mode', 'BEAR')
+                        if self.check_daily_loss_limit(mode=mode):
                             logger.warning("Daily loss limit - no new trades today")
-                        elif self.check_weekly_loss_limit():
+                        elif self.check_weekly_loss_limit(mode=mode):
                             logger.warning("Weekly loss limit - no new trades this week")
-                        elif self.check_consecutive_loss_cooldown():
+                        elif self.check_consecutive_loss_cooldown(mode=mode):
                             logger.warning("Consecutive loss cooldown - no new trades today")
                         else:
                             self._clear_queue_end_of_day()
@@ -4097,72 +4244,76 @@ class AutoTradingEngine:
 
                             self._process_scan_signals(signals, "morning", max_positions=effective_max)
                             self._overnight_scan_done = today  # Prevent duplicate 15:30 run
-                    elif self.check_daily_loss_limit():
-                        logger.warning("Daily loss limit - no new trades today")
-                    elif self.check_weekly_loss_limit():
-                        logger.warning("Weekly loss limit - no new trades this week")
-                    elif self.check_consecutive_loss_cooldown():
-                        logger.warning("Consecutive loss cooldown - no new trades today")
                     else:
-                        # v4.1: Clear queue from previous day
-                        self._clear_queue_end_of_day()
+                        # BULL mode - get params for DD check
+                        params = self._get_effective_params()
+                        mode = params.get('mode', 'NORMAL')
+                        if self.check_daily_loss_limit(mode=mode):
+                            logger.warning("Daily loss limit - no new trades today")
+                        elif self.check_weekly_loss_limit(mode=mode):
+                            logger.warning("Weekly loss limit - no new trades this week")
+                        elif self.check_consecutive_loss_cooldown(mode=mode):
+                            logger.warning("Consecutive loss cooldown - no new trades today")
+                        else:
+                            # v4.1: Clear queue from previous day
+                            self._clear_queue_end_of_day()
 
-                        # Scan and execute (regime is BULL)
-                        signals = self.scan_for_signals()
+                            # Scan and execute (regime is BULL)
+                            signals = self.scan_for_signals()
 
-                        # v4.9.4: Add breakout scan signals to morning scan
-                        if self.breakout_scanner and self.BREAKOUT_SCAN_ENABLED:
-                            try:
-                                # Ensure data is loaded (may be empty if bounce scan early-returned)
-                                data_cache = self.screener.data_cache if self.screener else {}
-                                if not data_cache and self.screener:
-                                    logger.info("Breakout scan: Loading data (cache was empty)")
-                                    universe = self.screener.generate_universe()[:100]
-                                    self.screener.load_data(universe)
-                                    data_cache = self.screener.data_cache
-                                sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
-                                breakout_signals = self.breakout_scanner.scan(
-                                    universe=data_cache,
-                                    sector_regime=sector_regime,
-                                    min_score=self.BREAKOUT_MIN_SCORE,
-                                    min_volume_mult=self.BREAKOUT_MIN_VOLUME_MULT,
-                                    target_pct=self.BREAKOUT_TARGET_PCT,
-                                    sl_pct=self.BREAKOUT_SL_PCT,
-                                )
-                                if breakout_signals:
-                                    logger.info(f"Breakout scan: {len(breakout_signals)} signals found")
-                                    signals.extend(breakout_signals)
-                                    # Re-sort all signals by score
-                                    signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
-                            except Exception as e:
-                                logger.warning(f"Breakout scan error: {e}")
+                            # v4.9.4: Add breakout scan signals to morning scan
+                            if self.breakout_scanner and self.BREAKOUT_SCAN_ENABLED:
+                                try:
+                                    # Ensure data is loaded (may be empty if bounce scan early-returned)
+                                    data_cache = self.screener.data_cache if self.screener else {}
+                                    if not data_cache and self.screener:
+                                        logger.info("Breakout scan: Loading data (cache was empty)")
+                                        universe = self.screener.generate_universe()[:100]
+                                        self.screener.load_data(universe)
+                                        data_cache = self.screener.data_cache
+                                    sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
+                                    breakout_signals = self.breakout_scanner.scan(
+                                        universe=data_cache,
+                                        sector_regime=sector_regime,
+                                        min_score=self.BREAKOUT_MIN_SCORE,
+                                        min_volume_mult=self.BREAKOUT_MIN_VOLUME_MULT,
+                                        target_pct=self.BREAKOUT_TARGET_PCT,
+                                        sl_pct=self.BREAKOUT_SL_PCT,
+                                    )
+                                    if breakout_signals:
+                                        logger.info(f"Breakout scan: {len(breakout_signals)} signals found")
+                                        signals.extend(breakout_signals)
+                                        # Re-sort all signals by score
+                                        signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
+                                except Exception as e:
+                                    logger.warning(f"Breakout scan error: {e}")
 
-                        # v5.1: Add overnight gap scanner to BULL morning scan
-                        if self.overnight_scanner and self.OVERNIGHT_GAP_ENABLED:
-                            try:
-                                data_cache = self.screener.data_cache if self.screener else {}
-                                if not data_cache and self.screener:
-                                    universe = self.screener.generate_universe()[:100]
-                                    self.screener.load_data(universe)
-                                    data_cache = self.screener.data_cache
-                                sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
-                                overnight_signals = self.overnight_scanner.scan(
-                                    universe=data_cache,
-                                    sector_regime=sector_regime,
-                                    min_score=self.OVERNIGHT_GAP_MIN_SCORE,
-                                    position_pct=self.OVERNIGHT_GAP_POSITION_PCT,
-                                    target_pct=self.OVERNIGHT_GAP_TARGET_PCT,
-                                    sl_pct=self.OVERNIGHT_GAP_SL_PCT,
-                                )
-                                if overnight_signals:
-                                    logger.info(f"BULL overnight gap (morning): {len(overnight_signals)} signals")
-                                    signals.extend(overnight_signals)
-                                    signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
-                            except Exception as e:
-                                logger.warning(f"BULL overnight gap scan error: {e}")
+                            # v5.1: Add overnight gap scanner to BULL morning scan
+                            if self.overnight_scanner and self.OVERNIGHT_GAP_ENABLED:
+                                try:
+                                    data_cache = self.screener.data_cache if self.screener else {}
+                                    if not data_cache and self.screener:
+                                        universe = self.screener.generate_universe()[:100]
+                                        self.screener.load_data(universe)
+                                        data_cache = self.screener.data_cache
+                                    sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
+                                    overnight_signals = self.overnight_scanner.scan(
+                                        universe=data_cache,
+                                        sector_regime=sector_regime,
+                                        min_score=self.OVERNIGHT_GAP_MIN_SCORE,
+                                        position_pct=self.OVERNIGHT_GAP_POSITION_PCT,
+                                        target_pct=self.OVERNIGHT_GAP_TARGET_PCT,
+                                        sl_pct=self.OVERNIGHT_GAP_SL_PCT,
+                                    )
+                                    if overnight_signals:
+                                        logger.info(f"BULL overnight gap (morning): {len(overnight_signals)} signals")
+                                        signals.extend(overnight_signals)
+                                        signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
+                                except Exception as e:
+                                    logger.warning(f"BULL overnight gap scan error: {e}")
 
-                        self._process_scan_signals(signals, "morning")
-                        self._overnight_scan_done = today  # Prevent duplicate 15:30 run
+                            self._process_scan_signals(signals, "morning")
+                            self._overnight_scan_done = today  # Prevent duplicate 15:30 run
 
                     self._morning_scan_done = today
                     last_scan_date = today
@@ -4179,11 +4330,12 @@ class AutoTradingEngine:
                         # v4.9.2: Use effective max_positions for afternoon scan too
                         afternoon_params = self._get_effective_params()
                         afternoon_max = afternoon_params.get('max_positions') or self.MAX_POSITIONS
+                        afternoon_mode = afternoon_params.get('mode', 'NORMAL')  # v5.3: For BEAR DD exemption
                         if et_now >= afternoon_time and len(self.positions) < afternoon_max:
                             logger.info(f"☀️ Afternoon scan: {len(self.positions)}/{afternoon_max} positions, scanning for more...")
                             self._afternoon_scan_done = today
                             is_bull, _ = self._check_market_regime()
-                            if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit() and not self.check_weekly_loss_limit() and not self.check_consecutive_loss_cooldown():
+                            if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit(mode=afternoon_mode) and not self.check_weekly_loss_limit(mode=afternoon_mode) and not self.check_consecutive_loss_cooldown(mode=afternoon_mode):
                                 # Use stricter params for afternoon
                                 saved_min_score = self.MIN_SCORE
                                 saved_gap_up = self.GAP_MAX_UP
@@ -4239,11 +4391,12 @@ class AutoTradingEngine:
                         if gap_scan_start <= et_now < gap_scan_end:
                             overnight_params = self._get_effective_params()
                             overnight_max = overnight_params.get('max_positions') or self.MAX_POSITIONS
+                            overnight_mode = overnight_params.get('mode', 'NORMAL')  # v5.3: For BEAR DD exemption
                             if len(self.positions) < overnight_max:
                                 logger.info(f"Overnight gap scan: {len(self.positions)}/{overnight_max} positions")
                                 self._overnight_scan_done = today
                                 is_bull, _ = self._check_market_regime()
-                                if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit() and not self.check_weekly_loss_limit() and not self.check_consecutive_loss_cooldown():
+                                if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit(mode=overnight_mode) and not self.check_weekly_loss_limit(mode=overnight_mode) and not self.check_consecutive_loss_cooldown(mode=overnight_mode):
                                     try:
                                         # Ensure data is loaded for overnight scan
                                         data_cache = self.screener.data_cache if self.screener else {}
@@ -4396,7 +4549,7 @@ class AutoTradingEngine:
             'cash': account['cash'],
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v5.1.0',
+            'version': 'v5.3.0',  # v5.3: Quant Research findings (Stock-D filter, BEAR DD exempt)
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
@@ -4503,6 +4656,10 @@ class AutoTradingEngine:
             # --- Bull Sector Filter ---
             'bull_sector_filter_enabled': self.BULL_SECTOR_FILTER_ENABLED,
             'bull_sector_min_return': self.BULL_SECTOR_MIN_RETURN,
+
+            # --- v5.3 Quant Research Findings ---
+            'stock_d_filter_enabled': self.STOCK_D_FILTER_ENABLED,
+            'bear_dd_control_exempt': self.BEAR_DD_CONTROL_EXEMPT,
 
             # --- Conviction Sizing ---
             'conviction_sizing_enabled': self.CONVICTION_SIZING_ENABLED,
