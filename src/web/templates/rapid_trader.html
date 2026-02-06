@@ -236,6 +236,188 @@
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
     /* ========================================
+       A. HEADER ANIMATIONS
+       ======================================== */
+    /* Value change transitions */
+    .hdr-value { transition: all 0.3s ease; }
+
+    /* SPY/VIX flash animations */
+    .hdr-flash-up { animation: hdrFlashUp 0.3s ease-out; }
+    .hdr-flash-down { animation: hdrFlashDown 0.3s ease-out; }
+    @keyframes hdrFlashUp {
+        0% { background: rgba(39, 174, 96, 0.6); transform: scale(1.1); }
+        100% { background: transparent; transform: scale(1); }
+    }
+    @keyframes hdrFlashDown {
+        0% { background: rgba(231, 76, 60, 0.6); transform: scale(1.1); }
+        100% { background: transparent; transform: scale(1); }
+    }
+
+    /* VIX warning/danger pulse */
+    .vix-pulse-warn { animation: vixPulseWarn 1.5s infinite; }
+    .vix-pulse-danger { animation: vixPulseDanger 1s infinite; }
+    @keyframes vixPulseWarn {
+        0%, 100% { text-shadow: 0 0 5px #f39c12; }
+        50% { text-shadow: 0 0 15px #f39c12, 0 0 25px #f39c12; }
+    }
+    @keyframes vixPulseDanger {
+        0%, 100% { text-shadow: 0 0 8px #e74c3c; }
+        50% { text-shadow: 0 0 20px #e74c3c, 0 0 30px #e74c3c; }
+    }
+
+    /* P&L slide animation */
+    .pnl-slide-up { animation: pnlSlideUp 0.3s ease-out; }
+    .pnl-slide-down { animation: pnlSlideDown 0.3s ease-out; }
+    @keyframes pnlSlideUp {
+        0% { transform: translateY(5px); opacity: 0.5; }
+        100% { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes pnlSlideDown {
+        0% { transform: translateY(-5px); opacity: 0.5; }
+        100% { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Trail lock animation */
+    .trail-bounce { animation: trailBounce 0.5s ease-out; }
+    .trail-glow { text-shadow: 0 0 10px #27ae60, 0 0 20px #27ae60; }
+    @keyframes trailBounce {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+    }
+
+    /* Today W/L flash */
+    .wl-flash { animation: wlFlash 0.4s ease-out; }
+    @keyframes wlFlash {
+        0% { background: rgba(52, 152, 219, 0.5); }
+        100% { background: transparent; }
+    }
+
+    /* ========================================
+       B. PORTFOLIO CARD IMPROVEMENTS
+       ======================================== */
+    .alert-card {
+        border-left: 5px solid;
+        margin-bottom: 10px;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    /* Near SL/TP pulsing borders */
+    .alert-card.near-sl { animation: borderPulseRed 1s infinite; }
+    .alert-card.near-tp { animation: borderPulseGreen 1s infinite; }
+    @keyframes borderPulseRed {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); }
+        50% { box-shadow: 0 0 0 8px rgba(231, 76, 60, 0); }
+    }
+    @keyframes borderPulseGreen {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.4); }
+        50% { box-shadow: 0 0 0 8px rgba(39, 174, 96, 0); }
+    }
+
+    /* Price change arrow */
+    .price-arrow { font-size: 0.7rem; margin-left: 3px; transition: all 0.3s; }
+    .price-arrow.up { color: #27ae60; }
+    .price-arrow.down { color: #e74c3c; }
+
+    /* Distance badges */
+    .distance-badge {
+        display: inline-block;
+        padding: 1px 6px;
+        border-radius: 8px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        margin-left: 4px;
+    }
+    .distance-sl { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
+    .distance-tp { background: rgba(39, 174, 96, 0.15); color: #27ae60; }
+
+    /* Day counter badge */
+    .day-counter {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        background: rgba(52, 152, 219, 0.15);
+        color: #2980b9;
+    }
+    .day-counter.warning { background: rgba(243, 156, 18, 0.2); color: #d35400; }
+    .day-counter.danger { background: rgba(231, 76, 60, 0.2); color: #c0392b; }
+
+    /* Trail activation info */
+    .trail-info {
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .trail-info.active { background: rgba(39, 174, 96, 0.15); color: #27ae60; }
+    .trail-info.pending { background: rgba(149, 165, 166, 0.15); color: #7f8c8d; }
+    .trail-lock-icon { animation: lockBounce 0.5s ease-out; }
+    @keyframes lockBounce {
+        0%, 100% { transform: scale(1); }
+        30% { transform: scale(1.3); }
+    }
+
+    /* ========================================
+       C. SECTOR BAR IMPROVEMENTS
+       ======================================== */
+    .sector-chip {
+        white-space: nowrap;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        position: relative;
+    }
+
+    /* Allowed/Blocked indicator */
+    .sector-chip.allowed { border-color: #27ae60; }
+    .sector-chip.blocked { border-color: #e74c3c; opacity: 0.6; }
+    .sector-chip.blocked::after {
+        content: '🚫';
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        font-size: 0.6rem;
+    }
+
+    /* Has position glow */
+    .sector-chip.has-position {
+        box-shadow: 0 0 8px rgba(52, 152, 219, 0.6), 0 0 16px rgba(52, 152, 219, 0.3);
+        animation: sectorGlow 2s infinite;
+    }
+    @keyframes sectorGlow {
+        0%, 100% { box-shadow: 0 0 8px rgba(52, 152, 219, 0.6); }
+        50% { box-shadow: 0 0 15px rgba(52, 152, 219, 0.8), 0 0 25px rgba(52, 152, 219, 0.4); }
+    }
+
+    /* Sector change flash */
+    .sector-flash-up { animation: sectorFlashUp 0.4s ease-out; }
+    .sector-flash-down { animation: sectorFlashDown 0.4s ease-out; }
+    @keyframes sectorFlashUp {
+        0% { background: rgba(39, 174, 96, 0.8); transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    @keyframes sectorFlashDown {
+        0% { background: rgba(231, 76, 60, 0.8); transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    /* Regime change pulse */
+    .sector-regime-change { animation: regimeChange 0.6s ease-out; }
+    @keyframes regimeChange {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); border-width: 3px; }
+    }
+
+    /* ========================================
        RESPONSIVE
        ======================================== */
     @media (max-width: 991.98px) {
@@ -1026,6 +1208,15 @@ let pnlChart = null;
 let pnlHistory = [];
 const maxPnlPoints = 30;
 
+// State tracking for animations
+let prevSpyPct = null;
+let prevVix = null;
+let prevPnl = null;
+let prevTrailCount = 0;
+let prevWins = 0;
+let prevLosses = 0;
+let positionSectors = new Set(); // Track sectors with positions
+
 function initPnlChart() {
     const ctx = document.getElementById('pnlMiniChart');
     if (!ctx) return;
@@ -1088,6 +1279,10 @@ function showTradeNotification(data) {
 // ============================================
 // Sector Regime Strip
 // ============================================
+let prevSectorData = {}; // Track previous sector data for animations
+let allowedSectors = new Set(); // Track allowed sectors from engine
+let blockedSectors = new Set(); // Track blocked sectors
+
 function loadSectorRegimes() {
     fetch('/api/rapid/sector-regimes')
         .then(r => r.json())
@@ -1099,12 +1294,25 @@ function loadSectorRegimes() {
                 strip.innerHTML = '<span class="sector-chip unknown">No sector data</span>';
                 return;
             }
+
+            // Update allowed/blocked from engine status
+            allowedSectors = new Set(data.allowed_sectors || []);
+            blockedSectors = new Set(data.blocked_sectors || []);
+
             const sectorLabel = {
                 'XLK': 'Tech', 'XLE': 'Energy', 'XLF': 'Finance',
                 'XLV': 'Health', 'XLY': 'Discret', 'XLP': 'Staples',
                 'XLI': 'Indust', 'XLU': 'Utility', 'XLB': 'Material',
                 'XLC': 'Comms', 'XLRE': 'RealEst',
             };
+
+            const sectorNameMap = {
+                'XLK': 'Technology', 'XLE': 'Energy', 'XLF': 'Financial Services',
+                'XLV': 'Healthcare', 'XLY': 'Consumer Cyclical', 'XLP': 'Consumer Defensive',
+                'XLI': 'Industrials', 'XLU': 'Utilities', 'XLB': 'Basic Materials',
+                'XLC': 'Communication Services', 'XLRE': 'Real Estate',
+            };
+
             strip.innerHTML = sectors.map(s => {
                 const regimeMap = {
                     'STRONG BULL': 'strong-bull',
@@ -1114,14 +1322,69 @@ function loadSectorRegimes() {
                     'STRONG BEAR': 'strong-bear',
                 };
                 const cls = regimeMap[s.regime] || 'unknown';
+                const ret1d = s.return_1d || 0;
+                const arrow1d = ret1d >= 0 ? '▲' : '▼';
                 const sign = s.return_20d >= 0 ? '+' : '';
-                const sign1d = (s.return_1d || 0) >= 0 ? '+' : '';
-                const src = s.return_1d_source === 'stock_ew' ? '' : '(ETF)';
+                const src = s.return_1d_source === 'stock_ew' ? '[S]' : '[E]';
                 const label = sectorLabel[s.etf] || s.etf;
-                return `<span class="sector-chip ${cls}" title="${s.sector}: ${s.regime} | 1d: ${sign1d}${s.return_1d || 0}% ${src} | 20d: ${sign}${s.return_20d}% | RSI ${s.rsi}">${label} ${sign}${s.return_20d}%</span>`;
+                const sectorName = sectorNameMap[s.etf] || s.sector || s.etf;
+
+                // Check if allowed/blocked
+                const isAllowed = allowedSectors.has(sectorName) || allowedSectors.has(s.sector);
+                const isBlocked = blockedSectors.has(sectorName) || blockedSectors.has(s.sector);
+                const allowBlockCls = isBlocked ? ' blocked' : isAllowed ? ' allowed' : '';
+
+                // Check if has position
+                const hasPos = positionSectors.has(sectorName) || positionSectors.has(s.sector);
+                const hasPosCls = hasPos ? ' has-position' : '';
+
+                // Animation class for change detection
+                let animCls = '';
+                const prevData = prevSectorData[s.etf];
+                if (prevData) {
+                    if (prevData.return_1d !== ret1d) {
+                        animCls = ret1d > (prevData.return_1d || 0) ? ' sector-flash-up' : ' sector-flash-down';
+                    }
+                    if (prevData.regime !== s.regime) {
+                        animCls += ' sector-regime-change';
+                    }
+                }
+                prevSectorData[s.etf] = { return_1d: ret1d, regime: s.regime };
+
+                // Position count in tooltip
+                const posInSector = Object.values(positionData).filter(p => p.sector === sectorName || p.sector === s.sector).length;
+                const posInfo = posInSector > 0 ? ` | ${posInSector} position(s)` : '';
+
+                const tooltip = `${sectorName}: ${s.regime}
+1d: ${ret1d >= 0 ? '+' : ''}${ret1d.toFixed(1)}% ${src}
+20d: ${sign}${s.return_20d}%
+RSI: ${s.rsi}${posInfo}
+${isBlocked ? '🚫 BLOCKED' : isAllowed ? '✅ ALLOWED' : ''}`;
+
+                return `<span class="sector-chip ${cls}${allowBlockCls}${hasPosCls}${animCls}" data-sector="${sectorName}" title="${tooltip}">${label} ${arrow1d}${Math.abs(ret1d).toFixed(1)}%</span>`;
             }).join('');
+
+            // Clear animation classes after animation completes
+            setTimeout(() => {
+                strip.querySelectorAll('.sector-flash-up, .sector-flash-down, .sector-regime-change').forEach(el => {
+                    el.classList.remove('sector-flash-up', 'sector-flash-down', 'sector-regime-change');
+                });
+            }, 600);
         })
         .catch(err => console.warn('Sector regimes error:', err));
+}
+
+function updateSectorHighlights() {
+    // Update sector chips with position highlighting
+    const chips = document.querySelectorAll('.sector-chip');
+    chips.forEach(chip => {
+        const sectorName = chip.dataset.sector;
+        if (positionSectors.has(sectorName)) {
+            chip.classList.add('has-position');
+        } else {
+            chip.classList.remove('has-position');
+        }
+    });
 }
 
 // ============================================
@@ -1429,37 +1692,58 @@ function loadSpyRegime() {
             // Update header SPY details
             const priceEl = document.getElementById('hdrSpyPrice');
             if (priceEl) priceEl.textContent = '$' + (details.spy_price || '-');
+
             const pctEl = document.getElementById('hdrSpyPct');
             if (pctEl) {
                 const pct = details.pct_above_sma || 0;
                 const arrow = pct >= 0 ? '▲' : '▼';
                 pctEl.textContent = arrow + ' ' + Math.abs(pct).toFixed(2) + '%';
                 pctEl.className = pct >= 0 ? 'hdr-up' : 'hdr-down';
+
+                // Flash animation on change
+                if (prevSpyPct !== null && pct !== prevSpyPct) {
+                    pctEl.classList.remove('hdr-flash-up', 'hdr-flash-down');
+                    void pctEl.offsetWidth; // Force reflow
+                    pctEl.classList.add(pct > prevSpyPct ? 'hdr-flash-up' : 'hdr-flash-down');
+                }
+                prevSpyPct = pct;
             }
+
             const rsiEl = document.getElementById('hdrSpyRSI');
             if (rsiEl && details.rsi !== undefined) {
                 rsiEl.textContent = details.rsi;
                 rsiEl.style.color = details.rsi_ok ? '#27ae60' : '#e74c3c';
             }
+
             const vixEl = document.getElementById('hdrSpyVIX');
             const vixIconEl = document.getElementById('hdrVixIcon');
             if (vixEl && details.vix !== undefined) {
                 const vix = parseFloat(details.vix);
                 vixEl.textContent = vix.toFixed(1);
                 vixEl.style.color = details.vix_ok ? '#27ae60' : '#e74c3c';
-                // VIX status icon: <25 = ✅, 25-29 = ⚠️, ≥30 = ⛔
+
+                // VIX flash animation (up=bad/red, down=good/green)
+                if (prevVix !== null && vix !== prevVix) {
+                    vixEl.classList.remove('hdr-flash-up', 'hdr-flash-down');
+                    void vixEl.offsetWidth;
+                    vixEl.classList.add(vix > prevVix ? 'hdr-flash-down' : 'hdr-flash-up'); // Inverted: up is bad
+                }
+                prevVix = vix;
+
+                // VIX status icon with pulse animations
                 if (vixIconEl) {
+                    vixIconEl.classList.remove('vix-pulse-warn', 'vix-pulse-danger');
                     if (vix < 25) {
                         vixIconEl.textContent = '✅';
                         vixIconEl.className = 'hdr-ok';
                         vixIconEl.title = 'VIX Safe (<25)';
                     } else if (vix < 30) {
                         vixIconEl.textContent = '⚠️';
-                        vixIconEl.className = 'hdr-warn';
+                        vixIconEl.className = 'hdr-warn vix-pulse-warn';
                         vixIconEl.title = 'VIX Warning (25-29)';
                     } else {
                         vixIconEl.textContent = '⛔';
-                        vixIconEl.className = 'hdr-danger';
+                        vixIconEl.className = 'hdr-danger vix-pulse-danger';
                         vixIconEl.title = 'VIX High (≥30) - Trading Blocked';
                     }
                 }
@@ -1522,24 +1806,38 @@ function updatePositionsUI(data) {
         }
     }
 
+    // P&L with slide animation
     const totalPnlUsd = data.summary?.total_pnl_usd || 0;
     const hdrPnl = document.getElementById('hdrPnL');
     if (hdrPnl) {
         hdrPnl.textContent = (totalPnlUsd >= 0 ? '+' : '') + '$' + totalPnlUsd.toFixed(2);
         hdrPnl.style.color = totalPnlUsd >= 0 ? '#27ae60' : '#e74c3c';
+        // Slide animation on P&L change
+        if (prevPnl !== null && Math.abs(totalPnlUsd - prevPnl) > 0.01) {
+            hdrPnl.classList.remove('pnl-slide-up', 'pnl-slide-down');
+            void hdrPnl.offsetWidth;
+            hdrPnl.classList.add(totalPnlUsd > prevPnl ? 'pnl-slide-up' : 'pnl-slide-down');
+        }
+        prevPnl = totalPnlUsd;
     }
 
-    // Trail count: count positions with trailing stop active (pnl >= trail_activation_pct)
+    // Trail count with bounce animation
     const statuses = data.statuses || [];
     const trailActivationPct = (_baseConfig && _baseConfig.trail_activation_pct) || 2;
     const trailActiveCount = statuses.filter(s => s.pnl_pct >= trailActivationPct).length;
     const hdrTrailCount = document.getElementById('hdrTrailCount');
     if (hdrTrailCount) {
         hdrTrailCount.textContent = `${trailActiveCount}/${posCount}`;
-        hdrTrailCount.className = 'hdr-value' + (trailActiveCount > 0 ? ' hdr-ok' : '');
+        hdrTrailCount.className = 'hdr-value' + (trailActiveCount > 0 ? ' hdr-ok trail-glow' : '');
+        // Bounce when trail activates
+        if (trailActiveCount > prevTrailCount) {
+            hdrTrailCount.classList.add('trail-bounce');
+            setTimeout(() => hdrTrailCount.classList.remove('trail-bounce'), 500);
+        }
+        prevTrailCount = trailActiveCount;
     }
 
-    // Today W/L from daily stats
+    // Today W/L with flash animation
     if (data.daily_stats) {
         const wins = data.daily_stats.trades_won || 0;
         const losses = data.daily_stats.trades_lost || 0;
@@ -1547,8 +1845,19 @@ function updatePositionsUI(data) {
         if (hdrTodayWL) {
             hdrTodayWL.textContent = `${wins}W ${losses}L`;
             hdrTodayWL.className = 'hdr-value' + (wins > losses ? ' hdr-up' : losses > wins ? ' hdr-down' : '');
+            // Flash on new trade
+            if (wins !== prevWins || losses !== prevLosses) {
+                hdrTodayWL.classList.add('wl-flash');
+                setTimeout(() => hdrTodayWL.classList.remove('wl-flash'), 400);
+            }
+            prevWins = wins;
+            prevLosses = losses;
         }
     }
+
+    // Track sectors with positions for sector bar highlighting
+    positionSectors.clear();
+    statuses.forEach(s => { if (s.sector) positionSectors.add(s.sector); });
 
     const container = document.getElementById('alertsContainer');
     const alertCount = statuses.filter(s => ['CRITICAL', 'WARNING', 'TAKE_PROFIT'].includes(s.signal)).length;
@@ -1559,6 +1868,7 @@ function updatePositionsUI(data) {
         return;
     }
 
+    const maxHoldDays = (_baseConfig && _baseConfig.max_hold_days) || 10;
     let html = '';
     statuses.forEach(status => {
         const alertClass = getAlertClass(status.signal);
@@ -1570,47 +1880,84 @@ function updatePositionsUI(data) {
         const priceRange = tpPrice - slPrice;
         const currentPos = ((status.current_price - slPrice) / priceRange) * 100;
         const markerPos = Math.max(0, Math.min(100, currentPos));
-        const trailActivationPct = (_baseConfig && _baseConfig.trail_activation_pct) || 2;  // v6.0: default 2%
-        const isTrailActive = status.pnl_pct >= trailActivationPct;
+
+        // Distance to SL/TP
+        const distToSL = ((status.current_price - slPrice) / status.current_price * 100).toFixed(1);
+        const distToTP = ((tpPrice - status.current_price) / status.current_price * 100).toFixed(1);
+        const nearSL = parseFloat(distToSL) <= 1;
+        const nearTP = parseFloat(distToTP) <= 1;
+
+        // Day counter styling
+        const daysHeld = status.days_held || 0;
+        const dayCounterClass = daysHeld >= maxHoldDays ? 'danger' : daysHeld >= maxHoldDays - 2 ? 'warning' : '';
+
+        // Trail info
+        const trailActPct = (_baseConfig && _baseConfig.trail_activation_pct) || 2;
+        const isTrailActive = status.pnl_pct >= trailActPct;
         const peakPrice = status.highest_price || status.current_price;
-        const trailActivation = status.entry_price * (1 + trailActivationPct / 100);
-        const trailBadge = isTrailActive ? `<span class="badge bg-success" style="font-size:0.6rem;">ON Peak $${peakPrice.toFixed(2)}</span>` : `<span class="badge bg-secondary" style="font-size:0.6rem;">OFF (at $${trailActivation.toFixed(2)})</span>`;
+        const trailActivation = status.entry_price * (1 + trailActPct / 100);
+
+        // Price change arrow (compare with previous data)
+        const prevData = positionData[status.symbol];
+        const priceArrow = prevData ? (status.current_price > prevData.price ? '▲' : status.current_price < prevData.price ? '▼' : '') : '';
+        const arrowClass = priceArrow === '▲' ? 'up' : priceArrow === '▼' ? 'down' : '';
+
+        // Card extra classes for near SL/TP pulsing
+        const cardExtraClass = nearSL ? ' near-sl' : nearTP ? ' near-tp' : '';
+
         const sessionLabel = status.premarket_session || 'Pre';
         const premarketHtml = status.premarket_price ? `<div class="small mt-1"><span class="text-muted">${sessionLabel === 'AH' ? 'AH:' : 'Pre:'}</span> <span class="fw-bold ${status.premarket_change >= 0 ? 'text-success' : 'text-danger'}">$${status.premarket_price.toFixed(2)} (${status.premarket_change >= 0 ? '+' : ''}${status.premarket_change.toFixed(1)}%)</span></div>` : '';
-        const earningsWarning = status.earnings_date ? `<div class="text-warning small mt-1">Earnings: ${status.earnings_date}</div>` : '';
+        const earningsWarning = status.earnings_date ? `<div class="text-warning small mt-1"><i class="fas fa-calendar-alt"></i> Earnings: ${status.earnings_date}</div>` : '';
 
         html += `
-            <div class="alert-card ${alertClass} p-2" data-symbol="${status.symbol}" data-entry-price="${status.entry_price}" data-shares="${shares}" data-stop-loss="${slPrice}" data-take-profit="${tpPrice}">
+            <div class="alert-card ${alertClass}${cardExtraClass} p-2" data-symbol="${status.symbol}" data-entry-price="${status.entry_price}" data-shares="${shares}" data-stop-loss="${slPrice}" data-take-profit="${tpPrice}">
                 <div class="d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
-                        <h6 class="mb-1">${icon} ${status.symbol} <span class="badge bg-secondary" style="font-size:0.6rem;">${shares} shares · Day ${status.days_held}</span></h6>
+                        <h6 class="mb-1">${icon} ${status.symbol}
+                            <span class="day-counter ${dayCounterClass}">Day ${daysHeld}/${maxHoldDays}</span>
+                            <span class="badge bg-secondary" style="font-size:0.6rem;">${shares} sh</span>
+                        </h6>
                         <div class="small">
                             <span class="text-muted">Entry:</span> <strong>$${status.entry_price.toFixed(2)}</strong>
-                            <span class="text-muted ms-2">Now:</span> <span class="current-price text-primary fw-bold">$${status.current_price.toFixed(2)}</span>
+                            <span class="text-muted ms-2">Now:</span>
+                            <span class="current-price text-primary fw-bold">$${status.current_price.toFixed(2)}</span>
+                            ${priceArrow ? `<span class="price-arrow ${arrowClass}">${priceArrow}</span>` : ''}
                             <span class="pnl-display ${pnlClass} fw-bold ms-1">${status.pnl_pct >= 0 ? '+' : ''}${status.pnl_pct.toFixed(2)}%</span>
                             <span class="pnl-usd text-muted">($${status.pnl_usd >= 0 ? '+' : ''}${status.pnl_usd.toFixed(2)})</span>
                         </div>
                         ${premarketHtml}
                         <div class="small mt-1">
-                            <span class="text-danger">SL $${slPrice.toFixed(2)}</span> | <span class="text-success">TP $${tpPrice.toFixed(2)}</span>
+                            <span class="text-danger">SL $${slPrice.toFixed(2)}</span>
+                            <span class="distance-badge distance-sl">${distToSL}% away</span>
+                            <span class="mx-1">|</span>
+                            <span class="text-success">TP $${tpPrice.toFixed(2)}</span>
+                            <span class="distance-badge distance-tp">${distToTP}% away</span>
                             ${status.atr_pct ? `<span class="badge bg-info ms-1" style="font-size:0.55rem;">ATR ${status.atr_pct.toFixed(1)}%</span>` : ''}
                         </div>
                         <div class="sl-tp-bar"><div class="sl-tp-marker" style="left: ${markerPos}%"></div></div>
                         <div class="sl-tp-labels"><span>SL</span><span>TP</span></div>
-                        <div class="mt-1 small"><span class="text-muted">Trail:</span> ${trailBadge}</div>
+                        <div class="mt-1">
+                            ${isTrailActive
+                                ? `<span class="trail-info active"><span class="trail-lock-icon">🔒</span> Trail ON | Peak $${peakPrice.toFixed(2)}</span>`
+                                : `<span class="trail-info pending">Trail OFF | activates at $${trailActivation.toFixed(2)} (+${trailActPct}%)</span>`
+                            }
+                        </div>
                         ${earningsWarning}
                         <small class="text-muted d-block mt-1">${status.action}</small>
                     </div>
                     <div class="text-end ms-2">${getActionButton(status)}</div>
                 </div>
             </div>`;
-        positionData[status.symbol] = { entryPrice: status.entry_price, shares, price: status.current_price, pnlPct: status.pnl_pct, pnlUsd: status.pnl_usd };
+        positionData[status.symbol] = { entryPrice: status.entry_price, shares, price: status.current_price, pnlPct: status.pnl_pct, pnlUsd: status.pnl_usd, sector: status.sector };
     });
 
     const currentSymbols = new Set(statuses.map(s => s.symbol));
     Object.keys(positionData).forEach(sym => { if (!currentSymbols.has(sym)) delete positionData[sym]; });
     container.innerHTML = html;
     if (statuses.length > 0) updatePnlChart(data.summary?.total_pnl_usd || 0);
+
+    // Update sector strip with position highlighting
+    updateSectorHighlights();
 }
 
 function updateSignalsUI(data) { loadSignals(); }

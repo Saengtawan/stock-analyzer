@@ -2555,7 +2555,21 @@ def api_sector_regimes():
         return jsonify({'error': 'Engine not running', 'sectors': []})
     try:
         sectors = engine.get_sector_regimes()
-        return jsonify({'sectors': sectors})
+        # Get allowed/blocked sectors based on market regime
+        allowed_sectors = []
+        blocked_sectors = []
+        is_bull = engine.market_is_bull if hasattr(engine, 'market_is_bull') else True
+        if not is_bull and hasattr(engine, '_get_bear_allowed_sectors'):
+            allowed_sectors = engine._get_bear_allowed_sectors()
+            # All other sectors are blocked in bear mode
+            all_sectors = [s['sector'] for s in sectors]
+            blocked_sectors = [s for s in all_sectors if s not in allowed_sectors]
+        return jsonify({
+            'sectors': sectors,
+            'allowed_sectors': allowed_sectors,
+            'blocked_sectors': blocked_sectors,
+            'market_regime': 'BULL' if is_bull else 'BEAR'
+        })
     except Exception as e:
         logger.error(f"Sector regimes error: {e}")
         return jsonify({'error': str(e), 'sectors': []})
