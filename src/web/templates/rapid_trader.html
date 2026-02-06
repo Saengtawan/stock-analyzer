@@ -574,10 +574,6 @@
                     <p class="mt-2">Scanning for opportunities...</p>
                 </div>
             </div>
-            <!-- v6.3: Sticky countdown footer -->
-            <div class="card-footer text-center py-2" id="scanCountdownFooter" style="display: none; background: linear-gradient(135deg, #1a2530, #2c3e50); border-top: 1px solid #3d5a73;">
-                <div id="scanCountdown" class="text-info small" data-next=""><i class="fas fa-clock me-1"></i>Next scan: --:--</div>
-            </div>
         </div>
     </div>
 
@@ -2220,8 +2216,6 @@ function loadSignals() {
                     ? '<span class="badge bg-secondary bg-opacity-50 text-light"><i class="fas fa-moon me-1"></i> Market closed</span>'
                     : '<span class="badge bg-secondary bg-opacity-25 text-light"><i class="fas fa-sync-alt fa-spin me-1"></i> Continuous scan</span>';
                 container.innerHTML = `${marketClosedBanner}<div id="scanProgressPanel" class="py-2"><div class="text-center text-muted py-3"><i class="fas fa-search fa-2x text-secondary mb-2"></i><p class="mb-1">No signals found</p><small class="d-block text-secondary mb-2">Last scan: ${ageText} ${durText}</small>${filterHtml}<div class="mt-2">${scanStatusBadge}</div></div></div>`;
-                // v6.3: Update sticky countdown footer
-                updateCountdownFooter(isMarketClosed, data.next_scan_timestamp);
                 return;
             }
 
@@ -2272,66 +2266,11 @@ function loadSignals() {
                     </div>`;
             });
             container.innerHTML = html;
-            // v6.3: Update sticky countdown footer
-            updateCountdownFooter(isMarketClosed, data.next_scan_timestamp);
         })
         .catch(err => {
             if (_lastSignalCount > 0 || scanProgressActive) return;
             container.innerHTML = `<div class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle fa-2x mb-2"></i><p>Error: ${err.message || 'Unknown'}</p><button class="btn btn-sm btn-outline-primary mt-2" onclick="loadSignals()">Retry</button></div>`;
         });
-}
-
-// ============================================
-// v6.3: Scan Countdown Timer (Sticky Footer)
-// ============================================
-let _countdownInterval = null;
-
-function updateCountdownFooter(isMarketClosed, nextScanTimestamp) {
-    const footer = document.getElementById('scanCountdownFooter');
-    const el = document.getElementById('scanCountdown');
-    if (!footer || !el) return;
-
-    // Hide footer if market closed or no timestamp
-    if (isMarketClosed || !nextScanTimestamp) {
-        footer.style.display = 'none';
-        if (_countdownInterval) clearInterval(_countdownInterval);
-        return;
-    }
-
-    // Show footer and set timestamp
-    footer.style.display = 'block';
-    el.dataset.next = nextScanTimestamp;
-    startCountdown();
-}
-
-function startCountdown() {
-    const el = document.getElementById('scanCountdown');
-    if (!el) return;
-    const nextScan = el.dataset.next;
-    if (!nextScan) return;
-
-    // Clear previous interval
-    if (_countdownInterval) clearInterval(_countdownInterval);
-
-    const update = () => {
-        const now = new Date();
-        const target = new Date(nextScan);
-        const diffMs = target - now;
-
-        if (diffMs <= 0) {
-            el.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Scanning now...';
-            clearInterval(_countdownInterval);
-            return;
-        }
-
-        const diffSec = Math.floor(diffMs / 1000);
-        const min = Math.floor(diffSec / 60);
-        const sec = diffSec % 60;
-        el.innerHTML = `<i class="fas fa-clock me-1"></i>Next scan in ${min}:${sec.toString().padStart(2, '0')}`;
-    };
-
-    update();
-    _countdownInterval = setInterval(update, 1000);
 }
 
 // ============================================
