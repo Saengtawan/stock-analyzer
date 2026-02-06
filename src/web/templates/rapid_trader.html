@@ -258,6 +258,7 @@
 <div class="header-bar">
     <div class="hdr-left">
         <span class="mode-badge bear-lr" id="headerModeBadge">LOADING</span>
+        <span class="badge bg-dark" style="font-size:0.65rem;" id="hdrVersion">v6.0.0</span>
         <span class="spy-inline">
             SPY <strong id="hdrSpyPrice">-</strong>
             <span id="hdrSpyPct">-</span>
@@ -1574,6 +1575,11 @@ function updateSignalsUI(data) { loadSignals(); }
 function updateStatusUI(data) {
     if (data.error) return;
     updateHeaderBar(data);
+    // v6.0: Update version display from engine
+    if (data.version) {
+        const versionEl = document.getElementById('hdrVersion');
+        if (versionEl) versionEl.textContent = data.version;
+    }
     if (data.safety) {
         const safetyEl = document.getElementById('safetyStatus');
         if (safetyEl) {

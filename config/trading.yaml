@@ -1,5 +1,5 @@
 # =============================================================================
-# RAPID TRADER CONFIGURATION v4.9.4 — AGGRESSIVE SWING MODE
+# RAPID TRADER CONFIGURATION v6.0.0 — VIX FILTER + TRAILING EXIT
 # =============================================================================
 # Edit this file to change trading parameters without modifying code.
 # Changes are loaded on engine start. Use /api/config/reload for hot-reload.
@@ -21,9 +21,9 @@ max_position_pct: 50           # v4.9.4: 40→50 (allow A+ conviction)
 sl_atr_multiplier: 1.5        # SL = 1.5 x ATR%
 sl_min_pct: 2.0               # Floor: at least 2% SL
 sl_max_pct: 4.0               # Cap: max 4% SL
-tp_atr_multiplier: 5.0        # v5.5: 3→5 (let winners run - backtest +0.100% E[R])
-tp_min_pct: 6.0               # v5.5: 4→6 (wider TP floor)
-tp_max_pct: 12.0              # v5.5: 10→12 (allow bigger wins)
+tp_atr_multiplier: 3.5        # v6.0: 5→3.5 (backtest optimal for trailing)
+tp_min_pct: 4.0               # v6.0: 6→4 (tighter TP floor)
+tp_max_pct: 8.0               # v6.0: 12→8 (trailing captures gains)
 
 # -- Fallback fixed SL/TP --
 stop_loss_pct: 2.5
@@ -31,16 +31,16 @@ take_profit_pct: 8.0          # v4.9.4: 5→8 (let swing run)
 pdt_tp_threshold: 4.0
 
 # -- Trailing Stop --
-trail_enabled: false          # v5.6: DISABLED (backtest: trail cuts winners before TP 5.0x)
-trail_activation_pct: 4.0     # v4.9.4: 3→4 (unused when disabled)
-trail_lock_pct: 50            # v4.9.4: 80→50 (unused when disabled)
-max_hold_days: 5
+trail_enabled: true           # v6.0: ENABLED (backtest: +2%/60% optimal)
+trail_activation_pct: 2.0     # v6.0: 4→2 (activate earlier)
+trail_lock_pct: 60            # v6.0: 50→60 (lock 60% of gains)
+max_hold_days: 10             # v6.0: 5→10 (more time for trade)
 
 # -- Risk Limits --
 daily_loss_limit_pct: 3.0
 weekly_loss_limit_pct: 7.0
 max_consecutive_losses: 3
-min_score: 85                  # v5.4: 80→85 (backtest optimal threshold)
+min_score: 95                  # v6.0: 85→95 (score 95+ = WR ~55%)
 
 # -- Signal Queue (v4.1) --
 queue_enabled: true
@@ -103,7 +103,7 @@ regime_filter_enabled: true
 regime_sma_period: 20
 regime_rsi_min: 40
 regime_return_5d_min: -2.0
-regime_vix_max: 100.0              # v5.4: 30→100 (disabled - backtest showed VIX filter hurts dip-bounce)
+regime_vix_max: 30.0               # v6.0: 100→30 (CRITICAL: VIX<30 filter = BEAR survival +109%)
 
 # -- BEAR Mode Params (v4.9.4: relaxed — conviction sizing handles risk) --
 bear_max_positions: 2
