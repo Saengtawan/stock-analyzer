@@ -2094,10 +2094,16 @@ function loadSignals() {
                     const items = Object.entries(fs).filter(([k, v]) => typeof v === 'number' && v > 0).sort((a, b) => b[1] - a[1]);
                     filterHtml = `<div class="text-start mt-2 mx-auto" style="max-width: 250px; font-size: 10px;"><div class="text-secondary mb-1">Filter breakdown (${total} rejected):</div>${items.map(([k, v]) => { const pct = Math.round(v / total * 100); return `<div class="d-flex justify-content-between text-secondary"><span>${filterLabels[k] || k}</span><span>${v} (${pct}%)</span></div>`; }).join('')}</div>`;
                 }
+                // v6.3: Countdown to next scan
+                let countdownHtml = '';
+                if (!isMarketClosed && data.next_scan_timestamp) {
+                    countdownHtml = `<div id="scanCountdown" class="text-info small mt-1" data-next="${data.next_scan_timestamp}"><i class="fas fa-clock me-1"></i>Next scan: calculating...</div>`;
+                }
                 const scanStatusBadge = isMarketClosed
                     ? '<span class="badge bg-secondary bg-opacity-50 text-light"><i class="fas fa-moon me-1"></i> Market closed</span>'
-                    : '<span class="badge bg-secondary bg-opacity-25 text-light"><i class="fas fa-sync-alt fa-spin me-1"></i> Continuous scan</span>';
+                    : `<span class="badge bg-secondary bg-opacity-25 text-light"><i class="fas fa-sync-alt fa-spin me-1"></i> Continuous scan</span>${countdownHtml}`;
                 container.innerHTML = `${marketClosedBanner}<div id="scanProgressPanel" class="py-2"><div class="text-center text-muted py-3"><i class="fas fa-search fa-2x text-secondary mb-2"></i><p class="mb-1">No signals found</p><small class="d-block text-secondary mb-2">Last scan: ${ageText} ${durText}</small>${filterHtml}<div class="mt-2">${scanStatusBadge}</div></div></div>`;
+                updateScanCountdown();  // v6.3: Start countdown
                 return;
             }
 
@@ -2147,12 +2153,52 @@ function loadSignals() {
                         ${buyButton}
                     </div>`;
             });
+            // v6.3: Add countdown footer when signals found
+            if (!isMarketClosed && data.next_scan_timestamp) {
+                html += `<div class="text-center py-2 border-top mt-2"><div id="scanCountdown" class="text-info small" data-next="${data.next_scan_timestamp}"><i class="fas fa-clock me-1"></i>Next scan: calculating...</div></div>`;
+            }
             container.innerHTML = html;
+            // v6.3: Start countdown timer
+            updateScanCountdown();
         })
         .catch(err => {
             if (_lastSignalCount > 0 || scanProgressActive) return;
             container.innerHTML = `<div class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle fa-2x mb-2"></i><p>Error: ${err.message || 'Unknown'}</p><button class="btn btn-sm btn-outline-primary mt-2" onclick="loadSignals()">Retry</button></div>`;
         });
+}
+
+// ============================================
+// v6.3: Scan Countdown Timer
+// ============================================
+let _countdownInterval = null;
+function updateScanCountdown() {
+    const el = document.getElementById('scanCountdown');
+    if (!el) return;
+    const nextScan = el.dataset.next;
+    if (!nextScan) return;
+
+    // Clear previous interval
+    if (_countdownInterval) clearInterval(_countdownInterval);
+
+    const update = () => {
+        const now = new Date();
+        const target = new Date(nextScan);
+        const diffMs = target - now;
+
+        if (diffMs <= 0) {
+            el.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Scanning now...';
+            clearInterval(_countdownInterval);
+            return;
+        }
+
+        const diffSec = Math.floor(diffMs / 1000);
+        const min = Math.floor(diffSec / 60);
+        const sec = diffSec % 60;
+        el.innerHTML = `<i class="fas fa-clock me-1"></i>Next scan in ${min}:${sec.toString().padStart(2, '0')}`;
+    };
+
+    update();
+    _countdownInterval = setInterval(update, 1000);
 }
 
 // ============================================

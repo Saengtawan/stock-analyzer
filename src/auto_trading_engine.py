@@ -979,17 +979,38 @@ class AutoTradingEngine:
             else:
                 session = "Afternoon"
 
-            # Calculate next scan time
+            # Calculate next scan time (with timestamp for UI countdown)
             next_scan = None
+            next_scan_timestamp = None
             if is_market_open:
-                if et_now.hour < 14:
-                    next_scan = "14:00 ET"
-                elif et_now.hour < 15 or (et_now.hour == 15 and et_now.minute < 30):
-                    next_scan = "15:30 ET"
+                # v6.3: Calculate next continuous scan time
+                if self.CONTINUOUS_SCAN_ENABLED:
+                    # Determine interval based on time (volatile vs normal)
+                    is_volatile = et_now.hour < self.CONTINUOUS_SCAN_VOLATILE_END_HOUR
+                    interval_min = self.CONTINUOUS_SCAN_VOLATILE_INTERVAL if is_volatile else self.CONTINUOUS_SCAN_INTERVAL_MINUTES
+                    next_cont_scan = et_now + timedelta(minutes=interval_min)
+                    # Don't scan past 15:45 (pre-close)
+                    pre_close_cutoff = et_now.replace(hour=15, minute=45, second=0, microsecond=0)
+                    if next_cont_scan < pre_close_cutoff:
+                        next_scan = f"{next_cont_scan.strftime('%H:%M')} ET ({interval_min}min)"
+                        next_scan_timestamp = next_cont_scan.isoformat()
+                    else:
+                        next_scan = "Tomorrow 09:35 ET"
+                        next_scan_timestamp = None
                 else:
-                    next_scan = "Tomorrow 09:35 ET"
+                    # Legacy: fixed scan times
+                    if et_now.hour < 14:
+                        next_scan = "14:00 ET"
+                        next_scan_timestamp = et_now.replace(hour=14, minute=0, second=0, microsecond=0).isoformat()
+                    elif et_now.hour < 15 or (et_now.hour == 15 and et_now.minute < 30):
+                        next_scan = "15:30 ET"
+                        next_scan_timestamp = et_now.replace(hour=15, minute=30, second=0, microsecond=0).isoformat()
+                    else:
+                        next_scan = "Tomorrow 09:35 ET"
+                        next_scan_timestamp = None
             else:
                 next_scan = f"{next_open.strftime('%Y-%m-%d %H:%M ET')}" if next_open else "Next Market Open"
+                next_scan_timestamp = next_open.isoformat() if next_open else None
 
             cache_data = {
                 'mode': 'market' if is_market_open else 'closed',
@@ -999,6 +1020,7 @@ class AutoTradingEngine:
                 'session': session,
                 'scan_type': scan_type,
                 'next_scan': next_scan,
+                'next_scan_timestamp': next_scan_timestamp,  # v6.3: For UI countdown
                 'next_open': next_open.isoformat() if next_open else None,
                 'next_close': next_close.isoformat() if next_close else None,
                 'count': len(signals_data),
