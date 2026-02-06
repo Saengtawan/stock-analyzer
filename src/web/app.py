@@ -2757,11 +2757,19 @@ def api_rapid_remove_position(symbol):
 
 # Global auto trading engine instance
 _auto_trading_engine = None
+_engine_lock = threading.Lock()  # v6.3: Thread-safe singleton
 
 def get_auto_trading_engine():
-    """Get or create auto trading engine singleton"""
+    """Get or create auto trading engine singleton (thread-safe)"""
     global _auto_trading_engine
-    if _auto_trading_engine is None:
+    # Fast path: already created
+    if _auto_trading_engine is not None:
+        return _auto_trading_engine
+    # Slow path: create with lock
+    with _engine_lock:
+        # Double-check inside lock
+        if _auto_trading_engine is not None:
+            return _auto_trading_engine
         try:
             from auto_trading_engine import AutoTradingEngine
             # Credentials from environment

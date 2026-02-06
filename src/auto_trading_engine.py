@@ -2415,7 +2415,12 @@ class AutoTradingEngine:
 
     def _process_scan_signals(self, signals, scan_type: str, max_positions: int = None):
         """Process all signals from a scan: execute/queue + log ALL signals."""
+        # v6.3: Always save cache even if no signals (so UI knows scan happened)
         if not signals:
+            try:
+                self._save_signals_cache([], scan_type)
+            except Exception as e:
+                logger.warning(f"Signals cache error (empty): {e}")
             return
 
         effective_max = max_positions or self.MAX_POSITIONS
@@ -4523,18 +4528,18 @@ class AutoTradingEngine:
 
                                 # Use afternoon strictness for late start
                                 saved_min_score = self.MIN_SCORE
-                            saved_gap_up = self.GAP_MAX_UP
-                            saved_gap_down = self.GAP_MAX_DOWN
-                            self.MIN_SCORE = max(self.MIN_SCORE, self.AFTERNOON_MIN_SCORE)
-                            self.GAP_MAX_UP = self.AFTERNOON_GAP_MAX_UP
-                            self.GAP_MAX_DOWN = self.AFTERNOON_GAP_MAX_DOWN
-                            try:
-                                signals = self.scan_for_signals()
-                                self._process_scan_signals(signals, "late_start", max_positions=effective_max)
-                            finally:
-                                self.MIN_SCORE = saved_min_score
-                                self.GAP_MAX_UP = saved_gap_up
-                                self.GAP_MAX_DOWN = saved_gap_down
+                                saved_gap_up = self.GAP_MAX_UP
+                                saved_gap_down = self.GAP_MAX_DOWN
+                                self.MIN_SCORE = max(self.MIN_SCORE, self.AFTERNOON_MIN_SCORE)
+                                self.GAP_MAX_UP = self.AFTERNOON_GAP_MAX_UP
+                                self.GAP_MAX_DOWN = self.AFTERNOON_GAP_MAX_DOWN
+                                try:
+                                    signals = self.scan_for_signals()
+                                    self._process_scan_signals(signals, "late_start", max_positions=effective_max)
+                                finally:
+                                    self.MIN_SCORE = saved_min_score
+                                    self.GAP_MAX_UP = saved_gap_up
+                                    self.GAP_MAX_DOWN = saved_gap_down
 
                         self._morning_scan_done = today
                         last_scan_date = today
