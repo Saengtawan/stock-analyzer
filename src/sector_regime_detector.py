@@ -1,7 +1,7 @@
 """
-Sector Regime Detector v5.2
+Sector Regime Detector v5.3
 Analyzes sector performance to determine sector-specific market regimes.
-Uses stock-based equal-weight 1d returns for accuracy (ETF fallback).
+Uses ETF returns (market-cap weighted) which match Yahoo Finance sector returns.
 """
 
 import pandas as pd
@@ -14,7 +14,7 @@ from loguru import logger
 class SectorRegimeDetector:
     """
     Detects market regime at the sector level for more granular trading decisions.
-    v5.2: Uses top-50 stocks per sector for 1d return (more accurate than ETF).
+    v5.3: Uses ETF returns (market-cap weighted) which match Yahoo Finance sector returns.
     """
 
     # v4.9.3: Configurable cache TTL
@@ -351,8 +351,7 @@ class SectorRegimeDetector:
     def update_all_sectors(self, force_update: bool = False) -> Dict[str, str]:
         """
         Update regime for all sector ETFs.
-        v5.2: Uses stock-based equal-weight 1d returns (more accurate than ETF)
-        with fallback to ETF-based 1d returns.
+        v5.3: Uses ETF returns (market-cap weighted, matches Yahoo Finance).
         """
         # Check if update needed (v4.9.3: configurable TTL)
         if not force_update and self.last_update:
@@ -367,12 +366,9 @@ class SectorRegimeDetector:
 
         logger.info("Updating sector regimes...")
 
-        # v5.2: Attempt stock-based 1d returns (equal-weight top 50)
-        stock_1d_returns = self._fetch_stock_based_1d_returns()
-        if stock_1d_returns:
-            logger.info(f"Using stock-based 1d returns for {len(stock_1d_returns)} sectors")
-        else:
-            logger.warning("Stock-based 1d returns unavailable, using ETF-only")
+        # v5.3: Use ETF-based 1d returns (market-cap weighted, matches Yahoo)
+        # Note: Stock-based equal-weight was removed because it doesn't match Yahoo's
+        # market-cap methodology. Small volatile stocks distort the EW average.
 
         for etf, sector_name in self.SECTOR_ETFS.items():
             try:
@@ -393,26 +389,18 @@ class SectorRegimeDetector:
                     logger.warning(f"Could not calculate metrics for {etf}")
                     continue
 
-                # v5.2: Override return_1d with stock-based if available
-                if etf in stock_1d_returns:
-                    etf_1d = metrics['return_1d']
-                    stock_1d = stock_1d_returns[etf]
-                    metrics['return_1d'] = stock_1d
-                    metrics['return_1d_source'] = 'stock_ew'
-                    metrics['return_1d_etf'] = etf_1d
-                else:
-                    metrics['return_1d_source'] = 'etf'
+                # v5.3: Always use ETF returns (market-cap weighted like Yahoo)
+                metrics['return_1d_source'] = 'etf'
 
-                # Determine regime (now uses stock-based 1d when available)
+                # Determine regime based on ETF metrics
                 regime = self.determine_regime(metrics)
 
                 self.sector_regimes[etf] = regime
                 self.sector_metrics[etf] = metrics
 
-                src = "[S]" if metrics.get('return_1d_source') == 'stock_ew' else "[E]"
                 logger.info(
                     f"{etf} ({sector_name}): {regime} | "
-                    f"1d{src}: {metrics['return_1d']:+.1f}% | "
+                    f"1d: {metrics['return_1d']:+.1f}% | "
                     f"5d: {metrics['return_5d']:+.1f}% | "
                     f"20d: {metrics['return_20d']:+.2f}% | RSI: {metrics['rsi']:.1f}"
                 )
@@ -522,9 +510,8 @@ class SectorRegimeDetector:
                 'Sector': sector_name,
                 'Regime': regime,
                 'Return_1d': metrics.get('return_1d', 0),
-                'Return_1d_Source': metrics.get('return_1d_source', 'etf'),
-                'Return_20d': metrics.get('return_20d', 0),
                 'Return_5d': metrics.get('return_5d', 0),
+                'Return_20d': metrics.get('return_20d', 0),
                 'RSI': metrics.get('rsi', 50),
                 'Price_vs_MA20': metrics.get('price_vs_ma20', 0),
                 'Score_Adjustment': self.REGIME_ADJUSTMENTS.get(regime, 0),
@@ -590,8 +577,7 @@ class SectorRegimeDetector:
                     ret = metrics.get('return_20d', 0)
                     rsi = metrics.get('rsi', 50)
                     adj = self.REGIME_ADJUSTMENTS.get(regime, 0)
-                    src = "S" if metrics.get('return_1d_source') == 'stock_ew' else "E"
-                    lines.append(f"  {etf} ({name:25s}) | 1d[{src}]: {r1d:>+5.1f}% | 5d: {r5d:>+5.1f}% | 20d: {ret:>+6.2f}% | RSI: {rsi:>5.1f} | Adj: {adj:>+3d}")
+                    lines.append(f"  {etf} ({name:25s}) | 1d: {r1d:>+5.1f}% | 5d: {r5d:>+5.1f}% | 20d: {ret:>+6.2f}% | RSI: {rsi:>5.1f} | Adj: {adj:>+3d}")
                 lines.append("")
 
         return "\n".join(lines)
