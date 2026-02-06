@@ -91,6 +91,11 @@ afternoon_min_score: 87        # v5.4: 82→87 (stricter than min_score=85)
 afternoon_gap_max_up: 1.5      # tighter than morning
 afternoon_gap_max_down: -3.0   # tighter than morning
 
+# -- Continuous Scan (v6.3) --
+continuous_scan_enabled: true
+continuous_scan_interval_minutes: 5   # Scan every 5 min between sessions
+continuous_scan_midday_hour: 12       # Switch to afternoon params after this hour
+
 # -- Late Start Protection (v4.4) --
 late_start_protection: true
 market_open_scan_delay: 5      # minutes after open before scanning

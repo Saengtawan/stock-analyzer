@@ -369,6 +369,11 @@ class AutoTradingEngine:
     AFTERNOON_GAP_MAX_UP: float
     AFTERNOON_GAP_MAX_DOWN: float
 
+    # Continuous Scan (v6.3)
+    CONTINUOUS_SCAN_ENABLED: bool
+    CONTINUOUS_SCAN_INTERVAL_MINUTES: int
+    CONTINUOUS_SCAN_MIDDAY_HOUR: int
+
     # BEAR Mode
     BEAR_MODE_ENABLED: bool
     BEAR_MAX_POSITIONS: int
@@ -667,6 +672,10 @@ class AutoTradingEngine:
             'afternoon_min_score': 'AFTERNOON_MIN_SCORE',
             'afternoon_gap_max_up': 'AFTERNOON_GAP_MAX_UP',
             'afternoon_gap_max_down': 'AFTERNOON_GAP_MAX_DOWN',
+            # Continuous Scan (v6.3)
+            'continuous_scan_enabled': 'CONTINUOUS_SCAN_ENABLED',
+            'continuous_scan_interval_minutes': 'CONTINUOUS_SCAN_INTERVAL_MINUTES',
+            'continuous_scan_midday_hour': 'CONTINUOUS_SCAN_MIDDAY_HOUR',
             # BEAR Mode
             'bear_mode_enabled': 'BEAR_MODE_ENABLED',
             'bear_max_positions': 'BEAR_MAX_POSITIONS',
@@ -4728,6 +4737,56 @@ class AutoTradingEngine:
                                     self.MIN_SCORE = saved_min_score
                                     self.GAP_MAX_UP = saved_gap_up
                                     self.GAP_MAX_DOWN = saved_gap_down
+
+                # v6.3: Continuous scan between sessions (every N minutes with dynamic params)
+                if self.CONTINUOUS_SCAN_ENABLED and last_scan_date == today:
+                    et_now = self._get_et_time()
+                    # Only run between morning scan done and market close (not pre-close)
+                    if hasattr(self, '_morning_scan_done') and self._morning_scan_done == today and not self._is_pre_close():
+                        # Check if enough time passed since last continuous scan
+                        last_cont_scan = getattr(self, '_last_continuous_scan', None)
+                        interval_seconds = self.CONTINUOUS_SCAN_INTERVAL_MINUTES * 60
+                        should_scan = False
+                        if last_cont_scan is None:
+                            # First continuous scan after morning
+                            should_scan = True
+                        else:
+                            elapsed = (et_now - last_cont_scan).total_seconds()
+                            if elapsed >= interval_seconds:
+                                should_scan = True
+
+                        if should_scan:
+                            cont_params = self._get_effective_params()
+                            cont_max = cont_params.get('max_positions') or self.MAX_POSITIONS
+                            cont_mode = cont_params.get('mode', 'NORMAL')
+
+                            # Only scan if we have room for more positions
+                            if len(self.positions) < cont_max:
+                                is_bull, _ = self._check_market_regime()
+                                if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit(mode=cont_mode) and not self.check_weekly_loss_limit(mode=cont_mode) and not self.check_consecutive_loss_cooldown(mode=cont_mode):
+                                    # Dynamic params: morning before midday, afternoon after
+                                    use_afternoon = et_now.hour >= self.CONTINUOUS_SCAN_MIDDAY_HOUR
+                                    session_label = "afternoon" if use_afternoon else "morning"
+                                    logger.info(f"🔄 Continuous scan ({session_label} params): {len(self.positions)}/{cont_max} positions")
+
+                                    saved_min_score = self.MIN_SCORE
+                                    saved_gap_up = self.GAP_MAX_UP
+                                    saved_gap_down = self.GAP_MAX_DOWN
+
+                                    if use_afternoon:
+                                        self.MIN_SCORE = max(self.MIN_SCORE, self.AFTERNOON_MIN_SCORE)
+                                        self.GAP_MAX_UP = self.AFTERNOON_GAP_MAX_UP
+                                        self.GAP_MAX_DOWN = self.AFTERNOON_GAP_MAX_DOWN
+
+                                    try:
+                                        signals = self.scan_for_signals()
+                                        self._process_scan_signals(signals, f"continuous_{session_label}", max_positions=cont_max)
+                                    finally:
+                                        self.MIN_SCORE = saved_min_score
+                                        self.GAP_MAX_UP = saved_gap_up
+                                        self.GAP_MAX_DOWN = saved_gap_down
+
+                            self._last_continuous_scan = et_now
 
                 # v4.9.4: Overnight gap scan (15:30-15:50 ET)
                 if self.overnight_scanner and self.OVERNIGHT_GAP_ENABLED and last_scan_date == today:
