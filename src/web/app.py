@@ -2452,14 +2452,13 @@ def api_health():
             checks['market_clock'] = {'ok': False, 'detail': str(e)}
             issues.append(f"Market clock: {e}")
 
-        # 3. Portfolio data
+        # 3. Portfolio data - v6.4: Use AutoTradingEngine as Single Source of Truth
         try:
-            from rapid_portfolio_manager import RapidPortfolioManager
-            pm = RapidPortfolioManager()
-            positions = pm.positions or {}
+            engine = get_auto_trading_engine()
+            engine_positions = engine.positions if engine else {}
             alpaca_positions = trader.get_positions()
 
-            memory_count = len(positions)
+            memory_count = len(engine_positions)
             alpaca_count = len(alpaca_positions)
 
             if memory_count != alpaca_count:
