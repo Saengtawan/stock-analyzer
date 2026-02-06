@@ -3428,10 +3428,11 @@ def background_monitor():
                     broadcast_update('signals_update', signals_data)
                     last_signals_count = signals_data.get('count', 0)
 
-                # Check regime (every 5 cycles = 50 seconds)
+                # Check regime - always broadcast to keep VIX updated in UI
+                # (P3: VIX can change without regime flip)
                 regime_data = get_regime_data()
+                broadcast_update('regime_update', regime_data)
                 if regime_data.get('regime') != last_regime:
-                    broadcast_update('regime_update', regime_data)
                     last_regime = regime_data.get('regime')
 
                 # Broadcast status update

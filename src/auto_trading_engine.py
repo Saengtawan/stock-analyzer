@@ -537,7 +537,7 @@ class AutoTradingEngine:
         self._regime_cache: Optional[Tuple[bool, str, datetime, Dict]] = None
         # v5.0: Scan log lock (prevent concurrent writes from losing data)
         self._scan_log_lock = threading.Lock()
-        self._regime_cache_seconds = 120  # v5.1 P1-8: 300→120s (VIX can spike fast)
+        self._regime_cache_seconds = 60  # v6.0 P2: 120→60s (faster VIX response)
 
         # Timezone
         self.et_tz = pytz.timezone('US/Eastern')
@@ -1271,6 +1271,27 @@ class AutoTradingEngine:
                     logger.warning(f"VIX fetch failed after retry ({e}) — fail-safe: 50.0")
                     return 50.0, True
         return 50.0, True
+
+    def _check_vix_fresh_before_entry(self) -> Tuple[bool, float]:
+        """
+        P1 FIX: Fresh VIX check BEFORE placing any trade (bypasses cache).
+
+        VIX can spike fast (120s cache may miss it). This ensures we never
+        enter a trade when VIX >= REGIME_VIX_MAX (30).
+
+        Returns:
+            (can_trade, vix_value): True if VIX < threshold, False if blocked
+        """
+        vix_val, is_fallback = self._get_vix()
+
+        if vix_val >= self.REGIME_VIX_MAX:
+            logger.warning(f"⛔ VIX ENTRY BLOCK: VIX {vix_val:.1f} >= {self.REGIME_VIX_MAX} "
+                          f"(fallback={is_fallback}) — trade blocked for safety")
+            return False, vix_val
+
+        # Log VIX check for audit trail
+        logger.info(f"✅ VIX entry check OK: {vix_val:.1f} < {self.REGIME_VIX_MAX}")
+        return True, vix_val
 
     # =========================================================================
     # LOW RISK MODE (v4.5 NEW!)
@@ -2828,6 +2849,13 @@ class AutoTradingEngine:
                     logger.warning(f"Max positions ({effective_max}) reached — engine={len(self.positions)}, alpaca={getattr(self, '_alpaca_position_count', 0)} (mode: {mode})")
                     self._last_skip_reason = "Max Pos"
                     return False
+
+            # --- P1 FIX: Fresh VIX check before entry (bypasses cache) ---
+            # VIX can spike fast. Check fresh value BEFORE any trade placement.
+            vix_ok, vix_val = self._check_vix_fresh_before_entry()
+            if not vix_ok:
+                self._last_skip_reason = f"VIX {vix_val:.0f}"
+                return False
 
             # --- BLOCK 2: Score filter ---
             # v5.0: Extract signal context early (used by all log_skip calls + log_buy)
