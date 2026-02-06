@@ -907,6 +907,167 @@ class AutoTradingEngine:
             logger.error(f"Failed to load queue state: {e}")
 
     # =========================================================================
+    # SIGNALS CACHE (v6.1 - Single Source of Truth for UI)
+    # =========================================================================
+
+    def _save_signals_cache(self, signals: list, scan_type: str, scan_duration: float = 0):
+        """
+        Write signals to JSON cache file for UI consumption.
+
+        This is the SINGLE SOURCE OF TRUTH for Buy Signals in the UI.
+        UI reads from this cache instead of running its own scanner.
+        """
+        import tempfile
+        from dataclasses import asdict
+
+        cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'cache')
+        os.makedirs(cache_dir, exist_ok=True)
+        cache_file = os.path.join(cache_dir, 'rapid_signals.json')
+
+        try:
+            # Convert signals to dict
+            signals_data = []
+            for s in signals:
+                try:
+                    d = asdict(s)
+                    # @property fields not included by asdict
+                    d['expected_gain'] = getattr(s, 'expected_gain', 0)
+                    d['max_loss'] = getattr(s, 'max_loss', 0)
+                    signals_data.append(d)
+                except Exception:
+                    # Fallback for non-dataclass signals
+                    signals_data.append({
+                        'symbol': getattr(s, 'symbol', ''),
+                        'entry_price': getattr(s, 'entry_price', 0),
+                        'score': getattr(s, 'score', 0),
+                        'sector': getattr(s, 'sector', ''),
+                        'stop_loss': getattr(s, 'stop_loss', 0),
+                        'take_profit': getattr(s, 'take_profit', 0),
+                    })
+
+            # Get market status
+            is_market_open = False
+            next_open = None
+            next_close = None
+            try:
+                clock = self.trader.get_clock()
+                is_market_open = clock.get('is_open', False)
+                next_open = clock.get('next_open')
+                next_close = clock.get('next_close')
+            except Exception:
+                pass
+
+            # Determine session
+            et_now = self._get_et_time()
+            if et_now.hour < 12:
+                session = "Morning"
+            elif et_now.hour < 14:
+                session = "Midday"
+            else:
+                session = "Afternoon"
+
+            # Calculate next scan time
+            next_scan = None
+            if is_market_open:
+                if et_now.hour < 14:
+                    next_scan = "14:00 ET"
+                elif et_now.hour < 15 or (et_now.hour == 15 and et_now.minute < 30):
+                    next_scan = "15:30 ET"
+                else:
+                    next_scan = "Tomorrow 09:35 ET"
+            else:
+                next_scan = f"{next_open.strftime('%Y-%m-%d %H:%M ET')}" if next_open else "Next Market Open"
+
+            cache_data = {
+                'mode': 'market' if is_market_open else 'closed',
+                'is_market_open': is_market_open,
+                'timestamp': datetime.now().isoformat(),
+                'scan_time': et_now.strftime('%Y-%m-%d %H:%M:%S ET'),
+                'session': session,
+                'scan_type': scan_type,
+                'next_scan': next_scan,
+                'next_open': next_open.isoformat() if next_open else None,
+                'next_close': next_close.isoformat() if next_close else None,
+                'count': len(signals_data),
+                'signals': signals_data,
+                'scan_duration_seconds': round(scan_duration, 1),
+                'regime': self.daily_stats.regime_status if hasattr(self, 'daily_stats') else 'UNKNOWN',
+            }
+
+            # Atomic write
+            fd, tmp_path = tempfile.mkstemp(dir=cache_dir, suffix='.tmp')
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(cache_data, f, indent=2, default=str)
+                os.replace(tmp_path, cache_file)
+                logger.info(f"📤 Signals cache: {len(signals_data)} signals ({scan_type}, mode={cache_data['mode']})")
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
+
+        except Exception as e:
+            logger.warning(f"Failed to write signals cache: {e}")
+
+    def _save_market_closed_cache(self):
+        """Write market closed status to cache for UI."""
+        import tempfile
+
+        cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'cache')
+        os.makedirs(cache_dir, exist_ok=True)
+        cache_file = os.path.join(cache_dir, 'rapid_signals.json')
+
+        try:
+            # Get next market open
+            next_open = None
+            try:
+                clock = self.trader.get_clock()
+                next_open = clock.get('next_open')
+            except Exception:
+                pass
+
+            # Try to preserve last signals from existing cache
+            last_signals = []
+            last_scan_time = None
+            if os.path.exists(cache_file):
+                try:
+                    with open(cache_file, 'r') as f:
+                        old_data = json.load(f)
+                        last_signals = old_data.get('signals', [])
+                        last_scan_time = old_data.get('scan_time')
+                except Exception:
+                    pass
+
+            cache_data = {
+                'mode': 'closed',
+                'is_market_open': False,
+                'timestamp': datetime.now().isoformat(),
+                'scan_time': last_scan_time,
+                'session': 'Closed',
+                'scan_type': 'market_closed',
+                'next_scan': f"{next_open.strftime('%Y-%m-%d %H:%M ET')}" if next_open else "Next Market Open",
+                'next_open': next_open.isoformat() if next_open else None,
+                'count': len(last_signals),
+                'signals': last_signals,
+                'scan_duration_seconds': 0,
+                'regime': 'CLOSED',
+            }
+
+            # Atomic write
+            fd, tmp_path = tempfile.mkstemp(dir=cache_dir, suffix='.tmp')
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(cache_data, f, indent=2, default=str)
+                os.replace(tmp_path, cache_file)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
+
+        except Exception as e:
+            logger.warning(f"Failed to write market closed cache: {e}")
+
+    # =========================================================================
     # POSITION SYNC
     # =========================================================================
 
@@ -2284,6 +2445,12 @@ class AutoTradingEngine:
             self._save_execution_status(scan_results)
         except Exception as e:
             logger.warning(f"Execution status cache error: {e}")
+
+        # v6.1: Write signals cache for UI (Single Source of Truth)
+        try:
+            self._save_signals_cache(signals, scan_type)
+        except Exception as e:
+            logger.warning(f"Signals cache error: {e}")
 
     def _derive_signal_source(self, signal, scan_type: str = '') -> str:
         """Derive signal source from scan_type (primary) or signal attributes (fallback).
@@ -4242,8 +4409,15 @@ class AutoTradingEngine:
 
                 if not clock['is_open']:
                     self.state = TradingState.SLEEPING
+                    # v6.1: Write market closed cache for UI (once per close)
+                    if not getattr(self, '_market_closed_cache_written', False):
+                        self._save_market_closed_cache()
+                        self._market_closed_cache_written = True
                     time.sleep(60)
                     continue
+                else:
+                    # Reset flag when market opens
+                    self._market_closed_cache_written = False
 
                 # v5.1 P2-15: Detect early close (e.g., day before Thanksgiving = 1 PM close)
                 try:

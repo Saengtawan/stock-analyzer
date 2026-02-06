@@ -66,45 +66,7 @@ class ServiceManager:
         logger.info("=" * 60)
         self.running = False
 
-    def _save_signals_cache(self, signals, scan_duration: float = 0):
-        """Write signals to JSON cache file (atomic write)"""
-        try:
-            signals_data = []
-            for s in signals:
-                d = asdict(s)
-                # @property fields not included by asdict — add manually
-                d['expected_gain'] = s.expected_gain
-                d['max_loss'] = s.max_loss
-                signals_data.append(d)
-
-            # Include filter stats from screener (why no signals)
-            filter_stats = {}
-            if hasattr(self, 'rapid_screener') and self.rapid_screener and hasattr(self.rapid_screener, '_filter_stats'):
-                fs = self.rapid_screener._filter_stats
-                filter_stats = {k: v for k, v in fs.items() if not k.startswith('_')}
-
-            cache_data = {
-                'timestamp': datetime.now().isoformat(),
-                'count': len(signals_data),
-                'signals': signals_data,
-                'scan_duration_seconds': round(scan_duration, 1),
-                'filter_stats': filter_stats,
-            }
-
-            # Atomic write: temp file + rename
-            fd, tmp_path = tempfile.mkstemp(dir=SIGNALS_CACHE_DIR, suffix='.tmp')
-            try:
-                with os.fdopen(fd, 'w') as f:
-                    json.dump(cache_data, f, indent=2, default=str)
-                os.replace(tmp_path, SIGNALS_CACHE_FILE)
-                logger.info(f"Signals cache written: {len(signals_data)} signals")
-            except Exception:
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
-                raise
-
-        except Exception as e:
-            logger.error(f"Failed to write signals cache: {e}")
+    # v6.1: _save_signals_cache REMOVED - engine now writes cache directly
 
     def start_web_server(self):
         """Start Flask web server"""
@@ -206,146 +168,11 @@ class ServiceManager:
         except Exception:
             pass  # Socket.IO not available yet
 
-    def _get_scanner_bear_sectors(self) -> list:
-        """Get allowed sectors for BEAR mode scan — ALL non-BEAR sectors"""
-        if not self.rapid_screener or not hasattr(self.rapid_screener, 'sector_regime'):
-            return []
-        sr = self.rapid_screener.sector_regime
-        if not sr:
-            return []
-        # Return ALL sectors that aren't in BEAR/STRONG BEAR regime
-        # (not just 6 defensive — we want Tech/Growth if they're still BULL)
-        allowed = []
-        for etf, sector_name in sr.SECTOR_ETFS.items():
-            regime = sr.sector_regimes.get(etf, 'UNKNOWN')
-            if regime not in ('BEAR', 'STRONG BEAR'):
-                allowed.append(sector_name)
-        return allowed
+    # v6.1: _get_scanner_bear_sectors REMOVED - scanner moved to engine
 
-    def start_rapid_rotation_scanner(self):
-        """Start rapid rotation scanner - หาหุ้นใหม่ทุก 5 นาที"""
-        try:
-            logger.info("Starting Rapid Rotation Scanner...")
-
-            from screeners.rapid_rotation_screener import RapidRotationScreener
-
-            self.rapid_screener = RapidRotationScreener()
-
-            # Store latest signals
-            self.latest_rapid_signals = []
-
-            def run_rapid_scanner():
-                scan_interval = 10  # v4.9.4: continuous — scan finishes (~90s) then 10s pause
-
-                while self.running:
-                    try:
-                        logger.info("Rapid Rotation: Scanning...")
-                        scan_start = time.time()
-                        self._on_scan_progress(phase="start", message="Starting scan...")
-                        self.rapid_screener.load_data(progress_callback=self._on_scan_progress)
-
-                        # v4.9.4: Check SPY regime and pass allowed_sectors for BEAR mode
-                        is_bull, spy_reason, _ = self.rapid_screener.check_spy_regime()
-                        allowed_sectors = None
-                        blocked_sectors = None
-                        if not is_bull:
-                            allowed_sectors = self._get_scanner_bear_sectors()
-                            logger.info(f"Rapid Rotation: BEAR mode — {len(allowed_sectors)} sectors: {allowed_sectors}")
-                        else:
-                            # BULL mode: block declining sectors
-                            hot = self.rapid_screener._get_hot_sectors()
-                            if hot:
-                                all_sectors = ['Technology', 'Healthcare', 'Financial Services',
-                                               'Consumer Cyclical', 'Communication Services',
-                                               'Industrials', 'Consumer Defensive', 'Energy',
-                                               'Utilities', 'Real Estate', 'Basic Materials']
-                                blocked_sectors = [s for s in all_sectors if s not in hot]
-
-                        signals = self.rapid_screener.screen(
-                            top_n=10,
-                            allowed_sectors=allowed_sectors,
-                            blocked_sectors=blocked_sectors,
-                            progress_callback=self._on_scan_progress
-                        )
-                        bounce_count = len(signals)
-
-                        # v4.9.5: Also run Breakout + Overnight Gap scanners
-                        data_cache = self.rapid_screener.data_cache or {}
-                        sector_regime = self.rapid_screener.sector_regime if hasattr(self.rapid_screener, 'sector_regime') else None
-
-                        try:
-                            from screeners.breakout_scanner import BreakoutScanner
-                            breakout = BreakoutScanner()
-                            breakout_signals = breakout.scan(
-                                universe=data_cache,
-                                sector_regime=sector_regime,
-                                min_score=75,
-                            )
-                            if breakout_signals:
-                                signals.extend(breakout_signals)
-                                logger.info(f"Breakout: {len(breakout_signals)} signals")
-                        except Exception as e:
-                            logger.debug(f"Breakout scan error in UI: {e}")
-
-                        try:
-                            from screeners.overnight_gap_scanner import OvernightGapScanner
-                            overnight = OvernightGapScanner()
-                            overnight_signals = overnight.scan(
-                                universe=data_cache,
-                                sector_regime=sector_regime,
-                                min_score=70,
-                            )
-                            if overnight_signals:
-                                signals.extend(overnight_signals)
-                                logger.info(f"OvernightGap: {len(overnight_signals)} signals")
-                        except Exception as e:
-                            logger.debug(f"Overnight gap scan error in UI: {e}")
-
-                        # Sort all signals by score
-                        if len(signals) > bounce_count:
-                            signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
-
-                        scan_duration = time.time() - scan_start
-
-                        self.latest_rapid_signals = signals
-                        self.last_scanner_run = datetime.now()
-
-                        # Write to cache file for Flask to read
-                        self._save_signals_cache(signals, scan_duration)
-
-                        if signals:
-                            logger.info(f"All scanners: {len(signals)} signals (Bounce:{bounce_count} Breakout:{len(breakout_signals) if 'breakout_signals' in dir() else 0} OvernightGap:{len(overnight_signals) if 'overnight_signals' in dir() else 0}) ({scan_duration:.0f}s)")
-                            top = signals[0]
-                            logger.info(f"  Top pick: {top.symbol} @ ${top.entry_price:.2f} (Score: {top.score})")
-                        else:
-                            logger.info(f"All scanners: No signals ({scan_duration:.0f}s)")
-
-                        if not self.running:
-                            break
-
-                        # Wait for next scan
-                        for _ in range(scan_interval):
-                            if not self.running:
-                                break
-                            time.sleep(1)
-
-                    except Exception as e:
-                        logger.error(f"Rapid scanner error: {e}")
-                        time.sleep(60)
-
-            scanner_thread = threading.Thread(target=run_rapid_scanner, daemon=True)
-            scanner_thread.start()
-
-            self.services['rapid_scanner'] = scanner_thread
-            logger.info("Rapid Rotation Scanner started (scan every 5 minutes)")
-
-            return True
-
-        except Exception as e:
-            logger.error(f"Rapid Rotation Scanner failed: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
+    # v6.1: Scanner REMOVED - Engine is now single source of truth
+    # UI reads from rapid_signals.json written by auto_trading_engine.py
+    # This reduces API calls by 50%+ and ensures UI/Engine are always in sync
 
     def start_health_checker(self):
         """Start health checker - เช็คระบบทุก 5 นาที"""
@@ -405,8 +232,7 @@ class ServiceManager:
                         self.start_web_server()
                     elif name == 'rapid_monitor':
                         self.start_rapid_portfolio_monitor()
-                    elif name == 'rapid_scanner':
-                        self.start_rapid_rotation_scanner()
+                    # v6.1: rapid_scanner removed - engine is single source of truth
                     logger.info(f"Thread '{name}' restarted successfully")
                 except Exception as e:
                     logger.error(f"Failed to restart thread '{name}': {e}")
@@ -505,25 +331,41 @@ class ServiceManager:
                 'detail': 'Not started yet'
             }
 
-        # 5. Scanner freshness
-        if self.last_scanner_run:
-            age_sec = (now - self.last_scanner_run).total_seconds()
-            age_min = age_sec / 60
-            if age_sec > 1800:  # > 30 minutes
-                checks['scanner'] = {
-                    'ok': False,
-                    'detail': f"Stale: last scan {age_min:.0f}m ago"
-                }
-                issues.append(f"Scanner stale ({age_min:.0f}m)")
+        # 5. Scanner freshness (v6.1: read from engine's cache file)
+        try:
+            if os.path.exists(SIGNALS_CACHE_FILE):
+                with open(SIGNALS_CACHE_FILE, 'r') as f:
+                    cache_data = json.load(f)
+                cache_ts = datetime.fromisoformat(cache_data['timestamp'])
+                age_sec = (now - cache_ts).total_seconds()
+                age_min = age_sec / 60
+                mode = cache_data.get('mode', 'unknown')
+
+                if mode == 'closed':
+                    checks['scanner'] = {
+                        'ok': True,
+                        'detail': f"Market closed (last scan {age_min:.0f}m ago)"
+                    }
+                elif age_sec > 1800:  # > 30 minutes during market hours
+                    checks['scanner'] = {
+                        'ok': False,
+                        'detail': f"Stale: last scan {age_min:.0f}m ago"
+                    }
+                    issues.append(f"Scanner stale ({age_min:.0f}m)")
+                else:
+                    checks['scanner'] = {
+                        'ok': True,
+                        'detail': f"Last scan {age_min:.0f}m ago ({cache_data.get('count', 0)} signals)"
+                    }
             else:
                 checks['scanner'] = {
                     'ok': True,
-                    'detail': f"Last scan {age_min:.0f}m ago"
+                    'detail': 'Waiting for first engine scan'
                 }
-        else:
+        except Exception as e:
             checks['scanner'] = {
-                'ok': True,
-                'detail': 'Not started yet'
+                'ok': False,
+                'detail': f"Cache read error: {e}"
             }
 
         # 6. Positions sync (Alpaca vs in-memory)
@@ -579,7 +421,8 @@ class ServiceManager:
         rapid_monitor_ok = self.start_rapid_portfolio_monitor()
         time.sleep(1)
 
-        rapid_scanner_ok = self.start_rapid_rotation_scanner()
+        # v6.1: Scanner removed - Engine is single source of truth
+        # UI reads from rapid_signals.json written by auto_trading_engine.py
 
         self.start_health_checker()
 
@@ -589,7 +432,7 @@ class ServiceManager:
         print("=" * 60)
         print(f"   Web Server:        {'✅ Running' if web_ok else '❌ Failed'}")
         print(f"   Portfolio Monitor: {'✅ Running' if rapid_monitor_ok else '❌ Failed'}")
-        print(f"   Rapid Scanner:     {'✅ Running' if rapid_scanner_ok else '❌ Failed'}")
+        print(f"   Signal Scanner:    ✅ Via Trading Engine (single source)")
         print()
         print("=" * 60)
         print("  WEB UI")
