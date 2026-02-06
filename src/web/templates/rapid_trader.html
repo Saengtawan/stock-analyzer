@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Rapid Trader v5.6.0 - Dashboard{% endblock %}
+{% block title %}Rapid Trader v6.0.0 - Dashboard{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -1526,9 +1526,10 @@ function updatePositionsUI(data) {
         const priceRange = tpPrice - slPrice;
         const currentPos = ((status.current_price - slPrice) / priceRange) * 100;
         const markerPos = Math.max(0, Math.min(100, currentPos));
-        const isTrailActive = status.pnl_pct >= 3;
+        const trailActivationPct = (_baseConfig && _baseConfig.trail_activation_pct) || 2;  // v6.0: default 2%
+        const isTrailActive = status.pnl_pct >= trailActivationPct;
         const peakPrice = status.highest_price || status.current_price;
-        const trailActivation = status.entry_price * 1.03;
+        const trailActivation = status.entry_price * (1 + trailActivationPct / 100);
         const trailBadge = isTrailActive ? `<span class="badge bg-success" style="font-size:0.6rem;">ON Peak $${peakPrice.toFixed(2)}</span>` : `<span class="badge bg-secondary" style="font-size:0.6rem;">OFF (at $${trailActivation.toFixed(2)})</span>`;
         const sessionLabel = status.premarket_session || 'Pre';
         const premarketHtml = status.premarket_price ? `<div class="small mt-1"><span class="text-muted">${sessionLabel === 'AH' ? 'AH:' : 'Pre:'}</span> <span class="fw-bold ${status.premarket_change >= 0 ? 'text-success' : 'text-danger'}">$${status.premarket_price.toFixed(2)} (${status.premarket_change >= 0 ? '+' : ''}${status.premarket_change.toFixed(1)}%)</span></div>` : '';

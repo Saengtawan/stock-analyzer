@@ -257,7 +257,7 @@ class AutoTradingEngine:
     SL_ATR_MULTIPLIER = 1.5     # SL = 1.5 × ATR%
     SL_MIN_PCT = 2.0            # Floor: at least 2% SL
     SL_MAX_PCT = 4.0            # Cap: max 4% SL
-    TP_ATR_MULTIPLIER = 3.0     # TP = 3 × ATR%
+    TP_ATR_MULTIPLIER = 3.5     # v6.0: TP = 3.5 × ATR% (was 3.0)
     TP_MIN_PCT = 4.0            # Floor: at least 4% TP
     TP_MAX_PCT = 8.0            # Cap: max 8% TP
     TARGET_RR = 2.0             # v4.9: Target R:R ratio (TP = SL * TARGET_RR)
@@ -269,9 +269,9 @@ class AutoTradingEngine:
     PDT_TP_THRESHOLD = 4.0      # Fallback PDT TP (overridden per-position in v4.6)
 
     TRAIL_ENABLED = True        # v5.6: Can be disabled via config
-    TRAIL_ACTIVATION_PCT = 3.0  # v4.0: 2 → 3 (match backtest)
-    TRAIL_LOCK_PCT = 80         # v3.11: 70 → 80
-    MAX_HOLD_DAYS = 5
+    TRAIL_ACTIVATION_PCT = 2.0  # v6.0: 3.0 → 2.0 (backtest optimal)
+    TRAIL_LOCK_PCT = 60         # v6.0: 80 → 60 (lock 60% of gains)
+    MAX_HOLD_DAYS = 10          # v6.0: 5 → 10 (backtest optimal)
     DAILY_LOSS_LIMIT_PCT = 5.0  # Stop trading if down 5% in a day
     MIN_SCORE = 95              # v4.7: 85 → 95 (score 95+ = WR ~55%, ลด grey zone)
 
@@ -4575,7 +4575,7 @@ class AutoTradingEngine:
             'cash': account['cash'],
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v5.3.0',  # v5.3: Quant Research findings (Stock-D filter, BEAR DD exempt)
+            'version': 'v6.0.0',  # v6.0: VIX<30 Entry Filter + Optimized Trailing (BULL +241%, BEAR +109%)
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
