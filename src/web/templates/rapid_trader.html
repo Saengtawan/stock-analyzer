@@ -1498,13 +1498,14 @@ function updateTimelineBar(schedule) {
         }
     });
 
-    // Update next/last scan info
+    // Update next/last scan info - v6.4: Fix timezone to show Eastern time
+    const etTimeFormat = { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/New_York' };
     if (schedule.next_continuous_scan) {
         const nextTime = new Date(schedule.next_continuous_scan);
         const tlNextTime = document.getElementById('tlNextTime');
         const tlCountdown = document.getElementById('tlCountdown');
         if (tlNextTime) {
-            tlNextTime.textContent = nextTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' ET';
+            tlNextTime.textContent = nextTime.toLocaleTimeString('en-US', etTimeFormat) + ' ET';
         }
         // Start countdown update
         updateTimelineCountdown(schedule.next_continuous_scan);
@@ -1514,7 +1515,7 @@ function updateTimelineBar(schedule) {
         const lastTime = new Date(schedule.last_continuous_scan);
         const tlLastTime = document.getElementById('tlLastTime');
         if (tlLastTime) {
-            tlLastTime.textContent = lastTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' ET';
+            tlLastTime.textContent = lastTime.toLocaleTimeString('en-US', etTimeFormat) + ' ET';
         }
     } else {
         const tlLastTime = document.getElementById('tlLastTime');
