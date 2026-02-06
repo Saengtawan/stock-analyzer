@@ -5265,6 +5265,7 @@ class AutoTradingEngine:
                 'regime': regime,
                 'return_20d': round(metrics.get('return_20d', 0), 2),
                 'return_1d': round(metrics.get('return_1d', 0), 2),
+                'return_1d_source': metrics.get('return_1d_source', 'etf'),  # v5.5: mcw or etf
                 'rsi': round(metrics.get('rsi', 50), 1),
             })
         result.sort(key=lambda x: x['return_20d'], reverse=True)

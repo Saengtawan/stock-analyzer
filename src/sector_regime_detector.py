@@ -1,8 +1,8 @@
 """
-Sector Regime Detector v5.4
+Sector Regime Detector v5.5
 Analyzes sector performance to determine sector-specific market regimes.
-Uses ETF returns (market-cap weighted) which match Yahoo Finance sector returns.
-v5.4: Realtime sector data with 5-min cache during market hours.
+v5.5: Market-cap weighted stock-based 1d returns (matches Yahoo methodology).
+      Realtime 5-min cache during market hours for fast flip detection.
 """
 
 import pandas as pd
@@ -15,7 +15,7 @@ from loguru import logger
 class SectorRegimeDetector:
     """
     Detects market regime at the sector level for more granular trading decisions.
-    v5.4: Realtime ETF data with 5-min cache during market hours for fast flip detection.
+    v5.5: Market-cap weighted 1d returns from top-50 stocks per sector (matches Yahoo).
     """
 
     # v5.4: Realtime sector data during market hours
@@ -106,8 +106,9 @@ class SectorRegimeDetector:
         self.sector_regimes = {}
         self.sector_metrics = {}
         self.last_update = None
-        # v5.2: Stock-based sector data
+        # v5.5: Market-cap weighted sector data
         self._sector_company_map = {}       # {sector_name: [symbols]}
+        self._sector_market_weights = {}    # {sector_name: {symbol: weight}}
         self._stock_based_1d_returns = {}   # {etf_symbol: float}
 
     def calculate_rsi(self, prices: np.ndarray, period: int = 14) -> float:
@@ -240,16 +241,18 @@ class SectorRegimeDetector:
 
     def _build_sector_company_map(self) -> Dict[str, List[str]]:
         """
-        Build mapping of sector -> list of stock symbols using yf.Sector() (v5.2).
+        Build mapping of sector -> list of stock symbols using yf.Sector() (v5.5).
+        Also extracts market weights for market-cap weighted calculations.
         Results are cached for 7 days via DataCache (data_type='sector_companies').
         """
-        if self._sector_company_map:
+        if self._sector_company_map and self._sector_market_weights:
             return self._sector_company_map
 
         if not self.data_manager:
             return {}
 
         all_symbols_by_sector = {}
+        all_weights_by_sector = {}
 
         for sector_name, yf_key in self.SECTOR_YF_KEYS.items():
             try:
@@ -257,29 +260,38 @@ class SectorRegimeDetector:
                 if companies_df is not None and not companies_df.empty:
                     symbols = companies_df.index.tolist()
                     all_symbols_by_sector[sector_name] = symbols
+                    # v5.5: Extract market weights for weighted average
+                    if 'market weight' in companies_df.columns:
+                        weights = companies_df['market weight'].to_dict()
+                        all_weights_by_sector[sector_name] = weights
+                    else:
+                        all_weights_by_sector[sector_name] = {}
                 else:
                     all_symbols_by_sector[sector_name] = []
+                    all_weights_by_sector[sector_name] = {}
             except Exception as e:
                 logger.warning(f"Failed to get companies for '{sector_name}': {e}")
                 all_symbols_by_sector[sector_name] = []
+                all_weights_by_sector[sector_name] = {}
 
         self._sector_company_map = all_symbols_by_sector
+        self._sector_market_weights = all_weights_by_sector
         total = sum(len(v) for v in all_symbols_by_sector.values())
-        logger.info(f"Built sector company map: {total} stocks across {len(all_symbols_by_sector)} sectors")
+        logger.info(f"Built sector company map: {total} stocks across {len(all_symbols_by_sector)} sectors (with market weights)")
         return all_symbols_by_sector
 
     def _fetch_stock_based_1d_returns(self) -> Dict[str, float]:
         """
-        Calculate stock-based equal-weight 1d returns per sector (v5.2).
+        Calculate stock-based MARKET-CAP WEIGHTED 1d returns per sector (v5.5).
 
         Process:
-        1. Get sector->symbols mapping (cached 7 days)
-        2. Batch download 5d daily prices for all ~550 symbols (1 API call, cached 20 min)
+        1. Get sector->symbols mapping with market weights (cached 7 days)
+        2. Batch download 5d daily prices for all ~550 symbols (1 API call, cached 5 min)
         3. Calculate 1d pct_change for each stock
-        4. Equal-weight average per sector
+        4. Market-cap weighted average per sector (matches Yahoo methodology)
 
         Returns:
-            Dict mapping ETF symbol -> equal-weight 1d return (%).
+            Dict mapping ETF symbol -> market-cap weighted 1d return (%).
             Empty dict on failure (caller falls back to ETF).
         """
         try:
@@ -320,29 +332,50 @@ class SectorRegimeDetector:
                 return {}
 
             # Calculate 1d returns: latest pct_change * 100
-            daily_returns = closes.pct_change().iloc[-1] * 100
+            daily_returns = closes.pct_change(fill_method=None).iloc[-1] * 100
 
-            # Calculate equal-weight average per sector
+            # v5.5: Calculate MARKET-CAP WEIGHTED average per sector
             sector_1d_returns = {}
             for sector_name, symbols in company_map.items():
                 etf = self.SECTOR_TO_ETF.get(sector_name)
                 if not etf:
                     continue
 
-                sector_returns = daily_returns.reindex(symbols).dropna()
+                # Get market weights for this sector
+                weights = self._sector_market_weights.get(sector_name, {})
 
-                if len(sector_returns) == 0:
+                # Filter to symbols with valid returns
+                valid_returns = []
+                valid_weights = []
+                for sym in symbols:
+                    if sym in daily_returns.index and pd.notna(daily_returns[sym]):
+                        ret = daily_returns[sym]
+                        wt = weights.get(sym, 0)
+                        if wt > 0:  # Only include stocks with known weight
+                            valid_returns.append(ret)
+                            valid_weights.append(wt)
+
+                if len(valid_returns) == 0:
                     continue
 
-                avg_return = float(sector_returns.mean())
-                sector_1d_returns[etf] = avg_return
+                # Normalize weights to sum to 1
+                total_weight = sum(valid_weights)
+                if total_weight > 0:
+                    normalized_weights = [w / total_weight for w in valid_weights]
+                    # Calculate weighted average
+                    weighted_return = sum(r * w for r, w in zip(valid_returns, normalized_weights))
+                else:
+                    # Fallback to equal weight if no weights available
+                    weighted_return = sum(valid_returns) / len(valid_returns)
+
+                sector_1d_returns[etf] = float(weighted_return)
                 logger.debug(
-                    f"{sector_name} ({etf}): EW 1d = {avg_return:+.2f}% "
-                    f"({len(sector_returns)}/{len(symbols)} stocks)"
+                    f"{sector_name} ({etf}): MCW 1d = {weighted_return:+.2f}% "
+                    f"({len(valid_returns)}/{len(symbols)} stocks, weight={total_weight:.1%})"
                 )
 
             self._stock_based_1d_returns = sector_1d_returns
-            logger.info(f"Stock-based 1d returns calculated for {len(sector_1d_returns)} sectors")
+            logger.info(f"Market-cap weighted 1d returns calculated for {len(sector_1d_returns)} sectors")
             return sector_1d_returns
 
         except Exception as e:
@@ -352,7 +385,7 @@ class SectorRegimeDetector:
     def update_all_sectors(self, force_update: bool = False) -> Dict[str, str]:
         """
         Update regime for all sector ETFs.
-        v5.4: Realtime ETF data with 5-min cache during market hours.
+        v5.5: Market-cap weighted stock-based 1d returns (matches Yahoo methodology).
         """
         # Check if update needed (v5.4: 5-min TTL for fast flip detection)
         if not force_update and self.last_update:
@@ -365,7 +398,14 @@ class SectorRegimeDetector:
             logger.error("No data manager provided")
             return {}
 
-        logger.info("Updating sector regimes (5-min realtime)...")
+        logger.info("Updating sector regimes (5-min realtime, MCW)...")
+
+        # v5.5: Fetch market-cap weighted stock-based 1d returns
+        stock_1d_returns = self._fetch_stock_based_1d_returns()
+        if stock_1d_returns:
+            logger.info(f"Using market-cap weighted 1d returns for {len(stock_1d_returns)} sectors")
+        else:
+            logger.warning("MCW returns unavailable, using ETF-only")
 
         for etf, sector_name in self.SECTOR_ETFS.items():
             try:
@@ -387,18 +427,26 @@ class SectorRegimeDetector:
                     logger.warning(f"Could not calculate metrics for {etf}")
                     continue
 
-                # v5.3: Always use ETF returns (market-cap weighted like Yahoo)
-                metrics['return_1d_source'] = 'etf'
+                # v5.5: Override return_1d with market-cap weighted stock-based if available
+                if etf in stock_1d_returns:
+                    etf_1d = metrics['return_1d']
+                    mcw_1d = stock_1d_returns[etf]
+                    metrics['return_1d'] = mcw_1d
+                    metrics['return_1d_source'] = 'mcw'
+                    metrics['return_1d_etf'] = etf_1d
+                else:
+                    metrics['return_1d_source'] = 'etf'
 
-                # Determine regime based on ETF metrics
+                # Determine regime based on metrics
                 regime = self.determine_regime(metrics)
 
                 self.sector_regimes[etf] = regime
                 self.sector_metrics[etf] = metrics
 
+                src = "[M]" if metrics.get('return_1d_source') == 'mcw' else "[E]"
                 logger.info(
                     f"{etf} ({sector_name}): {regime} | "
-                    f"1d: {metrics['return_1d']:+.1f}% | "
+                    f"1d{src}: {metrics['return_1d']:+.1f}% | "
                     f"5d: {metrics['return_5d']:+.1f}% | "
                     f"20d: {metrics['return_20d']:+.2f}% | RSI: {metrics['rsi']:.1f}"
                 )
@@ -508,6 +556,7 @@ class SectorRegimeDetector:
                 'Sector': sector_name,
                 'Regime': regime,
                 'Return_1d': metrics.get('return_1d', 0),
+                'Return_1d_Source': metrics.get('return_1d_source', 'etf'),
                 'Return_5d': metrics.get('return_5d', 0),
                 'Return_20d': metrics.get('return_20d', 0),
                 'RSI': metrics.get('rsi', 50),
@@ -575,7 +624,8 @@ class SectorRegimeDetector:
                     ret = metrics.get('return_20d', 0)
                     rsi = metrics.get('rsi', 50)
                     adj = self.REGIME_ADJUSTMENTS.get(regime, 0)
-                    lines.append(f"  {etf} ({name:25s}) | 1d: {r1d:>+5.1f}% | 5d: {r5d:>+5.1f}% | 20d: {ret:>+6.2f}% | RSI: {rsi:>5.1f} | Adj: {adj:>+3d}")
+                    src = "M" if metrics.get('return_1d_source') == 'mcw' else "E"
+                    lines.append(f"  {etf} ({name:25s}) | 1d[{src}]: {r1d:>+5.1f}% | 5d: {r5d:>+5.1f}% | 20d: {ret:>+6.2f}% | RSI: {rsi:>5.1f} | Adj: {adj:>+3d}")
                 lines.append("")
 
         return "\n".join(lines)
