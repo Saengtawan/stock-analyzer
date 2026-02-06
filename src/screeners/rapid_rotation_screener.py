@@ -987,19 +987,14 @@ class RapidRotationScreener:
         elif yesterday_move <= -1:
             score += 10
 
-        # 4. RSI scoring (v5.3: mild penalty for high RSI)
+        # 4. RSI scoring (v5.3.1: removed high RSI penalty - backtest showed high RSI trades perform well)
         if 25 <= rsi <= 40:
             score += 35
             reasons.append(f"Very oversold RSI={rsi:.0f}")
         elif 40 < rsi <= 50:
             score += 20
             reasons.append(f"Low RSI={rsi:.0f}")
-        elif rsi > 70:
-            score -= 4
-            reasons.append(f"Overbought RSI={rsi:.0f}")
-        elif rsi > 60:
-            score -= 2
-            reasons.append(f"High RSI={rsi:.0f}")
+        # Note: High RSI (>60) no longer penalized - backtest showed E[R]=+1.045% for RSI>70
 
         # 5. Trend context (important for bounce success)
         if current_price > sma50 and current_price > sma20 * 0.98:
