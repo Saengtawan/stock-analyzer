@@ -1022,18 +1022,13 @@ class RapidRotationScreener:
             score += 10
             reasons.append(f"Some room {dist_from_high:.0f}%")
 
-        # 8. Volume confirmation (v5.3: mild penalty for low volume)
+        # 8. Volume confirmation (v5.4: removed penalty - backtest showed no benefit)
         if volume_ratio > 1.5:
             score += 15
             reasons.append("High vol bounce")
         elif volume_ratio > 1.2:
             score += 5
-        elif volume_ratio < 0.3:
-            score -= 3
-            reasons.append(f"Very low vol {volume_ratio:.1f}x")
-        elif volume_ratio < 0.5:
-            score -= 2
-            reasons.append(f"Low vol {volume_ratio:.1f}x")
+        # v5.4: Low volume penalty removed (no statistical benefit)
 
         # ==============================
         # v3.7: HYBRID SECTOR SCORING (replaces old hot sector bonus)

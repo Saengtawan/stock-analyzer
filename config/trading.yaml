@@ -39,7 +39,7 @@ max_hold_days: 5
 daily_loss_limit_pct: 3.0
 weekly_loss_limit_pct: 7.0
 max_consecutive_losses: 3
-min_score: 80                  # v4.9.4: 95→80 (conviction sizing handles risk)
+min_score: 85                  # v5.4: 80→85 (backtest optimal threshold)
 
 # -- Signal Queue (v4.1) --
 queue_enabled: true
@@ -81,7 +81,7 @@ low_risk_position_size_pct: 20
 low_risk_max_atr_pct: 4.0
 
 # -- Afternoon Scan --
-afternoon_min_score: 82        # v4.9.4: 96→82 (allow afternoon entries)
+afternoon_min_score: 87        # v5.4: 82→87 (stricter than min_score=85)
 
 # -- Late Start Protection (v4.4) --
 late_start_protection: true
@@ -102,7 +102,7 @@ regime_filter_enabled: true
 regime_sma_period: 20
 regime_rsi_min: 40
 regime_return_5d_min: -2.0
-regime_vix_max: 30.0
+regime_vix_max: 100.0              # v5.4: 30→100 (disabled - backtest showed VIX filter hurts dip-bounce)
 
 # -- BEAR Mode Params (v4.9.4: relaxed — conviction sizing handles risk) --
 bear_max_positions: 2
