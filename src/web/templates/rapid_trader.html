@@ -1690,8 +1690,10 @@ function loadSignals() {
             let html = '';
             signals.forEach((signal, idx) => {
                 const execStatus = signal.execution_status || 'PENDING';
+                const skipReason = signal.skip_reason || '';  // v5.3
+                const skipText = skipReason ? `SKIP (${skipReason})` : 'SKIP';
                 const statusBadge = execStatus === 'BOUGHT' ? '<span class="badge bg-success ms-1" style="font-size:0.55em">BOUGHT</span>'
-                    : execStatus === 'SKIPPED_FILTER' ? '<span class="badge bg-danger ms-1" style="font-size:0.55em">SKIP</span>'
+                    : execStatus === 'SKIPPED_FILTER' ? `<span class="badge bg-danger ms-1" style="font-size:0.55em">${skipText}</span>`
                     : execStatus === 'QUEUED' ? '<span class="badge bg-warning text-dark ms-1" style="font-size:0.55em">QUEUED</span>'
                     : execStatus === 'QUEUE_FULL' ? '<span class="badge bg-secondary ms-1" style="font-size:0.55em">FULL</span>'
                     : '';

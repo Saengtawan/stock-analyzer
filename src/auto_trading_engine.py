@@ -575,6 +575,9 @@ class AutoTradingEngine:
         # Signal Queue (v4.1)
         self.signal_queue: List[QueuedSignal] = []
 
+        # v5.3: Track last skip reason for UI display
+        self._last_skip_reason: str = ""
+
         # Regime cache (v4.2) - avoid repeated yfinance calls
         self._regime_cache: Optional[Tuple[bool, str, datetime, Dict]] = None
         # v5.0: Scan log lock (prevent concurrent writes from losing data)
@@ -2084,16 +2087,21 @@ class AutoTradingEngine:
         scan_results = []
         for rank, signal in enumerate(signals):
             action = "SKIPPED_FILTER"
+            skip_reason = ""
+            self._last_skip_reason = ""  # v5.3: Reset before execute
             if len(self.positions) < effective_max:
                 result = self.execute_signal(signal)
                 action = "BOUGHT" if result else "SKIPPED_FILTER"
+                skip_reason = self._last_skip_reason if not result else ""
             else:
                 queued = self._add_to_queue(signal)
                 action = "QUEUED" if queued else "QUEUE_FULL"
+                skip_reason = "Queue Full" if not queued else ""
 
             scan_results.append({
                 "signal_rank": rank + 1,
                 "action_taken": action,
+                "skip_reason": skip_reason,  # v5.3: Include skip reason
                 "symbol": getattr(signal, 'symbol', ''),
                 "scan_price": getattr(signal, 'entry_price', 0),
                 "score": getattr(signal, 'score', 0),
@@ -2228,6 +2236,7 @@ class AutoTradingEngine:
             if symbol:
                 status_map[symbol] = {
                     'action': r.get('action_taken', 'UNKNOWN'),
+                    'skip_reason': r.get('skip_reason', ''),  # v5.3
                     'timestamp': datetime.now().isoformat(),
                 }
 
@@ -2652,6 +2661,7 @@ class AutoTradingEngine:
             can_trade, reason = self.safety.can_open_new_position(mode=mode)
             if not can_trade:
                 logger.warning(f"Safety block: {reason}")
+                self._last_skip_reason = f"Safety: {reason}"
                 return False
 
             # v4.7 Fix #5: PDT pre-buy budget check
@@ -2662,11 +2672,13 @@ class AutoTradingEngine:
                 if pdt_pre_check.remaining <= self.pdt_guard.config.reserve:
                     logger.warning(f"❌ PDT pre-buy block: remaining={pdt_pre_check.remaining}, "
                                    f"reserve={self.pdt_guard.config.reserve} → skip {symbol} in {mode} mode")
+                    self._last_skip_reason = "PDT Full"
                     return False
 
             # Check if already have position
             if symbol in self.positions:
                 logger.warning(f"Already have position in {symbol}")
+                self._last_skip_reason = "Duplicate"
                 return False
 
             # v4.7 Fix #9: Reconcile with Alpaca before buying
@@ -2677,6 +2689,7 @@ class AutoTradingEngine:
                     logger.warning(f"⚠️ RECONCILIATION: Alpaca already holds {symbol} "
                                    f"(qty={alpaca_existing.qty}, current=${alpaca_existing.current_price:.2f}) "
                                    f"but engine unaware — skipping buy")
+                    self._last_skip_reason = "Already Held"
                     return False
             except Exception:
                 pass  # get_position returns None for non-existent, exceptions are safe to ignore
@@ -2689,6 +2702,7 @@ class AutoTradingEngine:
                 actual_count = max(len(self.positions), getattr(self, '_alpaca_position_count', 0))
                 if actual_count >= effective_max:
                     logger.warning(f"Max positions ({effective_max}) reached — engine={len(self.positions)}, alpaca={getattr(self, '_alpaca_position_count', 0)} (mode: {mode})")
+                    self._last_skip_reason = "Max Pos"
                     return False
 
             # --- BLOCK 2: Score filter ---
@@ -2707,6 +2721,7 @@ class AutoTradingEngine:
                     {"score": {"passed": False, "detail": f"{signal_score} < {params['min_score']}"}},
                     signal_score, signal_sector, signal_source, signal, mode,
                 )
+                self._last_skip_reason = f"Score {signal_score}"
                 return False
 
             # --- BLOCK 3: Position sizing ---
@@ -2723,6 +2738,7 @@ class AutoTradingEngine:
             conviction_pct, conviction = self._get_conviction_size(signal, params)
             if conviction == 'SKIP_BEAR':
                 logger.warning(f"Conviction SKIP: {symbol} in BEAR sector")
+                self._last_skip_reason = "BEAR Sector"
                 return False
             position_value = capital * (conviction_pct / 100)
             logger.info(f"Conviction {conviction}: {symbol} -> {conviction_pct}% (${position_value:,.0f})")
@@ -2749,6 +2765,7 @@ class AutoTradingEngine:
                         {"atr": {"passed": False, "detail": f"{signal_atr:.1f}% > {params['max_atr_pct']}%"}},
                         signal_score, signal_sector, signal_source, signal, mode,
                     )
+                    self._last_skip_reason = f"ATR {signal_atr:.1f}%"
                     return False
 
             # --- BLOCK 4: Pre-trade filters (gap, stock-d, earnings, sector) ---
@@ -2764,6 +2781,7 @@ class AutoTradingEngine:
                     signal_score, signal_sector, signal_source, signal, mode,
                     gap_pct=gap_pct,
                 )
+                self._last_skip_reason = f"Gap {gap_pct:+.1f}%"
                 return False
 
             # v5.3: Stock-D Filter - Require dip-bounce pattern (Quant Research: +1.466% expectancy)
@@ -2779,6 +2797,7 @@ class AutoTradingEngine:
                     signal_score, signal_sector, signal_source, signal, mode,
                     gap_pct=gap_pct,
                 )
+                self._last_skip_reason = "Stock-D ❌"
                 return False
 
             # v4.4: Earnings Filter - ไม่ซื้อหุ้นที่มี earnings ใกล้ๆ
@@ -2792,6 +2811,7 @@ class AutoTradingEngine:
                     signal_score, signal_sector, signal_source, signal, mode,
                     gap_pct=gap_pct, **earnings_data,
                 )
+                self._last_skip_reason = "Earnings"
                 return False
 
             # v4.7: Sector Diversification - ไม่ซื้อหุ้น sector เดียวกันเกิน MAX_PER_SECTOR
@@ -2805,6 +2825,7 @@ class AutoTradingEngine:
                     {"sector": {"passed": False, "detail": sector_reason}},
                     signal_score, signal_sector, signal_source, signal, mode,
                 )
+                self._last_skip_reason = "Sector Full"
                 return False
 
             # v4.7: Sector Cooldown - sector แพ้ติดกัน → cooldown
@@ -2817,6 +2838,7 @@ class AutoTradingEngine:
                     {"sector_cooldown": {"passed": False, "detail": sector_cd_reason}},
                     signal_score, signal_sector, signal_source, signal, mode,
                 )
+                self._last_skip_reason = "Sector CD"
                 return False
 
             # v4.9.2: Bear mode sector safety net (defense-in-depth)
@@ -2831,6 +2853,7 @@ class AutoTradingEngine:
                         {"bear_sector": {"passed": False, "detail": f"'{signal_sector}' not in {allowed_sectors}"}},
                         signal_score, signal_sector, signal_source, signal, mode,
                     )
+                    self._last_skip_reason = "BEAR Sector"
                     return False
 
             # v4.9.3: BULL sector filter — block sectors with ETF return_20d < threshold
@@ -2844,6 +2867,7 @@ class AutoTradingEngine:
                     {"bull_sector": {"passed": False, "detail": f"'{signal_sector}' in blocked {blocked_sectors}"}},
                     signal_score, signal_sector, signal_source, signal, mode,
                 )
+                self._last_skip_reason = "BULL Sector"
                 return False
 
             # --- BLOCK 5: ATR SL/TP + risk-parity sizing ---
@@ -2869,6 +2893,7 @@ class AutoTradingEngine:
             qty = int(position_value / current_price)
             if qty <= 0:
                 logger.warning(f"Position size too small for {symbol}")
+                self._last_skip_reason = "Qty=0"
                 return False
 
             # --- BLOCK 6: Order execution ---

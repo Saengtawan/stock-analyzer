@@ -35,6 +35,7 @@ from analysis.enhanced_features import analyze_stock as enhanced_analyze
 
 
 app = Flask(__name__)
+app.config['TEMPLATES_AUTO_RELOAD'] = True  # v5.3: Disable template caching
 CORS(app)
 
 # v4.0: WebSocket for real-time updates
@@ -2616,8 +2617,10 @@ def api_rapid_signals():
             symbol = sig.get('symbol', '')
             if symbol in exec_status:
                 sig['execution_status'] = exec_status[symbol].get('action', 'PENDING')
+                sig['skip_reason'] = exec_status[symbol].get('skip_reason', '')  # v5.3
             else:
                 sig['execution_status'] = 'PENDING'
+                sig['skip_reason'] = ''
 
         return jsonify(data)
 
