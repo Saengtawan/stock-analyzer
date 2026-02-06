@@ -171,8 +171,9 @@ class DataCache:
             'sector_companies': timedelta(days=7), # v5.2: Top-50 company list per sector (rarely changes)
 
             # SHORT CACHE - need fresher data
+            'sector_etf': timedelta(minutes=5),    # v5.4: Sector ETF prices (realtime during market hours)
             'sector_price': timedelta(minutes=20), # v5.2: Batch stock prices for sector 1d return
-            'sector_regime': timedelta(minutes=20),  # Sector regime: 20min (v4.9.3 — matches SECTOR_REGIME_TTL_MINUTES)
+            'sector_regime': timedelta(minutes=5), # v5.4: Sector regime (5min for fast flip detection)
             'insider': timedelta(hours=4),         # Insider activity: 4h
             'sec_edgar': timedelta(hours=6),       # SEC filings: 6h
 

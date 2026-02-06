@@ -100,7 +100,8 @@ class YahooFinanceClient(BaseAPIClient):
         if self._error_count > 0:
             self._error_count = max(0, self._error_count - 1)
 
-    def get_price_data(self, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
+    def get_price_data(self, symbol: str, period: str = "1y", interval: str = "1d",
+                        data_type: str = 'price') -> pd.DataFrame:
         """
         Get historical price data from Yahoo Finance with robust rate limit handling (v6.10)
 
@@ -108,12 +109,13 @@ class YahooFinanceClient(BaseAPIClient):
             symbol: Stock symbol (e.g., 'AAPL')
             period: Time period ('1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max')
             interval: Data interval ('1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo')
+            data_type: Cache data type for TTL selection (default 'price', use 'sector_etf' for 5min TTL)
 
         Returns:
             DataFrame with OHLCV data
         """
-        cache_key = f"price_{symbol}_{period}_{interval}"
-        cached_data = self.cache.get(cache_key, data_type='price')
+        cache_key = f"{data_type}_{symbol}_{period}_{interval}"
+        cached_data = self.cache.get(cache_key, data_type=data_type)
         if cached_data is not None:
             logger.debug(f"📦 Cache hit for {symbol}")
             return cached_data
@@ -144,7 +146,7 @@ class YahooFinanceClient(BaseAPIClient):
                 if 'date' in data.columns:
                     data['date'] = pd.to_datetime(data['date'])
 
-                self.cache.set(cache_key, data, data_type='price')
+                self.cache.set(cache_key, data, data_type=data_type)
                 self._record_success()
                 logger.debug(f"✅ Retrieved {len(data)} rows for {symbol}")
 

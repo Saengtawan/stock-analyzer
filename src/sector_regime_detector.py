@@ -1,7 +1,8 @@
 """
-Sector Regime Detector v5.3
+Sector Regime Detector v5.4
 Analyzes sector performance to determine sector-specific market regimes.
 Uses ETF returns (market-cap weighted) which match Yahoo Finance sector returns.
+v5.4: Realtime sector data with 5-min cache during market hours.
 """
 
 import pandas as pd
@@ -14,11 +15,11 @@ from loguru import logger
 class SectorRegimeDetector:
     """
     Detects market regime at the sector level for more granular trading decisions.
-    v5.3: Uses ETF returns (market-cap weighted) which match Yahoo Finance sector returns.
+    v5.4: Realtime ETF data with 5-min cache during market hours for fast flip detection.
     """
 
-    # v4.9.3: Configurable cache TTL
-    SECTOR_REGIME_TTL_MINUTES = 20  # ปรับได้ง่าย (ลดจาก 60min)
+    # v5.4: Realtime sector data during market hours
+    SECTOR_REGIME_TTL_MINUTES = 5   # 5 min during market hours (detect fast BULL→BEAR flip)
 
     # Major sector ETFs
     SECTOR_ETFS = {
@@ -351,9 +352,9 @@ class SectorRegimeDetector:
     def update_all_sectors(self, force_update: bool = False) -> Dict[str, str]:
         """
         Update regime for all sector ETFs.
-        v5.3: Uses ETF returns (market-cap weighted, matches Yahoo Finance).
+        v5.4: Realtime ETF data with 5-min cache during market hours.
         """
-        # Check if update needed (v4.9.3: configurable TTL)
+        # Check if update needed (v5.4: 5-min TTL for fast flip detection)
         if not force_update and self.last_update:
             time_since_update = datetime.now() - self.last_update
             if time_since_update < timedelta(minutes=self.SECTOR_REGIME_TTL_MINUTES):
@@ -364,16 +365,13 @@ class SectorRegimeDetector:
             logger.error("No data manager provided")
             return {}
 
-        logger.info("Updating sector regimes...")
-
-        # v5.3: Use ETF-based 1d returns (market-cap weighted, matches Yahoo)
-        # Note: Stock-based equal-weight was removed because it doesn't match Yahoo's
-        # market-cap methodology. Small volatile stocks distort the EW average.
+        logger.info("Updating sector regimes (5-min realtime)...")
 
         for etf, sector_name in self.SECTOR_ETFS.items():
             try:
-                # Get 30 days to ensure 20 trading days (for 5d/20d/RSI/MA)
-                df = self.data_manager.get_price_data(etf, period='1mo', interval='1d')
+                # v5.4: Use sector_etf data_type for 5-min cache TTL
+                df = self.data_manager.get_price_data(etf, period='1mo', interval='1d',
+                                                       data_type='sector_etf')
 
                 if df.empty:
                     logger.warning(f"No data for {etf}")

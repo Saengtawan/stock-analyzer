@@ -45,7 +45,8 @@ class DataManager:
 
         logger.info(f"DataManager initialized with primary: {self.primary_source}, backup: {self.backup_source}, price_backup: {self.price_backup}")
 
-    def get_price_data(self, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
+    def get_price_data(self, symbol: str, period: str = "1y", interval: str = "1d",
+                        data_type: str = 'price') -> pd.DataFrame:
         """
         Get price data with fallback to backup source
 
@@ -53,6 +54,7 @@ class DataManager:
             symbol: Stock symbol
             period: Time period
             interval: Data interval
+            data_type: Cache data type for TTL selection (default 'price', use 'sector_etf' for 5min TTL)
 
         Returns:
             DataFrame with price data
@@ -60,7 +62,7 @@ class DataManager:
         # Try primary source first
         try:
             if self.primary_source == 'yahoo':
-                return self.yahoo_client.get_price_data(symbol, period, interval)
+                return self.yahoo_client.get_price_data(symbol, period, interval, data_type=data_type)
             elif self.primary_source == 'fmp' and self.fmp_client:
                 return self.fmp_client.get_price_data(symbol, period, interval)
             elif self.primary_source == 'tiingo' and self.tiingo_client:
@@ -71,7 +73,7 @@ class DataManager:
         # Try backup source
         try:
             if self.backup_source == 'yahoo' and self.primary_source != 'yahoo':
-                return self.yahoo_client.get_price_data(symbol, period, interval)
+                return self.yahoo_client.get_price_data(symbol, period, interval, data_type=data_type)
             elif self.backup_source == 'fmp' and self.fmp_client and self.primary_source != 'fmp':
                 return self.fmp_client.get_price_data(symbol, period, interval)
             elif self.backup_source == 'tiingo' and self.tiingo_client and self.primary_source != 'tiingo':
