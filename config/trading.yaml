@@ -93,8 +93,10 @@ afternoon_gap_max_down: -3.0   # tighter than morning
 
 # -- Continuous Scan (v6.3) --
 continuous_scan_enabled: true
-continuous_scan_interval_minutes: 5   # Scan every 5 min between sessions
-continuous_scan_midday_hour: 12       # Switch to afternoon params after this hour
+continuous_scan_interval_minutes: 5        # Default/slow interval (11:00-16:00)
+continuous_scan_volatile_interval: 3       # Volatile period interval (09:35-11:00)
+continuous_scan_volatile_end_hour: 11      # Volatile period ends at 11:00
+continuous_scan_midday_hour: 12            # Switch to afternoon params after this hour
 
 # -- Late Start Protection (v4.4) --
 late_start_protection: true

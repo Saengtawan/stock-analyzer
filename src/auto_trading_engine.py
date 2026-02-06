@@ -371,7 +371,9 @@ class AutoTradingEngine:
 
     # Continuous Scan (v6.3)
     CONTINUOUS_SCAN_ENABLED: bool
-    CONTINUOUS_SCAN_INTERVAL_MINUTES: int
+    CONTINUOUS_SCAN_INTERVAL_MINUTES: int      # Slow interval (11:00-16:00)
+    CONTINUOUS_SCAN_VOLATILE_INTERVAL: int     # Volatile interval (09:35-11:00)
+    CONTINUOUS_SCAN_VOLATILE_END_HOUR: int     # Volatile period ends at this hour
     CONTINUOUS_SCAN_MIDDAY_HOUR: int
 
     # BEAR Mode
@@ -675,6 +677,8 @@ class AutoTradingEngine:
             # Continuous Scan (v6.3)
             'continuous_scan_enabled': 'CONTINUOUS_SCAN_ENABLED',
             'continuous_scan_interval_minutes': 'CONTINUOUS_SCAN_INTERVAL_MINUTES',
+            'continuous_scan_volatile_interval': 'CONTINUOUS_SCAN_VOLATILE_INTERVAL',
+            'continuous_scan_volatile_end_hour': 'CONTINUOUS_SCAN_VOLATILE_END_HOUR',
             'continuous_scan_midday_hour': 'CONTINUOUS_SCAN_MIDDAY_HOUR',
             # BEAR Mode
             'bear_mode_enabled': 'BEAR_MODE_ENABLED',
@@ -4738,14 +4742,22 @@ class AutoTradingEngine:
                                     self.GAP_MAX_UP = saved_gap_up
                                     self.GAP_MAX_DOWN = saved_gap_down
 
-                # v6.3: Continuous scan between sessions (every N minutes with dynamic params)
+                # v6.3: Continuous scan between sessions (dynamic interval + params)
+                # 09:35-11:00: 3 min (volatile), 11:00-16:00: 5 min (slower)
                 if self.CONTINUOUS_SCAN_ENABLED and last_scan_date == today:
                     et_now = self._get_et_time()
                     # Only run between morning scan done and market close (not pre-close)
                     if hasattr(self, '_morning_scan_done') and self._morning_scan_done == today and not self._is_pre_close():
+                        # Dynamic interval: volatile period (09:35-11:00) = 3 min, else = 5 min
+                        is_volatile_period = et_now.hour < self.CONTINUOUS_SCAN_VOLATILE_END_HOUR
+                        if is_volatile_period:
+                            interval_minutes = self.CONTINUOUS_SCAN_VOLATILE_INTERVAL
+                        else:
+                            interval_minutes = self.CONTINUOUS_SCAN_INTERVAL_MINUTES
+                        interval_seconds = interval_minutes * 60
+
                         # Check if enough time passed since last continuous scan
                         last_cont_scan = getattr(self, '_last_continuous_scan', None)
-                        interval_seconds = self.CONTINUOUS_SCAN_INTERVAL_MINUTES * 60
                         should_scan = False
                         if last_cont_scan is None:
                             # First continuous scan after morning
@@ -4767,7 +4779,8 @@ class AutoTradingEngine:
                                     # Dynamic params: morning before midday, afternoon after
                                     use_afternoon = et_now.hour >= self.CONTINUOUS_SCAN_MIDDAY_HOUR
                                     session_label = "afternoon" if use_afternoon else "morning"
-                                    logger.info(f"🔄 Continuous scan ({session_label} params): {len(self.positions)}/{cont_max} positions")
+                                    period_label = "volatile" if is_volatile_period else "normal"
+                                    logger.info(f"🔄 Continuous scan ({session_label} params, {interval_minutes}min/{period_label}): {len(self.positions)}/{cont_max} positions")
 
                                     saved_min_score = self.MIN_SCORE
                                     saved_gap_up = self.GAP_MAX_UP
