@@ -4856,32 +4856,33 @@ class AutoTradingEngine:
                             cont_max = cont_params.get('max_positions') or self.MAX_POSITIONS
                             cont_mode = cont_params.get('mode', 'NORMAL')
 
-                            # Only scan if we have room for more positions
-                            if len(self.positions) < cont_max:
-                                is_bull, _ = self._check_market_regime()
-                                if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit(mode=cont_mode) and not self.check_weekly_loss_limit(mode=cont_mode) and not self.check_consecutive_loss_cooldown(mode=cont_mode):
-                                    # Dynamic params: morning before midday, afternoon after
-                                    use_afternoon = et_now.hour >= self.CONTINUOUS_SCAN_MIDDAY_HOUR
-                                    session_label = "afternoon" if use_afternoon else "morning"
-                                    period_label = "volatile" if is_volatile_period else "normal"
-                                    logger.info(f"🔄 Continuous scan ({session_label} params, {interval_minutes}min/{period_label}): {len(self.positions)}/{cont_max} positions")
+                            # v6.4: Always scan to populate waiting_signals for UI (even when positions full)
+                            is_full = len(self.positions) >= cont_max
+                            is_bull, _ = self._check_market_regime()
+                            if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit(mode=cont_mode) and not self.check_weekly_loss_limit(mode=cont_mode) and not self.check_consecutive_loss_cooldown(mode=cont_mode):
+                                # Dynamic params: morning before midday, afternoon after
+                                use_afternoon = et_now.hour >= self.CONTINUOUS_SCAN_MIDDAY_HOUR
+                                session_label = "afternoon" if use_afternoon else "morning"
+                                period_label = "volatile" if is_volatile_period else "normal"
+                                full_tag = " [FULL]" if is_full else ""
+                                logger.info(f"🔄 Continuous scan ({session_label} params, {interval_minutes}min/{period_label}): {len(self.positions)}/{cont_max} positions{full_tag}")
 
-                                    saved_min_score = self.MIN_SCORE
-                                    saved_gap_up = self.GAP_MAX_UP
-                                    saved_gap_down = self.GAP_MAX_DOWN
+                                saved_min_score = self.MIN_SCORE
+                                saved_gap_up = self.GAP_MAX_UP
+                                saved_gap_down = self.GAP_MAX_DOWN
 
-                                    if use_afternoon:
-                                        self.MIN_SCORE = max(self.MIN_SCORE, self.AFTERNOON_MIN_SCORE)
-                                        self.GAP_MAX_UP = self.AFTERNOON_GAP_MAX_UP
-                                        self.GAP_MAX_DOWN = self.AFTERNOON_GAP_MAX_DOWN
+                                if use_afternoon:
+                                    self.MIN_SCORE = max(self.MIN_SCORE, self.AFTERNOON_MIN_SCORE)
+                                    self.GAP_MAX_UP = self.AFTERNOON_GAP_MAX_UP
+                                    self.GAP_MAX_DOWN = self.AFTERNOON_GAP_MAX_DOWN
 
-                                    try:
-                                        signals = self.scan_for_signals()
-                                        self._process_scan_signals(signals, f"continuous_{session_label}", max_positions=cont_max)
-                                    finally:
-                                        self.MIN_SCORE = saved_min_score
-                                        self.GAP_MAX_UP = saved_gap_up
-                                        self.GAP_MAX_DOWN = saved_gap_down
+                                try:
+                                    signals = self.scan_for_signals()
+                                    self._process_scan_signals(signals, f"continuous_{session_label}", max_positions=cont_max)
+                                finally:
+                                    self.MIN_SCORE = saved_min_score
+                                    self.GAP_MAX_UP = saved_gap_up
+                                    self.GAP_MAX_DOWN = saved_gap_down
 
                             self._last_continuous_scan = et_now
 
