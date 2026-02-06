@@ -92,29 +92,36 @@
     .sector-chip.unknown { background: #d5dbdb; color: #566573; }
 
     /* v6.3: Minimal Timeline */
-    .timeline-container { padding: 8px 0; margin-bottom: 6px; }
+    .timeline-container { padding: 10px 0; margin-bottom: 8px; }
     .timeline-bar { display: flex; align-items: center; }
-    .tl-session { flex: 1; text-align: center; padding: 6px 4px; }
+    .tl-session { flex: 1; text-align: center; padding: 8px 4px; }
     .tl-header { display: flex; align-items: center; justify-content: center; gap: 6px; }
-    .tl-indicator { width: 8px; height: 8px; border-radius: 50%; }
-    .tl-session.done .tl-indicator { background: #22c55e; }
-    .tl-session.active .tl-indicator { background: #60a5fa; box-shadow: 0 0 6px #60a5fa; animation: pulse 1.5s infinite; }
-    .tl-session.pending .tl-indicator { border: 2px solid #64748b; background: transparent; width: 6px; height: 6px; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-    .tl-name { font-size: 0.75rem; color: #cbd5e1; }
-    .tl-session.done .tl-name { color: #22c55e; }
-    .tl-session.active .tl-name { color: #60a5fa; font-weight: 600; }
+    .tl-indicator { width: 10px; height: 10px; border-radius: 50%; transition: all 0.3s; }
+    .tl-session.done .tl-indicator { background: #10b981; box-shadow: 0 0 4px #10b981; }
+    .tl-session.active .tl-indicator { background: #3b82f6; box-shadow: 0 0 8px #3b82f6, 0 0 16px rgba(59,130,246,0.4); animation: pulse-glow 1.5s ease-in-out infinite; }
+    .tl-session.pending .tl-indicator { border: 2px solid #475569; background: transparent; }
+    @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 8px #3b82f6, 0 0 16px rgba(59,130,246,0.4); } 50% { box-shadow: 0 0 12px #3b82f6, 0 0 24px rgba(59,130,246,0.6); } }
+    .tl-name { font-size: 0.8rem; font-weight: 500; color: #e2e8f0; }
+    .tl-session.done .tl-name { color: #10b981; }
+    .tl-session.active .tl-name { color: #3b82f6; font-weight: 700; }
     .tl-session.pending .tl-name { color: #64748b; }
-    .tl-time { font-size: 0.65rem; color: #94a3b8; }
-    .tl-session.pending .tl-time { color: #64748b; }
-    .tl-interval, .tl-connector { display: none; }
-    .tl-progress { height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 4px; }
-    .tl-progress-fill { height: 100%; background: #60a5fa; border-radius: 2px; transition: width 0.3s; }
-    .tl-session.done .tl-progress-fill { background: #22c55e; width: 100% !important; }
-    .tl-session.pending .tl-progress-fill { background: #475569; }
-    .tl-next-scan { display: flex; justify-content: center; gap: 16px; padding-top: 8px; font-size: 0.75rem; color: #94a3b8; }
-    .tl-next-scan .countdown { color: #22c55e; font-weight: 600; }
-    .tl-next-scan .next { color: #60a5fa; }
+    .tl-time { font-size: 0.7rem; color: #94a3b8; margin: 2px 0; }
+    .tl-session.pending .tl-time { color: #475569; }
+    .tl-interval { font-size: 0.6rem; padding: 2px 6px; border-radius: 10px; font-weight: 600; margin: 4px 0; }
+    .tl-interval.volatile { background: #f97316; color: white; }
+    .tl-interval.normal { background: #3b82f6; color: white; }
+    .tl-session.pending .tl-interval { opacity: 0.4; }
+    .tl-connector { display: none; }
+    .tl-progress { height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+    .tl-progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+    .tl-session.done .tl-progress-fill { background: #10b981; width: 100% !important; }
+    .tl-session.active .tl-progress-fill { background: linear-gradient(90deg, #3b82f6, #8b5cf6); animation: shimmer 2s infinite; background-size: 200% 100%; }
+    .tl-session.pending .tl-progress-fill { background: #334155; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .tl-next-scan { display: flex; justify-content: center; gap: 20px; padding-top: 10px; font-size: 0.8rem; color: #94a3b8; }
+    .tl-next-scan .countdown { color: #10b981; font-weight: 700; animation: count-pulse 1s infinite; }
+    .tl-next-scan .next { color: #3b82f6; }
+    @keyframes count-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
     /* ========================================
        SIGNAL / POSITION CARDS
