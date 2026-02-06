@@ -2244,12 +2244,12 @@ function loadSignals() {
             if (signals.length === 0 && waitingSignalsData.length > 0) {
                 let waitHtml = marketClosedBanner;
                 waitHtml += `
-                    <div class="alert py-2 mb-2" style="background: linear-gradient(135deg, #92400e, #b45309); border: 1px solid #d97706; color: #fef3c7;">
+                    <div class="alert py-2 mb-2" style="background: rgba(90,85,78,0.4); border: 1px solid rgba(140,130,115,0.5); color: #c4b89a;">
                         <div class="d-flex align-items-center justify-content-center">
-                            <i class="fas fa-lock me-2"></i>
+                            <i class="fas fa-lock me-2" style="opacity:0.7"></i>
                             <strong>Positions Full (${posStatusData.current || 0}/${posStatusData.max || 0})</strong>
                         </div>
-                        <small class="d-block text-center mt-1" style="color: #fde68a;">Sell a position to buy these signals</small>
+                        <small class="d-block text-center mt-1" style="opacity:0.8;">Sell a position to buy these signals</small>
                     </div>`;
                 waitingSignalsData.forEach((signal, idx) => {
                     waitHtml += `
@@ -2337,10 +2337,10 @@ function loadSignals() {
             const posStatus = data.positions_status || {};
             if (waitingSignals.length > 0) {
                 html += `
-                    <div class="alert py-2 mt-2 mb-2" style="background: linear-gradient(135deg, #78350f, #92400e); border: 1px solid #b45309; color: #fef3c7;">
+                    <div class="alert py-2 mt-2 mb-2" style="background: rgba(90,85,78,0.35); border: 1px dashed rgba(140,130,115,0.5); color: #b8a888;">
                         <div class="d-flex align-items-center justify-content-center">
-                            <i class="fas fa-lock me-2"></i>
-                            <span class="small"><strong>Positions Full (${posStatus.current || 0}/${posStatus.max || 0})</strong></span>
+                            <i class="fas fa-lock me-2" style="opacity:0.6"></i>
+                            <span class="small">Positions Full (${posStatus.current || 0}/${posStatus.max || 0})</span>
                         </div>
                     </div>`;
                 waitingSignals.forEach((signal, idx) => {
