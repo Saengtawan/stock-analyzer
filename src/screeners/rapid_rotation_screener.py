@@ -1391,9 +1391,10 @@ class RapidRotationScreener:
             if new_signals and available_slots <= 0:
                 logger.info(f"⚠️ Positions FULL ({len(existing)}/{max_positions}): {[s.symbol for s in new_signals[:5]]} available but no slots")
             elif new_signals:
-                logger.info(f"✅ Returning {min(len(new_signals), available_slots)} signals (slots: {available_slots}): {[s.symbol for s in new_signals[:available_slots]]}")
+                logger.info(f"✅ Found {len(new_signals)} new signals (slots: {available_slots}): {[s.symbol for s in new_signals[:5]]}")
 
-        return new_signals[:available_slots]
+        # v6.4: Return all new signals (engine handles slot limiting for UI waiting display)
+        return new_signals[:10]  # Cap at 10 to avoid huge lists
 
 
 def main():

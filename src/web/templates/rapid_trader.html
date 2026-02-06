@@ -2139,8 +2139,11 @@ let _firstLoadDone = false;
 
 function _signalHash(data) {
     const sigs = (data.signals || []).map(s => s.symbol + s.score + s.entry_price.toFixed(2)).join(',');
+    // v6.4: Include waiting signals in hash
+    const waiting = (data.waiting_signals || []).map(s => s.symbol + s.score).join(',');
     const fs = data.filter_stats ? JSON.stringify(data.filter_stats) : '';
-    return sigs + '|' + fs + '|' + (data.status || '');
+    const pos = data.positions_status ? `${data.positions_status.current}/${data.positions_status.max}` : '';
+    return sigs + '|' + waiting + '|' + fs + '|' + pos + '|' + (data.status || '');
 }
 
 function loadSignals() {
@@ -2166,9 +2169,22 @@ function loadSignals() {
             }
 
             const signals = data.signals || [];
-            _lastSignalCount = signals.length;
+            const waitingCount = (data.waiting_signals || []).length;
+            _lastSignalCount = signals.length + waitingCount;
             const signalBadge = document.getElementById('signalBadge');
-            if (signalBadge) signalBadge.textContent = signals.length;
+            if (signalBadge) {
+                // v6.4: Show total with waiting indicator
+                if (waitingCount > 0 && signals.length === 0) {
+                    signalBadge.textContent = waitingCount;
+                    signalBadge.className = 'badge bg-warning text-dark';  // Yellow for waiting
+                } else if (waitingCount > 0) {
+                    signalBadge.textContent = `${signals.length}+${waitingCount}`;
+                    signalBadge.className = 'badge bg-success';
+                } else {
+                    signalBadge.textContent = signals.length;
+                    signalBadge.className = 'badge bg-success';
+                }
+            }
 
             const hash = _signalHash(data);
             if (hash === _lastSignalHash) return;
@@ -2199,7 +2215,11 @@ function loadSignals() {
                     </small>
                 </div>` : '';
 
-            if (signals.length === 0) {
+            // v6.4: Check for waiting signals when no actionable signals
+            const waitingSignalsData = data.waiting_signals || [];
+            const posStatusData = data.positions_status || {};
+
+            if (signals.length === 0 && waitingSignalsData.length === 0) {
                 const age = data.cache_age_seconds;
                 const dur = data.scan_duration_seconds;
                 const ageText = age != null ? (age < 60 ? `${Math.floor(age)}s ago` : `${Math.floor(age/60)}m ago`) : '';
@@ -2216,6 +2236,51 @@ function loadSignals() {
                     ? '<span class="badge bg-secondary bg-opacity-50 text-light"><i class="fas fa-moon me-1"></i> Market closed</span>'
                     : '<span class="badge bg-secondary bg-opacity-25 text-light"><i class="fas fa-sync-alt fa-spin me-1"></i> Continuous scan</span>';
                 container.innerHTML = `${marketClosedBanner}<div id="scanProgressPanel" class="py-2"><div class="text-center text-muted py-3"><i class="fas fa-search fa-2x text-secondary mb-2"></i><p class="mb-1">No signals found</p><small class="d-block text-secondary mb-2">Last scan: ${ageText} ${durText}</small>${filterHtml}<div class="mt-2">${scanStatusBadge}</div></div></div>`;
+                return;
+            }
+
+            // v6.4: Show waiting signals even when no actionable signals
+            if (signals.length === 0 && waitingSignalsData.length > 0) {
+                let waitHtml = marketClosedBanner;
+                waitHtml += `
+                    <div class="alert alert-info py-2 mb-2" style="background: linear-gradient(135deg, #1a365d, #2c5282); border: 1px solid #3182ce;">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <i class="fas fa-lock me-2"></i>
+                            <strong>Positions Full (${posStatusData.current || 0}/${posStatusData.max || 0})</strong>
+                        </div>
+                        <small class="d-block text-center mt-1 opacity-75">Sell a position to buy these signals</small>
+                    </div>`;
+                waitingSignalsData.forEach((signal, idx) => {
+                    waitHtml += `
+                    <div class="signal-card" style="opacity: 0.7; border: 1px dashed #4a5568 !important; background: rgba(74,85,104,0.15);">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div>
+                                <h6 class="mb-0">
+                                    <span class="badge bg-secondary me-1">#${idx + 1}</span>
+                                    ${signal.symbol}
+                                    <span class="badge bg-warning text-dark ms-1" style="font-size:0.55em"><i class="fas fa-lock me-1"></i>Waiting</span>
+                                </h6>
+                                <small class="text-muted">Score: ${signal.score}${signal.sector ? ' | ' + signal.sector : ''}</small>
+                            </div>
+                            <div class="price-tag">$${signal.entry_price.toFixed(2)}</div>
+                        </div>
+                        <div class="row mb-1">
+                            <div class="col-6">
+                                <small class="text-muted">Stop Loss</small>
+                                <div class="sl-tag fw-bold" style="font-size:0.85rem;">$${signal.stop_loss.toFixed(2)} (-${signal.max_loss.toFixed(1)}%)</div>
+                            </div>
+                            <div class="col-6 text-end">
+                                <small class="text-muted">Take Profit</small>
+                                <div class="tp-tag fw-bold" style="font-size:0.85rem;">$${signal.take_profit.toFixed(2)} (+${signal.expected_gain.toFixed(1)}%)</div>
+                            </div>
+                        </div>
+                        <div class="mb-1"><small class="text-muted">RSI: ${signal.rsi.toFixed(0)} | Mom: ${signal.momentum_5d >= 0 ? '+' : ''}${signal.momentum_5d.toFixed(1)}%</small></div>
+                        <div class="text-center">
+                            <span class="badge bg-secondary bg-opacity-50 text-light small"><i class="fas fa-hourglass-half me-1"></i>Waiting for slot</span>
+                        </div>
+                    </div>`;
+                });
+                container.innerHTML = waitHtml;
                 return;
             }
 
@@ -2265,6 +2330,50 @@ function loadSignals() {
                         ${buyButton}
                     </div>`;
             });
+
+            // v6.4: Render waiting signals (positions full)
+            const waitingSignals = data.waiting_signals || [];
+            const posStatus = data.positions_status || {};
+            if (waitingSignals.length > 0) {
+                html += `
+                    <div class="alert alert-secondary py-2 mt-2 mb-2" style="background: rgba(108,117,125,0.15); border: 1px dashed #6c757d;">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <i class="fas fa-lock me-2 text-secondary"></i>
+                            <span class="small">Positions Full (${posStatus.current || 0}/${posStatus.max || 0})</span>
+                        </div>
+                    </div>`;
+                waitingSignals.forEach((signal, idx) => {
+                    html += `
+                    <div class="signal-card" style="opacity: 0.6; border: 1px dashed #6c757d !important; background: rgba(108,117,125,0.08);">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div>
+                                <h6 class="mb-0">
+                                    <span class="badge bg-secondary me-1" style="opacity:0.7">#${signals.length + idx + 1}</span>
+                                    ${signal.symbol}
+                                    <span class="badge bg-secondary ms-1" style="font-size:0.55em"><i class="fas fa-lock me-1"></i>Waiting</span>
+                                </h6>
+                                <small class="text-muted">Score: ${signal.score}${signal.sector ? ' | ' + signal.sector : ''}</small>
+                            </div>
+                            <div class="price-tag" style="opacity:0.7">$${signal.entry_price.toFixed(2)}</div>
+                        </div>
+                        <div class="row mb-1">
+                            <div class="col-6">
+                                <small class="text-muted">Stop Loss</small>
+                                <div class="sl-tag fw-bold" style="font-size:0.85rem; opacity:0.7">$${signal.stop_loss.toFixed(2)} (-${signal.max_loss.toFixed(1)}%)</div>
+                            </div>
+                            <div class="col-6 text-end">
+                                <small class="text-muted">Take Profit</small>
+                                <div class="tp-tag fw-bold" style="font-size:0.85rem; opacity:0.7">$${signal.take_profit.toFixed(2)} (+${signal.expected_gain.toFixed(1)}%)</div>
+                            </div>
+                        </div>
+                        <div class="mb-1"><small class="text-muted">RSI: ${signal.rsi.toFixed(0)} | Mom: ${signal.momentum_5d >= 0 ? '+' : ''}${signal.momentum_5d.toFixed(1)}%</small></div>
+                        <div class="text-center">
+                            <span class="badge bg-secondary bg-opacity-25 text-secondary small"><i class="fas fa-hourglass-half me-1"></i>Sell a position to buy</span>
+                        </div>
+                    </div>`;
+                });
+            }
+
             container.innerHTML = html;
         })
         .catch(err => {

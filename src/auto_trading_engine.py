@@ -925,12 +925,16 @@ class AutoTradingEngine:
     # SIGNALS CACHE (v6.1 - Single Source of Truth for UI)
     # =========================================================================
 
-    def _save_signals_cache(self, signals: list, scan_type: str, scan_duration: float = 0):
+    def _save_signals_cache(self, signals: list, scan_type: str, scan_duration: float = 0,
+                             waiting_signals: list = None, positions_status: dict = None):
         """
         Write signals to JSON cache file for UI consumption.
 
         This is the SINGLE SOURCE OF TRUTH for Buy Signals in the UI.
         UI reads from this cache instead of running its own scanner.
+
+        v6.4: Added waiting_signals and positions_status for UI to show
+              signals that are waiting for position slots to open.
         """
         import tempfile
         from dataclasses import asdict
@@ -959,6 +963,27 @@ class AutoTradingEngine:
                         'stop_loss': getattr(s, 'stop_loss', 0),
                         'take_profit': getattr(s, 'take_profit', 0),
                     })
+
+            # v6.4: Convert waiting signals to dict for UI display
+            waiting_data = []
+            if waiting_signals:
+                for s in waiting_signals[:5]:  # Limit to 5 waiting signals
+                    try:
+                        d = asdict(s)
+                        d['expected_gain'] = getattr(s, 'expected_gain', 0)
+                        d['max_loss'] = getattr(s, 'max_loss', 0)
+                        d['reason'] = 'positions_full'
+                        waiting_data.append(d)
+                    except Exception:
+                        waiting_data.append({
+                            'symbol': getattr(s, 'symbol', ''),
+                            'entry_price': getattr(s, 'entry_price', 0),
+                            'score': getattr(s, 'score', 0),
+                            'sector': getattr(s, 'sector', ''),
+                            'stop_loss': getattr(s, 'stop_loss', 0),
+                            'take_profit': getattr(s, 'take_profit', 0),
+                            'reason': 'positions_full',
+                        })
 
             # Get market status
             is_market_open = False
@@ -1029,6 +1054,9 @@ class AutoTradingEngine:
                 'signals': signals_data,
                 'scan_duration_seconds': round(scan_duration, 1),
                 'regime': self.daily_stats.regime_status if hasattr(self, 'daily_stats') else 'UNKNOWN',
+                # v6.4: Waiting signals for UI display when positions full
+                'waiting_signals': waiting_data,
+                'positions_status': positions_status or {'current': len(self.positions), 'max': self.MAX_POSITIONS, 'is_full': len(self.positions) >= self.MAX_POSITIONS},
             }
 
             # Atomic write
@@ -1037,7 +1065,8 @@ class AutoTradingEngine:
                 with os.fdopen(fd, 'w') as f:
                     json.dump(cache_data, f, indent=2, default=str)
                 os.replace(tmp_path, cache_file)
-                logger.info(f"📤 Signals cache: {len(signals_data)} signals ({scan_type}, mode={cache_data['mode']})")
+                waiting_info = f", {len(waiting_data)} waiting" if waiting_data else ""
+                logger.info(f"📤 Signals cache: {len(signals_data)} signals{waiting_info} ({scan_type}, mode={cache_data['mode']})")
             except Exception:
                 if os.path.exists(tmp_path):
                     os.unlink(tmp_path)
@@ -2417,15 +2446,21 @@ class AutoTradingEngine:
 
     def _process_scan_signals(self, signals, scan_type: str, max_positions: int = None):
         """Process all signals from a scan: execute/queue + log ALL signals."""
+        effective_max = max_positions or self.MAX_POSITIONS
+        positions_status = {
+            'current': len(self.positions),
+            'max': effective_max,
+            'is_full': len(self.positions) >= effective_max
+        }
+
         # v6.3: Always save cache even if no signals (so UI knows scan happened)
         if not signals:
             try:
-                self._save_signals_cache([], scan_type)
+                self._save_signals_cache([], scan_type, positions_status=positions_status)
             except Exception as e:
                 logger.warning(f"Signals cache error (empty): {e}")
             return
 
-        effective_max = max_positions or self.MAX_POSITIONS
         params = self._get_effective_params()
         mode = params.get('mode', 'NORMAL')
 
@@ -2433,6 +2468,10 @@ class AutoTradingEngine:
         self._current_scan_id = f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_{scan_type}"
 
         scan_results = []
+        # v6.4: Track actionable vs waiting signals for UI
+        actionable_signals = []
+        waiting_signals = []
+
         for rank, signal in enumerate(signals):
             action = "SKIPPED_FILTER"
             skip_reason = ""
@@ -2441,10 +2480,12 @@ class AutoTradingEngine:
                 result = self.execute_signal(signal)
                 action = "BOUGHT" if result else "SKIPPED_FILTER"
                 skip_reason = self._last_skip_reason if not result else ""
+                actionable_signals.append(signal)  # v6.4: Signals we tried to process
             else:
                 queued = self._add_to_queue(signal)
                 action = "QUEUED" if queued else "QUEUE_FULL"
-                skip_reason = "Queue Full" if not queued else ""
+                skip_reason = "positions_full"
+                waiting_signals.append(signal)  # v6.4: Signals waiting for slot
 
             scan_results.append({
                 "signal_rank": rank + 1,
@@ -2489,8 +2530,14 @@ class AutoTradingEngine:
             logger.warning(f"Execution status cache error: {e}")
 
         # v6.1: Write signals cache for UI (Single Source of Truth)
+        # v6.4: Include waiting signals and positions status for UI display
         try:
-            self._save_signals_cache(signals, scan_type)
+            self._save_signals_cache(
+                actionable_signals,
+                scan_type,
+                waiting_signals=waiting_signals,
+                positions_status=positions_status
+            )
         except Exception as e:
             logger.warning(f"Signals cache error: {e}")
 
