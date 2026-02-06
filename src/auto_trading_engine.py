@@ -544,6 +544,8 @@ class AutoTradingEngine:
         self._regime_cache: Optional[Tuple[bool, str, datetime, Dict]] = None
         # v5.0: Scan log lock (prevent concurrent writes from losing data)
         self._scan_log_lock = threading.Lock()
+        # v6.3: Scan mutex (prevent concurrent scans from refresh spam)
+        self._scan_lock = threading.Lock()
         self._regime_cache_seconds = 60  # v6.0 P2: 120→60s (faster VIX response)
 
         # Timezone
@@ -2622,6 +2624,11 @@ class AutoTradingEngine:
             logger.warning("Screener not available")
             return []
 
+        # v6.3: Prevent concurrent scans (refresh spam protection)
+        if not self._scan_lock.acquire(blocking=False):
+            logger.debug("Scan already in progress, skipping duplicate request")
+            return []
+
         try:
             self.state = TradingState.SCANNING
 
@@ -2672,6 +2679,9 @@ class AutoTradingEngine:
         except Exception as e:
             logger.error(f"Scan failed: {e}")
             return []
+        finally:
+            # v6.3: Always release scan lock
+            self._scan_lock.release()
 
     # =========================================================================
     # SIGNAL QUEUE (v4.1)
