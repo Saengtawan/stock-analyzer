@@ -243,128 +243,26 @@ class AutoTradingEngine:
     - Trailing stop management
     - Position monitoring every minute
     - Safety limits (max positions, daily loss limit)
+
+    ⚠️  v6.1 CONFIG ARCHITECTURE:
+        - ALL trading parameters come from config/trading.yaml (SINGLE SOURCE OF TRUTH)
+        - Class attributes below are INITIALIZED FROM YAML at __init__
+        - Only static/structural constants remain as class-level defaults
+        - If YAML is missing → ConfigurationError (fail loud, not silent)
     """
 
-    # Trading parameters (v4.6 - ATR-based SL/TP)
-    MAX_POSITIONS = 3           # v4.0: 2 → 3
-    POSITION_SIZE_PCT = 30      # Fallback: fixed 30% (used when risk-parity disabled)
-    # v4.9: Risk-parity position sizing
-    RISK_PARITY_ENABLED = True
-    RISK_BUDGET_PCT = 1.0       # Max risk per position = 1% of account
-    MAX_POSITION_PCT = 40       # Cap: never exceed 40% in one position
+    # =========================================================================
+    # STATIC CONSTANTS — These are NOT configurable (structural/fixed)
+    # =========================================================================
 
-    # v4.6: ATR-based SL/TP (replaces fixed SL/TP)
-    SL_ATR_MULTIPLIER = 1.5     # SL = 1.5 × ATR%
-    SL_MIN_PCT = 2.0            # Floor: at least 2% SL
-    SL_MAX_PCT = 4.0            # Cap: max 4% SL
-    TP_ATR_MULTIPLIER = 3.5     # v6.0: TP = 3.5 × ATR% (was 3.0)
-    TP_MIN_PCT = 4.0            # Floor: at least 4% TP
-    TP_MAX_PCT = 8.0            # Cap: max 8% TP
-    TARGET_RR = 2.0             # v4.9: Target R:R ratio (TP = SL * TARGET_RR)
-    # PDT TP = SL% (dynamic, R:R 1:1 minimum for Day 0)
+    # Market hours (ET timezone) — fixed by exchange
+    MARKET_OPEN_HOUR = 9
+    MARKET_OPEN_MINUTE = 30
+    MARKET_CLOSE_HOUR = 16
+    MARKET_CLOSE_MINUTE = 0
+    PRE_CLOSE_MINUTE = 50  # 15:50 ET
 
-    # Fallback fixed values (when ATR not available)
-    STOP_LOSS_PCT = 2.5         # Fallback if no ATR data
-    TAKE_PROFIT_PCT = 5.0       # Fallback if no ATR data
-    PDT_TP_THRESHOLD = 4.0      # Fallback PDT TP (overridden per-position in v4.6)
-
-    TRAIL_ENABLED = True        # v5.6: Can be disabled via config
-    TRAIL_ACTIVATION_PCT = 2.0  # v6.0: 3.0 → 2.0 (backtest optimal)
-    TRAIL_LOCK_PCT = 60         # v6.0: 80 → 60 (lock 60% of gains)
-    MAX_HOLD_DAYS = 10          # v6.0: 5 → 10 (backtest optimal)
-    DAILY_LOSS_LIMIT_PCT = 5.0  # Stop trading if down 5% in a day
-    MIN_SCORE = 95              # v4.7: 85 → 95 (score 95+ = WR ~55%, ลด grey zone)
-
-    # Weekly Loss Limit (v4.7 NEW!)
-    # หยุดเทรดถ้าขาดทุนสะสม -5% ในสัปดาห์ ป้องกัน sector rotation / prolonged downturn
-    WEEKLY_LOSS_LIMIT_PCT = 5.0     # % - หยุดซื้อใหม่ถ้าขาดทุน -5%/สัปดาห์
-
-    # Consecutive Loss Stop (v4.7 NEW!)
-    # แพ้ติดกัน 3 ครั้ง → หยุด 1 วัน (strategy อาจไม่เข้ากับ market condition)
-    MAX_CONSECUTIVE_LOSSES = 3
-
-    # Signal Queue (v4.1 Final)
-    # When positions full → queue signals → execute when slot opens (if price still good)
-    # Priority: Freshness (< 30 min) > Score
-    # R:R analysis: +1.5% deviation → R:R ~1:1 (acceptable limit)
-    QUEUE_ENABLED = True
-    QUEUE_ATR_MULT = 0.5              # ATR multiplier for deviation
-    QUEUE_MIN_DEVIATION = 0.5         # % - minimum deviation allowed
-    QUEUE_MAX_DEVIATION = 1.5         # % - cap at R:R ~1:1
-    QUEUE_MAX_SIZE = 3                # Max signals in queue (= MAX_POSITIONS)
-
-    # Sector Diversification (v4.7 NEW!)
-    # ป้องกันถือหุ้น sector เดียวกันเยอะเกิน (correlated risk)
-    # เช่น AMD + NVDA + INTC = 3 ตัว Tech → ลงพร้อมกัน
-    SECTOR_FILTER_ENABLED = True
-    MAX_PER_SECTOR = 2              # ไม่เกิน 2 ตัว/sector
-
-    # Consecutive Sector Loss (v4.7 NEW!)
-    # sector แพ้ติดกัน → cooldown sector นั้น
-    # ป้องกัน dip-buying falling knife ซ้ำๆ ใน sector ที่กำลัง rotate out
-    SECTOR_LOSS_TRACKING_ENABLED = True
-    MAX_SECTOR_CONSECUTIVE_LOSS = 2     # แพ้ 2 ครั้งติดใน sector → cooldown
-    SECTOR_COOLDOWN_DAYS = 2            # หยุดซื้อ sector นั้น 2 วัน
-    QUEUE_FRESHNESS_WINDOW = 30       # Minutes - fresh signals get priority
-    QUEUE_RESCAN_ON_EMPTY = True      # Rescan if queue empty/expired
-
-    # Smart Order Execution - Strategy 4 (v4.8 NEW!)
-    # Limit @ Ask + Market Fallback → ลด slippage ~0.1-0.2%
-    SMART_ORDER_ENABLED = True
-    SMART_ORDER_MAX_SPREAD_PCT = 1.0   # Skip ถ้า spread > 1.0%
-    SMART_ORDER_WAIT_SECONDS = 30      # รอ limit fill 30 วินาที
-
-    # Gap Filter (v4.3 NEW!)
-    # ไม่ซื้อหุ้นที่ gap up/down แรงเกินไป
-    # เหตุผล: Gap up แรง = ไม่ใช่ dip bounce แล้ว
-    # AMD case: gap +3.6% > +2% → SKIP
-    GAP_FILTER_ENABLED = True
-    GAP_MAX_UP = 2.0        # % - ไม่ซื้อหุ้น gap up เกิน (default 2%)
-    GAP_MAX_DOWN = -5.0     # % - ไม่ซื้อหุ้น gap down แรงเกิน (อาจมีปัญหา)
-
-    # Earnings Filter (v4.4 NEW!)
-    # ไม่ซื้อหุ้นที่มี earnings ใกล้ๆ (เสี่ยง gap ±10-20%)
-    EARNINGS_FILTER_ENABLED = True
-    EARNINGS_SKIP_DAYS_BEFORE = 5   # Skip ถ้า earnings ภายใน 5 วัน
-    EARNINGS_SKIP_DAYS_AFTER = 0    # ไม่ skip หลัง earnings (อาจมี momentum)
-
-    # Low Risk Mode (v4.5 NEW!)
-    # เมื่อ PDT budget = 0: ยังซื้อได้ แต่เข้มขึ้น + size เล็กลง
-    # เหตุผล: ต้อง hold ข้ามคืนอยู่แล้ว → เลือกเฉพาะหุ้นปลอดภัยสุด
-    LOW_RISK_MODE_ENABLED = True
-    LOW_RISK_GAP_MAX_UP = 1.0       # % - gap filter for low risk mode
-    LOW_RISK_MIN_SCORE = 90         # v4.9.7: 98→90 (6 other filters handle risk; 98 blocked breakouts entirely)
-    LOW_RISK_POSITION_SIZE_PCT = 20 # % - เล็กลง (ปกติ 30%) = ~$800
-    LOW_RISK_MAX_ATR_PCT = 4.0      # % - หุ้นไม่ผันผวนมาก
-    EARNINGS_NO_DATA_ACTION = 'skip'  # 'allow', 'skip', 'warn' — v5.0: fail conservative
-
-    # Late Start Protection (v4.4 NEW!)
-    # ถ้าเริ่มหลัง market open ไปนาน → skip scan (ราคาอาจขึ้นไปแล้ว)
-    LATE_START_PROTECTION = True
-    MARKET_OPEN_SCAN_DELAY = 5      # รอ 5 นาทีหลังตลาดเปิดก่อน scan (09:35 ET)
-    MARKET_OPEN_SCAN_WINDOW = 20    # นาที - ถ้าเริ่มหลัง 09:50 ET → skip scan
-
-    # Afternoon Scan (v4.9.1 — replaces Mid-day 11:00)
-    # 14:00 ET = หลัง lunch dip, ราคา settle แล้ว, pattern ชัดกว่า
-    # ใช้เกณฑ์เข้มกว่า morning scan เพราะเวลาเหลือน้อย (2 ชม.)
-    AFTERNOON_SCAN_ENABLED = True
-    AFTERNOON_SCAN_HOUR = 14        # 14:00 ET
-    AFTERNOON_SCAN_MINUTE = 0
-    AFTERNOON_MIN_SCORE = 96        # เข้มกว่าเช้า (95)
-    AFTERNOON_GAP_MAX_UP = 1.5      # เข้มกว่าเช้า (2.0)
-    AFTERNOON_GAP_MAX_DOWN = -3.0   # เข้มกว่าเช้า (-5.0)
-
-    # Earnings Auto-Sell (v4.9 NEW!)
-    # ถ้าถือหุ้นที่มี earnings วันนี้/พรุ่งนี้ → ขายก่อน close อัตโนมัติ
-    EARNINGS_AUTO_SELL = True
-    EARNINGS_AUTO_SELL_BUFFER_MIN = 30  # ขายอย่างน้อย 30 นาทีก่อนปิด
-
-    # Smart Bear Mode (v4.9.2 NEW!)
-    # SPY BEAR → เทรดได้เฉพาะ sectors ที่ return_20d > 0%
-    # ป้องกันระบบหยุดนิ่งทั้งวันเมื่อ SPY BEAR (เช่น 2022 Energy +65%)
-    BEAR_MODE_ENABLED = True
-
-    # ทุก sector ใช้ logic เดียวกัน: return_20d > threshold ถึงจะซื้อได้
+    # Sector ETF mapping — structural, not trading param
     BEAR_SECTORS = {
         'Consumer Defensive': 'XLP',
         'Utilities': 'XLU',
@@ -373,104 +271,161 @@ class AutoTradingEngine:
         'Basic Materials': 'XLB',
         'Industrials': 'XLI',
     }
-    BEAR_SECTOR_THRESHOLD = 3  # return_20d > 3% = sector ขึ้นจริง (strict)
+    BEAR_SECTOR_THRESHOLD = 3  # return_20d > 3% = sector is rising
 
-    # BEAR params (v4.9.4: relaxed — conviction sizing handles risk)
-    BEAR_MAX_POSITIONS = 2          # ลดจาก 3 → 2
-    BEAR_MIN_SCORE = 85             # v4.9.4: 98→85 (conviction sizing handles risk)
-    BEAR_GAP_MAX_UP = 1.5           # v4.9.4: 1.0→1.5 (less restrictive)
-    BEAR_GAP_MAX_DOWN = -3.0        # v4.9.4: -2.0→-3.0 (less restrictive)
-    BEAR_POSITION_SIZE_PCT = 25     # v4.9.4: 20→25 (conviction sizing overrides)
-    BEAR_MAX_ATR_PCT = 4.0          # v4.9.4: 3.0→4.0 (match LOW_RISK)
-
-    # BULL Sector Filter (v4.9.3 NEW!)
-    # แม้ SPY BULL ก็ไม่ซื้อ sector ที่กำลังลง (เช่น Tech -3% ขณะ SPY ขึ้น)
-    BULL_SECTOR_FILTER_ENABLED = True
-    BULL_SECTOR_MIN_RETURN = -5  # return_20d < -5% = sector ขาลง → block
+    # System defaults (rarely changed)
+    CIRCUIT_BREAKER_MAX_ERRORS = 5
+    TARGET_RR = 2.0  # Target Risk:Reward ratio
 
     # =========================================================================
-    # v5.3 QUANT RESEARCH FINDINGS
+    # TRADING PARAMETERS — Loaded from YAML at __init__
+    # These are declared here for type hints and IDE support only.
+    # Actual values come from config/trading.yaml
     # =========================================================================
-    # Based on systematic backtest (backtest_quant_research.py):
-    # - Stock-D filter: +1.466% expectancy improvement
-    # - BEAR DD Control exemption: -0.537% expectancy loss if DD ctrl applied to BEAR
-    # - A_5d_only filter: Actually HURTS expectancy (-0.284%) → NOT recommended
-    #
-    # Key insight: BEAR regime uses mean-reversion (dip-bounce) which needs room
-    # to work. DD controls cut winning trades early and kill the edge.
 
-    # Stock-D Filter: Require dip-bounce pattern for Sector Rotation entries
-    # Backtest: E[R] +0.480% → +1.946% (+1.466% improvement)
-    # Trades: 620 → 110 (filters low-quality entries)
-    STOCK_D_FILTER_ENABLED = True
+    # Position Management
+    MAX_POSITIONS: int
+    POSITION_SIZE_PCT: float
+    MAX_POSITION_PCT: float
+    RISK_PARITY_ENABLED: bool
+    RISK_BUDGET_PCT: float
 
-    # BEAR DD Control Exemption: Don't apply DD controls in BEAR regime
-    # Backtest: BEAR E[R] +1.011% (no ctrl) → +0.474% (with ctrl) = -0.537% loss
-    # Reason: Mean-reversion needs room to work; cutting exposure kills edge
-    BEAR_DD_CONTROL_EXEMPT = True
+    # ATR-based SL/TP
+    SL_ATR_MULTIPLIER: float
+    SL_MIN_PCT: float
+    SL_MAX_PCT: float
+    TP_ATR_MULTIPLIER: float
+    TP_MIN_PCT: float
+    TP_MAX_PCT: float
 
-    # A_5d_only filter is NOT implemented (hurts expectancy)
-    # Backtest showed: sector_5d < 0 trades actually BETTER (+1.85% vs +0.20%)
-    # because dip-bounce is mean-reversion, works better when sector oversold
+    # Fallback fixed values
+    STOP_LOSS_PCT: float
+    TAKE_PROFIT_PCT: float
+    PDT_TP_THRESHOLD: float
 
-    # v4.9.4: Conviction-Based Sizing
-    CONVICTION_SIZING_ENABLED = True
-    CONVICTION_A_PLUS_PCT = 45    # STRONG BULL + insider/score 85+
-    CONVICTION_A_PCT = 40         # BULL + score 80+
-    CONVICTION_B_PCT = 30         # SIDEWAYS/UNKNOWN + score 80+
+    # Trailing Stop
+    TRAIL_ENABLED: bool
+    TRAIL_ACTIVATION_PCT: float
+    TRAIL_LOCK_PCT: float
+    MAX_HOLD_DAYS: int
 
-    # v4.9.4: Smart Day Trade
-    SMART_DAY_TRADE_ENABLED = True
-    DAY_TRADE_GAP_THRESHOLD = 3.0       # % gap up to trigger
-    DAY_TRADE_MOMENTUM_THRESHOLD = 4.0  # % intraday gain
-    DAY_TRADE_EMERGENCY_ENABLED = True
+    # Risk Limits
+    DAILY_LOSS_LIMIT_PCT: float
+    WEEKLY_LOSS_LIMIT_PCT: float
+    MAX_CONSECUTIVE_LOSSES: int
+    MIN_SCORE: int
 
-    # v4.9.4: Overnight Gap Scanner
-    OVERNIGHT_GAP_ENABLED = True
-    OVERNIGHT_GAP_SCAN_HOUR = 15
-    OVERNIGHT_GAP_SCAN_MINUTE = 30
-    OVERNIGHT_GAP_MIN_SCORE = 70
-    OVERNIGHT_GAP_POSITION_PCT = 35
-    OVERNIGHT_GAP_TARGET_PCT = 3.0
-    OVERNIGHT_GAP_SL_PCT = 1.5
+    # Signal Queue
+    QUEUE_ENABLED: bool
+    QUEUE_ATR_MULT: float
+    QUEUE_MIN_DEVIATION: float
+    QUEUE_MAX_DEVIATION: float
+    QUEUE_MAX_SIZE: int
+    QUEUE_FRESHNESS_WINDOW: int
+    QUEUE_RESCAN_ON_EMPTY: bool
 
-    # v4.9.4: Breakout Scanner
-    BREAKOUT_SCAN_ENABLED = True
-    BREAKOUT_MIN_VOLUME_MULT = 1.5
-    BREAKOUT_MIN_SCORE = 75
-    BREAKOUT_TARGET_PCT = 8.0
-    BREAKOUT_SL_PCT = 3.0
+    # Sector Management
+    SECTOR_FILTER_ENABLED: bool
+    MAX_PER_SECTOR: int
+    SECTOR_LOSS_TRACKING_ENABLED: bool
+    MAX_SECTOR_CONSECUTIVE_LOSS: int
+    SECTOR_COOLDOWN_DAYS: int
 
-    # Market Regime Filter (v4.0 NEW!)
-    # Rule: SPY > SMA20 = Bull → Trade, SPY < SMA20 = Bear → Skip
-    REGIME_FILTER_ENABLED = True
-    REGIME_SMA_PERIOD = 20
-    # v4.9: Enhanced regime checks
-    REGIME_RSI_MIN = 40          # SPY RSI > 40 required
-    REGIME_RETURN_5D_MIN = -2.0  # SPY 5-day return > -2%
-    REGIME_VIX_MAX = 30.0        # VIX < 30 required
-    # Backtest results: This single filter achieves target!
-    # - WR: 48% → 49%
-    # - DD: 12.6% → 8.9% ✅
-    # - Return: +5.5%/mo ✅
+    # Smart Order
+    SMART_ORDER_ENABLED: bool
+    SMART_ORDER_MAX_SPREAD_PCT: float
+    SMART_ORDER_WAIT_SECONDS: int
 
-    # Simulated capital for realistic testing
-    # Set to match real capital you'll use in live trading
-    # None = use actual Alpaca account value
-    SIMULATED_CAPITAL = 4000  # ~$4,000 = ~125,000 THB
+    # Gap Filter
+    GAP_FILTER_ENABLED: bool
+    GAP_MAX_UP: float
+    GAP_MAX_DOWN: float
 
-    # Timing (ET timezone)
-    MARKET_OPEN_HOUR = 9
-    MARKET_OPEN_MINUTE = 30
-    MARKET_CLOSE_HOUR = 16
-    MARKET_CLOSE_MINUTE = 0
-    PRE_CLOSE_MINUTE = 50  # 15:50 ET
+    # Earnings Filter
+    EARNINGS_FILTER_ENABLED: bool
+    EARNINGS_SKIP_DAYS_BEFORE: int
+    EARNINGS_SKIP_DAYS_AFTER: int
+    EARNINGS_NO_DATA_ACTION: str
+    EARNINGS_AUTO_SELL: bool
+    EARNINGS_AUTO_SELL_BUFFER_MIN: int
+
+    # Low Risk Mode
+    LOW_RISK_MODE_ENABLED: bool
+    LOW_RISK_GAP_MAX_UP: float
+    LOW_RISK_MIN_SCORE: int
+    LOW_RISK_POSITION_SIZE_PCT: float
+    LOW_RISK_MAX_ATR_PCT: float
+
+    # Late Start Protection
+    LATE_START_PROTECTION: bool
+    MARKET_OPEN_SCAN_DELAY: int
+    MARKET_OPEN_SCAN_WINDOW: int
+
+    # Afternoon Scan
+    AFTERNOON_SCAN_ENABLED: bool
+    AFTERNOON_SCAN_HOUR: int
+    AFTERNOON_SCAN_MINUTE: int
+    AFTERNOON_MIN_SCORE: int
+    AFTERNOON_GAP_MAX_UP: float
+    AFTERNOON_GAP_MAX_DOWN: float
+
+    # BEAR Mode
+    BEAR_MODE_ENABLED: bool
+    BEAR_MAX_POSITIONS: int
+    BEAR_MIN_SCORE: int
+    BEAR_GAP_MAX_UP: float
+    BEAR_GAP_MAX_DOWN: float
+    BEAR_POSITION_SIZE_PCT: float
+    BEAR_MAX_ATR_PCT: float
+
+    # BULL Sector Filter
+    BULL_SECTOR_FILTER_ENABLED: bool
+    BULL_SECTOR_MIN_RETURN: float
+
+    # Quant Research Findings
+    STOCK_D_FILTER_ENABLED: bool
+    BEAR_DD_CONTROL_EXEMPT: bool
+
+    # Conviction Sizing
+    CONVICTION_SIZING_ENABLED: bool
+    CONVICTION_A_PLUS_PCT: float
+    CONVICTION_A_PCT: float
+    CONVICTION_B_PCT: float
+
+    # Smart Day Trade
+    SMART_DAY_TRADE_ENABLED: bool
+    DAY_TRADE_GAP_THRESHOLD: float
+    DAY_TRADE_MOMENTUM_THRESHOLD: float
+    DAY_TRADE_EMERGENCY_ENABLED: bool
+
+    # Overnight Gap Scanner
+    OVERNIGHT_GAP_ENABLED: bool
+    OVERNIGHT_GAP_SCAN_HOUR: int
+    OVERNIGHT_GAP_SCAN_MINUTE: int
+    OVERNIGHT_GAP_MIN_SCORE: int
+    OVERNIGHT_GAP_POSITION_PCT: float
+    OVERNIGHT_GAP_TARGET_PCT: float
+    OVERNIGHT_GAP_SL_PCT: float
+
+    # Breakout Scanner
+    BREAKOUT_SCAN_ENABLED: bool
+    BREAKOUT_MIN_VOLUME_MULT: float
+    BREAKOUT_MIN_SCORE: int
+    BREAKOUT_TARGET_PCT: float
+    BREAKOUT_SL_PCT: float
+
+    # Market Regime Filter
+    REGIME_FILTER_ENABLED: bool
+    REGIME_SMA_PERIOD: int
+    REGIME_RSI_MIN: float
+    REGIME_RETURN_5D_MIN: float
+    REGIME_VIX_MAX: float
+
+    # Simulated capital
+    SIMULATED_CAPITAL: float
 
     # Monitor interval
-    MONITOR_INTERVAL_SECONDS = 15  # Check every 15 seconds (was 60)
-
-    # v4.7 Fix #13: Circuit breaker
-    CIRCUIT_BREAKER_MAX_ERRORS = 5
+    MONITOR_INTERVAL_SECONDS: int
 
     def __init__(
         self,
@@ -480,6 +435,12 @@ class AutoTradingEngine:
         auto_start: bool = False
     ):
         """Initialize trading engine"""
+
+        # =====================================================================
+        # v6.1: LOAD CONFIG FIRST — YAML is the Single Source of Truth
+        # If config is missing or invalid → FAIL LOUD (not silent defaults)
+        # =====================================================================
+        self._load_config_from_yaml()
 
         # Alpaca client
         self.trader = AlpacaTrader(
@@ -517,13 +478,6 @@ class AutoTradingEngine:
         from alert_manager import get_alert_manager
         self.alerts = get_alert_manager()
         logger.info("Alert Manager v1.0 initialized")
-
-        # v4.9: Load config from YAML (overrides class constants)
-        try:
-            from trading_config import apply_config
-            apply_config(self)
-        except Exception as e:
-            logger.warning(f"Config load skipped: {e}")
 
         # Screener
         self.screener = None
@@ -610,6 +564,175 @@ class AutoTradingEngine:
 
         if auto_start:
             self.start()
+
+    # =========================================================================
+    # v6.1: CONFIG LOADER — YAML as Single Source of Truth
+    # =========================================================================
+
+    def _load_config_from_yaml(self):
+        """
+        Load ALL trading parameters from config/trading.yaml.
+
+        v6.1 Architecture:
+        - YAML is the SINGLE SOURCE OF TRUTH
+        - No hardcoded fallbacks for trading params
+        - Missing config = ConfigurationError (fail loud)
+
+        Raises:
+            ConfigurationError: If config file missing or required keys missing.
+        """
+        from trading_config import load_config, ConfigurationError
+
+        # Load config (strict=True → raises if missing/invalid)
+        try:
+            config = load_config(strict=True)
+        except ConfigurationError as e:
+            logger.critical(f"FATAL CONFIG ERROR:\n{e}")
+            raise
+
+        # Map YAML keys (lowercase_snake) → instance attributes (UPPERCASE_SNAKE)
+        # All trading parameters MUST come from YAML
+        param_mapping = {
+            # Position Management
+            'max_positions': 'MAX_POSITIONS',
+            'position_size_pct': 'POSITION_SIZE_PCT',
+            'max_position_pct': 'MAX_POSITION_PCT',
+            'risk_parity_enabled': 'RISK_PARITY_ENABLED',
+            'risk_budget_pct': 'RISK_BUDGET_PCT',
+            'simulated_capital': 'SIMULATED_CAPITAL',
+            # ATR-based SL/TP
+            'sl_atr_multiplier': 'SL_ATR_MULTIPLIER',
+            'sl_min_pct': 'SL_MIN_PCT',
+            'sl_max_pct': 'SL_MAX_PCT',
+            'tp_atr_multiplier': 'TP_ATR_MULTIPLIER',
+            'tp_min_pct': 'TP_MIN_PCT',
+            'tp_max_pct': 'TP_MAX_PCT',
+            # Fallback fixed SL/TP
+            'stop_loss_pct': 'STOP_LOSS_PCT',
+            'take_profit_pct': 'TAKE_PROFIT_PCT',
+            'pdt_tp_threshold': 'PDT_TP_THRESHOLD',
+            # Trailing Stop
+            'trail_enabled': 'TRAIL_ENABLED',
+            'trail_activation_pct': 'TRAIL_ACTIVATION_PCT',
+            'trail_lock_pct': 'TRAIL_LOCK_PCT',
+            'max_hold_days': 'MAX_HOLD_DAYS',
+            # Risk Limits
+            'daily_loss_limit_pct': 'DAILY_LOSS_LIMIT_PCT',
+            'weekly_loss_limit_pct': 'WEEKLY_LOSS_LIMIT_PCT',
+            'max_consecutive_losses': 'MAX_CONSECUTIVE_LOSSES',
+            'min_score': 'MIN_SCORE',
+            # Signal Queue
+            'queue_enabled': 'QUEUE_ENABLED',
+            'queue_atr_mult': 'QUEUE_ATR_MULT',
+            'queue_min_deviation': 'QUEUE_MIN_DEVIATION',
+            'queue_max_deviation': 'QUEUE_MAX_DEVIATION',
+            'queue_max_size': 'QUEUE_MAX_SIZE',
+            'queue_freshness_window': 'QUEUE_FRESHNESS_WINDOW',
+            'queue_rescan_on_empty': 'QUEUE_RESCAN_ON_EMPTY',
+            # Sector Management
+            'sector_filter_enabled': 'SECTOR_FILTER_ENABLED',
+            'max_per_sector': 'MAX_PER_SECTOR',
+            'sector_loss_tracking_enabled': 'SECTOR_LOSS_TRACKING_ENABLED',
+            'max_sector_consecutive_loss': 'MAX_SECTOR_CONSECUTIVE_LOSS',
+            'sector_cooldown_days': 'SECTOR_COOLDOWN_DAYS',
+            # Smart Order
+            'smart_order_enabled': 'SMART_ORDER_ENABLED',
+            'smart_order_max_spread_pct': 'SMART_ORDER_MAX_SPREAD_PCT',
+            'smart_order_wait_seconds': 'SMART_ORDER_WAIT_SECONDS',
+            # Gap Filter
+            'gap_filter_enabled': 'GAP_FILTER_ENABLED',
+            'gap_max_up': 'GAP_MAX_UP',
+            'gap_max_down': 'GAP_MAX_DOWN',
+            # Earnings Filter
+            'earnings_filter_enabled': 'EARNINGS_FILTER_ENABLED',
+            'earnings_skip_days_before': 'EARNINGS_SKIP_DAYS_BEFORE',
+            'earnings_skip_days_after': 'EARNINGS_SKIP_DAYS_AFTER',
+            'earnings_no_data_action': 'EARNINGS_NO_DATA_ACTION',
+            'earnings_auto_sell': 'EARNINGS_AUTO_SELL',
+            'earnings_auto_sell_buffer_min': 'EARNINGS_AUTO_SELL_BUFFER_MIN',
+            # Low Risk Mode
+            'low_risk_mode_enabled': 'LOW_RISK_MODE_ENABLED',
+            'low_risk_gap_max_up': 'LOW_RISK_GAP_MAX_UP',
+            'low_risk_min_score': 'LOW_RISK_MIN_SCORE',
+            'low_risk_position_size_pct': 'LOW_RISK_POSITION_SIZE_PCT',
+            'low_risk_max_atr_pct': 'LOW_RISK_MAX_ATR_PCT',
+            # Late Start Protection
+            'late_start_protection': 'LATE_START_PROTECTION',
+            'market_open_scan_delay': 'MARKET_OPEN_SCAN_DELAY',
+            'market_open_scan_window': 'MARKET_OPEN_SCAN_WINDOW',
+            # Afternoon Scan
+            'afternoon_scan_enabled': 'AFTERNOON_SCAN_ENABLED',
+            'afternoon_scan_hour': 'AFTERNOON_SCAN_HOUR',
+            'afternoon_scan_minute': 'AFTERNOON_SCAN_MINUTE',
+            'afternoon_min_score': 'AFTERNOON_MIN_SCORE',
+            'afternoon_gap_max_up': 'AFTERNOON_GAP_MAX_UP',
+            'afternoon_gap_max_down': 'AFTERNOON_GAP_MAX_DOWN',
+            # BEAR Mode
+            'bear_mode_enabled': 'BEAR_MODE_ENABLED',
+            'bear_max_positions': 'BEAR_MAX_POSITIONS',
+            'bear_min_score': 'BEAR_MIN_SCORE',
+            'bear_gap_max_up': 'BEAR_GAP_MAX_UP',
+            'bear_gap_max_down': 'BEAR_GAP_MAX_DOWN',
+            'bear_position_size_pct': 'BEAR_POSITION_SIZE_PCT',
+            'bear_max_atr_pct': 'BEAR_MAX_ATR_PCT',
+            # BULL Sector Filter
+            'bull_sector_filter_enabled': 'BULL_SECTOR_FILTER_ENABLED',
+            'bull_sector_min_return': 'BULL_SECTOR_MIN_RETURN',
+            # Quant Research
+            'stock_d_filter_enabled': 'STOCK_D_FILTER_ENABLED',
+            'bear_dd_control_exempt': 'BEAR_DD_CONTROL_EXEMPT',
+            # Conviction Sizing
+            'conviction_sizing_enabled': 'CONVICTION_SIZING_ENABLED',
+            'conviction_a_plus_pct': 'CONVICTION_A_PLUS_PCT',
+            'conviction_a_pct': 'CONVICTION_A_PCT',
+            'conviction_b_pct': 'CONVICTION_B_PCT',
+            # Smart Day Trade
+            'smart_day_trade_enabled': 'SMART_DAY_TRADE_ENABLED',
+            'day_trade_gap_threshold': 'DAY_TRADE_GAP_THRESHOLD',
+            'day_trade_momentum_threshold': 'DAY_TRADE_MOMENTUM_THRESHOLD',
+            'day_trade_emergency_enabled': 'DAY_TRADE_EMERGENCY_ENABLED',
+            # Overnight Gap Scanner
+            'overnight_gap_enabled': 'OVERNIGHT_GAP_ENABLED',
+            'overnight_gap_scan_hour': 'OVERNIGHT_GAP_SCAN_HOUR',
+            'overnight_gap_scan_minute': 'OVERNIGHT_GAP_SCAN_MINUTE',
+            'overnight_gap_min_score': 'OVERNIGHT_GAP_MIN_SCORE',
+            'overnight_gap_position_pct': 'OVERNIGHT_GAP_POSITION_PCT',
+            'overnight_gap_target_pct': 'OVERNIGHT_GAP_TARGET_PCT',
+            'overnight_gap_sl_pct': 'OVERNIGHT_GAP_SL_PCT',
+            # Breakout Scanner
+            'breakout_scan_enabled': 'BREAKOUT_SCAN_ENABLED',
+            'breakout_min_volume_mult': 'BREAKOUT_MIN_VOLUME_MULT',
+            'breakout_min_score': 'BREAKOUT_MIN_SCORE',
+            'breakout_target_pct': 'BREAKOUT_TARGET_PCT',
+            'breakout_sl_pct': 'BREAKOUT_SL_PCT',
+            # Market Regime
+            'regime_filter_enabled': 'REGIME_FILTER_ENABLED',
+            'regime_sma_period': 'REGIME_SMA_PERIOD',
+            'regime_rsi_min': 'REGIME_RSI_MIN',
+            'regime_return_5d_min': 'REGIME_RETURN_5D_MIN',
+            'regime_vix_max': 'REGIME_VIX_MAX',
+            # Monitor
+            'monitor_interval_seconds': 'MONITOR_INTERVAL_SECONDS',
+        }
+
+        # Set instance attributes from config
+        loaded = 0
+        for yaml_key, attr_name in param_mapping.items():
+            if yaml_key in config:
+                setattr(self, attr_name, config[yaml_key])
+                loaded += 1
+            else:
+                # This shouldn't happen if required keys are checked, but log just in case
+                logger.debug(f"Config key '{yaml_key}' not found, using class default if exists")
+
+        logger.info(f"✅ Config loaded from YAML: {loaded}/{len(param_mapping)} parameters")
+
+        # Log key parameters for verification
+        logger.info(f"   MAX_POSITIONS={self.MAX_POSITIONS}, MIN_SCORE={self.MIN_SCORE}")
+        logger.info(f"   SL_ATR={self.SL_ATR_MULTIPLIER}x [{self.SL_MIN_PCT}-{self.SL_MAX_PCT}%]")
+        logger.info(f"   TP_ATR={self.TP_ATR_MULTIPLIER}x [{self.TP_MIN_PCT}-{self.TP_MAX_PCT}%]")
+        logger.info(f"   Trail: +{self.TRAIL_ACTIVATION_PCT}% → lock {self.TRAIL_LOCK_PCT}%")
+        logger.info(f"   VIX_MAX={self.REGIME_VIX_MAX}, MAX_HOLD={self.MAX_HOLD_DAYS}d")
 
     # =========================================================================
     # POSITION STATE PERSISTENCE

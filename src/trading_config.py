@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 """
-Trading Config Loader
+Trading Config Loader — YAML as Single Source of Truth
 
-Loads trading parameters from config/trading.yaml.
-Supports hot-reload (call load() again to re-read).
+v6.1: YAML is the ONLY source for trading parameters.
+      Missing or invalid config = FAIL LOUD (not silent defaults).
 
 Usage:
-    from trading_config import load_config
-    cfg = load_config()
-    print(cfg['max_positions'])
+    from trading_config import load_config, ConfigurationError
+    try:
+        cfg = load_config()  # Raises if missing/invalid
+    except ConfigurationError as e:
+        print(f"FATAL: {e}")
+        sys.exit(1)
 """
 
 import os
 import threading
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 from loguru import logger
 
 try:
@@ -21,6 +24,11 @@ try:
     YAML_AVAILABLE = True
 except ImportError:
     YAML_AVAILABLE = False
+
+
+class ConfigurationError(Exception):
+    """Raised when trading config is missing or invalid."""
+    pass
 
 
 _CONFIG_PATH = os.path.join(
@@ -33,23 +41,92 @@ _cached_mtime: float = 0.0
 _config_lock = threading.Lock()
 
 
-def load_config(path: Optional[str] = None) -> Dict[str, Any]:
+# =============================================================================
+# REQUIRED CONFIG KEYS — Trading system WILL NOT start without these
+# =============================================================================
+REQUIRED_CONFIG_KEYS: List[str] = [
+    # Position Management
+    'max_positions',
+    'position_size_pct',
+    'max_position_pct',
+    # Risk Management
+    'stop_loss_pct',
+    'take_profit_pct',
+    'daily_loss_limit_pct',
+    'weekly_loss_limit_pct',
+    'max_consecutive_losses',
+    # ATR-based SL/TP
+    'sl_atr_multiplier',
+    'sl_min_pct',
+    'sl_max_pct',
+    'tp_atr_multiplier',
+    'tp_min_pct',
+    'tp_max_pct',
+    # Trailing Stop
+    'trail_enabled',
+    'trail_activation_pct',
+    'trail_lock_pct',
+    'max_hold_days',
+    # Entry Filters
+    'min_score',
+    'gap_filter_enabled',
+    'gap_max_up',
+    'gap_max_down',
+    # Market Regime
+    'regime_filter_enabled',
+    'regime_vix_max',
+    # BEAR Mode
+    'bear_max_positions',
+    'bear_min_score',
+    'bear_position_size_pct',
+]
+
+
+def load_config(path: Optional[str] = None, strict: bool = True) -> Dict[str, Any]:
     """
     Load config from YAML file. Caches result until file changes.
 
+    Args:
+        path: Optional config file path (default: config/trading.yaml)
+        strict: If True (default), raises ConfigurationError on missing file/keys.
+                If False, returns empty dict (for backwards compatibility during migration).
+
     Returns:
-        Dict of config values (empty dict on error).
+        Dict of config values.
+
+    Raises:
+        ConfigurationError: If strict=True and config is missing/invalid.
     """
     global _cached_config, _cached_mtime
 
     config_path = path or _CONFIG_PATH
 
+    # Check PyYAML availability
     if not YAML_AVAILABLE:
-        logger.warning("PyYAML not installed - using default config")
+        msg = "FATAL: PyYAML not installed. Run: pip install pyyaml"
+        if strict:
+            raise ConfigurationError(msg)
+        logger.error(msg)
         return {}
 
+    # Check file exists
     if not os.path.exists(config_path):
-        logger.debug(f"Config file not found: {config_path}")
+        msg = f"""
+╔══════════════════════════════════════════════════════════════════╗
+║                    CONFIGURATION FILE MISSING                      ║
+╠══════════════════════════════════════════════════════════════════╣
+║  Expected: {config_path:<52} ║
+║                                                                    ║
+║  Trading system requires config/trading.yaml to operate.          ║
+║  This is the SINGLE SOURCE OF TRUTH for all trading parameters.   ║
+║                                                                    ║
+║  Fix: Copy config/trading.yaml.example to config/trading.yaml     ║
+║       and adjust values for your risk tolerance.                   ║
+╚══════════════════════════════════════════════════════════════════╝
+"""
+        if strict:
+            raise ConfigurationError(msg)
+        logger.error(msg)
         return {}
 
     with _config_lock:
@@ -61,14 +138,86 @@ def load_config(path: Optional[str] = None) -> Dict[str, Any]:
             with open(config_path, 'r') as f:
                 config = yaml.safe_load(f) or {}
 
+            # Validate required keys
+            if strict:
+                missing_keys = [k for k in REQUIRED_CONFIG_KEYS if k not in config]
+                if missing_keys:
+                    msg = f"""
+╔══════════════════════════════════════════════════════════════════╗
+║                    MISSING REQUIRED CONFIG KEYS                    ║
+╠══════════════════════════════════════════════════════════════════╣
+║  The following required parameters are missing from trading.yaml: ║
+║                                                                    ║
+"""
+                    for key in missing_keys[:10]:  # Show first 10
+                        msg += f"║    • {key:<58} ║\n"
+                    if len(missing_keys) > 10:
+                        msg += f"║    ... and {len(missing_keys) - 10} more                                        ║\n"
+                    msg += """║                                                                    ║
+║  Trading system cannot operate with missing parameters.            ║
+║  Wrong config = REAL MONEY LOSS. Fix config before running.       ║
+╚══════════════════════════════════════════════════════════════════╝
+"""
+                    raise ConfigurationError(msg)
+
             _cached_config = config
             _cached_mtime = mtime
-            logger.info(f"Config loaded: {config_path} ({len(config)} params)")
+            logger.info(f"✅ Config loaded: {config_path} ({len(config)} params)")
             return config
 
+        except ConfigurationError:
+            raise  # Re-raise validation errors
         except Exception as e:
-            logger.error(f"Failed to load config: {e}")
+            msg = f"Failed to parse config file: {e}"
+            if strict:
+                raise ConfigurationError(msg)
+            logger.error(msg)
             return _cached_config or {}
+
+
+def get_config_value(key: str, default: Any = None) -> Any:
+    """
+    Get a single config value. Raises if config not loaded and strict mode.
+
+    Usage:
+        max_pos = get_config_value('max_positions')
+    """
+    config = load_config(strict=False)
+    if key not in config and default is None:
+        logger.warning(f"Config key '{key}' not found and no default provided")
+    return config.get(key, default)
+
+
+def validate_config() -> Tuple[bool, List[str]]:
+    """
+    Validate the entire config file without raising.
+
+    Returns:
+        (is_valid, list_of_errors)
+    """
+    errors = []
+
+    try:
+        config = load_config(strict=False)
+    except Exception as e:
+        return False, [str(e)]
+
+    if not config:
+        return False, ["Config file is empty or not found"]
+
+    # Check required keys
+    for key in REQUIRED_CONFIG_KEYS:
+        if key not in config:
+            errors.append(f"Missing required key: {key}")
+
+    # Validate values against schema
+    for key, value in config.items():
+        attr_name = key.upper()
+        valid, reason = _validate_config_value(attr_name, value)
+        if not valid:
+            errors.append(f"{key}: {reason}")
+
+    return len(errors) == 0, errors
 
 
 # Validation schema: attr_name → {type, min, max}
