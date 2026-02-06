@@ -5,7 +5,7 @@
 {% block extra_css %}
 <style>
     /* ========================================
-       HEADER BAR — sticky, compact
+       HEADER BAR — 2-row compact design v6.0
        ======================================== */
     .header-bar {
         position: sticky;
@@ -13,52 +13,50 @@
         z-index: 100;
         background: linear-gradient(135deg, #1a1a2e, #16213e);
         color: white;
-        padding: 8px 16px;
+        padding: 5px 12px;
         display: flex;
-        justify-content: space-between;
-        align-items: center;
+        flex-direction: column;
         border-radius: 0 0 8px 8px;
         margin: -20px -20px 12px -20px;
-        font-size: 0.85rem;
-        flex-wrap: wrap;
-        gap: 6px;
+        font-size: 0.82rem;
+        gap: 3px;
     }
-    .header-bar .hdr-left {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-    .header-bar .hdr-right {
+    .header-bar .hdr-row {
         display: flex;
         align-items: center;
         gap: 8px;
-        flex-wrap: wrap;
-        flex-grow: 1;
+        width: 100%;
     }
+    .header-bar .hdr-row-1 { border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; }
+    .header-bar .hdr-row-2 { padding-top: 2px; font-size: 0.78rem; }
+    .header-bar .hdr-spacer { flex-grow: 1; }
+    .header-bar .hdr-sep { opacity: 0.3; margin: 0 2px; }
     .mode-badge {
-        padding: 3px 10px;
-        border-radius: 12px;
+        padding: 2px 8px;
+        border-radius: 10px;
         font-weight: bold;
-        font-size: 0.75rem;
-        letter-spacing: 0.5px;
+        font-size: 0.7rem;
+        letter-spacing: 0.3px;
     }
     .mode-badge.bull { background: #27ae60; color: white; }
     .mode-badge.bear { background: #e74c3c; color: white; }
     .mode-badge.low-risk { background: #f39c12; color: #000; }
     .mode-badge.bear-lr { background: linear-gradient(135deg, #e74c3c 50%, #f39c12 50%); color: white; }
-    .spy-inline { opacity: 0.9; }
-    .pdt-inline { padding: 2px 8px; border-radius: 10px; font-weight: 600; font-size: 0.75rem; }
-    .pdt-inline.ok { background: rgba(39,174,96,0.3); }
-    .pdt-inline.warning { background: rgba(243,156,18,0.3); }
-    .pdt-inline.danger { background: rgba(231,76,60,0.3); }
-    .countdown-inline {
-        font-family: monospace;
-        font-weight: bold;
-        font-size: 1rem;
-        min-width: 70px;
-        text-align: center;
-    }
+    .hdr-item { display: flex; align-items: center; gap: 3px; }
+    .hdr-label { opacity: 0.6; font-size: 0.7rem; }
+    .hdr-value { font-weight: 600; }
+    .hdr-up { color: #27ae60; }
+    .hdr-down { color: #e74c3c; }
+    .hdr-ok { color: #27ae60; }
+    .hdr-warn { color: #f39c12; }
+    .hdr-danger { color: #e74c3c; }
+    .pdt-badge { padding: 1px 6px; border-radius: 8px; font-weight: 600; font-size: 0.7rem; }
+    .pdt-badge.ok { background: rgba(39,174,96,0.3); }
+    .pdt-badge.warning { background: rgba(243,156,18,0.3); }
+    .pdt-badge.danger { background: rgba(231,76,60,0.3); }
+    .hdr-timer { font-family: monospace; font-weight: bold; font-size: 0.85rem; color: #f39c12; }
+    .hdr-controls { display: flex; gap: 4px; align-items: center; }
+    .hdr-controls .btn { padding: 2px 6px; font-size: 0.7rem; }
 
     /* ========================================
        MARKET OVERVIEW — Sector Strip + Timeline
@@ -256,44 +254,48 @@
      HEADER BAR — sticky, compact, replaces old title/banner/summary
      ============================================================ -->
 <div class="header-bar">
-    <div class="hdr-left">
+    <!-- Row 1: Strategy + Market Info -->
+    <div class="hdr-row hdr-row-1">
         <span class="mode-badge bear-lr" id="headerModeBadge">LOADING</span>
-        <span class="badge bg-dark" style="font-size:0.65rem;" id="hdrVersion">v6.0.0</span>
-        <span class="spy-inline">
-            SPY <strong id="hdrSpyPrice">-</strong>
-            <span id="hdrSpyPct">-</span>
-            <small class="opacity-75">SMA20</small>
-            | RSI <span id="hdrSpyRSI">-</span>
-            | VIX <span id="hdrSpyVIX">-</span>
+        <span style="font-size:0.65rem;opacity:0.7;" id="hdrVersion">v6.0.0</span>
+        <span class="hdr-sep">│</span>
+        <span class="hdr-item">
+            <span class="hdr-label">SPY</span>
+            <span class="hdr-value" id="hdrSpyPrice">-</span>
+            <span id="hdrSpyPct" class="hdr-down">-</span>
         </span>
-        <span class="pdt-inline ok" id="hdrPDT">PDT -/-</span>
-        <span>Pos <strong id="hdrPositions">0</strong>/<span data-cfg="max_positions">?</span></span>
-        <span id="hdrPnL" class="fw-bold">$0.00</span>
-        <div class="pnl-mini-chart d-none d-lg-block" style="width: 64px;">
-            <canvas id="pnlMiniChart" class="pnl-chart-canvas"></canvas>
-        </div>
+        <span class="hdr-sep">│</span>
+        <span class="hdr-item">
+            <span class="hdr-label">VIX</span>
+            <span class="hdr-value" id="hdrSpyVIX">-</span>
+            <span id="hdrVixIcon">-</span>
+        </span>
+        <span class="hdr-sep">│</span>
+        <span class="hdr-item">
+            <span class="hdr-label">RSI</span>
+            <span class="hdr-value" id="hdrSpyRSI">-</span>
+        </span>
+        <span class="hdr-spacer"></span>
+        <span class="hdr-timer" id="hdrCountdown">--:--:--</span>
+        <small style="opacity:0.5;font-size:0.65rem;" id="countdownLabel">Open</small>
     </div>
-    <div class="hdr-right">
-        <span class="countdown-inline" id="hdrCountdown">--:--:--</span>
-        <small class="opacity-50" id="countdownLabel">Market</small>
-        <div class="flex-grow-1"></div>
-        <div class="btn-group btn-group-sm">
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="modeManual" onclick="setMode('manual')">
-                <i class="fas fa-hand-paper"></i>
-            </button>
-            <button type="button" class="btn btn-outline-success btn-sm" id="modeAuto" onclick="setMode('auto')">
-                <i class="fas fa-robot"></i>
-            </button>
+    <!-- Row 2: Trading Status + Controls -->
+    <div class="hdr-row hdr-row-2">
+        <span class="pdt-badge ok" id="hdrPDT">PDT -/-</span>
+        <span class="hdr-item"><span class="hdr-label">Pos</span><span class="hdr-value" id="hdrPositions">0</span>/<span data-cfg="max_positions">?</span></span>
+        <span class="hdr-item"><span class="hdr-label">Trail</span><span class="hdr-value" id="hdrTrailCount">0/0</span></span>
+        <span class="hdr-item"><span class="hdr-label">Today</span><span id="hdrTodayWL" class="hdr-value">0W 0L</span></span>
+        <span class="hdr-item"><span class="hdr-label">P&L</span><span id="hdrPnL" class="hdr-value hdr-down">$0.00</span></span>
+        <span class="hdr-spacer"></span>
+        <div class="hdr-controls">
+            <button type="button" class="btn btn-outline-secondary" id="modeManual" onclick="setMode('manual')" title="Manual"><i class="fas fa-hand-paper"></i></button>
+            <button type="button" class="btn btn-outline-success" id="modeAuto" onclick="setMode('auto')" title="Auto"><i class="fas fa-robot"></i></button>
+            <button class="btn btn-primary" onclick="refreshAll()" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+            <i class="fas fa-circle" id="wsIndicator" title="WebSocket" style="font-size:0.5rem;color:#e74c3c;"></i>
+            <i class="fas fa-heartbeat" id="healthDot" style="color:#6c757d;font-size:0.7rem;" title="Health" onclick="showHealthDetail()"></i>
+            <button class="btn btn-danger" id="emergencyStopBtn" onclick="emergencyStop()" style="display:none;" title="Stop"><i class="fas fa-stop-circle"></i></button>
+            <button class="btn btn-outline-danger" id="closeAllBtn" onclick="closeAllPositions()" style="display:none;" title="Close All"><i class="fas fa-skull-crossbones"></i></button>
         </div>
-        <button class="btn btn-sm btn-primary" onclick="refreshAll()"><i class="fas fa-sync-alt"></i></button>
-        <i class="fas fa-circle text-danger" id="wsIndicator" title="WebSocket Disconnected" style="font-size:0.6rem;"></i>
-        <i class="fas fa-heartbeat" id="healthDot" style="color: #6c757d;" title="Checking..." onclick="showHealthDetail()"></i>
-        <button class="btn btn-sm btn-danger" id="emergencyStopBtn" onclick="emergencyStop()" style="display:none;">
-            <i class="fas fa-stop-circle"></i> Stop
-        </button>
-        <button class="btn btn-sm btn-outline-danger" id="closeAllBtn" onclick="closeAllPositions()" style="display:none;">
-            <i class="fas fa-skull-crossbones"></i>
-        </button>
     </div>
 </div>
 
@@ -1429,8 +1431,9 @@ function loadSpyRegime() {
             const pctEl = document.getElementById('hdrSpyPct');
             if (pctEl) {
                 const pct = details.pct_above_sma || 0;
-                pctEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
-                pctEl.style.color = pct >= 0 ? '#27ae60' : '#e74c3c';
+                const arrow = pct >= 0 ? '▲' : '▼';
+                pctEl.textContent = arrow + ' ' + Math.abs(pct).toFixed(2) + '%';
+                pctEl.className = pct >= 0 ? 'hdr-up' : 'hdr-down';
             }
             const rsiEl = document.getElementById('hdrSpyRSI');
             if (rsiEl && details.rsi !== undefined) {
@@ -1438,9 +1441,27 @@ function loadSpyRegime() {
                 rsiEl.style.color = details.rsi_ok ? '#27ae60' : '#e74c3c';
             }
             const vixEl = document.getElementById('hdrSpyVIX');
+            const vixIconEl = document.getElementById('hdrVixIcon');
             if (vixEl && details.vix !== undefined) {
-                vixEl.textContent = details.vix;
+                const vix = parseFloat(details.vix);
+                vixEl.textContent = vix.toFixed(1);
                 vixEl.style.color = details.vix_ok ? '#27ae60' : '#e74c3c';
+                // VIX status icon: <25 = ✅, 25-29 = ⚠️, ≥30 = ⛔
+                if (vixIconEl) {
+                    if (vix < 25) {
+                        vixIconEl.textContent = '✅';
+                        vixIconEl.className = 'hdr-ok';
+                        vixIconEl.title = 'VIX Safe (<25)';
+                    } else if (vix < 30) {
+                        vixIconEl.textContent = '⚠️';
+                        vixIconEl.className = 'hdr-warn';
+                        vixIconEl.title = 'VIX Warning (25-29)';
+                    } else {
+                        vixIconEl.textContent = '⛔';
+                        vixIconEl.className = 'hdr-danger';
+                        vixIconEl.title = 'VIX High (≥30) - Trading Blocked';
+                    }
+                }
             }
         })
         .catch(err => console.error('Error loading SPY regime:', err));
@@ -1485,7 +1506,8 @@ const loadPositions = loadAlerts;
 
 function updatePositionsUI(data) {
     if (data.error) return;
-    document.getElementById('hdrPositions').textContent = data.summary?.positions || 0;
+    const posCount = data.summary?.positions || 0;
+    document.getElementById('hdrPositions').textContent = posCount;
 
     // PDT in header
     if (data.pdt) {
@@ -1506,8 +1528,28 @@ function updatePositionsUI(data) {
         hdrPnl.style.color = totalPnlUsd >= 0 ? '#27ae60' : '#e74c3c';
     }
 
-    const container = document.getElementById('alertsContainer');
+    // Trail count: count positions with trailing stop active (pnl >= trail_activation_pct)
     const statuses = data.statuses || [];
+    const trailActivationPct = (_baseConfig && _baseConfig.trail_activation_pct) || 2;
+    const trailActiveCount = statuses.filter(s => s.pnl_pct >= trailActivationPct).length;
+    const hdrTrailCount = document.getElementById('hdrTrailCount');
+    if (hdrTrailCount) {
+        hdrTrailCount.textContent = `${trailActiveCount}/${posCount}`;
+        hdrTrailCount.className = 'hdr-value' + (trailActiveCount > 0 ? ' hdr-ok' : '');
+    }
+
+    // Today W/L from daily stats
+    if (data.daily_stats) {
+        const wins = data.daily_stats.trades_won || 0;
+        const losses = data.daily_stats.trades_lost || 0;
+        const hdrTodayWL = document.getElementById('hdrTodayWL');
+        if (hdrTodayWL) {
+            hdrTodayWL.textContent = `${wins}W ${losses}L`;
+            hdrTodayWL.className = 'hdr-value' + (wins > losses ? ' hdr-up' : losses > wins ? ' hdr-down' : '');
+        }
+    }
+
+    const container = document.getElementById('alertsContainer');
     const alertCount = statuses.filter(s => ['CRITICAL', 'WARNING', 'TAKE_PROFIT'].includes(s.signal)).length;
     document.getElementById('alertBadge').textContent = alertCount;
 
