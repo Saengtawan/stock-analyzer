@@ -1317,6 +1317,10 @@ class RapidRotationScreener:
         signals.sort(key=lambda x: x.score, reverse=True)
 
         logger.info(f"📊 Found {len(signals)} signals from {len(self.data_cache)} stocks")
+        # v6.3: Log signal details for debugging
+        if signals:
+            for sig in signals[:10]:  # Show top 10
+                logger.info(f"   📈 {sig.symbol}: score={sig.score}, sector={sig.sector}, gap={getattr(sig, 'gap_pct', 0):.1f}%")
         if progress_callback:
             progress_callback(phase="done", signals_count=len(signals), total_analyzed=len(self.data_cache))
 
@@ -1378,6 +1382,17 @@ class RapidRotationScreener:
         signals = self.screen(top_n=20, allowed_sectors=allowed_sectors, blocked_sectors=blocked_sectors, progress_callback=progress_callback, min_score=min_score, gap_max_up=gap_max_up)
         new_signals = [s for s in signals if s.symbol not in existing]
         available_slots = max_positions - len(existing)
+
+        # v6.3: Log filtering details
+        if signals:
+            filtered_by_existing = [s for s in signals if s.symbol in existing]
+            if filtered_by_existing:
+                logger.info(f"📋 Filtered by existing positions: {[s.symbol for s in filtered_by_existing]}")
+            if new_signals and available_slots <= 0:
+                logger.info(f"⚠️ Positions FULL ({len(existing)}/{max_positions}): {[s.symbol for s in new_signals[:5]]} available but no slots")
+            elif new_signals:
+                logger.info(f"✅ Returning {min(len(new_signals), available_slots)} signals (slots: {available_slots}): {[s.symbol for s in new_signals[:available_slots]]}")
+
         return new_signals[:available_slots]
 
 
