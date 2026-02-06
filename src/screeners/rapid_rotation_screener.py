@@ -196,12 +196,12 @@ class RapidRotationScreener:
     # Trailing stop parameters
     TRAIL_ACTIVATION = 3.0  # Activate trailing at +3%
 
-    # v3.7: HYBRID SECTOR SCORING (asymmetric - defensive approach)
+    # v5.5: SECTOR SCORING DISABLED (backtest showed BEAR sectors perform well)
     # Based on 20-day sector ETF performance (±3% threshold)
     SECTOR_BULL_THRESHOLD = 3.0    # > +3% = BULL
     SECTOR_BEAR_THRESHOLD = -3.0   # < -3% = BEAR
-    SECTOR_BULL_BONUS = 5          # BULL sector: +5 points (small bonus)
-    SECTOR_BEAR_PENALTY = -10      # BEAR sector: -10 points (defensive - penalize harder)
+    SECTOR_BULL_BONUS = 0          # v5.5: 5→0 (disabled - no bonus)
+    SECTOR_BEAR_PENALTY = 0        # v5.5: -10→0 (disabled - BEAR E[R]=+1.047%)
     SECTOR_SIDEWAYS_ADJ = 0        # SIDEWAYS: 0 points
 
     # v3.7: ALT DATA SCORING (tie-breaker role, not dominant)

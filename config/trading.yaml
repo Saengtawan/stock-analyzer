@@ -21,9 +21,9 @@ max_position_pct: 50           # v4.9.4: 40→50 (allow A+ conviction)
 sl_atr_multiplier: 1.5        # SL = 1.5 x ATR%
 sl_min_pct: 2.0               # Floor: at least 2% SL
 sl_max_pct: 4.0               # Cap: max 4% SL
-tp_atr_multiplier: 3.0        # TP = 3 x ATR%
-tp_min_pct: 4.0               # Floor: at least 4% TP
-tp_max_pct: 10.0              # v4.9.4: 8→10 (allow bigger wins)
+tp_atr_multiplier: 5.0        # v5.5: 3→5 (let winners run - backtest +0.100% E[R])
+tp_min_pct: 6.0               # v5.5: 4→6 (wider TP floor)
+tp_max_pct: 12.0              # v5.5: 10→12 (allow bigger wins)
 
 # -- Fallback fixed SL/TP --
 stop_loss_pct: 2.5
