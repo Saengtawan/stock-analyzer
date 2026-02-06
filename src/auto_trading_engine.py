@@ -268,6 +268,7 @@ class AutoTradingEngine:
     TAKE_PROFIT_PCT = 5.0       # Fallback if no ATR data
     PDT_TP_THRESHOLD = 4.0      # Fallback PDT TP (overridden per-position in v4.6)
 
+    TRAIL_ENABLED = True        # v5.6: Can be disabled via config
     TRAIL_ACTIVATION_PCT = 3.0  # v4.0: 2 → 3 (match backtest)
     TRAIL_LOCK_PCT = 80         # v3.11: 70 → 80
     MAX_HOLD_DAYS = 5
@@ -3521,14 +3522,14 @@ class AutoTradingEngine:
                 self._close_position(symbol, managed_pos, "TAKE_PROFIT")
                 return
 
-            # Check trailing activation
-            if not managed_pos.trailing_active and pnl_pct >= self.TRAIL_ACTIVATION_PCT:
+            # Check trailing activation (v5.6: can be disabled)
+            if self.TRAIL_ENABLED and not managed_pos.trailing_active and pnl_pct >= self.TRAIL_ACTIVATION_PCT:
                 managed_pos.trailing_active = True
                 _state_changed = True
                 logger.info(f"📈 {symbol} trailing activated at {pnl_pct:+.2f}%")
                 self.alerts.alert_trailing_activated(symbol, current_price, managed_pos.peak_price)
 
-            # Update trailing stop (only if SL order exists)
+            # Update trailing stop (only if SL order exists and trailing enabled)
             if managed_pos.trailing_active and managed_pos.sl_order_id:
                 new_sl, _ = self.trader.calculate_trailing_stop(
                     entry_price,

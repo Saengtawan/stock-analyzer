@@ -31,8 +31,9 @@ take_profit_pct: 8.0          # v4.9.4: 5→8 (let swing run)
 pdt_tp_threshold: 4.0
 
 # -- Trailing Stop --
-trail_activation_pct: 4.0     # v4.9.4: 3→4 (don't lock too early)
-trail_lock_pct: 50            # v4.9.4: 80→50 (lock less, let run more)
+trail_enabled: false          # v5.6: DISABLED (backtest: trail cuts winners before TP 5.0x)
+trail_activation_pct: 4.0     # v4.9.4: 3→4 (unused when disabled)
+trail_lock_pct: 50            # v4.9.4: 80→50 (unused when disabled)
 max_hold_days: 5
 
 # -- Risk Limits --

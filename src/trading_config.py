@@ -82,6 +82,7 @@ CONFIG_SCHEMA: Dict[str, Dict[str, Any]] = {
     'MONITOR_INTERVAL_SECONDS': {'type': int, 'min': 5, 'max': 300},
     'CIRCUIT_BREAKER_MAX_ERRORS': {'type': int, 'min': 2, 'max': 20},
     'MAX_SLIPPAGE_PCT': {'type': (int, float), 'min': 0.1, 'max': 5.0},
+    'TRAIL_ENABLED': {'type': bool},
     'TRAIL_ACTIVATION_PCT': {'type': (int, float), 'min': 1.0, 'max': 20.0},
     'TRAIL_LOCK_PCT': {'type': (int, float), 'min': 10, 'max': 100},
     'MAX_HOLD_DAYS': {'type': int, 'min': 1, 'max': 30},
