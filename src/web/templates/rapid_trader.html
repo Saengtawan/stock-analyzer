@@ -512,13 +512,17 @@
                 <span><i class="fas fa-shopping-cart me-2"></i>Buy Signals <small id="signalCacheAge" class="text-muted ms-2" style="font-size:0.7rem;opacity:0.8"></small></span>
                 <span class="badge bg-success" id="signalBadge">0</span>
             </div>
-            <div class="card-body" id="signalsContainer" style="max-height: 85vh; overflow-y: auto;">
+            <div class="card-body" id="signalsContainer" style="max-height: 75vh; overflow-y: auto;">
                 <div class="text-center py-4">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
                     <p class="mt-2">Scanning for opportunities...</p>
                 </div>
+            </div>
+            <!-- v6.3: Sticky countdown footer -->
+            <div class="card-footer text-center py-2" id="scanCountdownFooter" style="display: none; background: linear-gradient(135deg, #1a2530, #2c3e50); border-top: 1px solid #3d5a73;">
+                <div id="scanCountdown" class="text-info small" data-next=""><i class="fas fa-clock me-1"></i>Next scan: --:--</div>
             </div>
         </div>
     </div>
@@ -2094,16 +2098,12 @@ function loadSignals() {
                     const items = Object.entries(fs).filter(([k, v]) => typeof v === 'number' && v > 0).sort((a, b) => b[1] - a[1]);
                     filterHtml = `<div class="text-start mt-2 mx-auto" style="max-width: 250px; font-size: 10px;"><div class="text-secondary mb-1">Filter breakdown (${total} rejected):</div>${items.map(([k, v]) => { const pct = Math.round(v / total * 100); return `<div class="d-flex justify-content-between text-secondary"><span>${filterLabels[k] || k}</span><span>${v} (${pct}%)</span></div>`; }).join('')}</div>`;
                 }
-                // v6.3: Countdown to next scan
-                let countdownHtml = '';
-                if (!isMarketClosed && data.next_scan_timestamp) {
-                    countdownHtml = `<div id="scanCountdown" class="text-info small mt-1" data-next="${data.next_scan_timestamp}"><i class="fas fa-clock me-1"></i>Next scan: calculating...</div>`;
-                }
                 const scanStatusBadge = isMarketClosed
                     ? '<span class="badge bg-secondary bg-opacity-50 text-light"><i class="fas fa-moon me-1"></i> Market closed</span>'
-                    : `<span class="badge bg-secondary bg-opacity-25 text-light"><i class="fas fa-sync-alt fa-spin me-1"></i> Continuous scan</span>${countdownHtml}`;
+                    : '<span class="badge bg-secondary bg-opacity-25 text-light"><i class="fas fa-sync-alt fa-spin me-1"></i> Continuous scan</span>';
                 container.innerHTML = `${marketClosedBanner}<div id="scanProgressPanel" class="py-2"><div class="text-center text-muted py-3"><i class="fas fa-search fa-2x text-secondary mb-2"></i><p class="mb-1">No signals found</p><small class="d-block text-secondary mb-2">Last scan: ${ageText} ${durText}</small>${filterHtml}<div class="mt-2">${scanStatusBadge}</div></div></div>`;
-                updateScanCountdown();  // v6.3: Start countdown
+                // v6.3: Update sticky countdown footer
+                updateCountdownFooter(isMarketClosed, data.next_scan_timestamp);
                 return;
             }
 
@@ -2153,13 +2153,9 @@ function loadSignals() {
                         ${buyButton}
                     </div>`;
             });
-            // v6.3: Add countdown footer when signals found
-            if (!isMarketClosed && data.next_scan_timestamp) {
-                html += `<div class="text-center py-2 border-top mt-2"><div id="scanCountdown" class="text-info small" data-next="${data.next_scan_timestamp}"><i class="fas fa-clock me-1"></i>Next scan: calculating...</div></div>`;
-            }
             container.innerHTML = html;
-            // v6.3: Start countdown timer
-            updateScanCountdown();
+            // v6.3: Update sticky countdown footer
+            updateCountdownFooter(isMarketClosed, data.next_scan_timestamp);
         })
         .catch(err => {
             if (_lastSignalCount > 0 || scanProgressActive) return;
@@ -2168,10 +2164,29 @@ function loadSignals() {
 }
 
 // ============================================
-// v6.3: Scan Countdown Timer
+// v6.3: Scan Countdown Timer (Sticky Footer)
 // ============================================
 let _countdownInterval = null;
-function updateScanCountdown() {
+
+function updateCountdownFooter(isMarketClosed, nextScanTimestamp) {
+    const footer = document.getElementById('scanCountdownFooter');
+    const el = document.getElementById('scanCountdown');
+    if (!footer || !el) return;
+
+    // Hide footer if market closed or no timestamp
+    if (isMarketClosed || !nextScanTimestamp) {
+        footer.style.display = 'none';
+        if (_countdownInterval) clearInterval(_countdownInterval);
+        return;
+    }
+
+    // Show footer and set timestamp
+    footer.style.display = 'block';
+    el.dataset.next = nextScanTimestamp;
+    startCountdown();
+}
+
+function startCountdown() {
     const el = document.getElementById('scanCountdown');
     if (!el) return;
     const nextScan = el.dataset.next;
