@@ -1,8 +1,8 @@
 """
-Sector Regime Detector v5.5
+Sector Regime Detector v6.0
 Analyzes sector performance to determine sector-specific market regimes.
-v5.5: Market-cap weighted stock-based 1d returns (matches Yahoo methodology).
-      Realtime 5-min cache during market hours for fast flip detection.
+v6.0: Composite score approach (1d=45%, 5d=35%, 20d=20%) optimized for Dip-Bounce.
+      Market-cap weighted 1d returns + 5-min cache during market hours.
 """
 
 import pandas as pd
@@ -15,7 +15,7 @@ from loguru import logger
 class SectorRegimeDetector:
     """
     Detects market regime at the sector level for more granular trading decisions.
-    v5.5: Market-cap weighted 1d returns from top-50 stocks per sector (matches Yahoo).
+    v6.0: Composite score (1d=45%, 5d=35%, 20d=20%) optimized for Dip-Bounce strategy.
     """
 
     # v5.4: Realtime sector data during market hours
@@ -193,9 +193,48 @@ class SectorRegimeDetector:
             'ma_20': ma_20
         }
 
+    # v6.0: Composite score weights for Dip-Bounce strategy (1-3 day hold)
+    WEIGHT_1D = 0.45   # Entry timing - most important
+    WEIGHT_5D = 0.35   # Short-term momentum
+    WEIGHT_20D = 0.20  # Environment - least important for short hold
+
+    # v6.0: Composite score thresholds
+    THRESHOLD_STRONG_BULL = 4.0
+    THRESHOLD_BULL = 1.5
+    THRESHOLD_SIDEWAYS = -2.0
+    THRESHOLD_BEAR = -4.0
+
+    def calculate_composite_score(self, metrics: Dict[str, float]) -> float:
+        """
+        Calculate composite score from returns (v6.0).
+        Weights: 1d=45%, 5d=35%, 20d=20% (optimized for Dip-Bounce 1-3 day hold)
+
+        Returns:
+            Composite score (higher = more bullish)
+        """
+        return_1d = metrics.get('return_1d', 0)
+        return_5d = metrics.get('return_5d', 0)
+        return_20d = metrics.get('return_20d', 0)
+
+        score = (self.WEIGHT_1D * return_1d +
+                 self.WEIGHT_5D * return_5d +
+                 self.WEIGHT_20D * return_20d)
+
+        # RSI bonus/penalty (small adjustment)
+        rsi = metrics.get('rsi', 50)
+        if rsi > 70:
+            score += 0.5   # Overbought but strong
+        elif rsi < 30:
+            score -= 0.5   # Oversold and weak
+
+        return score
+
     def determine_regime(self, metrics: Dict[str, float]) -> str:
         """
-        Determine sector regime based on metrics
+        Determine sector regime using composite score (v6.0).
+
+        Composite Score = 0.45×1d + 0.35×5d + 0.20×20d
+        Optimized for Dip-Bounce strategy with 1-3 day holding period.
 
         Returns:
             Regime: STRONG BULL, BULL, SIDEWAYS, BEAR, STRONG BEAR
@@ -203,41 +242,20 @@ class SectorRegimeDetector:
         if not metrics:
             return 'UNKNOWN'
 
-        return_1d = metrics.get('return_1d', 0)
-        return_20d = metrics['return_20d']
-        return_5d = metrics['return_5d']
-        rsi = metrics['rsi']
-        price_vs_ma10 = metrics['price_vs_ma10']
-        price_vs_ma20 = metrics['price_vs_ma20']
+        score = self.calculate_composite_score(metrics)
+        metrics['composite_score'] = score  # Store for logging
 
-        # Strong Bull: Strong uptrend + recent momentum still positive
-        # v5.1: require 1d > -1% (not selling off today)
-        if (return_20d > 5 and return_5d > 2 and return_1d > -1 and
-            price_vs_ma10 > 1 and price_vs_ma20 > 2 and rsi > 60):
+        # v6.0: Composite score-based regime determination
+        if score > self.THRESHOLD_STRONG_BULL:
             return 'STRONG BULL'
-
-        # Bull: Positive trend + 5d not declining + today not crashing
-        # v5.1: require 5d > 0% and 1d > -2%
-        elif (return_20d > 2 and return_5d > 0 and return_1d > -2 and
-              price_vs_ma20 > 0 and rsi > 50):
+        elif score > self.THRESHOLD_BULL:
             return 'BULL'
-
-        # Strong Bear: Strong downtrend with momentum
-        elif (return_20d < -5 and return_5d < -2 and
-              price_vs_ma10 < -1 and price_vs_ma20 < -2 and rsi < 40):
-            return 'STRONG BEAR'
-
-        # Bear: Negative trend
-        elif (return_20d < -2 and price_vs_ma20 < 0 and rsi < 50):
-            return 'BEAR'
-
-        # v5.1: Short-term crash override — sharp daily/weekly drop → BEAR
-        elif return_1d < -3 or return_5d < -5:
-            return 'BEAR'
-
-        # Sideways: Mixed signals or consolidation
-        else:
+        elif score > self.THRESHOLD_SIDEWAYS:
             return 'SIDEWAYS'
+        elif score > self.THRESHOLD_BEAR:
+            return 'BEAR'
+        else:
+            return 'STRONG BEAR'
 
     def _build_sector_company_map(self) -> Dict[str, List[str]]:
         """
@@ -444,11 +462,12 @@ class SectorRegimeDetector:
                 self.sector_metrics[etf] = metrics
 
                 src = "[M]" if metrics.get('return_1d_source') == 'mcw' else "[E]"
+                score = metrics.get('composite_score', 0)
                 logger.info(
-                    f"{etf} ({sector_name}): {regime} | "
+                    f"{etf} ({sector_name}): {regime} (score={score:+.1f}) | "
                     f"1d{src}: {metrics['return_1d']:+.1f}% | "
                     f"5d: {metrics['return_5d']:+.1f}% | "
-                    f"20d: {metrics['return_20d']:+.2f}% | RSI: {metrics['rsi']:.1f}"
+                    f"20d: {metrics['return_20d']:+.2f}%"
                 )
 
             except Exception as e:
