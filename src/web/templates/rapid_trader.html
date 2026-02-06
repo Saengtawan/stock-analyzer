@@ -2067,6 +2067,20 @@ function loadSignals() {
                 return;
             }
 
+            // v6.2: Market Closed Display
+            const isMarketClosed = data.mode === 'closed' || data.is_market_open === false;
+            const marketClosedBanner = isMarketClosed ? `
+                <div class="alert alert-secondary py-2 mb-2 text-center" style="background: linear-gradient(135deg, #2c3e50, #34495e); border: 1px solid #4a5568;">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <i class="fas fa-moon me-2 text-warning"></i>
+                        <strong>Market Closed</strong>
+                    </div>
+                    <small class="d-block mt-1 text-muted">
+                        ${data.next_scan ? `Next scan: ${data.next_scan}` : ''}
+                        ${data.scan_time ? ` • Last: ${data.scan_time}` : ''}
+                    </small>
+                </div>` : '';
+
             if (signals.length === 0) {
                 const age = data.cache_age_seconds;
                 const dur = data.scan_duration_seconds;
@@ -2080,11 +2094,14 @@ function loadSignals() {
                     const items = Object.entries(fs).filter(([k, v]) => typeof v === 'number' && v > 0).sort((a, b) => b[1] - a[1]);
                     filterHtml = `<div class="text-start mt-2 mx-auto" style="max-width: 250px; font-size: 10px;"><div class="text-secondary mb-1">Filter breakdown (${total} rejected):</div>${items.map(([k, v]) => { const pct = Math.round(v / total * 100); return `<div class="d-flex justify-content-between text-secondary"><span>${filterLabels[k] || k}</span><span>${v} (${pct}%)</span></div>`; }).join('')}</div>`;
                 }
-                container.innerHTML = `<div id="scanProgressPanel" class="py-2"><div class="text-center text-muted py-3"><i class="fas fa-search fa-2x text-secondary mb-2"></i><p class="mb-1">No signals found</p><small class="d-block text-secondary mb-2">Last scan: ${ageText} ${durText}</small>${filterHtml}<div class="mt-2"><span class="badge bg-secondary bg-opacity-25 text-light"><i class="fas fa-sync-alt fa-spin me-1"></i> Continuous scan</span></div></div></div>`;
+                const scanStatusBadge = isMarketClosed
+                    ? '<span class="badge bg-secondary bg-opacity-50 text-light"><i class="fas fa-moon me-1"></i> Market closed</span>'
+                    : '<span class="badge bg-secondary bg-opacity-25 text-light"><i class="fas fa-sync-alt fa-spin me-1"></i> Continuous scan</span>';
+                container.innerHTML = `${marketClosedBanner}<div id="scanProgressPanel" class="py-2"><div class="text-center text-muted py-3"><i class="fas fa-search fa-2x text-secondary mb-2"></i><p class="mb-1">No signals found</p><small class="d-block text-secondary mb-2">Last scan: ${ageText} ${durText}</small>${filterHtml}<div class="mt-2">${scanStatusBadge}</div></div></div>`;
                 return;
             }
 
-            let html = '';
+            let html = marketClosedBanner;  // v6.2: Add market closed banner at top
             signals.forEach((signal, idx) => {
                 const execStatus = signal.execution_status || 'PENDING';
                 const skipReason = signal.skip_reason || '';  // v5.3
@@ -2095,15 +2112,22 @@ function loadSignals() {
                     : execStatus === 'QUEUE_FULL' ? '<span class="badge bg-secondary ms-1" style="font-size:0.55em">FULL</span>'
                     : '';
                 const isBought = execStatus === 'BOUGHT';
+                // v6.2: Disable buy button and show stale indicator when market closed
+                const staleIndicator = isMarketClosed ? '<span class="badge bg-secondary ms-1" style="font-size:0.5em">STALE</span>' : '';
+                const buyButton = isBought
+                    ? '<div class="text-center"><span class="badge bg-success bg-opacity-25 text-success"><i class="fas fa-check me-1"></i>Already in Portfolio</span></div>'
+                    : isMarketClosed
+                        ? '<button class="btn btn-secondary btn-sm w-100" disabled><i class="fas fa-moon me-1"></i>Market Closed</button>'
+                        : `<button class="btn btn-success btn-sm w-100" onclick="openAddPosition('${signal.symbol}', ${signal.entry_price}, ${signal.stop_loss}, ${signal.take_profit})"><i class="fas fa-plus me-1"></i>Add to Portfolio</button>`;
                 html += `
-                    <div class="signal-card${isBought ? ' border-success' : ''}">
+                    <div class="signal-card${isBought ? ' border-success' : ''}${isMarketClosed ? ' opacity-75' : ''}">
                         <div class="d-flex justify-content-between align-items-start mb-1">
                             <div>
                                 <h6 class="mb-0">
                                     <span class="badge bg-success me-1">#${idx + 1}</span>
                                     ${signal.symbol}
                                     ${(signal.sl_method || '').includes('overnight_gap') ? '<span class="badge bg-warning text-dark ms-1" style="font-size:0.6em">O/N</span>' : (signal.sl_method || '').includes('breakout') ? '<span class="badge bg-info text-dark ms-1" style="font-size:0.6em">BO</span>' : '<span class="badge bg-secondary ms-1" style="font-size:0.6em">Bounce</span>'}
-                                    ${statusBadge}
+                                    ${statusBadge}${staleIndicator}
                                 </h6>
                                 <small class="text-muted">Score: ${signal.score}${signal.sector ? ' | ' + signal.sector : ''}</small>
                             </div>
@@ -2120,7 +2144,7 @@ function loadSignals() {
                             </div>
                         </div>
                         <div class="mb-1"><small class="text-muted">RSI: ${signal.rsi.toFixed(0)} | Mom: ${signal.momentum_5d >= 0 ? '+' : ''}${signal.momentum_5d.toFixed(1)}%</small></div>
-                        ${isBought ? '<div class="text-center"><span class="badge bg-success bg-opacity-25 text-success"><i class="fas fa-check me-1"></i>Already in Portfolio</span></div>' : `<button class="btn btn-success btn-sm w-100" onclick="openAddPosition('${signal.symbol}', ${signal.entry_price}, ${signal.stop_loss}, ${signal.take_profit})"><i class="fas fa-plus me-1"></i>Add to Portfolio</button>`}
+                        ${buyButton}
                     </div>`;
             });
             container.innerHTML = html;
