@@ -91,23 +91,117 @@
     .sector-chip.strong-bear { background: #e74c3c; color: white; }
     .sector-chip.unknown { background: #d5dbdb; color: #566573; }
 
+    /* v6.3: Enhanced Session Timeline */
+    .timeline-container {
+        background: linear-gradient(135deg, #1a2530, #2c3e50);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+    }
     .timeline-bar {
         display: flex;
-        align-items: center;
-        padding: 4px 0;
+        align-items: stretch;
         gap: 4px;
     }
-    .tl-item {
-        padding: 3px 8px;
-        border-radius: 12px;
-        font-size: 0.68rem;
-        font-weight: 600;
-        white-space: nowrap;
+    .tl-session {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 6px 4px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        min-width: 70px;
     }
-    .tl-item.done { background: #27ae60; color: white; }
-    .tl-item.active { background: #3498db; color: white; animation: pulse 2s infinite; }
-    .tl-item.pending { background: #e8e8e8; color: #95a5a6; }
-    .tl-connector { flex: 1; height: 2px; background: #bdc3c7; min-width: 8px; }
+    .tl-session.done { background: rgba(39, 174, 96, 0.15); }
+    .tl-session.active { background: rgba(52, 152, 219, 0.25); box-shadow: 0 0 12px rgba(52, 152, 219, 0.4); }
+    .tl-session.pending { background: rgba(255, 255, 255, 0.05); opacity: 0.6; }
+
+    .tl-header {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-bottom: 4px;
+    }
+    .tl-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 7px;
+    }
+    .tl-session.done .tl-indicator { background: #27ae60; }
+    .tl-session.done .tl-indicator::after { content: '✓'; color: white; }
+    .tl-session.active .tl-indicator { background: #e74c3c; animation: pulse-dot 1.5s infinite; }
+    .tl-session.pending .tl-indicator { border: 2px solid #7f8c8d; background: transparent; }
+
+    @keyframes pulse-dot {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+        50% { box-shadow: 0 0 0 6px rgba(231, 76, 60, 0); }
+    }
+
+    .tl-name {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #ecf0f1;
+    }
+    .tl-session.done .tl-name { color: #27ae60; }
+    .tl-session.active .tl-name { color: #3498db; }
+    .tl-session.pending .tl-name { color: #7f8c8d; }
+
+    .tl-time {
+        font-size: 0.6rem;
+        color: #95a5a6;
+        margin-bottom: 4px;
+    }
+
+    .tl-interval {
+        font-size: 0.55rem;
+        padding: 1px 5px;
+        border-radius: 8px;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .tl-interval.volatile { background: #e67e22; color: white; }
+    .tl-interval.normal { background: #3498db; color: white; }
+
+    .tl-progress {
+        width: 100%;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        overflow: hidden;
+    }
+    .tl-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3498db, #2ecc71);
+        border-radius: 2px;
+        transition: width 0.5s ease;
+    }
+    .tl-session.done .tl-progress-fill { width: 100% !important; background: #27ae60; }
+
+    .tl-connector {
+        width: 2px;
+        background: linear-gradient(180deg, transparent, #3d5a73, transparent);
+        align-self: stretch;
+        margin: 8px 0;
+    }
+
+    .tl-next-scan {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 0.7rem;
+    }
+    .tl-next-scan .next { color: #3498db; }
+    .tl-next-scan .last { color: #7f8c8d; }
+    .tl-next-scan .countdown { color: #2ecc71; font-weight: 600; }
 
     /* ========================================
        SIGNAL / POSITION CARDS
@@ -489,14 +583,54 @@
     <div class="sector-strip" id="sectorStrip">
         <span class="sector-chip unknown">Loading sectors...</span>
     </div>
-    <div class="timeline-bar" id="timelineBar">
-        <div class="tl-item pending" data-scan="morning">09:35 Morning</div>
-        <div class="tl-connector"></div>
-        <div class="tl-item pending" data-scan="afternoon">14:00 Afternoon</div>
-        <div class="tl-connector"></div>
-        <div class="tl-item pending" data-scan="overnight">15:30 O/N Gap</div>
-        <div class="tl-connector"></div>
-        <div class="tl-item pending" data-scan="preclose">15:50 Pre-Close</div>
+    <!-- v6.3: Enhanced Session Timeline -->
+    <div class="timeline-container" id="timelineContainer">
+        <div class="timeline-bar" id="timelineBar">
+            <div class="tl-session pending" data-session="morning" data-start="575" data-end="660">
+                <div class="tl-header">
+                    <span class="tl-indicator"></span>
+                    <span class="tl-name">Morning</span>
+                </div>
+                <div class="tl-time">09:35-11:00</div>
+                <div class="tl-interval volatile">3min</div>
+                <div class="tl-progress"><div class="tl-progress-fill" style="width: 0%"></div></div>
+            </div>
+            <div class="tl-connector"></div>
+            <div class="tl-session pending" data-session="midday" data-start="660" data-end="840">
+                <div class="tl-header">
+                    <span class="tl-indicator"></span>
+                    <span class="tl-name">Midday</span>
+                </div>
+                <div class="tl-time">11:00-14:00</div>
+                <div class="tl-interval normal">5min</div>
+                <div class="tl-progress"><div class="tl-progress-fill" style="width: 0%"></div></div>
+            </div>
+            <div class="tl-connector"></div>
+            <div class="tl-session pending" data-session="afternoon" data-start="840" data-end="930">
+                <div class="tl-header">
+                    <span class="tl-indicator"></span>
+                    <span class="tl-name">Afternoon</span>
+                </div>
+                <div class="tl-time">14:00-15:30</div>
+                <div class="tl-interval normal">5min</div>
+                <div class="tl-progress"><div class="tl-progress-fill" style="width: 0%"></div></div>
+            </div>
+            <div class="tl-connector"></div>
+            <div class="tl-session pending" data-session="preclose" data-start="930" data-end="960">
+                <div class="tl-header">
+                    <span class="tl-indicator"></span>
+                    <span class="tl-name">Pre-Close</span>
+                </div>
+                <div class="tl-time">15:30-16:00</div>
+                <div class="tl-interval normal">5min</div>
+                <div class="tl-progress"><div class="tl-progress-fill" style="width: 0%"></div></div>
+            </div>
+        </div>
+        <div class="tl-next-scan" id="tlNextScan">
+            <span class="next"><i class="fas fa-clock me-1"></i>Next: <span id="tlNextTime">--:--</span></span>
+            <span class="countdown" id="tlCountdown">--:--</span>
+            <span class="last"><i class="fas fa-history me-1"></i>Last: <span id="tlLastTime">--:--</span></span>
+        </div>
     </div>
 </div>
 
@@ -1392,46 +1526,110 @@ function updateSectorHighlights() {
 }
 
 // ============================================
-// Timeline Bar
+// Timeline Bar (v6.3: Enhanced with progress bars)
 // ============================================
+let _timelineInterval = null;
+
 function updateTimelineBar(schedule) {
     if (!schedule) return;
-    const items = document.querySelectorAll('#timelineBar .tl-item');
+
+    // Get current ET time
     const now = new Date();
     const nyOffset = getETOffset();
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
     const nyTime = new Date(utc + (3600000 * nyOffset));
     const currentMins = nyTime.getHours() * 60 + nyTime.getMinutes();
 
-    // Parse scan times
-    const scans = [
-        { key: 'morning', time: schedule.morning_scan, done: schedule.morning_done },
-        { key: 'afternoon', time: schedule.afternoon_scan, done: schedule.afternoon_done },
-        { key: 'overnight', time: schedule.overnight_scan, done: schedule.overnight_done },
-        { key: 'preclose', time: schedule.pre_close, done: false },
+    // Session definitions (start/end in minutes from midnight)
+    const sessions = [
+        { key: 'morning', start: 575, end: 660, done: schedule.morning_done },      // 09:35-11:00
+        { key: 'midday', start: 660, end: 840, done: schedule.morning_done },       // 11:00-14:00 (done if morning done)
+        { key: 'afternoon', start: 840, end: 930, done: schedule.afternoon_done },  // 14:00-15:30
+        { key: 'preclose', start: 930, end: 960, done: currentMins >= 960 },        // 15:30-16:00
     ];
 
-    scans.forEach(scan => {
-        const parts = scan.time.split(':');
-        scan.mins = parseInt(parts[0]) * 60 + parseInt(parts[1]);
-    });
+    const sessionEls = document.querySelectorAll('#timelineBar .tl-session');
+    sessionEls.forEach(el => {
+        const sessionKey = el.getAttribute('data-session');
+        const session = sessions.find(s => s.key === sessionKey);
+        if (!session) return;
 
-    items.forEach(item => {
-        const scanKey = item.getAttribute('data-scan');
-        const scan = scans.find(s => s.key === scanKey);
-        if (!scan) return;
+        const startMins = session.start;
+        const endMins = session.end;
 
-        item.textContent = scan.time + ' ' + scanKey.charAt(0).toUpperCase() + scanKey.slice(1);
-        item.classList.remove('done', 'active', 'pending');
+        // Determine state
+        el.classList.remove('done', 'active', 'pending');
+        let progress = 0;
 
-        if (scan.done) {
-            item.classList.add('done');
-        } else if (currentMins >= scan.mins - 5 && currentMins <= scan.mins + 5) {
-            item.classList.add('active');
+        if (currentMins >= endMins || session.done) {
+            // Session is done
+            el.classList.add('done');
+            progress = 100;
+        } else if (currentMins >= startMins && currentMins < endMins) {
+            // Session is active
+            el.classList.add('active');
+            progress = Math.round(((currentMins - startMins) / (endMins - startMins)) * 100);
         } else {
-            item.classList.add('pending');
+            // Session is pending
+            el.classList.add('pending');
+            progress = 0;
+        }
+
+        // Update progress bar
+        const progressFill = el.querySelector('.tl-progress-fill');
+        if (progressFill) {
+            progressFill.style.width = progress + '%';
         }
     });
+
+    // Update next/last scan info
+    if (schedule.next_continuous_scan) {
+        const nextTime = new Date(schedule.next_continuous_scan);
+        const tlNextTime = document.getElementById('tlNextTime');
+        const tlCountdown = document.getElementById('tlCountdown');
+        if (tlNextTime) {
+            tlNextTime.textContent = nextTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' ET';
+        }
+        // Start countdown update
+        updateTimelineCountdown(schedule.next_continuous_scan);
+    }
+
+    if (schedule.last_continuous_scan) {
+        const lastTime = new Date(schedule.last_continuous_scan);
+        const tlLastTime = document.getElementById('tlLastTime');
+        if (tlLastTime) {
+            tlLastTime.textContent = lastTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' ET';
+        }
+    } else {
+        const tlLastTime = document.getElementById('tlLastTime');
+        if (tlLastTime) tlLastTime.textContent = '--:--';
+    }
+}
+
+function updateTimelineCountdown(nextScanTimestamp) {
+    if (_timelineInterval) clearInterval(_timelineInterval);
+
+    const update = () => {
+        const tlCountdown = document.getElementById('tlCountdown');
+        if (!tlCountdown || !nextScanTimestamp) return;
+
+        const now = new Date();
+        const target = new Date(nextScanTimestamp);
+        const diffMs = target - now;
+
+        if (diffMs <= 0) {
+            tlCountdown.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Scanning...';
+            return;
+        }
+
+        const diffSec = Math.floor(diffMs / 1000);
+        const min = Math.floor(diffSec / 60);
+        const sec = diffSec % 60;
+        tlCountdown.textContent = `in ${min}:${sec.toString().padStart(2, '0')}`;
+    };
+
+    update();
+    _timelineInterval = setInterval(update, 1000);
 }
 
 // ============================================
