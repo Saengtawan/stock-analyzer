@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Rapid Trader v5.1.0 - Dashboard{% endblock %}
+{% block title %}Rapid Trader v5.3.0 - Dashboard{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -401,6 +401,7 @@
                 <div class="small">
                     <div class="d-flex justify-content-between"><span class="text-muted">Gap Rejected:</span><span id="statGapRejected">0</span></div>
                     <div class="d-flex justify-content-between"><span class="text-muted">Earnings Rejected:</span><span id="statEarningsRejected">0</span></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Stock-D Rejected:</span><span id="statStockDRejected">0</span></div>
                     <div class="d-flex justify-content-between"><span class="text-muted">Low Risk Trades:</span><span id="statLowRiskTrades">0</span></div>
                 </div>
             </div>
@@ -433,6 +434,10 @@
                     <div class="rule-icon" style="background:#9b59b6;">⏰</div>
                     <div>Late Start: <strong>><span data-cfg="market_open_scan_window">?</span>min</strong></div>
                 </div>
+                <div class="rule-item">
+                    <div class="rule-icon" style="background:#16a085;" id="stockDIcon">📉</div>
+                    <div>Stock-D: <strong id="stockDStatus">ON</strong> <small class="text-muted">(dip-bounce)</small></div>
+                </div>
             </div>
         </div>
 
@@ -451,6 +456,10 @@
                 <div class="rule-item">
                     <div class="rule-icon" style="background:#e67e22;">💰</div>
                     <div>Pos: <strong><span data-cfg="bear_position_size_pct">?</span>%</strong>, Max <strong><span data-cfg="bear_max_positions">?</span></strong></div>
+                </div>
+                <div class="rule-item">
+                    <div class="rule-icon" style="background:#9b59b6;" id="bearDdExemptIcon">🛡️</div>
+                    <div>DD Control: <strong id="bearDdExemptStatus">EXEMPT</strong></div>
                 </div>
                 <div id="bearAllowedSectors" style="display:none; margin-top: 4px; padding: 4px 8px; background: rgba(230,126,34,0.1); border-radius: 6px; font-size: 0.75em;">
                     <strong>Allowed:</strong> <span id="bearSectorsList">-</span>
@@ -1248,6 +1257,24 @@ function applyConfigToUI(cfg) {
             el.removeAttribute('title');
         }
     });
+    // v5.3: Update Stock-D filter status
+    const stockDEl = document.getElementById('stockDStatus');
+    const stockDIcon = document.getElementById('stockDIcon');
+    if (stockDEl) {
+        const enabled = cfg.stock_d_filter_enabled !== false;
+        stockDEl.textContent = enabled ? 'ON' : 'OFF';
+        stockDEl.style.color = enabled ? '#27ae60' : '#95a5a6';
+        if (stockDIcon) stockDIcon.style.background = enabled ? '#16a085' : '#7f8c8d';
+    }
+    // v5.3: Update BEAR DD exempt status
+    const bearDdEl = document.getElementById('bearDdExemptStatus');
+    const bearDdIcon = document.getElementById('bearDdExemptIcon');
+    if (bearDdEl) {
+        const exempt = cfg.bear_dd_control_exempt !== false;
+        bearDdEl.textContent = exempt ? 'EXEMPT' : 'ACTIVE';
+        bearDdEl.style.color = exempt ? '#9b59b6' : '#e74c3c';
+        if (bearDdIcon) bearDdIcon.style.background = exempt ? '#9b59b6' : '#e74c3c';
+    }
 }
 
 function applyEffectiveOverrides(ep, baseCfg) {
@@ -1428,13 +1455,14 @@ function loadAlerts() {
                 if (data.daily_stats) {
                     const stats = data.daily_stats;
                     document.getElementById('statExecuted').textContent = stats.trades_executed || 0;
-                    document.getElementById('statSkipped').textContent = (stats.gap_rejected || 0) + (stats.earnings_rejected || 0);
+                    document.getElementById('statSkipped').textContent = (stats.gap_rejected || 0) + (stats.earnings_rejected || 0) + (stats.stock_d_rejected || 0);
                     const dayPnl = stats.realized_pnl || 0;
                     const dayPnlEl = document.getElementById('statDayPnL');
                     dayPnlEl.textContent = (dayPnl >= 0 ? '+' : '') + '$' + dayPnl.toFixed(2);
                     dayPnlEl.className = 'fw-bold ' + (dayPnl >= 0 ? 'text-success' : 'text-danger');
                     document.getElementById('statGapRejected').textContent = stats.gap_rejected || 0;
                     document.getElementById('statEarningsRejected').textContent = stats.earnings_rejected || 0;
+                    document.getElementById('statStockDRejected').textContent = stats.stock_d_rejected || 0;
                     document.getElementById('statLowRiskTrades').textContent = stats.low_risk_trades || 0;
                 }
                 if (data.queue) {
