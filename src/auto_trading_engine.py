@@ -4184,12 +4184,320 @@ class AutoTradingEngine:
             logger.info(f"Saved {len(self.positions)} position(s) state on shutdown")
         logger.info("Trading engine stopped")
 
+    # =========================================================================
+    # RUN LOOP HELPERS (v6.6 Refactor)
+    # =========================================================================
+
+    def _loop_check_loss_limits(self, mode: str) -> bool:
+        """Check all loss limits. Returns True if ANY limit hit (trading blocked)."""
+        if self.check_daily_loss_limit(mode=mode):
+            logger.warning("Daily loss limit - no new trades today")
+            return True
+        if self.check_weekly_loss_limit(mode=mode):
+            logger.warning("Weekly loss limit - no new trades this week")
+            return True
+        if self.check_consecutive_loss_cooldown(mode=mode):
+            logger.warning("Consecutive loss cooldown - no new trades today")
+            return True
+        return False
+
+    def _loop_get_screener_data(self) -> tuple:
+        """Get data_cache and sector_regime from screener. Loads if empty."""
+        data_cache = self.screener.data_cache if self.screener else {}
+        if not data_cache and self.screener:
+            universe = self.screener.generate_universe()[:100]
+            self.screener.load_data(universe)
+            data_cache = self.screener.data_cache
+        sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
+        return data_cache, sector_regime
+
+    def _loop_add_breakout_signals(self, signals: list, context: str, check_pdt: bool = False) -> list:
+        """Add breakout scanner signals to existing signals list."""
+        if not (self.breakout_scanner and self.BREAKOUT_SCAN_ENABLED):
+            return signals
+
+        # PDT check for morning BEAR scan
+        if check_pdt:
+            pdt_status = self.pdt_guard.get_pdt_status()
+            if pdt_status.remaining < 1:
+                logger.info(f"{context}: SKIP (PDT budget=0, wait for afternoon)")
+                return signals
+
+        try:
+            data_cache, sector_regime = self._loop_get_screener_data()
+            breakout_signals = self.breakout_scanner.scan(
+                universe=data_cache,
+                sector_regime=sector_regime,
+                min_score=self.BREAKOUT_MIN_SCORE,
+                min_volume_mult=self.BREAKOUT_MIN_VOLUME_MULT,
+                target_pct=self.BREAKOUT_TARGET_PCT,
+                sl_pct=self.BREAKOUT_SL_PCT,
+            )
+            if breakout_signals:
+                pdt_info = f" (PDT budget={self.pdt_guard.get_pdt_status().remaining})" if check_pdt else ""
+                logger.info(f"{context}: {len(breakout_signals)} signals{pdt_info}")
+                signals.extend(breakout_signals)
+                signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
+        except Exception as e:
+            logger.warning(f"{context} error: {e}")
+        return signals
+
+    def _loop_add_overnight_signals(self, signals: list, context: str) -> list:
+        """Add overnight gap scanner signals to existing signals list."""
+        if not (self.overnight_scanner and self.OVERNIGHT_GAP_ENABLED):
+            return signals
+
+        try:
+            data_cache, sector_regime = self._loop_get_screener_data()
+            overnight_signals = self.overnight_scanner.scan(
+                universe=data_cache,
+                sector_regime=sector_regime,
+                min_score=self.OVERNIGHT_GAP_MIN_SCORE,
+                position_pct=self.OVERNIGHT_GAP_POSITION_PCT,
+                target_pct=self.OVERNIGHT_GAP_TARGET_PCT,
+                sl_pct=self.OVERNIGHT_GAP_SL_PCT,
+            )
+            if overnight_signals:
+                logger.info(f"{context}: {len(overnight_signals)} signals")
+                signals.extend(overnight_signals)
+                signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
+        except Exception as e:
+            logger.warning(f"{context} error: {e}")
+        return signals
+
+    def _loop_with_afternoon_params(self, scan_func, scan_type: str, max_positions: int):
+        """Execute scan with stricter afternoon parameters, then restore."""
+        saved_min_score = self.MIN_SCORE
+        saved_gap_up = self.GAP_MAX_UP
+        saved_gap_down = self.GAP_MAX_DOWN
+        self.MIN_SCORE = max(self.MIN_SCORE, self.AFTERNOON_MIN_SCORE)
+        self.GAP_MAX_UP = self.AFTERNOON_GAP_MAX_UP
+        self.GAP_MAX_DOWN = self.AFTERNOON_GAP_MAX_DOWN
+        try:
+            signals = scan_func()
+            self._process_scan_signals(signals, scan_type, max_positions=max_positions)
+        finally:
+            self.MIN_SCORE = saved_min_score
+            self.GAP_MAX_UP = saved_gap_up
+            self.GAP_MAX_DOWN = saved_gap_down
+
+    def _loop_update_regime_status(self, is_bull: bool):
+        """Update daily_stats.regime_status based on market regime."""
+        if is_bull:
+            self.daily_stats.regime_status = "BULL"
+        elif self.BEAR_MODE_ENABLED:
+            self.daily_stats.regime_status = "BEAR_MODE"
+        else:
+            self.daily_stats.regime_status = "BEAR"
+
+    def _loop_morning_scan(self, today: str) -> bool:
+        """
+        Execute morning scan logic. Returns True if should continue to next loop iteration.
+        Handles late start, BEAR mode, and BULL mode scanning.
+        """
+        et_now = self._get_et_time()
+        market_open = et_now.replace(
+            hour=self.MARKET_OPEN_HOUR,
+            minute=self.MARKET_OPEN_MINUTE,
+            second=0, microsecond=0
+        )
+        scan_time = market_open + timedelta(minutes=self.MARKET_OPEN_SCAN_DELAY)
+
+        # Wait for market to settle (09:30-09:35 = spread wide, volatile)
+        if et_now < scan_time:
+            wait_secs = (scan_time - et_now).total_seconds()
+            logger.info(f"⏳ Waiting {wait_secs:.0f}s for market to settle (scan at {scan_time.strftime('%H:%M')} ET)")
+            time.sleep(wait_secs)
+
+        # Check for late start
+        is_late, late_reason = self._is_late_start()
+        if is_late:
+            logger.info(f"⏰ {late_reason} — running immediate scan with afternoon parameters")
+            self.daily_stats.late_start_skipped = True
+            is_bull, _ = self._check_market_regime()
+            self._loop_update_regime_status(is_bull)
+
+            if not is_bull and not self.BEAR_MODE_ENABLED:
+                logger.warning(f"📉 BEAR market + bear mode disabled — no trades")
+            else:
+                params = self._get_effective_params()
+                mode = params.get('mode', 'NORMAL')
+                if not self._loop_check_loss_limits(mode):
+                    self._clear_queue_end_of_day()
+                    effective_max = params.get('max_positions') or self.MAX_POSITIONS
+                    self._loop_with_afternoon_params(self.scan_for_signals, "late_start", effective_max)
+
+            self._morning_scan_done = today
+            return True  # Continue to next iteration
+
+        # Normal morning scan
+        is_bull, _ = self._check_market_regime()
+        self._loop_update_regime_status(is_bull)
+
+        if not is_bull and not self.BEAR_MODE_ENABLED:
+            logger.warning(f"📉 BEAR market - skipping all new trades today")
+            self.daily_stats.regime_skipped = True
+        elif not is_bull and self.BEAR_MODE_ENABLED:
+            # BEAR mode - trade defensive sectors only
+            logger.info(f"🐻 BEAR market — Smart Bear Mode active (defensive sectors only)")
+            params = self._get_effective_params()
+            mode = params.get('mode', 'BEAR')
+            if not self._loop_check_loss_limits(mode):
+                self._clear_queue_end_of_day()
+                effective_max = params.get('max_positions') or self.MAX_POSITIONS
+                signals = self.scan_for_signals()
+                signals = self._loop_add_breakout_signals(signals, "BEAR breakout", check_pdt=True)
+                signals = self._loop_add_overnight_signals(signals, "BEAR overnight gap (morning)")
+                self._process_scan_signals(signals, "morning", max_positions=effective_max)
+                self._overnight_scan_done = today
+        else:
+            # BULL mode
+            params = self._get_effective_params()
+            mode = params.get('mode', 'NORMAL')
+            if not self._loop_check_loss_limits(mode):
+                self._clear_queue_end_of_day()
+                signals = self.scan_for_signals()
+                signals = self._loop_add_breakout_signals(signals, "Breakout scan")
+                signals = self._loop_add_overnight_signals(signals, "BULL overnight gap (morning)")
+                self._process_scan_signals(signals, "morning")
+                self._overnight_scan_done = today
+
+        self._morning_scan_done = today
+        return False
+
+    def _loop_afternoon_scan(self, today: str):
+        """Execute afternoon scan if conditions are met."""
+        if not self.AFTERNOON_SCAN_ENABLED:
+            return
+        if hasattr(self, '_afternoon_scan_done') and self._afternoon_scan_done == today:
+            return
+
+        et_now = self._get_et_time()
+        afternoon_time = et_now.replace(
+            hour=self.AFTERNOON_SCAN_HOUR,
+            minute=self.AFTERNOON_SCAN_MINUTE,
+            second=0, microsecond=0
+        )
+        if et_now < afternoon_time:
+            return
+
+        params = self._get_effective_params()
+        afternoon_max = params.get('max_positions') or self.MAX_POSITIONS
+        if len(self.positions) >= afternoon_max:
+            return
+
+        logger.info(f"☀️ Afternoon scan: {len(self.positions)}/{afternoon_max} positions, scanning for more...")
+        self._afternoon_scan_done = today
+
+        mode = params.get('mode', 'NORMAL')
+        is_bull, _ = self._check_market_regime()
+        if not (is_bull or self.BEAR_MODE_ENABLED) or self._loop_check_loss_limits(mode):
+            return
+
+        def scan_with_breakout():
+            signals = self.scan_for_signals()
+            return self._loop_add_breakout_signals(signals, "Afternoon breakout")
+
+        self._loop_with_afternoon_params(scan_with_breakout, "afternoon", afternoon_max)
+
+    def _loop_continuous_scan(self, today: str):
+        """Execute continuous scan with dynamic interval (volatile: 3min, normal: 5min)."""
+        if not self.CONTINUOUS_SCAN_ENABLED:
+            return
+        if not (hasattr(self, '_morning_scan_done') and self._morning_scan_done == today):
+            return
+        if self._is_pre_close():
+            return
+
+        et_now = self._get_et_time()
+
+        # Dynamic interval based on volatility period
+        is_volatile_period = et_now.hour < self.CONTINUOUS_SCAN_VOLATILE_END_HOUR
+        interval_minutes = self.CONTINUOUS_SCAN_VOLATILE_INTERVAL if is_volatile_period else self.CONTINUOUS_SCAN_INTERVAL_MINUTES
+        interval_seconds = interval_minutes * 60
+
+        # Check timing
+        last_cont_scan = getattr(self, '_last_continuous_scan', None)
+        if last_cont_scan is not None:
+            elapsed = (et_now - last_cont_scan).total_seconds()
+            if elapsed < interval_seconds:
+                return
+
+        params = self._get_effective_params()
+        cont_max = params.get('max_positions') or self.MAX_POSITIONS
+        cont_mode = params.get('mode', 'NORMAL')
+
+        is_bull, _ = self._check_market_regime()
+        if not (is_bull or self.BEAR_MODE_ENABLED) or self._loop_check_loss_limits(cont_mode):
+            self._last_continuous_scan = et_now
+            return
+
+        # Dynamic params based on time of day
+        use_afternoon = et_now.hour >= self.CONTINUOUS_SCAN_MIDDAY_HOUR
+        session_label = "afternoon" if use_afternoon else "morning"
+        period_label = "volatile" if is_volatile_period else "normal"
+        is_full = len(self.positions) >= cont_max
+        full_tag = " [FULL]" if is_full else ""
+        logger.info(f"🔄 Continuous scan ({session_label} params, {interval_minutes}min/{period_label}): {len(self.positions)}/{cont_max} positions{full_tag}")
+
+        if use_afternoon:
+            self._loop_with_afternoon_params(self.scan_for_signals, f"continuous_{session_label}", cont_max)
+        else:
+            signals = self.scan_for_signals()
+            self._process_scan_signals(signals, f"continuous_{session_label}", max_positions=cont_max)
+
+        self._last_continuous_scan = et_now
+
+    def _loop_overnight_gap_scan(self, today: str):
+        """Execute overnight gap scan (15:30-15:50 ET)."""
+        if not (self.overnight_scanner and self.OVERNIGHT_GAP_ENABLED):
+            return
+        if hasattr(self, '_overnight_scan_done') and self._overnight_scan_done == today:
+            return
+
+        et_now = self._get_et_time()
+        gap_scan_start = et_now.replace(
+            hour=self.OVERNIGHT_GAP_SCAN_HOUR,
+            minute=self.OVERNIGHT_GAP_SCAN_MINUTE,
+            second=0, microsecond=0
+        )
+        gap_scan_end = et_now.replace(hour=15, minute=50, second=0, microsecond=0)
+        if not (gap_scan_start <= et_now < gap_scan_end):
+            return
+
+        params = self._get_effective_params()
+        overnight_max = params.get('max_positions') or self.MAX_POSITIONS
+        if len(self.positions) >= overnight_max:
+            return
+
+        logger.info(f"Overnight gap scan: {len(self.positions)}/{overnight_max} positions")
+        self._overnight_scan_done = today
+
+        mode = params.get('mode', 'NORMAL')
+        is_bull, _ = self._check_market_regime()
+        if not (is_bull or self.BEAR_MODE_ENABLED) or self._loop_check_loss_limits(mode):
+            return
+
+        try:
+            data_cache, sector_regime = self._loop_get_screener_data()
+            gap_signals = self.overnight_scanner.scan(
+                universe=data_cache,
+                sector_regime=sector_regime,
+                min_score=self.OVERNIGHT_GAP_MIN_SCORE,
+                position_pct=self.OVERNIGHT_GAP_POSITION_PCT,
+                target_pct=self.OVERNIGHT_GAP_TARGET_PCT,
+                sl_pct=self.OVERNIGHT_GAP_SL_PCT,
+            )
+            self._process_scan_signals(gap_signals, "overnight_gap", max_positions=overnight_max)
+        except Exception as e:
+            logger.warning(f"Overnight gap scan error: {e}")
+
     def _run_loop(self):
-        """Main trading loop"""
+        """Main trading loop (v6.6 refactored)"""
         logger.info("Trading loop started")
 
         last_scan_date = None
-        consecutive_errors = 0  # v4.7 Fix #13: Circuit breaker counter
+        consecutive_errors = 0
 
         while self.running:
             try:
@@ -4201,8 +4509,7 @@ class AutoTradingEngine:
                     time.sleep(60)
                     continue
 
-                # Check market status
-                # v5.1 P2-15: Fail-closed on clock error (assume market closed)
+                # Check market status (fail-closed on error)
                 try:
                     clock = self.broker.get_clock()
                 except Exception as clock_err:
@@ -4217,425 +4524,40 @@ class AutoTradingEngine:
 
                 if not clock['is_open']:
                     self.state = TradingState.SLEEPING
-                    # v6.1: Write market closed cache for UI (once per close)
                     if not getattr(self, '_market_closed_cache_written', False):
                         self._save_market_closed_cache()
                         self._market_closed_cache_written = True
                     time.sleep(60)
                     continue
                 else:
-                    # Reset flag when market opens
                     self._market_closed_cache_written = False
 
-                # v5.1 P2-15: Detect early close (e.g., day before Thanksgiving = 1 PM close)
+                # Detect early close (e.g., day before Thanksgiving)
                 try:
                     next_close = clock.get('next_close')
-                    if next_close and hasattr(next_close, 'hour'):
-                        if next_close.hour < 16:  # Normal close is 16:00 ET
-                            if not hasattr(self, '_early_close_warned') or self._early_close_warned != now.date():
-                                logger.warning(f"⚠️ EARLY CLOSE today at {next_close.strftime('%H:%M ET')} — adjusting scan windows")
-                                self._early_close_warned = now.date()
+                    if next_close and hasattr(next_close, 'hour') and next_close.hour < 16:
+                        if not hasattr(self, '_early_close_warned') or self._early_close_warned != now.date():
+                            logger.warning(f"⚠️ EARLY CLOSE today at {next_close.strftime('%H:%M ET')} — adjusting scan windows")
+                            self._early_close_warned = now.date()
                 except Exception:
-                    pass  # next_close parsing is best-effort
+                    pass
 
                 # Market is open
                 self.state = TradingState.TRADING
-
-                # v5.1: Position reconciliation (once per day)
                 self._reconcile_positions()
 
-                # Pre-market scan (once per day at open)
+                # Morning scan (once per day)
                 today = now.strftime('%Y-%m-%d')
                 if last_scan_date != today:
-                    # v4.7: Wait for market to settle before scanning
-                    # 09:30-09:35 = spread กว้าง, volatile, slippage สูง
-                    # 09:35+ = spread แคบ, ราคานิ่งขึ้น, ได้ราคาดีกว่า
-                    et_now = self._get_et_time()
-                    market_open = et_now.replace(
-                        hour=self.MARKET_OPEN_HOUR,
-                        minute=self.MARKET_OPEN_MINUTE,
-                        second=0, microsecond=0
-                    )
-                    scan_time = market_open + timedelta(minutes=self.MARKET_OPEN_SCAN_DELAY)
-                    if et_now < scan_time:
-                        wait_secs = (scan_time - et_now).total_seconds()
-                        logger.info(f"⏳ Waiting {wait_secs:.0f}s for market to settle (scan at {scan_time.strftime('%H:%M')} ET)")
-                        time.sleep(wait_secs)
-
-                    # v4.4→v4.9.5: Late start — scan immediately with afternoon strictness
-                    # Market has settled, no reason to wait until 14:00
-                    is_late, late_reason = self._is_late_start()
-                    if is_late:
-                        logger.info(f"⏰ {late_reason} — running immediate scan with afternoon parameters")
-                        self.daily_stats.late_start_skipped = True
-
-                        is_bull, regime_reason = self._check_market_regime()
-                        if is_bull:
-                            self.daily_stats.regime_status = "BULL"
-                        elif self.BEAR_MODE_ENABLED:
-                            self.daily_stats.regime_status = "BEAR_MODE"
-                        else:
-                            self.daily_stats.regime_status = "BEAR"
-
-                        if not is_bull and not self.BEAR_MODE_ENABLED:
-                            logger.warning(f"📉 BEAR market + bear mode disabled — no trades")
-                        else:
-                            # v5.3: Get mode early for BEAR DD exemption
-                            params = self._get_effective_params()
-                            mode = params.get('mode', 'NORMAL')
-
-                            if self.check_daily_loss_limit(mode=mode):
-                                logger.warning("Daily loss limit - no new trades today")
-                            elif self.check_weekly_loss_limit(mode=mode):
-                                logger.warning("Weekly loss limit - no new trades this week")
-                            elif self.check_consecutive_loss_cooldown(mode=mode):
-                                logger.warning("Consecutive loss cooldown - no new trades today")
-                            else:
-                                self._clear_queue_end_of_day()
-                                effective_max = params.get('max_positions') or self.MAX_POSITIONS
-
-                                # Use afternoon strictness for late start
-                                saved_min_score = self.MIN_SCORE
-                                saved_gap_up = self.GAP_MAX_UP
-                                saved_gap_down = self.GAP_MAX_DOWN
-                                self.MIN_SCORE = max(self.MIN_SCORE, self.AFTERNOON_MIN_SCORE)
-                                self.GAP_MAX_UP = self.AFTERNOON_GAP_MAX_UP
-                                self.GAP_MAX_DOWN = self.AFTERNOON_GAP_MAX_DOWN
-                                try:
-                                    signals = self.scan_for_signals()
-                                    self._process_scan_signals(signals, "late_start", max_positions=effective_max)
-                                finally:
-                                    self.MIN_SCORE = saved_min_score
-                                    self.GAP_MAX_UP = saved_gap_up
-                                    self.GAP_MAX_DOWN = saved_gap_down
-
-                        self._morning_scan_done = today
+                    if self._loop_morning_scan(today):
                         last_scan_date = today
                         continue
-
-                    # v4.0: Check market regime first
-                    is_bull, regime_reason = self._check_market_regime()
-
-                    # v4.9.2: Determine regime status with bear mode
-                    if is_bull:
-                        self.daily_stats.regime_status = "BULL"
-                    elif self.BEAR_MODE_ENABLED:
-                        self.daily_stats.regime_status = "BEAR_MODE"
-                    else:
-                        self.daily_stats.regime_status = "BEAR"
-
-                    if not is_bull and not self.BEAR_MODE_ENABLED:
-                        # v4.0: Hard block when bear mode disabled
-                        logger.warning(f"📉 BEAR market - skipping all new trades today")
-                        self.daily_stats.regime_skipped = True
-                    elif not is_bull and self.BEAR_MODE_ENABLED:
-                        # v4.9.2: Smart Bear Mode — trade defensive sectors only
-                        logger.info(f"🐻 BEAR market — Smart Bear Mode active (defensive sectors only)")
-                        # v5.3: Get mode for BEAR DD exemption
-                        params = self._get_effective_params()
-                        mode = params.get('mode', 'BEAR')
-                        if self.check_daily_loss_limit(mode=mode):
-                            logger.warning("Daily loss limit - no new trades today")
-                        elif self.check_weekly_loss_limit(mode=mode):
-                            logger.warning("Weekly loss limit - no new trades this week")
-                        elif self.check_consecutive_loss_cooldown(mode=mode):
-                            logger.warning("Consecutive loss cooldown - no new trades today")
-                        else:
-                            self._clear_queue_end_of_day()
-                            params = self._get_effective_params()
-                            effective_max = params.get('max_positions') or self.MAX_POSITIONS
-                            signals = self.scan_for_signals()
-
-                            # v4.9.5: Add breakout scanner to BEAR morning scan
-                            # Only if PDT budget >= 1 (breakout = momentum play, may need day-trade exit)
-                            # PDT budget = 0 → skip morning breakout, wait for afternoon
-                            if self.breakout_scanner and self.BREAKOUT_SCAN_ENABLED:
-                                pdt_status = self.pdt_guard.get_pdt_status()
-                                if pdt_status.remaining >= 1:
-                                    try:
-                                        data_cache = self.screener.data_cache if self.screener else {}
-                                        if not data_cache and self.screener:
-                                            logger.info("BEAR breakout: Loading data (cache was empty)")
-                                            universe = self.screener.generate_universe()[:100]
-                                            self.screener.load_data(universe)
-                                            data_cache = self.screener.data_cache
-                                        sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
-                                        breakout_signals = self.breakout_scanner.scan(
-                                            universe=data_cache,
-                                            sector_regime=sector_regime,
-                                            min_score=self.BREAKOUT_MIN_SCORE,
-                                            min_volume_mult=self.BREAKOUT_MIN_VOLUME_MULT,
-                                            target_pct=self.BREAKOUT_TARGET_PCT,
-                                            sl_pct=self.BREAKOUT_SL_PCT,
-                                        )
-                                        if breakout_signals:
-                                            logger.info(f"BEAR breakout: {len(breakout_signals)} signals (PDT budget={pdt_status.remaining})")
-                                            signals.extend(breakout_signals)
-                                            signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
-                                    except Exception as e:
-                                        logger.warning(f"BEAR breakout scan error: {e}")
-                                else:
-                                    logger.info(f"BEAR breakout: SKIP morning (PDT budget=0, wait for afternoon)")
-
-                            # v5.1: Add overnight gap scanner to BEAR morning scan
-                            if self.overnight_scanner and self.OVERNIGHT_GAP_ENABLED:
-                                try:
-                                    data_cache = self.screener.data_cache if self.screener else {}
-                                    if not data_cache and self.screener:
-                                        universe = self.screener.generate_universe()[:100]
-                                        self.screener.load_data(universe)
-                                        data_cache = self.screener.data_cache
-                                    sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
-                                    overnight_signals = self.overnight_scanner.scan(
-                                        universe=data_cache,
-                                        sector_regime=sector_regime,
-                                        min_score=self.OVERNIGHT_GAP_MIN_SCORE,
-                                        position_pct=self.OVERNIGHT_GAP_POSITION_PCT,
-                                        target_pct=self.OVERNIGHT_GAP_TARGET_PCT,
-                                        sl_pct=self.OVERNIGHT_GAP_SL_PCT,
-                                    )
-                                    if overnight_signals:
-                                        logger.info(f"BEAR overnight gap (morning): {len(overnight_signals)} signals")
-                                        signals.extend(overnight_signals)
-                                        signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
-                                except Exception as e:
-                                    logger.warning(f"BEAR overnight gap scan error: {e}")
-
-                            self._process_scan_signals(signals, "morning", max_positions=effective_max)
-                            self._overnight_scan_done = today  # Prevent duplicate 15:30 run
-                    else:
-                        # BULL mode - get params for DD check
-                        params = self._get_effective_params()
-                        mode = params.get('mode', 'NORMAL')
-                        if self.check_daily_loss_limit(mode=mode):
-                            logger.warning("Daily loss limit - no new trades today")
-                        elif self.check_weekly_loss_limit(mode=mode):
-                            logger.warning("Weekly loss limit - no new trades this week")
-                        elif self.check_consecutive_loss_cooldown(mode=mode):
-                            logger.warning("Consecutive loss cooldown - no new trades today")
-                        else:
-                            # v4.1: Clear queue from previous day
-                            self._clear_queue_end_of_day()
-
-                            # Scan and execute (regime is BULL)
-                            signals = self.scan_for_signals()
-
-                            # v4.9.4: Add breakout scan signals to morning scan
-                            if self.breakout_scanner and self.BREAKOUT_SCAN_ENABLED:
-                                try:
-                                    # Ensure data is loaded (may be empty if bounce scan early-returned)
-                                    data_cache = self.screener.data_cache if self.screener else {}
-                                    if not data_cache and self.screener:
-                                        logger.info("Breakout scan: Loading data (cache was empty)")
-                                        universe = self.screener.generate_universe()[:100]
-                                        self.screener.load_data(universe)
-                                        data_cache = self.screener.data_cache
-                                    sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
-                                    breakout_signals = self.breakout_scanner.scan(
-                                        universe=data_cache,
-                                        sector_regime=sector_regime,
-                                        min_score=self.BREAKOUT_MIN_SCORE,
-                                        min_volume_mult=self.BREAKOUT_MIN_VOLUME_MULT,
-                                        target_pct=self.BREAKOUT_TARGET_PCT,
-                                        sl_pct=self.BREAKOUT_SL_PCT,
-                                    )
-                                    if breakout_signals:
-                                        logger.info(f"Breakout scan: {len(breakout_signals)} signals found")
-                                        signals.extend(breakout_signals)
-                                        # Re-sort all signals by score
-                                        signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
-                                except Exception as e:
-                                    logger.warning(f"Breakout scan error: {e}")
-
-                            # v5.1: Add overnight gap scanner to BULL morning scan
-                            if self.overnight_scanner and self.OVERNIGHT_GAP_ENABLED:
-                                try:
-                                    data_cache = self.screener.data_cache if self.screener else {}
-                                    if not data_cache and self.screener:
-                                        universe = self.screener.generate_universe()[:100]
-                                        self.screener.load_data(universe)
-                                        data_cache = self.screener.data_cache
-                                    sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
-                                    overnight_signals = self.overnight_scanner.scan(
-                                        universe=data_cache,
-                                        sector_regime=sector_regime,
-                                        min_score=self.OVERNIGHT_GAP_MIN_SCORE,
-                                        position_pct=self.OVERNIGHT_GAP_POSITION_PCT,
-                                        target_pct=self.OVERNIGHT_GAP_TARGET_PCT,
-                                        sl_pct=self.OVERNIGHT_GAP_SL_PCT,
-                                    )
-                                    if overnight_signals:
-                                        logger.info(f"BULL overnight gap (morning): {len(overnight_signals)} signals")
-                                        signals.extend(overnight_signals)
-                                        signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
-                                except Exception as e:
-                                    logger.warning(f"BULL overnight gap scan error: {e}")
-
-                            self._process_scan_signals(signals, "morning")
-                            self._overnight_scan_done = today  # Prevent duplicate 15:30 run
-
-                    self._morning_scan_done = today
                     last_scan_date = today
 
-                # v4.9.1: Afternoon scan — fill empty slots after lunch dip
-                if self.AFTERNOON_SCAN_ENABLED and last_scan_date == today:
-                    et_now = self._get_et_time()
-                    afternoon_time = et_now.replace(
-                        hour=self.AFTERNOON_SCAN_HOUR,
-                        minute=self.AFTERNOON_SCAN_MINUTE,
-                        second=0, microsecond=0
-                    )
-                    if not hasattr(self, '_afternoon_scan_done') or self._afternoon_scan_done != today:
-                        # v4.9.2: Use effective max_positions for afternoon scan too
-                        afternoon_params = self._get_effective_params()
-                        afternoon_max = afternoon_params.get('max_positions') or self.MAX_POSITIONS
-                        afternoon_mode = afternoon_params.get('mode', 'NORMAL')  # v5.3: For BEAR DD exemption
-                        if et_now >= afternoon_time and len(self.positions) < afternoon_max:
-                            logger.info(f"☀️ Afternoon scan: {len(self.positions)}/{afternoon_max} positions, scanning for more...")
-                            self._afternoon_scan_done = today
-                            is_bull, _ = self._check_market_regime()
-                            if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit(mode=afternoon_mode) and not self.check_weekly_loss_limit(mode=afternoon_mode) and not self.check_consecutive_loss_cooldown(mode=afternoon_mode):
-                                # Use stricter params for afternoon
-                                saved_min_score = self.MIN_SCORE
-                                saved_gap_up = self.GAP_MAX_UP
-                                saved_gap_down = self.GAP_MAX_DOWN
-                                self.MIN_SCORE = max(self.MIN_SCORE, self.AFTERNOON_MIN_SCORE)
-                                self.GAP_MAX_UP = self.AFTERNOON_GAP_MAX_UP
-                                self.GAP_MAX_DOWN = self.AFTERNOON_GAP_MAX_DOWN
-                                try:
-                                    signals = self.scan_for_signals()
-
-                                    # v4.9.4: Add breakout scan to afternoon
-                                    if self.breakout_scanner and self.BREAKOUT_SCAN_ENABLED:
-                                        try:
-                                            # Ensure data is loaded
-                                            data_cache = self.screener.data_cache if self.screener else {}
-                                            if not data_cache and self.screener:
-                                                logger.info("Afternoon breakout: Loading data (cache was empty)")
-                                                universe = self.screener.generate_universe()[:100]
-                                                self.screener.load_data(universe)
-                                                data_cache = self.screener.data_cache
-                                            sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
-                                            breakout_signals = self.breakout_scanner.scan(
-                                                universe=data_cache,
-                                                sector_regime=sector_regime,
-                                                min_score=self.BREAKOUT_MIN_SCORE,
-                                                min_volume_mult=self.BREAKOUT_MIN_VOLUME_MULT,
-                                                target_pct=self.BREAKOUT_TARGET_PCT,
-                                                sl_pct=self.BREAKOUT_SL_PCT,
-                                            )
-                                            if breakout_signals:
-                                                logger.info(f"Afternoon breakout: {len(breakout_signals)} signals")
-                                                signals.extend(breakout_signals)
-                                                signals.sort(key=lambda x: getattr(x, 'score', 0), reverse=True)
-                                        except Exception as e:
-                                            logger.warning(f"Afternoon breakout error: {e}")
-
-                                    self._process_scan_signals(signals, "afternoon", max_positions=afternoon_max)
-                                finally:
-                                    self.MIN_SCORE = saved_min_score
-                                    self.GAP_MAX_UP = saved_gap_up
-                                    self.GAP_MAX_DOWN = saved_gap_down
-
-                # v6.3: Continuous scan between sessions (dynamic interval + params)
-                # 09:35-11:00: 3 min (volatile), 11:00-16:00: 5 min (slower)
-                if self.CONTINUOUS_SCAN_ENABLED and last_scan_date == today:
-                    et_now = self._get_et_time()
-                    # Only run between morning scan done and market close (not pre-close)
-                    if hasattr(self, '_morning_scan_done') and self._morning_scan_done == today and not self._is_pre_close():
-                        # Dynamic interval: volatile period (09:35-11:00) = 3 min, else = 5 min
-                        is_volatile_period = et_now.hour < self.CONTINUOUS_SCAN_VOLATILE_END_HOUR
-                        if is_volatile_period:
-                            interval_minutes = self.CONTINUOUS_SCAN_VOLATILE_INTERVAL
-                        else:
-                            interval_minutes = self.CONTINUOUS_SCAN_INTERVAL_MINUTES
-                        interval_seconds = interval_minutes * 60
-
-                        # Check if enough time passed since last continuous scan
-                        last_cont_scan = getattr(self, '_last_continuous_scan', None)
-                        should_scan = False
-                        if last_cont_scan is None:
-                            # First continuous scan after morning
-                            should_scan = True
-                        else:
-                            elapsed = (et_now - last_cont_scan).total_seconds()
-                            if elapsed >= interval_seconds:
-                                should_scan = True
-
-                        if should_scan:
-                            cont_params = self._get_effective_params()
-                            cont_max = cont_params.get('max_positions') or self.MAX_POSITIONS
-                            cont_mode = cont_params.get('mode', 'NORMAL')
-
-                            # v6.4: Always scan to populate waiting_signals for UI (even when positions full)
-                            is_full = len(self.positions) >= cont_max
-                            is_bull, _ = self._check_market_regime()
-                            if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit(mode=cont_mode) and not self.check_weekly_loss_limit(mode=cont_mode) and not self.check_consecutive_loss_cooldown(mode=cont_mode):
-                                # Dynamic params: morning before midday, afternoon after
-                                use_afternoon = et_now.hour >= self.CONTINUOUS_SCAN_MIDDAY_HOUR
-                                session_label = "afternoon" if use_afternoon else "morning"
-                                period_label = "volatile" if is_volatile_period else "normal"
-                                full_tag = " [FULL]" if is_full else ""
-                                logger.info(f"🔄 Continuous scan ({session_label} params, {interval_minutes}min/{period_label}): {len(self.positions)}/{cont_max} positions{full_tag}")
-
-                                saved_min_score = self.MIN_SCORE
-                                saved_gap_up = self.GAP_MAX_UP
-                                saved_gap_down = self.GAP_MAX_DOWN
-
-                                if use_afternoon:
-                                    self.MIN_SCORE = max(self.MIN_SCORE, self.AFTERNOON_MIN_SCORE)
-                                    self.GAP_MAX_UP = self.AFTERNOON_GAP_MAX_UP
-                                    self.GAP_MAX_DOWN = self.AFTERNOON_GAP_MAX_DOWN
-
-                                try:
-                                    signals = self.scan_for_signals()
-                                    self._process_scan_signals(signals, f"continuous_{session_label}", max_positions=cont_max)
-                                finally:
-                                    self.MIN_SCORE = saved_min_score
-                                    self.GAP_MAX_UP = saved_gap_up
-                                    self.GAP_MAX_DOWN = saved_gap_down
-
-                            self._last_continuous_scan = et_now
-
-                # v4.9.4: Overnight gap scan (15:30-15:50 ET)
-                if self.overnight_scanner and self.OVERNIGHT_GAP_ENABLED and last_scan_date == today:
-                    et_now = self._get_et_time()
-                    gap_scan_start = et_now.replace(
-                        hour=self.OVERNIGHT_GAP_SCAN_HOUR,
-                        minute=self.OVERNIGHT_GAP_SCAN_MINUTE,
-                        second=0, microsecond=0
-                    )
-                    gap_scan_end = et_now.replace(hour=15, minute=50, second=0, microsecond=0)
-                    if not hasattr(self, '_overnight_scan_done') or self._overnight_scan_done != today:
-                        if gap_scan_start <= et_now < gap_scan_end:
-                            overnight_params = self._get_effective_params()
-                            overnight_max = overnight_params.get('max_positions') or self.MAX_POSITIONS
-                            overnight_mode = overnight_params.get('mode', 'NORMAL')  # v5.3: For BEAR DD exemption
-                            if len(self.positions) < overnight_max:
-                                logger.info(f"Overnight gap scan: {len(self.positions)}/{overnight_max} positions")
-                                self._overnight_scan_done = today
-                                is_bull, _ = self._check_market_regime()
-                                if (is_bull or self.BEAR_MODE_ENABLED) and not self.check_daily_loss_limit(mode=overnight_mode) and not self.check_weekly_loss_limit(mode=overnight_mode) and not self.check_consecutive_loss_cooldown(mode=overnight_mode):
-                                    try:
-                                        # Ensure data is loaded for overnight scan
-                                        data_cache = self.screener.data_cache if self.screener else {}
-                                        if not data_cache and self.screener:
-                                            logger.info("Overnight scan: Loading data (cache was empty)")
-                                            universe = self.screener.generate_universe()[:100]
-                                            self.screener.load_data(universe)
-                                            data_cache = self.screener.data_cache
-                                        sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
-                                        gap_signals = self.overnight_scanner.scan(
-                                            universe=data_cache,
-                                            sector_regime=sector_regime,
-                                            min_score=self.OVERNIGHT_GAP_MIN_SCORE,
-                                            position_pct=self.OVERNIGHT_GAP_POSITION_PCT,
-                                            target_pct=self.OVERNIGHT_GAP_TARGET_PCT,
-                                            sl_pct=self.OVERNIGHT_GAP_SL_PCT,
-                                        )
-                                        self._process_scan_signals(gap_signals, "overnight_gap", max_positions=overnight_max)
-                                    except Exception as e:
-                                        logger.warning(f"Overnight gap scan error: {e}")
+                # Scheduled scans
+                self._loop_afternoon_scan(today)
+                self._loop_continuous_scan(today)
+                self._loop_overnight_gap_scan(today)
 
                 # Pre-close check
                 if self._is_pre_close():
@@ -4645,14 +4567,9 @@ class AutoTradingEngine:
                 # Monitor positions
                 self.state = TradingState.MONITORING
                 self.monitor_positions()
-
-                # v4.7 Fix #15: Write heartbeat
                 self._write_heartbeat()
 
-                # Wait for next interval
                 time.sleep(self.MONITOR_INTERVAL_SECONDS)
-
-                # v4.7: Reset error counter on successful cycle
                 consecutive_errors = 0
 
             except Exception as e:
@@ -4660,7 +4577,6 @@ class AutoTradingEngine:
                 self.state = TradingState.ERROR
                 consecutive_errors += 1
 
-                # v4.7 Fix #13: Circuit breaker
                 if consecutive_errors >= self.CIRCUIT_BREAKER_MAX_ERRORS:
                     logger.critical(f"🚨 CIRCUIT BREAKER: {consecutive_errors} consecutive errors — EMERGENCY STOP")
                     self.alerts.alert_circuit_breaker(consecutive_errors)
@@ -4670,7 +4586,6 @@ class AutoTradingEngine:
 
                 time.sleep(30)
 
-        # Generate daily summary on stop
         self.daily_summary()
 
     # =========================================================================
