@@ -837,21 +837,12 @@ class RapidRotationScreener:
 
         return tr.rolling(period).mean()
 
-    def analyze_stock(self, symbol: str, min_score: int = None, gap_max_up: float = None) -> Optional[RapidRotationSignal]:
-        """
-        Analyze a single stock for rapid rotation opportunity
+    # =========================================================================
+    # ANALYZE STOCK HELPERS (v6.6 Refactor)
+    # =========================================================================
 
-        v3.3: BOUNCE CONFIRMATION - Wait for recovery after dip
-        Key change: Don't catch falling knife, wait for bounce
-        """
-        if symbol not in self.data_cache:
-            return None
-
-        data = self.data_cache[symbol]
-        if len(data) < 30:
-            return None
-
-        idx = len(data) - 1
+    def _analyze_calc_indicators(self, data, idx: int) -> dict:
+        """Calculate all technical indicators for a stock."""
         close = data['close']
         high = data['high']
         low = data['low']
@@ -859,148 +850,112 @@ class RapidRotationScreener:
         open_price = data['open'] if 'open' in data.columns else close
 
         current_price = close.iloc[idx]
-
-        # Skip penny stocks (< $1), low-priced stocks (< $10), and very expensive stocks
-        if current_price < 1:
-            return None
-        if current_price < 10 or current_price > 2000:
-            return None
-
-        # Calculate indicators
         rsi = self.calculate_rsi(close).iloc[idx]
         atr = self.calculate_atr(data).iloc[idx]
-        atr_pct = (atr / current_price) * 100
 
         # Momentum
         mom_1d = (current_price / close.iloc[idx-1] - 1) * 100 if idx >= 1 else 0
         mom_5d = (current_price / close.iloc[idx-5] - 1) * 100 if idx >= 5 else 0
         mom_20d = (current_price / close.iloc[idx-20] - 1) * 100 if idx >= 20 else 0
-
-        # Yesterday's move (key for bounce confirmation)
         yesterday_move = ((close.iloc[idx-1] / close.iloc[idx-2]) - 1) * 100 if idx >= 2 else 0
 
-        # SMAs (include current bar: idx-N+1 to idx+1)
+        # SMAs
         sma5 = close.iloc[idx-4:idx+1].mean() if idx >= 4 else close.iloc[:idx+1].mean()
         sma20 = close.iloc[idx-19:idx+1].mean() if idx >= 19 else close.iloc[:idx+1].mean()
         sma50 = close.iloc[idx-49:idx+1].mean() if idx >= 49 else close.iloc[:idx+1].mean()
 
-        # Distance from recent high
+        # Distance from high
         high_20d = high.iloc[idx-20:idx].max() if idx >= 20 else high.max()
         dist_from_high = (high_20d - current_price) / high_20d * 100
 
-        # v3.10: Overextended detection
-        # Calculate max single-day move in last 10 days (extended window)
+        # Overextended detection
         if idx >= 11:
             daily_returns = [(close.iloc[i] / close.iloc[i-1] - 1) * 100 for i in range(idx-10, idx)]
             max_daily_move = max(abs(r) for r in daily_returns) if daily_returns else 0
         else:
             max_daily_move = 0
-
-        # Distance from SMA20 (how far price is above SMA20)
         sma20_extension = ((current_price / sma20) - 1) * 100 if sma20 > 0 else 0
 
         # Volume
         avg_volume = volume.iloc[idx-20:idx].mean() if idx >= 20 else volume.mean()
         volume_ratio = volume.iloc[idx] / avg_volume if avg_volume > 0 else 1
 
-        # Support level
-        support = low.iloc[idx-10:idx].min() if idx >= 10 else low.min()
-
-        # Gap calculation
+        # Gap and candle
         prev_close = close.iloc[idx-1] if idx >= 1 else current_price
         today_open = open_price.iloc[idx]
         gap_pct = (today_open - prev_close) / prev_close * 100
-
-        # Today's candle color (for bounce confirmation)
         today_is_green = current_price > today_open
 
-        # ==============================
-        # v3.3: BOUNCE CONFIRMATION FILTERS
-        # ==============================
-        # Key insight: Don't catch falling knife, wait for bounce
+        return {
+            'current_price': current_price, 'rsi': rsi, 'atr': atr,
+            'atr_pct': (atr / current_price) * 100,
+            'mom_1d': mom_1d, 'mom_5d': mom_5d, 'mom_20d': mom_20d,
+            'yesterday_move': yesterday_move,
+            'sma5': sma5, 'sma20': sma20, 'sma50': sma50,
+            'dist_from_high': dist_from_high,
+            'max_daily_move': max_daily_move, 'sma20_extension': sma20_extension,
+            'volume_ratio': volume_ratio, 'gap_pct': gap_pct,
+            'today_is_green': today_is_green, 'today_open': today_open,
+        }
 
+    def _analyze_bounce_filters(self, ind: dict, gap_max_up: float) -> Optional[str]:
+        """
+        Apply bounce confirmation filters. Returns filter name if blocked, None if passed.
+        """
         # FILTER 1: Yesterday MUST be down (the dip day)
-        if yesterday_move > -1.0:
-            self._filter_stats['no_dip'] += 1
-            return None  # Need yesterday to be a dip
+        if ind['yesterday_move'] > -1.0:
+            return 'no_dip'
 
         # FILTER 2: Today should show recovery (not falling further)
-        if mom_1d < -1.0:
-            self._filter_stats['still_falling'] += 1
-            return None  # Still falling hard, wait
+        if ind['mom_1d'] < -1.0:
+            return 'still_falling'
 
         # FILTER 3: Strong preference for green candle (bounce signal)
-        if not today_is_green and mom_1d < 0.5:
-            self._filter_stats['no_bounce'] += 1
-            return None  # No clear bounce yet
+        if not ind['today_is_green'] and ind['mom_1d'] < 0.5:
+            return 'no_bounce'
 
         # FILTER 4: Skip big gap ups (exhaustion risk)
         effective_gap_max = gap_max_up if gap_max_up is not None else 2.0
-        if gap_pct > effective_gap_max:
-            self._filter_stats['gap_up'] += 1
-            return None
+        if ind['gap_pct'] > effective_gap_max:
+            return 'gap_up'
 
         # FILTER 5: Still in oversold zone (room to recover)
-        # v4.9.5: 1.02→1.03 (allow slightly more extension for better signal count)
-        if current_price > sma5 * 1.03:
-            self._filter_stats['above_sma5'] += 1
-            return None
+        if ind['current_price'] > ind['sma5'] * 1.03:
+            return 'above_sma5'
 
         # FILTER 6: Minimum volatility
-        if atr_pct < self.MIN_ATR_PCT:
-            self._filter_stats['low_atr'] += 1
-            return None
+        if ind['atr_pct'] < self.MIN_ATR_PCT:
+            return 'low_atr'
 
-        # ==============================
-        # v3.5: SMA20 FILTER (ROOT CAUSE FIX)
-        # ==============================
-        # Based on root cause analysis: 92% of stop loss trades
-        # were below SMA20 (downtrend). This filter prevents most losers.
-        if current_price < sma20:
-            self._filter_stats['below_sma20'] += 1
-            return None  # Must be above SMA20 (uptrend)
+        # FILTER 7: Must be above SMA20 (uptrend)
+        if ind['current_price'] < ind['sma20']:
+            return 'below_sma20'
 
-        # ==============================
-        # v3.10: OVEREXTENDED FILTER (ARM FIX)
-        # ==============================
-        # Prevents entering after big moves (like ARM +17% in 1 day)
-        # These often lead to mean reversion and stop loss hits
+        # FILTER 8: No big single-day moves in last 10 days
+        if ind['max_daily_move'] > 8.0:
+            return 'overextended'
 
-        # FILTER 7: No big single-day moves in last 5 days
-        MAX_SINGLE_DAY_MOVE = 8.0  # Skip if any day had >8% move
-        if max_daily_move > MAX_SINGLE_DAY_MOVE:
-            self._filter_stats['overextended'] += 1
-            return None  # Overextended - wait for consolidation
+        # FILTER 9: Price not too far above SMA20
+        if ind['sma20_extension'] > 10.0:
+            return 'sma20_extended'
 
-        # FILTER 8: Price not too far above SMA20
-        MAX_SMA20_EXTENSION = 10.0  # Skip if >10% above SMA20
-        if sma20_extension > MAX_SMA20_EXTENSION:
-            self._filter_stats['sma20_extended'] += 1
-            return None  # Too extended above SMA20
+        return None  # All filters passed
 
-        # ==============================
-        # v3.3 SCORING - Quality over quantity
-        # ==============================
-        # v5.1 P2-9: Score component breakdown (max ~245 pts):
-        #   Bounce-specific (45%): Bounce Conf +25-40, Prior Dip +15-40, Yesterday Dip +10-30
-        #   General (47%):         RSI -4 to +35, Trend +15-25, Volatility +10-20,
-        #                          Room to Recover +10-20, Volume -3 to +15
-        #   Other (8%):            Sector -10 to +5, Alt Data -15 to +15
-        # v5.3: Mild penalties — RSI (>60: -2, >70: -4) and Volume (<0.5: -2, <0.3: -3).
-        # Note P2-11: Bounce weighting ~45% is BY DESIGN for dip-bounce strategy.
-        # If adding new scoring components, update this breakdown and consider normalizing.
+    def _analyze_calc_score(self, ind: dict, symbol: str) -> tuple:
+        """Calculate score and reasons. Returns (score, reasons, sector, sector_score)."""
         score = 0
         reasons = []
 
-        # 1. BOUNCE CONFIRMATION (key differentiator - doubled weight)
-        if today_is_green and mom_1d > 0.5:
+        # 1. BOUNCE CONFIRMATION (key differentiator)
+        if ind['today_is_green'] and ind['mom_1d'] > 0.5:
             score += 40
             reasons.append("Strong bounce")
-        elif today_is_green or mom_1d > 0.3:
+        elif ind['today_is_green'] or ind['mom_1d'] > 0.3:
             score += 25
             reasons.append("Bounce confirmed")
 
         # 2. Prior dip magnitude (5-day)
+        mom_5d = ind['mom_5d']
         if -12 <= mom_5d <= -5:
             score += 40
             reasons.append(f"Deep dip {mom_5d:.1f}%")
@@ -1012,33 +967,36 @@ class RapidRotationScreener:
             reasons.append(f"Mild dip {mom_5d:.1f}%")
 
         # 3. Yesterday's dip (entry catalyst)
-        if yesterday_move <= -3:
+        ym = ind['yesterday_move']
+        if ym <= -3:
             score += 30
-            reasons.append(f"Big dip yesterday {yesterday_move:.1f}%")
-        elif yesterday_move <= -1.5:
+            reasons.append(f"Big dip yesterday {ym:.1f}%")
+        elif ym <= -1.5:
             score += 20
-            reasons.append(f"Dip yesterday {yesterday_move:.1f}%")
-        elif yesterday_move <= -1:
+            reasons.append(f"Dip yesterday {ym:.1f}%")
+        elif ym <= -1:
             score += 10
 
-        # 4. RSI scoring (v5.3.1: removed high RSI penalty - backtest showed high RSI trades perform well)
+        # 4. RSI scoring
+        rsi = ind['rsi']
         if 25 <= rsi <= 40:
             score += 35
             reasons.append(f"Very oversold RSI={rsi:.0f}")
         elif 40 < rsi <= 50:
             score += 20
             reasons.append(f"Low RSI={rsi:.0f}")
-        # Note: High RSI (>60) no longer penalized - backtest showed E[R]=+1.045% for RSI>70
 
-        # 5. Trend context (important for bounce success)
-        if current_price > sma50 and current_price > sma20 * 0.98:
+        # 5. Trend context
+        cp = ind['current_price']
+        if cp > ind['sma50'] and cp > ind['sma20'] * 0.98:
             score += 25
             reasons.append("Strong uptrend")
-        elif current_price > sma20:
+        elif cp > ind['sma20']:
             score += 15
             reasons.append("Above SMA20")
 
         # 6. Volatility bonus
+        atr_pct = ind['atr_pct']
         if atr_pct > 5:
             score += 20
             reasons.append(f"Very volatile {atr_pct:.1f}%")
@@ -1049,137 +1007,146 @@ class RapidRotationScreener:
             score += 10
 
         # 7. Room to recover
-        if 10 <= dist_from_high <= 25:
+        dfh = ind['dist_from_high']
+        if 10 <= dfh <= 25:
             score += 20
-            reasons.append(f"Great room {dist_from_high:.0f}%")
-        elif 6 <= dist_from_high < 10:
+            reasons.append(f"Great room {dfh:.0f}%")
+        elif 6 <= dfh < 10:
             score += 10
-            reasons.append(f"Some room {dist_from_high:.0f}%")
+            reasons.append(f"Some room {dfh:.0f}%")
 
-        # 8. Volume confirmation (v5.4: removed penalty - backtest showed no benefit)
-        if volume_ratio > 1.5:
+        # 8. Volume confirmation
+        vr = ind['volume_ratio']
+        if vr > 1.5:
             score += 15
             reasons.append("High vol bounce")
-        elif volume_ratio > 1.2:
+        elif vr > 1.2:
             score += 5
-        # v5.4: Low volume penalty removed (no statistical benefit)
 
-        # ==============================
-        # v3.7: HYBRID SECTOR SCORING (replaces old hot sector bonus)
-        # ==============================
-        # Uses simple ±3% rule on 20-day sector ETF performance
-        # BEAR: -10 | SIDEWAYS: 0 | BULL: +5 (asymmetric - defensive)
+        # Sector scoring
         sector = self._get_sector(symbol)
         sector_adj, sector_regime, sector_reason = self._get_sector_regime_score(sector)
-        sector_score = sector_adj  # For signal object
         score += sector_adj
         if sector_reason:
             reasons.append(sector_reason)
 
-        # ==============================
-        # v3.7: ALT DATA DEFERRED TO screen() FOR TOP 10 ONLY
-        # ==============================
-        # Alt data is applied only to Top 10 candidates for performance
-        # See screen() method - alt_data_score will be added there
-        alt_score = 0  # Placeholder - will be updated in screen()
+        return score, reasons, sector, sector_adj
 
-        # Check minimum score (v5.2: uses engine's effective min_score when provided)
+    def _analyze_calc_sl_tp(self, ind: dict, data, idx: int) -> dict:
+        """Calculate dynamic SL/TP levels. Returns dict with sl/tp info."""
+        close = data['close']
+        high = data['high']
+        low = data['low']
+        current_price = ind['current_price']
+        atr = ind['atr']
+
+        # --- DYNAMIC STOP LOSS ---
+        atr_based_sl = current_price - (atr * self.ATR_SL_MULTIPLIER)
+        swing_low_5d = low.iloc[idx-5:idx].min() if idx >= 5 else low.min()
+        swing_low_sl = swing_low_5d * 0.995
+        ema5 = close.ewm(span=5).mean().iloc[idx]
+        ema_based_sl = ema5 * 0.99
+
+        sl_options = {'ATR': atr_based_sl, 'SwingLow': swing_low_sl, 'EMA5': ema_based_sl}
+        sl_method = max(sl_options, key=sl_options.get)
+        stop_loss = sl_options[sl_method]
+
+        sl_pct_raw = (current_price - stop_loss) / current_price * 100
+        sl_pct = max(self.MIN_SL_PCT, min(sl_pct_raw, self.MAX_SL_PCT))
+        stop_loss = current_price * (1 - sl_pct / 100)
+
+        # --- DYNAMIC TAKE PROFIT ---
+        atr_based_tp = current_price + (atr * self.ATR_TP_MULTIPLIER)
+        resistance = high.iloc[idx-20:idx].max() if idx >= 20 else high.max()
+        resistance_tp = resistance * 0.995
+        high_52w = high.max()
+        high_52w_tp = high_52w * 0.98
+
+        tp_options = {'ATR': atr_based_tp, 'Resistance': resistance_tp, '52wHigh': high_52w_tp}
+        tp_method = min(tp_options, key=tp_options.get)
+        take_profit = tp_options[tp_method]
+
+        tp_pct_raw = (take_profit - current_price) / current_price * 100
+        tp_pct = max(self.MIN_TP_PCT, min(tp_pct_raw, self.MAX_TP_PCT))
+        take_profit = current_price * (1 + tp_pct / 100)
+
+        return {
+            'stop_loss': stop_loss, 'take_profit': take_profit,
+            'sl_pct': sl_pct, 'tp_pct': tp_pct,
+            'sl_method': sl_method, 'tp_method': tp_method,
+            'swing_low': swing_low_5d, 'resistance': resistance,
+            'risk_reward': tp_pct / sl_pct if sl_pct > 0 else 0,
+        }
+
+    def analyze_stock(self, symbol: str, min_score: int = None, gap_max_up: float = None) -> Optional[RapidRotationSignal]:
+        """
+        Analyze a single stock for rapid rotation opportunity (v6.6 refactored).
+        v3.3: BOUNCE CONFIRMATION - Wait for recovery after dip.
+        """
+        # Validate data
+        if symbol not in self.data_cache:
+            return None
+        data = self.data_cache[symbol]
+        if len(data) < 30:
+            return None
+
+        idx = len(data) - 1
+        current_price = data['close'].iloc[idx]
+
+        # Price filters
+        if current_price < 1 or current_price < 10 or current_price > 2000:
+            return None
+
+        # Calculate indicators
+        ind = self._analyze_calc_indicators(data, idx)
+
+        # Apply bounce filters
+        filter_hit = self._analyze_bounce_filters(ind, gap_max_up)
+        if filter_hit:
+            self._filter_stats[filter_hit] += 1
+            return None
+
+        # Calculate score
+        score, reasons, sector, sector_score = self._analyze_calc_score(ind, symbol)
+
+        # Check minimum score
         effective_min_score = min_score if min_score is not None else self.MIN_SCORE
         if score < effective_min_score:
             self._filter_stats['low_score'] += 1
             self._filter_stats['_low_score_values'].append((symbol, score))
             return None
 
-        # ==============================
-        # v3.4: FULLY DYNAMIC SL/TP
-        # ==============================
-
-        # --- DYNAMIC STOP LOSS ---
-        # Method 1: ATR-based (adapts to volatility)
-        atr_sl_distance = atr * self.ATR_SL_MULTIPLIER
-        atr_based_sl = current_price - atr_sl_distance
-
-        # Method 2: Swing Low based (structure)
-        swing_low_5d = low.iloc[idx-5:idx].min() if idx >= 5 else low.min()
-        swing_low_sl = swing_low_5d * 0.995  # 0.5% below swing low
-
-        # Method 3: EMA based (trend)
-        ema5 = close.ewm(span=5).mean().iloc[idx]
-        ema_based_sl = ema5 * 0.99  # 1% below EMA5
-
-        # Choose HIGHEST SL = best protection + track method
-        sl_options = {
-            'ATR': atr_based_sl,
-            'SwingLow': swing_low_sl,
-            'EMA5': ema_based_sl
-        }
-        sl_method = max(sl_options, key=sl_options.get)
-        stop_loss = sl_options[sl_method]
-
-        # Apply safety caps
-        sl_pct_raw = (current_price - stop_loss) / current_price * 100
-        sl_pct = max(self.MIN_SL_PCT, min(sl_pct_raw, self.MAX_SL_PCT))
-        stop_loss = current_price * (1 - sl_pct / 100)
-
-        # --- DYNAMIC TAKE PROFIT ---
-        # Method 1: ATR-based (scales with volatility)
-        atr_tp_distance = atr * self.ATR_TP_MULTIPLIER
-        atr_based_tp = current_price + atr_tp_distance
-
-        # Method 2: Resistance based (structure)
-        resistance = high.iloc[idx-20:idx].max() if idx >= 20 else high.max()
-        resistance_tp = resistance * 0.995  # Just below resistance
-
-        # Method 3: 52-week high consideration
-        high_52w = high.max()
-        high_52w_tp = high_52w * 0.98  # 2% below 52w high
-
-        # Choose LOWEST TP = most realistic target + track method
-        tp_options = {
-            'ATR': atr_based_tp,
-            'Resistance': resistance_tp,
-            '52wHigh': high_52w_tp
-        }
-        tp_method = min(tp_options, key=tp_options.get)
-        take_profit = tp_options[tp_method]
-
-        # Apply safety caps
-        tp_pct_raw = (take_profit - current_price) / current_price * 100
-        tp_pct = max(self.MIN_TP_PCT, min(tp_pct_raw, self.MAX_TP_PCT))
-        take_profit = current_price * (1 + tp_pct / 100)
-        risk_reward = tp_pct / sl_pct
+        # Calculate SL/TP
+        sl_tp = self._analyze_calc_sl_tp(ind, data, idx)
+        reasons.append(f"SL:{sl_tp['sl_method']}({sl_tp['sl_pct']:.1f}%)")
+        reasons.append(f"TP:{sl_tp['tp_method']}({sl_tp['tp_pct']:.1f}%)")
 
         # Get market regime
         market_regime = self._get_market_regime()
         regime_str = market_regime.get('regime', 'UNKNOWN')
 
-        # Add SL/TP method info to reasons
-        reasons.append(f"SL:{sl_method}({sl_pct:.1f}%)")
-        reasons.append(f"TP:{tp_method}({tp_pct:.1f}%)")
-
         return RapidRotationSignal(
             symbol=symbol,
             score=score,
-            entry_price=round(current_price, 2),
-            stop_loss=round(stop_loss, 2),
-            take_profit=round(take_profit, 2),
-            risk_reward=round(risk_reward, 2),
-            atr_pct=round(atr_pct, 2),
-            rsi=round(rsi, 1),
-            momentum_5d=round(mom_5d, 2),
-            momentum_20d=round(mom_20d, 2),
-            distance_from_high=round(dist_from_high, 2),
+            entry_price=round(ind['current_price'], 2),
+            stop_loss=round(sl_tp['stop_loss'], 2),
+            take_profit=round(sl_tp['take_profit'], 2),
+            risk_reward=round(sl_tp['risk_reward'], 2),
+            atr_pct=round(ind['atr_pct'], 2),
+            rsi=round(ind['rsi'], 1),
+            momentum_5d=round(ind['mom_5d'], 2),
+            momentum_20d=round(ind['mom_20d'], 2),
+            distance_from_high=round(ind['dist_from_high'], 2),
             reasons=reasons,
             sector=sector,
             market_regime=regime_str,
             sector_score=sector_score,
-            alt_data_score=alt_score,
-            # v3.4: Dynamic SL/TP info
-            sl_method=sl_method,
-            tp_method=tp_method,
-            swing_low=round(swing_low_5d, 2),
-            resistance=round(resistance, 2),
-            volume_ratio=round(volume_ratio, 2),
+            alt_data_score=0,  # Updated in screen()
+            sl_method=sl_tp['sl_method'],
+            tp_method=sl_tp['tp_method'],
+            swing_low=round(sl_tp['swing_low'], 2),
+            resistance=round(sl_tp['resistance'], 2),
+            volume_ratio=round(ind['volume_ratio'], 2),
         )
 
     def screen(self, top_n: int = 10, enable_alt_data: bool = True, allowed_sectors: List[str] = None, blocked_sectors: List[str] = None, progress_callback=None, min_score: int = None, gap_max_up: float = None) -> List[RapidRotationSignal]:
