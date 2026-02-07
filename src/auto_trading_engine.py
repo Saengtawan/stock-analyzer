@@ -2715,309 +2715,492 @@ class AutoTradingEngine:
         except Exception as log_err:
             logger.warning(f"Trade log error: {log_err}")
 
+    # =========================================================================
+    # EXECUTE_SIGNAL HELPER METHODS (v6.5 Refactor)
+    # =========================================================================
+
+    def _exec_preflight_checks(self, symbol: str, params: Dict) -> Tuple[bool, str]:
+        """
+        Block 1: Pre-flight checks before trade execution.
+        Returns (passed, skip_reason).
+        """
+        mode = params['mode']
+
+        # Safety check
+        can_trade, reason = self.safety.can_open_new_position(mode=mode)
+        if not can_trade:
+            logger.warning(f"Safety block: {reason}")
+            return False, f"Safety: {reason}"
+
+        # PDT pre-buy budget check (skip in LOW_RISK mode)
+        if 'LOW_RISK' not in mode:
+            pdt_status = self.pdt_guard.get_pdt_status()
+            if pdt_status.remaining <= self.pdt_guard.config.reserve:
+                logger.warning(f"❌ PDT pre-buy block: remaining={pdt_status.remaining}")
+                return False, "PDT Full"
+
+        # Check duplicate position
+        if symbol in self.positions:
+            logger.warning(f"Already have position in {symbol}")
+            return False, "Duplicate"
+
+        # Reconcile with Alpaca
+        try:
+            alpaca_existing = self.broker.get_position(symbol)
+            if alpaca_existing:
+                logger.warning(f"⚠️ RECONCILIATION: Alpaca already holds {symbol}")
+                return False, "Already Held"
+        except Exception:
+            pass
+
+        # Check max positions under lock
+        with self._positions_lock:
+            effective_max = params.get('max_positions') or self.MAX_POSITIONS
+            actual_count = max(len(self.positions), getattr(self, '_alpaca_position_count', 0))
+            if actual_count >= effective_max:
+                logger.warning(f"Max positions ({effective_max}) reached")
+                return False, "Max Pos"
+
+        # Fresh VIX check
+        vix_ok, vix_val = self._check_vix_fresh_before_entry()
+        if not vix_ok:
+            return False, f"VIX {vix_val:.0f}"
+
+        return True, ""
+
+    def _exec_quality_filters(self, signal, params: Dict, current_price: float) -> Tuple[bool, str]:
+        """
+        Block 2: Score, RSI, and momentum quality filters.
+        Returns (passed, skip_reason).
+        """
+        symbol = signal.symbol
+        mode = params['mode']
+        signal_score = getattr(signal, 'score', 0)
+        signal_sector = getattr(signal, 'sector', '') or ''
+        signal_source = self._derive_signal_source(signal)
+
+        # Score filter
+        if signal_score < params['min_score']:
+            logger.warning(f"❌ Score Filter REJECT {symbol}: {signal_score} < {params['min_score']}")
+            self._log_filter_rejection(
+                symbol, current_price, "SCORE_REJECT",
+                f"Score {signal_score} < {params['min_score']}",
+                {"score": {"passed": False}},
+                signal_score, signal_sector, signal_source, signal, mode,
+            )
+            return False, f"Score {signal_score}"
+
+        # RSI filter (v6.2)
+        signal_rsi = getattr(signal, 'rsi', None)
+        max_rsi = getattr(self, 'MAX_RSI_ENTRY', None)
+        if max_rsi and signal_rsi and signal_rsi > max_rsi:
+            logger.warning(f"❌ RSI Filter REJECT {symbol}: RSI {signal_rsi:.0f} > {max_rsi}")
+            self._log_filter_rejection(
+                symbol, current_price, "RSI_REJECT",
+                f"RSI {signal_rsi:.0f} > {max_rsi}",
+                {"rsi": {"passed": False}},
+                signal_score, signal_sector, signal_source, signal, mode,
+            )
+            return False, f"RSI {signal_rsi:.0f}"
+
+        # Momentum range filter (v6.2)
+        signal_mom = getattr(signal, 'momentum', None) or getattr(signal, 'mom_score', None)
+        avoid_range = getattr(self, 'AVOID_MOM_RANGE', None)
+        if avoid_range and signal_mom and len(avoid_range) == 2:
+            mom_min, mom_max = avoid_range
+            if mom_min <= signal_mom <= mom_max:
+                logger.warning(f"❌ Momentum Filter REJECT {symbol}: {signal_mom:.1f}%")
+                self._log_filter_rejection(
+                    symbol, current_price, "MOM_REJECT",
+                    f"Momentum {signal_mom:.1f}% in avoid range",
+                    {"momentum": {"passed": False}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
+                return False, f"Mom {signal_mom:.1f}%"
+
+        return True, ""
+
+    def _exec_calculate_position(self, signal, params: Dict, current_price: float) -> Tuple[bool, str, float, float, str]:
+        """
+        Block 3: Calculate position size and conviction.
+        Returns (passed, skip_reason, position_value, capital, conviction).
+        """
+        mode = params['mode']
+
+        # Get account info
+        account = self.broker.get_account()
+        if isinstance(account, dict):
+            real_buying_power = float(account.get('buying_power', 0))
+            portfolio_value = account.get('portfolio_value', 0)
+        else:
+            real_buying_power = float(getattr(account, 'buying_power', 0))
+            portfolio_value = getattr(account, 'portfolio_value', 0)
+
+        if self.SIMULATED_CAPITAL:
+            capital = min(self.SIMULATED_CAPITAL, real_buying_power)
+        else:
+            capital = portfolio_value
+
+        # Conviction-based sizing
+        conviction_pct, conviction = self._get_conviction_size(signal, params)
+        if conviction == 'SKIP_BEAR':
+            logger.warning(f"Conviction SKIP: {signal.symbol} in BEAR sector")
+            return False, "BEAR Sector", 0, 0, ""
+
+        position_value = capital * (conviction_pct / 100)
+        logger.info(f"Conviction {conviction}: {signal.symbol} -> {conviction_pct}% (${position_value:,.0f})")
+
+        # ATR check in low risk mode
+        if 'LOW_RISK' in mode and params['max_atr_pct'] is not None:
+            signal_atr = getattr(signal, 'atr_pct', None)
+            if signal_atr and signal_atr > params['max_atr_pct']:
+                logger.warning(f"❌ ATR Filter REJECT {signal.symbol}: {signal_atr:.1f}%")
+                return False, f"ATR {signal_atr:.1f}%", 0, 0, ""
+
+        return True, "", position_value, capital, conviction
+
+    def _exec_pretrade_filters(self, signal, params: Dict, current_price: float) -> Tuple[bool, str, float]:
+        """
+        Block 4: Pre-trade filters (gap, stock-d, earnings, sector).
+        Returns (passed, skip_reason, gap_pct).
+        """
+        symbol = signal.symbol
+        mode = params['mode']
+        signal_score = getattr(signal, 'score', 0)
+        signal_sector = getattr(signal, 'sector', '') or ''
+        signal_source = self._derive_signal_source(signal)
+
+        # Gap filter
+        gap_ok, gap_pct, gap_reason = self._check_gap_filter(
+            symbol, current_price,
+            max_up_override=params['gap_max_up'],
+            max_down_override=params.get('gap_max_down')
+        )
+        if not gap_ok:
+            logger.warning(f"❌ Gap Filter REJECT {symbol}: {gap_reason}")
+            self.daily_stats.gap_rejected += 1
+            self._log_filter_rejection(
+                symbol, current_price, "GAP_REJECT", gap_reason,
+                {"gap": {"passed": False}},
+                signal_score, signal_sector, signal_source, signal, mode,
+                gap_pct=gap_pct,
+            )
+            return False, f"Gap {gap_pct:+.1f}%", gap_pct
+
+        # Stock-D filter
+        stock_d_ok, stock_d_reason, stock_d_data = self._check_stock_d_filter(symbol)
+        if not stock_d_ok:
+            logger.warning(f"❌ Stock-D Filter REJECT {symbol}: {stock_d_reason}")
+            if not hasattr(self.daily_stats, 'stock_d_rejected'):
+                self.daily_stats.stock_d_rejected = 0
+            self.daily_stats.stock_d_rejected += 1
+            self._log_filter_rejection(
+                symbol, current_price, "STOCK_D_REJECT", stock_d_reason,
+                {"stock_d": {"passed": False}},
+                signal_score, signal_sector, signal_source, signal, mode,
+                gap_pct=gap_pct,
+            )
+            return False, "Stock-D ❌", gap_pct
+
+        # Earnings filter
+        earnings_ok, earnings_reason, earnings_data = self._check_earnings_filter(symbol)
+        if not earnings_ok:
+            logger.warning(f"❌ Earnings Filter REJECT {symbol}: {earnings_reason}")
+            self.daily_stats.earnings_rejected += 1
+            self._log_filter_rejection(
+                symbol, current_price, "EARNINGS_REJECT", earnings_reason,
+                {"earnings": {"passed": False}},
+                signal_score, signal_sector, signal_source, signal, mode,
+                gap_pct=gap_pct, **earnings_data,
+            )
+            return False, "Earnings", gap_pct
+
+        # Sector diversification filter
+        sector_ok, sector_reason = self._check_sector_filter(signal_sector)
+        if not sector_ok:
+            logger.warning(f"❌ Sector Filter REJECT {symbol}: {sector_reason}")
+            self.daily_stats.sector_rejected += 1
+            self._log_filter_rejection(
+                symbol, current_price, "SECTOR_REJECT", sector_reason,
+                {"sector": {"passed": False}},
+                signal_score, signal_sector, signal_source, signal, mode,
+            )
+            return False, "Sector Full", gap_pct
+
+        # Sector cooldown
+        sector_cd_ok, sector_cd_reason = self._check_sector_cooldown(signal_sector)
+        if not sector_cd_ok:
+            logger.warning(f"🧊 Sector Cooldown REJECT {symbol}: {sector_cd_reason}")
+            self.daily_stats.sector_rejected += 1
+            self._log_filter_rejection(
+                symbol, current_price, "SECTOR_COOLDOWN", sector_cd_reason,
+                {"sector_cooldown": {"passed": False}},
+                signal_score, signal_sector, signal_source, signal, mode,
+            )
+            return False, "Sector CD", gap_pct
+
+        # Bear mode sector filter
+        allowed_sectors = params.get('allowed_sectors')
+        if allowed_sectors and signal_sector and signal_sector not in allowed_sectors:
+            logger.warning(f"❌ BEAR Sector Filter REJECT {symbol}")
+            self._log_filter_rejection(
+                symbol, current_price, "BEAR_SECTOR_REJECT",
+                f"Sector '{signal_sector}' not allowed in BEAR",
+                {"bear_sector": {"passed": False}},
+                signal_score, signal_sector, signal_source, signal, mode,
+            )
+            return False, "BEAR Sector", gap_pct
+
+        # Bull sector filter
+        blocked_sectors = params.get('blocked_sectors') or []
+        if blocked_sectors and signal_sector and signal_sector in blocked_sectors:
+            logger.warning(f"⛔ BULL Sector Filter REJECT {symbol}")
+            self.daily_stats.sector_rejected += 1
+            self._log_filter_rejection(
+                symbol, current_price, "BULL_SECTOR_REJECT",
+                f"Sector '{signal_sector}' ETF declining",
+                {"bull_sector": {"passed": False}},
+                signal_score, signal_sector, signal_source, signal, mode,
+            )
+            return False, "BULL Sector", gap_pct
+
+        return True, "", gap_pct
+
+    def _exec_place_order(self, symbol: str, qty: int, sl_pct: float, current_price: float) -> Tuple[bool, Optional[Order], Optional[str], float]:
+        """
+        Block 6: Place buy order with optional stop loss.
+        Returns (success, buy_order, sl_order_id, actual_entry_price).
+        """
+        logger.info(f"Executing: BUY {symbol} x{qty} @ ~${current_price:.2f}")
+
+        # Check if we should place SL order (PDT Smart Guard)
+        should_place_sl, sl_reason = self.pdt_guard.should_place_sl_order(symbol)
+
+        if should_place_sl:
+            buy_order, sl_order = self.broker.buy_with_stop_loss(symbol, qty, sl_pct=sl_pct)
+            if not buy_order:
+                logger.error(f"Failed to execute {symbol}")
+                return False, None, None, 0
+            sl_order_id = sl_order.id if sl_order else None
+        else:
+            logger.info(f"PDT Guard: {sl_reason} - buying without SL order")
+            buy_order = self.broker.place_smart_buy(symbol, qty)
+            if not buy_order:
+                logger.warning(f"Smart buy SKIP {symbol}: spread too wide")
+                return False, None, None, 0
+            if buy_order.status != 'filled':
+                time.sleep(2)
+                buy_order = self.broker.get_order(buy_order.id)
+            sl_order_id = None
+
+        if not buy_order or buy_order.status != 'filled':
+            order_status = getattr(buy_order, 'status', 'None')
+            logger.error(f"Buy order not filled for {symbol} (status={order_status})")
+            try:
+                if buy_order and hasattr(buy_order, 'id'):
+                    self.broker.cancel_order(buy_order.id)
+            except Exception:
+                pass
+            return False, None, None, 0
+
+        entry_price = buy_order.filled_avg_price
+        actual_qty = getattr(self.broker, '_last_filled_qty', qty)
+        if actual_qty and actual_qty != qty:
+            logger.warning(f"Using actual filled qty {actual_qty} (requested {qty})")
+
+        return True, buy_order, sl_order_id, entry_price
+
+    def _exec_create_position(self, signal, entry_price: float, qty: int,
+                               sl_order_id: Optional[str], sl_pct: float, tp_pct: float,
+                               atr_pct: float, params: Dict) -> bool:
+        """
+        Block 7: Create ManagedPosition under lock.
+        Returns success.
+        """
+        symbol = signal.symbol
+        mode = params['mode']
+        signal_sector = getattr(signal, 'sector', '') or ''
+        signal_source = self._derive_signal_source(signal)
+        signal_score = getattr(signal, 'score', 0)
+
+        sl_price = round(entry_price * (1 - sl_pct / 100), 2)
+        tp_price = round(entry_price * (1 + tp_pct / 100), 2)
+
+        with self._positions_lock:
+            # Re-check max positions under lock
+            effective_max = params.get('max_positions') or self.MAX_POSITIONS
+            actual_count = max(len(self.positions), getattr(self, '_alpaca_position_count', 0))
+            if actual_count >= effective_max:
+                logger.warning(f"⚠️ Max positions reached under lock — cancelling {symbol}")
+                return False
+
+            regime_ok, regime_reason = self._check_market_regime()
+
+            self.positions[symbol] = ManagedPosition(
+                symbol=symbol,
+                qty=qty,
+                entry_price=entry_price,
+                entry_time=datetime.now(),
+                sl_order_id=sl_order_id,
+                current_sl_price=sl_price,
+                peak_price=entry_price,
+                trailing_active=False,
+                sl_pct=sl_pct,
+                tp_price=tp_price,
+                tp_pct=tp_pct,
+                atr_pct=atr_pct,
+                sector=signal_sector,
+                trough_price=entry_price,
+                source=signal_source,
+                signal_score=signal_score,
+                entry_mode=mode,
+                entry_regime="BULL" if regime_ok else "BEAR",
+                entry_rsi=getattr(signal, 'rsi', 0.0) or 0.0,
+                momentum_5d=getattr(signal, 'momentum_5d', 0.0) or 0.0,
+            )
+            self._save_positions_state()
+
+        return True
+
+    def _exec_post_trade_logging(self, signal, buy_order, entry_price: float, qty: int,
+                                   gap_pct: float, sl_pct: float, tp_pct: float,
+                                   atr_pct: float, params: Dict):
+        """
+        Block 8: Post-trade logging and stats update.
+        """
+        symbol = signal.symbol
+        mode = params['mode']
+        signal_score = getattr(signal, 'score', 0)
+        signal_sector = getattr(signal, 'sector', '') or ''
+        signal_source = self._derive_signal_source(signal)
+
+        sl_price = round(entry_price * (1 - sl_pct / 100), 2)
+        tp_price = round(entry_price * (1 + tp_pct / 100), 2)
+
+        # PDT record
+        self.pdt_guard.record_entry(symbol)
+
+        # Update stats
+        self.daily_stats.trades_executed += 1
+        self.daily_stats.signals_executed += 1
+        if 'LOW_RISK' in mode:
+            self.daily_stats.low_risk_trades += 1
+            logger.info(f"✅ Bought {symbol} x{qty} @ ${entry_price:.2f} [LOW RISK MODE]")
+        else:
+            logger.info(f"✅ Bought {symbol} x{qty} @ ${entry_price:.2f}")
+        logger.info(f"   SL: ${sl_price:.2f} (-{sl_pct}%) | TP: ${tp_price:.2f} (+{tp_pct}%) | ATR: {atr_pct}%")
+
+        # Alert
+        self.alerts.alert_trade_executed(symbol, 'BUY', entry_price, qty)
+
+        # Trade log
+        try:
+            pdt_status = self.pdt_guard.get_pdt_status()
+            regime_ok, regime_reason = self._check_market_regime()
+            analysis = self._get_analysis_data(symbol)
+            exec_meta = getattr(self.broker, 'last_execution_meta', {})
+            signal_price_val = getattr(signal, 'entry_price', None) or getattr(signal, 'close', None)
+            slippage = None
+            if signal_price_val and entry_price and signal_price_val > 0:
+                slippage = round(((entry_price - signal_price_val) / signal_price_val) * 100, 3)
+
+            self.trade_logger.log_buy(
+                symbol=symbol, qty=qty, price=entry_price, reason="SIGNAL",
+                filters={
+                    "regime": {"passed": regime_ok, "detail": regime_reason},
+                    "gap": {"passed": True, "detail": f"{gap_pct:+.1f}%"},
+                    "score": {"passed": True, "detail": f"{signal_score}"}
+                },
+                pdt_remaining=pdt_status.remaining,
+                mode=mode,
+                regime="BULL" if regime_ok else "BEAR",
+                gap_pct=gap_pct,
+                signal_score=signal_score,
+                atr_pct=getattr(signal, 'atr_pct', None),
+                entry_rsi=getattr(signal, 'rsi', None),
+                momentum_5d=getattr(signal, 'momentum_5d', None),
+                sector=signal_sector,
+                signal_source=signal_source,
+                order_id=buy_order.id if buy_order else None,
+                dist_from_52w_high=analysis.get('dist_from_52w_high'),
+                return_5d=analysis.get('return_5d'),
+                return_20d=analysis.get('return_20d'),
+                order_type=exec_meta.get('order_type'),
+                signal_price=signal_price_val,
+                fill_price=entry_price,
+                slippage_pct=slippage,
+                config_snapshot=self._get_config_snapshot(),
+            )
+        except Exception as log_err:
+            logger.warning(f"Trade log error: {log_err}")
+
     def execute_signal(self, signal) -> bool:
         """
-        Execute a trading signal
+        Execute a trading signal.
+
+        v6.5 Refactored: Split into 8 helper methods for maintainability.
+        Flow: preflight → quality → sizing → pretrade → sltp → order → position → logging
 
         Args:
             signal: Signal object from screener
 
         Returns:
             True if executed successfully
-
-        # TODO P3-19/20: This method is ~550 lines. Future refactoring candidate:
-        #   BLOCK 1 (lines ~2516-2568): Pre-flight checks (safety, PDT, dupe, reconcile, max pos)
-        #   BLOCK 2 (lines ~2569-2595): Score filter
-        #   BLOCK 3 (lines ~2597-2648): Position sizing + ATR filter
-        #   BLOCK 4 (lines ~2649-2793): Gap filter + Earnings filter + Sector filters (3 inline)
-        #   BLOCK 5 (lines ~2795-2817): ATR SL/TP calculation + risk-parity sizing
-        #   BLOCK 6 (lines ~2819-2901): Order execution (buy + SL placement + fill check)
-        #   BLOCK 7 (lines ~2903-2928): ManagedPosition creation
-        #   BLOCK 8 (lines ~2931-3055): Post-trade logging (PDT, trade log, queue stats)
-        # Extract BLOCK 4 into _apply_pre_trade_filters(signal, params, mode) first.
         """
         try:
             symbol = signal.symbol
 
-            # --- BLOCK 1: Pre-flight checks ---
-            # v4.5: Get effective parameters (normal vs low-risk mode)
+            # Get effective parameters (normal vs low-risk mode)
             params = self._get_effective_params()
             mode = params['mode']
 
             if 'LOW_RISK' in mode:
                 logger.info(f"🛡️ {symbol}: Using LOW RISK parameters")
 
-            # Safety check first (v5.2: pass mode so LOW_RISK can bypass PDT block)
-            can_trade, reason = self.safety.can_open_new_position(mode=mode)
-            if not can_trade:
-                logger.warning(f"Safety block: {reason}")
-                self._last_skip_reason = f"Safety: {reason}"
+            # BLOCK 1: Pre-flight checks (safety, PDT, duplicate, max positions, VIX)
+            preflight_ok, skip_reason = self._exec_preflight_checks(symbol, params)
+            if not preflight_ok:
+                self._last_skip_reason = skip_reason
                 return False
 
-            # v4.7 Fix #5: PDT pre-buy budget check
-            # If SL triggers on Day 0, we need PDT budget to sell.
-            # Skip buy in NORMAL mode if no PDT budget remaining for emergency exit.
-            if 'LOW_RISK' not in mode:
-                pdt_pre_check = self.pdt_guard.get_pdt_status()
-                if pdt_pre_check.remaining <= self.pdt_guard.config.reserve:
-                    logger.warning(f"❌ PDT pre-buy block: remaining={pdt_pre_check.remaining}, "
-                                   f"reserve={self.pdt_guard.config.reserve} → skip {symbol} in {mode} mode")
-                    self._last_skip_reason = "PDT Full"
-                    return False
-
-            # Check if already have position
-            if symbol in self.positions:
-                logger.warning(f"Already have position in {symbol}")
-                self._last_skip_reason = "Duplicate"
-                return False
-
-            # v4.7 Fix #9: Reconcile with Alpaca before buying
-            # Catches positions that engine doesn't know about
-            try:
-                alpaca_existing = self.broker.get_position(symbol)
-                if alpaca_existing:
-                    logger.warning(f"⚠️ RECONCILIATION: Alpaca already holds {symbol} "
-                                   f"(qty={alpaca_existing.qty}, current=${alpaca_existing.current_price:.2f}) "
-                                   f"but engine unaware — skipping buy")
-                    self._last_skip_reason = "Already Held"
-                    return False
-            except Exception:
-                pass  # get_position returns None for non-existent, exceptions are safe to ignore
-
-            # Check max positions (v4.9.2: use effective max from params)
-            # v5.1: Check under lock to prevent TOCTOU race (two threads passing simultaneously)
-            # v5.1 P1-9: Use max(engine, alpaca) to account for manual/external trades
-            with self._positions_lock:
-                effective_max = params.get('max_positions') or self.MAX_POSITIONS
-                actual_count = max(len(self.positions), getattr(self, '_alpaca_position_count', 0))
-                if actual_count >= effective_max:
-                    logger.warning(f"Max positions ({effective_max}) reached — engine={len(self.positions)}, alpaca={getattr(self, '_alpaca_position_count', 0)} (mode: {mode})")
-                    self._last_skip_reason = "Max Pos"
-                    return False
-
-            # --- P1 FIX: Fresh VIX check before entry (bypasses cache) ---
-            # VIX can spike fast. Check fresh value BEFORE any trade placement.
-            vix_ok, vix_val = self._check_vix_fresh_before_entry()
-            if not vix_ok:
-                self._last_skip_reason = f"VIX {vix_val:.0f}"
-                return False
-
-            # --- BLOCK 2: Score filter ---
-            # v5.0: Extract signal context early (used by all log_skip calls + log_buy)
-            signal_score = getattr(signal, 'score', 0)
-            signal_sector = getattr(signal, 'sector', '') or ''
-            signal_source = self._derive_signal_source(signal)
-
-            # v4.5: Check score against effective min_score
-            if signal_score < params['min_score']:
-                logger.warning(f"❌ Score Filter REJECT {symbol}: {signal_score} < {params['min_score']} (mode: {mode})")
-                current_price = getattr(signal, 'entry_price', None) or getattr(signal, 'close', 0)
-                self._log_filter_rejection(
-                    symbol, current_price, "SCORE_REJECT",
-                    f"Score {signal_score} < {params['min_score']} ({mode})",
-                    {"score": {"passed": False, "detail": f"{signal_score} < {params['min_score']}"}},
-                    signal_score, signal_sector, signal_source, signal, mode,
-                )
-                self._last_skip_reason = f"Score {signal_score}"
-                return False
-
-            # --- BLOCK 2b: RSI quality filter (v6.2) ---
-            signal_rsi = getattr(signal, 'rsi', None)
-            max_rsi = getattr(self, 'MAX_RSI_ENTRY', None)
-            if max_rsi and signal_rsi and signal_rsi > max_rsi:
-                current_price = getattr(signal, 'entry_price', None) or getattr(signal, 'close', 0)
-                logger.warning(f"❌ RSI Filter REJECT {symbol}: RSI {signal_rsi:.0f} > {max_rsi} (overbought)")
-                self._log_filter_rejection(
-                    symbol, current_price, "RSI_REJECT",
-                    f"RSI {signal_rsi:.0f} > {max_rsi} (overbought)",
-                    {"rsi": {"passed": False, "detail": f"{signal_rsi:.0f} > {max_rsi}"}},
-                    signal_score, signal_sector, signal_source, signal, mode,
-                )
-                self._last_skip_reason = f"RSI {signal_rsi:.0f}"
-                return False
-
-            # --- BLOCK 2c: Momentum range filter (v6.2) ---
-            signal_mom = getattr(signal, 'momentum', None) or getattr(signal, 'mom_score', None)
-            avoid_range = getattr(self, 'AVOID_MOM_RANGE', None)
-            if avoid_range and signal_mom and len(avoid_range) == 2:
-                mom_min, mom_max = avoid_range
-                if mom_min <= signal_mom <= mom_max:
-                    current_price = getattr(signal, 'entry_price', None) or getattr(signal, 'close', 0)
-                    logger.warning(f"❌ Momentum Filter REJECT {symbol}: Mom {signal_mom:.1f}% in avoid range [{mom_min}-{mom_max}%]")
-                    self._log_filter_rejection(
-                        symbol, current_price, "MOM_REJECT",
-                        f"Momentum {signal_mom:.1f}% in avoid range [{mom_min}-{mom_max}%]",
-                        {"momentum": {"passed": False, "detail": f"{signal_mom:.1f}% in [{mom_min}-{mom_max}%]"}},
-                        signal_score, signal_sector, signal_source, signal, mode,
-                    )
-                    self._last_skip_reason = f"Mom {signal_mom:.1f}%"
-                    return False
-
-            # --- BLOCK 3: Position sizing ---
-            # Calculate position size (v4.5: use effective size)
-            # Use simulated capital as a cap, but never exceed real buying power
-            account = self.broker.get_account()
-            real_buying_power = float(account.get('buying_power', 0))
-            if self.SIMULATED_CAPITAL:
-                capital = min(self.SIMULATED_CAPITAL, real_buying_power)
-                logger.info(f"Using simulated capital: ${self.SIMULATED_CAPITAL:,.0f} (buying power: ${real_buying_power:,.0f}, effective: ${capital:,.0f})")
-            else:
-                capital = account['portfolio_value']
-            # v4.9.4: Conviction-based position sizing
-            conviction_pct, conviction = self._get_conviction_size(signal, params)
-            if conviction == 'SKIP_BEAR':
-                logger.warning(f"Conviction SKIP: {symbol} in BEAR sector")
-                self._last_skip_reason = "BEAR Sector"
-                return False
-            position_value = capital * (conviction_pct / 100)
-            logger.info(f"Conviction {conviction}: {symbol} -> {conviction_pct}% (${position_value:,.0f})")
-
-            if 'LOW_RISK' in mode:
-                logger.info(f"🛡️ Position size: ${position_value:,.0f} (LOW RISK: {params['position_size_pct']}%)")
-
-            # Get current price
+            # Get current price estimate
             pos_check = self.broker.get_position(symbol)
-            if pos_check:
-                current_price = pos_check.current_price
-            else:
-                # Use signal's entry price as estimate
-                current_price = getattr(signal, 'entry_price', None) or getattr(signal, 'close', 100)
+            current_price = pos_check.current_price if pos_check else (
+                getattr(signal, 'entry_price', None) or getattr(signal, 'close', 100)
+            )
 
-            # v4.5: Check ATR in low risk mode
-            if 'LOW_RISK' in mode and params['max_atr_pct'] is not None:
-                signal_atr = getattr(signal, 'atr_pct', None)
-                if signal_atr and signal_atr > params['max_atr_pct']:
-                    logger.warning(f"❌ ATR Filter REJECT {symbol}: ATR {signal_atr:.1f}% > {params['max_atr_pct']}% (LOW RISK)")
-                    self._log_filter_rejection(
-                        symbol, current_price, "ATR_REJECT",
-                        f"ATR {signal_atr:.1f}% > {params['max_atr_pct']}% (LOW RISK)",
-                        {"atr": {"passed": False, "detail": f"{signal_atr:.1f}% > {params['max_atr_pct']}%"}},
-                        signal_score, signal_sector, signal_source, signal, mode,
-                    )
-                    self._last_skip_reason = f"ATR {signal_atr:.1f}%"
-                    return False
-
-            # --- BLOCK 4: Pre-trade filters (gap, stock-d, earnings, sector) ---
-            # v4.3: Gap Filter - ไม่ซื้อหุ้นที่ gap up/down แรงเกินไป
-            # v4.5: Use effective gap_max_up
-            gap_ok, gap_pct, gap_reason = self._check_gap_filter(symbol, current_price, max_up_override=params['gap_max_up'], max_down_override=params.get('gap_max_down'))
-            if not gap_ok:
-                logger.warning(f"❌ Gap Filter REJECT {symbol}: {gap_reason}")
-                self.daily_stats.gap_rejected += 1
-                self._log_filter_rejection(
-                    symbol, current_price, "GAP_REJECT", gap_reason,
-                    {"gap": {"passed": False, "detail": gap_reason}},
-                    signal_score, signal_sector, signal_source, signal, mode,
-                    gap_pct=gap_pct,
-                )
-                self._last_skip_reason = f"Gap {gap_pct:+.1f}%"
+            # BLOCK 2: Quality filters (score, RSI, momentum)
+            quality_ok, skip_reason = self._exec_quality_filters(signal, params, current_price)
+            if not quality_ok:
+                self._last_skip_reason = skip_reason
                 return False
 
-            # v5.3: Stock-D Filter - Require dip-bounce pattern (Quant Research: +1.466% expectancy)
-            stock_d_ok, stock_d_reason, stock_d_data = self._check_stock_d_filter(symbol)
-            if not stock_d_ok:
-                logger.warning(f"❌ Stock-D Filter REJECT {symbol}: {stock_d_reason}")
-                if not hasattr(self.daily_stats, 'stock_d_rejected'):
-                    self.daily_stats.stock_d_rejected = 0
-                self.daily_stats.stock_d_rejected += 1
-                self._log_filter_rejection(
-                    symbol, current_price, "STOCK_D_REJECT", stock_d_reason,
-                    {"stock_d": {"passed": False, "detail": stock_d_reason, **stock_d_data}},
-                    signal_score, signal_sector, signal_source, signal, mode,
-                    gap_pct=gap_pct,
-                )
-                self._last_skip_reason = "Stock-D ❌"
+            # BLOCK 3: Calculate position size and conviction
+            sizing_ok, skip_reason, position_value, capital, conviction = self._exec_calculate_position(
+                signal, params, current_price
+            )
+            if not sizing_ok:
+                self._last_skip_reason = skip_reason
                 return False
 
-            # v4.4: Earnings Filter - ไม่ซื้อหุ้นที่มี earnings ใกล้ๆ
-            earnings_ok, earnings_reason, earnings_data = self._check_earnings_filter(symbol)
-            if not earnings_ok:
-                logger.warning(f"❌ Earnings Filter REJECT {symbol}: {earnings_reason}")
-                self.daily_stats.earnings_rejected += 1
-                self._log_filter_rejection(
-                    symbol, current_price, "EARNINGS_REJECT", earnings_reason,
-                    {"earnings": {"passed": False, "detail": earnings_reason}},
-                    signal_score, signal_sector, signal_source, signal, mode,
-                    gap_pct=gap_pct, **earnings_data,
-                )
-                self._last_skip_reason = "Earnings"
+            # BLOCK 4: Pre-trade filters (gap, stock-d, earnings, sector)
+            pretrade_ok, skip_reason, gap_pct = self._exec_pretrade_filters(signal, params, current_price)
+            if not pretrade_ok:
+                self._last_skip_reason = skip_reason
                 return False
 
-            # v4.7: Sector Diversification - ไม่ซื้อหุ้น sector เดียวกันเกิน MAX_PER_SECTOR
-            # signal_sector and signal_source already extracted at top of execute_signal
-            sector_ok, sector_reason = self._check_sector_filter(signal_sector)
-            if not sector_ok:
-                logger.warning(f"❌ Sector Filter REJECT {symbol}: {sector_reason}")
-                self.daily_stats.sector_rejected += 1
-                self._log_filter_rejection(
-                    symbol, current_price, "SECTOR_REJECT", sector_reason,
-                    {"sector": {"passed": False, "detail": sector_reason}},
-                    signal_score, signal_sector, signal_source, signal, mode,
-                )
-                self._last_skip_reason = "Sector Full"
-                return False
-
-            # v4.7: Sector Cooldown - sector แพ้ติดกัน → cooldown
-            sector_cd_ok, sector_cd_reason = self._check_sector_cooldown(signal_sector)
-            if not sector_cd_ok:
-                logger.warning(f"🧊 Sector Cooldown REJECT {symbol}: {sector_cd_reason}")
-                self.daily_stats.sector_rejected += 1
-                self._log_filter_rejection(
-                    symbol, current_price, "SECTOR_COOLDOWN", sector_cd_reason,
-                    {"sector_cooldown": {"passed": False, "detail": sector_cd_reason}},
-                    signal_score, signal_sector, signal_source, signal, mode,
-                )
-                self._last_skip_reason = "Sector CD"
-                return False
-
-            # v4.9.2: Bear mode sector safety net (defense-in-depth)
-            # Catches signals from queue/manual that didn't go through screener sector filter
-            allowed_sectors = params.get('allowed_sectors')
-            if allowed_sectors:
-                if signal_sector and signal_sector not in allowed_sectors:
-                    logger.warning(f"❌ BEAR Sector Filter REJECT {symbol}: sector '{signal_sector}' not in {allowed_sectors}")
-                    self._log_filter_rejection(
-                        symbol, current_price, "BEAR_SECTOR_REJECT",
-                        f"Sector '{signal_sector}' not allowed in BEAR mode",
-                        {"bear_sector": {"passed": False, "detail": f"'{signal_sector}' not in {allowed_sectors}"}},
-                        signal_score, signal_sector, signal_source, signal, mode,
-                    )
-                    self._last_skip_reason = "BEAR Sector"
-                    return False
-
-            # v4.9.3: BULL sector filter — block sectors with ETF return_20d < threshold
-            blocked_sectors = params.get('blocked_sectors') or []
-            if blocked_sectors and signal_sector and signal_sector in blocked_sectors:
-                logger.warning(f"⛔ BULL Sector Filter REJECT {symbol}: sector '{signal_sector}' ETF declining (return_20d < {self.BULL_SECTOR_MIN_RETURN}%)")
-                self.daily_stats.sector_rejected += 1
-                self._log_filter_rejection(
-                    symbol, current_price, "BULL_SECTOR_REJECT",
-                    f"Sector '{signal_sector}' ETF declining",
-                    {"bull_sector": {"passed": False, "detail": f"'{signal_sector}' in blocked {blocked_sectors}"}},
-                    signal_score, signal_sector, signal_source, signal, mode,
-                )
-                self._last_skip_reason = "BULL Sector"
-                return False
-
-            # --- BLOCK 5: ATR SL/TP + risk-parity sizing ---
-            # v4.6: Calculate ATR-based SL/TP (must happen before qty for risk-parity)
+            # BLOCK 5: Calculate ATR-based SL/TP + risk-parity sizing
             signal_atr = getattr(signal, 'atr_pct', None)
             atr_sl_tp = self._calculate_atr_sl_tp(symbol, current_price, signal_atr)
             sl_pct = atr_sl_tp['sl_pct']
             tp_pct = atr_sl_tp['tp_pct']
-            sl_price = atr_sl_tp['sl_price']
-            tp_price = atr_sl_tp['tp_price']
 
-            # v4.9: Risk-parity position sizing
+            # Risk-parity position sizing
             if self.RISK_PARITY_ENABLED and sl_pct > 0:
-                # position_value = capital * (risk_budget / sl_pct)
-                # If risk_budget=1% and sl=2%, position = 50% of capital
-                # If risk_budget=1% and sl=4%, position = 25% of capital
                 risk_parity_pct = (self.RISK_BUDGET_PCT / sl_pct) * 100
                 risk_parity_pct = min(risk_parity_pct, self.MAX_POSITION_PCT)
                 position_value = capital * (risk_parity_pct / 100)
                 logger.info(f"Risk-Parity: SL {sl_pct}% → size {risk_parity_pct:.0f}% (${position_value:,.0f})")
-            # else: uses fixed position_value from params['position_size_pct']
 
             qty = int(position_value / current_price)
             if qty <= 0:
@@ -3025,229 +3208,44 @@ class AutoTradingEngine:
                 self._last_skip_reason = "Qty=0"
                 return False
 
-            # --- BLOCK 6: Order execution ---
-            logger.info(f"Executing: BUY {symbol} x{qty} @ ~${current_price:.2f}")
-
-            # PDT Smart Guard v2.0: Check if we should place SL order
-            # Day 0: NO SL order (we monitor manually to control PDT)
-            # Day 1+: Place SL order normally
-            should_place_sl, sl_reason = self.pdt_guard.should_place_sl_order(symbol)
-
-            if should_place_sl:
-                # Normal flow: Buy with stop loss (use ATR-based SL%)
-                buy_order, sl_order = self.broker.buy_with_stop_loss(symbol, qty, sl_pct=sl_pct)
-                if not buy_order:
-                    logger.error(f"Failed to execute {symbol} (spread too wide or order failed)")
-                    return False
-                sl_order_id = sl_order.id if sl_order else None
-                if sl_order:
-                    sl_price = sl_order.stop_price  # Use actual order price
-            else:
-                # PDT Guard: Buy WITHOUT stop loss (Day 0)
-                # v4.8: Use smart buy (limit @ ask + market fallback)
-                logger.info(f"PDT Guard: {sl_reason} - buying without SL order")
-                buy_order = self.broker.place_smart_buy(symbol, qty)
-                if not buy_order:
-                    logger.warning(f"Smart buy SKIP {symbol}: spread too wide")
-                    return False
-                # Wait for fill if not already filled
-                if buy_order.status != 'filled':
-                    time.sleep(2)
-                    buy_order = self.broker.get_order(buy_order.id)
-                sl_order_id = None
-
-            if not buy_order or buy_order.status != 'filled':
-                order_status = getattr(buy_order, 'status', 'None')
-                logger.error(f"Buy order not filled for {symbol} (status={order_status})")
+            # BLOCK 6: Place order
+            order_ok, buy_order, sl_order_id, entry_price = self._exec_place_order(
+                symbol, qty, sl_pct, current_price
+            )
+            if not order_ok:
+                signal_score = getattr(signal, 'score', 0)
+                signal_sector = getattr(signal, 'sector', '') or ''
+                signal_source = self._derive_signal_source(signal)
                 self._log_filter_rejection(
-                    symbol, current_price, "ORDER_NOT_FILLED",
-                    f"Order status: {order_status}",
-                    {"order_fill": {"passed": False, "detail": f"status={order_status}"}},
+                    symbol, current_price, "ORDER_NOT_FILLED", "Order failed",
+                    {"order_fill": {"passed": False}},
                     signal_score, signal_sector, signal_source, signal, mode,
                 )
-                # Cancel unfilled order to avoid ghost fills
-                try:
-                    if buy_order and hasattr(buy_order, 'id'):
-                        self.broker.cancel_order(buy_order.id)
-                except Exception as e:
-                    logger.warning(f"Failed to cancel unfilled order for {symbol}: {e}")
                 return False
 
-            # Create managed position with ATR-based SL/TP
-            entry_price = buy_order.filled_avg_price
-
-            # v4.7 Fix #1: Use actual filled qty from trader
+            # Update qty if actual filled qty differs
             actual_qty = getattr(self.broker, '_last_filled_qty', qty)
             if actual_qty and actual_qty != qty:
                 logger.warning(f"Using actual filled qty {actual_qty} (requested {qty})")
                 qty = actual_qty
 
-            # Recalculate SL/TP with actual fill price
-            sl_price = round(entry_price * (1 - sl_pct / 100), 2)
-            tp_price = round(entry_price * (1 + tp_pct / 100), 2)
-
-            with self._positions_lock:
-                # v4.9.3: Re-check max_positions under lock (prevent TOCTOU race)
-                # v5.1 P1-9: Use max(engine, alpaca) to account for manual trades
-                effective_max = params.get('max_positions') or self.MAX_POSITIONS
-                actual_count = max(len(self.positions), getattr(self, '_alpaca_position_count', 0))
-                if actual_count >= effective_max:
-                    logger.warning(f"⚠️ Max positions ({effective_max}) reached under lock — engine={len(self.positions)}, alpaca={getattr(self, '_alpaca_position_count', 0)} — cancelling order for {symbol}")
-                    try:
-                        self.broker.cancel_order(buy_order.id)
-                    except Exception as e:
-                        logger.warning(f"Failed to cancel order at max positions for {symbol}: {e}")
-                    return False
-
-                # --- BLOCK 7: ManagedPosition creation ---
-                # v4.9.9: Capture regime before position creation (reused in log_buy)
-                regime_ok, regime_reason = self._check_market_regime()
-
-                self.positions[symbol] = ManagedPosition(
-                    symbol=symbol,
-                    qty=qty,
-                    entry_price=entry_price,
-                    entry_time=datetime.now(),
-                    sl_order_id=sl_order_id,
-                    current_sl_price=sl_price,
-                    peak_price=entry_price,
-                    trailing_active=False,
-                    sl_pct=sl_pct,
-                    tp_price=tp_price,
-                    tp_pct=tp_pct,
-                    atr_pct=atr_sl_tp['atr_pct'],
-                    sector=signal_sector,
-                    trough_price=entry_price,
-                    source=signal_source,  # v4.9.5: Track signal source (overnight_gap, breakout, dip_bounce)
-                    signal_score=signal_score,  # v4.9.8: Carry to SELL log for analytics
-                    # v4.9.9: Entry context for analytics
-                    entry_mode=mode,
-                    entry_regime="BULL" if regime_ok else "BEAR",
-                    entry_rsi=getattr(signal, 'rsi', 0.0) or 0.0,
-                    momentum_5d=getattr(signal, 'momentum_5d', 0.0) or 0.0,
-                )
-                self._save_positions_state()
-
-            # --- BLOCK 8: Post-trade logging & stats ---
-            # PDT Guard: Record entry date
-            self.pdt_guard.record_entry(symbol)
-
-            self.daily_stats.trades_executed += 1
-            self.daily_stats.signals_executed += 1
-
-            # v4.5: Track low risk trades
-            if 'LOW_RISK' in mode:
-                self.daily_stats.low_risk_trades += 1
-                logger.info(f"✅ Bought {symbol} x{qty} @ ${entry_price:.2f} [LOW RISK MODE]")
-            else:
-                logger.info(f"✅ Bought {symbol} x{qty} @ ${entry_price:.2f}")
-            logger.info(f"   SL: ${sl_price:.2f} (-{sl_pct}%) | TP: ${tp_price:.2f} (+{tp_pct}%) | ATR: {atr_sl_tp['atr_pct']}%")
-
-            # Alert: BUY executed
-            self.alerts.alert_trade_executed(symbol, 'BUY', entry_price, qty)
-
-            # Trade Log: Log BUY
-            try:
-                pdt_status = self.pdt_guard.get_pdt_status()
-                # regime_ok, regime_reason already captured before ManagedPosition creation (v4.9.9)
-
-                # Get analysis data for future filter decisions
-                analysis = self._get_analysis_data(symbol)
-
-                # Get execution metadata from smart buy
-                exec_meta = getattr(self.broker, 'last_execution_meta', {})
-                signal_price_val = getattr(signal, 'entry_price', None) or getattr(signal, 'close', None)
-                slippage = None
-                if signal_price_val and entry_price and signal_price_val > 0:
-                    slippage = round(((entry_price - signal_price_val) / signal_price_val) * 100, 3)
-
-                # v5.0: Entry timing context (best-effort, never blocks buy)
-                entry_minutes = None
-                entry_spy_change = None
-                entry_vix = None
-                entry_sector_change = None
+            # BLOCK 7: Create ManagedPosition
+            position_ok = self._exec_create_position(
+                signal, entry_price, qty, sl_order_id, sl_pct, tp_pct,
+                atr_sl_tp['atr_pct'], params
+            )
+            if not position_ok:
                 try:
-                    et_now = self._get_et_time()
-                    market_open = et_now.replace(hour=9, minute=30, second=0, microsecond=0)
-                    entry_minutes = max(0, int((et_now - market_open).total_seconds() / 60)) if et_now > market_open else 0
+                    self.broker.cancel_order(buy_order.id)
+                except Exception:
+                    pass
+                return False
 
-                    # SPY/VIX from regime cache (no API call)
-                    if hasattr(self, '_regime_cache') and self._regime_cache and len(self._regime_cache) >= 4:
-                        rd = self._regime_cache[3]
-                        if isinstance(rd, dict):
-                            entry_spy_change = rd.get('pct_above_sma')
-                            entry_vix = rd.get('vix')
-
-                    # Sector ETF change (best-effort, skip if slow)
-                    sector_etf_map = {
-                        'Technology': 'XLK', 'Healthcare': 'XLV', 'Consumer Cyclical': 'XLY',
-                        'Financial Services': 'XLF', 'Communication Services': 'XLC',
-                        'Industrials': 'XLI', 'Consumer Defensive': 'XLP', 'Energy': 'XLE',
-                        'Utilities': 'XLU', 'Real Estate': 'XLRE', 'Basic Materials': 'XLB',
-                    }
-                    sig_sector = getattr(signal, 'sector', '')
-                    etf_sym = sector_etf_map.get(sig_sector)
-                    if etf_sym:
-                        try:
-                            import yfinance as yf
-                            etf_data = yf.Ticker(etf_sym).history(period='2d')
-                            if etf_data is not None and len(etf_data) >= 2:
-                                entry_sector_change = round(((etf_data['Close'].iloc[-1] / etf_data['Close'].iloc[-2]) - 1) * 100, 2)
-                        except Exception as e:
-                            logger.debug(f"Sector ETF data error: {e}")
-                except Exception as ctx_err:
-                    logger.debug(f"Entry timing context error: {ctx_err}")
-
-                self.trade_logger.log_buy(
-                    symbol=symbol,
-                    qty=qty,
-                    price=entry_price,
-                    reason="SIGNAL",
-                    filters={
-                        "regime": {"passed": regime_ok, "detail": regime_reason},
-                        "gap": {"passed": True, "detail": f"{gap_pct:+.1f}%"},
-                        "earnings": {"passed": True, "detail": earnings_reason},
-                        "score": {"passed": True, "detail": f"{signal_score}"}
-                    },
-                    pdt_remaining=pdt_status.remaining,
-                    mode=mode,
-                    regime="BULL" if regime_ok else "BEAR",
-                    gap_pct=gap_pct,
-                    signal_score=signal_score,
-                    atr_pct=getattr(signal, 'atr_pct', None),
-                    entry_rsi=getattr(signal, 'rsi', None),  # v4.9.9
-                    momentum_5d=getattr(signal, 'momentum_5d', None),  # v4.9.9
-                    sector=getattr(signal, 'sector', None),
-                    signal_source=signal_source,  # v4.9.9
-                    order_id=buy_order.id if buy_order else None,
-                    # Analysis data
-                    dist_from_52w_high=analysis.get('dist_from_52w_high'),
-                    return_5d=analysis.get('return_5d'),
-                    return_20d=analysis.get('return_20d'),
-                    market_cap=analysis.get('market_cap'),
-                    market_cap_tier=analysis.get('market_cap_tier'),
-                    beta=analysis.get('beta'),
-                    volume_ratio=getattr(signal, 'volume_ratio', None) or analysis.get('volume_ratio'),
-                    # Execution data (v4.8)
-                    order_type=exec_meta.get('order_type'),
-                    signal_price=signal_price_val,
-                    limit_price=exec_meta.get('limit_price'),
-                    fill_price=entry_price,
-                    slippage_pct=slippage,
-                    bid_ask_spread_pct=exec_meta.get('bid_ask_spread_pct'),
-                    fill_time_sec=exec_meta.get('fill_time_sec'),
-                    fill_status=exec_meta.get('fill_status'),
-                    # Config snapshot (v4.8)
-                    config_snapshot=self._get_config_snapshot(),
-                    scan_id=getattr(self, '_current_scan_id', None),  # v5.1 P2-22
-                    # v5.0: Entry timing context
-                    entry_minutes_after_open=entry_minutes,
-                    entry_spy_pct_above_sma=entry_spy_change,
-                    entry_vix=entry_vix,
-                    entry_sector_change_1d=entry_sector_change,
-                )
-            except Exception as log_err:
-                logger.warning(f"Trade log error: {log_err}")
+            # BLOCK 8: Post-trade logging
+            self._exec_post_trade_logging(
+                signal, buy_order, entry_price, qty, gap_pct,
+                sl_pct, tp_pct, atr_sl_tp['atr_pct'], params
+            )
 
             return True
 
