@@ -1542,10 +1542,19 @@ function updateSectorHighlights() {
 let _timelineInterval = null;
 let _timelineRendered = false;
 
+// v6.4: Default sessions (fallback if API not ready yet)
+const DEFAULT_SESSIONS = [
+    { name: 'morning', label: 'Morning', start: 575, end: 660, interval: 3 },
+    { name: 'midday', label: 'Midday', start: 660, end: 840, interval: 5 },
+    { name: 'afternoon', label: 'Afternoon', start: 840, end: 930, interval: 5 },
+    { name: 'preclose', label: 'Pre-Close', start: 930, end: 960, interval: 0 },
+];
+
 // v6.4: Render timeline HTML from API config (single source of truth)
 function renderTimelineFromConfig(sessions) {
     const timelineBar = document.getElementById('timelineBar');
-    if (!timelineBar || !sessions || sessions.length === 0) return;
+    if (!timelineBar) return;
+    if (!sessions || sessions.length === 0) sessions = DEFAULT_SESSIONS;
 
     // Helper: minutes to HH:MM format
     const minsToTime = (mins) => {
@@ -1587,8 +1596,8 @@ function updateTimelineBar(schedule) {
     }
 
     // v6.4: Render timeline from API config if not yet rendered
-    if (!_timelineRendered && schedule.sessions && schedule.sessions.length > 0) {
-        renderTimelineFromConfig(schedule.sessions);
+    if (!_timelineRendered) {
+        renderTimelineFromConfig(schedule.sessions);  // Uses DEFAULT_SESSIONS if not provided
     }
 
     // v6.4: Check if trading day - if not, show closed message
