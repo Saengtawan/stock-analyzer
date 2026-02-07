@@ -563,7 +563,11 @@
     <div class="col-lg-4 col-md-6 order-1">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-shopping-cart me-2"></i>Buy Signals <small id="signalCacheAge" class="text-muted ms-2" style="font-size:0.7rem;opacity:0.8"></small></span>
+                <span>
+                    <i class="fas fa-shopping-cart me-2"></i>Buy Signals
+                    <small id="preFilterStatus" class="ms-2" style="font-size:0.65rem;opacity:0.9" title="Pre-filter pool status"></small>
+                    <small id="signalCacheAge" class="text-muted ms-1" style="font-size:0.7rem;opacity:0.8"></small>
+                </span>
                 <span class="badge bg-success" id="signalBadge">0</span>
             </div>
             <div class="card-body" id="signalsContainer" style="max-height: 75vh; overflow-y: auto;">
@@ -2082,6 +2086,52 @@ function updatePositionsUI(data) {
 
 function updateSignalsUI(data) { loadSignals(); }
 
+// v6.2: Update pre-filter pool status in Buy Signals header
+function updatePreFilterStatus(status) {
+    const el = document.getElementById('preFilterStatus');
+    if (!el) return;
+
+    if (!status || !status.pool_size) {
+        // No pre-filter data - show AI fallback
+        el.innerHTML = '<span class="badge bg-secondary bg-opacity-50" style="font-size:0.6rem">Pool: AI</span>';
+        el.title = 'Using AI-generated universe (pre-filter not available)';
+        return;
+    }
+
+    const poolSize = status.pool_size;
+    const isReady = status.is_ready;
+    const lastTime = status.last_updated ? new Date(status.last_updated).toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit', hour12: false}) : '';
+
+    // Check if stale (> 12 hours)
+    let isStale = false;
+    if (status.last_updated) {
+        const age = (Date.now() - new Date(status.last_updated).getTime()) / (1000 * 60 * 60);
+        isStale = age > 12;
+    }
+
+    let badgeClass, icon, text;
+    if (status.evening_status === 'running' || status.pre_open_status === 'running') {
+        badgeClass = 'bg-info';
+        icon = '<i class="fas fa-sync-alt fa-spin me-1"></i>';
+        text = 'scanning...';
+    } else if (isStale) {
+        badgeClass = 'bg-warning text-dark';
+        icon = '<i class="fas fa-exclamation-triangle me-1"></i>';
+        text = `${poolSize} ⚠️`;
+    } else if (isReady) {
+        badgeClass = 'bg-success bg-opacity-75';
+        icon = '';
+        text = `Pool: ${poolSize} ✓`;
+    } else {
+        badgeClass = 'bg-secondary bg-opacity-50';
+        icon = '';
+        text = `Pool: ${poolSize}`;
+    }
+
+    el.innerHTML = `<span class="badge ${badgeClass}" style="font-size:0.6rem">${icon}${text}</span>`;
+    el.title = `Pre-filter pool: ${poolSize} stocks\nEvening: ${status.evening_status} (${status.evening_count || 0})\nPre-open: ${status.pre_open_status} (${status.pre_open_count || 0})\nLast: ${lastTime}`;
+}
+
 function updateStatusUI(data) {
     if (data.error) return;
     updateHeaderBar(data);
@@ -2169,6 +2219,9 @@ function loadSignals() {
                 ageEl.textContent = mins < 1 ? 'just now' : `${mins}m ago`;
                 ageEl.style.color = mins > 20 ? '#f39c12' : 'rgba(255,255,255,0.7)';
             }
+
+            // v6.2: Update pre-filter status
+            updatePreFilterStatus(data.prefilter_status);
 
             const signals = data.signals || [];
             const waitingCount = (data.waiting_signals || []).length;

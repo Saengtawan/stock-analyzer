@@ -2650,6 +2650,20 @@ def api_rapid_signals():
         except Exception as sched_err:
             logger.debug(f"Could not get scanner schedule: {sched_err}")
 
+        # v6.2: Get pre-filter status
+        try:
+            prefilter_status_path = os.path.join(
+                os.path.dirname(__file__), '..', '..', 'data', 'pre_filter_status.json'
+            )
+            if os.path.exists(prefilter_status_path):
+                with open(prefilter_status_path, 'r') as pf:
+                    data['prefilter_status'] = _json.load(pf)
+            else:
+                data['prefilter_status'] = None
+        except Exception as pf_err:
+            logger.debug(f"Could not get pre-filter status: {pf_err}")
+            data['prefilter_status'] = None
+
         return jsonify(data)
 
     except Exception as e:

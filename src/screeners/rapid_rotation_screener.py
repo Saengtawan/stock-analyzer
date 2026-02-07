@@ -341,7 +341,13 @@ class RapidRotationScreener:
 
     def generate_universe(self, max_stocks: int = 200) -> List[str]:
         """
-        Generate stock universe using AI or fallback to default
+        Generate stock universe using pre-filter pool, AI, or fallback.
+
+        Priority:
+        1. Pre-filtered pool (from overnight scan) - most reliable
+        2. AI Universe Generator
+        3. Cached AI universe
+        4. Static fallback list
 
         Args:
             max_stocks: Maximum stocks to include
@@ -351,8 +357,36 @@ class RapidRotationScreener:
         """
         universe = []
 
-        # Try AI Universe Generator first
-        if self.ai_generator:
+        # v6.2: Try pre-filtered pool first (from overnight scan)
+        try:
+            pre_filter_file = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                'data', 'pre_filtered.json'
+            )
+            if os.path.exists(pre_filter_file):
+                with open(pre_filter_file) as f:
+                    pre_filtered = json.load(f)
+
+                # Check if pool is fresh (< 12 hours old)
+                generated_at = pre_filtered.get('generated_at', '')
+                if generated_at:
+                    from datetime import datetime
+                    gen_time = datetime.fromisoformat(generated_at)
+                    age_hours = (datetime.now() - gen_time).total_seconds() / 3600
+
+                    if age_hours < 12:
+                        pool_stocks = list(pre_filtered.get('stocks', {}).keys())
+                        if len(pool_stocks) >= 50:
+                            universe = pool_stocks[:max_stocks] if len(pool_stocks) > max_stocks else pool_stocks
+                            logger.info(f"📦 Using pre-filtered pool: {len(universe)} stocks (age: {age_hours:.1f}h)")
+                            self._using_prefilter = True
+                    else:
+                        logger.warning(f"⚠️ Pre-filtered pool is stale ({age_hours:.1f}h old)")
+        except Exception as e:
+            logger.debug(f"Pre-filtered pool not available: {e}")
+
+        # Try AI Universe Generator if no pre-filter
+        if not universe and self.ai_generator:
             try:
                 logger.info("🤖 Generating universe with AI...")
                 criteria = {

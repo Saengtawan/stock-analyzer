@@ -171,3 +171,17 @@ breakout_min_volume_mult: 1.5
 breakout_min_score: 75
 breakout_target_pct: 8.0
 breakout_sl_pct: 3.0
+
+# =============================================================================
+# v6.2 — PRE-FILTER SYSTEM
+# =============================================================================
+# Scans full universe (~1,000+ stocks) during market close hours
+# to create filtered pool (~200-400 stocks) for fast realtime scanning.
+
+# -- Pre-Filter Settings --
+pre_filter_enabled: true
+pre_filter_min_price: 5.0          # Minimum stock price
+pre_filter_min_volume: 500000      # Minimum average volume
+pre_filter_min_atr_pct: 2.5        # Minimum ATR% (volatility)
+pre_filter_max_overextended: 10.0  # Max % above SMA20
+pre_filter_pool_stale_hours: 12    # Hours before pool considered stale
