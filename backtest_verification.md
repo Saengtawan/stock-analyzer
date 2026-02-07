@@ -171,7 +171,50 @@ FINAL RECOMMENDATION:
 
 ---
 
-## 7. Verification Checklist
+## 7. Scoring System Verification
+
+### Dip-Bounce Scoring Layers (10 total, not 12)
+
+| # | Layer | Max Score | Purpose |
+|---|-------|-----------|---------|
+| 1 | Bounce confirmation | 40 | Today green + mom > 0.5% |
+| 2 | Prior dip (5d) | 40 | -5% to -12% = best |
+| 3 | Yesterday's dip | 30 | Entry catalyst |
+| 4 | RSI oversold | 35 | 25-40 RSI = best |
+| 5 | Trend context | 25 | Above SMA20/50 |
+| 6 | Volatility | 20 | ATR > 4% |
+| 7 | Room to recover | 20 | 10-25% from high |
+| 8 | Volume spike | 15 | Volume ratio > 1.5 |
+| 9 | Sector regime | ±10 | BULL +5, BEAR -10 |
+| 10 | Alt data | ±10 | Insider, sentiment |
+
+**Code:** `rapid_rotation_screener.py:958-1051`
+
+### Dip-Bounce Weight Distribution
+- Bounce-related (1-4): 145 points = **65%** of max score
+- Context (5-8): 80 points = **35%** of max score
+- Adjustments (9-10): ±20 points
+
+---
+
+## 8. Realtime Update Mechanism
+
+### UI Updates: Polling (not WebSocket push)
+
+| Component | Method | Interval | Code |
+|-----------|--------|----------|------|
+| Auto Status | Polling | 10s | `setInterval(loadAutoStatus, 10000)` |
+| Signals | Polling | 15s | `setInterval(loadSignals, 15000)` |
+| Health Check | Polling | 60s | `setInterval(checkHealth, 60000)` |
+| Sector Regime | Polling | 5min | `setInterval(loadSectorRegimes, 300000)` |
+
+**Note:** WebSocket (Socket.IO) is used for scan progress notifications only, not for price/VIX data.
+
+**Code:** `rapid_trader.html:2448-2614`
+
+---
+
+## 9. Verification Checklist
 
 - [x] BULL +241% verified (+241.2% actual)
 - [x] BEAR +109% verified (109.5% actual)
@@ -179,10 +222,12 @@ FINAL RECOMMENDATION:
 - [x] VIX threshold = 30 confirmed
 - [x] Triple VIX protection implemented
 - [x] Backtest script available and reproducible
+- [x] Scoring layers = 10 (not 12)
+- [x] Realtime = Polling (not WebSocket push)
 
 ---
 
-## 8. Conclusion
+## 10. Conclusion
 
 **All claims verified with evidence.**
 
