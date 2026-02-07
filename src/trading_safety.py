@@ -233,8 +233,8 @@ class TradingSafetySystem:
         """Check daily P&L against limit"""
         try:
             account = self.broker.get_account()
-            equity = account['equity']
-            last_equity = account['last_equity']
+            equity = getattr(account, 'equity', 0) if not isinstance(account, dict) else account.get('equity', 0)
+            last_equity = getattr(account, 'last_equity', equity) if not isinstance(account, dict) else account.get('last_equity', equity)
 
             daily_pnl = equity - last_equity
             daily_pnl_pct = (daily_pnl / last_equity) * 100 if last_equity > 0 else 0
@@ -317,8 +317,8 @@ class TradingSafetySystem:
         """Check available buying power"""
         try:
             account = self.broker.get_account()
-            buying_power = account['buying_power']
-            equity = account['equity']
+            buying_power = getattr(account, 'buying_power', 0) if not isinstance(account, dict) else account.get('buying_power', 0)
+            equity = getattr(account, 'equity', 0) if not isinstance(account, dict) else account.get('equity', 0)
 
             bp_pct = (buying_power / equity) * 100 if equity > 0 else 0
 
@@ -350,11 +350,12 @@ class TradingSafetySystem:
         """Check Alpaca API connection"""
         try:
             clock = self.broker.get_clock()
+            is_open = getattr(clock, 'is_open', False) if not isinstance(clock, dict) else clock.get('is_open', False)
 
             return SafetyCheck(
                 name="API Connection",
                 status=SafetyStatus.OK,
-                message=f"Connected (Market {'Open' if clock['is_open'] else 'Closed'})"
+                message=f"Connected (Market {'Open' if is_open else 'Closed'})"
             )
 
         except Exception as e:
@@ -390,9 +391,14 @@ class TradingSafetySystem:
         """
         try:
             account = self.broker.get_account()
-            portfolio_value = account['portfolio_value']
-            daytrade_count = account.get('daytrade_count', 0)
-            is_pdt = account.get('pattern_day_trader', False)
+            if isinstance(account, dict):
+                portfolio_value = account.get('portfolio_value', 0)
+                daytrade_count = account.get('daytrade_count', 0)
+                is_pdt = account.get('pattern_day_trader', False)
+            else:
+                portfolio_value = getattr(account, 'portfolio_value', 0)
+                daytrade_count = getattr(account, 'day_trade_count', 0)
+                is_pdt = getattr(account, 'pattern_day_trader', False)
 
             # If account >= $25K, PDT doesn't apply
             if portfolio_value >= self.PDT_ACCOUNT_THRESHOLD and not self.PDT_ENFORCE_ALWAYS:

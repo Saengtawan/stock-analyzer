@@ -140,6 +140,7 @@ class AlpacaBroker(BrokerInterface):
             trading_blocked=acct.trading_blocked,
             initial_margin=float(acct.initial_margin) if hasattr(acct, 'initial_margin') else 0,
             maintenance_margin=float(acct.maintenance_margin) if hasattr(acct, 'maintenance_margin') else 0,
+            last_equity=float(acct.last_equity) if hasattr(acct, 'last_equity') else float(acct.equity),
         )
 
     # =========================================================================

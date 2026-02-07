@@ -4740,7 +4740,19 @@ class AutoTradingEngine:
             consecutive_losses = self.consecutive_losses
             weekly_pnl = self.weekly_realized_pnl
 
-        account = self.broker.get_account()
+        try:
+            account = self.broker.get_account()
+            # Handle both dict and object access (Alpaca SDK inconsistency)
+            if isinstance(account, dict):
+                account_value = account.get('portfolio_value', 0)
+                account_cash = account.get('cash', 0)
+            else:
+                account_value = getattr(account, 'portfolio_value', 0)
+                account_cash = getattr(account, 'cash', 0)
+        except Exception as e:
+            logger.warning(f"Failed to get account info: {e}")
+            account_value = 0
+            account_cash = 0
         safety_status = self.safety.get_status_summary()
 
         # v4.0: Get current regime
@@ -4779,8 +4791,8 @@ class AutoTradingEngine:
             'low_risk_mode': is_low_risk,  # v4.5
             'low_risk_reason': low_risk_reason,  # v4.5
             'positions': positions_count,
-            'account_value': account['portfolio_value'],
-            'cash': account['cash'],
+            'account_value': account_value,
+            'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
             'version': 'v6.0.0',  # v6.0: VIX<30 Entry Filter + Optimized Trailing (BULL +241%, BEAR +109%)

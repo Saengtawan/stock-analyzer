@@ -136,6 +136,9 @@ class Account:
     account_blocked: bool = False
     trading_blocked: bool = False
 
+    # Last equity for daily P&L calculation
+    last_equity: float = 0.0
+
     # Margin info (optional)
     initial_margin: float = 0.0
     maintenance_margin: float = 0.0
