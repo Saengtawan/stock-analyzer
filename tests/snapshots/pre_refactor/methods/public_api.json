@@ -1,0 +1,78 @@
+{
+  "get_status": {
+    "return_type": "Dict",
+    "keys": [
+      "state",
+      "is_running",
+      "mode",
+      "positions_count",
+      "queue_count",
+      "daily_pnl",
+      "weekly_pnl",
+      "market_regime",
+      "vix",
+      "last_scan_time",
+      "next_scan_time",
+      "pdt_budget",
+      "paper_mode",
+      "version"
+    ]
+  },
+  "get_full_config": {
+    "return_type": "Dict",
+    "keys": [
+      "version",
+      "mode",
+      "paper_mode",
+      "params",
+      "limits",
+      "schedule"
+    ]
+  },
+  "get_sector_regimes": {
+    "return_type": "List[Dict]",
+    "item_keys": [
+      "sector",
+      "regime",
+      "score",
+      "rsi",
+      "return_1d",
+      "return_5d"
+    ]
+  },
+  "get_positions_status": {
+    "return_type": "List[Dict]",
+    "item_keys": [
+      "symbol",
+      "qty",
+      "entry_price",
+      "current_price",
+      "pnl_pct",
+      "hold_days",
+      "stop_loss",
+      "take_profit",
+      "trailing_stop"
+    ]
+  },
+  "get_queue_status": {
+    "return_type": "List[Dict]",
+    "item_keys": [
+      "symbol",
+      "score",
+      "queued_at",
+      "price_at_queue",
+      "current_price"
+    ]
+  },
+  "daily_summary": {
+    "return_type": "Dict",
+    "keys": [
+      "date",
+      "trades",
+      "winners",
+      "losers",
+      "pnl_total",
+      "pnl_pct"
+    ]
+  }
+}

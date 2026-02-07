@@ -1,0 +1,40 @@
+{
+  "created_at": "2026-02-07T09:33:12.725422",
+  "engine_version": "v6.0",
+  "python_version": "3.11.8 (main, Oct 30 2024, 14:09:54) [GCC 11.4.0]",
+  "files": {
+    "methods/class_structure.json": {
+      "size": 4526,
+      "md5": "cf894b90e5935d07cc3ca4559164ff53"
+    },
+    "methods/dependency_map.json": {
+      "size": 1756,
+      "md5": "5d910916018f2910f92704efdaa5c04c"
+    },
+    "methods/method_signatures.json": {
+      "size": 22106,
+      "md5": "ae41dc8899e7cbb5777ff93484a0d363"
+    },
+    "methods/public_api.json": {
+      "size": 1323,
+      "md5": "23cca8d9baf60bd8638f86fdded437b7"
+    },
+    "state/config_snapshot.json": {
+      "size": 3205,
+      "md5": "de7a5a09ce4714a8f8ccfc081cc1988d"
+    },
+    "state/state_formats.json": {
+      "size": 2,
+      "md5": "99914b932bd37a50b983c5e7c90ae93b"
+    },
+    "checksums/file_checksums.json": {
+      "size": 1163,
+      "md5": "8117e5f9895b6cb5e3f9ceb6aad02f56"
+    },
+    "auto_trading_engine.py.backup": {
+      "size": 256418,
+      "md5": "157f8f644b3062850feba4281f6cc34a",
+      "lines": 5383
+    }
+  }
+}

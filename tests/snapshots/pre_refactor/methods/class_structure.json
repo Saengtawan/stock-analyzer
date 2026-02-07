@@ -1,0 +1,189 @@
+{
+  "classes": {
+    "AutoTradingEngine": {
+      "bases": [
+        "object"
+      ],
+      "methods": [
+        "BEAR_SECTORS",
+        "BEAR_SECTOR_THRESHOLD",
+        "CIRCUIT_BREAKER_MAX_ERRORS",
+        "MARKET_CLOSE_HOUR",
+        "MARKET_CLOSE_MINUTE",
+        "MARKET_OPEN_HOUR",
+        "MARKET_OPEN_MINUTE",
+        "PRE_CLOSE_MINUTE",
+        "TARGET_RR",
+        "_add_to_queue",
+        "_calc_rsi",
+        "_calculate_atr_sl_tp",
+        "_check_earnings_filter",
+        "_check_gap_filter",
+        "_check_market_regime",
+        "_check_naked_positions",
+        "_check_overnight_earnings",
+        "_check_overnight_gap",
+        "_check_position",
+        "_check_queue_for_execution",
+        "_check_sector_cooldown",
+        "_check_sector_filter",
+        "_check_stock_d_filter",
+        "_check_vix_fresh_before_entry",
+        "_cleanup_old_scan_logs",
+        "_clear_queue_end_of_day",
+        "_close_position",
+        "_derive_signal_source",
+        "_detect_stock_split",
+        "_enrich_earnings_data",
+        "_execute_from_queue",
+        "_get_analysis_data",
+        "_get_bear_allowed_sectors",
+        "_get_bull_blocked_sectors",
+        "_get_config_snapshot",
+        "_get_conviction_size",
+        "_get_earnings_days_until",
+        "_get_effective_params",
+        "_get_et_time",
+        "_get_exit_context",
+        "_get_scanner_schedule",
+        "_get_spy_data_from_alpaca",
+        "_get_vix",
+        "_is_bear_mode",
+        "_is_late_start",
+        "_is_low_risk_mode",
+        "_is_market_hours",
+        "_is_pre_close",
+        "_is_weekend",
+        "_load_config_from_yaml",
+        "_load_loss_counters",
+        "_load_positions_state",
+        "_load_queue_state",
+        "_log_filter_rejection",
+        "_process_scan_signals",
+        "_reconcile_positions",
+        "_record_sector_trade_result",
+        "_record_trade_result",
+        "_run_loop",
+        "_save_execution_status",
+        "_save_loss_counters",
+        "_save_market_closed_cache",
+        "_save_positions_state",
+        "_save_queue_state",
+        "_save_scan_log",
+        "_save_signals_cache",
+        "_should_use_day_trade",
+        "_sync_positions",
+        "_write_heartbeat",
+        "check_consecutive_loss_cooldown",
+        "check_daily_loss_limit",
+        "check_weekly_loss_limit",
+        "daily_summary",
+        "execute_signal",
+        "get_full_config",
+        "get_positions_status",
+        "get_queue_status",
+        "get_sector_regimes",
+        "get_status",
+        "monitor_positions",
+        "pre_close_check",
+        "scan_for_signals",
+        "start",
+        "stop"
+      ],
+      "line_number": 237
+    },
+    "DailyStats": {
+      "bases": [
+        "object"
+      ],
+      "methods": [
+        "earnings_rejected",
+        "gap_rejected",
+        "late_start_skipped",
+        "low_risk_trades",
+        "queue_added",
+        "queue_executed",
+        "queue_expired",
+        "queue_rescans",
+        "realized_pnl",
+        "regime_skipped",
+        "regime_status",
+        "sector_rejected",
+        "signals_executed",
+        "signals_found",
+        "stock_d_rejected",
+        "total_pnl",
+        "trades_executed",
+        "trades_lost",
+        "trades_won"
+      ],
+      "line_number": 160
+    },
+    "ManagedPosition": {
+      "bases": [
+        "object"
+      ],
+      "methods": [
+        "atr_pct",
+        "days_held",
+        "entry_mode",
+        "entry_regime",
+        "entry_rsi",
+        "momentum_5d",
+        "sector",
+        "signal_score",
+        "sl_pct",
+        "source",
+        "tp_pct",
+        "tp_price",
+        "trailing_active",
+        "trough_price"
+      ],
+      "line_number": 128
+    },
+    "QueuedSignal": {
+      "bases": [
+        "object"
+      ],
+      "methods": [
+        "atr_pct",
+        "get_max_deviation",
+        "is_fresh",
+        "is_price_acceptable",
+        "minutes_since_queued",
+        "sl_pct",
+        "tp_pct"
+      ],
+      "line_number": 185
+    },
+    "SignalSource": {
+      "bases": [
+        "object"
+      ],
+      "methods": [
+        "ALL",
+        "BREAKOUT",
+        "DIP_BOUNCE",
+        "OVERNIGHT_GAP"
+      ],
+      "line_number": 120
+    },
+    "TradingState": {
+      "bases": [
+        "Enum"
+      ],
+      "methods": [
+        "CLOSING",
+        "ERROR",
+        "MONITORING",
+        "SCANNING",
+        "SLEEPING",
+        "STARTING",
+        "STOPPED",
+        "TRADING"
+      ],
+      "line_number": 108
+    }
+  },
+  "module_level": []
+}

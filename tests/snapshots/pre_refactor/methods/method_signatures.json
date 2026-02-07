@@ -1,0 +1,688 @@
+{
+  "__init__": {
+    "params": [
+      "self",
+      "api_key",
+      "secret_key",
+      "paper",
+      "auto_start"
+    ],
+    "doc": "Initialize trading engine",
+    "is_public": false,
+    "line_number": 437
+  },
+  "_add_to_queue": {
+    "params": [
+      "self",
+      "signal"
+    ],
+    "doc": "\n        Add signal to queue when positions are full\n\n        Returns:\n            True if added successfully\n        ",
+    "is_public": false,
+    "line_number": 2737
+  },
+  "_calc_rsi": {
+    "params": [
+      "close_series",
+      "period"
+    ],
+    "doc": "Calculate RSI from a pandas Series of close prices.",
+    "is_public": false,
+    "line_number": 1443
+  },
+  "_calculate_atr_sl_tp": {
+    "params": [
+      "self",
+      "symbol",
+      "entry_price",
+      "signal_atr_pct"
+    ],
+    "doc": "\n        Calculate ATR-based SL/TP for a position (v4.6)\n\n        SL = 1.5 \u00d7 ATR%, clamped [2%, 4%]\n        TP = 3 \u00d7 ATR%, clamped [4%, 8%]\n        PDT TP = SL% (R:R 1:1 minimum for Day 0)\n\n        Re",
+    "is_public": false,
+    "line_number": 2231
+  },
+  "_check_earnings_filter": {
+    "params": [
+      "self",
+      "symbol"
+    ],
+    "doc": "\n        Check if stock has earnings announcement coming soon\n\n        \u0e44\u0e21\u0e48\u0e0b\u0e37\u0e49\u0e2d\u0e2b\u0e38\u0e49\u0e19\u0e17\u0e35\u0e48\u0e21\u0e35 earnings \u0e43\u0e01\u0e25\u0e49\u0e46 \u0e40\u0e1e\u0e23\u0e32\u0e30\u0e40\u0e2a\u0e35\u0e48\u0e22\u0e07 gap \u00b110-20%\n\n        Returns:\n            (is_acceptable, reason, earnings_data)\n    ",
+    "is_public": false,
+    "line_number": 1927
+  },
+  "_check_gap_filter": {
+    "params": [
+      "self",
+      "symbol",
+      "current_price",
+      "max_up_override",
+      "max_down_override"
+    ],
+    "doc": "\n        Check if stock has gapped too much from previous close\n\n        Gap up \u0e41\u0e23\u0e07 = \u0e44\u0e21\u0e48\u0e43\u0e0a\u0e48 dip bounce \u0e41\u0e25\u0e49\u0e27 \u2192 SKIP\n        Gap down \u0e41\u0e23\u0e07 = \u0e2d\u0e32\u0e08\u0e21\u0e35\u0e1b\u0e31\u0e0d\u0e2b\u0e32 (bad news) \u2192 SKIP\n\n        Args:\n            max_u",
+    "is_public": false,
+    "line_number": 1790
+  },
+  "_check_market_regime": {
+    "params": [
+      "self",
+      "force_refresh"
+    ],
+    "doc": "\n        Check if market is in Bull regime (OK to trade)\n\n        v4.9 Enhanced Regime Filter \u2014 must pass ALL:\n          1. SPY > SMA20 (trend)\n          2. SPY RSI(14) > 40 (momentum not oversold cra",
+    "is_public": false,
+    "line_number": 1323
+  },
+  "_check_naked_positions": {
+    "params": [
+      "self"
+    ],
+    "doc": "Re-place SL orders for positions missing them (recovery from SL placement failure).",
+    "is_public": false,
+    "line_number": 3689
+  },
+  "_check_overnight_earnings": {
+    "params": [
+      "self"
+    ],
+    "doc": "\n        v4.9: Check if any held position has earnings TODAY or TOMORROW.\n        Alert user to consider exiting before close.\n        Dedup: only alert once per symbol per day.\n        ",
+    "is_public": false,
+    "line_number": 3633
+  },
+  "_check_overnight_gap": {
+    "params": [
+      "self",
+      "symbol",
+      "managed_pos"
+    ],
+    "doc": "\n        v4.7 Fix #11: Check for overnight gap risk at market open.\n        Only runs within first 5 min of market open, for Day 1+ positions.\n        ",
+    "is_public": false,
+    "line_number": 3549
+  },
+  "_check_position": {
+    "params": [
+      "self",
+      "symbol",
+      "managed_pos"
+    ],
+    "doc": "\n        Check single position and update trailing if needed\n\n        PDT Smart Guard v2.0 integration:\n        - Day 0: No SL order at Alpaca, monitor manually\n        - Day 1+: Place/update SL order",
+    "is_public": false,
+    "line_number": 3780
+  },
+  "_check_queue_for_execution": {
+    "params": [
+      "self"
+    ],
+    "doc": "\n        Check queue for executable signals when slot opens\n\n        Priority: Freshness (< 30 min) > Score\n        Deviation: ATR-based with min/max caps\n\n        Returns:\n            QueuedSignal if",
+    "is_public": false,
+    "line_number": 2798
+  },
+  "_check_sector_cooldown": {
+    "params": [
+      "self",
+      "sector"
+    ],
+    "doc": "\n        Check if sector is in cooldown from consecutive losses.\n        Tech \u0e41\u0e1e\u0e49 2 \u0e04\u0e23\u0e31\u0e49\u0e07\u0e15\u0e34\u0e14 \u2192 skip Tech 2 \u0e27\u0e31\u0e19\n        ",
+    "is_public": false,
+    "line_number": 2087
+  },
+  "_check_sector_filter": {
+    "params": [
+      "self",
+      "sector"
+    ],
+    "doc": "\n        Check if adding this sector would exceed MAX_PER_SECTOR\n\n        \u0e1b\u0e49\u0e2d\u0e07\u0e01\u0e31\u0e19\u0e16\u0e37\u0e2d\u0e2b\u0e38\u0e49\u0e19 sector \u0e40\u0e14\u0e35\u0e22\u0e27\u0e01\u0e31\u0e19\u0e40\u0e22\u0e2d\u0e30\u0e40\u0e01\u0e34\u0e19 (correlated risk)\n        \u0e40\u0e0a\u0e48\u0e19 AMD + NVDA + INTC = 3 \u0e15\u0e31\u0e27 Tech \u2192 \u0e25\u0e07\u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e01\u0e31\u0e19\n        ",
+    "is_public": false,
+    "line_number": 2065
+  },
+  "_check_stock_d_filter": {
+    "params": [
+      "self",
+      "symbol"
+    ],
+    "doc": "\n        Check if stock shows dip-bounce pattern (Stock-D filter).\n\n        v5.3 Quant Research Finding:\n        - Requiring dip-bounce pattern improves expectancy by +1.466%\n        - Pattern: Yester",
+    "is_public": false,
+    "line_number": 1847
+  },
+  "_check_vix_fresh_before_entry": {
+    "params": [
+      "self"
+    ],
+    "doc": "\n        P1 FIX: Fresh VIX check BEFORE placing any trade (bypasses cache).\n\n        VIX can spike fast (120s cache may miss it). This ensures we never\n        enter a trade when VIX >= REGIME_VIX_MAX",
+    "is_public": false,
+    "line_number": 1502
+  },
+  "_cleanup_old_scan_logs": {
+    "params": [
+      "self",
+      "scan_dir",
+      "max_age_days"
+    ],
+    "doc": "Remove scan log files older than max_age_days. Runs at most once per day.",
+    "is_public": false,
+    "line_number": 2607
+  },
+  "_clear_queue_end_of_day": {
+    "params": [
+      "self"
+    ],
+    "doc": "Clear queue at end of day",
+    "is_public": false,
+    "line_number": 2979
+  },
+  "_close_position": {
+    "params": [
+      "self",
+      "symbol",
+      "managed_pos",
+      "reason",
+      "force"
+    ],
+    "doc": "\n        Close a position with PDT Smart Guard v2.0 protection\n\n        Args:\n            symbol: Stock symbol\n            managed_pos: Managed position object\n            reason: Reason for closing (",
+    "is_public": false,
+    "line_number": 4017
+  },
+  "_derive_signal_source": {
+    "params": [
+      "self",
+      "signal",
+      "scan_type"
+    ],
+    "doc": "Derive signal source from scan_type (primary) or signal attributes (fallback).\n        v5.1 P2-10: Uses SignalSource constants to prevent typo bugs.\n        ",
+    "is_public": false,
+    "line_number": 2544
+  },
+  "_detect_stock_split": {
+    "params": [
+      "self",
+      "symbol",
+      "alpaca_pos",
+      "managed_pos"
+    ],
+    "doc": "\n        Detect stock split by comparing Alpaca position with managed position.\n        Returns split ratio if detected (e.g., 2.0 for 2:1 split), None otherwise.\n        ",
+    "is_public": false,
+    "line_number": 3664
+  },
+  "_enrich_earnings_data": {
+    "params": [
+      "self",
+      "ticker",
+      "earnings_data"
+    ],
+    "doc": "v5.0: Fetch analyst/fundamental data from ticker.info for earnings context",
+    "is_public": false,
+    "line_number": 1913
+  },
+  "_execute_from_queue": {
+    "params": [
+      "self",
+      "queued"
+    ],
+    "doc": "\n        Execute a queued signal with recalculated SL/TP based on current price.\n\n        Args:\n            queued: QueuedSignal to execute\n\n        Returns:\n            True if executed successfully\n",
+    "is_public": false,
+    "line_number": 2870
+  },
+  "_get_analysis_data": {
+    "params": [
+      "self",
+      "symbol"
+    ],
+    "doc": "\n        Get analysis data for logging purposes (future filter decisions)\n\n        Returns dict with:\n        - dist_from_52w_high: % below 52-week high\n        - return_5d: 5-day return\n        - ret",
+    "is_public": false,
+    "line_number": 2307
+  },
+  "_get_bear_allowed_sectors": {
+    "params": [
+      "self"
+    ],
+    "doc": "\n        Get dynamic list of sectors allowed in Bear Mode\n\n        v4.9.6: Use sector REGIME (not return_20d threshold)\n        - STRONG BULL, BULL, SIDEWAYS \u2192 ALLOWED (conviction sizing handles risk)",
+    "is_public": false,
+    "line_number": 1574
+  },
+  "_get_bull_blocked_sectors": {
+    "params": [
+      "self"
+    ],
+    "doc": "\n        Get sectors to block in BULL mode (sector ETF return_20d < threshold)\n\n        \u0e41\u0e21\u0e49 SPY BULL \u0e01\u0e47\u0e44\u0e21\u0e48\u0e04\u0e27\u0e23\u0e0b\u0e37\u0e49\u0e2d sector \u0e17\u0e35\u0e48\u0e01\u0e33\u0e25\u0e31\u0e07\u0e25\u0e07\n        \u0e40\u0e0a\u0e48\u0e19 Tech -3% \u0e02\u0e13\u0e30 SPY \u0e02\u0e36\u0e49\u0e19 \u2192 \u0e44\u0e21\u0e48\u0e0b\u0e37\u0e49\u0e2d Tech\n\n        Returns:\n",
+    "is_public": false,
+    "line_number": 1606
+  },
+  "_get_config_snapshot": {
+    "params": [
+      "self"
+    ],
+    "doc": "Get current config values for trade logging",
+    "is_public": false,
+    "line_number": 2378
+  },
+  "_get_conviction_size": {
+    "params": [
+      "self",
+      "signal",
+      "params"
+    ],
+    "doc": "\n        v4.9.4: Conviction-based position sizing\n\n        A+ (45%): STRONG BULL sector + (insider buying OR score 85+)\n        A  (40%): BULL sector + score 80+\n        B  (30%): SIDEWAYS/UNKNOWN sec",
+    "is_public": false,
+    "line_number": 1642
+  },
+  "_get_earnings_days_until": {
+    "params": [
+      "self",
+      "symbol"
+    ],
+    "doc": "\n        Return number of days until earnings for symbol, or None if unknown.\n        Cached per symbol with TTL: successful lookups cached for the day,\n        failed lookups retry after 5 minutes.\n ",
+    "is_public": false,
+    "line_number": 3588
+  },
+  "_get_effective_params": {
+    "params": [
+      "self"
+    ],
+    "doc": "\n        Get effective trading parameters based on mode\n\n        Priority: BEAR > LOW_RISK > NORMAL\n        If BEAR + LOW_RISK \u2192 use the stricter of both\n\n        Returns parameters adjusted for curre",
+    "is_public": false,
+    "line_number": 1720
+  },
+  "_get_et_time": {
+    "params": [
+      "self"
+    ],
+    "doc": "Get current time in ET",
+    "is_public": false,
+    "line_number": 1243
+  },
+  "_get_exit_context": {
+    "params": [
+      "self",
+      "symbol",
+      "current_price"
+    ],
+    "doc": "Fetch current market indicators at sell time (best-effort, never blocks sell).",
+    "is_public": false,
+    "line_number": 2401
+  },
+  "_get_scanner_schedule": {
+    "params": [
+      "self"
+    ],
+    "doc": "Get scanner timing for UI timeline bar.",
+    "is_public": false,
+    "line_number": 4992
+  },
+  "_get_spy_data_from_alpaca": {
+    "params": [
+      "self",
+      "days"
+    ],
+    "doc": "\n        v4.7 Fix #8: Get SPY historical data from Alpaca bars API.\n        Returns a DataFrame with 'Close' column, or None on failure.\n        ",
+    "is_public": false,
+    "line_number": 1285
+  },
+  "_get_vix": {
+    "params": [
+      "self"
+    ],
+    "doc": "Fetch current VIX value with retry. Returns (value, is_fallback).\n        Returns (50.0, True) on error (fail-safe \u2192 BEAR).",
+    "is_public": false,
+    "line_number": 1470
+  },
+  "_is_bear_mode": {
+    "params": [
+      "self"
+    ],
+    "doc": "\n        Check if Smart Bear Mode should activate.\n\n        Precedence: REGIME_FILTER gates everything \u2192 BEAR_MODE decides defensive trading.\n        If REGIME_FILTER disabled: always BULL \u2192 bear mode",
+    "is_public": false,
+    "line_number": 1554
+  },
+  "_is_late_start": {
+    "params": [
+      "self"
+    ],
+    "doc": "\n        Check if we started too late after market open\n\n        \u0e16\u0e49\u0e32\u0e40\u0e23\u0e34\u0e48\u0e21\u0e2b\u0e25\u0e31\u0e07 09:30 + MARKET_OPEN_SCAN_WINDOW \u2192 skip scan\n\n        Returns:\n            (is_late, reason)\n        ",
+    "is_public": false,
+    "line_number": 2198
+  },
+  "_is_low_risk_mode": {
+    "params": [
+      "self"
+    ],
+    "doc": "\n        Check if we should use Low Risk Mode\n\n        Low Risk Mode activates when PDT budget = 0\n        \u0e0b\u0e37\u0e49\u0e2d\u0e44\u0e14\u0e49 \u0e41\u0e15\u0e48\u0e40\u0e02\u0e49\u0e21\u0e02\u0e36\u0e49\u0e19 + size \u0e40\u0e25\u0e47\u0e01\u0e25\u0e07\n\n        Returns:\n            (is_low_risk, reason)\n       ",
+    "is_public": false,
+    "line_number": 1527
+  },
+  "_is_market_hours": {
+    "params": [
+      "self"
+    ],
+    "doc": "Check if within market hours",
+    "is_public": false,
+    "line_number": 1247
+  },
+  "_is_pre_close": {
+    "params": [
+      "self"
+    ],
+    "doc": "Check if in pre-close period (15:50-16:00 ET)",
+    "is_public": false,
+    "line_number": 1262
+  },
+  "_is_weekend": {
+    "params": [
+      "self"
+    ],
+    "doc": "Check if weekend",
+    "is_public": false,
+    "line_number": 1277
+  },
+  "_load_config_from_yaml": {
+    "params": [
+      "self"
+    ],
+    "doc": "\n        Load ALL trading parameters from config/trading.yaml.\n\n        v6.1 Architecture:\n        - YAML is the SINGLE SOURCE OF TRUTH\n        - No hardcoded fallbacks for trading params\n        - Mi",
+    "is_public": false,
+    "line_number": 581
+  },
+  "_load_loss_counters": {
+    "params": [
+      "self"
+    ],
+    "doc": "Load persisted loss tracking counters",
+    "is_public": false,
+    "line_number": 2167
+  },
+  "_load_positions_state": {
+    "params": [
+      "self"
+    ],
+    "doc": "\n        Load persisted position state from JSON file.\n\n        Returns:\n            Dict mapping symbol \u2192 position state dict\n        ",
+    "is_public": false,
+    "line_number": 820
+  },
+  "_load_queue_state": {
+    "params": [
+      "self"
+    ],
+    "doc": "Load persisted signal queue from JSON file on startup.",
+    "is_public": false,
+    "line_number": 886
+  },
+  "_log_filter_rejection": {
+    "params": [
+      "self",
+      "symbol",
+      "price",
+      "reason",
+      "skip_detail",
+      "filters",
+      "signal_score",
+      "signal_sector",
+      "signal_source",
+      "signal",
+      "mode",
+      "gap_pct",
+      "extra_kwargs"
+    ],
+    "doc": "Helper to log filter rejections (DRY: shared by all filter SKIP paths).",
+    "is_public": false,
+    "line_number": 3014
+  },
+  "_process_scan_signals": {
+    "params": [
+      "self",
+      "signals",
+      "scan_type",
+      "max_positions"
+    ],
+    "doc": "Process all signals from a scan: execute/queue + log ALL signals.",
+    "is_public": false,
+    "line_number": 2447
+  },
+  "_reconcile_positions": {
+    "params": [
+      "self"
+    ],
+    "doc": "Check for position mismatches between engine and Alpaca (once per day).\n\n        v5.1 P1-9: Also stores Alpaca position count so max_positions check\n        accounts for manual/external trades not tra",
+    "is_public": false,
+    "line_number": 2930
+  },
+  "_record_sector_trade_result": {
+    "params": [
+      "self",
+      "sector",
+      "pnl_pct"
+    ],
+    "doc": "Record trade result per sector for consecutive loss tracking. Thread-safe.",
+    "is_public": false,
+    "line_number": 2112
+  },
+  "_record_trade_result": {
+    "params": [
+      "self",
+      "pnl_pct"
+    ],
+    "doc": "\n        Record trade result for consecutive loss tracking + weekly P&L.\n        Called after every closed trade. Thread-safe.\n        ",
+    "is_public": false,
+    "line_number": 4347
+  },
+  "_run_loop": {
+    "params": [
+      "self"
+    ],
+    "doc": "Main trading loop",
+    "is_public": false,
+    "line_number": 4476
+  },
+  "_save_execution_status": {
+    "params": [
+      "self",
+      "scan_results"
+    ],
+    "doc": "Write latest execution results to cache for UI signal status display.",
+    "is_public": false,
+    "line_number": 2627
+  },
+  "_save_loss_counters": {
+    "params": [
+      "self"
+    ],
+    "doc": "Persist loss tracking counters (atomic write)",
+    "is_public": false,
+    "line_number": 2140
+  },
+  "_save_market_closed_cache": {
+    "params": [
+      "self"
+    ],
+    "doc": "Write market closed status to cache for UI.",
+    "is_public": false,
+    "line_number": 1078
+  },
+  "_save_positions_state": {
+    "params": [
+      "self"
+    ],
+    "doc": "\n        Persist all ManagedPosition state to JSON file (atomic write).\n\n        Saves: peak_price, trough_price, trailing_active, sl_pct, tp_pct,\n        atr_pct, current_sl_price, tp_price, entry_ti",
+    "is_public": false,
+    "line_number": 756
+  },
+  "_save_queue_state": {
+    "params": [
+      "self"
+    ],
+    "doc": "Persist signal queue to JSON file (atomic write).",
+    "is_public": false,
+    "line_number": 847
+  },
+  "_save_scan_log": {
+    "params": [
+      "self",
+      "scan_id",
+      "scan_type",
+      "mode",
+      "results"
+    ],
+    "doc": "Append scan batch to today's scan log file (thread-safe atomic write).",
+    "is_public": false,
+    "line_number": 2560
+  },
+  "_save_signals_cache": {
+    "params": [
+      "self",
+      "signals",
+      "scan_type",
+      "scan_duration",
+      "waiting_signals",
+      "positions_status"
+    ],
+    "doc": "\n        Write signals to JSON cache file for UI consumption.\n\n        This is the SINGLE SOURCE OF TRUTH for Buy Signals in the UI.\n        UI reads from this cache instead of running its own scanner",
+    "is_public": false,
+    "line_number": 928
+  },
+  "_should_use_day_trade": {
+    "params": [
+      "self",
+      "symbol",
+      "managed_pos",
+      "current_price"
+    ],
+    "doc": "\n        v4.9.4: Decide if we should use a day trade to close this position.\n        Only for Day 0 positions (same-day round trip).\n\n        Returns: (should_day_trade, reason)\n        ",
+    "is_public": false,
+    "line_number": 1682
+  },
+  "_sync_positions": {
+    "params": [
+      "self"
+    ],
+    "doc": "\n        Sync positions from Alpaca + merge persisted state.\n\n        Alpaca = source of truth for: symbol exists, qty, current_price\n        Persisted state = source of truth for: peak_price, trough_",
+    "is_public": false,
+    "line_number": 1140
+  },
+  "_write_heartbeat": {
+    "params": [
+      "self"
+    ],
+    "doc": "v4.7 Fix #15: Write heartbeat file for external watchdog monitoring",
+    "is_public": false,
+    "line_number": 4969
+  },
+  "check_consecutive_loss_cooldown": {
+    "params": [
+      "self",
+      "mode"
+    ],
+    "doc": "\n        Check if in cooldown from consecutive losses.\n        \u0e41\u0e1e\u0e49 3 \u0e04\u0e23\u0e31\u0e49\u0e07\u0e15\u0e34\u0e14 \u2192 \u0e2b\u0e22\u0e38\u0e14 1 \u0e27\u0e31\u0e19. Thread-safe.\n\n        v5.3: BEAR regime exempt from DD controls (Quant Research finding)\n\n        Args:\n    ",
+    "is_public": true,
+    "line_number": 4319
+  },
+  "check_daily_loss_limit": {
+    "params": [
+      "self",
+      "mode"
+    ],
+    "doc": "\n        Check if daily loss limit exceeded.\n\n        v5.3: BEAR regime exempt from DD controls (Quant Research finding)\n        Mean-reversion strategy needs room to work; DD controls destroy edge.\n\n",
+    "is_public": true,
+    "line_number": 4249
+  },
+  "check_weekly_loss_limit": {
+    "params": [
+      "self",
+      "mode"
+    ],
+    "doc": "\n        Check if weekly loss limit exceeded.\n        Reset \u0e17\u0e38\u0e01\u0e27\u0e31\u0e19\u0e08\u0e31\u0e19\u0e17\u0e23\u0e4c (start of trading week). Thread-safe.\n\n        v5.3: BEAR regime exempt from DD controls (Quant Research finding)\n\n        Args",
+    "is_public": true,
+    "line_number": 4279
+  },
+  "daily_summary": {
+    "params": [
+      "self"
+    ],
+    "doc": "Generate daily summary",
+    "is_public": true,
+    "line_number": 4413
+  },
+  "execute_signal": {
+    "params": [
+      "self",
+      "signal"
+    ],
+    "doc": "\n        Execute a trading signal\n\n        Args:\n            signal: Signal object from screener\n\n        Returns:\n            True if executed successfully\n\n        # TODO P3-19/20: This method is ~5",
+    "is_public": true,
+    "line_number": 3037
+  },
+  "get_full_config": {
+    "params": [
+      "self"
+    ],
+    "doc": "\n        v4.9.5: Return ALL runtime config values for UI Single Source of Truth.\n        Groups all 87+ parameters so the UI never needs hardcoded values.\n        ",
+    "is_public": true,
+    "line_number": 5105
+  },
+  "get_positions_status": {
+    "params": [
+      "self"
+    ],
+    "doc": "Get detailed positions status",
+    "is_public": true,
+    "line_number": 5274
+  },
+  "get_queue_status": {
+    "params": [
+      "self"
+    ],
+    "doc": "Get current queue status for UI",
+    "is_public": true,
+    "line_number": 2989
+  },
+  "get_sector_regimes": {
+    "params": [
+      "self"
+    ],
+    "doc": "Return sector regime data for UI sector strip.",
+    "is_public": true,
+    "line_number": 5251
+  },
+  "get_status": {
+    "params": [
+      "self"
+    ],
+    "doc": "Get current engine status",
+    "is_public": true,
+    "line_number": 5035
+  },
+  "monitor_positions": {
+    "params": [
+      "self"
+    ],
+    "doc": "Monitor all positions and update trailing stops\n\n        # TODO P3-20: This method is ~500+ lines. Future refactoring candidate.\n        # Key sections: SL recovery \u2192 split detection \u2192 SL fill check \u2192",
+    "is_public": true,
+    "line_number": 3706
+  },
+  "pre_close_check": {
+    "params": [
+      "self"
+    ],
+    "doc": "Pre-close check - handle max hold days and Day 0 SL",
+    "is_public": true,
+    "line_number": 4365
+  },
+  "scan_for_signals": {
+    "params": [
+      "self"
+    ],
+    "doc": "Run screener to find signals (with regime filter)",
+    "is_public": true,
+    "line_number": 2668
+  },
+  "start": {
+    "params": [
+      "self"
+    ],
+    "doc": "Start the trading engine",
+    "is_public": true,
+    "line_number": 4456
+  },
+  "stop": {
+    "params": [
+      "self"
+    ],
+    "doc": "Stop the trading engine",
+    "is_public": true,
+    "line_number": 4467
+  }
+}
