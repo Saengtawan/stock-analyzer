@@ -287,6 +287,10 @@ class AutoTradingEngine:
     STOCK_D_FILTER_ENABLED: bool
     BEAR_DD_CONTROL_EXEMPT: bool
 
+    # Stock Quality Filters (v6.2)
+    MAX_RSI_ENTRY: float = None  # Optional: block RSI > this value
+    AVOID_MOM_RANGE: list = None  # Optional: [min, max] momentum range to skip
+
     # Conviction Sizing
     CONVICTION_SIZING_ENABLED: bool
     CONVICTION_A_PLUS_PCT: float
@@ -620,6 +624,9 @@ class AutoTradingEngine:
             'regime_rsi_min': 'REGIME_RSI_MIN',
             'regime_return_5d_min': 'REGIME_RETURN_5D_MIN',
             'regime_vix_max': 'REGIME_VIX_MAX',
+            # Stock Quality Filters (v6.2)
+            'max_rsi_entry': 'MAX_RSI_ENTRY',
+            'avoid_mom_range': 'AVOID_MOM_RANGE',
             # Monitor
             'monitor_interval_seconds': 'MONITOR_INTERVAL_SECONDS',
         }
@@ -642,6 +649,8 @@ class AutoTradingEngine:
         logger.info(f"   TP_ATR={self.TP_ATR_MULTIPLIER}x [{self.TP_MIN_PCT}-{self.TP_MAX_PCT}%]")
         logger.info(f"   Trail: +{self.TRAIL_ACTIVATION_PCT}% → lock {self.TRAIL_LOCK_PCT}%")
         logger.info(f"   VIX_MAX={self.REGIME_VIX_MAX}, MAX_HOLD={self.MAX_HOLD_DAYS}d")
+        if hasattr(self, 'MAX_RSI_ENTRY') and self.MAX_RSI_ENTRY:
+            logger.info(f"   Quality Filters: RSI<{self.MAX_RSI_ENTRY}, avoid_mom={self.AVOID_MOM_RANGE}")
 
     # =========================================================================
     # POSITION STATE PERSISTENCE
@@ -2811,6 +2820,38 @@ class AutoTradingEngine:
                 )
                 self._last_skip_reason = f"Score {signal_score}"
                 return False
+
+            # --- BLOCK 2b: RSI quality filter (v6.2) ---
+            signal_rsi = getattr(signal, 'rsi', None)
+            max_rsi = getattr(self, 'MAX_RSI_ENTRY', None)
+            if max_rsi and signal_rsi and signal_rsi > max_rsi:
+                current_price = getattr(signal, 'entry_price', None) or getattr(signal, 'close', 0)
+                logger.warning(f"❌ RSI Filter REJECT {symbol}: RSI {signal_rsi:.0f} > {max_rsi} (overbought)")
+                self._log_filter_rejection(
+                    symbol, current_price, "RSI_REJECT",
+                    f"RSI {signal_rsi:.0f} > {max_rsi} (overbought)",
+                    {"rsi": {"passed": False, "detail": f"{signal_rsi:.0f} > {max_rsi}"}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
+                self._last_skip_reason = f"RSI {signal_rsi:.0f}"
+                return False
+
+            # --- BLOCK 2c: Momentum range filter (v6.2) ---
+            signal_mom = getattr(signal, 'momentum', None) or getattr(signal, 'mom_score', None)
+            avoid_range = getattr(self, 'AVOID_MOM_RANGE', None)
+            if avoid_range and signal_mom and len(avoid_range) == 2:
+                mom_min, mom_max = avoid_range
+                if mom_min <= signal_mom <= mom_max:
+                    current_price = getattr(signal, 'entry_price', None) or getattr(signal, 'close', 0)
+                    logger.warning(f"❌ Momentum Filter REJECT {symbol}: Mom {signal_mom:.1f}% in avoid range [{mom_min}-{mom_max}%]")
+                    self._log_filter_rejection(
+                        symbol, current_price, "MOM_REJECT",
+                        f"Momentum {signal_mom:.1f}% in avoid range [{mom_min}-{mom_max}%]",
+                        {"momentum": {"passed": False, "detail": f"{signal_mom:.1f}% in [{mom_min}-{mom_max}%]"}},
+                        signal_score, signal_sector, signal_source, signal, mode,
+                    )
+                    self._last_skip_reason = f"Mom {signal_mom:.1f}%"
+                    return False
 
             # --- BLOCK 3: Position sizing ---
             # Calculate position size (v4.5: use effective size)

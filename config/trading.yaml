@@ -1,5 +1,5 @@
 # =============================================================================
-# RAPID TRADER CONFIGURATION v6.0.0 — VIX FILTER + TRAILING EXIT
+# RAPID TRADER CONFIGURATION v6.2.0 — STOCK QUALITY FILTERS
 # =============================================================================
 # Edit this file to change trading parameters without modifying code.
 # Changes are loaded on engine start. Use /api/config/reload for hot-reload.
@@ -32,15 +32,19 @@ pdt_tp_threshold: 4.0
 
 # -- Trailing Stop --
 trail_enabled: true           # v6.0: ENABLED (backtest: +2%/60% optimal)
-trail_activation_pct: 2.0     # v6.0: 4→2 (activate earlier)
-trail_lock_pct: 60            # v6.0: 50→60 (lock 60% of gains)
+trail_activation_pct: 3.0     # v6.1: 2→3 (more room to run before trailing)
+trail_lock_pct: 75            # v6.1: 60→75 (lock 75% of gains)
 max_hold_days: 10             # v6.0: 5→10 (more time for trade)
 
 # -- Risk Limits --
 daily_loss_limit_pct: 3.0
 weekly_loss_limit_pct: 7.0
 max_consecutive_losses: 3
-min_score: 95                  # v6.0: 85→95 (score 95+ = WR ~55%)
+min_score: 90                  # v6.2: 95→90 (backtest: 71% WR vs 46% for <90)
+
+# -- Stock Quality Filters (v6.2) --
+max_rsi_entry: 65              # Block RSI > 65 (backtest: only 20% WR)
+avoid_mom_range: [10, 12]      # Skip momentum 10-12% (backtest: 33% WR)
 
 # -- Signal Queue (v4.1) --
 queue_enabled: true

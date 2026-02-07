@@ -302,6 +302,9 @@ CONFIG_SCHEMA: Dict[str, Dict[str, Any]] = {
     # v5.3: Quant Research Findings
     'STOCK_D_FILTER_ENABLED': {'type': bool},
     'BEAR_DD_CONTROL_EXEMPT': {'type': bool},
+    # v6.2: Stock Quality Filters
+    'MAX_RSI_ENTRY': {'type': (int, float), 'min': 50, 'max': 80},
+    'AVOID_MOM_RANGE': {'type': list},  # [min, max] momentum range to skip
 }
 
 
