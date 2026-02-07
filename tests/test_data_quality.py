@@ -5,6 +5,7 @@ import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+from unittest.mock import patch, MagicMock
 import os
 import sys
 
@@ -28,7 +29,7 @@ class TestDataQuality:
 
     def test_price_data_structure(self):
         """Test that price data has correct structure"""
-        with pytest.mock.patch.object(self.data_manager, 'get_price_data') as mock_get_price:
+        with patch.object(self.data_manager, 'get_price_data') as mock_get_price:
             # Mock valid price data
             mock_data = pd.DataFrame({
                 'date': pd.date_range('2024-01-01', periods=5),
@@ -64,7 +65,7 @@ class TestDataQuality:
 
     def test_financial_data_structure(self):
         """Test that financial data has correct structure"""
-        with pytest.mock.patch.object(self.data_manager, 'get_financial_data') as mock_get_financial:
+        with patch.object(self.data_manager, 'get_financial_data') as mock_get_financial:
             # Mock valid financial data
             mock_data = {
                 'symbol': 'AAPL',
@@ -119,8 +120,8 @@ class TestDataQuality:
             'symbol': [symbol] * 3
         })
 
-        with pytest.mock.patch.object(self.data_manager.yahoo_client, 'get_price_data') as mock_yahoo:
-            with pytest.mock.patch.object(self.data_manager.fmp_client, 'get_price_data') as mock_fmp:
+        with patch.object(self.data_manager.yahoo_client, 'get_price_data') as mock_yahoo:
+            with patch.object(self.data_manager.fmp_client, 'get_price_data') as mock_fmp:
                 mock_yahoo.return_value = yahoo_data
                 mock_fmp.return_value = fmp_data
 
@@ -143,7 +144,7 @@ class TestDataQuality:
 
     def test_data_freshness(self):
         """Test that data is reasonably fresh"""
-        with pytest.mock.patch.object(self.data_manager, 'get_price_data') as mock_get_price:
+        with patch.object(self.data_manager, 'get_price_data') as mock_get_price:
             # Mock data with recent dates
             recent_date = datetime.now() - timedelta(days=1)
             mock_data = pd.DataFrame({
@@ -163,14 +164,14 @@ class TestDataQuality:
     def test_missing_data_handling(self):
         """Test handling of missing or incomplete data"""
         # Test empty data
-        with pytest.mock.patch.object(self.data_manager, 'get_price_data') as mock_get_price:
+        with patch.object(self.data_manager, 'get_price_data') as mock_get_price:
             mock_get_price.return_value = pd.DataFrame()
 
             result = self.data_manager.get_price_data('INVALID_SYMBOL')
             assert len(result) == 0, "Should return empty DataFrame for invalid symbol"
 
         # Test data with missing values
-        with pytest.mock.patch.object(self.data_manager, 'get_price_data') as mock_get_price:
+        with patch.object(self.data_manager, 'get_price_data') as mock_get_price:
             mock_data = pd.DataFrame({
                 'date': pd.date_range('2024-01-01', periods=3),
                 'open': [180.0, np.nan, 182.0],
@@ -187,7 +188,7 @@ class TestDataQuality:
 
     def test_volume_data_quality(self):
         """Test volume data quality and anomaly detection"""
-        with pytest.mock.patch.object(self.data_manager, 'get_price_data') as mock_get_price:
+        with patch.object(self.data_manager, 'get_price_data') as mock_get_price:
             # Mock data with volume anomalies
             mock_data = pd.DataFrame({
                 'date': pd.date_range('2024-01-01', periods=5),
@@ -213,7 +214,7 @@ class TestDataQuality:
 
     def test_price_data_validation(self):
         """Test comprehensive price data validation"""
-        with pytest.mock.patch.object(self.data_manager, 'get_price_data') as mock_get_price:
+        with patch.object(self.data_manager, 'get_price_data') as mock_get_price:
             # Mock data with potential issues
             mock_data = pd.DataFrame({
                 'date': pd.date_range('2024-01-01', periods=4),
@@ -246,7 +247,7 @@ class TestDataQuality:
 
     def test_real_time_data_quality(self):
         """Test real-time data quality"""
-        with pytest.mock.patch.object(self.data_manager, 'get_real_time_price') as mock_get_realtime:
+        with patch.object(self.data_manager, 'get_real_time_price') as mock_get_realtime:
             mock_data = {
                 'symbol': 'AAPL',
                 'current_price': 185.50,
@@ -287,7 +288,7 @@ class TestDataValidation:
 
         # Test valid symbols
         valid_symbols = ['AAPL', 'MSFT', 'GOOGL']
-        with pytest.mock.patch.object(dm, 'get_company_info') as mock_company_info:
+        with patch.object(dm, 'get_company_info') as mock_company_info:
             mock_company_info.return_value = {'symbol': 'AAPL', 'company_name': 'Apple Inc.'}
 
             result = dm.validate_symbols(valid_symbols)
