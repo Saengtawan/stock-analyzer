@@ -645,91 +645,28 @@ class AutoTradingEngine:
     # =========================================================================
 
     def _save_positions_state(self):
-        """
-        Persist all ManagedPosition state to JSON file (atomic write).
-
-        Saves: peak_price, trough_price, trailing_active, sl_pct, tp_pct,
-        atr_pct, current_sl_price, tp_price, entry_time, sector — all fields
-        that would be lost on crash/restart.
-
-        NOTE: Caller must hold _positions_lock OR this method takes a snapshot under lock.
-        """
+        """Persist all ManagedPosition state to JSON file (atomic write)."""
+        from engine.state_manager import serialize_position, atomic_write_json
         try:
-            # Snapshot positions under lock (safe against concurrent modification)
             with self._positions_lock:
                 positions_snapshot = dict(self.positions)
 
-            state = {}
-            for symbol, pos in positions_snapshot.items():
-                state[symbol] = {
-                    'symbol': pos.symbol,
-                    'qty': pos.qty,
-                    'entry_price': pos.entry_price,
-                    'entry_time': pos.entry_time.isoformat(),
-                    'sl_order_id': pos.sl_order_id,
-                    'current_sl_price': pos.current_sl_price,
-                    'peak_price': pos.peak_price,
-                    'trailing_active': pos.trailing_active,
-                    'days_held': pos.days_held,
-                    'sl_pct': pos.sl_pct,
-                    'tp_price': pos.tp_price,
-                    'tp_pct': pos.tp_pct,
-                    'atr_pct': pos.atr_pct,
-                    'sector': pos.sector,
-                    'trough_price': pos.trough_price,
-                    'source': pos.source,  # v4.9.5: Persist signal source
-                    'signal_score': pos.signal_score,  # v4.9.8: Persist for analytics
-                    # v4.9.9: Entry context for analytics
-                    'entry_mode': pos.entry_mode,
-                    'entry_regime': pos.entry_regime,
-                    'entry_rsi': pos.entry_rsi,
-                    'momentum_5d': pos.momentum_5d,
-                }
+            state = {sym: serialize_position(pos) for sym, pos in positions_snapshot.items()}
+            data = {'saved_at': datetime.now().isoformat(), 'count': len(state), 'positions': state}
 
-            data = {
-                'saved_at': datetime.now().isoformat(),
-                'count': len(state),
-                'positions': state,
-            }
-
-            # Atomic write: temp file + rename
-            fd, tmp_path = tempfile.mkstemp(dir=self._state_dir, suffix='.tmp')
-            try:
-                with os.fdopen(fd, 'w') as f:
-                    json.dump(data, f, indent=2, default=str)
-                os.replace(tmp_path, self._state_file)
-            except Exception:
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
-                raise
-
-            logger.debug(f"Position state saved: {len(state)} positions")
-
+            if atomic_write_json(self._state_file, data):
+                logger.debug(f"Position state saved: {len(state)} positions")
         except Exception as e:
             logger.error(f"Failed to save position state: {e}")
 
     def _load_positions_state(self) -> Dict[str, dict]:
-        """
-        Load persisted position state from JSON file.
-
-        Returns:
-            Dict mapping symbol → position state dict
-        """
-        try:
-            if not os.path.exists(self._state_file):
-                return {}
-
-            with open(self._state_file, 'r') as f:
-                data = json.load(f)
-
-            positions = data.get('positions', {})
-            saved_at = data.get('saved_at', 'unknown')
-            logger.info(f"Loaded persisted state: {len(positions)} positions (saved at {saved_at})")
-            return positions
-
-        except Exception as e:
-            logger.error(f"Failed to load position state: {e}")
-            return {}
+        """Load persisted position state from JSON file."""
+        from engine.state_manager import safe_read_json
+        data = safe_read_json(self._state_file, {})
+        positions = data.get('positions', {})
+        if positions:
+            logger.info(f"Loaded persisted state: {len(positions)} positions (saved at {data.get('saved_at', 'unknown')})")
+        return positions
 
     # =========================================================================
     # QUEUE STATE PERSISTENCE
@@ -737,80 +674,31 @@ class AutoTradingEngine:
 
     def _save_queue_state(self):
         """Persist signal queue to JSON file (atomic write)."""
+        from engine.state_manager import serialize_queued_signal, atomic_write_json
         try:
-            entries = []
-            for q in self.signal_queue:
-                entries.append({
-                    'symbol': q.symbol,
-                    'signal_price': q.signal_price,
-                    'score': q.score,
-                    'stop_loss': q.stop_loss,
-                    'take_profit': q.take_profit,
-                    'queued_at': q.queued_at.isoformat(),
-                    'reasons': q.reasons,
-                    'atr_pct': q.atr_pct,
-                    'sl_pct': q.sl_pct,
-                    'tp_pct': q.tp_pct,
-                })
-
-            data = {
-                'saved_at': datetime.now().isoformat(),
-                'count': len(entries),
-                'queue': entries,
-            }
-
-            fd, tmp_path = tempfile.mkstemp(dir=self._state_dir, suffix='.tmp')
-            try:
-                with os.fdopen(fd, 'w') as f:
-                    json.dump(data, f, indent=2, default=str)
-                os.replace(tmp_path, self._queue_file)
-            except Exception:
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
-                raise
-
-            logger.debug(f"Queue state saved: {len(entries)} signals")
-
+            entries = [serialize_queued_signal(q) for q in self.signal_queue]
+            data = {'saved_at': datetime.now().isoformat(), 'count': len(entries), 'queue': entries}
+            if atomic_write_json(self._queue_file, data):
+                logger.debug(f"Queue state saved: {len(entries)} signals")
         except Exception as e:
             logger.error(f"Failed to save queue state: {e}")
 
     def _load_queue_state(self):
         """Load persisted signal queue from JSON file on startup."""
-        try:
-            if not os.path.exists(self._queue_file):
-                return
-
-            with open(self._queue_file, 'r') as f:
-                data = json.load(f)
-
-            entries = data.get('queue', [])
-            loaded = 0
-            for entry in entries:
-                try:
-                    queued = QueuedSignal(
-                        symbol=entry['symbol'],
-                        signal_price=entry['signal_price'],
-                        score=entry['score'],
-                        stop_loss=entry['stop_loss'],
-                        take_profit=entry['take_profit'],
-                        queued_at=datetime.fromisoformat(entry['queued_at']),
-                        reasons=entry.get('reasons', []),
-                        atr_pct=entry.get('atr_pct', 5.0),
-                        sl_pct=entry.get('sl_pct', 0.0),
-                        tp_pct=entry.get('tp_pct', 0.0),
-                    )
-                    # Skip if already holding this symbol
-                    if queued.symbol not in self.positions:
-                        self.signal_queue.append(queued)
-                        loaded += 1
-                except (KeyError, ValueError) as e:
-                    logger.warning(f"Skipping invalid queue entry: {e}")
-
-            if loaded:
-                logger.info(f"Loaded persisted queue: {loaded} signals (saved at {data.get('saved_at', 'unknown')})")
-
-        except Exception as e:
-            logger.error(f"Failed to load queue state: {e}")
+        from engine.state_manager import safe_read_json, deserialize_queued_signal
+        data = safe_read_json(self._queue_file, {})
+        entries = data.get('queue', [])
+        loaded = 0
+        for entry in entries:
+            try:
+                queued = deserialize_queued_signal(entry, QueuedSignal)
+                if queued.symbol not in self.positions:
+                    self.signal_queue.append(queued)
+                    loaded += 1
+            except (KeyError, ValueError) as e:
+                logger.warning(f"Skipping invalid queue entry: {e}")
+        if loaded:
+            logger.info(f"Loaded persisted queue: {loaded} signals (saved at {data.get('saved_at', 'unknown')})")
 
     # =========================================================================
     # SIGNALS CACHE (v6.1 - Single Source of Truth for UI)
@@ -968,59 +856,28 @@ class AutoTradingEngine:
 
     def _save_market_closed_cache(self):
         """Write market closed status to cache for UI."""
-        import tempfile
-
+        from engine.state_manager import safe_read_json, atomic_write_json
         cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'cache')
         os.makedirs(cache_dir, exist_ok=True)
         cache_file = os.path.join(cache_dir, 'rapid_signals.json')
 
         try:
-            # Get next market open
             next_open = None
             try:
-                clock = self.trader.get_clock()
-                next_open = clock.get('next_open')
+                next_open = self.trader.get_clock().get('next_open')
             except Exception:
                 pass
 
-            # Try to preserve last signals from existing cache
-            last_signals = []
-            last_scan_time = None
-            if os.path.exists(cache_file):
-                try:
-                    with open(cache_file, 'r') as f:
-                        old_data = json.load(f)
-                        last_signals = old_data.get('signals', [])
-                        last_scan_time = old_data.get('scan_time')
-                except Exception:
-                    pass
-
+            old_data = safe_read_json(cache_file, {})
             cache_data = {
-                'mode': 'closed',
-                'is_market_open': False,
-                'timestamp': datetime.now().isoformat(),
-                'scan_time': last_scan_time,
-                'session': 'Closed',
-                'scan_type': 'market_closed',
+                'mode': 'closed', 'is_market_open': False, 'timestamp': datetime.now().isoformat(),
+                'scan_time': old_data.get('scan_time'), 'session': 'Closed', 'scan_type': 'market_closed',
                 'next_scan': f"{next_open.strftime('%Y-%m-%d %H:%M ET')}" if next_open else "Next Market Open",
                 'next_open': next_open.isoformat() if next_open else None,
-                'count': len(last_signals),
-                'signals': last_signals,
-                'scan_duration_seconds': 0,
-                'regime': 'CLOSED',
+                'count': len(old_data.get('signals', [])), 'signals': old_data.get('signals', []),
+                'scan_duration_seconds': 0, 'regime': 'CLOSED',
             }
-
-            # Atomic write
-            fd, tmp_path = tempfile.mkstemp(dir=cache_dir, suffix='.tmp')
-            try:
-                with os.fdopen(fd, 'w') as f:
-                    json.dump(cache_data, f, indent=2, default=str)
-                os.replace(tmp_path, cache_file)
-            except Exception:
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
-                raise
-
+            atomic_write_json(cache_file, cache_data)
         except Exception as e:
             logger.warning(f"Failed to write market closed cache: {e}")
 
@@ -2030,6 +1887,7 @@ class AutoTradingEngine:
 
     def _save_loss_counters(self):
         """Persist loss tracking counters (atomic write)"""
+        from engine.state_manager import atomic_write_json
         try:
             state = {
                 'consecutive_losses': self.consecutive_losses,
@@ -2042,45 +1900,29 @@ class AutoTradingEngine:
                 },
                 'saved_at': datetime.now().isoformat(),
             }
-            loss_file = os.path.join(self._state_dir, 'loss_counters.json')
-            fd, tmp_path = tempfile.mkstemp(dir=self._state_dir, suffix='.tmp')
-            try:
-                with os.fdopen(fd, 'w') as f:
-                    json.dump(state, f, indent=2)
-                os.replace(tmp_path, loss_file)
-            except Exception:
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
-                raise
+            atomic_write_json(os.path.join(self._state_dir, 'loss_counters.json'), state)
         except Exception as e:
             logger.error(f"Failed to save loss counters: {e}")
 
     def _load_loss_counters(self):
         """Load persisted loss tracking counters"""
-        try:
-            loss_file = os.path.join(self._state_dir, 'loss_counters.json')
-            if not os.path.exists(loss_file):
-                return
-            with open(loss_file, 'r') as f:
-                state = json.load(f)
-            self.consecutive_losses = state.get('consecutive_losses', 0)
-            self.weekly_realized_pnl = state.get('weekly_realized_pnl', 0.0)
-            if state.get('cooldown_until'):
-                from datetime import date as date_type
-                self.cooldown_until = date_type.fromisoformat(state['cooldown_until'])
-            if state.get('weekly_reset_date'):
-                from datetime import date as date_type
-                self.weekly_reset_date = date_type.fromisoformat(state['weekly_reset_date'])
-            # Restore sector loss tracker
-            for k, v in state.get('sector_loss_tracker', {}).items():
-                from datetime import date as date_type
-                self.sector_loss_tracker[k] = {
-                    'losses': v['losses'],
-                    'cooldown_until': date_type.fromisoformat(v['cooldown_until']) if v.get('cooldown_until') else None
-                }
-            logger.info(f"Loaded loss counters: consecutive={self.consecutive_losses}, weekly_pnl=${self.weekly_realized_pnl:.2f}")
-        except Exception as e:
-            logger.error(f"Failed to load loss counters: {e}")
+        from engine.state_manager import safe_read_json
+        from datetime import date as date_type
+        state = safe_read_json(os.path.join(self._state_dir, 'loss_counters.json'), {})
+        if not state:
+            return
+        self.consecutive_losses = state.get('consecutive_losses', 0)
+        self.weekly_realized_pnl = state.get('weekly_realized_pnl', 0.0)
+        if state.get('cooldown_until'):
+            self.cooldown_until = date_type.fromisoformat(state['cooldown_until'])
+        if state.get('weekly_reset_date'):
+            self.weekly_reset_date = date_type.fromisoformat(state['weekly_reset_date'])
+        for k, v in state.get('sector_loss_tracker', {}).items():
+            self.sector_loss_tracker[k] = {
+                'losses': v['losses'],
+                'cooldown_until': date_type.fromisoformat(v['cooldown_until']) if v.get('cooldown_until') else None
+            }
+        logger.info(f"Loaded loss counters: consecutive={self.consecutive_losses}, weekly_pnl=${self.weekly_realized_pnl:.2f}")
 
     # =========================================================================
     # LATE START PROTECTION (v4.4 NEW!)
@@ -2450,107 +2292,40 @@ class AutoTradingEngine:
 
     def _save_scan_log(self, scan_id: str, scan_type: str, mode: str, results: list):
         """Append scan batch to today's scan log file (thread-safe atomic write)."""
-        import tempfile
+        from engine.state_manager import safe_read_json, atomic_write_json, cleanup_old_files
         scan_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'scan_logs')
         os.makedirs(scan_dir, exist_ok=True)
-        today = datetime.now().strftime('%Y-%m-%d')
-        filepath = os.path.join(scan_dir, f'scan_{today}.json')
-
-        regime = "UNKNOWN"
-        if hasattr(self, '_regime_cache') and self._regime_cache:
-            regime = self._regime_cache[1]
+        filepath = os.path.join(scan_dir, f'scan_{datetime.now().strftime("%Y-%m-%d")}.json')
 
         entry = {
-            "scan_id": scan_id,
-            "scan_timestamp": datetime.now().isoformat(),
-            "scan_type": scan_type,
-            "regime": regime,
-            "mode": mode,
-            "total_signals": len(results),
-            "signals": results,
+            "scan_id": scan_id, "scan_timestamp": datetime.now().isoformat(),
+            "scan_type": scan_type, "regime": self._regime_cache[1] if hasattr(self, '_regime_cache') and self._regime_cache else "UNKNOWN",
+            "mode": mode, "total_signals": len(results), "signals": results,
         }
 
-        # Thread-safe: lock prevents concurrent read-modify-write
         with self._scan_log_lock:
-            existing = []
-            if os.path.exists(filepath):
-                try:
-                    with open(filepath, 'r') as f:
-                        existing = json.load(f)
-                except (json.JSONDecodeError, IOError):
-                    existing = []
-
+            existing = safe_read_json(filepath, [])
             existing.append(entry)
-            # Atomic write with tempfile (crash-safe)
-            fd, tmp_path = tempfile.mkstemp(dir=scan_dir, suffix='.tmp')
-            try:
-                with os.fdopen(fd, 'w') as f:
-                    json.dump(existing, f, indent=2, default=str)
-                os.replace(tmp_path, filepath)
-            except Exception:
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
-                raise
+            atomic_write_json(filepath, existing)
 
-        # Lightweight daily cleanup: remove scan logs older than 90 days
-        self._cleanup_old_scan_logs(scan_dir, max_age_days=90)
-
-    def _cleanup_old_scan_logs(self, scan_dir: str, max_age_days: int = 90):
-        """Remove scan log files older than max_age_days. Runs at most once per day."""
-        if not hasattr(self, '_last_scan_log_cleanup'):
-            self._last_scan_log_cleanup = None
-        today = datetime.now().date()
-        if self._last_scan_log_cleanup == today:
-            return
-        self._last_scan_log_cleanup = today
-        try:
-            import time as _time
-            cutoff = _time.time() - (max_age_days * 86400)
-            for fname in os.listdir(scan_dir):
-                if fname.startswith('scan_') and fname.endswith('.json'):
-                    fpath = os.path.join(scan_dir, fname)
-                    if os.path.getmtime(fpath) < cutoff:
-                        os.unlink(fpath)
-                        logger.debug(f"Cleaned up old scan log: {fname}")
-        except Exception as e:
-            logger.debug(f"Scan log cleanup error (non-fatal): {e}")
+        # Daily cleanup (once per day)
+        if not hasattr(self, '_last_scan_log_cleanup') or self._last_scan_log_cleanup != datetime.now().date():
+            self._last_scan_log_cleanup = datetime.now().date()
+            cleanup_old_files(scan_dir, max_age_days=90, pattern='scan_*.json')
 
     def _save_execution_status(self, scan_results):
         """Write latest execution results to cache for UI signal status display."""
-        import tempfile as _tmpfile
+        from engine.state_manager import safe_read_json, atomic_write_json
         cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'cache')
         os.makedirs(cache_dir, exist_ok=True)
         filepath = os.path.join(cache_dir, 'execution_status.json')
 
-        status_map = {}
-        for r in scan_results:
-            symbol = r.get('symbol', '')
-            if symbol:
-                status_map[symbol] = {
-                    'action': r.get('action_taken', 'UNKNOWN'),
-                    'skip_reason': r.get('skip_reason', ''),  # v5.3
-                    'timestamp': datetime.now().isoformat(),
-                }
+        status_map = {r.get('symbol', ''): {'action': r.get('action_taken', 'UNKNOWN'), 'skip_reason': r.get('skip_reason', ''), 'timestamp': datetime.now().isoformat()}
+                      for r in scan_results if r.get('symbol', '')}
 
-        # Merge with existing (keep today's results)
-        existing = {}
-        if os.path.exists(filepath):
-            try:
-                with open(filepath, 'r') as f:
-                    existing = json.load(f)
-            except (json.JSONDecodeError, IOError):
-                existing = {}
+        existing = safe_read_json(filepath, {})
         existing.update(status_map)
-
-        fd, tmp_path = _tmpfile.mkstemp(dir=cache_dir, suffix='.tmp')
-        try:
-            with os.fdopen(fd, 'w') as f:
-                json.dump(existing, f, indent=2, default=str)
-            os.replace(tmp_path, filepath)
-        except Exception:
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
-            raise
+        atomic_write_json(filepath, existing)
 
     # =========================================================================
     # SCANNING
@@ -4859,26 +4634,9 @@ class AutoTradingEngine:
 
     def _write_heartbeat(self):
         """v4.7 Fix #15: Write heartbeat file for external watchdog monitoring"""
-        try:
-            heartbeat_path = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                'data', 'heartbeat.json'
-            )
-            os.makedirs(os.path.dirname(heartbeat_path), exist_ok=True)
-
-            heartbeat = {
-                'timestamp': datetime.now().isoformat(),
-                'state': self.state.value,
-                'positions': len(self.positions),
-                'running': self.running,
-            }
-            # Atomic write
-            tmp_path = heartbeat_path + '.tmp'
-            with open(tmp_path, 'w') as f:
-                json.dump(heartbeat, f)
-            os.replace(tmp_path, heartbeat_path)
-        except Exception as e:
-            logger.debug(f"Heartbeat write error: {e}")
+        from engine.state_manager import write_heartbeat
+        heartbeat_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'heartbeat.json')
+        write_heartbeat(heartbeat_path, {'state': self.state.value, 'positions': len(self.positions), 'running': self.running})
 
     def _get_scanner_schedule(self) -> Dict:
         """Get scanner timing for UI timeline bar."""
