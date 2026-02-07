@@ -95,6 +95,34 @@ afternoon_min_score: 87        # v5.4: 82→87 (stricter than min_score=85)
 afternoon_gap_max_up: 1.5      # tighter than morning
 afternoon_gap_max_down: -3.0   # tighter than morning
 
+# -- Market Hours (v6.4 Single Source of Truth) --
+market_open_minutes: 570                   # 09:30 ET = 9*60+30
+market_close_minutes: 960                  # 16:00 ET = 16*60
+
+# -- Session Timeline (v6.4 Single Source of Truth) --
+# UI timeline bar uses these values. All times in minutes from midnight.
+sessions:
+  morning:
+    start: 575                             # 09:35 ET
+    end: 660                               # 11:00 ET
+    interval: 3                            # Volatile: scan every 3 min
+    label: "Morning"
+  midday:
+    start: 660                             # 11:00 ET
+    end: 840                               # 14:00 ET
+    interval: 5                            # Normal: scan every 5 min
+    label: "Midday"
+  afternoon:
+    start: 840                             # 14:00 ET
+    end: 930                               # 15:30 ET
+    interval: 5
+    label: "Afternoon"
+  preclose:
+    start: 930                             # 15:30 ET
+    end: 960                               # 16:00 ET
+    interval: 0                            # No continuous scan
+    label: "Pre-Close"
+
 # -- Continuous Scan (v6.3) --
 continuous_scan_enabled: true
 continuous_scan_interval_minutes: 5        # Default/slow interval (11:00-16:00)

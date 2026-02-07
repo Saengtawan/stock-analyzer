@@ -4731,6 +4731,26 @@ class AutoTradingEngine:
             if next_scan > et_now and next_scan < pre_close_cutoff:
                 next_continuous_scan = next_scan.isoformat()
 
+        # v6.4: Get sessions from config (single source of truth)
+        from trading_config import load_config
+        cfg = load_config(strict=False)
+        sessions_cfg = cfg.get('sessions', {})
+        market_open = cfg.get('market_open_minutes', 570)
+        market_close = cfg.get('market_close_minutes', 960)
+
+        # Build sessions list for UI timeline
+        sessions = []
+        for key in ['morning', 'midday', 'afternoon', 'preclose']:
+            if key in sessions_cfg:
+                s = sessions_cfg[key]
+                sessions.append({
+                    'name': key,
+                    'label': s.get('label', key.capitalize()),
+                    'start': s.get('start', 0),
+                    'end': s.get('end', 0),
+                    'interval': s.get('interval', 5),
+                })
+
         return {
             'morning_scan': f"09:{30 + self.MARKET_OPEN_SCAN_DELAY:02d}",
             'morning_done': getattr(self, '_morning_scan_done', None) == today,
@@ -4746,6 +4766,10 @@ class AutoTradingEngine:
             'last_continuous_scan': getattr(self, '_last_continuous_scan', None).isoformat() if getattr(self, '_last_continuous_scan', None) else None,
             # v6.4: Market calendar for UI
             'market_calendar': market_calendar,
+            # v6.4: Session definitions from config (single source of truth)
+            'market_open': market_open,
+            'market_close': market_close,
+            'sessions': sessions,
         }
 
     def get_status(self) -> Dict:
