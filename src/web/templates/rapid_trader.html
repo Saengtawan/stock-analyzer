@@ -1661,9 +1661,7 @@ function updateTimelineBar(schedule) {
     const tlCountdown = document.getElementById('tlCountdown');
     const tlLastTime = document.getElementById('tlLastTime');
 
-    // v6.4: Check if trading day
-    const isTradingDay = schedule.market_calendar?.is_trading_day || schedule.market_calendar?.is_open;
-
+    // v6.4: Check if trading day (isTradingDay already declared above)
     if (!isTradingDay) {
         // Non-trading day - clear scan times
         if (tlNextTime) tlNextTime.textContent = '--:--';
