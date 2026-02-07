@@ -242,14 +242,14 @@ class TestConvictionSizing(unittest.TestCase):
 
     def _create_engine(self):
         """Create engine with mocked dependencies"""
-        with patch('auto_trading_engine.AlpacaTrader') as MockTrader, \
+        with patch('auto_trading_engine.AlpacaBroker') as MockBroker, \
              patch('auto_trading_engine.TradingSafetySystem'), \
              patch('auto_trading_engine.init_pdt_guard'), \
              patch('auto_trading_engine.get_trade_logger'), \
              patch('alert_manager.get_alert_manager', return_value=MagicMock()), \
              patch('trading_config.apply_config', side_effect=lambda x: None):
 
-            MockTrader.return_value = create_mock_trader()
+            MockBroker.return_value = create_mock_trader()
 
             from auto_trading_engine import AutoTradingEngine
             engine = AutoTradingEngine(
@@ -305,14 +305,14 @@ class TestSmartDayTrade(unittest.TestCase):
     """Test smart day trade decision logic"""
 
     def _create_engine(self):
-        with patch('auto_trading_engine.AlpacaTrader') as MockTrader, \
+        with patch('auto_trading_engine.AlpacaBroker') as MockBroker, \
              patch('auto_trading_engine.TradingSafetySystem'), \
              patch('auto_trading_engine.init_pdt_guard') as MockPDT, \
              patch('auto_trading_engine.get_trade_logger'), \
              patch('alert_manager.get_alert_manager', return_value=MagicMock()), \
              patch('trading_config.apply_config', side_effect=lambda x: None):
 
-            MockTrader.return_value = create_mock_trader()
+            MockBroker.return_value = create_mock_trader()
 
             from pdt_smart_guard import PDTStatus, PDTConfig
             mock_pdt = MagicMock()
@@ -383,14 +383,14 @@ class TestScanners(unittest.TestCase):
 
     def test_scan_for_signals_returns_list(self):
         """AutoTradingEngine.scan_for_signals() returns list"""
-        with patch('auto_trading_engine.AlpacaTrader') as MockTrader, \
+        with patch('auto_trading_engine.AlpacaBroker') as MockBroker, \
              patch('auto_trading_engine.TradingSafetySystem'), \
              patch('auto_trading_engine.init_pdt_guard'), \
              patch('auto_trading_engine.get_trade_logger'), \
              patch('alert_manager.get_alert_manager', return_value=MagicMock()), \
              patch('trading_config.apply_config', side_effect=lambda x: None):
 
-            MockTrader.return_value = create_mock_trader()
+            MockBroker.return_value = create_mock_trader()
 
             from auto_trading_engine import AutoTradingEngine
             engine = AutoTradingEngine(
@@ -451,8 +451,8 @@ class TestSafetySystems(unittest.TestCase):
         """PDTSmartGuard.can_sell() returns (bool, SellDecision, str)"""
         from pdt_smart_guard import PDTSmartGuard, PDTConfig, SellDecision
 
-        trader = create_mock_trader()
-        guard = PDTSmartGuard(trader=trader, config=PDTConfig())
+        broker = create_mock_trader()
+        guard = PDTSmartGuard(broker=broker, config=PDTConfig())
 
         result = guard.can_sell('AAPL', pnl_pct=2.0)
         assert isinstance(result, tuple)
@@ -480,7 +480,7 @@ class TestIntegrationFlows(unittest.TestCase):
 
     def test_scan_to_execute_flow(self):
         """Full flow: scan → signal → execute completes without exception"""
-        with patch('auto_trading_engine.AlpacaTrader') as MockTrader, \
+        with patch('auto_trading_engine.AlpacaBroker') as MockBroker, \
              patch('auto_trading_engine.TradingSafetySystem'), \
              patch('auto_trading_engine.init_pdt_guard') as MockPDT, \
              patch('auto_trading_engine.get_trade_logger'), \
@@ -488,7 +488,7 @@ class TestIntegrationFlows(unittest.TestCase):
              patch('trading_config.apply_config', side_effect=lambda x: None):
 
             mock_trader = create_mock_trader()
-            MockTrader.return_value = mock_trader
+            MockBroker.return_value = mock_trader
 
             from pdt_smart_guard import PDTStatus, PDTConfig
             mock_pdt = MagicMock()
@@ -516,6 +516,8 @@ class TestIntegrationFlows(unittest.TestCase):
             engine._get_effective_params = MagicMock(return_value={
                 'max_positions': 3, 'position_size_pct': 40,
                 'blocked_sectors': [],
+                'min_score': 85,
+                'gap_max_up': 2.0,
             })
 
             # Scan

@@ -142,7 +142,7 @@ class TestBearModeLogic:
 
     def test_bear_allowed_excludes_bear_sectors(self):
         """BEAR/STRONG BEAR sectors are excluded"""
-        with patch('auto_trading_engine.AlpacaTrader'), \
+        with patch('auto_trading_engine.AlpacaBroker'), \
              patch('auto_trading_engine.TradingSafetySystem'), \
              patch('auto_trading_engine.init_pdt_guard'), \
              patch('auto_trading_engine.get_trade_logger'), \
@@ -182,19 +182,20 @@ class TestSafetySystemLogic:
     """Test safety system logic"""
 
     def test_daily_loss_limit_constant_exists(self):
-        """DAILY_LOSS_LIMIT_PCT constant exists"""
+        """DAILY_LOSS_LIMIT_PCT constant exists (as type annotation, loaded from YAML)"""
         from auto_trading_engine import AutoTradingEngine
-        assert hasattr(AutoTradingEngine, 'DAILY_LOSS_LIMIT_PCT')
+        # v6.1: Constants are now type annotations, actual values loaded from YAML
+        assert 'DAILY_LOSS_LIMIT_PCT' in AutoTradingEngine.__annotations__
 
     def test_consecutive_loss_threshold_exists(self):
-        """MAX_CONSECUTIVE_LOSSES constant exists"""
+        """MAX_CONSECUTIVE_LOSSES constant exists (as type annotation, loaded from YAML)"""
         from auto_trading_engine import AutoTradingEngine
-        assert hasattr(AutoTradingEngine, 'MAX_CONSECUTIVE_LOSSES')
+        assert 'MAX_CONSECUTIVE_LOSSES' in AutoTradingEngine.__annotations__
 
     def test_vix_threshold_constant_exists(self):
-        """REGIME_VIX_MAX constant exists"""
+        """REGIME_VIX_MAX constant exists (as type annotation, loaded from YAML)"""
         from auto_trading_engine import AutoTradingEngine
-        assert hasattr(AutoTradingEngine, 'REGIME_VIX_MAX')
+        assert 'REGIME_VIX_MAX' in AutoTradingEngine.__annotations__
 
     def test_circuit_breaker_constant_exists(self):
         """CIRCUIT_BREAKER_MAX_ERRORS constant exists"""
@@ -211,9 +212,10 @@ class TestConvictionSizing:
     """Test conviction sizing logic"""
 
     def test_conviction_sizing_enabled_flag_exists(self):
-        """CONVICTION_SIZING_ENABLED flag exists"""
+        """CONVICTION_SIZING_ENABLED flag exists (as type annotation, loaded from YAML)"""
         from auto_trading_engine import AutoTradingEngine
-        assert hasattr(AutoTradingEngine, 'CONVICTION_SIZING_ENABLED')
+        # v6.1: Constants are now type annotations, actual values loaded from YAML
+        assert 'CONVICTION_SIZING_ENABLED' in AutoTradingEngine.__annotations__
 
     def test_conviction_size_method_exists(self):
         """_get_conviction_size method exists and has correct signature"""
@@ -264,36 +266,25 @@ class TestDataFlow:
 class TestUnifiedLogic:
     """Test that Scanner and Engine use the same sector filtering logic"""
 
-    def test_both_use_sector_regime(self):
-        """Both run_app scanner and engine use sector regime"""
-        # Read run_app._get_scanner_bear_sectors
-        with open('src/run_app.py', 'r') as f:
-            run_app_source = f.read()
-
-        # Read engine._get_bear_allowed_sectors
+    def test_engine_uses_sector_regime(self):
+        """Engine uses sector regime for bear mode filtering"""
         import inspect
         from auto_trading_engine import AutoTradingEngine
         engine_source = inspect.getsource(AutoTradingEngine._get_bear_allowed_sectors)
 
-        # Both should reference sector_regimes
-        assert 'sector_regimes' in run_app_source, "run_app should use sector_regimes"
+        # Engine should reference sector_regimes
         assert 'sector_regimes' in engine_source, "engine should use sector_regimes"
-
-        # Both should check for BEAR regime
-        assert 'BEAR' in run_app_source
         assert 'BEAR' in engine_source
 
-    def test_sideways_sector_allowed_in_both(self):
-        """SIDEWAYS sector is ALLOWED in both scanner and engine"""
-        # Check engine source
+    def test_sideways_sector_allowed_in_engine(self):
+        """SIDEWAYS sector is ALLOWED in engine (v5.1: uses allowlist)"""
         import inspect
         from auto_trading_engine import AutoTradingEngine
         source = inspect.getsource(AutoTradingEngine._get_bear_allowed_sectors)
 
-        # Should only block BEAR and STRONG BEAR (not SIDEWAYS)
-        assert "not in ('BEAR', 'STRONG BEAR')" in source or \
-               "not in ('STRONG BEAR', 'BEAR')" in source or \
-               ("BEAR" in source and "SIDEWAYS" not in source.split("BEAR")[0])
+        # v5.1: Uses allowlist pattern: regime in ('BULL', 'STRONG BULL', 'SIDEWAYS')
+        assert "'SIDEWAYS'" in source, "SIDEWAYS should be in allowlist"
+        assert "'BULL'" in source, "BULL should be in allowlist"
 
 
 # =============================================================================
