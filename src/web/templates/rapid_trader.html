@@ -1585,6 +1585,27 @@ function updateTimelineBar(schedule) {
         setMarketCalendar(schedule.market_calendar);
     }
 
+    // v6.4: Check if trading day - if not, show closed message
+    const isTradingDay = schedule.market_calendar?.is_trading_day || schedule.market_calendar?.is_open;
+    const timelineContainer = document.getElementById('timelineContainer');
+    const timelineBar = document.getElementById('timelineBar');
+
+    if (!isTradingDay) {
+        // Non-trading day - show closed message instead of timeline
+        if (timelineBar) {
+            timelineBar.style.opacity = '0.3';
+            timelineBar.querySelectorAll('.tl-session').forEach(el => {
+                el.classList.remove('done', 'active');
+                el.classList.add('pending');
+                const progressFill = el.querySelector('.tl-progress-fill');
+                if (progressFill) progressFill.style.width = '0%';
+            });
+        }
+        return;  // Don't process further
+    } else {
+        if (timelineBar) timelineBar.style.opacity = '1';
+    }
+
     // Get current ET time
     const now = new Date();
     const nyOffset = getETOffset();
