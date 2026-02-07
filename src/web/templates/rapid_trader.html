@@ -1492,7 +1492,7 @@ function loadSectorRegimes() {
                 const ret1d = s.return_1d || 0;
                 const arrow1d = ret1d >= 0 ? '▲' : '▼';
                 const sign = s.return_20d >= 0 ? '+' : '';
-                const src = s.return_1d_source === 'stock_ew' ? '[S]' : '[E]';
+                const src = s.return_1d_source === 'mcw' ? '[M]' : '[E]';
                 const label = sectorLabel[s.etf] || s.etf;
                 const sectorName = sectorNameMap[s.etf] || s.sector || s.etf;
 
