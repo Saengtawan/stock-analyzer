@@ -2972,7 +2972,7 @@ def _do_close_all(engine):
         engine.stop()
 
         # 2. Get all positions from Alpaca
-        positions = engine.trader.get_positions()
+        positions = engine.broker.get_positions()
         if not positions:
             return jsonify({'message': 'No positions to close', 'closed': []})
 
@@ -2982,14 +2982,14 @@ def _do_close_all(engine):
                 qty = int(float(pos.qty))
                 if qty <= 0:
                     continue
-                sell_order = engine.trader.place_market_sell(pos.symbol, qty)
+                sell_order = engine.broker.place_market_sell(pos.symbol, qty)
                 status = 'submitted'
                 if sell_order:
                     # Wait briefly for fill
                     import time
                     for _wait in range(5):
                         time.sleep(1)
-                        check = engine.trader.get_order(sell_order.id)
+                        check = engine.broker.get_order(sell_order.id)
                         if check.status == 'filled':
                             status = 'filled'
                             break
@@ -3077,14 +3077,14 @@ def api_auto_positions():
         positions = engine.get_positions_status()
 
         # Get account info
-        account = engine.trader.get_account()
+        account = engine.broker.get_account()
 
         return jsonify({
             'positions': positions,
             'account': {
-                'cash': account['cash'],
-                'portfolio_value': account['portfolio_value'],
-                'buying_power': account['buying_power'],
+                'cash': getattr(account, 'cash', 0),
+                'portfolio_value': getattr(account, 'portfolio_value', 0),
+                'buying_power': getattr(account, 'buying_power', 0),
             }
         })
 
@@ -3142,7 +3142,7 @@ def api_auto_execute():
             return jsonify({'error': 'Engine is currently scanning — try again in a moment'}), 409
 
         # Check if market is open
-        if not engine.trader.is_market_open():
+        if not engine.broker.is_market_open():
             return jsonify({'error': 'Market is closed'}), 400
 
         # Safety check
@@ -3220,11 +3220,11 @@ def _get_extended_hours_prices(symbols: list) -> dict:
         return results
     try:
         engine = get_auto_trading_engine()
-        if not engine or not engine.trader:
+        if not engine or not engine.broker:
             return results
 
-        snapshots = engine.trader.get_snapshots(symbols)
-        market_open = engine.trader.is_market_open()
+        snapshots = engine.broker.get_snapshots(symbols)
+        market_open = engine.broker.is_market_open()
 
         for symbol, snap in snapshots.items():
             latest_price = snap.get('latest_trade_price')
@@ -3271,11 +3271,11 @@ def _build_positions_from_engine():
     symbols = list(engine.positions.keys())
     alpaca_prices = {}
     try:
-        for ap in engine.trader.get_positions():
-            alpaca_prices[ap.symbol] = {
-                'current_price': ap.current_price,
-                'unrealized_pl': ap.unrealized_pl,
-                'unrealized_plpc': ap.unrealized_plpc,
+        for pos in engine.broker.get_positions():
+            alpaca_prices[pos.symbol] = {
+                'current_price': pos.current_price,
+                'unrealized_pl': pos.unrealized_pl,
+                'unrealized_plpc': pos.unrealized_plpc,
             }
     except Exception as e:
         logger.warning(f"Failed to fetch Alpaca prices: {e}")
@@ -3398,12 +3398,13 @@ def get_status_data():
         if not engine:
             return {'error': 'Engine not available'}
 
+        account = engine.broker.get_account()
         return {
             'running': engine.running,
             'state': engine.state,
-            'market_open': engine.trader.is_market_open(),
-            'cash': float(engine.trader.get_account().get('cash', 0)),
-            'account_value': float(engine.trader.get_account().get('portfolio_value', 0)),
+            'market_open': engine.broker.is_market_open(),
+            'cash': float(getattr(account, 'cash', 0)),
+            'account_value': float(getattr(account, 'portfolio_value', 0)),
             'safety': engine.safety.get_status_summary()
         }
     except Exception as e:
