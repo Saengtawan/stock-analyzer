@@ -185,8 +185,20 @@ class PreFilterRunner:
     def _save_pre_filtered(self, data: Dict[str, Any]):
         """Save pre-filtered data."""
         try:
+            # Custom encoder to handle numpy types
+            import numpy as np
+
+            def default_encoder(obj):
+                if isinstance(obj, (np.bool_, np.integer)):
+                    return int(obj)
+                elif isinstance(obj, np.floating):
+                    return float(obj)
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
             with open(self.PRE_FILTERED_FILE, 'w') as f:
-                json.dump(data, f, indent=2)
+                json.dump(data, f, indent=2, default=default_encoder)
             logger.info(f"Saved pre-filtered data: {len(data.get('stocks', {}))} stocks")
         except Exception as e:
             logger.error(f"Failed to save pre-filtered data: {e}")
@@ -205,16 +217,23 @@ class PreFilterRunner:
             if df is None or len(df) < 20:
                 return None
 
-            close = df['Close'].iloc[-1]
+            # Handle MultiIndex columns from yfinance
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+
+            # Normalize column names to lowercase (cache uses lowercase)
+            df.columns = [c.lower() if isinstance(c, str) else c for c in df.columns]
+
+            close = df['close'].iloc[-1]
 
             # Calculate indicators
-            sma20 = df['Close'].rolling(20).mean().iloc[-1]
-            sma50 = df['Close'].rolling(50).mean().iloc[-1] if len(df) >= 50 else sma20
+            sma20 = df['close'].rolling(20).mean().iloc[-1]
+            sma50 = df['close'].rolling(50).mean().iloc[-1] if len(df) >= 50 else sma20
 
             # ATR calculation
-            high = df['High']
-            low = df['Low']
-            prev_close = df['Close'].shift(1)
+            high = df['high']
+            low = df['low']
+            prev_close = df['close'].shift(1)
             tr = pd.concat([
                 high - low,
                 (high - prev_close).abs(),
@@ -224,7 +243,7 @@ class PreFilterRunner:
             atr_pct = (atr / close) * 100 if close > 0 else 0
 
             # Average volume
-            avg_volume = df['Volume'].rolling(20).mean().iloc[-1]
+            avg_volume = df['volume'].rolling(20).mean().iloc[-1]
 
             return {
                 'close': close,
