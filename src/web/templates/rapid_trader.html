@@ -55,6 +55,19 @@
     .pdt-badge.warning { background: rgba(243,156,18,0.3); }
     .pdt-badge.danger { background: rgba(231,76,60,0.3); }
     .hdr-timer { font-family: monospace; font-weight: bold; font-size: 1rem; color: #f39c12; }
+    /* Market Status Badge */
+    .market-status-badge { padding: 2px 8px; border-radius: 8px; font-weight: 600; font-size: 0.7rem; }
+    .market-status-badge.open { background: rgba(39,174,96,0.4); color: #27ae60; }
+    .market-status-badge.closed { background: rgba(108,117,125,0.4); color: #adb5bd; }
+    .market-status-badge.weekend { background: rgba(52,73,94,0.4); color: #95a5a6; }
+    .market-status-badge.holiday { background: rgba(155,89,182,0.4); color: #bb8fce; }
+    .market-status-badge i { font-size: 0.5rem; margin-right: 3px; }
+    /* Cron Status Items */
+    .cron-status-item { padding: 2px 6px; border-radius: 6px; font-size: 0.65rem; background: rgba(108,117,125,0.3); color: #6c757d; }
+    .cron-status-item.ok { background: rgba(39,174,96,0.25); color: #27ae60; }
+    .cron-status-item.error { background: rgba(231,76,60,0.25); color: #e74c3c; }
+    .cron-status-item.stale { background: rgba(243,156,18,0.25); color: #f39c12; }
+    .cron-status-item i { margin-right: 2px; font-size: 0.6rem; }
     .hdr-controls { display: flex; gap: 6px; align-items: center; }
     .hdr-controls .btn { padding: 5px 12px; font-size: 0.82rem; }
 
@@ -450,10 +463,15 @@
      HEADER BAR — sticky, compact, replaces old title/banner/summary
      ============================================================ -->
 <div class="header-bar">
-    <!-- Row 1: Strategy + Market Info -->
+    <!-- Row 1: Strategy + Market Info + Market Status -->
     <div class="hdr-row hdr-row-1">
         <span class="mode-badge bear-lr" id="headerModeBadge">LOADING</span>
         <span style="font-size:0.65rem;opacity:0.7;" id="hdrVersion">v6.0.0</span>
+        <span class="hdr-sep">│</span>
+        <span id="hdrMarketStatus" class="market-status-badge closed" title="Market Status">
+            <i class="fas fa-circle"></i> <span>CLOSED</span>
+        </span>
+        <span id="hdrNextOpen" style="color:#6c757d;font-size:0.65rem;"></span>
         <span class="hdr-sep">│</span>
         <span class="hdr-item">
             <span class="hdr-label">SPY</span>
@@ -475,14 +493,27 @@
         <span class="hdr-timer" id="hdrCountdown">--:--:--</span>
         <small style="opacity:0.5;font-size:0.65rem;" id="countdownLabel">Open</small>
     </div>
-    <!-- Row 2: Trading Status + Controls -->
+    <!-- Row 2: Trading Status + Cron + Controls -->
     <div class="hdr-row hdr-row-2">
         <span class="pdt-badge ok" id="hdrPDT">PDT -/-</span>
         <span class="hdr-item"><span class="hdr-label">Pos</span><span class="hdr-value" id="hdrPositions">0</span>/<span data-cfg="max_positions">?</span></span>
         <span class="hdr-item"><span class="hdr-label">Trail</span><span class="hdr-value" id="hdrTrailCount">0/0</span></span>
         <span class="hdr-item"><span class="hdr-label">Today</span><span id="hdrTodayWL" class="hdr-value">0W 0L</span></span>
         <span class="hdr-item"><span class="hdr-label">P&L</span><span id="hdrPnL" class="hdr-value hdr-down">$0.00</span></span>
-        <div class="pnl-mini-chart"><canvas id="pnlMiniChart" class="pnl-chart-canvas"></canvas></div>
+        <span class="hdr-item"><span class="hdr-label">Queue</span><span class="hdr-value" id="hdrQueueCount">0</span></span>
+        <span class="hdr-sep">│</span>
+        <span class="cron-status-item" id="cronHealth" title="Health Check">
+            <i class="fas fa-heartbeat"></i>
+        </span>
+        <span class="cron-status-item" id="cronPrefilter" title="Pre-Filter">
+            <i class="fas fa-filter"></i>
+        </span>
+        <span class="cron-status-item" id="cronOutcome" title="Outcome">
+            <i class="fas fa-chart-line"></i>
+        </span>
+        <span class="cron-status-item" id="cronBackup" title="Backup">
+            <i class="fas fa-database"></i>
+        </span>
         <span class="hdr-spacer"></span>
         <div class="hdr-controls">
             <button type="button" class="btn btn-outline-secondary" id="modeManual" onclick="setMode('manual')" title="Manual"><i class="fas fa-hand-paper"></i></button>
@@ -490,7 +521,6 @@
             <button class="btn btn-primary" onclick="refreshAll()" title="Refresh"><i class="fas fa-sync-alt"></i></button>
             <i class="fas fa-circle" id="wsIndicator" title="WebSocket" style="font-size:0.5rem;color:#e74c3c;"></i>
             <i class="fas fa-heartbeat" id="healthDot" style="color:#6c757d;font-size:1.1rem;cursor:pointer;" title="Health" onclick="showHealthDetail()"></i>
-            <i class="fas fa-clock" id="cronDot" style="color:#6c757d;font-size:1.1rem;cursor:pointer;margin-left:6px;" title="Cron Jobs" onclick="showCronStatus()"></i>
             <button class="btn btn-danger" id="emergencyStopBtn" onclick="emergencyStop()" style="display:none;" title="Stop"><i class="fas fa-stop-circle"></i></button>
             <button class="btn btn-outline-danger" id="closeAllBtn" onclick="closeAllPositions()" style="display:none;" title="Close All"><i class="fas fa-skull-crossbones"></i></button>
         </div>
@@ -1218,6 +1248,47 @@ function startMarketCountdown() {
 function setMarketCalendar(calendar) {
     // Called when scanner_schedule is received from API
     _marketCalendar = calendar;
+    updateHeaderMarketStatus(calendar);
+}
+
+function updateHeaderMarketStatus(calendar) {
+    const statusEl = document.getElementById('hdrMarketStatus');
+    const nextOpenEl = document.getElementById('hdrNextOpen');
+    if (!statusEl) return;
+
+    const isOpen = calendar?.is_open;
+    const isTradingDay = calendar?.is_trading_day;
+    const nextOpen = calendar?.next_open ? new Date(calendar.next_open) : null;
+
+    // Remove all classes
+    statusEl.classList.remove('open', 'closed', 'weekend', 'holiday');
+
+    if (isOpen) {
+        statusEl.classList.add('open');
+        statusEl.innerHTML = '<i class="fas fa-circle"></i> <span>OPEN</span>';
+        if (nextOpenEl) nextOpenEl.textContent = '';
+    } else if (!isTradingDay) {
+        // Check if weekend
+        const dayOfWeek = new Date().getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+            statusEl.classList.add('weekend');
+            statusEl.innerHTML = '<i class="fas fa-calendar-week"></i> <span>WEEKEND</span>';
+        } else {
+            statusEl.classList.add('holiday');
+            statusEl.innerHTML = '<i class="fas fa-umbrella-beach"></i> <span>HOLIDAY</span>';
+        }
+        // Show next open
+        if (nextOpenEl && nextOpen) {
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const nextDay = dayNames[nextOpen.getDay()];
+            const nextTime = nextOpen.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/New_York'});
+            nextOpenEl.textContent = `Opens ${nextDay} ${nextTime}`;
+        }
+    } else {
+        statusEl.classList.add('closed');
+        statusEl.innerHTML = '<i class="fas fa-circle"></i> <span>CLOSED</span>';
+        if (nextOpenEl) nextOpenEl.textContent = '';
+    }
 }
 
 function getETOffset() {
@@ -1647,6 +1718,10 @@ function updateHeaderBar(data) {
     // Positions
     const posEl = document.getElementById('hdrPositions');
     if (posEl) posEl.textContent = data.positions || 0;
+
+    // Queue count
+    const queueEl = document.getElementById('hdrQueueCount');
+    if (queueEl) queueEl.textContent = data.queue_size || 0;
 
     // PDT
     if (data.safety && data.safety.checks) {
@@ -2670,21 +2745,108 @@ function fetchCronStatus() {
 
 function updateCronDot(data) {
     const dot = document.getElementById('cronDot');
-    if (!dot) return;
     const status = data.status || {};
     const hasError = Object.values(status).some(s => s.status === 'error');
     const healthCheck = status.health_check;
     const isHealthy = healthCheck && healthCheck.app_running;
 
-    if (hasError) {
-        dot.style.color = '#e74c3c';
-        dot.title = 'Cron: Some jobs failed';
-    } else if (isHealthy) {
-        dot.style.color = '#00c853';
-        dot.title = 'Cron: All OK';
-    } else {
-        dot.style.color = '#f39c12';
-        dot.title = 'Cron: Checking...';
+    if (dot) {
+        if (hasError) {
+            dot.style.color = '#e74c3c';
+            dot.title = 'Cron: Some jobs failed';
+        } else if (isHealthy) {
+            dot.style.color = '#00c853';
+            dot.title = 'Cron: All OK';
+        } else {
+            dot.style.color = '#f39c12';
+            dot.title = 'Cron: Checking...';
+        }
+    }
+
+    // v6.4: Update header cron status items
+    updateHeaderCronStatus(data);
+}
+
+function updateHeaderCronStatus(data) {
+    const status = data.status || {};
+    const now = new Date();
+
+    // Helper to check if job ran recently (within expected interval)
+    const isRecent = (lastRun, maxMinutes) => {
+        if (!lastRun) return false;
+        const lastDate = new Date(lastRun);
+        const diffMin = (now - lastDate) / 60000;
+        return diffMin < maxMinutes;
+    };
+
+    // Health Check (every 5 min → stale if > 10 min)
+    const cronHealth = document.getElementById('cronHealth');
+    if (cronHealth) {
+        const h = status.health_check;
+        cronHealth.classList.remove('ok', 'error', 'stale');
+        if (h && h.status === 'ok' && isRecent(h.last_run, 10)) {
+            cronHealth.classList.add('ok');
+            cronHealth.title = `Health: OK (${new Date(h.last_run).toLocaleTimeString()})`;
+        } else if (h && h.status === 'error') {
+            cronHealth.classList.add('error');
+            cronHealth.title = 'Health: ERROR';
+        } else {
+            cronHealth.classList.add('stale');
+            cronHealth.title = 'Health: Stale/Unknown';
+        }
+    }
+
+    // Pre-filter (runs at 08:00 and 21:00 → stale if > 24 hours)
+    const cronPrefilter = document.getElementById('cronPrefilter');
+    if (cronPrefilter) {
+        const pEvening = status.prefilter_evening;
+        const pPreopen = status.prefilter_pre_open;
+        const lastP = pEvening?.last_run || pPreopen?.last_run;
+        cronPrefilter.classList.remove('ok', 'error', 'stale');
+        if (pEvening?.status === 'ok' || pPreopen?.status === 'ok') {
+            cronPrefilter.classList.add('ok');
+            cronPrefilter.title = `PreFilter: OK (${lastP ? new Date(lastP).toLocaleString() : 'N/A'})`;
+        } else if (pEvening?.status === 'error' || pPreopen?.status === 'error') {
+            cronPrefilter.classList.add('error');
+            cronPrefilter.title = 'PreFilter: ERROR';
+        } else {
+            cronPrefilter.classList.add('stale');
+            cronPrefilter.title = 'PreFilter: Not run yet';
+        }
+    }
+
+    // Outcome Tracker (daily after market close)
+    const cronOutcome = document.getElementById('cronOutcome');
+    if (cronOutcome) {
+        const o = status.outcome_tracker;
+        cronOutcome.classList.remove('ok', 'error', 'stale');
+        if (o && o.status === 'ok') {
+            cronOutcome.classList.add('ok');
+            cronOutcome.title = `Outcome: OK (${new Date(o.last_run).toLocaleString()})`;
+        } else if (o && o.status === 'error') {
+            cronOutcome.classList.add('error');
+            cronOutcome.title = 'Outcome: ERROR';
+        } else {
+            cronOutcome.classList.add('stale');
+            cronOutcome.title = 'Outcome: Not run yet';
+        }
+    }
+
+    // DB Backup (weekly Sunday)
+    const cronBackup = document.getElementById('cronBackup');
+    if (cronBackup) {
+        const b = status.db_backup;
+        cronBackup.classList.remove('ok', 'error', 'stale');
+        if (b && b.status === 'ok') {
+            cronBackup.classList.add('ok');
+            cronBackup.title = `Backup: OK (${new Date(b.last_run).toLocaleString()})`;
+        } else if (b && b.status === 'error') {
+            cronBackup.classList.add('error');
+            cronBackup.title = 'Backup: ERROR';
+        } else {
+            cronBackup.classList.add('stale');
+            cronBackup.title = 'Backup: Not run yet';
+        }
     }
 }
 
