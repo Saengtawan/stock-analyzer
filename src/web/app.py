@@ -2430,14 +2430,15 @@ def api_health():
         checks = {}
         issues = []
 
-        # 1. Alpaca API
+        # 1. Alpaca API (using broker abstraction layer)
+        broker = None
         try:
-            from alpaca_trader import AlpacaTrader
-            trader = AlpacaTrader(paper=True)
-            account = trader.get_account()
+            from engine.brokers import AlpacaBroker
+            broker = AlpacaBroker(paper=True)
+            account = broker.get_account()
             checks['alpaca_api'] = {
                 'ok': True,
-                'detail': f"Connected, ${account['portfolio_value']:,.0f}"
+                'detail': f"Connected, ${account.portfolio_value:,.0f}"
             }
         except Exception as e:
             checks['alpaca_api'] = {'ok': False, 'detail': str(e)}
@@ -2445,9 +2446,12 @@ def api_health():
 
         # 2. Market clock
         try:
-            clock = trader.get_clock()
-            market_status = "Open" if clock['is_open'] else "Closed"
-            checks['market_clock'] = {'ok': True, 'detail': market_status}
+            if broker:
+                clock = broker.get_clock()
+                market_status = "Open" if clock.is_open else "Closed"
+                checks['market_clock'] = {'ok': True, 'detail': market_status}
+            else:
+                checks['market_clock'] = {'ok': False, 'detail': 'Broker not available'}
         except Exception as e:
             checks['market_clock'] = {'ok': False, 'detail': str(e)}
             issues.append(f"Market clock: {e}")
@@ -2456,7 +2460,7 @@ def api_health():
         try:
             engine = get_auto_trading_engine()
             engine_positions = engine.positions if engine else {}
-            alpaca_positions = trader.get_positions()
+            alpaca_positions = broker.get_positions() if broker else []
 
             memory_count = len(engine_positions)
             alpaca_count = len(alpaca_positions)

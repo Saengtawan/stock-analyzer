@@ -332,7 +332,7 @@ def _validate_config_value(attr_name: str, value: Any) -> Tuple[bool, str]:
     return True, ""
 
 
-def apply_config(engine, config: Optional[Dict[str, Any]] = None, trader=None):
+def apply_config(engine, config: Optional[Dict[str, Any]] = None, broker=None):
     """
     Apply config values to an AutoTradingEngine instance.
     Only sets attributes that exist in config AND as class attributes.
@@ -341,8 +341,8 @@ def apply_config(engine, config: Optional[Dict[str, Any]] = None, trader=None):
     Args:
         engine: AutoTradingEngine instance
         config: Config dict (loads from file if None)
-        trader: Optional AlpacaTrader instance. If provided,
-                max_slippage_pct → MAX_SLIPPAGE_PCT is applied to the trader
+        broker: Optional BrokerInterface instance. If provided,
+                max_slippage_pct → MAX_SLIPPAGE_PCT is applied to the broker
                 instead of the engine.
     """
     if config is None:
@@ -351,8 +351,8 @@ def apply_config(engine, config: Optional[Dict[str, Any]] = None, trader=None):
     if not config:
         return
 
-    # Keys that should be applied to the trader, not the engine
-    TRADER_KEYS = {'MAX_SLIPPAGE_PCT'}
+    # Keys that should be applied to the broker, not the engine
+    BROKER_KEYS = {'MAX_SLIPPAGE_PCT'}
 
     # Keys that affect open positions — skip if positions are open
     POSITION_SENSITIVE_KEYS = {
@@ -369,10 +369,10 @@ def apply_config(engine, config: Optional[Dict[str, Any]] = None, trader=None):
     for key, value in config.items():
         attr_name = key.upper()
 
-        # Determine target: trader or engine
+        # Determine target: broker or engine
         target = engine
-        if attr_name in TRADER_KEYS and trader is not None:
-            target = trader
+        if attr_name in BROKER_KEYS and broker is not None:
+            target = broker
 
         if hasattr(target, attr_name) and value is not None:
             # v4.9: Skip position-sensitive params while positions are open

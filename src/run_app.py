@@ -242,26 +242,27 @@ class ServiceManager:
         checks = {}
         issues = []
         now = datetime.now()
-        trader = None  # Initialize to None
+        broker = None  # Initialize to None
 
-        # 1. Alpaca API
+        # 1. Alpaca API (using broker abstraction layer)
         try:
-            from alpaca_trader import AlpacaTrader
-            trader = AlpacaTrader(paper=True)
-            account = trader.get_account()
+            from engine.brokers import AlpacaBroker
+            broker = AlpacaBroker(paper=True)
+            account = broker.get_account()
             checks['alpaca_api'] = {
                 'ok': True,
-                'detail': f"Connected, ${account['portfolio_value']:,.0f}"
+                'detail': f"Connected, ${account.portfolio_value:,.0f}"
             }
         except Exception as e:
             checks['alpaca_api'] = {'ok': False, 'detail': str(e)}
             issues.append(f"Alpaca API down: {e}")
+            broker = None
 
         # 2. Market clock
-        if trader:
+        if broker:
             try:
-                clock = trader.get_clock()
-                market_status = "Open" if clock['is_open'] else "Closed"
+                clock = broker.get_clock()
+                market_status = "Open" if clock.is_open else "Closed"
                 checks['market_clock'] = {
                     'ok': True,
                     'detail': market_status
@@ -369,10 +370,10 @@ class ServiceManager:
             }
 
         # 6. Positions sync (Alpaca vs in-memory)
-        if trader:
+        if broker:
             try:
                 if hasattr(self, 'rapid_portfolio'):
-                    alpaca_positions = trader.get_positions()
+                    alpaca_positions = broker.get_positions()
                     memory_count = len(self.rapid_portfolio.positions) if self.rapid_portfolio.positions else 0
                     alpaca_count = len(alpaca_positions)
 

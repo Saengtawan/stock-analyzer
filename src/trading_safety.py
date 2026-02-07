@@ -29,7 +29,8 @@ import threading
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from alpaca_trader import AlpacaTrader
+# Broker abstraction layer
+from engine.broker_interface import BrokerInterface
 from loguru import logger
 
 
@@ -86,15 +87,15 @@ class TradingSafetySystem:
     # Health check intervals
     HEALTH_CHECK_INTERVAL = 300     # 5 minutes
 
-    def __init__(self, trader: AlpacaTrader, config: dict = None):
+    def __init__(self, broker: BrokerInterface, config: dict = None):
         """
         Initialize safety system
 
         Args:
-            trader: AlpacaTrader instance
+            broker: BrokerInterface instance (Alpaca, Mock, etc.)
             config: Optional config dict to override defaults (e.g. from engine)
         """
-        self.trader = trader
+        self.broker = broker
 
         # v4.9.6: Apply config overrides if provided
         if config:
@@ -189,8 +190,8 @@ class TradingSafetySystem:
         CRITICAL RULE: No position without SL protection
         """
         try:
-            positions = self.trader.get_positions()
-            orders = self.trader.get_orders(status='open')
+            positions = self.broker.get_positions()
+            orders = self.broker.get_orders(status='open')
 
             # Get symbols with SL orders
             sl_symbols = set()
@@ -231,7 +232,7 @@ class TradingSafetySystem:
     def check_daily_loss(self) -> SafetyCheck:
         """Check daily P&L against limit"""
         try:
-            account = self.trader.get_account()
+            account = self.broker.get_account()
             equity = account['equity']
             last_equity = account['last_equity']
 
@@ -276,7 +277,7 @@ class TradingSafetySystem:
     def check_position_count(self) -> SafetyCheck:
         """Check number of positions against limit"""
         try:
-            positions = self.trader.get_positions()
+            positions = self.broker.get_positions()
             count = len(positions)
 
             if count > self.MAX_POSITIONS:
@@ -315,7 +316,7 @@ class TradingSafetySystem:
     def check_buying_power(self) -> SafetyCheck:
         """Check available buying power"""
         try:
-            account = self.trader.get_account()
+            account = self.broker.get_account()
             buying_power = account['buying_power']
             equity = account['equity']
 
@@ -348,7 +349,7 @@ class TradingSafetySystem:
     def check_api_connection(self) -> SafetyCheck:
         """Check Alpaca API connection"""
         try:
-            clock = self.trader.get_clock()
+            clock = self.broker.get_clock()
 
             return SafetyCheck(
                 name="API Connection",
@@ -388,7 +389,7 @@ class TradingSafetySystem:
         We enforce this even on paper trading for realistic testing.
         """
         try:
-            account = self.trader.get_account()
+            account = self.broker.get_account()
             portfolio_value = account['portfolio_value']
             daytrade_count = account.get('daytrade_count', 0)
             is_pdt = account.get('pattern_day_trader', False)
@@ -543,7 +544,7 @@ class TradingSafetySystem:
                 return False, "; ".join(report.reasons)
 
         # Check position count
-        positions = self.trader.get_positions()
+        positions = self.broker.get_positions()
         if len(positions) >= self.MAX_POSITIONS:
             return False, f"Max positions ({self.MAX_POSITIONS}) reached"
 
@@ -581,14 +582,14 @@ class TradingSafetySystem:
 
         try:
             # Cancel all orders first
-            self.trader.cancel_all_orders()
+            self.broker.cancel_all_orders()
             results['orders_cancelled'] = True
 
             # Close all positions
-            positions = self.trader.get_positions()
+            positions = self.broker.get_positions()
             for pos in positions:
                 try:
-                    self.trader.place_market_sell(pos.symbol, int(pos.qty))
+                    self.broker.place_market_sell(pos.symbol, int(pos.qty))
                     results['positions_closed'] += 1
                     logger.info(f"Closed {pos.symbol}")
                 except Exception as e:
@@ -615,8 +616,8 @@ class TradingSafetySystem:
         fixed = []
 
         try:
-            positions = self.trader.get_positions()
-            orders = self.trader.get_orders(status='open')
+            positions = self.broker.get_positions()
+            orders = self.broker.get_orders(status='open')
 
             # Get symbols with SL orders
             sl_symbols = {}
@@ -633,7 +634,7 @@ class TradingSafetySystem:
                     sl_price = pos.current_price * 0.975
 
                     try:
-                        self.trader.place_stop_loss(
+                        self.broker.place_stop_loss(
                             pos.symbol,
                             int(pos.qty),
                             sl_price
@@ -718,13 +719,14 @@ def test_safety_system():
         print("ERROR: Set ALPACA_API_KEY and ALPACA_SECRET_KEY environment variables")
         return
 
-    trader = AlpacaTrader(
+    from engine.brokers import AlpacaBroker
+    broker = AlpacaBroker(
         api_key=API_KEY,
         secret_key=SECRET_KEY,
         paper=True
     )
 
-    safety = TradingSafetySystem(trader)
+    safety = TradingSafetySystem(broker)
 
     # Run health check
     print("\n[1] Health Check:")

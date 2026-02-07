@@ -77,8 +77,11 @@ src_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, src_dir)
 sys.path.insert(0, os.path.dirname(src_dir))  # Add parent for 'src' imports
 
-from alpaca_trader import AlpacaTrader, Position, Order
 from trading_safety import TradingSafetySystem, SafetyStatus
+
+# Broker abstraction layer
+from engine.broker_interface import BrokerInterface, Position, Order
+from engine.brokers import AlpacaBroker
 from pdt_smart_guard import PDTSmartGuard, PDTConfig, SellDecision, init_pdt_guard
 from trade_logger import get_trade_logger, TradeLogger
 from loguru import logger
@@ -340,8 +343,8 @@ class AutoTradingEngine:
         # =====================================================================
         self._load_config_from_yaml()
 
-        # Alpaca client
-        self.trader = AlpacaTrader(
+        # Broker abstraction layer (Phase 3: supports Alpaca, Mock, future brokers)
+        self.broker: BrokerInterface = AlpacaBroker(
             api_key=api_key,
             secret_key=secret_key,
             paper=paper
@@ -353,11 +356,11 @@ class AutoTradingEngine:
             'MAX_POSITIONS': self.MAX_POSITIONS,
             'MAX_HOLD_DAYS': self.MAX_HOLD_DAYS,
         }
-        self.safety = TradingSafetySystem(self.trader, config=safety_config)
+        self.safety = TradingSafetySystem(self.broker, config=safety_config)
 
         # PDT Smart Guard v2.2 (No Override Mode)
         self.pdt_guard = init_pdt_guard(
-            trader=self.trader,
+            broker=self.broker,
             config=PDTConfig(
                 max_day_trades=3,
                 sl_threshold=-self.STOP_LOSS_PCT,  # -2.5%
@@ -769,7 +772,7 @@ class AutoTradingEngine:
             next_open = None
             next_close = None
             try:
-                clock = self.trader.get_clock()
+                clock = self.broker.get_clock()
                 is_market_open = clock.get('is_open', False)
                 next_open = clock.get('next_open')
                 next_close = clock.get('next_close')
@@ -864,7 +867,7 @@ class AutoTradingEngine:
         try:
             next_open = None
             try:
-                next_open = self.trader.get_clock().get('next_open')
+                next_open = self.broker.get_clock().get('next_open')
             except Exception:
                 pass
 
@@ -894,8 +897,8 @@ class AutoTradingEngine:
         trailing_active, sl_pct, tp_pct, atr_pct, entry_time, sector
         """
         try:
-            alpaca_positions = self.trader.get_positions()
-            alpaca_orders = self.trader.get_orders(status='open')
+            alpaca_positions = self.broker.get_positions()
+            alpaca_orders = self.broker.get_orders(status='open')
 
             # Load persisted state (peak_price, trailing_active, etc.)
             persisted = self._load_positions_state()
@@ -1030,42 +1033,45 @@ class AutoTradingEngine:
     # MARKET REGIME FILTER (v4.0 NEW!)
     # =========================================================================
 
-    def _get_spy_data_from_alpaca(self, days: int = 60) -> Optional[pd.DataFrame]:
+    def _get_spy_data_from_broker(self, days: int = 60) -> Optional[pd.DataFrame]:
         """
-        v4.7 Fix #8: Get SPY historical data from Alpaca bars API.
+        v4.7 Fix #8: Get SPY historical data from broker.
         Returns a DataFrame with 'Close' column, or None on failure.
+        Uses BrokerInterface.get_bars() for broker-agnostic access.
         """
         try:
             from datetime import timezone
             end = datetime.now(timezone.utc)
             start = end - timedelta(days=days + 5)  # Extra buffer for weekends
 
-            bars = self.trader.api.get_bars(
-                'SPY',
-                '1Day',
-                start=start.strftime('%Y-%m-%d'),
-                end=end.strftime('%Y-%m-%d'),
+            # Use broker interface method (returns List[Bar] with standard attributes)
+            bars = self.broker.get_bars(
+                symbol='SPY',
+                timeframe='1Day',
+                start=start,
+                end=end,
                 limit=days + 5
             )
             if not bars:
                 return None
 
+            # Bar dataclass uses standard attributes: close, high, low, open, volume
             data = []
             for bar in bars:
                 data.append({
-                    'Close': bar.c,
-                    'High': bar.h,
-                    'Low': bar.l,
-                    'Open': bar.o,
-                    'Volume': bar.v,
+                    'Close': bar.close,
+                    'High': bar.high,
+                    'Low': bar.low,
+                    'Open': bar.open,
+                    'Volume': bar.volume,
                 })
             df = pd.DataFrame(data)
             if len(df) >= 20:
-                logger.debug(f"SPY data from Alpaca: {len(df)} bars")
+                logger.debug(f"SPY data from broker: {len(df)} bars")
                 return df
             return None
         except Exception as e:
-            logger.debug(f"Alpaca SPY data failed: {e}")
+            logger.debug(f"Broker SPY data failed: {e}")
             return None
 
     def _check_market_regime(self, force_refresh: bool = False) -> Tuple[bool, str]:
@@ -1100,7 +1106,7 @@ class AutoTradingEngine:
 
         try:
             # v4.7 Fix #8: Try Alpaca bars first, fall back to yfinance
-            spy = self._get_spy_data_from_alpaca(60)
+            spy = self._get_spy_data_from_broker(60)
             if spy is None or spy.empty:
                 spy = yf.download('SPY', period='60d', progress=False)
 
@@ -2136,7 +2142,7 @@ class AutoTradingEngine:
         ctx = {}
         try:
             # 1. Snapshot: bid/ask/volume/prev_close (single Alpaca API call)
-            snapshot = self.trader.get_snapshot(symbol)
+            snapshot = self.broker.get_snapshot(symbol)
             if snapshot:
                 bid = snapshot.get('bid', 0)
                 ask = snapshot.get('ask', 0)
@@ -2494,7 +2500,7 @@ class AutoTradingEngine:
 
             # Get current price
             try:
-                pos = self.trader.get_position(symbol)
+                pos = self.broker.get_position(symbol)
                 if pos:
                     current_price = pos.current_price
                 else:
@@ -2549,12 +2555,12 @@ class AutoTradingEngine:
             # Get current price for fresh SL/TP calculation
             current_price = queued.signal_price  # fallback
             try:
-                alpaca_pos = self.trader.get_position(symbol)
+                alpaca_pos = self.broker.get_position(symbol)
                 if alpaca_pos:
                     # Already have position somehow — skip
                     logger.warning(f"Queue: {symbol} already has position at Alpaca")
                     return False
-                snapshot = self.trader.get_snapshot(symbol) if hasattr(self.trader, 'get_snapshot') else None
+                snapshot = self.broker.get_snapshot(symbol) if hasattr(self.broker, 'get_snapshot') else None
                 if snapshot and snapshot.get('last_price'):
                     current_price = snapshot['last_price']
             except Exception:
@@ -2605,7 +2611,7 @@ class AutoTradingEngine:
         self._last_reconcile = today
 
         try:
-            alpaca_positions = self.trader.get_positions()
+            alpaca_positions = self.broker.get_positions()
             if alpaca_positions is None:
                 return
 
@@ -2759,7 +2765,7 @@ class AutoTradingEngine:
             # v4.7 Fix #9: Reconcile with Alpaca before buying
             # Catches positions that engine doesn't know about
             try:
-                alpaca_existing = self.trader.get_position(symbol)
+                alpaca_existing = self.broker.get_position(symbol)
                 if alpaca_existing:
                     logger.warning(f"⚠️ RECONCILIATION: Alpaca already holds {symbol} "
                                    f"(qty={alpaca_existing.qty}, current=${alpaca_existing.current_price:.2f}) "
@@ -2809,7 +2815,7 @@ class AutoTradingEngine:
             # --- BLOCK 3: Position sizing ---
             # Calculate position size (v4.5: use effective size)
             # Use simulated capital as a cap, but never exceed real buying power
-            account = self.trader.get_account()
+            account = self.broker.get_account()
             real_buying_power = float(account.get('buying_power', 0))
             if self.SIMULATED_CAPITAL:
                 capital = min(self.SIMULATED_CAPITAL, real_buying_power)
@@ -2829,7 +2835,7 @@ class AutoTradingEngine:
                 logger.info(f"🛡️ Position size: ${position_value:,.0f} (LOW RISK: {params['position_size_pct']}%)")
 
             # Get current price
-            pos_check = self.trader.get_position(symbol)
+            pos_check = self.broker.get_position(symbol)
             if pos_check:
                 current_price = pos_check.current_price
             else:
@@ -2988,7 +2994,7 @@ class AutoTradingEngine:
 
             if should_place_sl:
                 # Normal flow: Buy with stop loss (use ATR-based SL%)
-                buy_order, sl_order = self.trader.buy_with_stop_loss(symbol, qty, sl_pct=sl_pct)
+                buy_order, sl_order = self.broker.buy_with_stop_loss(symbol, qty, sl_pct=sl_pct)
                 if not buy_order:
                     logger.error(f"Failed to execute {symbol} (spread too wide or order failed)")
                     return False
@@ -2999,14 +3005,14 @@ class AutoTradingEngine:
                 # PDT Guard: Buy WITHOUT stop loss (Day 0)
                 # v4.8: Use smart buy (limit @ ask + market fallback)
                 logger.info(f"PDT Guard: {sl_reason} - buying without SL order")
-                buy_order = self.trader.place_smart_buy(symbol, qty)
+                buy_order = self.broker.place_smart_buy(symbol, qty)
                 if not buy_order:
                     logger.warning(f"Smart buy SKIP {symbol}: spread too wide")
                     return False
                 # Wait for fill if not already filled
                 if buy_order.status != 'filled':
                     time.sleep(2)
-                    buy_order = self.trader.get_order(buy_order.id)
+                    buy_order = self.broker.get_order(buy_order.id)
                 sl_order_id = None
 
             if not buy_order or buy_order.status != 'filled':
@@ -3021,7 +3027,7 @@ class AutoTradingEngine:
                 # Cancel unfilled order to avoid ghost fills
                 try:
                     if buy_order and hasattr(buy_order, 'id'):
-                        self.trader.cancel_order(buy_order.id)
+                        self.broker.cancel_order(buy_order.id)
                 except Exception as e:
                     logger.warning(f"Failed to cancel unfilled order for {symbol}: {e}")
                 return False
@@ -3030,7 +3036,7 @@ class AutoTradingEngine:
             entry_price = buy_order.filled_avg_price
 
             # v4.7 Fix #1: Use actual filled qty from trader
-            actual_qty = getattr(self.trader, '_last_filled_qty', qty)
+            actual_qty = getattr(self.broker, '_last_filled_qty', qty)
             if actual_qty and actual_qty != qty:
                 logger.warning(f"Using actual filled qty {actual_qty} (requested {qty})")
                 qty = actual_qty
@@ -3047,7 +3053,7 @@ class AutoTradingEngine:
                 if actual_count >= effective_max:
                     logger.warning(f"⚠️ Max positions ({effective_max}) reached under lock — engine={len(self.positions)}, alpaca={getattr(self, '_alpaca_position_count', 0)} — cancelling order for {symbol}")
                     try:
-                        self.trader.cancel_order(buy_order.id)
+                        self.broker.cancel_order(buy_order.id)
                     except Exception as e:
                         logger.warning(f"Failed to cancel order at max positions for {symbol}: {e}")
                     return False
@@ -3108,7 +3114,7 @@ class AutoTradingEngine:
                 analysis = self._get_analysis_data(symbol)
 
                 # Get execution metadata from smart buy
-                exec_meta = getattr(self.trader, 'last_execution_meta', {})
+                exec_meta = getattr(self.broker, 'last_execution_meta', {})
                 signal_price_val = getattr(signal, 'entry_price', None) or getattr(signal, 'close', None)
                 slippage = None
                 if signal_price_val and entry_price and signal_price_val > 0:
@@ -3227,7 +3233,7 @@ class AutoTradingEngine:
             return  # Only for positions held overnight
 
         try:
-            snapshot = self.trader.get_snapshot(symbol)
+            snapshot = self.broker.get_snapshot(symbol)
             if not snapshot or not snapshot.get('prev_close'):
                 return
 
@@ -3360,7 +3366,7 @@ class AutoTradingEngine:
                 try:
                     sl_price = pos.stop_loss if hasattr(pos, 'stop_loss') else pos.current_sl_price
                     qty = pos.qty
-                    sl_order = self.trader.place_stop_loss(symbol, qty, sl_price)
+                    sl_order = self.broker.place_stop_loss(symbol, qty, sl_price)
                     if sl_order:
                         pos.sl_order_id = sl_order.id
                         logger.info(f"✅ SL recovered for {symbol} @ ${sl_price:.2f}")
@@ -3385,7 +3391,7 @@ class AutoTradingEngine:
         # v4.9: Detect stock splits and adjust tracking
         for symbol, managed_pos in list(self.positions.items()):
             try:
-                alpaca_pos = self.trader.get_position(symbol)
+                alpaca_pos = self.broker.get_position(symbol)
                 if alpaca_pos:
                     split_ratio = self._detect_stock_split(symbol, alpaca_pos, managed_pos)
                     if split_ratio:
@@ -3410,7 +3416,7 @@ class AutoTradingEngine:
                         self._save_positions_state()
                         # Update SL order at Alpaca
                         if managed_pos.sl_order_id:
-                            self.trader.modify_stop_loss(managed_pos.sl_order_id, managed_pos.current_sl_price)
+                            self.broker.modify_stop_loss(managed_pos.sl_order_id, managed_pos.current_sl_price)
             except Exception as e:
                 logger.debug(f"Split check error for {symbol}: {e}")
 
@@ -3432,7 +3438,7 @@ class AutoTradingEngine:
 
         # Detect orphan positions (at Alpaca but not tracked by engine)
         try:
-            alpaca_positions = self.trader.get_positions()
+            alpaca_positions = self.broker.get_positions()
             alpaca_symbols = {p.symbol for p in alpaca_positions}
             engine_symbols = set(self.positions.keys())
 
@@ -3454,7 +3460,7 @@ class AutoTradingEngine:
 
         # Get current position from Alpaca
         try:
-            alpaca_pos = self.trader.get_position(symbol)
+            alpaca_pos = self.broker.get_position(symbol)
         except Exception as e:
             err_str = str(e).lower()
             # v4.9 Fix #34: Handle Alpaca maintenance / API outage
@@ -3532,7 +3538,7 @@ class AutoTradingEngine:
         # Prevents missing peaks between monitor intervals
         intraday_high = current_price
         try:
-            snapshot = self.trader.get_snapshot(symbol)
+            snapshot = self.broker.get_snapshot(symbol)
             if snapshot and snapshot.get('daily_high'):
                 intraday_high = max(current_price, snapshot['daily_high'])
         except Exception:
@@ -3590,7 +3596,7 @@ class AutoTradingEngine:
             if not managed_pos.sl_order_id:
                 logger.info(f"PDT Guard: {symbol} Day {days_held} - placing SL order now")
                 sl_price = managed_pos.current_sl_price  # v4.6: use stored SL price
-                sl_order = self.trader.place_stop_loss(symbol, managed_pos.qty, sl_price)
+                sl_order = self.broker.place_stop_loss(symbol, managed_pos.qty, sl_price)
                 if sl_order:
                     managed_pos.sl_order_id = sl_order.id
                     managed_pos.current_sl_price = sl_order.stop_price
@@ -3612,7 +3618,7 @@ class AutoTradingEngine:
 
             # Update trailing stop (only if SL order exists and trailing enabled)
             if managed_pos.trailing_active and managed_pos.sl_order_id:
-                new_sl, _ = self.trader.calculate_trailing_stop(
+                new_sl, _ = self.broker.calculate_trailing_stop(
                     entry_price,
                     managed_pos.peak_price,
                     self.TRAIL_ACTIVATION_PCT,
@@ -3624,7 +3630,7 @@ class AutoTradingEngine:
                     logger.info(f"📈 {symbol} updating SL: ${managed_pos.current_sl_price:.2f} → ${new_sl:.2f}")
 
                     # Modify SL order at Alpaca (has retry + fallback logic)
-                    new_order = self.trader.modify_stop_loss(
+                    new_order = self.broker.modify_stop_loss(
                         managed_pos.sl_order_id,
                         new_sl
                     )
@@ -3709,7 +3715,7 @@ class AutoTradingEngine:
 
             # CRITICAL: Check if position still exists before selling
             # This prevents double-sell if SL was already triggered
-            alpaca_pos = self.trader.get_position(symbol)
+            alpaca_pos = self.broker.get_position(symbol)
             if not alpaca_pos:
                 logger.info(f"{symbol} position already closed (SL may have triggered)")
                 with self._positions_lock:
@@ -3742,11 +3748,11 @@ class AutoTradingEngine:
 
             # Cancel SL order first (if exists)
             if managed_pos.sl_order_id:
-                self.trader.cancel_order(managed_pos.sl_order_id)
+                self.broker.cancel_order(managed_pos.sl_order_id)
 
             # v4.9: Check for existing pending sell orders (prevent duplication)
             try:
-                open_orders = self.trader.get_orders(status='open')
+                open_orders = self.broker.get_orders(status='open')
                 pending_sells = [o for o in open_orders if o.symbol == symbol and o.side == 'sell' and o.type == 'market']
                 if pending_sells:
                     logger.warning(f"{symbol}: Already has {len(pending_sells)} pending sell order(s) — skipping duplicate")
@@ -3757,13 +3763,13 @@ class AutoTradingEngine:
             # Sell using actual qty from Alpaca (not managed_pos.qty)
             # In case of partial fills or discrepancies
             actual_qty = int(alpaca_pos.qty)
-            sell_order = self.trader.place_market_sell(symbol, actual_qty)
+            sell_order = self.broker.place_market_sell(symbol, actual_qty)
 
             # Wait for fill with retry (max 10 seconds)
             order = None
             for _wait in range(10):
                 time.sleep(1)
-                order = self.trader.get_order(sell_order.id)
+                order = self.broker.get_order(sell_order.id)
                 if order.status == 'filled':
                     break
 
@@ -3870,7 +3876,7 @@ class AutoTradingEngine:
 
             # Re-verify position is actually gone from Alpaca before opening new
             try:
-                verify_pos = self.trader.get_position(symbol)
+                verify_pos = self.broker.get_position(symbol)
                 if verify_pos:
                     logger.warning(f"{symbol}: Still exists at Alpaca after sell — NOT opening new position")
                     return
@@ -3927,7 +3933,7 @@ class AutoTradingEngine:
             logger.debug(f"Daily loss limit check SKIPPED (BEAR DD exempt, mode={mode})")
             return False
 
-        account = self.trader.get_account()
+        account = self.broker.get_account()
         last_equity = account['last_equity']
         if last_equity <= 0:
             return False
@@ -3969,7 +3975,7 @@ class AutoTradingEngine:
 
             weekly_pnl = self.weekly_realized_pnl
 
-        account = self.trader.get_account()
+        account = self.broker.get_account()
         capital = float(account.get('portfolio_value', self.SIMULATED_CAPITAL or 4000))
         weekly_pnl_pct = (weekly_pnl / capital) * 100
 
@@ -4067,7 +4073,7 @@ class AutoTradingEngine:
                     sl_pct = managed_pos.sl_pct or self.STOP_LOSS_PCT
                     sl_price = round(managed_pos.entry_price * (1 - sl_pct / 100), 2)
                     logger.info(f"Placing EOD SL for {symbol} (Day 0): ${sl_price:.2f} (-{sl_pct}%)")
-                    sl_order = self.trader.place_stop_loss(symbol, managed_pos.qty, sl_price)
+                    sl_order = self.broker.place_stop_loss(symbol, managed_pos.qty, sl_price)
                     if sl_order:
                         managed_pos.sl_order_id = sl_order.id
                         managed_pos.current_sl_price = sl_order.stop_price
@@ -4078,7 +4084,7 @@ class AutoTradingEngine:
 
     def daily_summary(self) -> Dict:
         """Generate daily summary"""
-        account = self.trader.get_account()
+        account = self.broker.get_account()
 
         summary = {
             'date': self.daily_stats.date,
@@ -4159,7 +4165,7 @@ class AutoTradingEngine:
                 # Check market status
                 # v5.1 P2-15: Fail-closed on clock error (assume market closed)
                 try:
-                    clock = self.trader.get_clock()
+                    clock = self.broker.get_clock()
                 except Exception as clock_err:
                     err_str = str(clock_err).lower()
                     if any(kw in err_str for kw in ['maintenance', '503', '502', 'service unavailable']):
@@ -4693,7 +4699,7 @@ class AutoTradingEngine:
             consecutive_losses = self.consecutive_losses
             weekly_pnl = self.weekly_realized_pnl
 
-        account = self.trader.get_account()
+        account = self.broker.get_account()
         safety_status = self.safety.get_status_summary()
 
         # v4.0: Get current regime
@@ -4722,7 +4728,7 @@ class AutoTradingEngine:
         return {
             'state': self.state.value,
             'running': self.running,
-            'market_open': self.trader.is_market_open(),
+            'market_open': self.broker.is_market_open(),
             'market_regime': 'BULL' if is_bull else ('BEAR_MODE' if self.BEAR_MODE_ENABLED else 'BEAR'),  # v4.9.2
             'regime_detail': regime_reason,  # v4.0
             'regime_details': regime_details,  # v4.9.5: SPY details for UI
@@ -4925,7 +4931,7 @@ class AutoTradingEngine:
         status = []
 
         for symbol, managed_pos in list(self.positions.items()):  # copy to avoid iteration error
-            alpaca_pos = self.trader.get_position(symbol)
+            alpaca_pos = self.broker.get_position(symbol)
             if alpaca_pos:
                 pnl_pct = ((alpaca_pos.current_price - managed_pos.entry_price) / managed_pos.entry_price) * 100
                 status.append({

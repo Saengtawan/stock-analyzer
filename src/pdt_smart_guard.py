@@ -33,13 +33,16 @@ Version: 2.2
 
 from dataclasses import dataclass
 from datetime import datetime, date
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional, Dict, TYPE_CHECKING
 from enum import Enum
 from loguru import logger
 import os
 import json
 import tempfile
 import pytz
+
+if TYPE_CHECKING:
+    from engine.broker_interface import BrokerInterface
 
 
 class SellDecision(Enum):
@@ -84,8 +87,8 @@ class PDTSmartGuard:
     4. Reserve last day trade for emergencies
     """
 
-    def __init__(self, trader=None, config: PDTConfig = None, data_dir: str = None):
-        self.trader = trader
+    def __init__(self, broker: 'BrokerInterface' = None, config: PDTConfig = None, data_dir: str = None):
+        self.broker = broker
         self.config = config or PDTConfig()
 
         # Data directory for persistence
@@ -112,9 +115,9 @@ class PDTSmartGuard:
         logger.info(f"  Reserve: {self.config.reserve} day trades")
         logger.info(f"  Budget = 0 → HOLD (ไม่ override PDT เด็ดขาด)")
 
-    def set_trader(self, trader):
-        """Set trader instance"""
-        self.trader = trader
+    def set_broker(self, broker: 'BrokerInterface'):
+        """Set broker instance"""
+        self.broker = broker
 
     def _get_et_date(self) -> date:
         """
@@ -195,12 +198,13 @@ class PDTSmartGuard:
     def get_pdt_status(self) -> PDTStatus:
         """Get current PDT status from Alpaca"""
         try:
-            if not self.trader:
+            if not self.broker:
                 return PDTStatus(0, 3, False, True, False)
 
-            account = self.trader.get_account()
-            day_trade_count = account.get('daytrade_count', 0)
-            is_flagged = account.get('pattern_day_trader', False)
+            account = self.broker.get_account()
+            # Account is a dataclass with day_trade_count and pattern_day_trader attributes
+            day_trade_count = getattr(account, 'day_trade_count', 0)
+            is_flagged = getattr(account, 'pattern_day_trader', False)
             remaining = max(0, self.config.max_day_trades - day_trade_count)
 
             return PDTStatus(
@@ -391,10 +395,10 @@ def get_pdt_guard() -> PDTSmartGuard:
     return _guard
 
 
-def init_pdt_guard(trader=None, config: PDTConfig = None) -> PDTSmartGuard:
-    """Initialize PDT Guard with trader"""
+def init_pdt_guard(broker: 'BrokerInterface' = None, config: PDTConfig = None) -> PDTSmartGuard:
+    """Initialize PDT Guard with broker"""
     global _guard
-    _guard = PDTSmartGuard(trader, config)
+    _guard = PDTSmartGuard(broker, config)
     return _guard
 
 
