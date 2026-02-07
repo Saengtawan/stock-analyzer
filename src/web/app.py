@@ -3227,30 +3227,25 @@ def _get_extended_hours_prices(symbols: list) -> dict:
         market_open = engine.broker.is_market_open()
 
         for symbol, snap in snapshots.items():
-            latest_price = snap.get('latest_trade_price')
-            daily_close = snap.get('daily_close')
-            prev_close = snap.get('prev_close')
+            # v6.5: Handle Quote dataclass (not dict)
+            if isinstance(snap, dict):
+                latest_price = snap.get('latest_trade_price') or snap.get('last')
+                prev_close = snap.get('prev_close', 0)
+            else:
+                latest_price = getattr(snap, 'last', 0)
+                prev_close = getattr(snap, 'prev_close', 0)
 
-            if not latest_price or not daily_close:
+            if not latest_price or not prev_close:
                 continue
 
-            # If market is closed and latest trade != daily close → extended hours
-            if not market_open and latest_price != daily_close:
-                change = ((latest_price - daily_close) / daily_close) * 100
-                results[symbol] = {
-                    'premarket_price': round(latest_price, 2),
-                    'premarket_change': round(change, 2),
-                    'premarket_session': 'AH'
-                }
-            # Pre-market: latest trade time is before market open today
-            # Simplified: if market not open, show latest vs prev_close
-            elif not market_open and prev_close and latest_price:
-                change = ((latest_price - daily_close) / daily_close) * 100
+            # If market is closed, show change vs prev_close
+            if not market_open and prev_close > 0:
+                change = ((latest_price - prev_close) / prev_close) * 100
                 if abs(change) > 0.01:  # Only show if there's actual movement
                     results[symbol] = {
                         'premarket_price': round(latest_price, 2),
                         'premarket_change': round(change, 2),
-                        'premarket_session': 'Pre' if daily_close == prev_close else 'AH'
+                        'premarket_session': 'AH'
                     }
     except Exception as e:
         logger.debug(f"Extended hours price error: {e}")
