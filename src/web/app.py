@@ -2906,6 +2906,41 @@ def api_auto_emergency_reset():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/cron/status')
+def api_cron_status():
+    """Get cron jobs status"""
+    try:
+        status_file = os.path.join(
+            os.path.dirname(__file__), '..', '..', 'data', 'cron_status.json'
+        )
+        if os.path.exists(status_file):
+            with open(status_file, 'r') as f:
+                status = json.load(f)
+        else:
+            status = {}
+
+        # Add schedule info
+        schedule = {
+            'health_check': {'interval': '*/5 * * * *', 'desc': 'Every 5 min'},
+            'alert_cleanup': {'interval': '0 4 * * *', 'desc': '04:00 daily'},
+            'log_cleanup': {'interval': '30 4 * * *', 'desc': '04:30 daily'},
+            'outcome_tracker': {'interval': '0 5 * * 2-6', 'desc': '05:00 Tue-Sat'},
+            'prefilter_evening': {'interval': '0 8 * * 2-6', 'desc': '08:00 Tue-Sat'},
+            'prefilter_pre_open': {'interval': '0 21 * * 1-5', 'desc': '21:00 Mon-Fri'},
+            'db_backup': {'interval': '0 6 * * 0', 'desc': '06:00 Sunday'}
+        }
+
+        return jsonify({
+            'status': status,
+            'schedule': schedule,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Cron status error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/auto/close-all', methods=['POST'])
 @require_api_auth
 def api_auto_close_all():
