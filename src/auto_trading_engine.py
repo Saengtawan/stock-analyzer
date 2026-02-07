@@ -4689,6 +4689,24 @@ class AutoTradingEngine:
         """Get scanner timing for UI timeline bar."""
         today = datetime.now().strftime('%Y-%m-%d')
 
+        # v6.4: Get market calendar from Alpaca
+        market_calendar = {'is_open': False, 'next_open': None, 'next_close': None, 'is_trading_day': False}
+        try:
+            clock = self.broker.get_clock()
+            market_calendar['is_open'] = clock.is_open
+            if clock.next_open:
+                next_open_dt = clock.next_open if isinstance(clock.next_open, datetime) else datetime.fromisoformat(str(clock.next_open).replace('Z', '+00:00'))
+                market_calendar['next_open'] = next_open_dt.isoformat()
+                # Check if next_open is today (meaning today is a trading day)
+                et_today = self._get_et_time().date()
+                next_open_date = next_open_dt.date() if hasattr(next_open_dt, 'date') else next_open_dt
+                market_calendar['is_trading_day'] = (next_open_date == et_today) or clock.is_open
+            if clock.next_close:
+                next_close_dt = clock.next_close if isinstance(clock.next_close, datetime) else datetime.fromisoformat(str(clock.next_close).replace('Z', '+00:00'))
+                market_calendar['next_close'] = next_close_dt.isoformat()
+        except Exception as e:
+            logger.debug(f"Failed to get market calendar: {e}")
+
         # v6.3: Calculate next continuous scan time from engine state
         next_continuous_scan = None
         next_continuous_interval = None
@@ -4726,6 +4744,8 @@ class AutoTradingEngine:
             'next_continuous_scan': next_continuous_scan,
             'next_continuous_interval': next_continuous_interval,
             'last_continuous_scan': getattr(self, '_last_continuous_scan', None).isoformat() if getattr(self, '_last_continuous_scan', None) else None,
+            # v6.4: Market calendar for UI
+            'market_calendar': market_calendar,
         }
 
     def get_status(self) -> Dict:
