@@ -59,6 +59,10 @@ class PreFilterStock:
     above_sma20: bool
     above_sma50: bool
     pct_from_sma20: float  # How far from SMA20 (for overextended check)
+    # v6.5: New quality fields
+    rsi: float = 50.0
+    dollar_volume: float = 0.0
+    return_5d: float = 0.0
     pass_count: int = 0    # How many windows passed
     windows: List[str] = None  # Which windows passed
     last_updated: str = ""
@@ -100,11 +104,17 @@ class PreFilterRunner:
     PRE_FILTERED_FILE = os.path.join(DATA_DIR, 'pre_filtered.json')
     STATUS_FILE = os.path.join(DATA_DIR, 'pre_filter_status.json')
 
-    # Structural filter thresholds
+    # Structural filter thresholds (defaults, overridden by config)
     MIN_PRICE = 5.0
     MIN_VOLUME = 500_000
     MIN_ATR_PCT = 2.5
     MAX_OVEREXTENDED_PCT = 10.0  # Max % above SMA20
+
+    # v6.5: Quality filter thresholds
+    MAX_RSI = 65.0
+    MIN_DOLLAR_VOLUME = 5_000_000  # $5M
+    MIN_DIP_5D = -2.0   # Must dip at least 2%
+    MAX_DIP_5D = -15.0  # But not crash > 15%
 
     # Target pool size
     TARGET_POOL_MIN = 200
@@ -124,7 +134,32 @@ class PreFilterRunner:
         # Ensure data directory exists
         os.makedirs(self.DATA_DIR, exist_ok=True)
 
+        # v6.5: Load config values
+        self._load_config()
+
         logger.info(f"PreFilterRunner initialized. Pool: {self.status.pool_size}, Ready: {self.status.is_ready}")
+
+    def _load_config(self):
+        """Load filter thresholds from config."""
+        try:
+            from trading_config import load_config
+            cfg = load_config(strict=False)
+
+            self.MIN_PRICE = cfg.get('pre_filter_min_price', self.MIN_PRICE)
+            self.MIN_VOLUME = cfg.get('pre_filter_min_volume', self.MIN_VOLUME)
+            self.MIN_ATR_PCT = cfg.get('pre_filter_min_atr_pct', self.MIN_ATR_PCT)
+            self.MAX_OVEREXTENDED_PCT = cfg.get('pre_filter_max_overextended', self.MAX_OVEREXTENDED_PCT)
+
+            # v6.5: Quality filters
+            self.MAX_RSI = cfg.get('pre_filter_max_rsi', self.MAX_RSI)
+            self.MIN_DOLLAR_VOLUME = cfg.get('pre_filter_min_dollar_volume', self.MIN_DOLLAR_VOLUME)
+            self.MIN_DIP_5D = cfg.get('pre_filter_min_dip_5d', self.MIN_DIP_5D)
+            self.MAX_DIP_5D = cfg.get('pre_filter_max_dip_5d', self.MAX_DIP_5D)
+
+            logger.debug(f"PreFilter config: RSI<={self.MAX_RSI}, DollarVol>=${self.MIN_DOLLAR_VOLUME/1e6:.1f}M, "
+                        f"Dip5d: {self.MAX_DIP_5D}% to {self.MIN_DIP_5D}%")
+        except Exception as e:
+            logger.warning(f"Failed to load pre-filter config: {e}")
 
     def _get_data_manager(self) -> Any:
         """Get or create DataManager instance."""
@@ -207,7 +242,8 @@ class PreFilterRunner:
         """
         Fetch stock data for analysis.
 
-        Returns dict with: close, sma20, sma50, atr_pct, avg_volume, or None if failed.
+        Returns dict with: close, sma20, sma50, atr_pct, avg_volume, rsi, dollar_volume, return_5d
+        or None if failed.
         """
         try:
             dm = self._get_data_manager()
@@ -245,50 +281,90 @@ class PreFilterRunner:
             # Average volume
             avg_volume = df['volume'].rolling(20).mean().iloc[-1]
 
+            # v6.5: RSI calculation (14-period)
+            delta = df['close'].diff()
+            gain = delta.where(delta > 0, 0).rolling(14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+            rs = gain / loss.replace(0, 0.0001)  # Avoid div by zero
+            rsi = 100 - (100 / (1 + rs))
+            rsi_value = rsi.iloc[-1] if not pd.isna(rsi.iloc[-1]) else 50.0
+
+            # v6.5: Dollar volume (price × volume)
+            dollar_volume = close * avg_volume
+
+            # v6.5: 5-day return (for dip detection)
+            if len(df) >= 5:
+                close_5d_ago = df['close'].iloc[-5]
+                return_5d = ((close - close_5d_ago) / close_5d_ago) * 100
+            else:
+                return_5d = 0.0
+
             return {
                 'close': close,
                 'sma20': sma20,
                 'sma50': sma50,
                 'atr_pct': atr_pct,
-                'avg_volume': avg_volume
+                'avg_volume': avg_volume,
+                'rsi': rsi_value,
+                'dollar_volume': dollar_volume,
+                'return_5d': return_5d,
             }
         except Exception as e:
             logger.debug(f"Failed to fetch data for {symbol}: {e}")
             return None
 
-    def _apply_structural_filter(self, symbol: str, data: Dict, sector: str) -> Optional[PreFilterStock]:
+    def _apply_structural_filter(self, symbol: str, data: Dict, sector: str) -> Tuple[Optional[PreFilterStock], str]:
         """
         Apply structural filters to a stock.
 
-        Returns PreFilterStock if passes, None if filtered out.
+        Returns (PreFilterStock, "") if passes, (None, reason) if filtered out.
         """
         close = data['close']
         sma20 = data['sma20']
         sma50 = data['sma50']
         atr_pct = data['atr_pct']
         avg_volume = data['avg_volume']
+        rsi = data.get('rsi', 50.0)
+        dollar_volume = data.get('dollar_volume', 0)
+        return_5d = data.get('return_5d', 0)
 
         # Filter 1: Minimum price
         if close < self.MIN_PRICE:
-            return None
+            return None, 'price'
 
-        # Filter 2: Minimum volume
-        if avg_volume < self.MIN_VOLUME:
-            return None
-
-        # Filter 3: Minimum ATR (volatility)
+        # Filter 2: Minimum ATR (volatility)
         if atr_pct < self.MIN_ATR_PCT:
-            return None
+            return None, 'atr'
 
-        # Filter 4: Above SMA20 (uptrend)
+        # Filter 3: Above SMA20 (uptrend)
         above_sma20 = close > sma20
         if not above_sma20:
-            return None
+            return None, 'sma20'
 
-        # Filter 5: Not overextended
+        # Filter 4: Not overextended
         pct_from_sma20 = ((close - sma20) / sma20) * 100 if sma20 > 0 else 0
         if pct_from_sma20 > self.MAX_OVEREXTENDED_PCT:
-            return None
+            return None, 'overextended'
+
+        # v6.5: Quality filters
+        # Filter 5: RSI not overbought
+        if rsi > self.MAX_RSI:
+            return None, 'rsi_high'
+
+        # Filter 6: Minimum dollar volume (liquidity)
+        if dollar_volume < self.MIN_DOLLAR_VOLUME:
+            return None, 'dollar_vol'
+
+        # Filter 7: Must have dipped (dip-bounce requirement)
+        # return_5d should be between MAX_DIP_5D and MIN_DIP_5D
+        # e.g., between -15% and -2%
+        # Skip if MIN_DIP_5D > 0 (disabled)
+        if self.MIN_DIP_5D < 0:
+            if return_5d > self.MIN_DIP_5D:  # Not dipped enough (e.g., > -2%)
+                return None, 'no_dip'
+
+            if return_5d < self.MAX_DIP_5D:  # Crashed too much (e.g., < -15%)
+                return None, 'crash'
 
         # Above SMA50
         above_sma50 = close > sma50
@@ -304,8 +380,11 @@ class PreFilterRunner:
             above_sma20=above_sma20,
             above_sma50=above_sma50,
             pct_from_sma20=pct_from_sma20,
+            rsi=rsi,
+            dollar_volume=dollar_volume,
+            return_5d=return_5d,
             last_updated=datetime.now().isoformat()
-        )
+        ), ''
 
     def evening_scan(self, progress_callback=None) -> int:
         """
@@ -349,10 +428,13 @@ class PreFilterRunner:
             passed_stocks = {}
             filtered_counts = {
                 'price': 0,
-                'volume': 0,
                 'atr': 0,
                 'sma20': 0,
                 'overextended': 0,
+                'rsi_high': 0,
+                'dollar_vol': 0,
+                'no_dip': 0,
+                'crash': 0,
                 'error': 0
             }
 
@@ -370,18 +452,13 @@ class PreFilterRunner:
                     filtered_counts['error'] += 1
                     continue
 
-                # Apply filters
-                stock = self._apply_structural_filter(symbol, data, sector)
+                # Apply filters (returns tuple now)
+                stock, reason = self._apply_structural_filter(symbol, data, sector)
                 if stock is None:
-                    # Count filter reasons (simplified)
-                    if data['close'] < self.MIN_PRICE:
-                        filtered_counts['price'] += 1
-                    elif data['avg_volume'] < self.MIN_VOLUME:
-                        filtered_counts['volume'] += 1
-                    elif data['atr_pct'] < self.MIN_ATR_PCT:
-                        filtered_counts['atr'] += 1
+                    if reason in filtered_counts:
+                        filtered_counts[reason] += 1
                     else:
-                        filtered_counts['sma20'] += 1
+                        filtered_counts['error'] += 1
                     continue
 
                 # Passed all filters
@@ -430,8 +507,16 @@ class PreFilterRunner:
             logger.info(f"EVENING SCAN COMPLETE")
             logger.info(f"  Scanned: {total} stocks")
             logger.info(f"  Passed: {len(passed_stocks)} stocks")
-            logger.info(f"  Filtered: price={filtered_counts['price']}, volume={filtered_counts['volume']}, "
-                       f"atr={filtered_counts['atr']}, sma20={filtered_counts['sma20']}, error={filtered_counts['error']}")
+            logger.info(f"  Filtered breakdown:")
+            logger.info(f"    - price<${self.MIN_PRICE}: {filtered_counts['price']}")
+            logger.info(f"    - atr<{self.MIN_ATR_PCT}%: {filtered_counts['atr']}")
+            logger.info(f"    - below_sma20: {filtered_counts['sma20']}")
+            logger.info(f"    - overextended>{self.MAX_OVEREXTENDED_PCT}%: {filtered_counts['overextended']}")
+            logger.info(f"    - rsi>{self.MAX_RSI}: {filtered_counts['rsi_high']}")
+            logger.info(f"    - dollar_vol<${self.MIN_DOLLAR_VOLUME/1e6:.1f}M: {filtered_counts['dollar_vol']}")
+            logger.info(f"    - no_dip (>{self.MIN_DIP_5D}%): {filtered_counts['no_dip']}")
+            logger.info(f"    - crash (<{self.MAX_DIP_5D}%): {filtered_counts['crash']}")
+            logger.info(f"    - error: {filtered_counts['error']}")
             logger.info(f"  Duration: {elapsed:.1f}s ({elapsed/60:.1f} min)")
             logger.info("="*60)
 
@@ -494,8 +579,8 @@ class PreFilterRunner:
                     removed += 1
                     continue
 
-                # Re-apply filters
-                stock = self._apply_structural_filter(symbol, data, stock_data.get('sector', 'Unknown'))
+                # Re-apply filters (returns tuple now)
+                stock, reason = self._apply_structural_filter(symbol, data, stock_data.get('sector', 'Unknown'))
                 if stock is None:
                     removed += 1
                     continue

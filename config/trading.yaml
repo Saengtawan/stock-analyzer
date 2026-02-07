@@ -209,7 +209,13 @@ breakout_sl_pct: 3.0
 # -- Pre-Filter Settings --
 pre_filter_enabled: true
 pre_filter_min_price: 5.0          # Minimum stock price
-pre_filter_min_volume: 500000      # Minimum average volume
+pre_filter_min_volume: 500000      # Minimum average volume (fallback)
 pre_filter_min_atr_pct: 2.5        # Minimum ATR% (volatility)
 pre_filter_max_overextended: 10.0  # Max % above SMA20
 pre_filter_pool_stale_hours: 12    # Hours before pool considered stale
+
+# -- Pre-Filter Quality (v6.5) --
+pre_filter_max_rsi: 65             # Filter overbought (RSI > 65 = 20% WR)
+pre_filter_min_dollar_volume: 5000000  # $5M avg dollar volume (liquidity)
+pre_filter_min_dip_5d: 99.0        # Disabled (screener handles dip detection)
+pre_filter_max_dip_5d: -15.0       # But not crashed > 15% (safety)
