@@ -809,16 +809,35 @@ class AutoTradingEngine:
         data = safe_read_json(self._queue_file, {})
         entries = data.get('queue', [])
         loaded = 0
+        expired = 0
+        now = datetime.now()
+
         for entry in entries:
             try:
                 queued = deserialize_queued_signal(entry, QueuedSignal)
-                if queued.symbol not in self.positions:
-                    self.signal_queue.append(queued)
-                    loaded += 1
+
+                # Skip if already have position
+                if queued.symbol in self.positions:
+                    expired += 1
+                    continue
+
+                # Clear signals older than 24 hours (stale from previous day)
+                age_hours = (now - queued.queued_at).total_seconds() / 3600
+                if age_hours > 24:
+                    expired += 1
+                    logger.debug(f"Skipping stale queue entry: {queued.symbol} (age: {age_hours:.1f}h)")
+                    continue
+
+                self.signal_queue.append(queued)
+                loaded += 1
             except (KeyError, ValueError) as e:
                 logger.warning(f"Skipping invalid queue entry: {e}")
+
         if loaded:
             logger.info(f"Loaded persisted queue: {loaded} signals (saved at {data.get('saved_at', 'unknown')})")
+        if expired:
+            logger.info(f"Cleared {expired} stale/duplicate signals from queue")
+            self._save_queue_state()  # Save cleaned queue
 
     # =========================================================================
     # SIGNALS CACHE (v6.1 - Single Source of Truth for UI)
