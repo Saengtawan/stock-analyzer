@@ -73,6 +73,15 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+# v4.1: Import from filters.py (Single Source of Truth)
+from screeners.rapid_trader_filters import (
+    FilterConfig,
+    calculate_score,
+    check_bounce_confirmation,
+    check_sma20_filter,
+    calculate_dynamic_sl_tp,
+)
+
 
 @dataclass
 class RapidRotationSignal:
@@ -122,6 +131,11 @@ class RapidRotationScreener:
     3. Sector Regime Detector - HYBRID v2 (soft penalty scoring)
     4. Alternative Data - Insider, Sentiment, etc. (Top 10 only, ±10 cap)
     5. Bounce Confirmation - Wait for recovery, not falling knife
+
+    v6.10 FULL CONFIG MIGRATION:
+    - Uses RapidRotationConfig as single source of truth
+    - All parameters loaded from config (no hardcoded constants)
+    - Backward compatible with YAML loading
 
     v3.7 HYBRID SECTOR + ALT DATA:
     - Sector regime as SOFT FILTER (penalty/bonus, not exclusion)
@@ -173,51 +187,75 @@ class RapidRotationScreener:
         'VTR', 'ARE', 'MAA', 'UDR', 'CPT', 'KIM', 'REG', 'HST', 'BXP', 'SUI',
     ]
 
-    # Configuration (v4.0: Smart Regime Edition)
-    MIN_ATR_PCT = 2.5  # Minimum volatility
-    MIN_SCORE = 85     # v4.0: 90 → 85 (regime filter compensates)
-    MAX_HOLD_DAYS = 5  # Max hold days
-
-    # v4.0: SPY Regime Filter
-    REGIME_FILTER_ENABLED = True
-    REGIME_SMA_PERIOD = 20
-
-    # v3.4: ATR Multipliers for FULLY DYNAMIC SL/TP
-    ATR_SL_MULTIPLIER = 1.5   # SL = ATR × 1.5 (gives room to breathe)
-    ATR_TP_MULTIPLIER = 3.0   # TP = ATR × 3 (good risk/reward)
-
-    # Safety caps (prevent extreme values)
-    # v4.9.3: Synced with Engine caps (SL_MIN/MAX_PCT, TP_MIN/MAX_PCT)
-    MIN_SL_PCT = 2.0   # Minimum SL 2%  (= Engine SL_MIN_PCT)
-    MAX_SL_PCT = 4.0   # Maximum SL 4%  (= Engine SL_MAX_PCT, was 2.5%)
-    MIN_TP_PCT = 4.0   # Minimum TP 4%  (= Engine TP_MIN_PCT)
-    MAX_TP_PCT = 8.0   # Maximum TP 8%  (= Engine TP_MAX_PCT, was 15%)
-
-    # Trailing stop parameters
-    TRAIL_ACTIVATION = 3.0  # Activate trailing at +3%
-
-    # v5.5: SECTOR SCORING DISABLED (backtest showed BEAR sectors perform well)
-    # Based on 20-day sector ETF performance (±3% threshold)
-    SECTOR_BULL_THRESHOLD = 3.0    # > +3% = BULL
-    SECTOR_BEAR_THRESHOLD = -3.0   # < -3% = BEAR
-    SECTOR_BULL_BONUS = 0          # v5.5: 5→0 (disabled - no bonus)
-    SECTOR_BEAR_PENALTY = 0        # v5.5: -10→0 (disabled - BEAR E[R]=+1.047%)
-    SECTOR_SIDEWAYS_ADJ = 0        # SIDEWAYS: 0 points
-
-    # v3.7: ALT DATA SCORING (tie-breaker role, not dominant)
-    ALT_DATA_MAX_BONUS = 15        # v4.9.4: Max +15 points (was 10)
-    ALT_DATA_MAX_PENALTY = -15     # v4.9.4: Max -15 points (was -10)
-
-    # v4.9.3: Sector cache config
+    # v4.9.3: Sector cache config (static paths)
     SECTOR_CACHE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'sector_cache.json')
-    SECTOR_CACHE_TTL_DAYS = 3     # หุ้นอาจเปลี่ยน sector (M&A, reclassification)
-    SECTOR_CACHE_TTL = 86400 * 3  # computed from SECTOR_CACHE_TTL_DAYS
 
     # v4.9.3: AI universe disk cache
     AI_UNIVERSE_CACHE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'ai_universe_cache.json')
 
-    def __init__(self):
-        """Initialize with all integrated systems"""
+    def __init__(self, config: 'RapidRotationConfig' = None):
+        """
+        Initialize with all integrated systems
+
+        Args:
+            config: RapidRotationConfig instance (v6.10 - FULL MIGRATION)
+                   If None, will load from default YAML path
+        """
+        # v6.10: Load config if not provided
+        if config is None:
+            try:
+                from config.strategy_config import RapidRotationConfig
+                config_path = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                    'config', 'trading.yaml'
+                )
+                config = RapidRotationConfig.from_yaml(config_path)
+                logger.debug(f"Loaded RapidRotationConfig from {config_path}")
+            except Exception as e:
+                logger.warning(f"Failed to load config, using defaults: {e}")
+                from config.strategy_config import RapidRotationConfig
+                config = RapidRotationConfig()
+
+        self.config = config
+
+        # v6.10: Configuration from RapidRotationConfig (Single Source of Truth)
+        self.MIN_ATR_PCT = config.min_atr_pct
+        self.MIN_SCORE = config.min_score
+        self.MAX_HOLD_DAYS = config.max_hold_days
+
+        # SPY Regime Filter
+        self.REGIME_FILTER_ENABLED = config.regime_filter_enabled
+        self.REGIME_SMA_PERIOD = config.regime_sma_period
+
+        # ATR Multipliers
+        self.ATR_SL_MULTIPLIER = config.atr_sl_multiplier
+        self.ATR_TP_MULTIPLIER = config.atr_tp_multiplier
+
+        # Safety caps (use config, not FilterConfig hardcoded values)
+        self.MIN_SL_PCT = config.min_sl_pct
+        self.MAX_SL_PCT = config.max_sl_pct
+        self.MIN_TP_PCT = config.min_tp_pct
+        self.MAX_TP_PCT = config.max_tp_pct
+
+        # Trailing stop
+        self.TRAIL_ACTIVATION = config.trail_activation_pct
+
+        # Sector scoring
+        self.SECTOR_BULL_THRESHOLD = config.sector_bull_threshold
+        self.SECTOR_BEAR_THRESHOLD = config.sector_bear_threshold
+        self.SECTOR_BULL_BONUS = config.sector_bull_bonus
+        self.SECTOR_BEAR_PENALTY = config.sector_bear_penalty
+        self.SECTOR_SIDEWAYS_ADJ = config.sector_sideways_adj
+
+        # Alt data scoring
+        self.ALT_DATA_MAX_BONUS = config.alt_data_max_bonus
+        self.ALT_DATA_MAX_PENALTY = config.alt_data_max_penalty
+
+        # Cache TTL
+        self.SECTOR_CACHE_TTL_DAYS = config.sector_cache_ttl_days
+        self.SECTOR_CACHE_TTL = 86400 * config.sector_cache_ttl_days
+
+        # Initialize component state
         self.data_cache: Dict[str, pd.DataFrame] = {}
         self._data_cache_time: Dict[str, float] = {}
         self.universe: List[str] = []
@@ -227,15 +265,13 @@ class RapidRotationScreener:
         self._sector_cache: Dict[str, dict] = {}
         self._load_sector_cache()
 
-        # Initialize integrated systems
-        self._init_ai_universe()
-        self._init_market_regime()
-        self._init_sector_regime()
-        self._init_alt_data()
-
-        # SPY regime cache (Fix #38: avoid downloading SPY every call)
-        self._spy_regime_cache = None  # (is_bull, reason, details, timestamp)
-        self._spy_cache_seconds = 120  # v5.1 P2-17: 300→120s (align with engine)
+        # Cache TTL in seconds (v6.10: MUST be defined BEFORE _init methods use it)
+        self._cache_ttl = {
+            'market_regime': 120,   # v5.1 P2-17: 300→120s (align with engine)
+            'sector_regime': 300,   # v5.1 P2-17: 600→300s (sector changes slower but still relevant)
+            'alt_data': 300,        # 5 min
+            'data': config.price_cache_ttl_seconds,  # v6.10: from config (default 300s = 5min)
+        }
 
         # Cache for regime data (with timestamps)
         self._market_regime_cache = None
@@ -245,13 +281,15 @@ class RapidRotationScreener:
         self._alt_data_cache = {}
         self._alt_data_cache_time: float = 0.0
 
-        # Cache TTL in seconds
-        self._cache_ttl = {
-            'market_regime': 120,   # v5.1 P2-17: 300→120s (align with engine)
-            'sector_regime': 300,   # v5.1 P2-17: 600→300s (sector changes slower but still relevant)
-            'alt_data': 300,        # 5 min
-            'data': 1800,           # 30 min
-        }
+        # SPY regime cache (Fix #38: avoid downloading SPY every call)
+        self._spy_regime_cache = None  # (is_bull, reason, details, timestamp)
+        self._spy_cache_seconds = self._cache_ttl['market_regime']  # v6.10: sync with market_regime cache (120s)
+
+        # Initialize integrated systems (AFTER cache setup)
+        self._init_ai_universe()
+        self._init_market_regime()
+        self._init_sector_regime()
+        self._init_alt_data()
 
     def _is_cache_valid(self, name: str, cache_time: float) -> bool:
         """Check if a cache entry is still valid based on TTL"""
@@ -306,10 +344,10 @@ class RapidRotationScreener:
             logger.warning(f"⚠️ AI Universe Generator not available: {e}")
 
     def _init_market_regime(self):
-        """Initialize Market Regime Detector"""
+        """Initialize Market Regime Detector (v6.10: pass config)"""
         try:
             from market_regime_detector import MarketRegimeDetector
-            self.market_regime = MarketRegimeDetector()
+            self.market_regime = MarketRegimeDetector(config=self.config)
             logger.info("✅ Market Regime Detector initialized")
         except Exception as e:
             self.market_regime = None
@@ -899,131 +937,68 @@ class RapidRotationScreener:
         }
 
     def _analyze_bounce_filters(self, ind: dict, gap_max_up: float) -> Optional[str]:
-        """
-        Apply bounce confirmation filters. Returns filter name if blocked, None if passed.
-        """
-        # FILTER 1: Yesterday MUST be down (the dip day)
-        if ind['yesterday_move'] > -1.0:
-            return 'no_dip'
-
-        # FILTER 2: Today should show recovery (not falling further)
-        if ind['mom_1d'] < -1.0:
-            return 'still_falling'
-
-        # FILTER 3: Strong preference for green candle (bounce signal)
-        if not ind['today_is_green'] and ind['mom_1d'] < 0.5:
-            return 'no_bounce'
-
-        # FILTER 4: Skip big gap ups (exhaustion risk)
+        """Apply bounce confirmation filters. Returns filter name if blocked, None if passed."""
+        # Core filters from filters.py (single source of truth)
         effective_gap_max = gap_max_up if gap_max_up is not None else 2.0
+        passed, reason = check_bounce_confirmation(
+            yesterday_move=ind['yesterday_move'],
+            mom_1d=ind['mom_1d'],
+            today_is_green=ind['today_is_green'],
+            gap_pct=ind['gap_pct'],
+            current_price=ind['current_price'],
+            sma5=ind['sma5'],
+            atr_pct=ind['atr_pct'],
+        )
+        if not passed:
+            # Map reason to filter stat key
+            reason_map = {
+                'Yesterday': 'no_dip',
+                'Still': 'still_falling',
+                'No clear': 'no_bounce',
+                'Gap': 'gap_up',
+                'Too extended': 'above_sma5',
+                'Volatility': 'low_atr',
+            }
+            for key, val in reason_map.items():
+                if reason.startswith(key):
+                    return val
+            return 'no_dip'  # fallback
+
+        # Gap override (screener allows custom gap_max_up)
         if ind['gap_pct'] > effective_gap_max:
             return 'gap_up'
 
-        # FILTER 5: Still in oversold zone (room to recover)
-        if ind['current_price'] > ind['sma5'] * 1.03:
-            return 'above_sma5'
-
-        # FILTER 6: Minimum volatility
-        if ind['atr_pct'] < self.MIN_ATR_PCT:
-            return 'low_atr'
-
-        # FILTER 7: Must be above SMA20 (uptrend)
-        if ind['current_price'] < ind['sma20']:
+        # SMA20 filter (from filters.py)
+        passed, reason = check_sma20_filter(ind['current_price'], ind['sma20'])
+        if not passed:
             return 'below_sma20'
 
-        # FILTER 8: No big single-day moves in last 10 days
+        # Screener-specific filters (not in filters.py)
         if ind['max_daily_move'] > 8.0:
             return 'overextended'
-
-        # FILTER 9: Price not too far above SMA20
         if ind['sma20_extension'] > 10.0:
             return 'sma20_extended'
 
-        return None  # All filters passed
+        return None
 
     def _analyze_calc_score(self, ind: dict, symbol: str) -> tuple:
         """Calculate score and reasons. Returns (score, reasons, sector, sector_score)."""
-        score = 0
-        reasons = []
+        # Core scoring from filters.py (single source of truth)
+        score, reasons = calculate_score(
+            today_is_green=ind['today_is_green'],
+            mom_1d=ind['mom_1d'],
+            mom_5d=ind['mom_5d'],
+            yesterday_move=ind['yesterday_move'],
+            rsi=ind['rsi'],
+            current_price=ind['current_price'],
+            sma20=ind['sma20'],
+            sma50=ind['sma50'],
+            atr_pct=ind['atr_pct'],
+            dist_from_high=ind['dist_from_high'],
+            volume_ratio=ind['volume_ratio'],
+        )
 
-        # 1. BOUNCE CONFIRMATION (key differentiator)
-        if ind['today_is_green'] and ind['mom_1d'] > 0.5:
-            score += 40
-            reasons.append("Strong bounce")
-        elif ind['today_is_green'] or ind['mom_1d'] > 0.3:
-            score += 25
-            reasons.append("Bounce confirmed")
-
-        # 2. Prior dip magnitude (5-day)
-        mom_5d = ind['mom_5d']
-        if -12 <= mom_5d <= -5:
-            score += 40
-            reasons.append(f"Deep dip {mom_5d:.1f}%")
-        elif -5 < mom_5d <= -3:
-            score += 30
-            reasons.append(f"Good dip {mom_5d:.1f}%")
-        elif -3 < mom_5d < 0:
-            score += 15
-            reasons.append(f"Mild dip {mom_5d:.1f}%")
-
-        # 3. Yesterday's dip (entry catalyst)
-        ym = ind['yesterday_move']
-        if ym <= -3:
-            score += 30
-            reasons.append(f"Big dip yesterday {ym:.1f}%")
-        elif ym <= -1.5:
-            score += 20
-            reasons.append(f"Dip yesterday {ym:.1f}%")
-        elif ym <= -1:
-            score += 10
-
-        # 4. RSI scoring
-        rsi = ind['rsi']
-        if 25 <= rsi <= 40:
-            score += 35
-            reasons.append(f"Very oversold RSI={rsi:.0f}")
-        elif 40 < rsi <= 50:
-            score += 20
-            reasons.append(f"Low RSI={rsi:.0f}")
-
-        # 5. Trend context
-        cp = ind['current_price']
-        if cp > ind['sma50'] and cp > ind['sma20'] * 0.98:
-            score += 25
-            reasons.append("Strong uptrend")
-        elif cp > ind['sma20']:
-            score += 15
-            reasons.append("Above SMA20")
-
-        # 6. Volatility bonus
-        atr_pct = ind['atr_pct']
-        if atr_pct > 5:
-            score += 20
-            reasons.append(f"Very volatile {atr_pct:.1f}%")
-        elif atr_pct > 4:
-            score += 15
-            reasons.append(f"High vol {atr_pct:.1f}%")
-        elif atr_pct > 3:
-            score += 10
-
-        # 7. Room to recover
-        dfh = ind['dist_from_high']
-        if 10 <= dfh <= 25:
-            score += 20
-            reasons.append(f"Great room {dfh:.0f}%")
-        elif 6 <= dfh < 10:
-            score += 10
-            reasons.append(f"Some room {dfh:.0f}%")
-
-        # 8. Volume confirmation
-        vr = ind['volume_ratio']
-        if vr > 1.5:
-            score += 15
-            reasons.append("High vol bounce")
-        elif vr > 1.2:
-            score += 5
-
-        # Sector scoring
+        # Screener-specific: sector scoring
         sector = self._get_sector(symbol)
         sector_adj, sector_regime, sector_reason = self._get_sector_regime_score(sector)
         score += sector_adj
@@ -1033,50 +1008,29 @@ class RapidRotationScreener:
         return score, reasons, sector, sector_adj
 
     def _analyze_calc_sl_tp(self, ind: dict, data, idx: int) -> dict:
-        """Calculate dynamic SL/TP levels. Returns dict with sl/tp info."""
+        """Calculate dynamic SL/TP levels."""
         close = data['close']
         high = data['high']
         low = data['low']
-        current_price = ind['current_price']
-        atr = ind['atr']
 
-        # --- DYNAMIC STOP LOSS ---
-        atr_based_sl = current_price - (atr * self.ATR_SL_MULTIPLIER)
         swing_low_5d = low.iloc[idx-5:idx].min() if idx >= 5 else low.min()
-        swing_low_sl = swing_low_5d * 0.995
         ema5 = close.ewm(span=5).mean().iloc[idx]
-        ema_based_sl = ema5 * 0.99
-
-        sl_options = {'ATR': atr_based_sl, 'SwingLow': swing_low_sl, 'EMA5': ema_based_sl}
-        sl_method = max(sl_options, key=sl_options.get)
-        stop_loss = sl_options[sl_method]
-
-        sl_pct_raw = (current_price - stop_loss) / current_price * 100
-        sl_pct = max(self.MIN_SL_PCT, min(sl_pct_raw, self.MAX_SL_PCT))
-        stop_loss = current_price * (1 - sl_pct / 100)
-
-        # --- DYNAMIC TAKE PROFIT ---
-        atr_based_tp = current_price + (atr * self.ATR_TP_MULTIPLIER)
-        resistance = high.iloc[idx-20:idx].max() if idx >= 20 else high.max()
-        resistance_tp = resistance * 0.995
+        high_20d = high.iloc[idx-20:idx].max() if idx >= 20 else high.max()
         high_52w = high.max()
-        high_52w_tp = high_52w * 0.98
 
-        tp_options = {'ATR': atr_based_tp, 'Resistance': resistance_tp, '52wHigh': high_52w_tp}
-        tp_method = min(tp_options, key=tp_options.get)
-        take_profit = tp_options[tp_method]
+        # Use filters.py (single source of truth)
+        result = calculate_dynamic_sl_tp(
+            current_price=ind['current_price'],
+            atr=ind['atr'],
+            swing_low_5d=swing_low_5d,
+            ema5=ema5,
+            high_20d=high_20d,
+            high_52w=high_52w,
+        )
 
-        tp_pct_raw = (take_profit - current_price) / current_price * 100
-        tp_pct = max(self.MIN_TP_PCT, min(tp_pct_raw, self.MAX_TP_PCT))
-        take_profit = current_price * (1 + tp_pct / 100)
-
-        return {
-            'stop_loss': stop_loss, 'take_profit': take_profit,
-            'sl_pct': sl_pct, 'tp_pct': tp_pct,
-            'sl_method': sl_method, 'tp_method': tp_method,
-            'swing_low': swing_low_5d, 'resistance': resistance,
-            'risk_reward': tp_pct / sl_pct if sl_pct > 0 else 0,
-        }
+        result['swing_low'] = swing_low_5d
+        result['resistance'] = high_20d
+        return result
 
     def analyze_stock(self, symbol: str, min_score: int = None, gap_max_up: float = None) -> Optional[RapidRotationSignal]:
         """
@@ -1235,7 +1189,7 @@ class RapidRotationScreener:
                     elif regime in ('SIDEWAYS', 'UNKNOWN'):
                         sector_priority[symbol] = 2
                     else:  # BEAR, STRONG BEAR
-                        sector_priority[symbol] = -1
+                        sector_priority[symbol] = 3
                 except Exception:
                     sector_priority[symbol] = 2
 

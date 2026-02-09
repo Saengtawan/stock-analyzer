@@ -82,9 +82,22 @@ from trading_safety import TradingSafetySystem, SafetyStatus
 # Broker abstraction layer
 from engine.broker_interface import BrokerInterface, Position, Order
 from engine.brokers import AlpacaBroker
-from pdt_smart_guard import PDTSmartGuard, PDTConfig, SellDecision, init_pdt_guard
+from pdt_smart_guard import PDTSmartGuard, SellDecision, init_pdt_guard  # v6.10.1: PDTConfig deprecated
 from trade_logger import get_trade_logger, TradeLogger
 from loguru import logger
+
+# v6.7: Import unified configuration
+try:
+    from config.strategy_config import RapidRotationConfig
+except ImportError:
+    RapidRotationConfig = None
+
+# v6.8: Import SL/TP calculator
+try:
+    from strategies import SLTPCalculator, SLTPResult
+except ImportError:
+    SLTPCalculator = None
+    SLTPResult = None
 
 # For Market Regime Filter
 try:
@@ -93,6 +106,14 @@ try:
 except ImportError:
     YFINANCE_AVAILABLE = False
     logger.warning("yfinance not available - regime filter disabled")
+
+# v6.9: Centralized data management (performance + caching)
+try:
+    from api.data_manager import DataManager
+    DATA_MANAGER_AVAILABLE = True
+except ImportError:
+    DATA_MANAGER_AVAILABLE = False
+    logger.warning("DataManager not available - using direct yfinance")
 
 # Try to import screener
 try:
@@ -337,14 +358,38 @@ class AutoTradingEngine:
         api_key: str = None,
         secret_key: str = None,
         paper: bool = True,
-        auto_start: bool = False
+        auto_start: bool = False,
+        config: 'RapidRotationConfig' = None
     ):
-        """Initialize trading engine"""
+        """
+        Initialize trading engine
+
+        Args:
+            api_key: Alpaca API key
+            secret_key: Alpaca secret key
+            paper: Use paper trading account
+            auto_start: Start engine automatically
+            config: Optional RapidRotationConfig for core strategy parameters (v6.7)
+        """
 
         # =====================================================================
-        # v6.1: LOAD CONFIG FIRST — YAML is the Single Source of Truth
-        # If config is missing or invalid → FAIL LOUD (not silent defaults)
+        # v6.7: LOAD UNIFIED CONFIG FIRST (for core parameters)
+        # Then load extended parameters from YAML
         # =====================================================================
+        self._core_config = config
+        if self._core_config is None and RapidRotationConfig is not None:
+            # Try to load from default YAML
+            config_path = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                'config', 'trading.yaml'
+            )
+            if os.path.exists(config_path):
+                try:
+                    self._core_config = RapidRotationConfig.from_yaml(config_path)
+                except Exception as e:
+                    logger.warning(f"Failed to load RapidRotationConfig: {e}")
+
+        # Load all parameters from YAML (including extended ones)
         self._load_config_from_yaml()
 
         # Broker abstraction layer (Phase 3: supports Alpaca, Mock, future brokers)
@@ -354,6 +399,14 @@ class AutoTradingEngine:
             paper=paper
         )
 
+        # v6.9: Centralized data manager (performance + caching)
+        if DATA_MANAGER_AVAILABLE:
+            self.data_manager = DataManager(broker=self.broker)
+            logger.info("DataManager initialized with broker integration")
+        else:
+            self.data_manager = None
+            logger.warning("DataManager unavailable - using direct yfinance calls")
+
         # Safety system — pass shared config for single source of truth
         safety_config = {
             'DAILY_LOSS_LIMIT_PCT': self.DAILY_LOSS_LIMIT_PCT,
@@ -362,18 +415,12 @@ class AutoTradingEngine:
         }
         self.safety = TradingSafetySystem(self.broker, config=safety_config)
 
-        # PDT Smart Guard v2.2 (No Override Mode)
+        # PDT Smart Guard v2.3 (v6.10.1: Simplified - uses RapidRotationConfig directly)
         self.pdt_guard = init_pdt_guard(
             broker=self.broker,
-            config=PDTConfig(
-                max_day_trades=3,
-                sl_threshold=-self.STOP_LOSS_PCT,  # -2.5%
-                tp_threshold=self.PDT_TP_THRESHOLD,  # v4.4: +4.0% (เกิดบ่อยกว่า +6%)
-                reserve=1  # Keep 1 day trade for SL emergencies
-                # v2.2: ไม่มี critical_threshold → ไม่ override PDT เด็ดขาด
-            )
+            config=self._core_config  # v6.10.1: Pass RapidRotationConfig directly (no mapping!)
         )
-        logger.info("PDT Smart Guard v2.2 initialized (No Override - ไม่มีทางโดน PDT flag)")
+        logger.info("PDT Smart Guard v2.3 initialized (No Override - uses RapidRotationConfig)")
 
         # Trade Logger v1.0
         self.trade_logger = get_trade_logger()
@@ -410,6 +457,13 @@ class AutoTradingEngine:
                 logger.info("BreakoutScanner initialized")
             except Exception as e:
                 logger.warning(f"BreakoutScanner init failed: {e}")
+
+        # v6.8: SL/TP Calculator (unified calculation logic)
+        if SLTPCalculator is not None:
+            self.sltp_calculator = SLTPCalculator(config=self._core_config)
+            logger.info("SLTPCalculator initialized")
+        else:
+            self.sltp_calculator = None
 
         # State
         self.state = TradingState.SLEEPING
@@ -476,185 +530,239 @@ class AutoTradingEngine:
     # v6.1: CONFIG LOADER — YAML as Single Source of Truth
     # =========================================================================
 
-    def _load_config_from_yaml(self):
-        """
-        Load ALL trading parameters from config/trading.yaml.
+def _load_config_from_yaml(self):
+    """
+    Load trading parameters from RapidRotationConfig.
 
-        v6.1 Architecture:
-        - YAML is the SINGLE SOURCE OF TRUTH
-        - No hardcoded fallbacks for trading params
-        - Missing config = ConfigurationError (fail loud)
+    v6.10 Architecture (FULL MIGRATION):
+    - ALL parameters from RapidRotationConfig (single source of truth)
+    - No more trading_config.py dependency
+    - Backward compatible with YAML loading via RapidRotationConfig.from_yaml()
 
-        Raises:
-            ConfigurationError: If config file missing or required keys missing.
-        """
-        from trading_config import load_config, ConfigurationError
-
-        # Load config (strict=True → raises if missing/invalid)
+    Raises:
+        ValueError: If RapidRotationConfig not available or invalid
+    """
+    # Ensure we have config (load from YAML if not provided)
+    if self._core_config is None:
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'config', 'trading.yaml'
+        )
+        
+        if not os.path.exists(config_path):
+            raise ValueError(f"Config file not found: {config_path}")
+        
         try:
-            config = load_config(strict=True)
-        except ConfigurationError as e:
-            logger.critical(f"FATAL CONFIG ERROR:\n{e}")
-            raise
+            from config.strategy_config import RapidRotationConfig
+            self._core_config = RapidRotationConfig.from_yaml(config_path)
+            logger.info(f"Loaded RapidRotationConfig from {config_path}")
+        except Exception as e:
+            logger.critical(f"Failed to load RapidRotationConfig: {e}")
+            raise ValueError(f"Cannot load configuration: {e}")
+    
+    # Shorthand
+    cfg = self._core_config
+    
+    # =====================================================================
+    # CORE PARAMETERS
+    # =====================================================================
+    # SL/TP
+    self.SL_ATR_MULTIPLIER = cfg.atr_sl_multiplier
+    self.SL_MIN_PCT = cfg.min_sl_pct
+    self.SL_MAX_PCT = cfg.max_sl_pct
+    self.TP_ATR_MULTIPLIER = cfg.atr_tp_multiplier
+    self.TP_MIN_PCT = cfg.min_tp_pct
+    self.TP_MAX_PCT = cfg.max_tp_pct
+    self.STOP_LOSS_PCT = cfg.default_sl_pct
+    self.TAKE_PROFIT_PCT = cfg.default_tp_pct
+    self.TRAIL_ACTIVATION_PCT = cfg.trail_activation_pct
+    self.TRAIL_LOCK_PCT = cfg.trail_lock_pct
+    
+    # Position Management
+    self.MAX_HOLD_DAYS = cfg.max_hold_days
+    self.MAX_POSITIONS = cfg.max_positions
+    self.POSITION_SIZE_PCT = cfg.position_size_pct
+    self.MAX_POSITION_PCT = cfg.max_position_pct
+    self.RISK_PARITY_ENABLED = cfg.risk_parity_enabled
+    self.RISK_BUDGET_PCT = cfg.risk_budget_pct
+    self.SIMULATED_CAPITAL = cfg.simulated_capital
+    self.PDT_TP_THRESHOLD = cfg.pdt_tp_threshold
+    self.TRAIL_ENABLED = cfg.trail_enabled
+    
+    # Risk Limits
+    self.DAILY_LOSS_LIMIT_PCT = cfg.daily_loss_limit_pct
+    self.WEEKLY_LOSS_LIMIT_PCT = cfg.weekly_loss_limit_pct
+    self.MAX_CONSECUTIVE_LOSSES = cfg.max_consecutive_losses
+    
+    # Scoring
+    self.MIN_SCORE = cfg.min_score
+    self.MAX_RSI_ENTRY = cfg.max_rsi_entry
+    self.AVOID_MOM_RANGE = cfg.avoid_mom_range
+    
+    # Market Hours
+    self.MARKET_OPEN_HOUR = cfg.market_open_hour
+    self.MARKET_OPEN_MINUTE = cfg.market_open_minute
+    self.MARKET_CLOSE_HOUR = cfg.market_close_hour
+    self.MARKET_CLOSE_MINUTE = cfg.market_close_minute
+    self.PRE_CLOSE_MINUTE = cfg.pre_close_minute
+    
+    # =====================================================================
+    # REGIME FILTERING
+    # =====================================================================
+    self.REGIME_FILTER_ENABLED = cfg.regime_filter_enabled
+    self.REGIME_SMA_PERIOD = cfg.regime_sma_period
+    self.REGIME_RSI_MIN = cfg.regime_rsi_min
+    self.REGIME_RETURN_5D_MIN = cfg.regime_return_5d_min
+    self.REGIME_VIX_MAX = cfg.regime_vix_max
+    
+    # =====================================================================
+    # SIGNAL QUEUE
+    # =====================================================================
+    self.QUEUE_ENABLED = cfg.queue_enabled
+    self.QUEUE_ATR_MULT = cfg.queue_atr_mult
+    self.QUEUE_MIN_DEVIATION = cfg.queue_min_deviation
+    self.QUEUE_MAX_DEVIATION = cfg.queue_max_deviation
+    self.QUEUE_MAX_SIZE = cfg.queue_max_size
+    self.QUEUE_FRESHNESS_WINDOW = cfg.queue_freshness_window
+    self.QUEUE_RESCAN_ON_EMPTY = cfg.queue_rescan_on_empty
+    
+    # =====================================================================
+    # SECTOR MANAGEMENT
+    # =====================================================================
+    self.SECTOR_FILTER_ENABLED = cfg.sector_filter_enabled
+    self.MAX_PER_SECTOR = cfg.max_per_sector
+    self.SECTOR_LOSS_TRACKING_ENABLED = cfg.sector_loss_tracking_enabled
+    self.MAX_SECTOR_CONSECUTIVE_LOSS = cfg.max_sector_consecutive_loss
+    self.SECTOR_COOLDOWN_DAYS = cfg.sector_cooldown_days
+    
+    # =====================================================================
+    # SMART ORDER
+    # =====================================================================
+    self.SMART_ORDER_ENABLED = cfg.smart_order_enabled
+    self.SMART_ORDER_MAX_SPREAD_PCT = cfg.smart_order_max_spread_pct
+    self.SMART_ORDER_WAIT_SECONDS = cfg.smart_order_wait_seconds
+    
+    # =====================================================================
+    # GAP FILTER
+    # =====================================================================
+    self.GAP_FILTER_ENABLED = cfg.gap_filter_enabled
+    self.GAP_MAX_UP = cfg.gap_max_up
+    self.GAP_MAX_DOWN = cfg.gap_max_down
+    
+    # =====================================================================
+    # EARNINGS FILTER
+    # =====================================================================
+    self.EARNINGS_FILTER_ENABLED = cfg.earnings_filter_enabled
+    self.EARNINGS_SKIP_DAYS_BEFORE = cfg.earnings_skip_days_before
+    self.EARNINGS_SKIP_DAYS_AFTER = cfg.earnings_skip_days_after
+    self.EARNINGS_NO_DATA_ACTION = cfg.earnings_no_data_action
+    self.EARNINGS_AUTO_SELL = cfg.earnings_auto_sell
+    self.EARNINGS_AUTO_SELL_BUFFER_MIN = cfg.earnings_auto_sell_buffer_min
+    
+    # =====================================================================
+    # LOW RISK MODE
+    # =====================================================================
+    self.LOW_RISK_MODE_ENABLED = cfg.low_risk_mode_enabled
+    self.LOW_RISK_GAP_MAX_UP = cfg.low_risk_gap_max_up
+    self.LOW_RISK_MIN_SCORE = cfg.low_risk_min_score
+    self.LOW_RISK_POSITION_SIZE_PCT = cfg.low_risk_position_size_pct
+    self.LOW_RISK_MAX_ATR_PCT = cfg.low_risk_max_atr_pct
+    
+    # =====================================================================
+    # LATE START PROTECTION
+    # =====================================================================
+    self.LATE_START_PROTECTION = cfg.late_start_protection
+    self.MARKET_OPEN_SCAN_DELAY = cfg.market_open_scan_delay
+    self.MARKET_OPEN_SCAN_WINDOW = cfg.market_open_scan_window
+    
+    # =====================================================================
+    # AFTERNOON SCAN
+    # =====================================================================
+    self.AFTERNOON_SCAN_ENABLED = cfg.afternoon_scan_enabled
+    self.AFTERNOON_SCAN_HOUR = cfg.afternoon_scan_hour
+    self.AFTERNOON_SCAN_MINUTE = cfg.afternoon_scan_minute
+    self.AFTERNOON_MIN_SCORE = cfg.afternoon_min_score
+    self.AFTERNOON_GAP_MAX_UP = cfg.afternoon_gap_max_up
+    self.AFTERNOON_GAP_MAX_DOWN = cfg.afternoon_gap_max_down
+    
+    # =====================================================================
+    # CONTINUOUS SCAN
+    # =====================================================================
+    self.CONTINUOUS_SCAN_ENABLED = cfg.continuous_scan_enabled
+    self.CONTINUOUS_SCAN_INTERVAL_MINUTES = cfg.continuous_scan_interval_minutes
+    self.CONTINUOUS_SCAN_VOLATILE_INTERVAL = cfg.continuous_scan_volatile_interval
+    self.CONTINUOUS_SCAN_VOLATILE_END_HOUR = cfg.continuous_scan_volatile_end_hour
+    self.CONTINUOUS_SCAN_MIDDAY_HOUR = cfg.continuous_scan_midday_hour
+    
+    # =====================================================================
+    # BEAR MODE
+    # =====================================================================
+    self.BEAR_MODE_ENABLED = cfg.bear_mode_enabled
+    self.BEAR_MAX_POSITIONS = cfg.bear_max_positions
+    self.BEAR_MIN_SCORE = cfg.bear_min_score
+    self.BEAR_GAP_MAX_UP = cfg.bear_gap_max_up
+    self.BEAR_GAP_MAX_DOWN = cfg.bear_gap_max_down
+    self.BEAR_POSITION_SIZE_PCT = cfg.bear_position_size_pct
+    self.BEAR_MAX_ATR_PCT = cfg.bear_max_atr_pct
+    
+    # =====================================================================
+    # BULL SECTOR FILTER
+    # =====================================================================
+    self.BULL_SECTOR_FILTER_ENABLED = cfg.bull_sector_filter_enabled
+    self.BULL_SECTOR_MIN_RETURN = cfg.bull_sector_min_return
+    
+    # =====================================================================
+    # QUANT RESEARCH
+    # =====================================================================
+    self.STOCK_D_FILTER_ENABLED = cfg.stock_d_filter_enabled
+    self.BEAR_DD_CONTROL_EXEMPT = cfg.bear_dd_control_exempt
+    
+    # =====================================================================
+    # CONVICTION SIZING
+    # =====================================================================
+    self.CONVICTION_SIZING_ENABLED = cfg.conviction_sizing_enabled
+    self.CONVICTION_A_PLUS_PCT = cfg.conviction_a_plus_pct
+    self.CONVICTION_A_PCT = cfg.conviction_a_pct
+    self.CONVICTION_B_PCT = cfg.conviction_b_pct
+    
+    # =====================================================================
+    # SMART DAY TRADE
+    # =====================================================================
+    self.SMART_DAY_TRADE_ENABLED = cfg.smart_day_trade_enabled
+    self.DAY_TRADE_GAP_THRESHOLD = cfg.day_trade_gap_threshold
+    self.DAY_TRADE_MOMENTUM_THRESHOLD = cfg.day_trade_momentum_threshold
+    self.DAY_TRADE_EMERGENCY_ENABLED = cfg.day_trade_emergency_enabled
+    
+    # =====================================================================
+    # OVERNIGHT GAP SCANNER
+    # =====================================================================
+    self.OVERNIGHT_GAP_ENABLED = cfg.overnight_gap_enabled
+    self.OVERNIGHT_GAP_SCAN_HOUR = cfg.overnight_gap_scan_hour
+    self.OVERNIGHT_GAP_SCAN_MINUTE = cfg.overnight_gap_scan_minute
+    self.OVERNIGHT_GAP_MIN_SCORE = cfg.overnight_gap_min_score
+    self.OVERNIGHT_GAP_POSITION_PCT = cfg.overnight_gap_position_pct
+    self.OVERNIGHT_GAP_TARGET_PCT = cfg.overnight_gap_target_pct
+    self.OVERNIGHT_GAP_SL_PCT = cfg.overnight_gap_sl_pct
+    
+    # =====================================================================
+    # BREAKOUT SCANNER
+    # =====================================================================
+    self.BREAKOUT_SCAN_ENABLED = cfg.breakout_scan_enabled
+    self.BREAKOUT_MIN_VOLUME_MULT = cfg.breakout_min_volume_mult
+    self.BREAKOUT_MIN_SCORE = cfg.breakout_min_score
+    self.BREAKOUT_TARGET_PCT = cfg.breakout_target_pct
+    self.BREAKOUT_SL_PCT = cfg.breakout_sl_pct
+    
+    # =====================================================================
+    # MONITOR
+    # =====================================================================
+    self.MONITOR_INTERVAL_SECONDS = cfg.monitor_interval_seconds
+    
+    logger.info("✅ Loaded ALL parameters from RapidRotationConfig (v6.10)")
+    logger.info(f"   SL range: {self.SL_MIN_PCT}%-{self.SL_MAX_PCT}%")
+    logger.info(f"   Max positions: {self.MAX_POSITIONS}")
+    logger.info(f"   Regime filter: {'ENABLED' if self.REGIME_FILTER_ENABLED else 'DISABLED'}")
 
-        # Map YAML keys (lowercase_snake) → instance attributes (UPPERCASE_SNAKE)
-        # All trading parameters MUST come from YAML
-        param_mapping = {
-            # Position Management
-            'max_positions': 'MAX_POSITIONS',
-            'position_size_pct': 'POSITION_SIZE_PCT',
-            'max_position_pct': 'MAX_POSITION_PCT',
-            'risk_parity_enabled': 'RISK_PARITY_ENABLED',
-            'risk_budget_pct': 'RISK_BUDGET_PCT',
-            'simulated_capital': 'SIMULATED_CAPITAL',
-            # ATR-based SL/TP
-            'sl_atr_multiplier': 'SL_ATR_MULTIPLIER',
-            'sl_min_pct': 'SL_MIN_PCT',
-            'sl_max_pct': 'SL_MAX_PCT',
-            'tp_atr_multiplier': 'TP_ATR_MULTIPLIER',
-            'tp_min_pct': 'TP_MIN_PCT',
-            'tp_max_pct': 'TP_MAX_PCT',
-            # Fallback fixed SL/TP
-            'stop_loss_pct': 'STOP_LOSS_PCT',
-            'take_profit_pct': 'TAKE_PROFIT_PCT',
-            'pdt_tp_threshold': 'PDT_TP_THRESHOLD',
-            # Trailing Stop
-            'trail_enabled': 'TRAIL_ENABLED',
-            'trail_activation_pct': 'TRAIL_ACTIVATION_PCT',
-            'trail_lock_pct': 'TRAIL_LOCK_PCT',
-            'max_hold_days': 'MAX_HOLD_DAYS',
-            # Risk Limits
-            'daily_loss_limit_pct': 'DAILY_LOSS_LIMIT_PCT',
-            'weekly_loss_limit_pct': 'WEEKLY_LOSS_LIMIT_PCT',
-            'max_consecutive_losses': 'MAX_CONSECUTIVE_LOSSES',
-            'min_score': 'MIN_SCORE',
-            # Signal Queue
-            'queue_enabled': 'QUEUE_ENABLED',
-            'queue_atr_mult': 'QUEUE_ATR_MULT',
-            'queue_min_deviation': 'QUEUE_MIN_DEVIATION',
-            'queue_max_deviation': 'QUEUE_MAX_DEVIATION',
-            'queue_max_size': 'QUEUE_MAX_SIZE',
-            'queue_freshness_window': 'QUEUE_FRESHNESS_WINDOW',
-            'queue_rescan_on_empty': 'QUEUE_RESCAN_ON_EMPTY',
-            # Sector Management
-            'sector_filter_enabled': 'SECTOR_FILTER_ENABLED',
-            'max_per_sector': 'MAX_PER_SECTOR',
-            'sector_loss_tracking_enabled': 'SECTOR_LOSS_TRACKING_ENABLED',
-            'max_sector_consecutive_loss': 'MAX_SECTOR_CONSECUTIVE_LOSS',
-            'sector_cooldown_days': 'SECTOR_COOLDOWN_DAYS',
-            # Smart Order
-            'smart_order_enabled': 'SMART_ORDER_ENABLED',
-            'smart_order_max_spread_pct': 'SMART_ORDER_MAX_SPREAD_PCT',
-            'smart_order_wait_seconds': 'SMART_ORDER_WAIT_SECONDS',
-            # Gap Filter
-            'gap_filter_enabled': 'GAP_FILTER_ENABLED',
-            'gap_max_up': 'GAP_MAX_UP',
-            'gap_max_down': 'GAP_MAX_DOWN',
-            # Earnings Filter
-            'earnings_filter_enabled': 'EARNINGS_FILTER_ENABLED',
-            'earnings_skip_days_before': 'EARNINGS_SKIP_DAYS_BEFORE',
-            'earnings_skip_days_after': 'EARNINGS_SKIP_DAYS_AFTER',
-            'earnings_no_data_action': 'EARNINGS_NO_DATA_ACTION',
-            'earnings_auto_sell': 'EARNINGS_AUTO_SELL',
-            'earnings_auto_sell_buffer_min': 'EARNINGS_AUTO_SELL_BUFFER_MIN',
-            # Low Risk Mode
-            'low_risk_mode_enabled': 'LOW_RISK_MODE_ENABLED',
-            'low_risk_gap_max_up': 'LOW_RISK_GAP_MAX_UP',
-            'low_risk_min_score': 'LOW_RISK_MIN_SCORE',
-            'low_risk_position_size_pct': 'LOW_RISK_POSITION_SIZE_PCT',
-            'low_risk_max_atr_pct': 'LOW_RISK_MAX_ATR_PCT',
-            # Late Start Protection
-            'late_start_protection': 'LATE_START_PROTECTION',
-            'market_open_scan_delay': 'MARKET_OPEN_SCAN_DELAY',
-            'market_open_scan_window': 'MARKET_OPEN_SCAN_WINDOW',
-            # Afternoon Scan
-            'afternoon_scan_enabled': 'AFTERNOON_SCAN_ENABLED',
-            'afternoon_scan_hour': 'AFTERNOON_SCAN_HOUR',
-            'afternoon_scan_minute': 'AFTERNOON_SCAN_MINUTE',
-            'afternoon_min_score': 'AFTERNOON_MIN_SCORE',
-            'afternoon_gap_max_up': 'AFTERNOON_GAP_MAX_UP',
-            'afternoon_gap_max_down': 'AFTERNOON_GAP_MAX_DOWN',
-            # Continuous Scan (v6.3)
-            'continuous_scan_enabled': 'CONTINUOUS_SCAN_ENABLED',
-            'continuous_scan_interval_minutes': 'CONTINUOUS_SCAN_INTERVAL_MINUTES',
-            'continuous_scan_volatile_interval': 'CONTINUOUS_SCAN_VOLATILE_INTERVAL',
-            'continuous_scan_volatile_end_hour': 'CONTINUOUS_SCAN_VOLATILE_END_HOUR',
-            'continuous_scan_midday_hour': 'CONTINUOUS_SCAN_MIDDAY_HOUR',
-            # BEAR Mode
-            'bear_mode_enabled': 'BEAR_MODE_ENABLED',
-            'bear_max_positions': 'BEAR_MAX_POSITIONS',
-            'bear_min_score': 'BEAR_MIN_SCORE',
-            'bear_gap_max_up': 'BEAR_GAP_MAX_UP',
-            'bear_gap_max_down': 'BEAR_GAP_MAX_DOWN',
-            'bear_position_size_pct': 'BEAR_POSITION_SIZE_PCT',
-            'bear_max_atr_pct': 'BEAR_MAX_ATR_PCT',
-            # BULL Sector Filter
-            'bull_sector_filter_enabled': 'BULL_SECTOR_FILTER_ENABLED',
-            'bull_sector_min_return': 'BULL_SECTOR_MIN_RETURN',
-            # Quant Research
-            'stock_d_filter_enabled': 'STOCK_D_FILTER_ENABLED',
-            'bear_dd_control_exempt': 'BEAR_DD_CONTROL_EXEMPT',
-            # Conviction Sizing
-            'conviction_sizing_enabled': 'CONVICTION_SIZING_ENABLED',
-            'conviction_a_plus_pct': 'CONVICTION_A_PLUS_PCT',
-            'conviction_a_pct': 'CONVICTION_A_PCT',
-            'conviction_b_pct': 'CONVICTION_B_PCT',
-            # Smart Day Trade
-            'smart_day_trade_enabled': 'SMART_DAY_TRADE_ENABLED',
-            'day_trade_gap_threshold': 'DAY_TRADE_GAP_THRESHOLD',
-            'day_trade_momentum_threshold': 'DAY_TRADE_MOMENTUM_THRESHOLD',
-            'day_trade_emergency_enabled': 'DAY_TRADE_EMERGENCY_ENABLED',
-            # Overnight Gap Scanner
-            'overnight_gap_enabled': 'OVERNIGHT_GAP_ENABLED',
-            'overnight_gap_scan_hour': 'OVERNIGHT_GAP_SCAN_HOUR',
-            'overnight_gap_scan_minute': 'OVERNIGHT_GAP_SCAN_MINUTE',
-            'overnight_gap_min_score': 'OVERNIGHT_GAP_MIN_SCORE',
-            'overnight_gap_position_pct': 'OVERNIGHT_GAP_POSITION_PCT',
-            'overnight_gap_target_pct': 'OVERNIGHT_GAP_TARGET_PCT',
-            'overnight_gap_sl_pct': 'OVERNIGHT_GAP_SL_PCT',
-            # Breakout Scanner
-            'breakout_scan_enabled': 'BREAKOUT_SCAN_ENABLED',
-            'breakout_min_volume_mult': 'BREAKOUT_MIN_VOLUME_MULT',
-            'breakout_min_score': 'BREAKOUT_MIN_SCORE',
-            'breakout_target_pct': 'BREAKOUT_TARGET_PCT',
-            'breakout_sl_pct': 'BREAKOUT_SL_PCT',
-            # Market Regime
-            'regime_filter_enabled': 'REGIME_FILTER_ENABLED',
-            'regime_sma_period': 'REGIME_SMA_PERIOD',
-            'regime_rsi_min': 'REGIME_RSI_MIN',
-            'regime_return_5d_min': 'REGIME_RETURN_5D_MIN',
-            'regime_vix_max': 'REGIME_VIX_MAX',
-            # Stock Quality Filters (v6.2)
-            'max_rsi_entry': 'MAX_RSI_ENTRY',
-            'avoid_mom_range': 'AVOID_MOM_RANGE',
-            # Monitor
-            'monitor_interval_seconds': 'MONITOR_INTERVAL_SECONDS',
-        }
-
-        # Set instance attributes from config
-        loaded = 0
-        for yaml_key, attr_name in param_mapping.items():
-            if yaml_key in config:
-                setattr(self, attr_name, config[yaml_key])
-                loaded += 1
-            else:
-                # This shouldn't happen if required keys are checked, but log just in case
-                logger.debug(f"Config key '{yaml_key}' not found, using class default if exists")
-
-        logger.info(f"✅ Config loaded from YAML: {loaded}/{len(param_mapping)} parameters")
-
-        # Log key parameters for verification
-        logger.info(f"   MAX_POSITIONS={self.MAX_POSITIONS}, MIN_SCORE={self.MIN_SCORE}")
-        logger.info(f"   SL_ATR={self.SL_ATR_MULTIPLIER}x [{self.SL_MIN_PCT}-{self.SL_MAX_PCT}%]")
-        logger.info(f"   TP_ATR={self.TP_ATR_MULTIPLIER}x [{self.TP_MIN_PCT}-{self.TP_MAX_PCT}%]")
-        logger.info(f"   Trail: +{self.TRAIL_ACTIVATION_PCT}% → lock {self.TRAIL_LOCK_PCT}%")
-        logger.info(f"   VIX_MAX={self.REGIME_VIX_MAX}, MAX_HOLD={self.MAX_HOLD_DAYS}d")
-        if hasattr(self, 'MAX_RSI_ENTRY') and self.MAX_RSI_ENTRY:
-            logger.info(f"   Quality Filters: RSI<{self.MAX_RSI_ENTRY}, avoid_mom={self.AVOID_MOM_RANGE}")
-
-    # =========================================================================
-    # POSITION STATE PERSISTENCE
-    # =========================================================================
 
     def _save_positions_state(self):
         """Persist all ManagedPosition state to JSON file (atomic write)."""
@@ -1203,6 +1311,53 @@ class AutoTradingEngine:
             logger.error(f"Regime check failed: {e} — blocking trades (fail-closed)")
             return False, f"Data unavailable: {e}"
 
+    def _should_skip_before_holiday(self) -> Tuple[bool, str]:
+        """
+        Check if should skip new positions due to upcoming holiday (v4.7).
+
+        Returns:
+            (should_skip, reason)
+
+        Examples:
+            - Friday before 3-day weekend → skip
+            - Day before holiday → skip
+            - Normal day → don't skip
+        """
+        # Check if feature is enabled in config (v6.10: use RapidRotationConfig)
+        if not (self._core_config.skip_before_holiday if self._core_config else True):
+            return False, "Holiday check disabled in config"
+
+        if not hasattr(self.broker, 'get_calendar'):
+            return False, "Calendar check not available"
+
+        try:
+            # Check if tomorrow is a trading day
+            tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+            calendar = self.broker.get_calendar(start=tomorrow, end=tomorrow)
+
+            if not calendar:
+                # Tomorrow is not a trading day
+                day_name = datetime.now().strftime('%A')
+
+                # Check if it's Friday (weekend is expected)
+                if datetime.now().weekday() == 4:  # Friday
+                    # Check if Monday is also holiday (3-day weekend)
+                    monday = (datetime.now() + timedelta(days=3)).strftime('%Y-%m-%d')
+                    monday_cal = self.broker.get_calendar(start=monday, end=monday)
+                    if not monday_cal:
+                        return True, f"⚠️ 3-day weekend ahead (Fri→Mon closed) - skipping new positions"
+                    else:
+                        return False, f"Regular weekend (normal Friday)"
+                else:
+                    # Weekday before holiday
+                    return True, f"⚠️ Tomorrow is holiday ({day_name}) - skipping new positions"
+
+            return False, "Tomorrow is trading day"
+
+        except Exception as e:
+            logger.warning(f"Calendar check failed: {e} - proceeding with trades")
+            return False, f"Calendar check failed: {e}"
+
     @staticmethod
     def _calc_rsi(close_series, period: int = 14) -> float:
         """Calculate RSI from a pandas Series of close prices."""
@@ -1572,8 +1727,13 @@ class AutoTradingEngine:
 
         try:
             # Get previous close (yesterday's close)
-            ticker = yf.Ticker(symbol)
-            hist = ticker.history(period='5d')  # Get 5 days to be safe
+            # v6.9: Use DataManager with 5-min cache (historical data OK to cache)
+            if self.data_manager:
+                hist = self.data_manager.get_price_data(symbol, period='5d', interval='1d')
+            else:
+                # Fallback to direct yfinance
+                ticker = yf.Ticker(symbol)
+                hist = ticker.history(period='5d')  # Get 5 days to be safe
 
             if hist.empty or len(hist) < 1:
                 logger.warning(f"{symbol}: Not enough data for gap check — blocking (fail-closed)")
@@ -1624,8 +1784,13 @@ class AutoTradingEngine:
 
         data = {}
         try:
-            ticker = yf.Ticker(symbol)
-            hist = ticker.history(period='5d')
+            # v6.9: Use DataManager with 5-min cache (dip-bounce pattern from historical data)
+            if self.data_manager:
+                hist = self.data_manager.get_price_data(symbol, period='5d', interval='1d')
+            else:
+                # Fallback to direct yfinance
+                ticker = yf.Ticker(symbol)
+                hist = ticker.history(period='5d')
 
             if hist.empty or len(hist) < 3:
                 logger.warning(f"{symbol}: Not enough data for Stock-D check — blocking (fail-closed)")
@@ -1978,25 +2143,39 @@ class AutoTradingEngine:
 
     def _calculate_atr_sl_tp(self, symbol: str, entry_price: float, signal_atr_pct: float = None) -> Dict:
         """
-        Calculate ATR-based SL/TP for a position (v4.6)
+        Calculate ATR-based SL/TP for a position (v4.6, v6.8+ uses SLTPCalculator with advanced features)
 
-        SL = 1.5 × ATR%, clamped [2%, 4%]
-        TP = 3 × ATR%, clamped [4%, 8%]
-        PDT TP = SL% (R:R 1:1 minimum for Day 0)
+        v6.8+: Uses SLTPCalculator with full features:
+        - SL: MAX(ATR-based, swing_low, EMA5) - most conservative
+        - TP: MIN(ATR-based, resistance) - avoid overreach
 
         Returns:
             Dict with sl_pct, tp_pct, sl_price, tp_price, pdt_tp_pct, atr_pct
         """
-        # Get ATR% - prefer signal's ATR, fallback to yfinance
+        # Fetch historical data for advanced SL/TP calculation
         atr_pct = signal_atr_pct
-        if atr_pct is None or atr_pct <= 0:
-            try:
+        swing_low = None
+        ema5 = None
+        high_20d = None
+        high_52w = None
+
+        try:
+            # v6.9: Use DataManager with 5-min cache (historical data for indicators)
+            if self.data_manager:
+                hist = self.data_manager.get_price_data(symbol, period="1y", interval="1d")
+            else:
+                # Fallback to direct yfinance
                 ticker = yf.Ticker(symbol)
-                hist = ticker.history(period="1mo")
-                if len(hist) >= 14:
-                    high = hist['High']
-                    low = hist['Low']
-                    close = hist['Close']
+                # Fetch 1 year of data for all indicators
+                hist = ticker.history(period="1y")
+
+            if len(hist) >= 14:
+                high = hist['High']
+                low = hist['Low']
+                close = hist['Close']
+
+                # Calculate ATR if not provided
+                if atr_pct is None or atr_pct <= 0:
                     tr = pd.concat([
                         high - low,
                         abs(high - close.shift(1)),
@@ -2004,40 +2183,98 @@ class AutoTradingEngine:
                     ], axis=1).max(axis=1)
                     atr = tr.rolling(14).mean().iloc[-1]
                     atr_pct = (atr / close.iloc[-1]) * 100
-            except Exception as e:
-                logger.debug(f"ATR calculation error for {symbol}: {e}")
 
-        # Fallback to fixed values if ATR not available
-        if atr_pct is None or atr_pct <= 0:
-            logger.warning(f"{symbol}: No ATR data, using fixed SL/TP")
-            sl_pct = self.STOP_LOSS_PCT
-            tp_pct = self.TAKE_PROFIT_PCT
+                # v6.8+: Calculate advanced indicators for SLTPCalculator
+                if len(hist) >= 5:
+                    swing_low = low.tail(5).min()  # 5-day low (support)
+                    ema5 = close.ewm(span=5, adjust=False).mean().iloc[-1]  # 5-day EMA (trend)
+
+                if len(hist) >= 20:
+                    high_20d = high.tail(20).max()  # 20-day high (resistance)
+
+                if len(hist) >= 252:  # ~1 year
+                    high_52w = high.tail(252).max()  # 52-week high (resistance)
+
+                logger.debug(f"{symbol} indicators: swing_low={swing_low:.2f if swing_low else None}, "
+                           f"ema5={ema5:.2f if ema5 else None}, "
+                           f"high_20d={high_20d:.2f if high_20d else None}, "
+                           f"high_52w={high_52w:.2f if high_52w else None}")
+
+        except Exception as e:
+            logger.debug(f"Indicator calculation error for {symbol}: {e}")
+
+        # v6.8+: Use SLTPCalculator with FULL features if available
+        if self.sltp_calculator is not None:
+            # Convert ATR% to absolute ATR value for calculator
+            atr_value = None
+            if atr_pct and atr_pct > 0:
+                atr_value = entry_price * (atr_pct / 100)
+
+            # Use calculator with ALL available indicators
+            result = self.sltp_calculator.calculate(
+                entry_price=entry_price,
+                atr=atr_value,
+                swing_low=swing_low,
+                ema5=ema5,
+                high_20d=high_20d,
+                high_52w=high_52w
+            )
+
+            sl_pct = result.sl_pct
+            tp_pct = result.tp_pct
+            sl_price = result.stop_loss
+            tp_price = result.take_profit
+            pdt_tp_pct = sl_pct  # R:R 1:1 for Day 0
+
+            # Log which method was used
+            logger.info(f"📊 {symbol} SL/TP: Method={result.sl_method}/{result.tp_method}, R:R={result.risk_reward:.1f}")
+
         else:
-            # Calculate SL and clamp
-            sl_pct = self.SL_ATR_MULTIPLIER * atr_pct
-            sl_pct = max(self.SL_MIN_PCT, min(sl_pct, self.SL_MAX_PCT))
+            # v4.6: Fallback to manual calculation (backward compatible)
+            if atr_pct is None or atr_pct <= 0:
+                logger.warning(f"{symbol}: No ATR data, using fixed SL/TP")
+                sl_pct = self.STOP_LOSS_PCT
+                tp_pct = self.TAKE_PROFIT_PCT
+            else:
+                # Calculate SL and clamp
+                sl_pct = self.SL_ATR_MULTIPLIER * atr_pct
+                sl_pct = max(self.SL_MIN_PCT, min(sl_pct, self.SL_MAX_PCT))
 
-            # v4.9: TP = SL * TARGET_RR (maintains R:R at all volatility levels)
-            # Then clamp within [TP_MIN, TP_MAX]
-            tp_pct = sl_pct * self.TARGET_RR
-            tp_pct = max(self.TP_MIN_PCT, min(tp_pct, self.TP_MAX_PCT))
+                # v4.9: TP = SL * TARGET_RR (maintains R:R at all volatility levels)
+                # Then clamp within [TP_MIN, TP_MAX]
+                tp_pct = sl_pct * self.TARGET_RR
+                tp_pct = max(self.TP_MIN_PCT, min(tp_pct, self.TP_MAX_PCT))
 
-        # Round
-        sl_pct = round(sl_pct, 2)
-        tp_pct = round(tp_pct, 2)
+            # Round
+            sl_pct = round(sl_pct, 2)
+            tp_pct = round(tp_pct, 2)
 
-        # Calculate prices
-        sl_price = round(entry_price * (1 - sl_pct / 100), 2)
-        tp_price = round(entry_price * (1 + tp_pct / 100), 2)
+            # Calculate prices
+            sl_price = round(entry_price * (1 - sl_pct / 100), 2)
+            tp_price = round(entry_price * (1 + tp_pct / 100), 2)
 
-        # PDT TP = SL% (R:R 1:1 minimum for Day 0 sells)
-        pdt_tp_pct = sl_pct
+            # PDT TP = SL% (R:R 1:1 minimum for Day 0 sells)
+            pdt_tp_pct = sl_pct
 
-        logger.info(f"📊 {symbol} ATR-based SL/TP (ATR: {atr_pct:.1f}%)")
-        logger.info(f"   SL: -{sl_pct}% (${sl_price:.2f})")
-        logger.info(f"   TP: +{tp_pct}% (${tp_price:.2f})")
-        logger.info(f"   PDT TP: +{pdt_tp_pct}% (Day 0 threshold)")
-        logger.info(f"   R:R = 1:{tp_pct/sl_pct:.1f}")
+        # v6.8+: Enhanced logging
+        if self.sltp_calculator is not None and hasattr(result, 'sl_method'):
+            logger.info(f"📊 {symbol} Advanced SL/TP:")
+            logger.info(f"   Method: {result.sl_method} → {result.tp_method}")
+            logger.info(f"   SL: -{sl_pct}% (${sl_price:.2f})")
+            logger.info(f"   TP: +{tp_pct}% (${tp_price:.2f})")
+            logger.info(f"   R:R = 1:{result.risk_reward:.1f}")
+            if swing_low:
+                logger.info(f"   Support: ${swing_low:.2f}")
+            if high_20d or high_52w:
+                resistance = high_20d or high_52w
+                logger.info(f"   Resistance: ${resistance:.2f}")
+        else:
+            # Legacy logging
+            logger.info(f"📊 {symbol} ATR-based SL/TP (ATR: {atr_pct:.1f}%)")
+            logger.info(f"   SL: -{sl_pct}% (${sl_price:.2f})")
+            logger.info(f"   TP: +{tp_pct}% (${tp_price:.2f})")
+            logger.info(f"   PDT TP: +{pdt_tp_pct}% (Day 0 threshold)")
+            logger.info(f"   R:R = 1:{tp_pct/sl_pct:.1f}")
 
         return {
             'sl_pct': sl_pct,
@@ -2066,9 +2303,15 @@ class AutoTradingEngine:
         - volume_ratio: Today volume / avg volume
         """
         try:
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
-            hist = ticker.history(period="1mo")
+            # v6.9: Use DataManager with caching (1h for company info, 5min for historical)
+            if self.data_manager:
+                info = self.data_manager.get_company_info(symbol)
+                hist = self.data_manager.get_price_data(symbol, period="1mo", interval="1d")
+            else:
+                # Fallback to direct yfinance
+                ticker = yf.Ticker(symbol)
+                info = ticker.info
+                hist = ticker.history(period="1mo")
 
             if hist.empty:
                 return {}
@@ -2165,15 +2408,26 @@ class AutoTradingEngine:
 
                 # Volume ratio (daily vs avg from yfinance)
                 try:
-                    import yfinance as yf
-                    ticker = yf.Ticker(symbol)
-                    info = ticker.fast_info if hasattr(ticker, 'fast_info') else ticker.info
-                    avg_vol = getattr(info, 'average_volume', None) or (info.get('averageVolume', 0) if isinstance(info, dict) else 0)
-                    if avg_vol and daily_vol:
-                        ctx['exit_volume_ratio'] = round(daily_vol / avg_vol, 2)
+                    # v6.9: Use DataManager with caching (1h for company info, 5min for historical)
+                    if self.data_manager:
+                        info = self.data_manager.get_company_info(symbol)
+                        avg_vol = info.get('averageVolume', 0)
+                        if avg_vol and daily_vol:
+                            ctx['exit_volume_ratio'] = round(daily_vol / avg_vol, 2)
 
-                    # RSI from recent history
-                    hist = ticker.history(period='1mo')
+                        # RSI from recent history
+                        hist = self.data_manager.get_price_data(symbol, period='1mo', interval='1d')
+                    else:
+                        # Fallback to direct yfinance
+                        import yfinance as yf
+                        ticker = yf.Ticker(symbol)
+                        info = ticker.fast_info if hasattr(ticker, 'fast_info') else ticker.info
+                        avg_vol = getattr(info, 'average_volume', None) or (info.get('averageVolume', 0) if isinstance(info, dict) else 0)
+                        if avg_vol and daily_vol:
+                            ctx['exit_volume_ratio'] = round(daily_vol / avg_vol, 2)
+
+                        # RSI from recent history
+                        hist = ticker.history(period='1mo')
                     if hist is not None and len(hist) >= 15:
                         rsi_val = self._calc_rsi(hist['Close'])
                         import math
@@ -2513,10 +2767,14 @@ class AutoTradingEngine:
                 if pos:
                     current_price = pos.current_price
                 else:
-                    # Fetch from Yahoo
-                    import yfinance as yf
-                    ticker = yf.Ticker(symbol)
-                    current_price = ticker.info.get('regularMarketPrice', 0)
+                    # v6.9: Use DataManager for current price (broker → yfinance fallback)
+                    if self.data_manager:
+                        current_price = self.data_manager.get_current_price(symbol) or 0
+                    else:
+                        # Fallback to direct yfinance
+                        import yfinance as yf
+                        ticker = yf.Ticker(symbol)
+                        current_price = ticker.info.get('regularMarketPrice', 0)
 
                 if current_price <= 0:
                     logger.warning(f"Queue: Could not get price for {symbol}")
@@ -4334,6 +4592,14 @@ class AutoTradingEngine:
         is_bull, _ = self._check_market_regime()
         self._loop_update_regime_status(is_bull)
 
+        # v4.7: Check for upcoming holidays (skip new positions before long weekends)
+        skip_holiday, holiday_reason = self._should_skip_before_holiday()
+        if skip_holiday:
+            logger.warning(f"📅 {holiday_reason}")
+            self.daily_stats.regime_skipped = True
+            self._morning_scan_done = today
+            return False
+
         if not is_bull and not self.BEAR_MODE_ENABLED:
             logger.warning(f"📉 BEAR market - skipping all new trades today")
             self.daily_stats.regime_skipped = True
@@ -4644,24 +4910,29 @@ class AutoTradingEngine:
             if next_scan > et_now and next_scan < pre_close_cutoff:
                 next_continuous_scan = next_scan.isoformat()
 
-        # v6.4: Get sessions from config (single source of truth)
-        from trading_config import load_config
-        cfg = load_config(strict=False)
-        sessions_cfg = cfg.get('sessions', {})
-        market_open = cfg.get('market_open_minutes', 570)
-        market_close = cfg.get('market_close_minutes', 960)
+        # v6.10: Get sessions from RapidRotationConfig (single source of truth)
+        if self._core_config:
+            sessions_cfg = self._core_config.sessions
+            market_open = self._core_config.market_open_minutes
+            market_close = self._core_config.market_close_minutes
+        else:
+            # Fallback (shouldn't happen as _core_config is always loaded)
+            sessions_cfg = {}
+            market_open = 570
+            market_close = 960
 
         # Build sessions list for UI timeline
         sessions = []
         for key in ['morning', 'midday', 'afternoon', 'preclose']:
             if key in sessions_cfg:
                 s = sessions_cfg[key]
+                # v6.10: SessionConfig object (has attributes, not dict)
                 sessions.append({
                     'name': key,
-                    'label': s.get('label', key.capitalize()),
-                    'start': s.get('start', 0),
-                    'end': s.get('end', 0),
-                    'interval': s.get('interval', 5),
+                    'label': s.label if hasattr(s, 'label') else key.capitalize(),
+                    'start': s.start if hasattr(s, 'start') else 0,
+                    'end': s.end if hasattr(s, 'end') else 0,
+                    'interval': s.interval if hasattr(s, 'interval') else 5,
                 })
 
         return {

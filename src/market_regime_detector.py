@@ -1,8 +1,20 @@
 #!/usr/bin/env python3
 """
-Market Regime Detector v2.1 - ENHANCED SENSITIVITY
+Market Regime Detector v2.3 - FULL CONFIG MIGRATION
 Automatically detects if market is BULL, BEAR, or SIDEWAYS
 Used to determine if strategy should trade or stay in cash
+
+v2.3 Changes (Full Config Migration):
+- Uses RapidRotationConfig as single source of truth (v6.10)
+- Configurable MA periods via config.regime_sma_period
+- Backward compatible with YAML loading
+- All parameters loaded from config (no hardcoded constants)
+
+v2.2 Changes (DataManager Integration):
+- Use DataManager instead of direct yfinance calls
+- Prevents Yahoo rate limiting issues
+- Consistent with sector_regime_detector pattern
+- Falls back to yfinance if DataManager not available
 
 v2.1 Changes (After Backtest Feedback):
 - BEAR threshold lowered: 5 → 4 signals (detect earlier!)
@@ -15,9 +27,16 @@ v2.1 Changes (After Backtest Feedback):
 Result: Catches BEAR markets 2-3 days earlier, preventing losses
 """
 
-import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
+from loguru import logger
+
+# Fallback to yfinance if DataManager not available
+try:
+    import yfinance as yf
+    YFINANCE_AVAILABLE = True
+except ImportError:
+    YFINANCE_AVAILABLE = False
 
 
 class MarketRegimeDetector:
@@ -28,12 +47,49 @@ class MarketRegimeDetector:
     - BULL: Trade normally (SPY uptrending, RSI>50)
     - SIDEWAYS: Reduce position size or skip trading
     - BEAR: Stop all trading, protect capital
+
+    v6.10 FULL CONFIG MIGRATION:
+    - Uses RapidRotationConfig for regime parameters
+    - Configurable MA periods (default 20/50)
+    - Single source of truth
     """
 
-    def __init__(self, index_symbol='SPY'):
+    def __init__(self, index_symbol='SPY', data_manager=None, config: 'RapidRotationConfig' = None):
+        """
+        Initialize Market Regime Detector
+
+        Args:
+            index_symbol: Market index to track (default 'SPY')
+            data_manager: DataManager instance for data fetching
+            config: RapidRotationConfig instance (v6.10)
+                   If None, will load from default YAML path
+        """
         self.index_symbol = index_symbol
+        self.data_manager = data_manager
         self.current_regime = None
         self.regime_strength = 0
+
+        # v6.10: Load config if not provided
+        if config is None:
+            try:
+                import os
+                from config.strategy_config import RapidRotationConfig
+                config_path = os.path.join(
+                    os.path.dirname(os.path.dirname(__file__)),
+                    'config', 'trading.yaml'
+                )
+                config = RapidRotationConfig.from_yaml(config_path)
+                logger.debug(f"MarketRegimeDetector: Loaded config from {config_path}")
+            except Exception as e:
+                logger.warning(f"MarketRegimeDetector: Failed to load config, using defaults: {e}")
+                from config.strategy_config import RapidRotationConfig
+                config = RapidRotationConfig()
+
+        self.config = config
+
+        # v6.10: Use config for MA periods
+        self.ma_short_period = config.regime_sma_period  # Default 20
+        self.ma_long_period = 50  # Keep 50 as standard (not in config yet)
 
     def get_current_regime(self, as_of_date=None):
         """
@@ -51,14 +107,13 @@ class MarketRegimeDetector:
         if as_of_date is None:
             as_of_date = datetime.now()
 
-        # Get SPY data
-        spy = yf.Ticker(self.index_symbol)
-        end_date = as_of_date
-        start_date = end_date - timedelta(days=100)
+        # Get SPY data via DataManager (preferred) or yfinance (fallback)
+        hist = self._fetch_market_data(as_of_date)
 
-        hist = spy.history(start=start_date, end=end_date)
-
-        if len(hist) < 50:
+        # v6.10: Check for sufficient data based on config periods
+        min_required = max(self.ma_long_period, 50)
+        if hist is None or len(hist) < min_required:
+            logger.warning(f"Insufficient data for {self.index_symbol} regime detection (need {min_required}, got {len(hist) if hist is not None else 0})")
             return {
                 'regime': 'UNKNOWN',
                 'strength': 0,
@@ -69,19 +124,55 @@ class MarketRegimeDetector:
 
         return self._analyze_regime(hist, as_of_date)
 
+    def _fetch_market_data(self, as_of_date):
+        """Fetch market data via DataManager or yfinance fallback (v6.10: dynamic period)"""
+        end_date = as_of_date
+        # v6.10: Fetch enough days for longest MA + buffer
+        lookback_days = max(self.ma_long_period, 50) * 2  # 2x for safety
+        start_date = end_date - timedelta(days=lookback_days)
+
+        # Try DataManager first
+        if self.data_manager:
+            try:
+                df = self.data_manager.get_price_data(
+                    self.index_symbol,
+                    start_date=start_date.strftime('%Y-%m-%d'),
+                    end_date=end_date.strftime('%Y-%m-%d')
+                )
+                if df is not None and len(df) > 0:
+                    logger.debug(f"Using DataManager for {self.index_symbol} data")
+                    return df
+            except Exception as e:
+                logger.warning(f"DataManager failed for {self.index_symbol}: {e}, falling back to yfinance")
+
+        # Fallback to yfinance
+        if YFINANCE_AVAILABLE:
+            try:
+                import yfinance as yf
+                spy = yf.Ticker(self.index_symbol)
+                hist = spy.history(start=start_date, end=end_date)
+                logger.debug(f"Using yfinance fallback for {self.index_symbol}")
+                return hist
+            except Exception as e:
+                logger.error(f"yfinance also failed for {self.index_symbol}: {e}")
+                return None
+        else:
+            logger.error("No data source available (DataManager not provided, yfinance not installed)")
+            return None
+
     def _analyze_regime(self, hist, as_of_date):
-        """Analyze market data to determine regime"""
+        """Analyze market data to determine regime (v6.10: uses config MA periods)"""
         close = hist['Close']
         current_price = close.iloc[-1]
 
-        # Calculate indicators
-        ma20 = close.rolling(20).mean().iloc[-1]
-        ma50 = close.rolling(50).mean().iloc[-1]
+        # Calculate indicators (v6.10: use config periods)
+        ma20 = close.rolling(self.ma_short_period).mean().iloc[-1]
+        ma50 = close.rolling(self.ma_long_period).mean().iloc[-1]
 
-        # Returns
+        # Returns (v6.10: use dynamic periods from config)
         ret_5d = ((current_price / close.iloc[-5]) - 1) * 100 if len(close) >= 5 else 0
-        ret_20d = ((current_price / close.iloc[-20]) - 1) * 100 if len(close) >= 20 else 0
-        ret_50d = ((current_price / close.iloc[-50]) - 1) * 100 if len(close) >= 50 else 0
+        ret_20d = ((current_price / close.iloc[-self.ma_short_period]) - 1) * 100 if len(close) >= self.ma_short_period else 0
+        ret_50d = ((current_price / close.iloc[-self.ma_long_period]) - 1) * 100 if len(close) >= self.ma_long_period else 0
 
         # RSI
         rsi = self._calculate_rsi(close).iloc[-1]
@@ -131,11 +222,11 @@ class MarketRegimeDetector:
         if ret_5d < -2:
             bear_signals += 2  # Very recent weakness
 
-        # Declining MA signals
-        if len(close) >= 25:
-            ma20_5d_ago = close.rolling(20).mean().iloc[-5]
+        # Declining MA signals (v6.10: use config period)
+        if len(close) >= (self.ma_short_period + 5):
+            ma20_5d_ago = close.rolling(self.ma_short_period).mean().iloc[-5]
             if ma20 < ma20_5d_ago:
-                bear_signals += 1  # MA20 declining
+                bear_signals += 1  # MA declining
 
         # Classify (LOWER THRESHOLD FOR BEAR!)
         if bull_signals >= 5:

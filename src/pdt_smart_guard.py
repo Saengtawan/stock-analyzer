@@ -57,13 +57,119 @@ class SellDecision(Enum):
 
 @dataclass
 class PDTConfig:
-    """PDT Smart Guard configuration"""
+    """
+    PDT Smart Guard configuration
+
+    ⚠️ **DEPRECATED in v6.10.1** ⚠️
+
+    This class will be removed in v7.0 (est. March 2026).
+    Use RapidRotationConfig directly instead.
+
+    **Why deprecated:**
+    - Unnecessary mapping layer (added complexity)
+    - Duplicate config (violates single source of truth)
+    - Harder to maintain (changes needed in 2 places)
+
+    **Migration Example:**
+
+    OLD (deprecated - will be removed):
+    ```python
+    from pdt_smart_guard import PDTConfig
+    config = PDTConfig(
+        max_day_trades=3,
+        sl_threshold=-2.5,
+        tp_threshold=4.0,
+        reserve=1
+    )
+    guard = PDTSmartGuard(broker, config)
+    ```
+
+    NEW (recommended):
+    ```python
+    from config.strategy_config import RapidRotationConfig
+
+    # Option 1: Load from YAML (best)
+    config = RapidRotationConfig.from_yaml('config/trading.yaml')
+    guard = PDTSmartGuard(broker, config)
+
+    # Option 2: Create directly
+    config = RapidRotationConfig(
+        pdt_day_trade_limit=3,
+        default_sl_pct=2.5,      # Positive value (not negative!)
+        pdt_tp_threshold=4.0,
+        pdt_reserve=1
+    )
+    guard = PDTSmartGuard(broker, config)
+    ```
+
+    **See:** docs/CONFIG_SCHEMA.md for full migration guide
+    """
     max_day_trades: int = 3        # PDT limit
     sl_threshold: float = -2.5     # % loss to trigger SL
     tp_threshold: float = +4.0     # % profit worth using PDT (4% > 5% for faster lock)
     reserve: int = 1               # Keep N day trades for SL emergencies
     enforce_on_paper: bool = True  # Enforce even on paper trading
     # v2.2: Removed critical_threshold - ไม่ override PDT เด็ดขาด
+
+    def __post_init__(self):
+        """Emit deprecation warning when PDTConfig is instantiated"""
+        import warnings
+        warnings.warn(
+            "\n"
+            "=" * 70 + "\n"
+            "⚠️  PDTConfig is DEPRECATED (v6.10.1)\n"
+            "=" * 70 + "\n"
+            "This class will be removed in v7.0 (March 2026).\n"
+            "\n"
+            "Use RapidRotationConfig directly instead:\n"
+            "\n"
+            "  # OLD (deprecated)\n"
+            "  config = PDTConfig(max_day_trades=3, ...)\n"
+            "\n"
+            "  # NEW (recommended)\n"
+            "  from config.strategy_config import RapidRotationConfig\n"
+            "  config = RapidRotationConfig.from_yaml('config/trading.yaml')\n"
+            "  guard = PDTSmartGuard(broker, config)\n"
+            "\n"
+            "See docs/CONFIG_SCHEMA.md for migration guide.\n"
+            "=" * 70,
+            DeprecationWarning,
+            stacklevel=2
+        )
+
+    @classmethod
+    def from_rapid_rotation_config(cls, config: 'RapidRotationConfig') -> 'PDTConfig':
+        """
+        ⚠️ DEPRECATED: Use RapidRotationConfig directly in PDTSmartGuard.__init__
+
+        This factory method will be removed in v7.0.
+        Pass RapidRotationConfig directly to PDTSmartGuard instead.
+
+        Example:
+            # OLD (deprecated)
+            pdt_config = PDTConfig.from_rapid_rotation_config(config)
+            guard = PDTSmartGuard(broker, pdt_config)
+
+            # NEW (recommended)
+            guard = PDTSmartGuard(broker, config)  # Pass RapidRotationConfig directly
+        """
+        import warnings
+        warnings.warn(
+            "PDTConfig.from_rapid_rotation_config() is deprecated. "
+            "Pass RapidRotationConfig directly to PDTSmartGuard instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
+        from config.strategy_config import RapidRotationConfig  # Import for type checking
+
+        return cls(
+            max_day_trades=config.pdt_day_trade_limit,
+            sl_threshold=config.default_sl_pct * -1,  # Convert to negative
+            tp_threshold=config.pdt_tp_threshold,
+            reserve=getattr(config, 'pdt_reserve', 1),  # Use config value or default
+            enforce_on_paper=config.pdt_enforce_always
+        )
 
 
 @dataclass
@@ -78,7 +184,9 @@ class PDTStatus:
 
 class PDTSmartGuard:
     """
-    PDT Smart Guard v2.0
+    PDT Smart Guard v2.3 - Simplified Config
+
+    v6.10.1 Changes: Uses RapidRotationConfig directly (no mapping needed)
 
     Intelligently manages day trade budget to:
     1. Protect capital (allow SL exits)
@@ -87,9 +195,44 @@ class PDTSmartGuard:
     4. Reserve last day trade for emergencies
     """
 
-    def __init__(self, broker: 'BrokerInterface' = None, config: PDTConfig = None, data_dir: str = None):
+    def __init__(self, broker: 'BrokerInterface' = None, config = None, data_dir: str = None):
+        """
+        Initialize PDT Smart Guard
+
+        Args:
+            broker: Broker interface
+            config: RapidRotationConfig (v6.10.1+) or PDTConfig (deprecated, backward compat)
+                   If None, loads from default YAML path
+            data_dir: Data directory for persistence
+
+        v6.10.1: Simplified to use RapidRotationConfig directly (no mapping)
+        """
         self.broker = broker
-        self.config = config or PDTConfig()
+
+        # v6.10.1: Support both RapidRotationConfig and PDTConfig (backward compat)
+        if config is None:
+            # Load default config
+            try:
+                from config.strategy_config import RapidRotationConfig
+                config_path = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    'config', 'trading.yaml'
+                )
+                config = RapidRotationConfig.from_yaml(config_path)
+                logger.debug(f"PDTSmartGuard: Loaded RapidRotationConfig from {config_path}")
+            except Exception as e:
+                logger.warning(f"PDTSmartGuard: Failed to load config, using defaults: {e}")
+                from config.strategy_config import RapidRotationConfig
+                config = RapidRotationConfig()
+
+        # Check if old PDTConfig or new RapidRotationConfig
+        if isinstance(config, PDTConfig):
+            logger.warning("PDTConfig is deprecated. Please pass RapidRotationConfig directly.")
+            self._use_legacy_config = True
+        else:
+            self._use_legacy_config = False
+
+        self.config = config
 
         # Data directory for persistence
         if data_dir is None:
@@ -109,15 +252,42 @@ class PDTSmartGuard:
         # Load persisted entry dates
         self._load_entry_dates()
 
-        logger.info(f"PDT Smart Guard v2.2 initialized (No Override Mode)")
-        logger.info(f"  SL Threshold: {self.config.sl_threshold}%")
-        logger.info(f"  TP Threshold: {self.config.tp_threshold}%")
-        logger.info(f"  Reserve: {self.config.reserve} day trades")
+        logger.info(f"PDT Smart Guard v2.3 initialized (No Override Mode)")
+        logger.info(f"  SL Threshold: -{self._get_sl_threshold()}%")
+        logger.info(f"  TP Threshold: {self._get_tp_threshold()}%")
+        logger.info(f"  Reserve: {self._get_reserve()} day trades")
         logger.info(f"  Budget = 0 → HOLD (ไม่ override PDT เด็ดขาด)")
 
-    def set_broker(self, broker: 'BrokerInterface'):
-        """Set broker instance"""
-        self.broker = broker
+    # v6.10.1: Helper properties for config access (backward compatible)
+    def _get_max_day_trades(self) -> int:
+        """Get max day trades (supports both config types)"""
+        if self._use_legacy_config:
+            return self.config.max_day_trades
+        return self.config.pdt_day_trade_limit
+
+    def _get_sl_threshold(self) -> float:
+        """Get SL threshold as positive value (supports both config types)"""
+        if self._use_legacy_config:
+            return abs(self.config.sl_threshold)  # Convert -2.5 to 2.5
+        return self.config.default_sl_pct  # Already positive
+
+    def _get_tp_threshold(self) -> float:
+        """Get TP threshold (supports both config types)"""
+        if self._use_legacy_config:
+            return self.config.tp_threshold
+        return self.config.pdt_tp_threshold
+
+    def _get_reserve(self) -> int:
+        """Get reserve (supports both config types)"""
+        if self._use_legacy_config:
+            return self.config.reserve
+        return getattr(self.config, 'pdt_reserve', 1)  # Default 1 if not in config yet
+
+    def _get_enforce_on_paper(self) -> bool:
+        """Get enforce on paper (supports both config types)"""
+        if self._use_legacy_config:
+            return self.config.enforce_on_paper
+        return self.config.pdt_enforce_always
 
     def _get_et_date(self) -> date:
         """
@@ -205,7 +375,7 @@ class PDTSmartGuard:
             # Account is a dataclass with day_trade_count and pattern_day_trader attributes
             day_trade_count = getattr(account, 'day_trade_count', 0)
             is_flagged = getattr(account, 'pattern_day_trader', False)
-            remaining = max(0, self.config.max_day_trades - day_trade_count)
+            remaining = max(0, self._get_max_day_trades() - day_trade_count)
 
             return PDTStatus(
                 day_trade_count=day_trade_count,
@@ -244,8 +414,9 @@ class PDTSmartGuard:
         pdt_status = self.get_pdt_status()
 
         # v4.6: Use per-position thresholds if provided
-        sl_threshold = -abs(sl_override) if sl_override is not None else self.config.sl_threshold
-        tp_threshold = tp_override if tp_override is not None else self.config.tp_threshold
+        # v6.10.1: Use helper methods (handles both config types)
+        sl_threshold = -abs(sl_override) if sl_override is not None else -self._get_sl_threshold()
+        tp_threshold = tp_override if tp_override is not None else self._get_tp_threshold()
 
         # Already flagged as PDT
         if pdt_status.is_flagged:
@@ -257,7 +428,7 @@ class PDTSmartGuard:
             logger.warning(f"PDT Guard: {symbol} BLOCKED - no day trades remaining")
             logger.warning(f"  P&L: {pnl_pct:+.1f}% → HOLD overnight (wait for Day 1)")
             logger.warning(f"  v2.2: ไม่ override PDT → ไม่มีทางโดน flag")
-            return False, SellDecision.BLOCKED_NO_BUDGET, f"No PDT budget (0/{self.config.max_day_trades}) - HOLD overnight"
+            return False, SellDecision.BLOCKED_NO_BUDGET, f"No PDT budget (0/{self._get_max_day_trades()}) - HOLD overnight"
 
         # SL triggered: Allow even with reserve (emergency exit)
         if pnl_pct <= sl_threshold:
@@ -338,18 +509,18 @@ class PDTSmartGuard:
 
         return {
             'enabled': True,
-            'version': '2.0',
+            'version': '2.3',
             'pdt': {
                 'used': pdt_status.day_trade_count,
-                'limit': self.config.max_day_trades,
+                'limit': self._get_max_day_trades(),
                 'remaining': pdt_status.remaining,
                 'is_flagged': pdt_status.is_flagged,
                 'reserve_active': pdt_status.reserve_active
             },
             'config': {
-                'sl_threshold': self.config.sl_threshold,
-                'tp_threshold': self.config.tp_threshold,
-                'reserve': self.config.reserve
+                'sl_threshold': -self._get_sl_threshold(),  # Return as negative for consistency
+                'tp_threshold': self._get_tp_threshold(),
+                'reserve': self._get_reserve()
             },
             'positions': {
                 symbol: {
