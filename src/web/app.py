@@ -2512,25 +2512,31 @@ def api_rapid_spy_regime():
         if engine:
             status = engine.get_status()
             regime_details = status.get('regime_details') or {}
-            return jsonify({
+            response = {
                 'is_bull': status.get('market_regime') in ('BULL',),
                 'reason': status.get('regime_detail', ''),
                 'details': regime_details,
                 'source': 'engine',
                 'timestamp': datetime.now().isoformat()
-            })
+            }
+            # Convert numpy types to native Python types
+            response = convert_numpy_types(response)
+            return jsonify(response)
 
         # Fallback: use screener (SMA20-only) if engine not available
         from screeners.rapid_rotation_screener import RapidRotationScreener
         screener = RapidRotationScreener()
         is_bull, reason, details = screener.check_spy_regime()
-        return jsonify({
+        response = {
             'is_bull': is_bull,
             'reason': reason,
             'details': details,
             'source': 'screener_fallback',
             'timestamp': datetime.now().isoformat()
-        })
+        }
+        # Convert numpy types to native Python types
+        response = convert_numpy_types(response)
+        return jsonify(response)
 
     except Exception as e:
         logger.error(f"SPY regime check error: {e}")
@@ -2716,6 +2722,7 @@ def api_rapid_add_position():
     """Add position to rapid portfolio"""
     try:
         from rapid_portfolio_manager import RapidPortfolioManager
+        from engine.brokers import AlpacaBroker
 
         data = request.get_json()
         symbol = data.get('symbol', '').upper()
@@ -2727,7 +2734,9 @@ def api_rapid_add_position():
         if not all([symbol, shares, entry_price, stop_loss, take_profit]):
             return jsonify({'error': 'Missing required fields'}), 400
 
-        pm = RapidPortfolioManager()
+        # Initialize with broker for real-time data (v4.7)
+        broker = AlpacaBroker(paper=True)
+        pm = RapidPortfolioManager(broker=broker)
         pm.add_position(
             symbol=symbol,
             shares=int(shares),
@@ -2751,8 +2760,11 @@ def api_rapid_remove_position(symbol):
     """Remove position from rapid portfolio"""
     try:
         from rapid_portfolio_manager import RapidPortfolioManager
+        from engine.brokers import AlpacaBroker
 
-        pm = RapidPortfolioManager()
+        # Initialize with broker for real-time data (v4.7)
+        broker = AlpacaBroker(paper=True)
+        pm = RapidPortfolioManager(broker=broker)
         pos = pm.remove_position(symbol.upper())
 
         if pos:
@@ -2766,6 +2778,347 @@ def api_rapid_remove_position(symbol):
     except Exception as e:
         logger.error(f"Remove rapid position error: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/rapid/performance')
+def api_rapid_performance():
+    """Get portfolio performance from Alpaca (v4.7)"""
+    try:
+        from rapid_portfolio_manager import RapidPortfolioManager
+
+        period = request.args.get('period', '1M')
+
+        # Try to use broker if available
+        broker = None
+        try:
+            from engine.brokers import AlpacaBroker
+            broker = AlpacaBroker(paper=True)
+        except Exception as broker_err:
+            logger.warning(f"Broker unavailable, using fallback: {broker_err}")
+
+        # Create manager (with or without broker)
+        manager = RapidPortfolioManager(broker=broker)
+
+        # Get performance report
+        report = manager.get_performance_report(period=period)
+
+        return jsonify(report)
+
+    except Exception as e:
+        logger.error(f"Performance API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/rapid/trade-log')
+def api_rapid_trade_log():
+    """Get trade fills and slippage analysis (v4.7)"""
+    try:
+        days = int(request.args.get('days', 7))
+
+        # Try to initialize broker
+        try:
+            from engine.brokers import AlpacaBroker
+            broker = AlpacaBroker(paper=True)
+
+            # Get fills and dividends separately (Alpaca API doesn't accept comma-separated)
+            fills = broker.get_activities(activity_types='FILL', days=days)
+            try:
+                dividends = broker.get_activities(activity_types='DIV', days=days)
+            except:
+                dividends = []  # Dividends might not be available
+
+            # Slippage analysis
+            orders = broker.get_orders(status='filled')
+            slippage = broker.analyze_slippage(fills, orders)
+
+            return jsonify({
+                'fills': fills,
+                'dividends': dividends,
+                'slippage': slippage,
+                'period_days': days
+            })
+
+        except Exception as broker_err:
+            logger.warning(f"Broker unavailable: {broker_err}")
+            return jsonify({
+                'error': 'Alpaca API keys not configured',
+                'message': 'Set ALPACA_API_KEY and ALPACA_SECRET_KEY environment variables',
+                'fills': [],
+                'dividends': [],
+                'slippage': {},
+                'period_days': days
+            }), 503
+
+    except Exception as e:
+        logger.error(f"Trade log API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/rapid/calendar')
+def api_rapid_calendar():
+    """Get market calendar and holidays (v4.7)"""
+    try:
+        from datetime import datetime, timedelta
+
+        days = int(request.args.get('days', 14))
+
+        # Try to use broker
+        try:
+            from engine.brokers import AlpacaBroker
+            broker = AlpacaBroker(paper=True)
+
+            # Get calendar
+            start_date = datetime.now().strftime('%Y-%m-%d')
+            end_date = (datetime.now() + timedelta(days=days)).strftime('%Y-%m-%d')
+
+            calendar = broker.get_calendar(start=start_date, end=end_date)
+
+            # Get holidays
+            holidays = broker.get_upcoming_holidays(days=days)
+
+            # Check tomorrow
+            is_open_tomorrow = broker.is_market_open_tomorrow()
+            next_day = broker.get_next_market_day()
+
+            # Build full schedule
+            trading_days = {day['date'] for day in calendar}
+            schedule = []
+
+            current = datetime.now()
+            for i in range(days):
+                check_date = current + timedelta(days=i)
+                date_str = check_date.strftime('%Y-%m-%d')
+                day_name = check_date.strftime('%A')
+
+                if date_str in trading_days:
+                    cal_entry = next((c for c in calendar if c['date'] == date_str), None)
+                    schedule.append({
+                        'date': date_str,
+                        'day': day_name,
+                        'is_open': True,
+                        'open_time': cal_entry['open'] if cal_entry else None,
+                        'close_time': cal_entry['close'] if cal_entry else None,
+                    })
+                else:
+                    is_weekend = day_name in ['Saturday', 'Sunday']
+                    schedule.append({
+                        'date': date_str,
+                        'day': day_name,
+                        'is_open': False,
+                        'is_weekend': is_weekend,
+                        'is_holiday': not is_weekend,
+                    })
+
+            return jsonify({
+                'schedule': schedule,
+                'holidays': holidays,
+                'is_open_tomorrow': is_open_tomorrow,
+                'next_trading_day': next_day,
+                'period_days': days
+            })
+
+        except Exception as broker_err:
+            logger.warning(f"Broker unavailable: {broker_err}")
+            return jsonify({
+                'error': 'Alpaca API keys not configured',
+                'message': 'Set ALPACA_API_KEY and ALPACA_SECRET_KEY environment variables',
+                'schedule': [],
+                'holidays': [],
+                'is_open_tomorrow': None,
+                'next_trading_day': None,
+                'period_days': days
+            }), 503
+
+    except Exception as e:
+        logger.error(f"Calendar API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/rapid/live-prices')
+def api_rapid_live_prices():
+    """Get real-time prices via Alpaca (v4.7)"""
+    try:
+        from engine.brokers import AlpacaBroker
+
+        symbols_param = request.args.get('symbols', '')
+        symbols = [s.strip().upper() for s in symbols_param.split(',') if s.strip()]
+
+        if not symbols:
+            return jsonify({'error': 'No symbols provided'}), 400
+
+        broker = AlpacaBroker(paper=True)
+
+        # Batch fetch
+        quotes = broker.get_snapshots(symbols)
+
+        # Convert to JSON-serializable format
+        result = {}
+        for symbol, quote in quotes.items():
+            result[symbol] = {
+                'last': quote.last,
+                'bid': quote.bid,
+                'ask': quote.ask,
+                'volume': quote.volume,
+                'high': quote.high,
+                'low': quote.low,
+                'open': quote.open,
+                'prev_close': quote.prev_close,
+            }
+
+        return jsonify({
+            'prices': result,
+            'timestamp': datetime.now().isoformat(),
+            'source': 'alpaca_realtime'
+        })
+
+    except Exception as e:
+        logger.error(f"Live prices API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/rapid/bars/<symbol>')
+def api_rapid_bars(symbol):
+    """Get historical OHLCV bars for candlestick chart (v4.8)"""
+    try:
+        from engine.brokers import AlpacaBroker
+        from datetime import datetime, timedelta, timezone
+
+        # Parse parameters
+        timeframe_param = request.args.get('timeframe', '1d').lower()
+        days = int(request.args.get('days', 30))
+
+        # Map timeframe shortcuts to Alpaca format
+        timeframe_map = {
+            '1m': '1Min',
+            '5m': '5Min',
+            '15m': '15Min',
+            '1h': '1Hour',
+            '1d': '1Day'
+        }
+        timeframe = timeframe_map.get(timeframe_param, '1Day')
+
+        # Calculate date range
+        end = datetime.now(timezone.utc)
+        start = end - timedelta(days=days)
+
+        # Fetch bars from Alpaca
+        broker = AlpacaBroker(paper=True)
+        bars = broker.get_bars(
+            symbol=symbol.upper(),
+            timeframe=timeframe,
+            start=start,
+            end=end,
+            limit=500
+        )
+
+        # Convert to Chart.js candlestick format
+        candlesticks = []
+        for bar in bars:
+            candlesticks.append({
+                'x': bar.timestamp.isoformat(),  # ISO timestamp
+                'o': float(bar.open),            # Open
+                'h': float(bar.high),            # High
+                'l': float(bar.low),             # Low
+                'c': float(bar.close),           # Close
+                'v': int(bar.volume)             # Volume
+            })
+
+        # Get trade markers (buy/sell points)
+        markers = _get_trade_markers(symbol, start, end, broker)
+
+        # Calculate indicators
+        indicators = _calculate_indicators(candlesticks)
+
+        return jsonify({
+            'symbol': symbol.upper(),
+            'timeframe': timeframe_param,
+            'bars': candlesticks,
+            'markers': markers,
+            'indicators': indicators,
+            'source': 'alpaca_bars'
+        })
+
+    except Exception as e:
+        logger.error(f"Bars API error for {symbol}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+def _get_trade_markers(symbol, start, end, broker):
+    """Get buy/sell markers from trade history"""
+    try:
+        fills = broker.get_activities(activity_types='FILL', days=365)
+
+        markers = []
+        for fill in fills:
+            # Filter by symbol and date range
+            if fill.symbol == symbol:
+                fill_time = fill.transaction_time
+                if start <= fill_time <= end:
+                    markers.append({
+                        'time': fill_time.isoformat(),
+                        'price': float(fill.price),
+                        'side': fill.side,  # 'buy' or 'sell'
+                        'qty': float(fill.qty),
+                        'order_id': fill.order_id
+                    })
+
+        return markers
+
+    except Exception as e:
+        logger.warning(f"Could not fetch trade markers: {e}")
+        return []
+
+
+def _calculate_indicators(bars):
+    """Calculate technical indicators from bars"""
+    if not bars or len(bars) < 20:
+        return {}
+
+    try:
+        closes = [b['c'] for b in bars]
+        volumes = [b['v'] for b in bars]
+
+        # Moving Averages
+        ma20 = sum(closes[-20:]) / 20 if len(closes) >= 20 else None
+        ma50 = sum(closes[-50:]) / 50 if len(closes) >= 50 else None
+
+        # RSI (simple 14-period)
+        rsi = None
+        if len(closes) >= 14:
+            gains = []
+            losses = []
+            for i in range(1, 15):
+                change = closes[-i] - closes[-i-1]
+                if change > 0:
+                    gains.append(change)
+                    losses.append(0)
+                else:
+                    gains.append(0)
+                    losses.append(abs(change))
+
+            avg_gain = sum(gains) / 14
+            avg_loss = sum(losses) / 14
+
+            if avg_loss != 0:
+                rs = avg_gain / avg_loss
+                rsi = round(100 - (100 / (1 + rs)), 2)
+            else:
+                rsi = 100
+
+        # Volume average
+        avg_volume = sum(volumes[-20:]) / min(20, len(volumes))
+
+        return {
+            'ma20': round(ma20, 2) if ma20 else None,
+            'ma50': round(ma50, 2) if ma50 else None,
+            'rsi': rsi,
+            'avg_volume': int(avg_volume),
+            'current_price': closes[-1] if closes else None
+        }
+
+    except Exception as e:
+        logger.warning(f"Indicator calculation error: {e}")
+        return {}
 
 
 # =============================================================================
@@ -2807,6 +3160,26 @@ def get_auto_trading_engine():
     return _auto_trading_engine
 
 
+def convert_numpy_types(obj):
+    """Convert numpy types to native Python types for JSON serialization"""
+    import numpy as np
+
+    if isinstance(obj, dict):
+        return {k: convert_numpy_types(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    elif isinstance(obj, (np.integer, np.int64, np.int32)):
+        return int(obj)
+    elif isinstance(obj, (np.floating, np.float64, np.float32)):
+        return float(obj)
+    elif isinstance(obj, (np.bool_, bool)):
+        return bool(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    else:
+        return obj
+
+
 @app.route('/api/auto/status')
 def api_auto_status():
     """Get auto trading engine status"""
@@ -2816,6 +3189,8 @@ def api_auto_status():
             return jsonify({'error': 'Engine not available'}), 500
 
         status = engine.get_status()
+        # Convert numpy types to native Python types
+        status = convert_numpy_types(status)
         return jsonify(status)
 
     except Exception as e:
@@ -3396,7 +3771,7 @@ def get_status_data():
         account = engine.broker.get_account()
         return {
             'running': engine.running,
-            'state': engine.state,
+            'state': engine.state.value if hasattr(engine.state, 'value') else str(engine.state),
             'market_open': engine.broker.is_market_open(),
             'cash': float(getattr(account, 'cash', 0)),
             'account_value': float(getattr(account, 'portfolio_value', 0)),
@@ -3582,8 +3957,10 @@ def sync_portfolio_with_alpaca():
         resp = requests.get("https://paper-api.alpaca.markets/v2/positions", headers=headers)
         alpaca_positions = resp.json()
 
-        # Get current portfolio
-        pm = RapidPortfolioManager()
+        # Get current portfolio with broker (v4.7)
+        from engine.brokers import AlpacaBroker
+        broker = AlpacaBroker(paper=True)
+        pm = RapidPortfolioManager(broker=broker)
         current_symbols = set(pm.positions.keys())
         alpaca_symbols = set(p['symbol'] for p in alpaca_positions)
 
@@ -3664,8 +4041,10 @@ def start_price_streamer():
             secret_key=os.getenv('ALPACA_SECRET_KEY')
         )
 
-        # Get current position symbols
-        pm = RapidPortfolioManager()
+        # Get current position symbols with broker (v4.7)
+        from engine.brokers import AlpacaBroker
+        broker = AlpacaBroker(paper=True)
+        pm = RapidPortfolioManager(broker=broker)
         symbols = list(pm.positions.keys())
 
         if symbols:
@@ -3958,24 +4337,52 @@ def api_alerts_acknowledge():
 @app.route('/api/config/reload', methods=['POST'])
 @require_api_auth
 def api_config_reload():
-    """Hot-reload trading config from YAML file."""
-    try:
-        from trading_config import load_config, apply_config
+    """
+    Hot-reload trading config from YAML file.
 
-        # Force re-read
-        import trading_config
-        trading_config._cached_mtime = 0.0
-        config = load_config()
+    v6.10: Uses RapidRotationConfig instead of trading_config.py
+    """
+    try:
+        from config.strategy_config import RapidRotationConfig
+        import os
+
+        # Find config file path
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'config', 'trading.yaml'
+        )
+
+        # Load new config from YAML
+        new_config = RapidRotationConfig.from_yaml(config_path)
 
         engine = get_auto_trading_engine()
         if engine:
-            apply_config(engine, config)
-            return jsonify({'success': True, 'params': len(config)})
+            # Update engine's config
+            engine._core_config = new_config
+            # Reload all parameters from new config
+            engine._load_config_from_yaml()
+
+            param_count = len(new_config.__dataclass_fields__)
+            logger.info(f"✅ Config reloaded: {param_count} parameters from RapidRotationConfig")
+            return jsonify({
+                'success': True,
+                'params': param_count,
+                'version': 'v6.10',
+                'source': 'RapidRotationConfig'
+            })
         else:
-            return jsonify({'success': True, 'params': len(config), 'note': 'Engine not running'})
+            param_count = len(new_config.__dataclass_fields__)
+            return jsonify({
+                'success': True,
+                'params': param_count,
+                'note': 'Engine not running',
+                'version': 'v6.10'
+            })
 
     except Exception as e:
         logger.error(f"Config reload error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -3993,6 +4400,13 @@ def api_alerts_summary():
 
 
 if __name__ == '__main__':
+    # Load environment variables from .env file (v4.7)
+    from dotenv import load_dotenv
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env')
+    load_dotenv(env_path)
+    logger.info(f"Loaded .env from: {env_path}")
+    logger.info(f"Alpaca API key configured: {bool(os.getenv('ALPACA_API_KEY'))}")
+
     # Start background monitor
     start_monitor()
 
