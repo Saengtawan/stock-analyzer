@@ -1460,10 +1460,10 @@ class AutoTradingEngine:
         if pdt_status.remaining <= 0:
             return True, f"PDT budget = 0 → Low Risk Mode"
 
-        if pdt_status.remaining <= self.pdt_guard.config.reserve:
-            return True, f"PDT budget = {pdt_status.remaining} (≤ reserve {self.pdt_guard.config.reserve}) → Low Risk Mode"
+        if pdt_status.remaining <= self.pdt_guard._get_reserve():
+            return True, f"PDT budget = {pdt_status.remaining} (≤ reserve {self.pdt_guard._get_reserve()}) → Low Risk Mode"
 
-        return False, f"PDT budget OK ({pdt_status.remaining}/{self.pdt_guard.config.max_day_trades})"
+        return False, f"PDT budget OK ({pdt_status.remaining}/{self.pdt_guard._get_max_day_trades()})"
 
     # =========================================================================
     # SMART BEAR MODE (v4.9.2 NEW!)
@@ -1614,7 +1614,7 @@ class AutoTradingEngine:
 
         # Check PDT budget
         pdt_status = self.pdt_guard.get_pdt_status()
-        if pdt_status.remaining <= self.pdt_guard.config.reserve:
+        if pdt_status.remaining <= self.pdt_guard._get_reserve():
             return False, "no PDT budget"
 
         pnl_pct = ((current_price - managed_pos.entry_price) / managed_pos.entry_price) * 100
@@ -2993,7 +2993,7 @@ class AutoTradingEngine:
         # PDT pre-buy budget check (skip in LOW_RISK mode)
         if 'LOW_RISK' not in mode:
             pdt_status = self.pdt_guard.get_pdt_status()
-            if pdt_status.remaining <= self.pdt_guard.config.reserve:
+            if pdt_status.remaining <= self.pdt_guard._get_reserve():
                 logger.warning(f"❌ PDT pre-buy block: remaining={pdt_status.remaining}")
                 return False, "PDT Full"
 

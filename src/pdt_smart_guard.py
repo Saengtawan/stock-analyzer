@@ -382,7 +382,7 @@ class PDTSmartGuard:
                 remaining=remaining,
                 is_flagged=is_flagged,
                 can_day_trade=remaining > 0 and not is_flagged,
-                reserve_active=remaining <= self.config.reserve
+                reserve_active=remaining <= self._get_reserve()
             )
         except Exception as e:
             logger.error(f"PDT status error: {e}")
