@@ -530,240 +530,240 @@ class AutoTradingEngine:
     # v6.1: CONFIG LOADER — YAML as Single Source of Truth
     # =========================================================================
 
-def _load_config_from_yaml(self):
-    """
-    Load trading parameters from RapidRotationConfig.
-
-    v6.10 Architecture (FULL MIGRATION):
-    - ALL parameters from RapidRotationConfig (single source of truth)
-    - No more trading_config.py dependency
-    - Backward compatible with YAML loading via RapidRotationConfig.from_yaml()
-
-    Raises:
-        ValueError: If RapidRotationConfig not available or invalid
-    """
-    # Ensure we have config (load from YAML if not provided)
-    if self._core_config is None:
-        config_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            'config', 'trading.yaml'
-        )
+    def _load_config_from_yaml(self):
+        """
+        Load trading parameters from RapidRotationConfig.
+    
+        v6.10 Architecture (FULL MIGRATION):
+        - ALL parameters from RapidRotationConfig (single source of truth)
+        - No more trading_config.py dependency
+        - Backward compatible with YAML loading via RapidRotationConfig.from_yaml()
+    
+        Raises:
+            ValueError: If RapidRotationConfig not available or invalid
+        """
+        # Ensure we have config (load from YAML if not provided)
+        if self._core_config is None:
+            config_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                'config', 'trading.yaml'
+            )
+            
+            if not os.path.exists(config_path):
+                raise ValueError(f"Config file not found: {config_path}")
+            
+            try:
+                from config.strategy_config import RapidRotationConfig
+                self._core_config = RapidRotationConfig.from_yaml(config_path)
+                logger.info(f"Loaded RapidRotationConfig from {config_path}")
+            except Exception as e:
+                logger.critical(f"Failed to load RapidRotationConfig: {e}")
+                raise ValueError(f"Cannot load configuration: {e}")
         
-        if not os.path.exists(config_path):
-            raise ValueError(f"Config file not found: {config_path}")
+        # Shorthand
+        cfg = self._core_config
         
-        try:
-            from config.strategy_config import RapidRotationConfig
-            self._core_config = RapidRotationConfig.from_yaml(config_path)
-            logger.info(f"Loaded RapidRotationConfig from {config_path}")
-        except Exception as e:
-            logger.critical(f"Failed to load RapidRotationConfig: {e}")
-            raise ValueError(f"Cannot load configuration: {e}")
+        # =====================================================================
+        # CORE PARAMETERS
+        # =====================================================================
+        # SL/TP
+        self.SL_ATR_MULTIPLIER = cfg.atr_sl_multiplier
+        self.SL_MIN_PCT = cfg.min_sl_pct
+        self.SL_MAX_PCT = cfg.max_sl_pct
+        self.TP_ATR_MULTIPLIER = cfg.atr_tp_multiplier
+        self.TP_MIN_PCT = cfg.min_tp_pct
+        self.TP_MAX_PCT = cfg.max_tp_pct
+        self.STOP_LOSS_PCT = cfg.default_sl_pct
+        self.TAKE_PROFIT_PCT = cfg.default_tp_pct
+        self.TRAIL_ACTIVATION_PCT = cfg.trail_activation_pct
+        self.TRAIL_LOCK_PCT = cfg.trail_lock_pct
+        
+        # Position Management
+        self.MAX_HOLD_DAYS = cfg.max_hold_days
+        self.MAX_POSITIONS = cfg.max_positions
+        self.POSITION_SIZE_PCT = cfg.position_size_pct
+        self.MAX_POSITION_PCT = cfg.max_position_pct
+        self.RISK_PARITY_ENABLED = cfg.risk_parity_enabled
+        self.RISK_BUDGET_PCT = cfg.risk_budget_pct
+        self.SIMULATED_CAPITAL = cfg.simulated_capital
+        self.PDT_TP_THRESHOLD = cfg.pdt_tp_threshold
+        self.TRAIL_ENABLED = cfg.trail_enabled
+        
+        # Risk Limits
+        self.DAILY_LOSS_LIMIT_PCT = cfg.daily_loss_limit_pct
+        self.WEEKLY_LOSS_LIMIT_PCT = cfg.weekly_loss_limit_pct
+        self.MAX_CONSECUTIVE_LOSSES = cfg.max_consecutive_losses
+        
+        # Scoring
+        self.MIN_SCORE = cfg.min_score
+        self.MAX_RSI_ENTRY = cfg.max_rsi_entry
+        self.AVOID_MOM_RANGE = cfg.avoid_mom_range
+        
+        # Market Hours
+        self.MARKET_OPEN_HOUR = cfg.market_open_hour
+        self.MARKET_OPEN_MINUTE = cfg.market_open_minute
+        self.MARKET_CLOSE_HOUR = cfg.market_close_hour
+        self.MARKET_CLOSE_MINUTE = cfg.market_close_minute
+        self.PRE_CLOSE_MINUTE = cfg.pre_close_minute
+        
+        # =====================================================================
+        # REGIME FILTERING
+        # =====================================================================
+        self.REGIME_FILTER_ENABLED = cfg.regime_filter_enabled
+        self.REGIME_SMA_PERIOD = cfg.regime_sma_period
+        self.REGIME_RSI_MIN = cfg.regime_rsi_min
+        self.REGIME_RETURN_5D_MIN = cfg.regime_return_5d_min
+        self.REGIME_VIX_MAX = cfg.regime_vix_max
+        
+        # =====================================================================
+        # SIGNAL QUEUE
+        # =====================================================================
+        self.QUEUE_ENABLED = cfg.queue_enabled
+        self.QUEUE_ATR_MULT = cfg.queue_atr_mult
+        self.QUEUE_MIN_DEVIATION = cfg.queue_min_deviation
+        self.QUEUE_MAX_DEVIATION = cfg.queue_max_deviation
+        self.QUEUE_MAX_SIZE = cfg.queue_max_size
+        self.QUEUE_FRESHNESS_WINDOW = cfg.queue_freshness_window
+        self.QUEUE_RESCAN_ON_EMPTY = cfg.queue_rescan_on_empty
+        
+        # =====================================================================
+        # SECTOR MANAGEMENT
+        # =====================================================================
+        self.SECTOR_FILTER_ENABLED = cfg.sector_filter_enabled
+        self.MAX_PER_SECTOR = cfg.max_per_sector
+        self.SECTOR_LOSS_TRACKING_ENABLED = cfg.sector_loss_tracking_enabled
+        self.MAX_SECTOR_CONSECUTIVE_LOSS = cfg.max_sector_consecutive_loss
+        self.SECTOR_COOLDOWN_DAYS = cfg.sector_cooldown_days
+        
+        # =====================================================================
+        # SMART ORDER
+        # =====================================================================
+        self.SMART_ORDER_ENABLED = cfg.smart_order_enabled
+        self.SMART_ORDER_MAX_SPREAD_PCT = cfg.smart_order_max_spread_pct
+        self.SMART_ORDER_WAIT_SECONDS = cfg.smart_order_wait_seconds
+        
+        # =====================================================================
+        # GAP FILTER
+        # =====================================================================
+        self.GAP_FILTER_ENABLED = cfg.gap_filter_enabled
+        self.GAP_MAX_UP = cfg.gap_max_up
+        self.GAP_MAX_DOWN = cfg.gap_max_down
+        
+        # =====================================================================
+        # EARNINGS FILTER
+        # =====================================================================
+        self.EARNINGS_FILTER_ENABLED = cfg.earnings_filter_enabled
+        self.EARNINGS_SKIP_DAYS_BEFORE = cfg.earnings_skip_days_before
+        self.EARNINGS_SKIP_DAYS_AFTER = cfg.earnings_skip_days_after
+        self.EARNINGS_NO_DATA_ACTION = cfg.earnings_no_data_action
+        self.EARNINGS_AUTO_SELL = cfg.earnings_auto_sell
+        self.EARNINGS_AUTO_SELL_BUFFER_MIN = cfg.earnings_auto_sell_buffer_min
+        
+        # =====================================================================
+        # LOW RISK MODE
+        # =====================================================================
+        self.LOW_RISK_MODE_ENABLED = cfg.low_risk_mode_enabled
+        self.LOW_RISK_GAP_MAX_UP = cfg.low_risk_gap_max_up
+        self.LOW_RISK_MIN_SCORE = cfg.low_risk_min_score
+        self.LOW_RISK_POSITION_SIZE_PCT = cfg.low_risk_position_size_pct
+        self.LOW_RISK_MAX_ATR_PCT = cfg.low_risk_max_atr_pct
+        
+        # =====================================================================
+        # LATE START PROTECTION
+        # =====================================================================
+        self.LATE_START_PROTECTION = cfg.late_start_protection
+        self.MARKET_OPEN_SCAN_DELAY = cfg.market_open_scan_delay
+        self.MARKET_OPEN_SCAN_WINDOW = cfg.market_open_scan_window
+        
+        # =====================================================================
+        # AFTERNOON SCAN
+        # =====================================================================
+        self.AFTERNOON_SCAN_ENABLED = cfg.afternoon_scan_enabled
+        self.AFTERNOON_SCAN_HOUR = cfg.afternoon_scan_hour
+        self.AFTERNOON_SCAN_MINUTE = cfg.afternoon_scan_minute
+        self.AFTERNOON_MIN_SCORE = cfg.afternoon_min_score
+        self.AFTERNOON_GAP_MAX_UP = cfg.afternoon_gap_max_up
+        self.AFTERNOON_GAP_MAX_DOWN = cfg.afternoon_gap_max_down
+        
+        # =====================================================================
+        # CONTINUOUS SCAN
+        # =====================================================================
+        self.CONTINUOUS_SCAN_ENABLED = cfg.continuous_scan_enabled
+        self.CONTINUOUS_SCAN_INTERVAL_MINUTES = cfg.continuous_scan_interval_minutes
+        self.CONTINUOUS_SCAN_VOLATILE_INTERVAL = cfg.continuous_scan_volatile_interval
+        self.CONTINUOUS_SCAN_VOLATILE_END_HOUR = cfg.continuous_scan_volatile_end_hour
+        self.CONTINUOUS_SCAN_MIDDAY_HOUR = cfg.continuous_scan_midday_hour
+        
+        # =====================================================================
+        # BEAR MODE
+        # =====================================================================
+        self.BEAR_MODE_ENABLED = cfg.bear_mode_enabled
+        self.BEAR_MAX_POSITIONS = cfg.bear_max_positions
+        self.BEAR_MIN_SCORE = cfg.bear_min_score
+        self.BEAR_GAP_MAX_UP = cfg.bear_gap_max_up
+        self.BEAR_GAP_MAX_DOWN = cfg.bear_gap_max_down
+        self.BEAR_POSITION_SIZE_PCT = cfg.bear_position_size_pct
+        self.BEAR_MAX_ATR_PCT = cfg.bear_max_atr_pct
+        
+        # =====================================================================
+        # BULL SECTOR FILTER
+        # =====================================================================
+        self.BULL_SECTOR_FILTER_ENABLED = cfg.bull_sector_filter_enabled
+        self.BULL_SECTOR_MIN_RETURN = cfg.bull_sector_min_return
+        
+        # =====================================================================
+        # QUANT RESEARCH
+        # =====================================================================
+        self.STOCK_D_FILTER_ENABLED = cfg.stock_d_filter_enabled
+        self.BEAR_DD_CONTROL_EXEMPT = cfg.bear_dd_control_exempt
+        
+        # =====================================================================
+        # CONVICTION SIZING
+        # =====================================================================
+        self.CONVICTION_SIZING_ENABLED = cfg.conviction_sizing_enabled
+        self.CONVICTION_A_PLUS_PCT = cfg.conviction_a_plus_pct
+        self.CONVICTION_A_PCT = cfg.conviction_a_pct
+        self.CONVICTION_B_PCT = cfg.conviction_b_pct
+        
+        # =====================================================================
+        # SMART DAY TRADE
+        # =====================================================================
+        self.SMART_DAY_TRADE_ENABLED = cfg.smart_day_trade_enabled
+        self.DAY_TRADE_GAP_THRESHOLD = cfg.day_trade_gap_threshold
+        self.DAY_TRADE_MOMENTUM_THRESHOLD = cfg.day_trade_momentum_threshold
+        self.DAY_TRADE_EMERGENCY_ENABLED = cfg.day_trade_emergency_enabled
+        
+        # =====================================================================
+        # OVERNIGHT GAP SCANNER
+        # =====================================================================
+        self.OVERNIGHT_GAP_ENABLED = cfg.overnight_gap_enabled
+        self.OVERNIGHT_GAP_SCAN_HOUR = cfg.overnight_gap_scan_hour
+        self.OVERNIGHT_GAP_SCAN_MINUTE = cfg.overnight_gap_scan_minute
+        self.OVERNIGHT_GAP_MIN_SCORE = cfg.overnight_gap_min_score
+        self.OVERNIGHT_GAP_POSITION_PCT = cfg.overnight_gap_position_pct
+        self.OVERNIGHT_GAP_TARGET_PCT = cfg.overnight_gap_target_pct
+        self.OVERNIGHT_GAP_SL_PCT = cfg.overnight_gap_sl_pct
+        
+        # =====================================================================
+        # BREAKOUT SCANNER
+        # =====================================================================
+        self.BREAKOUT_SCAN_ENABLED = cfg.breakout_scan_enabled
+        self.BREAKOUT_MIN_VOLUME_MULT = cfg.breakout_min_volume_mult
+        self.BREAKOUT_MIN_SCORE = cfg.breakout_min_score
+        self.BREAKOUT_TARGET_PCT = cfg.breakout_target_pct
+        self.BREAKOUT_SL_PCT = cfg.breakout_sl_pct
+        
+        # =====================================================================
+        # MONITOR
+        # =====================================================================
+        self.MONITOR_INTERVAL_SECONDS = cfg.monitor_interval_seconds
+        
+        logger.info("✅ Loaded ALL parameters from RapidRotationConfig (v6.10)")
+        logger.info(f"   SL range: {self.SL_MIN_PCT}%-{self.SL_MAX_PCT}%")
+        logger.info(f"   Max positions: {self.MAX_POSITIONS}")
+        logger.info(f"   Regime filter: {'ENABLED' if self.REGIME_FILTER_ENABLED else 'DISABLED'}")
     
-    # Shorthand
-    cfg = self._core_config
     
-    # =====================================================================
-    # CORE PARAMETERS
-    # =====================================================================
-    # SL/TP
-    self.SL_ATR_MULTIPLIER = cfg.atr_sl_multiplier
-    self.SL_MIN_PCT = cfg.min_sl_pct
-    self.SL_MAX_PCT = cfg.max_sl_pct
-    self.TP_ATR_MULTIPLIER = cfg.atr_tp_multiplier
-    self.TP_MIN_PCT = cfg.min_tp_pct
-    self.TP_MAX_PCT = cfg.max_tp_pct
-    self.STOP_LOSS_PCT = cfg.default_sl_pct
-    self.TAKE_PROFIT_PCT = cfg.default_tp_pct
-    self.TRAIL_ACTIVATION_PCT = cfg.trail_activation_pct
-    self.TRAIL_LOCK_PCT = cfg.trail_lock_pct
-    
-    # Position Management
-    self.MAX_HOLD_DAYS = cfg.max_hold_days
-    self.MAX_POSITIONS = cfg.max_positions
-    self.POSITION_SIZE_PCT = cfg.position_size_pct
-    self.MAX_POSITION_PCT = cfg.max_position_pct
-    self.RISK_PARITY_ENABLED = cfg.risk_parity_enabled
-    self.RISK_BUDGET_PCT = cfg.risk_budget_pct
-    self.SIMULATED_CAPITAL = cfg.simulated_capital
-    self.PDT_TP_THRESHOLD = cfg.pdt_tp_threshold
-    self.TRAIL_ENABLED = cfg.trail_enabled
-    
-    # Risk Limits
-    self.DAILY_LOSS_LIMIT_PCT = cfg.daily_loss_limit_pct
-    self.WEEKLY_LOSS_LIMIT_PCT = cfg.weekly_loss_limit_pct
-    self.MAX_CONSECUTIVE_LOSSES = cfg.max_consecutive_losses
-    
-    # Scoring
-    self.MIN_SCORE = cfg.min_score
-    self.MAX_RSI_ENTRY = cfg.max_rsi_entry
-    self.AVOID_MOM_RANGE = cfg.avoid_mom_range
-    
-    # Market Hours
-    self.MARKET_OPEN_HOUR = cfg.market_open_hour
-    self.MARKET_OPEN_MINUTE = cfg.market_open_minute
-    self.MARKET_CLOSE_HOUR = cfg.market_close_hour
-    self.MARKET_CLOSE_MINUTE = cfg.market_close_minute
-    self.PRE_CLOSE_MINUTE = cfg.pre_close_minute
-    
-    # =====================================================================
-    # REGIME FILTERING
-    # =====================================================================
-    self.REGIME_FILTER_ENABLED = cfg.regime_filter_enabled
-    self.REGIME_SMA_PERIOD = cfg.regime_sma_period
-    self.REGIME_RSI_MIN = cfg.regime_rsi_min
-    self.REGIME_RETURN_5D_MIN = cfg.regime_return_5d_min
-    self.REGIME_VIX_MAX = cfg.regime_vix_max
-    
-    # =====================================================================
-    # SIGNAL QUEUE
-    # =====================================================================
-    self.QUEUE_ENABLED = cfg.queue_enabled
-    self.QUEUE_ATR_MULT = cfg.queue_atr_mult
-    self.QUEUE_MIN_DEVIATION = cfg.queue_min_deviation
-    self.QUEUE_MAX_DEVIATION = cfg.queue_max_deviation
-    self.QUEUE_MAX_SIZE = cfg.queue_max_size
-    self.QUEUE_FRESHNESS_WINDOW = cfg.queue_freshness_window
-    self.QUEUE_RESCAN_ON_EMPTY = cfg.queue_rescan_on_empty
-    
-    # =====================================================================
-    # SECTOR MANAGEMENT
-    # =====================================================================
-    self.SECTOR_FILTER_ENABLED = cfg.sector_filter_enabled
-    self.MAX_PER_SECTOR = cfg.max_per_sector
-    self.SECTOR_LOSS_TRACKING_ENABLED = cfg.sector_loss_tracking_enabled
-    self.MAX_SECTOR_CONSECUTIVE_LOSS = cfg.max_sector_consecutive_loss
-    self.SECTOR_COOLDOWN_DAYS = cfg.sector_cooldown_days
-    
-    # =====================================================================
-    # SMART ORDER
-    # =====================================================================
-    self.SMART_ORDER_ENABLED = cfg.smart_order_enabled
-    self.SMART_ORDER_MAX_SPREAD_PCT = cfg.smart_order_max_spread_pct
-    self.SMART_ORDER_WAIT_SECONDS = cfg.smart_order_wait_seconds
-    
-    # =====================================================================
-    # GAP FILTER
-    # =====================================================================
-    self.GAP_FILTER_ENABLED = cfg.gap_filter_enabled
-    self.GAP_MAX_UP = cfg.gap_max_up
-    self.GAP_MAX_DOWN = cfg.gap_max_down
-    
-    # =====================================================================
-    # EARNINGS FILTER
-    # =====================================================================
-    self.EARNINGS_FILTER_ENABLED = cfg.earnings_filter_enabled
-    self.EARNINGS_SKIP_DAYS_BEFORE = cfg.earnings_skip_days_before
-    self.EARNINGS_SKIP_DAYS_AFTER = cfg.earnings_skip_days_after
-    self.EARNINGS_NO_DATA_ACTION = cfg.earnings_no_data_action
-    self.EARNINGS_AUTO_SELL = cfg.earnings_auto_sell
-    self.EARNINGS_AUTO_SELL_BUFFER_MIN = cfg.earnings_auto_sell_buffer_min
-    
-    # =====================================================================
-    # LOW RISK MODE
-    # =====================================================================
-    self.LOW_RISK_MODE_ENABLED = cfg.low_risk_mode_enabled
-    self.LOW_RISK_GAP_MAX_UP = cfg.low_risk_gap_max_up
-    self.LOW_RISK_MIN_SCORE = cfg.low_risk_min_score
-    self.LOW_RISK_POSITION_SIZE_PCT = cfg.low_risk_position_size_pct
-    self.LOW_RISK_MAX_ATR_PCT = cfg.low_risk_max_atr_pct
-    
-    # =====================================================================
-    # LATE START PROTECTION
-    # =====================================================================
-    self.LATE_START_PROTECTION = cfg.late_start_protection
-    self.MARKET_OPEN_SCAN_DELAY = cfg.market_open_scan_delay
-    self.MARKET_OPEN_SCAN_WINDOW = cfg.market_open_scan_window
-    
-    # =====================================================================
-    # AFTERNOON SCAN
-    # =====================================================================
-    self.AFTERNOON_SCAN_ENABLED = cfg.afternoon_scan_enabled
-    self.AFTERNOON_SCAN_HOUR = cfg.afternoon_scan_hour
-    self.AFTERNOON_SCAN_MINUTE = cfg.afternoon_scan_minute
-    self.AFTERNOON_MIN_SCORE = cfg.afternoon_min_score
-    self.AFTERNOON_GAP_MAX_UP = cfg.afternoon_gap_max_up
-    self.AFTERNOON_GAP_MAX_DOWN = cfg.afternoon_gap_max_down
-    
-    # =====================================================================
-    # CONTINUOUS SCAN
-    # =====================================================================
-    self.CONTINUOUS_SCAN_ENABLED = cfg.continuous_scan_enabled
-    self.CONTINUOUS_SCAN_INTERVAL_MINUTES = cfg.continuous_scan_interval_minutes
-    self.CONTINUOUS_SCAN_VOLATILE_INTERVAL = cfg.continuous_scan_volatile_interval
-    self.CONTINUOUS_SCAN_VOLATILE_END_HOUR = cfg.continuous_scan_volatile_end_hour
-    self.CONTINUOUS_SCAN_MIDDAY_HOUR = cfg.continuous_scan_midday_hour
-    
-    # =====================================================================
-    # BEAR MODE
-    # =====================================================================
-    self.BEAR_MODE_ENABLED = cfg.bear_mode_enabled
-    self.BEAR_MAX_POSITIONS = cfg.bear_max_positions
-    self.BEAR_MIN_SCORE = cfg.bear_min_score
-    self.BEAR_GAP_MAX_UP = cfg.bear_gap_max_up
-    self.BEAR_GAP_MAX_DOWN = cfg.bear_gap_max_down
-    self.BEAR_POSITION_SIZE_PCT = cfg.bear_position_size_pct
-    self.BEAR_MAX_ATR_PCT = cfg.bear_max_atr_pct
-    
-    # =====================================================================
-    # BULL SECTOR FILTER
-    # =====================================================================
-    self.BULL_SECTOR_FILTER_ENABLED = cfg.bull_sector_filter_enabled
-    self.BULL_SECTOR_MIN_RETURN = cfg.bull_sector_min_return
-    
-    # =====================================================================
-    # QUANT RESEARCH
-    # =====================================================================
-    self.STOCK_D_FILTER_ENABLED = cfg.stock_d_filter_enabled
-    self.BEAR_DD_CONTROL_EXEMPT = cfg.bear_dd_control_exempt
-    
-    # =====================================================================
-    # CONVICTION SIZING
-    # =====================================================================
-    self.CONVICTION_SIZING_ENABLED = cfg.conviction_sizing_enabled
-    self.CONVICTION_A_PLUS_PCT = cfg.conviction_a_plus_pct
-    self.CONVICTION_A_PCT = cfg.conviction_a_pct
-    self.CONVICTION_B_PCT = cfg.conviction_b_pct
-    
-    # =====================================================================
-    # SMART DAY TRADE
-    # =====================================================================
-    self.SMART_DAY_TRADE_ENABLED = cfg.smart_day_trade_enabled
-    self.DAY_TRADE_GAP_THRESHOLD = cfg.day_trade_gap_threshold
-    self.DAY_TRADE_MOMENTUM_THRESHOLD = cfg.day_trade_momentum_threshold
-    self.DAY_TRADE_EMERGENCY_ENABLED = cfg.day_trade_emergency_enabled
-    
-    # =====================================================================
-    # OVERNIGHT GAP SCANNER
-    # =====================================================================
-    self.OVERNIGHT_GAP_ENABLED = cfg.overnight_gap_enabled
-    self.OVERNIGHT_GAP_SCAN_HOUR = cfg.overnight_gap_scan_hour
-    self.OVERNIGHT_GAP_SCAN_MINUTE = cfg.overnight_gap_scan_minute
-    self.OVERNIGHT_GAP_MIN_SCORE = cfg.overnight_gap_min_score
-    self.OVERNIGHT_GAP_POSITION_PCT = cfg.overnight_gap_position_pct
-    self.OVERNIGHT_GAP_TARGET_PCT = cfg.overnight_gap_target_pct
-    self.OVERNIGHT_GAP_SL_PCT = cfg.overnight_gap_sl_pct
-    
-    # =====================================================================
-    # BREAKOUT SCANNER
-    # =====================================================================
-    self.BREAKOUT_SCAN_ENABLED = cfg.breakout_scan_enabled
-    self.BREAKOUT_MIN_VOLUME_MULT = cfg.breakout_min_volume_mult
-    self.BREAKOUT_MIN_SCORE = cfg.breakout_min_score
-    self.BREAKOUT_TARGET_PCT = cfg.breakout_target_pct
-    self.BREAKOUT_SL_PCT = cfg.breakout_sl_pct
-    
-    # =====================================================================
-    # MONITOR
-    # =====================================================================
-    self.MONITOR_INTERVAL_SECONDS = cfg.monitor_interval_seconds
-    
-    logger.info("✅ Loaded ALL parameters from RapidRotationConfig (v6.10)")
-    logger.info(f"   SL range: {self.SL_MIN_PCT}%-{self.SL_MAX_PCT}%")
-    logger.info(f"   Max positions: {self.MAX_POSITIONS}")
-    logger.info(f"   Regime filter: {'ENABLED' if self.REGIME_FILTER_ENABLED else 'DISABLED'}")
-
-
     def _save_positions_state(self):
         """Persist all ManagedPosition state to JSON file (atomic write)."""
         from engine.state_manager import serialize_position, atomic_write_json
@@ -890,9 +890,9 @@ def _load_config_from_yaml(self):
             next_close = None
             try:
                 clock = self.broker.get_clock()
-                is_market_open = clock.get('is_open', False)
-                next_open = clock.get('next_open')
-                next_close = clock.get('next_close')
+                is_market_open = clock.is_open
+                next_open = clock.next_open
+                next_close = clock.next_close
             except Exception:
                 pass
 
@@ -4788,7 +4788,7 @@ def _load_config_from_yaml(self):
                     time.sleep(60)
                     continue
 
-                if not clock['is_open']:
+                if not clock.is_open:
                     self.state = TradingState.SLEEPING
                     if not getattr(self, '_market_closed_cache_written', False):
                         self._save_market_closed_cache()
@@ -4800,7 +4800,7 @@ def _load_config_from_yaml(self):
 
                 # Detect early close (e.g., day before Thanksgiving)
                 try:
-                    next_close = clock.get('next_close')
+                    next_close = clock.next_close
                     if next_close and hasattr(next_close, 'hour') and next_close.hour < 16:
                         if not hasattr(self, '_early_close_warned') or self._early_close_warned != now.date():
                             logger.warning(f"⚠️ EARLY CLOSE today at {next_close.strftime('%H:%M ET')} — adjusting scan windows")
