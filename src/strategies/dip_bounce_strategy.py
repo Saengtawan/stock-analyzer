@@ -24,6 +24,7 @@ from screeners.rapid_trader_filters import (
     check_sma20_filter,
     calculate_dynamic_sl_tp,
 )
+from data_sources.realtime_price import get_current_price
 
 
 class DipBounceStrategy(BaseStrategy):
@@ -303,8 +304,8 @@ class DipBounceStrategy(BaseStrategy):
                 'duration_ms': round(basic_duration, 2),
             }
 
-        # Calculate indicators
-        ind = self._calc_indicators(data, idx)
+        # Calculate indicators (with real-time price if market is open)
+        ind = self._calc_indicators(data, idx, symbol)
 
         # STAGE 2: Bounce Filters
         bounce_start = time.time()
@@ -443,7 +444,7 @@ class DipBounceStrategy(BaseStrategy):
     # HELPER METHODS
     # =========================================================================
 
-    def _calc_indicators(self, data: pd.DataFrame, idx: int) -> dict:
+    def _calc_indicators(self, data: pd.DataFrame, idx: int, symbol: str = '') -> dict:
         """Calculate all technical indicators for a stock"""
         close = data['close']
         high = data['high']
@@ -451,12 +452,25 @@ class DipBounceStrategy(BaseStrategy):
         volume = data['volume']
         open_price = data['open'] if 'open' in data.columns else close
 
-        current_price = close.iloc[idx]
+        # Get real-time price (hybrid approach)
+        daily_price = close.iloc[idx]  # Fallback to daily bars
+        current_price, is_realtime, price_source = get_current_price(symbol, data)
+
+        # If real-time fetch failed, use daily bars
+        if current_price == 0.0:
+            current_price = daily_price
+            is_realtime = False
+            price_source = "daily bars (forced fallback)"
+
+        logger.debug(f"{symbol}: Price ${current_price:.2f} from {price_source} "
+                    f"(realtime: {is_realtime})")
+
         rsi = self._calculate_rsi(close).iloc[idx]
         atr = self._calculate_atr(data).iloc[idx]
 
-        # Momentum
-        mom_1d = (current_price / close.iloc[idx-1] - 1) * 100 if idx >= 1 else 0
+        # Momentum - use real-time price for today's movement
+        yesterday_close = close.iloc[idx-1] if idx >= 1 else current_price
+        mom_1d = (current_price / yesterday_close - 1) * 100 if idx >= 1 else 0
         mom_5d = (current_price / close.iloc[idx-5] - 1) * 100 if idx >= 5 else 0
         mom_20d = (current_price / close.iloc[idx-20] - 1) * 100 if idx >= 20 else 0
         yesterday_move = ((close.iloc[idx-1] / close.iloc[idx-2]) - 1) * 100 if idx >= 2 else 0
@@ -482,11 +496,22 @@ class DipBounceStrategy(BaseStrategy):
         avg_volume = volume.iloc[idx-20:idx].mean() if idx >= 20 else volume.mean()
         volume_ratio = volume.iloc[idx] / avg_volume if avg_volume > 0 else 1
 
-        # Gap and candle
+        # Gap and candle - use real-time price for today's candle color
         prev_close = close.iloc[idx-1] if idx >= 1 else current_price
-        today_open = open_price.iloc[idx]
-        gap_pct = (today_open - prev_close) / prev_close * 100
-        today_is_green = current_price > today_open
+
+        # Determine today's open:
+        # - If real-time: use yesterday's close as proxy for today's open
+        # - If not real-time: use daily bar's open
+        if is_realtime:
+            # Real-time during market hours - today's open ≈ gap from yesterday
+            today_open = prev_close  # Approximate (actual open might differ)
+            gap_pct = 0.0  # Can't calculate exact gap without today's open bar
+        else:
+            # Using daily bars - have today's complete bar
+            today_open = open_price.iloc[idx]
+            gap_pct = (today_open - prev_close) / prev_close * 100
+
+        today_is_green = current_price > prev_close  # Green if above yesterday's close
 
         return {
             'current_price': current_price, 'rsi': rsi, 'atr': atr,
@@ -498,6 +523,7 @@ class DipBounceStrategy(BaseStrategy):
             'max_daily_move': max_daily_move, 'sma20_extension': sma20_extension,
             'volume_ratio': volume_ratio, 'gap_pct': gap_pct,
             'today_is_green': today_is_green, 'today_open': today_open,
+            'is_realtime': is_realtime, 'price_source': price_source,  # Track data source
         }
 
     def _apply_filters(self, ind: dict) -> Optional[str]:

@@ -82,6 +82,9 @@ from screeners.rapid_trader_filters import (
     calculate_dynamic_sl_tp,
 )
 
+# Real-time price fetching
+from data_sources.realtime_price import clear_price_cache
+
 
 @dataclass
 class RapidRotationSignal:
@@ -290,6 +293,7 @@ class RapidRotationScreener:
         self._init_market_regime()
         self._init_sector_regime()
         self._init_alt_data()
+        self._init_strategy_manager()  # v6.15: Multi-strategy architecture
 
     def _is_cache_valid(self, name: str, cache_time: float) -> bool:
         """Check if a cache entry is still valid based on TTL"""
@@ -320,6 +324,21 @@ class RapidRotationScreener:
             if (now - self._alt_data_cache_time) >= self._cache_ttl['alt_data']:
                 self._alt_data_cache = {}
                 self._alt_data_cache_time = 0.0
+
+        # Clear yfinance cache to get fresh data
+        # CRITICAL FIX: yfinance has no TTL - cache can be 16+ hours old during market hours!
+        try:
+            yf.cache.clear()
+            logger.debug("Cleared yfinance cache (prevents stale data)")
+        except Exception as e:
+            logger.debug(f"Failed to clear yfinance cache: {e}")
+
+        # Clear real-time price cache
+        try:
+            clear_price_cache()
+            logger.debug("Cleared real-time price cache")
+        except Exception as e:
+            logger.debug(f"Failed to clear real-time price cache: {e}")
                 logger.debug("Cleared stale alt data cache")
 
         # Clear per-symbol data caches that are stale
@@ -376,6 +395,40 @@ class RapidRotationScreener:
         except Exception as e:
             self.alt_data = None
             logger.warning(f"⚠️ Alternative Data not available: {e}")
+
+    def _init_strategy_manager(self):
+        """
+        v6.15: Initialize Strategy Manager with DipBounceStrategy
+
+        Multi-strategy architecture - allows running multiple strategies
+        and combining their signals.
+        """
+        try:
+            from strategies import StrategyManager, DipBounceStrategy
+
+            # Create manager
+            self.strategy_manager = StrategyManager()
+
+            # Create DipBounceStrategy with screener's config
+            dip_bounce_config = {
+                'min_score': self.MIN_SCORE,
+                'min_atr_pct': self.MIN_ATR_PCT,
+                'gap_max_up': 2.0,  # Default gap max (can be overridden in screen())
+                'sector_regime': self.sector_regime,
+                'alt_data': self.alt_data,
+                'enable_trace': True,  # v6.15: Enable execution trace for debugging
+            }
+            self.dip_bounce_strategy = DipBounceStrategy(config=dip_bounce_config)
+
+            # Register strategy
+            self.strategy_manager.register(self.dip_bounce_strategy)
+
+            logger.info("✅ Strategy Manager initialized (1 strategy: Dip-Bounce)")
+
+        except Exception as e:
+            self.strategy_manager = None
+            self.dip_bounce_strategy = None
+            logger.warning(f"⚠️ Strategy Manager not available: {e}")
 
     def generate_universe(self, max_stocks: int = 200) -> List[str]:
         """
@@ -684,6 +737,64 @@ class RapidRotationScreener:
         except Exception as e:
             logger.debug(f"Failed to save sector cache: {e}")
 
+    def _save_execution_trace(self, trace_summary: dict, trace_full: list):
+        """v6.15: Save execution trace for debugging/visualization"""
+        try:
+            import numpy as np
+
+            def convert_to_json_serializable(obj):
+                """Convert numpy types to Python native types"""
+                if isinstance(obj, (np.int_, np.intc, np.intp, np.int8,
+                                   np.int16, np.int32, np.int64, np.uint8,
+                                   np.uint16, np.uint32, np.uint64)):
+                    return int(obj)
+                elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
+                    return float(obj)
+                elif isinstance(obj, (np.bool_,)):
+                    return bool(obj)
+                elif isinstance(obj, (np.ndarray,)):
+                    return obj.tolist()
+                elif isinstance(obj, dict):
+                    return {k: convert_to_json_serializable(v) for k, v in obj.items()}
+                elif isinstance(obj, (list, tuple)):
+                    return [convert_to_json_serializable(item) for item in obj]
+                return obj
+
+            cache_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                'data', 'cache'
+            )
+            os.makedirs(cache_dir, exist_ok=True)
+
+            # Convert to JSON-serializable format
+            trace_summary_clean = convert_to_json_serializable(trace_summary)
+            trace_full_clean = convert_to_json_serializable(trace_full)
+
+            # Save summary (for funnel view)
+            summary_file = os.path.join(cache_dir, 'execution_trace_summary.json')
+            fd, tmp = tempfile.mkstemp(suffix='.tmp', dir=cache_dir)
+            with os.fdopen(fd, 'w') as f:
+                json.dump({
+                    'timestamp': datetime.now().isoformat(),
+                    'trace_summary': trace_summary_clean,
+                }, f, indent=2)
+            os.replace(tmp, summary_file)
+
+            # Save full trace (for detailed view)
+            full_file = os.path.join(cache_dir, 'execution_trace_full.json')
+            fd, tmp = tempfile.mkstemp(suffix='.tmp', dir=cache_dir)
+            with os.fdopen(fd, 'w') as f:
+                json.dump({
+                    'timestamp': datetime.now().isoformat(),
+                    'trace_full': trace_full_clean,
+                }, f, indent=2)
+            os.replace(tmp, full_file)
+
+            logger.info(f"📊 Execution trace saved to {cache_dir}")
+
+        except Exception as e:
+            logger.debug(f"Failed to save execution trace: {e}")
+
     def _get_sector(self, symbol: str) -> str:
         """Get sector for a symbol (v4.9.3: cached + rate-limited)"""
         # Check memory/disk cache first
@@ -757,16 +868,17 @@ class RapidRotationScreener:
     def load_data(self, days: int = 60, progress_callback=None) -> None:
         """Load historical data for universe
 
+        v6.14: Use parallel download for speed (30-60s instead of 4+ min)
         v4.9.4: Route through DataManager (Yahoo primary, Tiingo backup).
         Falls back to yfinance parallel if DataManager unavailable.
         """
         if not self.universe:
             self.generate_universe()
 
-        if self.data_manager:
-            self._load_data_via_manager(days, progress_callback=progress_callback)
-        else:
-            self._load_data_via_yfinance(days, progress_callback=progress_callback)
+        # v6.14: Always use parallel download for speed
+        # DataManager is sequential (1 stock at a time) - too slow for 260 stocks
+        # Parallel yfinance downloads 10 stocks at once - much faster
+        self._load_data_via_yfinance(days, progress_callback=progress_callback)
 
         # v4.9.3: Save sector cache after loading (many new sectors discovered)
         if self._sector_cache:
@@ -814,7 +926,7 @@ class RapidRotationScreener:
         logger.info(f"✅ Loaded {loaded}/{len(self.universe)} stocks via DataManager ({skipped} cached, {errors} errors)")
 
     def _load_data_via_yfinance(self, days: int = 60, progress_callback=None) -> None:
-        """Legacy fallback: Load via yfinance parallel (no rate limiting)"""
+        """v6.14: Parallel download via yfinance (10x faster than sequential)"""
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         logger.info(f"📊 Loading data for {len(self.universe)} stocks via yfinance (parallel)...")
@@ -836,7 +948,8 @@ class RapidRotationScreener:
             return symbol, None
 
         loaded = 0
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        # v6.14: Increased workers from 10 to 20 for faster loading (30-60s for 260 stocks)
+        with ThreadPoolExecutor(max_workers=20) as executor:
             futures = {executor.submit(_load_single, sym): sym for sym in self.universe}
             for future in as_completed(futures):
                 try:
@@ -1103,10 +1216,11 @@ class RapidRotationScreener:
             volume_ratio=round(ind['volume_ratio'], 2),
         )
 
-    def screen(self, top_n: int = 10, enable_alt_data: bool = True, allowed_sectors: List[str] = None, blocked_sectors: List[str] = None, progress_callback=None, min_score: int = None, gap_max_up: float = None) -> List[RapidRotationSignal]:
+    def screen(self, top_n: int = 10, enable_alt_data: bool = True, allowed_sectors: List[str] = None, blocked_sectors: List[str] = None, progress_callback=None, min_score: int = None, gap_max_up: float = None, use_strategy_manager: bool = True) -> List[RapidRotationSignal]:
         """
         Screen universe for rapid rotation opportunities
 
+        v6.15: Multi-strategy architecture with StrategyManager
         v4.0: SPY Regime Filter + Hybrid Sector Scoring + Alt Data
         v4.9.2: Smart Bear Mode — allowed_sectors filter before analyze
         v4.9.3: BULL sector filter — blocked_sectors skip declining sectors
@@ -1116,6 +1230,7 @@ class RapidRotationScreener:
             enable_alt_data: Whether to apply alt data scoring to Top 10
             allowed_sectors: v4.9.2 Bear mode — only scan stocks in these sectors
             blocked_sectors: v4.9.3 BULL mode — skip stocks in these sectors
+            use_strategy_manager: v6.15 - Use StrategyManager (default True)
 
         Returns:
             List of RapidRotationSignal sorted by score
@@ -1204,69 +1319,163 @@ class RapidRotationScreener:
         else:
             universe_sorted = universe
 
-        signals = []
-        skipped_sector = 0
-        # v4.9.4: Filter diagnostics — track why stocks get rejected
-        self._filter_stats = {
-            'no_dip': 0, 'still_falling': 0, 'no_bounce': 0,
-            'gap_up': 0, 'above_sma5': 0, 'low_atr': 0,
-            'below_sma20': 0, 'overextended': 0, 'sma20_extended': 0,
-            'low_score': 0, '_low_score_values': [],
-        }
-        analyzed_count = 0
-        for i, symbol in enumerate(universe_sorted):
-            try:
-                # v4.9.2/v4.9.3: Sector filter BEFORE analyze (performance optimization)
-                if allowed_sectors or blocked_sectors:
+        # ======================================================================
+        # v6.15: STRATEGY MANAGER PATH (Multi-Strategy Architecture)
+        # ======================================================================
+        if use_strategy_manager and self.strategy_manager:
+            logger.info("🎯 Using Strategy Manager for scanning...")
+
+            # Update strategy config with runtime parameters
+            if min_score is not None:
+                self.dip_bounce_strategy.min_score = min_score
+            if gap_max_up is not None:
+                self.dip_bounce_strategy.gap_max_up = gap_max_up
+
+            # Prepare market data for strategies
+            market_data = {
+                'regime': regime_name,
+                'spy_bull': is_bull,
+            }
+
+            # Sector filtering - create filtered universe
+            if allowed_sectors or blocked_sectors:
+                filtered_universe = []
+                skipped_sector = 0
+                for symbol in universe_sorted:
                     if symbol not in sector_cache:
                         sector_cache[symbol] = self._get_sector(symbol)
                     stock_sector = sector_cache[symbol]
                     if allowed_sectors and stock_sector not in allowed_sectors:
                         skipped_sector += 1
-                        continue  # Skip non-allowed sectors (BEAR)
+                        continue
                     if blocked_sectors and stock_sector in blocked_sectors:
                         skipped_sector += 1
-                        continue  # Skip blocked sectors (BULL)
+                        continue
+                    filtered_universe.append(symbol)
+            else:
+                filtered_universe = universe_sorted
+                skipped_sector = 0
 
-                analyzed_count += 1
-                # v4.9.4: Progress callback for live UI
-                if progress_callback:
-                    progress_callback(
-                        phase="analyzing",
-                        current=analyzed_count,
-                        total=len(universe_sorted) - skipped_sector,
-                        symbol=symbol,
-                    )
+            # Run all strategies via manager
+            trading_signals = self.strategy_manager.scan_all(
+                universe=filtered_universe,
+                data_cache=self.data_cache,
+                market_data=market_data,
+                progress_callback=progress_callback,
+                enabled_only=True
+            )
 
-                signal = self.analyze_stock(symbol, min_score=min_score, gap_max_up=gap_max_up)
-                if signal:
-                    signals.append(signal)
+            # Convert TradingSignal → RapidRotationSignal (for backward compatibility)
+            signals = []
+            for ts in trading_signals:
+                rrs = RapidRotationSignal(
+                    symbol=ts.symbol,
+                    score=ts.score,
+                    entry_price=ts.entry_price,
+                    stop_loss=ts.stop_loss,
+                    take_profit=ts.take_profit,
+                    risk_reward=ts.risk_reward,
+                    atr_pct=ts.atr_pct,
+                    rsi=ts.rsi,
+                    momentum_5d=ts.momentum_5d,
+                    momentum_20d=ts.momentum_20d,
+                    distance_from_high=ts.distance_from_high,
+                    reasons=ts.reasons,
+                    sector=ts.sector,
+                    market_regime=ts.market_regime,
+                    sector_score=ts.sector_score,
+                    alt_data_score=0,  # Will be updated later
+                    sl_method=ts.sl_method,
+                    tp_method=ts.tp_method,
+                    swing_low=ts.swing_low,
+                    resistance=ts.resistance,
+                    volume_ratio=ts.volume_ratio,
+                )
+                signals.append(rrs)
+
+            if allowed_sectors:
+                logger.info(f"🐻 Sector filter: {skipped_sector} skipped, {len(filtered_universe)} analyzed, {len(signals)} signals")
+            elif blocked_sectors:
+                logger.info(f"🐂 Sector filter: {skipped_sector} blocked, {len(filtered_universe)} analyzed, {len(signals)} signals")
+
+            # v6.15: Save execution trace for debugging/visualization
+            try:
+                if self.dip_bounce_strategy and self.dip_bounce_strategy.enable_trace:
+                    trace_summary = self.dip_bounce_strategy.get_trace_summary()
+                    trace_full = self.dip_bounce_strategy.get_full_trace()
+                    self._save_execution_trace(trace_summary, trace_full)
+                    logger.info(f"📊 Execution trace saved: {trace_summary['total_stocks']} stocks traced")
+            except Exception as trace_err:
+                logger.debug(f"Failed to save execution trace: {trace_err}")
+
+        # ======================================================================
+        # LEGACY PATH (Direct analyze_stock loop - will be removed in future)
+        # ======================================================================
+        else:
+            logger.info("📋 Using legacy analyze_stock loop...")
+            signals = []
+            skipped_sector = 0
+            # v4.9.4: Filter diagnostics — track why stocks get rejected
+            self._filter_stats = {
+                'no_dip': 0, 'still_falling': 0, 'no_bounce': 0,
+                'gap_up': 0, 'above_sma5': 0, 'low_atr': 0,
+                'below_sma20': 0, 'overextended': 0, 'sma20_extended': 0,
+                'low_score': 0, '_low_score_values': [],
+            }
+            analyzed_count = 0
+            for i, symbol in enumerate(universe_sorted):
+                try:
+                    # v4.9.2/v4.9.3: Sector filter BEFORE analyze (performance optimization)
+                    if allowed_sectors or blocked_sectors:
+                        if symbol not in sector_cache:
+                            sector_cache[symbol] = self._get_sector(symbol)
+                        stock_sector = sector_cache[symbol]
+                        if allowed_sectors and stock_sector not in allowed_sectors:
+                            skipped_sector += 1
+                            continue  # Skip non-allowed sectors (BEAR)
+                        if blocked_sectors and stock_sector in blocked_sectors:
+                            skipped_sector += 1
+                            continue  # Skip blocked sectors (BULL)
+
+                    analyzed_count += 1
+                    # v4.9.4: Progress callback for live UI
                     if progress_callback:
-                        progress_callback(phase="signal", symbol=symbol, score=signal.score, passed=True)
-                elif progress_callback and analyzed_count % 5 == 0:
-                    progress_callback(phase="analyzed", symbol=symbol, passed=False)
-            except Exception as e:
-                logger.debug(f"Error analyzing {symbol}: {e}")
+                        progress_callback(
+                            phase="analyzing",
+                            current=analyzed_count,
+                            total=len(universe_sorted) - skipped_sector,
+                            symbol=symbol,
+                        )
 
-        if allowed_sectors:
-            logger.info(f"🐻 Sector filter: {skipped_sector} skipped, {len(self.data_cache) - skipped_sector} analyzed, {len(signals)} signals")
-        elif blocked_sectors:
-            logger.info(f"🐂 Sector filter: {skipped_sector} blocked, {len(self.data_cache) - skipped_sector} analyzed, {len(signals)} signals")
+                    signal = self.analyze_stock(symbol, min_score=min_score, gap_max_up=gap_max_up)
+                    if signal:
+                        signals.append(signal)
+                        if progress_callback:
+                            progress_callback(phase="signal", symbol=symbol, score=signal.score, passed=True)
+                    elif progress_callback and analyzed_count % 5 == 0:
+                        progress_callback(phase="analyzed", symbol=symbol, passed=False)
+                except Exception as e:
+                    logger.debug(f"Error analyzing {symbol}: {e}")
 
-        # v4.9.4: Log filter diagnostics
-        fs = self._filter_stats
-        total_filtered = sum(v for k, v in fs.items() if k != '_low_score_values')
-        eff_score = min_score if min_score is not None else self.MIN_SCORE
-        eff_gap = gap_max_up if gap_max_up is not None else 2.0
-        logger.info(f"📋 Filter breakdown ({total_filtered} rejected, min_score={eff_score}, gap_max={eff_gap}%): "
-                    f"no_dip={fs['no_dip']} still_falling={fs['still_falling']} "
-                    f"no_bounce={fs['no_bounce']} gap_up={fs['gap_up']} "
-                    f"above_sma5={fs['above_sma5']} low_atr={fs['low_atr']} "
-                    f"below_sma20={fs['below_sma20']} overextended={fs['overextended']} "
-                    f"sma20_ext={fs['sma20_extended']} low_score={fs['low_score']}")
-        if fs['_low_score_values']:
-            top_near = sorted(fs['_low_score_values'], key=lambda x: x[1], reverse=True)[:5]
-            logger.info(f"📋 Near-miss scores: {[(s, sc) for s, sc in top_near]}")
+            if allowed_sectors:
+                logger.info(f"🐻 Sector filter: {skipped_sector} skipped, {len(self.data_cache) - skipped_sector} analyzed, {len(signals)} signals")
+            elif blocked_sectors:
+                logger.info(f"🐂 Sector filter: {skipped_sector} blocked, {len(self.data_cache) - skipped_sector} analyzed, {len(signals)} signals")
+
+            # v4.9.4: Log filter diagnostics
+            fs = self._filter_stats
+            total_filtered = sum(v for k, v in fs.items() if k != '_low_score_values')
+            eff_score = min_score if min_score is not None else self.MIN_SCORE
+            eff_gap = gap_max_up if gap_max_up is not None else 2.0
+            logger.info(f"📋 Filter breakdown ({total_filtered} rejected, min_score={eff_score}, gap_max={eff_gap}%): "
+                        f"no_dip={fs['no_dip']} still_falling={fs['still_falling']} "
+                        f"no_bounce={fs['no_bounce']} gap_up={fs['gap_up']} "
+                        f"above_sma5={fs['above_sma5']} low_atr={fs['low_atr']} "
+                        f"below_sma20={fs['below_sma20']} overextended={fs['overextended']} "
+                        f"sma20_ext={fs['sma20_extended']} low_score={fs['low_score']}")
+            if fs['_low_score_values']:
+                top_near = sorted(fs['_low_score_values'], key=lambda x: x[1], reverse=True)[:5]
+                logger.info(f"📋 Near-miss scores: {[(s, sc) for s, sc in top_near]}")
 
         # Sort by BASE score (before alt data)
         signals.sort(key=lambda x: x.score, reverse=True)
