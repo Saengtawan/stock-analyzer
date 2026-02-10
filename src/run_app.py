@@ -210,6 +210,15 @@ class ServiceManager:
         try:
             logger.info("Starting Real-time Price Streamer...")
 
+            # v6.17: Stop old streamer BEFORE creating new one (prevents connection leak)
+            if self.streamer:
+                try:
+                    logger.info("Stopping old streamer before creating new one...")
+                    self.streamer.stop()
+                except Exception as e:
+                    logger.error(f"Error stopping old streamer: {e}")
+                self.streamer = None
+
             # Import streamer
             from alpaca_streamer import AlpacaStreamer
 
@@ -414,7 +423,11 @@ class ServiceManager:
             is_alive = False
             if name == 'price_streamer':
                 # AlpacaStreamer is not a Thread, check if it's running
-                is_alive = (self.streamer and hasattr(self.streamer, '_stream_task') and self.streamer._stream_task)
+                # v6.17: Fixed - check correct attributes (running, thread)
+                is_alive = (self.streamer and
+                           self.streamer.running and
+                           self.streamer.thread and
+                           self.streamer.thread.is_alive())
             else:
                 # Regular thread
                 is_alive = thread.is_alive()
@@ -427,6 +440,12 @@ class ServiceManager:
                     elif name == 'rapid_monitor':
                         self.start_rapid_portfolio_monitor()
                     elif name == 'price_streamer':
+                        # v6.17: Stop old streamer BEFORE creating new one (prevents connection leak)
+                        if self.streamer:
+                            try:
+                                self.streamer.stop()
+                            except Exception as e:
+                                logger.error(f"Error stopping old streamer: {e}")
                         self.start_realtime_price_streamer()
                     # v6.1: rapid_scanner removed - engine is single source of truth
                     logger.info(f"Thread '{name}' restarted successfully")
@@ -492,7 +511,8 @@ class ServiceManager:
                     dead_threads.append(name)
             elif name == 'price_streamer':
                 # AlpacaStreamer is not a Thread, check if streamer object exists and is running
-                if self.streamer and hasattr(self.streamer, '_stream_task') and self.streamer._stream_task:
+                # v6.17: Fixed - check correct attributes (running, thread)
+                if self.streamer and self.streamer.running and self.streamer.thread and self.streamer.thread.is_alive():
                     alive_count += 1
                 else:
                     dead_threads.append(name)

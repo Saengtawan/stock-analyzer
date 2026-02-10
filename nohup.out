@@ -1,33 +1,33 @@
-2026-02-10 21:53:49.089 | INFO     | __main__:<module>:37 - Environment loaded - Alpaca API configured: True
-2026-02-10 21:53:49.093 | INFO     | __main__:start_web_server:119 - Starting Web Server...
-2026-02-10 21:53:49.942 | WARNING  | web.app:<module>:49 - No RAPID_API_SECRET set — generated ephemeral key (set env var for persistence)
-2026-02-10 21:53:50.327 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
-2026-02-10 21:53:50.688 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
-2026-02-10 21:53:51.092 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
-2026-02-10 21:53:51.103 | INFO     | api.data_manager:__init__:74 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
-2026-02-10 21:53:51.103 | INFO     | analysis.enhanced_stock_analyzer:__init__:60 - Enhanced Stock Analyzer initialized with strategy: swing_trading, risk: moderate
-2026-02-10 21:53:51.103 | INFO     | main:__init__:54 - Enhanced Stock Analyzer initialized with strategy: swing_trading
-2026-02-10 21:53:51.103 | INFO     | screeners.support_level_screener:__init__:32 - Support level screener initialized with AI-only universe generation
-2026-02-10 21:53:51.103 | INFO     | screeners.dividend_screener:__init__:30 - Dividend screener initialized with AI-only universe generation
-2026-02-10 21:53:51.103 | INFO     | screeners.value_screener:__init__:32 - Value stock screener initialized with AI-only universe generation
-2026-02-10 21:53:51.103 | INFO     | screeners.premarket_scanner:__init__:33 - ✅ Pre-market scanner initialized (FREE - Yahoo Finance + Smart Indicators)
-2026-02-10 21:53:51.103 | INFO     | screeners.growth_catalyst_screener:__init__:128 - ✅ Alternative Data sources initialized (6 sources)
-2026-02-10 21:53:51.103 | INFO     | screeners.growth_catalyst_screener:__init__:136 - ✅ Sector Rotation detector initialized
-2026-02-10 21:53:51.124 | DEBUG    | market_regime_detector:__init__:82 - MarketRegimeDetector: Loaded config from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
-2026-02-10 21:53:51.124 | INFO     | screeners.growth_catalyst_screener:__init__:145 - ✅ Market Regime Detector initialized
-2026-02-10 21:53:51.124 | INFO     | screeners.growth_catalyst_screener:__init__:155 - ✅ Sector Regime Detector initialized
-2026-02-10 21:53:51.124 | INFO     | screeners.growth_catalyst_screener:__init__:156 - Growth Catalyst Screener v3.3 initialized: Tiered Quality + Alt Data + Sector Rotation + Market Regime + SECTOR-AWARE REGIME
-2026-02-10 21:53:51.124 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:340 -    Initialized 14 screening rules
-2026-02-10 21:53:51.124 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    CRITICAL: 4 rules
-2026-02-10 21:53:51.124 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    HIGH: 6 rules
-2026-02-10 21:53:51.124 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    MEDIUM: 2 rules
-2026-02-10 21:53:51.124 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    LOW: 2 rules
-2026-02-10 21:53:51.124 | INFO     | screening_rules_engine:__init__:99 - ✅ Screening Rules Engine initialized with Growth Catalyst rules
-2026-02-10 21:53:51.124 | INFO     | screeners.growth_catalyst_screener:__init__:165 - ✅ Rule-Based Screening Engine initialized (v4.0)
-2026-02-10 21:53:51.124 | INFO     | screeners.growth_catalyst_screener:__init__:166 -    Benefits: Configurable thresholds, A/B testing, performance tracking
-2026-02-10 21:53:51.124 | INFO     | screeners.momentum_growth_screener:__init__:39 - ✅ Momentum Growth Screener v1.0 initialized
-2026-02-10 21:53:51.124 | INFO     | screeners.momentum_growth_screener:__init__:40 -    Using momentum & trend filters (NOT composite scores)
-2026-02-10 21:53:51.137 | INFO     | __main__:start_web_server:134 - Web Server started at http://localhost:5000
+2026-02-10 22:01:43.059 | INFO     | __main__:<module>:37 - Environment loaded - Alpaca API configured: True
+2026-02-10 22:01:43.063 | INFO     | __main__:start_web_server:119 - Starting Web Server...
+2026-02-10 22:01:43.897 | WARNING  | web.app:<module>:49 - No RAPID_API_SECRET set — generated ephemeral key (set env var for persistence)
+2026-02-10 22:01:44.282 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 938 cached items from disk
+2026-02-10 22:01:44.639 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 938 cached items from disk
+2026-02-10 22:01:45.038 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 938 cached items from disk
+2026-02-10 22:01:45.049 | INFO     | api.data_manager:__init__:74 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
+2026-02-10 22:01:45.049 | INFO     | analysis.enhanced_stock_analyzer:__init__:60 - Enhanced Stock Analyzer initialized with strategy: swing_trading, risk: moderate
+2026-02-10 22:01:45.049 | INFO     | main:__init__:54 - Enhanced Stock Analyzer initialized with strategy: swing_trading
+2026-02-10 22:01:45.049 | INFO     | screeners.support_level_screener:__init__:32 - Support level screener initialized with AI-only universe generation
+2026-02-10 22:01:45.049 | INFO     | screeners.dividend_screener:__init__:30 - Dividend screener initialized with AI-only universe generation
+2026-02-10 22:01:45.049 | INFO     | screeners.value_screener:__init__:32 - Value stock screener initialized with AI-only universe generation
+2026-02-10 22:01:45.049 | INFO     | screeners.premarket_scanner:__init__:33 - ✅ Pre-market scanner initialized (FREE - Yahoo Finance + Smart Indicators)
+2026-02-10 22:01:45.049 | INFO     | screeners.growth_catalyst_screener:__init__:128 - ✅ Alternative Data sources initialized (6 sources)
+2026-02-10 22:01:45.049 | INFO     | screeners.growth_catalyst_screener:__init__:136 - ✅ Sector Rotation detector initialized
+2026-02-10 22:01:45.070 | DEBUG    | market_regime_detector:__init__:82 - MarketRegimeDetector: Loaded config from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
+2026-02-10 22:01:45.070 | INFO     | screeners.growth_catalyst_screener:__init__:145 - ✅ Market Regime Detector initialized
+2026-02-10 22:01:45.070 | INFO     | screeners.growth_catalyst_screener:__init__:155 - ✅ Sector Regime Detector initialized
+2026-02-10 22:01:45.070 | INFO     | screeners.growth_catalyst_screener:__init__:156 - Growth Catalyst Screener v3.3 initialized: Tiered Quality + Alt Data + Sector Rotation + Market Regime + SECTOR-AWARE REGIME
+2026-02-10 22:01:45.070 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:340 -    Initialized 14 screening rules
+2026-02-10 22:01:45.070 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    CRITICAL: 4 rules
+2026-02-10 22:01:45.070 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    HIGH: 6 rules
+2026-02-10 22:01:45.070 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    MEDIUM: 2 rules
+2026-02-10 22:01:45.070 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    LOW: 2 rules
+2026-02-10 22:01:45.070 | INFO     | screening_rules_engine:__init__:99 - ✅ Screening Rules Engine initialized with Growth Catalyst rules
+2026-02-10 22:01:45.070 | INFO     | screeners.growth_catalyst_screener:__init__:165 - ✅ Rule-Based Screening Engine initialized (v4.0)
+2026-02-10 22:01:45.070 | INFO     | screeners.growth_catalyst_screener:__init__:166 -    Benefits: Configurable thresholds, A/B testing, performance tracking
+2026-02-10 22:01:45.070 | INFO     | screeners.momentum_growth_screener:__init__:39 - ✅ Momentum Growth Screener v1.0 initialized
+2026-02-10 22:01:45.070 | INFO     | screeners.momentum_growth_screener:__init__:40 -    Using momentum & trend filters (NOT composite scores)
+2026-02-10 22:01:45.083 | INFO     | __main__:start_web_server:134 - Web Server started at http://localhost:5000
 
 ============================================================
   🚀 RAPID TRADING SYSTEM
@@ -41,150 +41,1124 @@
  * Running on http://127.0.0.1:5000
  * Running on http://192.168.7.20:5000
 [33mPress CTRL+C to quit[0m
-2026-02-10 21:53:52.537 | INFO     | auto_trading_engine:_load_config_from_yaml:761 - ✅ Loaded ALL parameters from RapidRotationConfig (v6.10)
-2026-02-10 21:53:52.537 | INFO     | auto_trading_engine:_load_config_from_yaml:762 -    SL range: 2.0%-3.0%
-2026-02-10 21:53:52.537 | INFO     | auto_trading_engine:_load_config_from_yaml:763 -    Max positions: 5
-2026-02-10 21:53:52.537 | INFO     | auto_trading_engine:_load_config_from_yaml:764 -    Regime filter: ENABLED
-2026-02-10 21:53:52.537 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
-2026-02-10 21:53:52.934 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
-2026-02-10 21:53:53.138 | INFO     | __main__:start_rapid_portfolio_monitor:147 - Starting Rapid Portfolio Monitor...
-2026-02-10 21:53:53.151 | INFO     | __main__:start_rapid_portfolio_monitor:193 - Rapid Portfolio Monitor started (check every 5 minutes)
-2026-02-10 21:53:53.309 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
-2026-02-10 21:53:53.676 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - GOOGL: Intraday price $316.27 at 2026-02-10 09:53:00-05:00
-2026-02-10 21:53:53.677 | DEBUG    | rapid_portfolio_manager:get_current_price:468 - GOOGL: Price $316.27 from intraday (1m bars) (realtime: True)
-2026-02-10 21:53:53.688 | DEBUG    | screeners.rapid_rotation_screener:__init__:216 - Loaded RapidRotationConfig from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
-2026-02-10 21:53:53.689 | INFO     | screeners.rapid_rotation_screener:_load_sector_cache:726 - 📦 Loaded 653 sectors from cache
-2026-02-10 21:53:53.689 | INFO     | screeners.rapid_rotation_screener:_init_ai_universe:359 - ✅ AI Universe Generator initialized
-2026-02-10 21:53:53.690 | INFO     | screeners.rapid_rotation_screener:_init_market_regime:369 - ✅ Market Regime Detector initialized
-2026-02-10 21:53:53.822 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
-2026-02-10 21:53:53.870 | INFO     | api.data_manager:__init__:74 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: Yes
-2026-02-10 21:53:53.870 | INFO     | auto_trading_engine:__init__:405 - DataManager initialized with broker integration
-2026-02-10 21:53:53.870 | DEBUG    | trading_safety:set_config:166 - Safety config: DAILY_LOSS_LIMIT_PCT = 5.0
-2026-02-10 21:53:53.870 | DEBUG    | trading_safety:set_config:166 - Safety config: MAX_POSITIONS = 5
-2026-02-10 21:53:53.870 | DEBUG    | trading_safety:set_config:166 - Safety config: MAX_HOLD_DAYS = 5
-2026-02-10 21:53:53.870 | INFO     | trading_safety:__init__:129 - Trading Safety System initialized
-2026-02-10 21:53:53.871 | INFO     | pdt_smart_guard:_load_entry_dates:326 - PDT Guard: Loaded 5 entry dates from disk
-2026-02-10 21:53:53.871 | INFO     | pdt_smart_guard:__init__:255 - PDT Smart Guard v2.3 initialized (No Override Mode)
-2026-02-10 21:53:53.871 | INFO     | pdt_smart_guard:__init__:256 -   SL Threshold: -2.5%
-2026-02-10 21:53:53.871 | INFO     | pdt_smart_guard:__init__:257 -   TP Threshold: 4.0%
-2026-02-10 21:53:53.871 | INFO     | pdt_smart_guard:__init__:258 -   Reserve: 1 day trades
-2026-02-10 21:53:53.871 | INFO     | pdt_smart_guard:__init__:259 -   Budget = 0 → HOLD (ไม่ override PDT เด็ดขาด)
-2026-02-10 21:53:53.871 | INFO     | auto_trading_engine:__init__:423 - PDT Smart Guard v2.3 initialized (No Override - uses RapidRotationConfig)
-2026-02-10 21:53:53.873 | INFO     | trade_logger:_load_today_logs:303 - Loaded 12 logs from /home/saengtawan/work/project/cc/stock-analyzer/trade_logs/trade_log_2026-02-10.json
-2026-02-10 21:53:53.874 | INFO     | trade_logger:__init__:220 - TradeLogger initialized - logs: /home/saengtawan/work/project/cc/stock-analyzer/trade_logs, db: /home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db
-2026-02-10 21:53:53.874 | INFO     | auto_trading_engine:__init__:427 - Trade Logger v1.0 initialized
-2026-02-10 21:53:53.876 | INFO     | alert_manager:_load:345 - Loaded 200 alerts (next_id=2401)
-2026-02-10 21:53:53.876 | INFO     | auto_trading_engine:__init__:432 - Alert Manager v1.0 initialized
-2026-02-10 21:53:53.885 | DEBUG    | screeners.rapid_rotation_screener:__init__:216 - Loaded RapidRotationConfig from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
-2026-02-10 21:53:53.886 | INFO     | screeners.rapid_rotation_screener:_load_sector_cache:726 - 📦 Loaded 653 sectors from cache
-2026-02-10 21:53:53.886 | INFO     | screeners.rapid_rotation_screener:_init_ai_universe:359 - ✅ AI Universe Generator initialized
-2026-02-10 21:53:53.886 | INFO     | screeners.rapid_rotation_screener:_init_market_regime:369 - ✅ Market Regime Detector initialized
-2026-02-10 21:53:54.151 | INFO     | __main__:start_realtime_price_streamer:211 - Starting Real-time Price Streamer...
-2026-02-10 21:53:54.576 | INFO     | alpaca_streamer:__init__:64 - AlpacaStreamer v1.1 initialized (paper=True, feed=IEX)
-2026-02-10 21:53:54.576 | INFO     | alpaca_streamer:subscribe:205 - Queued subscription for: ['GOOGL', 'LMT']
-2026-02-10 21:53:54.577 | INFO     | __main__:start_realtime_price_streamer:244 - 📡 Subscribed to real-time prices: ['GOOGL', 'LMT']
-2026-02-10 21:53:54.579 | INFO     | alpaca_streamer:start:295 - AlpacaStreamer started
-2026-02-10 21:53:54.579 | INFO     | alpaca_streamer:_run_stream:253 - Streaming started for: ['GOOGL', 'LMT']
-2026-02-10 21:53:54.580 | INFO     | __main__:start_realtime_price_streamer:252 - ✅ Real-time Price Streamer started (WebSocket active!)
-2026-02-10 21:53:54.912 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
-2026-02-10 21:53:55.084 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
-2026-02-10 21:53:55.582 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
-2026-02-10 21:53:55.582 | INFO     | __main__:start_health_checker:342 - Health Checker started (check every 5 minutes)
-2026-02-10 21:53:55.589 | INFO     | __main__:start_universe_maintenance_scheduler:405 - Universe Maintenance Scheduler started (daily at 2:00 AM)
-2026-02-10 21:53:55.885 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
-2026-02-10 21:53:56.131 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
-2026-02-10 21:53:56.882 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
-2026-02-10 21:53:56.941 | INFO     | api.data_manager:__init__:74 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
-2026-02-10 21:53:56.942 | INFO     | sector_regime_detector:update_all_sectors:419 - Updating sector regimes (5-min realtime, MCW)...
-2026-02-10 21:53:56.943 | INFO     | sector_regime_detector:_build_sector_company_map:298 - Built sector company map: 550 stocks across 11 sectors (with market weights)
-2026-02-10 21:53:56.943 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:328 - Batch downloading 550 sector stocks for 1d returns...
-2026-02-10 21:53:56.943 | DEBUG    | api.yahoo_finance_client:batch_download_prices:626 - Cache hit for batch download (550 symbols)
-2026-02-10 21:53:56.967 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Technology (XLK): MCW 1d = +0.00% (50/50 stocks, weight=88.7%)
-2026-02-10 21:53:56.967 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Energy (XLE): MCW 1d = -0.13% (50/50 stocks, weight=92.2%)
-2026-02-10 21:53:56.967 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Financial Services (XLF): MCW 1d = +0.14% (48/50 stocks, weight=76.3%)
-2026-02-10 21:53:56.968 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Healthcare (XLV): MCW 1d = +0.11% (50/50 stocks, weight=81.4%)
-2026-02-10 21:53:56.968 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Cyclical (XLY): MCW 1d = +0.46% (50/50 stocks, weight=86.4%)
-2026-02-10 21:53:56.968 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Defensive (XLP): MCW 1d = -0.22% (49/50 stocks, weight=95.7%)
-2026-02-10 21:53:56.968 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Industrials (XLI): MCW 1d = +0.00% (50/50 stocks, weight=68.5%)
-2026-02-10 21:53:56.969 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Utilities (XLU): MCW 1d = +0.46% (48/50 stocks, weight=96.6%)
-2026-02-10 21:53:56.969 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Basic Materials (XLB): MCW 1d = -0.01% (50/50 stocks, weight=92.7%)
-2026-02-10 21:53:56.969 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Communication Services (XLC): MCW 1d = -0.44% (47/50 stocks, weight=98.8%)
-2026-02-10 21:53:56.969 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Real Estate (XLRE): MCW 1d = +0.38% (49/50 stocks, weight=80.8%)
-2026-02-10 21:53:56.969 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:396 - Market-cap weighted 1d returns calculated for 11 sectors
-2026-02-10 21:53:56.970 | INFO     | sector_regime_detector:update_all_sectors:424 - Using market-cap weighted 1d returns for 11 sectors
-2026-02-10 21:53:56.970 | INFO     | api.yahoo_finance_client:_smart_throttle:54 - 🚀 Starting Yahoo Finance session...
-2026-02-10 21:53:57.017 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
-2026-02-10 21:53:57.027 | INFO     | api.data_manager:__init__:74 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
-2026-02-10 21:53:57.027 | INFO     | sector_regime_detector:update_all_sectors:419 - Updating sector regimes (5-min realtime, MCW)...
-2026-02-10 21:53:57.028 | INFO     | sector_regime_detector:_build_sector_company_map:298 - Built sector company map: 550 stocks across 11 sectors (with market weights)
-2026-02-10 21:53:57.028 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:328 - Batch downloading 550 sector stocks for 1d returns...
-2026-02-10 21:53:57.028 | DEBUG    | api.yahoo_finance_client:batch_download_prices:626 - Cache hit for batch download (550 symbols)
-2026-02-10 21:53:57.049 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Technology (XLK): MCW 1d = +0.00% (50/50 stocks, weight=88.7%)
-2026-02-10 21:53:57.049 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Energy (XLE): MCW 1d = -0.13% (50/50 stocks, weight=92.2%)
-2026-02-10 21:53:57.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Financial Services (XLF): MCW 1d = +0.14% (48/50 stocks, weight=76.3%)
-2026-02-10 21:53:57.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Healthcare (XLV): MCW 1d = +0.11% (50/50 stocks, weight=81.4%)
-2026-02-10 21:53:57.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Cyclical (XLY): MCW 1d = +0.46% (50/50 stocks, weight=86.4%)
-2026-02-10 21:53:57.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Defensive (XLP): MCW 1d = -0.22% (49/50 stocks, weight=95.7%)
-2026-02-10 21:53:57.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Industrials (XLI): MCW 1d = +0.00% (50/50 stocks, weight=68.5%)
-2026-02-10 21:53:57.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Utilities (XLU): MCW 1d = +0.46% (48/50 stocks, weight=96.6%)
-2026-02-10 21:53:57.051 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Basic Materials (XLB): MCW 1d = -0.01% (50/50 stocks, weight=92.7%)
-2026-02-10 21:53:57.051 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Communication Services (XLC): MCW 1d = -0.44% (47/50 stocks, weight=98.8%)
-2026-02-10 21:53:57.051 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Real Estate (XLRE): MCW 1d = +0.38% (49/50 stocks, weight=80.8%)
-2026-02-10 21:53:57.051 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:396 - Market-cap weighted 1d returns calculated for 11 sectors
-2026-02-10 21:53:57.051 | INFO     | sector_regime_detector:update_all_sectors:424 - Using market-cap weighted 1d returns for 11 sectors
-2026-02-10 21:53:57.051 | INFO     | api.yahoo_finance_client:_smart_throttle:54 - 🚀 Starting Yahoo Finance session...
-2026-02-10 21:53:58.148 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $629.63 x17
-2026-02-10 21:53:59.075 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLK
-2026-02-10 21:53:59.075 | INFO     | sector_regime_detector:update_all_sectors:466 - XLK (Technology): SIDEWAYS (score=+0.9) | 1d[M]: +0.0% | 5d: +3.9% | 20d: -2.25%
-2026-02-10 21:53:59.229 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLK
-2026-02-10 21:53:59.229 | INFO     | sector_regime_detector:update_all_sectors:466 - XLK (Technology): SIDEWAYS (score=+0.9) | 1d[M]: +0.0% | 5d: +3.9% | 20d: -2.25%
-2026-02-10 21:54:00.267 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLE
-2026-02-10 21:54:00.267 | INFO     | sector_regime_detector:update_all_sectors:466 - XLE (Energy): BULL (score=+3.9) | 1d[M]: -0.1% | 5d: +1.1% | 20d: +15.29%
-2026-02-10 21:54:00.474 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.37 x100
-2026-02-10 21:54:00.719 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLE
-2026-02-10 21:54:00.719 | INFO     | sector_regime_detector:update_all_sectors:466 - XLE (Energy): BULL (score=+3.9) | 1d[M]: -0.1% | 5d: +1.1% | 20d: +15.29%
-2026-02-10 21:54:01.281 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.38 x100
-2026-02-10 21:54:01.835 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLF
-2026-02-10 21:54:01.835 | INFO     | sector_regime_detector:update_all_sectors:466 - XLF (Financial Services): SIDEWAYS (score=-0.2) | 1d[M]: +0.1% | 5d: +0.5% | 20d: -1.94%
-2026-02-10 21:54:01.872 | WARNING  | __main__:run_health:309 - ========================================
-2026-02-10 21:54:01.872 | WARNING  | __main__:run_health:310 - HEALTH CHECK FAILED
-2026-02-10 21:54:01.873 | WARNING  | __main__:run_health:312 -   HEALTH: Dead threads: web, price_streamer
-2026-02-10 21:54:01.873 | WARNING  | __main__:run_health:313 - ========================================
-2026-02-10 21:54:01.886 | INFO     | alert_manager:add:105 - Alert [WARNING] Health Check Failed: 1 issue(s): Dead threads: web, price_streamer
-2026-02-10 21:54:02.126 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLF
-2026-02-10 21:54:02.126 | INFO     | sector_regime_detector:update_all_sectors:466 - XLF (Financial Services): SIDEWAYS (score=-0.2) | 1d[M]: +0.1% | 5d: +0.5% | 20d: -1.94%
-2026-02-10 21:54:03.003 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLV
-2026-02-10 21:54:03.004 | INFO     | sector_regime_detector:update_all_sectors:466 - XLV (Healthcare): SIDEWAYS (score=+0.1) | 1d[M]: +0.1% | 5d: +0.5% | 20d: -0.39%
-2026-02-10 21:54:03.652 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLV
-2026-02-10 21:54:03.652 | INFO     | sector_regime_detector:update_all_sectors:466 - XLV (Healthcare): SIDEWAYS (score=+0.1) | 1d[M]: +0.1% | 5d: +0.5% | 20d: -0.39%
-2026-02-10 21:54:04.200 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLY
-2026-02-10 21:54:04.201 | INFO     | sector_regime_detector:update_all_sectors:466 - XLY (Consumer Cyclical): SIDEWAYS (score=-1.3) | 1d[M]: +0.5% | 5d: -1.4% | 20d: -4.89%
-2026-02-10 21:54:05.013 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLY
-2026-02-10 21:54:05.014 | INFO     | sector_regime_detector:update_all_sectors:466 - XLY (Consumer Cyclical): SIDEWAYS (score=-1.3) | 1d[M]: +0.5% | 5d: -1.4% | 20d: -4.91%
-2026-02-10 21:54:05.475 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLP
-2026-02-10 21:54:05.476 | INFO     | sector_regime_detector:update_all_sectors:466 - XLP (Consumer Defensive): BULL (score=+2.5) | 1d[M]: -0.2% | 5d: +0.8% | 20d: +9.32%
-2026-02-10 21:54:05.721 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.36 x3
-2026-02-10 21:54:05.722 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.42 x3
-2026-02-10 21:54:05.723 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.42 x97
-2026-02-10 21:54:05.723 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.43 x60
-2026-02-10 21:54:05.848 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.42 x100
-2026-02-10 21:54:06.441 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLP
-2026-02-10 21:54:06.442 | INFO     | sector_regime_detector:update_all_sectors:466 - XLP (Consumer Defensive): BULL (score=+2.5) | 1d[M]: -0.2% | 5d: +0.8% | 20d: +9.32%
-2026-02-10 21:54:06.483 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $629.66 x1
-2026-02-10 21:54:06.850 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLI
-2026-02-10 21:54:06.851 | INFO     | sector_regime_detector:update_all_sectors:466 - XLI (Industrials): BULL (score=+2.7) | 1d[M]: +0.0% | 5d: +2.6% | 20d: +6.46%
-2026-02-10 21:54:07.630 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLI
-2026-02-10 21:54:07.630 | INFO     | sector_regime_detector:update_all_sectors:466 - XLI (Industrials): BULL (score=+2.7) | 1d[M]: +0.0% | 5d: +2.6% | 20d: +6.46%
-2026-02-10 21:54:08.177 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLU
-2026-02-10 21:54:08.177 | INFO     | sector_regime_detector:update_all_sectors:466 - XLU (Utilities): SIDEWAYS (score=+1.4) | 1d[M]: +0.5% | 5d: +1.8% | 20d: +2.96%
-2026-02-10 21:54:08.631 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $629.66 x1
-2026-02-10 21:54:08.807 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.37 x103
-2026-02-10 21:54:08.991 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLU
-2026-02-10 21:54:08.992 | INFO     | sector_regime_detector:update_all_sectors:466 - XLU (Utilities): SIDEWAYS (score=+1.4) | 1d[M]: +0.5% | 5d: +1.8% | 20d: +2.95%
-2026-02-10 21:54:09.049 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.35 x84
-2026-02-10 21:54:09.694 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLB
-2026-02-10 21:54:09.694 | INFO     | sector_regime_detector:update_all_sectors:466 - XLB (Basic Materials): BULL (score=+1.8) | 1d[M]: -0.0% | 5d: +0.8% | 20d: +7.76%
-2026-02-10 21:54:10.170 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLB
-2026-02-10 21:54:10.170 | INFO     | sector_regime_detector:update_all_sectors:466 - XLB (Basic Materials): BULL (score=+1.8) | 1d[M]: -0.0% | 5d: +0.8% | 20d: +7.76%
-2026-02-10 21:54:10.390 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.47 x100
-2026-02-10 21:54:10.390 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.41 x50
+2026-02-10 22:01:45.914 | INFO     | web.app:handle_connect:3613 - WebSocket client connected: kcyUSPu2O9ip8Dm3AAAB (total: 1)
+2026-02-10 22:01:46.003 | INFO     | auto_trading_engine:_load_config_from_yaml:761 - ✅ Loaded ALL parameters from RapidRotationConfig (v6.10)
+2026-02-10 22:01:46.003 | INFO     | auto_trading_engine:_load_config_from_yaml:762 -    SL range: 2.0%-3.0%
+2026-02-10 22:01:46.003 | INFO     | auto_trading_engine:_load_config_from_yaml:763 -    Max positions: 5
+2026-02-10 22:01:46.003 | INFO     | auto_trading_engine:_load_config_from_yaml:764 -    Regime filter: ENABLED
+2026-02-10 22:01:46.003 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+2026-02-10 22:01:46.405 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 938 cached items from disk
+2026-02-10 22:01:46.767 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 938 cached items from disk
+2026-02-10 22:01:47.084 | INFO     | __main__:start_rapid_portfolio_monitor:147 - Starting Rapid Portfolio Monitor...
+2026-02-10 22:01:47.097 | INFO     | __main__:start_rapid_portfolio_monitor:193 - Rapid Portfolio Monitor started (check every 5 minutes)
+2026-02-10 22:01:47.209 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 938 cached items from disk
+2026-02-10 22:01:47.220 | INFO     | api.data_manager:__init__:74 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: Yes
+2026-02-10 22:01:47.220 | INFO     | auto_trading_engine:__init__:405 - DataManager initialized with broker integration
+2026-02-10 22:01:47.220 | DEBUG    | trading_safety:set_config:166 - Safety config: DAILY_LOSS_LIMIT_PCT = 5.0
+2026-02-10 22:01:47.220 | DEBUG    | trading_safety:set_config:166 - Safety config: MAX_POSITIONS = 5
+2026-02-10 22:01:47.220 | DEBUG    | trading_safety:set_config:166 - Safety config: MAX_HOLD_DAYS = 5
+2026-02-10 22:01:47.220 | INFO     | trading_safety:__init__:129 - Trading Safety System initialized
+2026-02-10 22:01:47.220 | INFO     | pdt_smart_guard:_load_entry_dates:326 - PDT Guard: Loaded 5 entry dates from disk
+2026-02-10 22:01:47.220 | INFO     | pdt_smart_guard:__init__:255 - PDT Smart Guard v2.3 initialized (No Override Mode)
+2026-02-10 22:01:47.220 | INFO     | pdt_smart_guard:__init__:256 -   SL Threshold: -2.5%
+2026-02-10 22:01:47.220 | INFO     | pdt_smart_guard:__init__:257 -   TP Threshold: 4.0%
+2026-02-10 22:01:47.220 | INFO     | pdt_smart_guard:__init__:258 -   Reserve: 1 day trades
+2026-02-10 22:01:47.220 | INFO     | pdt_smart_guard:__init__:259 -   Budget = 0 → HOLD (ไม่ override PDT เด็ดขาด)
+2026-02-10 22:01:47.220 | INFO     | auto_trading_engine:__init__:423 - PDT Smart Guard v2.3 initialized (No Override - uses RapidRotationConfig)
+2026-02-10 22:01:47.222 | INFO     | trade_logger:_load_today_logs:303 - Loaded 20 logs from /home/saengtawan/work/project/cc/stock-analyzer/trade_logs/trade_log_2026-02-10.json
+2026-02-10 22:01:47.222 | INFO     | trade_logger:__init__:220 - TradeLogger initialized - logs: /home/saengtawan/work/project/cc/stock-analyzer/trade_logs, db: /home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db
+2026-02-10 22:01:47.222 | INFO     | auto_trading_engine:__init__:427 - Trade Logger v1.0 initialized
+2026-02-10 22:01:47.223 | INFO     | alert_manager:_load:345 - Loaded 200 alerts (next_id=2405)
+2026-02-10 22:01:47.223 | INFO     | auto_trading_engine:__init__:432 - Alert Manager v1.0 initialized
+2026-02-10 22:01:47.232 | DEBUG    | screeners.rapid_rotation_screener:__init__:216 - Loaded RapidRotationConfig from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
+2026-02-10 22:01:47.232 | INFO     | screeners.rapid_rotation_screener:_load_sector_cache:726 - 📦 Loaded 650 sectors from cache
+2026-02-10 22:01:47.232 | INFO     | screeners.rapid_rotation_screener:_init_ai_universe:359 - ✅ AI Universe Generator initialized
+2026-02-10 22:01:47.232 | INFO     | screeners.rapid_rotation_screener:_init_market_regime:369 - ✅ Market Regime Detector initialized
+2026-02-10 22:01:47.544 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - GOOGL: Intraday price $318.03 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:01:47.544 | DEBUG    | rapid_portfolio_manager:get_current_price:468 - GOOGL: Price $318.03 from intraday (1m bars) (realtime: True)
+2026-02-10 22:01:47.591 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 938 cached items from disk
+2026-02-10 22:01:47.602 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - LMT: Intraday price $627.97 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:01:47.602 | DEBUG    | rapid_portfolio_manager:get_current_price:468 - LMT: Price $627.97 from intraday (1m bars) (realtime: True)
+2026-02-10 22:01:47.611 | DEBUG    | screeners.rapid_rotation_screener:__init__:216 - Loaded RapidRotationConfig from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
+2026-02-10 22:01:47.612 | INFO     | screeners.rapid_rotation_screener:_load_sector_cache:726 - 📦 Loaded 650 sectors from cache
+2026-02-10 22:01:47.612 | INFO     | screeners.rapid_rotation_screener:_init_ai_universe:359 - ✅ AI Universe Generator initialized
+2026-02-10 22:01:47.612 | INFO     | screeners.rapid_rotation_screener:_init_market_regime:369 - ✅ Market Regime Detector initialized
+2026-02-10 22:01:48.098 | INFO     | __main__:start_realtime_price_streamer:211 - Starting Real-time Price Streamer...
+2026-02-10 22:01:48.378 | INFO     | alpaca_streamer:__init__:64 - AlpacaStreamer v1.1 initialized (paper=True, feed=IEX)
+2026-02-10 22:01:48.378 | INFO     | alpaca_streamer:subscribe:205 - Queued subscription for: ['GOOGL', 'LMT']
+2026-02-10 22:01:48.379 | INFO     | __main__:start_realtime_price_streamer:253 - 📡 Subscribed to real-time prices: ['GOOGL', 'LMT']
+2026-02-10 22:01:48.380 | INFO     | alpaca_streamer:start:295 - AlpacaStreamer started
+2026-02-10 22:01:48.380 | INFO     | __main__:start_realtime_price_streamer:261 - ✅ Real-time Price Streamer started (WebSocket active!)
+2026-02-10 22:01:48.380 | INFO     | alpaca_streamer:_run_stream:253 - Streaming started for: ['GOOGL', 'LMT']
+2026-02-10 22:01:48.843 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 938 cached items from disk
+2026-02-10 22:01:48.860 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 938 cached items from disk
+2026-02-10 22:01:49.414 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+2026-02-10 22:01:49.414 | INFO     | __main__:start_health_checker:351 - Health Checker started (check every 5 minutes)
+2026-02-10 22:01:49.423 | INFO     | __main__:start_universe_maintenance_scheduler:414 - Universe Maintenance Scheduler started (daily at 2:00 AM)
+2026-02-10 22:01:49.820 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 938 cached items from disk
+2026-02-10 22:01:49.833 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 938 cached items from disk
+2026-02-10 22:01:49.859 | INFO     | api.data_manager:__init__:74 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
+2026-02-10 22:01:49.859 | INFO     | sector_regime_detector:update_all_sectors:419 - Updating sector regimes (5-min realtime, MCW)...
+2026-02-10 22:01:49.860 | INFO     | sector_regime_detector:_build_sector_company_map:298 - Built sector company map: 550 stocks across 11 sectors (with market weights)
+2026-02-10 22:01:49.860 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:328 - Batch downloading 550 sector stocks for 1d returns...
+2026-02-10 22:01:49.860 | DEBUG    | api.yahoo_finance_client:batch_download_prices:626 - Cache hit for batch download (550 symbols)
+2026-02-10 22:01:49.883 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Technology (XLK): MCW 1d = +0.33% (50/50 stocks, weight=88.7%)
+2026-02-10 22:01:49.883 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Energy (XLE): MCW 1d = -0.33% (50/50 stocks, weight=92.2%)
+2026-02-10 22:01:49.883 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Financial Services (XLF): MCW 1d = +0.43% (49/50 stocks, weight=76.7%)
+2026-02-10 22:01:49.883 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Healthcare (XLV): MCW 1d = -0.14% (50/50 stocks, weight=81.4%)
+2026-02-10 22:01:49.884 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Cyclical (XLY): MCW 1d = +0.96% (50/50 stocks, weight=86.4%)
+2026-02-10 22:01:49.884 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Defensive (XLP): MCW 1d = +0.08% (49/50 stocks, weight=95.7%)
+2026-02-10 22:01:49.884 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Industrials (XLI): MCW 1d = +0.03% (50/50 stocks, weight=68.5%)
+2026-02-10 22:01:49.884 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Utilities (XLU): MCW 1d = +0.58% (48/50 stocks, weight=96.6%)
+2026-02-10 22:01:49.884 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Basic Materials (XLB): MCW 1d = -0.15% (50/50 stocks, weight=92.7%)
+2026-02-10 22:01:49.885 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Communication Services (XLC): MCW 1d = -0.48% (47/50 stocks, weight=98.8%)
+2026-02-10 22:01:49.885 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Real Estate (XLRE): MCW 1d = +0.54% (50/50 stocks, weight=81.4%)
+2026-02-10 22:01:49.885 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:396 - Market-cap weighted 1d returns calculated for 11 sectors
+2026-02-10 22:01:49.885 | INFO     | sector_regime_detector:update_all_sectors:424 - Using market-cap weighted 1d returns for 11 sectors
+2026-02-10 22:01:49.885 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLK
+2026-02-10 22:01:49.885 | INFO     | sector_regime_detector:update_all_sectors:466 - XLK (Technology): SIDEWAYS (score=+1.1) | 1d[M]: +0.3% | 5d: +4.0% | 20d: -2.14%
+2026-02-10 22:01:49.886 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLE
+2026-02-10 22:01:49.886 | INFO     | sector_regime_detector:update_all_sectors:466 - XLE (Energy): BULL (score=+3.8) | 1d[M]: -0.3% | 5d: +1.2% | 20d: +15.34%
+2026-02-10 22:01:49.886 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLF
+2026-02-10 22:01:49.886 | INFO     | sector_regime_detector:update_all_sectors:466 - XLF (Financial Services): SIDEWAYS (score=-0.1) | 1d[M]: +0.4% | 5d: +0.4% | 20d: -2.03%
+2026-02-10 22:01:49.886 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLV
+2026-02-10 22:01:49.886 | INFO     | sector_regime_detector:update_all_sectors:466 - XLV (Healthcare): SIDEWAYS (score=-0.1) | 1d[M]: -0.1% | 5d: +0.3% | 20d: -0.56%
+2026-02-10 22:01:49.886 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLY
+2026-02-10 22:01:49.887 | INFO     | sector_regime_detector:update_all_sectors:466 - XLY (Consumer Cyclical): SIDEWAYS (score=-0.8) | 1d[M]: +1.0% | 5d: -1.0% | 20d: -4.55%
+2026-02-10 22:01:49.887 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLP
+2026-02-10 22:01:49.887 | INFO     | sector_regime_detector:update_all_sectors:466 - XLP (Consumer Defensive): BULL (score=+2.6) | 1d[M]: +0.1% | 5d: +0.7% | 20d: +9.29%
+2026-02-10 22:01:49.887 | INFO     | api.yahoo_finance_client:_smart_throttle:54 - 🚀 Starting Yahoo Finance session...
+2026-02-10 22:01:50.236 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 938 cached items from disk
+2026-02-10 22:01:50.247 | INFO     | api.data_manager:__init__:74 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
+2026-02-10 22:01:50.247 | INFO     | sector_regime_detector:update_all_sectors:419 - Updating sector regimes (5-min realtime, MCW)...
+2026-02-10 22:01:50.248 | INFO     | sector_regime_detector:_build_sector_company_map:298 - Built sector company map: 550 stocks across 11 sectors (with market weights)
+2026-02-10 22:01:50.248 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:328 - Batch downloading 550 sector stocks for 1d returns...
+2026-02-10 22:01:50.248 | DEBUG    | api.yahoo_finance_client:batch_download_prices:626 - Cache hit for batch download (550 symbols)
+2026-02-10 22:01:50.269 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Technology (XLK): MCW 1d = +0.33% (50/50 stocks, weight=88.7%)
+2026-02-10 22:01:50.270 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Energy (XLE): MCW 1d = -0.33% (50/50 stocks, weight=92.2%)
+2026-02-10 22:01:50.270 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Financial Services (XLF): MCW 1d = +0.43% (49/50 stocks, weight=76.7%)
+2026-02-10 22:01:50.270 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Healthcare (XLV): MCW 1d = -0.14% (50/50 stocks, weight=81.4%)
+2026-02-10 22:01:50.270 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Cyclical (XLY): MCW 1d = +0.96% (50/50 stocks, weight=86.4%)
+2026-02-10 22:01:50.270 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Defensive (XLP): MCW 1d = +0.08% (49/50 stocks, weight=95.7%)
+2026-02-10 22:01:50.270 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Industrials (XLI): MCW 1d = +0.03% (50/50 stocks, weight=68.5%)
+2026-02-10 22:01:50.271 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Utilities (XLU): MCW 1d = +0.58% (48/50 stocks, weight=96.6%)
+2026-02-10 22:01:50.271 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Basic Materials (XLB): MCW 1d = -0.15% (50/50 stocks, weight=92.7%)
+2026-02-10 22:01:50.271 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Communication Services (XLC): MCW 1d = -0.48% (47/50 stocks, weight=98.8%)
+2026-02-10 22:01:50.271 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Real Estate (XLRE): MCW 1d = +0.54% (50/50 stocks, weight=81.4%)
+2026-02-10 22:01:50.271 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:396 - Market-cap weighted 1d returns calculated for 11 sectors
+2026-02-10 22:01:50.271 | INFO     | sector_regime_detector:update_all_sectors:424 - Using market-cap weighted 1d returns for 11 sectors
+2026-02-10 22:01:50.271 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLK
+2026-02-10 22:01:50.272 | INFO     | sector_regime_detector:update_all_sectors:466 - XLK (Technology): SIDEWAYS (score=+1.1) | 1d[M]: +0.3% | 5d: +4.0% | 20d: -2.14%
+2026-02-10 22:01:50.272 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLE
+2026-02-10 22:01:50.272 | INFO     | sector_regime_detector:update_all_sectors:466 - XLE (Energy): BULL (score=+3.8) | 1d[M]: -0.3% | 5d: +1.2% | 20d: +15.34%
+2026-02-10 22:01:50.272 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLF
+2026-02-10 22:01:50.272 | INFO     | sector_regime_detector:update_all_sectors:466 - XLF (Financial Services): SIDEWAYS (score=-0.1) | 1d[M]: +0.4% | 5d: +0.4% | 20d: -2.03%
+2026-02-10 22:01:50.272 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLV
+2026-02-10 22:01:50.272 | INFO     | sector_regime_detector:update_all_sectors:466 - XLV (Healthcare): SIDEWAYS (score=-0.1) | 1d[M]: -0.1% | 5d: +0.3% | 20d: -0.56%
+2026-02-10 22:01:50.272 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLY
+2026-02-10 22:01:50.272 | INFO     | sector_regime_detector:update_all_sectors:466 - XLY (Consumer Cyclical): SIDEWAYS (score=-0.8) | 1d[M]: +1.0% | 5d: -1.0% | 20d: -4.55%
+2026-02-10 22:01:50.272 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLP
+2026-02-10 22:01:50.272 | INFO     | sector_regime_detector:update_all_sectors:466 - XLP (Consumer Defensive): BULL (score=+2.6) | 1d[M]: +0.1% | 5d: +0.7% | 20d: +9.29%
+2026-02-10 22:01:50.272 | INFO     | api.yahoo_finance_client:_smart_throttle:54 - 🚀 Starting Yahoo Finance session...
+2026-02-10 22:01:51.208 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.08 x50
+2026-02-10 22:01:51.209 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.08 x50
+2026-02-10 22:01:51.209 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.07 x50
+2026-02-10 22:01:51.210 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.07 x50
+127.0.0.1 - - [10/Feb/2026 22:01:51] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
+2026-02-10 22:01:52.054 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.07 x1
+2026-02-10 22:01:52.074 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLI
+2026-02-10 22:01:52.074 | INFO     | sector_regime_detector:update_all_sectors:466 - XLI (Industrials): BULL (score=+2.7) | 1d[M]: +0.0% | 5d: +2.6% | 20d: +6.53%
+2026-02-10 22:01:52.183 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.05 x4
+2026-02-10 22:01:52.399 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLI
+2026-02-10 22:01:52.400 | INFO     | sector_regime_detector:update_all_sectors:466 - XLI (Industrials): BULL (score=+2.7) | 1d[M]: +0.0% | 5d: +2.6% | 20d: +6.53%
+2026-02-10 22:01:53.581 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLU
+2026-02-10 22:01:53.581 | INFO     | sector_regime_detector:update_all_sectors:466 - XLU (Utilities): SIDEWAYS (score=+1.4) | 1d[M]: +0.6% | 5d: +1.7% | 20d: +2.88%
+2026-02-10 22:01:53.794 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLU
+2026-02-10 22:01:53.794 | INFO     | sector_regime_detector:update_all_sectors:466 - XLU (Utilities): SIDEWAYS (score=+1.4) | 1d[M]: +0.6% | 5d: +1.7% | 20d: +2.88%
+2026-02-10 22:01:54.995 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLB
+2026-02-10 22:01:54.996 | INFO     | sector_regime_detector:update_all_sectors:466 - XLB (Basic Materials): BULL (score=+1.8) | 1d[M]: -0.2% | 5d: +0.9% | 20d: +7.86%
+2026-02-10 22:01:55.124 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLB
+2026-02-10 22:01:55.125 | INFO     | sector_regime_detector:update_all_sectors:466 - XLB (Basic Materials): BULL (score=+1.8) | 1d[M]: -0.2% | 5d: +0.9% | 20d: +7.86%
+2026-02-10 22:01:55.695 | WARNING  | __main__:run_health:318 - ========================================
+2026-02-10 22:01:55.695 | WARNING  | __main__:run_health:319 - HEALTH CHECK FAILED
+2026-02-10 22:01:55.695 | WARNING  | __main__:run_health:321 -   HEALTH: Dead threads: web
+2026-02-10 22:01:55.696 | WARNING  | __main__:run_health:322 - ========================================
+2026-02-10 22:01:55.707 | INFO     | alert_manager:add:105 - Alert [WARNING] Health Check Failed: 1 issue(s): Dead threads: web
+2026-02-10 22:01:56.180 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.88 x97
+2026-02-10 22:01:56.192 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLC
+2026-02-10 22:01:56.193 | INFO     | sector_regime_detector:update_all_sectors:466 - XLC (Communication Services): SIDEWAYS (score=-0.0) | 1d[M]: -0.5% | 5d: +0.6% | 20d: -0.05%
+2026-02-10 22:01:56.309 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLC
+2026-02-10 22:01:56.309 | INFO     | sector_regime_detector:update_all_sectors:466 - XLC (Communication Services): SIDEWAYS (score=-0.0) | 1d[M]: -0.5% | 5d: +0.6% | 20d: -0.05%
+2026-02-10 22:01:57.418 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.77 x100
+2026-02-10 22:01:57.542 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLRE
+2026-02-10 22:01:57.542 | INFO     | sector_regime_detector:update_all_sectors:466 - XLRE (Real Estate): BULL (score=+2.0) | 1d[M]: +0.5% | 5d: +2.4% | 20d: +4.56%
+2026-02-10 22:01:57.543 | INFO     | screeners.rapid_rotation_screener:_init_sector_regime:383 - ✅ Sector Regime Detector initialized
+2026-02-10 22:01:57.543 | INFO     | screeners.rapid_rotation_screener:_init_alt_data:393 - ✅ Alternative Data Aggregator initialized (6 sources)
+2026-02-10 22:01:57.543 | INFO     | strategies.strategy_manager:register:48 - ✅ Registered strategy: Dip-Bounce (dip_bounce)
+2026-02-10 22:01:57.543 | INFO     | screeners.rapid_rotation_screener:_init_strategy_manager:425 - ✅ Strategy Manager initialized (1 strategy: Dip-Bounce)
+2026-02-10 22:01:57.544 | INFO     | screeners.rapid_rotation_screener:generate_universe:471 - 📦 Using pre-filtered pool: 260 stocks (age: 0.8h)
+2026-02-10 22:01:57.544 | INFO     | screeners.rapid_rotation_screener:generate_universe:541 - 🔥 Hot sectors: Energy, Consumer Defensive, Industrials, Basic Materials, Real Estate
+2026-02-10 22:01:57.544 | INFO     | screeners.rapid_rotation_screener:_load_data_via_yfinance:934 - 📊 Loading data for 260 stocks via yfinance (parallel)...
+2026-02-10 22:01:57.589 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLRE
+2026-02-10 22:01:57.591 | INFO     | sector_regime_detector:update_all_sectors:466 - XLRE (Real Estate): BULL (score=+2.0) | 1d[M]: +0.5% | 5d: +2.4% | 20d: +4.56%
+2026-02-10 22:01:57.593 | INFO     | screeners.rapid_rotation_screener:_init_sector_regime:383 - ✅ Sector Regime Detector initialized
+2026-02-10 22:01:57.594 | INFO     | screeners.rapid_rotation_screener:_init_alt_data:393 - ✅ Alternative Data Aggregator initialized (6 sources)
+2026-02-10 22:01:57.594 | INFO     | strategies.strategy_manager:register:48 - ✅ Registered strategy: Dip-Bounce (dip_bounce)
+2026-02-10 22:01:57.594 | INFO     | screeners.rapid_rotation_screener:_init_strategy_manager:425 - ✅ Strategy Manager initialized (1 strategy: Dip-Bounce)
+2026-02-10 22:01:57.596 | INFO     | auto_trading_engine:__init__:439 - Screener initialized
+2026-02-10 22:01:57.597 | INFO     | auto_trading_engine:__init__:450 - OvernightGapScanner initialized
+2026-02-10 22:01:57.602 | INFO     | auto_trading_engine:__init__:457 - BreakoutScanner initialized
+2026-02-10 22:01:57.604 | INFO     | auto_trading_engine:__init__:464 - SLTPCalculator initialized
+2026-02-10 22:01:58.360 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.83 x5
+2026-02-10 22:01:58.589 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.83 x5
+2026-02-10 22:01:58.657 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.83 x5
+2026-02-10 22:01:58.748 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.76 x200
+2026-02-10 22:01:58.751 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.83 x5
+2026-02-10 22:01:58.987 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.83 x10
+2026-02-10 22:01:59.002 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.83 x10
+2026-02-10 22:01:59.006 | INFO     | auto_trading_engine:_load_positions_state:788 - Loaded persisted state: 2 positions (saved at 2026-02-10T21:59:56.093459)
+2026-02-10 22:01:59.046 | INFO     | auto_trading_engine:_sync_positions:1111 - Restored position: AIT (peak=$286.20, trail=OFF)
+2026-02-10 22:01:59.118 | DEBUG    | pdt_smart_guard:record_entry:340 - PDT Guard: Recorded entry for AIT on 2026-02-10 (ET)
+2026-02-10 22:01:59.119 | INFO     | auto_trading_engine:_sync_positions:1111 - Restored position: MCHP (peak=$76.83, trail=OFF)
+2026-02-10 22:01:59.213 | DEBUG    | pdt_smart_guard:record_entry:340 - PDT Guard: Recorded entry for MCHP on 2026-02-10 (ET)
+2026-02-10 22:01:59.213 | INFO     | auto_trading_engine:_sync_positions:1124 - Synced 2 positions
+2026-02-10 22:01:59.534 | INFO     | pdt_smart_guard:log_status:541 - ==================================================
+2026-02-10 22:01:59.595 | INFO     | pdt_smart_guard:log_status:542 - PDT SMART GUARD STATUS
+2026-02-10 22:01:59.609 | INFO     | pdt_smart_guard:log_status:543 - ==================================================
+2026-02-10 22:01:59.621 | INFO     | pdt_smart_guard:log_status:544 - Day Trades: 4/3 (remaining: 0)
+2026-02-10 22:01:59.663 | INFO     | pdt_smart_guard:log_status:545 - Reserve Active: True
+2026-02-10 22:01:59.684 | INFO     | pdt_smart_guard:log_status:546 - Flagged: False
+2026-02-10 22:01:59.687 | INFO     | pdt_smart_guard:log_status:549 - Positions:
+2026-02-10 22:01:59.713 | INFO     | pdt_smart_guard:log_status:552 -   LMT: Day 4
+2026-02-10 22:01:59.715 | INFO     | pdt_smart_guard:log_status:552 -   GOOGL: Day 4
+2026-02-10 22:01:59.726 | INFO     | pdt_smart_guard:log_status:552 -   MCHP: Day 0 ⚠️ DAY TRADE
+2026-02-10 22:01:59.728 | INFO     | pdt_smart_guard:log_status:552 -   SYNA: Day 0 ⚠️ DAY TRADE
+2026-02-10 22:01:59.728 | INFO     | pdt_smart_guard:log_status:552 -   AIT: Day 0 ⚠️ DAY TRADE
+2026-02-10 22:01:59.730 | INFO     | pdt_smart_guard:log_status:554 - ==================================================
+2026-02-10 22:01:59.737 | DEBUG    | auto_trading_engine:_save_positions_state:778 - Position state saved: 2 positions
+2026-02-10 22:01:59.807 | INFO     | auto_trading_engine:_load_queue_state:837 - Loaded persisted queue: 3 signals (saved at 2026-02-10T21:57:30.794110)
+2026-02-10 22:01:59.862 | INFO     | auto_trading_engine:_load_loss_counters:2136 - Loaded loss counters: consecutive=0, weekly_pnl=$0.00
+2026-02-10 22:01:59.896 | INFO     | auto_trading_engine:__init__:524 - AutoTradingEngine initialized (paper=True)
+2026-02-10 22:01:59.896 | INFO     | auto_trading_engine:_run_loop:4835 - Trading loop started
+2026-02-10 22:01:59.902 | INFO     | auto_trading_engine:start:4506 - Trading engine started
+2026-02-10 22:02:00.802 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-10 22:02:00.841 | INFO     | trading_safety:run_health_check:493 - Running health check...
+127.0.0.1 - - [10/Feb/2026 22:02:00] "GET /api/rapid/signals HTTP/1.1" 200 -
+2026-02-10 22:02:01.046 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.75 x100
+2026-02-10 22:02:01.046 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.75 x1
+2026-02-10 22:02:01.107 | INFO     | auto_trading_engine:_reconcile_positions:2949 - ✅ RECONCILE: OK (2 positions match)
+2026-02-10 22:02:01.147 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.67 x6
+2026-02-10 22:02:01.161 | WARNING  | auto_trading_engine:_is_late_start:2166 - ⚠️ Late start: 32 min after open (cutoff: 20 min)
+2026-02-10 22:02:01.171 | INFO     | auto_trading_engine:_loop_morning_scan:4645 - ⏰ Late start: 32 min after open (cutoff: 20 min) — running immediate scan with afternoon parameters
+2026-02-10 22:02:01.225 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.63 x100
+2026-02-10 22:02:01.697 | DEBUG    | auto_trading_engine:_get_spy_data_from_broker:1214 - SPY data from broker: 44 bars
+2026-02-10 22:02:01.716 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.71 x24
+2026-02-10 22:02:02.161 | INFO     | auto_trading_engine:_check_market_regime:1304 - ✅ Market Regime: BULL: SMA20=OK(+0.8%) | RSI=OK(60) | Ret5d=OK(+0.9%) | VIX=OK(17.6)
+2026-02-10 22:02:02.243 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-10 22:02:02.358 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.83 x1
+2026-02-10 22:02:02.467 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+2026-02-10 22:02:02.569 | DEBUG    | auto_trading_engine:_get_spy_data_from_broker:1214 - SPY data from broker: 44 bars
+2026-02-10 22:02:02.636 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.69 x100
+2026-02-10 22:02:02.636 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.69 x1
+2026-02-10 22:02:02.693 | INFO     | screeners.rapid_rotation_screener:_load_data_via_yfinance:970 - ✅ Loaded 260/260 stocks via yfinance (parallel)
+2026-02-10 22:02:02.696 | DEBUG    | screeners.rapid_rotation_screener:_clear_stale_caches:334 - Failed to clear yfinance cache: module 'yfinance.cache' has no attribute 'clear'
+2026-02-10 22:02:02.696 | DEBUG    | data_sources.realtime_price:clear_cache:162 - Real-time price cache cleared
+2026-02-10 22:02:02.696 | DEBUG    | screeners.rapid_rotation_screener:_clear_stale_caches:339 - Cleared real-time price cache
+2026-02-10 22:02:02.696 | INFO     | sector_regime_detector:update_all_sectors:412 - Using cached sector regimes (updated 0min ago)
+2026-02-10 22:02:02.801 | INFO     | auto_trading_engine:_check_market_regime:1304 - ✅ Market Regime: BULL: SMA20=OK(+0.8%) | RSI=OK(60) | Ret5d=OK(+0.9%) | VIX=OK(17.6)
+2026-02-10 22:02:02.804 | WARNING  | screeners.rapid_rotation_screener:check_spy_regime:608 - Not enough SPY data for regime check — defaulting to BEAR (fail-closed)
+2026-02-10 22:02:02.805 | WARNING  | screeners.rapid_rotation_screener:screen:1262 - 🔴 SPY BEAR REGIME - SKIPPING ALL NEW SIGNALS
+2026-02-10 22:02:02.805 | WARNING  | screeners.rapid_rotation_screener:screen:1263 -    Insufficient data — defaulting to BEAR for safety
+2026-02-10 22:02:02.816 | WARNING  | __main__:run_monitor:165 - 🔴 CRITICAL: LMT - 🔴 SELL - Trailing Stop!
+2026-02-10 22:02:02.816 | WARNING  | __main__:run_monitor:168 - 🟠 WARNING: GOOGL - 🟠 WATCH CLOSELY
+127.0.0.1 - - [10/Feb/2026 22:02:02] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+2026-02-10 22:02:03.003 | DEBUG    | auto_trading_engine:_save_queue_state:802 - Queue state saved: 0 signals
+2026-02-10 22:02:03.003 | INFO     | auto_trading_engine:_clear_queue_end_of_day:2962 - 📋 Queue: Cleared 3 signals at EOD: ['RARE', 'ORI', 'ALL']
+2026-02-10 22:02:03.003 | DEBUG    | auto_trading_engine:scan_for_signals:2647 - Scan already in progress, skipping duplicate request
+2026-02-10 22:02:03.047 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+2026-02-10 22:02:03.047 | INFO     | auto_trading_engine:scan_for_signals:2675 - Scanning for signals (regime: BULL)...
+2026-02-10 22:02:03.048 | INFO     | screeners.rapid_rotation_screener:generate_universe:471 - 📦 Using pre-filtered pool: 260 stocks (age: 0.8h)
+2026-02-10 22:02:03.048 | INFO     | screeners.rapid_rotation_screener:generate_universe:541 - 🔥 Hot sectors: Energy, Consumer Defensive, Industrials, Basic Materials, Real Estate
+2026-02-10 22:02:03.048 | INFO     | screeners.rapid_rotation_screener:_load_data_via_yfinance:934 - 📊 Loading data for 260 stocks via yfinance (parallel)...
+2026-02-10 22:02:03.366 | INFO     | auto_trading_engine:_save_signals_cache:994 - 📤 Signals cache: 0 signals (late_start, mode=market)
+2026-02-10 22:02:03.615 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+2026-02-10 22:02:03.788 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+127.0.0.1 - - [10/Feb/2026 22:02:03] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:02:03.931 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+127.0.0.1 - - [10/Feb/2026 22:02:04] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:02:04.783 | INFO     | auto_trading_engine:_loop_continuous_scan:4779 - 🔄 Continuous scan (morning params, 5min/volatile): 2/5 positions
+2026-02-10 22:02:04.826 | DEBUG    | auto_trading_engine:scan_for_signals:2647 - Scan already in progress, skipping duplicate request
+2026-02-10 22:02:05.154 | INFO     | auto_trading_engine:_save_signals_cache:994 - 📤 Signals cache: 0 signals (continuous_morning, mode=market)
+2026-02-10 22:02:05.418 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+127.0.0.1 - - [10/Feb/2026 22:02:05] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:02:05.876 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.66 x233
+2026-02-10 22:02:05.889 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.66 x67
+2026-02-10 22:02:06.170 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.69 x13
+2026-02-10 22:02:06.171 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.69 x87
+2026-02-10 22:02:06.352 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.64 x100
+2026-02-10 22:02:06.483 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.65 x80
+2026-02-10 22:02:07.384 | DEBUG    | auto_trading_engine:monitor_positions:3764 - Monitoring 2 positions...
+127.0.0.1 - - [10/Feb/2026 22:02:07] "GET /api/rapid/signals HTTP/1.1" 200 -
+2026-02-10 22:02:08.107 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for AIT: 'super' object has no attribute 'as_'
+2026-02-10 22:02:08.390 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: AIT Day 0 - P&L -0.90% (SL: -2.0%, TP: +4.0%), Trail=OFF
+2026-02-10 22:02:08.392 | DEBUG    | auto_trading_engine:_check_position:4051 - AIT: $283.62 (-0.90%), SL=$280.48, Peak=$286.20, Trailing=OFF
+2026-02-10 22:02:08.625 | INFO     | screeners.rapid_rotation_screener:_load_data_via_yfinance:970 - ✅ Loaded 260/260 stocks via yfinance (parallel)
+2026-02-10 22:02:08.631 | DEBUG    | screeners.rapid_rotation_screener:_clear_stale_caches:334 - Failed to clear yfinance cache: module 'yfinance.cache' has no attribute 'clear'
+2026-02-10 22:02:08.631 | DEBUG    | data_sources.realtime_price:clear_cache:162 - Real-time price cache cleared
+2026-02-10 22:02:08.631 | DEBUG    | screeners.rapid_rotation_screener:_clear_stale_caches:339 - Cleared real-time price cache
+2026-02-10 22:02:08.631 | INFO     | sector_regime_detector:update_all_sectors:412 - Using cached sector regimes (updated 0min ago)
+2026-02-10 22:02:08.836 | INFO     | screeners.rapid_rotation_screener:check_spy_regime:634 - ✅ SPY Regime: BULL: SPY $695.75 > SMA20 $690.40 (+0.8%)
+2026-02-10 22:02:08.837 | INFO     | screeners.rapid_rotation_screener:screen:1266 - 🟢 SPY BULL REGIME - Scanning for signals...
+2026-02-10 22:02:08.837 | INFO     | screeners.rapid_rotation_screener:screen:1267 -    BULL: SPY $695.75 > SMA20 $690.40 (+0.8%)
+2026-02-10 22:02:08.900 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for MCHP: 'super' object has no attribute 'as_'
+127.0.0.1 - - [10/Feb/2026 22:02:08] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+2026-02-10 22:02:09.014 | DEBUG    | market_regime_detector:_fetch_market_data:154 - Using yfinance fallback for SPY
+2026-02-10 22:02:09.016 | INFO     | screeners.rapid_rotation_screener:screen:1328 - 🎯 Using Strategy Manager for scanning...
+2026-02-10 22:02:09.016 | INFO     | strategies.strategy_manager:scan_all:107 - 🔍 Running 1 strategies on 260 stocks
+2026-02-10 22:02:09.016 | INFO     | strategies.strategy_manager:scan_all:111 -    Running Dip-Bounce...
+2026-02-10 22:02:09.102 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - GPN: Intraday price $72.97 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:09.103 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GPN: Price $72.97 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:09.151 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: MCHP Day 0 - P&L +0.41% (SL: -3.0%, TP: +5.56%), Trail=OFF
+2026-02-10 22:02:09.151 | DEBUG    | auto_trading_engine:_check_position:4051 - MCHP: $76.66 (+0.41%), SL=$74.06, Peak=$76.83, Trailing=OFF
+2026-02-10 22:02:09.174 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - TEX: Intraday price $61.35 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:09.174 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TEX: Price $61.35 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:09.245 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - RTX: Intraday price $193.71 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:09.245 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RTX: Price $193.71 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:09.312 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - FSS: Intraday price $117.08 at 2026-02-10 09:57:00-05:00
+2026-02-10 22:02:09.313 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FSS: Price $117.08 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:09.389 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CMI: Intraday price $587.36 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:09.389 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CMI: Price $587.36 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:09.464 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - AIT: Intraday price $283.62 at 2026-02-10 10:00:00-05:00
+2026-02-10 22:02:09.464 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AIT: Price $283.62 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:10.245 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.62 x12
+2026-02-10 22:02:10.525 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - BA: Intraday price $244.24 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:10.525 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BA: Price $244.24 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:10.600 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - HII: Intraday price $396.18 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:10.600 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HII: Price $396.18 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:10.674 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - NOC: Intraday price $687.84 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:10.675 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NOC: Price $687.84 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:10.745 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - LHX: Intraday price $345.80 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:10.745 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LHX: Price $345.80 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:10.815 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - HEI: Intraday price $322.31 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:10.815 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HEI: Price $322.31 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:10.886 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - BWXT: Intraday price $199.80 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:10.886 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BWXT: Price $199.80 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:10.958 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - HWM: Intraday price $226.50 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:10.958 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HWM: Price $226.50 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:10.996 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.70 x100
+2026-02-10 22:02:11.027 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - BAH: Intraday price $90.01 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:11.027 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BAH: Price $90.01 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:11.098 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - TXT: Intraday price $95.76 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:11.098 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TXT: Price $95.76 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:11.172 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CW: Intraday price $650.66 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:11.172 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CW: Price $650.66 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:11.233 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - HXL: Intraday price $85.81 at 2026-02-10 10:00:00-05:00
+2026-02-10 22:02:11.233 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HXL: Price $85.81 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:11.303 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - OTIS: Intraday price $89.88 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:11.304 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - OTIS: Price $89.88 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:11.374 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - WERN: Intraday price $35.68 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:11.374 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WERN: Price $35.68 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:11.453 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - KNX: Intraday price $59.50 at 2026-02-10 10:00:00-05:00
+2026-02-10 22:02:11.453 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - KNX: Price $59.50 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:12.191 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - MAS: Intraday price $77.79 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:12.192 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MAS: Price $77.79 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:12.197 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-10 22:02:12.259 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SNDR: Intraday price $29.76 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:12.259 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SNDR: Price $29.76 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:12.331 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CAR: Intraday price $118.71 at 2026-02-10 10:00:00-05:00
+2026-02-10 22:02:12.331 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CAR: Price $118.71 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:12.403 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - GE: Intraday price $318.02 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:12.404 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GE: Price $318.02 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:13.194 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - DLTR: Intraday price $122.84 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:13.194 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DLTR: Price $122.84 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:13.268 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - DG: Intraday price $148.33 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:13.268 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DG: Price $148.33 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:13.340 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - OLLI: Intraday price $112.85 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:13.340 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - OLLI: Price $112.85 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:13.409 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SENEA: Intraday price $120.34 at 2026-02-10 10:00:00-05:00
+2026-02-10 22:02:13.409 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SENEA: Price $120.34 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:13.484 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - TGT: Intraday price $116.13 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:13.485 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TGT: Price $116.13 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:13.556 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - PFGC: Intraday price $92.07 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:13.556 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PFGC: Price $92.07 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:13.628 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - KHC: Intraday price $24.74 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:13.628 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - KHC: Price $24.74 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:13.698 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - AR: Intraday price $34.34 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:13.698 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AR: Price $34.34 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:13.773 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - NGVC: Intraday price $25.39 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:13.774 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NGVC: Price $25.39 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:13.852 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - RRC: Intraday price $36.22 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:13.852 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RRC: Price $36.22 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:14.515 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.77 x153
+2026-02-10 22:02:14.516 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.78 x100
+2026-02-10 22:02:14.516 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.78 x47
+2026-02-10 22:02:14.574 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - NOV: Intraday price $18.55 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:14.574 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NOV: Price $18.55 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:14.638 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+2026-02-10 22:02:14.649 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - EQT: Intraday price $55.47 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:14.649 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EQT: Price $55.47 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:14.705 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CVI: Intraday price $24.50 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:14.705 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CVI: Price $24.50 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:14.772 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - PUMP: Intraday price $11.05 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:14.772 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PUMP: Price $11.05 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:14.851 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - WHD: Intraday price $57.35 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:14.851 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WHD: Price $57.35 from intraday (1m bars) (realtime: True)
+127.0.0.1 - - [10/Feb/2026 22:02:14] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:02:14.914 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SLB: Intraday price $49.94 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:14.914 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SLB: Price $49.94 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:14.941 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.87 x100
+2026-02-10 22:02:15.008 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - VNO: Intraday price $30.90 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:15.008 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - VNO: Price $30.90 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:15.085 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SBAC: Intraday price $185.58 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:15.085 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SBAC: Price $185.58 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:15.156 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - REXR: Intraday price $38.44 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:15.156 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - REXR: Price $38.44 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:15.230 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - AMT: Intraday price $176.43 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:15.230 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AMT: Price $176.43 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:15.308 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - BXP: Intraday price $65.39 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:15.308 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BXP: Price $65.39 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:15.368 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - DEI: Intraday price $10.56 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:15.368 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DEI: Price $10.56 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:15.454 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SITE: Intraday price $148.80 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:15.454 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SITE: Price $148.80 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:16.175 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SUI: Intraday price $126.90 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:16.175 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SUI: Price $126.90 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:16.250 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CCI: Intraday price $83.62 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:16.250 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CCI: Price $83.62 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:16.326 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CF: Intraday price $95.08 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:16.326 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CF: Price $95.08 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:16.395 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - FMC: Intraday price $16.37 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:16.395 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FMC: Price $16.37 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:16.471 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - NTR: Intraday price $69.90 at 2026-02-10 10:00:00-05:00
+2026-02-10 22:02:16.471 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NTR: Price $69.90 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:16.541 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - OLN: Intraday price $25.26 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:16.541 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - OLN: Price $25.26 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:16.614 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - NEM: Intraday price $120.30 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:16.614 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NEM: Price $120.30 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:16.691 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - FCX: Intraday price $62.40 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:16.692 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FCX: Price $62.40 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:16.765 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - IFF: Intraday price $75.43 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:16.765 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - IFF: Price $75.43 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:16.835 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - AA: Intraday price $61.04 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:16.836 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AA: Price $61.04 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:16.913 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - HUN: Intraday price $13.23 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:16.913 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HUN: Price $13.23 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:16.992 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - AG: Intraday price $23.78 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:16.992 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AG: Price $23.78 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:17.069 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - KALU: Intraday price $139.96 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:17.069 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - KALU: Price $139.96 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:17.141 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - PAAS: Intraday price $58.79 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:17.141 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PAAS: Price $58.79 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:17.212 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CDE: Intraday price $22.91 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:17.212 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CDE: Price $22.91 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:17.283 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - AXTA: Intraday price $34.67 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:17.283 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AXTA: Price $34.67 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:17.352 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - HCC: Intraday price $90.63 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:17.352 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HCC: Price $90.63 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:17.374 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.84 x100
+2026-02-10 22:02:17.422 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - FNV: Intraday price $248.85 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:17.422 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FNV: Price $248.85 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:17.491 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ROCK: Intraday price $54.76 at 2026-02-10 10:00:00-05:00
+2026-02-10 22:02:17.491 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ROCK: Price $54.76 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:17.561 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - EGO: Intraday price $41.88 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:17.561 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EGO: Price $41.88 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:17.632 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CRS: Intraday price $365.39 at 2026-02-10 09:59:00-05:00
+2026-02-10 22:02:17.633 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CRS: Price $365.39 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:17.689 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - EXP: Intraday price $227.95 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:17.689 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EXP: Price $227.95 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:17.756 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - RGLD: Intraday price $280.79 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:17.756 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RGLD: Price $280.79 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:17.826 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - HWKN: Intraday price $141.30 at 2026-02-10 09:37:00-05:00
+2026-02-10 22:02:17.826 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HWKN: Price $141.30 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:17.910 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - WPM: Intraday price $143.31 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:17.916 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WPM: Price $143.31 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:17.994 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - GOOGL: Intraday price $317.90 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:17.994 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GOOGL: Price $317.90 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:18.069 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CDNS: Intraday price $297.90 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:18.070 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CDNS: Price $297.90 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:18.144 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - NFLX: Intraday price $84.01 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:18.144 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NFLX: Price $84.01 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:18.217 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - GOOG: Intraday price $318.00 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:18.217 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GOOG: Price $318.00 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:18.286 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - FFIV: Intraday price $282.10 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:18.286 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FFIV: Price $282.10 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:18.374 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - TWLO: Intraday price $118.74 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:18.374 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TWLO: Price $118.74 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:18.452 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - OKTA: Intraday price $88.38 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:18.452 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - OKTA: Price $88.38 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:18.525 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - DELL: Intraday price $125.54 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:18.526 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DELL: Price $125.54 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:18.599 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SMCI: Intraday price $33.87 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:18.599 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SMCI: Price $33.87 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:18.670 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ANET: Intraday price $143.41 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:18.671 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ANET: Price $143.41 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:18.741 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - YOU: Intraday price $32.92 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:18.741 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - YOU: Price $32.92 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:18.811 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - NET: Intraday price $179.35 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:18.811 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NET: Price $179.35 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:18.878 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - INTC: Intraday price $48.99 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:18.878 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - INTC: Price $48.99 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:18.938 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - TENB: Intraday price $22.73 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:18.938 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TENB: Price $22.73 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:18.996 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - RNG: Intraday price $28.81 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:18.996 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RNG: Price $28.81 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:19.057 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - KLAC: Intraday price $1419.31 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:19.057 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - KLAC: Price $1419.31 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:19.128 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - NVDA: Intraday price $188.94 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:19.128 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NVDA: Price $188.94 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:19.195 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - RBLX: Intraday price $73.88 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:19.195 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RBLX: Price $73.88 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:19.280 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - AVGO: Intraday price $345.85 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:19.280 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AVGO: Price $345.85 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:19.352 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - HPQ: Intraday price $19.88 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:19.352 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HPQ: Price $19.88 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:20.073 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - AMAT: Intraday price $326.67 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:20.073 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AMAT: Price $326.67 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:20.102 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.81 x100
+2026-02-10 22:02:20.145 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - IBM: Intraday price $297.53 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:20.145 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - IBM: Price $297.53 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:20.221 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - MU: Intraday price $378.38 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:20.221 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MU: Price $378.38 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:20.296 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - LRCX: Intraday price $223.74 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:20.296 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LRCX: Price $223.74 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:20.368 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - NXPI: Intraday price $232.65 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:20.368 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NXPI: Price $232.65 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:20.440 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ONTO: Intraday price $216.00 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:20.440 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ONTO: Price $216.00 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:20.513 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ON: Intraday price $67.07 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:20.513 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ON: Price $67.07 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:20.583 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SWKS: Intraday price $62.00 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:20.583 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SWKS: Price $62.00 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:20.664 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ENTG: Intraday price $126.10 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:20.664 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ENTG: Price $126.10 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:20.737 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - MCHP: Intraday price $76.49 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:20.737 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MCHP: Price $76.49 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:21.122 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.74 x13
+2026-02-10 22:02:21.123 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.74 x85
+2026-02-10 22:02:21.468 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - PLAB: Intraday price $37.32 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:21.468 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PLAB: Price $37.32 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:21.542 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - MRVL: Intraday price $82.48 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:21.542 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MRVL: Price $82.48 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:21.614 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CAMT: Intraday price $153.22 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:21.615 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CAMT: Price $153.22 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:21.687 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - LSCC: Intraday price $87.62 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:21.687 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LSCC: Price $87.62 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:21.761 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - AMKR: Intraday price $53.04 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:21.762 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AMKR: Price $53.04 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:21.836 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - MTSI: Intraday price $233.13 at 2026-02-10 10:00:00-05:00
+2026-02-10 22:02:21.836 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MTSI: Price $233.13 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:21.913 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - POWI: Intraday price $45.94 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:21.913 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - POWI: Price $45.94 from intraday (1m bars) (realtime: True)
+127.0.0.1 - - [10/Feb/2026 22:02:21] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
+2026-02-10 22:02:21.927 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+127.0.0.1 - - [10/Feb/2026 22:02:22] "GET /api/rapid/signals HTTP/1.1" 200 -
+2026-02-10 22:02:22.183 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-10 22:02:22.438 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.70 x100
+2026-02-10 22:02:22.439 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.70 x1
+2026-02-10 22:02:22.440 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.70 x100
+2026-02-10 22:02:22.475 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.70 x6
+2026-02-10 22:02:22.565 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.69 x50
+2026-02-10 22:02:22.638 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ASML: Intraday price $1427.53 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:22.638 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ASML: Price $1427.53 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:22.702 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - RMBS: Intraday price $107.50 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:22.702 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RMBS: Price $107.50 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:22.774 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - DIOD: Intraday price $61.47 at 2026-02-10 09:52:00-05:00
+2026-02-10 22:02:22.774 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DIOD: Price $61.47 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:22.776 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.72 x200
+2026-02-10 22:02:22.846 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - AMBA: Intraday price $66.22 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:22.846 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AMBA: Price $66.22 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:22.855 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.70 x100
+2026-02-10 22:02:22.855 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.71 x100
+2026-02-10 22:02:22.934 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - OLED: Intraday price $127.18 at 2026-02-10 09:59:00-05:00
+2026-02-10 22:02:22.935 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - OLED: Price $127.18 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:23.001 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - QRVO: Intraday price $84.03 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:23.001 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - QRVO: Price $84.03 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:23.077 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - COF: Intraday price $225.62 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:23.077 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - COF: Price $225.62 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:23.149 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SYNA: Intraday price $87.31 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:23.149 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SYNA: Price $87.31 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:23.222 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - MS: Intraday price $183.60 at 2026-02-10 10:02:00-05:00
+127.0.0.1 - - [10/Feb/2026 22:02:23] "GET /api/health HTTP/1.1" 200 -
+2026-02-10 22:02:23.223 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MS: Price $183.60 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:23.292 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - PNFP: Intraday price $101.23 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:23.292 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PNFP: Price $101.23 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:23.372 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - HBAN: Intraday price $18.90 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:23.372 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HBAN: Price $18.90 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:23.458 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - GS: Intraday price $956.21 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:23.458 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GS: Price $956.21 from intraday (1m bars) (realtime: True)
+127.0.0.1 - - [10/Feb/2026 22:02:23] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+2026-02-10 22:02:23.519 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ALLY: Intraday price $42.64 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:23.519 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ALLY: Price $42.64 from intraday (1m bars) (realtime: True)
+$CMA: possibly delisted; no price data found  (period=1d)
+2026-02-10 22:02:23.571 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:124 - CMA: No intraday data available
+2026-02-10 22:02:23.571 | WARNING  | data_sources.realtime_price:get_price:92 - CMA: Failed to fetch intraday price, falling back to daily
+2026-02-10 22:02:23.572 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CMA: Price $88.67 from daily bars (fallback) (realtime: False)
+2026-02-10 22:02:23.642 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - OFG: Intraday price $42.05 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:23.642 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - OFG: Price $42.05 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:23.716 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ACIW: Intraday price $42.35 at 2026-02-10 10:00:00-05:00
+2026-02-10 22:02:23.717 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ACIW: Price $42.35 from intraday (1m bars) (realtime: True)
+$CADE: possibly delisted; no price data found  (period=1d)
+2026-02-10 22:02:23.767 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:124 - CADE: No intraday data available
+2026-02-10 22:02:23.767 | WARNING  | data_sources.realtime_price:get_price:92 - CADE: Failed to fetch intraday price, falling back to daily
+2026-02-10 22:02:23.767 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CADE: Price $42.11 from daily bars (fallback) (realtime: False)
+2026-02-10 22:02:23.849 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - BANR: Intraday price $64.86 at 2026-02-10 09:45:00-05:00
+2026-02-10 22:02:23.849 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BANR: Price $64.86 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:23.925 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - NU: Intraday price $17.37 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:23.926 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NU: Price $17.37 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:23.995 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - IVZ: Intraday price $27.20 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:23.995 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - IVZ: Price $27.20 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:24.066 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - FHB: Intraday price $27.17 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:24.066 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FHB: Price $27.17 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:24.145 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - APO: Intraday price $134.88 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:24.145 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - APO: Price $134.88 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:24.218 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - AMG: Intraday price $305.55 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:24.219 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AMG: Price $305.55 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:24.288 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - FFIN: Intraday price $34.40 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:24.288 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FFIN: Price $34.40 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:24.355 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - LPLA: Intraday price $384.07 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:24.355 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LPLA: Price $384.07 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:24.421 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - BLK: Intraday price $1103.06 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:24.421 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BLK: Price $1103.06 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:24.492 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - WEX: Intraday price $161.88 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:24.492 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WEX: Price $161.88 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:24.570 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CG: Intraday price $59.46 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:24.570 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CG: Price $59.46 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:24.638 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - PAGS: Intraday price $11.20 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:24.638 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PAGS: Price $11.20 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:24.646 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+2026-02-10 22:02:24.709 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - EVR: Intraday price $362.33 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:24.709 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EVR: Price $362.33 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:24.777 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - RNR: Intraday price $289.34 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:24.777 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RNR: Price $289.34 from intraday (1m bars) (realtime: True)
+127.0.0.1 - - [10/Feb/2026 22:02:24] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:02:25.279 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.72 x100
+2026-02-10 22:02:25.499 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SEIC: Intraday price $85.69 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:25.500 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SEIC: Price $85.69 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:25.571 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - PGR: Intraday price $200.12 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:25.571 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PGR: Price $200.12 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:25.644 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - LNC: Intraday price $39.90 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:25.644 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LNC: Price $39.90 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:25.660 | DEBUG    | auto_trading_engine:monitor_positions:3764 - Monitoring 2 positions...
+2026-02-10 22:02:25.721 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - KNSL: Intraday price $392.75 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:25.721 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - KNSL: Price $392.75 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:25.795 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - MET: Intraday price $76.34 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:25.795 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MET: Price $76.34 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:25.853 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CBOE: Intraday price $278.03 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:25.854 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CBOE: Price $278.03 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:25.930 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - MKTX: Intraday price $172.11 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:25.930 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MKTX: Price $172.11 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:26.003 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - VIRT: Intraday price $39.27 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:26.003 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - VIRT: Price $39.27 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:26.077 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ALL: Intraday price $200.82 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:26.077 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ALL: Price $200.82 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:26.149 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for AIT: 'super' object has no attribute 'as_'
+2026-02-10 22:02:26.394 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: AIT Day 0 - P&L -0.90% (SL: -2.0%, TP: +4.0%), Trail=OFF
+2026-02-10 22:02:26.394 | DEBUG    | auto_trading_engine:_check_position:4051 - AIT: $283.62 (-0.90%), SL=$280.48, Peak=$286.20, Trailing=OFF
+2026-02-10 22:02:26.802 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - WRB: Intraday price $69.18 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:26.802 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WRB: Price $69.18 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:26.868 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - RLI: Intraday price $60.90 at 2026-02-10 10:00:00-05:00
+2026-02-10 22:02:26.869 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RLI: Price $60.90 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:26.878 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for MCHP: 'super' object has no attribute 'as_'
+2026-02-10 22:02:27.120 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: MCHP Day 0 - P&L +0.23% (SL: -3.0%, TP: +5.56%), Trail=OFF
+2026-02-10 22:02:27.121 | DEBUG    | auto_trading_engine:_check_position:4051 - MCHP: $76.53 (+0.23%), SL=$74.06, Peak=$76.83, Trailing=OFF
+127.0.0.1 - - [10/Feb/2026 22:02:27] "GET /api/rapid/execution-trace?view=summary HTTP/1.1" 200 -
+2026-02-10 22:02:27.753 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.72 x100
+2026-02-10 22:02:27.790 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - HCI: Intraday price $161.89 at 2026-02-10 09:47:00-05:00
+2026-02-10 22:02:27.790 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HCI: Price $161.89 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:27.850 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - FAF: Intraday price $66.39 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:27.850 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FAF: Price $66.39 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:28.576 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.75 x100
+2026-02-10 22:02:28.808 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ICE: Intraday price $166.14 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:28.808 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ICE: Price $166.14 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:28.881 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - EG: Intraday price $325.23 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:28.881 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EG: Price $325.23 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:28.953 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ORI: Intraday price $41.95 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:28.953 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ORI: Price $41.95 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:29.804 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CACI: Intraday price $618.60 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:29.804 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CACI: Price $618.60 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:29.896 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - LDOS: Intraday price $193.04 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:29.896 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LDOS: Price $193.04 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:29.970 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - JAZZ: Intraday price $166.28 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:29.971 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - JAZZ: Price $166.28 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:30.045 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - VRTX: Intraday price $472.02 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:30.046 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - VRTX: Price $472.02 from intraday (1m bars) (realtime: True)
+127.0.0.1 - - [10/Feb/2026 22:02:30] "GET /api/rapid/execution-trace?view=full HTTP/1.1" 200 -
+2026-02-10 22:02:30.590 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.69 x24
+2026-02-10 22:02:30.807 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - AZN: Intraday price $191.45 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:30.807 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AZN: Price $191.45 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:31.803 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ABBV: Intraday price $223.84 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:31.804 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ABBV: Price $223.84 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:31.875 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - MRNA: Intraday price $43.26 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:31.875 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MRNA: Price $43.26 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:31.960 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - LLY: Intraday price $1038.04 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:31.960 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LLY: Price $1038.04 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:32.018 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - INCY: Intraday price $103.42 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:32.018 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - INCY: Price $103.42 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:32.087 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CORT: Intraday price $41.15 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:32.087 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CORT: Price $41.15 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:32.160 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.69 x100
+2026-02-10 22:02:32.162 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - PCRX: Intraday price $21.11 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:32.163 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.73 x19
+2026-02-10 22:02:32.163 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PCRX: Price $21.11 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:32.164 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.73 x81
+2026-02-10 22:02:32.180 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-10 22:02:32.189 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.76 x100
+2026-02-10 22:02:32.251 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - RARE: Intraday price $24.04 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:32.251 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RARE: Price $24.04 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:32.846 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.74 x100
+2026-02-10 22:02:32.967 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - BNTX: Intraday price $109.75 at 2026-02-10 09:59:00-05:00
+2026-02-10 22:02:32.967 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BNTX: Price $109.75 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:33.038 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - EXEL: Intraday price $44.00 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:33.038 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EXEL: Price $44.00 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:33.110 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ANIP: Intraday price $79.76 at 2026-02-10 09:57:00-05:00
+2026-02-10 22:02:33.110 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ANIP: Price $79.76 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:33.184 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - DXCM: Intraday price $68.88 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:33.184 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DXCM: Price $68.88 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:33.252 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - TARS: Intraday price $65.08 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:33.252 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TARS: Price $65.08 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:33.327 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - PRGO: Intraday price $14.44 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:33.327 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PRGO: Price $14.44 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:33.410 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SUPN: Intraday price $51.28 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:33.410 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SUPN: Price $51.28 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:33.480 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ICUI: Intraday price $153.90 at 2026-02-10 09:49:00-05:00
+2026-02-10 22:02:33.480 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ICUI: Price $153.90 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:34.214 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - MASI: Intraday price $135.16 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:34.214 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MASI: Price $135.16 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:34.284 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - TECH: Intraday price $64.59 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:34.284 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TECH: Price $64.59 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:34.361 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - TFX: Intraday price $106.78 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:34.361 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TFX: Price $106.78 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:34.368 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.75 x100
+2026-02-10 22:02:34.417 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.75 x100
+2026-02-10 22:02:34.620 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+127.0.0.1 - - [10/Feb/2026 22:02:34] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:02:35.205 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ABT: Intraday price $111.68 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:35.205 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ABT: Price $111.68 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:35.277 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - HCA: Intraday price $502.10 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:35.277 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HCA: Price $502.10 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:35.952 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.94 x100
+2026-02-10 22:02:36.196 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ISRG: Intraday price $498.93 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:36.196 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ISRG: Price $498.93 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:36.257 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - GMED: Intraday price $89.06 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:36.257 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GMED: Price $89.06 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:36.328 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - RDNT: Intraday price $69.86 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:36.329 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RDNT: Price $69.86 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:36.402 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - AHCO: Intraday price $10.71 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:36.402 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AHCO: Price $10.71 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:36.468 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - BIO: Intraday price $295.24 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:36.468 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BIO: Price $295.24 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:36.538 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CAH: Intraday price $224.32 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:36.539 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CAH: Price $224.32 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:36.611 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - MD: Intraday price $21.00 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:36.611 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MD: Price $21.00 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:36.684 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CVS: Intraday price $77.82 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:36.684 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CVS: Price $77.82 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:36.756 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ACHC: Intraday price $14.02 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:36.756 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ACHC: Price $14.02 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:36.829 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - BBY: Intraday price $68.49 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:36.830 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BBY: Price $68.49 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:37.111 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.96 x76
+127.0.0.1 - - [10/Feb/2026 22:02:37] "GET /api/rapid/signals HTTP/1.1" 200 -
+2026-02-10 22:02:37.539 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.99 x100
+2026-02-10 22:02:37.549 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ORLY: Intraday price $92.45 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:37.549 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ORLY: Price $92.45 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:37.621 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - THC: Intraday price $191.65 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:37.621 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - THC: Price $191.65 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:37.721 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - TSCO: Intraday price $53.53 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:37.721 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TSCO: Price $53.53 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:37.796 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - ULTA: Intraday price $694.03 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:37.796 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ULTA: Price $694.03 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:37.865 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CROX: Intraday price $84.54 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:37.865 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CROX: Price $84.54 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:37.928 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - BURL: Intraday price $311.46 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:37.928 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BURL: Price $311.46 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:37.998 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - BOOT: Intraday price $201.59 at 2026-02-10 10:00:00-05:00
+2026-02-10 22:02:37.999 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BOOT: Price $201.59 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:38.059 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - RH: Intraday price $210.13 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:38.059 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RH: Price $210.13 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:38.129 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - DKS: Intraday price $201.81 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:38.129 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DKS: Price $201.81 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:38.206 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - WSM: Intraday price $220.45 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:38.206 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WSM: Price $220.45 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:38.274 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.96 x100
+2026-02-10 22:02:38.275 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.96 x200
+2026-02-10 22:02:38.275 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.98 x90
+2026-02-10 22:02:38.410 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.95 x3
+127.0.0.1 - - [10/Feb/2026 22:02:38] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+2026-02-10 22:02:38.926 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - VFC: Intraday price $21.18 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:38.926 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - VFC: Price $21.18 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:38.998 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - RL: Intraday price $359.68 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:38.998 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RL: Price $359.68 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:39.035 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.95 x100
+2026-02-10 22:02:39.064 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SCVL: Intraday price $20.40 at 2026-02-10 10:00:00-05:00
+2026-02-10 22:02:39.064 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SCVL: Price $20.40 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:39.136 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - KSS: Intraday price $17.49 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:39.136 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - KSS: Price $17.49 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:39.204 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - URBN: Intraday price $71.20 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:39.204 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - URBN: Price $71.20 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:39.933 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CMG: Intraday price $39.39 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:39.933 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CMG: Price $39.39 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:40.004 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - GRMN: Intraday price $209.31 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:40.004 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GRMN: Price $209.31 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:40.075 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SBUX: Intraday price $98.98 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:40.075 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SBUX: Price $98.98 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:40.151 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - DIN: Intraday price $35.75 at 2026-02-10 09:58:00-05:00
+2026-02-10 22:02:40.151 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DIN: Price $35.75 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:40.214 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - M: Intraday price $21.31 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:40.214 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - M: Price $21.31 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:40.287 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - WING: Intraday price $265.02 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:40.287 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WING: Price $265.02 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:40.359 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - VSCO: Intraday price $61.41 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:40.359 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - VSCO: Price $61.41 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:40.432 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - DPZ: Intraday price $394.55 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:40.432 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DPZ: Price $394.55 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:40.501 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SHAK: Intraday price $97.36 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:40.501 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SHAK: Price $97.36 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:40.836 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.05 x100
+2026-02-10 22:02:41.217 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - DRI: Intraday price $215.31 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:41.218 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DRI: Price $215.31 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:41.289 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - TXRH: Intraday price $184.54 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:41.289 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TXRH: Price $184.54 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:41.360 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - PENN: Intraday price $13.60 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:41.360 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PENN: Price $13.60 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:41.432 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - WYNN: Intraday price $116.41 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:41.432 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WYNN: Price $116.41 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:41.506 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - WH: Intraday price $80.58 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:41.506 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WH: Price $80.58 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:41.581 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - H: Intraday price $168.69 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:41.582 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - H: Price $168.69 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:41.651 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - TSLA: Intraday price $420.95 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:41.651 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TSLA: Price $420.95 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:41.719 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - LVS: Intraday price $56.84 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:41.719 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LVS: Price $56.84 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:41.793 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - BJRI: Intraday price $43.73 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:41.794 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BJRI: Price $43.73 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:41.873 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - JACK: Intraday price $21.32 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:41.873 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - JACK: Price $21.32 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:41.953 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - MTN: Intraday price $145.18 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:41.953 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MTN: Price $145.18 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:42.022 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - LCID: Intraday price $11.20 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:42.022 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LCID: Price $11.20 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:42.092 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CHH: Intraday price $110.66 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:42.092 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CHH: Price $110.66 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:42.165 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - NCLH: Intraday price $23.81 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:42.165 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NCLH: Price $23.81 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:42.190 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-10 22:02:42.237 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - PSNY: Intraday price $18.61 at 2026-02-10 09:57:00-05:00
+2026-02-10 22:02:42.237 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PSNY: Price $18.61 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:42.318 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SAH: Intraday price $60.95 at 2026-02-10 09:58:00-05:00
+2026-02-10 22:02:42.319 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SAH: Price $60.95 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:42.390 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - AN: Intraday price $207.49 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:42.390 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AN: Price $207.49 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:42.455 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - GM: Intraday price $80.57 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:42.455 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GM: Price $80.57 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:42.520 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - PAG: Intraday price $167.35 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:42.520 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PAG: Price $167.35 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:42.589 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - LAD: Intraday price $332.36 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:42.589 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LAD: Price $332.36 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:43.324 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - NRG: Intraday price $157.30 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:43.324 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NRG: Price $157.30 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:43.397 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - MSEX: Intraday price $51.60 at 2026-02-10 09:58:00-05:00
+2026-02-10 22:02:43.397 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MSEX: Price $51.60 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:43.466 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - CCOI: Intraday price $25.34 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:43.466 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CCOI: Price $25.34 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:43.535 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - JCAP: Intraday price $22.45 at 2026-02-10 09:59:00-05:00
+2026-02-10 22:02:43.535 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - JCAP: Price $22.45 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:43.602 | DEBUG    | auto_trading_engine:monitor_positions:3764 - Monitoring 2 positions...
+2026-02-10 22:02:43.607 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - GSAT: Intraday price $57.63 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:43.608 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GSAT: Price $57.63 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:43.682 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - FWONA: Intraday price $78.40 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:43.682 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FWONA: Price $78.40 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:43.755 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - VST: Intraday price $157.30 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:43.755 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - VST: Price $157.30 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:43.824 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - NYT: Intraday price $70.38 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:43.824 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NYT: Price $70.38 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:43.895 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - SIRI: Intraday price $21.35 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:43.895 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SIRI: Price $21.35 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:43.964 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - DIS: Intraday price $110.01 at 2026-02-10 10:02:00-05:00
+2026-02-10 22:02:43.964 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DIS: Price $110.01 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:44.035 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - MSGS: Intraday price $280.70 at 2026-02-10 09:58:00-05:00
+2026-02-10 22:02:44.035 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MSGS: Price $280.70 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:44.108 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for AIT: 'super' object has no attribute 'as_'
+2026-02-10 22:02:44.113 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - LEG: Intraday price $12.54 at 2026-02-10 10:01:00-05:00
+2026-02-10 22:02:44.113 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LEG: Price $12.54 from intraday (1m bars) (realtime: True)
+2026-02-10 22:02:44.115 | INFO     | strategies.dip_bounce_strategy:scan:219 - 📋 Dip-Bounce filter breakdown (232 rejected, min_score=90): no_dip=171 still_falling=9 no_bounce=20 gap_up=0 above_sma5=6 low_atr=0 below_sma20=14 overextended=3 sma20_ext=0 low_score=9
+2026-02-10 22:02:44.115 | INFO     | strategies.dip_bounce_strategy:scan:229 - 📊 Dip-Bounce: Found 15 signals from 260 stocks
+2026-02-10 22:02:44.115 | INFO     | strategies.strategy_manager:scan_all:124 -    ✅ Dip-Bounce: 15 signals
+2026-02-10 22:02:44.115 | INFO     | strategies.strategy_manager:scan_all:134 - 📊 Total: 15 signals (15 unique stocks)
+2026-02-10 22:02:44.132 | INFO     | screeners.rapid_rotation_screener:_save_execution_trace:795 - 📊 Execution trace saved to /home/saengtawan/work/project/cc/stock-analyzer/data/cache
+2026-02-10 22:02:44.132 | INFO     | screeners.rapid_rotation_screener:screen:1409 - 📊 Execution trace saved: 260 stocks traced
+2026-02-10 22:02:44.132 | INFO     | screeners.rapid_rotation_screener:screen:1485 - 📊 Found 15 signals from 260 stocks
+2026-02-10 22:02:44.132 | INFO     | screeners.rapid_rotation_screener:screen:1489 -    📈 RARE: score=140, sector=Healthcare, gap=0.0%
+2026-02-10 22:02:44.132 | INFO     | screeners.rapid_rotation_screener:screen:1489 -    📈 MCHP: score=125, sector=Technology, gap=0.0%
+2026-02-10 22:02:44.132 | INFO     | screeners.rapid_rotation_screener:screen:1489 -    📈 AIT: score=115, sector=Industrials, gap=0.0%
+2026-02-10 22:02:44.132 | INFO     | screeners.rapid_rotation_screener:screen:1489 -    📈 ORI: score=115, sector=Financial Services, gap=0.0%
+2026-02-10 22:02:44.132 | INFO     | screeners.rapid_rotation_screener:screen:1489 -    📈 RRC: score=110, sector=Energy, gap=0.0%
+2026-02-10 22:02:44.132 | INFO     | screeners.rapid_rotation_screener:screen:1489 -    📈 ICUI: score=105, sector=Healthcare, gap=0.0%
+2026-02-10 22:02:44.132 | INFO     | screeners.rapid_rotation_screener:screen:1489 -    📈 URBN: score=105, sector=Consumer Cyclical, gap=0.0%
+2026-02-10 22:02:44.132 | INFO     | screeners.rapid_rotation_screener:screen:1489 -    📈 KNX: score=100, sector=Industrials, gap=0.0%
+2026-02-10 22:02:44.132 | INFO     | screeners.rapid_rotation_screener:screen:1489 -    📈 GE: score=95, sector=Industrials, gap=0.0%
+2026-02-10 22:02:44.132 | INFO     | screeners.rapid_rotation_screener:screen:1489 -    📈 POWI: score=95, sector=Technology, gap=0.0%
+2026-02-10 22:02:44.132 | INFO     | screeners.rapid_rotation_screener:screen:1502 - 🔍 Fetching alt data for Top 10 candidates...
+2026-02-10 22:02:44.366 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: AIT Day 0 - P&L -0.90% (SL: -2.0%, TP: +4.0%), Trail=OFF
+2026-02-10 22:02:44.367 | DEBUG    | auto_trading_engine:_check_position:4051 - AIT: $283.62 (-0.90%), SL=$280.48, Peak=$286.20, Trailing=OFF
+2026-02-10 22:02:44.624 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+127.0.0.1 - - [10/Feb/2026 22:02:44] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:02:45.111 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.01 x100
+2026-02-10 22:02:45.155 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.02 x100
+2026-02-10 22:02:45.179 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for MCHP: 'super' object has no attribute 'as_'
+2026-02-10 22:02:45.425 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: MCHP Day 0 - P&L +0.24% (SL: -3.0%, TP: +5.56%), Trail=OFF
+2026-02-10 22:02:45.425 | DEBUG    | auto_trading_engine:_check_position:4051 - MCHP: $76.53 (+0.24%), SL=$74.06, Peak=$76.83, Trailing=OFF
+2026-02-10 22:02:45.989 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.04 x100
+2026-02-10 22:02:46.835 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.05 x14
+2026-02-10 22:02:46.835 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.01 x100
+2026-02-10 22:02:46.836 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.01 x1
+2026-02-10 22:02:48.456 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.00 x8
+2026-02-10 22:02:48.824 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.99 x1
+2026-02-10 22:02:49.363 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.01 x100
+2026-02-10 22:02:49.453 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.05 x100
+2026-02-10 22:02:50.226 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.05 x100
+2026-02-10 22:02:50.497 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.01 x100
+2026-02-10 22:02:50.506 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.02 x100
+127.0.0.1 - - [10/Feb/2026 22:02:51] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
+2026-02-10 22:02:52.037 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.96 x100
+2026-02-10 22:02:52.202 | INFO     | trading_safety:run_health_check:493 - Running health check...
+127.0.0.1 - - [10/Feb/2026 22:02:52] "GET /api/rapid/signals HTTP/1.1" 200 -
+2026-02-10 22:02:52.217 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.95 x10
+2026-02-10 22:02:52.676 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.98 x100
+127.0.0.1 - - [10/Feb/2026 22:02:53] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+2026-02-10 22:02:54.571 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.02 x100
+2026-02-10 22:02:54.661 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+127.0.0.1 - - [10/Feb/2026 22:02:54] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:02:55.057 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.02 x100
+2026-02-10 22:02:57.210 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.04 x1
+2026-02-10 22:02:57.295 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.05 x4
+2026-02-10 22:02:57.359 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.05 x61
+2026-02-10 22:02:58.028 | DEBUG    | screeners.rapid_rotation_screener:screen:1514 - RARE: Alt data +3
+2026-02-10 22:02:58.500 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.01 x100
+2026-02-10 22:03:00.587 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $318.00 x5
+2026-02-10 22:03:01.706 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.95 x70
+2026-02-10 22:03:01.913 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.96 x100
+2026-02-10 22:03:02.012 | DEBUG    | auto_trading_engine:monitor_positions:3764 - Monitoring 2 positions...
+2026-02-10 22:03:02.186 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-10 22:03:02.576 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for AIT: 'super' object has no attribute 'as_'
+2026-02-10 22:03:02.731 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.71 x3
+2026-02-10 22:03:02.731 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.71 x20
+2026-02-10 22:03:02.731 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.71 x5
+2026-02-10 22:03:02.732 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.71 x2
+2026-02-10 22:03:02.732 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.71 x5
+2026-02-10 22:03:02.847 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: AIT Day 0 - P&L -0.90% (SL: -2.0%, TP: +4.0%), Trail=OFF
+2026-02-10 22:03:02.847 | DEBUG    | auto_trading_engine:_check_position:4051 - AIT: $283.62 (-0.90%), SL=$280.48, Peak=$286.20, Trailing=OFF
+2026-02-10 22:03:03.112 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.90 x1
+2026-02-10 22:03:03.112 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.90 x150
+2026-02-10 22:03:03.361 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for MCHP: 'super' object has no attribute 'as_'
+2026-02-10 22:03:03.605 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: MCHP Day 0 - P&L +0.16% (SL: -3.0%, TP: +5.56%), Trail=OFF
+2026-02-10 22:03:03.605 | DEBUG    | auto_trading_engine:_check_position:4051 - MCHP: $76.47 (+0.16%), SL=$74.06, Peak=$76.83, Trailing=OFF
+2026-02-10 22:03:04.159 | DEBUG    | auto_trading_engine:_get_spy_data_from_broker:1214 - SPY data from broker: 44 bars
+2026-02-10 22:03:04.348 | INFO     | auto_trading_engine:_check_market_regime:1304 - ✅ Market Regime: BULL: SMA20=OK(+0.8%) | RSI=OK(60) | Ret5d=OK(+0.9%) | VIX=OK(17.6)
+2026-02-10 22:03:05.078 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+2026-02-10 22:03:05.315 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.91 x15
+2026-02-10 22:03:05.316 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.83 x2
+2026-02-10 22:03:05.317 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.83 x98
+127.0.0.1 - - [10/Feb/2026 22:03:05] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:03:05.320 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.82 x14
+2026-02-10 22:03:05.913 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.82 x17
+2026-02-10 22:03:06.072 | DEBUG    | screeners.rapid_rotation_screener:screen:1514 - MCHP: Alt data +14
+2026-02-10 22:03:06.073 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.62 x4
+127.0.0.1 - - [10/Feb/2026 22:03:07] "GET /api/rapid/signals HTTP/1.1" 200 -
+2026-02-10 22:03:07.285 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.78 x10
+2026-02-10 22:03:07.543 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.78 x75
+2026-02-10 22:03:07.544 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.78 x15
+2026-02-10 22:03:07.544 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.79 x85
+2026-02-10 22:03:07.544 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.79 x15
+2026-02-10 22:03:08.077 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.62 x5
+2026-02-10 22:03:08.078 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.66 x10
+2026-02-10 22:03:08.078 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.66 x3
+127.0.0.1 - - [10/Feb/2026 22:03:08] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+2026-02-10 22:03:10.105 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.81 x1
+2026-02-10 22:03:10.159 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.85 x100
+2026-02-10 22:03:11.299 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.62 x6
+2026-02-10 22:03:11.299 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.76 x4
+2026-02-10 22:03:12.178 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-10 22:03:14.147 | DEBUG    | screeners.rapid_rotation_screener:screen:1514 - AIT: Alt data +10
+2026-02-10 22:03:14.370 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.80 x100
+2026-02-10 22:03:14.370 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.80 x1
+2026-02-10 22:03:14.623 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+127.0.0.1 - - [10/Feb/2026 22:03:14] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:03:15.081 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.85 x100
+2026-02-10 22:03:17.214 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.83 x4
+2026-02-10 22:03:17.885 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.76 x74
+2026-02-10 22:03:17.885 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.76 x26
+2026-02-10 22:03:17.886 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.76 x42
+2026-02-10 22:03:17.886 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.74 x5
+2026-02-10 22:03:17.887 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.70 x100
+2026-02-10 22:03:20.074 | DEBUG    | auto_trading_engine:monitor_positions:3764 - Monitoring 2 positions...
+2026-02-10 22:03:20.563 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for AIT: 'super' object has no attribute 'as_'
+2026-02-10 22:03:20.808 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: AIT Day 0 - P&L -0.90% (SL: -2.0%, TP: +4.0%), Trail=OFF
+2026-02-10 22:03:20.808 | DEBUG    | auto_trading_engine:_check_position:4051 - AIT: $283.62 (-0.90%), SL=$280.48, Peak=$286.20, Trailing=OFF
+2026-02-10 22:03:21.310 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for MCHP: 'super' object has no attribute 'as_'
+2026-02-10 22:03:21.570 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: MCHP Day 0 - P&L +0.19% (SL: -3.0%, TP: +5.56%), Trail=OFF
+2026-02-10 22:03:21.570 | DEBUG    | auto_trading_engine:_check_position:4051 - MCHP: $76.50 (+0.19%), SL=$74.06, Peak=$76.83, Trailing=OFF
+2026-02-10 22:03:21.646 | DEBUG    | screeners.rapid_rotation_screener:screen:1514 - ORI: Alt data +10
+2026-02-10 22:03:21.647 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.77 x10
+2026-02-10 22:03:21.767 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.76 x100
+2026-02-10 22:03:21.929 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+127.0.0.1 - - [10/Feb/2026 22:03:21] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
+2026-02-10 22:03:22.192 | INFO     | trading_safety:run_health_check:493 - Running health check...
+127.0.0.1 - - [10/Feb/2026 22:03:22] "GET /api/rapid/signals HTTP/1.1" 200 -
+127.0.0.1 - - [10/Feb/2026 22:03:23] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [10/Feb/2026 22:03:23] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+2026-02-10 22:03:23.538 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.76 x100
+2026-02-10 22:03:24.443 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.61 x3
+2026-02-10 22:03:24.443 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.61 x7
+2026-02-10 22:03:24.443 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.61 x3
+2026-02-10 22:03:24.444 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.63 x10
+2026-02-10 22:03:24.444 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.63 x3
+2026-02-10 22:03:24.444 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.63 x20
+2026-02-10 22:03:24.444 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.63 x3
+2026-02-10 22:03:24.445 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.61 x5
+2026-02-10 22:03:24.630 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+127.0.0.1 - - [10/Feb/2026 22:03:24] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:03:25.974 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.77 x100
+2026-02-10 22:03:25.975 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.77 x1
+2026-02-10 22:03:26.518 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.79 x100
+2026-02-10 22:03:26.518 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.79 x100
+2026-02-10 22:03:27.018 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.76 x100
+2026-02-10 22:03:29.631 | DEBUG    | screeners.rapid_rotation_screener:screen:1514 - RRC: Alt data +6
+2026-02-10 22:03:30.787 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.78 x100
+2026-02-10 22:03:30.788 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.79 x100
+2026-02-10 22:03:30.819 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.87 x75
+2026-02-10 22:03:30.820 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.87 x25
+2026-02-10 22:03:32.181 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-10 22:03:32.729 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.61 x1
+2026-02-10 22:03:33.862 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.88 x60
+2026-02-10 22:03:34.680 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+2026-02-10 22:03:34.779 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+127.0.0.1 - - [10/Feb/2026 22:03:34] "GET /api/auto/status HTTP/1.1" 200 -
+127.0.0.1 - - [10/Feb/2026 22:03:36] "GET /api/rapid/trade-log?days=7 HTTP/1.1" 200 -
+2026-02-10 22:03:37.004 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.87 x110
+2026-02-10 22:03:37.005 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.87 x90
+2026-02-10 22:03:37.005 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.88 x10
+127.0.0.1 - - [10/Feb/2026 22:03:37] "GET /api/rapid/signals HTTP/1.1" 200 -
+2026-02-10 22:03:37.407 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.88 x7
+2026-02-10 22:03:37.557 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.87 x80
+2026-02-10 22:03:37.702 | DEBUG    | screeners.rapid_rotation_screener:screen:1514 - ICUI: Alt data +10
+2026-02-10 22:03:38.035 | DEBUG    | auto_trading_engine:monitor_positions:3764 - Monitoring 2 positions...
+127.0.0.1 - - [10/Feb/2026 22:03:38] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+2026-02-10 22:03:38.523 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for AIT: 'super' object has no attribute 'as_'
+2026-02-10 22:03:38.735 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.61 x10
+2026-02-10 22:03:38.766 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: AIT Day 0 - P&L -0.90% (SL: -2.0%, TP: +4.0%), Trail=OFF
+2026-02-10 22:03:38.766 | DEBUG    | auto_trading_engine:_check_position:4051 - AIT: $283.62 (-0.90%), SL=$280.48, Peak=$286.20, Trailing=OFF
+2026-02-10 22:03:39.247 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for MCHP: 'super' object has no attribute 'as_'
+2026-02-10 22:03:39.489 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: MCHP Day 0 - P&L +0.20% (SL: -3.0%, TP: +5.56%), Trail=OFF
+2026-02-10 22:03:39.490 | DEBUG    | auto_trading_engine:_check_position:4051 - MCHP: $76.50 (+0.20%), SL=$74.06, Peak=$76.83, Trailing=OFF
+2026-02-10 22:03:39.532 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+127.0.0.1 - - [10/Feb/2026 22:03:40] "GET /api/rapid/trade-log?days=14 HTTP/1.1" 200 -
+2026-02-10 22:03:42.188 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-10 22:03:42.315 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.82 x18
+2026-02-10 22:03:42.669 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.61 x1
+2026-02-10 22:03:42.816 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+2026-02-10 22:03:43.961 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.75 x100
+2026-02-10 22:03:43.961 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.75 x100
+127.0.0.1 - - [10/Feb/2026 22:03:44] "GET /api/rapid/trade-log?days=7 HTTP/1.1" 200 -
+2026-02-10 22:03:44.667 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+127.0.0.1 - - [10/Feb/2026 22:03:44] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:03:45.164 | DEBUG    | screeners.rapid_rotation_screener:screen:1514 - URBN: Alt data +14
+2026-02-10 22:03:46.071 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.79 x98
+2026-02-10 22:03:46.072 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.79 x102
+2026-02-10 22:03:47.028 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.79 x92
+2026-02-10 22:03:47.029 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.79 x8
+2026-02-10 22:03:47.029 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.79 x100
+2026-02-10 22:03:48.435 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.79 x100
+2026-02-10 22:03:48.879 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.61 x15
+2026-02-10 22:03:49.107 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+127.0.0.1 - - [10/Feb/2026 22:03:49] "GET /api/rapid/performance?period=1M HTTP/1.1" 200 -
+2026-02-10 22:03:51.183 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.72 x100
+2026-02-10 22:03:51.602 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.71 x40
+2026-02-10 22:03:51.647 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.70 x100
+127.0.0.1 - - [10/Feb/2026 22:03:51] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
+2026-02-10 22:03:52.142 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.69 x28
+127.0.0.1 - - [10/Feb/2026 22:03:52] "GET /api/rapid/signals HTTP/1.1" 200 -
+2026-02-10 22:03:52.196 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-10 22:03:53.155 | DEBUG    | screeners.rapid_rotation_screener:screen:1514 - KNX: Alt data +15
+127.0.0.1 - - [10/Feb/2026 22:03:53] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+2026-02-10 22:03:54.770 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+2026-02-10 22:03:54.906 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+127.0.0.1 - - [10/Feb/2026 22:03:55] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:03:55.958 | DEBUG    | auto_trading_engine:monitor_positions:3764 - Monitoring 2 positions...
+127.0.0.1 - - [10/Feb/2026 22:03:56] "GET /api/rapid/calendar?days=14 HTTP/1.1" 200 -
+2026-02-10 22:03:56.442 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for AIT: 'super' object has no attribute 'as_'
+2026-02-10 22:03:56.688 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: AIT Day 0 - P&L -0.90% (SL: -2.0%, TP: +4.0%), Trail=OFF
+2026-02-10 22:03:56.688 | DEBUG    | auto_trading_engine:_check_position:4051 - AIT: $283.62 (-0.90%), SL=$280.48, Peak=$286.20, Trailing=OFF
+2026-02-10 22:03:57.179 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for MCHP: 'super' object has no attribute 'as_'
+2026-02-10 22:03:57.424 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: MCHP Day 0 - P&L +0.15% (SL: -3.0%, TP: +5.56%), Trail=OFF
+2026-02-10 22:03:57.424 | DEBUG    | auto_trading_engine:_check_position:4051 - MCHP: $76.47 (+0.15%), SL=$74.06, Peak=$76.83, Trailing=OFF
+2026-02-10 22:03:57.613 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.73 x100
+2026-02-10 22:03:58.229 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.69 x100
+2026-02-10 22:03:59.747 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.77 x100
+2026-02-10 22:04:00.101 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.61 x20
+2026-02-10 22:04:00.102 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $627.61 x5
+2026-02-10 22:04:00.347 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.79 x100
+2026-02-10 22:04:00.567 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.78 x25
+2026-02-10 22:04:01.132 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-10 22:04:01.361 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.75 x2
+2026-02-10 22:04:01.682 | DEBUG    | screeners.rapid_rotation_screener:screen:1514 - GE: Alt data +14
+2026-02-10 22:04:02.178 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-10 22:04:03.610 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+127.0.0.1 - - [10/Feb/2026 22:04:03] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:04:04.626 | DEBUG    | auto_trading_engine:_get_spy_data_from_broker:1214 - SPY data from broker: 44 bars
+2026-02-10 22:04:04.657 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.76 x55
+2026-02-10 22:04:04.657 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.76 x45
+2026-02-10 22:04:04.658 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.77 x1
+2026-02-10 22:04:04.801 | INFO     | auto_trading_engine:_check_market_regime:1304 - ✅ Market Regime: BULL: SMA20=OK(+0.8%) | RSI=OK(60) | Ret5d=OK(+0.9%) | VIX=OK(17.6)
+2026-02-10 22:04:04.974 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.77 x1
+2026-02-10 22:04:05.044 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+127.0.0.1 - - [10/Feb/2026 22:04:05] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:04:06.303 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.77 x100
+127.0.0.1 - - [10/Feb/2026 22:04:07] "GET /api/rapid/signals HTTP/1.1" 200 -
+2026-02-10 22:04:08.146 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.73 x100
+2026-02-10 22:04:08.237 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.75 x100
+127.0.0.1 - - [10/Feb/2026 22:04:08] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+2026-02-10 22:04:09.446 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.79 x150
+2026-02-10 22:04:09.632 | DEBUG    | screeners.rapid_rotation_screener:screen:1514 - POWI: Alt data +15
+2026-02-10 22:04:09.634 | INFO     | screeners.rapid_rotation_screener:get_portfolio_signals:1556 - 📋 Filtered by existing positions: ['MCHP', 'AIT']
+2026-02-10 22:04:09.634 | INFO     | screeners.rapid_rotation_screener:get_portfolio_signals:1560 - ✅ Found 13 new signals (slots: 3): ['RARE', 'ORI', 'URBN', 'RRC', 'ICUI']
+2026-02-10 22:04:09.634 | INFO     | auto_trading_engine:scan_for_signals:2693 - Found 10 signals (regime: BULL)
+127.0.0.1 - - [10/Feb/2026 22:04:09] "GET /api/rapid/signals HTTP/1.1" 200 -
+2026-02-10 22:04:10.120 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-10 22:04:11.581 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.82 x4
+2026-02-10 22:04:11.826 | ERROR    | web.app:get_regime_data:3971 - WebSocket regime error: 'StockAnalyzer' object has no attribute 'min_atr_pct'
+2026-02-10 22:04:12.179 | INFO     | trading_safety:run_health_check:493 - Running health check...
+127.0.0.1 - - [10/Feb/2026 22:04:12] "GET /analytics HTTP/1.1" 200 -
+2026-02-10 22:04:13.019 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.83 x100
+127.0.0.1 - - [10/Feb/2026 22:04:13] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+2026-02-10 22:04:13.083 | INFO     | web.app:handle_disconnect:3623 - WebSocket client disconnected: kcyUSPu2O9ip8Dm3AAAB (total: 0)
+127.0.0.1 - - [10/Feb/2026 22:04:13] "[35m[1mGET /socket.io/?EIO=4&transport=websocket HTTP/1.1[0m" 500 -
+Error on request:
+Traceback (most recent call last):
+  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/werkzeug/serving.py", line 370, in run_wsgi
+    execute(self.server.app)
+  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/werkzeug/serving.py", line 336, in execute
+    write(b"")
+  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/werkzeug/serving.py", line 261, in write
+    assert status_set is not None, "write() before start_response"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: write() before start_response
+127.0.0.1 - - [10/Feb/2026 22:04:13] "GET /api/analytics?days=30 HTTP/1.1" 200 -
+2026-02-10 22:04:13.883 | DEBUG    | auto_trading_engine:monitor_positions:3764 - Monitoring 2 positions...
+2026-02-10 22:04:14.370 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for AIT: 'super' object has no attribute 'as_'
+2026-02-10 22:04:14.615 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: AIT Day 0 - P&L -0.90% (SL: -2.0%, TP: +4.0%), Trail=OFF
+2026-02-10 22:04:14.615 | DEBUG    | auto_trading_engine:_check_position:4051 - AIT: $283.62 (-0.90%), SL=$280.48, Peak=$286.20, Trailing=OFF
+2026-02-10 22:04:14.894 | INFO     | auto_trading_engine:_get_effective_params:1707 - ⚠️ LOW RISK MODE: PDT budget = 0 → Low Risk Mode
+2026-02-10 22:04:15.107 | DEBUG    | engine.brokers.alpaca_broker:get_snapshot:441 - Failed to get snapshot for MCHP: 'super' object has no attribute 'as_'
+127.0.0.1 - - [10/Feb/2026 22:04:15] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-10 22:04:15.354 | DEBUG    | auto_trading_engine:_check_position:3953 - PDT Guard: MCHP Day 0 - P&L +0.09% (SL: -3.0%, TP: +5.56%), Trail=OFF
+2026-02-10 22:04:15.354 | DEBUG    | auto_trading_engine:_check_position:4051 - MCHP: $76.42 (+0.09%), SL=$74.06, Peak=$76.83, Trailing=OFF
+2026-02-10 22:04:15.893 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.82 x100
+2026-02-10 22:04:18.684 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.84 x100
+2026-02-10 22:04:21.769 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.88 x100
+2026-02-10 22:04:21.770 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.88 x1
+2026-02-10 22:04:21.770 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.90 x80
+2026-02-10 22:04:21.771 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.90 x20
+2026-02-10 22:04:21.771 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.96 x100
+2026-02-10 22:04:24.384 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $317.88 x100
