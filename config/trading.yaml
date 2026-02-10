@@ -20,7 +20,7 @@ rapid_rotation:
   atr_tp_multiplier: 3.0      # TP = 3 × ATR (note: existing config uses 3.5)
   min_sl_pct: 2.5             # Minimum SL% (tightest allowed)
   max_sl_pct: 3.5             # Maximum SL% (widest allowed - user requested)
-  min_tp_pct: 5.0             # Minimum TP% (must be > max_sl_pct)
+  min_tp_pct: 4.5             # Minimum TP% (must be > max_sl_pct)
   max_tp_pct: 8.0             # Maximum TP% (longest allowed)
   default_sl_pct: 2.5         # Default SL if ATR fails
   default_tp_pct: 5.0         # Default TP if ATR fails
@@ -101,7 +101,7 @@ atr_sl_multiplier: 1.5        # SL = 1.5 x ATR%
 min_sl_pct: 2.5               # Floor: at least 2.5% SL
 max_sl_pct: 3.5               # Cap: max 3.5% SL (user requested)
 atr_tp_multiplier: 3.0        # v6.10: Use same as rapid_rotation (3.0 not 3.5)
-min_tp_pct: 5.0               # v6.17: 4→5 (must be > max_sl_pct=4.0)
+min_tp_pct: 4.5               # v6.17: Tighter TP floor (must be > max_sl_pct=3.5)
 max_tp_pct: 8.0               # v6.0: 12→8 (trailing captures gains)
 
 # -- Fallback fixed SL/TP -- v6.10: Updated to new naming
