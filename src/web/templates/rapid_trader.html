@@ -104,23 +104,23 @@
     .sector-chip.strong-bear { background: #e74c3c; color: white; }
     .sector-chip.unknown { background: #d5dbdb; color: #566573; }
 
-    /* v6.3: Minimal Timeline */
+    /* v6.3: Minimal Timeline - No text wrapping */
     .timeline-container { padding: 10px 0; margin-bottom: 8px; }
-    .timeline-bar { display: flex; align-items: center; }
-    .tl-session { flex: 1; text-align: center; padding: 8px 4px; }
-    .tl-header { display: flex; align-items: center; justify-content: center; gap: 6px; }
-    .tl-indicator { width: 10px; height: 10px; border-radius: 50%; transition: all 0.3s; }
+    .timeline-bar { display: flex; align-items: center; gap: 4px; }
+    .tl-session { flex: 1; text-align: center; padding: 6px 2px; min-width: 0; }
+    .tl-header { display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; }
+    .tl-indicator { width: 8px; height: 8px; border-radius: 50%; transition: all 0.3s; flex-shrink: 0; }
     .tl-session.done .tl-indicator { background: #10b981; box-shadow: 0 0 4px #10b981; }
     .tl-session.active .tl-indicator { background: #3b82f6; box-shadow: 0 0 8px #3b82f6, 0 0 16px rgba(59,130,246,0.4); animation: pulse-glow 1.5s ease-in-out infinite; }
     .tl-session.pending .tl-indicator { border: 2px solid #475569; background: transparent; }
     @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 8px #3b82f6, 0 0 16px rgba(59,130,246,0.4); } 50% { box-shadow: 0 0 12px #3b82f6, 0 0 24px rgba(59,130,246,0.6); } }
-    .tl-name { font-size: 0.8rem; font-weight: 500; color: #e2e8f0; }
+    .tl-name { font-size: 0.7rem; font-weight: 500; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tl-session.done .tl-name { color: #10b981; }
     .tl-session.active .tl-name { color: #3b82f6; font-weight: 700; }
     .tl-session.pending .tl-name { color: #64748b; }
-    .tl-time { font-size: 0.7rem; color: #94a3b8; margin: 2px 0; }
+    .tl-time { font-size: 0.65rem; color: #94a3b8; margin: 2px 0; white-space: nowrap; }
     .tl-session.pending .tl-time { color: #475569; }
-    .tl-interval { font-size: 0.6rem; padding: 2px 6px; border-radius: 10px; font-weight: 600; margin: 4px 0; }
+    .tl-interval { font-size: 0.6rem; padding: 2px 4px; border-radius: 8px; font-weight: 600; margin: 4px 0; white-space: nowrap; display: inline-block; }
     .tl-interval.volatile { background: #f97316; color: white; }
     .tl-interval.normal { background: #3b82f6; color: white; }
     .tl-session.pending .tl-interval { opacity: 0.4; }
@@ -515,10 +515,18 @@
         <span class="cron-status-item" id="cronBackup" title="Backup">
             <i class="fas fa-database"></i>
         </span>
+        <span class="cron-status-item" id="cronUniverse" title="Universe Maintenance (Daily 2 AM)">
+            <i class="fas fa-broom"></i>
+        </span>
         <span class="hdr-spacer"></span>
         <div class="hdr-controls">
             <button type="button" class="btn btn-outline-secondary" id="modeManual" onclick="setMode('manual')" title="Manual"><i class="fas fa-hand-paper"></i></button>
             <button type="button" class="btn btn-outline-success" id="modeAuto" onclick="setMode('auto')" title="Auto"><i class="fas fa-robot"></i></button>
+            <!-- Analytics buttons (v4.7 + v6.15) -->
+            <button class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#performanceModal" title="Portfolio Performance"><i class="fas fa-chart-line"></i></button>
+            <button class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#tradeLogModal" title="Trade Log"><i class="fas fa-history"></i></button>
+            <button class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#calendarModal" title="Market Calendar"><i class="fas fa-calendar-alt"></i></button>
+            <button class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#executionTraceModal" title="Execution Trace (Debug)"><i class="fas fa-project-diagram"></i></button>
             <button class="btn btn-primary" onclick="refreshAll()" title="Refresh"><i class="fas fa-sync-alt"></i></button>
             <i class="fas fa-circle" id="wsIndicator" title="WebSocket" style="font-size:0.5rem;color:#e74c3c;"></i>
             <i class="fas fa-heartbeat" id="healthDot" style="color:#6c757d;font-size:1.1rem;cursor:pointer;" title="Health" onclick="showHealthDetail()"></i>
@@ -2235,16 +2243,16 @@ function updatePositionsUI(data) {
                             <span class="day-counter ${dayCounterClass}">Day ${daysHeld}/${maxHoldDays}</span>
                             <span class="badge bg-secondary" style="font-size:0.6rem;">${shares} sh</span>
                         </h6>
-                        <div class="small">
-                            <span class="text-muted">Entry:</span> <strong>$${status.entry_price.toFixed(2)}</strong>
-                            <span class="text-muted ms-2">Now:</span>
+                        <div class="small price-line">
+                            <span class="text-muted">E:</span> <strong>$${status.entry_price.toFixed(2)}</strong>
+                            <span class="text-muted ms-2">N:</span>
                             <span class="current-price text-primary fw-bold">$${status.current_price.toFixed(2)}</span>
-                            ${priceArrow ? `<span class="price-arrow ${arrowClass}">${priceArrow}</span>` : ''}
+                            ${priceArrow ? `<span class="price-arrow ${arrowClass} ms-1">${priceArrow}</span>` : ''}
                             <span class="pnl-display ${pnlClass} fw-bold ms-1">${status.pnl_pct >= 0 ? '+' : ''}${status.pnl_pct.toFixed(2)}%</span>
                             <span class="pnl-usd text-muted">($${status.pnl_usd >= 0 ? '+' : ''}${status.pnl_usd.toFixed(2)})</span>
                         </div>
                         ${premarketHtml}
-                        <div class="small mt-1">
+                        <div class="small sltp-line mt-1">
                             <span class="text-danger">SL $${slPrice.toFixed(2)}</span>
                             <span class="distance-badge distance-sl">${distToSL}% away</span>
                             <span class="mx-1">|</span>
@@ -2263,7 +2271,12 @@ function updatePositionsUI(data) {
                         ${earningsWarning}
                         <small class="text-muted d-block mt-1">${status.action}</small>
                     </div>
-                    <div class="text-end ms-2">${getActionButton(status)}</div>
+                    <div class="text-end ms-2">
+                        <button class="btn btn-sm btn-outline-primary mb-1" onclick="openCandlestickChart('${status.symbol}')" title="View Chart">
+                            <i class="fas fa-chart-bar"></i>
+                        </button>
+                        ${getActionButton(status)}
+                    </div>
                 </div>
             </div>`;
         positionData[status.symbol] = { entryPrice: status.entry_price, shares, price: status.current_price, pnlPct: status.pnl_pct, pnlUsd: status.pnl_usd, sector: status.sector };
@@ -2281,30 +2294,32 @@ function updatePositionsUI(data) {
 function updateSignalsUI(data) { loadSignals(); }
 
 // v6.2: Update pre-filter pool status in Buy Signals header
-function updatePreFilterStatus(status) {
+function updatePreFilterStatus(status, actualPoolSize) {
     const el = document.getElementById('preFilterStatus');
     if (!el) return;
 
-    if (!status || !status.pool_size) {
-        // No pre-filter data - show AI fallback
+    // v6.10: Use actual scanned pool size if available, otherwise fall back to pre-filter pool
+    const poolSize = actualPoolSize || (status && status.pool_size);
+
+    if (!poolSize) {
+        // No pool data - show AI fallback
         el.innerHTML = '<span class="badge bg-secondary bg-opacity-50" style="font-size:0.6rem">Pool: AI</span>';
         el.title = 'Using AI-generated universe (pre-filter not available)';
         return;
     }
-
-    const poolSize = status.pool_size;
-    const isReady = status.is_ready;
-    const lastTime = status.last_updated ? new Date(status.last_updated).toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit', hour12: false}) : '';
+    // v6.10: Handle optional status (when only actualPoolSize is available)
+    const isReady = status && status.is_ready;
+    const lastTime = (status && status.last_updated) ? new Date(status.last_updated).toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit', hour12: false}) : '';
 
     // Check if stale (> 12 hours)
     let isStale = false;
-    if (status.last_updated) {
+    if (status && status.last_updated) {
         const age = (Date.now() - new Date(status.last_updated).getTime()) / (1000 * 60 * 60);
         isStale = age > 12;
     }
 
     let badgeClass, icon, text;
-    if (status.evening_status === 'running' || status.pre_open_status === 'running') {
+    if (status && (status.evening_status === 'running' || status.pre_open_status === 'running')) {
         badgeClass = 'bg-info';
         icon = '<i class="fas fa-sync-alt fa-spin me-1"></i>';
         text = 'scanning...';
@@ -2312,7 +2327,8 @@ function updatePreFilterStatus(status) {
         badgeClass = 'bg-warning text-dark';
         icon = '<i class="fas fa-exclamation-triangle me-1"></i>';
         text = `${poolSize} ⚠️`;
-    } else if (isReady) {
+    } else if (isReady || actualPoolSize) {
+        // v6.10: Show green checkmark for actual scanned pool or ready pre-filter
         badgeClass = 'bg-success bg-opacity-75';
         icon = '';
         text = `Pool: ${poolSize} ✓`;
@@ -2323,7 +2339,15 @@ function updatePreFilterStatus(status) {
     }
 
     el.innerHTML = `<span class="badge ${badgeClass}" style="font-size:0.6rem">${icon}${text}</span>`;
-    el.title = `Pre-filter pool: ${poolSize} stocks\nEvening: ${status.evening_status} (${status.evening_count || 0})\nPre-open: ${status.pre_open_status} (${status.pre_open_count || 0})\nLast: ${lastTime}`;
+
+    // v6.10: Different tooltip for actual scanned pool vs pre-filter pool
+    if (actualPoolSize) {
+        el.title = `Scanned universe: ${poolSize} stocks\n(Actual stocks being scanned for signals)`;
+    } else if (status) {
+        el.title = `Pre-filter pool: ${poolSize} stocks\nEvening: ${status.evening_status} (${status.evening_count || 0})\nPre-open: ${status.pre_open_status} (${status.pre_open_count || 0})\nLast: ${lastTime}`;
+    } else {
+        el.title = `Pool: ${poolSize} stocks`;
+    }
 }
 
 function updateStatusUI(data) {
@@ -2415,7 +2439,8 @@ function loadSignals() {
             }
 
             // v6.2: Update pre-filter status
-            updatePreFilterStatus(data.prefilter_status);
+            // v6.10: Use actual scanned pool_size from signals cache (not pre-filter pool)
+            updatePreFilterStatus(data.prefilter_status, data.pool_size);
 
             const signals = data.signals || [];
             const waitingCount = (data.waiting_signals || []).length;
@@ -2568,7 +2593,12 @@ function loadSignals() {
                             </div>
                         </div>
                         <div class="mb-1"><small class="text-muted">RSI: ${signal.rsi.toFixed(0)} | Mom: ${signal.momentum_5d >= 0 ? '+' : ''}${signal.momentum_5d.toFixed(1)}%</small></div>
-                        ${buyButton}
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-outline-primary btn-sm" onclick="openCandlestickChart('${signal.symbol}')" style="flex: 0 0 auto;">
+                                <i class="fas fa-chart-bar"></i>
+                            </button>
+                            <div style="flex: 1;">${buyButton}</div>
+                        </div>
                     </div>`;
             });
 
@@ -2894,6 +2924,27 @@ function updateHeaderCronStatus(data) {
             cronBackup.title = 'Backup: Not run yet';
         }
     }
+
+    // Universe Maintenance (daily at 2 AM)
+    const cronUniverse = document.getElementById('cronUniverse');
+    if (cronUniverse) {
+        const u = status.universe_maintenance;
+        cronUniverse.classList.remove('ok', 'error', 'stale');
+        if (u && u.status === 'ok' && isRecent(u.last_run, 1500)) { // 25 hours (daily job)
+            cronUniverse.classList.add('ok');
+            const lastRun = new Date(u.last_run);
+            const nextRun = new Date(lastRun);
+            nextRun.setDate(nextRun.getDate() + 1);
+            nextRun.setHours(2, 0, 0, 0);
+            cronUniverse.title = `Universe: OK (Last: ${lastRun.toLocaleString()})\nNext: ${nextRun.toLocaleString()}`;
+        } else if (u && u.status === 'error') {
+            cronUniverse.classList.add('error');
+            cronUniverse.title = 'Universe: ERROR - Check logs';
+        } else {
+            cronUniverse.classList.add('stale');
+            cronUniverse.title = 'Universe: Scheduled for 2:00 AM daily';
+        }
+    }
 }
 
 function showCronStatus() {
@@ -2911,7 +2962,8 @@ function showCronStatus() {
         { key: 'prefilter_evening', name: 'Pre-filter Eve', icon: 'fa-moon' },
         { key: 'prefilter_pre_open', name: 'Pre-filter Open', icon: 'fa-sun' },
         { key: 'outcome_tracker', name: 'Outcome Tracker', icon: 'fa-chart-line' },
-        { key: 'alert_cleanup', name: 'Alert Cleanup', icon: 'fa-broom' },
+        { key: 'universe_maintenance', name: 'Universe Cleanup', icon: 'fa-broom' },
+        { key: 'alert_cleanup', name: 'Alert Cleanup', icon: 'fa-recycle' },
         { key: 'log_cleanup', name: 'Log Cleanup', icon: 'fa-trash' },
         { key: 'db_backup', name: 'DB Backup', icon: 'fa-database' }
     ];
@@ -3022,4 +3074,10 @@ function updateScanProgress(data) {
 // Sector regimes refresh every 5 minutes
 setInterval(loadSectorRegimes, 300000);
 </script>
+
+<!-- ========================================
+     ALPACA ANALYTICS MODALS v4.7
+     ======================================== -->
+{% include 'rapid_analytics_modals.html' %}
+
 {% endblock %}

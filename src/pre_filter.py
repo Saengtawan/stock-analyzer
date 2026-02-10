@@ -343,11 +343,11 @@ class PreFilterRunner:
         if atr_pct < self.MIN_ATR_PCT:
             return None, 'atr'
 
-        # Filter 3: Above SMA20 (uptrend) - v6.12: Allow stocks within 5% below SMA20
+        # Filter 3: Above SMA20 (uptrend) - v6.17: Reverted to strict > 0%
         pct_from_sma20 = ((close - sma20) / sma20) * 100 if sma20 > 0 else 0
         above_sma20 = close > sma20
-        # Relaxed: Allow stocks down to 5% below SMA20 (very permissive)
-        if pct_from_sma20 < -5.0:
+        # v6.17: Strict filter - must be above SMA20
+        if pct_from_sma20 < 0:
             return None, 'sma20'
 
         # Filter 4: Not overextended (pct_from_sma20 already calculated above)

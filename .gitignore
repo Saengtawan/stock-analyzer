@@ -283,3 +283,5 @@ src/web/portfolio_v3.json
 
 # Pip install artifacts
 =*
+sector_cache.json
+sector_cache.backup.json

@@ -21,31 +21,84 @@ Filter History:
 from typing import Dict, Optional, Tuple
 import pandas as pd
 import numpy as np
+import os
+import sys
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+try:
+    from config.strategy_config import RapidRotationConfig
+except ImportError:
+    # Fallback for tests or standalone usage
+    RapidRotationConfig = None
 
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
 class FilterConfig:
-    """Filter configuration - Single Source of Truth"""
+    """
+    Filter configuration - Single Source of Truth (v6.7)
 
-    # Minimum requirements
-    MIN_SCORE = 85  # v4.0: 90 → 85 (with regime filter, can accept more trades)
-    MIN_ATR_PCT = 2.5
-    MIN_PRICE = 10
-    MAX_PRICE = 2000
+    Now loads from RapidRotationConfig instead of hardcoded values.
+    Backward compatible: can still be used without config (uses defaults).
+    """
 
-    # Dynamic SL/TP
-    ATR_SL_MULTIPLIER = 1.5
-    ATR_TP_MULTIPLIER = 3.0
-    MIN_SL_PCT = 2.0
-    MAX_SL_PCT = 2.5   # v3.6: Tight SL for fast rotation
-    MIN_TP_PCT = 4.0
-    MAX_TP_PCT = 15.0
+    def __init__(self, config: 'RapidRotationConfig' = None):
+        """
+        Initialize FilterConfig
 
-    # Base SL/TP for simplified calculation
-    BASE_SL_PCT = 2.5  # v3.6: Fixed 2.5% SL
-    BASE_TP_PCT = 6.0
+        Args:
+            config: Optional RapidRotationConfig instance. If None, uses defaults.
+        """
+        if config is None and RapidRotationConfig is not None:
+            # Try to load from default YAML
+            config_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                'config', 'trading.yaml'
+            )
+            if os.path.exists(config_path):
+                try:
+                    config = RapidRotationConfig.from_yaml(config_path)
+                except Exception:
+                    pass  # Fall back to defaults
+
+        self.config = config
+
+        # Minimum requirements
+        self.MIN_SCORE = config.min_score if config else 85
+        self.MIN_ATR_PCT = config.min_atr_pct if config else 2.5
+        self.MIN_PRICE = 10  # Not in config yet
+        self.MAX_PRICE = 2000  # Not in config yet
+
+        # Dynamic SL/TP
+        self.ATR_SL_MULTIPLIER = config.atr_sl_multiplier if config else 1.5
+        self.ATR_TP_MULTIPLIER = config.atr_tp_multiplier if config else 3.0
+        self.MIN_SL_PCT = config.min_sl_pct if config else 2.0
+        self.MAX_SL_PCT = config.max_sl_pct if config else 4.0
+        self.MIN_TP_PCT = config.min_tp_pct if config else 4.0
+        self.MAX_TP_PCT = config.max_tp_pct if config else 8.0
+
+        # Base SL/TP for simplified calculation
+        self.BASE_SL_PCT = config.default_sl_pct if config else 2.5
+        self.BASE_TP_PCT = config.default_tp_pct if config else 5.0
+
+
+# Legacy class-level constants for backward compatibility
+# These are deprecated and will be removed in future versions
+FilterConfig.MIN_SCORE = 85
+FilterConfig.MIN_ATR_PCT = 2.5
+FilterConfig.MIN_PRICE = 10
+FilterConfig.MAX_PRICE = 2000
+FilterConfig.ATR_SL_MULTIPLIER = 1.5
+FilterConfig.ATR_TP_MULTIPLIER = 3.0
+FilterConfig.MIN_SL_PCT = 2.0
+FilterConfig.MAX_SL_PCT = 4.0
+FilterConfig.MIN_TP_PCT = 4.0
+FilterConfig.MAX_TP_PCT = 8.0
+FilterConfig.BASE_SL_PCT = 2.5
+FilterConfig.BASE_TP_PCT = 6.0
 
 
 # ============================================================================
@@ -125,16 +178,23 @@ def check_bounce_confirmation(
 # ============================================================================
 def check_sma20_filter(current_price: float, sma20: float) -> Tuple[bool, str]:
     """
-    Check SMA20 trend filter
+    Check SMA20 trend filter (v6.17 - Reverted to strict > 0%)
 
     Based on root cause analysis: 92% of stop loss trades were below SMA20
-    This single filter prevents most losers.
+
+    Reverted: Require strictly above SMA20 (no pullbacks allowed).
+    This prevents catching stocks in downtrends.
 
     Returns:
         Tuple of (passed, rejection_reason)
     """
-    if current_price < sma20:
-        return False, "Below SMA20 (downtrend)"
+    # Calculate distance from SMA20
+    sma20_distance_pct = ((current_price - sma20) / sma20) * 100
+
+    # v6.17: Strict filter - must be above SMA20
+    if sma20_distance_pct < 0:
+        return False, f"Below SMA20 ({sma20_distance_pct:.1f}%)"
+
     return True, ""
 
 

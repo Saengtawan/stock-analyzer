@@ -476,12 +476,14 @@ class AlpacaBroker(BrokerInterface):
         if start is None:
             start = end - timedelta(days=limit + 5)
 
+        # Use IEX feed for free/paper accounts to avoid SIP subscription errors
         bars = self.api.get_bars(
             symbol,
             timeframe,
             start=start.strftime('%Y-%m-%d'),
             end=end.strftime('%Y-%m-%d'),
-            limit=limit
+            limit=limit,
+            feed='iex'  # Free tier compatible
         )
 
         result = []
@@ -506,19 +508,36 @@ class AlpacaBroker(BrokerInterface):
     def calculate_trailing_stop(
         self,
         entry_price: float,
-        current_price: float,
+        peak_price: float,  # v4.9: Renamed from current_price for clarity
         current_stop: float,
-        trail_activation_pct: float = 2.0,
-        trail_lock_pct: float = 70.0,
+        trail_activation_pct: float = 3.0,  # v4.9: Updated default from 2.0
+        trail_lock_pct: float = 80.0,       # v4.9: Updated default from 70.0
     ) -> Tuple[float, bool]:
-        """Calculate trailing stop price."""
-        gain_pct = ((current_price - entry_price) / entry_price) * 100
+        """
+        Calculate trailing stop price to lock in profits.
+
+        Args:
+            entry_price: Original entry price
+            peak_price: Highest price reached (NOT current price!)
+            current_stop: Current stop loss price
+            trail_activation_pct: Gain % to activate trailing (default 3%)
+            trail_lock_pct: % of gain to lock (default 80%)
+
+        Returns:
+            Tuple of (new_stop_price, updated)
+
+        Example:
+            Entry: $100, Peak: $110 (+10%)
+            → Lock 80% of $10 = $8
+            → New SL: $108 (lock $8 profit)
+        """
+        gain_pct = ((peak_price - entry_price) / entry_price) * 100
 
         if gain_pct < trail_activation_pct:
             return current_stop, False
 
-        # Calculate new stop to lock in gains
-        gain_amount = current_price - entry_price
+        # Calculate new stop to lock in gains from peak
+        gain_amount = peak_price - entry_price
         locked_gain = gain_amount * (trail_lock_pct / 100)
         new_stop = entry_price + locked_gain
 
@@ -527,6 +546,423 @@ class AlpacaBroker(BrokerInterface):
             return round(new_stop, 2), True
 
         return current_stop, False
+
+    # =========================================================================
+    # PORTFOLIO HISTORY & ANALYTICS
+    # =========================================================================
+
+    @_retry_api()
+    def get_portfolio_history(
+        self,
+        period: str = '1M',
+        timeframe: str = '1D',
+        extended_hours: bool = False
+    ) -> Dict:
+        """
+        Get portfolio equity history from Alpaca.
+
+        Args:
+            period: Time period ('1D', '1W', '1M', '3M', '1A', 'all')
+            timeframe: Bar timeframe ('1Min', '5Min', '15Min', '1H', '1D')
+            extended_hours: Include extended hours
+
+        Returns:
+            Dict with:
+            - equity: List[float] - Equity values
+            - profit_loss: List[float] - P&L in dollars
+            - profit_loss_pct: List[float] - P&L in percent
+            - base_value: float - Starting equity
+            - timeframe: str - Timeframe used
+            - timestamp: List[int] - Unix timestamps
+
+        Example:
+            history = broker.get_portfolio_history(period='1M', timeframe='1D')
+            equity_curve = history['equity']
+            daily_returns = history['profit_loss_pct']
+        """
+        history = self.api.get_portfolio_history(
+            period=period,
+            timeframe=timeframe,
+            extended_hours=extended_hours
+        )
+
+        return {
+            'equity': history.equity,
+            'profit_loss': history.profit_loss,
+            'profit_loss_pct': history.profit_loss_pct,
+            'base_value': history.base_value,
+            'timeframe': history.timeframe,
+            'timestamp': history.timestamp,
+        }
+
+    def calculate_performance_metrics(self, history: Dict) -> Dict:
+        """
+        Calculate performance metrics from portfolio history.
+
+        Args:
+            history: Output from get_portfolio_history()
+
+        Returns:
+            Dict with metrics:
+            - total_return_pct: Total return %
+            - total_return_usd: Total return $
+            - max_drawdown_pct: Maximum drawdown %
+            - max_drawdown_date: Date of max drawdown
+            - sharpe_ratio: Sharpe ratio (annualized)
+            - win_days: Number of profitable days
+            - loss_days: Number of losing days
+            - win_rate: Win rate %
+            - avg_daily_return: Average daily return %
+            - volatility: Daily volatility (std dev)
+        """
+        import numpy as np
+        from datetime import datetime as dt
+
+        equity = history['equity']
+        profit_loss_pct = history['profit_loss_pct']
+        timestamps = history['timestamp']
+
+        if not equity or len(equity) < 2:
+            return {
+                'total_return_pct': 0,
+                'total_return_usd': 0,
+                'max_drawdown_pct': 0,
+                'max_drawdown_date': None,
+                'sharpe_ratio': 0,
+                'win_days': 0,
+                'loss_days': 0,
+                'win_rate': 0,
+                'avg_daily_return': 0,
+                'volatility': 0,
+            }
+
+        # Total return
+        total_return_pct = ((equity[-1] - equity[0]) / equity[0]) * 100
+        total_return_usd = equity[-1] - equity[0]
+
+        # Max drawdown
+        peak = equity[0]
+        max_dd = 0
+        max_dd_date = None
+
+        for i, eq in enumerate(equity):
+            if eq > peak:
+                peak = eq
+            dd = ((eq - peak) / peak) * 100
+            if dd < max_dd:
+                max_dd = dd
+                max_dd_date = dt.fromtimestamp(timestamps[i]).strftime('%Y-%m-%d') if timestamps else None
+
+        # Daily returns analysis
+        daily_returns = []
+        for i in range(1, len(profit_loss_pct)):
+            daily_return = profit_loss_pct[i] - profit_loss_pct[i-1]
+            daily_returns.append(daily_return)
+
+        win_days = sum(1 for r in daily_returns if r > 0)
+        loss_days = sum(1 for r in daily_returns if r <= 0)
+        win_rate = (win_days / len(daily_returns) * 100) if daily_returns else 0
+
+        # Sharpe ratio (annualized, assume risk-free rate = 0)
+        if daily_returns:
+            avg_return = np.mean(daily_returns)
+            std_return = np.std(daily_returns)
+            sharpe = (avg_return / std_return * np.sqrt(252)) if std_return > 0 else 0
+        else:
+            avg_return = 0
+            std_return = 0
+            sharpe = 0
+
+        return {
+            'total_return_pct': round(total_return_pct, 2),
+            'total_return_usd': round(total_return_usd, 2),
+            'max_drawdown_pct': round(max_dd, 2),
+            'max_drawdown_date': max_dd_date,
+            'sharpe_ratio': round(sharpe, 2),
+            'win_days': win_days,
+            'loss_days': loss_days,
+            'win_rate': round(win_rate, 1),
+            'avg_daily_return': round(avg_return, 3),
+            'volatility': round(std_return, 3),
+        }
+
+    # =========================================================================
+    # TRADE HISTORY & ACTIVITIES
+    # =========================================================================
+
+    @_retry_api()
+    def get_activities(
+        self,
+        activity_types: str = 'FILL',
+        days: int = 30,
+        direction: str = 'desc',
+        page_size: int = 100
+    ) -> List[Dict]:
+        """
+        Get account activities (fills, dividends, etc).
+
+        Args:
+            activity_types: 'FILL', 'DIV', 'CSD', etc (comma-separated)
+            days: Number of days to look back
+            direction: 'asc' or 'desc'
+            page_size: Max results per page
+
+        Returns:
+            List of activities with details:
+            - symbol: Stock symbol
+            - side: 'buy' or 'sell'
+            - qty: Quantity
+            - price: Fill price
+            - transaction_time: Timestamp
+            - order_id: Related order ID
+
+        Example:
+            fills = broker.get_activities(activity_types='FILL', days=7)
+            for fill in fills:
+                print(f"{fill['symbol']}: {fill['qty']} @ ${fill['price']}")
+        """
+        start_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+
+        activities = self.api.get_activities(
+            activity_types=activity_types,
+            date=start_date,
+            direction=direction,
+            page_size=page_size
+        )
+
+        result = []
+        for activity in activities:
+            # Convert to dict
+            act_dict = {
+                'id': activity.id,
+                'activity_type': activity.activity_type,
+                'transaction_time': activity.transaction_time.isoformat() if hasattr(activity.transaction_time, 'isoformat') else str(activity.transaction_time),
+            }
+
+            # FILL-specific fields
+            if activity.activity_type == 'FILL':
+                act_dict.update({
+                    'symbol': activity.symbol,
+                    'side': activity.side,
+                    'qty': float(activity.qty),
+                    'price': float(activity.price),
+                    'order_id': activity.order_id,
+                })
+
+            # DIV-specific fields
+            elif activity.activity_type == 'DIV':
+                act_dict.update({
+                    'symbol': activity.symbol,
+                    'qty': float(activity.qty) if hasattr(activity, 'qty') else 0,
+                    'amount': float(activity.net_amount) if hasattr(activity, 'net_amount') else 0,
+                })
+
+            result.append(act_dict)
+
+        return result
+
+    def analyze_slippage(self, fills: List[Dict], orders: List[Order]) -> Dict:
+        """
+        Analyze slippage from fills vs expected prices.
+
+        Args:
+            fills: List from get_activities(activity_types='FILL')
+            orders: List from get_orders(status='filled')
+
+        Returns:
+            Dict with slippage analysis:
+            - total_fills: Number of fills
+            - avg_slippage_usd: Average slippage per share
+            - avg_slippage_pct: Average slippage %
+            - total_slippage_cost: Total slippage cost
+            - positive_slippage_count: Favorable fills
+            - negative_slippage_count: Unfavorable fills
+        """
+        if not fills or not orders:
+            return {
+                'total_fills': 0,
+                'avg_slippage_usd': 0,
+                'avg_slippage_pct': 0,
+                'total_slippage_cost': 0,
+                'positive_slippage_count': 0,
+                'negative_slippage_count': 0,
+            }
+
+        # Create order lookup
+        order_map = {o.id: o for o in orders}
+
+        slippages = []
+        total_cost = 0
+        positive = 0
+        negative = 0
+
+        for fill in fills:
+            if fill['activity_type'] != 'FILL':
+                continue
+
+            order_id = fill.get('order_id')
+            if not order_id or order_id not in order_map:
+                continue
+
+            order = order_map[order_id]
+            fill_price = fill['price']
+
+            # Determine expected price (limit price or snapshot at order time)
+            expected_price = order.limit_price if order.limit_price else fill_price
+
+            # Calculate slippage
+            if fill['side'] == 'buy':
+                slippage = fill_price - expected_price  # Negative = better
+            else:
+                slippage = expected_price - fill_price  # Negative = worse
+
+            slippages.append(slippage)
+            total_cost += slippage * fill['qty']
+
+            if slippage < 0:
+                positive += 1
+            else:
+                negative += 1
+
+        avg_slippage = sum(slippages) / len(slippages) if slippages else 0
+        avg_pct = (avg_slippage / sum(f['price'] for f in fills if f['activity_type'] == 'FILL') * len(slippages)) * 100 if slippages else 0
+
+        return {
+            'total_fills': len(slippages),
+            'avg_slippage_usd': round(avg_slippage, 4),
+            'avg_slippage_pct': round(avg_pct, 4),
+            'total_slippage_cost': round(total_cost, 2),
+            'positive_slippage_count': positive,
+            'negative_slippage_count': negative,
+        }
+
+    # =========================================================================
+    # MARKET CALENDAR
+    # =========================================================================
+
+    @_retry_api()
+    def get_calendar(
+        self,
+        start: str = None,
+        end: str = None
+    ) -> List[Dict]:
+        """
+        Get market calendar (trading days).
+
+        Args:
+            start: Start date (YYYY-MM-DD)
+            end: End date (YYYY-MM-DD)
+
+        Returns:
+            List of trading days with:
+            - date: Trading date
+            - open: Market open time
+            - close: Market close time
+
+        Example:
+            calendar = broker.get_calendar(
+                start='2026-02-01',
+                end='2026-02-28'
+            )
+        """
+        if not start:
+            start = datetime.now().strftime('%Y-%m-%d')
+        if not end:
+            end = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
+
+        calendar = self.api.get_calendar(start=start, end=end)
+
+        result = []
+        for day in calendar:
+            result.append({
+                'date': day.date.strftime('%Y-%m-%d') if hasattr(day.date, 'strftime') else str(day.date),
+                'open': day.open.strftime('%H:%M') if hasattr(day.open, 'strftime') else str(day.open),
+                'close': day.close.strftime('%H:%M') if hasattr(day.close, 'strftime') else str(day.close),
+            })
+
+        return result
+
+    def is_market_open_tomorrow(self) -> bool:
+        """
+        Check if market will be open tomorrow.
+
+        Returns:
+            True if market opens tomorrow, False otherwise
+
+        Example:
+            if not broker.is_market_open_tomorrow():
+                logger.warning("Tomorrow is holiday - skip new positions")
+        """
+        tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+        calendar = self.get_calendar(start=tomorrow, end=tomorrow)
+        return len(calendar) > 0
+
+    def get_next_market_day(self) -> Optional[str]:
+        """
+        Get next trading day date.
+
+        Returns:
+            Date string (YYYY-MM-DD) or None
+        """
+        today = datetime.now()
+        for i in range(1, 10):  # Check next 10 days
+            check_date = (today + timedelta(days=i)).strftime('%Y-%m-%d')
+            calendar = self.get_calendar(start=check_date, end=check_date)
+            if calendar:
+                return check_date
+        return None
+
+    def get_upcoming_holidays(self, days: int = 30) -> List[Dict]:
+        """
+        Get upcoming market holidays.
+
+        Args:
+            days: Number of days to look ahead
+
+        Returns:
+            List of holidays with:
+            - date: Holiday date
+            - days_away: Days until holiday
+
+        Example:
+            holidays = broker.get_upcoming_holidays(days=30)
+            for h in holidays:
+                print(f"Holiday on {h['date']} ({h['days_away']} days away)")
+        """
+        start = datetime.now()
+        end = start + timedelta(days=days)
+
+        # Get all calendar days in range
+        all_days = []
+        current = start
+        while current <= end:
+            all_days.append(current.strftime('%Y-%m-%d'))
+            current += timedelta(days=1)
+
+        # Get trading days
+        calendar = self.get_calendar(
+            start=start.strftime('%Y-%m-%d'),
+            end=end.strftime('%Y-%m-%d')
+        )
+        trading_days = set(day['date'] for day in calendar)
+
+        # Find holidays (weekdays that are not trading days)
+        holidays = []
+        for day_str in all_days:
+            day = datetime.strptime(day_str, '%Y-%m-%d')
+            # Skip weekends
+            if day.weekday() >= 5:
+                continue
+            # If weekday but not trading day = holiday
+            if day_str not in trading_days:
+                days_away = (day - start).days
+                holidays.append({
+                    'date': day_str,
+                    'days_away': days_away,
+                    'day_of_week': day.strftime('%A'),
+                })
+
+        return holidays
 
     # =========================================================================
     # UTILITY

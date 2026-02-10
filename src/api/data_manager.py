@@ -1,10 +1,17 @@
 """
 Data Manager - Coordinates multiple data sources
+
+v6.7 - UNIFIED DATA LAYER:
+- Added broker integration for realtime data
+- Single abstraction for ALL READ operations
+- Fallback logic: broker → API sources → cached data
 """
 import os
+import json
 import pandas as pd
+import yfinance as yf
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 from loguru import logger
 
 from .yahoo_finance_client import YahooFinanceClient
@@ -15,12 +22,28 @@ from .base_client import APIError, DataCache
 
 class DataManager:
     """
-    Manages data from multiple sources with fallback capabilities
+    Unified data layer for historical + realtime data (v6.7)
+
+    Manages data from multiple sources with fallback capabilities:
+    - Broker (Alpaca) - realtime prices, positions, orders, account
+    - Yahoo Finance - historical data, fallback prices
+    - Tiingo/FMP - backup sources
+    - Local cache/JSON - offline fallback
+
+    Design: READ operations only (WRITE stays direct to broker)
     """
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None, broker=None):
+        """
+        Initialize DataManager with optional broker integration
+
+        Args:
+            config: Configuration dict
+            broker: Optional BrokerInterface for realtime data (e.g., AlpacaBroker)
+        """
         self.config = config or {}
         self.cache = DataCache(ttl_minutes=60)
+        self.broker = broker  # v6.7: Optional broker for realtime data
 
         # Initialize clients
         self.yahoo_client = YahooFinanceClient()
@@ -43,7 +66,13 @@ class DataManager:
         self.backup_source = self.config.get('backup_source', 'tiingo' if self.tiingo_client else 'yahoo')
         self.price_backup = self.config.get('price_backup', 'tiingo' if self.tiingo_client else 'yahoo')
 
-        logger.info(f"DataManager initialized with primary: {self.primary_source}, backup: {self.backup_source}, price_backup: {self.price_backup}")
+        # v6.7: Cache paths for offline fallback
+        self.project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        self.portfolio_file = os.path.join(self.project_root, 'rapid_portfolio.json')
+        self.account_cache_file = os.path.join(self.project_root, 'data', 'account_cache.json')
+
+        logger.info(f"DataManager initialized with primary: {self.primary_source}, backup: {self.backup_source}, "
+                   f"price_backup: {self.price_backup}, broker: {'Yes' if broker else 'No'}")
 
     def get_price_data(self, symbol: str, period: str = "1y", interval: str = "1d",
                         data_type: str = 'price') -> pd.DataFrame:
@@ -309,3 +338,471 @@ class DataManager:
                               data_type: str = 'sector_price') -> 'pd.DataFrame':
         """Batch download prices for multiple symbols (v5.2)."""
         return self.yahoo_client.batch_download_prices(symbols, period, interval, data_type)
+
+    # =========================================================================
+    # v6.7: REALTIME PRICES (broker → yfinance fallback)
+    # =========================================================================
+
+    def get_current_price(self, symbol: str) -> Optional[float]:
+        """
+        Get current realtime price with fallback (v6.7)
+
+        Priority:
+        1. Broker (Alpaca realtime) if available
+        2. yfinance (15-min delayed for free tier)
+
+        Returns:
+            Current price as float, or None if all sources fail
+        """
+        # Try broker first (realtime)
+        if self.broker:
+            try:
+                quote = self.broker.get_snapshot(symbol)
+                if quote and quote.last > 0:
+                    logger.debug(f"Price from broker: {symbol} = ${quote.last:.2f}")
+                    return float(quote.last)
+            except Exception as e:
+                logger.warning(f"Broker price fetch failed for {symbol}: {e}")
+
+        # Fallback to yfinance
+        try:
+            ticker = yf.Ticker(symbol)
+            data = ticker.history(period='1d')
+            if len(data) > 0:
+                price = float(data['Close'].iloc[-1])
+                logger.debug(f"Price from yfinance: {symbol} = ${price:.2f}")
+                return price
+        except Exception as e:
+            logger.warning(f"yfinance price fetch failed for {symbol}: {e}")
+
+        logger.error(f"Failed to get current price for {symbol} from all sources")
+        return None
+
+    def get_batch_prices(self, symbols: List[str]) -> Dict[str, float]:
+        """
+        Batch fetch current prices with fallback (v6.7)
+
+        Priority:
+        1. Broker batch snapshots (1 API call for all symbols)
+        2. yfinance parallel fetch
+
+        Returns:
+            Dict mapping symbol → current price
+        """
+        prices = {}
+
+        # Try broker batch fetch first (fast!)
+        if self.broker:
+            try:
+                quotes = self.broker.get_snapshots(symbols)
+                for symbol, quote in quotes.items():
+                    if quote and quote.last > 0:
+                        prices[symbol] = float(quote.last)
+
+                if prices:
+                    logger.info(f"Batch prices from broker: {len(prices)}/{len(symbols)} symbols")
+
+                    # Fill missing symbols with yfinance
+                    missing = set(symbols) - set(prices.keys())
+                    if missing:
+                        logger.warning(f"Broker missing {len(missing)} symbols, using yfinance fallback")
+                        for symbol in missing:
+                            price = self.get_current_price(symbol)
+                            if price:
+                                prices[symbol] = price
+
+                    return prices
+            except Exception as e:
+                logger.warning(f"Broker batch fetch failed: {e}, falling back to yfinance")
+
+        # Fallback: yfinance parallel fetch
+        logger.info(f"Batch prices from yfinance: {len(symbols)} symbols")
+        for symbol in symbols:
+            price = self.get_current_price(symbol)
+            if price:
+                prices[symbol] = price
+
+        return prices
+
+    def get_bars(self, symbol: str, timeframe: str = '1Day',
+                 start: datetime = None, end: datetime = None,
+                 limit: int = 100) -> Optional[pd.DataFrame]:
+        """
+        Get historical bars with fallback (v6.7)
+
+        Priority:
+        1. Broker get_bars() if available
+        2. yfinance historical data
+
+        Args:
+            symbol: Stock symbol
+            timeframe: '1Day', '1Hour', '5Min', etc.
+            start: Start datetime
+            end: End datetime
+            limit: Max bars to fetch
+
+        Returns:
+            DataFrame with OHLCV data
+        """
+        # Try broker first
+        if self.broker:
+            try:
+                bars = self.broker.get_bars(symbol, timeframe, start, end, limit)
+                if bars:
+                    # Convert to DataFrame
+                    data = []
+                    for bar in bars:
+                        data.append({
+                            'timestamp': bar.timestamp,
+                            'open': bar.open,
+                            'high': bar.high,
+                            'low': bar.low,
+                            'close': bar.close,
+                            'volume': bar.volume
+                        })
+                    df = pd.DataFrame(data)
+                    df.set_index('timestamp', inplace=True)
+                    logger.debug(f"Bars from broker: {symbol} ({len(df)} bars)")
+                    return df
+            except Exception as e:
+                logger.warning(f"Broker bars fetch failed for {symbol}: {e}")
+
+        # Fallback to yfinance
+        try:
+            # Map timeframe to yfinance interval
+            interval_map = {
+                '1Day': '1d',
+                '1Hour': '1h',
+                '5Min': '5m',
+                '15Min': '15m',
+                '1Min': '1m'
+            }
+            interval = interval_map.get(timeframe, '1d')
+
+            # Calculate period from limit
+            if limit <= 7:
+                period = '7d'
+            elif limit <= 30:
+                period = '1mo'
+            elif limit <= 90:
+                period = '3mo'
+            else:
+                period = '1y'
+
+            df = self.get_price_data(symbol, period=period, interval=interval)
+            if not df.empty:
+                logger.debug(f"Bars from yfinance: {symbol} ({len(df)} bars)")
+                return df.tail(limit)
+        except Exception as e:
+            logger.error(f"yfinance bars fetch failed for {symbol}: {e}")
+
+        return None
+
+    # =========================================================================
+    # v6.7: ACCOUNT & POSITIONS (broker → cached JSON fallback)
+    # =========================================================================
+
+    def get_account(self) -> Optional[Any]:
+        """
+        Get account information with fallback (v6.7)
+
+        Priority:
+        1. Broker get_account() if available
+        2. Cached account data (last known state)
+
+        Returns:
+            Account object with equity, cash, buying_power, etc.
+        """
+        # Try broker first
+        if self.broker:
+            try:
+                account = self.broker.get_account()
+
+                # Cache account data for offline fallback
+                try:
+                    os.makedirs(os.path.dirname(self.account_cache_file), exist_ok=True)
+                    cache_data = {
+                        'equity': float(account.equity),
+                        'cash': float(account.cash),
+                        'buying_power': float(account.buying_power),
+                        'portfolio_value': float(account.portfolio_value),
+                        'pattern_day_trader': account.pattern_day_trader,
+                        'day_trade_count': account.day_trade_count,
+                        'cached_at': datetime.now().isoformat()
+                    }
+                    with open(self.account_cache_file, 'w') as f:
+                        json.dump(cache_data, f, indent=2)
+                except Exception as e:
+                    logger.debug(f"Failed to cache account data: {e}")
+
+                return account
+            except Exception as e:
+                logger.warning(f"Broker get_account failed: {e}, trying cached data")
+
+        # Fallback to cached account data
+        try:
+            if os.path.exists(self.account_cache_file):
+                with open(self.account_cache_file) as f:
+                    cached = json.load(f)
+
+                cached_time = datetime.fromisoformat(cached['cached_at'])
+                age_hours = (datetime.now() - cached_time).total_seconds() / 3600
+
+                if age_hours < 24:
+                    logger.info(f"Using cached account data (age: {age_hours:.1f}h)")
+                    # Create mock Account object
+                    from ..engine.broker_interface import Account
+                    return Account(
+                        equity=cached['equity'],
+                        cash=cached['cash'],
+                        buying_power=cached['buying_power'],
+                        portfolio_value=cached['portfolio_value'],
+                        pattern_day_trader=cached.get('pattern_day_trader', False),
+                        day_trade_count=cached.get('day_trade_count', 0)
+                    )
+                else:
+                    logger.warning(f"Cached account data is stale ({age_hours:.1f}h old)")
+        except Exception as e:
+            logger.error(f"Failed to load cached account data: {e}")
+
+        return None
+
+    def get_positions(self) -> List[Any]:
+        """
+        Get all positions with fallback (v6.7)
+
+        Priority:
+        1. Broker get_positions() if available
+        2. Local portfolio.json (managed positions)
+
+        Returns:
+            List of Position objects
+        """
+        # Try broker first
+        if self.broker:
+            try:
+                positions = self.broker.get_positions()
+                logger.debug(f"Positions from broker: {len(positions)} positions")
+                return positions
+            except Exception as e:
+                logger.warning(f"Broker get_positions failed: {e}, trying local portfolio")
+
+        # Fallback to local portfolio.json
+        try:
+            if os.path.exists(self.portfolio_file):
+                with open(self.portfolio_file) as f:
+                    portfolio_data = json.load(f)
+
+                positions = []
+                for symbol, pos_data in portfolio_data.get('positions', {}).items():
+                    # Create mock Position object
+                    from ..engine.broker_interface import Position
+                    positions.append(Position(
+                        symbol=symbol,
+                        qty=pos_data['shares'],
+                        avg_entry_price=pos_data['entry_price'],
+                        current_price=pos_data['entry_price'],  # No realtime price
+                        market_value=pos_data['shares'] * pos_data['entry_price'],
+                        unrealized_pl=0,
+                        unrealized_plpc=0,
+                        side='long',
+                        cost_basis=pos_data['cost_basis']
+                    ))
+
+                logger.info(f"Positions from local portfolio: {len(positions)} positions")
+                return positions
+        except Exception as e:
+            logger.error(f"Failed to load local portfolio: {e}")
+
+        return []
+
+    def get_position(self, symbol: str) -> Optional[Any]:
+        """
+        Get position for specific symbol with fallback (v6.7)
+
+        Priority:
+        1. Broker get_position() if available
+        2. Local portfolio.json
+
+        Returns:
+            Position object or None
+        """
+        # Try broker first
+        if self.broker:
+            try:
+                position = self.broker.get_position(symbol)
+                if position:
+                    return position
+            except Exception as e:
+                logger.debug(f"Broker get_position failed for {symbol}: {e}")
+
+        # Fallback to local portfolio
+        try:
+            if os.path.exists(self.portfolio_file):
+                with open(self.portfolio_file) as f:
+                    portfolio_data = json.load(f)
+
+                pos_data = portfolio_data.get('positions', {}).get(symbol)
+                if pos_data:
+                    from ..engine.broker_interface import Position
+                    return Position(
+                        symbol=symbol,
+                        qty=pos_data['shares'],
+                        avg_entry_price=pos_data['entry_price'],
+                        current_price=pos_data['entry_price'],
+                        market_value=pos_data['shares'] * pos_data['entry_price'],
+                        unrealized_pl=0,
+                        unrealized_plpc=0,
+                        side='long',
+                        cost_basis=pos_data['cost_basis']
+                    )
+        except Exception as e:
+            logger.debug(f"Failed to load position from local portfolio: {e}")
+
+        return None
+
+    # =========================================================================
+    # v6.7: ORDERS (broker → empty fallback)
+    # =========================================================================
+
+    def get_orders(self, status: str = 'open') -> List[Any]:
+        """
+        Get orders with fallback (v6.7)
+
+        Priority:
+        1. Broker get_orders() if available
+        2. Empty list (no offline fallback for orders)
+
+        Returns:
+            List of Order objects
+        """
+        if self.broker:
+            try:
+                orders = self.broker.get_orders(status=status)
+                logger.debug(f"Orders from broker: {len(orders)} orders")
+                return orders
+            except Exception as e:
+                logger.warning(f"Broker get_orders failed: {e}")
+
+        # No fallback for orders (must be live)
+        return []
+
+    def get_order(self, order_id: str) -> Optional[Any]:
+        """
+        Get specific order with fallback (v6.7)
+
+        Priority:
+        1. Broker get_order() if available
+        2. None (no offline fallback)
+
+        Returns:
+            Order object or None
+        """
+        if self.broker:
+            try:
+                order = self.broker.get_order(order_id)
+                return order
+            except Exception as e:
+                logger.debug(f"Broker get_order failed for {order_id}: {e}")
+
+        return None
+
+    # =========================================================================
+    # v6.7: MARKET INFO (broker → standard hours fallback)
+    # =========================================================================
+
+    def get_clock(self) -> Optional[Any]:
+        """
+        Get market clock with fallback (v6.7)
+
+        Priority:
+        1. Broker get_clock() if available
+        2. Standard market hours (9:30-16:00 ET, Mon-Fri)
+
+        Returns:
+            Clock object with is_open, next_open, next_close
+        """
+        if self.broker:
+            try:
+                clock = self.broker.get_clock()
+                return clock
+            except Exception as e:
+                logger.warning(f"Broker get_clock failed: {e}, using standard hours")
+
+        # Fallback: standard market hours
+        from ..engine.broker_interface import Clock
+        now = datetime.now()
+
+        # Check if market day (Mon-Fri, not holiday)
+        is_market_day = now.weekday() < 5
+
+        # Standard hours: 9:30-16:00 ET
+        market_open_time = now.replace(hour=9, minute=30, second=0, microsecond=0)
+        market_close_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
+
+        is_open = is_market_day and market_open_time <= now <= market_close_time
+
+        # Calculate next open/close
+        if now < market_open_time and is_market_day:
+            next_open = market_open_time
+        else:
+            # Next trading day
+            days_ahead = 1 if now.weekday() < 4 else (7 - now.weekday())
+            next_open = (now + timedelta(days=days_ahead)).replace(hour=9, minute=30, second=0)
+
+        if is_open:
+            next_close = market_close_time
+        else:
+            next_close = next_open.replace(hour=16, minute=0)
+
+        return Clock(
+            is_open=is_open,
+            next_open=next_open,
+            next_close=next_close
+        )
+
+    def is_market_open(self) -> bool:
+        """Check if market is currently open (v6.7)"""
+        clock = self.get_clock()
+        return clock.is_open if clock else False
+
+    def get_calendar(self, start: str = None, end: str = None) -> List[Dict]:
+        """
+        Get market calendar with fallback (v6.7)
+
+        Priority:
+        1. Broker get_calendar() if available
+        2. Standard trading days (Mon-Fri, no holidays)
+
+        Returns:
+            List of trading days with date, open, close times
+        """
+        if self.broker:
+            try:
+                calendar = self.broker.get_calendar(start=start, end=end)
+                return calendar
+            except Exception as e:
+                logger.warning(f"Broker get_calendar failed: {e}, using standard calendar")
+
+        # Fallback: generate standard trading days
+        if not start:
+            start = datetime.now().strftime('%Y-%m-%d')
+        if not end:
+            end = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
+
+        start_date = datetime.strptime(start, '%Y-%m-%d')
+        end_date = datetime.strptime(end, '%Y-%m-%d')
+
+        calendar = []
+        current = start_date
+        while current <= end_date:
+            # Include Mon-Fri only
+            if current.weekday() < 5:
+                calendar.append({
+                    'date': current.strftime('%Y-%m-%d'),
+                    'open': '09:30',
+                    'close': '16:00'
+                })
+            current += timedelta(days=1)
+
+        return calendar

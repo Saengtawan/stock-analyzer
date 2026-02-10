@@ -222,6 +222,21 @@ class AlpacaStreamer:
 
         while self.running and retry_count < max_retries:
             try:
+                # v6.17: Clean up old stream/loop BEFORE creating new ones (fixes WebSocket leak)
+                if self.stream:
+                    try:
+                        self.stream.stop()
+                        self.stream.close()
+                    except:
+                        pass
+                    self.stream = None
+
+                if self.loop and self.loop.is_running():
+                    try:
+                        self.loop.call_soon_threadsafe(self.loop.stop)
+                    except:
+                        pass
+
                 # Create new event loop for this thread
                 self.loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(self.loop)
@@ -241,10 +256,12 @@ class AlpacaStreamer:
                 self.stream.run()
 
             except ValueError as e:
-                if "auth failed" in str(e):
+                if "auth failed" in str(e) or "connection limit" in str(e).lower():
                     retry_count += 1
-                    logger.warning(f"Auth failed, retry {retry_count}/{max_retries} in {retry_delay}s...")
-                    time.sleep(retry_delay)
+                    # v6.17: Longer delay for connection limit errors
+                    wait_time = 30 if "connection limit" in str(e).lower() else retry_delay
+                    logger.warning(f"Connection error, retry {retry_count}/{max_retries} in {wait_time}s...")
+                    time.sleep(wait_time)
                     retry_delay = min(retry_delay * 2, 60)  # Exponential backoff
                 else:
                     logger.error(f"Stream error: {e}")
@@ -280,16 +297,22 @@ class AlpacaStreamer:
     def stop(self):
         """Stop streaming"""
         self.running = False
+        # v6.17: Proper cleanup to prevent connection leaks
         if self.stream:
             try:
                 self.stream.stop()
+                self.stream.close()  # Close connection properly
             except:
                 pass
+            self.stream = None
         if self.loop:
             try:
-                self.loop.call_soon_threadsafe(self.loop.stop)
+                if self.loop.is_running():
+                    self.loop.call_soon_threadsafe(self.loop.stop)
+                self.loop.close()  # Close loop properly
             except:
                 pass
+            self.loop = None
         logger.info("AlpacaStreamer stopped")
 
     def get_price(self, symbol: str) -> Optional[float]:

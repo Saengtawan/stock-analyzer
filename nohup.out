@@ -1,0 +1,190 @@
+2026-02-10 21:53:49.089 | INFO     | __main__:<module>:37 - Environment loaded - Alpaca API configured: True
+2026-02-10 21:53:49.093 | INFO     | __main__:start_web_server:119 - Starting Web Server...
+2026-02-10 21:53:49.942 | WARNING  | web.app:<module>:49 - No RAPID_API_SECRET set — generated ephemeral key (set env var for persistence)
+2026-02-10 21:53:50.327 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
+2026-02-10 21:53:50.688 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
+2026-02-10 21:53:51.092 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
+2026-02-10 21:53:51.103 | INFO     | api.data_manager:__init__:74 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
+2026-02-10 21:53:51.103 | INFO     | analysis.enhanced_stock_analyzer:__init__:60 - Enhanced Stock Analyzer initialized with strategy: swing_trading, risk: moderate
+2026-02-10 21:53:51.103 | INFO     | main:__init__:54 - Enhanced Stock Analyzer initialized with strategy: swing_trading
+2026-02-10 21:53:51.103 | INFO     | screeners.support_level_screener:__init__:32 - Support level screener initialized with AI-only universe generation
+2026-02-10 21:53:51.103 | INFO     | screeners.dividend_screener:__init__:30 - Dividend screener initialized with AI-only universe generation
+2026-02-10 21:53:51.103 | INFO     | screeners.value_screener:__init__:32 - Value stock screener initialized with AI-only universe generation
+2026-02-10 21:53:51.103 | INFO     | screeners.premarket_scanner:__init__:33 - ✅ Pre-market scanner initialized (FREE - Yahoo Finance + Smart Indicators)
+2026-02-10 21:53:51.103 | INFO     | screeners.growth_catalyst_screener:__init__:128 - ✅ Alternative Data sources initialized (6 sources)
+2026-02-10 21:53:51.103 | INFO     | screeners.growth_catalyst_screener:__init__:136 - ✅ Sector Rotation detector initialized
+2026-02-10 21:53:51.124 | DEBUG    | market_regime_detector:__init__:82 - MarketRegimeDetector: Loaded config from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
+2026-02-10 21:53:51.124 | INFO     | screeners.growth_catalyst_screener:__init__:145 - ✅ Market Regime Detector initialized
+2026-02-10 21:53:51.124 | INFO     | screeners.growth_catalyst_screener:__init__:155 - ✅ Sector Regime Detector initialized
+2026-02-10 21:53:51.124 | INFO     | screeners.growth_catalyst_screener:__init__:156 - Growth Catalyst Screener v3.3 initialized: Tiered Quality + Alt Data + Sector Rotation + Market Regime + SECTOR-AWARE REGIME
+2026-02-10 21:53:51.124 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:340 -    Initialized 14 screening rules
+2026-02-10 21:53:51.124 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    CRITICAL: 4 rules
+2026-02-10 21:53:51.124 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    HIGH: 6 rules
+2026-02-10 21:53:51.124 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    MEDIUM: 2 rules
+2026-02-10 21:53:51.124 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    LOW: 2 rules
+2026-02-10 21:53:51.124 | INFO     | screening_rules_engine:__init__:99 - ✅ Screening Rules Engine initialized with Growth Catalyst rules
+2026-02-10 21:53:51.124 | INFO     | screeners.growth_catalyst_screener:__init__:165 - ✅ Rule-Based Screening Engine initialized (v4.0)
+2026-02-10 21:53:51.124 | INFO     | screeners.growth_catalyst_screener:__init__:166 -    Benefits: Configurable thresholds, A/B testing, performance tracking
+2026-02-10 21:53:51.124 | INFO     | screeners.momentum_growth_screener:__init__:39 - ✅ Momentum Growth Screener v1.0 initialized
+2026-02-10 21:53:51.124 | INFO     | screeners.momentum_growth_screener:__init__:40 -    Using momentum & trend filters (NOT composite scores)
+2026-02-10 21:53:51.137 | INFO     | __main__:start_web_server:134 - Web Server started at http://localhost:5000
+
+============================================================
+  🚀 RAPID TRADING SYSTEM
+  Target: 5-15% per month
+============================================================
+
+ * Serving Flask app 'web.app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.7.20:5000
+[33mPress CTRL+C to quit[0m
+2026-02-10 21:53:52.537 | INFO     | auto_trading_engine:_load_config_from_yaml:761 - ✅ Loaded ALL parameters from RapidRotationConfig (v6.10)
+2026-02-10 21:53:52.537 | INFO     | auto_trading_engine:_load_config_from_yaml:762 -    SL range: 2.0%-3.0%
+2026-02-10 21:53:52.537 | INFO     | auto_trading_engine:_load_config_from_yaml:763 -    Max positions: 5
+2026-02-10 21:53:52.537 | INFO     | auto_trading_engine:_load_config_from_yaml:764 -    Regime filter: ENABLED
+2026-02-10 21:53:52.537 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+2026-02-10 21:53:52.934 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
+2026-02-10 21:53:53.138 | INFO     | __main__:start_rapid_portfolio_monitor:147 - Starting Rapid Portfolio Monitor...
+2026-02-10 21:53:53.151 | INFO     | __main__:start_rapid_portfolio_monitor:193 - Rapid Portfolio Monitor started (check every 5 minutes)
+2026-02-10 21:53:53.309 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
+2026-02-10 21:53:53.676 | DEBUG    | data_sources.realtime_price:_fetch_intraday_price:131 - GOOGL: Intraday price $316.27 at 2026-02-10 09:53:00-05:00
+2026-02-10 21:53:53.677 | DEBUG    | rapid_portfolio_manager:get_current_price:468 - GOOGL: Price $316.27 from intraday (1m bars) (realtime: True)
+2026-02-10 21:53:53.688 | DEBUG    | screeners.rapid_rotation_screener:__init__:216 - Loaded RapidRotationConfig from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
+2026-02-10 21:53:53.689 | INFO     | screeners.rapid_rotation_screener:_load_sector_cache:726 - 📦 Loaded 653 sectors from cache
+2026-02-10 21:53:53.689 | INFO     | screeners.rapid_rotation_screener:_init_ai_universe:359 - ✅ AI Universe Generator initialized
+2026-02-10 21:53:53.690 | INFO     | screeners.rapid_rotation_screener:_init_market_regime:369 - ✅ Market Regime Detector initialized
+2026-02-10 21:53:53.822 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
+2026-02-10 21:53:53.870 | INFO     | api.data_manager:__init__:74 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: Yes
+2026-02-10 21:53:53.870 | INFO     | auto_trading_engine:__init__:405 - DataManager initialized with broker integration
+2026-02-10 21:53:53.870 | DEBUG    | trading_safety:set_config:166 - Safety config: DAILY_LOSS_LIMIT_PCT = 5.0
+2026-02-10 21:53:53.870 | DEBUG    | trading_safety:set_config:166 - Safety config: MAX_POSITIONS = 5
+2026-02-10 21:53:53.870 | DEBUG    | trading_safety:set_config:166 - Safety config: MAX_HOLD_DAYS = 5
+2026-02-10 21:53:53.870 | INFO     | trading_safety:__init__:129 - Trading Safety System initialized
+2026-02-10 21:53:53.871 | INFO     | pdt_smart_guard:_load_entry_dates:326 - PDT Guard: Loaded 5 entry dates from disk
+2026-02-10 21:53:53.871 | INFO     | pdt_smart_guard:__init__:255 - PDT Smart Guard v2.3 initialized (No Override Mode)
+2026-02-10 21:53:53.871 | INFO     | pdt_smart_guard:__init__:256 -   SL Threshold: -2.5%
+2026-02-10 21:53:53.871 | INFO     | pdt_smart_guard:__init__:257 -   TP Threshold: 4.0%
+2026-02-10 21:53:53.871 | INFO     | pdt_smart_guard:__init__:258 -   Reserve: 1 day trades
+2026-02-10 21:53:53.871 | INFO     | pdt_smart_guard:__init__:259 -   Budget = 0 → HOLD (ไม่ override PDT เด็ดขาด)
+2026-02-10 21:53:53.871 | INFO     | auto_trading_engine:__init__:423 - PDT Smart Guard v2.3 initialized (No Override - uses RapidRotationConfig)
+2026-02-10 21:53:53.873 | INFO     | trade_logger:_load_today_logs:303 - Loaded 12 logs from /home/saengtawan/work/project/cc/stock-analyzer/trade_logs/trade_log_2026-02-10.json
+2026-02-10 21:53:53.874 | INFO     | trade_logger:__init__:220 - TradeLogger initialized - logs: /home/saengtawan/work/project/cc/stock-analyzer/trade_logs, db: /home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db
+2026-02-10 21:53:53.874 | INFO     | auto_trading_engine:__init__:427 - Trade Logger v1.0 initialized
+2026-02-10 21:53:53.876 | INFO     | alert_manager:_load:345 - Loaded 200 alerts (next_id=2401)
+2026-02-10 21:53:53.876 | INFO     | auto_trading_engine:__init__:432 - Alert Manager v1.0 initialized
+2026-02-10 21:53:53.885 | DEBUG    | screeners.rapid_rotation_screener:__init__:216 - Loaded RapidRotationConfig from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
+2026-02-10 21:53:53.886 | INFO     | screeners.rapid_rotation_screener:_load_sector_cache:726 - 📦 Loaded 653 sectors from cache
+2026-02-10 21:53:53.886 | INFO     | screeners.rapid_rotation_screener:_init_ai_universe:359 - ✅ AI Universe Generator initialized
+2026-02-10 21:53:53.886 | INFO     | screeners.rapid_rotation_screener:_init_market_regime:369 - ✅ Market Regime Detector initialized
+2026-02-10 21:53:54.151 | INFO     | __main__:start_realtime_price_streamer:211 - Starting Real-time Price Streamer...
+2026-02-10 21:53:54.576 | INFO     | alpaca_streamer:__init__:64 - AlpacaStreamer v1.1 initialized (paper=True, feed=IEX)
+2026-02-10 21:53:54.576 | INFO     | alpaca_streamer:subscribe:205 - Queued subscription for: ['GOOGL', 'LMT']
+2026-02-10 21:53:54.577 | INFO     | __main__:start_realtime_price_streamer:244 - 📡 Subscribed to real-time prices: ['GOOGL', 'LMT']
+2026-02-10 21:53:54.579 | INFO     | alpaca_streamer:start:295 - AlpacaStreamer started
+2026-02-10 21:53:54.579 | INFO     | alpaca_streamer:_run_stream:253 - Streaming started for: ['GOOGL', 'LMT']
+2026-02-10 21:53:54.580 | INFO     | __main__:start_realtime_price_streamer:252 - ✅ Real-time Price Streamer started (WebSocket active!)
+2026-02-10 21:53:54.912 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
+2026-02-10 21:53:55.084 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
+2026-02-10 21:53:55.582 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+2026-02-10 21:53:55.582 | INFO     | __main__:start_health_checker:342 - Health Checker started (check every 5 minutes)
+2026-02-10 21:53:55.589 | INFO     | __main__:start_universe_maintenance_scheduler:405 - Universe Maintenance Scheduler started (daily at 2:00 AM)
+2026-02-10 21:53:55.885 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
+2026-02-10 21:53:56.131 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
+2026-02-10 21:53:56.882 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
+2026-02-10 21:53:56.941 | INFO     | api.data_manager:__init__:74 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
+2026-02-10 21:53:56.942 | INFO     | sector_regime_detector:update_all_sectors:419 - Updating sector regimes (5-min realtime, MCW)...
+2026-02-10 21:53:56.943 | INFO     | sector_regime_detector:_build_sector_company_map:298 - Built sector company map: 550 stocks across 11 sectors (with market weights)
+2026-02-10 21:53:56.943 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:328 - Batch downloading 550 sector stocks for 1d returns...
+2026-02-10 21:53:56.943 | DEBUG    | api.yahoo_finance_client:batch_download_prices:626 - Cache hit for batch download (550 symbols)
+2026-02-10 21:53:56.967 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Technology (XLK): MCW 1d = +0.00% (50/50 stocks, weight=88.7%)
+2026-02-10 21:53:56.967 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Energy (XLE): MCW 1d = -0.13% (50/50 stocks, weight=92.2%)
+2026-02-10 21:53:56.967 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Financial Services (XLF): MCW 1d = +0.14% (48/50 stocks, weight=76.3%)
+2026-02-10 21:53:56.968 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Healthcare (XLV): MCW 1d = +0.11% (50/50 stocks, weight=81.4%)
+2026-02-10 21:53:56.968 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Cyclical (XLY): MCW 1d = +0.46% (50/50 stocks, weight=86.4%)
+2026-02-10 21:53:56.968 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Defensive (XLP): MCW 1d = -0.22% (49/50 stocks, weight=95.7%)
+2026-02-10 21:53:56.968 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Industrials (XLI): MCW 1d = +0.00% (50/50 stocks, weight=68.5%)
+2026-02-10 21:53:56.969 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Utilities (XLU): MCW 1d = +0.46% (48/50 stocks, weight=96.6%)
+2026-02-10 21:53:56.969 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Basic Materials (XLB): MCW 1d = -0.01% (50/50 stocks, weight=92.7%)
+2026-02-10 21:53:56.969 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Communication Services (XLC): MCW 1d = -0.44% (47/50 stocks, weight=98.8%)
+2026-02-10 21:53:56.969 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Real Estate (XLRE): MCW 1d = +0.38% (49/50 stocks, weight=80.8%)
+2026-02-10 21:53:56.969 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:396 - Market-cap weighted 1d returns calculated for 11 sectors
+2026-02-10 21:53:56.970 | INFO     | sector_regime_detector:update_all_sectors:424 - Using market-cap weighted 1d returns for 11 sectors
+2026-02-10 21:53:56.970 | INFO     | api.yahoo_finance_client:_smart_throttle:54 - 🚀 Starting Yahoo Finance session...
+2026-02-10 21:53:57.017 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 926 cached items from disk
+2026-02-10 21:53:57.027 | INFO     | api.data_manager:__init__:74 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
+2026-02-10 21:53:57.027 | INFO     | sector_regime_detector:update_all_sectors:419 - Updating sector regimes (5-min realtime, MCW)...
+2026-02-10 21:53:57.028 | INFO     | sector_regime_detector:_build_sector_company_map:298 - Built sector company map: 550 stocks across 11 sectors (with market weights)
+2026-02-10 21:53:57.028 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:328 - Batch downloading 550 sector stocks for 1d returns...
+2026-02-10 21:53:57.028 | DEBUG    | api.yahoo_finance_client:batch_download_prices:626 - Cache hit for batch download (550 symbols)
+2026-02-10 21:53:57.049 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Technology (XLK): MCW 1d = +0.00% (50/50 stocks, weight=88.7%)
+2026-02-10 21:53:57.049 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Energy (XLE): MCW 1d = -0.13% (50/50 stocks, weight=92.2%)
+2026-02-10 21:53:57.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Financial Services (XLF): MCW 1d = +0.14% (48/50 stocks, weight=76.3%)
+2026-02-10 21:53:57.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Healthcare (XLV): MCW 1d = +0.11% (50/50 stocks, weight=81.4%)
+2026-02-10 21:53:57.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Cyclical (XLY): MCW 1d = +0.46% (50/50 stocks, weight=86.4%)
+2026-02-10 21:53:57.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Defensive (XLP): MCW 1d = -0.22% (49/50 stocks, weight=95.7%)
+2026-02-10 21:53:57.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Industrials (XLI): MCW 1d = +0.00% (50/50 stocks, weight=68.5%)
+2026-02-10 21:53:57.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Utilities (XLU): MCW 1d = +0.46% (48/50 stocks, weight=96.6%)
+2026-02-10 21:53:57.051 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Basic Materials (XLB): MCW 1d = -0.01% (50/50 stocks, weight=92.7%)
+2026-02-10 21:53:57.051 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Communication Services (XLC): MCW 1d = -0.44% (47/50 stocks, weight=98.8%)
+2026-02-10 21:53:57.051 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Real Estate (XLRE): MCW 1d = +0.38% (49/50 stocks, weight=80.8%)
+2026-02-10 21:53:57.051 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:396 - Market-cap weighted 1d returns calculated for 11 sectors
+2026-02-10 21:53:57.051 | INFO     | sector_regime_detector:update_all_sectors:424 - Using market-cap weighted 1d returns for 11 sectors
+2026-02-10 21:53:57.051 | INFO     | api.yahoo_finance_client:_smart_throttle:54 - 🚀 Starting Yahoo Finance session...
+2026-02-10 21:53:58.148 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $629.63 x17
+2026-02-10 21:53:59.075 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLK
+2026-02-10 21:53:59.075 | INFO     | sector_regime_detector:update_all_sectors:466 - XLK (Technology): SIDEWAYS (score=+0.9) | 1d[M]: +0.0% | 5d: +3.9% | 20d: -2.25%
+2026-02-10 21:53:59.229 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLK
+2026-02-10 21:53:59.229 | INFO     | sector_regime_detector:update_all_sectors:466 - XLK (Technology): SIDEWAYS (score=+0.9) | 1d[M]: +0.0% | 5d: +3.9% | 20d: -2.25%
+2026-02-10 21:54:00.267 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLE
+2026-02-10 21:54:00.267 | INFO     | sector_regime_detector:update_all_sectors:466 - XLE (Energy): BULL (score=+3.9) | 1d[M]: -0.1% | 5d: +1.1% | 20d: +15.29%
+2026-02-10 21:54:00.474 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.37 x100
+2026-02-10 21:54:00.719 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLE
+2026-02-10 21:54:00.719 | INFO     | sector_regime_detector:update_all_sectors:466 - XLE (Energy): BULL (score=+3.9) | 1d[M]: -0.1% | 5d: +1.1% | 20d: +15.29%
+2026-02-10 21:54:01.281 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.38 x100
+2026-02-10 21:54:01.835 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLF
+2026-02-10 21:54:01.835 | INFO     | sector_regime_detector:update_all_sectors:466 - XLF (Financial Services): SIDEWAYS (score=-0.2) | 1d[M]: +0.1% | 5d: +0.5% | 20d: -1.94%
+2026-02-10 21:54:01.872 | WARNING  | __main__:run_health:309 - ========================================
+2026-02-10 21:54:01.872 | WARNING  | __main__:run_health:310 - HEALTH CHECK FAILED
+2026-02-10 21:54:01.873 | WARNING  | __main__:run_health:312 -   HEALTH: Dead threads: web, price_streamer
+2026-02-10 21:54:01.873 | WARNING  | __main__:run_health:313 - ========================================
+2026-02-10 21:54:01.886 | INFO     | alert_manager:add:105 - Alert [WARNING] Health Check Failed: 1 issue(s): Dead threads: web, price_streamer
+2026-02-10 21:54:02.126 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLF
+2026-02-10 21:54:02.126 | INFO     | sector_regime_detector:update_all_sectors:466 - XLF (Financial Services): SIDEWAYS (score=-0.2) | 1d[M]: +0.1% | 5d: +0.5% | 20d: -1.94%
+2026-02-10 21:54:03.003 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLV
+2026-02-10 21:54:03.004 | INFO     | sector_regime_detector:update_all_sectors:466 - XLV (Healthcare): SIDEWAYS (score=+0.1) | 1d[M]: +0.1% | 5d: +0.5% | 20d: -0.39%
+2026-02-10 21:54:03.652 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLV
+2026-02-10 21:54:03.652 | INFO     | sector_regime_detector:update_all_sectors:466 - XLV (Healthcare): SIDEWAYS (score=+0.1) | 1d[M]: +0.1% | 5d: +0.5% | 20d: -0.39%
+2026-02-10 21:54:04.200 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLY
+2026-02-10 21:54:04.201 | INFO     | sector_regime_detector:update_all_sectors:466 - XLY (Consumer Cyclical): SIDEWAYS (score=-1.3) | 1d[M]: +0.5% | 5d: -1.4% | 20d: -4.89%
+2026-02-10 21:54:05.013 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLY
+2026-02-10 21:54:05.014 | INFO     | sector_regime_detector:update_all_sectors:466 - XLY (Consumer Cyclical): SIDEWAYS (score=-1.3) | 1d[M]: +0.5% | 5d: -1.4% | 20d: -4.91%
+2026-02-10 21:54:05.475 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLP
+2026-02-10 21:54:05.476 | INFO     | sector_regime_detector:update_all_sectors:466 - XLP (Consumer Defensive): BULL (score=+2.5) | 1d[M]: -0.2% | 5d: +0.8% | 20d: +9.32%
+2026-02-10 21:54:05.721 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.36 x3
+2026-02-10 21:54:05.722 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.42 x3
+2026-02-10 21:54:05.723 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.42 x97
+2026-02-10 21:54:05.723 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.43 x60
+2026-02-10 21:54:05.848 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.42 x100
+2026-02-10 21:54:06.441 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLP
+2026-02-10 21:54:06.442 | INFO     | sector_regime_detector:update_all_sectors:466 - XLP (Consumer Defensive): BULL (score=+2.5) | 1d[M]: -0.2% | 5d: +0.8% | 20d: +9.32%
+2026-02-10 21:54:06.483 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $629.66 x1
+2026-02-10 21:54:06.850 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLI
+2026-02-10 21:54:06.851 | INFO     | sector_regime_detector:update_all_sectors:466 - XLI (Industrials): BULL (score=+2.7) | 1d[M]: +0.0% | 5d: +2.6% | 20d: +6.46%
+2026-02-10 21:54:07.630 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLI
+2026-02-10 21:54:07.630 | INFO     | sector_regime_detector:update_all_sectors:466 - XLI (Industrials): BULL (score=+2.7) | 1d[M]: +0.0% | 5d: +2.6% | 20d: +6.46%
+2026-02-10 21:54:08.177 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLU
+2026-02-10 21:54:08.177 | INFO     | sector_regime_detector:update_all_sectors:466 - XLU (Utilities): SIDEWAYS (score=+1.4) | 1d[M]: +0.5% | 5d: +1.8% | 20d: +2.96%
+2026-02-10 21:54:08.631 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: LMT $629.66 x1
+2026-02-10 21:54:08.807 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.37 x103
+2026-02-10 21:54:08.991 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLU
+2026-02-10 21:54:08.992 | INFO     | sector_regime_detector:update_all_sectors:466 - XLU (Utilities): SIDEWAYS (score=+1.4) | 1d[M]: +0.5% | 5d: +1.8% | 20d: +2.95%
+2026-02-10 21:54:09.049 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.35 x84
+2026-02-10 21:54:09.694 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLB
+2026-02-10 21:54:09.694 | INFO     | sector_regime_detector:update_all_sectors:466 - XLB (Basic Materials): BULL (score=+1.8) | 1d[M]: -0.0% | 5d: +0.8% | 20d: +7.76%
+2026-02-10 21:54:10.170 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLB
+2026-02-10 21:54:10.170 | INFO     | sector_regime_detector:update_all_sectors:466 - XLB (Basic Materials): BULL (score=+1.8) | 1d[M]: -0.0% | 5d: +0.8% | 20d: +7.76%
+2026-02-10 21:54:10.390 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.47 x100
+2026-02-10 21:54:10.390 | DEBUG    | alpaca_streamer:_handle_trade:104 - Trade: GOOGL $316.41 x50

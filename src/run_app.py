@@ -6,6 +6,7 @@ Services:
 1. Web Server (Flask) - http://localhost:5000
 2. Rapid Portfolio Monitor - เช็ค portfolio ทุก 5 นาที (ตัดขาดทุนเร็ว!)
 3. Rapid Rotation Scanner - หาหุ้นใหม่ทุก 5 นาที
+4. Universe Maintenance - เคลียร์หุ้น delisted ทุกวัน 2:00 AM
 
 Usage:
     python src/run_app.py
@@ -25,10 +26,15 @@ from dataclasses import asdict
 sys.path.insert(0, os.path.dirname(__file__))
 os.chdir(os.path.join(os.path.dirname(__file__), '..'))
 
+# Load environment variables from .env file (v4.7)
+from dotenv import load_dotenv
+load_dotenv('.env')
+
 import warnings
 warnings.filterwarnings('ignore')
 
 from loguru import logger
+logger.info(f"Environment loaded - Alpaca API configured: {bool(os.getenv('ALPACA_API_KEY'))}")
 
 # Configure logging
 LOG_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'logs')
@@ -55,6 +61,10 @@ class ServiceManager:
         self.last_scanner_run = None
         self._scan_progress = {}
 
+        # v5.1: Real-time streaming
+        self.streamer = None
+        self.rapid_portfolio = None
+
         # Handle shutdown
         signal.signal(signal.SIGINT, self._shutdown)
         signal.signal(signal.SIGTERM, self._shutdown)
@@ -65,6 +75,41 @@ class ServiceManager:
         logger.info("SHUTTING DOWN ALL SERVICES...")
         logger.info("=" * 60)
         self.running = False
+
+        # v5.1: Stop price streamer
+        if self.streamer:
+            try:
+                logger.info("Stopping price streamer...")
+                self.streamer.stop()
+            except Exception as e:
+                logger.error(f"Error stopping streamer: {e}")
+
+    def _update_cron_status(self, job_name, status):
+        """Update cron job status in data/cron_status.json"""
+        try:
+            status_file = os.path.join(os.getcwd(), 'data', 'cron_status.json')
+
+            # Load existing status
+            if os.path.exists(status_file):
+                with open(status_file, 'r') as f:
+                    all_status = json.load(f)
+            else:
+                all_status = {}
+
+            # Update this job's status
+            all_status[job_name] = {
+                'status': status,
+                'last_run': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat()
+            }
+
+            # Write back
+            os.makedirs(os.path.dirname(status_file), exist_ok=True)
+            with open(status_file, 'w') as f:
+                json.dump(all_status, f, indent=2)
+
+        except Exception as e:
+            logger.error(f"Failed to update cron status for {job_name}: {e}")
 
     # v6.1: _save_signals_cache REMOVED - engine now writes cache directly
 
@@ -155,6 +200,82 @@ class ServiceManager:
             traceback.print_exc()
             return False
 
+    def start_realtime_price_streamer(self):
+        """
+        Start real-time price streamer (v5.1)
+
+        Connects AlpacaStreamer to Portfolio Monitor for instant peak tracking.
+        No more 5-minute gaps - catches every price movement!
+        """
+        try:
+            logger.info("Starting Real-time Price Streamer...")
+
+            # Import streamer
+            from alpaca_streamer import AlpacaStreamer
+
+            # Get Alpaca credentials
+            api_key = os.getenv('ALPACA_API_KEY')
+            secret_key = os.getenv('ALPACA_SECRET_KEY')
+
+            if not api_key or not secret_key:
+                logger.warning("Alpaca credentials not found - skipping real-time streaming")
+                return False
+
+            # Initialize streamer
+            self.streamer = AlpacaStreamer(
+                api_key=api_key,
+                secret_key=secret_key,
+                socketio=None,  # Don't need socketio for portfolio updates
+                paper=True
+            )
+
+            # Register callback to update portfolio on price changes
+            def on_price_update(symbol: str, price: float, data_type: str):
+                """Called on EVERY price update from WebSocket!"""
+                if self.rapid_portfolio and symbol in self.rapid_portfolio.positions:
+                    self.rapid_portfolio.handle_realtime_price(symbol, price, data_type)
+
+            self.streamer.on_price_update = on_price_update
+
+            # Subscribe to all position symbols
+            if self.rapid_portfolio and self.rapid_portfolio.positions:
+                symbols = list(self.rapid_portfolio.positions.keys())
+                self.streamer.subscribe(symbols, trades=True, bars=True, quotes=False)
+                logger.info(f"📡 Subscribed to real-time prices: {symbols}")
+            else:
+                logger.warning("No positions to subscribe - will subscribe when positions are added")
+
+            # Start streaming
+            self.streamer.start()
+            self.services['price_streamer'] = self.streamer
+
+            logger.info("✅ Real-time Price Streamer started (WebSocket active!)")
+            return True
+
+        except Exception as e:
+            error_msg = str(e).lower()
+            if 'connection limit' in error_msg or '429' in error_msg:
+                logger.warning("⚠️  Alpaca WebSocket connection limit reached")
+                logger.warning("   Falling back to polling mode (checks every 5 minutes)")
+                logger.warning("   Real-time streaming will resume when connections are available")
+            else:
+                logger.error(f"Real-time Price Streamer failed: {e}")
+                import traceback
+                traceback.print_exc()
+            return False
+
+    def subscribe_new_position(self, symbol: str):
+        """Subscribe to real-time prices when new position is added"""
+        if self.streamer and self.streamer.running:
+            self.streamer.subscribe([symbol], trades=True, bars=True)
+            logger.info(f"📡 Subscribed to real-time prices: {symbol}")
+
+    def unsubscribe_closed_position(self, symbol: str):
+        """Unsubscribe from real-time prices when position is closed"""
+        if self.streamer and self.streamer.running:
+            self.streamer.unsubscribe([symbol])
+            logger.info(f"📡 Unsubscribed from: {symbol}")
+
     def _on_scan_progress(self, **kwargs):
         """Broadcast scan progress via Socket.IO for live UI"""
         progress = {
@@ -220,18 +341,93 @@ class ServiceManager:
         self.services['health'] = thread
         logger.info("Health Checker started (check every 5 minutes)")
 
+    def start_universe_maintenance_scheduler(self):
+        """Start universe maintenance scheduler - รันทุกวัน 2:00 AM"""
+        def run_maintenance():
+            import subprocess
+
+            while self.running:
+                try:
+                    now = datetime.now()
+
+                    # Check if it's 2:00 AM (±5 minutes window)
+                    if now.hour == 2 and now.minute < 5:
+                        logger.info("="*60)
+                        logger.info("UNIVERSE MAINTENANCE: Starting daily cleanup...")
+                        logger.info("="*60)
+
+                        # Update status: running
+                        self._update_cron_status('universe_maintenance', 'running')
+
+                        # Run maintenance script
+                        script_path = os.path.join(os.getcwd(), 'scripts', 'maintain_universe_1000.py')
+                        python_path = sys.executable
+
+                        try:
+                            result = subprocess.run(
+                                [python_path, script_path],
+                                capture_output=True,
+                                text=True,
+                                timeout=600  # 10 minute timeout
+                            )
+
+                            if result.returncode == 0:
+                                logger.info("✅ Universe maintenance completed successfully")
+                                logger.info(f"Output: {result.stdout[:500]}")
+                                self._update_cron_status('universe_maintenance', 'ok')
+                            else:
+                                logger.error(f"❌ Universe maintenance failed: {result.stderr}")
+                                self._update_cron_status('universe_maintenance', 'error')
+
+                        except subprocess.TimeoutExpired:
+                            logger.error("❌ Universe maintenance timed out (>10 min)")
+                            self._update_cron_status('universe_maintenance', 'error')
+                        except Exception as e:
+                            logger.error(f"❌ Universe maintenance error: {e}")
+                            self._update_cron_status('universe_maintenance', 'error')
+
+                        # Sleep for 1 hour to avoid running multiple times in the same hour
+                        if self.running:
+                            time.sleep(3600)
+
+                    # Check every minute
+                    if not self.running:
+                        break
+                    time.sleep(60)
+
+                except Exception as e:
+                    logger.error(f"Universe maintenance scheduler error: {e}")
+                    time.sleep(60)
+
+        thread = threading.Thread(target=run_maintenance, daemon=True)
+        thread.start()
+        self.services['universe_maintenance'] = thread
+        logger.info("Universe Maintenance Scheduler started (daily at 2:00 AM)")
+
     def _check_and_restart_threads(self):
         """Check if critical service threads are alive and restart if dead"""
         for name, thread in list(self.services.items()):
             if name == 'health':
                 continue
-            if not thread.is_alive():
+
+            # Check if thread is alive (handle special cases)
+            is_alive = False
+            if name == 'price_streamer':
+                # AlpacaStreamer is not a Thread, check if it's running
+                is_alive = (self.streamer and hasattr(self.streamer, '_stream_task') and self.streamer._stream_task)
+            else:
+                # Regular thread
+                is_alive = thread.is_alive()
+
+            if not is_alive:
                 logger.warning(f"Thread '{name}' died — restarting...")
                 try:
                     if name == 'web':
                         self.start_web_server()
                     elif name == 'rapid_monitor':
                         self.start_rapid_portfolio_monitor()
+                    elif name == 'price_streamer':
+                        self.start_realtime_price_streamer()
                     # v6.1: rapid_scanner removed - engine is single source of truth
                     logger.info(f"Thread '{name}' restarted successfully")
                 except Exception as e:
@@ -293,6 +489,12 @@ class ServiceManager:
                     else:
                         dead_threads.append(name)
                 except Exception:
+                    dead_threads.append(name)
+            elif name == 'price_streamer':
+                # AlpacaStreamer is not a Thread, check if streamer object exists and is running
+                if self.streamer and hasattr(self.streamer, '_stream_task') and self.streamer._stream_task:
+                    alive_count += 1
+                else:
                     dead_threads.append(name)
             elif thread.is_alive():
                 alive_count += 1
@@ -422,10 +624,15 @@ class ServiceManager:
         rapid_monitor_ok = self.start_rapid_portfolio_monitor()
         time.sleep(1)
 
+        # v5.1: Start real-time price streaming
+        streamer_ok = self.start_realtime_price_streamer()
+        time.sleep(1)
+
         # v6.1: Scanner removed - Engine is single source of truth
         # UI reads from rapid_signals.json written by auto_trading_engine.py
 
         self.start_health_checker()
+        self.start_universe_maintenance_scheduler()  # v6.12: Auto cleanup at 2 AM
 
         print()
         print("=" * 60)
@@ -433,7 +640,9 @@ class ServiceManager:
         print("=" * 60)
         print(f"   Web Server:        {'✅ Running' if web_ok else '❌ Failed'}")
         print(f"   Portfolio Monitor: {'✅ Running' if rapid_monitor_ok else '❌ Failed'}")
+        print(f"   Price Streamer:    {'✅ Real-time WebSocket' if streamer_ok else '⚠️  Fallback to polling'}")
         print(f"   Signal Scanner:    ✅ Via Trading Engine (single source)")
+        print(f"   Universe Cleanup:  ✅ Daily at 2:00 AM")
         print()
         print("=" * 60)
         print("  WEB UI")

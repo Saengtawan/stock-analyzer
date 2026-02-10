@@ -33,6 +33,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from engine.broker_interface import BrokerInterface
 from loguru import logger
 
+# v6.7: Import unified configuration
+try:
+    from config.strategy_config import RapidRotationConfig
+except ImportError:
+    RapidRotationConfig = None
+
 
 class SafetyStatus(Enum):
     """Safety check status"""
@@ -87,19 +93,23 @@ class TradingSafetySystem:
     # Health check intervals
     HEALTH_CHECK_INTERVAL = 300     # 5 minutes
 
-    def __init__(self, broker: BrokerInterface, config: dict = None):
+    def __init__(self, broker: BrokerInterface, config = None):
         """
         Initialize safety system
 
         Args:
             broker: BrokerInterface instance (Alpaca, Mock, etc.)
-            config: Optional config dict to override defaults (e.g. from engine)
+            config: Optional config (dict or RapidRotationConfig) to override defaults
+                   v6.7: Now accepts RapidRotationConfig for unified configuration
         """
         self.broker = broker
 
-        # v4.9.6: Apply config overrides if provided
-        if config:
-            self.set_config(config)
+        # v6.7: Handle RapidRotationConfig or dict
+        if config is not None:
+            if hasattr(config, '__dataclass_fields__'):  # RapidRotationConfig
+                self._load_from_rapid_config(config)
+            else:  # dict (v4.9.6 compatibility)
+                self.set_config(config)
         self.emergency_stop = False
         self.daily_loss_triggered = False
         self.last_health_check = None
@@ -117,6 +127,25 @@ class TradingSafetySystem:
         self._load_state()
 
         logger.info("Trading Safety System initialized")
+
+    def _load_from_rapid_config(self, config: 'RapidRotationConfig'):
+        """
+        Load safety thresholds from RapidRotationConfig (v6.7)
+
+        Args:
+            config: RapidRotationConfig instance
+        """
+        self.DAILY_LOSS_LIMIT_PCT = config.daily_loss_limit_pct
+        self.MAX_POSITIONS = config.max_positions
+        self.MAX_HOLD_DAYS = config.max_hold_days
+        self.MIN_BUYING_POWER_PCT = config.min_buying_power_pct
+        self.PDT_ACCOUNT_THRESHOLD = config.pdt_account_threshold
+        self.PDT_DAY_TRADE_LIMIT = config.pdt_day_trade_limit
+        self.PDT_ENFORCE_ALWAYS = config.pdt_enforce_always
+        logger.info(f"Safety config loaded from RapidRotationConfig")
+        logger.debug(f"  DAILY_LOSS_LIMIT: {self.DAILY_LOSS_LIMIT_PCT}%")
+        logger.debug(f"  MAX_POSITIONS: {self.MAX_POSITIONS}")
+        logger.debug(f"  MAX_HOLD_DAYS: {self.MAX_HOLD_DAYS}")
 
     def set_config(self, config: dict):
         """

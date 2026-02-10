@@ -33,115 +33,31 @@ FULL_UNIVERSE = {
         # Mid Cap
         'SHOP', 'SQ', 'PINS', 'SNAP', 'RBLX', 'U', 'COIN', 'PATH', 'CFLT', 'BILL',
         'DOCN', 'ESTC', 'GTLB', 'MNDY', 'ZI', 'APPN', 'NEWR', 'FROG', 'TOST', 'APP',
-        'ADSK',  # Added 2026-02-10
-        'ALTR',  # Added 2026-02-10
-        'ANET',  # Added 2026-02-10
-        'ARW',  # Added 2026-02-10
-        'AZPN',  # Added 2026-02-10
-        'BLKB',  # Added 2026-02-10
-        'BR',  # Added 2026-02-10
-        'COUP',  # Added 2026-02-10
-        'CYBR',  # Added 2026-02-10
-        'DELL',  # Added 2026-02-10
-        'DT',  # Added 2026-02-10
-        'FFIV',  # Added 2026-02-10
-        'FICO',  # Added 2026-02-10
-        'GIB',  # Added 2026-02-10
-        'HPE',  # Added 2026-02-10
-        'HPQ',  # Added 2026-02-10
-        'JNPR',  # Added 2026-02-10
-        'NTAP',  # Added 2026-02-10
-        'PCOR',  # Added 2026-02-10
-        'QLYS',  # Added 2026-02-10
-        'RNG',  # Added 2026-02-10
-        'RPD',  # Added 2026-02-10
-        'S',  # Added 2026-02-10
-        'SAIL',  # Added 2026-02-10
-        'SLAB',  # Added 2026-02-10
-        'SMCI',  # Added 2026-02-10
-        'SNX',  # Added 2026-02-10
-        'STX',  # Added 2026-02-10
-        'TENB',  # Added 2026-02-10
-        'TYL',  # Added 2026-02-10
-        'VRSN',  # Added 2026-02-10
-        'WDC',  # Added 2026-02-10
-        'YOU',  # Added 2026-02-10
-        'ZEN',  # Added 2026-02-10
-        'SPLK',  # Added 2026-02-10 (final)
     ],
     'Semiconductors': [
         'NVDA', 'AMD', 'AVGO', 'QCOM', 'TXN', 'MU', 'AMAT', 'LRCX', 'KLAC', 'ADI',
         'MCHP', 'NXPI', 'ON', 'MRVL', 'SWKS', 'MPWR', 'ENTG', 'ASML', 'TSM', 'SNPS',
         'CDNS', 'QRVO', 'WOLF', 'CRUS', 'LSCC', 'RMBS', 'MKSI', 'FORM', 'ONTO', 'ACLS',
         'SITM', 'IPGP', 'ALGM', 'AMBA', 'DIOD', 'PLAB', 'SMTC', 'OLED', 'HIMX', 'KLIC',
-        'AMKR',  # Added 2026-02-10
-        'AOSL',  # Added 2026-02-10
-        'CAMT',  # Added 2026-02-10
-        'COHU',  # Added 2026-02-10
-        'MTSI',  # Added 2026-02-10
-        'NVEC',  # Added 2026-02-10
-        'PI',  # Added 2026-02-10
-        'POWI',  # Added 2026-02-10
-        'SYNA',  # Added 2026-02-10
-        'UCTT',  # Added 2026-02-10
     ],
     'Finance_Banks': [
         'JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'USB', 'PNC', 'TFC', 'COF',
         'MTB', 'FITB', 'RF', 'KEY', 'CFG', 'HBAN', 'ZION', 'CMA', 'FHN', 'ALLY',
         'SIVB', 'SBNY', 'FRC', 'WAL', 'PACW', 'EWBC', 'BOH', 'BKU', 'UMBF', 'UBSI',
         'WTFC', 'PNFP', 'SFNC', 'GBCI', 'ABCB', 'CADE', 'FCNCA', 'SNV', 'BOKF', 'FNB',
-        'ASB',  # Added 2026-02-10
-        'BANR',  # Added 2026-02-10
-        'BPOP',  # Added 2026-02-10
-        'CATY',  # Added 2026-02-10
-        'CBSH',  # Added 2026-02-10
-        'COLB',  # Added 2026-02-10
-        'CVBF',  # Added 2026-02-10
-        'FBP',  # Added 2026-02-10
-        'FFIN',  # Added 2026-02-10
-        'FIBK',  # Added 2026-02-10
-        'HWC',  # Added 2026-02-10
-        'OFG',  # Added 2026-02-10
-        'ONB',  # Added 2026-02-10
-        'OZK',  # Added 2026-02-10
-        'PBCT',  # Added 2026-02-10
-        'SASR',  # Added 2026-02-10
-        'SFBS',  # Added 2026-02-10
-        'TCBI',  # Added 2026-02-10
-        'TRMK',  # Added 2026-02-10
-        'VLY',  # Added 2026-02-10
-        'WSFS',  # Added 2026-02-10
-        'FHB',  # Added 2026-02-10 (ultra-final)
     ],
     'Finance_Payments': [
         'V', 'MA', 'AXP', 'PYPL', 'GPN', 'FIS', 'FISV', 'CPAY', 'WU', 'AFRM',
         'SQ', 'TOST', 'PAYX', 'ADP', 'FOUR', 'PAYO', 'RPAY', 'PSFE', 'ACIW', 'SSNC',
-        'EVTC',  # Added 2026-02-10
-        'GDOT',  # Added 2026-02-10
-        'LPLA',  # Added 2026-02-10
-        'NU',  # Added 2026-02-10
-        'PAGS',  # Added 2026-02-10
-        'SOFI',  # Added 2026-02-10
-        'STNE',  # Added 2026-02-10
-        'WEX',  # Added 2026-02-10
     ],
     'Finance_Asset_Mgmt': [
         'BLK', 'SCHW', 'TROW', 'BEN', 'IVZ', 'NTRS', 'STT', 'BK', 'AMG', 'EV',
         'BX', 'KKR', 'APO', 'ARES', 'OWL', 'TPG', 'CG', 'HLNE', 'VCTR', 'STEP',
-        'APAM',  # Added 2026-02-10
-        'EVR',  # Added 2026-02-10
-        'SEIC',  # Added 2026-02-10
     ],
     'Finance_Insurance': [
         'CB', 'TRV', 'PGR', 'ALL', 'AFL', 'MET', 'PRU', 'HIG', 'AIG', 'LNC',
         'UNM', 'GL', 'KNSL', 'RNR', 'EG', 'ACGL', 'WRB', 'CINF', 'ORI', 'THG',
         'KMPR', 'AFG', 'FAF', 'FNF', 'SIGI', 'AIZ', 'RLI', 'UFCS', 'NSEC', 'HCI',
-        'AJG',  # Added 2026-02-10
-        'AON',  # Added 2026-02-10
-        'BRO',  # Added 2026-02-10
-        'MMC',  # Added 2026-02-10
-        'PFG',  # Added 2026-02-10
-        'RYAN',  # Added 2026-02-10
     ],
     'Finance_Exchanges': [
         'CME', 'ICE', 'NDAQ', 'CBOE', 'SPGI', 'MCO', 'MSCI', 'MKTX', 'TW', 'VIRT',
@@ -149,175 +65,62 @@ FULL_UNIVERSE = {
     'Industrial_Machinery': [
         'CAT', 'DE', 'AGCO', 'CNHI', 'CMI', 'PCAR', 'OSK', 'TTC', 'TEX', 'ALG',
         'IR', 'DOV', 'XYL', 'ITT', 'FLS', 'PH', 'GGG', 'FSS', 'MWA', 'CFX',
-        'AIT',  # Added 2026-02-10
-        'ASTE',  # Added 2026-02-10
-        'FELE',  # Added 2026-02-10
-        'FTV',  # Added 2026-02-10
-        'IEX',  # Added 2026-02-10
-        'MLI',  # Added 2026-02-10
     ],
     'Industrial_Aerospace': [
         'BA', 'RTX', 'LMT', 'NOC', 'GD', 'TDG', 'HII', 'LHX', 'KTOS', 'AJRD',
         'SPR', 'TXT', 'HEI', 'AXON', 'BWXT', 'MRCY', 'CACI', 'LDOS', 'SAIC', 'BAH',
-        'CW',  # Added 2026-02-10
-        'DCO',  # Added 2026-02-10
-        'HWM',  # Added 2026-02-10
-        'HXL',  # Added 2026-02-10
-        'MOG.A',  # Added 2026-02-10
-        'WWD',  # Added 2026-02-10
     ],
     'Industrial_Conglomerate': [
         'HON', 'GE', 'MMM', 'EMR', 'ETN', 'ITW', 'ROP', 'AME', 'NDSN', 'TT',
         'CARR', 'OTIS', 'JCI', 'GNRC', 'HUBB', 'AOS', 'ALLE', 'MAS', 'SWK', 'FAST',
-        'DCI',  # Added 2026-02-10
-        'DNOW',  # Added 2026-02-10
-        'FSTR',  # Added 2026-02-10
-        'KAI',  # Added 2026-02-10
-        'NX',  # Added 2026-02-10
     ],
     'Industrial_Transport': [
         'UNP', 'CSX', 'NSC', 'CP', 'CNI', 'KSU', 'FDX', 'UPS', 'EXPD', 'CHRW',
         'JBHT', 'XPO', 'SAIA', 'ODFL', 'WERN', 'KNX', 'SNDR', 'HUBG', 'ARCB', 'HTLD',
-        'AAWW',  # Added 2026-02-10
-        'ATSG',  # Added 2026-02-10
-        'BLBD',  # Added 2026-02-10
-        'CAR',  # Added 2026-02-10
-        'CVCO',  # Added 2026-02-10
-        'GATX',  # Added 2026-02-10
-        'HTZ',  # Added 2026-02-10
-        'LOAN',  # Added 2026-02-10
-        'LSTR',  # Added 2026-02-10
     ],
     'Healthcare_Pharma': [
         'JNJ', 'PFE', 'ABBV', 'MRK', 'LLY', 'BMY', 'AMGN', 'GILD', 'REGN', 'VRTX',
         'BIIB', 'MRNA', 'AZN', 'GSK', 'NVO', 'SNY', 'NVS', 'TAK', 'BNTX', 'JAZZ',
         'ALNY', 'INCY', 'EXEL', 'NBIX', 'UTHR', 'SRPT', 'BMRN', 'IONS', 'RARE', 'RPRX',
-        'AMRX',  # Added 2026-02-10
-        'ANIP',  # Added 2026-02-10
-        'ARWR',  # Added 2026-02-10
-        'CORT',  # Added 2026-02-10
-        'EOLS',  # Added 2026-02-10
-        'FOLD',  # Added 2026-02-10
-        'HALO',  # Added 2026-02-10
-        'ILMN',  # Added 2026-02-10
-        'MNKD',  # Added 2026-02-10
-        'PCRX',  # Added 2026-02-10
-        'PRGO',  # Added 2026-02-10
-        'SUPN',  # Added 2026-02-10
-        'TARS',  # Added 2026-02-10
-        'VTRS',  # Added 2026-02-10
     ],
     'Healthcare_MedDevices': [
         'MDT', 'ABT', 'TMO', 'DHR', 'ISRG', 'SYK', 'BSX', 'EW', 'ZBH', 'HOLX',
         'DXCM', 'PODD', 'TFX', 'ALGN', 'IDXX', 'TECH', 'BIO', 'IQV', 'VEEV', 'MASI',
-        'GMED',  # Added 2026-02-10
-        'ICUI',  # Added 2026-02-10
-        'IRTC',  # Added 2026-02-10
-        'NVCR',  # Added 2026-02-10
-        'NVST',  # Added 2026-02-10
-        'OMCL',  # Added 2026-02-10
-        'RMD',  # Added 2026-02-10
-        'STAA',  # Added 2026-02-10
-        'TNDM',  # Added 2026-02-10
     ],
     'Healthcare_Services': [
         'UNH', 'ELV', 'CI', 'HUM', 'CNC', 'CVS', 'MCK', 'ABC', 'CAH', 'HCA',
         'THC', 'UHS', 'ACHC', 'DVA', 'ENSG', 'SGRY', 'MD', 'SEM', 'BHC', 'AMED',
-        'AHCO',  # Added 2026-02-10
-        'CLOV',  # Added 2026-02-10
-        'CYH',  # Added 2026-02-10
-        'DOCS',  # Added 2026-02-10
-        'HSTM',  # Added 2026-02-10
-        'LFST',  # Added 2026-02-10
-        'LMAT',  # Added 2026-02-10
-        'MOH',  # Added 2026-02-10
-        'ONEM',  # Added 2026-02-10
-        'OSCR',  # Added 2026-02-10
-        'PDCO',  # Added 2026-02-10
-        'RDNT',  # Added 2026-02-10
-        'TDOC',  # Added 2026-02-10
     ],
     'Consumer_Retail': [
         'HD', 'LOW', 'TJX', 'ROST', 'DG', 'DLTR', 'BBY', 'TSCO', 'ORLY', 'AZO',
         'AAP', 'ULTA', 'RH', 'WSM', 'BURL', 'KSS', 'M', 'JWN', 'GPS', 'ANF',
         'URBN', 'LULU', 'DECK', 'CROX', 'GRMN', 'COLM', 'VFC', 'PVH', 'RL', 'TPR',
-        'BGFV',  # Added 2026-02-10
-        'BIG',  # Added 2026-02-10
-        'BOOT',  # Added 2026-02-10
-        'CHWY',  # Added 2026-02-10
-        'DIN',  # Added 2026-02-10
-        'DKS',  # Added 2026-02-10
-        'FIVE',  # Added 2026-02-10
-        'FL',  # Added 2026-02-10
-        'FSLR',  # Added 2026-02-10
-        'GPI',  # Added 2026-02-10
-        'HBI',  # Added 2026-02-10
-        'HIBB',  # Added 2026-02-10
-        'OLLI',  # Added 2026-02-10
-        'OSTK',  # Added 2026-02-10
-        'PRTS',  # Added 2026-02-10
-        'SCVL',  # Added 2026-02-10
-        'VSCO',  # Added 2026-02-10
-        'W',  # Added 2026-02-10
     ],
     'Consumer_Food': [
         'MCD', 'SBUX', 'YUM', 'CMG', 'DPZ', 'QSR', 'DRI', 'TXRH', 'WING', 'SHAK',
         'CAKE', 'EAT', 'DINE', 'PLAY', 'BJRI', 'BLMN', 'JACK', 'ARCO', 'LOCO', 'TACO',
-        'CALM',  # Added 2026-02-10
-        'FARM',  # Added 2026-02-10
-        'HAIN',  # Added 2026-02-10
-        'INGR',  # Added 2026-02-10
-        'JJSF',  # Added 2026-02-10
-        'LANC',  # Added 2026-02-10
-        'POST',  # Added 2026-02-10
-        'SENEA',  # Added 2026-02-10
     ],
     'Consumer_Travel': [
         'MAR', 'HLT', 'H', 'WH', 'CHH', 'ABNB', 'BKNG', 'EXPE', 'RCL', 'CCL',
         'NCLH', 'LVS', 'WYNN', 'MGM', 'CZR', 'DKNG', 'PENN', 'GDEN', 'MTN', 'SKX',
-        'DASH',  # Added 2026-02-10
-        'GRAB',  # Added 2026-02-10
-        'IHG',  # Added 2026-02-10
-        'LYFT',  # Added 2026-02-10
-        'UBER',  # Added 2026-02-10
     ],
     'Consumer_Auto': [
         'TSLA', 'F', 'GM', 'TM', 'HMC', 'STLA', 'RIVN', 'LCID', 'NIO', 'XPEV',
         'LI', 'FSR', 'GOEV', 'WKHS', 'RIDE', 'NKLA', 'HYLN', 'ARVL', 'PSNY', 'FFIE',
-        'ABG',  # Added 2026-02-10
-        'AN',  # Added 2026-02-10
-        'LAD',  # Added 2026-02-10
-        'PAG',  # Added 2026-02-10
-        'SAH',  # Added 2026-02-10
     ],
     'Consumer_Staples': [
         'WMT', 'COST', 'TGT', 'KR', 'WBA', 'SYY', 'PG', 'KO', 'PEP', 'PM',
         'MO', 'CL', 'EL', 'KMB', 'GIS', 'K', 'HSY', 'MDLZ', 'SJM', 'CAG',
         'CPB', 'HRL', 'TSN', 'KHC', 'CHD', 'CLX', 'USFD', 'PFGC', 'SFM', 'CHEF',
-        'ACI',  # Added 2026-02-10
-        'FRME',  # Added 2026-02-10
-        'GO',  # Added 2026-02-10
-        'IMKTA',  # Added 2026-02-10
-        'JBSS',  # Added 2026-02-10
-        'NGVC',  # Added 2026-02-10
-        'SPB',  # Added 2026-02-10
-        'THS',  # Added 2026-02-10
-        'UNFI',  # Added 2026-02-10
     ],
     'Energy_Oil': [
         'XOM', 'CVX', 'COP', 'EOG', 'OXY', 'DVN', 'FANG', 'APA', 'OVV', 'CTRA',
         'MTDR', 'PR', 'SM', 'MGY', 'CHRD', 'CLR', 'NOG', 'ET', 'EPD', 'TRGP',
         'PDCE', 'ESTE', 'REI', 'CPE', 'ROCC', 'VTLE', 'GPOR', 'BRY', 'RRC', 'SWN',
-        'AR',  # Added 2026-02-10
-        'EQT',  # Added 2026-02-10
-        'MRO',  # Added 2026-02-10
     ],
     'Energy_Services': [
         'SLB', 'HAL', 'BKR', 'NOV', 'FTI', 'CHX', 'HP', 'PTEN', 'NBR', 'OII',
         'WHD', 'LBRT', 'DRQ', 'XPRO', 'NESR', 'GTLS', 'SOC', 'NR', 'PUMP', 'AROC',
-        'NINE',  # Added 2026-02-10
-        'RIG',  # Added 2026-02-10
-        'VAL',  # Added 2026-02-10
     ],
     'Energy_Refining': [
         'MPC', 'VLO', 'PSX', 'DK', 'PBF', 'PARR', 'HFC', 'CLMT', 'CVI', 'INT',
@@ -325,18 +128,11 @@ FULL_UNIVERSE = {
     'Energy_Midstream': [
         'WMB', 'KMI', 'OKE', 'ET', 'EPD', 'MPLX', 'PAA', 'TRGP', 'ENB', 'TRP',
         'WES', 'AM', 'DTM', 'ETRN', 'KNTK', 'GEL', 'NS', 'USAC', 'SMLP', 'MPLX',
-        'DKL',  # Added 2026-02-10
-        'ENLC',  # Added 2026-02-10
-        'HESM',  # Added 2026-02-10
     ],
     'Utilities_Electric': [
         'NEE', 'DUK', 'SO', 'D', 'AEP', 'SRE', 'EXC', 'XEL', 'ED', 'PEG',
         'WEC', 'ES', 'DTE', 'AEE', 'CMS', 'LNT', 'NI', 'EVRG', 'ATO', 'FE',
         'PPL', 'CNP', 'ETR', 'NRG', 'CEG', 'VST', 'PNW', 'IDA', 'OGE', 'AVA',
-        'AGR',  # Added 2026-02-10
-        'BKH',  # Added 2026-02-10
-        'POR',  # Added 2026-02-10
-        'NWE',  # Added 2026-02-10
     ],
     'Utilities_Water': [
         'AWK', 'WTR', 'AWR', 'CWT', 'SJW', 'YORW', 'MSEX', 'ARTNA',
@@ -349,17 +145,12 @@ FULL_UNIVERSE = {
     ],
     'Real_Estate_Office': [
         'BXP', 'VNO', 'KRC', 'DEI', 'HPP', 'SLG', 'PGRE', 'CUZ', 'JBG', 'PDM',
-        'HIW',  # Added 2026-02-10
     ],
     'Real_Estate_Retail': [
         'SPG', 'O', 'REG', 'KIM', 'FRT', 'BRX', 'KRG', 'SITE', 'ROIC', 'AKR',
-        'RPAI',  # Added 2026-02-10
     ],
     'Real_Estate_Residential': [
         'AVB', 'EQR', 'MAA', 'UDR', 'ESS', 'CPT', 'AIV', 'NXRT', 'IRT', 'ELS',
-        'AMH',  # Added 2026-02-10
-        'INVH',  # Added 2026-02-10
-        'SUI',  # Added 2026-02-10
     ],
     'Real_Estate_Data': [
         'EQIX', 'DLR', 'AMT', 'CCI', 'SBAC', 'UNIT', 'CONE', 'CCOI', 'LMND',
@@ -373,45 +164,23 @@ FULL_UNIVERSE = {
     'Materials_Chemicals': [
         'LIN', 'APD', 'SHW', 'ECL', 'DD', 'DOW', 'PPG', 'EMN', 'CE', 'ALB',
         'IFF', 'FMC', 'CF', 'MOS', 'NTR', 'LYB', 'OLN', 'CC', 'AXTA', 'RPM',
-        'HUN',  # Added 2026-02-10
-        'KWR',  # Added 2026-02-10
-        'WLK',  # Added 2026-02-10
     ],
     'Materials_Metals': [
         'FCX', 'NEM', 'NUE', 'STLD', 'CLF', 'X', 'AA', 'ATI', 'CMC', 'RS',
         'WOR', 'CRS', 'ZEUS', 'CENX', 'KALU', 'HCC', 'HAYN', 'SCHN', 'SXC',
-        'AG',  # Added 2026-02-10
-        'AUY',  # Added 2026-02-10
-        'CDE',  # Added 2026-02-10
-        'EGO',  # Added 2026-02-10
-        'FNV',  # Added 2026-02-10
-        'GOLD',  # Added 2026-02-10
-        'HL',  # Added 2026-02-10
-        'PAAS',  # Added 2026-02-10
-        'RGLD',  # Added 2026-02-10
-        'WPM',  # Added 2026-02-10
     ],
     'Materials_Construction': [
         'MLM', 'VMC', 'EXP', 'SUM', 'ITE', 'ROCK', 'US', 'USLM',
-        'HWKN',  # Added 2026-02-10
-        'STRL',  # Added 2026-02-10
-        'USCR',  # Added 2026-02-10
     ],
     'Materials_Packaging': [
         'BALL', 'CCK', 'AVY', 'SEE', 'BLL', 'SON', 'PKG', 'IP', 'WRK', 'GPK',
     ],
     'Telecom': [
         'T', 'VZ', 'TMUS', 'LUMN', 'USM', 'SHEN', 'ATUS', 'LBRDK', 'GNCMA', 'WOW',
-        'GSAT',  # Added 2026-02-10
     ],
     'Media': [
         'DIS', 'CMCSA', 'WBD', 'PARA', 'FOX', 'FOXA', 'NWSA', 'NWS', 'NYT', 'OMC',
         'IPG', 'MGID', 'CCO', 'SSP', 'GCI', 'LEG', 'LTRPA', 'LGF.A', 'LGF.B', 'MSGS',
-        'FWONA',  # Added 2026-02-10
-        'ROKU',  # Added 2026-02-10
-        'SIRI',  # Added 2026-02-10
-        'SPOT',  # Added 2026-02-10
-        'TGNA',  # Added 2026-02-10
     ],
 }
 

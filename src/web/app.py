@@ -3043,6 +3043,50 @@ def api_rapid_bars(symbol):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/rapid/execution-trace')
+def api_rapid_execution_trace():
+    """Get execution trace for funnel visualization (v6.15)"""
+    try:
+        import json as _json
+
+        # Default to summary view
+        view = request.args.get('view', 'summary')
+
+        cache_dir = os.path.join(
+            os.path.dirname(__file__), '..', '..', 'data', 'cache'
+        )
+
+        if view == 'full':
+            # Full trace with all stock details
+            trace_file = os.path.join(cache_dir, 'execution_trace_full.json')
+        else:
+            # Summary for funnel view
+            trace_file = os.path.join(cache_dir, 'execution_trace_summary.json')
+
+        if not os.path.exists(trace_file):
+            return jsonify({
+                'error': 'No execution trace available',
+                'message': 'Run a scan first to generate trace data',
+                'available': False
+            })
+
+        with open(trace_file, 'r') as f:
+            data = _json.load(f)
+
+        # Add cache age
+        trace_ts = datetime.fromisoformat(data['timestamp'])
+        cache_age = (datetime.now() - trace_ts).total_seconds()
+        data['cache_age_seconds'] = round(cache_age, 0)
+        data['status'] = 'fresh' if cache_age < 1200 else 'stale'
+        data['available'] = True
+
+        return jsonify(data)
+
+    except Exception as e:
+        logger.error(f"Execution trace API error: {e}")
+        return jsonify({'error': str(e), 'available': False}), 500
+
+
 def _get_trade_markers(symbol, start, end, broker):
     """Get buy/sell markers from trade history"""
     try:
@@ -3302,6 +3346,7 @@ def api_cron_status():
             'outcome_tracker': {'interval': '0 5 * * 2-6', 'desc': '05:00 Tue-Sat'},
             'prefilter_evening': {'interval': '0 8 * * 2-6', 'desc': '08:00 Tue-Sat'},
             'prefilter_pre_open': {'interval': '0 21 * * 1-5', 'desc': '21:00 Mon-Fri'},
+            'universe_maintenance': {'interval': '0 2 * * *', 'desc': '02:00 daily'},
             'db_backup': {'interval': '0 6 * * 0', 'desc': '06:00 Sunday'}
         }
 
@@ -3627,15 +3672,144 @@ def _get_extended_hours_prices(symbols: list) -> dict:
     return results
 
 
+def _build_positions_from_file():
+    """
+    Build position data from rapid_portfolio.json when engine not running.
+
+    v4.8: Fallback mechanism for displaying positions when engine is offline.
+    Fetches fresh prices from yfinance for each position.
+    Reads directly from JSON file to avoid PositionManager compatibility issues.
+    """
+    import json
+    import os
+    from rapid_portfolio_manager import RapidPortfolioManager
+
+    # Read portfolio file directly
+    portfolio_file = 'rapid_portfolio.json'
+    if not os.path.exists(portfolio_file):
+        logger.warning("rapid_portfolio.json not found")
+        return [], {'positions': 0, 'total_pnl_usd': 0, 'total_pnl_pct': 0}
+
+    try:
+        with open(portfolio_file, 'r') as f:
+            portfolio_data = json.load(f)
+        positions = portfolio_data.get('positions', {})
+    except Exception as e:
+        logger.error(f"Failed to read rapid_portfolio.json: {e}")
+        return [], {'positions': 0, 'total_pnl_usd': 0, 'total_pnl_pct': 0}
+
+    if not positions:
+        return [], {'positions': 0, 'total_pnl_usd': 0, 'total_pnl_pct': 0}
+
+    # Create RapidPortfolioManager instance for price fetching
+    pm = RapidPortfolioManager()
+
+    statuses_data = []
+    total_pnl_usd = 0.0
+
+    for symbol, pos in positions.items():
+        try:
+            # Fetch current price using updated get_current_price() method
+            current_price = pm.get_current_price(symbol)
+            if not current_price:
+                logger.warning(f"{symbol}: Failed to fetch current price, using entry price")
+                current_price = pos.get('entry_price', 0)
+
+            entry_price = pos.get('entry_price', 0)
+            qty = pos.get('qty', 0)
+
+            # Calculate P/L
+            pnl_pct = ((current_price - entry_price) / entry_price) * 100 if entry_price > 0 else 0
+            pnl_usd = (current_price - entry_price) * qty
+            total_pnl_usd += pnl_usd
+
+            # Get position details from file
+            stop_loss = pos.get('current_sl_price', entry_price * 0.96)
+            take_profit = pos.get('tp_price', entry_price * 1.08)
+            peak_price = pos.get('peak_price', current_price)
+            trailing_active = pos.get('trailing_active', False)
+
+            # Calculate days held
+            entry_time_str = pos.get('entry_time', '')
+            try:
+                entry_time = datetime.fromisoformat(entry_time_str.replace('Z', '+00:00'))
+                days_held = max(0, (datetime.now() - entry_time).days)
+            except:
+                days_held = 0
+
+            # Determine signal type
+            if take_profit > 0 and current_price >= take_profit:
+                signal = 'TAKE_PROFIT'
+                action = f'Take profit target ${take_profit:.2f} reached'
+            elif current_price <= stop_loss:
+                signal = 'CRITICAL'
+                action = f'Price at/below stop loss ${stop_loss:.2f}'
+            elif pnl_pct <= -2.0:
+                signal = 'WARNING'
+                action = f'Down {pnl_pct:.1f}% — monitor closely'
+            elif days_held >= 5:
+                signal = 'WARNING'
+                action = f'Held {days_held} days — consider exit'
+            elif pnl_pct >= 3.0:
+                signal = 'HOLD'
+                action = f'Profitable +{pnl_pct:.1f}% — trailing {"active" if trailing_active else "pending"}'
+            else:
+                signal = 'HOLD'
+                action = 'Position within normal range'
+
+            pos_data = {
+                'symbol': symbol,
+                'entry_price': entry_price,
+                'current_price': current_price,
+                'pnl_pct': round(pnl_pct, 2),
+                'pnl_usd': round(pnl_usd, 2),
+                'days_held': days_held,
+                'signal': signal,
+                'reasons': [],
+                'action': action,
+                'new_candidates': [],
+                'shares': qty,
+                'stop_loss': stop_loss,
+                'take_profit': take_profit,
+                'trailing_active': trailing_active,
+                'highest_price': peak_price,
+                'sl_pct': pos.get('sl_pct', 4.0),
+                'tp_pct': pos.get('tp_pct', 8.0),
+                'atr_pct': pos.get('atr_pct', 3.0),
+            }
+
+            statuses_data.append(pos_data)
+
+        except Exception as e:
+            logger.error(f"Error building position data for {symbol}: {e}")
+            continue
+
+    summary = {
+        'positions': len(statuses_data),
+        'total_pnl_usd': round(total_pnl_usd, 2),
+        'total_pnl_pct': round(sum(s['pnl_pct'] for s in statuses_data) / max(len(statuses_data), 1), 2),
+    }
+
+    return statuses_data, summary
+
+
 def _build_positions_from_engine():
     """Build position data from engine's ManagedPosition + Alpaca live prices.
 
     Returns (statuses_data, summary) or raises on error.
     This is the single source of truth — used by both REST and WebSocket.
+
+    v4.8: Added fallback to RapidPortfolioManager when engine not running
     """
     engine = get_auto_trading_engine()
     if not engine or not engine.positions:
-        return [], {'positions': 0, 'total_pnl_usd': 0, 'total_pnl_pct': 0}
+        # v4.8: Fallback to RapidPortfolioManager (reads from rapid_portfolio.json)
+        logger.debug("Engine not running, falling back to RapidPortfolioManager")
+        try:
+            return _build_positions_from_file()
+        except Exception as e:
+            logger.error(f"Fallback to portfolio file failed: {e}")
+            return [], {'positions': 0, 'total_pnl_usd': 0, 'total_pnl_pct': 0}
 
     # Fetch live prices from Alpaca in one call
     symbols = list(engine.positions.keys())
