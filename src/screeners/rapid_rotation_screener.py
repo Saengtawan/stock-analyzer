@@ -339,7 +339,6 @@ class RapidRotationScreener:
             logger.debug("Cleared real-time price cache")
         except Exception as e:
             logger.debug(f"Failed to clear real-time price cache: {e}")
-                logger.debug("Cleared stale alt data cache")
 
         # Clear per-symbol data caches that are stale
         stale_symbols = [
@@ -468,7 +467,7 @@ class RapidRotationScreener:
                     if age_hours < 12:
                         pool_stocks = list(pre_filtered.get('stocks', {}).keys())
                         if len(pool_stocks) >= 50:
-                            universe = pool_stocks[:max_stocks] if len(pool_stocks) > max_stocks else pool_stocks
+                            universe = pool_stocks  # v6.17: Use ALL stocks from pre-filter (no max limit)
                             logger.info(f"📦 Using pre-filtered pool: {len(universe)} stocks (age: {age_hours:.1f}h)")
                             self._using_prefilter = True
                     else:
@@ -519,17 +518,20 @@ class RapidRotationScreener:
             universe = self.FALLBACK_UNIVERSE.copy()
             logger.info(f"📋 Using static fallback universe: {len(universe)} stocks")
 
-        # v4.9.5: Always merge BULL sector stocks (Energy, Utilities, Real Estate)
-        # These sectors are critical for BEAR mode trading when Tech/Finance are down
-        existing = set(universe)
-        bull_added = 0
-        for sym in self.BULL_SECTOR_STOCKS:
-            if sym not in existing:
-                universe.append(sym)
-                existing.add(sym)
-                bull_added += 1
-        if bull_added > 0:
-            logger.info(f"🐂 Added {bull_added} BULL sector stocks (Energy/Utilities/Real Estate)")
+        # v6.17: Only add BULL sectors if NOT using pre-filtered pool
+        # Pre-filter already includes all sectors from sector_cache.json
+        if not self._using_prefilter:
+            # v4.9.5: Merge BULL sector stocks (Energy, Utilities, Real Estate)
+            # These sectors are critical for BEAR mode trading when Tech/Finance are down
+            existing = set(universe)
+            bull_added = 0
+            for sym in self.BULL_SECTOR_STOCKS:
+                if sym not in existing:
+                    universe.append(sym)
+                    existing.add(sym)
+                    bull_added += 1
+            if bull_added > 0:
+                logger.info(f"🐂 Added {bull_added} BULL sector stocks (Energy/Utilities/Real Estate)")
 
         # Filter by sector regime if available
         if self.sector_regime:

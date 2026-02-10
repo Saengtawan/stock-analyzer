@@ -152,7 +152,7 @@ class SectorRegimeDetector:
 
     def calculate_sector_metrics(self, df: pd.DataFrame) -> Optional[Dict[str, float]]:
         """Calculate momentum indicators for a sector ETF"""
-        if df.empty or len(df) < 21:
+        if df.empty or len(df) < 20:  # v6.17: Accept 20+ rows (not strict 21)
             return None
 
         # Get closing prices

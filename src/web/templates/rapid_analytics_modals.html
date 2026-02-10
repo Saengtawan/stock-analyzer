@@ -1,0 +1,2991 @@
+<!--
+  RAPID ANALYTICS MODALS v4.7
+
+  Portfolio Performance, Trade Log, Calendar modals for Rapid Trader
+
+  Usage: This file is already included in rapid_trader.html
+-->
+
+<!-- ========================================
+     PERFORMANCE MODAL
+     ======================================== -->
+<div class="modal fade" id="performanceModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-chart-line"></i> Portfolio Performance
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Period Selector -->
+        <div class="mb-3">
+          <label class="form-label small">Period:</label>
+          <div class="btn-group btn-group-sm" role="group">
+            <button type="button" class="btn btn-outline-primary" data-period="1W">1 Week</button>
+            <button type="button" class="btn btn-outline-primary active" data-period="1M">1 Month</button>
+            <button type="button" class="btn btn-outline-primary" data-period="3M">3 Months</button>
+            <button type="button" class="btn btn-outline-primary" data-period="1A">1 Year</button>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="perfLoading" class="text-center py-5">
+          <div class="spinner-border text-primary" role="status"></div>
+          <div class="small text-muted mt-2">Loading performance data...</div>
+        </div>
+
+        <!-- Performance Content -->
+        <div id="perfContent" style="display:none;">
+          <!-- Summary Cards -->
+          <div class="row mb-4">
+            <div class="col-md-3">
+              <div class="card border-0 bg-light">
+                <div class="card-body text-center">
+                  <div class="small text-muted">Total Return</div>
+                  <h4 id="perfTotalReturn" class="mb-0">--</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-0 bg-light">
+                <div class="card-body text-center">
+                  <div class="small text-muted">Max Drawdown</div>
+                  <h4 id="perfMaxDrawdown" class="mb-0 text-danger">--</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-0 bg-light">
+                <div class="card-body text-center">
+                  <div class="small text-muted">Sharpe Ratio</div>
+                  <h4 id="perfSharpe" class="mb-0">--</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-0 bg-light">
+                <div class="card-body text-center">
+                  <div class="small text-muted">Win Rate</div>
+                  <h4 id="perfWinRate" class="mb-0">--</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Equity Curve Chart -->
+          <div class="card border-0 bg-light mb-3">
+            <div class="card-header bg-white">
+              <strong>Equity Curve</strong>
+            </div>
+            <div class="card-body">
+              <canvas id="equityCurveChart" height="100"></canvas>
+            </div>
+          </div>
+
+          <!-- Additional Metrics -->
+          <div class="row">
+            <div class="col-md-6">
+              <table class="table table-sm">
+                <tr>
+                  <td class="text-muted">Start Equity:</td>
+                  <td id="perfStartEquity">--</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Current Equity:</td>
+                  <td id="perfEndEquity">--</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Avg Daily Return:</td>
+                  <td id="perfAvgDaily">--</td>
+                </tr>
+              </table>
+            </div>
+            <div class="col-md-6">
+              <table class="table table-sm">
+                <tr>
+                  <td class="text-muted">Win Days:</td>
+                  <td id="perfWinDays">--</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Loss Days:</td>
+                  <td id="perfLossDays">--</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Volatility:</td>
+                  <td id="perfVolatility">--</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================
+     TRADE LOG MODAL
+     ======================================== -->
+<div class="modal fade" id="tradeLogModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-history"></i> Trade Log & Slippage
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Days Selector -->
+        <div class="mb-3">
+          <label class="form-label small">Period:</label>
+          <div class="btn-group btn-group-sm" role="group">
+            <button type="button" class="btn btn-outline-primary active" data-days="7">7 Days</button>
+            <button type="button" class="btn btn-outline-primary" data-days="14">14 Days</button>
+            <button type="button" class="btn btn-outline-primary" data-days="30">30 Days</button>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="tradeLogLoading" class="text-center py-5">
+          <div class="spinner-border text-primary" role="status"></div>
+          <div class="small text-muted mt-2">Loading trade history...</div>
+        </div>
+
+        <!-- Trade Log Content -->
+        <div id="tradeLogContent" style="display:none;">
+          <!-- Slippage Summary -->
+          <div class="card border-0 bg-light mb-3">
+            <div class="card-header bg-white">
+              <strong>Slippage Analysis</strong>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-3">
+                  <div class="small text-muted">Total Fills</div>
+                  <h5 id="slippageTotalFills">--</h5>
+                </div>
+                <div class="col-md-3">
+                  <div class="small text-muted">Avg Slippage</div>
+                  <h5 id="slippageAvg">--</h5>
+                </div>
+                <div class="col-md-3">
+                  <div class="small text-muted">Total Cost</div>
+                  <h5 id="slippageTotalCost">--</h5>
+                </div>
+                <div class="col-md-3">
+                  <div class="small text-muted">Favorable Fills</div>
+                  <h5 id="slippageFavorable">--</h5>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Trade Fills Table -->
+          <div class="card border-0 bg-light">
+            <div class="card-header bg-white">
+              <strong>Recent Fills</strong>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Time</th>
+                      <th>Symbol</th>
+                      <th>Side</th>
+                      <th class="text-end">Qty</th>
+                      <th class="text-end">Price</th>
+                      <th class="text-end">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fillsTableBody">
+                    <tr>
+                      <td colspan="7" class="text-center text-muted">No fills found</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dividends (if any) -->
+          <div id="dividendsSection" class="card border-0 bg-light mt-3" style="display:none;">
+            <div class="card-header bg-white">
+              <strong>Dividends</strong>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Symbol</th>
+                      <th class="text-end">Shares</th>
+                      <th class="text-end">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dividendsTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================
+     CALENDAR MODAL
+     ======================================== -->
+<div class="modal fade" id="calendarModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-calendar-alt"></i> Market Calendar
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Days Selector -->
+        <div class="mb-3">
+          <label class="form-label small">Show next:</label>
+          <div class="btn-group btn-group-sm" role="group">
+            <button type="button" class="btn btn-outline-primary" data-days="7">7 Days</button>
+            <button type="button" class="btn btn-outline-primary active" data-days="14">14 Days</button>
+            <button type="button" class="btn btn-outline-primary" data-days="30">30 Days</button>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="calendarLoading" class="text-center py-5">
+          <div class="spinner-border text-primary" role="status"></div>
+          <div class="small text-muted mt-2">Loading calendar...</div>
+        </div>
+
+        <!-- Calendar Content -->
+        <div id="calendarContent" style="display:none;">
+          <!-- Tomorrow Status -->
+          <div class="alert alert-info mb-3">
+            <h6 class="mb-1">Tomorrow's Status</h6>
+            <div id="tomorrowStatus">--</div>
+            <div id="nextTradingDay" class="small mt-1" style="display:none;"></div>
+          </div>
+
+          <!-- Upcoming Holidays -->
+          <div id="holidaysSection" class="card border-0 bg-light mb-3" style="display:none;">
+            <div class="card-header bg-warning text-dark">
+              <strong><i class="fas fa-exclamation-triangle"></i> Upcoming Holidays</strong>
+            </div>
+            <div class="card-body">
+              <div id="holidaysList"></div>
+            </div>
+          </div>
+
+          <!-- Calendar Schedule -->
+          <div class="card border-0 bg-light">
+            <div class="card-header bg-white">
+              <strong>Trading Schedule</strong>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Day</th>
+                      <th>Status</th>
+                      <th>Hours</th>
+                    </tr>
+                  </thead>
+                  <tbody id="calendarTableBody">
+                    <tr>
+                      <td colspan="4" class="text-center text-muted">Loading...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================
+     EXECUTION TRACE MODAL (v6.15)
+     ======================================== -->
+<div class="modal fade" id="executionTraceModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-project-diagram"></i> Execution Trace - Funnel View
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- View Selector -->
+        <div class="btn-group mb-3" role="group" id="traceViewSelector" style="display:none;">
+          <button type="button" class="btn btn-sm btn-primary active" data-view="funnel" onclick="switchTraceView('funnel')">
+            <i class="fas fa-project-diagram"></i> Aggregated Funnel
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-primary" data-view="heatmap" onclick="switchTraceView('heatmap')">
+            <i class="fas fa-th"></i> Heatmap
+          </button>
+        </div>
+
+        <!-- Loading State -->
+        <div id="traceLoading" class="text-center py-5">
+          <div class="spinner-border text-primary" role="status"></div>
+          <div class="small text-muted mt-2">Loading execution trace...</div>
+        </div>
+
+        <!-- No Data State -->
+        <div id="traceNoData" class="text-center py-5" style="display:none;">
+          <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+          <h6 class="text-muted">No Execution Trace Available</h6>
+          <p class="text-muted">Run a scan first to generate trace data</p>
+        </div>
+
+        <!-- Trace Content -->
+        <div id="traceContent" style="display:none;">
+          <!-- Summary Cards - Modern Design -->
+          <div class="row mb-4 g-3">
+            <div class="col-md-3">
+              <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body text-center text-white p-3">
+                  <div style="font-size: 0.75rem; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Total Scanned</div>
+                  <h3 id="traceTotalStocks" class="mb-0 mt-2" style="font-weight: 700;">--</h3>
+                  <div style="font-size: 0.7rem; opacity: 0.8; margin-top: 4px;"><i class="fas fa-inbox me-1"></i>Stocks</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                <div class="card-body text-center text-white p-3">
+                  <div style="font-size: 0.75rem; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Passed Filters</div>
+                  <h3 id="tracePassedFilters" class="mb-0 mt-2" style="font-weight: 700;">--</h3>
+                  <div style="font-size: 0.7rem; opacity: 0.8; margin-top: 4px;"><i class="fas fa-check-circle me-1"></i>Qualified</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                <div class="card-body text-center text-white p-3">
+                  <div style="font-size: 0.75rem; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Final Signals</div>
+                  <h3 id="traceFinalSignals" class="mb-0 mt-2" style="font-weight: 700;">--</h3>
+                  <div style="font-size: 0.7rem; opacity: 0.8; margin-top: 4px;"><i class="fas fa-flag-checkered me-1"></i>Ready</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                <div class="card-body text-center text-white p-3">
+                  <div style="font-size: 0.75rem; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Success Rate</div>
+                  <h3 id="traceSuccessRate" class="mb-0 mt-2" style="font-weight: 700;">--</h3>
+                  <div style="font-size: 0.7rem; opacity: 0.8; margin-top: 4px;"><i class="fas fa-percentage me-1"></i>Conversion</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AGGREGATED FUNNEL VIEW (n8n-style) -->
+          <div id="traceFunnelView">
+            <div class="card border-0 shadow-sm mb-3">
+              <div class="card-header bg-gradient-primary text-white">
+                <strong><i class="fas fa-sitemap me-2"></i>Pipeline Flow</strong>
+                <button class="btn btn-sm btn-light float-end" id="runPipelineBtn" onclick="runPipelineAnimation()">
+                  <i class="fas fa-play me-1"></i> Run Pipeline
+                </button>
+              </div>
+              <div class="card-body p-4" style="background: #f8f9fa;">
+                <!-- Timeline Bar -->
+                <div id="timelineBar" class="timeline-bar mb-4" style="display:none;">
+                  <div class="timeline-header">
+                    <span class="timeline-title">Pipeline Timeline</span>
+                    <span class="timeline-elapsed" id="timelineElapsed">0ms</span>
+                  </div>
+                  <div class="timeline-track">
+                    <div class="timeline-segments" id="timelineSegments"></div>
+                  </div>
+                </div>
+
+                <!-- Particle Canvas (overlay) -->
+                <canvas id="particleCanvas" style="position: absolute; pointer-events: none; display: none;"></canvas>
+
+                <!-- Flow Container -->
+                <div id="funnelFlowContainer" style="position: relative;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- HEATMAP VIEW (Matrix Table) -->
+          <div id="traceHeatmapView" style="display:none;">
+            <!-- Summary Chips -->
+            <div class="mb-3" id="heatmapSummaryChips"></div>
+
+            <!-- Heatmap Table -->
+            <div class="card border-0 shadow-sm">
+              <div class="card-header bg-white">
+                <strong><i class="fas fa-table me-2"></i>Stock x Stage Matrix</strong>
+                <span class="float-end small text-muted">Click column header to sort • Click symbol to see details</span>
+              </div>
+              <div class="card-body p-0" style="max-height: 600px; overflow-y: auto;">
+                <table class="table table-sm table-hover mb-0" id="heatmapTable">
+                  <thead style="position: sticky; top: 0; background: white; z-index: 10;">
+                    <tr>
+                      <th class="sortable" onclick="sortHeatmap('symbol')">Symbol</th>
+                      <th class="sortable" onclick="sortHeatmap('price')">Price</th>
+                      <th class="sortable" onclick="sortHeatmap('basic')">Basic</th>
+                      <th class="sortable" onclick="sortHeatmap('bounce')">Bounce</th>
+                      <th class="sortable" onclick="sortHeatmap('score')">Score</th>
+                      <th class="sortable" onclick="sortHeatmap('threshold')">Threshold</th>
+                      <th class="sortable" onclick="sortHeatmap('result')">Result</th>
+                    </tr>
+                  </thead>
+                  <tbody id="heatmapTableBody">
+                    <!-- Will be populated by JavaScript -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================
+     STOCK DETAIL MODAL (Individual Flow)
+     ======================================== -->
+<div class="modal fade" id="stockDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title">
+          <span id="stockDetailSymbol">--</span>
+          <span id="stockDetailPrice" class="ms-2 small">$--</span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+        <!-- Result Badge -->
+        <div id="stockDetailResult"></div>
+
+        <!-- Flow Stages -->
+        <div id="stockDetailFlow"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Modern Color Palette */
+:root {
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #3b82f6;
+  --color-primary: #6366f1;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Gradient Backgrounds */
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-gradient-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.bg-gradient-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+/* Summary Cards - Modern Design */
+.summary .card {
+  transition: all 0.3s ease;
+  border: none;
+  box-shadow: var(--shadow-md);
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+}
+
+.summary .card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.summary .card-value {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-info) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Funnel Visualization Styles */
+.funnel-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+/* Accordion Stage Design */
+.accordion-item {
+  border: none;
+  margin-bottom: 10px;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.accordion-item:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.accordion-button {
+  font-weight: 600;
+  border: none;
+  padding: 16px 20px;
+  transition: all 0.3s ease;
+}
+
+.accordion-button:not(.collapsed) {
+  background-color: #f8f9fa;
+  box-shadow: none;
+}
+
+.accordion-button::after {
+  filter: brightness(0.5);
+}
+
+/* Stage Status Colors */
+.accordion-item.stage-passed .accordion-button {
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+  border-left: 4px solid var(--color-success);
+}
+
+.accordion-item.stage-rejected .accordion-button {
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+  border-left: 4px solid var(--color-danger);
+}
+
+.accordion-item.stage-partial .accordion-button {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  border-left: 4px solid var(--color-warning);
+}
+
+.funnel-stage {
+  position: relative;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.funnel-stage:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.funnel-stage.passed {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.funnel-stage.rejected {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.funnel-stage.partial {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+.funnel-stage-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.funnel-stage-icon {
+  font-size: 1.5rem;
+  opacity: 0.9;
+}
+
+.funnel-stage-title {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 2px;
+}
+
+.funnel-stage-subtitle {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.funnel-stage-right {
+  text-align: right;
+}
+
+.funnel-stage-count {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 2px;
+}
+
+.funnel-stage-percent {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.funnel-arrow {
+  text-align: center;
+  color: #6c757d;
+  font-size: 1.2rem;
+  margin: -5px 0;
+}
+
+/* Rejection Badge */
+.rejection-badge {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 20px;
+  background: #f8f9fa;
+  margin: 5px;
+  font-size: 0.85rem;
+  border: 1px solid #dee2e6;
+}
+
+.rejection-badge strong {
+  color: #dc3545;
+}
+
+/* Stock List Container */
+.stock-list-container {
+  margin: 5px 0 10px 0;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.stock-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.stock-list-content {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.stock-chip {
+  display: inline-block;
+  margin: 3px;
+  padding: 4px 10px;
+  background: white;
+  border: 1px solid #007bff;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #007bff;
+  transition: all 0.2s;
+}
+
+.stock-chip:hover {
+  background: #007bff;
+  color: white;
+  transform: scale(1.05);
+}
+
+/* Individual Stock View - Modern Design */
+.stock-detail-card {
+  background: white;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  border: none;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.stock-detail-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.stock-detail-header {
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.stock-detail-header:hover {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.stock-detail-header.passed {
+  border-left: 5px solid var(--color-success);
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.stock-detail-header.passed:hover {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+}
+
+.stock-detail-header.rejected {
+  border-left: 5px solid var(--color-danger);
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+}
+
+.stock-detail-header.rejected:hover {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+}
+
+.stock-detail-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stock-symbol {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+.stock-result-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.stock-result-badge.signal {
+  background: #d4edda;
+  color: #155724;
+}
+
+.stock-result-badge.rejected {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.stock-rejection-summary {
+  font-size: 0.85rem;
+  color: #dc3545;
+  font-weight: 500;
+}
+
+.stock-detail-body {
+  padding: 16px;
+  display: none;
+}
+
+.stock-detail-body.show {
+  display: block;
+}
+
+.stage-check {
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.stage-check.passed {
+  background: #d4edda;
+  border-left: 3px solid #28a745;
+}
+
+.stage-check.failed {
+  background: #f8d7da;
+  border-left: 3px solid #dc3545;
+}
+
+.stage-check-name {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stage-check-icon {
+  font-size: 1.1rem;
+}
+
+.stage-check-reason {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stage-check-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 0.8rem;
+}
+
+.value-chip {
+  padding: 2px 8px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  font-family: monospace;
+}
+
+/* ========================================
+   N8N-STYLE FUNNEL FLOW
+   ======================================== */
+.flow-node {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 0 auto 15px;
+  max-width: 600px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.flow-node:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  transform: scale(1.02);
+}
+
+.flow-node.bottleneck {
+  border-color: #ef4444;
+  background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);
+}
+
+.flow-node-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.flow-node-title {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.flow-node-icon {
+  font-size: 1.5rem;
+}
+
+.flow-node-time {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-family: 'Monaco', 'Courier New', monospace;
+  background: #f3f4f6;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.flow-node-badge-container {
+  margin: -10px 0 12px 0;
+}
+
+.flow-node-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.flow-node-counts {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.flow-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.flow-count-label {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.flow-count-value {
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: #1f2937;
+}
+
+.flow-count.in .flow-count-value {
+  color: #3b82f6;
+}
+
+.flow-count.out .flow-count-value {
+  color: #10b981;
+}
+
+.flow-count.fail .flow-count-value {
+  color: #ef4444;
+}
+
+.flow-count.rejected .flow-count-value {
+  color: #ef4444;
+}
+
+.flow-rejected-label {
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ef4444;
+  margin: 8px 0 4px 0;
+}
+
+.flow-passrate-bar {
+  height: 8px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.flow-passrate-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  transition: width 0.6s ease;
+}
+
+.flow-passrate-text {
+  text-align: right;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.flow-arrow {
+  text-align: center;
+  margin: -10px 0;
+  position: relative;
+}
+
+.flow-arrow-line {
+  width: 3px;
+  height: 30px;
+  background: linear-gradient(180deg, #d1d5db 0%, #9ca3af 100%);
+  margin: 0 auto;
+}
+
+.flow-arrow-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 2px 12px;
+  border: 2px solid #ef4444;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ef4444;
+  white-space: nowrap;
+}
+
+.flow-breakdown {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+  display: none;
+}
+
+.flow-breakdown.show {
+  display: block;
+}
+
+.flow-breakdown-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.flow-breakdown-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #f9fafb;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+}
+
+.flow-breakdown-reason {
+  color: #374151;
+}
+
+.flow-breakdown-count {
+  font-weight: 700;
+  color: #ef4444;
+}
+
+/* ========================================
+   ANIMATION SYSTEM
+   ======================================== */
+/* Timeline Bar */
+.timeline-bar {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.timeline-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+.timeline-elapsed {
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+.timeline-track {
+  height: 24px;
+  background: #f3f4f6;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.timeline-segments {
+  display: flex;
+  height: 100%;
+}
+
+.timeline-segment {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #6b7280;
+  border-right: 1px solid #e5e7eb;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.timeline-segment:last-child {
+  border-right: none;
+}
+
+.timeline-segment.pending {
+  background: #f3f4f6;
+}
+
+.timeline-segment.active {
+  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  animation: timeline-pulse 1.5s ease-in-out infinite;
+}
+
+.timeline-segment.completed {
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+@keyframes timeline-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Node Animation States */
+.flow-node.processing {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+  animation: node-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes node-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.4);
+  }
+}
+
+.flow-node.completed {
+  border-color: #10b981;
+}
+
+.processing-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-block;
+  padding: 6px 14px;
+  background: #3b82f6;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+  z-index: 10;
+}
+
+/* Font Awesome Spin Animation Fix */
+.fa-spin {
+  animation: fa-spin 1s linear infinite !important;
+}
+
+@keyframes fa-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Connector Animation */
+.flow-arrow-line.active {
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+  animation: connector-glow 1s ease-in-out;
+}
+
+@keyframes connector-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.flow-arrow-label.active {
+  border-color: #10b981;
+  color: #10b981;
+  animation: label-bounce 0.6s ease-out;
+}
+
+@keyframes label-bounce {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.2); }
+}
+
+/* Particle Canvas */
+#particleCanvas {
+  z-index: 100;
+}
+
+/* Counter Animation */
+.flow-count-value.counting {
+  color: #3b82f6;
+  font-weight: 800;
+}
+
+/* ========================================
+   HEATMAP TABLE
+   ======================================== */
+#heatmapSummaryChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.heatmap-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.heatmap-summary-chip .chip-label {
+  color: #6b7280;
+}
+
+.heatmap-summary-chip .chip-value {
+  color: #1f2937;
+  font-size: 1.1rem;
+}
+
+.heatmap-summary-chip.stage-bounce {
+  border-color: #3b82f6;
+}
+
+.heatmap-summary-chip.stage-final {
+  border-color: #10b981;
+}
+
+#heatmapTable {
+  font-size: 0.9rem;
+}
+
+#heatmapTable thead th {
+  background: #f9fafb;
+  color: #374151;
+  font-weight: 700;
+  padding: 12px 8px;
+  border-bottom: 2px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+#heatmapTable thead th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s ease;
+}
+
+#heatmapTable thead th.sortable:hover {
+  background: #f3f4f6;
+}
+
+#heatmapTable thead th.sortable::after {
+  content: ' ⇅';
+  opacity: 0.3;
+  font-size: 0.8rem;
+}
+
+#heatmapTable tbody tr {
+  transition: background 0.2s ease;
+}
+
+#heatmapTable tbody tr:hover {
+  background: #f9fafb;
+}
+
+#heatmapTable tbody td {
+  padding: 10px 8px;
+  vertical-align: middle;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.heatmap-cell {
+  text-align: center;
+  font-weight: 600;
+  font-size: 1.1rem;
+  padding: 6px;
+  border-radius: 6px;
+  min-width: 50px;
+}
+
+.heatmap-cell.passed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.heatmap-cell.failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.heatmap-cell.skipped {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
+.heatmap-cell.score {
+  background: transparent;
+  font-family: monospace;
+  font-size: 1rem;
+}
+
+.heatmap-cell.score.high {
+  color: #065f46;
+  font-weight: 700;
+}
+
+.heatmap-cell.score.low {
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.heatmap-symbol {
+  font-weight: 700;
+  color: #3b82f6;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.heatmap-symbol:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.heatmap-price {
+  font-family: monospace;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+</style>
+
+<!-- ========================================
+     📊 CANDLESTICK CHART MODAL (v4.8)
+     ======================================== -->
+<div class="modal fade" id="chartModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title">
+          <span id="chartSymbol">AAPL</span> - Candlestick Chart
+          <span id="chartPrice" class="ms-3 text-success">$--</span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="chartLoading" class="text-center py-5">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="mt-2">Loading chart...</p>
+        </div>
+
+        <div id="chartContent" style="display: none;">
+          <!-- Timeframe Selector -->
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="btn-group btn-group-sm btn-group-timeframe" role="group">
+              <button type="button" class="btn btn-outline-primary" data-tf="1m">1M</button>
+              <button type="button" class="btn btn-outline-primary" data-tf="5m">5M</button>
+              <button type="button" class="btn btn-outline-primary" data-tf="15m">15M</button>
+              <button type="button" class="btn btn-outline-primary" data-tf="1h">1H</button>
+              <button type="button" class="btn btn-outline-primary active" data-tf="1d">1D</button>
+            </div>
+
+            <!-- Indicators Panel -->
+            <div class="d-flex gap-3 text-sm">
+              <span>MA(20): <strong id="indMA20">--</strong></span>
+              <span>MA(50): <strong id="indMA50">--</strong></span>
+              <span>RSI: <strong id="indRSI" class="text-warning">--</strong></span>
+            </div>
+          </div>
+
+          <!-- Candlestick Chart -->
+          <div style="position: relative; height: 400px; margin-bottom: 10px;">
+            <canvas id="candlestickChart"></canvas>
+          </div>
+
+          <!-- Volume Chart -->
+          <div style="position: relative; height: 100px;">
+            <canvas id="volumeChart"></canvas>
+          </div>
+
+          <!-- Legend -->
+          <div class="mt-3 text-center text-muted small">
+            <span class="me-3">🔴 <strong>BUY</strong> = Entry point</span>
+            <span>🟢 <strong>SELL</strong> = Exit point</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================
+     JAVASCRIPT FOR MODALS
+     ======================================== -->
+<script>
+// Global chart instance
+let equityCurveChartInstance = null;
+
+// ========== PERFORMANCE MODAL ==========
+function loadPerformanceData(period = '1M') {
+  $('#perfLoading').show();
+  $('#perfContent').hide();
+
+  fetch(`/api/rapid/performance?period=${period}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) {
+        alert('Error loading performance: ' + data.error);
+        return;
+      }
+
+      // Update summary cards
+      const metrics = data.metrics || {};
+      const summary = data.summary || {};
+
+      $('#perfTotalReturn').text(
+        (metrics.total_return_pct >= 0 ? '+' : '') +
+        metrics.total_return_pct.toFixed(2) + '%'
+      ).removeClass('text-success text-danger')
+        .addClass(metrics.total_return_pct >= 0 ? 'text-success' : 'text-danger');
+
+      $('#perfMaxDrawdown').text(metrics.max_drawdown_pct.toFixed(2) + '%');
+      $('#perfSharpe').text(metrics.sharpe_ratio.toFixed(2));
+      $('#perfWinRate').text(metrics.win_rate.toFixed(1) + '%');
+
+      $('#perfStartEquity').text('$' + summary.start_equity?.toLocaleString());
+      $('#perfEndEquity').text('$' + summary.end_equity?.toLocaleString());
+      $('#perfAvgDaily').text((metrics.avg_daily_return >= 0 ? '+' : '') +
+                              metrics.avg_daily_return.toFixed(3) + '%');
+      $('#perfWinDays').text(metrics.win_days + '/' + (metrics.win_days + metrics.loss_days));
+      $('#perfLossDays').text(metrics.loss_days);
+      $('#perfVolatility').text(metrics.volatility.toFixed(3) + '%');
+
+      // Draw equity curve
+      drawEquityCurve(data.timestamps, data.equity_curve);
+
+      $('#perfLoading').hide();
+      $('#perfContent').show();
+    })
+    .catch(err => {
+      console.error('Performance load error:', err);
+      alert('Failed to load performance data');
+      $('#perfLoading').hide();
+    });
+}
+
+function drawEquityCurve(timestamps, equity) {
+  const ctx = document.getElementById('equityCurveChart').getContext('2d');
+
+  // Destroy previous chart
+  if (equityCurveChartInstance) {
+    equityCurveChartInstance.destroy();
+  }
+
+  equityCurveChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: timestamps,
+      datasets: [{
+        label: 'Equity',
+        data: equity,
+        borderColor: '#007bff',
+        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+        fill: true,
+        tension: 0.1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return '$' + context.parsed.y.toLocaleString();
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          ticks: {
+            callback: function(value) {
+              return '$' + value.toLocaleString();
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// Period button clicks
+$('#performanceModal').on('click', '.btn-group button', function() {
+  const period = $(this).data('period');
+  $(this).addClass('active').siblings().removeClass('active');
+  loadPerformanceData(period);
+});
+
+// Load on modal show
+$('#performanceModal').on('shown.bs.modal', function() {
+  loadPerformanceData('1M');
+});
+
+// ========== TRADE LOG MODAL ==========
+function loadTradeLog(days = 7) {
+  $('#tradeLogLoading').show();
+  $('#tradeLogContent').hide();
+
+  fetch(`/api/rapid/trade-log?days=${days}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) {
+        alert('Error loading trade log: ' + data.error);
+        return;
+      }
+
+      // Update slippage summary
+      const slippage = data.slippage || {};
+      $('#slippageTotalFills').text(slippage.total_fills || 0);
+      $('#slippageAvg').text('$' + (slippage.avg_slippage_usd || 0).toFixed(4));
+      $('#slippageTotalCost').text('$' + (slippage.total_slippage_cost || 0).toFixed(2));
+      $('#slippageFavorable').text(
+        (slippage.positive_slippage_count || 0) + '/' + (slippage.total_fills || 0)
+      );
+
+      // Update fills table
+      const fills = data.fills || [];
+      const fillsHtml = fills.map(fill => {
+        const dt = new Date(fill.transaction_time);
+        const sideClass = fill.side === 'buy' ? 'text-success' : 'text-danger';
+        const value = (fill.qty * fill.price).toFixed(2);
+
+        return `
+          <tr>
+            <td>${dt.toLocaleDateString()}</td>
+            <td>${dt.toLocaleTimeString()}</td>
+            <td><strong>${fill.symbol}</strong></td>
+            <td class="${sideClass}">${fill.side.toUpperCase()}</td>
+            <td class="text-end">${fill.qty}</td>
+            <td class="text-end">$${fill.price.toFixed(2)}</td>
+            <td class="text-end">$${value}</td>
+          </tr>
+        `;
+      }).join('');
+
+      $('#fillsTableBody').html(
+        fillsHtml || '<tr><td colspan="7" class="text-center text-muted">No fills found</td></tr>'
+      );
+
+      // Update dividends (if any)
+      const dividends = data.dividends || [];
+      if (dividends.length > 0) {
+        const divHtml = dividends.map(div => {
+          const dt = new Date(div.transaction_time);
+          return `
+            <tr>
+              <td>${dt.toLocaleDateString()}</td>
+              <td><strong>${div.symbol}</strong></td>
+              <td class="text-end">${div.qty || 0}</td>
+              <td class="text-end text-success">$${div.amount.toFixed(2)}</td>
+            </tr>
+          `;
+        }).join('');
+
+        $('#dividendsTableBody').html(divHtml);
+        $('#dividendsSection').show();
+      } else {
+        $('#dividendsSection').hide();
+      }
+
+      $('#tradeLogLoading').hide();
+      $('#tradeLogContent').show();
+    })
+    .catch(err => {
+      console.error('Trade log load error:', err);
+      alert('Failed to load trade log');
+      $('#tradeLogLoading').hide();
+    });
+}
+
+// Days button clicks
+$('#tradeLogModal').on('click', '.btn-group button', function() {
+  const days = $(this).data('days');
+  $(this).addClass('active').siblings().removeClass('active');
+  loadTradeLog(days);
+});
+
+// Load on modal show
+$('#tradeLogModal').on('shown.bs.modal', function() {
+  loadTradeLog(7);
+});
+
+// ========== CALENDAR MODAL ==========
+function loadCalendar(days = 14) {
+  $('#calendarLoading').show();
+  $('#calendarContent').hide();
+
+  fetch(`/api/rapid/calendar?days=${days}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) {
+        alert('Error loading calendar: ' + data.error);
+        return;
+      }
+
+      // Tomorrow status
+      if (data.is_open_tomorrow) {
+        $('#tomorrowStatus').html('<i class="fas fa-check-circle text-success"></i> Market will be OPEN tomorrow');
+        $('#nextTradingDay').hide();
+      } else {
+        $('#tomorrowStatus').html('<i class="fas fa-exclamation-triangle text-warning"></i> Market will be CLOSED tomorrow');
+        if (data.next_trading_day) {
+          $('#nextTradingDay').html(`Next trading day: <strong>${data.next_trading_day}</strong>`).show();
+        }
+      }
+
+      // Holidays
+      const holidays = data.holidays || [];
+      if (holidays.length > 0) {
+        const holidayHtml = holidays.map(h =>
+          `<div class="mb-2">
+            <i class="fas fa-calendar-times text-warning"></i>
+            <strong>${h.date}</strong> (${h.day_of_week}) - ${h.days_away} days away
+          </div>`
+        ).join('');
+        $('#holidaysList').html(holidayHtml);
+        $('#holidaysSection').show();
+      } else {
+        $('#holidaysSection').hide();
+      }
+
+      // Schedule table
+      const schedule = data.schedule || [];
+      const scheduleHtml = schedule.map(day => {
+        let statusHtml;
+        if (day.is_open) {
+          statusHtml = '<span class="badge bg-success">OPEN</span>';
+          const hours = day.open_time && day.close_time ?
+            `${day.open_time} - ${day.close_time}` : '';
+          return `
+            <tr>
+              <td>${day.date}</td>
+              <td>${day.day}</td>
+              <td>${statusHtml}</td>
+              <td>${hours}</td>
+            </tr>
+          `;
+        } else {
+          const type = day.is_weekend ? 'Weekend' : 'Holiday';
+          statusHtml = `<span class="badge bg-secondary">${type}</span>`;
+          return `
+            <tr class="table-secondary">
+              <td>${day.date}</td>
+              <td>${day.day}</td>
+              <td>${statusHtml}</td>
+              <td>--</td>
+            </tr>
+          `;
+        }
+      }).join('');
+
+      $('#calendarTableBody').html(scheduleHtml);
+
+      $('#calendarLoading').hide();
+      $('#calendarContent').show();
+    })
+    .catch(err => {
+      console.error('Calendar load error:', err);
+      alert('Failed to load calendar');
+      $('#calendarLoading').hide();
+    });
+}
+
+// Days button clicks
+$('#calendarModal').on('click', '.btn-group button', function() {
+  const days = $(this).data('days');
+  $(this).addClass('active').siblings().removeClass('active');
+  loadCalendar(days);
+});
+
+// Load on modal show
+$('#calendarModal').on('shown.bs.modal', function() {
+  loadCalendar(14);
+});
+
+// ============================================================================
+// 📊 CANDLESTICK CHART MODAL (v4.8)
+// ============================================================================
+
+// Global chart instance
+let candlestickChartInstance = null;
+let volumeChartInstance = null;
+
+function openCandlestickChart(symbol) {
+  // Set symbol
+  $('#chartSymbol').text(symbol);
+
+  // Show modal
+  $('#chartModal').modal('show');
+
+  // Load default timeframe
+  setTimeout(() => loadCandlestickChart(symbol, '1d'), 300);
+}
+
+function loadCandlestickChart(symbol, timeframe) {
+  $('#chartLoading').show();
+  $('#chartContent').hide();
+
+  // Calculate days based on timeframe
+  const daysMap = {
+    '1m': 1,    // 1 day of 1-min bars
+    '5m': 5,    // 5 days
+    '15m': 10,  // 10 days
+    '1h': 30,   // 30 days
+    '1d': 90    // 90 days
+  };
+  const days = daysMap[timeframe] || 30;
+
+  fetch(`/api/rapid/bars/${symbol}?timeframe=${timeframe}&days=${days}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Update header
+      const indicators = data.indicators || {};
+      $('#chartPrice').text('$' + (indicators.current_price?.toFixed(2) || '--'));
+
+      // Update indicators panel
+      $('#indMA20').text(indicators.ma20?.toFixed(2) || '--');
+      $('#indMA50').text(indicators.ma50?.toFixed(2) || '--');
+      $('#indRSI').text(indicators.rsi?.toFixed(1) || '--');
+
+      // Set RSI color
+      if (indicators.rsi) {
+        const $rsi = $('#indRSI');
+        if (indicators.rsi > 70) {
+          $rsi.removeClass('text-success text-warning').addClass('text-danger');
+        } else if (indicators.rsi < 30) {
+          $rsi.removeClass('text-danger text-warning').addClass('text-success');
+        } else {
+          $rsi.removeClass('text-danger text-success').addClass('text-warning');
+        }
+      }
+
+      // Draw charts
+      drawCandlestickChart(data.bars, data.markers || []);
+      drawVolumeChart(data.bars);
+
+      $('#chartLoading').hide();
+      $('#chartContent').show();
+    })
+    .catch(err => {
+      console.error('Chart load error:', err);
+      alert('Failed to load chart: ' + err.message);
+      $('#chartLoading').hide();
+    });
+}
+
+function drawCandlestickChart(bars, markers) {
+  const ctx = document.getElementById('candlestickChart');
+  if (!ctx) return;
+
+  // Destroy previous chart
+  if (candlestickChartInstance) {
+    candlestickChartInstance.destroy();
+  }
+
+  // Prepare data
+  const candleData = bars.map(b => ({
+    x: new Date(b.x),
+    o: b.o,
+    h: b.h,
+    l: b.l,
+    c: b.c
+  }));
+
+  // Prepare marker annotations
+  const annotations = {};
+  markers.forEach((m, idx) => {
+    const isBuy = m.side === 'buy';
+    annotations[`marker${idx}`] = {
+      type: 'point',
+      xValue: new Date(m.time),
+      yValue: m.price,
+      backgroundColor: isBuy ? '#dc3545' : '#28a745',
+      borderColor: isBuy ? '#c82333' : '#218838',
+      borderWidth: 2,
+      radius: 6,
+      label: {
+        content: isBuy ? 'BUY' : 'SELL',
+        enabled: true,
+        position: isBuy ? 'bottom' : 'top',
+        backgroundColor: isBuy ? '#dc3545' : '#28a745',
+        color: 'white',
+        font: { size: 10, weight: 'bold' }
+      }
+    };
+  });
+
+  candlestickChartInstance = new Chart(ctx, {
+    type: 'candlestick',
+    data: {
+      datasets: [{
+        label: $('#chartSymbol').text(),
+        data: candleData,
+        borderColor: {
+          up: '#28a745',
+          down: '#dc3545',
+          unchanged: '#999'
+        },
+        backgroundColor: {
+          up: 'rgba(40, 167, 69, 0.5)',
+          down: 'rgba(220, 53, 69, 0.5)',
+          unchanged: 'rgba(153, 153, 153, 0.5)'
+        }
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: {
+            unit: 'day',
+            displayFormats: { day: 'MMM dd' }
+          },
+          grid: { display: false }
+        },
+        y: {
+          position: 'right',
+          grid: { color: 'rgba(200, 200, 200, 0.2)' }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const point = context.raw;
+              return [
+                `Open: $${point.o.toFixed(2)}`,
+                `High: $${point.h.toFixed(2)}`,
+                `Low: $${point.l.toFixed(2)}`,
+                `Close: $${point.c.toFixed(2)}`
+              ];
+            }
+          }
+        },
+        annotation: {
+          annotations: annotations
+        }
+      }
+    }
+  });
+}
+
+function drawVolumeChart(bars) {
+  const ctx = document.getElementById('volumeChart');
+  if (!ctx) return;
+
+  // Destroy previous chart
+  if (volumeChartInstance) {
+    volumeChartInstance.destroy();
+  }
+
+  const volumeData = bars.map(b => ({
+    x: new Date(b.x),
+    y: b.v
+  }));
+
+  // Color bars based on price movement
+  const colors = bars.map(b => b.c >= b.o ? '#28a745' : '#dc3545');
+
+  volumeChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      datasets: [{
+        label: 'Volume',
+        data: volumeData,
+        backgroundColor: colors,
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: 'time',
+          display: false
+        },
+        y: {
+          position: 'right',
+          ticks: {
+            callback: function(value) {
+              return (value / 1000000).toFixed(1) + 'M';
+            }
+          },
+          grid: { color: 'rgba(200, 200, 200, 0.2)' }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return 'Volume: ' + context.parsed.y.toLocaleString();
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// Timeframe button clicks
+$('#chartModal').on('click', '.btn-group-timeframe button', function() {
+  const symbol = $('#chartSymbol').text();
+  const timeframe = $(this).data('tf');
+  $(this).addClass('active').siblings().removeClass('active');
+  loadCandlestickChart(symbol, timeframe);
+});
+
+// ========== EXECUTION TRACE MODAL (v6.15) ==========
+function loadExecutionTrace() {
+  $('#traceLoading').show();
+  $('#traceNoData').hide();
+  $('#traceContent').hide();
+
+  fetch('/api/rapid/execution-trace?view=summary')
+    .then(res => res.json())
+    .then(data => {
+      if (!data.available || data.error) {
+        $('#traceLoading').hide();
+        $('#traceNoData').show();
+        return;
+      }
+
+      const summary = data.trace_summary || {};
+      const stages = summary.stages || {};
+      const total = summary.total_stocks || 0;
+
+      // Update summary cards
+      const finalSignals = stages.OUTPUT?.passed || 0;
+      const passedFilters = stages.BOUNCE_FILTERS?.passed || 0;
+      const successRate = total > 0 ? ((finalSignals / total) * 100).toFixed(1) : '0.0';
+
+      $('#traceTotalStocks').text(total);
+      $('#tracePassedFilters').text(passedFilters);
+      $('#traceFinalSignals').text(finalSignals);
+      $('#traceSuccessRate').text(successRate + '%');
+
+      // Update timestamp
+      if (data.timestamp) {
+        const ts = new Date(data.timestamp);
+        $('#traceTimestamp').text('Updated: ' + ts.toLocaleString());
+      }
+
+      // Store trace data globally
+      window.traceData = {
+        stages: stages,
+        total: total,
+        rejections: summary.rejection_breakdown || {}
+      };
+
+      // Render aggregated funnel (default view)
+      renderAggregatedFunnel(stages, total, summary.rejection_breakdown || {});
+
+      // Show content and view selector
+      $('#traceLoading').hide();
+      $('#traceViewSelector').show();
+      $('#traceContent').show();
+    })
+    .catch(err => {
+      console.error('Execution trace load error:', err);
+      $('#traceLoading').hide();
+      $('#traceNoData').show();
+    });
+}
+
+// ========== N8N-STYLE AGGREGATED FUNNEL ==========
+function renderAggregatedFunnel(stages, total, rejections) {
+  const stageOrder = ['INPUT', 'BASIC_FILTERS', 'BOUNCE_FILTERS', 'SCORING', 'THRESHOLD', 'OUTPUT'];
+  const stageIcons = {
+    'INPUT': '📥',
+    'BASIC_FILTERS': '🔍',
+    'BOUNCE_FILTERS': '📊',
+    'SCORING': '🧮',
+    'THRESHOLD': '📈',
+    'OUTPUT': '✅'
+  };
+  const stageTitles = {
+    'INPUT': 'INPUT UNIVERSE',
+    'BASIC_FILTERS': 'BASIC FILTERS',
+    'BOUNCE_FILTERS': 'BOUNCE FILTERS',
+    'SCORING': 'SCORE CALC',
+    'THRESHOLD': 'THRESHOLD',
+    'OUTPUT': 'FINAL SIGNALS'
+  };
+
+  // Get processing times from real data (with fallback to defaults)
+  const defaultTimes = {
+    'INPUT': 0,
+    'BASIC_FILTERS': 120,
+    'BOUNCE_FILTERS': 890,
+    'SCORING': 340,
+    'THRESHOLD': 60,
+    'OUTPUT': 85
+  };
+
+  const processingTimes = {};
+  Object.keys(defaultTimes).forEach(stage => {
+    const stageData = stages[stage];
+    if (stageData && stageData.average_duration_ms > 0) {
+      processingTimes[stage] = Math.round(stageData.average_duration_ms);
+    } else {
+      processingTimes[stage] = defaultTimes[stage];
+    }
+  });
+
+  let html = '';
+  let prevCount = total;
+
+  stageOrder.forEach((stageName, idx) => {
+    const stage = stages[stageName] || { total: 0, passed: 0, failed: 0, stocks: [] };
+    const inCount = prevCount;
+    const outCount = stage.passed || 0;
+    const failCount = stage.failed || 0;
+    const passRate = inCount > 0 ? ((outCount / inCount) * 100).toFixed(1) : '0.0';
+    const processingTime = processingTimes[stageName] || 0;
+
+    // Is this a bottleneck? (>50% drop)
+    const isBottleneck = failCount > (inCount * 0.5);
+    const dropoff = inCount - outCount;
+
+    html += `
+      <div class="flow-node ${isBottleneck ? 'bottleneck' : ''}" onclick="toggleFlowBreakdown('breakdown-${stageName}')">
+        <div class="flow-node-header">
+          <div class="flow-node-title">
+            <span class="flow-node-icon">${stageIcons[stageName]}</span>
+            <span>${stageTitles[stageName]}</span>
+          </div>
+          <div class="flow-node-time">⏱️ ${processingTime}ms</div>
+        </div>
+
+        ${isBottleneck ? '<div class="flow-node-badge-container"><span class="flow-node-badge">⚠ BOTTLENECK</span></div>' : ''}
+
+        <div class="flow-node-counts">
+          <div class="flow-count in">
+            <span class="flow-count-label">IN</span>
+            <span class="flow-count-value">${inCount}</span>
+          </div>
+          <div class="flow-count out">
+            <span class="flow-count-label">OUT</span>
+            <span class="flow-count-value">${outCount}</span>
+          </div>
+          <div class="flow-count fail">
+            <span class="flow-count-label">FAIL</span>
+            <span class="flow-count-value">${failCount}</span>
+          </div>
+        </div>
+
+        <div class="flow-passrate-bar">
+          <div class="flow-passrate-fill" style="width: ${passRate}%"></div>
+        </div>
+        <div class="flow-passrate-text">${passRate}% pass rate</div>
+
+        ${failCount > 0 ? `<div class="flow-rejected-label">−${failCount} rejected</div>` : ''}
+
+        <div class="flow-breakdown" id="breakdown-${stageName}">
+          <div class="flow-breakdown-title"><i class="fas fa-info-circle me-2"></i>Rejection Breakdown:</div>
+          ${renderStageRejectionBreakdown(stageName, rejections)}
+        </div>
+      </div>
+    `;
+
+    // Add arrow between stages
+    if (idx < stageOrder.length - 1) {
+      html += `
+        <div class="flow-arrow">
+          <div class="flow-arrow-line"></div>
+          ${dropoff > 0 ? `<div class="flow-arrow-label">−${dropoff}</div>` : ''}
+        </div>
+      `;
+    }
+
+    prevCount = outCount;
+  });
+
+  $('#funnelFlowContainer').html(html);
+}
+
+// Render rejection breakdown for a specific stage
+function renderStageRejectionBreakdown(stageName, rejections) {
+  const stageRejectionsMap = {
+    'BASIC_FILTERS': ['price_out_of_range', 'insufficient_data'],
+    'BOUNCE_FILTERS': ['no_dip', 'still_falling', 'no_bounce', 'gap_up', 'low_atr', 'overextended'],
+    'THRESHOLD': ['low_score']
+  };
+
+  const relevantReasons = stageRejectionsMap[stageName] || [];
+  const filteredRejections = Object.entries(rejections)
+    .filter(([reason]) => relevantReasons.some(r => reason.includes(r)))
+    .sort((a, b) => b[1] - a[1]);
+
+  if (filteredRejections.length === 0) {
+    return '<div class="text-muted small">No rejections at this stage</div>';
+  }
+
+  return filteredRejections.map(([reason, count]) => `
+    <div class="flow-breakdown-item">
+      <span class="flow-breakdown-reason">${reason}</span>
+      <span class="flow-breakdown-count">${count}</span>
+    </div>
+  `).join('');
+}
+
+// Toggle flow breakdown visibility
+window.toggleFlowBreakdown = function(breakdownId) {
+  const element = document.getElementById(breakdownId);
+  if (element) {
+    element.classList.toggle('show');
+  }
+  // Stop event propagation if needed
+  event.stopPropagation();
+};
+
+// ========== ANIMATION SYSTEM ==========
+let animationRunning = false;
+let animationFrame = null;
+let particles = [];
+
+window.runPipelineAnimation = function() {
+  if (animationRunning) return;
+
+  if (!window.traceData) {
+    alert('No trace data available. Run a scan first.');
+    return;
+  }
+
+  animationRunning = true;
+  $('#runPipelineBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Running...');
+
+  // Clear any leftover processing badges from previous runs
+  $('.processing-badge').remove();
+  $('.flow-node').removeClass('processing completed');
+
+  // Show timeline and canvas
+  $('#timelineBar').show();
+  $('#particleCanvas').show();
+
+  // Setup canvas
+  setupParticleCanvas();
+
+  // Setup timeline
+  setupTimeline();
+
+  // Start animation
+  runAnimation();
+};
+
+function setupParticleCanvas() {
+  const canvas = document.getElementById('particleCanvas');
+  const container = document.getElementById('funnelFlowContainer');
+
+  canvas.width = container.offsetWidth;
+  canvas.height = container.offsetHeight;
+  canvas.style.width = container.offsetWidth + 'px';
+  canvas.style.height = container.offsetHeight + 'px';
+  canvas.style.top = container.offsetTop + 'px';
+  canvas.style.left = container.offsetLeft + 'px';
+}
+
+function setupTimeline() {
+  const stages = window.traceData.stages;
+  const stageOrder = ['INPUT', 'BASIC_FILTERS', 'BOUNCE_FILTERS', 'SCORING', 'THRESHOLD', 'OUTPUT'];
+
+  // Get real processing times
+  const defaultTimes = {
+    'INPUT': 0,
+    'BASIC_FILTERS': 120,
+    'BOUNCE_FILTERS': 890,
+    'SCORING': 340,
+    'THRESHOLD': 60,
+    'OUTPUT': 85
+  };
+
+  const processingTimes = {};
+  stageOrder.forEach(stage => {
+    const stageData = stages[stage];
+    if (stageData && stageData.average_duration_ms > 0) {
+      processingTimes[stage] = Math.round(stageData.average_duration_ms);
+    } else {
+      processingTimes[stage] = defaultTimes[stage];
+    }
+  });
+
+  const totalTime = Object.values(processingTimes).reduce((a, b) => a + b, 0);
+
+  let html = '';
+  stageOrder.forEach(stage => {
+    const time = processingTimes[stage];
+    const widthPct = (time / totalTime * 100).toFixed(1);
+    html += `
+      <div class="timeline-segment pending" id="timeline-${stage}" style="width: ${widthPct}%">
+        ${time}ms
+      </div>
+    `;
+  });
+
+  $('#timelineSegments').html(html);
+  $('#timelineElapsed').text('0ms');
+}
+
+async function runAnimation() {
+  const stages = window.traceData.stages;
+  const stageOrder = ['INPUT', 'BASIC_FILTERS', 'BOUNCE_FILTERS', 'SCORING', 'THRESHOLD', 'OUTPUT'];
+
+  // Slower animation times for better visualization (3x multiplier + minimums)
+  const ANIMATION_SPEED_MULTIPLIER = 3; // Slow down by 3x
+  const MIN_STAGE_DURATION = 800; // Minimum 800ms per stage for visibility
+
+  const defaultTimes = {
+    'INPUT': 500,           // Was 0, now 500ms
+    'BASIC_FILTERS': 1200,  // Was 120, now 1200ms
+    'BOUNCE_FILTERS': 2000, // Was 890, now 2000ms (highlight bottleneck)
+    'SCORING': 1500,        // Was 340, now 1500ms
+    'THRESHOLD': 1000,      // Was 60, now 1000ms
+    'OUTPUT': 1200          // Was 85, now 1200ms
+  };
+
+  const processingTimes = {};
+  stageOrder.forEach(stage => {
+    const stageData = stages[stage];
+    let duration;
+
+    if (stageData && stageData.average_duration_ms > 0) {
+      // Use real time × multiplier, with minimum
+      duration = Math.max(
+        MIN_STAGE_DURATION,
+        Math.round(stageData.average_duration_ms * ANIMATION_SPEED_MULTIPLIER)
+      );
+    } else {
+      duration = defaultTimes[stage];
+    }
+
+    processingTimes[stage] = duration;
+  });
+
+  let elapsedTime = 0;
+
+  for (let i = 0; i < stageOrder.length; i++) {
+    const stageName = stageOrder[i];
+    const stage = stages[stageName] || { passed: 0, failed: 0 };
+    const processingTime = processingTimes[stageName];
+
+    // Update timeline
+    $(`#timeline-${stageName}`).removeClass('pending').addClass('active');
+
+    // Phase 1: Processing
+    await animateProcessing(stageName, stage, processingTime);
+
+    elapsedTime += processingTime;
+    $('#timelineElapsed').text(elapsedTime + 'ms');
+
+    // Mark timeline segment as completed
+    $(`#timeline-${stageName}`).removeClass('active').addClass('completed');
+
+    // Phase 2: Transitioning
+    if (i < stageOrder.length - 1) {
+      await animateTransition(stageName, stageOrder[i + 1], stage);
+    }
+  }
+
+  // Animation complete - pause to show final result
+  setTimeout(() => {
+    animationRunning = false;
+    $('#runPipelineBtn').prop('disabled', false).html('<i class="fas fa-play me-1"></i> Run Pipeline');
+
+    // Fade out timeline and canvas slowly
+    $('#timelineBar').fadeOut(800);
+    $('#particleCanvas').fadeOut(800);
+
+    // Reset node states after fade
+    setTimeout(() => {
+      $('.flow-node').removeClass('processing completed');
+      $('.processing-badge').remove(); // Remove PROCESSING badges
+      $('.flow-arrow-line').removeClass('active');
+      $('.flow-arrow-label').removeClass('active');
+    }, 1000);
+  }, 2000); // Increased from 1000ms to 2000ms
+}
+
+async function animateProcessing(stageName, stage, duration) {
+  const nodeId = `breakdown-${stageName}`;
+  const node = $(`#${nodeId}`).closest('.flow-node');
+
+  // Add processing state
+  node.addClass('processing');
+
+  // Add processing badge if not exists
+  if (!node.find('.processing-badge').length) {
+    node.find('.flow-node-header').append('<span class="processing-badge ms-2"><i class="fas fa-cog fa-spin me-1"></i>PROCESSING...</span>');
+  }
+
+  // Animate counters
+  const inCount = stage.passed + stage.failed;
+  const outCount = stage.passed;
+  const failCount = stage.failed;
+
+  await animateCounters(node, inCount, outCount, failCount, duration);
+
+  // Remove processing badge
+  node.find('.processing-badge').remove();
+  node.removeClass('processing').addClass('completed');
+}
+
+function animateCounters(node, inTarget, outTarget, failTarget, duration) {
+  return new Promise(resolve => {
+    const steps = 20;
+    const interval = duration / steps;
+    let currentStep = 0;
+
+    const timer = setInterval(() => {
+      currentStep++;
+      const progress = currentStep / steps;
+
+      const inCurrent = Math.floor(inTarget * progress);
+      const outCurrent = Math.floor(outTarget * progress);
+      const failCurrent = Math.floor(failTarget * progress);
+
+      node.find('.flow-count.in .flow-count-value').text(inCurrent).addClass('counting');
+      node.find('.flow-count.out .flow-count-value').text(outCurrent).addClass('counting');
+      node.find('.flow-count.fail .flow-count-value').text(failCurrent).addClass('counting');
+
+      if (currentStep >= steps) {
+        clearInterval(timer);
+        node.find('.flow-count-value').removeClass('counting');
+        resolve();
+      }
+    }, interval);
+  });
+}
+
+async function animateTransition(fromStage, toStage, stage) {
+  // Animate connector
+  const connectorIndex = ['INPUT', 'BASIC_FILTERS', 'BOUNCE_FILTERS', 'SCORING', 'THRESHOLD', 'OUTPUT'].indexOf(fromStage);
+  const connector = $('.flow-arrow').eq(connectorIndex);
+
+  connector.find('.flow-arrow-line').addClass('active');
+  connector.find('.flow-arrow-label').addClass('active');
+
+  // Animate particles
+  await animateParticles(fromStage, toStage, stage);
+
+  // Longer transition delay for smoother viewing (was 300ms, now 600ms)
+  return new Promise(resolve => setTimeout(resolve, 600));
+}
+
+function animateParticles(fromStage, toStage, stage) {
+  return new Promise(resolve => {
+    const canvas = document.getElementById('particleCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const passedCount = stage.passed;
+    const failedCount = stage.failed;
+
+    // Get node positions
+    const fromNode = $(`#breakdown-${fromStage}`).closest('.flow-node');
+    const toNode = $(`#breakdown-${toStage}`).closest('.flow-node');
+
+    if (!fromNode.length || !toNode.length) {
+      resolve();
+      return;
+    }
+
+    const fromRect = fromNode[0].getBoundingClientRect();
+    const toRect = toNode[0].getBoundingClientRect();
+    const containerRect = canvas.getBoundingClientRect();
+
+    const fromX = fromRect.left - containerRect.left + fromRect.width / 2;
+    const fromY = fromRect.bottom - containerRect.top;
+    const toX = toRect.left - containerRect.left + toRect.width / 2;
+    const toY = toRect.top - containerRect.top;
+
+    // Create particles
+    particles = [];
+
+    // Green particles (passed) - slower for better visibility
+    const greenCount = Math.min(passedCount, 8);
+    for (let i = 0; i < greenCount; i++) {
+      particles.push({
+        x: fromX + (Math.random() - 0.5) * 40,
+        y: fromY,
+        targetX: toX + (Math.random() - 0.5) * 40,
+        targetY: toY,
+        color: '#10b981',
+        progress: 0,
+        speed: 0.012 + Math.random() * 0.005, // Was 0.02+0.01, now slower
+        size: 8, // Slightly bigger
+        symbol: passedCount <= 8 && stage.stocks ? stage.stocks[i] : null
+      });
+    }
+
+    // Red particles (failed) - slower fade out
+    const redCount = Math.min(failedCount, 8);
+    for (let i = 0; i < redCount; i++) {
+      particles.push({
+        x: fromX + (Math.random() - 0.5) * 40,
+        y: fromY,
+        targetX: fromX + (Math.random() - 0.5) * 200 - 100,
+        targetY: fromY + 100,
+        color: '#ef4444',
+        progress: 0,
+        speed: 0.010 + Math.random() * 0.005, // Was 0.015+0.01, now slower
+        size: 8, // Slightly bigger
+        fade: false
+      });
+    }
+
+    // Animate particles
+    function drawFrame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      let allDone = true;
+
+      particles.forEach(p => {
+        if (p.progress < 1) {
+          allDone = false;
+          p.progress += p.speed;
+
+          const easeProgress = easeInOutCubic(Math.min(p.progress, 1));
+          const currentX = p.x + (p.targetX - p.x) * easeProgress;
+          const currentY = p.y + (p.targetY - p.y) * easeProgress;
+
+          // Draw particle
+          ctx.beginPath();
+          ctx.arc(currentX, currentY, p.size, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = p.color === '#ef4444' && p.progress > 0.5 ? 1 - (p.progress - 0.5) * 2 : 1;
+          ctx.fill();
+          ctx.globalAlpha = 1;
+
+          // Draw symbol if available
+          if (p.symbol && p.progress < 0.8) {
+            ctx.font = '10px monospace';
+            ctx.fillStyle = p.color;
+            ctx.fillText(p.symbol, currentX + 10, currentY + 4);
+          }
+        }
+      });
+
+      if (!allDone) {
+        requestAnimationFrame(drawFrame);
+      } else {
+        resolve();
+      }
+    }
+
+    drawFrame();
+  });
+}
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+// Toggle stock list visibility
+window.toggleStockList = function(stocksId) {
+  const element = document.getElementById(stocksId);
+  if (element) {
+    if (element.style.display === 'none') {
+      element.style.display = 'block';
+    } else {
+      element.style.display = 'none';
+    }
+  }
+};
+
+// Copy stock symbols to clipboard
+window.copyStocks = function(stocksId) {
+  const element = document.getElementById(stocksId);
+  if (element) {
+    const chips = element.querySelectorAll('.stock-chip');
+    const symbols = Array.from(chips).map(chip => chip.textContent.trim());
+    navigator.clipboard.writeText(symbols.join(', ')).then(() => {
+      alert('Copied ' + symbols.length + ' stock symbols to clipboard!');
+    });
+  }
+};
+
+// Copy stocks from text
+window.copyStocksText = function(stocksText) {
+  const symbols = stocksText.split(',');
+  navigator.clipboard.writeText(symbols.join(', ')).then(() => {
+    alert('✓ Copied ' + symbols.length + ' stock symbols!');
+  });
+};
+
+// ========== HEATMAP VIEW ==========
+function renderHeatmap(stages, total) {
+  // Fetch full trace data for heatmap
+  fetch('/api/rapid/execution-trace?view=full')
+    .then(res => res.json())
+    .then(data => {
+      if (!data.available) {
+        $('#heatmapTableBody').html('<tr><td colspan="7" class="text-center text-muted py-5">No data available</td></tr>');
+        return;
+      }
+
+      const stocks = data.trace_full || [];
+      window.heatmapStocks = stocks; // Store for sorting
+
+      // Render summary chips
+      renderHeatmapSummary(stages, total);
+
+      // Render heatmap table
+      renderHeatmapTable(stocks);
+    })
+    .catch(err => {
+      console.error('Heatmap load error:', err);
+      $('#heatmapTableBody').html('<tr><td colspan="7" class="text-center text-danger py-5">Error loading data</td></tr>');
+    });
+}
+
+function renderHeatmapSummary(stages, total) {
+  const bounceCount = stages.BOUNCE_FILTERS?.passed || 0;
+  const finalCount = stages.OUTPUT?.passed || 0;
+
+  const html = `
+    <div class="heatmap-summary-chip stage-bounce">
+      <span class="chip-label">Bounce Confirmation:</span>
+      <span class="chip-value">${bounceCount}/${total}</span>
+    </div>
+    <div class="heatmap-summary-chip stage-final">
+      <span class="chip-label">Final Signals:</span>
+      <span class="chip-value">${finalCount}/${total}</span>
+    </div>
+  `;
+
+  $('#heatmapSummaryChips').html(html);
+}
+
+function renderHeatmapTable(stocks) {
+  if (!stocks || stocks.length === 0) {
+    $('#heatmapTableBody').html('<tr><td colspan="7" class="text-center text-muted py-5">No stocks</td></tr>');
+    return;
+  }
+
+  let html = '';
+  stocks.forEach(stock => {
+    const stages = stock.stages || {};
+    const symbol = stock.symbol;
+
+    // Price from BASIC_FILTERS stage
+    const price = stages.BASIC_FILTERS?.price || null;
+    const priceDisplay = price ? price.toFixed(2) : '--';
+
+    // Basic Filters - use 'passed' field (boolean)
+    const basicPassed = stages.BASIC_FILTERS?.passed;
+    const basicCell = basicPassed === true ? '✓' : basicPassed === false ? '✗' : '—';
+    const basicClass = basicPassed === true ? 'passed' : basicPassed === false ? 'failed' : 'skipped';
+
+    // Bounce Filters - use 'passed' field (boolean)
+    const bouncePassed = stages.BOUNCE_FILTERS?.passed;
+    const bounceCell = bouncePassed === true ? '✓' : bouncePassed === false ? '✗' : '—';
+    const bounceClass = bouncePassed === true ? 'passed' : bouncePassed === false ? 'failed' : 'skipped';
+
+    // Score
+    const score = stages.SCORING?.score || null;
+    const scoreCell = score !== null ? score : '—';
+    const scoreClass = score !== null ? (score >= 90 ? 'score high' : 'score low') : 'skipped';
+
+    // Threshold - use 'passed' field (boolean)
+    const thresholdPassed = stages.THRESHOLD?.passed;
+    const thresholdCell = thresholdPassed === true ? '✓' : thresholdPassed === false ? '✗' : '—';
+    const thresholdClass = thresholdPassed === true ? 'passed' : thresholdPassed === false ? 'failed' : 'skipped';
+
+    // Result
+    const result = stock.final_result === 'SIGNAL' ? '✅' : '❌';
+    const resultClass = stock.final_result === 'SIGNAL' ? 'passed' : 'failed';
+
+    html += `
+      <tr onclick="showStockDetail('${symbol}')">
+        <td><a href="#" class="heatmap-symbol">${symbol}</a></td>
+        <td><span class="heatmap-price">$${priceDisplay}</span></td>
+        <td><div class="heatmap-cell ${basicClass}">${basicCell}</div></td>
+        <td><div class="heatmap-cell ${bounceClass}">${bounceCell}</div></td>
+        <td><div class="heatmap-cell ${scoreClass}">${scoreCell}</div></td>
+        <td><div class="heatmap-cell ${thresholdClass}">${thresholdCell}</div></td>
+        <td><div class="heatmap-cell ${resultClass}">${result}</div></td>
+      </tr>
+    `;
+  });
+
+  $('#heatmapTableBody').html(html);
+}
+
+// Show individual stock detail modal
+window.showStockDetail = function(symbol) {
+  const stock = window.heatmapStocks.find(s => s.symbol === symbol);
+  if (!stock) return;
+
+  // Update header
+  $('#stockDetailSymbol').text(symbol);
+  const price = stock.stages?.BASIC_FILTERS?.price;
+  $('#stockDetailPrice').text(price ? `$${price.toFixed(2)}` : '$--');
+
+  // Use existing renderStockStages() function
+  const stagesHtml = renderStockStages(stock);
+
+  // Add result badge
+  const isSignal = stock.final_result === 'SIGNAL';
+  const badgeClass = isSignal ? 'text-success' : 'text-danger';
+  const badgeText = isSignal ? '✅ PASSED (Signal Created)' : '❌ REJECTED';
+
+  let rejectionInfo = '';
+  if (!isSignal && stock.rejection_stage) {
+    rejectionInfo = `<div class="small mt-2">Rejected at: <strong>${stock.rejection_stage}</strong> - ${stock.rejection_reason || 'Unknown'}</div>`;
+  }
+
+  const resultHtml = `
+    <div class="alert ${isSignal ? 'alert-success' : 'alert-danger'} text-center">
+      <h5 class="mb-0">${badgeText}</h5>
+      ${rejectionInfo}
+    </div>
+  `;
+
+  $('#stockDetailResult').html(resultHtml);
+  $('#stockDetailFlow').html(stagesHtml);
+
+  // Show modal
+  const modal = new bootstrap.Modal(document.getElementById('stockDetailModal'));
+  modal.show();
+};
+
+// Sort heatmap table
+let currentSortColumn = null;
+let currentSortDirection = 'asc';
+
+window.sortHeatmap = function(column) {
+  if (!window.heatmapStocks || window.heatmapStocks.length === 0) return;
+
+  // Toggle direction if same column
+  if (currentSortColumn === column) {
+    currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    currentSortColumn = column;
+    currentSortDirection = 'asc';
+  }
+
+  const sorted = [...window.heatmapStocks].sort((a, b) => {
+    let aVal, bVal;
+
+    switch(column) {
+      case 'symbol':
+        aVal = a.symbol;
+        bVal = b.symbol;
+        break;
+      case 'price':
+        aVal = a.stages?.BASIC_FILTERS?.price || 0;
+        bVal = b.stages?.BASIC_FILTERS?.price || 0;
+        break;
+      case 'basic':
+        aVal = (a.stages?.BASIC_FILTERS?.passed === true) ? 1 : 0;
+        bVal = (b.stages?.BASIC_FILTERS?.passed === true) ? 1 : 0;
+        break;
+      case 'bounce':
+        aVal = (a.stages?.BOUNCE_FILTERS?.passed === true) ? 1 : 0;
+        bVal = (b.stages?.BOUNCE_FILTERS?.passed === true) ? 1 : 0;
+        break;
+      case 'score':
+        aVal = a.stages?.SCORING?.score || 0;
+        bVal = b.stages?.SCORING?.score || 0;
+        break;
+      case 'threshold':
+        aVal = (a.stages?.THRESHOLD?.passed === true) ? 1 : 0;
+        bVal = (b.stages?.THRESHOLD?.passed === true) ? 1 : 0;
+        break;
+      case 'result':
+        aVal = (a.final_result === 'SIGNAL') ? 1 : 0;
+        bVal = (b.final_result === 'SIGNAL') ? 1 : 0;
+        break;
+      default:
+        return 0;
+    }
+
+    if (typeof aVal === 'string') {
+      return currentSortDirection === 'asc'
+        ? aVal.localeCompare(bVal)
+        : bVal.localeCompare(aVal);
+    } else {
+      return currentSortDirection === 'asc'
+        ? aVal - bVal
+        : bVal - aVal;
+    }
+  });
+
+  window.heatmapStocks = sorted;
+  renderHeatmapTable(sorted);
+};
+
+// Load on modal show
+$('#executionTraceModal').on('shown.bs.modal', function() {
+  loadExecutionTrace();
+});
+
+// ========== VIEW SWITCHER ==========
+window.switchTraceView = function(view) {
+  // Update button states
+  $('#traceViewSelector button').removeClass('active btn-primary').addClass('btn-outline-primary');
+  $(`#traceViewSelector button[data-view="${view}"]`).removeClass('btn-outline-primary').addClass('active btn-primary');
+
+  // Switch content
+  if (view === 'funnel') {
+    $('#traceFunnelView').show();
+    $('#traceHeatmapView').hide();
+
+    // Re-render funnel if data exists
+    if (window.traceData) {
+      renderAggregatedFunnel(window.traceData.stages, window.traceData.total, window.traceData.rejections);
+    }
+  } else if (view === 'heatmap') {
+    $('#traceFunnelView').hide();
+    $('#traceHeatmapView').show();
+
+    // Load heatmap if data exists
+    if (window.traceData) {
+      renderHeatmap(window.traceData.stages, window.traceData.total);
+    }
+  }
+};
+
+// Load individual stocks data
+async function loadIndividualStocks() {
+  if (allStocksTrace.length > 0) {
+    renderStocksList(allStocksTrace);
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/rapid/execution-trace?view=full');
+    const data = await response.json();
+
+    if (!data.available) {
+      $('#stockDetailsList').html('<div class="text-center text-muted py-5">No trace data available</div>');
+      return;
+    }
+
+    allStocksTrace = data.trace_full || [];
+    renderStocksList(allStocksTrace);
+
+  } catch (error) {
+    console.error('Error loading stock details:', error);
+    $('#stockDetailsList').html('<div class="text-center text-danger py-5">Error loading stock details</div>');
+  }
+}
+
+// Render stocks list
+function renderStocksList(stocks) {
+  if (!stocks || stocks.length === 0) {
+    $('#stockDetailsList').html('<div class="text-center text-muted py-5">No stocks found</div>');
+    return;
+  }
+
+  let html = '';
+  stocks.forEach(stock => {
+    html += renderStockCard(stock);
+  });
+
+  $('#stockDetailsList').html(html);
+  $('#stocksTotal').text(stocks.length);
+  $('#stocksShown').text(stocks.length);
+}
+
+// Render individual stock card
+function renderStockCard(stock) {
+  const isPassed = stock.final_result === 'SIGNAL';
+  const headerClass = isPassed ? 'passed' : 'rejected';
+  const badgeClass = isPassed ? 'signal' : 'rejected';
+  const badgeText = isPassed ? '✅ PASSED' : '❌ REJECTED';
+
+  let rejectionInfo = '';
+  if (!isPassed && stock.rejection_stage) {
+    rejectionInfo = `<div class="stock-rejection-summary">
+      Rejected at: <strong>${stock.rejection_stage}</strong> - ${stock.rejection_reason || 'Unknown'}
+    </div>`;
+  }
+
+  const cardId = `stock-${stock.symbol}`;
+
+  return `
+    <div class="stock-detail-card">
+      <div class="stock-detail-header ${headerClass}" onclick="toggleStockDetails('${cardId}')">
+        <div class="stock-detail-title">
+          <div class="stock-symbol">${stock.symbol}</div>
+          <span class="stock-result-badge ${badgeClass}">${badgeText}</span>
+        </div>
+        <div>
+          ${rejectionInfo}
+          <i class="fas fa-chevron-down"></i>
+        </div>
+      </div>
+      <div class="stock-detail-body" id="${cardId}">
+        ${renderStockStages(stock)}
+      </div>
+    </div>
+  `;
+}
+
+// Render stock stages
+function renderStockStages(stock) {
+  const stages = stock.stages || {};
+  let html = '';
+
+  const stageOrder = ['BASIC_FILTERS', 'BOUNCE_FILTERS', 'SCORING', 'THRESHOLD', 'OUTPUT'];
+  const stageNames = {
+    'BASIC_FILTERS': 'Basic Filters',
+    'BOUNCE_FILTERS': 'Bounce Confirmation',
+    'SCORING': 'Score Calculation',
+    'THRESHOLD': 'Score Threshold',
+    'OUTPUT': 'Final Output'
+  };
+
+  stageOrder.forEach(stageName => {
+    if (stages[stageName]) {
+      html += renderStageCheck(stageName, stageNames[stageName], stages[stageName]);
+    }
+  });
+
+  return html || '<div class="text-muted p-3">No stage data available</div>';
+}
+
+// Render individual stage check
+function renderStageCheck(stageKey, stageName, stageData) {
+  const passed = stageData.passed || false;
+  const className = passed ? 'passed' : 'failed';
+  const icon = passed ? 'fa-check-circle' : 'fa-times-circle';
+  const reason = stageData.reason || (passed ? 'Passed' : 'Failed');
+
+  let valuesHtml = '';
+  if (stageData.values) {
+    valuesHtml = '<div class="stage-check-values">';
+    for (const [key, value] of Object.entries(stageData.values)) {
+      const displayValue = typeof value === 'number' ? value.toFixed(2) : value;
+      valuesHtml += `<span class="value-chip">${key}: ${displayValue}</span>`;
+    }
+    valuesHtml += '</div>';
+  }
+
+  // Show detailed checks for BOUNCE_FILTERS
+  let checksHtml = '';
+  if (stageKey === 'BOUNCE_FILTERS' && stageData.checks) {
+    checksHtml = '<div class="mt-2">';
+    stageData.checks.forEach(check => {
+      const checkIcon = check.passed ? '✓' : '✗';
+      const checkColor = check.passed ? '#28a745' : '#dc3545';
+      checksHtml += `
+        <div style="font-size: 0.85rem; margin: 4px 0; color: ${checkColor};">
+          ${checkIcon} <strong>${check.name}</strong>: ${check.reason}
+        </div>
+      `;
+      if (check.values) {
+        checksHtml += '<div class="stage-check-values">';
+        for (const [key, value] of Object.entries(check.values)) {
+          const displayValue = typeof value === 'number' ? value.toFixed(2) : String(value);
+          checksHtml += `<span class="value-chip">${key}: ${displayValue}</span>`;
+        }
+        checksHtml += '</div>';
+      }
+    });
+    checksHtml += '</div>';
+  }
+
+  return `
+    <div class="stage-check ${className}">
+      <div style="flex: 1;">
+        <div class="stage-check-name">
+          <i class="fas ${icon} stage-check-icon"></i>
+          ${stageName}
+        </div>
+        <div class="stage-check-reason">${reason}</div>
+        ${valuesHtml}
+        ${checksHtml}
+      </div>
+    </div>
+  `;
+}
+
+// Toggle stock details
+window.toggleStockDetails = function(cardId) {
+  const element = document.getElementById(cardId);
+  if (element) {
+    element.classList.toggle('show');
+  }
+};
+
+// Filter stocks
+window.filterStocks = function() {
+  const searchText = $('#stockSearchInput').val().toUpperCase();
+  const filterResult = $('#stockFilterResult').val();
+  const filterStage = $('#stockFilterStage').val();
+
+  let filtered = allStocksTrace.filter(stock => {
+    // Search filter
+    if (searchText && !stock.symbol.includes(searchText)) {
+      return false;
+    }
+
+    // Result filter
+    if (filterResult !== 'all' && stock.final_result !== filterResult) {
+      return false;
+    }
+
+    // Stage filter
+    if (filterStage !== 'all' && stock.rejection_stage !== filterStage) {
+      return false;
+    }
+
+    return true;
+  });
+
+  renderStocksList(filtered);
+  $('#stocksShown').text(filtered.length);
+};
+</script>

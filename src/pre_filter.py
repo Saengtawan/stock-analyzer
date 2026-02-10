@@ -100,20 +100,20 @@ class PreFilterRunner:
 
     # File paths
     DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
-    SECTOR_CACHE_FILE = os.path.join(DATA_DIR, 'sector_cache.json')
+    UNIVERSE_FILE = os.path.join(DATA_DIR, 'full_universe_cache.json')  # v6.17: Universe from maintain_universe_1000.py (987 stocks)
     PRE_FILTERED_FILE = os.path.join(DATA_DIR, 'pre_filtered.json')
     STATUS_FILE = os.path.join(DATA_DIR, 'pre_filter_status.json')
 
     # Structural filter thresholds (defaults, overridden by config)
     MIN_PRICE = 5.0
     MIN_VOLUME = 500_000
-    MIN_ATR_PCT = 2.5
+    MIN_ATR_PCT = 2.3  # v6.12: Relaxed from 2.5 to allow lower volatility stocks
     MAX_OVEREXTENDED_PCT = 10.0  # Max % above SMA20
 
     # v6.5: Quality filter thresholds
-    MAX_RSI = 65.0
+    MAX_RSI = 70.0  # v6.12: Relaxed from 65 to allow slightly higher RSI
     MIN_DOLLAR_VOLUME = 5_000_000  # $5M
-    MIN_DIP_5D = -2.0   # Must dip at least 2%
+    MIN_DIP_5D = -1.0   # v6.12: Relaxed from -2.0% to allow smaller dips
     MAX_DIP_5D = -15.0  # But not crash > 15%
 
     # Target pool size
@@ -198,13 +198,20 @@ class PreFilterRunner:
             logger.error(f"Failed to save pre-filter status: {e}")
 
     def _load_sector_cache(self) -> Dict[str, Dict]:
-        """Load sector cache (full universe)."""
+        """
+        Load universe for pre-filter scanning.
+
+        v6.17: Uses full_universe_cache.json (maintained by maintain_universe_1000.py cron job)
+        This contains 987 stocks from FULL_UNIVERSE with sector info.
+        """
         try:
-            if os.path.exists(self.SECTOR_CACHE_FILE):
-                with open(self.SECTOR_CACHE_FILE, 'r') as f:
-                    return json.load(f)
+            if os.path.exists(self.UNIVERSE_FILE):
+                with open(self.UNIVERSE_FILE, 'r') as f:
+                    cache = json.load(f)
+                logger.info(f"📦 Pre-filter using full_universe_cache: {len(cache)} stocks")
+                return cache
         except Exception as e:
-            logger.error(f"Failed to load sector cache: {e}")
+            logger.error(f"Failed to load universe cache: {e}")
         return {}
 
     def _load_pre_filtered(self) -> Dict[str, Any]:
@@ -336,13 +343,14 @@ class PreFilterRunner:
         if atr_pct < self.MIN_ATR_PCT:
             return None, 'atr'
 
-        # Filter 3: Above SMA20 (uptrend)
+        # Filter 3: Above SMA20 (uptrend) - v6.12: Allow stocks within 5% below SMA20
+        pct_from_sma20 = ((close - sma20) / sma20) * 100 if sma20 > 0 else 0
         above_sma20 = close > sma20
-        if not above_sma20:
+        # Relaxed: Allow stocks down to 5% below SMA20 (very permissive)
+        if pct_from_sma20 < -5.0:
             return None, 'sma20'
 
-        # Filter 4: Not overextended
-        pct_from_sma20 = ((close - sma20) / sma20) * 100 if sma20 > 0 else 0
+        # Filter 4: Not overextended (pct_from_sma20 already calculated above)
         if pct_from_sma20 > self.MAX_OVEREXTENDED_PCT:
             return None, 'overextended'
 

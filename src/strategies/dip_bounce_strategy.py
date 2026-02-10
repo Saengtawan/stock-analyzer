@@ -168,6 +168,10 @@ class DipBounceStrategy(BaseStrategy):
         """
         signals = []
 
+        # Clear execution trace from previous scan (v6.17: fix duplicate trace entries)
+        if self.enable_trace:
+            self.clear_trace()
+
         # Reset filter stats
         self._filter_stats = {
             'no_dip': 0, 'still_falling': 0, 'no_bounce': 0,
