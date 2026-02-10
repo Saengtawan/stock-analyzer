@@ -62,7 +62,7 @@ rapid_rotation:
   pdt_account_threshold: 25000.0  # PDT threshold ($)
   pdt_day_trade_limit: 3          # Max day trades (non-PDT)
   pdt_reserve: 1                  # Keep N day trades for emergencies (v6.10.1)
-  pdt_enforce_always: true        # Always enforce PDT rules
+  pdt_enforce_always: false       # Don't enforce PDT on paper (portfolio=$100k)
 
   # -- Circuit Breaker --
   max_consecutive_losses: 5       # Circuit breaker trigger (note: existing uses 3)

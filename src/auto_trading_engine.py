@@ -407,13 +407,9 @@ class AutoTradingEngine:
             self.data_manager = None
             logger.warning("DataManager unavailable - using direct yfinance calls")
 
-        # Safety system — pass shared config for single source of truth
-        safety_config = {
-            'DAILY_LOSS_LIMIT_PCT': self.DAILY_LOSS_LIMIT_PCT,
-            'MAX_POSITIONS': self.MAX_POSITIONS,
-            'MAX_HOLD_DAYS': self.MAX_HOLD_DAYS,
-        }
-        self.safety = TradingSafetySystem(self.broker, config=safety_config)
+        # Safety system — v6.17: Pass RapidRotationConfig directly (not dict!)
+        # This ensures ALL config values (including PDT_ENFORCE_ALWAYS) are loaded
+        self.safety = TradingSafetySystem(self.broker, config=self._core_config)
 
         # PDT Smart Guard v2.3 (v6.10.1: Simplified - uses RapidRotationConfig directly)
         self.pdt_guard = init_pdt_guard(
