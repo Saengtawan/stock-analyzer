@@ -1664,7 +1664,7 @@ function updateTimelineBar(schedule) {
         // Check done status from schedule
         let isDone = false;
         if (sessionKey === 'morning') isDone = schedule.morning_done;
-        else if (sessionKey === 'midday') isDone = schedule.morning_done;  // Midday done if morning done
+        else if (sessionKey === 'midday') isDone = false;  // v6.17: Fixed - don't mark midday done when morning done
         else if (sessionKey === 'afternoon') isDone = schedule.afternoon_done;
         else if (sessionKey === 'preclose') isDone = currentMins >= endMins;
 
