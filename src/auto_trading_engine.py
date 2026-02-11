@@ -3368,9 +3368,17 @@ class AutoTradingEngine:
             sl_order_id = sl_order.id if sl_order else None
         else:
             logger.info(f"PDT Guard: {sl_reason} - buying without SL order")
-            buy_order = self.broker.place_smart_buy(symbol, qty)
+            # v6.17: Use limit price if provided, otherwise use smart buy
+            if limit_price:
+                buy_order = self.broker.place_limit_buy(symbol, qty, limit_price)
+                # Wait for fill
+                if buy_order and buy_order.status != 'filled':
+                    time.sleep(2)
+                    buy_order = self.broker.get_order(buy_order.id)
+            else:
+                buy_order = self.broker.place_smart_buy(symbol, qty)
             if not buy_order:
-                logger.warning(f"Smart buy SKIP {symbol}: spread too wide")
+                logger.warning(f"Buy order failed for {symbol}")
                 return False, None, None, 0
             if buy_order.status != 'filled':
                 time.sleep(2)
