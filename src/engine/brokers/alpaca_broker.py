@@ -123,8 +123,9 @@ class AlpacaBroker(BrokerInterface):
     # =========================================================================
 
     @_retry_api()
+    @_retry_api(max_retries=3, base_delay=0.5, max_delay=5.0)
     def get_account(self) -> Account:
-        """Get account information."""
+        """Get account information with retry on timeout."""
         acct = self.api.get_account()
 
         return Account(

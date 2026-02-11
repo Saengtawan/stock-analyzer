@@ -22,7 +22,7 @@ import yaml
 _account_cache = {
     'data': None,
     'timestamp': None,
-    'ttl_seconds': 60  # Cache for 1 minute
+    'ttl_seconds': 300  # Cache for 5 minutes (PDT count doesn't change frequently)
 }
 
 # Cache for config
@@ -101,6 +101,7 @@ def get_account_info_from_broker(broker=None, force_refresh: bool = False) -> Di
         if _account_cache['timestamp'] is not None:
             age = time.time() - _account_cache['timestamp']
             if age < _account_cache['ttl_seconds']:
+                logger.debug(f"Account info: cache hit (age: {age:.0f}s, PDT: {_account_cache['data']['day_trade_count']}/3)")
                 return _account_cache['data']
 
     # Get from broker
@@ -128,10 +129,13 @@ def get_account_info_from_broker(broker=None, force_refresh: bool = False) -> Di
         _account_cache['data'] = result
         _account_cache['timestamp'] = time.time()
 
+        logger.debug(f"✅ Account info: fresh data (PDT: {result['day_trade_count']}/3, equity: ${result['equity']:,.0f})")
+
         return result
 
     except Exception as e:
-        logger.warning(f"Failed to get account info from Alpaca: {e}, using fallback")
+        logger.warning(f"⚠️ Failed to get account info from Alpaca (using fallback): {type(e).__name__}: {e}")
+        logger.warning("   → PDT status may show as 'N/A' until next successful API call")
 
         # Fallback values
         result = {
