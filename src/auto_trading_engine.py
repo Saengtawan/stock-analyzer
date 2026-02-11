@@ -452,6 +452,15 @@ class AutoTradingEngine:
         self.alerts = get_alert_manager()
         logger.info("Alert Manager v1.0 initialized")
 
+        # v6.17: Entry Protection Filter (3-layer entry protection)
+        try:
+            from filters import EntryProtectionFilter
+            self.entry_protection = EntryProtectionFilter(config=self._core_config)
+            logger.info("✅ Entry Protection Filter v6.17 initialized")
+        except Exception as e:
+            logger.warning(f"Entry Protection Filter init failed: {e}")
+            self.entry_protection = None
+
         # Screener
         self.screener = None
         if SCREENER_AVAILABLE:
@@ -3529,6 +3538,39 @@ class AutoTradingEngine:
             current_price = pos_check.current_price if pos_check else (
                 getattr(signal, 'entry_price', None) or getattr(signal, 'close', 100)
             )
+
+            # v6.17: BLOCK 1.5: Entry Protection Filter (3-layer protection)
+            if self.entry_protection and self.entry_protection.enabled:
+                signal_price = getattr(signal, 'entry_price', current_price)
+                market_data = getattr(signal, 'market_data', None) or {}
+
+                # Add VWAP if available
+                if not market_data.get('vwap'):
+                    market_data['vwap'] = getattr(signal, 'vwap', None)
+
+                allowed, reason, limit_price = self.entry_protection.check_entry(
+                    symbol=symbol,
+                    signal_price=signal_price,
+                    current_price=current_price,
+                    market_data=market_data
+                )
+
+                if not allowed:
+                    logger.info(f"🛡️ {symbol}: {reason}")
+                    signal_score = getattr(signal, 'score', 0)
+                    signal_sector = getattr(signal, 'sector', '') or ''
+                    signal_source = self._derive_signal_source(signal)
+                    self._log_filter_rejection(
+                        symbol, current_price, "ENTRY_PROTECTION", reason,
+                        {"entry_protection": {"passed": False, "reason": reason}},
+                        signal_score, signal_sector, signal_source, signal, mode,
+                    )
+                    self._last_skip_reason = reason
+                    return False
+
+                # Update current_price with limit if using limit orders
+                if limit_price and limit_price != current_price:
+                    logger.info(f"💰 {symbol}: Using limit price ${limit_price:.2f} (signal ${signal_price:.2f})")
 
             # BLOCK 2: Quality filters (score, RSI, momentum)
             quality_ok, skip_reason = self._exec_quality_filters(signal, params, current_price)

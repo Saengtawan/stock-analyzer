@@ -1986,8 +1986,14 @@ function loadTradeLogs() {
     fetch('/api/trade-logs')
         .then(response => response.json())
         .then(data => {
-            if (data.error) return;
+            console.log('[Trade Log] API Response:', data);  // DEBUG
+            if (data.error) {
+                console.error('[Trade Log] API Error:', data.error);
+                return;
+            }
             const summary = data.summary || {};
+            console.log('[Trade Log] Summary:', summary);  // DEBUG
+            console.log('[Trade Log] Setting count to:', summary.total_trades || 0);  // DEBUG
             document.getElementById('tradeLogCount').textContent = summary.total_trades || 0;
             document.getElementById('logWinners').textContent = (summary.winners || 0) + ' W';
             document.getElementById('logLosers').textContent = (summary.losers || 0) + ' L';

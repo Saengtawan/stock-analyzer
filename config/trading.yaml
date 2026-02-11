@@ -75,6 +75,18 @@ rapid_rotation:
   market_close_minute: 0      # Market close minute
   pre_close_minute: 50        # Pre-close check (15:50 ET)
 
+  # -- 3-Layer Entry Protection (v6.17) --
+  entry_protection_enabled: true           # Master switch for entry protection
+  entry_block_minutes_after_open: 15       # Layer 1: Block first 15 min after open
+  entry_allow_discount_exception: true     # Allow if price drops 0.5% from signal
+  entry_discount_exception_pct: -0.5       # Exception threshold
+  entry_vwap_max_distance_pct: 1.5         # Layer 2: Block if > 1.5% above VWAP
+  entry_vwap_allow_below: true             # Always allow if below VWAP
+  entry_limit_order_only: true             # Layer 3: Use limit orders only
+  entry_max_chase_pct: 0.2                 # Max chase above signal price
+  entry_limit_timeout_minutes: 5           # Cancel limit order after timeout
+  entry_track_rejections: true             # Track rejection statistics
+
   # -- Cache Settings --
   sector_cache_ttl_days: 3    # Sector cache TTL (days)
   price_cache_ttl_seconds: 300 # Price cache TTL (seconds)

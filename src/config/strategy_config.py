@@ -344,6 +344,21 @@ class RapidRotationConfig:
     price_cache_ttl_seconds: int = 300  # Price cache TTL (seconds)
 
     # =========================================================================
+    # ENTRY PROTECTION (v6.17) - 3-Layer Entry Protection System
+    # =========================================================================
+    # Prevents buying at opening spike highs
+    entry_protection_enabled: bool = True               # Master switch
+    entry_block_minutes_after_open: int = 15            # Layer 1: Block first N min
+    entry_allow_discount_exception: bool = True         # Allow if price drops
+    entry_discount_exception_pct: float = -0.5          # Exception threshold
+    entry_vwap_max_distance_pct: float = 1.5            # Layer 2: Max VWAP distance
+    entry_vwap_allow_below: bool = True                 # Always allow if below VWAP
+    entry_limit_order_only: bool = True                 # Layer 3: Use limits only
+    entry_max_chase_pct: float = 0.2                    # Max chase above signal
+    entry_limit_timeout_minutes: int = 5                # Limit order timeout
+    entry_track_rejections: bool = True                 # Track statistics
+
+    # =========================================================================
     # HELPER METHODS
     # =========================================================================
 
@@ -466,7 +481,13 @@ class RapidRotationConfig:
             'pdt_day_trade_limit', 'pdt_reserve', 'pdt_enforce_always', 'max_consecutive_losses',
             'circuit_breaker_pause_hours', 'market_open_hour', 'market_open_minute',
             'market_close_hour', 'market_close_minute', 'pre_close_minute',
-            'sector_cache_ttl_days', 'price_cache_ttl_seconds'
+            'sector_cache_ttl_days', 'price_cache_ttl_seconds',
+            # v6.17: Entry Protection fields
+            'entry_protection_enabled', 'entry_block_minutes_after_open',
+            'entry_allow_discount_exception', 'entry_discount_exception_pct',
+            'entry_vwap_max_distance_pct', 'entry_vwap_allow_below',
+            'entry_limit_order_only', 'entry_max_chase_pct',
+            'entry_limit_timeout_minutes', 'entry_track_rejections'
         }
 
         rapid_rotation = {k: v for k, v in config_dict.items() if k in rapid_rotation_keys}
