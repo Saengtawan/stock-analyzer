@@ -2125,17 +2125,8 @@ function updatePositionsUI(data) {
     const posCount = data.summary?.positions || 0;
     document.getElementById('hdrPositions').textContent = posCount;
 
-    // PDT in header
-    if (data.pdt) {
-        const pdtUsed = data.pdt.day_trade_count || 0;
-        const pdtLimit = data.pdt.day_trade_limit || 3;
-        const remaining = pdtLimit - pdtUsed;
-        const pdtEl = document.getElementById('hdrPDT');
-        if (pdtEl) {
-            pdtEl.textContent = `PDT ${pdtUsed}/${pdtLimit}`;
-            pdtEl.className = 'pdt-badge ' + (remaining <= 0 ? 'danger' : remaining === 1 ? 'warning' : 'ok');
-        }
-    }
+    // PDT is updated by updateHeaderBar() from data.safety.checks
+    // (Removed duplicate PDT update here to prevent flickering between N/A and 2/3)
 
     // P&L with slide animation
     const totalPnlUsd = data.summary?.total_pnl_usd || 0;
