@@ -375,10 +375,14 @@ class AlpacaBroker(BrokerInterface):
         symbol: str,
         qty: int,
         sl_pct: float = 2.5,
+        limit_price: float = None,
     ) -> Tuple[Order, Order]:
         """Buy shares and immediately place a stop loss order."""
-        # Place buy order
-        buy_order = self.place_market_buy(symbol, qty)
+        # Place buy order (limit or market)
+        if limit_price:
+            buy_order = self.place_limit_buy(symbol, qty, limit_price)
+        else:
+            buy_order = self.place_market_buy(symbol, qty)
 
         # Wait for fill
         filled_price = None

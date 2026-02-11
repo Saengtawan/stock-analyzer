@@ -3336,18 +3336,32 @@ class AutoTradingEngine:
 
         return True, "", gap_pct
 
-    def _exec_place_order(self, symbol: str, qty: int, sl_pct: float, current_price: float) -> Tuple[bool, Optional[Order], Optional[str], float]:
+    def _exec_place_order(self, symbol: str, qty: int, sl_pct: float, current_price: float, limit_price: float = None) -> Tuple[bool, Optional[Order], Optional[str], float]:
         """
         Block 6: Place buy order with optional stop loss.
+
+        Args:
+            symbol: Stock symbol
+            qty: Quantity to buy
+            sl_pct: Stop loss percentage
+            current_price: Current market price (estimate)
+            limit_price: Optional limit price from entry protection (v6.17)
+
         Returns (success, buy_order, sl_order_id, actual_entry_price).
         """
-        logger.info(f"Executing: BUY {symbol} x{qty} @ ~${current_price:.2f}")
+        if limit_price:
+            logger.info(f"Executing: BUY {symbol} x{qty} @ LIMIT ${limit_price:.2f} (market ~${current_price:.2f})")
+        else:
+            logger.info(f"Executing: BUY {symbol} x{qty} @ ~${current_price:.2f}")
 
         # Check if we should place SL order (PDT Smart Guard)
         should_place_sl, sl_reason = self.pdt_guard.should_place_sl_order(symbol)
 
         if should_place_sl:
-            buy_order, sl_order = self.broker.buy_with_stop_loss(symbol, qty, sl_pct=sl_pct)
+            # v6.17: Use limit price if provided
+            buy_order, sl_order = self.broker.buy_with_stop_loss(
+                symbol, qty, sl_pct=sl_pct, limit_price=limit_price
+            )
             if not buy_order:
                 logger.error(f"Failed to execute {symbol}")
                 return False, None, None, 0
@@ -3540,6 +3554,7 @@ class AutoTradingEngine:
             )
 
             # v6.17: BLOCK 1.5: Entry Protection Filter (3-layer protection)
+            entry_limit_price = None  # Will be set by entry protection filter
             if self.entry_protection and self.entry_protection.enabled:
                 signal_price = getattr(signal, 'entry_price', current_price)
                 market_data = getattr(signal, 'market_data', None) or {}
@@ -3568,8 +3583,9 @@ class AutoTradingEngine:
                     self._last_skip_reason = reason
                     return False
 
-                # Update current_price with limit if using limit orders
-                if limit_price and limit_price != current_price:
+                # Save limit price for order execution
+                if limit_price:
+                    entry_limit_price = limit_price
                     logger.info(f"💰 {symbol}: Using limit price ${limit_price:.2f} (signal ${signal_price:.2f})")
 
             # BLOCK 2: Quality filters (score, RSI, momentum)
@@ -3611,9 +3627,9 @@ class AutoTradingEngine:
                 self._last_skip_reason = "Qty=0"
                 return False
 
-            # BLOCK 6: Place order
+            # BLOCK 6: Place order (v6.17: Pass limit price from entry protection)
             order_ok, buy_order, sl_order_id, entry_price = self._exec_place_order(
-                symbol, qty, sl_pct, current_price
+                symbol, qty, sl_pct, current_price, limit_price=entry_limit_price
             )
             if not order_ok:
                 signal_score = getattr(signal, 'score', 0)
