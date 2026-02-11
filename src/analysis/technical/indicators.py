@@ -133,6 +133,39 @@ class TechnicalIndicators:
 
         return indicators
 
+    def calculate_vix_adaptive_indicators(self) -> Dict[str, np.ndarray]:
+        """
+        Calculate indicators for VIX Adaptive Strategy v3.0
+
+        Required indicators:
+        - return_2d: 2-day return (for bounce confirmation)
+        - dip_from_3d_high: Dip from 3-day high (for bounce entry)
+        - yesterday_dip: Previous day return (for mean reversion)
+        """
+        indicators = {}
+
+        # 2-day return (for bounce strategy)
+        # Measures if stock has bounced back over 2 days
+        indicators['return_2d'] = talib.ROC(self.close, timeperiod=2)
+
+        # 3-day high and dip calculation (for bounce strategy)
+        # Measures how far price has dipped from recent 3-day high
+        high_3d = pd.Series(self.high).rolling(3).max().values
+        dip_from_3d_high = np.where(
+            high_3d > 0,
+            (self.close - high_3d) / high_3d * 100,
+            0
+        )
+        indicators['dip_from_3d_high'] = dip_from_3d_high
+
+        # Yesterday's return (for mean reversion strategy)
+        # Shift by 1 to get yesterday's dip
+        yesterday_return = talib.ROC(self.close, timeperiod=1)
+        indicators['yesterday_dip'] = np.roll(yesterday_return, 1)
+        indicators['yesterday_dip'][0] = np.nan  # First value is undefined
+
+        return indicators
+
     def detect_ma_crossover(self) -> Dict[str, Any]:
         """
         🆕 v5.0: Detect MA 50/200 crossovers (Golden Cross / Death Cross)
@@ -415,6 +448,9 @@ class TechnicalIndicators:
 
         # 🆕 v5.0: MA Crossover detection (Golden Cross / Death Cross)
         indicators['ma_crossover'] = self.detect_ma_crossover()
+
+        # 🆕 v3.0: VIX Adaptive Strategy indicators
+        indicators.update(self.calculate_vix_adaptive_indicators())
 
         # Volume indicators
         indicators.update(self.calculate_volume_indicators())

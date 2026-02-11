@@ -148,6 +148,15 @@ except ImportError as e:
         SCREENER_AVAILABLE = False
         logger.warning(f"RapidRotationScreener not available: {e}")
 
+# VIX Adaptive Strategy v3.0
+try:
+    from strategies.vix_adaptive.engine_integration import VIXAdaptiveIntegration
+    from strategies.vix_adaptive.data_enricher import add_vix_indicators_to_cache
+    VIX_ADAPTIVE_AVAILABLE = True
+except ImportError as e:
+    VIX_ADAPTIVE_AVAILABLE = False
+    logger.warning(f"VIX Adaptive Strategy not available: {e}")
+
 
 # Phase 1 Refactor: Import models from engine module
 from engine.models import (
@@ -470,6 +479,18 @@ class AutoTradingEngine:
             except Exception as e:
                 logger.warning(f"BreakoutScanner init failed: {e}")
 
+        # VIX Adaptive Strategy v3.0
+        self.vix_adaptive = None
+        if VIX_ADAPTIVE_AVAILABLE and self.VIX_ADAPTIVE_ENABLED:
+            try:
+                self.vix_adaptive = VIXAdaptiveIntegration(
+                    config_path='config/vix_adaptive.yaml',
+                    enabled=True
+                )
+                logger.info(f"✅ VIX Adaptive Strategy initialized: {self.vix_adaptive}")
+            except Exception as e:
+                logger.warning(f"VIX Adaptive init failed: {e}")
+
         # v6.8: SL/TP Calculator (unified calculation logic)
         if SLTPCalculator is not None:
             self.sltp_calculator = SLTPCalculator(config=self._core_config)
@@ -770,7 +791,12 @@ class AutoTradingEngine:
         self.BREAKOUT_MIN_SCORE = cfg.breakout_min_score
         self.BREAKOUT_TARGET_PCT = cfg.breakout_target_pct
         self.BREAKOUT_SL_PCT = cfg.breakout_sl_pct
-        
+
+        # =====================================================================
+        # VIX ADAPTIVE STRATEGY v3.0
+        # =====================================================================
+        self.VIX_ADAPTIVE_ENABLED = cfg.vix_adaptive_enabled
+
         # =====================================================================
         # MONITOR
         # =====================================================================
@@ -2709,6 +2735,29 @@ class AutoTradingEngine:
 
             self.daily_stats.signals_found = len(signals)
             logger.info(f"Found {len(signals)} signals (regime: {regime_label})")
+
+            # VIX Adaptive Strategy v3.0: Add VIX-based signals
+            if self.vix_adaptive and self.vix_adaptive.enabled:
+                try:
+                    # Enrich screener data_cache with VIX indicators
+                    if self.screener and hasattr(self.screener, 'data_cache'):
+                        add_vix_indicators_to_cache(self.screener.data_cache)
+
+                        # Pass enriched cache to VIX Adaptive
+                        vix_signals = self.vix_adaptive.scan_signals(
+                            date=datetime.now().date(),
+                            stock_data=self.screener.data_cache,
+                            active_positions=list(self.positions.values())
+                        )
+
+                        if vix_signals:
+                            signals.extend(vix_signals)
+                            logger.info(f"VIX Adaptive: Added {len(vix_signals)} signals (Total: {len(signals)})")
+                    else:
+                        logger.warning("VIX Adaptive: Screener data_cache not available")
+
+                except Exception as e:
+                    logger.error(f"VIX Adaptive scan failed: {e}")
 
             return signals
 

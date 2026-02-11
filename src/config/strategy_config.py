@@ -319,6 +319,11 @@ class RapidRotationConfig:
     breakout_sl_pct: float = 3.0                # Stop loss (%)
 
     # =========================================================================
+    # VIX ADAPTIVE STRATEGY v3.0 (2026-02-11)
+    # =========================================================================
+    vix_adaptive_enabled: bool = False          # Enable VIX Adaptive Strategy (default: disabled)
+
+    # =========================================================================
     # PRE-FILTER SYSTEM (v6.2)
     # =========================================================================
     pre_filter_enabled: bool = True             # Enable pre-filter system
