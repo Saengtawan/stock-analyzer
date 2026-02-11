@@ -1774,20 +1774,24 @@ function updateHeaderBar(data) {
     const queueEl = document.getElementById('hdrQueueCount');
     if (queueEl) queueEl.textContent = data.queue_size || 0;
 
-    // PDT - v6.17: Extract counts for consistent format
+    // PDT - v6.18: Always show count (even if not enforced)
     if (data.safety && data.safety.checks) {
         const pdtCheck = data.safety.checks.find(c => c.name === 'PDT Rule');
         if (pdtCheck) {
             const pdtEl = document.getElementById('hdrPDT');
             if (pdtEl) {
-                // Extract numbers from message: "PDT LIMIT: 4/3 day trades" → "PDT 4/3"
+                // Try to extract numbers from message first: "PDT LIMIT: 4/3 day trades" → "PDT 4/3"
                 const match = pdtCheck.message.match(/(\d+)\/(\d+)/);
                 if (match) {
                     pdtEl.textContent = `PDT ${match[1]}/${match[2]}`;
-                } else if (pdtCheck.message.includes('Above')) {
-                    pdtEl.textContent = 'PDT N/A';  // Above $25K
+                } else if (pdtCheck.value !== undefined && pdtCheck.threshold !== undefined) {
+                    // Even if message says "Above $25K", show the count from value field
+                    // (for testing mode: don't enforce but still display)
+                    const count = pdtCheck.value || 0;
+                    const limit = pdtCheck.threshold || 3;
+                    pdtEl.textContent = `PDT ${count}/${limit}`;
                 } else {
-                    pdtEl.textContent = 'PDT 0/3';  // Default
+                    pdtEl.textContent = 'PDT 0/3';  // Default fallback
                 }
                 pdtEl.className = 'pdt-badge ' + (pdtCheck.status === 'ok' ? 'ok' : pdtCheck.status === 'warning' ? 'warning' : 'danger');
             }
