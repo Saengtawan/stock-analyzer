@@ -5,12 +5,17 @@ Account Info from Alpaca - Single Source of Truth
 This module provides real-time account information from Alpaca broker.
 Use this instead of hardcoding or calculating values locally.
 
+IMPORTANT: Respects simulated_capital from config/trading.yaml
+If simulated_capital is set, it limits the capital to that amount.
+
 Usage:
     from utils.account_info import get_buying_power, get_account_equity
 """
 
 from typing import Dict, Any, Optional
 from loguru import logger
+import os
+import yaml
 
 
 # Cache for account info (to reduce API calls)
@@ -19,6 +24,47 @@ _account_cache = {
     'timestamp': None,
     'ttl_seconds': 60  # Cache for 1 minute
 }
+
+# Cache for config
+_config_cache = None
+
+
+def _load_simulated_capital() -> Optional[float]:
+    """
+    Load simulated_capital from config/trading.yaml.
+
+    If set, this limits the capital used for trading regardless of actual account value.
+    This allows testing strategies with limited capital on a larger account.
+
+    Returns:
+        Simulated capital amount or None if not set
+    """
+    global _config_cache
+
+    if _config_cache is not None:
+        return _config_cache
+
+    try:
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            'config', 'trading.yaml'
+        )
+
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+
+        simulated_capital = config.get('simulated_capital')
+
+        if simulated_capital:
+            logger.info(f"💰 Simulated capital: ${simulated_capital:,} (locked)")
+
+        _config_cache = simulated_capital
+        return simulated_capital
+
+    except Exception as e:
+        logger.debug(f"Could not load simulated_capital from config: {e}")
+        _config_cache = None
+        return None
 
 
 def get_account_info_from_broker(broker=None, force_refresh: bool = False) -> Dict[str, Any]:
@@ -104,41 +150,67 @@ def get_account_info_from_broker(broker=None, force_refresh: bool = False) -> Di
         return result
 
 
-def get_buying_power(broker=None) -> float:
+def get_buying_power(broker=None, respect_simulated_capital: bool = True) -> float:
     """
     Get current buying power from Alpaca.
 
     This is the total amount available to buy securities,
     including margin if account is approved for margin trading.
 
+    IMPORTANT: If simulated_capital is set in config, returns the LESSER of:
+    - Real buying power from Alpaca
+    - Simulated capital from config
+
     Args:
         broker: Broker interface (optional)
+        respect_simulated_capital: If True, respects simulated_capital setting (default: True)
 
     Returns:
-        Buying power in dollars
+        Buying power in dollars (limited by simulated_capital if set)
 
     Example:
-        >>> bp = get_buying_power()
-        >>> max_position = bp * 0.1  # Use 10% of buying power
+        >>> bp = get_buying_power()  # Returns min($4000, real_bp) if simulated_capital=$4000
+        >>> max_position = bp * 0.1  # Use 10% of (limited) buying power
     """
     info = get_account_info_from_broker(broker)
-    return info['buying_power']
+    real_buying_power = info['buying_power']
+
+    if respect_simulated_capital:
+        simulated_capital = _load_simulated_capital()
+        if simulated_capital:
+            # Use the LESSER of simulated capital and real buying power
+            return min(simulated_capital, real_buying_power)
+
+    return real_buying_power
 
 
-def get_account_equity(broker=None) -> float:
+def get_account_equity(broker=None, respect_simulated_capital: bool = True) -> float:
     """
     Get current account equity from Alpaca.
 
     Equity = Cash + Long Market Value - Short Market Value
 
+    IMPORTANT: If simulated_capital is set in config, returns the LESSER of:
+    - Real equity from Alpaca
+    - Simulated capital from config
+
     Args:
         broker: Broker interface (optional)
+        respect_simulated_capital: If True, respects simulated_capital setting (default: True)
 
     Returns:
-        Account equity in dollars
+        Account equity in dollars (limited by simulated_capital if set)
     """
     info = get_account_info_from_broker(broker)
-    return info['equity']
+    real_equity = info['equity']
+
+    if respect_simulated_capital:
+        simulated_capital = _load_simulated_capital()
+        if simulated_capital:
+            # Use the LESSER of simulated capital and real equity
+            return min(simulated_capital, real_equity)
+
+    return real_equity
 
 
 def get_margin_multiplier(broker=None) -> float:
@@ -160,6 +232,9 @@ def calculate_max_position_value(broker=None, pct_of_equity: float = 10.0) -> fl
     1. X% of equity (risk management)
     2. Available buying power (broker limit)
 
+    IMPORTANT: Respects simulated_capital from config.
+    If simulated_capital=$4000, equity is capped at $4000.
+
     Args:
         broker: Broker interface (optional)
         pct_of_equity: Max % of equity per position (default 10%)
@@ -168,13 +243,14 @@ def calculate_max_position_value(broker=None, pct_of_equity: float = 10.0) -> fl
         Maximum position value in dollars
 
     Example:
+        >>> # With simulated_capital=$4000
         >>> max_value = calculate_max_position_value(pct_of_equity=10.0)
+        >>> # Returns: 10% of $4,000 = $400
         >>> shares = int(max_value / stock_price)
     """
-    info = get_account_info_from_broker(broker)
-
-    equity = info['equity']
-    buying_power = info['buying_power']
+    # Get equity and buying power (respects simulated_capital)
+    equity = get_account_equity(broker, respect_simulated_capital=True)
+    buying_power = get_buying_power(broker, respect_simulated_capital=True)
 
     # Calculate max based on equity %
     max_from_equity = equity * (pct_of_equity / 100.0)
