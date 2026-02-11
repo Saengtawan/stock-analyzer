@@ -19,6 +19,13 @@ from .fmp_client import FMPClient
 from .tiingo_client import TiingoClient
 from .base_client import APIError, DataCache
 
+# v6.x: Import market utilities (Single Source of Truth)
+try:
+    from utils.market_hours import MARKET_OPEN_STR, MARKET_CLOSE_STR
+except ImportError:
+    MARKET_OPEN_STR = '09:30'
+    MARKET_CLOSE_STR = '16:00'
+
 
 class DataManager:
     """
@@ -800,8 +807,8 @@ class DataManager:
             if current.weekday() < 5:
                 calendar.append({
                     'date': current.strftime('%Y-%m-%d'),
-                    'open': '09:30',
-                    'close': '16:00'
+                    'open': MARKET_OPEN_STR,
+                    'close': MARKET_CLOSE_STR
                 })
             current += timedelta(days=1)
 

@@ -2856,11 +2856,25 @@ def api_rapid_trade_log():
 
 @app.route('/api/rapid/calendar')
 def api_rapid_calendar():
-    """Get market calendar and holidays (v4.7)"""
+    """Get market calendar and holidays (v6.x - Uses market_calendar utility)"""
     try:
         from datetime import datetime, timedelta
+        from utils.market_hours import MARKET_OPEN_STR, MARKET_CLOSE_STR
 
         days = int(request.args.get('days', 14))
+
+        # US Market Holidays 2026 (definitive list)
+        KNOWN_HOLIDAYS_2026 = {
+            '2026-01-01',  # New Year's Day
+            '2026-01-19',  # Martin Luther King Jr. Day
+            '2026-02-16',  # Presidents Day
+            '2026-04-03',  # Good Friday
+            '2026-05-25',  # Memorial Day
+            '2026-07-03',  # Independence Day (observed)
+            '2026-09-07',  # Labor Day
+            '2026-11-26',  # Thanksgiving
+            '2026-12-25',  # Christmas
+        }
 
         # Try to use broker
         try:
@@ -2872,15 +2886,11 @@ def api_rapid_calendar():
             end_date = (datetime.now() + timedelta(days=days)).strftime('%Y-%m-%d')
 
             calendar = broker.get_calendar(start=start_date, end=end_date)
-
-            # Get holidays
             holidays = broker.get_upcoming_holidays(days=days)
-
-            # Check tomorrow
             is_open_tomorrow = broker.is_market_open_tomorrow()
             next_day = broker.get_next_market_day()
 
-            # Build full schedule
+            # Build schedule using calendar data
             trading_days = {day['date'] for day in calendar}
             schedule = []
 
@@ -2889,24 +2899,32 @@ def api_rapid_calendar():
                 check_date = current + timedelta(days=i)
                 date_str = check_date.strftime('%Y-%m-%d')
                 day_name = check_date.strftime('%A')
+                is_weekend = day_name in ['Saturday', 'Sunday']
 
-                if date_str in trading_days:
+                # Simplified logic: If in broker calendar = trading day, otherwise check weekend/holiday
+                is_trading_day = date_str in trading_days
+
+                # Holiday = weekday NOT in trading days AND (in known holidays OR not in calendar)
+                is_holiday = (not is_weekend and not is_trading_day and
+                             (date_str in KNOWN_HOLIDAYS_2026 or
+                              (calendar and date_str >= min(trading_days) if trading_days else False)))
+
+                if is_trading_day:
                     cal_entry = next((c for c in calendar if c['date'] == date_str), None)
                     schedule.append({
                         'date': date_str,
                         'day': day_name,
                         'is_open': True,
-                        'open_time': cal_entry['open'] if cal_entry else None,
-                        'close_time': cal_entry['close'] if cal_entry else None,
+                        'open_time': cal_entry['open'] if cal_entry else MARKET_OPEN_STR,
+                        'close_time': cal_entry['close'] if cal_entry else MARKET_CLOSE_STR,
                     })
                 else:
-                    is_weekend = day_name in ['Saturday', 'Sunday']
                     schedule.append({
                         'date': date_str,
                         'day': day_name,
                         'is_open': False,
                         'is_weekend': is_weekend,
-                        'is_holiday': not is_weekend,
+                        'is_holiday': is_holiday,
                     })
 
             return jsonify({
@@ -2931,6 +2949,105 @@ def api_rapid_calendar():
 
     except Exception as e:
         logger.error(f"Calendar API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/config/market')
+def api_config_market():
+    """Get market configuration (hours, PDT settings) for frontend (v6.x - Single Source of Truth)"""
+    try:
+        from utils.market_hours import (
+            MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE,
+            MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE,
+            PRE_CLOSE_HOUR, PRE_CLOSE_MINUTE,
+            MARKET_OPEN_STR, MARKET_CLOSE_STR, PRE_CLOSE_STR
+        )
+
+        # Load PDT config from trading.yaml
+        import yaml
+        config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'config', 'trading.yaml')
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+
+        rr = config.get('rapid_rotation', {})
+
+        return jsonify({
+            'market_hours': {
+                'open_hour': MARKET_OPEN_HOUR,
+                'open_minute': MARKET_OPEN_MINUTE,
+                'close_hour': MARKET_CLOSE_HOUR,
+                'close_minute': MARKET_CLOSE_MINUTE,
+                'pre_close_hour': PRE_CLOSE_HOUR,
+                'pre_close_minute': PRE_CLOSE_MINUTE,
+                'open_str': MARKET_OPEN_STR,
+                'close_str': MARKET_CLOSE_STR,
+                'pre_close_str': PRE_CLOSE_STR,
+            },
+            'pdt': {
+                'account_threshold': rr.get('pdt_account_threshold', 25000.0),
+                'day_trade_limit': rr.get('pdt_day_trade_limit', 3),
+                'reserve': rr.get('pdt_reserve', 1),
+            },
+            'position_limits': {
+                'max_positions': rr.get('max_positions', 5),
+                'max_position_pct': rr.get('max_position_pct', 10.0),
+                'position_size_pct': rr.get('position_size_pct', 1.0),
+            },
+            'sl_tp': {
+                'min_sl_pct': rr.get('min_sl_pct', 2.5),
+                'max_sl_pct': rr.get('max_sl_pct', 3.5),
+                'min_tp_pct': rr.get('min_tp_pct', 4.5),
+                'max_tp_pct': rr.get('max_tp_pct', 8.0),
+            }
+        })
+    except Exception as e:
+        logger.error(f"Market config API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/config/alpaca')
+def api_config_alpaca():
+    """Get real-time config from Alpaca (account info, market hours, PDT status)"""
+    try:
+        from utils.market_hours import get_market_hours_from_broker, is_early_close_today
+        from utils.account_info import get_account_info_from_broker
+        from engine.brokers import AlpacaBroker
+
+        broker = AlpacaBroker(paper=True)
+
+        # Get market hours for today
+        market_hours = get_market_hours_from_broker()
+
+        # Get account info
+        account_info = get_account_info_from_broker(broker)
+
+        # Get PDT status (if pdt_smart_guard is available)
+        pdt_info = {
+            'day_trade_count': account_info['day_trade_count'],
+            'pattern_day_trader': account_info['pattern_day_trader'],
+        }
+
+        return jsonify({
+            'market_hours': {
+                'open': market_hours['open'],
+                'close': market_hours['close'],
+                'is_early_close': market_hours['is_early_close'],
+                'date': market_hours['date'],
+                'source': market_hours['source']
+            },
+            'account': {
+                'equity': account_info['equity'],
+                'cash': account_info['cash'],
+                'buying_power': account_info['buying_power'],
+                'multiplier': account_info['multiplier'],
+                'long_market_value': account_info['long_market_value'],
+                'source': account_info['source']
+            },
+            'pdt': pdt_info,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Alpaca config API error: {e}")
         return jsonify({'error': str(e)}), 500
 
 

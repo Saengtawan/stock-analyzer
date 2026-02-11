@@ -62,7 +62,7 @@ rapid_rotation:
   pdt_account_threshold: 25000.0  # PDT threshold ($)
   pdt_day_trade_limit: 3          # Max day trades (non-PDT)
   pdt_reserve: 1                  # Keep N day trades for emergencies (v6.10.1)
-  pdt_enforce_always: false       # Don't enforce PDT on paper (portfolio=$100k)
+  pdt_enforce_always: false       # Testing mode: ignore PDT to see system trade
 
   # -- Circuit Breaker --
   max_consecutive_losses: 5       # Circuit breaker trigger (note: existing uses 3)
@@ -209,6 +209,12 @@ continuous_scan_volatile_interval: 5       # v6.17: Slower (was 3) to reduce loa
 continuous_scan_volatile_end_hour: 11      # Volatile period ends at 11:00
 continuous_scan_midday_hour: 12            # Switch to afternoon params after this hour
 
+# -- Dynamic Scan (v6.18) --
+continuous_scan_dynamic_enabled: true      # Enable VIX-based dynamic interval
+continuous_scan_vix_threshold: 20.0        # VIX > 20 = volatile → 5 min, VIX < 20 = calm → 10 min
+continuous_scan_dynamic_volatile_interval: 5    # Interval when VIX > threshold
+continuous_scan_dynamic_calm_interval: 5        # Interval when VIX < threshold (user requested: always 5 min)
+
 # -- Late Start Protection (v4.4) --
 late_start_protection: true
 market_open_scan_delay: 5      # minutes after open before scanning
@@ -293,6 +299,14 @@ pre_filter_min_volume: 500000      # Minimum average volume (fallback)
 pre_filter_min_atr_pct: 2.5        # Minimum ATR% (volatility)
 pre_filter_max_overextended: 10.0  # Max % above SMA20
 pre_filter_pool_stale_hours: 12    # Hours before pool considered stale
+
+# -- Intraday Pre-Filter Refresh (v6.18) --
+pre_filter_intraday_enabled: true       # Enable intraday refresh
+pre_filter_intraday_schedule: [11, 13]  # Hours to refresh (ET): 11:00, 13:00
+pre_filter_on_demand_enabled: true      # Enable on-demand refresh
+pre_filter_on_demand_min_pool: 200      # Refresh if pool < 200 stocks
+pre_filter_on_demand_zero_signals: 3    # Refresh if 0 signals for N scans
+pre_filter_max_per_day: 6               # Max pre-filters per day (safety)
 
 # -- Pre-Filter Quality (v6.5) --
 pre_filter_max_rsi: 65             # Filter overbought (RSI > 65 = 20% WR)

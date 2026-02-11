@@ -1661,24 +1661,21 @@ function updateTimelineBar(schedule) {
         const startMins = parseInt(el.getAttribute('data-start') || '0');
         const endMins = parseInt(el.getAttribute('data-end') || '0');
 
-        // Check done status from schedule
-        let isDone = false;
-        if (sessionKey === 'morning') isDone = schedule.morning_done;
-        else if (sessionKey === 'midday') isDone = false;  // v6.17: Fixed - don't mark midday done when morning done
-        else if (sessionKey === 'afternoon') isDone = schedule.afternoon_done;
-        else if (sessionKey === 'preclose') isDone = currentMins >= endMins;
-
-        // Determine state
+        // v6.17: FIXED - Progress bar based on TIME only, not scan status
+        // morning_done/afternoon_done means "scan completed" NOT "session ended"
         el.classList.remove('done', 'active', 'pending');
         let progress = 0;
 
-        if (currentMins >= endMins || isDone) {
+        if (currentMins >= endMins) {
+            // Session ended (time-based)
             el.classList.add('done');
             progress = 100;
         } else if (currentMins >= startMins && currentMins < endMins) {
+            // Session in progress (time-based progress)
             el.classList.add('active');
             progress = Math.round(((currentMins - startMins) / (endMins - startMins)) * 100);
         } else {
+            // Session not started yet
             el.classList.add('pending');
             progress = 0;
         }
@@ -1777,14 +1774,22 @@ function updateHeaderBar(data) {
     const queueEl = document.getElementById('hdrQueueCount');
     if (queueEl) queueEl.textContent = data.queue_size || 0;
 
-    // PDT
+    // PDT - v6.17: Extract counts for consistent format
     if (data.safety && data.safety.checks) {
         const pdtCheck = data.safety.checks.find(c => c.name === 'PDT Rule');
         if (pdtCheck) {
             const pdtEl = document.getElementById('hdrPDT');
             if (pdtEl) {
-                pdtEl.textContent = pdtCheck.message.replace('PDT Warning: ', 'PDT ').replace('PDT: ', 'PDT ');
-                pdtEl.className = 'pdt-inline ' + (pdtCheck.status === 'ok' ? 'ok' : pdtCheck.status === 'warning' ? 'warning' : 'danger');
+                // Extract numbers from message: "PDT LIMIT: 4/3 day trades" → "PDT 4/3"
+                const match = pdtCheck.message.match(/(\d+)\/(\d+)/);
+                if (match) {
+                    pdtEl.textContent = `PDT ${match[1]}/${match[2]}`;
+                } else if (pdtCheck.message.includes('Above')) {
+                    pdtEl.textContent = 'PDT N/A';  // Above $25K
+                } else {
+                    pdtEl.textContent = 'PDT 0/3';  // Default
+                }
+                pdtEl.className = 'pdt-badge ' + (pdtCheck.status === 'ok' ? 'ok' : pdtCheck.status === 'warning' ? 'warning' : 'danger');
             }
         }
     }
@@ -2128,7 +2133,7 @@ function updatePositionsUI(data) {
         const pdtEl = document.getElementById('hdrPDT');
         if (pdtEl) {
             pdtEl.textContent = `PDT ${pdtUsed}/${pdtLimit}`;
-            pdtEl.className = 'pdt-inline ' + (remaining <= 0 ? 'danger' : remaining === 1 ? 'warning' : 'ok');
+            pdtEl.className = 'pdt-badge ' + (remaining <= 0 ? 'danger' : remaining === 1 ? 'warning' : 'ok');
         }
     }
 
@@ -2669,7 +2674,9 @@ function openAddPosition(symbol, entryPrice, stopLoss, takeProfit) {
     document.getElementById('addTakeProfit').value = takeProfit.toFixed(2);
     document.getElementById('displaySL').value = '$' + stopLoss.toFixed(2);
     document.getElementById('displayTP').value = '$' + takeProfit.toFixed(2);
-    const shares = Math.floor(25000 / entryPrice);
+    // Use config instead of hardcoded 25000 (Single Source of Truth)
+    const positionSize = marketConfig.pdt?.account_threshold || 25000;
+    const shares = Math.floor(positionSize / entryPrice);
     document.getElementById('addShares').value = shares;
     positionModal.show();
 }
@@ -3028,6 +3035,27 @@ function acknowledgeAllAlerts() {
     fetch('/api/alerts/acknowledge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 'all' }) }).then(r => r.json()).then(() => loadSystemAlerts()).catch(err => console.error('Ack all error:', err));
 }
 
+// ============================================
+// Load Market Config (Single Source of Truth)
+// ============================================
+let marketConfig = {
+    market_hours: { open_hour: 9, open_minute: 30, close_hour: 16, close_minute: 0 },
+    pdt: { account_threshold: 25000, day_trade_limit: 3, reserve: 1 },
+    position_limits: { max_positions: 5, max_position_pct: 10.0, position_size_pct: 1.0 },
+    sl_tp: { min_sl_pct: 2.5, max_sl_pct: 3.5, min_tp_pct: 4.5, max_tp_pct: 8.0 }
+};
+
+function loadMarketConfig() {
+    fetch('/api/config/market')
+        .then(r => r.json())
+        .then(data => {
+            marketConfig = data;
+            console.log('Market config loaded:', marketConfig);
+        })
+        .catch(err => console.warn('Failed to load market config, using defaults:', err));
+}
+
+loadMarketConfig();
 loadSystemAlerts();
 setInterval(loadSystemAlerts, 30000);
 setInterval(loadSignals, 15000);

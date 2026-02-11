@@ -14,6 +14,13 @@ from datetime import datetime, time as dt_time
 import pytz
 from loguru import logger
 
+# v6.x: Import market hours (Single Source of Truth)
+try:
+    from utils.market_hours import MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE, MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE
+except ImportError:
+    MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE = 9, 30
+    MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE = 16, 0
+
 
 class RealtimePriceFetcher:
     """
@@ -35,9 +42,9 @@ class RealtimePriceFetcher:
         self.cache_ttl = cache_ttl_seconds
         self._cache = {}  # {symbol: (price, timestamp, is_realtime)}
 
-        # Market hours (US Eastern Time)
-        self.market_open = dt_time(9, 30)  # 9:30 AM ET
-        self.market_close = dt_time(16, 0)  # 4:00 PM ET
+        # Market hours (US Eastern Time) - loaded from utils.market_hours
+        self.market_open = dt_time(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE)
+        self.market_close = dt_time(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)
         self.eastern = pytz.timezone('US/Eastern')
 
     def is_market_open(self) -> bool:

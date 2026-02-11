@@ -97,6 +97,26 @@ try:
     from strategies import SLTPCalculator, SLTPResult
 except ImportError:
     SLTPCalculator = None
+
+# v6.x: Import market utilities (Single Source of Truth)
+try:
+    from utils.market_hours import (
+        MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE,
+        MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE,
+        PRE_CLOSE_MINUTE, PRE_CLOSE_HOUR,
+        is_market_hours, is_pre_close, get_et_time
+    )
+    from utils.market_calendar import is_trading_day_today, get_market_calendar_status
+    MARKET_UTILS_AVAILABLE = True
+except ImportError:
+    MARKET_UTILS_AVAILABLE = False
+    # Fallback constants if utils not available
+    MARKET_OPEN_HOUR = 9
+    MARKET_OPEN_MINUTE = 30
+    MARKET_CLOSE_HOUR = 16
+    MARKET_CLOSE_MINUTE = 0
+    PRE_CLOSE_HOUR = 15
+    PRE_CLOSE_MINUTE = 50
     SLTPResult = None
 
 # For Market Regime Filter
@@ -170,12 +190,8 @@ class AutoTradingEngine:
     # STATIC CONSTANTS — These are NOT configurable (structural/fixed)
     # =========================================================================
 
-    # Market hours (ET timezone) — fixed by exchange
-    MARKET_OPEN_HOUR = 9
-    MARKET_OPEN_MINUTE = 30
-    MARKET_CLOSE_HOUR = 16
-    MARKET_CLOSE_MINUTE = 0
-    PRE_CLOSE_MINUTE = 50  # 15:50 ET
+    # Market hours (ET timezone) — imported from utils.market_hours (Single Source of Truth)
+    # MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE, MARKET_CLOSE_HOUR, etc. are now imported at module level
 
     # Sector ETF mapping — structural, not trading param
     BEAR_SECTORS = {
@@ -689,6 +705,12 @@ class AutoTradingEngine:
         self.CONTINUOUS_SCAN_VOLATILE_INTERVAL = cfg.continuous_scan_volatile_interval
         self.CONTINUOUS_SCAN_VOLATILE_END_HOUR = cfg.continuous_scan_volatile_end_hour
         self.CONTINUOUS_SCAN_MIDDAY_HOUR = cfg.continuous_scan_midday_hour
+
+        # Dynamic scan (v6.18) - VIX-based interval
+        self.CONTINUOUS_SCAN_DYNAMIC_ENABLED = getattr(cfg, 'continuous_scan_dynamic_enabled', False)
+        self.CONTINUOUS_SCAN_VIX_THRESHOLD = getattr(cfg, 'continuous_scan_vix_threshold', 20.0)
+        self.CONTINUOUS_SCAN_DYNAMIC_VOLATILE_INTERVAL = getattr(cfg, 'continuous_scan_dynamic_volatile_interval', 5)
+        self.CONTINUOUS_SCAN_DYNAMIC_CALM_INTERVAL = getattr(cfg, 'continuous_scan_dynamic_calm_interval', 10)
         
         # =====================================================================
         # BEAR MODE
@@ -4745,9 +4767,20 @@ class AutoTradingEngine:
 
         et_now = self._get_et_time()
 
-        # Dynamic interval based on volatility period
-        is_volatile_period = et_now.hour < self.CONTINUOUS_SCAN_VOLATILE_END_HOUR
-        interval_minutes = self.CONTINUOUS_SCAN_VOLATILE_INTERVAL if is_volatile_period else self.CONTINUOUS_SCAN_INTERVAL_MINUTES
+        # v6.18: Dynamic interval based on VIX or time
+        if self.CONTINUOUS_SCAN_DYNAMIC_ENABLED:
+            # VIX-based dynamic interval
+            regime_data = self.regime_detector.get_regime()
+            current_vix = regime_data.get('vix', 0)
+            is_volatile = current_vix > self.CONTINUOUS_SCAN_VIX_THRESHOLD
+            interval_minutes = self.CONTINUOUS_SCAN_DYNAMIC_VOLATILE_INTERVAL if is_volatile else self.CONTINUOUS_SCAN_DYNAMIC_CALM_INTERVAL
+            interval_label = f"VIX {current_vix:.1f} ({'volatile' if is_volatile else 'calm'})"
+        else:
+            # Time-based interval (original logic)
+            is_volatile_period = et_now.hour < self.CONTINUOUS_SCAN_VOLATILE_END_HOUR
+            interval_minutes = self.CONTINUOUS_SCAN_VOLATILE_INTERVAL if is_volatile_period else self.CONTINUOUS_SCAN_INTERVAL_MINUTES
+            interval_label = "volatile" if is_volatile_period else "normal"
+
         interval_seconds = interval_minutes * 60
 
         # Check timing
@@ -4769,10 +4802,9 @@ class AutoTradingEngine:
         # Dynamic params based on time of day
         use_afternoon = et_now.hour >= self.CONTINUOUS_SCAN_MIDDAY_HOUR
         session_label = "afternoon" if use_afternoon else "morning"
-        period_label = "volatile" if is_volatile_period else "normal"
         is_full = len(self.positions) >= cont_max
         full_tag = " [FULL]" if is_full else ""
-        logger.info(f"🔄 Continuous scan ({session_label} params, {interval_minutes}min/{period_label}): {len(self.positions)}/{cont_max} positions{full_tag}")
+        logger.info(f"🔄 Continuous scan ({session_label} params, {interval_minutes}min/{interval_label}): {len(self.positions)}/{cont_max} positions{full_tag}")
 
         if use_afternoon:
             self._loop_with_afternoon_params(self.scan_for_signals, f"continuous_{session_label}", cont_max)
@@ -4944,10 +4976,12 @@ class AutoTradingEngine:
             if clock.next_open:
                 next_open_dt = clock.next_open if isinstance(clock.next_open, datetime) else datetime.fromisoformat(str(clock.next_open).replace('Z', '+00:00'))
                 market_calendar['next_open'] = next_open_dt.isoformat()
-                # Check if next_open is today (meaning today is a trading day)
-                et_today = self._get_et_time().date()
-                next_open_date = next_open_dt.date() if hasattr(next_open_dt, 'date') else next_open_dt
-                market_calendar['is_trading_day'] = (next_open_date == et_today) or clock.is_open
+                # Use centralized market calendar utility (Single Source of Truth)
+                from src.utils.market_calendar import is_trading_day_today
+                market_calendar['is_trading_day'] = is_trading_day_today(
+                    next_open=next_open_dt,
+                    is_market_open=clock.is_open
+                )
             if clock.next_close:
                 next_close_dt = clock.next_close if isinstance(clock.next_close, datetime) else datetime.fromisoformat(str(clock.next_close).replace('Z', '+00:00'))
                 market_calendar['next_close'] = next_close_dt.isoformat()

@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 """
-POST-TRADE OUTCOME TRACKER v1.0 (v5.0)
+POST-TRADE OUTCOME TRACKER v1.1 (v5.0)
 =======================================
 Batch job for tracking outcomes after trades and scanned signals.
 
 Runs daily via cron or manual. Completely separate from trading engine.
 
-Two functions:
+Three functions:
 1. track_sell_outcomes() — What happened after we sold? (7 fields per SELL)
 2. track_signal_outcomes() — What happened to all scanned signals? (5 fields per signal)
+3. track_rejected_outcomes() — What happened to rejected signals? (5 fields per SKIP)
 
 Usage:
-    python3 src/batch/outcome_tracker.py                  # Track both
-    python3 src/batch/outcome_tracker.py --sells-only     # Track sell outcomes only
-    python3 src/batch/outcome_tracker.py --signals-only   # Track signal outcomes only
-    python3 src/batch/outcome_tracker.py --dry-run        # Preview without saving
+    python3 src/batch/outcome_tracker.py                    # Track all three
+    python3 src/batch/outcome_tracker.py --sells-only       # Track sell outcomes only
+    python3 src/batch/outcome_tracker.py --signals-only     # Track signal outcomes only
+    python3 src/batch/outcome_tracker.py --rejected-only    # Track rejected outcomes only
+    python3 src/batch/outcome_tracker.py --dry-run          # Preview without saving
 
 Idempotent: re-running does not duplicate data (checks existing tracked IDs).
 """
@@ -289,6 +291,220 @@ def track_sell_outcomes(dry_run: bool = False) -> int:
 
 
 # =========================================================================
+# ITEM #4b: Rejected Signal Outcome Tracking
+# =========================================================================
+
+def track_rejected_outcomes(dry_run: bool = False) -> int:
+    """
+    Track what happened to rejected signals (EARNINGS_REJECT, STOCK_D_REJECT, SCORE_REJECT, etc.).
+
+    For each rejected signal aged 1-7 trading days:
+    - Fetch daily bars for 5 trading days after rejection
+    - Calculate: outcome_1d, outcome_3d, outcome_5d, max_gain_5d, max_dd_5d
+
+    Returns number of rejected signal outcomes tracked.
+    """
+    print("\n=== Rejected Signal Outcome Tracking ===")
+
+    trade_log_dir = os.path.join(PROJECT_ROOT, 'trade_logs')
+    outcomes_dir = os.path.join(PROJECT_ROOT, 'outcomes')
+    os.makedirs(outcomes_dir, exist_ok=True)
+
+    if not os.path.exists(trade_log_dir):
+        print("  No trade_logs directory found")
+        return 0
+
+    # Load existing rejected outcomes — only skip fully-tracked (outcome_5d not null)
+    complete_keys = set()
+    incomplete_keys = set()
+    for f in os.listdir(outcomes_dir):
+        if f.startswith('rejected_outcomes_') and f.endswith('.json'):
+            for entry in _load_json_file(os.path.join(outcomes_dir, f)):
+                key = f"{entry.get('reject_id')}_{entry.get('symbol')}"
+                if entry.get('outcome_5d') is not None:
+                    complete_keys.add(key)
+                else:
+                    incomplete_keys.add(key)
+
+    # Find SKIP entries from last 10 days of trade logs
+    # Filter for early-stage rejects: EARNINGS_REJECT, STOCK_D_REJECT, SCORE_REJECT, RSI_REJECT, GAP_REJECT
+    TRACKED_REJECT_TYPES = {
+        'EARNINGS_REJECT', 'STOCK_D_REJECT', 'SCORE_REJECT',
+        'RSI_REJECT', 'GAP_REJECT', 'MOM_REJECT'
+    }
+
+    rejects_to_track = []
+    today = datetime.now(ET)
+    today_str = today.strftime('%Y-%m-%d')
+
+    for days_ago in range(1, 11):
+        log_date = (today - timedelta(days=days_ago)).strftime('%Y-%m-%d')
+        filepath = os.path.join(trade_log_dir, f'trade_log_{log_date}.json')
+        if os.path.exists(filepath):
+            logs = _load_json_file(filepath)
+            for log in logs:
+                if log.get('action') == 'SKIP' and log.get('reason') in TRACKED_REJECT_TYPES:
+                    reject_id = log.get('id', '')
+                    symbol = log.get('symbol', '')
+                    key = f"{reject_id}_{symbol}"
+                    if key not in complete_keys and symbol:
+                        reject_date = log.get('timestamp', '')[:10]
+                        rejects_to_track.append({
+                            'reject_id': reject_id,
+                            'reject_date': reject_date,
+                            'reject_type': log.get('reason', ''),
+                            'reject_detail': log.get('skip_reason', ''),
+                            'symbol': symbol,
+                            'reject_price': log.get('price', 0),
+                            'signal_score': log.get('signal_score', 0),
+                            'sector': log.get('sector', ''),
+                            'signal_source': log.get('signal_source', ''),
+                            'atr_pct': log.get('atr_pct'),
+                            'entry_rsi': log.get('entry_rsi'),
+                            'momentum_5d': log.get('momentum_5d'),
+                            'gap_pct': log.get('gap_pct'),
+                            'earnings_date': log.get('earnings_date'),
+                            'days_until_earnings': log.get('days_until_earnings'),
+                        })
+
+    if not rejects_to_track:
+        print("  No untracked rejected signals found")
+        return 0
+
+    print(f"  Found {len(rejects_to_track)} untracked rejected signals")
+
+    # Group by symbol to minimize API calls
+    symbols_data = {}
+    for rej in rejects_to_track:
+        sym = rej['symbol']
+        if sym not in symbols_data:
+            symbols_data[sym] = []
+        symbols_data[sym].append(rej)
+
+    outcomes = []
+    for symbol, rejects in symbols_data.items():
+        # Find earliest reject date for this symbol
+        earliest_date = min(r['reject_date'] for r in rejects)
+
+        # Get trading days after earliest reject
+        trading_days = _get_trading_days_after(earliest_date, 7)
+        if not trading_days or trading_days[0] > today_str:
+            continue
+
+        print(f"  Fetching {symbol} ({len(rejects)} rejections)...", end=" ")
+
+        # Fetch history covering all reject dates + 5 trading days
+        history = _fetch_price_history(symbol, earliest_date, trading_days[-1])
+        if not history or not history['dates']:
+            print("no data")
+            continue
+
+        for rej in rejects:
+            reject_price = rej['reject_price']
+            if not reject_price or reject_price <= 0:
+                continue
+
+            reject_date = rej['reject_date']
+
+            # Use actual trading days from history (handles holidays correctly)
+            post_reject_dates = [
+                (d, i) for i, d in enumerate(history['dates']) if d > reject_date
+            ]
+
+            outcome_1d = None
+            outcome_3d = None
+            outcome_5d = None
+            max_gain = None
+            max_dd = None
+
+            post_highs = []
+            post_lows = []
+
+            for day_num, (d, idx) in enumerate(post_reject_dates[:5]):
+                c = float(history['close'][idx])
+                h = float(history['high'][idx])
+                l = float(history['low'][idx])
+
+                pct = ((c - reject_price) / reject_price) * 100
+                gain = ((h - reject_price) / reject_price) * 100
+                dd = ((l - reject_price) / reject_price) * 100
+
+                post_highs.append(gain)
+                post_lows.append(dd)
+
+                if day_num == 0:
+                    outcome_1d = round(pct, 2)
+                if day_num == 2:
+                    outcome_3d = round(pct, 2)
+                if day_num == 4:
+                    outcome_5d = round(pct, 2)
+
+            if post_highs:
+                max_gain = round(max(post_highs), 2)
+            if post_lows:
+                max_dd = round(min(post_lows), 2)
+
+            outcomes.append({
+                "reject_id": rej['reject_id'],
+                "reject_date": reject_date,
+                "reject_type": rej['reject_type'],
+                "reject_detail": rej['reject_detail'],
+                "symbol": symbol,
+                "reject_price": reject_price,
+                "signal_score": rej['signal_score'],
+                "sector": rej['sector'],
+                "signal_source": rej['signal_source'],
+                "atr_pct": rej['atr_pct'],
+                "entry_rsi": rej['entry_rsi'],
+                "momentum_5d": rej['momentum_5d'],
+                "gap_pct": rej['gap_pct'],
+                "earnings_date": rej['earnings_date'],
+                "days_until_earnings": rej['days_until_earnings'],
+                "outcome_1d": outcome_1d,
+                "outcome_3d": outcome_3d,
+                "outcome_5d": outcome_5d,
+                "outcome_max_gain_5d": max_gain,
+                "outcome_max_dd_5d": max_dd,
+                "tracked_at": datetime.now(ET).isoformat(),
+            })
+
+        print(f"tracked {len([r for r in rejects if any(o['symbol'] == symbol for o in outcomes)])} rejections")
+
+    if outcomes and not dry_run:
+        # Remove old incomplete entries for re-tracked rejections
+        retracked_keys = set()
+        for o in outcomes:
+            key = f"{o['reject_id']}_{o['symbol']}"
+            if key in incomplete_keys:
+                retracked_keys.add(key)
+        if retracked_keys:
+            for f in os.listdir(outcomes_dir):
+                if f.startswith('rejected_outcomes_') and f.endswith('.json'):
+                    fpath = os.path.join(outcomes_dir, f)
+                    entries = _load_json_file(fpath)
+                    filtered = [e for e in entries
+                                if f"{e.get('reject_id')}_{e.get('symbol')}" not in retracked_keys]
+                    if len(filtered) < len(entries):
+                        if filtered:
+                            _save_json_atomic(fpath, filtered)
+                        else:
+                            os.unlink(fpath)
+                        print(f"  Removed {len(entries) - len(filtered)} old incomplete rejection entries from {f}")
+
+        outfile = os.path.join(outcomes_dir, f'rejected_outcomes_{today.strftime("%Y-%m-%d")}.json')
+        existing = _load_json_file(outfile) if os.path.exists(outfile) else []
+        existing.extend(outcomes)
+        _save_json_atomic(outfile, existing)
+        print(f"  Saved {len(outcomes)} rejected signal outcomes to {outfile}")
+    elif outcomes and dry_run:
+        print(f"  [DRY RUN] Would save {len(outcomes)} rejected signal outcomes")
+        for o in outcomes[:3]:
+            print(f"    {o['symbol']} ({o['reject_type']}): 1d={o['outcome_1d']}, 5d={o['outcome_5d']}")
+
+    return len(outcomes)
+
+
+# =========================================================================
 # ITEM #5: Signal Outcome Tracking
 # =========================================================================
 
@@ -524,13 +740,14 @@ def main():
     parser = argparse.ArgumentParser(description="Post-trade outcome tracker")
     parser.add_argument('--sells-only', action='store_true', help='Track sell outcomes only')
     parser.add_argument('--signals-only', action='store_true', help='Track signal outcomes only')
+    parser.add_argument('--rejected-only', action='store_true', help='Track rejected signal outcomes only')
     parser.add_argument('--dry-run', action='store_true', help='Preview without saving')
     parser.add_argument('--cleanup', action='store_true', help='Remove files older than 90 days')
     parser.add_argument('--cleanup-days', type=int, default=90, help='Max age in days for cleanup')
     args = parser.parse_args()
 
     print("=" * 60)
-    print(f"OUTCOME TRACKER v1.0 — {datetime.now(ET).strftime('%Y-%m-%d %H:%M ET')}")
+    print(f"OUTCOME TRACKER v1.1 — {datetime.now(ET).strftime('%Y-%m-%d %H:%M ET')}")
     print("=" * 60)
 
     if args.cleanup:
@@ -538,10 +755,18 @@ def main():
         return
 
     total = 0
-    if not args.signals_only:
+
+    # Track sells (unless signals-only or rejected-only)
+    if not args.signals_only and not args.rejected_only:
         total += track_sell_outcomes(dry_run=args.dry_run)
-    if not args.sells_only:
+
+    # Track signals (unless sells-only or rejected-only)
+    if not args.sells_only and not args.rejected_only:
         total += track_signal_outcomes(dry_run=args.dry_run)
+
+    # Track rejected signals (unless sells-only or signals-only)
+    if not args.sells_only and not args.signals_only:
+        total += track_rejected_outcomes(dry_run=args.dry_run)
 
     # Auto-cleanup after tracking
     print("\n=== Log Rotation ===")

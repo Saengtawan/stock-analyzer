@@ -366,26 +366,61 @@ class PDTSmartGuard:
         return (today_et - entry_date).days
 
     def get_pdt_status(self) -> PDTStatus:
-        """Get current PDT status from Alpaca"""
+        """
+        Get current PDT status from Alpaca account (real-time).
+
+        This uses Alpaca's official day trade count and PDT flag,
+        which is THE authoritative source (not manually tracked).
+
+        Returns:
+            PDTStatus with:
+                - day_trade_count: Official count from Alpaca (rolling 5 days)
+                - remaining: Day trades left before hitting limit
+                - is_flagged: True if account is flagged as Pattern Day Trader
+                - can_day_trade: True if can execute day trades
+                - reserve_active: True if at reserve limit
+
+        Note:
+            Alpaca's day_trade_count is THE single source of truth.
+            It includes all day trades executed across all platforms/clients.
+        """
         try:
             if not self.broker:
+                logger.warning("PDT Guard: No broker connected, using fallback status")
                 return PDTStatus(0, 3, False, True, False)
 
+            # Get real-time account data from Alpaca
             account = self.broker.get_account()
-            # Account is a dataclass with day_trade_count and pattern_day_trader attributes
-            day_trade_count = getattr(account, 'day_trade_count', 0)
-            is_flagged = getattr(account, 'pattern_day_trader', False)
-            remaining = max(0, self._get_max_day_trades() - day_trade_count)
+
+            # Extract PDT info (Alpaca is the authoritative source)
+            day_trade_count = int(getattr(account, 'day_trade_count', 0))
+            is_flagged = bool(getattr(account, 'pattern_day_trader', False))
+            equity = float(getattr(account, 'equity', 0))
+
+            # Calculate remaining day trades
+            max_trades = self._get_max_day_trades()
+            remaining = max(0, max_trades - day_trade_count)
+
+            # Check if at reserve limit
+            reserve = self._get_reserve()
+            reserve_active = remaining <= reserve
+
+            # Log if status changed significantly
+            if hasattr(self, '_last_day_trade_count'):
+                if day_trade_count != self._last_day_trade_count:
+                    logger.info(f"PDT Status Update: {day_trade_count} day trades used "
+                               f"({remaining} remaining, equity=${equity:,.0f})")
+            self._last_day_trade_count = day_trade_count
 
             return PDTStatus(
                 day_trade_count=day_trade_count,
                 remaining=remaining,
                 is_flagged=is_flagged,
                 can_day_trade=remaining > 0 and not is_flagged,
-                reserve_active=remaining <= self._get_reserve()
+                reserve_active=reserve_active
             )
         except Exception as e:
-            logger.error(f"PDT status error: {e}")
+            logger.error(f"Failed to get PDT status from Alpaca: {e}, using fallback")
             return PDTStatus(0, 3, False, True, False)
 
     def is_day_trade(self, symbol: str) -> bool:
@@ -423,31 +458,22 @@ class PDTSmartGuard:
             logger.warning(f"PDT Guard: Account flagged as PDT - sells restricted")
             return False, SellDecision.BLOCKED_NO_BUDGET, "Account flagged as PDT"
 
-        # No budget left - v2.2: HOLD ทุกกรณี (ไม่ override PDT เด็ดขาด)
-        if pdt_status.remaining <= 0:
-            logger.warning(f"PDT Guard: {symbol} BLOCKED - no day trades remaining")
-            logger.warning(f"  P&L: {pnl_pct:+.1f}% → HOLD overnight (wait for Day 1)")
-            logger.warning(f"  v2.2: ไม่ override PDT → ไม่มีทางโดน flag")
-            return False, SellDecision.BLOCKED_NO_BUDGET, f"No PDT budget (0/{self._get_max_day_trades()}) - HOLD overnight"
+        # v2.3: STRICT MODE - NEVER use day trades (ติด flag แย่กว่าขาดทุน)
+        # BLOCK ทุกกรณีเมื่อ Day 0 - แม้ SL/TP ก็ HOLD overnight
+        logger.warning(f"PDT Guard: {symbol} BLOCKED - Day 0 position")
+        logger.warning(f"  P&L: {pnl_pct:+.1f}% → HOLD overnight (wait for Day 1)")
+        logger.warning(f"  PDT remaining: {pdt_status.remaining}/{self._get_max_day_trades()}")
+        logger.warning(f"  v2.3 STRICT: ไม่ใช้ PDT เด็ดขาด (ติด flag = 90 วันห้ามเทรด)")
 
-        # SL triggered: Allow even with reserve (emergency exit)
         if pnl_pct <= sl_threshold:
-            logger.info(f"PDT Guard: {symbol} SL EMERGENCY at {pnl_pct:.2f}% - using day trade")
-            return True, SellDecision.SL_EMERGENCY, f"SL emergency ({pnl_pct:.2f}% <= {sl_threshold}%)"
-
-        # TP triggered: Check if worth using PDT (v4.6: dynamic threshold)
-        if pnl_pct >= tp_threshold:
-            # Check reserve
-            if pdt_status.reserve_active:
-                logger.info(f"PDT Guard: {symbol} TP at {pnl_pct:.2f}% - BLOCKED (reserve for SL)")
-                return False, SellDecision.BLOCKED_RESERVE, f"Reserve active - save for SL"
-
-            logger.info(f"PDT Guard: {symbol} TP PROFITABLE at {pnl_pct:.2f}% - using day trade")
-            return True, SellDecision.TP_PROFITABLE, f"TP profitable ({pnl_pct:.2f}% >= {tp_threshold}%)"
-
-        # Small gain: Hold overnight to save PDT
-        logger.info(f"PDT Guard: {symbol} HOLD overnight ({pnl_pct:.2f}% < {tp_threshold}%)")
-        return False, SellDecision.HOLD_OVERNIGHT, f"Hold overnight (gain {pnl_pct:.2f}% not worth PDT)"
+            logger.error(f"  ⚠️  SL hit ({pnl_pct:.2f}%) but HOLDING to avoid PDT flag!")
+            return False, SellDecision.BLOCKED_NO_BUDGET, f"SL hit but HOLD (avoid PDT flag)"
+        elif pnl_pct >= tp_threshold:
+            logger.info(f"  💰 TP hit ({pnl_pct:.2f}%) but HOLDING to avoid PDT flag")
+            return False, SellDecision.HOLD_OVERNIGHT, f"TP hit but HOLD (avoid PDT flag)"
+        else:
+            logger.info(f"  Hold overnight (save all PDT budget)")
+            return False, SellDecision.HOLD_OVERNIGHT, f"Hold overnight (strict PDT mode)"
 
     def should_place_sl_order(self, symbol: str) -> Tuple[bool, str]:
         """
