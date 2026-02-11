@@ -223,6 +223,16 @@ class RapidRotationConfig:
     afternoon_gap_max_down: float = -3.0    # Afternoon gap max down (tighter)
 
     # =========================================================================
+    # PRE-FILTER AUTO-REFRESH (v6.18)
+    # =========================================================================
+    pre_filter_on_demand_enabled: bool = True       # Enable auto-refresh
+    pre_filter_on_demand_min_pool: int = 200        # Refresh if pool < 200
+    pre_filter_on_demand_zero_signals: int = 3      # Refresh if 0 signals × N scans
+    pre_filter_intraday_enabled: bool = True        # Enable scheduled refresh
+    pre_filter_intraday_schedule: list = None       # Hours to refresh [11, 13]
+    pre_filter_max_per_day: int = 6                 # Max refreshes per day
+
+    # =========================================================================
     # MARKET HOURS (v6.4 Single Source of Truth)
     # =========================================================================
     market_open_hour: int = 9           # Market open hour (ET)
@@ -487,7 +497,11 @@ class RapidRotationConfig:
             'entry_allow_discount_exception', 'entry_discount_exception_pct',
             'entry_vwap_max_distance_pct', 'entry_vwap_allow_below',
             'entry_limit_order_only', 'entry_max_chase_pct',
-            'entry_limit_timeout_minutes', 'entry_track_rejections'
+            'entry_limit_timeout_minutes', 'entry_track_rejections',
+            # v6.18: Pre-filter Auto-Refresh fields
+            'pre_filter_on_demand_enabled', 'pre_filter_on_demand_min_pool',
+            'pre_filter_on_demand_zero_signals', 'pre_filter_intraday_enabled',
+            'pre_filter_intraday_schedule', 'pre_filter_max_per_day'
         }
 
         rapid_rotation = {k: v for k, v in config_dict.items() if k in rapid_rotation_keys}
@@ -676,7 +690,12 @@ class RapidRotationConfig:
         return errors
 
     def __post_init__(self):
-        """Validate config after initialization"""
+        """Initialize defaults and validate config after initialization"""
+        # Set default for pre_filter_intraday_schedule if None
+        if self.pre_filter_intraday_schedule is None:
+            object.__setattr__(self, 'pre_filter_intraday_schedule', [11, 13])
+
+        # Validate
         errors = self.validate()
         if errors:
             raise ValueError(f"Invalid configuration: {'; '.join(errors)}")

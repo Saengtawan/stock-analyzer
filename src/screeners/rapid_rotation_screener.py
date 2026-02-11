@@ -288,6 +288,11 @@ class RapidRotationScreener:
         self._spy_regime_cache = None  # (is_bull, reason, details, timestamp)
         self._spy_cache_seconds = self._cache_ttl['market_regime']  # v6.10: sync with market_regime cache (120s)
 
+        # v6.18: Pre-filter auto-refresh tracking
+        self._prefilter_refresh_count = 0  # Daily counter
+        self._prefilter_last_refresh_date = None  # Track last refresh date
+        self._prefilter_zero_signal_count = 0  # Track consecutive 0-signal scans
+
         # Initialize integrated systems (AFTER cache setup)
         self._init_ai_universe()
         self._init_market_regime()
@@ -350,6 +355,89 @@ class RapidRotationScreener:
             self._data_cache_time.pop(sym, None)
         if stale_symbols:
             logger.debug(f"Cleared stale data cache for {len(stale_symbols)} symbols")
+
+    def _check_prefilter_pool_health(self) -> bool:
+        """
+        Check if pre-filtered pool needs refresh (v6.18)
+
+        Returns:
+            True if refresh was triggered, False otherwise
+        """
+        if not self.config.pre_filter_on_demand_enabled:
+            return False
+
+        # Reset daily counter if new day
+        from datetime import date
+        today = date.today()
+        if self._prefilter_last_refresh_date != today:
+            self._prefilter_refresh_count = 0
+            self._prefilter_last_refresh_date = today
+
+        # Check if hit daily limit
+        if self._prefilter_refresh_count >= self.config.pre_filter_max_per_day:
+            logger.debug(f"Pre-filter refresh limit reached ({self._prefilter_refresh_count}/{self.config.pre_filter_max_per_day})")
+            return False
+
+        try:
+            # Load current pool
+            pre_filter_file = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                'data', 'pre_filtered.json'
+            )
+
+            if not os.path.exists(pre_filter_file):
+                logger.warning("⚠️ Pre-filtered pool not found - triggering initial refresh")
+                return self._trigger_prefilter_refresh("initial")
+
+            with open(pre_filter_file) as f:
+                pool = json.load(f)
+
+            pool_size = len(pool.get('stocks', {}))
+            min_pool = self.config.pre_filter_on_demand_min_pool
+
+            if pool_size < min_pool:
+                logger.warning(f"⚠️ Pool low: {pool_size} < {min_pool} → Triggering refresh")
+                return self._trigger_prefilter_refresh(f"low_pool_{pool_size}")
+
+        except Exception as e:
+            logger.error(f"Failed to check pool health: {e}")
+
+        return False
+
+    def _trigger_prefilter_refresh(self, reason: str) -> bool:
+        """
+        Trigger pre-filter refresh in background (v6.18)
+
+        Args:
+            reason: Reason for refresh (for logging)
+
+        Returns:
+            True if triggered successfully
+        """
+        try:
+            import subprocess
+
+            # Path to pre_filter.py
+            pre_filter_script = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                'pre_filter.py'
+            )
+
+            # Run in background
+            subprocess.Popen(
+                ['python3', pre_filter_script],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True  # Detach from parent
+            )
+
+            self._prefilter_refresh_count += 1
+            logger.info(f"🔄 Pre-filter refresh triggered (reason: {reason}, count: {self._prefilter_refresh_count}/{self.config.pre_filter_max_per_day})")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to trigger pre-filter refresh: {e}")
+            return False
 
     def _init_ai_universe(self):
         """Initialize AI Universe Generator"""
@@ -470,6 +558,9 @@ class RapidRotationScreener:
             List of stock symbols
         """
         universe = []
+
+        # v6.18: Check pool health and trigger refresh if needed
+        self._check_prefilter_pool_health()
 
         # v6.2: Try pre-filtered pool first (from overnight scan)
         try:
