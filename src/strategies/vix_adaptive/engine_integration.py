@@ -250,8 +250,10 @@ class VIXAdaptiveIntegration:
         if not self.enabled:
             return "VIXAdaptiveIntegration(DISABLED)"
 
-        tier = self.strategy.get_current_tier() if self.strategy else "N/A"
+        tier = self.strategy.get_current_tier() if self.strategy else None
         vix = self.strategy.get_current_vix() if self.strategy else None
+
+        tier_str = tier.upper() if tier else "N/A"
         vix_str = f"{vix:.1f}" if vix is not None else "N/A"
 
-        return f"VIXAdaptiveIntegration(tier={tier.upper()}, VIX={vix_str})"
+        return f"VIXAdaptiveIntegration(tier={tier_str}, VIX={vix_str})"

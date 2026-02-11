@@ -321,7 +321,7 @@ class RapidRotationConfig:
     # =========================================================================
     # VIX ADAPTIVE STRATEGY v3.0 (2026-02-11)
     # =========================================================================
-    vix_adaptive_enabled: bool = False          # Enable VIX Adaptive Strategy (default: disabled)
+    vix_adaptive_enabled: bool = True           # Enable VIX Adaptive Strategy
 
     # =========================================================================
     # PRE-FILTER SYSTEM (v6.2)
