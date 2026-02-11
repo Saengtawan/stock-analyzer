@@ -15,10 +15,11 @@ try:
     from .strategy_manager import StrategyManager
     from .strategy_orchestrator import StrategyOrchestrator
     from .dip_bounce_strategy import DipBounceStrategy
+    from .vix_adaptive_strategy_wrapper import VIXAdaptiveStrategyWrapper
     __all__ = [
         'SLTPCalculator', 'SLTPResult', 'calculate_sl_tp',
         'BaseStrategy', 'TradingSignal', 'StrategyManager', 'StrategyOrchestrator',
-        'DipBounceStrategy'
+        'DipBounceStrategy', 'VIXAdaptiveStrategyWrapper'
     ]
 except ImportError:
     __all__ = ['SLTPCalculator', 'SLTPResult', 'calculate_sl_tp']

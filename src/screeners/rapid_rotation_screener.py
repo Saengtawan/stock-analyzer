@@ -397,18 +397,24 @@ class RapidRotationScreener:
 
     def _init_strategy_manager(self):
         """
-        v6.15: Initialize Strategy Manager with DipBounceStrategy
+        v6.16: Initialize Strategy Manager with multiple strategies
 
         Multi-strategy architecture - allows running multiple strategies
         and combining their signals.
+
+        Registered strategies:
+        - Dip-Bounce (v6.15)
+        - VIX Adaptive (v6.16)
         """
         try:
             from strategies import StrategyManager, DipBounceStrategy
+            from strategies.vix_adaptive_strategy_wrapper import VIXAdaptiveStrategyWrapper
 
             # Create manager
             self.strategy_manager = StrategyManager()
+            strategy_count = 0
 
-            # Create DipBounceStrategy with screener's config
+            # 1. DipBounceStrategy with screener's config
             dip_bounce_config = {
                 'min_score': self.MIN_SCORE,
                 'min_atr_pct': self.MIN_ATR_PCT,
@@ -418,16 +424,34 @@ class RapidRotationScreener:
                 'enable_trace': True,  # v6.15: Enable execution trace for debugging
             }
             self.dip_bounce_strategy = DipBounceStrategy(config=dip_bounce_config)
-
-            # Register strategy
             self.strategy_manager.register(self.dip_bounce_strategy)
+            strategy_count += 1
 
-            logger.info("✅ Strategy Manager initialized (1 strategy: Dip-Bounce)")
+            # 2. VIX Adaptive Strategy (v6.16)
+            vix_adaptive_config = {
+                'config_path': 'config/vix_adaptive.yaml',
+                'enabled': self.config.vix_adaptive_enabled,  # Use config setting
+                'enable_trace': False,  # Disable trace for now (can enable later)
+            }
+            self.vix_adaptive_strategy = VIXAdaptiveStrategyWrapper(config=vix_adaptive_config)
+
+            # Only register if enabled
+            if self.vix_adaptive_strategy.is_enabled():
+                self.strategy_manager.register(self.vix_adaptive_strategy)
+                strategy_count += 1
+                logger.info(f"✅ VIX Adaptive registered (tier={self.vix_adaptive_strategy.get_current_tier()})")
+            else:
+                logger.info("⏸️  VIX Adaptive disabled in config")
+
+            logger.info(f"✅ Strategy Manager initialized ({strategy_count} strategies active)")
 
         except Exception as e:
             self.strategy_manager = None
             self.dip_bounce_strategy = None
+            self.vix_adaptive_strategy = None
             logger.warning(f"⚠️ Strategy Manager not available: {e}")
+            import traceback
+            traceback.print_exc()
 
     def generate_universe(self, max_stocks: int = 200) -> List[str]:
         """
