@@ -24,6 +24,7 @@ class PositionRepository:
             db_name: Database name (default: trade_history)
         """
         self.db = get_db_manager(db_name)
+        self._use_database = True  # Always use database (no JSON fallback)
         self._cache = None
         self._cache_time = None
 
