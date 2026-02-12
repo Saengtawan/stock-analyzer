@@ -30,7 +30,7 @@ rapid_rotation:
   trail_lock_pct: 80.0        # Lock 80% of peak gains (note: existing uses 75%)
 
   # -- Position Management --
-  max_positions: 5            # Max concurrent positions (note: existing uses 3)
+  max_positions: 5            # Max concurrent positions
   max_hold_days: 7            # Max days to hold (v6.19: 5→7 for swing trades)
   position_size_pct: 1.0      # Position size (% of equity)
   max_position_pct: 10.0      # Max position size (% of equity)
@@ -104,8 +104,8 @@ position_size_pct: 40          # v4.9.4: 30→40 (base size for conviction B)
 simulated_capital: 4000        # Set to null for real Alpaca account value
 
 # -- Risk-Parity Sizing (v4.9) --
-risk_parity_enabled: true
-risk_budget_pct: 1.0           # Max risk per position = 1% of account
+risk_parity_enabled: true      # Keep risk parity enabled for safety
+risk_budget_pct: 2.5           # Max risk per position = 2.5% of account (was 1.0)
 max_position_pct: 50           # v4.9.4: 40→50 (allow A+ conviction)
 
 # -- ATR-based SL/TP (v4.6) -- v6.10: Updated to new naming
