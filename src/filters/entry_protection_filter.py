@@ -17,6 +17,7 @@ from datetime import datetime, time
 from dataclasses import dataclass
 from loguru import logger
 import pandas as pd
+import pytz
 
 
 @dataclass
@@ -73,7 +74,7 @@ class EntryProtectionFilter:
 
         logger.info(f"🛡️ Entry Protection Filter initialized (enabled={self.enabled})")
         if self.enabled:
-            logger.info(f"   Layer 1: Block first {self.block_minutes} min")
+            logger.info(f"   Layer 1: Block first {self.block_minutes} min (US Eastern Time)")
             logger.info(f"   Layer 2: Max VWAP distance {self.vwap_max_distance}%")
             logger.info(f"   Layer 3: Max chase {self.max_chase}%")
 
@@ -162,19 +163,29 @@ class EntryProtectionFilter:
         Returns:
             (allowed, reason)
         """
-        # Calculate minutes since market open
-        market_open = current_time.replace(
+        # FIX: Convert to US Eastern Time (market timezone)
+        eastern = pytz.timezone('US/Eastern')
+
+        # If current_time is naive (no timezone), assume it's already in Eastern
+        if current_time.tzinfo is None:
+            current_time_et = eastern.localize(current_time)
+        else:
+            # Convert from whatever timezone to Eastern
+            current_time_et = current_time.astimezone(eastern)
+
+        # Calculate minutes since market open (in Eastern Time)
+        market_open = current_time_et.replace(
             hour=self.market_open_hour,
             minute=self.market_open_minute,
             second=0,
             microsecond=0
         )
 
-        minutes_since_open = (current_time - market_open).total_seconds() / 60
+        minutes_since_open = (current_time_et - market_open).total_seconds() / 60
 
         # After block window - always allow
         if minutes_since_open >= self.block_minutes:
-            return True, f"Time OK ({minutes_since_open:.0f} min after open)"
+            return True, f"Time OK ({minutes_since_open:.0f} min after open ET)"
 
         # Within block window - check exceptions
         if self.allow_discount:
@@ -185,7 +196,7 @@ class EntryProtectionFilter:
                 return True, f"Discount exception: {price_change_pct:.2f}% < {self.discount_threshold}%"
 
         # Block by default
-        return False, f"Only {minutes_since_open:.0f} min after open (need {self.block_minutes} min)"
+        return False, f"Only {minutes_since_open:.0f} min after open ET (need {self.block_minutes} min)"
 
     def _check_vwap_filter(
         self,
