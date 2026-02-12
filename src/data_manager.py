@@ -82,7 +82,7 @@ class DataManager:
         self.db_path = os.path.join(self.dirs['database'], 'stocks.db')
 
         # Phase 3: Initialize database layer
-        self.use_db_layer = USE_DB_LAYER
+        self.use_db_layer = True  # Always use database layer
         if self.use_db_layer:
             try:
                 self.stock_repo = StockDataRepository()

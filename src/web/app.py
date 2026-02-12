@@ -2423,9 +2423,9 @@ def rapid_trader_page():
     return render_template('rapid_trader.html')
 
 
-@app.route('/api/health')
-def api_health():
-    """System health check endpoint"""
+@app.route('/api/health/legacy')
+def api_health_legacy():
+    """System health check endpoint (legacy - checks Alpaca API)"""
     try:
         checks = {}
         issues = []

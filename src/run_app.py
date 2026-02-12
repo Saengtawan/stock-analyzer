@@ -36,11 +36,36 @@ warnings.filterwarnings('ignore')
 from loguru import logger
 logger.info(f"Environment loaded - Alpaca API configured: {bool(os.getenv('ALPACA_API_KEY'))}")
 
-# Configure logging
+# Initialize monitoring (Production)
+from monitoring.startup import initialize_monitoring
+
+# Configure logging with optimized rotation (Phase 1: Log Management)
 LOG_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'logs')
 os.makedirs(LOG_DIR, exist_ok=True)
-log_file = os.path.join(LOG_DIR, f"app_{datetime.now().strftime('%Y%m%d')}.log")
-logger.add(log_file, rotation="1 day", retention="7 days", level="INFO")
+
+# Remove default handler to avoid duplicate logs
+logger.remove()
+
+# Add console handler (minimal output)
+logger.add(
+    sys.stderr,
+    format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
+    level="INFO",
+    colorize=True
+)
+
+# Add file handler with rotation + compression
+log_file = os.path.join(LOG_DIR, f"app_{datetime.now().strftime('%Y-%m-%d')}.log")
+logger.add(
+    log_file,
+    rotation="10 MB",      # Rotate at 10MB (prevents giant files)
+    retention="7 days",    # Keep last 7 days
+    compression="zip",     # Compress rotated files (saves 70-80% space)
+    enqueue=True,         # Thread-safe async logging
+    backtrace=True,       # Enable detailed error traces
+    diagnose=True,        # Enable variable inspection
+    level="INFO"
+)
 
 # Signal cache file (shared between background scanner and Flask)
 SIGNALS_CACHE_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'cache')
@@ -66,6 +91,8 @@ class ServiceManager:
         self.rapid_portfolio = None
 
         # Handle shutdown
+        # Auto-monitoring
+        self.monitor = initialize_monitoring(auto_start=True, health_check_interval=300)
         signal.signal(signal.SIGINT, self._shutdown)
         signal.signal(signal.SIGTERM, self._shutdown)
 
