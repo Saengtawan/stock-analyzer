@@ -2,8 +2,7 @@
 """
 Alert Manager - Centralized alert storage for Rapid Trader
 
-Phase 4C: Updated to use AlertsRepository (database-backed)
-Backward compatible API for existing code.
+Database-backed alert storage using AlertsRepository.
 
 Alert levels:
   - CRITICAL: Immediate action needed (SL hit, system crash, sell failed)
@@ -16,11 +15,8 @@ Usage:
     alerts.add('CRITICAL', 'SL Hit', 'AAPL hit stop loss at $150.00', symbol='AAPL')
 """
 
-import os
-import json
-import tempfile
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, asdict
 from loguru import logger
@@ -30,13 +26,7 @@ try:
 except ImportError:
     _ET = None
 
-# Phase 4C: Use database repository
-try:
-    from database import AlertsRepository, Alert as DBAlert
-    USE_DATABASE = True
-except ImportError:
-    USE_DATABASE = False
-    logger.warning("AlertsRepository not available, using JSON fallback")
+from database import AlertsRepository, Alert as DBAlert
 
 
 @dataclass
@@ -56,42 +46,12 @@ class Alert:
 
 
 class AlertManager:
-    """Manages alert storage and retrieval (Phase 4C: Database-backed)"""
+    """Manages alert storage and retrieval (Database-backed)"""
 
-    MAX_ALERTS = 200       # Keep last N alerts
-    ALERT_FILE = 'alerts.json'
-
-    def __init__(self, data_dir: Optional[str] = None):
-        if data_dir is None:
-            data_dir = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), '..', 'data'
-            )
-        self._data_dir = os.path.abspath(data_dir)
-        os.makedirs(self._data_dir, exist_ok=True)
-        self._file_path = os.path.join(self._data_dir, self.ALERT_FILE)
+    def __init__(self):
         self._lock = threading.Lock()
-
-        # Phase 4C: Use database repository
-        if USE_DATABASE:
-            try:
-                self._repo = AlertsRepository()
-                self._use_database = True
-                logger.info("AlertManager using database storage (Phase 4C)")
-            except Exception as e:
-                logger.warning(f"Failed to init AlertsRepository: {e}, using JSON fallback")
-                self._use_database = False
-                self._repo = None
-        else:
-            self._use_database = False
-            self._repo = None
-
-        # JSON fallback storage
-        self._alerts: List[Alert] = []
-        self._next_id = 1
-
-        # Load existing alerts
-        if not self._use_database:
-            self._load()
+        self._repo = AlertsRepository()
+        logger.info("AlertManager using database storage")
 
     # ------------------------------------------------------------------
     # Public API
@@ -105,7 +65,7 @@ class AlertManager:
         category: str = 'system',
         symbol: str = '',
     ) -> Alert:
-        """Add a new alert. Thread-safe. (Phase 4C: Database-backed)"""
+        """Add a new alert. Thread-safe."""
         level = level.upper()
         if level not in ('CRITICAL', 'WARNING', 'INFO'):
             level = 'INFO'
@@ -113,44 +73,23 @@ class AlertManager:
         with self._lock:
             timestamp = datetime.now(_ET).isoformat() if _ET else datetime.now().isoformat()
 
-            # Phase 4C: Save to database
-            if self._use_database and self._repo:
-                try:
-                    db_alert = DBAlert(
-                        level=level,
-                        message=f"{title}: {message}",
-                        timestamp=timestamp,
-                        active=True,
-                        metadata={
-                            'title': title,
-                            'category': category,
-                            'symbol': symbol,
-                            'acknowledged': False
-                        }
-                    )
-                    alert_id = self._repo.create(db_alert)
+            db_alert = DBAlert(
+                level=level,
+                message=f"{title}: {message}",
+                timestamp=timestamp,
+                active=True,
+                metadata={
+                    'title': title,
+                    'category': category,
+                    'symbol': symbol,
+                    'acknowledged': False
+                }
+            )
+            alert_id = self._repo.create(db_alert)
 
-                    # Return Alert object for backward compatibility
-                    alert = Alert(
-                        id=alert_id,
-                        level=level,
-                        title=title,
-                        message=message,
-                        category=category,
-                        symbol=symbol,
-                        timestamp=timestamp,
-                        acknowledged=False,
-                    )
-                    logger.info(f"Alert [{level}] {title}: {message}")
-                    return alert
-
-                except Exception as e:
-                    logger.error(f"Failed to save alert to database: {e}, using fallback")
-                    # Fall through to JSON fallback
-
-            # JSON fallback
+            # Return Alert object for backward compatibility
             alert = Alert(
-                id=self._next_id,
+                id=alert_id,
                 level=level,
                 title=title,
                 message=message,
@@ -159,14 +98,6 @@ class AlertManager:
                 timestamp=timestamp,
                 acknowledged=False,
             )
-            self._next_id += 1
-            self._alerts.append(alert)
-
-            # Trim old alerts
-            if len(self._alerts) > self.MAX_ALERTS:
-                self._alerts = self._alerts[-self.MAX_ALERTS:]
-
-            self._save()
             logger.info(f"Alert [{level}] {title}: {message}")
             return alert
 
@@ -177,156 +108,61 @@ class AlertManager:
         category: Optional[str] = None,
         unacknowledged_only: bool = False,
     ) -> List[Dict[str, Any]]:
-        """Get recent alerts, newest first. (Phase 4C: Database-backed)"""
-        # Phase 4C: Get from database
-        if self._use_database and self._repo:
-            try:
-                # Get recent alerts from database
-                if level:
-                    db_alerts = self._repo.get_by_level(level.upper(), limit=limit * 2)
-                elif unacknowledged_only:
-                    db_alerts = self._repo.get_active(limit=limit * 2)
-                else:
-                    db_alerts = self._repo.get_recent(hours=24 * 7, limit=limit * 2)  # Last week
-
-                # Convert to Alert format
-                alerts = []
-                for db_alert in db_alerts:
-                    metadata = db_alert.metadata or {}
-                    alert_dict = {
-                        'id': db_alert.id,
-                        'level': db_alert.level,
-                        'title': metadata.get('title', ''),
-                        'message': db_alert.message,
-                        'category': metadata.get('category', 'system'),
-                        'symbol': metadata.get('symbol', ''),
-                        'timestamp': db_alert.timestamp,
-                        'acknowledged': metadata.get('acknowledged', False) or not db_alert.active
-                    }
-
-                    # Apply filters
-                    if category and alert_dict['category'] != category:
-                        continue
-                    if unacknowledged_only and alert_dict['acknowledged']:
-                        continue
-
-                    alerts.append(alert_dict)
-
-                return alerts[:limit]
-
-            except Exception as e:
-                logger.error(f"Failed to get alerts from database: {e}, using fallback")
-                # Fall through to JSON fallback
-
-        # JSON fallback
-        with self._lock:
-            alerts = list(reversed(self._alerts))
-
+        """Get recent alerts, newest first."""
+        # Get recent alerts from database
         if level:
-            alerts = [a for a in alerts if a.level == level.upper()]
-        if category:
-            alerts = [a for a in alerts if a.category == category]
-        if unacknowledged_only:
-            alerts = [a for a in alerts if not a.acknowledged]
+            db_alerts = self._repo.get_by_level(level.upper(), limit=limit * 2)
+        elif unacknowledged_only:
+            db_alerts = self._repo.get_active(limit=limit * 2)
+        else:
+            db_alerts = self._repo.get_recent(hours=24 * 7, limit=limit * 2)  # Last week
 
-        return [a.to_dict() for a in alerts[:limit]]
+        # Convert to Alert format
+        alerts = []
+        for db_alert in db_alerts:
+            metadata = db_alert.metadata or {}
+            alert_dict = {
+                'id': db_alert.id,
+                'level': db_alert.level,
+                'title': metadata.get('title', ''),
+                'message': db_alert.message,
+                'category': metadata.get('category', 'system'),
+                'symbol': metadata.get('symbol', ''),
+                'timestamp': db_alert.timestamp,
+                'acknowledged': metadata.get('acknowledged', False) or not db_alert.active
+            }
+
+            # Apply filters
+            if category and alert_dict['category'] != category:
+                continue
+            if unacknowledged_only and alert_dict['acknowledged']:
+                continue
+
+            alerts.append(alert_dict)
+
+        return alerts[:limit]
 
     def acknowledge(self, alert_id: int) -> bool:
-        """Mark an alert as acknowledged. (Phase 4C: Database-backed)"""
-        # Phase 4C: Resolve in database (acknowledged = resolved)
-        if self._use_database and self._repo:
-            try:
-                return self._repo.resolve(alert_id)
-            except Exception as e:
-                logger.error(f"Failed to acknowledge alert in database: {e}, using fallback")
-                # Fall through to JSON fallback
-
-        # JSON fallback
-        with self._lock:
-            for alert in self._alerts:
-                if alert.id == alert_id:
-                    alert.acknowledged = True
-                    self._save()
-                    return True
-        return False
+        """Mark an alert as acknowledged."""
+        return self._repo.resolve(alert_id)
 
     def acknowledge_all(self) -> int:
-        """Mark all alerts as acknowledged. Returns count. (Phase 4C: Database-backed)"""
-        # Phase 4C: Resolve all in database
-        if self._use_database and self._repo:
-            try:
-                return self._repo.resolve_all()
-            except Exception as e:
-                logger.error(f"Failed to acknowledge all alerts in database: {e}, using fallback")
-                # Fall through to JSON fallback
-
-        # JSON fallback
-        with self._lock:
-            count = 0
-            for alert in self._alerts:
-                if not alert.acknowledged:
-                    alert.acknowledged = True
-                    count += 1
-            if count > 0:
-                self._save()
-            return count
+        """Mark all alerts as acknowledged. Returns count."""
+        return self._repo.resolve_all()
 
     def clear_old(self, days: int = 7) -> int:
-        """Remove alerts older than N days. Returns count removed. (Phase 4C: Database-backed)"""
-        # Phase 4C: Delete old from database
-        if self._use_database and self._repo:
-            try:
-                return self._repo.delete_old(days=days)
-            except Exception as e:
-                logger.error(f"Failed to delete old alerts from database: {e}, using fallback")
-                # Fall through to JSON fallback
-
-        # JSON fallback
-        cutoff = datetime.now() - timedelta(days=days)
-        cutoff_iso = cutoff.isoformat()
-
-        with self._lock:
-            before = len(self._alerts)
-            self._alerts = [
-                a for a in self._alerts if a.timestamp >= cutoff_iso
-            ]
-            removed = before - len(self._alerts)
-            if removed > 0:
-                self._save()
-            return removed
+        """Remove alerts older than N days. Returns count removed."""
+        return self._repo.delete_old(days=days)
 
     def get_summary(self) -> Dict[str, Any]:
-        """Get alert counts by level. (Phase 4C: Database-backed)"""
-        # Phase 4C: Get statistics from database
-        if self._use_database and self._repo:
-            try:
-                stats = self._repo.get_statistics(hours=24 * 7)  # Last week
-                return {
-                    'total': stats['total'],
-                    'unacknowledged': stats['active'],
-                    'critical': stats['critical'],
-                    'warning': stats['warning'],
-                    'info': stats['info'],
-                }
-            except Exception as e:
-                logger.error(f"Failed to get alert statistics from database: {e}, using fallback")
-                # Fall through to JSON fallback
-
-        # JSON fallback
-        with self._lock:
-            total = len(self._alerts)
-            unack = sum(1 for a in self._alerts if not a.acknowledged)
-            by_level = {}
-            for a in self._alerts:
-                if not a.acknowledged:
-                    by_level[a.level] = by_level.get(a.level, 0) + 1
-
+        """Get alert counts by level."""
+        stats = self._repo.get_statistics(hours=24 * 7)  # Last week
         return {
-            'total': total,
-            'unacknowledged': unack,
-            'critical': by_level.get('CRITICAL', 0),
-            'warning': by_level.get('WARNING', 0),
-            'info': by_level.get('INFO', 0),
+            'total': stats['total'],
+            'unacknowledged': stats['active'],
+            'critical': stats['critical'],
+            'warning': stats['warning'],
+            'info': stats['info'],
         }
 
     # ------------------------------------------------------------------
@@ -454,48 +290,6 @@ class AlertManager:
             symbol=symbol,
         )
 
-    # ------------------------------------------------------------------
-    # Persistence
-    # ------------------------------------------------------------------
-
-    def _save(self):
-        """Atomic write to JSON file. Caller must hold self._lock."""
-        try:
-            data = {
-                'next_id': self._next_id,
-                'alerts': [a.to_dict() for a in self._alerts],
-            }
-            fd, tmp_path = tempfile.mkstemp(
-                dir=self._data_dir, suffix='.tmp'
-            )
-            try:
-                with os.fdopen(fd, 'w') as f:
-                    json.dump(data, f, indent=2, default=str)
-                os.replace(tmp_path, self._file_path)
-            except Exception:
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
-                raise
-        except Exception as e:
-            logger.error(f"Failed to save alerts: {e}")
-
-    def _load(self):
-        """Load alerts from JSON file."""
-        try:
-            if not os.path.exists(self._file_path):
-                return
-            with open(self._file_path, 'r') as f:
-                data = json.load(f)
-
-            self._next_id = data.get('next_id', 1)
-            for d in data.get('alerts', []):
-                self._alerts.append(Alert(**d))
-
-            logger.info(f"Loaded {len(self._alerts)} alerts (next_id={self._next_id})")
-        except Exception as e:
-            logger.error(f"Failed to load alerts: {e}")
-            self._alerts = []
-            self._next_id = 1
 
 
 # ------------------------------------------------------------------

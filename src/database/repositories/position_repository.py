@@ -1,9 +1,6 @@
-"""Position Repository - Phase 4: Database-Backed"""
+"""Position Repository - Database-Backed"""
 
-import json
-import os
 from datetime import datetime, date
-from pathlib import Path
 from typing import List, Optional
 
 from ..models.position import Position
@@ -15,31 +12,20 @@ class PositionRepository:
     """
     Repository for active position data access.
 
-    Phase 4: Database-backed storage (active_positions table)
-    Fallback: JSON-based storage for backward compatibility
+    Database-backed storage using active_positions table.
     Provides unified API for position management.
     """
 
-    def __init__(self, db_name: str = 'trade_history', positions_file: str = 'data/active_positions.json'):
+    def __init__(self, db_name: str = 'trade_history'):
         """
         Initialize position repository.
 
         Args:
             db_name: Database name (default: trade_history)
-            positions_file: Path to JSON positions file (fallback)
         """
         self.db = get_db_manager(db_name)
-        self.positions_file = Path(positions_file)
         self._cache = None
         self._cache_time = None
-        self._use_database = True  # Phase 4: Prefer database
-
-        # Check if database table exists
-        try:
-            self.db.fetch_one("SELECT COUNT(*) FROM active_positions")
-        except Exception:
-            logger.warning("active_positions table not found, using JSON fallback")
-            self._use_database = False
 
     def _load_from_database(self) -> List[Position]:
         """
@@ -66,38 +52,6 @@ class PositionRepository:
             logger.error(f"Failed to load positions from database: {e}")
             return []
 
-    def _load_from_json(self) -> List[Position]:
-        """
-        Load positions from JSON file (fallback).
-
-        Returns:
-            List of Position objects
-        """
-        if not self.positions_file.exists():
-            return []
-
-        try:
-            with open(self.positions_file, 'r') as f:
-                data = json.load(f)
-
-            # Handle both dict format and positions dict
-            if 'positions' in data:
-                data = data['positions']
-
-            # Convert to Position objects
-            positions = []
-            for symbol, pos_data in data.items():
-                try:
-                    position = Position.from_json_dict(pos_data)
-                    positions.append(position)
-                except Exception as e:
-                    logger.warning(f"Failed to load position {symbol}: {e}")
-
-            return positions
-
-        except Exception as e:
-            logger.error(f"Failed to load positions from JSON: {e}")
-            return []
 
     def _save_to_database(self, positions: List[Position]) -> bool:
         """
@@ -162,44 +116,10 @@ class PositionRepository:
             logger.error(f"Failed to save positions to database: {e}")
             return False
 
-    def _save_to_json(self, positions: List[Position]) -> bool:
-        """
-        Save positions to JSON file (fallback/backup).
-
-        Args:
-            positions: List of Position objects
-
-        Returns:
-            True if successful
-        """
-        try:
-            # Create directory if needed
-            self.positions_file.parent.mkdir(parents=True, exist_ok=True)
-
-            # Convert to dict format
-            data = {}
-            for position in positions:
-                data[position.symbol] = position.to_dict()
-
-            # Save with atomic write
-            temp_file = self.positions_file.with_suffix('.tmp')
-            with open(temp_file, 'w') as f:
-                json.dump({'positions': data, 'last_updated': datetime.now().isoformat()}, f, indent=2)
-
-            # Atomic rename
-            temp_file.replace(self.positions_file)
-
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to save positions to JSON: {e}")
-            return False
 
     def get_all(self, use_cache: bool = True) -> List[Position]:
         """
         Get all active positions.
-
-        Phase 4: Loads from database (primary) or JSON (fallback)
 
         Args:
             use_cache: Use cached positions if available
@@ -212,11 +132,8 @@ class PositionRepository:
             if (datetime.now() - self._cache_time).total_seconds() < 5:
                 return self._cache
 
-        # Phase 4: Load from database or JSON
-        if self._use_database:
-            positions = self._load_from_database()
-        else:
-            positions = self._load_from_json()
+        # Load from database
+        positions = self._load_from_database()
 
         # Update cache
         self._cache = positions
@@ -228,36 +145,23 @@ class PositionRepository:
         """
         Get position for specific symbol.
 
-        Phase 4: Direct database query when available
-
         Args:
             symbol: Stock symbol
 
         Returns:
             Position object or None
         """
-        # Phase 4: Direct query if using database
-        if self._use_database:
-            try:
-                row = self.db.fetch_one(
-                    "SELECT * FROM active_positions WHERE symbol = ?",
-                    (symbol,)
-                )
-                if row:
-                    return Position.from_row(dict(row))
-                return None
-            except Exception as e:
-                logger.error(f"Database query failed: {e}")
-                # Fall through to fallback
-
-        # Fallback: Load all and filter
-        positions = self.get_all()
-
-        for position in positions:
-            if position.symbol == symbol:
-                return position
-
-        return None
+        try:
+            row = self.db.fetch_one(
+                "SELECT * FROM active_positions WHERE symbol = ?",
+                (symbol,)
+            )
+            if row:
+                return Position.from_row(dict(row))
+            return None
+        except Exception as e:
+            logger.error(f"Database query failed: {e}")
+            return None
     
     def get_by_strategy(self, strategy: str) -> List[Position]:
         """
@@ -289,8 +193,6 @@ class PositionRepository:
         """
         Create new position.
 
-        Phase 4: Saves to database (primary) and JSON (backup)
-
         Args:
             position: Position object
 
@@ -310,23 +212,12 @@ class PositionRepository:
         # Add new position
         positions.append(position)
 
-        # Phase 4: Save to database and JSON
-        success = False
-        if self._use_database:
-            success = self._save_to_database(positions)
-        else:
-            success = self._save_to_json(positions)
-
-        # Always save JSON as backup
-        self._save_to_json(positions)
-
-        return success
+        # Save to database
+        return self._save_to_database(positions)
     
     def update(self, position: Position) -> bool:
         """
         Update existing position.
-
-        Phase 4: Updates database (primary) and JSON (backup)
 
         Args:
             position: Position object
@@ -351,23 +242,12 @@ class PositionRepository:
         if not updated:
             raise ValueError(f"Position for {position.symbol} not found")
 
-        # Phase 4: Save to database and JSON
-        success = False
-        if self._use_database:
-            success = self._save_to_database(positions)
-        else:
-            success = self._save_to_json(positions)
-
-        # Always save JSON as backup
-        self._save_to_json(positions)
-
-        return success
+        # Save to database
+        return self._save_to_database(positions)
     
     def delete(self, symbol: str) -> bool:
         """
         Delete position by symbol.
-
-        Phase 4: Deletes from database (primary) and JSON (backup)
 
         Args:
             symbol: Stock symbol
@@ -384,17 +264,8 @@ class PositionRepository:
         if len(new_positions) == len(positions):
             raise ValueError(f"Position for {symbol} not found")
 
-        # Phase 4: Save to database and JSON
-        success = False
-        if self._use_database:
-            success = self._save_to_database(new_positions)
-        else:
-            success = self._save_to_json(new_positions)
-
-        # Always save JSON as backup
-        self._save_to_json(new_positions)
-
-        return success
+        # Save to database
+        return self._save_to_database(new_positions)
     
     def count(self) -> int:
         """
