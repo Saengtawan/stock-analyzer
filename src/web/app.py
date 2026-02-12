@@ -2952,6 +2952,498 @@ def api_rapid_calendar():
         return jsonify({'error': str(e)}), 500
 
 
+# ============================================================================
+# Alert Management APIs (Phase 4B)
+# ============================================================================
+
+@app.route('/api/rapid/alerts')
+def api_rapid_alerts():
+    """Get active alerts"""
+    try:
+        from database import AlertsRepository
+
+        repo = AlertsRepository()
+        alerts = repo.get_active(limit=100)
+
+        return jsonify({
+            'success': True,
+            'count': len(alerts),
+            'alerts': [alert.to_dict() for alert in alerts]
+        })
+
+    except Exception as e:
+        logger.error(f"Alerts API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/rapid/alerts/all')
+def api_rapid_alerts_all():
+    """Get all alerts (active and resolved)"""
+    try:
+        from database import AlertsRepository
+
+        repo = AlertsRepository()
+        level = request.args.get('level', None)
+        hours = int(request.args.get('hours', 24))
+        limit = int(request.args.get('limit', 100))
+
+        if level:
+            alerts = repo.get_by_level(level, limit=limit)
+        else:
+            alerts = repo.get_recent(hours=hours, limit=limit)
+
+        return jsonify({
+            'success': True,
+            'count': len(alerts),
+            'alerts': [alert.to_dict() for alert in alerts]
+        })
+
+    except Exception as e:
+        logger.error(f"Alerts API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/rapid/alerts/statistics')
+def api_rapid_alerts_statistics():
+    """Get alert statistics"""
+    try:
+        from database import AlertsRepository
+
+        repo = AlertsRepository()
+        hours = int(request.args.get('hours', 24))
+
+        stats = repo.get_statistics(hours=hours)
+
+        return jsonify({
+            'success': True,
+            'statistics': stats
+        })
+
+    except Exception as e:
+        logger.error(f"Alerts statistics API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/rapid/alerts', methods=['POST'])
+def api_rapid_alerts_create():
+    """Create new alert"""
+    try:
+        from database import AlertsRepository, Alert
+        from datetime import datetime
+
+        data = request.get_json()
+
+        if not data or 'message' not in data:
+            return jsonify({'error': 'Message is required'}), 400
+
+        # Create alert
+        alert = Alert(
+            level=data.get('level', 'INFO'),
+            message=data['message'],
+            timestamp=data.get('timestamp', datetime.now().isoformat()),
+            active=data.get('active', True),
+            metadata=data.get('metadata')
+        )
+
+        repo = AlertsRepository()
+        alert_id = repo.create(alert)
+
+        if alert_id:
+            return jsonify({
+                'success': True,
+                'alert_id': alert_id
+            })
+        else:
+            return jsonify({'error': 'Failed to create alert'}), 500
+
+    except Exception as e:
+        logger.error(f"Create alert API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/rapid/alerts/<int:alert_id>/resolve', methods=['PUT'])
+def api_rapid_alerts_resolve(alert_id):
+    """Resolve alert by ID"""
+    try:
+        from database import AlertsRepository
+
+        repo = AlertsRepository()
+        success = repo.resolve(alert_id)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'Alert {alert_id} resolved'
+            })
+        else:
+            return jsonify({'error': 'Failed to resolve alert'}), 500
+
+    except Exception as e:
+        logger.error(f"Resolve alert API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/rapid/alerts/cleanup', methods=['DELETE'])
+def api_rapid_alerts_cleanup():
+    """Cleanup old resolved alerts"""
+    try:
+        from database import AlertsRepository
+
+        repo = AlertsRepository()
+        days = int(request.args.get('days', 30))
+
+        deleted = repo.delete_old(days=days)
+
+        return jsonify({
+            'success': True,
+            'deleted': deleted,
+            'message': f'Deleted {deleted} old alerts'
+        })
+
+    except Exception as e:
+        logger.error(f"Cleanup alerts API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# Health Check & Monitoring APIs (Phase 5A)
+# ============================================================================
+
+@app.route('/api/health')
+def api_health():
+    """
+    Quick health check endpoint.
+    Returns basic system status for load balancers / monitoring.
+    """
+    try:
+        from monitoring import HealthChecker
+
+        checker = HealthChecker()
+        result = checker.check_quick()
+
+        status_code = 200 if result['status'] == 'ok' else 503
+
+        return jsonify(result), status_code
+
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Health check failed: {str(e)}',
+            'timestamp': datetime.now().isoformat()
+        }), 503
+
+
+@app.route('/api/health/detailed')
+def api_health_detailed():
+    """
+    Detailed health check endpoint.
+    Returns comprehensive system status including all components.
+    """
+    try:
+        from monitoring import HealthChecker
+
+        checker = HealthChecker()
+        result = checker.check_all()
+
+        status_code = 200 if result['status'] in ('ok', 'warning') else 503
+
+        return jsonify(result), status_code
+
+    except Exception as e:
+        logger.error(f"Detailed health check error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Health check failed: {str(e)}',
+            'timestamp': datetime.now().isoformat()
+        }), 503
+
+
+# ============================================================================
+# Performance Metrics APIs (Phase 5B)
+# ============================================================================
+
+@app.route('/api/metrics')
+def api_metrics():
+    """
+    Get performance metrics and statistics.
+    """
+    try:
+        from monitoring import get_performance_monitor
+
+        monitor = get_performance_monitor()
+        hours = int(request.args.get('hours', 24))
+
+        stats = monitor.get_all_stats(hours=hours)
+
+        return jsonify({
+            'success': True,
+            'metrics': stats
+        })
+
+    except Exception as e:
+        logger.error(f"Metrics API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/metrics/summary')
+def api_metrics_summary():
+    """
+    Get performance summary (health score).
+    """
+    try:
+        from monitoring import get_performance_monitor
+
+        monitor = get_performance_monitor()
+        summary = monitor.get_summary()
+
+        return jsonify({
+            'success': True,
+            'summary': summary
+        })
+
+    except Exception as e:
+        logger.error(f"Metrics summary API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/metrics/queries')
+def api_metrics_queries():
+    """
+    Get query performance statistics.
+    """
+    try:
+        from monitoring import get_performance_monitor
+
+        monitor = get_performance_monitor()
+        component = request.args.get('component', None)
+        hours = int(request.args.get('hours', 24))
+
+        stats = monitor.get_query_stats(component=component, hours=hours)
+
+        return jsonify({
+            'success': True,
+            'component': component,
+            'hours': hours,
+            'statistics': stats
+        })
+
+    except Exception as e:
+        logger.error(f"Query metrics API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/metrics/repositories')
+def api_metrics_repositories():
+    """
+    Get repository performance statistics.
+    """
+    try:
+        from monitoring import get_performance_monitor
+
+        monitor = get_performance_monitor()
+        hours = int(request.args.get('hours', 24))
+
+        stats = monitor.get_repository_stats(hours=hours)
+
+        return jsonify({
+            'success': True,
+            'hours': hours,
+            'repositories': stats
+        })
+
+    except Exception as e:
+        logger.error(f"Repository metrics API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# Unified Monitoring Dashboard (Phase 5C)
+# ============================================================================
+
+@app.route('/api/monitor/status')
+def api_monitor_status():
+    """
+    Unified monitoring dashboard - combines health checks and performance metrics.
+    Returns comprehensive system status for monitoring dashboards.
+    """
+    try:
+        from monitoring import HealthChecker, get_performance_monitor
+
+        # Get health checks
+        health_checker = HealthChecker()
+        health = health_checker.check_all()
+
+        # Get performance metrics
+        perf_monitor = get_performance_monitor()
+        metrics = perf_monitor.get_summary()
+
+        # Combine into unified status
+        status = {
+            'timestamp': datetime.now().isoformat(),
+            'overall_status': health['status'],
+            'health': {
+                'status': health['status'],
+                'message': health['message'],
+                'summary': health['summary'],
+                'checks': health['checks']
+            },
+            'performance': {
+                'health_score': metrics['health_score'],
+                'status': metrics['status'],
+                'avg_query_ms': metrics['avg_query_time_ms'],
+                'avg_api_ms': metrics['avg_api_time_ms'],
+                'cache_hit_rate': metrics['cache_hit_rate'],
+                'api_success_rate': metrics['api_success_rate']
+            },
+            'system': {
+                'uptime_info': 'Available via health checks',
+                'database_ok': any(c['component'] == 'database_connectivity' and c['status'] == 'ok' for c in health['checks']),
+                'repositories_ok': all(
+                    c['status'] == 'ok'
+                    for c in health['checks']
+                    if 'repository' in c['component']
+                )
+            }
+        }
+
+        # Determine HTTP status code
+        status_code = 200 if health['status'] in ('ok', 'warning') else 503
+
+        return jsonify(status), status_code
+
+    except Exception as e:
+        logger.error(f"Monitor status API error: {e}")
+        return jsonify({
+            'timestamp': datetime.now().isoformat(),
+            'overall_status': 'error',
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/monitor/dashboard')
+def api_monitor_dashboard():
+    """
+    Complete monitoring dashboard data.
+    Includes health, metrics, and database stats.
+    """
+    try:
+        from monitoring import HealthChecker, get_performance_monitor
+
+        # Get all data
+        health_checker = HealthChecker()
+        perf_monitor = get_performance_monitor()
+
+        health = health_checker.check_all()
+        perf_summary = perf_monitor.get_summary()
+        all_metrics = perf_monitor.get_all_stats(hours=24)
+        repo_stats = perf_monitor.get_repository_stats(hours=24)
+
+        dashboard = {
+            'timestamp': datetime.now().isoformat(),
+            'overall_health': health['status'],
+            'performance_score': perf_summary['health_score'],
+
+            'health_checks': {
+                'status': health['status'],
+                'message': health['message'],
+                'summary': health['summary'],
+                'details': health['checks']
+            },
+
+            'performance_summary': perf_summary,
+
+            'metrics_24h': {
+                'queries': all_metrics['queries'],
+                'api': all_metrics['api'],
+                'cache': all_metrics['cache'],
+                'database': all_metrics['database']
+            },
+
+            'repository_performance': repo_stats
+        }
+
+        return jsonify({
+            'success': True,
+            'dashboard': dashboard
+        })
+
+    except Exception as e:
+        logger.error(f"Monitor dashboard API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# Automatic Monitoring Control APIs (Phase 5D - Bonus)
+# ============================================================================
+
+@app.route('/api/monitor/auto/status')
+def api_monitor_auto_status():
+    """Get automatic monitoring status"""
+    try:
+        from monitoring import get_auto_monitor
+
+        monitor = get_auto_monitor()
+        stats = monitor.get_stats()
+
+        return jsonify({
+            'success': True,
+            'auto_monitoring': stats
+        })
+
+    except Exception as e:
+        logger.error(f"Auto monitor status API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/monitor/auto/start', methods=['POST'])
+def api_monitor_auto_start():
+    """Start automatic monitoring"""
+    try:
+        from monitoring import get_auto_monitor
+
+        data = request.get_json() or {}
+        interval = data.get('interval', 300)  # 5 minutes default
+        threshold = data.get('threshold', 70.0)
+
+        monitor = get_auto_monitor()
+        monitor.health_check_interval = interval
+        monitor.alert_threshold = threshold
+        monitor.start()
+
+        return jsonify({
+            'success': True,
+            'message': 'Automatic monitoring started',
+            'config': {
+                'interval': interval,
+                'threshold': threshold
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Auto monitor start API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/monitor/auto/stop', methods=['POST'])
+def api_monitor_auto_stop():
+    """Stop automatic monitoring"""
+    try:
+        from monitoring import get_auto_monitor
+
+        monitor = get_auto_monitor()
+        monitor.stop()
+
+        return jsonify({
+            'success': True,
+            'message': 'Automatic monitoring stopped'
+        })
+
+    except Exception as e:
+        logger.error(f"Auto monitor stop API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/config/market')
 def api_config_market():
     """Get market configuration (hours, PDT settings) for frontend (v6.x - Single Source of Truth)"""
@@ -4690,6 +5182,177 @@ def api_alerts_summary():
         return jsonify({'error': str(e)}), 500
 
 
+
+# ============================================================================
+# DATABASE API (Phase 3: Data Access Layer Integration)
+# ============================================================================
+
+@app.route('/api/db/trades/recent')
+def api_db_trades_recent():
+    """Get recent trades using TradeRepository."""
+    try:
+        from database import TradeRepository
+
+        days = request.args.get('days', 7, type=int)
+        limit = request.args.get('limit', 100, type=int)
+
+        repo = TradeRepository()
+        trades = repo.get_recent_trades(days=days, limit=limit)
+
+        return jsonify({
+            'success': True,
+            'count': len(trades),
+            'trades': [t.to_dict() for t in trades]
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get recent trades: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/db/trades/stats')
+def api_db_trades_stats():
+    """Get trade statistics using TradeRepository."""
+    try:
+        from database import TradeRepository
+        from datetime import date, timedelta
+
+        days = request.args.get('days', 30, type=int)
+
+        repo = TradeRepository()
+
+        # Get stats for last N days
+        start_date = date.today() - timedelta(days=days)
+        stats = repo.get_statistics(start_date=start_date)
+
+        # Get all-time stats
+        all_time_stats = repo.get_statistics()
+
+        return jsonify({
+            'success': True,
+            'period_days': days,
+            'period_stats': stats,
+            'all_time_stats': all_time_stats
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get trade stats: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/db/trades/symbol/<symbol>')
+def api_db_trades_by_symbol(symbol):
+    """Get trades for specific symbol using TradeRepository."""
+    try:
+        from database import TradeRepository
+
+        limit = request.args.get('limit', 50, type=int)
+
+        repo = TradeRepository()
+        trades = repo.get_by_symbol(symbol.upper(), limit=limit)
+
+        return jsonify({
+            'success': True,
+            'symbol': symbol.upper(),
+            'count': len(trades),
+            'trades': [t.to_dict() for t in trades]
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get trades for {symbol}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/db/positions')
+def api_db_positions():
+    """Get active positions using PositionRepository."""
+    try:
+        from database import PositionRepository
+
+        repo = PositionRepository()
+        positions = repo.get_all()
+
+        # Calculate total exposure
+        total_exposure = repo.get_total_exposure()
+
+        return jsonify({
+            'success': True,
+            'count': len(positions),
+            'total_exposure': total_exposure,
+            'positions': [p.to_dict() for p in positions]
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get positions: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/db/prices/<symbol>')
+def api_db_prices(symbol):
+    """Get price history using StockDataRepository."""
+    try:
+        from database import StockDataRepository
+
+        days = request.args.get('days', 30, type=int)
+
+        repo = StockDataRepository()
+
+        # Get latest price
+        latest = repo.get_latest_price(symbol.upper())
+
+        # Get price history
+        prices = repo.get_prices(symbol.upper(), days=days)
+
+        return jsonify({
+            'success': True,
+            'symbol': symbol.upper(),
+            'latest': latest.to_dict() if latest else None,
+            'history_count': len(prices),
+            'history': [p.to_dict() for p in prices[:100]]  # Limit to 100 for response size
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get prices for {symbol}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/db/stats')
+def api_db_stats():
+    """Get database statistics."""
+    try:
+        from database import TradeRepository, PositionRepository, StockDataRepository
+
+        trade_repo = TradeRepository()
+        position_repo = PositionRepository()
+        stock_repo = StockDataRepository()
+
+        # Get counts
+        stats = {
+            'trades': {
+                'total': trade_repo.get_statistics().get('total_trades', 0),
+                'open': len(trade_repo.get_open_trades()),
+                'recent_7d': len(trade_repo.get_recent_trades(days=7))
+            },
+            'positions': {
+                'count': position_repo.count(),
+                'exposure': position_repo.get_total_exposure(),
+                'symbols': position_repo.get_symbols()
+            },
+            'stock_data': {
+                'symbols': stock_repo.get_symbols_count(),
+                'prices': stock_repo.get_price_count()
+            }
+        }
+
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get database stats: {e}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Load environment variables from .env file (v4.7)
     from dotenv import load_dotenv
@@ -4705,4 +5368,3 @@ if __name__ == '__main__':
     start_price_streamer()
 
     # Use socketio.run instead of app.run for WebSocket support
-    socketio.run(app, debug=False, host='0.0.0.0', port=5000, use_reloader=False, allow_unsafe_werkzeug=True)
