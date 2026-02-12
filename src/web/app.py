@@ -3113,7 +3113,8 @@ def api_rapid_alerts_cleanup():
 def api_health():
     """
     Quick health check endpoint.
-    Returns basic system status for load balancers / monitoring.
+    Returns basic system status for UI and monitoring.
+    Format compatible with frontend health indicator.
     """
     try:
         from monitoring import HealthChecker
@@ -3121,15 +3122,46 @@ def api_health():
         checker = HealthChecker()
         result = checker.check_quick()
 
-        status_code = 200 if result['status'] == 'ok' else 503
+        # Transform to frontend format
+        checks = {}
+        issues = []
 
-        return jsonify(result), status_code
+        for check in result.get('checks', []):
+            check_name = check.get('component', 'unknown')
+            is_ok = check.get('status') == 'ok'
+            detail = check.get('message', '')
+
+            checks[check_name] = {
+                'ok': is_ok,
+                'detail': detail
+            }
+
+            if not is_ok:
+                issues.append(f"{check_name}: {detail}")
+
+        # Build response in frontend format
+        response = {
+            'healthy': result.get('status') == 'ok',
+            'checks': checks,
+            'issues': issues,
+            'timestamp': result.get('timestamp', datetime.now().isoformat())
+        }
+
+        status_code = 200 if response['healthy'] else 503
+
+        return jsonify(response), status_code
 
     except Exception as e:
         logger.error(f"Health check error: {e}")
         return jsonify({
-            'status': 'error',
-            'message': f'Health check failed: {str(e)}',
+            'healthy': False,
+            'checks': {
+                'system': {
+                    'ok': False,
+                    'detail': f'Health check failed: {str(e)}'
+                }
+            },
+            'issues': [f'Health check failed: {str(e)}'],
             'timestamp': datetime.now().isoformat()
         }), 503
 
