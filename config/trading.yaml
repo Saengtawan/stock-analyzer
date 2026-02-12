@@ -31,7 +31,7 @@ rapid_rotation:
 
   # -- Position Management --
   max_positions: 5            # Max concurrent positions (note: existing uses 3)
-  max_hold_days: 5            # Max days to hold (note: existing uses 10)
+  max_hold_days: 7            # Max days to hold (v6.19: 5→7 for swing trades)
   position_size_pct: 1.0      # Position size (% of equity)
   max_position_pct: 10.0      # Max position size (% of equity)
 
@@ -80,7 +80,7 @@ rapid_rotation:
   entry_block_minutes_after_open: 15       # Layer 1: Block first 15 min after open
   entry_allow_discount_exception: true     # Allow if price drops 0.5% from signal
   entry_discount_exception_pct: -0.5       # Exception threshold
-  entry_vwap_max_distance_pct: 1.5         # Layer 2: Block if > 1.5% above VWAP
+  entry_vwap_max_distance_pct: 2.0         # Layer 2: Block if > 2.0% above VWAP (v6.19: relaxed)
   entry_vwap_allow_below: true             # Always allow if below VWAP
   entry_limit_order_only: true             # Layer 3: Use limit orders only
   entry_max_chase_pct: 0.2                 # Max chase above signal price
@@ -216,7 +216,7 @@ sessions:
 
 # -- Continuous Scan (v6.3) --
 continuous_scan_enabled: true  # v6.17: RE-ENABLED after fixing WebSocket leak
-continuous_scan_interval_minutes: 10       # v6.17: Slower (was 5) to reduce load
+continuous_scan_interval_minutes: 5        # v6.19: Faster (10→5) to catch more opportunities
 continuous_scan_volatile_interval: 5       # v6.17: Slower (was 3) to reduce load
 continuous_scan_volatile_end_hour: 11      # Volatile period ends at 11:00
 continuous_scan_midday_hour: 12            # Switch to afternoon params after this hour
