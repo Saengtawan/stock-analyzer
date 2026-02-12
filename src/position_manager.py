@@ -121,10 +121,11 @@ class PositionManager:
             portfolio_file: Path to portfolio JSON file (default: rapid_portfolio.json)
         """
         if portfolio_file is None:
-            # Default to rapid_portfolio.json in project root
+            # v6.19: Default to active_positions.json (Auto Trading Engine state file)
             portfolio_file = os.path.join(
                 os.path.dirname(os.path.dirname(__file__)),
-                'rapid_portfolio.json'
+                'data',
+                'active_positions.json'
             )
 
         self.portfolio_file = os.path.abspath(portfolio_file)

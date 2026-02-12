@@ -436,7 +436,7 @@ class AlpacaBroker(BrokerInterface):
                 last=float(snapshot.latest_trade.p) if snapshot.latest_trade else 0,
                 volume=int(snapshot.daily_bar.v) if snapshot.daily_bar else 0,
                 bid_size=int(snapshot.latest_quote.bs) if snapshot.latest_quote else 0,
-                ask_size=int(snapshot.latest_quote.as_) if snapshot.latest_quote else 0,
+                ask_size=int(snapshot.latest_quote.ask_size) if snapshot.latest_quote else 0,
                 high=float(snapshot.daily_bar.h) if snapshot.daily_bar else 0,
                 low=float(snapshot.daily_bar.l) if snapshot.daily_bar else 0,
                 open=float(snapshot.daily_bar.o) if snapshot.daily_bar else 0,

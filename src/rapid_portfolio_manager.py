@@ -171,7 +171,8 @@ class RapidPortfolioManager:
 
     # Use absolute path to project root for portfolio file
     PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    PORTFOLIO_FILE = os.path.join(PROJECT_ROOT, "rapid_portfolio.json")
+    # v6.19: Use active_positions.json (Auto Trading Engine state file) as single source of truth
+    PORTFOLIO_FILE = os.path.join(PROJECT_ROOT, "data", "active_positions.json")
 
     # v4.6: ATR-based SL/TP (fallback defaults)
     SL_ATR_MULTIPLIER = 1.5      # SL = 1.5 × ATR
