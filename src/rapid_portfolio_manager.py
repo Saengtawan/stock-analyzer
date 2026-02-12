@@ -38,6 +38,9 @@ import pandas as pd
 import numpy as np
 from loguru import logger
 
+# Database layer integration
+from database import PositionRepository as DBPositionRepository
+
 # v6.7: Import unified configuration
 try:
     from config.strategy_config import RapidRotationConfig
@@ -279,63 +282,110 @@ class RapidPortfolioManager:
 
     def load_portfolio(self) -> None:
         """
-        Load portfolio from file (v5.0: TRUE single source of truth)
+        Load portfolio from database.
 
-        No translation needed - Position class uses same field names as engine:
+        Uses PositionRepository (database-backed) for active positions.
+        No translation needed - Position class uses same field names as database:
         - qty, current_sl_price, tp_price, peak_price, entry_time
         """
-        if os.path.exists(self.portfolio_file):
-            try:
-                with open(self.portfolio_file, 'r') as f:
-                    data = json.load(f)
-                    for symbol, pos_data in data.get('positions', {}).items():
-                        # v5.0: Direct load - no field mapping needed!
-                        # Position class now uses engine field names
+        # Load from database
+        repo = DBPositionRepository()
+        db_positions = repo.get_all()
 
-                        # Set defaults for missing optional fields
-                        if 'trailing_active' not in pos_data:
-                            pos_data['trailing_active'] = False
-                        if 'days_held' not in pos_data:
-                            pos_data['days_held'] = 0
-                        if 'sl_pct' not in pos_data:
-                            pos_data['sl_pct'] = 4.0
-                        if 'tp_pct' not in pos_data:
-                            pos_data['tp_pct'] = 8.0
-                        if 'atr_pct' not in pos_data:
-                            pos_data['atr_pct'] = 3.0
+        # Clear existing positions
+        self._positions_dict.clear()
 
-                        # Create Position directly - no translation!
-                        self.positions[symbol] = Position(**pos_data)
+        # Convert DB positions to local Position objects
+        for db_pos in db_positions:
+            if not db_pos.symbol:  # Skip empty positions
+                continue
 
-            except Exception as e:
-                logger.error(f"Error loading portfolio: {e}")
-                import traceback
-                traceback.print_exc()
+            # Database Position model already has the right field names
+            # Just need to handle optional fields and create our Position class
+            pos_dict = {
+                'symbol': db_pos.symbol,
+                'entry_time': db_pos.entry_date or datetime.now().isoformat(),
+                'entry_price': db_pos.entry_price or 0.0,
+                'qty': db_pos.qty or 0,
+                'current_sl_price': db_pos.stop_loss or 0.0,
+                'peak_price': db_pos.peak_price or db_pos.entry_price or 0.0,
+                'tp_price': db_pos.take_profit or 0.0,
+                'trailing_active': db_pos.trailing_stop or False,
+                'days_held': db_pos.day_held or 0,
+                'sl_pct': db_pos.sl_pct or 2.5,
+                'tp_pct': db_pos.tp_pct or 5.0,
+                'atr_pct': db_pos.entry_atr_pct or 0.0,
+                'sl_order_id': db_pos.sl_order_id,
+                'tp_order_id': db_pos.tp_order_id,
+                'entry_order_id': db_pos.entry_order_id,
+                'sector': db_pos.sector,
+                'trough_price': db_pos.trough_price,
+                'source': db_pos.source,
+                'signal_score': db_pos.signal_score or 0,
+                'entry_mode': db_pos.mode,
+                'entry_regime': db_pos.regime,
+                'entry_rsi': db_pos.entry_rsi,
+                'momentum_5d': db_pos.momentum_5d,
+            }
+
+            # Set defaults for missing fields
+            if pos_dict['current_sl_price'] == 0.0 and pos_dict['entry_price'] > 0:
+                pos_dict['current_sl_price'] = pos_dict['entry_price'] * 0.975
+            if pos_dict['tp_price'] == 0.0 and pos_dict['entry_price'] > 0:
+                pos_dict['tp_price'] = pos_dict['entry_price'] * 1.05
+
+            self._positions_dict[db_pos.symbol] = Position(**pos_dict)
+
+        logger.info(f"✅ Loaded {len(self._positions_dict)} positions from database")
 
     def save_portfolio(self) -> None:
         """
-        Save portfolio to file (v5.0: TRUE single source of truth)
+        Save portfolio to database.
 
-        No translation needed - Position class uses same field names as engine.
-        Direct save using asdict().
-
+        Uses PositionRepository (database-backed) for persistence.
+        No translation needed - Position class uses same field names as database.
         Format: Auto Trading Engine standard (qty, current_sl_price, tp_price, peak_price, entry_time)
         """
-        # v5.0: Direct save - no field mapping needed!
-        positions_data = {}
+        from database.models import Position as DBPosition
 
+        repo = DBPositionRepository()
+
+        # Save each position to database
         for symbol, pos in self.positions.items():
-            # Convert Position to dict - no translation needed!
-            pos_dict = asdict(pos)
-            positions_data[symbol] = pos_dict
+            # Convert local Position to database Position
+            db_pos = DBPosition(
+                symbol=pos.symbol,
+                entry_date=pos.entry_time,
+                entry_price=pos.entry_price,
+                qty=pos.qty,
+                stop_loss=pos.current_sl_price,
+                take_profit=pos.tp_price,
+                peak_price=pos.peak_price,
+                trailing_stop=pos.trailing_active,
+                day_held=pos.days_held,
+                sl_pct=pos.sl_pct,
+                tp_pct=pos.tp_pct,
+                entry_atr_pct=pos.atr_pct,
+                sl_order_id=pos.sl_order_id,
+                tp_order_id=pos.tp_order_id,
+                entry_order_id=pos.entry_order_id,
+                sector=pos.sector,
+                trough_price=pos.trough_price,
+                source=pos.source,
+                signal_score=pos.signal_score,
+                mode=pos.entry_mode,
+                regime=pos.entry_regime,
+                entry_rsi=pos.entry_rsi,
+                momentum_5d=pos.momentum_5d
+            )
 
-        data = {
-            'positions': positions_data,
-            'last_updated': datetime.now().isoformat()
-        }
+            # Create or update position
+            if repo.exists(symbol):
+                repo.update(db_pos)
+            else:
+                repo.create(db_pos)
 
-        with open(self.portfolio_file, 'w') as f:
-            json.dump(data, f, indent=2, default=str)
+        logger.debug(f"Saved {len(self.positions)} positions to database")
 
     def add_position(self, symbol: str, shares: int, entry_price: float,
                      stop_loss: float = None, take_profit: float = None,

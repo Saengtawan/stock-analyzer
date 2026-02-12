@@ -33,6 +33,10 @@ import pytz
 
 from loguru import logger
 
+# Use database layer
+from database import TradeRepository, Trade as TradeModel
+from database.manager import get_db_manager
+
 
 @dataclass
 class FilterResult:
@@ -195,8 +199,20 @@ class TradeLogger:
         # Timezone
         self.et_tz = pytz.timezone('US/Eastern')
 
-        # Initialize SQLite
-        self._init_db()
+        # Phase 3: Initialize database layer (prefer new layer, fallback to direct SQL)
+        self.use_db_layer = USE_DB_LAYER
+        if self.use_db_layer:
+            try:
+                self.trade_repo = TradeRepository()
+                logger.info("Using Phase 3 database layer (TradeRepository)")
+            except Exception as e:
+                logger.warning(f"Failed to initialize TradeRepository: {e}, falling back to direct SQLite")
+                self.use_db_layer = False
+                self.trade_repo = None
+                self._init_db()
+        else:
+            self.trade_repo = None
+            self._init_db()
 
         # Today's log cache (thread-safe)
         self._logs_lock = threading.Lock()
@@ -217,7 +233,8 @@ class TradeLogger:
         # v5.1: Clean up old log files on startup
         self._cleanup_old_logs(max_age_days=30)
 
-        logger.info(f"TradeLogger initialized - logs: {self.log_dir}, db: {self.db_path}")
+        db_method = "TradeRepository" if self.use_db_layer else "direct SQLite"
+        logger.info(f"TradeLogger initialized - logs: {self.log_dir}, db: {self.db_path} ({db_method})")
 
     def _cleanup_old_logs(self, max_age_days: int = 30):
         """Delete JSON log files older than max_age_days (v5.1 log rotation)."""
@@ -690,8 +707,47 @@ class TradeLogger:
             logger.error(f"Error flushing trade logger: {e}")
 
     def _archive_to_db(self, entry: TradeLogEntry):
-        """Archive entry to SQLite"""
+        """Archive entry to SQLite (uses TradeRepository if available)"""
         try:
+            # Phase 3: Use TradeRepository if available
+            if self.use_db_layer and self.trade_repo:
+                # Convert TradeLogEntry to Trade model
+                dt = datetime.fromisoformat(entry.timestamp.replace('Z', '+00:00'))
+                trade_date = dt.strftime('%Y-%m-%d')
+
+                trade = TradeModel(
+                    id=entry.id,
+                    timestamp=entry.timestamp,
+                    date=trade_date,
+                    action=entry.action,
+                    symbol=entry.symbol,
+                    qty=entry.qty,
+                    price=entry.price,
+                    reason=entry.reason,
+                    entry_price=entry.entry_price,
+                    pnl_usd=entry.pnl_usd,
+                    pnl_pct=entry.pnl_pct,
+                    hold_duration=entry.hold_duration,
+                    pdt_used=entry.pdt_used,
+                    pdt_remaining=entry.pdt_remaining,
+                    day_held=entry.day_held,
+                    mode=entry.mode,
+                    regime=entry.regime,
+                    spy_price=entry.spy_price,
+                    signal_score=entry.signal_score,
+                    gap_pct=entry.gap_pct,
+                    atr_pct=entry.atr_pct,
+                    from_queue=entry.from_queue,
+                    version=entry.version,
+                    source=entry.source,
+                    full_data=json.dumps(asdict(entry), default=str)
+                )
+
+                # Use repository (handles INSERT OR REPLACE)
+                self.trade_repo.create(trade)
+                return
+
+            # Fallback: Direct SQLite access
             conn = sqlite3.connect(self.db_path)
             try:
                 cursor = conn.cursor()
@@ -777,8 +833,31 @@ class TradeLogger:
         action: str = None,
         limit: int = 100
     ) -> List[Dict]:
-        """Query historical trades from SQLite"""
+        """Query historical trades from SQLite (uses TradeRepository if available)"""
         try:
+            # Phase 3: Use TradeRepository if available
+            if self.use_db_layer and self.trade_repo:
+                # Build filters for repository
+                if symbol:
+                    trades = self.trade_repo.get_by_symbol(symbol, limit=limit)
+                elif start_date:
+                    start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+                    days = (datetime.now().date() - start_dt).days
+                    trades = self.trade_repo.get_recent_trades(days=days, limit=limit)
+                else:
+                    trades = self.trade_repo.get_all(limit=limit)
+
+                # Apply additional filters in memory
+                filtered = trades
+                if end_date:
+                    end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+                    filtered = [t for t in filtered if datetime.fromisoformat(t.date.replace('Z', '+00:00')).date() <= end_dt]
+                if action:
+                    filtered = [t for t in filtered if t.action == action]
+
+                return [t.to_dict() for t in filtered[:limit]]
+
+            # Fallback: Direct SQLite access
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
@@ -812,8 +891,22 @@ class TradeLogger:
             return []
 
     def get_performance_stats(self, days: int = 30) -> Dict:
-        """Get performance statistics for the last N days"""
+        """Get performance statistics for the last N days (uses TradeRepository if available)"""
         try:
+            # Phase 3: Use TradeRepository if available
+            if self.use_db_layer and self.trade_repo:
+                stats = self.trade_repo.get_statistics(days=days)
+                return {
+                    'period_days': days,
+                    'total_sells': stats.get('total_trades', 0),
+                    'winners': stats.get('winning_trades', 0),
+                    'losers': stats.get('losing_trades', 0),
+                    'win_rate': stats.get('win_rate', 0),
+                    'total_pnl': stats.get('total_pnl', 0),
+                    'avg_pnl': stats.get('avg_pnl', 0)
+                }
+
+            # Fallback: Direct SQLite access
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
