@@ -26,7 +26,7 @@ rapid_rotation:
   default_tp_pct: 5.0         # Default TP if ATR fails
 
   # -- Trailing Stop --
-  trail_activation_pct: 3.0   # Activate trailing at +3% gain
+  trail_activation_pct: 2.5   # Activate trailing at +2.5% gain (v6.20: 3.0→2.5 for earlier lock)
   trail_lock_pct: 80.0        # Lock 80% of peak gains (note: existing uses 75%)
 
   # -- Position Management --
@@ -38,10 +38,18 @@ rapid_rotation:
   # -- Scoring & Filtering --
   min_score: 85               # Minimum score to qualify (note: existing uses 90)
   min_atr_pct: 2.5            # Minimum volatility (ATR%)
+  momentum_5d_min_dip: -1.0   # Must have dipped at least -1.0% (block shallow dips like -0.79%)
+  momentum_5d_max_dip: -15.0  # Max dip allowed -15% (block crashed stocks)
 
   # -- Regime Filtering --
   regime_filter_enabled: true # Enable SPY regime filter
   regime_sma_period: 20       # SMA period for regime check
+
+  # -- Dynamic Sector Refresh (v6.20) --
+  sector_vix_threshold: 20.0        # VIX > 20 = volatile market
+  sector_ttl_volatile_min: 2        # Sector refresh TTL when volatile (minutes)
+  sector_ttl_normal_min: 5          # Sector refresh TTL when normal (minutes)
+  sector_vix_cache_ttl_sec: 60      # Cache VIX value for N seconds (balance freshness vs API calls)
 
   # -- Sector Scoring --
   sector_bull_threshold: 3.0  # > +3% = BULL sector
@@ -75,16 +83,30 @@ rapid_rotation:
   market_close_minute: 0      # Market close minute
   pre_close_minute: 50        # Pre-close check (15:50 ET)
 
-  # -- 3-Layer Entry Protection (v6.17) --
+  # -- 4-Layer Entry Protection (v6.23: Adaptive Timing) --
   entry_protection_enabled: true           # Master switch for entry protection
-  entry_block_minutes_after_open: 15       # Layer 1: Block first 15 min after open
+  entry_block_minutes_after_open: 15       # Layer 1: Default block time (used if adaptive disabled)
+
+  # Adaptive Timing (v6.23): Different block times based on gap %
+  entry_adaptive_timing_enabled: true      # Enable gap-based adaptive timing
+  entry_adaptive_gap_down_strong_minutes: 5   # Gap < -1.5%: Buy early (bottom fishing)
+  entry_adaptive_gap_down_mild_minutes: 10    # Gap -1.5% to -0.5%: Wait a bit
+  entry_adaptive_flat_minutes: 15             # Gap -0.5% to +0.5%: Standard protection
+  entry_adaptive_gap_up_minutes: 20           # Gap > +0.5%: Wait for pullback
+
   entry_allow_discount_exception: true     # Allow if price drops 0.5% from signal
   entry_discount_exception_pct: -0.5       # Exception threshold
-  entry_vwap_max_distance_pct: 2.0         # Layer 2: Block if > 2.0% above VWAP (v6.19: relaxed)
+  entry_vwap_max_distance_pct: 1.5         # Layer 2: Block if > 1.5% above VWAP (v6.20: tighter)
   entry_vwap_allow_below: true             # Always allow if below VWAP
   entry_limit_order_only: true             # Layer 3: Use limit orders only
   entry_max_chase_pct: 0.2                 # Max chase above signal price
   entry_limit_timeout_minutes: 5           # Cancel limit order after timeout
+
+  # Layer 4: Intraday Position Filter (v6.22)
+  entry_intraday_max_range_pct: 80.0       # Block if in top 20% of day's range
+  entry_intraday_max_move_from_low: 2.5    # Block if moved > 2.5% from day's low
+  entry_intraday_strict_after_minutes: 120 # Stricter after 2 hours
+
   entry_track_rejections: true             # Track rejection statistics
 
   # -- Cache Settings --

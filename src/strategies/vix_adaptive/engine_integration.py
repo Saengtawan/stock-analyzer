@@ -131,10 +131,11 @@ class VIXAdaptiveIntegration:
             return []
 
         # Convert actions to signal format
+        # v6.23: Pass stock_data and date to calculate gap_pct for adaptive timing
         signals = []
         for action in actions:
             if action.action_type == 'open':
-                signal_dict = self._action_to_signal(action)
+                signal_dict = self._action_to_signal(action, stock_data, date)
                 signals.append(signal_dict)
             elif action.action_type == 'close':
                 # Handle close actions (add to result if needed)
@@ -176,12 +177,19 @@ class VIXAdaptiveIntegration:
 
         return missing
 
-    def _action_to_signal(self, action: Action) -> Dict:
+    def _action_to_signal(
+        self,
+        action: Action,
+        stock_data: Dict[str, pd.DataFrame] = None,
+        date = None
+    ) -> Dict:
         """
         Convert Action object to signal dict format.
 
         Args:
             action: Action from VIXAdaptiveStrategy
+            stock_data: Dict of {symbol: DataFrame} (v6.23: for gap_pct calculation)
+            date: Current date (v6.23: for gap_pct calculation)
 
         Returns:
             Signal dict compatible with trading engine
@@ -203,6 +211,35 @@ class VIXAdaptiveIntegration:
                 signal.atr_pct
             )
 
+        # v6.23: Calculate gap_pct for adaptive entry timing
+        gap_pct = 0.0
+        if stock_data and date and signal.symbol in stock_data:
+            try:
+                import pandas as pd
+                df = stock_data[signal.symbol]
+
+                # Convert date if needed
+                if isinstance(date, pd.Timestamp):
+                    lookup_date = date.date()
+                else:
+                    lookup_date = date
+
+                if lookup_date in df.index:
+                    row = df.loc[lookup_date]
+                    # Get previous close
+                    date_idx = df.index.get_loc(lookup_date)
+                    if date_idx > 0:
+                        prev_row = df.iloc[date_idx - 1]
+                        prev_close = prev_row['close']
+
+                        # Calculate gap from open to previous close
+                        if 'open' in row:
+                            today_open = row['open']
+                            gap_pct = ((today_open - prev_close) / prev_close) * 100
+            except Exception as e:
+                logger.debug(f"Could not calculate gap_pct for {signal.symbol}: {e}")
+                gap_pct = 0.0
+
         # Build signal dict
         signal_dict = {
             'symbol': signal.symbol,
@@ -214,6 +251,7 @@ class VIXAdaptiveIntegration:
             'reason': signal.reason,
             'strategy': 'vix_adaptive',
             'max_hold_days': tier_config.get('max_hold_days', 10),
+            'gap_pct': round(gap_pct, 2),  # v6.23: For adaptive entry timing
         }
 
         # Add tier-specific fields

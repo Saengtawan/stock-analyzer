@@ -209,6 +209,7 @@ class VIXAdaptiveStrategyWrapper(BaseStrategy):
             take_profit = entry_price + (sl_distance * 2.0)
 
             # Build TradingSignal
+            # v6.23: Include gap_pct in metadata for adaptive entry timing
             signal = TradingSignal(
                 symbol=symbol,
                 strategy='vix_adaptive',
@@ -224,6 +225,7 @@ class VIXAdaptiveStrategyWrapper(BaseStrategy):
                     'tier': tier,
                     'vix_strategy': 'mean_reversion' if tier == 'normal' else 'bounce',
                     'max_hold_days': vix_signal.get('max_hold_days', 10),
+                    'gap_pct': vix_signal.get('gap_pct', 0.0),  # v6.23: For adaptive timing
                 }
             )
 

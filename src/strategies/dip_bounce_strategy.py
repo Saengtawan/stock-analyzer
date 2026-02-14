@@ -401,6 +401,7 @@ class DipBounceStrategy(BaseStrategy):
             self.execution_trace.append(trace)
 
         # Create TradingSignal
+        # v6.23: Add gap_pct to metadata for adaptive entry timing
         return TradingSignal(
             symbol=symbol,
             strategy=self.name,
@@ -426,6 +427,7 @@ class DipBounceStrategy(BaseStrategy):
             swing_low=round(sl_tp['swing_low'], 2),
             resistance=round(sl_tp['resistance'], 2),
             volume_ratio=round(ind['volume_ratio'], 2),
+            metadata={'gap_pct': round(ind['gap_pct'], 2)},
         )
 
     # =========================================================================
