@@ -98,6 +98,76 @@ def analyze_page():
     """Stock analysis page"""
     return render_template('analyze.html')
 
+@app.route('/health')
+def health_check():
+    """
+    Health check endpoint for monitoring (v6.21 Production Grade)
+
+    Returns JSON with system health status.
+    Used by monitoring tools, load balancers, and health dashboards.
+
+    Example response:
+    {
+        "status": "healthy",
+        "timestamp": "2026-02-13T10:30:00",
+        "components": {
+            "app": "ok",
+            "data_manager": "ok",
+            "vix_fetch": "ok"
+        },
+        "vix_current": 18.5
+    }
+    """
+    import time
+    from datetime import datetime as dt
+
+    health = {
+        "status": "healthy",
+        "timestamp": dt.now().isoformat(),
+        "components": {},
+        "vix_current": None
+    }
+
+    # Check 1: Flask app (if we got here, it's ok)
+    health["components"]["app"] = "ok"
+
+    # Check 2: Data manager availability
+    try:
+        if analyzer and analyzer.data_manager:
+            health["components"]["data_manager"] = "ok"
+        else:
+            health["components"]["data_manager"] = "unavailable"
+            health["status"] = "degraded"
+    except Exception as e:
+        health["components"]["data_manager"] = f"error: {str(e)}"
+        health["status"] = "unhealthy"
+
+    # Check 3: VIX fetch (critical for VIX Adaptive Strategy)
+    try:
+        import yfinance as yf
+        vix_ticker = yf.Ticker('^VIX')
+        vix_data = vix_ticker.history(period='1d')
+        if not vix_data.empty:
+            vix = float(vix_data['Close'].iloc[-1])
+            # Data quality check
+            if 0 <= vix <= 100:
+                health["components"]["vix_fetch"] = "ok"
+                health["vix_current"] = round(vix, 2)
+            else:
+                health["components"]["vix_fetch"] = f"invalid_range: {vix}"
+                health["status"] = "degraded"
+        else:
+            health["components"]["vix_fetch"] = "no_data"
+            health["status"] = "degraded"
+    except Exception as e:
+        health["components"]["vix_fetch"] = f"error: {str(e)}"
+        health["status"] = "degraded"
+
+    # Return appropriate HTTP status code
+    status_code = 200 if health["status"] == "healthy" else 503
+
+    return jsonify(health), status_code
+
 @app.route('/screen')
 def screen_page():
     """Stock screening page"""
@@ -2523,17 +2593,30 @@ def api_rapid_spy_regime():
             response = convert_numpy_types(response)
             return jsonify(response)
 
-        # Fallback: use screener (SMA20-only) if engine not available
-        from screeners.rapid_rotation_screener import RapidRotationScreener
-        screener = RapidRotationScreener()
-        is_bull, reason, details = screener.check_spy_regime()
-        response = {
-            'is_bull': is_bull,
-            'reason': reason,
-            'details': details,
-            'source': 'screener_fallback',
-            'timestamp': datetime.now().isoformat()
-        }
+        # v6.20 FIX: Lightweight fallback (no full screener initialization!)
+        import yfinance as yf
+        spy = yf.Ticker('SPY')
+        hist = spy.history(period='1mo')
+        if len(hist) >= 20:
+            sma20 = hist['Close'].rolling(20).mean().iloc[-1]
+            current = hist['Close'].iloc[-1]
+            is_bull = current > sma20
+            pct_diff = ((current - sma20) / sma20) * 100
+            response = {
+                'is_bull': is_bull,
+                'reason': f"SPY ${current:.2f} {'>' if is_bull else '<'} SMA20 ${sma20:.2f} ({pct_diff:+.1f}%)",
+                'details': {'spy': float(current), 'sma20': float(sma20)},
+                'source': 'lightweight_fallback',
+                'timestamp': datetime.now().isoformat()
+            }
+        else:
+            response = {
+                'is_bull': True,
+                'reason': 'Insufficient data (default BULL)',
+                'details': {},
+                'source': 'default_fallback',
+                'timestamp': datetime.now().isoformat()
+            }
         # Convert numpy types to native Python types
         response = convert_numpy_types(response)
         return jsonify(response)
@@ -3194,6 +3277,50 @@ def api_health_detailed():
 # ============================================================================
 # Performance Metrics APIs (Phase 5B)
 # ============================================================================
+
+@app.route('/api/metrics/production')
+def api_metrics_production():
+    """
+    Get production-grade monitoring metrics (v6.21)
+
+    Returns:
+        - Order success/failure rates
+        - Position sync rates
+        - API latency percentiles
+        - DLQ accumulation
+        - Rate limiter usage
+        - Health status with alerts
+    """
+    try:
+        from engine.monitoring_metrics import get_metrics_tracker
+        from engine.dead_letter_queue import get_dlq
+
+        tracker = get_metrics_tracker()
+        metrics = tracker.get_metrics()
+        health = tracker.get_health_status()
+
+        # Get DLQ stats
+        try:
+            dlq = get_dlq()
+            dlq_stats = dlq.get_statistics()
+        except:
+            dlq_stats = {}
+
+        return jsonify({
+            'success': True,
+            'health': health,
+            'metrics': metrics,
+            'dlq': dlq_stats,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Production metrics error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 
 @app.route('/api/metrics')
 def api_metrics():
@@ -4465,15 +4592,26 @@ def _build_positions_from_engine():
     except Exception as e:
         logger.warning(f"Failed to fetch Alpaca prices: {e}")
 
-    # Extended hours prices
+    # Extended hours prices (v6.24: prefer after-hours when market closed)
     extended_prices = _get_extended_hours_prices(symbols)
+    market_open = engine.broker.is_market_open() if engine.broker else True
+
+    logger.info(f"Portfolio API: market_open={market_open}, extended_prices={list(extended_prices.keys())}")
 
     statuses_data = []
     total_pnl_usd = 0.0
 
     for symbol, mp in engine.positions.items():
         ap = alpaca_prices.get(symbol, {})
-        current_price = ap.get('current_price', mp.entry_price)
+
+        # v6.24: Prefer after-hours price when market is closed
+        if not market_open and symbol in extended_prices:
+            current_price = extended_prices[symbol].get('premarket_price', ap.get('current_price', mp.entry_price))
+            logger.info(f"{symbol}: Using after-hours price ${current_price:.2f}")
+        else:
+            current_price = ap.get('current_price', mp.entry_price)
+            logger.info(f"{symbol}: Using broker price ${current_price:.2f} (market_open={market_open}, in_extended={symbol in extended_prices})")
+
         pnl_pct = ((current_price - mp.entry_price) / mp.entry_price) * 100
         pnl_usd = (current_price - mp.entry_price) * mp.qty
         total_pnl_usd += pnl_usd
@@ -4597,20 +4735,53 @@ def get_status_data():
         return {'error': str(e)}
 
 def get_regime_data():
-    """Get SPY regime data for WebSocket"""
+    """
+    Get SPY regime data for WebSocket
+
+    v6.20 FIX: Use engine (Single Source of Truth) instead of creating new screener
+    - OLD: Created RapidRotationScreener() every 10 seconds → expensive initialization
+    - NEW: Use engine's regime check → lightweight, has allowed_sectors in BEAR mode
+    """
     try:
-        from screeners.rapid_rotation_screener import RapidRotationScreener
-        screener = RapidRotationScreener(analyzer)
-        is_bull, reason, details = screener.check_spy_regime()
-        return {
-            'is_bull': is_bull,
-            'reason': reason,
-            'details': details,
-            'regime': 'BULL' if is_bull else 'BEAR'
-        }
+        # v6.20: Use engine as Single Source of Truth
+        engine = get_auto_trading_engine()
+        if engine and engine.running:
+            status = engine.get_status()
+            regime_details = status.get('regime_details') or {}
+            return {
+                'is_bull': status.get('market_regime') in ('BULL',),
+                'reason': status.get('regime_detail', ''),
+                'details': regime_details,
+                'regime': status.get('market_regime', 'UNKNOWN')
+            }
+
+        # Fallback: Lightweight SPY check (no full screener initialization!)
+        import yfinance as yf
+        spy = yf.Ticker('SPY')
+        hist = spy.history(period='1mo')
+        if len(hist) >= 20:
+            sma20 = hist['Close'].rolling(20).mean().iloc[-1]
+            current = hist['Close'].iloc[-1]
+            is_bull = current > sma20
+            pct_diff = ((current - sma20) / sma20) * 100
+            return {
+                'is_bull': is_bull,
+                'reason': f"SPY ${current:.2f} {'>' if is_bull else '<'} SMA20 ${sma20:.2f} ({pct_diff:+.1f}%)",
+                'details': {'spy': float(current), 'sma20': float(sma20)},
+                'regime': 'BULL' if is_bull else 'BEAR'
+            }
+        else:
+            # Not enough data
+            return {
+                'is_bull': True,
+                'reason': 'Insufficient data (default BULL)',
+                'details': {},
+                'regime': 'UNKNOWN'
+            }
+
     except Exception as e:
         logger.error(f"WebSocket regime error: {e}")
-        return {'error': str(e)}
+        return {'error': str(e), 'regime': 'UNKNOWN', 'is_bull': True}
 
 def broadcast_update(event_type, data):
     """Broadcast update to all connected clients"""
