@@ -490,15 +490,49 @@ class RapidPortfolioManager:
 
     def get_current_price(self, symbol: str) -> Optional[float]:
         """
-        Get current price (v4.9: uses hybrid real-time fetcher).
+        Get current price (v6.24: prefer after-hours when market closed).
 
-        Priority:
-        1. Broker (real-time) if available
-        2. Real-time price fetcher (intraday during market hours)
-        3. yfinance as last resort
+        Priority when market CLOSED:
+        1. After-hours price from yfinance (most accurate)
+        2. Broker snapshot (fallback)
+        3. Regular market close
 
+        Priority when market OPEN:
+        1. Broker (real-time)
+        2. Real-time price fetcher
+        3. yfinance fallback
+
+        v6.24: Check market status and prefer after-hours when closed
         v4.9: Replaced yfinance workaround with proper real-time fetcher
         """
+        # v6.24: Check if market is closed - if so, try after-hours price FIRST
+        from datetime import datetime
+        import pytz
+
+        eastern = pytz.timezone('US/Eastern')
+        now_et = datetime.now(eastern)
+        hour = now_et.hour
+        weekday = now_et.weekday()
+
+        # Market is open Mon-Fri 9:30-16:00 ET
+        market_open = (weekday < 5 and 9 <= hour < 16)
+
+        if not market_open:
+            # Market closed - prioritize after-hours prices
+            try:
+                ticker = yf.Ticker(symbol)
+                info = ticker.info
+
+                # Prefer after-hours price when available
+                if 'postMarketPrice' in info and info.get('postMarketPrice'):
+                    after_hours_price = info['postMarketPrice']
+                    logger.info(f"{symbol}: After-hours ${after_hours_price:.2f} (regular close ${info.get('regularMarketPrice', 'N/A')})")
+                    return after_hours_price
+
+            except Exception as e:
+                logger.warning(f"After-hours price fetch failed for {symbol}: {e}")
+
+        # Market open or after-hours not available - use real-time sources
         # Try broker first (real-time)
         if self.broker:
             try:
@@ -522,13 +556,22 @@ class RapidPortfolioManager:
         except Exception as e:
             logger.warning(f"Real-time price fetch failed for {symbol}: {e}")
 
-        # Last resort: direct yfinance (legacy fallback)
+        # Last resort: yfinance regular market price
         try:
             ticker = yf.Ticker(symbol)
+            info = ticker.info
+
+            # Fall back to regular market price
+            if 'regularMarketPrice' in info and info.get('regularMarketPrice'):
+                regular_price = info['regularMarketPrice']
+                logger.debug(f"{symbol}: Price ${regular_price:.2f} from regular market")
+                return regular_price
+
+            # Legacy fallback: historical data
             data = ticker.history(period='2d')
             if len(data) > 0:
                 latest_price = data['Close'].iloc[-1]
-                logger.debug(f"{symbol}: Price ${latest_price:.2f} from yfinance fallback")
+                logger.debug(f"{symbol}: Price ${latest_price:.2f} from yfinance history fallback")
                 return latest_price
         except Exception as e:
             logger.error(f"All price fetch methods failed for {symbol}: {e}")
