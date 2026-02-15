@@ -30,10 +30,10 @@ rapid_rotation:
   trail_lock_pct: 80.0        # Lock 80% of peak gains (note: existing uses 75%)
 
   # -- Position Management --
-  max_positions: 5            # Max concurrent positions
+  max_positions: 3            # Max concurrent positions (v6.24: 5→3 for higher concentration)
   max_hold_days: 7            # Max days to hold (v6.19: 5→7 for swing trades)
-  position_size_pct: 1.0      # Position size (% of equity)
-  max_position_pct: 10.0      # Max position size (% of equity)
+  position_size_pct: 33.0     # Position size (% of equity) (v6.24: 1→33 Balanced Aggressive: 3×33%=99%)
+  max_position_pct: 35.0      # Max position size (% of equity) (v6.24: 10→35 for flexibility)
 
   # -- Scoring & Filtering --
   min_score: 85               # Minimum score to qualify (note: existing uses 90)
@@ -197,7 +197,7 @@ earnings_auto_sell_buffer_min: 30  # Minutes before close
 low_risk_mode_enabled: true
 low_risk_gap_max_up: 1.0       # % - gap filter for low risk mode
 low_risk_min_score: 90         # v4.9.7: 85→90 (balance: stricter than BEAR=85, looser than NORMAL=95)
-low_risk_position_size_pct: 20
+low_risk_position_size_pct: 40 # v6.24: 20→40 for $4K account (2 pos × 40% = 80%)
 low_risk_max_atr_pct: 4.0
 
 # -- Afternoon Scan (v4.9.1) --
@@ -277,7 +277,7 @@ bear_max_positions: 2
 bear_min_score: 85                 # v4.9.4: 98→85
 bear_gap_max_up: 1.5               # v4.9.4: 1.0→1.5
 bear_gap_max_down: -3.0            # v4.9.4: -2.0→-3.0
-bear_position_size_pct: 25         # v4.9.4: 20→25
+bear_position_size_pct: 45         # v6.24: 25→45 Balanced Aggressive (2×45%=90%)
 bear_max_atr_pct: 4.0              # v4.9.4: 3.0→4.0
 
 # -- BULL Sector Filter (v4.9.3) --
