@@ -31,7 +31,7 @@ rapid_rotation:
 
   # -- Position Management --
   max_positions: 3            # Max concurrent positions (v6.24: 5→3 for higher concentration)
-  max_hold_days: 7            # Max days to hold (v6.19: 5→7 for swing trades)
+  max_hold_days: 10           # Max days to hold (v6.26: 7→10 for more flexibility)
   position_size_pct: 33.0     # Position size (% of equity) (v6.24: 1→33 Balanced Aggressive: 3×33%=99%)
   max_position_pct: 35.0      # Max position size (% of equity) (v6.24: 10→35 for flexibility)
 
