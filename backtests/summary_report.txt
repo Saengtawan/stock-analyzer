@@ -1,0 +1,28 @@
+
+================================================================================
+BACKTEST SUMMARY REPORT
+================================================================================
+Generated: 2026-02-15 10:11:04
+================================================================================
+
+📊 Feature 1: Evening Risk Analysis (Pre-SL Exit)
+--------------------------------------------------------------------------------
+  ❌ Error: Metrics file not found
+
+📊 Feature 2: Weekend Position Review
+--------------------------------------------------------------------------------
+  ❌ Error: Metrics file not found
+
+================================================================================
+FINAL RECOMMENDATIONS
+================================================================================
+❌ SKIP BOTH FEATURES
+   Neither feature met minimum criteria for implementation
+
+   Reasons:
+
+   Next Steps:
+   1. Analyze why features underperformed
+   2. Adjust parameters and re-test
+   3. Consider alternative approaches
+================================================================================

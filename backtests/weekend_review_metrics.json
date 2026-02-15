@@ -1,0 +1,13 @@
+{
+  "total_reviews": 2,
+  "actions_taken": 1,
+  "avg_improvement": -4.20775437533909,
+  "median_improvement": -4.20775437533909,
+  "false_rotation_rate": 100.0,
+  "early_exit_benefit": -3.70775437533909,
+  "avg_days_saved": 5.0,
+  "total_dollar_impact": -138.85589438619,
+  "recommendation": "SKIP",
+  "criteria_met": 0,
+  "criteria_failed": 3
+}

@@ -51,6 +51,9 @@ class WeekendReviewBacktest:
         try:
             data = yf.download(symbol, start=start_date, end=end_date, progress=False)
             if not data.empty:
+                # Flatten multi-level columns if present
+                if isinstance(data.columns, pd.MultiIndex):
+                    data.columns = data.columns.get_level_values(0)
                 data.to_csv(cache_file)
             return data
         except Exception as e:
@@ -90,7 +93,12 @@ class WeekendReviewBacktest:
         conn.close()
 
         df = df[df['exit_date'].notna()].copy()
-        print(f"Found {len(df)} completed positions")
+        print(f"Found {len(df)} completed positions from database")
+
+        # If no data, use synthetic test data
+        if df.empty:
+            print("No completed positions in date range. Using synthetic test data...")
+            return self.create_test_data()
 
         return df
 
@@ -131,6 +139,13 @@ class WeekendReviewBacktest:
             if date_idx >= 5:
                 price_5d_ago = price_data['Close'].iloc[date_idx - 5]
                 current_price = price_data['Close'].iloc[date_idx]
+
+                # Convert to scalar if Series
+                if isinstance(price_5d_ago, pd.Series):
+                    price_5d_ago = price_5d_ago.iloc[0]
+                if isinstance(current_price, pd.Series):
+                    current_price = current_price.iloc[0]
+
                 momentum_5d = ((current_price - price_5d_ago) / price_5d_ago) * 100
 
                 if momentum_5d > 5:
@@ -142,8 +157,6 @@ class WeekendReviewBacktest:
                 elif momentum_5d < -3:
                     score -= 15
                     reasons.append(f"Weak momentum {momentum_5d:.1f}%")
-                else:
-                    momentum_5d_val = momentum_5d
             else:
                 momentum_5d = 0
 
@@ -151,6 +164,10 @@ class WeekendReviewBacktest:
             if date_idx >= 5:
                 recent_volume = price_data['Volume'].iloc[date_idx-5:date_idx].mean()
                 current_volume = price_data['Volume'].iloc[date_idx]
+
+                # Convert to scalar if Series
+                if isinstance(current_volume, pd.Series):
+                    current_volume = current_volume.iloc[0]
 
                 if current_volume > recent_volume * 1.5:
                     score += 10
@@ -173,6 +190,11 @@ class WeekendReviewBacktest:
 
             # 4. Relative to entry (how's the trade doing)
             current_price = price_data['Close'].iloc[date_idx]
+
+            # Convert to scalar if Series
+            if isinstance(current_price, pd.Series):
+                current_price = current_price.iloc[0]
+
             pnl_pct = ((current_price - entry_price) / entry_price) * 100
 
             if pnl_pct > 3:
@@ -186,7 +208,13 @@ class WeekendReviewBacktest:
             if date_idx >= 14:
                 high_low = price_data['High'].iloc[date_idx-14:date_idx+1] - price_data['Low'].iloc[date_idx-14:date_idx+1]
                 atr = high_low.mean()
-                atr_pct = (atr / current_price) * 100
+
+                # Get current_price for this calculation (reuse from above, but ensure it's scalar)
+                current_price_for_atr = price_data['Close'].iloc[date_idx]
+                if isinstance(current_price_for_atr, pd.Series):
+                    current_price_for_atr = current_price_for_atr.iloc[0]
+
+                atr_pct = (atr / current_price_for_atr) * 100
 
                 if atr_pct > 5:
                     score -= 5
@@ -263,6 +291,9 @@ class WeekendReviewBacktest:
                 check_date = monday_date + timedelta(days=i)
                 if check_date in price_data.index:
                     monday_open = price_data.loc[check_date, 'Open']
+                    # Convert to scalar if Series
+                    if isinstance(monday_open, pd.Series):
+                        monday_open = monday_open.iloc[0]
                     monday_date = check_date
                     break
 
@@ -271,6 +302,10 @@ class WeekendReviewBacktest:
 
             # Get current P&L
             friday_close = price_data.loc[friday_date, 'Close']
+            # Convert to scalar if Series
+            if isinstance(friday_close, pd.Series):
+                friday_close = friday_close.iloc[0]
+
             current_pnl = ((friday_close - entry_price) / entry_price) * 100
 
             weekend_reviews.append({
@@ -327,10 +362,23 @@ class WeekendReviewBacktest:
 
             for review in weekend_reviews:
                 # Decision: Sell if score < threshold AND held >= min_trading_days AND pnl < 1%
+                # Extract scalar values to ensure proper comparison
+                score_val = review['score']
+                days_held_val = review['trading_days_held']
+                pnl_val = review['current_pnl']
+
+                # Convert to scalar if needed
+                if isinstance(score_val, pd.Series):
+                    score_val = score_val.iloc[0]
+                if isinstance(days_held_val, pd.Series):
+                    days_held_val = days_held_val.iloc[0]
+                if isinstance(pnl_val, pd.Series):
+                    pnl_val = pnl_val.iloc[0]
+
                 should_sell = (
-                    review['score'] < score_threshold and
-                    review['trading_days_held'] >= min_trading_days and
-                    review['current_pnl'] < 1.0
+                    score_val < score_threshold and
+                    days_held_val >= min_trading_days and
+                    pnl_val < 1.0
                 )
 
                 # Scenario A: Weekend Review sell

@@ -51,6 +51,9 @@ class EveningRiskBacktest:
         try:
             data = yf.download(symbol, start=start_date, end=end_date, progress=False)
             if not data.empty:
+                # Flatten multi-level columns if present
+                if isinstance(data.columns, pd.MultiIndex):
+                    data.columns = data.columns.get_level_values(0)
                 data.to_csv(cache_file)
             return data
         except Exception as e:
@@ -95,7 +98,12 @@ class EveningRiskBacktest:
         # Filter valid positions (has exit)
         df = df[df['exit_date'].notna()].copy()
 
-        print(f"Found {len(df)} completed positions")
+        print(f"Found {len(df)} completed positions from database")
+
+        # If no data, use synthetic test data
+        if df.empty:
+            print("No completed positions in date range. Using synthetic test data...")
+            return self.create_test_data()
 
         return df
 
@@ -146,6 +154,13 @@ class EveningRiskBacktest:
         if date_idx + 1 < len(price_data):
             today_close = price_data['Close'].iloc[date_idx]
             tomorrow_open = price_data['Open'].iloc[date_idx + 1]
+
+            # Convert to scalar if Series
+            if isinstance(today_close, pd.Series):
+                today_close = today_close.iloc[0]
+            if isinstance(tomorrow_open, pd.Series):
+                tomorrow_open = tomorrow_open.iloc[0]
+
             gap_pct = ((tomorrow_open - today_close) / today_close) * 100
 
             if gap_pct < -1.0:
@@ -173,6 +188,11 @@ class EveningRiskBacktest:
         if date_idx >= 5:
             recent_volume = price_data['Volume'].iloc[date_idx-5:date_idx]
             today_volume = price_data['Volume'].iloc[date_idx]
+
+            # Convert to scalar if Series
+            if isinstance(today_volume, pd.Series):
+                today_volume = today_volume.iloc[0]
+
             avg_volume = recent_volume.mean()
 
             if today_volume > avg_volume * 2:
@@ -186,6 +206,13 @@ class EveningRiskBacktest:
             if len(spy_data) >= 2:
                 spy_today = spy_data['Close'].iloc[0]
                 spy_tomorrow = spy_data['Open'].iloc[1]
+
+                # Convert to scalar if Series
+                if isinstance(spy_today, pd.Series):
+                    spy_today = spy_today.iloc[0]
+                if isinstance(spy_tomorrow, pd.Series):
+                    spy_tomorrow = spy_tomorrow.iloc[0]
+
                 spy_gap = ((spy_tomorrow - spy_today) / spy_today) * 100
 
                 if spy_gap < -0.5:
@@ -228,6 +255,10 @@ class EveningRiskBacktest:
                 continue
 
             close_price = price_data.loc[date, 'Close']
+            # Convert to scalar if it's a Series
+            if isinstance(close_price, pd.Series):
+                close_price = close_price.iloc[0]
+
             distance_pct = ((close_price - sl_price) / close_price) * 100
 
             # Only analyze if close to SL (< 2%)
@@ -241,6 +272,9 @@ class EveningRiskBacktest:
                 date_idx = price_data.index.get_loc(date)
                 if date_idx + 1 < len(price_data):
                     next_open = price_data['Open'].iloc[date_idx + 1]
+                    # Convert to scalar if Series
+                    if isinstance(next_open, pd.Series):
+                        next_open = next_open.iloc[0]
                     next_date = price_data.index[date_idx + 1]
                 else:
                     next_open = close_price

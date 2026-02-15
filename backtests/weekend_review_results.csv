@@ -1,0 +1,3 @@
+symbol,entry_price,entry_date,weekend_date,trading_days_held,friday_close,current_pnl,score,momentum_5d,reasons,scenario_a_exit_price,scenario_a_exit_date,scenario_a_pnl,scenario_b_exit_price,scenario_b_exit_date,scenario_b_pnl,improvement_pct,took_action
+MSFT,400,2024-02-05,2024-02-10,4,408.0263671875,2.006591796875,75,2.558318493163294,"Positive momentum +2.6%, Uptrend (SMA5 > SMA10)",,,,398,2024-02-16,-0.5,0.0,False
+GOOGL,140,2024-03-01,2024-03-09,5,133.37225341796875,-4.734104701450892,25,-2.9467243640620966,"Downtrend (SMA5 < SMA10), Losing -4.7%",135.10914387452527,2024-03-11,-3.493468661053376,141,2024-03-14,0.7142857142857143,-4.20775437533909,True

@@ -1,0 +1,2 @@
+symbol,entry_price,sl_price,evening_date,evening_close,distance_pct,risk_score,reasons,scenario_a_exit_price,scenario_a_exit_date,scenario_a_pnl,scenario_b_exit_price,scenario_b_exit_date,scenario_b_pnl,improvement_pct,took_action
+AMD,180,175.5,2024-02-02,177.66000366210938,1.21580750736529,0,,,,,175,2024-02-08,-2.7777777777777777,0,False
