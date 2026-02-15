@@ -4400,43 +4400,43 @@ def handle_request_update(data=None):
 
 def _get_extended_hours_prices(symbols: list) -> dict:
     """
-    Get extended hours prices using Alpaca snapshot API.
-    No rate limit issues. Returns {symbol: {premarket_price, premarket_change, premarket_session}}
+    Get extended hours prices using yfinance.
+    Returns {symbol: {premarket_price, premarket_change, premarket_session}}
+
+    v6.24: Switched from Alpaca snapshots to yfinance for reliability.
     """
     results = {}
     if not symbols:
         return results
+
     try:
-        engine = get_auto_trading_engine()
-        if not engine or not engine.broker:
-            return results
+        import yfinance as yf
 
-        snapshots = engine.broker.get_snapshots(symbols)
-        market_open = engine.broker.is_market_open()
+        for symbol in symbols:
+            try:
+                ticker = yf.Ticker(symbol)
+                info = ticker.info
 
-        for symbol, snap in snapshots.items():
-            # v6.5: Handle Quote dataclass (not dict)
-            if isinstance(snap, dict):
-                latest_price = snap.get('latest_trade_price') or snap.get('last')
-                prev_close = snap.get('prev_close', 0)
-            else:
-                latest_price = getattr(snap, 'last', 0)
-                prev_close = getattr(snap, 'prev_close', 0)
+                regular_close = info.get('regularMarketPrice', 0)
+                after_hours = info.get('postMarketPrice', None)
 
-            if not latest_price or not prev_close:
+                if after_hours and regular_close > 0:
+                    change = ((after_hours - regular_close) / regular_close) * 100
+                    # Only include if there's actual movement (> 0.01%)
+                    if abs(change) > 0.01:
+                        results[symbol] = {
+                            'premarket_price': round(after_hours, 2),
+                            'premarket_change': round(change, 2),
+                            'premarket_session': 'AH'
+                        }
+                        logger.debug(f"After-hours: {symbol} ${after_hours:.2f} ({change:+.2f}% vs ${regular_close:.2f})")
+            except Exception as e:
+                logger.debug(f"Failed to fetch after-hours price for {symbol}: {e}")
                 continue
 
-            # If market is closed, show change vs prev_close
-            if not market_open and prev_close > 0:
-                change = ((latest_price - prev_close) / prev_close) * 100
-                if abs(change) > 0.01:  # Only show if there's actual movement
-                    results[symbol] = {
-                        'premarket_price': round(latest_price, 2),
-                        'premarket_change': round(change, 2),
-                        'premarket_session': 'AH'
-                    }
     except Exception as e:
-        logger.debug(f"Extended hours price error: {e}")
+        logger.warning(f"Extended hours price error: {e}")
+
     return results
 
 
