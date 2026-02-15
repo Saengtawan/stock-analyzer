@@ -8,6 +8,12 @@ Services:
 3. Rapid Rotation Scanner - หาหุ้นใหม่ทุก 5 นาที
 4. Universe Maintenance - เคลียร์หุ้น delisted ทุกวัน 2:00 AM
 
+v6.25 CRITICAL FIX - Auto-Sell Implementation:
+- Portfolio monitor now EXECUTES sells when CRITICAL or TAKE_PROFIT signals detected
+- Previously: Only logged warnings, no protection (caused $130 loss)
+- Now: Executes market sell, cancels SL/TP orders, removes position
+- Protection: Double-checks broker position exists before selling
+
 Usage:
     python src/run_app.py
 """
@@ -67,6 +73,18 @@ logger.add(
     level="INFO"
 )
 
+# Production Grade v6.21: Add JSON structured logging (using loguru's serialize)
+json_log_file = os.path.join(LOG_DIR, f"app_{datetime.now().strftime('%Y-%m-%d')}.json")
+logger.add(
+    json_log_file,
+    serialize=True,      # Loguru's built-in JSON serialization
+    rotation="10 MB",
+    retention="7 days",
+    compression="zip",
+    enqueue=True,
+    level="INFO"
+)
+
 # Signal cache file (shared between background scanner and Flask)
 SIGNALS_CACHE_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'cache')
 SIGNALS_CACHE_FILE = os.path.join(SIGNALS_CACHE_DIR, 'rapid_signals.json')
@@ -93,23 +111,117 @@ class ServiceManager:
         # Handle shutdown
         # Auto-monitoring
         self.monitor = initialize_monitoring(auto_start=True, health_check_interval=300)
-        signal.signal(signal.SIGINT, self._shutdown)
-        signal.signal(signal.SIGTERM, self._shutdown)
+
+        # v6.21: Install signal handlers only in main thread (fix: "signal only works in main thread")
+        try:
+            import threading
+            if threading.current_thread() is threading.main_thread():
+                signal.signal(signal.SIGINT, self._shutdown)
+                signal.signal(signal.SIGTERM, self._shutdown)
+                logger.info("✅ Signal handlers installed in main thread")
+            else:
+                logger.warning("⚠️ Skipping signal handlers (not in main thread)")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not install signal handlers: {e}")
 
     def _shutdown(self, signum, frame):
+        """
+        Graceful shutdown handler (v6.21 Production Grade - Phase 2 Item 1)
+
+        Ensures clean shutdown:
+        1. Stop accepting new signals
+        2. Wait for pending orders (max 30s)
+        3. Save portfolio state
+        4. Stop streamer
+        5. Close database connections
+        """
         print("\n")
         logger.info("=" * 60)
-        logger.info("SHUTTING DOWN ALL SERVICES...")
+        logger.info("🛑 GRACEFUL SHUTDOWN INITIATED")
         logger.info("=" * 60)
         self.running = False
 
-        # v5.1: Stop price streamer
+        # Step 1: Stop accepting new signals
+        logger.info("1. Stopping signal processing...")
+        if hasattr(self, 'rapid_portfolio') and self.rapid_portfolio:
+            try:
+                # Signal engine to stop accepting new signals
+                if hasattr(self.rapid_portfolio, 'engine'):
+                    self.rapid_portfolio.engine.running = False
+                    logger.info("   ✅ Engine stopped accepting new signals")
+            except Exception as e:
+                logger.error(f"   ❌ Error stopping engine: {e}")
+
+        # Step 2: Wait for pending orders (max 30s)
+        logger.info("2. Waiting for pending orders...")
+        if hasattr(self, 'rapid_portfolio') and self.rapid_portfolio:
+            try:
+                from engine.brokers.alpaca_broker import AlpacaBroker
+                if hasattr(self.rapid_portfolio, 'engine') and hasattr(self.rapid_portfolio.engine, 'broker'):
+                    broker = self.rapid_portfolio.engine.broker
+                    pending_orders = broker.get_orders(status='open')
+
+                    if pending_orders:
+                        logger.info(f"   Found {len(pending_orders)} pending orders")
+                        timeout = 30
+                        start = time.time()
+
+                        while pending_orders and (time.time() - start) < timeout:
+                            time.sleep(1)
+                            pending_orders = broker.get_orders(status='open')
+                            if len(pending_orders) > 0:
+                                logger.debug(f"   Still waiting... {len(pending_orders)} orders pending")
+
+                        if pending_orders:
+                            logger.warning(
+                                f"   ⚠️ {len(pending_orders)} orders still pending after {timeout}s. "
+                                f"Orders: {[o.symbol for o in pending_orders]}"
+                            )
+                            # Note: We don't cancel them - let them complete naturally
+                        else:
+                            logger.info("   ✅ All orders completed")
+                    else:
+                        logger.info("   ✅ No pending orders")
+            except Exception as e:
+                logger.error(f"   ❌ Error checking pending orders: {e}")
+
+        # Step 3: Save portfolio state
+        logger.info("3. Saving portfolio state...")
+        if hasattr(self, 'rapid_portfolio') and self.rapid_portfolio:
+            try:
+                if hasattr(self.rapid_portfolio, 'save_portfolio'):
+                    self.rapid_portfolio.save_portfolio()
+                    logger.info("   ✅ Portfolio state saved")
+                elif hasattr(self.rapid_portfolio, 'engine') and hasattr(self.rapid_portfolio.engine, '_save_positions_state'):
+                    self.rapid_portfolio.engine._save_positions_state()
+                    logger.info("   ✅ Position state saved")
+            except Exception as e:
+                logger.error(f"   ❌ Failed to save portfolio state: {e}")
+
+        # Step 4: Stop price streamer
+        logger.info("4. Stopping price streamer...")
         if self.streamer:
             try:
-                logger.info("Stopping price streamer...")
                 self.streamer.stop()
+                logger.info("   ✅ Streamer stopped")
             except Exception as e:
-                logger.error(f"Error stopping streamer: {e}")
+                logger.error(f"   ❌ Error stopping streamer: {e}")
+
+        # Step 5: Close database connections
+        logger.info("5. Closing database connections...")
+        try:
+            from database import close_all_connections
+            close_all_connections()
+            logger.info("   ✅ Database connections closed")
+        except Exception as e:
+            logger.error(f"   ❌ Error closing database: {e}")
+
+        logger.info("=" * 60)
+        logger.info("✅ SHUTDOWN COMPLETE")
+        logger.info("=" * 60)
+
+        import sys
+        sys.exit(0)
 
     def _update_cron_status(self, job_name, status):
         """Update cron job status in data/cron_status.json"""
@@ -168,14 +280,94 @@ class ServiceManager:
             traceback.print_exc()
             return False
 
+    def _execute_emergency_sell(self, symbol: str, status, reason: str):
+        """
+        Execute emergency sell when CRITICAL or TAKE_PROFIT signal detected
+        v6.25: Implements auto-sell to protect capital
+
+        Args:
+            symbol: Stock symbol to sell
+            status: PositionStatus object with trade details
+            reason: Sell reason (CRITICAL_SL or TAKE_PROFIT)
+        """
+        try:
+            # Get position details
+            if symbol not in self.rapid_portfolio.positions:
+                logger.warning(f"❌ {symbol} not in portfolio - cannot sell")
+                return
+
+            position = self.rapid_portfolio.positions[symbol]
+
+            # Double-check: Verify position exists at broker
+            if not self.rapid_portfolio.broker:
+                logger.error(f"❌ No broker connection - cannot auto-sell {symbol}")
+                return
+
+            broker_position = self.rapid_portfolio.broker.get_position(symbol)
+            if not broker_position:
+                logger.warning(f"❌ {symbol} position not found at broker - already closed?")
+                # Remove from portfolio
+                del self.rapid_portfolio.positions[symbol]
+                self.rapid_portfolio.save_positions()
+                return
+
+            qty = broker_position.qty
+
+            # Execute market sell
+            logger.info(f"🔴 AUTO-SELL: {symbol} {qty} shares @ ${status.current_price:.2f} | Reason: {reason} | P&L: {status.pnl_pct:+.2f}%")
+            print(f"\n{'='*60}")
+            print(f"🔴 AUTO-SELL EXECUTED")
+            print(f"Symbol: {symbol}")
+            print(f"Qty: {qty} shares")
+            print(f"Price: ${status.current_price:.2f}")
+            print(f"P&L: {status.pnl_pct:+.2f}% (${status.pnl_usd:+.2f})")
+            print(f"Reason: {reason}")
+            print(f"{'='*60}\n")
+
+            order = self.rapid_portfolio.broker.place_market_sell(symbol, qty)
+
+            if order and order.status in ['filled', 'new', 'accepted']:
+                logger.info(f"✅ Sell order placed: {order.id} | Status: {order.status}")
+
+                # Cancel any existing SL/TP orders
+                if position.sl_order_id:
+                    try:
+                        self.rapid_portfolio.broker.cancel_order(position.sl_order_id)
+                        logger.info(f"✅ Cancelled SL order: {position.sl_order_id}")
+                    except Exception as e:
+                        logger.debug(f"SL order cancel failed (may already be filled): {e}")
+
+                if position.tp_order_id:
+                    try:
+                        self.rapid_portfolio.broker.cancel_order(position.tp_order_id)
+                        logger.info(f"✅ Cancelled TP order: {position.tp_order_id}")
+                    except Exception as e:
+                        logger.debug(f"TP order cancel failed (may already be filled): {e}")
+
+                # Remove from portfolio
+                del self.rapid_portfolio.positions[symbol]
+                self.rapid_portfolio.save_positions()
+
+                logger.info(f"✅ {symbol} position closed and removed from portfolio")
+            else:
+                logger.error(f"❌ Sell order failed: {order}")
+
+        except Exception as e:
+            logger.error(f"❌ Emergency sell failed for {symbol}: {e}")
+            import traceback
+            traceback.print_exc()
+
     def start_rapid_portfolio_monitor(self):
         """Start rapid portfolio monitor - เช็คทุก 5 นาที เตือนถ้าต้องขาย"""
         try:
             logger.info("Starting Rapid Portfolio Monitor...")
 
             from rapid_portfolio_manager import RapidPortfolioManager, ExitSignal
+            from engine.brokers.alpaca_broker import AlpacaBroker
 
-            self.rapid_portfolio = RapidPortfolioManager()
+            # v6.25: Initialize with broker for auto-sell capability
+            broker = AlpacaBroker(paper=True)
+            self.rapid_portfolio = RapidPortfolioManager(broker=broker)
 
             def run_monitor():
                 check_interval = 5 * 60  # 5 minutes
@@ -186,16 +378,23 @@ class ServiceManager:
                             statuses = self.rapid_portfolio.check_all_positions()
                             self.last_portfolio_check = datetime.now()
 
-                            # Check for critical alerts
+                            # Check for critical alerts and execute sells
                             for status in statuses:
                                 if status.signal == ExitSignal.CRITICAL:
                                     logger.warning(f"🔴 CRITICAL: {status.symbol} - {status.action}")
                                     print(f"\n🔴 ALERT: {status.symbol} ลง {status.pnl_pct:.1f}% - ขายทันที!\n")
+
+                                    # v6.25: AUTO-SELL when CRITICAL signal detected
+                                    self._execute_emergency_sell(status.symbol, status, "CRITICAL_SL")
+
                                 elif status.signal == ExitSignal.WARNING:
                                     logger.warning(f"🟠 WARNING: {status.symbol} - {status.action}")
                                 elif status.signal == ExitSignal.TAKE_PROFIT:
                                     logger.info(f"🎯 TAKE PROFIT: {status.symbol} +{status.pnl_pct:.1f}%")
                                     print(f"\n🎯 {status.symbol} ถึงเป้า +{status.pnl_pct:.1f}% - ขายเอากำไร!\n")
+
+                                    # v6.25: AUTO-SELL when TAKE_PROFIT signal detected
+                                    self._execute_emergency_sell(status.symbol, status, "TAKE_PROFIT")
 
                         if not self.rapid_portfolio.positions:
                             self.last_portfolio_check = datetime.now()
