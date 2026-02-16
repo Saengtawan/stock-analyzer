@@ -83,12 +83,20 @@ def is_trading_day_today(
     # Calculate days until next open
     days_until_next = (next_open_date - current_date).days
 
-    # If next open is tomorrow (1 day) AND today is weekday → today was a trading day
-    is_weekday = et_now.weekday() < 5
-    if days_until_next == 1 and is_weekday:
-        return True
+    # Fix: Don't assume weekday + next_open=tomorrow means trading day
+    # This fails for weekday holidays (e.g., Presidents' Day)
+    #
+    # If next open is tomorrow, check if today had market hours
+    # We can infer this from next_close - if provided and in the past today,
+    # then today was a trading day. Otherwise, it's a holiday.
+    #
+    # However, we don't always have next_close here, so the safe approach is:
+    # Only return True if market is open NOW or next open is TODAY.
+    # For after-hours detection, rely on caller passing is_market_open correctly.
 
-    # Otherwise, not a trading day (weekend or holiday)
+    # If we got here, market is not open and next open is not today
+    # Cannot reliably determine if today was a trading day without more info
+    # Return False (conservative - treat as non-trading day)
     return False
 
 

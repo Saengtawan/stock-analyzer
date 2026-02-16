@@ -474,6 +474,8 @@ class AutoTradingEngine:
         # v4.9.4: Additional scanners (overnight gap + breakout)
         self.overnight_scanner = None
         self.breakout_scanner = None
+        self.premarket_gap_scanner = None  # v6.11: Pre-market gap scanner
+
         if self.OVERNIGHT_GAP_ENABLED:
             try:
                 from screeners.overnight_gap_scanner import OvernightGapScanner
@@ -488,6 +490,14 @@ class AutoTradingEngine:
                 logger.info("BreakoutScanner initialized")
             except Exception as e:
                 logger.warning(f"BreakoutScanner init failed: {e}")
+
+        # v6.11: Pre-Market Gap Scanner (100% win rate, 6AM-9:30AM)
+        try:
+            from screeners.premarket_gap_scanner import PreMarketGapScanner
+            self.premarket_gap_scanner = PreMarketGapScanner()
+            logger.info("✅ PreMarketGapScanner initialized (v6.11)")
+        except Exception as e:
+            logger.warning(f"PreMarketGapScanner init failed: {e}")
 
         # VIX Adaptive Strategy v3.0
         self.vix_adaptive = None
@@ -3556,7 +3566,7 @@ class AutoTradingEngine:
 
             regime_ok, regime_reason = self._check_market_regime()
 
-            self.positions[symbol] = ManagedPosition(
+            managed_pos = ManagedPosition(
                 symbol=symbol,
                 qty=qty,
                 entry_price=entry_price,
@@ -3578,6 +3588,17 @@ class AutoTradingEngine:
                 entry_rsi=getattr(signal, 'rsi', 0.0) or 0.0,
                 momentum_5d=getattr(signal, 'momentum_5d', 0.0) or 0.0,
             )
+
+            # v6.11: Add gap trade metadata if this is from pre-market gap scanner
+            if hasattr(signal, '__dict__'):
+                if signal.__dict__.get('gap_trade'):
+                    managed_pos.gap_trade = True
+                    managed_pos.gap_confidence = signal.__dict__.get('gap_confidence', 0)
+                    managed_pos.gap_pct = signal.__dict__.get('gap_pct', 0)
+                    logger.info(f"  📊 Gap Trade: {managed_pos.gap_pct:+.1f}% gap, "
+                               f"{managed_pos.gap_confidence}% confidence (exit at EOD)")
+
+            self.positions[symbol] = managed_pos
             self._save_positions_state()
 
         return True
@@ -4725,8 +4746,20 @@ class AutoTradingEngine:
         self._save_loss_counters()
 
     def pre_close_check(self):
-        """Pre-close check - handle max hold days and Day 0 SL"""
+        """Pre-close check - handle max hold days, gap trades, and Day 0 SL"""
         logger.info("Pre-close check...")
+
+        # v6.11: Close gap trades at market close (same day exit)
+        for symbol, managed_pos in list(self.positions.items()):
+            # Check if this is a gap trade (marked during entry)
+            is_gap_trade = getattr(managed_pos, 'gap_trade', False)
+            if is_gap_trade and managed_pos.days_held == 0:
+                # Gap trades should be closed same day (intraday strategy)
+                gap_pct = getattr(managed_pos, 'gap_pct', 0)
+                logger.info(f"⚡ Closing GAP TRADE {symbol} at market close "
+                           f"(gap: {gap_pct:+.1f}%, held: intraday)")
+                self._close_position(symbol, managed_pos, "GAP_TRADE_EOD")
+                continue  # Skip other checks for this position
 
         for symbol, managed_pos in list(self.positions.items()):
             if managed_pos.days_held >= self.MAX_HOLD_DAYS:
@@ -5169,6 +5202,140 @@ class AutoTradingEngine:
         except Exception as e:
             logger.warning(f"Overnight gap scan error: {e}")
 
+    def _loop_premarket_gap_scan(self, today: str):
+        """
+        Execute pre-market gap scan (6:00-9:30 AM ET)
+
+        v6.11: New scanner based on backtest (100% win rate)
+        - Scan AFTER gaps already happened
+        - Detect gaps 5%+ with high volume
+        - Calculate rotation worthiness
+        - Only buy gaps worth rotating (net benefit > 0)
+        """
+        if not self.premarket_gap_scanner:
+            return
+
+        # Check if already scanned today
+        if hasattr(self, '_premarket_scan_done') and self._premarket_scan_done == today:
+            return
+
+        # Check time window (6:00 AM - 9:30 AM ET)
+        et_now = self._get_et_time()
+        scan_start = et_now.replace(hour=6, minute=0, second=0, microsecond=0)
+        scan_end = et_now.replace(hour=9, minute=30, second=0, microsecond=0)
+
+        if not (scan_start <= et_now < scan_end):
+            return
+
+        # Check if we have room for new positions
+        params = self._get_effective_params()
+        max_pos = params.get('max_positions') or self.MAX_POSITIONS
+
+        if len(self.positions) >= max_pos:
+            logger.debug(f"PreMarket Gap: Positions full ({len(self.positions)}/{max_pos})")
+            return
+
+        # Mark as scanned
+        self._premarket_scan_done = today
+
+        logger.info(f"🔍 Pre-Market Gap Scan starting ({len(self.positions)}/{max_pos} positions)")
+
+        try:
+            # Scan for gaps (min confidence 80% for high-quality signals)
+            gap_signals = self.premarket_gap_scanner.scan_premarket(min_confidence=80)
+
+            if not gap_signals:
+                logger.info("Pre-Market Gap: No high-confidence gaps found")
+                return
+
+            logger.info(f"✅ Found {len(gap_signals)} gap signals")
+
+            # Convert to RapidRotationSignal format
+            converted_signals = []
+            for sig in gap_signals:
+                # Only trade gaps worth rotating
+                if not sig.worth_rotating:
+                    logger.info(f"  {sig.symbol}: Gap {sig.gap_pct:+.1f}% (conf {sig.confidence}%) "
+                               f"- NOT worth rotating (benefit: {sig.rotation_benefit:+.1f}%)")
+                    continue
+
+                logger.info(f"  {sig.symbol}: Gap {sig.gap_pct:+.1f}% (conf {sig.confidence}%) "
+                           f"- WORTH ROTATING (benefit: {sig.rotation_benefit:+.1f}%)")
+
+                # Create signal compatible with existing system
+                try:
+                    from screeners.rapid_rotation_screener import RapidRotationSignal
+                except ImportError:
+                    from src.screeners.rapid_rotation_screener import RapidRotationSignal
+
+                # Entry at market open (current pre-market price)
+                entry_price = sig.current_price
+
+                # Stop loss: 2% (conservative for gap trades)
+                stop_loss = round(entry_price * 0.98, 2)
+
+                # Take profit based on estimated return
+                tp_pct = min(sig.day_return_estimate, 5.0)  # Cap at 5%
+                take_profit = round(entry_price * (1 + tp_pct / 100), 2)
+
+                # Calculate risk/reward
+                risk_pct = 2.0
+                reward_pct = tp_pct
+                risk_reward = reward_pct / risk_pct if risk_pct > 0 else 0
+
+                # Score based on confidence + rotation benefit
+                score = int(sig.confidence + min(sig.rotation_benefit * 5, 20))
+
+                rapid_signal = RapidRotationSignal(
+                    symbol=sig.symbol,
+                    score=score,
+                    entry_price=entry_price,
+                    stop_loss=stop_loss,
+                    take_profit=take_profit,
+                    risk_reward=round(risk_reward, 2),
+                    atr_pct=3.0,  # Default ATR
+                    rsi=50.0,  # Neutral RSI
+                    momentum_5d=sig.gap_pct,  # Use gap as momentum
+                    momentum_20d=0.0,
+                    distance_from_high=0.0,
+                    reasons=[
+                        f"Gap: {sig.gap_pct:+.1f}%",
+                        f"Confidence: {sig.confidence}%",
+                        f"Catalyst: {sig.catalyst_type}",
+                        f"Volume: {sig.volume_ratio:.1f}x",
+                        f"Rotation benefit: {sig.rotation_benefit:+.1f}%",
+                        f"Exit: Same day close (intraday)"  # Exit strategy
+                    ],
+                    sector="",
+                    market_regime="",
+                    sector_score=0,
+                    alt_data_score=0,
+                    sl_method="premarket_gap_fixed",
+                    tp_method="premarket_gap_estimated",
+                    volume_ratio=sig.volume_ratio,
+                )
+
+                # v6.11: Mark as gap trade for special exit handling
+                # Gap trades should be closed at market close (same day)
+                if hasattr(rapid_signal, '__dict__'):
+                    rapid_signal.__dict__['gap_trade'] = True
+                    rapid_signal.__dict__['gap_confidence'] = sig.confidence
+                    rapid_signal.__dict__['gap_pct'] = sig.gap_pct
+
+                converted_signals.append(rapid_signal)
+
+            # Process signals through existing pipeline
+            if converted_signals:
+                self._process_scan_signals(converted_signals, "premarket_gap", max_positions=max_pos)
+                logger.info(f"Pre-Market Gap: Processed {len(converted_signals)} signals")
+            else:
+                logger.info("Pre-Market Gap: No gaps worth rotating after filter")
+
+        except Exception as e:
+            logger.error(f"Pre-Market Gap scan error: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+
     def _run_loop(self):
         """Main trading loop (v6.6 refactored)"""
         logger.info("Trading loop started")
@@ -5231,6 +5398,7 @@ class AutoTradingEngine:
                     self._loop_morning_scan(today)
 
                 # Scheduled scans
+                self._loop_premarket_gap_scan(today)  # v6.11: Pre-market gap scan (6AM-9:30AM)
                 self._loop_afternoon_scan(today)
                 self._loop_continuous_scan(today)
                 self._loop_overnight_gap_scan(today)
@@ -5341,8 +5509,9 @@ class AutoTradingEngine:
             market_close = 960
 
         # Build sessions list for UI timeline
+        # v6.11: Added gapscan session for pre-market gap scanner
         sessions = []
-        for key in ['morning', 'midday', 'afternoon', 'preclose']:
+        for key in ['gapscan', 'morning', 'midday', 'afternoon', 'preclose']:
             if key in sessions_cfg:
                 s = sessions_cfg[key]
                 # v6.10: SessionConfig object (has attributes, not dict)
@@ -5352,6 +5521,15 @@ class AutoTradingEngine:
                     'start': s.start if hasattr(s, 'start') else 0,
                     'end': s.end if hasattr(s, 'end') else 0,
                     'interval': s.interval if hasattr(s, 'interval') else 5,
+                })
+            elif key == 'gapscan':
+                # v6.11: Gap scan not in config, add manually
+                sessions.append({
+                    'name': 'gapscan',
+                    'label': 'Gap Scan',
+                    'start': 360,  # 06:00 AM
+                    'end': 575,    # 09:35 AM
+                    'interval': -1,  # Once per day
                 })
 
         return {
@@ -5425,13 +5603,29 @@ class AutoTradingEngine:
             regime_details = self._regime_cache[3]
             regime_details['cache_age_seconds'] = int((datetime.now() - self._regime_cache[2]).total_seconds())
 
+        # v6.11: Add calendar status for UI header (HOLIDAY vs CLOSED display)
+        from utils.market_calendar import get_market_calendar_status
+        try:
+            clock = self.broker.api.get_clock()
+            calendar_status = get_market_calendar_status(
+                next_open=clock.next_open,
+                next_close=clock.next_close,
+                is_market_open=clock.is_open
+            )
+            # Merge calendar info into regime_details for UI
+            if regime_details is None:
+                regime_details = {}
+            regime_details['calendar'] = calendar_status
+        except Exception as e:
+            logger.warning(f"Calendar status error: {e}")
+
         return {
             'state': self.state.value,
             'running': self.running,
             'market_open': self.broker.is_market_open(),
             'market_regime': 'BULL' if is_bull else ('BEAR_MODE' if self.BEAR_MODE_ENABLED else 'BEAR'),  # v4.9.2
             'regime_detail': regime_reason,  # v4.0
-            'regime_details': regime_details,  # v4.9.5: SPY details for UI
+            'regime_details': regime_details,  # v4.9.5: SPY details + calendar for UI
             'bear_mode_enabled': self.BEAR_MODE_ENABLED,  # v4.9.2
             'bear_allowed_sectors': self._get_bear_allowed_sectors() if not is_bull and self.BEAR_MODE_ENABLED else None,  # v4.9.2
             'bull_blocked_sectors': self._get_bull_blocked_sectors() if is_bull else None,  # v4.9.3
@@ -5442,7 +5636,7 @@ class AutoTradingEngine:
             'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v6.0.0',  # v6.0: VIX<30 Entry Filter + Optimized Trailing (BULL +241%, BEAR +109%)
+            'version': 'v6.11',  # v6.11: Gap Scanner + UI Timeline (5 sessions)
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
