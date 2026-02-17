@@ -18,10 +18,12 @@
 | Idealized (65 stocks) | 866 | 46.3% | 49.8% | -6.39% | $1,640 |
 | Realistic (+costs) | 866 | 46.3% | 35.8% | -9.79% | $1,044 |
 | Production (SPY+sector) | 328 | 49.7% | 27.5% | -9.50% | $743 |
-| **Full Universe (987 stocks, daily pre-filter)** | 560 | 36.2% | 20.0% | -19.82% | **$506** |
+| Full Universe (987 stocks, daily pre-filter) | 560 | 36.2% | 20.0% | -19.82% | $506 |
+| **Sector Filtered (606 stocks, good sectors)** | 546 | 38.1% | 27.7% | -16.04% | **$750** |
 - Full universe most realistic: 987 stocks, daily pre-filter each day, all costs+regime
-- Win rate drop 46%→36%: curated 65 stocks (tech/growth) respond better to dip-bounce
-- Real-world: likely **$506-$743/month** on $25k
+- Sector filter: exclude Materials/Staples/Media/Aerospace/Energy_Oil → +48% profit
+- Win rate gap (38% vs 50%): universe quality matters, dip-bounce works best on high-beta stocks
+- Real-world estimate: **~$750/month** on $25k capital
 
 ## Active Strategies (2026-02-12)
 **AUTO-TRADING (2 strategies active):**

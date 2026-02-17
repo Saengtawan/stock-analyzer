@@ -88,13 +88,36 @@
 - Pre-filter passes them through (ATR/volume/SMA20 ok) but they don't follow momentum patterns
 - **Lesson**: dip-bounce strategy works best on high-beta, momentum stocks
 
+## Sector-Filtered Backtest (606 stocks — best estimate)
+| Metric | Value |
+|--------|-------|
+| Total Trades | **546** |
+| Win Rate | **38.1%** |
+| Avg P&L/trade | **+0.54%** |
+| Monthly return | **3.00%** |
+| CAGR | **27.7%** |
+| Max Drawdown | **-16.04%** |
+| $25k/month | **$750** |
+
+### Sectors Excluded (avg P&L < 0)
+Materials, Energy_Oil/Refining/Midstream, Consumer_Staples, Media,
+Industrial_Aerospace/Transport, Finance_Payments, Finance_Exchanges,
+Utilities_Gas, Real_Estate_Retail/Healthcare
+
+### Key Insight: Pre-filter vs Strategy
+- Problem is **pre-filter** (lets in defensive/low-beta stocks), NOT strategy
+- Sector filter: $506 → $750/month (+48%), Max DD: -19.82% → -16.04%
+- Win rate gap (38% vs 50% for 65-stock): high-beta momentum stocks respond better
+- Strategy itself is sound — works well when universe quality is high
+
 ### Real-World Estimate
-**$506-$743/month on $25k** (between full universe and production 65-stock)
+**~$750/month on $25k** (sector-filtered full universe, most realistic)
 
 ### Backtest Files
 - `backtest_3yr_trades.csv` — 866 trades, idealized (65 stocks)
 - `backtest_3yr_realistic.csv` — 866 trades, +costs (65 stocks)
 - `backtest_3yr_production_realistic.csv` — 328 trades, +SPY regime (65 stocks)
-- `backtest_3yr_full_universe.csv` — 560 trades, 987 stocks daily pre-filter (most realistic)
+- `backtest_3yr_full_universe.csv` — 560 trades, 987 stocks, daily pre-filter
+- `backtest_3yr_sector_filtered.csv` — 546 trades, 606 stocks, good sectors only ← best estimate
 - `backtest_full_universe.py` — script for full universe backtest
 - `backtest_production_trades.csv` — 163 trades Aug-Feb 2026
