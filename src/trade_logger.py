@@ -759,6 +759,22 @@ class TradeLogger:
                 else:
                     raise  # Re-raise on final attempt
 
+    def has_sell_logged(self, symbol: str, since_hours: int = 72) -> bool:
+        """Check if a SELL trade was already logged for symbol in last N hours.
+        Used to prevent double-logging when detecting offline SL fills on restart."""
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=5)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT COUNT(*) FROM trades WHERE symbol=? AND action='SELL'
+                AND timestamp >= datetime('now', ?)
+            """, (symbol, f'-{since_hours} hours'))
+            count = cursor.fetchone()[0]
+            conn.close()
+            return count > 0
+        except Exception:
+            return False  # Fail-open: better to log duplicate than miss it
+
     def flush(self):
         """Flush pending log entries (blocks until queue empty)"""
         try:

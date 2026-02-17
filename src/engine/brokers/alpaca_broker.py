@@ -121,7 +121,10 @@ def _retry_api(max_retries: int = 3, base_delay: float = 1.0, max_delay: float =
                         raise
 
                     # Don't retry on business logic errors
-                    if any(kw in err_str for kw in ['insufficient', 'not found', 'forbidden', 'invalid']):
+                    if any(kw in err_str for kw in [
+                        'insufficient', 'not found', 'forbidden', 'invalid',
+                        'market is closed', 'market orders not allowed',  # No retry during off-hours
+                    ]):
                         raise
 
                     if attempt < max_retries:

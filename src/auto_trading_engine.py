@@ -848,8 +848,54 @@ class AutoTradingEngine:
 
             if atomic_write_json(self._state_file, data):
                 logger.debug(f"Position state saved: {len(state)} positions")
+
+            # Keep DB active_positions table in sync with JSON
+            self._sync_active_positions_db()
         except Exception as e:
             logger.error(f"Failed to save position state: {e}")
+
+    def _sync_active_positions_db(self):
+        """Sync active_positions DB table to match current in-memory positions.
+        Called after every _save_positions_state(). Non-critical: errors logged only."""
+        try:
+            import sqlite3 as _sqlite3
+            db_path = os.path.join(self._state_dir, 'trade_history.db')
+            if not os.path.exists(db_path):
+                return
+            with self._positions_lock:
+                snapshot = dict(self.positions)
+            current_symbols = list(snapshot.keys())
+            conn = _sqlite3.connect(db_path, timeout=5)
+            cursor = conn.cursor()
+            # Remove positions no longer tracked
+            if current_symbols:
+                placeholders = ','.join('?' * len(current_symbols))
+                cursor.execute(f"DELETE FROM active_positions WHERE symbol NOT IN ({placeholders})", current_symbols)
+            else:
+                cursor.execute("DELETE FROM active_positions")
+            # Upsert current positions
+            for symbol, pos in snapshot.items():
+                cursor.execute("""
+                    INSERT OR REPLACE INTO active_positions
+                    (symbol, entry_date, entry_price, qty, stop_loss, take_profit,
+                     peak_price, trough_price, trailing_stop, day_held, sl_pct, tp_pct,
+                     entry_atr_pct, sl_order_id, sector, source, signal_score, mode,
+                     regime, entry_rsi, momentum_5d, updated_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (
+                    symbol, pos.entry_time.isoformat(), pos.entry_price, pos.qty,
+                    pos.current_sl_price, pos.tp_price, pos.peak_price, pos.trough_price,
+                    1 if pos.trailing_active else 0, pos.days_held,
+                    pos.sl_pct, pos.tp_pct, pos.atr_pct, pos.sl_order_id,
+                    pos.sector, pos.source, pos.signal_score,
+                    pos.entry_mode, pos.entry_regime, pos.entry_rsi, pos.momentum_5d,
+                    datetime.now().isoformat()
+                ))
+            conn.commit()
+            conn.close()
+            logger.debug(f"DB active_positions synced: {len(snapshot)} positions")
+        except Exception as e:
+            logger.warning(f"DB active_positions sync failed (non-critical): {e}")
 
     def _load_positions_state(self) -> Dict[str, dict]:
         """Load persisted position state from JSON file."""
@@ -1192,6 +1238,53 @@ class AutoTradingEngine:
             stale = [s for s in persisted if s not in alpaca_symbols]
             if stale:
                 logger.info(f"Stale persisted positions removed: {', '.join(stale)}")
+                # Log exit trade for positions closed while engine was offline
+                for sym in stale:
+                    saved = persisted.get(sym, {})
+                    try:
+                        if self.trade_logger.has_sell_logged(sym, since_hours=72):
+                            logger.debug(f"{sym}: SELL already in DB — skipping offline exit log")
+                            continue
+                        # Try to get actual fill price from Alpaca closed orders
+                        exit_price = saved.get('current_sl_price', 0.0)
+                        try:
+                            closed_orders = self.broker.get_orders(status='closed')
+                            fill = next(
+                                (o for o in closed_orders
+                                 if o.symbol == sym and o.side == 'sell' and o.status == 'filled'),
+                                None
+                            )
+                            if fill and fill.filled_avg_price:
+                                exit_price = fill.filled_avg_price
+                        except Exception:
+                            pass  # Use SL price as fallback
+                        entry_price = saved.get('entry_price', 0.0)
+                        qty = saved.get('qty', 0)
+                        if entry_price and qty and exit_price:
+                            pnl_pct = (exit_price - entry_price) / entry_price * 100
+                            pnl_usd = (exit_price - entry_price) * qty
+                            self.trade_logger.log_sell(
+                                symbol=sym, qty=qty, price=exit_price,
+                                reason="SL_FILLED_WHILE_OFFLINE",
+                                entry_price=entry_price, pnl_usd=pnl_usd, pnl_pct=pnl_pct,
+                                day_held=0, sl_price=saved.get('current_sl_price', exit_price),
+                                trail_active=saved.get('trailing_active', False),
+                                peak_price=saved.get('peak_price', entry_price),
+                                signal_score=saved.get('signal_score', 0),
+                                sector=saved.get('sector', ''),
+                                atr_pct=saved.get('atr_pct', 0),
+                                signal_source=saved.get('source', 'dip_bounce'),
+                                mode=saved.get('entry_mode', 'NORMAL'),
+                                regime=saved.get('entry_regime', 'BULL'),
+                                entry_rsi=saved.get('entry_rsi', 0),
+                                momentum_5d=saved.get('momentum_5d', 0),
+                            )
+                            logger.warning(
+                                f"⚠️ Offline exit logged for {sym}: {pnl_pct:+.2f}% (${pnl_usd:+.2f}) "
+                                f"@ ${exit_price:.2f} (SL_FILLED_WHILE_OFFLINE)"
+                            )
+                    except Exception as e:
+                        logger.warning(f"Could not log offline exit for {sym}: {e}")
 
             # ===================================================================
             # v6.21 PRODUCTION GRADE: Position Sync Recovery (Phase 1 Item 2)
@@ -4566,6 +4659,11 @@ class AutoTradingEngine:
                     return
             except Exception as e:
                 logger.warning(f"{symbol}: Could not check pending orders: {e}")
+
+            # Guard: market must be open for market sell (prevents DLQ flood on holidays)
+            if not self.broker.is_market_open():
+                logger.info(f"{symbol}: Market closed — will retry close when market opens (reason: {reason})")
+                return
 
             # Sell using actual qty from Alpaca (not managed_pos.qty)
             # In case of partial fills or discrepancies
