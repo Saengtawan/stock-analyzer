@@ -164,10 +164,10 @@ class DataCache:
         #
         self.ttl_by_type = {
             # LONG CACHE - historical data
-            'price': timedelta(hours=4),           # Historical prices: 4h (for 20-90 day momentum)
+            'price': timedelta(hours=2),           # Historical prices: 2h (for 20-90 day momentum, fresher intraday)
             'company': timedelta(hours=24),        # Company info: 24h (sector/industry rarely change)
             'financial': timedelta(hours=12),      # Financial data: 12h (quarterly reports)
-            'universe': timedelta(hours=6),        # Stock universe: 6h
+            'universe': timedelta(hours=3),        # Stock universe: 3h (catch new active stocks faster)
             'sector_companies': timedelta(days=7), # v5.2: Top-50 company list per sector (rarely changes)
 
             # SHORT CACHE - need fresher data

@@ -1419,7 +1419,7 @@ class AutoTradingEngine:
         if not force_refresh and self._regime_cache:
             is_bull, reason, cached_at = self._regime_cache[0], self._regime_cache[1], self._regime_cache[2]
             details = self._regime_cache[3] if len(self._regime_cache) > 3 else {}
-            cache_ttl = 60 if details.get('vix_is_fallback') else self._regime_cache_seconds
+            cache_ttl = 45 if details.get('vix_is_fallback') else self._regime_cache_seconds  # v6.11: 60s→45s for faster VIX recovery
             age_seconds = (datetime.now() - cached_at).total_seconds()
             if age_seconds < cache_ttl:
                 return is_bull, reason
