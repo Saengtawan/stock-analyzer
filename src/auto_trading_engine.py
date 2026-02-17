@@ -837,22 +837,8 @@ class AutoTradingEngine:
     
     
     def _save_positions_state(self):
-        """Persist all ManagedPosition state to JSON file (atomic write)."""
-        from engine.state_manager import serialize_position, atomic_write_json
-        try:
-            with self._positions_lock:
-                positions_snapshot = dict(self.positions)
-
-            state = {sym: serialize_position(pos) for sym, pos in positions_snapshot.items()}
-            data = {'saved_at': datetime.now().isoformat(), 'count': len(state), 'positions': state}
-
-            if atomic_write_json(self._state_file, data):
-                logger.debug(f"Position state saved: {len(state)} positions")
-
-            # Keep DB active_positions table in sync with JSON
-            self._sync_active_positions_db()
-        except Exception as e:
-            logger.error(f"Failed to save position state: {e}")
+        """Persist all ManagedPosition state to DB (single source of truth)."""
+        self._sync_active_positions_db()
 
     # Engine sources that this engine owns (do NOT touch rapid_trader positions)
     _ENGINE_SOURCES = ('dip_bounce', 'vix_adaptive', 'mean_reversion', 'rapid_rotation')
@@ -928,13 +914,38 @@ class AutoTradingEngine:
             logger.warning(f"DB active_positions sync failed (non-critical): {e}")
 
     def _load_positions_state(self) -> Dict[str, dict]:
-        """Load persisted position state from JSON file."""
-        from engine.state_manager import safe_read_json
-        data = safe_read_json(self._state_file, {})
-        positions = data.get('positions', {})
-        if positions:
-            logger.info(f"Loaded persisted state: {len(positions)} positions (saved at {data.get('saved_at', 'unknown')})")
-        return positions
+        """Load persisted position state from DB (single source of truth)."""
+        try:
+            from database import PositionRepository
+            repo = PositionRepository()
+            db_positions = repo.get_all(use_cache=False)
+            positions = {}
+            for db_pos in db_positions:
+                positions[db_pos.symbol] = {
+                    'entry_time': db_pos.entry_date.isoformat() if db_pos.entry_date else None,
+                    'sl_order_id': db_pos.sl_order_id,
+                    'current_sl_price': db_pos.stop_loss,
+                    'peak_price': db_pos.peak_price,
+                    'trailing_active': bool(db_pos.trailing_stop),
+                    'sl_pct': db_pos.sl_pct,
+                    'tp_price': db_pos.take_profit,
+                    'tp_pct': db_pos.tp_pct,
+                    'atr_pct': db_pos.entry_atr_pct,
+                    'sector': db_pos.sector,
+                    'trough_price': db_pos.trough_price,
+                    'source': db_pos.source,
+                    'signal_score': db_pos.signal_score,
+                    'entry_mode': db_pos.mode,
+                    'entry_regime': db_pos.regime,
+                    'entry_rsi': db_pos.entry_rsi,
+                    'momentum_5d': db_pos.momentum_5d,
+                }
+            if positions:
+                logger.info(f"Loaded persisted state: {len(positions)} positions from DB")
+            return positions
+        except Exception as e:
+            logger.warning(f"Failed to load persisted state from DB: {e}")
+            return {}
 
     # =========================================================================
     # QUEUE STATE PERSISTENCE
