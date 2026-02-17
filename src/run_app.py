@@ -313,6 +313,11 @@ class ServiceManager:
 
             qty = broker_position.qty
 
+            # Guard: market must be open for market sell
+            if not self.rapid_portfolio.broker.is_market_open():
+                logger.info(f"{symbol}: Market closed — will retry emergency sell when market opens (reason: {reason})")
+                return
+
             # Execute market sell
             logger.info(f"🔴 AUTO-SELL: {symbol} {qty} shares @ ${status.current_price:.2f} | Reason: {reason} | P&L: {status.pnl_pct:+.2f}%")
             print(f"\n{'='*60}")
@@ -817,12 +822,18 @@ class ServiceManager:
                 'detail': f"Cache read error: {e}"
             }
 
-        # 6. Positions sync (Alpaca vs in-memory)
+        # 6. Positions sync (Alpaca vs engine in-memory)
+        # Use engine positions (source of truth) not rapid_portfolio (may have stale cache)
         if broker:
             try:
                 if hasattr(self, 'rapid_portfolio'):
                     alpaca_positions = broker.get_positions()
-                    memory_count = len(self.rapid_portfolio.positions) if self.rapid_portfolio.positions else 0
+                    # Prefer engine.positions (auto-synced with Alpaca) over rapid_portfolio cache
+                    engine = getattr(self.rapid_portfolio, 'engine', None)
+                    if engine and hasattr(engine, 'positions'):
+                        memory_count = len(engine.positions)
+                    else:
+                        memory_count = len(self.rapid_portfolio.positions) if self.rapid_portfolio.positions else 0
                     alpaca_count = len(alpaca_positions)
 
                     if memory_count != alpaca_count:
