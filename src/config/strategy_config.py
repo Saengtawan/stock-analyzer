@@ -107,6 +107,10 @@ class RapidRotationConfig:
     max_rsi_entry: int = 65             # Block RSI > 65 (20% WR)
     avoid_mom_range: List[int] = field(default_factory=lambda: [10, 12])  # Skip momentum 10-12%
 
+    # v6.20: Momentum 5d Filter (dip-bounce strategy requirement)
+    momentum_5d_min_dip: float = -1.0   # Must have dipped at least -1.0% (block shallow dips)
+    momentum_5d_max_dip: float = -15.0  # Max dip allowed -15% (block crashed stocks)
+
     # =========================================================================
     # REGIME FILTERING
     # =========================================================================
@@ -125,6 +129,14 @@ class RapidRotationConfig:
     sector_bull_bonus: int = 0          # Bonus points for BULL sector (disabled)
     sector_bear_penalty: int = 0        # Penalty for BEAR sector (disabled)
     sector_sideways_adj: int = 0        # Adjustment for SIDEWAYS sector
+
+    # =========================================================================
+    # DYNAMIC SECTOR REFRESH (v6.20 Refactor #2)
+    # =========================================================================
+    sector_vix_threshold: float = 20.0      # VIX > 20 = volatile market
+    sector_ttl_volatile_min: int = 2        # Sector refresh TTL when volatile (minutes)
+    sector_ttl_normal_min: int = 5          # Sector refresh TTL when normal (minutes)
+    sector_vix_cache_ttl_sec: int = 60      # Cache VIX for N seconds (balance freshness vs API calls)
 
     # =========================================================================
     # SECTOR DIVERSIFICATION
@@ -159,6 +171,15 @@ class RapidRotationConfig:
     pdt_day_trade_limit: int = 3            # Max day trades (non-PDT)
     pdt_reserve: int = 1                    # Keep N day trades for emergencies (v6.10.1)
     pdt_enforce_always: bool = True         # Always enforce PDT rules
+
+    # SPY Intraday Filter (blocks new entries when SPY already selling off)
+    spy_intraday_filter_enabled: bool = True
+    spy_intraday_filter_pct: float = -1.0   # Block if SPY down >1% from today's open
+
+    # VIX Spike Protection (tighten SLs when VIX jumps sharply)
+    vix_spike_protection_enabled: bool = True
+    vix_spike_pct: float = 15.0             # Trigger if VIX up >15% vs yesterday close
+    vix_spike_sl_tighten_pct: float = 1.0  # Tighten SL to N% below current price
 
     # Circuit breaker
     max_consecutive_losses: int = 3     # Circuit breaker trigger (legacy: 3)
@@ -486,7 +507,11 @@ class RapidRotationConfig:
             'position_size_pct', 'max_position_pct', 'min_score', 'min_atr_pct',
             'regime_filter_enabled', 'regime_sma_period', 'sector_bull_threshold',
             'sector_bear_threshold', 'sector_bull_bonus', 'sector_bear_penalty',
-            'sector_sideways_adj', 'alt_data_max_bonus', 'alt_data_max_penalty',
+            'sector_sideways_adj',
+            # v6.20 Refactor #2: Dynamic sector refresh
+            'sector_vix_threshold', 'sector_ttl_volatile_min', 'sector_ttl_normal_min', 'sector_vix_cache_ttl_sec',
+            # Alt data
+            'alt_data_max_bonus', 'alt_data_max_penalty',
             'daily_loss_limit_pct', 'min_buying_power_pct', 'pdt_account_threshold',
             'pdt_day_trade_limit', 'pdt_reserve', 'pdt_enforce_always', 'max_consecutive_losses',
             'circuit_breaker_pause_hours', 'market_open_hour', 'market_open_minute',
@@ -684,8 +709,64 @@ class RapidRotationConfig:
                 errors.append(
                     f"Session '{session_name}' start ({session.start}) must be < end ({session.end})"
                 )
-            if session.interval < 0:
-                errors.append(f"Session '{session_name}' interval ({session.interval}) must be >= 0")
+            # v6.11: Allow interval -1 for "once per day" scans (gap scanner)
+            if session.interval < -1:
+                errors.append(f"Session '{session_name}' interval ({session.interval}) must be >= -1 (-1 = once/day, 0 = monitor, >0 = scan interval)")
+
+        # =====================================================================
+        # PRODUCTION GRADE: VIX & SECTOR REFRESH VALIDATION (v6.21)
+        # =====================================================================
+        if self.sector_vix_threshold < 5 or self.sector_vix_threshold > 50:
+            errors.append(
+                f"sector_vix_threshold ({self.sector_vix_threshold}) should be 5-50 "
+                f"[Reason: VIX < 5 = unrealistic, VIX > 50 = extreme crisis]"
+            )
+
+        if self.sector_ttl_volatile_min <= 0 or self.sector_ttl_volatile_min > 60:
+            errors.append(
+                f"sector_ttl_volatile_min ({self.sector_ttl_volatile_min}) should be 1-60 minutes "
+                f"[Reason: < 1 = too frequent API calls, > 60 = stale data]"
+            )
+
+        if self.sector_ttl_normal_min <= 0 or self.sector_ttl_normal_min > 60:
+            errors.append(
+                f"sector_ttl_normal_min ({self.sector_ttl_normal_min}) should be 1-60 minutes "
+                f"[Reason: < 1 = too frequent API calls, > 60 = stale data]"
+            )
+
+        if self.sector_vix_cache_ttl_sec < 10 or self.sector_vix_cache_ttl_sec > 300:
+            errors.append(
+                f"sector_vix_cache_ttl_sec ({self.sector_vix_cache_ttl_sec}) should be 10-300 seconds "
+                f"[Reason: < 10s = excessive API calls, > 300s (5 min) = stale VIX]"
+            )
+
+        if self.sector_ttl_volatile_min > self.sector_ttl_normal_min:
+            errors.append(
+                f"sector_ttl_volatile_min ({self.sector_ttl_volatile_min}) should be <= "
+                f"sector_ttl_normal_min ({self.sector_ttl_normal_min}) "
+                f"[Reason: Volatile markets need FASTER refresh, not slower]"
+            )
+
+        # =====================================================================
+        # PRODUCTION GRADE: ENTRY PROTECTION VALIDATION (v6.21)
+        # =====================================================================
+        if self.entry_vwap_max_distance_pct <= 0 or self.entry_vwap_max_distance_pct > 10:
+            errors.append(
+                f"entry_vwap_max_distance_pct ({self.entry_vwap_max_distance_pct}%) should be 0.1-10% "
+                f"[Reason: < 0.1% = too strict, > 10% = defeats purpose]"
+            )
+
+        if self.entry_max_chase_pct < 0 or self.entry_max_chase_pct > 2:
+            errors.append(
+                f"entry_max_chase_pct ({self.entry_max_chase_pct}%) should be 0-2% "
+                f"[Reason: < 0% = invalid, > 2% = excessive slippage]"
+            )
+
+        if self.entry_limit_timeout_minutes <= 0 or self.entry_limit_timeout_minutes > 30:
+            errors.append(
+                f"entry_limit_timeout_minutes ({self.entry_limit_timeout_minutes}) should be 1-30 minutes "
+                f"[Reason: < 1 = too tight, > 30 = signal may be stale]"
+            )
 
         return errors
 

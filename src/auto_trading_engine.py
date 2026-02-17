@@ -670,6 +670,11 @@ class AutoTradingEngine:
         self.REGIME_RSI_MIN = cfg.regime_rsi_min
         self.REGIME_RETURN_5D_MIN = cfg.regime_return_5d_min
         self.REGIME_VIX_MAX = cfg.regime_vix_max
+        self.SPY_INTRADAY_FILTER_ENABLED = cfg.spy_intraday_filter_enabled
+        self.SPY_INTRADAY_FILTER_PCT = cfg.spy_intraday_filter_pct
+        self.VIX_SPIKE_PROTECTION_ENABLED = cfg.vix_spike_protection_enabled
+        self.VIX_SPIKE_PCT = cfg.vix_spike_pct
+        self.VIX_SPIKE_SL_TIGHTEN_PCT = cfg.vix_spike_sl_tighten_pct
         
         # =====================================================================
         # SIGNAL QUEUE
@@ -1640,6 +1645,83 @@ class AutoTradingEngine:
         # Log VIX check for audit trail
         logger.info(f"✅ VIX entry check OK: {vix_val:.1f} < {self.REGIME_VIX_MAX}")
         return True, vix_val
+
+    def _get_spy_intraday_return(self) -> float:
+        """Get SPY % return from today's open price. Cached 5 min to reduce API calls.
+        Returns 0.0 on data error (fail-open — don't block on missing data)."""
+        cache = getattr(self, '_spy_intraday_cache', None)
+        if cache and (datetime.now() - cache[1]).total_seconds() < 300:
+            return cache[0]
+        try:
+            spy = yf.download('SPY', period='1d', interval='5m', progress=False)
+            if spy.empty:
+                return 0.0
+            open_col = spy['Open']
+            close_col = spy['Close']
+            if hasattr(open_col, 'columns'):
+                open_col = open_col.iloc[:, 0]
+            if hasattr(close_col, 'columns'):
+                close_col = close_col.iloc[:, 0]
+            open_price = float(open_col.iloc[0])
+            current = float(close_col.iloc[-1])
+            pct = (current - open_price) / open_price * 100
+            self._spy_intraday_cache = (pct, datetime.now())
+            logger.debug(f"SPY intraday: open={open_price:.2f} current={current:.2f} ret={pct:+.2f}%")
+            return pct
+        except Exception as e:
+            logger.debug(f"SPY intraday check failed: {e}")
+            return 0.0
+
+    def _check_vix_spike_protection(self):
+        """Tighten SLs on all positions when VIX spikes >VIX_SPIKE_PCT% vs yesterday.
+        Only triggers once per trading session."""
+        if not self.VIX_SPIKE_PROTECTION_ENABLED:
+            return
+        import pytz
+        et_tz = pytz.timezone('US/Eastern')
+        today_et = datetime.now(et_tz).date()
+        if getattr(self, '_vix_spike_triggered_today', None) == today_et:
+            return
+        try:
+            vix_data = yf.download('^VIX', period='5d', progress=False)
+            if len(vix_data) < 2:
+                return
+            close = vix_data['Close']
+            if hasattr(close, 'columns'):
+                close = close.iloc[:, 0]
+            vix_prev = float(close.iloc[-2])
+            vix_curr = float(close.iloc[-1])
+            vix_change_pct = (vix_curr - vix_prev) / vix_prev * 100
+            if vix_change_pct < self.VIX_SPIKE_PCT:
+                return
+
+            logger.warning(f"🚨 VIX SPIKE PROTECTION: {vix_prev:.1f}→{vix_curr:.1f} "
+                          f"(+{vix_change_pct:.1f}% ≥ {self.VIX_SPIKE_PCT}%) — tightening all SLs")
+
+            for symbol, managed_pos in list(self.positions.items()):
+                try:
+                    snapshot = self.broker.get_snapshot(symbol)
+                    if not snapshot:
+                        continue
+                    current_price = snapshot.price
+                    new_sl = round(current_price * (1 - self.VIX_SPIKE_SL_TIGHTEN_PCT / 100), 2)
+                    if new_sl <= managed_pos.current_sl_price:
+                        logger.debug(f"  {symbol}: SL already tight (${managed_pos.current_sl_price:.2f}), skipping")
+                        continue
+                    days_held = self.pdt_guard.get_days_held(symbol)
+                    if days_held >= 1 and managed_pos.sl_order_id:
+                        new_order = self.broker.modify_stop_loss(managed_pos.sl_order_id, new_sl)
+                        if new_order:
+                            managed_pos.sl_order_id = new_order.id
+                    managed_pos.current_sl_price = new_sl
+                    logger.warning(f"  {symbol}: SL tightened ${managed_pos.current_sl_price:.2f} → ${new_sl:.2f} "
+                                  f"({self.VIX_SPIKE_SL_TIGHTEN_PCT:.1f}% below ${current_price:.2f})")
+                except Exception as e:
+                    logger.error(f"VIX spike SL tighten failed for {symbol}: {e}")
+
+            self._vix_spike_triggered_today = today_et
+        except Exception as e:
+            logger.warning(f"VIX spike protection check failed: {e}")
 
     # =========================================================================
     # LOW RISK MODE (v4.5 NEW!)
@@ -3277,6 +3359,14 @@ class AutoTradingEngine:
         if not vix_ok:
             return False, f"VIX {vix_val:.0f}"
 
+        # SPY intraday filter: block new entries when SPY already selling off from open
+        if self.SPY_INTRADAY_FILTER_ENABLED:
+            spy_ret = self._get_spy_intraday_return()
+            if spy_ret <= self.SPY_INTRADAY_FILTER_PCT:
+                logger.warning(f"⛔ SPY INTRADAY BLOCK: SPY {spy_ret:+.2f}% from open "
+                               f"(threshold {self.SPY_INTRADAY_FILTER_PCT}%)")
+                return False, f"SPY intraday {spy_ret:.1f}%"
+
         return True, ""
 
     def _exec_quality_filters(self, signal, params: Dict, current_price: float) -> Tuple[bool, str]:
@@ -4065,6 +4155,9 @@ class AutoTradingEngine:
 
         # v5.1: Check for and recover naked positions (no SL order)
         self._check_naked_positions()
+
+        # VIX spike protection: tighten SLs if VIX jumped sharply today
+        self._check_vix_spike_protection()
 
         # v4.9: Detect stock splits and adjust tracking
         for symbol, managed_pos in list(self.positions.items()):
