@@ -539,6 +539,7 @@ class ServiceManager:
         """Start health checker - เช็คระบบทุก 5 นาที"""
         def run_health():
             check_interval = 5 * 60  # 5 minutes
+            time.sleep(60)  # Grace period: wait 60s for Flask and engine to fully initialize
 
             while self.running:
                 try:
@@ -733,7 +734,7 @@ class ServiceManager:
                 # Use HTTP check instead of thread.is_alive()
                 try:
                     import urllib.request
-                    resp = urllib.request.urlopen('http://localhost:5000/api/auto/status', timeout=5)
+                    resp = urllib.request.urlopen('http://localhost:5000/api/auto/status', timeout=10)
                     if resp.status == 200:
                         alive_count += 1
                     else:
