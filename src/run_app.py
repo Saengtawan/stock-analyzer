@@ -837,11 +837,40 @@ class ServiceManager:
                     alpaca_count = len(alpaca_positions)
 
                     if memory_count != alpaca_count:
-                        checks['positions_sync'] = {
-                            'ok': False,
-                            'detail': f"Mismatch: memory={memory_count}, Alpaca={alpaca_count}"
-                        }
-                        issues.append(f"Position mismatch: memory={memory_count}, Alpaca={alpaca_count}")
+                        mem_syms = sorted(self.rapid_portfolio.positions.keys())
+                        alp_syms = sorted(p.symbol for p in alpaca_positions)
+                        logger.warning(f"Position mismatch detail: memory={mem_syms}, Alpaca={alp_syms}")
+
+                        # Auto-reconcile: remove stale positions not in Alpaca
+                        alp_syms_set = {p.symbol for p in alpaca_positions}
+                        stale = [s for s in list(self.rapid_portfolio.positions.keys()) if s not in alp_syms_set]
+                        if stale:
+                            logger.warning(f"Auto-reconcile: removing stale positions {stale} (not in Alpaca)")
+                            for sym in stale:
+                                self.rapid_portfolio.positions.pop(sym, None)
+                            # Also clean from DB so next restart doesn't reload stale entries
+                            try:
+                                from database import PositionRepository as _PosRepo
+                                _repo = _PosRepo()
+                                for sym in stale:
+                                    _repo.delete(sym)
+                                logger.info(f"Cleaned stale positions from DB: {stale}")
+                            except Exception as _e:
+                                logger.warning(f"Could not clean stale positions from DB: {_e}")
+                            memory_count = len(self.rapid_portfolio.positions)
+                            logger.info(f"After reconcile: memory={sorted(self.rapid_portfolio.positions.keys())}")
+
+                        if memory_count != alpaca_count:
+                            checks['positions_sync'] = {
+                                'ok': False,
+                                'detail': f"Mismatch: memory={memory_count}, Alpaca={alpaca_count}"
+                            }
+                            issues.append(f"Position mismatch: memory={memory_count}, Alpaca={alpaca_count}")
+                        else:
+                            checks['positions_sync'] = {
+                                'ok': True,
+                                'detail': f"{alpaca_count} position(s), reconciled from DB"
+                            }
                     else:
                         checks['positions_sync'] = {
                             'ok': True,

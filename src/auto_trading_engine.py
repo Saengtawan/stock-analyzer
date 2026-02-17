@@ -867,12 +867,18 @@ class AutoTradingEngine:
             current_symbols = list(snapshot.keys())
             conn = _sqlite3.connect(db_path, timeout=5)
             cursor = conn.cursor()
-            # Remove positions no longer tracked
+            # Remove engine-owned positions no longer tracked (scoped to engine sources only)
+            # Do NOT delete rapid_portfolio positions (they have different sources like 'rapid_trader')
+            engine_sources = ('dip_bounce', 'vix_adaptive', 'mean_reversion', 'rapid_rotation')
+            src_placeholders = ','.join('?' * len(engine_sources))
             if current_symbols:
-                placeholders = ','.join('?' * len(current_symbols))
-                cursor.execute(f"DELETE FROM active_positions WHERE symbol NOT IN ({placeholders})", current_symbols)
+                sym_placeholders = ','.join('?' * len(current_symbols))
+                cursor.execute(
+                    f"DELETE FROM active_positions WHERE source IN ({src_placeholders}) AND symbol NOT IN ({sym_placeholders})",
+                    list(engine_sources) + current_symbols
+                )
             else:
-                cursor.execute("DELETE FROM active_positions")
+                cursor.execute(f"DELETE FROM active_positions WHERE source IN ({src_placeholders})", list(engine_sources))
             # Upsert current positions
             for symbol, pos in snapshot.items():
                 cursor.execute("""
