@@ -199,6 +199,53 @@ def check_sma20_filter(current_price: float, sma20: float) -> Tuple[bool, str]:
 
 
 # ============================================================================
+# MOMENTUM 5D FILTER (v6.20 - DIP VALIDATION)
+# ============================================================================
+def check_momentum_5d_filter(
+    mom_5d: float,
+    config: 'RapidRotationConfig' = None
+) -> Tuple[bool, str]:
+    """
+    Check momentum 5d filter - ensures proper dip for dip-bounce strategy
+
+    v6.20: Block shallow dips (like -0.79%) and crashed stocks (< -15%)
+
+    Args:
+        mom_5d: 5-day momentum percentage
+        config: Optional config (loads from YAML if None)
+
+    Returns:
+        Tuple of (passed, rejection_reason)
+    """
+    # Load config if not provided
+    if config is None:
+        from config.strategy_config import RapidRotationConfig
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            'config', 'trading.yaml'
+        )
+        if os.path.exists(config_path):
+            config = RapidRotationConfig.from_yaml(config_path)
+        else:
+            # Use defaults
+            min_dip = -1.0
+            max_dip = -15.0
+    else:
+        min_dip = config.momentum_5d_min_dip
+        max_dip = config.momentum_5d_max_dip
+
+    # Check if dip is too shallow (not a real dip)
+    if mom_5d > min_dip:
+        return False, f"Dip too shallow ({mom_5d:.2f}% > {min_dip}% min dip)"
+
+    # Check if dip is too deep (crashed stock)
+    if mom_5d < max_dip:
+        return False, f"Dip too deep ({mom_5d:.2f}% < {max_dip}% max dip)"
+
+    return True, ""
+
+
+# ============================================================================
 # PRICE FILTERS
 # ============================================================================
 def check_price_filters(current_price: float) -> Tuple[bool, str]:

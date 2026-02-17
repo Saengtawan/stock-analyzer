@@ -171,6 +171,7 @@ class Quote:
     low: float = 0.0
     open: float = 0.0
     prev_close: float = 0.0
+    vwap: float = 0.0  # v6.20: Volume-weighted average price (daily)
 
     @property
     def mid(self) -> float:

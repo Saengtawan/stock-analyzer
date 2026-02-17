@@ -95,14 +95,16 @@ class SectorRegimeDetector:
         'UNKNOWN': 65       # Normal
     }
 
-    def __init__(self, data_manager=None):
+    def __init__(self, data_manager=None, config=None):
         """
         Initialize sector regime detector
 
         Args:
             data_manager: DataManager instance for fetching price data
+            config: RapidRotationConfig instance (optional, for v6.20 VIX settings)
         """
         self.data_manager = data_manager
+        self.config = config
         self.sector_regimes = {}
         self.sector_metrics = {}
         self.last_update = None
@@ -110,6 +112,15 @@ class SectorRegimeDetector:
         self._sector_company_map = {}       # {sector_name: [symbols]}
         self._sector_market_weights = {}    # {sector_name: {symbol: weight}}
         self._stock_based_1d_returns = {}   # {etf_symbol: float}
+
+        # v6.20: VIX cache + config (refactor #1 + #2)
+        self._vix_cache = None
+        self._vix_cache_time = 0.0
+        # Load VIX settings from config or use defaults
+        self._vix_cache_ttl = getattr(config, 'sector_vix_cache_ttl_sec', 60) if config else 60
+        self._vix_threshold = getattr(config, 'sector_vix_threshold', 20.0) if config else 20.0
+        self._ttl_volatile = getattr(config, 'sector_ttl_volatile_min', 2) if config else 2
+        self._ttl_normal = getattr(config, 'sector_ttl_normal_min', 5) if config else 5
 
     def calculate_rsi(self, prices: np.ndarray, period: int = 14) -> float:
         """Calculate RSI indicator"""
@@ -400,16 +411,113 @@ class SectorRegimeDetector:
             logger.error(f"Stock-based 1d return calculation failed: {e}")
             return {}
 
+    def _fetch_vix(self) -> Optional[float]:
+        """
+        Fetch current VIX value from yfinance.
+
+        Returns:
+            VIX value or None if unavailable
+
+        Production Grade: Data quality checks (v6.21)
+        - VIX range: 0-100 (sanity check)
+        - Log suspicious values (VIX > 80 = extreme crisis)
+        """
+        try:
+            import yfinance as yf
+            vix_ticker = yf.Ticker('^VIX')
+            vix_data = vix_ticker.history(period='1d')
+
+            if not vix_data.empty:
+                current_vix = float(vix_data['Close'].iloc[-1])
+
+                # PRODUCTION GRADE: Data quality checks
+                if current_vix < 0 or current_vix > 100:
+                    logger.error(f"❌ VIX out of range: {current_vix:.1f} (expected 0-100) - data quality issue!")
+                    return None
+
+                if current_vix > 80:
+                    logger.warning(f"⚠️ VIX extremely high: {current_vix:.1f} (>80) - market crisis detected!")
+
+                return current_vix
+        except Exception as e:
+            logger.debug(f"VIX fetch failed: {e}")
+
+        return None
+
+    def _get_cached_vix(self) -> Optional[float]:
+        """
+        Get VIX with 60-second cache (v6.20 refactor)
+
+        Conservative 60s TTL to balance:
+        - Performance: Reduce API calls
+        - Freshness: Don't miss rapid VIX changes (19→25 in volatile events)
+
+        Returns:
+            VIX value or None if unavailable
+        """
+        import time
+        now = time.time()
+
+        # Check cache validity (60s TTL + max age 90s safety)
+        if self._vix_cache is not None:
+            age = now - self._vix_cache_time
+            if age < self._vix_cache_ttl and age < 90:  # Double check: don't use >90s old cache
+                logger.debug(f"VIX={self._vix_cache:.1f} (cached, age={age:.0f}s)")
+                return self._vix_cache
+
+        # Fetch fresh VIX
+        vix = self._fetch_vix()
+        if vix is not None:
+            # Update cache
+            old_vix = self._vix_cache
+            self._vix_cache = vix
+            self._vix_cache_time = now
+
+            # Log significant changes (helps detect volatility events)
+            if old_vix is not None and abs(vix - old_vix) > 2.0:
+                logger.info(f"📊 VIX changed significantly: {old_vix:.1f} → {vix:.1f}")
+
+            logger.debug(f"VIX={vix:.1f} (fresh)")
+
+        return vix
+
+    def _get_dynamic_ttl_minutes(self) -> int:
+        """
+        Get dynamic TTL based on VIX volatility (v6.20 refactor #1 + #2)
+
+        Uses cached VIX (configurable TTL) to reduce API calls while staying responsive.
+        All thresholds loaded from config/trading.yaml for easy tuning.
+
+        Returns:
+            TTL in minutes (configurable, default: 2 min if VIX > 20, else 5 min)
+        """
+        current_vix = self._get_cached_vix()
+
+        if current_vix is not None:
+            # VIX > threshold = High volatility → faster refresh
+            # VIX < threshold = Normal volatility → normal refresh
+            if current_vix > self._vix_threshold:
+                logger.debug(f"VIX={current_vix:.1f} > {self._vix_threshold} → Fast sector refresh ({self._ttl_volatile} min)")
+                return self._ttl_volatile
+            else:
+                logger.debug(f"VIX={current_vix:.1f} < {self._vix_threshold} → Normal sector refresh ({self._ttl_normal} min)")
+                return self._ttl_normal
+        else:
+            logger.debug("VIX unavailable → Default 5 min")
+            return self.SECTOR_REGIME_TTL_MINUTES
+
     def update_all_sectors(self, force_update: bool = False) -> Dict[str, str]:
         """
         Update regime for all sector ETFs.
+        v6.20: Dynamic TTL based on VIX (2 min if VIX > 20, else 5 min)
         v5.5: Market-cap weighted stock-based 1d returns (matches Yahoo methodology).
         """
-        # Check if update needed (v5.4: 5-min TTL for fast flip detection)
+        # v6.20: Check if update needed (dynamic TTL based on VIX)
         if not force_update and self.last_update:
             time_since_update = datetime.now() - self.last_update
-            if time_since_update < timedelta(minutes=self.SECTOR_REGIME_TTL_MINUTES):
-                logger.info(f"Using cached sector regimes (updated {time_since_update.seconds // 60}min ago)")
+            dynamic_ttl_minutes = self._get_dynamic_ttl_minutes()
+            if time_since_update < timedelta(minutes=dynamic_ttl_minutes):
+                logger.info(f"Using cached sector regimes (updated {time_since_update.seconds // 60}min ago, TTL={dynamic_ttl_minutes}min)")
                 return self.sector_regimes
 
         if not self.data_manager:

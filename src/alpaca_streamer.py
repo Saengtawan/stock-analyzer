@@ -220,6 +220,10 @@ class AlpacaStreamer:
         max_retries = 5
         retry_delay = 5
 
+        # Production Grade v6.21: Overall reconnection timeout (5 minutes)
+        reconnection_start = time.time()
+        max_reconnection_time = 300  # 5 minutes total
+
         while self.running and retry_count < max_retries:
             try:
                 # v6.17: Clean up old stream/loop BEFORE creating new ones (fixes WebSocket leak)
@@ -274,6 +278,12 @@ class AlpacaStreamer:
                     logger.info(f"Retrying in {retry_delay}s...")
                     time.sleep(retry_delay)
                     retry_delay = min(retry_delay * 2, 60)
+
+            # Production Grade v6.21: Check overall reconnection timeout
+            elapsed_reconnection_time = time.time() - reconnection_start
+            if elapsed_reconnection_time >= max_reconnection_time:
+                logger.error(f"Reconnection timeout after {elapsed_reconnection_time:.0f}s, stopping streamer")
+                break
 
         if retry_count >= max_retries:
             logger.error("Max retries reached, stopping streamer")

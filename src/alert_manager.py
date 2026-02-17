@@ -290,6 +290,37 @@ class AlertManager:
             symbol=symbol,
         )
 
+    def alert_position_sync(self, symbol: str, issue: str, action: str, details: str = ''):
+        """
+        v6.21 Production Grade: Position sync recovery alerts
+
+        Args:
+            symbol: Stock symbol (or 'ALL' for system-wide)
+            issue: Type of sync issue (e.g., 'missing_sl_order', 'quantity_mismatch')
+            action: Action taken (e.g., 'created_sl_order', 'synced_to_broker')
+            details: Additional details
+        """
+        # Determine severity based on issue type
+        if 'missing_sl' in issue or 'sync_failed' in issue:
+            level = 'CRITICAL'
+        elif 'recovery_failed' in issue:
+            level = 'CRITICAL'
+        elif 'mismatch' in issue:
+            level = 'WARNING'
+        else:
+            level = 'INFO'
+
+        message = f"Position sync: {issue} → {action}"
+        if details:
+            message += f" ({details})"
+
+        self.add(
+            level,
+            f'Position Sync: {symbol}',
+            message,
+            category='system',
+            symbol=symbol,
+        )
 
 
 # ------------------------------------------------------------------

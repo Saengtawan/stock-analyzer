@@ -207,7 +207,9 @@ class MasterStockFinder:
         self.batch_delay = 20     # seconds between batches
         self.cycle_delay = 600    # 10 minutes between cycles
 
-        signal.signal(signal.SIGINT, self._signal_handler)
+        # v6.21: Use safe_signal to prevent errors in background threads
+        from utils.safe_signal import safe_signal_install
+        safe_signal_install(signal.SIGINT, self._signal_handler)
 
     def _signal_handler(self, signum, frame):
         print("\nStopping...")

@@ -79,6 +79,7 @@ from screeners.rapid_trader_filters import (
     calculate_score,
     check_bounce_confirmation,
     check_sma20_filter,
+    check_momentum_5d_filter,
     calculate_dynamic_sl_tp,
 )
 
@@ -112,6 +113,7 @@ class RapidRotationSignal:
     swing_low: float = 0.0    # Swing low reference
     resistance: float = 0.0   # Resistance reference
     volume_ratio: float = 1.0  # v5.0: today_vol / avg_20d_vol
+    vwap: float = 0.0          # v6.20: VWAP for entry protection filter
 
     @property
     def expected_gain(self) -> float:
@@ -271,7 +273,7 @@ class RapidRotationScreener:
         # Cache TTL in seconds (v6.10: MUST be defined BEFORE _init methods use it)
         self._cache_ttl = {
             'market_regime': 120,   # v5.1 P2-17: 300→120s (align with engine)
-            'sector_regime': 300,   # v5.1 P2-17: 600→300s (sector changes slower but still relevant)
+            # v6.20 Refactor #4: Removed 'sector_regime' - detector has dynamic TTL cache
             'alt_data': 300,        # 5 min
             'data': config.price_cache_ttl_seconds,  # v6.10: from config (default 300s = 5min)
         }
@@ -279,8 +281,8 @@ class RapidRotationScreener:
         # Cache for regime data (with timestamps)
         self._market_regime_cache = None
         self._market_regime_cache_time: float = 0.0
-        self._sector_regime_cache = {}
-        self._sector_regime_cache_time: float = 0.0
+        # v6.20 Refactor #4: Removed redundant _sector_regime_cache
+        # Detector has its own cache with dynamic TTL - no need for screener-level cache
         self._alt_data_cache = {}
         self._alt_data_cache_time: float = 0.0
 
@@ -319,11 +321,8 @@ class RapidRotationScreener:
                 self._market_regime_cache_time = 0.0
                 logger.debug("Cleared stale market regime cache")
 
-        if self._sector_regime_cache:
-            if (now - self._sector_regime_cache_time) >= self._cache_ttl['sector_regime']:
-                self._sector_regime_cache = {}
-                self._sector_regime_cache_time = 0.0
-                logger.debug("Cleared stale sector regime cache")
+        # v6.20 Refactor #4: Removed sector_regime_cache clearing
+        # Let SectorRegimeDetector handle all caching with its dynamic TTL
 
         if self._alt_data_cache:
             if (now - self._alt_data_cache_time) >= self._cache_ttl['alt_data']:
@@ -1203,6 +1202,11 @@ class RapidRotationScreener:
         if not passed:
             return 'below_sma20'
 
+        # Momentum 5d filter (v6.20 - from filters.py)
+        passed, reason = check_momentum_5d_filter(ind['mom_5d'], self.config)
+        if not passed:
+            return 'mom_5d_reject'
+
         # Screener-specific filters (not in filters.py)
         if ind['max_daily_move'] > 8.0:
             return 'overextended'
@@ -1331,9 +1335,10 @@ class RapidRotationScreener:
             swing_low=round(sl_tp['swing_low'], 2),
             resistance=round(sl_tp['resistance'], 2),
             volume_ratio=round(ind['volume_ratio'], 2),
+            vwap=0.0,  # v6.20: Populated from Alpaca snapshot during entry validation
         )
 
-    def screen(self, top_n: int = 10, enable_alt_data: bool = True, allowed_sectors: List[str] = None, blocked_sectors: List[str] = None, progress_callback=None, min_score: int = None, gap_max_up: float = None, use_strategy_manager: bool = True) -> List[RapidRotationSignal]:
+    def screen(self, top_n: int = 10, enable_alt_data: bool = True, allowed_sectors: List[str] = None, blocked_sectors: List[str] = None, progress_callback=None, min_score: int = None, gap_max_up: float = None, use_strategy_manager: bool = True, bear_mode_enabled: bool = False) -> List[RapidRotationSignal]:
         """
         Screen universe for rapid rotation opportunities
 
@@ -1368,7 +1373,7 @@ class RapidRotationScreener:
             progress_callback(phase="regime", message=f"SPY: {'BULL' if is_bull else 'BEAR'} ({spy_reason[:50]})")
 
         if not is_bull:
-            if allowed_sectors:
+            if bear_mode_enabled:
                 # v4.9.2: Bear mode — pass through with sector filtering
                 logger.info(f"🐻 SPY BEAR — Smart Bear Mode scan ({len(allowed_sectors)} sectors)")
                 logger.info(f"   {spy_reason}")
@@ -1507,6 +1512,7 @@ class RapidRotationScreener:
                     swing_low=ts.swing_low,
                     resistance=ts.resistance,
                     volume_ratio=ts.volume_ratio,
+                    vwap=0.0,  # v6.20: Populated during entry validation
                 )
                 signals.append(rrs)
 
@@ -1650,7 +1656,8 @@ class RapidRotationScreener:
                               blocked_sectors: List[str] = None,
                               progress_callback=None,
                               min_score: int = None,
-                              gap_max_up: float = None) -> List[RapidRotationSignal]:
+                              gap_max_up: float = None,
+                              bear_mode_enabled: bool = False) -> List[RapidRotationSignal]:
         """Get signals for portfolio management
 
         Args:
@@ -1658,9 +1665,10 @@ class RapidRotationScreener:
             blocked_sectors: v4.9.3 BULL mode — skip signals from these sectors
             min_score: v5.2 — engine's effective min_score (syncs Buy Signals with engine)
             gap_max_up: v5.2 — engine's effective gap_max_up (syncs Buy Signals with engine)
+            bear_mode_enabled: v6.21 — engine's BEAR mode flag (Smart Bear Mode)
         """
         existing = set(existing_positions or [])
-        signals = self.screen(top_n=20, allowed_sectors=allowed_sectors, blocked_sectors=blocked_sectors, progress_callback=progress_callback, min_score=min_score, gap_max_up=gap_max_up)
+        signals = self.screen(top_n=20, allowed_sectors=allowed_sectors, blocked_sectors=blocked_sectors, progress_callback=progress_callback, min_score=min_score, gap_max_up=gap_max_up, bear_mode_enabled=bear_mode_enabled)
         new_signals = [s for s in signals if s.symbol not in existing]
         available_slots = max_positions - len(existing)
 

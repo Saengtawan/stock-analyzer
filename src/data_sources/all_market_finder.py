@@ -126,7 +126,9 @@ class AllMarketFinder:
         self.running = True
         cycle = 0
 
-        signal.signal(signal.SIGINT, lambda s, f: setattr(self, 'running', False))
+        # v6.21: Use safe_signal to prevent errors in background threads
+        from utils.safe_signal import safe_signal_install
+        safe_signal_install(signal.SIGINT, lambda s, f: setattr(self, 'running', False))
 
         print("=" * 70)
         print("ALL MARKET FINDER - WORKS IN ANY MARKET CONDITION")

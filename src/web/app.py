@@ -33,6 +33,8 @@ from ai_market_analyst import AIMarketAnalyst
 from analysis.fundamental.earnings_analyst import EarningsAnalystAnalyzer
 from analysis.enhanced_features import analyze_stock as enhanced_analyze
 
+# v6.11: Single Source of Truth for version
+APP_VERSION = 'v6.11'  # Gap Scanner + UI Timeline (5 sessions)
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True  # v5.3: Disable template caching
@@ -2489,8 +2491,58 @@ def api_llm_news_sentiment():
 
 @app.route('/rapid')
 def rapid_trader_page():
-    """Rapid Trader page - quick trades, fast rotation"""
-    return render_template('rapid_trader.html')
+    """
+    Rapid Trader page - quick trades, fast rotation
+
+    v6.11: Single Source of Truth - sessions from config/trading.yaml
+    """
+    # Load sessions from config (Single Source of Truth)
+    from config.strategy_config import RapidRotationConfig
+    import os
+
+    config_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        'config', 'trading.yaml'
+    )
+
+    try:
+        config = RapidRotationConfig.from_yaml(config_path)
+        sessions_cfg = config.sessions
+
+        # Build sessions list for frontend
+        sessions = []
+        for key in ['gapscan', 'morning', 'midday', 'afternoon', 'preclose']:
+            if hasattr(sessions_cfg, key):
+                s = getattr(sessions_cfg, key)
+                sessions.append({
+                    'name': key,
+                    'label': s.label if hasattr(s, 'label') else key.capitalize(),
+                    'start': s.start if hasattr(s, 'start') else 0,
+                    'end': s.end if hasattr(s, 'end') else 0,
+                    'interval': s.interval if hasattr(s, 'interval') else 5,
+                })
+
+        # Fallback if no sessions found
+        if not sessions:
+            sessions = [
+                {'name': 'gapscan', 'label': 'Gap Scan', 'start': 360, 'end': 575, 'interval': -1},
+                {'name': 'morning', 'label': 'Morning', 'start': 575, 'end': 660, 'interval': 3},
+                {'name': 'midday', 'label': 'Midday', 'start': 660, 'end': 840, 'interval': 5},
+                {'name': 'afternoon', 'label': 'Afternoon', 'start': 840, 'end': 930, 'interval': 5},
+                {'name': 'preclose', 'label': 'Pre-Close', 'start': 930, 'end': 960, 'interval': 0},
+            ]
+    except Exception as e:
+        logger.warning(f"Failed to load sessions from config: {e}")
+        # Fallback sessions
+        sessions = [
+            {'name': 'gapscan', 'label': 'Gap Scan', 'start': 360, 'end': 575, 'interval': -1},
+            {'name': 'morning', 'label': 'Morning', 'start': 575, 'end': 660, 'interval': 3},
+            {'name': 'midday', 'label': 'Midday', 'start': 660, 'end': 840, 'interval': 5},
+            {'name': 'afternoon', 'label': 'Afternoon', 'start': 840, 'end': 930, 'interval': 5},
+            {'name': 'preclose', 'label': 'Pre-Close', 'start': 930, 'end': 960, 'interval': 0},
+        ]
+
+    return render_template('rapid_trader.html', default_sessions=sessions, app_version=APP_VERSION)
 
 
 @app.route('/api/health/legacy')
@@ -5353,7 +5405,7 @@ def api_config_reload():
             return jsonify({
                 'success': True,
                 'params': param_count,
-                'version': 'v6.10',
+                'version': APP_VERSION,
                 'source': 'RapidRotationConfig'
             })
         else:

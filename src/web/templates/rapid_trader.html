@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Rapid Trader v6.0.0 - Dashboard{% endblock %}
+{% block title %}Rapid Trader {{ app_version }} - Dashboard{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -124,6 +124,11 @@
     .tl-interval.volatile { background: #f97316; color: white; }
     .tl-interval.normal { background: #3b82f6; color: white; }
     .tl-session.pending .tl-interval { opacity: 0.4; }
+    /* v6.11: Gap Scan styling (pre-market) */
+    .tl-session[data-session="gapscan"] .tl-interval { background: #8b5cf6; color: white; }
+    .tl-session[data-session="gapscan"] .tl-name { color: #8b5cf6; font-weight: 600; }
+    .tl-session[data-session="gapscan"].active .tl-name { color: #8b5cf6; }
+    .tl-session[data-session="gapscan"].done .tl-name { color: #10b981; }
     .tl-connector { display: none; }
     .tl-progress { height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; margin-top: 6px; overflow: hidden; }
     .tl-progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
@@ -467,7 +472,7 @@
     <!-- Row 1: Strategy + Market Info + Market Status -->
     <div class="hdr-row hdr-row-1">
         <span class="mode-badge bear-lr" id="headerModeBadge">LOADING</span>
-        <span style="font-size:0.65rem;opacity:0.7;" id="hdrVersion">v6.0.0</span>
+        <span style="font-size:0.65rem;opacity:0.7;" id="hdrVersion">{{ app_version }}</span>
         <span class="hdr-sep">│</span>
         <span id="hdrMarketStatus" class="market-status-badge closed" title="Market Status">
             <i class="fas fa-circle"></i> <span>CLOSED</span>
@@ -1040,9 +1045,54 @@ let socket = null;
 let connectionStatus = 'disconnected';
 let _baseConfig = null;
 
+// v6.11: Single Source of Truth - sessions from backend (config/trading.yaml)
+// Server-side injected from config (not hardcoded!)
+const DEFAULT_SESSIONS = {{ default_sessions | tojson | safe }};
+
+let _timelineRendered = false;
+
+function renderTimelineFromConfig(sessions) {
+    const timelineBar = document.getElementById('timelineBar');
+    if (!timelineBar) return;
+    if (!sessions || sessions.length === 0) sessions = DEFAULT_SESSIONS;
+
+    // Helper: minutes to HH:MM format
+    const minsToTime = (mins) => {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    };
+
+    let html = '';
+    sessions.forEach((session, idx) => {
+        if (idx > 0) html += '<div class="tl-connector"></div>';
+
+        // v6.11: Handle gap scan special case (interval -1 = once per day)
+        const intervalClass = session.interval === -1 ? 'normal' : (session.interval <= 3 ? 'volatile' : 'normal');
+        const intervalText = session.interval === -1 ? 'Once' : (session.interval > 0 ? `${session.interval}min` : 'Monitor');
+        const timeRange = `${minsToTime(session.start)}-${minsToTime(session.end)}`;
+
+        html += `
+            <div class="tl-session pending" data-session="${session.name}" data-start="${session.start}" data-end="${session.end}">
+                <div class="tl-header">
+                    <span class="tl-indicator"></span>
+                    <span class="tl-name">${session.label}</span>
+                </div>
+                <div class="tl-time">${timeRange}</div>
+                <div class="tl-interval ${intervalClass}">${intervalText}</div>
+                <div class="tl-progress"><div class="tl-progress-fill" style="width: 0%"></div></div>
+            </div>`;
+    });
+
+    timelineBar.innerHTML = html;
+    _timelineRendered = true;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     positionModal = new bootstrap.Modal(document.getElementById('addPositionModal'));
     setMode('auto');
+    // v6.11: Render timeline immediately with DEFAULT_SESSIONS (5 sessions including Gap Scan)
+    renderTimelineFromConfig(DEFAULT_SESSIONS);
     initWebSocket();
     startMarketCountdown();
     initPnlChart();
@@ -1232,6 +1282,9 @@ function updateHeaderMarketStatus(calendar) {
     const isTradingDay = calendar?.is_trading_day;
     const nextOpen = calendar?.next_open ? new Date(calendar.next_open) : null;
 
+    // v6.11: Debug market status
+    console.log('[Market Status] is_open:', isOpen, 'is_trading_day:', isTradingDay, 'calendar:', calendar);
+
     // Remove all classes
     statusEl.classList.remove('open', 'closed', 'weekend', 'holiday');
 
@@ -1242,6 +1295,7 @@ function updateHeaderMarketStatus(calendar) {
     } else if (!isTradingDay) {
         // Check if weekend
         const dayOfWeek = new Date().getDay();
+        console.log('[Market Status] Not trading day, dayOfWeek:', dayOfWeek);
         if (dayOfWeek === 0 || dayOfWeek === 6) {
             statusEl.classList.add('weekend');
             statusEl.innerHTML = '<i class="fas fa-calendar-week"></i> <span>WEEKEND</span>';
@@ -1564,54 +1618,9 @@ function updateSectorHighlights() {
 
 // ============================================
 // Timeline Bar (v6.3: Enhanced with progress bars)
+// v6.11: DEFAULT_SESSIONS and renderTimelineFromConfig moved to top (before DOMContentLoaded)
 // ============================================
 let _timelineInterval = null;
-let _timelineRendered = false;
-
-// v6.4: Default sessions (fallback if API not ready yet)
-const DEFAULT_SESSIONS = [
-    { name: 'morning', label: 'Morning', start: 575, end: 660, interval: 3 },
-    { name: 'midday', label: 'Midday', start: 660, end: 840, interval: 5 },
-    { name: 'afternoon', label: 'Afternoon', start: 840, end: 930, interval: 5 },
-    { name: 'preclose', label: 'Pre-Close', start: 930, end: 960, interval: 0 },
-];
-
-// v6.4: Render timeline HTML from API config (single source of truth)
-function renderTimelineFromConfig(sessions) {
-    const timelineBar = document.getElementById('timelineBar');
-    if (!timelineBar) return;
-    if (!sessions || sessions.length === 0) sessions = DEFAULT_SESSIONS;
-
-    // Helper: minutes to HH:MM format
-    const minsToTime = (mins) => {
-        const h = Math.floor(mins / 60);
-        const m = mins % 60;
-        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-    };
-
-    let html = '';
-    sessions.forEach((session, idx) => {
-        if (idx > 0) html += '<div class="tl-connector"></div>';
-
-        const intervalClass = session.interval <= 3 ? 'volatile' : 'normal';
-        const intervalText = session.interval > 0 ? `${session.interval}min` : 'Monitor';
-        const timeRange = `${minsToTime(session.start)}-${minsToTime(session.end)}`;
-
-        html += `
-            <div class="tl-session pending" data-session="${session.name}" data-start="${session.start}" data-end="${session.end}">
-                <div class="tl-header">
-                    <span class="tl-indicator"></span>
-                    <span class="tl-name">${session.label}</span>
-                </div>
-                <div class="tl-time">${timeRange}</div>
-                <div class="tl-interval ${intervalClass}">${intervalText}</div>
-                <div class="tl-progress"><div class="tl-progress-fill" style="width: 0%"></div></div>
-            </div>`;
-    });
-
-    timelineBar.innerHTML = html;
-    _timelineRendered = true;
-}
 
 function updateTimelineBar(schedule) {
     if (!schedule) return;
@@ -1832,6 +1841,55 @@ function updateHeaderBar(data) {
         }
     }
 
+    // v6.21: Update SPY/VIX/RSI from regime_details (if available)
+    const details = data.regime_details || {};
+    if (details.spy_price !== undefined) {
+        const priceEl = document.getElementById('hdrSpyPrice');
+        if (priceEl) priceEl.textContent = '$' + details.spy_price.toFixed(2);
+
+        const pctEl = document.getElementById('hdrSpyPct');
+        if (pctEl && details.pct_above_sma !== undefined) {
+            const pct = details.pct_above_sma;
+            const arrow = pct >= 0 ? '▲' : '▼';
+            pctEl.textContent = arrow + ' ' + Math.abs(pct).toFixed(2) + '%';
+            pctEl.className = pct >= 0 ? 'hdr-up' : 'hdr-down';
+        }
+    }
+
+    if (details.rsi !== undefined) {
+        const rsiEl = document.getElementById('hdrSpyRSI');
+        if (rsiEl) {
+            rsiEl.textContent = details.rsi.toFixed(1);
+            rsiEl.style.color = details.rsi_ok ? '#27ae60' : '#e74c3c';
+        }
+    }
+
+    if (details.vix !== undefined) {
+        const vixEl = document.getElementById('hdrSpyVIX');
+        const vixIconEl = document.getElementById('hdrVixIcon');
+        if (vixEl) {
+            const vix = parseFloat(details.vix);
+            vixEl.textContent = vix.toFixed(1);
+            vixEl.style.color = details.vix_ok ? '#27ae60' : '#e74c3c';
+
+            if (vixIconEl) {
+                if (vix < 25) {
+                    vixIconEl.textContent = '✅';
+                    vixIconEl.className = 'hdr-ok';
+                    vixIconEl.title = 'VIX Safe (<25)';
+                } else if (vix < 30) {
+                    vixIconEl.textContent = '⚠️';
+                    vixIconEl.className = 'hdr-warn';
+                    vixIconEl.title = 'VIX Warning (25-29)';
+                } else {
+                    vixIconEl.textContent = '⛔';
+                    vixIconEl.className = 'hdr-danger';
+                    vixIconEl.title = 'VIX High (≥30) - Trading Blocked';
+                }
+            }
+        }
+    }
+
     // Override base config display with effective params
     applyEffectiveOverrides(ep, _baseConfig);
 }
@@ -1980,6 +2038,7 @@ function refreshAll() {
     loadAlerts();
     loadTradeLogs();
     loadEngineConfig();
+    fetchCronStatus();  // v6.11: Load cron status (including health check)
 }
 
 function loadTradeLogs() {
@@ -2094,8 +2153,12 @@ function loadSpyRegime() {
 }
 
 function loadAlerts() {
-    fetch('/api/rapid/portfolio')
-        .then(response => response.json())
+    // v6.21: Add timeout for portfolio API (can be slow due to rate limiting)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 70000);
+
+    fetch('/api/rapid/portfolio', { signal: controller.signal })
+        .then(response => { clearTimeout(timeoutId); return response.json(); })
         .then(data => {
             if (data.error) return;
             updatePositionsUI(data);
@@ -2125,7 +2188,12 @@ function loadAlerts() {
                 }
             }
         })
-        .catch(err => console.error('Error loading alerts:', err));
+        .catch(err => {
+            clearTimeout(timeoutId);
+            if (err.name !== 'AbortError') {
+                console.error('Error loading alerts:', err);
+            }
+        });
 }
 
 const loadPositions = loadAlerts;
@@ -2359,7 +2427,7 @@ function updatePreFilterStatus(status, actualPoolSize) {
 function updateStatusUI(data) {
     if (data.error) return;
     updateHeaderBar(data);
-    // v6.0: Update version display from engine
+    // v6.11: Single Source of Truth - version from engine (auto_trading_engine.py line 5613)
     if (data.version) {
         const versionEl = document.getElementById('hdrVersion');
         if (versionEl) versionEl.textContent = data.version;
@@ -2395,8 +2463,27 @@ function updateStatusUI(data) {
 function updateRegimeUI(data) {
     if (data.error) return;
     const details = data.details || {};
+
+    // Update SPY price
     const priceEl = document.getElementById('hdrSpyPrice');
-    if (priceEl) priceEl.textContent = '$' + (details.current_price?.toFixed(2) || '?');
+    if (priceEl) priceEl.textContent = '$' + (details.spy_price?.toFixed(2) || '?');
+
+    // Update SPY percentage
+    const pctEl = document.getElementById('hdrSpyPct');
+    if (pctEl) {
+        const pct = details.pct_above_sma || 0;
+        const arrow = pct >= 0 ? '▲' : '▼';
+        pctEl.textContent = arrow + ' ' + Math.abs(pct).toFixed(2) + '%';
+        pctEl.className = pct >= 0 ? 'hdr-up' : 'hdr-down';
+    }
+
+    // Update VIX
+    const vixEl = document.getElementById('hdrVix');
+    if (vixEl) vixEl.textContent = details.vix?.toFixed(1) || '?';
+
+    // Update RSI
+    const rsiEl = document.getElementById('hdrRsi');
+    if (rsiEl) rsiEl.textContent = details.rsi?.toFixed(1) || '?';
 }
 
 let pollInterval = null;
@@ -2429,7 +2516,8 @@ function loadSignals() {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    // v6.21: 70s timeout (backend rate limiter max_wait=65s + 5s buffer)
+    const timeoutId = setTimeout(() => controller.abort(), 70000);
 
     fetch('/api/rapid/signals', { signal: controller.signal })
         .then(response => response.json())
@@ -2647,6 +2735,9 @@ function loadSignals() {
             container.innerHTML = html;
         })
         .catch(err => {
+            clearTimeout(timeoutId);
+            // Suppress AbortError (normal on page unload or timeout)
+            if (err.name === 'AbortError') return;
             if (_lastSignalCount > 0 || scanProgressActive) return;
             container.innerHTML = `<div class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle fa-2x mb-2"></i><p>Error: ${err.message || 'Unknown'}</p><button class="btn btn-sm btn-outline-primary mt-2" onclick="loadSignals()">Retry</button></div>`;
         });
@@ -2730,14 +2821,15 @@ function setMode(mode) {
         document.getElementById('emergencyStopBtn').style.display = '';
         document.getElementById('closeAllBtn').style.display = '';
         loadAutoStatus();
-        autoStatusInterval = setInterval(loadAutoStatus, 10000);
+        autoStatusInterval = setInterval(loadAutoStatus, 30000);  // v6.21: Reduce polling to 30s (was 10s)
         fetch('/api/auto/start', { method: 'POST' }).then(r => r.json()).then(data => console.log('Auto:', data.message));
     }
 }
 
 function loadAutoStatus() {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    // v6.21: 70s timeout (backend rate limiter max_wait=65s + 5s buffer)
+    const timeoutId = setTimeout(() => controller.abort(), 70000);
     fetch('/api/auto/status', { signal: controller.signal })
         .then(response => { clearTimeout(timeoutId); return response.json(); })
         .then(data => {
@@ -2746,7 +2838,13 @@ function loadAutoStatus() {
             updateStatusUI(data);
             updateDebugPanel(data);
         })
-        .catch(err => { clearTimeout(timeoutId); });
+        .catch(err => {
+            clearTimeout(timeoutId);
+            // Only log non-abort errors (abort is normal when timeout or page unload)
+            if (err.name !== 'AbortError') {
+                console.error('loadAutoStatus error:', err);
+            }
+        });
 }
 
 function emergencyStop() {
@@ -2868,9 +2966,11 @@ function updateHeaderCronStatus(data) {
     if (cronHealth) {
         const h = status.health_check;
         cronHealth.classList.remove('ok', 'error', 'stale');
-        if (h && h.status === 'ok' && isRecent(h.last_run, 10)) {
+        // v6.11: Handle 'ok' or 'restarted' as healthy states
+        if (h && (h.status === 'ok' || h.status === 'restarted') && isRecent(h.last_run, 10)) {
             cronHealth.classList.add('ok');
-            cronHealth.title = `Health: OK (${new Date(h.last_run).toLocaleTimeString()})`;
+            const statusText = h.status === 'restarted' ? 'Restarted' : 'OK';
+            cronHealth.title = `Health: ${statusText} (${new Date(h.last_run).toLocaleTimeString()})`;
         } else if (h && h.status === 'error') {
             cronHealth.classList.add('error');
             cronHealth.title = 'Health: ERROR';
@@ -3059,8 +3159,8 @@ function loadMarketConfig() {
 loadMarketConfig();
 loadSystemAlerts();
 setInterval(loadSystemAlerts, 30000);
-setInterval(loadSignals, 15000);
-setInterval(loadAlerts, 15000);  // Portfolio + PDT stats + queue (not covered by WebSocket)
+setInterval(loadSignals, 30000);  // v6.21: Reduce polling to 30s (was 15s)
+setInterval(loadAlerts, 30000);  // v6.21: Portfolio + PDT stats + queue - reduced to 30s (was 15s)
 
 // ============================================
 // Scan Progress (Socket.IO + polling)
