@@ -199,20 +199,10 @@ class TradeLogger:
         # Timezone
         self.et_tz = pytz.timezone('US/Eastern')
 
-        # Phase 3: Initialize database layer (prefer new layer, fallback to direct SQL)
-        self.use_db_layer = True  # Always use database layer
-        if self.use_db_layer:
-            try:
-                self.trade_repo = TradeRepository()
-                logger.info("Using Phase 3 database layer (TradeRepository)")
-            except Exception as e:
-                logger.warning(f"Failed to initialize TradeRepository: {e}, falling back to direct SQLite")
-                self.use_db_layer = False
-                self.trade_repo = None
-                self._init_db()
-        else:
-            self.trade_repo = None
-            self._init_db()
+        # Use direct SQLite (TradeRepository schema doesn't match trades table)
+        self.use_db_layer = False
+        self.trade_repo = None
+        self._init_db()
 
         # Today's log cache (thread-safe)
         self._logs_lock = threading.Lock()
@@ -232,6 +222,9 @@ class TradeLogger:
 
         # v5.1: Clean up old log files on startup
         self._cleanup_old_logs(max_age_days=30)
+
+        # Backfill any JSON logs not yet in DB (catch missed async writes)
+        self._backfill_missing_logs()
 
         db_method = "TradeRepository" if self.use_db_layer else "direct SQLite"
         logger.info(f"TradeLogger initialized - logs: {self.log_dir}, db: {self.db_path} ({db_method})")
@@ -257,6 +250,73 @@ class TradeLogger:
                 logger.info(f"Log rotation: removed {removed} log files older than {max_age_days} days")
         except Exception as e:
             logger.warning(f"Log rotation error: {e}")
+
+    def _backfill_missing_logs(self):
+        """Backfill JSON log files that were not archived to DB (startup recovery)."""
+        try:
+            # Get all existing IDs in DB
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM trades")
+            existing_ids = {row[0] for row in cursor.fetchall()}
+
+            # Scan all trade_log_*.json files (current + archive)
+            patterns = [
+                os.path.join(self.log_dir, "trade_log_*.json"),
+                os.path.join(self.log_dir, "archive", "*", "trade_log_*.json"),
+            ]
+            inserted = 0
+            for pattern in patterns:
+                for filepath in glob.glob(pattern):
+                    try:
+                        with open(filepath) as f:
+                            entries = json.load(f)
+                        if not isinstance(entries, list):
+                            continue
+                        for t in entries:
+                            tid = t.get('id')
+                            if not tid or tid in existing_ids:
+                                continue
+                            ts = t.get('timestamp', '')
+                            try:
+                                dt = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                                trade_date = dt.strftime('%Y-%m-%d')
+                            except Exception:
+                                trade_date = ts[:10] if ts else ''
+                            cursor.execute('''
+                                INSERT OR REPLACE INTO trades (
+                                    id, timestamp, date, action, symbol, qty, price, reason,
+                                    entry_price, pnl_usd, pnl_pct, hold_duration,
+                                    pdt_used, pdt_remaining, day_held, mode,
+                                    regime, spy_price, signal_score, gap_pct, atr_pct,
+                                    from_queue, version, source, full_data
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ''', (
+                                tid, ts, trade_date,
+                                t.get('action'), t.get('symbol'), t.get('qty'),
+                                t.get('price') or t.get('fill_price'),
+                                t.get('reason'), t.get('entry_price'),
+                                t.get('pnl_usd'), t.get('pnl_pct'),
+                                t.get('hold_duration', str(t.get('day_held', 0)) + 'd'),
+                                1 if t.get('pdt_used') else 0,
+                                t.get('pdt_remaining'), t.get('day_held'), t.get('mode'),
+                                t.get('regime'), t.get('spy_price'), t.get('signal_score'),
+                                t.get('gap_pct'), t.get('atr_pct'),
+                                1 if t.get('from_queue') else 0,
+                                t.get('version') or t.get('config_version'),
+                                t.get('source'),
+                                json.dumps(t, default=str)
+                            ))
+                            existing_ids.add(tid)
+                            inserted += 1
+                    except Exception as e:
+                        logger.debug(f"Backfill skip {filepath}: {e}")
+            conn.commit()
+            conn.close()
+            if inserted > 0:
+                logger.info(f"📦 Backfilled {inserted} missing trade records from JSON logs to DB")
+        except Exception as e:
+            logger.warning(f"Backfill error: {e}")
 
     def _init_db(self):
         """Initialize SQLite database"""
