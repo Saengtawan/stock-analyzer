@@ -1,26 +1,17 @@
 #!/usr/bin/env python3
 """
-Position Manager - Single Source of Truth for Positions
+Position Manager - DB-backed position tracking
 
-This module provides unified position tracking for the entire trading system.
-Both AutoTradingEngine and RapidPortfolioManager use the same PositionManager instance,
-ensuring consistency and avoiding sync issues.
-
-Design:
-- Single Position dataclass with all fields needed by both Engine and Portfolio
-- File-based persistence (rapid_portfolio.json)
-- Atomic writes to prevent corruption
-- Thread-safe operations
+Reads from trade_history.db/active_positions (single source of truth).
+Engine writes via _sync_active_positions_db(); this class is read-only.
 
 v6.7 - Initial version (R3 refactoring)
+v6.20 - Migrated from JSON file to DB
 """
 
-import json
-import os
-import tempfile
 from datetime import datetime
 from typing import Dict, List, Optional
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass
 from threading import Lock
 from loguru import logger
 
@@ -93,17 +84,12 @@ class PositionManager:
     Single source of truth for positions
 
     Used by both AutoTradingEngine and RapidPortfolioManager.
-    Persists to rapid_portfolio.json for durability.
+    Reads from DB (single source of truth). Engine writes via _sync_active_positions_db().
 
     Thread-safe: All operations use a lock to prevent race conditions.
 
     Usage:
-        # Create shared instance
-        pos_manager = PositionManager('rapid_portfolio.json')
-
-        # Both components share the same instance
-        engine = AutoTradingEngine(position_manager=pos_manager)
-        portfolio = RapidPortfolioManager(position_manager=pos_manager)
+        pos_manager = PositionManager()
 
         # Add position
         pos = Position(symbol='AAPL', entry_price=100, qty=10, ...)
@@ -113,30 +99,15 @@ class PositionManager:
         assert engine.get_position('AAPL') == portfolio.get_position('AAPL')
     """
 
-    def __init__(self, portfolio_file: str = None):
-        """
-        Initialize Position Manager
-
-        Args:
-            portfolio_file: Path to portfolio JSON file (default: rapid_portfolio.json)
-        """
-        if portfolio_file is None:
-            # v6.19: Default to active_positions.json (Auto Trading Engine state file)
-            portfolio_file = os.path.join(
-                os.path.dirname(os.path.dirname(__file__)),
-                'data',
-                'active_positions.json'
-            )
-
-        self.portfolio_file = os.path.abspath(portfolio_file)
+    def __init__(self):
+        """Initialize Position Manager (reads from DB)."""
         self.positions: Dict[str, Position] = {}
-        self._lock = Lock()  # Thread safety
+        self._lock = Lock()
 
-        # Load existing positions
+        # Load existing positions from DB
         self.load()
 
-        logger.info(f"PositionManager initialized: {self.portfolio_file}")
-        logger.info(f"  Loaded {len(self.positions)} positions")
+        logger.info(f"PositionManager initialized: {len(self.positions)} positions from DB")
 
     # =========================================================================
     # PERSISTENCE
@@ -366,7 +337,7 @@ if __name__ == "__main__":
     print("PositionManager - Example Usage\n")
 
     # Create manager
-    manager = PositionManager('/tmp/test_portfolio.json')
+    manager = PositionManager()
 
     # Example 1: Add position
     print("Example 1: Add position")

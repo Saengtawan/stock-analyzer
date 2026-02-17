@@ -75,8 +75,6 @@ class DataManager:
 
         # v6.7: Cache paths for offline fallback
         self.project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        # v6.19: Use active_positions.json (Auto Trading Engine state file) as single source of truth
-        self.portfolio_file = os.path.join(self.project_root, 'data', 'active_positions.json')
         self.account_cache_file = os.path.join(self.project_root, 'data', 'account_cache.json')
 
         logger.info(f"DataManager initialized with primary: {self.primary_source}, backup: {self.backup_source}, "

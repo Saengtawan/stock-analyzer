@@ -559,10 +559,9 @@ class AutoTradingEngine:
         # Timezone
         self.et_tz = pytz.timezone('US/Eastern')
 
-        # Position state file (persists peak_price, trailing_active, SL/TP etc.)
+        # State directory for queue and other JSON state files
         self._state_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
         os.makedirs(self._state_dir, exist_ok=True)
-        self._state_file = os.path.join(self._state_dir, 'active_positions.json')
         self._queue_file = os.path.join(self._state_dir, 'signal_queue.json')
 
         # v5.1 P1-9: Track Alpaca position count for max_positions enforcement

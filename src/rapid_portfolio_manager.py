@@ -172,11 +172,6 @@ class RapidPortfolioManager:
         manager = RapidPortfolioManager()
     """
 
-    # Use absolute path to project root for portfolio file
-    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    # v6.19: Use active_positions.json (Auto Trading Engine state file) as single source of truth
-    PORTFOLIO_FILE = os.path.join(PROJECT_ROOT, "data", "active_positions.json")
-
     # v4.6: ATR-based SL/TP (fallback defaults)
     SL_ATR_MULTIPLIER = 1.5      # SL = 1.5 × ATR
     SL_MIN_PCT = 2.0             # Minimum SL%
@@ -190,18 +185,16 @@ class RapidPortfolioManager:
     TRAIL_PERCENT = 80           # Lock 80% of peak gains
     MAX_HOLD_DAYS = 5            # Max hold days before force exit
 
-    def __init__(self, portfolio_file: str = None, broker=None, config: 'RapidRotationConfig' = None):
+    def __init__(self, broker=None, config: 'RapidRotationConfig' = None):
         """
         Initialize Portfolio Manager.
 
         Args:
-            portfolio_file: Path to portfolio JSON file
             broker: Optional BrokerInterface (e.g., AlpacaBroker) for live data
                    If provided, will use real-time prices from broker instead of yfinance
             config: Optional RapidRotationConfig for strategy parameters (v6.7)
                    If None, uses class-level defaults or loads from trading.yaml
         """
-        self.portfolio_file = portfolio_file or self.PORTFOLIO_FILE
         self.broker = broker  # v4.7: Optional broker for live data
 
         # v6.7: Load configuration
