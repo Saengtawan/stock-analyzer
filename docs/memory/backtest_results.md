@@ -71,8 +71,30 @@
 | 2024 | +2.50% | 7/12 | +$7,510 |
 | 2025 | +3.71% | 9/12 | +$11,122 |
 
+## Full Universe Backtest (987 stocks, daily pre-filter — most realistic)
+| Metric | Value |
+|--------|-------|
+| Total Trades | **560** |
+| Win Rate | **36.2%** (vs 46% with curated 65 stocks) |
+| Avg P&L/trade | **+0.37%** |
+| Monthly return | **2.02%** |
+| CAGR | **20.0%** |
+| Max Drawdown | **-19.82%** |
+| $25k/month | **$506** |
+
+### Why Win Rate Dropped 46% → 36%
+- 65-stock curated universe = tech/growth stocks that respond well to dip-bounce signals
+- 987-stock full universe includes utilities, REITs, consumer defensive — poor dip-bounce response
+- Pre-filter passes them through (ATR/volume/SMA20 ok) but they don't follow momentum patterns
+- **Lesson**: dip-bounce strategy works best on high-beta, momentum stocks
+
+### Real-World Estimate
+**$506-$743/month on $25k** (between full universe and production 65-stock)
+
 ### Backtest Files
-- `backtest_3yr_trades.csv` — 866 trades, idealized
-- `backtest_3yr_realistic.csv` — 866 trades, with costs
-- `backtest_3yr_production_realistic.csv` — 328 trades, production logic
+- `backtest_3yr_trades.csv` — 866 trades, idealized (65 stocks)
+- `backtest_3yr_realistic.csv` — 866 trades, +costs (65 stocks)
+- `backtest_3yr_production_realistic.csv` — 328 trades, +SPY regime (65 stocks)
+- `backtest_3yr_full_universe.csv` — 560 trades, 987 stocks daily pre-filter (most realistic)
+- `backtest_full_universe.py` — script for full universe backtest
 - `backtest_production_trades.csv` — 163 trades Aug-Feb 2026
