@@ -47,7 +47,32 @@
 - Real-world return likely **4-5%/month** (between idealized and realistic)
 - CAGR 35% >> S&P 500 13% — solid outperformance
 
+## Production-Realistic Backtest (SPY Regime + Sector ETF filters)
+| Metric | Value |
+|--------|-------|
+| Total Trades | **328** (866 → 328, -62% due to regime filter) |
+| Win Rate | **49.7%** (vs 46.3% without filter) |
+| Avg P&L/trade | **+0.89%** (vs +0.53% without filter) |
+| Monthly return | **2.97%** (fewer trades) |
+| CAGR | **27.5%** |
+| Max Drawdown | **-9.50%** |
+| $25k/month | **$743** |
+
+### Key Insight: Regime Filter Trade-off
+- SPY BULL days: 577 | SPY BEAR days: 206 (26% of time)
+- Regime filter improves per-trade quality but reduces frequency
+- Production trades only ~9/month vs ~24/month unrestricted
+- Real-world estimate: **$743-$1,044/month** on $25k capital
+
+### Per Year (Production Realistic)
+| Year | Avg/Month | Profitable Months | Total |
+|------|-----------|-------------------|-------|
+| 2023 | +2.71% | 6/12 | +$8,131 |
+| 2024 | +2.50% | 7/12 | +$7,510 |
+| 2025 | +3.71% | 9/12 | +$11,122 |
+
 ### Backtest Files
 - `backtest_3yr_trades.csv` — 866 trades, idealized
 - `backtest_3yr_realistic.csv` — 866 trades, with costs
+- `backtest_3yr_production_realistic.csv` — 328 trades, production logic
 - `backtest_production_trades.csv` — 163 trades Aug-Feb 2026

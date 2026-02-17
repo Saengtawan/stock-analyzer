@@ -10,7 +10,16 @@
 - **Monthly return: ~4.42% | CAGR: 35.8% | Max DD: -9.79%**
 - **$25k capital → ~$1,044/month average**
 - Profitable months: 24/36 (67%): 2023=9/12, 2024=6/12, 2025=9/12
-- Real-world estimate: **4-5%/month** (between idealized 6.5% and realistic 4.4%)
+- Real-world estimate: **$743-$1,044/month** on $25k (between production and realistic)
+
+### 3 Backtest Variants (2023-2025, 866 trades base)
+| Variant | Trades | Win% | CAGR | Max DD | $25k/mo |
+|---------|--------|------|------|--------|---------|
+| Idealized | 866 | 46.3% | 49.8% | -6.39% | $1,640 |
+| Realistic (+costs) | 866 | 46.3% | 35.8% | -9.79% | $1,044 |
+| Production (SPY+sector) | 328 | 49.7% | 27.5% | -9.50% | $743 |
+- Production logic: SPY SMA20 regime filter cuts 62% of trades, improves win rate
+- Real-world: likely between realistic and production → **$743-$1,044/month**
 
 ## Active Strategies (2026-02-12)
 **AUTO-TRADING (2 strategies active):**
