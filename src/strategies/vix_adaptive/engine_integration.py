@@ -20,7 +20,7 @@ import pandas as pd
 from loguru import logger
 
 from .vix_adaptive_strategy import VIXAdaptiveStrategy, Action
-from src.data.vix_data_provider import VIXDataProvider
+from data.vix_data_provider import VIXDataProvider
 
 
 class VIXAdaptiveIntegration:
