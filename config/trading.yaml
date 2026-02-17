@@ -70,7 +70,7 @@ rapid_rotation:
   pdt_account_threshold: 25000.0  # PDT threshold ($)
   pdt_day_trade_limit: 3          # Max day trades (non-PDT)
   pdt_reserve: 1                  # Keep N day trades for emergencies (v6.10.1)
-  pdt_enforce_always: false       # Testing: Don't enforce PDT (but still display count)
+  pdt_enforce_always: true        # Enforce PDT rules always
 
   # -- Circuit Breaker --
   max_consecutive_losses: 5       # Circuit breaker trigger (note: existing uses 3)
@@ -215,6 +215,11 @@ market_close_minutes: 960                  # 16:00 ET = 16*60
 # -- Session Timeline (v6.4 Single Source of Truth) --
 # UI timeline bar uses these values. All times in minutes from midnight.
 sessions:
+  gapscan:                                 # v6.11: Pre-market gap scanner
+    start: 360                             # 06:00 ET
+    end: 575                               # 09:35 ET
+    interval: -1                           # Once per day (not continuous)
+    label: "Gap Scan"
   morning:
     start: 575                             # 09:35 ET
     end: 660                               # 11:00 ET

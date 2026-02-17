@@ -439,6 +439,10 @@ class PDTSmartGuard:
         Returns:
             (allowed: bool, decision: SellDecision, reason: str)
         """
+        # pdt_enforce_always=false → bypass all PDT restrictions
+        if not self._get_enforce_on_paper():
+            return True, SellDecision.ALLOWED, "PDT not enforced (pdt_enforce_always=false)"
+
         days_held = self.get_days_held(symbol)
 
         # Day 1+: Always allowed (not a day trade)
@@ -486,6 +490,10 @@ class PDTSmartGuard:
         Returns:
             (should_place: bool, reason: str)
         """
+        # pdt_enforce_always=false → always place SL orders (no PDT restriction)
+        if not self._get_enforce_on_paper():
+            return True, "PDT not enforced - SL order allowed"
+
         # v2.1 FIX: Check if entry_date exists FIRST
         # If no entry_date → NEW position being bought NOW → Day 0
         entry_date = self._entry_dates.get(symbol)
@@ -512,6 +520,10 @@ class PDTSmartGuard:
         Returns:
             (should_place: bool, reason: str)
         """
+        # pdt_enforce_always=false → no special EOD handling needed (SL already placed normally)
+        if not self._get_enforce_on_paper():
+            return False, "PDT not enforced - SL placed at entry, no EOD handling needed"
+
         entry_date = self._entry_dates.get(symbol)
         if not entry_date:
             return False, "No entry date recorded"

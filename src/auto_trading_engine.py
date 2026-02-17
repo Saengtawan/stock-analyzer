@@ -1658,6 +1658,9 @@ class AutoTradingEngine:
         if not self.LOW_RISK_MODE_ENABLED:
             return False, "Low risk mode disabled"
 
+        if not self.pdt_guard._get_enforce_on_paper():
+            return False, "PDT not enforced - Low Risk Mode skipped"
+
         pdt_status = self.pdt_guard.get_pdt_status()
 
         if pdt_status.remaining <= 0:
@@ -3240,8 +3243,8 @@ class AutoTradingEngine:
             logger.warning(f"Safety block: {reason}")
             return False, f"Safety: {reason}"
 
-        # PDT pre-buy budget check (skip in LOW_RISK mode)
-        if 'LOW_RISK' not in mode:
+        # PDT pre-buy budget check (skip in LOW_RISK mode or when PDT not enforced)
+        if 'LOW_RISK' not in mode and self.pdt_guard._get_enforce_on_paper():
             pdt_status = self.pdt_guard.get_pdt_status()
             if pdt_status.remaining <= self.pdt_guard._get_reserve():
                 logger.warning(f"❌ PDT pre-buy block: remaining={pdt_status.remaining}")
