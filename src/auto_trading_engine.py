@@ -938,6 +938,7 @@ class AutoTradingEngine:
                     'entry_regime': db_pos.regime,
                     'entry_rsi': db_pos.entry_rsi,
                     'momentum_5d': db_pos.momentum_5d,
+                    'days_held': db_pos.day_held or 0,
                 }
             if positions:
                 logger.info(f"Loaded persisted state: {len(positions)} positions from DB")
@@ -1250,6 +1251,7 @@ class AutoTradingEngine:
                         # Restore dynamic state from persisted data
                         peak_price=saved.get('peak_price', pos.current_price),
                         trailing_active=saved.get('trailing_active', False),
+                        days_held=saved.get('days_held', 0),
                         sl_pct=saved.get('sl_pct', self.STOP_LOSS_PCT),
                         tp_price=saved.get('tp_price', 0.0),
                         tp_pct=saved.get('tp_pct', self.TAKE_PROFIT_PCT),
