@@ -854,34 +854,45 @@ class AutoTradingEngine:
         except Exception as e:
             logger.error(f"Failed to save position state: {e}")
 
+    # Engine sources that this engine owns (do NOT touch rapid_trader positions)
+    _ENGINE_SOURCES = ('dip_bounce', 'vix_adaptive', 'mean_reversion', 'rapid_rotation')
+
     def _sync_active_positions_db(self):
-        """Sync active_positions DB table to match current in-memory positions.
-        Called after every _save_positions_state(). Non-critical: errors logged only."""
+        """Sync in-memory positions to DB via PositionRepository.
+        Called after every _save_positions_state(). Non-critical: errors logged only.
+
+        Scoped to engine-owned sources only — rapid_trader positions are NOT touched.
+        """
         try:
-            import sqlite3 as _sqlite3
-            db_path = os.path.join(self._state_dir, 'trade_history.db')
-            if not os.path.exists(db_path):
-                return
+            from database import PositionRepository
+            from database.models.position import Position as DBPosition
+            from datetime import datetime as _dt
+
+            repo = PositionRepository()
+
             with self._positions_lock:
-                snapshot = dict(self.positions)
-            current_symbols = list(snapshot.keys())
-            conn = _sqlite3.connect(db_path, timeout=5)
-            cursor = conn.cursor()
-            # Remove engine-owned positions no longer tracked (scoped to engine sources only)
-            # Do NOT delete rapid_portfolio positions (they have different sources like 'rapid_trader')
-            engine_sources = ('dip_bounce', 'vix_adaptive', 'mean_reversion', 'rapid_rotation')
+                positions_snapshot = dict(self.positions)
+
+            current_symbols = list(positions_snapshot.keys())
+            engine_sources = self._ENGINE_SOURCES
             src_placeholders = ','.join('?' * len(engine_sources))
+
+            # Remove stale engine-owned positions (scoped — do NOT delete rapid_trader rows)
             if current_symbols:
                 sym_placeholders = ','.join('?' * len(current_symbols))
-                cursor.execute(
+                repo.db.execute(
                     f"DELETE FROM active_positions WHERE source IN ({src_placeholders}) AND symbol NOT IN ({sym_placeholders})",
                     list(engine_sources) + current_symbols
                 )
             else:
-                cursor.execute(f"DELETE FROM active_positions WHERE source IN ({src_placeholders})", list(engine_sources))
-            # Upsert current positions
-            for symbol, pos in snapshot.items():
-                cursor.execute("""
+                repo.db.execute(
+                    f"DELETE FROM active_positions WHERE source IN ({src_placeholders})",
+                    list(engine_sources)
+                )
+
+            # Upsert current engine positions
+            for sym, pos in positions_snapshot.items():
+                repo.db.execute("""
                     INSERT OR REPLACE INTO active_positions
                     (symbol, entry_date, entry_price, qty, stop_loss, take_profit,
                      peak_price, trough_price, trailing_stop, day_held, sl_pct, tp_pct,
@@ -889,17 +900,30 @@ class AutoTradingEngine:
                      regime, entry_rsi, momentum_5d, updated_at)
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
-                    symbol, pos.entry_time.isoformat(), pos.entry_price, pos.qty,
-                    pos.current_sl_price, pos.tp_price, pos.peak_price, pos.trough_price,
-                    1 if pos.trailing_active else 0, pos.days_held,
-                    pos.sl_pct, pos.tp_pct, pos.atr_pct, pos.sl_order_id,
-                    pos.sector, pos.source, pos.signal_score,
-                    pos.entry_mode, pos.entry_regime, pos.entry_rsi, pos.momentum_5d,
-                    datetime.now().isoformat()
+                    sym,
+                    pos.entry_time.isoformat() if hasattr(pos.entry_time, 'isoformat') else pos.entry_time,
+                    pos.entry_price, pos.qty,
+                    pos.current_sl_price,
+                    getattr(pos, 'tp_price', 0.0),
+                    pos.peak_price,
+                    getattr(pos, 'trough_price', 0.0),
+                    1 if pos.trailing_active else 0,
+                    pos.days_held,
+                    pos.sl_pct,
+                    getattr(pos, 'tp_pct', 5.0),
+                    getattr(pos, 'atr_pct', 0.0),
+                    pos.sl_order_id,
+                    getattr(pos, 'sector', ''),
+                    getattr(pos, 'source', 'dip_bounce'),
+                    getattr(pos, 'signal_score', 0),
+                    getattr(pos, 'entry_mode', 'NORMAL'),
+                    getattr(pos, 'entry_regime', 'BULL'),
+                    getattr(pos, 'entry_rsi', 0.0),
+                    getattr(pos, 'momentum_5d', 0.0),
+                    _dt.now().isoformat()
                 ))
-            conn.commit()
-            conn.close()
-            logger.debug(f"DB active_positions synced: {len(snapshot)} positions")
+
+            logger.debug(f"✅ DB synced: {len(positions_snapshot)} positions via PositionRepository")
         except Exception as e:
             logger.warning(f"DB active_positions sync failed (non-critical): {e}")
 

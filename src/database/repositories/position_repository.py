@@ -339,10 +339,10 @@ class PositionRepository:
                 updated = True
         
         if updated:
-            return self._save_positions(positions)
-        
+            return self._save_to_database(positions)
+
         return False
-    
+
     def get_positions_by_hold_time(self, min_days: int) -> List[Position]:
         """
         Get positions held for at least N days.
@@ -364,4 +364,4 @@ class PositionRepository:
             True if successful
         """
         logger.warning("Clearing all positions!")
-        return self._save_positions([])
+        return self._save_to_database([])

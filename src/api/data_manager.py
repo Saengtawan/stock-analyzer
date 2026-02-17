@@ -595,32 +595,31 @@ class DataManager:
             except Exception as e:
                 logger.warning(f"Broker get_positions failed: {e}, trying local portfolio")
 
-        # Fallback to local portfolio.json
+        # Fallback to DB (single source of truth)
         try:
-            if os.path.exists(self.portfolio_file):
-                with open(self.portfolio_file) as f:
-                    portfolio_data = json.load(f)
-
-                positions = []
-                for symbol, pos_data in portfolio_data.get('positions', {}).items():
-                    # Create mock Position object
-                    from ..engine.broker_interface import Position
-                    positions.append(Position(
-                        symbol=symbol,
-                        qty=pos_data['shares'],
-                        avg_entry_price=pos_data['entry_price'],
-                        current_price=pos_data['entry_price'],  # No realtime price
-                        market_value=pos_data['shares'] * pos_data['entry_price'],
-                        unrealized_pl=0,
-                        unrealized_plpc=0,
-                        side='long',
-                        cost_basis=pos_data['cost_basis']
-                    ))
-
-                logger.info(f"Positions from local portfolio: {len(positions)} positions")
-                return positions
+            from database import PositionRepository
+            from ..engine.broker_interface import Position
+            repo = PositionRepository()
+            db_positions = repo.get_all()
+            positions = []
+            for db_pos in db_positions:
+                qty = db_pos.qty or 0
+                price = db_pos.entry_price or 0.0
+                positions.append(Position(
+                    symbol=db_pos.symbol,
+                    qty=qty,
+                    avg_entry_price=price,
+                    current_price=price,
+                    market_value=qty * price,
+                    unrealized_pl=0,
+                    unrealized_plpc=0,
+                    side='long',
+                    cost_basis=qty * price,
+                ))
+            logger.info(f"Positions from DB: {len(positions)} positions")
+            return positions
         except Exception as e:
-            logger.error(f"Failed to load local portfolio: {e}")
+            logger.error(f"Failed to load positions from DB: {e}")
 
         return []
 
@@ -644,28 +643,28 @@ class DataManager:
             except Exception as e:
                 logger.debug(f"Broker get_position failed for {symbol}: {e}")
 
-        # Fallback to local portfolio
+        # Fallback to DB (single source of truth)
         try:
-            if os.path.exists(self.portfolio_file):
-                with open(self.portfolio_file) as f:
-                    portfolio_data = json.load(f)
-
-                pos_data = portfolio_data.get('positions', {}).get(symbol)
-                if pos_data:
-                    from ..engine.broker_interface import Position
-                    return Position(
-                        symbol=symbol,
-                        qty=pos_data['shares'],
-                        avg_entry_price=pos_data['entry_price'],
-                        current_price=pos_data['entry_price'],
-                        market_value=pos_data['shares'] * pos_data['entry_price'],
-                        unrealized_pl=0,
-                        unrealized_plpc=0,
-                        side='long',
-                        cost_basis=pos_data['cost_basis']
-                    )
+            from database import PositionRepository
+            from ..engine.broker_interface import Position
+            repo = PositionRepository()
+            db_pos = repo.get_by_symbol(symbol)
+            if db_pos:
+                qty = db_pos.qty or 0
+                price = db_pos.entry_price or 0.0
+                return Position(
+                    symbol=db_pos.symbol,
+                    qty=qty,
+                    avg_entry_price=price,
+                    current_price=price,
+                    market_value=qty * price,
+                    unrealized_pl=0,
+                    unrealized_plpc=0,
+                    side='long',
+                    cost_basis=qty * price,
+                )
         except Exception as e:
-            logger.debug(f"Failed to load position from local portfolio: {e}")
+            logger.debug(f"Failed to load position from DB: {e}")
 
         return None
 

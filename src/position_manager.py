@@ -143,72 +143,39 @@ class PositionManager:
     # =========================================================================
 
     def load(self) -> None:
-        """Load positions from file"""
-        with self._lock:
-            if not os.path.exists(self.portfolio_file):
-                logger.debug(f"Portfolio file not found: {self.portfolio_file}")
-                return
-
-            try:
-                with open(self.portfolio_file, 'r') as f:
-                    data = json.load(f)
-
-                for symbol, pos_data in data.get('positions', {}).items():
-                    # Handle backward compatibility - map old field names
-                    if 'shares' in pos_data and 'qty' not in pos_data:
-                        pos_data['qty'] = pos_data.pop('shares')
-
-                    if 'initial_stop_loss' in pos_data and 'initial_sl' not in pos_data:
-                        pos_data['initial_sl'] = pos_data.pop('initial_stop_loss')
-
-                    if 'current_stop_loss' in pos_data and 'current_sl' not in pos_data:
-                        pos_data['current_sl'] = pos_data.pop('current_stop_loss')
-
-                    if 'initial_take_profit' in pos_data and 'initial_tp' not in pos_data:
-                        pos_data['initial_tp'] = pos_data.pop('initial_take_profit', 0.0)
-
-                    # Remove any old keys that don't map to Position fields
-                    valid_keys = set(Position.__dataclass_fields__.keys())
-                    filtered_data = {k: v for k, v in pos_data.items() if k in valid_keys}
-
-                    self.positions[symbol] = Position(**filtered_data)
-
-                logger.info(f"Loaded {len(self.positions)} positions from {self.portfolio_file}")
-
-            except Exception as e:
-                logger.error(f"Failed to load portfolio: {e}")
+        """Load positions from DB (single source of truth)"""
+        try:
+            from database import PositionRepository
+            repo = PositionRepository()
+            db_positions = repo.get_all(use_cache=False)
+            new_positions = {}
+            for db_pos in db_positions:
+                pos = Position(
+                    symbol=db_pos.symbol,
+                    entry_date=db_pos.entry_date.isoformat() if db_pos.entry_date else '',
+                    entry_price=db_pos.entry_price or 0.0,
+                    qty=db_pos.qty or 0,
+                    cost_basis=(db_pos.entry_price or 0.0) * (db_pos.qty or 0),
+                    initial_sl=db_pos.stop_loss or 0.0,
+                    current_sl=db_pos.stop_loss or 0.0,
+                    take_profit=db_pos.take_profit or 0.0,
+                    sl_pct=db_pos.sl_pct or 2.5,
+                    tp_pct=db_pos.tp_pct or 5.0,
+                    highest_price=db_pos.peak_price or db_pos.entry_price or 0.0,
+                    trailing_active=bool(db_pos.trailing_stop),
+                    atr_pct=db_pos.entry_atr_pct or 0.0,
+                    sl_order_id=db_pos.sl_order_id,
+                )
+                new_positions[db_pos.symbol] = pos
+            with self._lock:
+                self.positions = new_positions
+            logger.info(f"Loaded {len(self.positions)} positions from DB")
+        except Exception as e:
+            logger.error(f"Failed to load positions from DB: {e}")
 
     def save(self) -> None:
-        """
-        Save positions to file (atomic write)
-
-        Uses atomic write to prevent file corruption if process crashes mid-write.
-        """
-        with self._lock:
-            try:
-                data = {
-                    'positions': {s: asdict(p) for s, p in self.positions.items()},
-                    'last_updated': datetime.now().isoformat()
-                }
-
-                # Atomic write: write to temp file, then replace
-                fd, tmp_path = tempfile.mkstemp(
-                    dir=os.path.dirname(self.portfolio_file),
-                    suffix='.tmp'
-                )
-                try:
-                    with os.fdopen(fd, 'w') as f:
-                        json.dump(data, f, indent=2, default=str)
-                    os.replace(tmp_path, self.portfolio_file)
-                except Exception:
-                    if os.path.exists(tmp_path):
-                        os.unlink(tmp_path)
-                    raise
-
-                logger.debug(f"Saved {len(self.positions)} positions to {self.portfolio_file}")
-
-            except Exception as e:
-                logger.error(f"Failed to save portfolio: {e}")
+        """No-op: engine writes to DB via _sync_active_positions_db(). position_manager is read-only."""
+        pass
 
     # =========================================================================
     # CRUD OPERATIONS
