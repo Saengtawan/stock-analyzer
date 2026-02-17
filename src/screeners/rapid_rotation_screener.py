@@ -715,8 +715,8 @@ class RapidRotationScreener:
                 return is_bull, reason, details
 
         try:
-            # Download SPY data (last 30 days is enough for SMA20)
-            spy = yf.download('SPY', period='30d', progress=False)
+            # Download SPY data (need 90 days to compute SMA50)
+            spy = yf.download('SPY', period='90d', progress=False)
 
             if spy.empty or len(spy) < self.REGIME_SMA_PERIOD:
                 logger.warning("Not enough SPY data for regime check — defaulting to BEAR (fail-closed)")
@@ -729,18 +729,23 @@ class RapidRotationScreener:
             if hasattr(close.iloc[-1], 'iloc'):
                 current_price = float(close.iloc[-1].iloc[0])
                 sma = float(close.iloc[-self.REGIME_SMA_PERIOD:].mean().iloc[0])
+                sma50 = float(close.iloc[-50:].mean().iloc[0]) if len(close) >= 50 else sma
             else:
                 current_price = float(close.iloc[-1])
                 sma = float(close.iloc[-self.REGIME_SMA_PERIOD:].mean())
+                sma50 = float(close.iloc[-50:].mean()) if len(close) >= 50 else sma
 
             is_bull = current_price > sma
+            is_strong_bull = current_price > sma50
             pct_above = ((current_price / sma) - 1) * 100
 
             details = {
                 'spy_price': round(current_price, 2),
                 'spy_sma20': round(sma, 2),
+                'spy_sma50': round(sma50, 2),
                 'pct_above_sma': round(pct_above, 2),
-                'regime': 'BULL' if is_bull else 'BEAR'
+                'regime': 'BULL' if is_bull else 'BEAR',
+                'strong_bull': is_strong_bull,
             }
 
             if is_bull:
@@ -1386,6 +1391,17 @@ class RapidRotationScreener:
             logger.info(f"🟢 SPY BULL REGIME - Scanning for signals...")
             logger.info(f"   {spy_reason}")
 
+        # Regime-aware scoring: stricter when SPY is weak bull (above SMA20, below SMA50)
+        _base_score = min_score if min_score is not None else self.config.get('min_score', 90)
+        is_strong_bull = spy_details.get('strong_bull', True)
+        if is_bull and not is_strong_bull:
+            _effective_min_score = _base_score + 5
+            logger.info(
+                f"⚠️ Weak bull (SPY > SMA20 but < SMA50): min_score {_base_score}→{_effective_min_score}"
+            )
+        else:
+            _effective_min_score = _base_score
+
         # Check market regime (internal detector)
         regime = self._get_market_regime()
         regime_name = regime.get('regime', 'UNKNOWN')
@@ -1448,8 +1464,7 @@ class RapidRotationScreener:
             logger.info("🎯 Using Strategy Manager for scanning...")
 
             # Update strategy config with runtime parameters
-            if min_score is not None:
-                self.dip_bounce_strategy.min_score = min_score
+            self.dip_bounce_strategy.min_score = _effective_min_score
             if gap_max_up is not None:
                 self.dip_bounce_strategy.gap_max_up = gap_max_up
 
@@ -1457,6 +1472,7 @@ class RapidRotationScreener:
             market_data = {
                 'regime': regime_name,
                 'spy_bull': is_bull,
+                'spy_strong_bull': is_strong_bull,
             }
 
             # Sector filtering - create filtered universe

@@ -24,6 +24,7 @@ Usage:
 
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
+import collections
 import pandas as pd
 import logging
 
@@ -99,6 +100,7 @@ class VIXAdaptiveStrategy:
         self.current_tier: Optional[TierType] = None
         self.current_vix: Optional[float] = None
         self.previous_vix: Optional[float] = None
+        self._vix_history: collections.deque = collections.deque(maxlen=3)
 
         logger.info(f"✅ Initialized VIXAdaptiveStrategy v3.0")
         logger.info(f"   Boundaries: {config['boundaries']}")
@@ -131,22 +133,26 @@ class VIXAdaptiveStrategy:
             logger.warning(f"No VIX data for {date}, skipping")
             return actions
 
-        # Get current tier
+        # 3-day rolling average prevents 19.9↔20.1 boundary oscillation
+        self._vix_history.append(self.current_vix)
+        vix_smoothed = sum(self._vix_history) / len(self._vix_history)
+
+        # Get current tier (use smoothed VIX to avoid flip-flopping at boundaries)
         prev_tier = self.current_tier
-        self.current_tier = self.tier_manager.get_tier(self.current_vix)
+        self.current_tier = self.tier_manager.get_tier(vix_smoothed)
 
         # Log tier transitions
         if prev_tier and prev_tier != self.current_tier:
             logger.warning(
                 f"🔄 Tier transition: {prev_tier.upper()} → {self.current_tier.upper()} "
-                f"(VIX: {self.current_vix:.2f})"
+                f"(VIX: {self.current_vix:.2f}, smoothed: {vix_smoothed:.2f})"
             )
 
         # Route based on tier
         if self.current_tier == 'extreme':
             # EXTREME: Close all positions
             logger.critical(
-                f"🚨 EXTREME tier activated! VIX={self.current_vix:.2f} > 38 - CLOSING ALL"
+                f"🚨 EXTREME tier activated! VIX={self.current_vix:.2f} (smoothed={vix_smoothed:.2f}) > 38 - CLOSING ALL"
             )
             for position in active_positions:
                 actions.append(Action(
@@ -158,34 +164,21 @@ class VIXAdaptiveStrategy:
 
         elif self.current_tier == 'skip':
             # SKIP: No new trades, only manage existing
-            logger.info(f"SKIP tier (VIX={self.current_vix:.2f}), no new trades")
+            logger.info(f"SKIP tier (VIX={self.current_vix:.2f}, smoothed={vix_smoothed:.2f}), no new trades")
 
         elif self.current_tier == 'normal':
-            # NORMAL: Mean reversion
-            logger.info(f"NORMAL tier (VIX={self.current_vix:.2f}), mean reversion")
-
-            # Get adaptive score threshold
-            score_threshold = self._get_score_threshold()
-
-            # Scan for signals
-            signals = self.mean_reversion.scan_signals(
-                date=date,
-                stock_data=stock_data,
-                score_threshold=score_threshold
+            # NORMAL tier (VIX < 20): Dip-Bounce strategy handles this regime.
+            # VIX Adaptive only activates in HIGH tier (VIX 24-38) where its
+            # falling-VIX filter adds value not present in Dip-Bounce.
+            logger.info(
+                f"NORMAL tier (VIX={self.current_vix:.2f}, smoothed={vix_smoothed:.2f}) "
+                f"— delegated to DipBounce strategy, no VIX Adaptive signals"
             )
-
-            # Create open actions
-            for signal in signals:
-                actions.append(Action(
-                    action_type='open',
-                    symbol=signal.symbol,
-                    tier='normal',
-                    signal=signal
-                ))
+            # actions stays empty — Dip-Bounce generates signals in this regime
 
         elif self.current_tier == 'high':
             # HIGH: Bounce strategy
-            logger.info(f"HIGH tier (VIX={self.current_vix:.2f}), bounce strategy")
+            logger.info(f"HIGH tier (VIX={self.current_vix:.2f}, smoothed={vix_smoothed:.2f}), bounce strategy")
 
             # Check VIX direction
             vix_falling = False
