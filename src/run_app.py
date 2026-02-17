@@ -739,7 +739,8 @@ class ServiceManager:
                         alive_count += 1
                     else:
                         dead_threads.append(name)
-                except Exception:
+                except Exception as _web_e:
+                    logger.warning(f"Web thread check failed: {type(_web_e).__name__}: {_web_e}")
                     dead_threads.append(name)
             elif name == 'price_streamer':
                 # AlpacaStreamer is not a Thread, check if streamer object exists and is running
