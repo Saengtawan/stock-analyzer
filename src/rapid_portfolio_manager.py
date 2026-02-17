@@ -172,6 +172,8 @@ class RapidPortfolioManager:
         manager = RapidPortfolioManager()
     """
 
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
     # v4.6: ATR-based SL/TP (fallback defaults)
     SL_ATR_MULTIPLIER = 1.5      # SL = 1.5 × ATR
     SL_MIN_PCT = 2.0             # Minimum SL%
