@@ -730,18 +730,23 @@ class ServiceManager:
                 continue  # Don't check self
             total_count += 1
             if name == 'web':
-                # Flask thread may exit but server still serves via internal threads
-                # Use HTTP check instead of thread.is_alive()
-                try:
-                    import urllib.request
-                    resp = urllib.request.urlopen('http://localhost:5000/api/auto/status', timeout=10)
-                    if resp.status == 200:
-                        alive_count += 1
-                    else:
+                # Flask thread check: use thread.is_alive() + HTTP fallback
+                # /api/auto/status can timeout during engine init (takes ~80s)
+                # Use thread liveness as primary check, HTTP as secondary
+                if hasattr(thread, 'is_alive') and thread.is_alive():
+                    alive_count += 1
+                else:
+                    # Thread dead — verify via lightweight HTTP (Flask may still serve via internal threads)
+                    try:
+                        import urllib.request
+                        resp = urllib.request.urlopen('http://localhost:5000/', timeout=5)
+                        if resp.status == 200:
+                            alive_count += 1
+                        else:
+                            dead_threads.append(name)
+                    except Exception as _web_e:
+                        logger.warning(f"Web thread dead + HTTP check failed: {type(_web_e).__name__}: {_web_e}")
                         dead_threads.append(name)
-                except Exception as _web_e:
-                    logger.warning(f"Web thread check failed: {type(_web_e).__name__}: {_web_e}")
-                    dead_threads.append(name)
             elif name == 'price_streamer':
                 # AlpacaStreamer is not a Thread, check if streamer object exists and is running
                 # v6.17: Fixed - check correct attributes (running, thread)
