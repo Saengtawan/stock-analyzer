@@ -283,7 +283,7 @@ regime_sma_period: 20
 regime_rsi_min: 40
 regime_return_5d_min: -2.0
 regime_vix_max: 30.0               # v6.0: 100→30 (CRITICAL: VIX<30 filter = BEAR survival +109%)
-vix_skip_zone_enabled: true        # v6.24: Block new buys in VIX 20-24 (uncertainty zone, 41% win rate)
+vix_skip_zone_enabled: true        # v6.24: Block buys in VIX 20-24 only when VIX RISING (28% win) — allow when FALLING (46.8% win)
 vix_skip_zone_low: 20.0            # VIX Adaptive SKIP tier lower bound
 vix_skip_zone_high: 24.0           # VIX Adaptive SKIP tier upper bound
 opening_window_limit_enabled: true  # v6.24: Limit buys during first 30 min (9:30-10:00 ET)
