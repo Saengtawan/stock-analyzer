@@ -422,9 +422,9 @@ class RapidRotationScreener:
                 'pre_filter.py'
             )
 
-            # Run in background (pre_open = re-validate existing pool, fast ~200 stocks)
+            # Run full evening scan (987 stocks) to catch new intraday dips, not just re-validate
             subprocess.Popen(
-                ['python3', pre_filter_script, 'pre_open'],
+                ['python3', pre_filter_script, 'evening'],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 start_new_session=True  # Detach from parent

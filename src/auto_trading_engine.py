@@ -5618,13 +5618,13 @@ class AutoTradingEngine:
 
         try:
             subprocess.Popen(
-                ['python3', pre_filter_script, 'pre_open'],
+                ['python3', pre_filter_script, 'evening'],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 start_new_session=True
             )
             logger.info(
-                f"🔄 Intraday pre-filter refresh [{label}] triggered at "
+                f"🔄 Intraday pre-filter FULL refresh [{label}] triggered at "
                 f"{et_now.strftime('%H:%M')} ET (schedule {triggered_hour}:{sched_minute:02d})"
             )
         except Exception as e:
