@@ -365,6 +365,18 @@ class RapidRotationConfig:
     breakout_sl_pct: float = 3.0                # Stop loss (%)
 
     # =========================================================================
+    # POST-EARNINGS MOMENTUM (PEM) STRATEGY (v6.29)
+    # =========================================================================
+    pem_enabled: bool = False                   # Disabled by default (paper trade first)
+    pem_gap_threshold_pct: float = 8.0          # Minimum gap up % to qualify
+    pem_volume_early_ratio_min: float = 0.15    # Early-session vol ratio vs 20d avg
+    pem_scan_hour: int = 9                      # Scan hour (ET)
+    pem_scan_minute: int = 35                   # Scan minute (9:35 = after open)
+    pem_max_positions: int = 1                  # Max PEM positions at once
+    pem_position_size_pct: float = 33.0         # Position size (% of equity)
+    pem_sl_pct: float = 5.0                     # Stop loss % (wider for earnings day)
+
+    # =========================================================================
     # VIX ADAPTIVE STRATEGY v3.0 (2026-02-11)
     # =========================================================================
     vix_adaptive_enabled: bool = True           # Enable VIX Adaptive Strategy

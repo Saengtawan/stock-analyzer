@@ -346,6 +346,19 @@ overnight_gap_sl_pct: 1.5
 # -- Breakout Scanner (Step 7) --
 # DISABLED 2026-02-18: Backtest shows -0.413% expectancy (no edge, hurts portfolio)
 breakout_scan_enabled: false
+
+# -- Post-Earnings Momentum (PEM) Strategy (Step 8) --
+# Backtest (2023-2025): WR 57.6%, avg +3.24%, ~2.3 events/month → ~$396/month on $25k
+# Entry: Buy at open when stock gaps up 8%+ with high volume (earnings catalyst)
+# Exit: Same-day at market close (gap_trade=True → pre_close_check EOD exit)
+pem_enabled: false               # Start disabled — paper trade first before enabling
+pem_gap_threshold_pct: 8.0       # Minimum gap up % from prev close to open
+pem_volume_early_ratio_min: 0.15 # Min early-session vol ratio vs 20d avg (at 9:35, 15% = ~2-3x by EOD)
+pem_scan_hour: 9                 # Scan at 9:35 ET (when open prices confirmed)
+pem_scan_minute: 35
+pem_max_positions: 1             # Max PEM positions at once (1-day hold, high conviction)
+pem_position_size_pct: 33.0      # Position size (% of equity) — same as dip-bounce
+pem_sl_pct: 5.0                  # Stop loss % (wider for volatile earnings day)
 breakout_min_volume_mult: 1.5
 breakout_min_score: 75
 breakout_target_pct: 8.0

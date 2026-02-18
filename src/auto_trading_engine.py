@@ -366,6 +366,16 @@ class AutoTradingEngine:
     BREAKOUT_TARGET_PCT: float
     BREAKOUT_SL_PCT: float
 
+    # Post-Earnings Momentum (PEM)
+    PEM_ENABLED: bool
+    PEM_GAP_THRESHOLD_PCT: float
+    PEM_VOLUME_EARLY_RATIO_MIN: float
+    PEM_SCAN_HOUR: int
+    PEM_SCAN_MINUTE: int
+    PEM_MAX_POSITIONS: int
+    PEM_POSITION_SIZE_PCT: float
+    PEM_SL_PCT: float
+
     # Market Regime Filter
     REGIME_FILTER_ENABLED: bool
     REGIME_SMA_PERIOD: int
@@ -498,6 +508,20 @@ class AutoTradingEngine:
             logger.info("✅ PreMarketGapScanner initialized (v6.11)")
         except Exception as e:
             logger.warning(f"PreMarketGapScanner init failed: {e}")
+
+        # v6.29: Post-Earnings Momentum (PEM) Scanner
+        self.pem_screener = None
+        if self.PEM_ENABLED:
+            try:
+                from screeners.pem_screener import PEMScreener
+                pem_config = {
+                    'pem_gap_threshold_pct': self.PEM_GAP_THRESHOLD_PCT,
+                    'pem_volume_early_ratio_min': self.PEM_VOLUME_EARLY_RATIO_MIN,
+                }
+                self.pem_screener = PEMScreener(broker=self.broker, config=pem_config)
+                logger.info("✅ PEMScreener initialized (v6.29)")
+            except Exception as e:
+                logger.warning(f"PEMScreener init failed: {e}")
 
         # VIX Adaptive Strategy v3.0
         self.vix_adaptive = None
@@ -840,6 +864,18 @@ class AutoTradingEngine:
         self.BREAKOUT_MIN_SCORE = cfg.breakout_min_score
         self.BREAKOUT_TARGET_PCT = cfg.breakout_target_pct
         self.BREAKOUT_SL_PCT = cfg.breakout_sl_pct
+
+        # =====================================================================
+        # POST-EARNINGS MOMENTUM (PEM) STRATEGY (v6.29)
+        # =====================================================================
+        self.PEM_ENABLED = getattr(cfg, 'pem_enabled', False)
+        self.PEM_GAP_THRESHOLD_PCT = getattr(cfg, 'pem_gap_threshold_pct', 8.0)
+        self.PEM_VOLUME_EARLY_RATIO_MIN = getattr(cfg, 'pem_volume_early_ratio_min', 0.15)
+        self.PEM_SCAN_HOUR = getattr(cfg, 'pem_scan_hour', 9)
+        self.PEM_SCAN_MINUTE = getattr(cfg, 'pem_scan_minute', 35)
+        self.PEM_MAX_POSITIONS = getattr(cfg, 'pem_max_positions', 1)
+        self.PEM_POSITION_SIZE_PCT = getattr(cfg, 'pem_position_size_pct', 33.0)
+        self.PEM_SL_PCT = getattr(cfg, 'pem_sl_pct', 5.0)
 
         # =====================================================================
         # VIX ADAPTIVE STRATEGY v3.0
@@ -3163,9 +3199,14 @@ class AutoTradingEngine:
         # Primary: scan_type is authoritative (set by the scan loop)
         if scan_type == 'overnight_gap':
             return SignalSource.OVERNIGHT_GAP
-        # sl_method from screener output (secondary)
+        if scan_type == 'pem':
+            return SignalSource.PEM
+        # sl_method / source attribute from screener output (secondary)
         sl_method = getattr(signal, 'sl_method', '')
-        if 'overnight_gap' in sl_method:
+        source_attr = signal.__dict__.get('source', '') if hasattr(signal, '__dict__') else ''
+        if source_attr == 'pem' or 'pem' in sl_method:
+            return SignalSource.PEM
+        elif 'overnight_gap' in sl_method:
             return SignalSource.OVERNIGHT_GAP
         elif 'breakout' in sl_method:
             return SignalSource.BREAKOUT
@@ -3712,12 +3753,14 @@ class AutoTradingEngine:
         signal_sector = getattr(signal, 'sector', '') or ''
         signal_source = self._derive_signal_source(signal)
 
-        # Score filter: use strategy-specific threshold for breakout/overnight (different scale than dip-bounce)
+        # Score filter: use strategy-specific threshold for breakout/overnight/pem (different scale than dip-bounce)
         sl_method = getattr(signal, 'sl_method', '')
         if 'breakout' in sl_method:
             effective_min_score = self.BREAKOUT_MIN_SCORE
         elif 'overnight_gap' in sl_method:
             effective_min_score = self.OVERNIGHT_GAP_MIN_SCORE
+        elif signal_source == SignalSource.PEM or 'pem' in sl_method:
+            effective_min_score = 50   # PEM score is based on gap size, not dip-bounce formula
         else:
             effective_min_score = params['min_score']
 
@@ -3811,10 +3854,10 @@ class AutoTradingEngine:
         signal_sector = getattr(signal, 'sector', '') or ''
         signal_source = self._derive_signal_source(signal)
 
-        # Gap filter (skip for breakout — breakout stocks legitimately gap up above resistance)
+        # Gap filter (skip for breakout and PEM — these legitimately gap up)
         sl_method = getattr(signal, 'sl_method', '')
-        if 'breakout' in sl_method:
-            gap_ok, gap_pct = True, 0.0
+        if 'breakout' in sl_method or signal_source == 'pem':
+            gap_ok, gap_pct = True, getattr(signal, 'gap_pct', 0.0) or 0.0
         else:
             gap_ok, gap_pct, gap_reason = self._check_gap_filter(
                 symbol, current_price,
@@ -3832,8 +3875,11 @@ class AutoTradingEngine:
             )
             return False, f"Gap {gap_pct:+.1f}%", gap_pct
 
-        # Stock-D filter
-        stock_d_ok, stock_d_reason, stock_d_data = self._check_stock_d_filter(symbol)
+        # Stock-D filter (skip for PEM — earnings gap stocks don't need dip-bounce pattern)
+        if signal_source == 'pem':
+            stock_d_ok, stock_d_reason, stock_d_data = True, "PEM skip", {}
+        else:
+            stock_d_ok, stock_d_reason, stock_d_data = self._check_stock_d_filter(symbol)
         if not stock_d_ok:
             logger.warning(f"❌ Stock-D Filter REJECT {symbol}: {stock_d_reason}")
             if not hasattr(self.daily_stats, 'stock_d_rejected'):
@@ -3847,8 +3893,12 @@ class AutoTradingEngine:
             )
             return False, "Stock-D ❌", gap_pct
 
-        # Earnings filter
-        earnings_ok, earnings_reason, earnings_data = self._check_earnings_filter(symbol)
+        # Earnings filter (skip for PEM — PEM IS the earnings play, we want to trade it)
+        _skip_earnings = signal.__dict__.get('skip_earnings_filter', False) if hasattr(signal, '__dict__') else False
+        if _skip_earnings or signal_source == 'pem':
+            earnings_ok, earnings_reason, earnings_data = True, "PEM skip", {}
+        else:
+            earnings_ok, earnings_reason, earnings_data = self._check_earnings_filter(symbol)
         if not earnings_ok:
             logger.warning(f"❌ Earnings Filter REJECT {symbol}: {earnings_reason}")
             self.daily_stats.earnings_rejected += 1
@@ -4247,8 +4297,10 @@ class AutoTradingEngine:
             current_price, realtime_vwap = self._get_realtime_data(symbol, fallback_price)
 
             # v6.23: BLOCK 1.5: Entry Protection Filter (4-layer protection with adaptive timing)
+            # v6.29: PEM signals bypass entry protection (momentum strategy, not mean-reversion)
             entry_limit_price = None  # Will be set by entry protection filter
-            if self.entry_protection and self.entry_protection.enabled:
+            _skip_entry_protection = signal.__dict__.get('skip_entry_protection', False) if hasattr(signal, '__dict__') else False
+            if self.entry_protection and self.entry_protection.enabled and not _skip_entry_protection:
                 signal_price = getattr(signal, 'entry_price', current_price)
                 # v6.23: Use signal.metadata for market_data (contains gap_pct for adaptive timing)
                 market_data = getattr(signal, 'metadata', None) or {}
@@ -5942,6 +5994,109 @@ class AutoTradingEngine:
             import traceback
             logger.error(traceback.format_exc())
 
+    def _loop_pem_scan(self, today: str):
+        """
+        v6.29: Post-Earnings Momentum scan at market open (9:35 ET).
+
+        Detects stocks that gapped up 8%+ at open (earnings catalyst).
+        Buys at market and holds until EOD (gap_trade=True → pre_close_check exits).
+
+        Runs once per day at 9:35 ET, right after morning_scan_done.
+        """
+        if not self.PEM_ENABLED or not self.pem_screener:
+            return
+        if hasattr(self, '_pem_scan_done') and self._pem_scan_done == today:
+            return
+
+        et_now = self._get_et_time()
+        scan_time = et_now.replace(
+            hour=self.PEM_SCAN_HOUR,
+            minute=self.PEM_SCAN_MINUTE,
+            second=0, microsecond=0
+        )
+        # Only run between 9:35 and 10:15 (after that, open price no longer valid)
+        scan_window_end = et_now.replace(hour=10, minute=15, second=0, microsecond=0)
+        if et_now < scan_time or et_now > scan_window_end:
+            return
+
+        # Verify market is open
+        params = self._get_effective_params()
+        max_pos = params.get('max_positions') or self.MAX_POSITIONS
+
+        # Count non-PEM positions to check if there's room
+        pem_count = sum(1 for pos in self.positions.values() if getattr(pos, 'source', '') == 'pem')
+        if pem_count >= self.PEM_MAX_POSITIONS:
+            logger.debug(f"PEM: Max PEM positions reached ({pem_count}/{self.PEM_MAX_POSITIONS})")
+            return
+        if len(self.positions) >= max_pos:
+            logger.debug(f"PEM: All positions full ({len(self.positions)}/{max_pos}), skipping PEM")
+            return
+
+        self._pem_scan_done = today
+        logger.info(f"📊 PEM Scan: {len(self.positions)}/{max_pos} positions, "
+                   f"scanning for earnings gaps ≥{self.PEM_GAP_THRESHOLD_PCT}%...")
+
+        try:
+            raw_signals = self.pem_screener.scan()
+            if not raw_signals:
+                return
+
+            try:
+                from screeners.rapid_rotation_screener import RapidRotationSignal
+            except ImportError:
+                from src.screeners.rapid_rotation_screener import RapidRotationSignal
+
+            converted = []
+            for sig in raw_signals:
+                entry_price = sig['entry_price']
+                sl_pct = sig['sl_pct']
+                stop_loss = round(entry_price * (1 - sl_pct / 100), 2)
+
+                rapid_signal = RapidRotationSignal(
+                    symbol=sig['symbol'],
+                    score=sig['score'],
+                    entry_price=entry_price,
+                    stop_loss=stop_loss,
+                    take_profit=0.0,   # EOD exit — no TP target
+                    risk_reward=2.0,
+                    atr_pct=sig['atr_pct'],
+                    rsi=50.0,          # Neutral RSI (not a dip-bounce signal)
+                    momentum_5d=sig['gap_pct'],
+                    momentum_20d=0.0,
+                    distance_from_high=0.0,
+                    reasons=[
+                        f"Earnings gap: {sig['gap_pct']:+.1f}%",
+                        f"Early vol ratio: {sig['volume_early_ratio']:.2f}x",
+                        f"SL: {sl_pct:.1f}% | Exit: EOD",
+                    ],
+                    sector="",
+                    market_regime="",
+                    sector_score=0,
+                    alt_data_score=0,
+                    sl_method="pem",     # Used to bypass gap/stock-D filters
+                    tp_method="pem_eod",
+                    volume_ratio=sig.get('volume_early_ratio', 1.0),
+                )
+
+                # Mark as gap trade (EOD exit) and PEM source (filter bypass)
+                rapid_signal.__dict__['gap_trade'] = True
+                rapid_signal.__dict__['gap_pct'] = sig['gap_pct']
+                rapid_signal.__dict__['gap_confidence'] = 100
+                rapid_signal.__dict__['source'] = 'pem'
+                rapid_signal.__dict__['skip_entry_protection'] = True   # Bypass VWAP/timing
+                rapid_signal.__dict__['skip_earnings_filter'] = True    # PEM IS the earnings play
+
+                converted.append(rapid_signal)
+
+            if converted:
+                self._process_scan_signals(converted, "pem", max_positions=max_pos)
+                logger.info(f"PEM: Processed {len(converted)} earnings gap signals")
+
+        except Exception as e:
+            logger.error(f"PEM scan error: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+
     def _run_loop(self):
         """Main trading loop (v6.6 refactored)"""
         logger.info("Trading loop started")
@@ -6011,6 +6166,7 @@ class AutoTradingEngine:
                     self._loop_morning_scan(today)
 
                 # Scheduled scans
+                self._loop_pem_scan(today)           # v6.29: PEM scan at 9:35 ET
                 self._loop_afternoon_scan(today)
                 self._loop_intraday_prefilter(today)
                 self._loop_continuous_scan(today)

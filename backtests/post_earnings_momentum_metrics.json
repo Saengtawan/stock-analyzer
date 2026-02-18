@@ -1,0 +1,41 @@
+{
+  "total_events": 50,
+  "best_hold_days": 1.0,
+  "best_win_rate": 57.6271186440678,
+  "best_avg_return": 3.2406845298776426,
+  "events_per_month": 2.2796352583586628,
+  "recommendation": "IMPLEMENT",
+  "criteria_met": 2,
+  "hold_period_stats": {
+    "1": {
+      "trades": 59,
+      "win_rate": 57.6271186440678,
+      "avg_return": 3.2406845298776426,
+      "median_return": 0.6834808235718262
+    },
+    "2": {
+      "trades": 59,
+      "win_rate": 50.847457627118644,
+      "avg_return": 1.1568101404236535,
+      "median_return": 0.3723450055507431
+    },
+    "3": {
+      "trades": 59,
+      "win_rate": 59.32203389830508,
+      "avg_return": 0.5266716470227868,
+      "median_return": 2.1736240791677246
+    },
+    "5": {
+      "trades": 59,
+      "win_rate": 49.152542372881356,
+      "avg_return": -0.9047332191465328,
+      "median_return": -0.29648400153213716
+    },
+    "7": {
+      "trades": 59,
+      "win_rate": 50.847457627118644,
+      "avg_return": 0.7410336603508344,
+      "median_return": 0.11313922471023541
+    }
+  }
+}

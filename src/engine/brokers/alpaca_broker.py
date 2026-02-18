@@ -935,7 +935,11 @@ class AlpacaBroker(BrokerInterface):
                         ask=float(snapshot.latest_quote.ap) if snapshot.latest_quote else 0,
                         last=float(snapshot.latest_trade.p) if snapshot.latest_trade else 0,
                         volume=int(snapshot.daily_bar.v) if snapshot.daily_bar else 0,
-                        vwap=float(snapshot.daily_bar.vw) if (snapshot.daily_bar and hasattr(snapshot.daily_bar, 'vw')) else 0,  # v6.20
+                        vwap=float(snapshot.daily_bar.vw) if (snapshot.daily_bar and hasattr(snapshot.daily_bar, 'vw')) else 0,
+                        open=float(snapshot.daily_bar.o) if snapshot.daily_bar else 0,
+                        prev_close=float(snapshot.prev_daily_bar.c) if snapshot.prev_daily_bar else 0,
+                        high=float(snapshot.daily_bar.h) if snapshot.daily_bar else 0,
+                        low=float(snapshot.daily_bar.l) if snapshot.daily_bar else 0,
                     )
         except Exception as e:
             logger.warning(f"Failed to get snapshots: {e}")
