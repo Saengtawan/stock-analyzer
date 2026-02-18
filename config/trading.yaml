@@ -94,7 +94,7 @@ rapid_rotation:
 
   # -- 4-Layer Entry Protection (v6.23: Adaptive Timing) --
   entry_protection_enabled: true           # Master switch for entry protection
-  entry_block_minutes_after_open: 15       # Layer 1: Default block time (used if adaptive disabled)
+  entry_block_minutes_after_open: 0        # Layer 1: DISABLED - no time block after open
 
   # Adaptive Timing (v6.23): Different block times based on gap %
   entry_adaptive_timing_enabled: true      # Enable gap-based adaptive timing
