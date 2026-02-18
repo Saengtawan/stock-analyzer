@@ -702,6 +702,12 @@ class AutoTradingEngine:
         self.SECTOR_LOSS_TRACKING_ENABLED = cfg.sector_loss_tracking_enabled
         self.MAX_SECTOR_CONSECUTIVE_LOSS = cfg.max_sector_consecutive_loss
         self.SECTOR_COOLDOWN_DAYS = cfg.sector_cooldown_days
+        # Dynamic Sector Gate (VIX-based quota)
+        self.DYNAMIC_SECTOR_GATE_ENABLED = cfg.dynamic_sector_gate_enabled
+        self.SECTOR_GATE_NORMAL_MAX = cfg.sector_gate_normal_max
+        self.SECTOR_GATE_SKIP_MAX = cfg.sector_gate_skip_max
+        self.SECTOR_GATE_HIGH_MAX = cfg.sector_gate_high_max
+        self.SECTOR_GATE_EXTREME_MAX = cfg.sector_gate_extreme_max
         
         # =====================================================================
         # SMART ORDER
@@ -2536,15 +2542,47 @@ class AutoTradingEngine:
     # SECTOR DIVERSIFICATION (v4.7 NEW!)
     # =========================================================================
 
+    def _get_effective_sector_max(self) -> int:
+        """
+        Get effective max_per_sector based on current VIX tier (Dynamic Sector Gate).
+
+        VIX NORMAL (<20):  max = sector_gate_normal_max (2)  — calm market, allow pairs
+        VIX SKIP (20-24):  max = sector_gate_skip_max (1)   — uncertainty, force diversify
+        VIX HIGH (24-38):  max = sector_gate_high_max (1)   — volatile, very tight
+        VIX EXTREME (>38): max = sector_gate_extreme_max (0) — no new positions
+
+        Falls back to MAX_PER_SECTOR if dynamic gate disabled or VIX unavailable.
+        """
+        if not self.DYNAMIC_SECTOR_GATE_ENABLED:
+            return self.MAX_PER_SECTOR
+
+        try:
+            if self.vix_adaptive and self.vix_adaptive.enabled:
+                tier = self.vix_adaptive.strategy.current_tier
+                if tier == 'normal':
+                    return self.SECTOR_GATE_NORMAL_MAX
+                elif tier in ('skip', 'high'):
+                    return self.SECTOR_GATE_SKIP_MAX
+                elif tier == 'extreme':
+                    return self.SECTOR_GATE_EXTREME_MAX
+        except Exception:
+            pass
+
+        return self.MAX_PER_SECTOR
+
     def _check_sector_filter(self, sector: str) -> Tuple[bool, str]:
         """
-        Check if adding this sector would exceed MAX_PER_SECTOR
+        Check if adding this sector would exceed effective max_per_sector.
 
         ป้องกันถือหุ้น sector เดียวกันเยอะเกิน (correlated risk)
         เช่น AMD + NVDA + INTC = 3 ตัว Tech → ลงพร้อมกัน
+        Dynamic Sector Gate ปรับ limit อัตโนมัติตาม VIX tier.
         """
         if not self.SECTOR_FILTER_ENABLED or not sector:
             return True, "Sector filter disabled or no sector data"
+
+        # Get effective max (static or VIX-adjusted)
+        effective_max = self._get_effective_sector_max()
 
         # Count current positions in same sector
         same_sector_count = sum(
@@ -2552,11 +2590,11 @@ class AutoTradingEngine:
             if pos.sector and pos.sector.lower() == sector.lower()
         )
 
-        if same_sector_count >= self.MAX_PER_SECTOR:
+        if same_sector_count >= effective_max:
             existing = [s for s, p in self.positions.items() if p.sector and p.sector.lower() == sector.lower()]
-            return False, f"Already {same_sector_count} positions in {sector}: {existing} (max {self.MAX_PER_SECTOR})"
+            return False, f"Already {same_sector_count} positions in {sector}: {existing} (max {effective_max})"
 
-        return True, f"{sector}: {same_sector_count}/{self.MAX_PER_SECTOR} positions"
+        return True, f"{sector}: {same_sector_count}/{effective_max} positions"
 
     def _check_sector_cooldown(self, sector: str) -> Tuple[bool, str]:
         """
@@ -3650,12 +3688,20 @@ class AutoTradingEngine:
         signal_sector = getattr(signal, 'sector', '') or ''
         signal_source = self._derive_signal_source(signal)
 
-        # Score filter
-        if signal_score < params['min_score']:
-            logger.warning(f"❌ Score Filter REJECT {symbol}: {signal_score} < {params['min_score']}")
+        # Score filter: use strategy-specific threshold for breakout/overnight (different scale than dip-bounce)
+        sl_method = getattr(signal, 'sl_method', '')
+        if 'breakout' in sl_method:
+            effective_min_score = self.BREAKOUT_MIN_SCORE
+        elif 'overnight_gap' in sl_method:
+            effective_min_score = self.OVERNIGHT_GAP_MIN_SCORE
+        else:
+            effective_min_score = params['min_score']
+
+        if signal_score < effective_min_score:
+            logger.warning(f"❌ Score Filter REJECT {symbol}: {signal_score} < {effective_min_score}")
             self._log_filter_rejection(
                 symbol, current_price, "SCORE_REJECT",
-                f"Score {signal_score} < {params['min_score']}",
+                f"Score {signal_score} < {effective_min_score}",
                 {"score": {"passed": False}},
                 signal_score, signal_sector, signal_source, signal, mode,
             )
@@ -3741,12 +3787,16 @@ class AutoTradingEngine:
         signal_sector = getattr(signal, 'sector', '') or ''
         signal_source = self._derive_signal_source(signal)
 
-        # Gap filter
-        gap_ok, gap_pct, gap_reason = self._check_gap_filter(
-            symbol, current_price,
-            max_up_override=params['gap_max_up'],
-            max_down_override=params.get('gap_max_down')
-        )
+        # Gap filter (skip for breakout — breakout stocks legitimately gap up above resistance)
+        sl_method = getattr(signal, 'sl_method', '')
+        if 'breakout' in sl_method:
+            gap_ok, gap_pct = True, 0.0
+        else:
+            gap_ok, gap_pct, gap_reason = self._check_gap_filter(
+                symbol, current_price,
+                max_up_override=params['gap_max_up'],
+                max_down_override=params.get('gap_max_down')
+            )
         if not gap_ok:
             logger.warning(f"❌ Gap Filter REJECT {symbol}: {gap_reason}")
             self.daily_stats.gap_rejected += 1
@@ -5460,9 +5510,9 @@ class AutoTradingEngine:
                 effective_max = params.get('max_positions') or self.MAX_POSITIONS
                 signals = self.scan_for_signals()
                 signals = self._loop_add_breakout_signals(signals, "BEAR breakout", check_pdt=True)
-                signals = self._loop_add_overnight_signals(signals, "BEAR overnight gap (morning)")
+                # Note: overnight gap morning signals rarely fire (no today's close data yet)
+                # Real overnight scan runs at 15:30 ET via _loop_overnight_gap_scan
                 self._process_scan_signals(signals, "morning", max_positions=effective_max)
-                self._overnight_scan_done = today
         else:
             # BULL mode
             params = self._get_effective_params()
@@ -5471,9 +5521,9 @@ class AutoTradingEngine:
                 self._clear_queue_end_of_day()
                 signals = self.scan_for_signals()
                 signals = self._loop_add_breakout_signals(signals, "Breakout scan")
-                signals = self._loop_add_overnight_signals(signals, "BULL overnight gap (morning)")
+                # Note: overnight gap morning signals rarely fire (no today's close data yet)
+                # Real overnight scan runs at 15:30 ET via _loop_overnight_gap_scan
                 self._process_scan_signals(signals, "morning")
-                self._overnight_scan_done = today
 
         self._morning_scan_done = today
         return False
@@ -6062,6 +6112,21 @@ class AutoTradingEngine:
             'effective_params': self._get_effective_params(),
             # v4.9.6: Scanner schedule for UI timeline
             'scanner_schedule': self._get_scanner_schedule(),
+            # VIX Adaptive tier
+            'vix_tier': (
+                self.vix_adaptive.strategy.current_tier.upper()
+                if self.vix_adaptive and self.vix_adaptive.enabled
+                   and self.vix_adaptive.strategy.current_tier
+                else 'N/A'
+            ),
+            'vix_value': (
+                round(self.vix_adaptive.strategy.current_vix, 2)
+                if self.vix_adaptive and self.vix_adaptive.enabled
+                   and self.vix_adaptive.strategy.current_vix is not None
+                else None
+            ),
+            # Dynamic Sector Gate
+            'effective_sector_max': self._get_effective_sector_max(),
         }
 
     def get_full_config(self) -> Dict:
@@ -6116,6 +6181,13 @@ class AutoTradingEngine:
             'sector_loss_tracking_enabled': self.SECTOR_LOSS_TRACKING_ENABLED,
             'max_sector_consecutive_loss': self.MAX_SECTOR_CONSECUTIVE_LOSS,
             'sector_cooldown_days': self.SECTOR_COOLDOWN_DAYS,
+            # Dynamic Sector Gate
+            'dynamic_sector_gate_enabled': self.DYNAMIC_SECTOR_GATE_ENABLED,
+            'sector_gate_normal_max': self.SECTOR_GATE_NORMAL_MAX,
+            'sector_gate_skip_max': self.SECTOR_GATE_SKIP_MAX,
+            'sector_gate_high_max': self.SECTOR_GATE_HIGH_MAX,
+            'sector_gate_extreme_max': self.SECTOR_GATE_EXTREME_MAX,
+            'effective_sector_max': self._get_effective_sector_max(),
 
             # --- Smart Order Execution ---
             'smart_order_enabled': self.SMART_ORDER_ENABLED,

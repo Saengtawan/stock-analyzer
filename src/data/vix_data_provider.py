@@ -178,8 +178,14 @@ class VIXDataProvider:
         if date in self.vix_data.index:
             return float(self.vix_data.loc[date, 'vix'])
         else:
-            logger.warning(f"VIX data not available for {date}")
-            return None
+            # Fallback: use most recent available date (VIX may not have today's close yet)
+            latest_date = self.vix_data.index[-1]
+            latest_vix = float(self.vix_data['vix'].iloc[-1])
+            logger.debug(
+                f"VIX data not available for {date}, using latest available "
+                f"({latest_date}: {latest_vix:.2f})"
+            )
+            return latest_vix
 
     def __repr__(self) -> str:
         if self.vix_data is None:

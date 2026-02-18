@@ -153,6 +153,13 @@ class RapidRotationConfig:
     max_sector_consecutive_loss: int = 2       # Max consecutive losses per sector
     sector_cooldown_days: int = 2       # Cooldown days after sector losses
 
+    # Dynamic Sector Gate (VIX-based quota)
+    dynamic_sector_gate_enabled: bool = True  # Adjust max_per_sector by VIX tier
+    sector_gate_normal_max: int = 2   # VIX < 20 (NORMAL)
+    sector_gate_skip_max: int = 1     # VIX 20-24 (SKIP)
+    sector_gate_high_max: int = 1     # VIX 24-38 (HIGH)
+    sector_gate_extreme_max: int = 0  # VIX > 38 (EXTREME)
+
     # =========================================================================
     # BULL SECTOR FILTER
     # =========================================================================

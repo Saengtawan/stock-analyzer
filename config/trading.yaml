@@ -184,6 +184,14 @@ sector_loss_tracking_enabled: true
 max_sector_consecutive_loss: 2
 sector_cooldown_days: 2
 
+# -- Dynamic Sector Gate (VIX-based quota) --
+# Reduces max_per_sector when VIX is elevated to cut correlated risk
+dynamic_sector_gate_enabled: true
+sector_gate_normal_max: 2   # VIX < 20 (NORMAL): allow 2 per sector
+sector_gate_skip_max: 1     # VIX 20-24 (SKIP): tighten to 1 per sector
+sector_gate_high_max: 1     # VIX 24-38 (HIGH): stay tight
+sector_gate_extreme_max: 0  # VIX > 38 (EXTREME): no new positions (closes all)
+
 # -- Smart Order (v4.8) --
 smart_order_enabled: true
 smart_order_max_spread_pct: 1.0
@@ -325,7 +333,8 @@ day_trade_momentum_threshold: 4.0  # % intraday gain to trigger
 day_trade_emergency_enabled: true   # use day trade for emergency SL
 
 # -- Overnight Gap Scanner (Step 6) --
-overnight_gap_enabled: true
+# DISABLED 2026-02-18: Backtest shows -0.221% expectancy (no edge, hurts portfolio)
+overnight_gap_enabled: false
 overnight_gap_scan_hour: 15
 overnight_gap_scan_minute: 30
 overnight_gap_min_score: 70
@@ -334,7 +343,8 @@ overnight_gap_target_pct: 3.0
 overnight_gap_sl_pct: 1.5
 
 # -- Breakout Scanner (Step 7) --
-breakout_scan_enabled: true
+# DISABLED 2026-02-18: Backtest shows -0.413% expectancy (no edge, hurts portfolio)
+breakout_scan_enabled: false
 breakout_min_volume_mult: 1.5
 breakout_min_score: 75
 breakout_target_pct: 8.0

@@ -82,6 +82,20 @@ class VIXAdaptiveIntegration:
         # Initialize strategy
         self.strategy = VIXAdaptiveStrategy(self.config, self.vix_provider)
 
+        # Pre-compute initial tier from latest VIX (so repr shows correct tier at startup)
+        try:
+            from datetime import date as _date
+            today = _date.today()
+            initial_vix = self.vix_provider.get_vix_for_date(today)
+            if initial_vix is not None:
+                self.strategy.current_vix = initial_vix
+                self.strategy.current_tier = self.strategy.tier_manager.get_tier(initial_vix)
+                logger.info(
+                    f"Initial VIX: {initial_vix:.2f} → tier={self.strategy.current_tier.upper()}"
+                )
+        except Exception as e:
+            logger.debug(f"Could not pre-compute initial VIX tier: {e}")
+
         logger.info(f"✅ VIX Adaptive v3.0 initialized")
         logger.info(f"   Boundaries: {self.config['boundaries']}")
         logger.info(f"   Score adaptation: {self.config['score_adaptation']['enabled']}")
