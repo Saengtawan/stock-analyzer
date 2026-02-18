@@ -758,7 +758,14 @@ class AutoTradingEngine:
         self.AFTERNOON_MIN_SCORE = cfg.afternoon_min_score
         self.AFTERNOON_GAP_MAX_UP = cfg.afternoon_gap_max_up
         self.AFTERNOON_GAP_MAX_DOWN = cfg.afternoon_gap_max_down
-        
+
+        # =====================================================================
+        # INTRADAY PRE-FILTER REFRESH (v6.27)
+        # =====================================================================
+        self.PRE_FILTER_INTRADAY_ENABLED = getattr(cfg, 'pre_filter_intraday_enabled', True)
+        self.PRE_FILTER_INTRADAY_SCHEDULE = getattr(cfg, 'pre_filter_intraday_schedule', [10, 13, 15])
+        self.PRE_FILTER_INTRADAY_MINUTE = getattr(cfg, 'pre_filter_intraday_minute', 45)
+
         # =====================================================================
         # CONTINUOUS SCAN
         # =====================================================================
@@ -5563,6 +5570,66 @@ class AutoTradingEngine:
 
         self._loop_with_afternoon_params(scan_with_breakout, "afternoon", afternoon_max)
 
+    def _loop_intraday_prefilter(self, today: str):
+        """
+        Run scheduled intraday pre-filter refresh (v6.27).
+
+        Schedule (from config pre_filter_intraday_schedule + pre_filter_intraday_minute):
+          Default: 10:45 (before Midday), 13:45 (before Afternoon), 15:45 (Pre-close pool update)
+
+        Each scheduled refresh runs 'python3 pre_filter.py pre_open' in background —
+        re-validates the existing ~200-stock pool (fast, ~1-2 min) without full universe scan.
+
+        Benefits:
+          10:45 → removes stocks that gap-up/overextended since morning open
+          13:45 → updates RSI/momentum for afternoon session
+          15:45 → fresh pool ready for next morning gap-scanner
+        """
+        if not self.PRE_FILTER_INTRADAY_ENABLED:
+            return
+
+        et_now = self._get_et_time()
+        current_hour = et_now.hour
+        current_minute = et_now.minute
+        sched_minute = self.PRE_FILTER_INTRADAY_MINUTE
+
+        # Find which scheduled hour we should trigger (if any)
+        triggered_hour = None
+        for sched_hour in self.PRE_FILTER_INTRADAY_SCHEDULE:
+            if current_hour == sched_hour and current_minute >= sched_minute:
+                done_attr = f'_intraday_prefilter_done_{sched_hour}'
+                if getattr(self, done_attr, None) != today:
+                    triggered_hour = sched_hour
+                    setattr(self, done_attr, today)
+                    break
+
+        if triggered_hour is None:
+            return
+
+        import subprocess
+        import os as _os
+        pre_filter_script = _os.path.join(
+            _os.path.dirname(_os.path.abspath(__file__)),
+            'pre_filter.py'
+        )
+
+        window_labels = {10: 'Midday-prep', 13: 'Afternoon-prep', 15: 'Pre-close-update'}
+        label = window_labels.get(triggered_hour, f'hour-{triggered_hour}')
+
+        try:
+            subprocess.Popen(
+                ['python3', pre_filter_script, 'pre_open'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            logger.info(
+                f"🔄 Intraday pre-filter refresh [{label}] triggered at "
+                f"{et_now.strftime('%H:%M')} ET (schedule {triggered_hour}:{sched_minute:02d})"
+            )
+        except Exception as e:
+            logger.error(f"Intraday pre-filter trigger failed: {e}")
+
     def _loop_continuous_scan(self, today: str):
         """Execute continuous scan with dynamic interval (volatile: 3min, normal: 5min)."""
         if not self.CONTINUOUS_SCAN_ENABLED:
@@ -5866,6 +5933,7 @@ class AutoTradingEngine:
 
                 # Scheduled scans
                 self._loop_afternoon_scan(today)
+                self._loop_intraday_prefilter(today)
                 self._loop_continuous_scan(today)
                 self._loop_overnight_gap_scan(today)
 

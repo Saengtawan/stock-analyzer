@@ -422,9 +422,9 @@ class RapidRotationScreener:
                 'pre_filter.py'
             )
 
-            # Run in background
+            # Run in background (pre_open = re-validate existing pool, fast ~200 stocks)
             subprocess.Popen(
-                ['python3', pre_filter_script],
+                ['python3', pre_filter_script, 'pre_open'],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 start_new_session=True  # Detach from parent

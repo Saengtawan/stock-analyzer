@@ -263,7 +263,8 @@ class RapidRotationConfig:
     pre_filter_on_demand_min_pool: int = 200        # Refresh if pool < 200
     pre_filter_on_demand_zero_signals: int = 3      # Refresh if 0 signals × N scans
     pre_filter_intraday_enabled: bool = True        # Enable scheduled refresh
-    pre_filter_intraday_schedule: list = None       # Hours to refresh [11, 13]
+    pre_filter_intraday_schedule: list = None       # Hours to refresh [10, 13, 15]
+    pre_filter_intraday_minute: int = 45            # Minute of each scheduled hour (e.g. 10:45, 13:45, 15:45)
     pre_filter_max_per_day: int = 6                 # Max refreshes per day
 
     # =========================================================================
@@ -539,7 +540,7 @@ class RapidRotationConfig:
             # v6.18: Pre-filter Auto-Refresh fields
             'pre_filter_on_demand_enabled', 'pre_filter_on_demand_min_pool',
             'pre_filter_on_demand_zero_signals', 'pre_filter_intraday_enabled',
-            'pre_filter_intraday_schedule', 'pre_filter_max_per_day'
+            'pre_filter_intraday_schedule', 'pre_filter_intraday_minute', 'pre_filter_max_per_day'
         }
 
         rapid_rotation = {k: v for k, v in config_dict.items() if k in rapid_rotation_keys}
@@ -787,7 +788,7 @@ class RapidRotationConfig:
         """Initialize defaults and validate config after initialization"""
         # Set default for pre_filter_intraday_schedule if None
         if self.pre_filter_intraday_schedule is None:
-            object.__setattr__(self, 'pre_filter_intraday_schedule', [11, 13])
+            object.__setattr__(self, 'pre_filter_intraday_schedule', [10, 13, 15])
 
         # Validate
         errors = self.validate()
