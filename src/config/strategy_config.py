@@ -164,7 +164,8 @@ class RapidRotationConfig:
     # BULL SECTOR FILTER
     # =========================================================================
     bull_sector_filter_enabled: bool = True  # Enable BULL sector filter
-    bull_sector_min_return: int = -5    # Block sector if return_20d < -5%
+    bull_sector_min_return: int = -3    # Absolute: block if return_20d < -3% (sector BEAR)
+    sector_weak_relative_n: int = 2     # Relative: also block bottom N sectors by 20d return (0=disable)
 
     # =========================================================================
     # ALTERNATIVE DATA

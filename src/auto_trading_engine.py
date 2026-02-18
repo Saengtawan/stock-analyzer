@@ -797,6 +797,7 @@ class AutoTradingEngine:
         # =====================================================================
         self.BULL_SECTOR_FILTER_ENABLED = cfg.bull_sector_filter_enabled
         self.BULL_SECTOR_MIN_RETURN = cfg.bull_sector_min_return
+        self.SECTOR_WEAK_RELATIVE_N = getattr(cfg, 'sector_weak_relative_n', 2)
         
         # =====================================================================
         # QUANT RESEARCH
@@ -2078,39 +2079,55 @@ class AutoTradingEngine:
 
     def _get_bull_blocked_sectors(self) -> List[str]:
         """
-        Get sectors to block in BULL mode (sector ETF return_20d < threshold)
+        Dynamic sector exclusion — 2 conditions (v6.28):
 
-        แม้ SPY BULL ก็ไม่ควรซื้อ sector ที่กำลังลง
-        เช่น Tech -3% ขณะ SPY ขึ้น → ไม่ซื้อ Tech
+        1. Absolute: return_20d < BULL_SECTOR_MIN_RETURN (-3%) → sector actively declining
+        2. Relative: bottom SECTOR_WEAK_RELATIVE_N sectors by return_20d → always exclude worst performers
 
-        Returns:
-            List of sector names to block
+        Both conditions applied — union of both sets.
+        Dynamic: Materials blocked today if -4%, NOT blocked if +10% (as now).
         """
         if not self.BULL_SECTOR_FILTER_ENABLED:
             return []
 
-        blocked = []
+        ALIASES = {'Financial', 'Financials', 'Consumer Discretionary',
+                   'Consumer Staples', 'Materials', 'Communications',
+                   'Telecommunication Services'}
+
+        blocked = set()
+        sector_returns = {}  # {sector_name: return_20d} for canonical sectors
+
         if self.screener and hasattr(self.screener, 'sector_regime') and self.screener.sector_regime:
             sector_to_etf = self.screener.sector_regime.SECTOR_TO_ETF
             for sector_name, etf in sector_to_etf.items():
-                # Skip aliases (only process canonical names)
-                if sector_name in ('Financial', 'Financials', 'Consumer Discretionary',
-                                   'Consumer Staples', 'Materials', 'Communications',
-                                   'Telecommunication Services'):
+                if sector_name in ALIASES:
                     continue
                 try:
                     metrics = self.screener.sector_regime.sector_metrics.get(etf)
                     if metrics:
-                        return_20d = metrics.get('return_20d', 0)
-                        if return_20d < self.BULL_SECTOR_MIN_RETURN:
-                            blocked.append(sector_name)
-                            logger.info(f"🐂⛔ {sector_name} ({etf}) return_20d={return_20d:+.1f}% < {self.BULL_SECTOR_MIN_RETURN}% → BLOCKED in BULL")
+                        sector_returns[sector_name] = metrics.get('return_20d', 0)
                 except Exception as e:
                     logger.warning(f"Error checking sector {sector_name}: {e}")
 
+            # Condition 1: Absolute — return_20d below threshold
+            abs_threshold = self.BULL_SECTOR_MIN_RETURN
+            for sector, ret in sector_returns.items():
+                if ret < abs_threshold:
+                    blocked.add(sector)
+                    logger.info(f"🔴 {sector} return_20d={ret:+.1f}% < {abs_threshold}% → BLOCKED (absolute)")
+
+            # Condition 2: Relative — bottom N sectors always blocked
+            n = self.SECTOR_WEAK_RELATIVE_N
+            if n > 0 and sector_returns:
+                sorted_sectors = sorted(sector_returns.items(), key=lambda x: x[1])
+                for sector, ret in sorted_sectors[:n]:
+                    if sector not in blocked:
+                        blocked.add(sector)
+                        logger.info(f"🔴 {sector} return_20d={ret:+.1f}% (bottom {n}) → BLOCKED (relative)")
+
         if blocked:
-            logger.info(f"🐂 BULL blocked sectors: {blocked}")
-        return blocked
+            logger.info(f"⛔ Weak sectors blocked: {sorted(blocked)}")
+        return list(blocked)
 
     def _get_conviction_size(self, signal, params) -> Tuple[float, str]:
         """
