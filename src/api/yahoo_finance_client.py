@@ -633,7 +633,7 @@ class YahooFinanceClient(BaseAPIClient):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 data = yf.download(symbols, period=period, interval=interval,
-                                   progress=False, threads=True)
+                                   progress=False, threads=True, timeout=30)
 
             if data.empty:
                 logger.warning(f"Batch download returned empty ({len(symbols)} symbols)")

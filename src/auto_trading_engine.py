@@ -3057,6 +3057,8 @@ class AutoTradingEngine:
             logger.warning("⚠️ Scan lock held - another scan in progress, skipping")
             return []
 
+        self._scan_lock_acquired_at = datetime.now()  # v6.24: track for watchdog
+
         try:
             self.state = TradingState.SCANNING
 

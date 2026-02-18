@@ -894,6 +894,30 @@ class ServiceManager:
         else:
             checks['positions_sync'] = {'ok': False, 'detail': 'Trader not initialized'}
 
+        # 7. Scan lock watchdog (v6.24: detect hung scans)
+        try:
+            engine = None
+            if hasattr(self, 'rapid_portfolio'):
+                engine = getattr(self.rapid_portfolio, 'engine', None)
+            if engine and hasattr(engine, '_scan_lock') and engine._scan_lock.locked():
+                acquired_at = getattr(engine, '_scan_lock_acquired_at', None)
+                if acquired_at:
+                    held_sec = (now - acquired_at).total_seconds()
+                    if held_sec > 300:  # > 5 minutes
+                        checks['scan_lock'] = {
+                            'ok': False,
+                            'detail': f"Scan lock held {held_sec/60:.0f}m (hung download?)"
+                        }
+                        issues.append(f"Scan lock stuck {held_sec/60:.0f}m — engine frozen")
+                    else:
+                        checks['scan_lock'] = {'ok': True, 'detail': f"Scanning ({held_sec:.0f}s)"}
+                else:
+                    checks['scan_lock'] = {'ok': True, 'detail': 'Locked (no timestamp)'}
+            else:
+                checks['scan_lock'] = {'ok': True, 'detail': 'Unlocked'}
+        except Exception as e:
+            checks['scan_lock'] = {'ok': True, 'detail': f'Check skipped: {e}'}
+
         return {
             'healthy': len(issues) == 0,
             'timestamp': now.isoformat(),
