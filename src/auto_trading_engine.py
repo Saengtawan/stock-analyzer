@@ -5630,6 +5630,73 @@ class AutoTradingEngine:
         except Exception as e:
             logger.error(f"Intraday pre-filter trigger failed: {e}")
 
+    def _loop_evening_prefilter(self, today: str):
+        """
+        Run evening pre-filter scan at 20:00 ET (after market close).
+        Full 987-stock scan to build fresh pool for next trading day.
+        Runs once per day in the sleeping/closed block.
+        """
+        if not self.PRE_FILTER_INTRADAY_ENABLED:
+            return
+
+        et_now = self._get_et_time()
+        if et_now.hour < 20:
+            return
+        if getattr(self, '_evening_prefilter_done', None) == today:
+            return
+        self._evening_prefilter_done = today
+
+        import subprocess
+        import os as _os
+        pre_filter_script = _os.path.join(
+            _os.path.dirname(_os.path.abspath(__file__)),
+            'pre_filter.py'
+        )
+        try:
+            subprocess.Popen(
+                ['python3', pre_filter_script, 'evening'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            logger.info(f"🌙 Evening pre-filter scan triggered at {et_now.strftime('%H:%M')} ET (full 987 stocks)")
+        except Exception as e:
+            logger.error(f"Evening pre-filter trigger failed: {e}")
+
+    def _loop_pre_open_prefilter(self, today: str):
+        """
+        Run pre-open pre-filter scan at 09:00 ET (before market open).
+        Re-validates existing pool with latest prices — fast update before trading starts.
+        Runs once per day in the sleeping/closed block.
+        """
+        if not self.PRE_FILTER_INTRADAY_ENABLED:
+            return
+
+        et_now = self._get_et_time()
+        # Only run between 09:00 and 09:30 ET
+        if not (et_now.hour == 9 and et_now.minute < 30):
+            return
+        if getattr(self, '_pre_open_prefilter_done', None) == today:
+            return
+        self._pre_open_prefilter_done = today
+
+        import subprocess
+        import os as _os
+        pre_filter_script = _os.path.join(
+            _os.path.dirname(_os.path.abspath(__file__)),
+            'pre_filter.py'
+        )
+        try:
+            subprocess.Popen(
+                ['python3', pre_filter_script, 'pre_open'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            logger.info(f"🌅 Pre-open pre-filter scan triggered at {et_now.strftime('%H:%M')} ET (re-validate pool)")
+        except Exception as e:
+            logger.error(f"Pre-open pre-filter trigger failed: {e}")
+
     def _loop_continuous_scan(self, today: str):
         """Execute continuous scan with dynamic interval (volatile: 3min, normal: 5min)."""
         if not self.CONTINUOUS_SCAN_ENABLED:
@@ -5901,10 +5968,13 @@ class AutoTradingEngine:
                     if not getattr(self, '_market_closed_cache_written', False):
                         self._save_market_closed_cache()
                         self._market_closed_cache_written = True
-                    # Pre-market gap scan runs 06:00-09:30 ET (before market open)
-                    # Must run here (not in market-open block) since clock.is_open=False pre-market
-                    _premarket_today = now.strftime('%Y-%m-%d')
-                    self._loop_premarket_gap_scan(_premarket_today)
+                    _closed_today = now.strftime('%Y-%m-%d')
+                    # Pre-market gap scan (06:00-09:30 ET)
+                    self._loop_premarket_gap_scan(_closed_today)
+                    # Pre-filter evening scan (20:00 ET, after close) — full 987 stocks
+                    self._loop_evening_prefilter(_closed_today)
+                    # Pre-filter pre-open scan (09:00 ET, before open) — re-validate ~200 stocks
+                    self._loop_pre_open_prefilter(_closed_today)
                     time.sleep(60)
                     continue
                 else:
