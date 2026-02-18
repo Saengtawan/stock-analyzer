@@ -80,23 +80,18 @@ def is_trading_day_today(
     if next_open_date == current_date:
         return True
 
-    # Calculate days until next open
-    days_until_next = (next_open_date - current_date).days
+    # After-hours detection: if current ET time >= 16:00 and it's a weekday,
+    # market has already closed today → today WAS a trading day (show CLOSED not HOLIDAY).
+    # This fixes the false-positive holiday label after market close.
+    # Note: does NOT apply to early-close days (e.g. Dec 24 13:00 close) since
+    # those have next_open farther than 1 day away and time < 16:00.
+    from datetime import time as _time
+    MARKET_CLOSE = _time(16, 0)
+    if et_now.time() >= MARKET_CLOSE and et_now.weekday() < 5:
+        return True
 
-    # Fix: Don't assume weekday + next_open=tomorrow means trading day
-    # This fails for weekday holidays (e.g., Presidents' Day)
-    #
-    # If next open is tomorrow, check if today had market hours
-    # We can infer this from next_close - if provided and in the past today,
-    # then today was a trading day. Otherwise, it's a holiday.
-    #
-    # However, we don't always have next_close here, so the safe approach is:
-    # Only return True if market is open NOW or next open is TODAY.
-    # For after-hours detection, rely on caller passing is_market_open correctly.
-
-    # If we got here, market is not open and next open is not today
-    # Cannot reliably determine if today was a trading day without more info
-    # Return False (conservative - treat as non-trading day)
+    # If we got here, market is not open and next open is not today and we're
+    # not in after-hours of a regular trading day → holiday or weekend.
     return False
 
 
