@@ -5471,23 +5471,15 @@ class AutoTradingEngine:
         # Check for late start
         is_late, late_reason = self._is_late_start()
         if is_late:
-            logger.info(f"⏰ {late_reason} — running immediate scan with afternoon parameters")
+            # Skip separate late_start scan — let continuous scan handle it immediately.
+            # Reason: late_start scan uses stricter afternoon params → often finds 0 signals,
+            # writes stale 0 to cache, and burns rate-limit quota before continuous scan runs.
+            # Continuous scan (normal params, no rate-limit double-hit) handles recovery better.
+            logger.info(f"⏰ {late_reason} — skipping late_start scan, continuous scan will handle")
             self.daily_stats.late_start_skipped = True
             is_bull, _ = self._check_market_regime()
             self._loop_update_regime_status(is_bull)
-
-            if not is_bull and not self.BEAR_MODE_ENABLED:
-                logger.warning(f"📉 BEAR market + bear mode disabled — no trades")
-            else:
-                params = self._get_effective_params()
-                mode = params.get('mode', 'NORMAL')
-                if not self._loop_check_loss_limits(mode):
-                    logger.info(f"✅ Late start: Running scan (mode={mode})...")
-                    self._clear_queue_end_of_day()
-                    effective_max = params.get('max_positions') or self.MAX_POSITIONS
-                    self._loop_with_afternoon_params(self.scan_for_signals, "late_start", effective_max)
-                else:
-                    logger.warning(f"⛔ Late start: Blocked by loss limits")
+            self._last_continuous_scan = None  # force immediate continuous scan on next iteration
 
             self._morning_scan_done = today
             return True  # Continue to next iteration

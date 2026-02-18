@@ -225,10 +225,10 @@ class PreFilterRunner:
         return {"stocks": {}, "generated_at": "", "windows_completed": []}
 
     def _save_pre_filtered(self, data: Dict[str, Any]):
-        """Save pre-filtered data."""
+        """Save pre-filtered data (atomic write via tempfile → rename)."""
         try:
-            # Custom encoder to handle numpy types
             import numpy as np
+            import tempfile
 
             def default_encoder(obj):
                 if isinstance(obj, (np.bool_, np.integer)):
@@ -239,8 +239,12 @@ class PreFilterRunner:
                     return obj.tolist()
                 raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
-            with open(self.PRE_FILTERED_FILE, 'w') as f:
-                json.dump(data, f, indent=2, default=default_encoder)
+            target = self.PRE_FILTERED_FILE
+            dir_ = os.path.dirname(target) or '.'
+            with tempfile.NamedTemporaryFile('w', dir=dir_, suffix='.tmp', delete=False) as tmp:
+                json.dump(data, tmp, indent=2, default=default_encoder)
+                tmp_path = tmp.name
+            os.replace(tmp_path, target)  # atomic on Linux
             logger.info(f"Saved pre-filtered data: {len(data.get('stocks', {}))} stocks")
         except Exception as e:
             logger.error(f"Failed to save pre-filtered data: {e}")
