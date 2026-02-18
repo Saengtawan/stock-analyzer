@@ -122,6 +122,9 @@ class RapidRotationConfig:
     vix_skip_zone_enabled: bool = True  # Block buys in VIX 20-24 (uncertainty zone)
     vix_skip_zone_low: float = 20.0     # VIX skip zone lower bound
     vix_skip_zone_high: float = 24.0    # VIX skip zone upper bound
+    opening_window_limit_enabled: bool = True  # Limit buys during first 30 min of market open
+    opening_window_minutes: int = 30    # Duration of opening window
+    opening_window_max_buys: int = 1    # Max new positions during opening window
     skip_before_holiday: bool = True    # Skip new positions before holidays
 
     # =========================================================================

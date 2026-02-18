@@ -286,6 +286,9 @@ regime_vix_max: 30.0               # v6.0: 100→30 (CRITICAL: VIX<30 filter = B
 vix_skip_zone_enabled: true        # v6.24: Block new buys in VIX 20-24 (uncertainty zone, 41% win rate)
 vix_skip_zone_low: 20.0            # VIX Adaptive SKIP tier lower bound
 vix_skip_zone_high: 24.0           # VIX Adaptive SKIP tier upper bound
+opening_window_limit_enabled: true  # v6.24: Limit buys during first 30 min (9:30-10:00 ET)
+opening_window_minutes: 30          # How many minutes after open = "opening window"
+opening_window_max_buys: 1          # Max new positions allowed during opening window
 skip_before_holiday: true          # v4.7: Skip new positions before long weekends/holidays
 
 # -- BEAR Mode Params (v4.9.4: relaxed — conviction sizing handles risk) --

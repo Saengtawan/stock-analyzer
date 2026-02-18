@@ -672,6 +672,11 @@ class AutoTradingEngine:
         self.VIX_SKIP_ZONE_ENABLED = cfg.vix_skip_zone_enabled
         self.VIX_SKIP_ZONE_LOW = cfg.vix_skip_zone_low
         self.VIX_SKIP_ZONE_HIGH = cfg.vix_skip_zone_high
+        self.OPENING_WINDOW_LIMIT_ENABLED = cfg.opening_window_limit_enabled
+        self.OPENING_WINDOW_MINUTES = cfg.opening_window_minutes
+        self.OPENING_WINDOW_MAX_BUYS = cfg.opening_window_max_buys
+        self._opening_window_buys = 0       # resets each trading day
+        self._opening_window_date = None    # tracks which date the counter is for
         self.SPY_INTRADAY_FILTER_ENABLED = cfg.spy_intraday_filter_enabled
         self.SPY_INTRADAY_FILTER_PCT = cfg.spy_intraday_filter_pct
         self.VIX_SPIKE_PROTECTION_ENABLED = cfg.vix_spike_protection_enabled
@@ -3580,6 +3585,26 @@ class AutoTradingEngine:
         if not vix_ok:
             return False, f"VIX {vix_val:.0f}"
 
+        # Opening window limit: max 1 buy during first 30 min (9:30-10:00 ET)
+        if self.OPENING_WINDOW_LIMIT_ENABLED:
+            et_now = self._get_et_time()
+            today = et_now.date()
+            # Reset counter if new trading day
+            if self._opening_window_date != today:
+                self._opening_window_buys = 0
+                self._opening_window_date = today
+            # Check if we're in the opening window (9:30 to 9:30+window_minutes)
+            market_open_et = et_now.replace(hour=9, minute=30, second=0, microsecond=0)
+            window_end_et = market_open_et + timedelta(minutes=self.OPENING_WINDOW_MINUTES)
+            if market_open_et <= et_now < window_end_et:
+                if self._opening_window_buys >= self.OPENING_WINDOW_MAX_BUYS:
+                    logger.warning(
+                        f"⛔ OPENING WINDOW LIMIT: {self._opening_window_buys}/{self.OPENING_WINDOW_MAX_BUYS} "
+                        f"buys already in first {self.OPENING_WINDOW_MINUTES}min "
+                        f"(window ends {window_end_et.strftime('%H:%M')} ET)"
+                    )
+                    return False, f"Opening window limit ({self.OPENING_WINDOW_MAX_BUYS}/30min)"
+
         # SPY intraday filter: block new entries when SPY already selling off from open
         if self.SPY_INTRADAY_FILTER_ENABLED:
             spy_ret = self._get_spy_intraday_return()
@@ -3934,6 +3959,15 @@ class AutoTradingEngine:
 
         # PDT record
         self.pdt_guard.record_entry(symbol)
+
+        # Opening window counter: track buys in first 30 min
+        if self.OPENING_WINDOW_LIMIT_ENABLED:
+            et_now = self._get_et_time()
+            market_open_et = et_now.replace(hour=9, minute=30, second=0, microsecond=0)
+            window_end_et = market_open_et + timedelta(minutes=self.OPENING_WINDOW_MINUTES)
+            if market_open_et <= et_now < window_end_et:
+                self._opening_window_buys += 1
+                logger.info(f"📊 Opening window buys: {self._opening_window_buys}/{self.OPENING_WINDOW_MAX_BUYS}")
 
         # Update stats
         self.daily_stats.trades_executed += 1
