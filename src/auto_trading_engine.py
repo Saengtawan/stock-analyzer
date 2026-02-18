@@ -5577,11 +5577,11 @@ class AutoTradingEngine:
         Schedule (from config pre_filter_intraday_schedule + pre_filter_intraday_minute):
           Default: 10:45 (before Midday), 13:45 (before Afternoon), 15:45 (Pre-close pool update)
 
-        Each scheduled refresh runs 'python3 pre_filter.py pre_open' in background —
-        re-validates the existing ~200-stock pool (fast, ~1-2 min) without full universe scan.
+        Each scheduled refresh runs 'python3 pre_filter.py evening' in background —
+        full 987-stock universe scan (~5-10 min), ensuring pool never shrinks.
 
         Benefits:
-          10:45 → removes stocks that gap-up/overextended since morning open
+          10:45 → fresh pool with all new dip candidates since open
           13:45 → updates RSI/momentum for afternoon session
           15:45 → fresh pool ready for next morning gap-scanner
         """
