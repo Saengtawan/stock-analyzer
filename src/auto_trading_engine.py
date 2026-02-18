@@ -5688,12 +5688,12 @@ class AutoTradingEngine:
         )
         try:
             subprocess.Popen(
-                ['python3', pre_filter_script, 'pre_open'],
+                ['python3', pre_filter_script, 'evening'],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 start_new_session=True
             )
-            logger.info(f"🌅 Pre-open pre-filter scan triggered at {et_now.strftime('%H:%M')} ET (re-validate pool)")
+            logger.info(f"🌅 Pre-open pre-filter scan triggered at {et_now.strftime('%H:%M')} ET (full 987 stocks)")
         except Exception as e:
             logger.error(f"Pre-open pre-filter trigger failed: {e}")
 
