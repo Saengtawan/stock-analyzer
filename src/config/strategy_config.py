@@ -119,6 +119,9 @@ class RapidRotationConfig:
     regime_rsi_min: int = 40            # Min RSI for regime
     regime_return_5d_min: float = -2.0  # Min 5-day return for regime
     regime_vix_max: float = 30.0        # Max VIX (critical for BEAR survival)
+    vix_skip_zone_enabled: bool = True  # Block buys in VIX 20-24 (uncertainty zone)
+    vix_skip_zone_low: float = 20.0     # VIX skip zone lower bound
+    vix_skip_zone_high: float = 24.0    # VIX skip zone upper bound
     skip_before_holiday: bool = True    # Skip new positions before holidays
 
     # =========================================================================

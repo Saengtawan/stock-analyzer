@@ -669,6 +669,9 @@ class AutoTradingEngine:
         self.REGIME_RSI_MIN = cfg.regime_rsi_min
         self.REGIME_RETURN_5D_MIN = cfg.regime_return_5d_min
         self.REGIME_VIX_MAX = cfg.regime_vix_max
+        self.VIX_SKIP_ZONE_ENABLED = cfg.vix_skip_zone_enabled
+        self.VIX_SKIP_ZONE_LOW = cfg.vix_skip_zone_low
+        self.VIX_SKIP_ZONE_HIGH = cfg.vix_skip_zone_high
         self.SPY_INTRADAY_FILTER_ENABLED = cfg.spy_intraday_filter_enabled
         self.SPY_INTRADAY_FILTER_PCT = cfg.spy_intraday_filter_pct
         self.VIX_SPIKE_PROTECTION_ENABLED = cfg.vix_spike_protection_enabled
@@ -1767,8 +1770,11 @@ class AutoTradingEngine:
         VIX can spike fast (120s cache may miss it). This ensures we never
         enter a trade when VIX >= REGIME_VIX_MAX (30).
 
+        Also blocks VIX skip zone (20-24 by default): uncertainty zone where
+        dip-bounce win rate drops to ~41% — too low to trade profitably.
+
         Returns:
-            (can_trade, vix_value): True if VIX < threshold, False if blocked
+            (can_trade, vix_value): True if VIX OK, False if blocked
         """
         vix_val, is_fallback = self._get_vix()
 
@@ -1777,8 +1783,15 @@ class AutoTradingEngine:
                           f"(fallback={is_fallback}) — trade blocked for safety")
             return False, vix_val
 
+        # VIX Skip Zone: 20-24 is uncertainty zone (41% win rate — worse than coin flip)
+        if self.VIX_SKIP_ZONE_ENABLED:
+            if self.VIX_SKIP_ZONE_LOW <= vix_val < self.VIX_SKIP_ZONE_HIGH:
+                logger.warning(f"⛔ VIX SKIP ZONE: VIX {vix_val:.1f} in [{self.VIX_SKIP_ZONE_LOW}-{self.VIX_SKIP_ZONE_HIGH}) "
+                               f"— uncertainty zone, dip-bounce win rate ~41%, skipping")
+                return False, vix_val
+
         # Log VIX check for audit trail
-        logger.info(f"✅ VIX entry check OK: {vix_val:.1f} < {self.REGIME_VIX_MAX}")
+        logger.info(f"✅ VIX entry check OK: {vix_val:.1f} (skip_zone={self.VIX_SKIP_ZONE_LOW}-{self.VIX_SKIP_ZONE_HIGH}, max={self.REGIME_VIX_MAX})")
         return True, vix_val
 
     def _get_spy_intraday_return(self) -> float:

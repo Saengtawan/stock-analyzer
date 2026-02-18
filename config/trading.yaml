@@ -283,6 +283,9 @@ regime_sma_period: 20
 regime_rsi_min: 40
 regime_return_5d_min: -2.0
 regime_vix_max: 30.0               # v6.0: 100→30 (CRITICAL: VIX<30 filter = BEAR survival +109%)
+vix_skip_zone_enabled: true        # v6.24: Block new buys in VIX 20-24 (uncertainty zone, 41% win rate)
+vix_skip_zone_low: 20.0            # VIX Adaptive SKIP tier lower bound
+vix_skip_zone_high: 24.0           # VIX Adaptive SKIP tier upper bound
 skip_before_holiday: true          # v4.7: Skip new positions before long weekends/holidays
 
 # -- BEAR Mode Params (v4.9.4: relaxed — conviction sizing handles risk) --
