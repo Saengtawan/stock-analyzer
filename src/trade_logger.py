@@ -174,6 +174,11 @@ class TradeLogEntry:
     entry_spy_pct_above_sma: Optional[float] = None    # SPY vs SMA20 at entry
     entry_vix: Optional[float] = None                    # VIX at entry time
     entry_sector_change_1d: Optional[float] = None       # Sector ETF 1d change at entry
+    # v6.24: VIX spike detection context (market stress indicators at buy time)
+    entry_spy_intraday_pct: Optional[float] = None       # SPY % from today's open (intraday)
+    entry_vix_change_pct: Optional[float] = None         # VIX % vs yesterday close
+    entry_uvxy_pct: Optional[float] = None               # UVXY % from today's open (fear gauge)
+    entry_qqq_spy_spread: Optional[float] = None         # QQQ intraday% - SPY intraday% (risk-on spread)
     note: str = ""
 
 
@@ -471,6 +476,11 @@ class TradeLogger:
         entry_spy_pct_above_sma: float = None,
         entry_vix: float = None,
         entry_sector_change_1d: float = None,
+        # v6.24: VIX spike detection context
+        entry_spy_intraday_pct: float = None,
+        entry_vix_change_pct: float = None,
+        entry_uvxy_pct: float = None,
+        entry_qqq_spy_spread: float = None,
         note: str = ""
     ) -> TradeLogEntry:
         """Log a BUY trade"""
@@ -541,6 +551,11 @@ class TradeLogger:
             entry_spy_pct_above_sma=entry_spy_pct_above_sma,
             entry_vix=entry_vix,
             entry_sector_change_1d=entry_sector_change_1d,
+            # v6.24: VIX spike detection context
+            entry_spy_intraday_pct=entry_spy_intraday_pct,
+            entry_vix_change_pct=entry_vix_change_pct,
+            entry_uvxy_pct=entry_uvxy_pct,
+            entry_qqq_spy_spread=entry_qqq_spy_spread,
             note=note
         )
 

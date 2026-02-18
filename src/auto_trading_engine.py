@@ -1807,6 +1807,77 @@ class AutoTradingEngine:
             logger.debug(f"SPY intraday check failed: {e}")
             return 0.0
 
+    def _get_intraday_pct(self, ticker: str, cache_attr: str) -> float:
+        """Get % return from today's open for any ticker. Cached 5 min.
+        Returns None on error (so caller can distinguish from 0.0)."""
+        cache = getattr(self, cache_attr, None)
+        if cache and (datetime.now() - cache[1]).total_seconds() < 300:
+            return cache[0]
+        try:
+            data = yf.download(ticker, period='1d', interval='5m', progress=False)
+            if data.empty:
+                return None
+            open_col = data['Open']
+            close_col = data['Close']
+            if hasattr(open_col, 'columns'):
+                open_col = open_col.iloc[:, 0]
+            if hasattr(close_col, 'columns'):
+                close_col = close_col.iloc[:, 0]
+            open_price = float(open_col.iloc[0])
+            current = float(close_col.iloc[-1])
+            if open_price == 0:
+                return None
+            pct = round((current - open_price) / open_price * 100, 3)
+            setattr(self, cache_attr, (pct, datetime.now()))
+            return pct
+        except Exception as e:
+            logger.debug(f"{ticker} intraday fetch failed: {e}")
+            return None
+
+    def _get_vix_change_pct(self) -> float:
+        """Get VIX % change vs yesterday's close. Cached 5 min.
+        Uses daily data (already fetched via _get_vix). Returns None on error."""
+        cache = getattr(self, '_vix_change_cache', None)
+        if cache and (datetime.now() - cache[1]).total_seconds() < 300:
+            return cache[0]
+        try:
+            vix = yf.download('^VIX', period='5d', progress=False)
+            if vix.empty or len(vix) < 2:
+                return None
+            close_col = vix['Close']
+            if hasattr(close_col, 'columns'):
+                close_col = close_col.iloc[:, 0]
+            prev_close = float(close_col.iloc[-2])
+            current = float(close_col.iloc[-1])
+            if prev_close == 0:
+                return None
+            pct = round((current - prev_close) / prev_close * 100, 3)
+            self._vix_change_cache = (pct, datetime.now())
+            return pct
+        except Exception as e:
+            logger.debug(f"VIX change pct fetch failed: {e}")
+            return None
+
+    def _get_entry_market_context(self) -> dict:
+        """Collect VIX spike detection indicators at time of entry.
+        Returns dict with entry_vix, entry_spy_intraday_pct, entry_vix_change_pct,
+        entry_uvxy_pct, entry_qqq_spy_spread. All values can be None on error."""
+        spy_pct = self._get_intraday_pct('SPY', '_spy_intraday_cache')
+        uvxy_pct = self._get_intraday_pct('UVXY', '_uvxy_intraday_cache')
+        qqq_pct = self._get_intraday_pct('QQQ', '_qqq_intraday_cache')
+        qqq_spy_spread = None
+        if qqq_pct is not None and spy_pct is not None:
+            qqq_spy_spread = round(qqq_pct - spy_pct, 3)
+        vix_val, _ = self._get_vix()
+        vix_change = self._get_vix_change_pct()
+        return {
+            'entry_spy_intraday_pct': spy_pct,
+            'entry_vix': round(vix_val, 2) if vix_val else None,
+            'entry_vix_change_pct': vix_change,
+            'entry_uvxy_pct': uvxy_pct,
+            'entry_qqq_spy_spread': qqq_spy_spread,
+        }
+
     def _check_vix_spike_protection(self):
         """Tighten SLs on all positions when VIX spikes >VIX_SPIKE_PCT% vs yesterday.
         Only triggers once per trading session."""
@@ -3875,6 +3946,29 @@ class AutoTradingEngine:
             if signal_price_val and entry_price and signal_price_val > 0:
                 slippage = round(((entry_price - signal_price_val) / signal_price_val) * 100, 3)
 
+            # Entry timing context
+            et_now = self._get_et_time()
+            market_open = et_now.replace(hour=9, minute=30, second=0, microsecond=0)
+            entry_mins = int((et_now - market_open).total_seconds() / 60) if et_now >= market_open else None
+
+            # SPY % above SMA20 (from regime check data)
+            spy_pct_above_sma = None
+            try:
+                spy_data = yf.download('SPY', period='60d', progress=False)
+                if not spy_data.empty:
+                    close_col = spy_data['Close']
+                    if hasattr(close_col, 'columns'):
+                        close_col = close_col.iloc[:, 0]
+                    spy_sma20 = float(close_col.rolling(20).mean().iloc[-1])
+                    spy_current = float(close_col.iloc[-1])
+                    if spy_sma20 > 0:
+                        spy_pct_above_sma = round((spy_current - spy_sma20) / spy_sma20 * 100, 3)
+            except Exception:
+                pass
+
+            # VIX spike detection context (v6.24)
+            mkt_ctx = self._get_entry_market_context()
+
             self.trade_logger.log_buy(
                 symbol=symbol, qty=qty, price=entry_price, reason="SIGNAL",
                 filters={
@@ -3901,6 +3995,15 @@ class AutoTradingEngine:
                 fill_price=entry_price,
                 slippage_pct=slippage,
                 config_snapshot=self._get_config_snapshot(),
+                # Entry timing context
+                entry_minutes_after_open=entry_mins,
+                entry_spy_pct_above_sma=spy_pct_above_sma,
+                # VIX spike detection context (v6.24)
+                entry_vix=mkt_ctx['entry_vix'],
+                entry_spy_intraday_pct=mkt_ctx['entry_spy_intraday_pct'],
+                entry_vix_change_pct=mkt_ctx['entry_vix_change_pct'],
+                entry_uvxy_pct=mkt_ctx['entry_uvxy_pct'],
+                entry_qqq_spy_spread=mkt_ctx['entry_qqq_spy_spread'],
             )
         except Exception as log_err:
             logger.warning(f"Trade log error: {log_err}")
