@@ -5834,6 +5834,10 @@ class AutoTradingEngine:
                     if not getattr(self, '_market_closed_cache_written', False):
                         self._save_market_closed_cache()
                         self._market_closed_cache_written = True
+                    # Pre-market gap scan runs 06:00-09:30 ET (before market open)
+                    # Must run here (not in market-open block) since clock.is_open=False pre-market
+                    _premarket_today = now.strftime('%Y-%m-%d')
+                    self._loop_premarket_gap_scan(_premarket_today)
                     time.sleep(60)
                     continue
                 else:
@@ -5861,7 +5865,6 @@ class AutoTradingEngine:
                     self._loop_morning_scan(today)
 
                 # Scheduled scans
-                self._loop_premarket_gap_scan(today)  # v6.11: Pre-market gap scan (6AM-9:30AM)
                 self._loop_afternoon_scan(today)
                 self._loop_continuous_scan(today)
                 self._loop_overnight_gap_scan(today)
