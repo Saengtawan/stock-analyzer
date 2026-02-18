@@ -1,0 +1,15 @@
+{
+  "trades": 125,
+  "win_rate": 50.4,
+  "avg_win_pct": 3.42,
+  "avg_loss_pct": -2.51,
+  "avg_pnl_pct": 0.47,
+  "profit_factor": 1.21,
+  "cagr": 1.11,
+  "max_dd": -3.12,
+  "monthly_avg": 27.16,
+  "profitable_months": 18,
+  "total_months": 31,
+  "min_rolling_wr_20": 40.0,
+  "max_losing_streak": 6
+}
