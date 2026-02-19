@@ -72,6 +72,10 @@ from enum import Enum
 import pytz
 import pandas as pd
 
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
+
 # Add src to path
 src_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, src_dir)
