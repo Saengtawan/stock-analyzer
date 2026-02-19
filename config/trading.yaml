@@ -18,8 +18,8 @@ rapid_rotation:
   # -- Stop Loss / Take Profit --
   atr_sl_multiplier: 1.5      # SL = 1.5 × ATR
   atr_tp_multiplier: 3.0      # TP = 3 × ATR (note: existing config uses 3.5)
-  min_sl_pct: 2.5             # Minimum SL% (tightest allowed)
-  max_sl_pct: 3.5             # Maximum SL% (widest allowed - user requested)
+  min_sl_pct: 2.3             # Minimum SL% (tightest allowed) - v6.30: tightened for $5k capital
+  max_sl_pct: 3.0             # Maximum SL% (widest allowed) - v6.30: 3.5→3.0 for better R:R
   min_tp_pct: 4.5             # Minimum TP% (must be > max_sl_pct)
   max_tp_pct: 8.0             # Maximum TP% (longest allowed)
   default_sl_pct: 2.5         # Default SL if ATR fails
@@ -32,8 +32,8 @@ rapid_rotation:
   # -- Position Management --
   max_positions: 3            # Max concurrent positions (v6.24: 5→3 for higher concentration)
   max_hold_days: 10           # Max days to hold (v6.26: 7→10 for more flexibility)
-  position_size_pct: 33.0     # Position size (% of equity) (v6.24: 1→33 Balanced Aggressive: 3×33%=99%)
-  max_position_pct: 35.0      # Max position size (% of equity) (v6.24: 10→35 for flexibility)
+  position_size_pct: 42.0     # Position size (% of equity) - v6.30: 33→42 for $5k capital (6% target)
+  max_position_pct: 45.0      # Max position size (% of equity) - v6.30: 35→45 to accommodate 42%
 
   # -- Scoring & Filtering --
   min_score: 85               # Minimum score to qualify (note: existing uses 90)
@@ -131,8 +131,8 @@ rapid_rotation:
 
 # -- Position Management --
 max_positions: 3
-position_size_pct: 40          # v4.9.4: 30→40 (base size for conviction B)
-simulated_capital: 4000        # Set to null for real Alpaca account value
+position_size_pct: 42          # v6.30: 40→42 for $5k capital (6% target)
+simulated_capital: 5000        # v6.30: 4000→5000 (updated capital)
 
 # -- Risk-Parity Sizing (v4.9) --
 risk_parity_enabled: true      # Keep risk parity enabled for safety
@@ -141,10 +141,10 @@ max_position_pct: 50           # v4.9.4: 40→50 (allow A+ conviction)
 
 # -- ATR-based SL/TP (v4.6) -- v6.10: Updated to new naming
 atr_sl_multiplier: 1.5        # SL = 1.5 x ATR%
-min_sl_pct: 2.5               # Floor: at least 2.5% SL
-max_sl_pct: 3.5               # Cap: max 3.5% SL (user requested)
+min_sl_pct: 2.3               # Floor: at least 2.3% SL - v6.30: tightened for better R:R
+max_sl_pct: 3.0               # Cap: max 3.0% SL - v6.30: 3.5→3.0 for $5k capital
 atr_tp_multiplier: 3.0        # v6.10: Use same as rapid_rotation (3.0 not 3.5)
-min_tp_pct: 4.5               # v6.17: Tighter TP floor (must be > max_sl_pct=3.5)
+min_tp_pct: 4.0               # v6.30: Adjusted (must be > max_sl_pct=3.0)
 max_tp_pct: 8.0               # v6.0: 12→8 (trailing captures gains)
 
 # -- Fallback fixed SL/TP -- v6.10: Updated to new naming
@@ -357,7 +357,7 @@ pem_volume_early_ratio_min: 0.15 # Min early-session vol ratio vs 20d avg (at 9:
 pem_scan_hour: 9                 # Scan at 9:35 ET (when open prices confirmed)
 pem_scan_minute: 35
 pem_max_positions: 1             # Max PEM positions at once (1-day hold, high conviction)
-pem_position_size_pct: 33.0      # Position size (% of equity) — same as dip-bounce
+pem_position_size_pct: 42.0      # Position size (% of equity) - v6.30: 33→42 (match dip-bounce)
 pem_sl_pct: 5.0                  # Stop loss % (wider for volatile earnings day)
 breakout_min_volume_mult: 1.5
 breakout_min_score: 75
