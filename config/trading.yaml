@@ -374,7 +374,7 @@ breakout_sl_pct: 3.0
 pre_filter_enabled: true
 pre_filter_min_price: 5.0          # Minimum stock price
 pre_filter_min_volume: 500000      # Minimum average volume (fallback)
-pre_filter_min_atr_pct: 2.5        # Minimum ATR% (volatility)
+pre_filter_min_atr_pct: 3.0        # Minimum ATR% (increased from 2.5 to filter low-volatility)
 pre_filter_max_overextended: 10.0  # Max % above SMA20
 pre_filter_pool_stale_hours: 12    # Hours before pool considered stale
 
@@ -397,7 +397,7 @@ pre_filter_on_demand_enabled: true      # Enable on-demand refresh (low pool)
 beta_filter_enabled: true           # Enable beta/volatility filter
 beta_filter_log_only: true          # TEST MODE: Log only, don't reject (set false to enforce)
 beta_filter_min_beta: 0.5           # Minimum beta for entry (0.5 = moderate volatility)
-beta_filter_min_atr_pct: 5.0        # Minimum ATR% for entry (alternative to beta)
+beta_filter_min_atr_pct: 3.0        # Minimum ATR% for entry (lowered from 5.0 to match actual trades)
 beta_filter_bypass_core: true       # Bypass check for CORE_STOCKS (manually curated)
 pre_filter_on_demand_min_pool: 200      # Refresh if pool < 200 stocks
 pre_filter_on_demand_zero_signals: 3    # Refresh if 0 signals for N scans

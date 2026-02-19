@@ -387,7 +387,7 @@ class RapidRotationConfig:
     pre_filter_enabled: bool = True             # Enable pre-filter system
     pre_filter_min_price: float = 5.0           # Minimum stock price
     pre_filter_min_volume: int = 500000         # Minimum average volume (fallback)
-    pre_filter_min_atr_pct: float = 2.5         # Minimum ATR% (volatility)
+    pre_filter_min_atr_pct: float = 3.0         # Minimum ATR% (increased from 2.5)
     pre_filter_max_overextended: float = 10.0   # Max % above SMA20
     pre_filter_pool_stale_hours: int = 12       # Hours before pool considered stale
     pre_filter_max_rsi: int = 65                # Filter overbought (RSI > 65 = 20% WR)
@@ -401,7 +401,7 @@ class RapidRotationConfig:
     beta_filter_enabled: bool = True            # Enable beta/volatility filter
     beta_filter_log_only: bool = True           # TEST MODE: Log only, don't reject
     beta_filter_min_beta: float = 0.5           # Minimum beta for entry
-    beta_filter_min_atr_pct: float = 5.0        # Minimum ATR% for entry
+    beta_filter_min_atr_pct: float = 3.0        # Minimum ATR% for entry (lowered from 5.0)
     beta_filter_bypass_core: bool = True        # Bypass check for CORE_STOCKS
 
     # =========================================================================

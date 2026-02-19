@@ -1,40 +1,40 @@
-2026-02-19 09:42:44.935 | INFO     | __main__:<module>:43 - Environment loaded - Alpaca API configured: True
-[32m09:42:44[0m | [1mINFO    [0m | [1mInitializing monitoring system...[0m
-[32m09:42:44[0m | [1mINFO    [0m | [1mAutoMonitor loop started[0m
-[32m09:42:44[0m | [1mINFO    [0m | [1mAutoMonitor started (health checks every 300s)[0m
-[32m09:42:44[0m | [1mINFO    [0m | [1m✅ Automatic monitoring started (checks every 300s)[0m
-[32m09:42:44[0m | [1mINFO    [0m | [1m✅ Signal handlers installed in main thread[0m
-[32m09:42:44[0m | [1mINFO    [0m | [1mStarting Web Server...[0m
-[32m09:42:45[0m | [33m[1mWARNING [0m | [33m[1mALERT [performance]: Performance degraded: 0.0/100[0m
-[32m09:42:45[0m | [33m[1mWARNING [0m | [33m[1mALERT [performance]: Performance degraded: 0.0/100[0m
-[32m09:42:45[0m | [1mINFO    [0m | [1mAlert created: [ERROR] Performance degraded: 0.0/100[0m
-[32m09:42:45[0m | [33m[1mWARNING [0m | [33m[1mNo RAPID_API_SECRET set — generated ephemeral key (set env var for persistence)[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m📦 Loaded 351 cached items from disk[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m📦 Loaded 351 cached items from disk[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m📦 Loaded 351 cached items from disk[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1mDataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1mEnhanced Stock Analyzer initialized with strategy: swing_trading, risk: moderate[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1mEnhanced Stock Analyzer initialized with strategy: swing_trading[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1mSupport level screener initialized with AI-only universe generation[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1mDividend screener initialized with AI-only universe generation[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1mValue stock screener initialized with AI-only universe generation[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m✅ Pre-market scanner initialized (FREE - Yahoo Finance + Smart Indicators)[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m✅ Alternative Data sources initialized (6 sources)[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m✅ Sector Rotation detector initialized[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m✅ Market Regime Detector initialized[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m✅ Sector Regime Detector initialized[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1mGrowth Catalyst Screener v3.3 initialized: Tiered Quality + Alt Data + Sector Rotation + Market Regime + SECTOR-AWARE REGIME[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m   Initialized 14 screening rules[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m   CRITICAL: 4 rules[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m   HIGH: 6 rules[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m   MEDIUM: 2 rules[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m   LOW: 2 rules[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m✅ Screening Rules Engine initialized with Growth Catalyst rules[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m✅ Rule-Based Screening Engine initialized (v4.0)[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m   Benefits: Configurable thresholds, A/B testing, performance tracking[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m✅ Momentum Growth Screener v1.0 initialized[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1m   Using momentum & trend filters (NOT composite scores)[0m
-[32m09:42:46[0m | [1mINFO    [0m | [1mWeb Server started at http://localhost:5000[0m
+2026-02-19 10:01:28.043 | INFO     | __main__:<module>:43 - Environment loaded - Alpaca API configured: True
+[32m10:01:28[0m | [1mINFO    [0m | [1mInitializing monitoring system...[0m
+[32m10:01:28[0m | [1mINFO    [0m | [1mAutoMonitor loop started[0m
+[32m10:01:28[0m | [1mINFO    [0m | [1mAutoMonitor started (health checks every 300s)[0m
+[32m10:01:28[0m | [1mINFO    [0m | [1m✅ Automatic monitoring started (checks every 300s)[0m
+[32m10:01:28[0m | [1mINFO    [0m | [1m✅ Signal handlers installed in main thread[0m
+[32m10:01:28[0m | [1mINFO    [0m | [1mStarting Web Server...[0m
+[32m10:01:28[0m | [33m[1mWARNING [0m | [33m[1mALERT [performance]: Performance degraded: 0.0/100[0m
+[32m10:01:28[0m | [33m[1mWARNING [0m | [33m[1mALERT [performance]: Performance degraded: 0.0/100[0m
+[32m10:01:28[0m | [1mINFO    [0m | [1mAlert created: [ERROR] Performance degraded: 0.0/100[0m
+[32m10:01:28[0m | [33m[1mWARNING [0m | [33m[1mNo RAPID_API_SECRET set — generated ephemeral key (set env var for persistence)[0m
+[32m10:01:29[0m | [1mINFO    [0m | [1m📦 Loaded 929 cached items from disk[0m
+[32m10:01:29[0m | [1mINFO    [0m | [1m📦 Loaded 929 cached items from disk[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m📦 Loaded 929 cached items from disk[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1mDataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1mEnhanced Stock Analyzer initialized with strategy: swing_trading, risk: moderate[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1mEnhanced Stock Analyzer initialized with strategy: swing_trading[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1mSupport level screener initialized with AI-only universe generation[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1mDividend screener initialized with AI-only universe generation[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1mValue stock screener initialized with AI-only universe generation[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m✅ Pre-market scanner initialized (FREE - Yahoo Finance + Smart Indicators)[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m✅ Alternative Data sources initialized (6 sources)[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m✅ Sector Rotation detector initialized[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m✅ Market Regime Detector initialized[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m✅ Sector Regime Detector initialized[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1mGrowth Catalyst Screener v3.3 initialized: Tiered Quality + Alt Data + Sector Rotation + Market Regime + SECTOR-AWARE REGIME[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m   Initialized 14 screening rules[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m   CRITICAL: 4 rules[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m   HIGH: 6 rules[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m   MEDIUM: 2 rules[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m   LOW: 2 rules[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m✅ Screening Rules Engine initialized with Growth Catalyst rules[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m✅ Rule-Based Screening Engine initialized (v4.0)[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m   Benefits: Configurable thresholds, A/B testing, performance tracking[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m✅ Momentum Growth Screener v1.0 initialized[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1m   Using momentum & trend filters (NOT composite scores)[0m
+[32m10:01:30[0m | [1mINFO    [0m | [1mWeb Server started at http://localhost:5000[0m
 
 ============================================================
   🚀 RAPID TRADING SYSTEM
@@ -48,34 +48,29 @@
  * Running on http://127.0.0.1:5000
  * Running on http://192.168.7.20:5000
 [33mPress CTRL+C to quit[0m
-[32m09:42:48[0m | [1mINFO    [0m | [1mStarting Rapid Portfolio Monitor...[0m
-[32m09:42:48[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
-[32m09:42:48[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
-[32m09:42:48[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
-[32m09:42:48[0m | [1mINFO    [0m | [1m✅ Loaded 2 positions from database[0m
-[32m09:42:48[0m | [1mINFO    [0m | [1mRapid Portfolio Monitor started (check every 5 minutes)[0m
-[32m09:42:49[0m | [1mINFO    [0m | [1mFAST: After-hours $45.65 (regular close $45.98)[0m
-[32m09:42:49[0m | [1mINFO    [0m | [1mKHC: After-hours $23.99 (regular close $23.95)[0m
-[32m09:42:49[0m | [1mINFO    [0m | [1mStarting Real-time Price Streamer...[0m
-[32m09:42:50[0m | [1mINFO    [0m | [1mAlpacaStreamer v1.1 initialized (paper=True, feed=IEX)[0m
-[32m09:42:50[0m | [1mINFO    [0m | [1mQueued subscription for: ['FAST', 'KHC'][0m
-[32m09:42:50[0m | [1mINFO    [0m | [1m📡 Subscribed to real-time prices: ['FAST', 'KHC'][0m
-[32m09:42:50[0m | [1mINFO    [0m | [1mAlpacaStreamer started[0m
-[32m09:42:50[0m | [1mINFO    [0m | [1m✅ Real-time Price Streamer started (WebSocket active!)[0m
-[32m09:42:50[0m | [1mINFO    [0m | [1mStreaming started for: ['KHC', 'FAST'][0m
-[32m09:42:51[0m | [1mINFO    [0m | [1mHealth Checker started (check every 5 minutes)[0m
-[32m09:42:51[0m | [1mINFO    [0m | [1mUniverse Maintenance Scheduler started (daily at 2:00 AM)[0m
-[32m09:43:51[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
-[32m09:43:51[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
-[32m09:43:51[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
-[32m09:43:51[0m | [1mINFO    [0m | [1mMonitoringMetrics initialized (window: 3600s)[0m
-[32m09:47:49[0m | [1mINFO    [0m | [1mFAST: After-hours $45.65 (regular close $45.98)[0m
-[32m09:47:49[0m | [1mINFO    [0m | [1mKHC: After-hours $23.99 (regular close $23.95)[0m
-[32m09:48:52[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
-[32m09:48:52[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
-[32m09:48:52[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
-[32m09:52:50[0m | [1mINFO    [0m | [1mFAST: After-hours $45.65 (regular close $45.98)[0m
-[32m09:52:50[0m | [1mINFO    [0m | [1mKHC: After-hours $23.99 (regular close $23.95)[0m
-[32m09:53:53[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
-[32m09:53:53[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
-[32m09:53:53[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
+[32m10:01:32[0m | [1mINFO    [0m | [1mStarting Rapid Portfolio Monitor...[0m
+[32m10:01:32[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
+[32m10:01:32[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
+[32m10:01:32[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
+[32m10:01:32[0m | [1mINFO    [0m | [1m✅ Loaded 2 positions from database[0m
+[32m10:01:32[0m | [1mINFO    [0m | [1mRapid Portfolio Monitor started (check every 5 minutes)[0m
+[32m10:01:32[0m | [1mINFO    [0m | [1mFAST: After-hours $45.65 (regular close $45.98)[0m
+[32m10:01:32[0m | [1mINFO    [0m | [1mKHC: After-hours $23.99 (regular close $23.95)[0m
+[32m10:01:33[0m | [1mINFO    [0m | [1mStarting Real-time Price Streamer...[0m
+[32m10:01:33[0m | [1mINFO    [0m | [1mAlpacaStreamer v1.1 initialized (paper=True, feed=IEX)[0m
+[32m10:01:33[0m | [1mINFO    [0m | [1mQueued subscription for: ['FAST', 'KHC'][0m
+[32m10:01:33[0m | [1mINFO    [0m | [1m📡 Subscribed to real-time prices: ['FAST', 'KHC'][0m
+[32m10:01:33[0m | [1mINFO    [0m | [1mAlpacaStreamer started[0m
+[32m10:01:33[0m | [1mINFO    [0m | [1m✅ Real-time Price Streamer started (WebSocket active!)[0m
+[32m10:01:33[0m | [1mINFO    [0m | [1mStreaming started for: ['FAST', 'KHC'][0m
+[32m10:01:34[0m | [1mINFO    [0m | [1mHealth Checker started (check every 5 minutes)[0m
+[32m10:01:34[0m | [1mINFO    [0m | [1mUniverse Maintenance Scheduler started (daily at 2:00 AM)[0m
+[32m10:02:34[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
+[32m10:02:34[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
+[32m10:02:34[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
+[32m10:02:35[0m | [1mINFO    [0m | [1mMonitoringMetrics initialized (window: 3600s)[0m
+[32m10:06:33[0m | [1mINFO    [0m | [1mFAST: After-hours $45.65 (regular close $45.98)[0m
+[32m10:06:33[0m | [1mINFO    [0m | [1mKHC: After-hours $23.99 (regular close $23.95)[0m
+[32m10:07:35[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
+[32m10:07:35[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
+[32m10:07:35[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
