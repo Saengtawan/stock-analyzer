@@ -351,7 +351,7 @@ breakout_scan_enabled: false
 # Backtest (2023-2025): WR 57.6%, avg +3.24%, ~2.3 events/month → ~$396/month on $25k
 # Entry: Buy at open when stock gaps up 8%+ with high volume (earnings catalyst)
 # Exit: Same-day at market close (gap_trade=True → pre_close_check EOD exit)
-pem_enabled: false               # Start disabled — paper trade first before enabling
+pem_enabled: true                # Enabled 2026-02-18
 pem_gap_threshold_pct: 8.0       # Minimum gap up % from prev close to open
 pem_volume_early_ratio_min: 0.15 # Min early-session vol ratio vs 20d avg (at 9:35, 15% = ~2-3x by EOD)
 pem_scan_hour: 9                 # Scan at 9:35 ET (when open prices confirmed)
