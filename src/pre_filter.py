@@ -713,7 +713,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Pre-Filter Runner")
-    parser.add_argument('scan', choices=['evening', 'pre_open', 'status'],
+    parser.add_argument('scan', choices=['evening', 'pre_open', 'intraday', 'status'],
                        help="Which scan to run or 'status' to check status")
     args = parser.parse_args()
 
@@ -725,6 +725,10 @@ if __name__ == "__main__":
     elif args.scan == 'pre_open':
         count = runner.pre_open_scan()
         print(f"\nPre-open scan complete: {count} stocks in pool")
+    elif args.scan == 'intraday':
+        # v6.27: Intraday scans use pre_open logic (re-validate pool, don't add new stocks)
+        count = runner.pre_open_scan()
+        print(f"\nIntraday scan complete: {count} stocks in pool")
     else:
         status = runner.get_status()
         print(f"\nPre-Filter Status:")

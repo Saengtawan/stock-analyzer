@@ -19,11 +19,19 @@ cd "$PROJECT_DIR"
 SCAN_TYPE="${1:-evening}"
 LOG_FILE="$LOG_DIR/prefilter_${SCAN_TYPE}_$(date +%Y%m%d).log"
 
+# v6.27: Normalize intraday_* variants to 'intraday'
+NORMALIZED_SCAN="$SCAN_TYPE"
+case "$SCAN_TYPE" in
+    intraday_midday|intraday_afternoon|intraday_preclose)
+        NORMALIZED_SCAN="intraday"
+        ;;
+esac
+
 echo "========================================" >> "$LOG_FILE"
 echo "Pre-Filter $SCAN_TYPE scan started at $(date)" >> "$LOG_FILE"
 echo "========================================" >> "$LOG_FILE"
 
-python3 src/pre_filter.py "$SCAN_TYPE" >> "$LOG_FILE" 2>&1
+python3 src/pre_filter.py "$NORMALIZED_SCAN" >> "$LOG_FILE" 2>&1
 
 EXIT_CODE=$?
 echo "Scan completed with exit code $EXIT_CODE at $(date)" >> "$LOG_FILE"
