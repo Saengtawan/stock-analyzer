@@ -1,0 +1,11 @@
+{
+  "total_signals": 572,
+  "total_surges": 30,
+  "true_win_rate": 5.244755244755245,
+  "avg_return_all": 0.39437601221055646,
+  "avg_return_surges": 18.264573200394636,
+  "signals_per_month": 24.941860465116278,
+  "surges_per_month": 1.3081395348837208,
+  "recommendation": "SKIP",
+  "criteria_met": 1
+}

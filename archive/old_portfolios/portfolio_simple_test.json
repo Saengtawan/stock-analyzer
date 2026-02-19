@@ -1,0 +1,88 @@
+{
+  "active": [
+    {
+      "symbol": "NVDA",
+      "entry_date": "2025-10-01",
+      "entry_price": 187.22958374023438,
+      "current_price": 187.22958374023438,
+      "highest_price": 187.22958374023438,
+      "amount": 10000,
+      "shares": 53.41036282959522,
+      "take_profit": 194.71876708984377,
+      "stop_loss": 180.67654830932617,
+      "filters": {
+        "source": "test"
+      },
+      "volatility": 50
+    },
+    {
+      "symbol": "TSLA",
+      "entry_date": "2025-10-15",
+      "entry_price": 435.1499938964844,
+      "current_price": 435.1499938964844,
+      "highest_price": 435.1499938964844,
+      "amount": 10000,
+      "shares": 22.98058173104065,
+      "take_profit": 452.5559936523438,
+      "stop_loss": 419.9197441101074,
+      "filters": {
+        "source": "test"
+      },
+      "volatility": 50
+    },
+    {
+      "symbol": "AMD",
+      "entry_date": "2025-11-01",
+      "entry_price": 259.6499938964844,
+      "current_price": 259.6499938964844,
+      "highest_price": 259.6499938964844,
+      "amount": 10000,
+      "shares": 38.51338430605447,
+      "take_profit": 270.03599365234373,
+      "stop_loss": 250.5622441101074,
+      "filters": {
+        "source": "test"
+      },
+      "volatility": 50
+    },
+    {
+      "symbol": "AAPL",
+      "entry_date": "2025-11-15",
+      "entry_price": 267.4599914550781,
+      "current_price": 267.4599914550781,
+      "highest_price": 267.4599914550781,
+      "amount": 10000,
+      "shares": 37.3887696084802,
+      "take_profit": 278.15839111328125,
+      "stop_loss": 258.0988917541504,
+      "filters": {
+        "source": "test"
+      },
+      "volatility": 50
+    },
+    {
+      "symbol": "MSFT",
+      "entry_date": "2025-12-01",
+      "entry_price": 486.739990234375,
+      "current_price": 486.739990234375,
+      "highest_price": 486.739990234375,
+      "amount": 10000,
+      "shares": 20.544849818451944,
+      "take_profit": 506.20958984375,
+      "stop_loss": 469.70409057617184,
+      "filters": {
+        "source": "test"
+      },
+      "volatility": 50
+    }
+  ],
+  "closed": [],
+  "stats": {
+    "total_trades": 0,
+    "win_rate": 0.0,
+    "total_pnl": 0.0,
+    "avg_return": 0.0,
+    "win_count": 0,
+    "loss_count": 0
+  }
+}

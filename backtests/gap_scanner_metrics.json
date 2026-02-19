@@ -1,0 +1,12 @@
+{
+  "total_setups": 17,
+  "win_rate": 100.0,
+  "avg_gap": 18.57477950924478,
+  "avg_day_return": 9.614255419402832,
+  "setups_per_month": 0.7894736842105262,
+  "total_return": 163.44234212984816,
+  "rotation_monthly": 7.590201646896972,
+  "recommendation": "IMPLEMENT",
+  "criteria_met": 2,
+  "criteria_failed": 1
+}

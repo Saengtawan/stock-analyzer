@@ -3996,18 +3996,25 @@ class AutoTradingEngine:
             # v6.17: Use limit price if provided, otherwise use smart buy
             if limit_price:
                 buy_order = self.broker.place_limit_buy(symbol, qty, limit_price)
-                # Wait for fill
+                # v6.31: Wait up to 30s for fill (prevent ghost positions)
                 if buy_order and buy_order.status != 'filled':
-                    time.sleep(2)
-                    buy_order = self.broker.get_order(buy_order.id)
+                    for _ in range(15):  # 15 x 2s = 30s max
+                        time.sleep(2)
+                        buy_order = self.broker.get_order(buy_order.id)
+                        if buy_order and buy_order.status == 'filled':
+                            break
             else:
                 buy_order = self.broker.place_smart_buy(symbol, qty)
             if not buy_order:
                 logger.warning(f"Buy order failed for {symbol}")
                 return False, None, None, 0
+            # v6.31: Wait up to 30s for fill (market orders usually fill fast)
             if buy_order.status != 'filled':
-                time.sleep(2)
-                buy_order = self.broker.get_order(buy_order.id)
+                for _ in range(15):  # 15 x 2s = 30s max
+                    time.sleep(2)
+                    buy_order = self.broker.get_order(buy_order.id)
+                    if buy_order and buy_order.status == 'filled':
+                        break
             sl_order_id = None
 
         if not buy_order or buy_order.status != 'filled':

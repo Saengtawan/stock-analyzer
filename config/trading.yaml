@@ -20,7 +20,7 @@ rapid_rotation:
   atr_tp_multiplier: 3.0      # TP = 3 × ATR (note: existing config uses 3.5)
   min_sl_pct: 2.3             # Minimum SL% (tightest allowed) - v6.30: tightened for $5k capital
   max_sl_pct: 3.0             # Maximum SL% (widest allowed) - v6.30: 3.5→3.0 for better R:R
-  min_tp_pct: 4.5             # Minimum TP% (must be > max_sl_pct)
+  min_tp_pct: 4.0             # Minimum TP% (must be > max_sl_pct) - v6.30: 4.5→4.0
   max_tp_pct: 8.0             # Maximum TP% (longest allowed)
   default_sl_pct: 2.5         # Default SL if ATR fails
   default_tp_pct: 5.0         # Default TP if ATR fails

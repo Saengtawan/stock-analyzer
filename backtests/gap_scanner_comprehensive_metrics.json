@@ -1,0 +1,11 @@
+{
+  "total_events": 57,
+  "overnight_count": 57,
+  "intraday_count": 0,
+  "win_rate": 100.0,
+  "rotation_rate": 77.19298245614034,
+  "events_per_month": 1.9411764705882353,
+  "monthly_return": 13.289661560613904,
+  "recommendation": "IMPLEMENT",
+  "criteria_met": 4
+}

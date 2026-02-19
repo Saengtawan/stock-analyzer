@@ -1,0 +1,24 @@
+[Unit]
+Description=Auto Trading Engine - Gap Scanner & Trading System
+After=network.target
+
+[Service]
+Type=simple
+User=saengtawan
+WorkingDirectory=/home/saengtawan/work/project/cc/stock-analyzer
+Environment="PATH=/home/saengtawan/.pyenv/versions/cc/bin:/usr/local/bin:/usr/bin"
+Environment="PYTHONUNBUFFERED=1"
+EnvironmentFile=/home/saengtawan/work/project/cc/stock-analyzer/.env
+
+ExecStart=/home/saengtawan/.pyenv/versions/cc/bin/python src/auto_trading_engine.py
+
+# Restart on failure
+Restart=on-failure
+RestartSec=10s
+
+# Logging
+StandardOutput=append:/home/saengtawan/work/project/cc/stock-analyzer/logs/auto_trading_engine.log
+StandardError=append:/home/saengtawan/work/project/cc/stock-analyzer/logs/auto_trading_engine_error.log
+
+[Install]
+WantedBy=multi-user.target

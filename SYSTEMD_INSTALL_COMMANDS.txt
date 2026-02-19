@@ -1,0 +1,166 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SYSTEMD SERVICE INSTALLATION - คำสั่งที่ต้อง RUN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 COPY & PASTE คำสั่งนี้ใน terminal:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔸 OPTION 1: ใช้ Installation Script (แนะนำ - ง่ายที่สุด)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+sudo ./scripts/install_systemd.sh
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔸 OPTION 2: Manual Installation (ทีละขั้นตอน)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# 1. Copy service file
+sudo cp scripts/auto-trading.service /etc/systemd/system/
+
+# 2. Reload systemd
+sudo systemctl daemon-reload
+
+# 3. Enable auto-start
+sudo systemctl enable auto-trading
+
+# 4. Start service
+sudo systemctl start auto-trading
+
+# 5. Check status
+sudo systemctl status auto-trading
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔸 VERIFICATION (ตรวจสอบว่าทำงาน)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Check if running
+sudo systemctl status auto-trading
+
+# View logs (live)
+sudo journalctl -u auto-trading -f
+
+# View recent logs
+sudo journalctl -u auto-trading -n 50
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔸 MANAGEMENT COMMANDS (จัดการ service)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Start
+sudo systemctl start auto-trading
+
+# Stop
+sudo systemctl stop auto-trading
+
+# Restart
+sudo systemctl restart auto-trading
+
+# Status
+sudo systemctl status auto-trading
+
+# Enable auto-start on boot
+sudo systemctl enable auto-trading
+
+# Disable auto-start
+sudo systemctl disable auto-trading
+
+# View logs (real-time)
+sudo journalctl -u auto-trading -f
+
+# View logs (last 100 lines)
+sudo journalctl -u auto-trading -n 100
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔸 EXPECTED OUTPUT (ควรเห็นอะไร)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+$ sudo systemctl status auto-trading
+
+● auto-trading.service - Auto Trading Engine - Gap Scanner & Trading System
+     Loaded: loaded (/etc/systemd/system/auto-trading.service; enabled)
+     Active: active (running) since Sat 2026-02-15 06:00:00 ICT
+   Main PID: 12345 (python)
+      Tasks: 5
+     Memory: 150M
+        CPU: 5s
+     CGroup: /system.slice/auto-trading.service
+             └─12345 /home/saengtawan/.pyenv/versions/cc/bin/python src/auto_trading_engine.py
+
+Feb 15 06:00:00 systemd[1]: Started Auto Trading Engine
+Feb 15 06:00:01 python[12345]: ✅ Auto Trading Engine initialized
+Feb 15 06:00:01 python[12345]: 🔍 PreMarketGapScanner: Scanning 32 symbols...
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔸 TROUBLESHOOTING (ถ้ามีปัญหา)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔴 Service failed to start:
+
+# Check error logs
+sudo journalctl -u auto-trading -n 100 --no-pager
+
+# Check if .env exists
+ls -la .env
+
+# Check Python path
+which python
+/home/saengtawan/.pyenv/versions/cc/bin/python --version
+
+
+🔴 Permission denied:
+
+# Fix logs directory permissions
+sudo chown -R saengtawan:saengtawan logs/
+sudo chmod -R 755 logs/
+
+
+🔴 .env file not found:
+
+# Create .env file
+cat > .env << 'EOF'
+ALPACA_API_KEY=your_key_here
+ALPACA_SECRET_KEY=your_secret_here
+ALPACA_PAPER=true
+EOF
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔸 NEXT STEPS (หลัง install แล้ว)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. ✅ Service installed & running
+
+2. 📊 Monitor logs tomorrow morning (6:00 AM - 9:30 AM ET):
+   sudo journalctl -u auto-trading -f | grep -E "Gap|PreMarket"
+
+3. 🔍 Look for gap signals:
+   - 6:00 AM: Scanner starts
+   - 6:15 AM: Gap detected (if any)
+   - 9:30 AM: Buy executed
+   - 4:00 PM: Sell executed
+
+4. 📈 Check trade logs:
+   tail -f logs/auto_trading_engine.log
+
+5. ⚠️  Paper trading first (30 days minimum)
+   - Verify all trades work correctly
+   - Check win rate >= 60%
+   - Then switch to live (ALPACA_PAPER=false)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ INSTALLATION COMPLETE - เสร็จสมบูรณ์
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ระบบจะ:
+- Start อัตโนมัติเมื่อเครื่องบูต
+- Restart อัตโนมัติเมื่อ crash
+- Scan gaps ทุกเช้า 6-9:30 AM
+- ซื้อ/ขายอัตโนมัติ
+
+🚀 พร้อมแล้ว!

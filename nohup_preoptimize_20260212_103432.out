@@ -1,0 +1,326 @@
+2026-02-12 10:07:46.541 | INFO     | __main__:<module>:37 - Environment loaded - Alpaca API configured: True
+2026-02-12 10:07:46.545 | INFO     | __main__:start_web_server:119 - Starting Web Server...
+2026-02-12 10:07:47.384 | WARNING  | web.app:<module>:49 - No RAPID_API_SECRET set — generated ephemeral key (set env var for persistence)
+2026-02-12 10:07:47.701 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 25 cached items from disk
+2026-02-12 10:07:48.060 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 25 cached items from disk
+2026-02-12 10:07:48.382 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 25 cached items from disk
+2026-02-12 10:07:48.392 | INFO     | api.data_manager:__init__:82 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
+2026-02-12 10:07:48.392 | INFO     | analysis.enhanced_stock_analyzer:__init__:60 - Enhanced Stock Analyzer initialized with strategy: swing_trading, risk: moderate
+2026-02-12 10:07:48.392 | INFO     | main:__init__:54 - Enhanced Stock Analyzer initialized with strategy: swing_trading
+2026-02-12 10:07:48.392 | INFO     | screeners.support_level_screener:__init__:32 - Support level screener initialized with AI-only universe generation
+2026-02-12 10:07:48.392 | INFO     | screeners.dividend_screener:__init__:30 - Dividend screener initialized with AI-only universe generation
+2026-02-12 10:07:48.392 | INFO     | screeners.value_screener:__init__:32 - Value stock screener initialized with AI-only universe generation
+2026-02-12 10:07:48.392 | INFO     | screeners.premarket_scanner:__init__:33 - ✅ Pre-market scanner initialized (FREE - Yahoo Finance + Smart Indicators)
+2026-02-12 10:07:48.392 | INFO     | screeners.growth_catalyst_screener:__init__:128 - ✅ Alternative Data sources initialized (6 sources)
+2026-02-12 10:07:48.392 | INFO     | screeners.growth_catalyst_screener:__init__:136 - ✅ Sector Rotation detector initialized
+2026-02-12 10:07:48.406 | DEBUG    | market_regime_detector:__init__:82 - MarketRegimeDetector: Loaded config from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
+2026-02-12 10:07:48.406 | INFO     | screeners.growth_catalyst_screener:__init__:145 - ✅ Market Regime Detector initialized
+2026-02-12 10:07:48.407 | INFO     | screeners.growth_catalyst_screener:__init__:155 - ✅ Sector Regime Detector initialized
+2026-02-12 10:07:48.407 | INFO     | screeners.growth_catalyst_screener:__init__:156 - Growth Catalyst Screener v3.3 initialized: Tiered Quality + Alt Data + Sector Rotation + Market Regime + SECTOR-AWARE REGIME
+2026-02-12 10:07:48.407 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:340 -    Initialized 14 screening rules
+2026-02-12 10:07:48.407 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    CRITICAL: 4 rules
+2026-02-12 10:07:48.407 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    HIGH: 6 rules
+2026-02-12 10:07:48.407 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    MEDIUM: 2 rules
+2026-02-12 10:07:48.407 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    LOW: 2 rules
+2026-02-12 10:07:48.407 | INFO     | screening_rules_engine:__init__:99 - ✅ Screening Rules Engine initialized with Growth Catalyst rules
+2026-02-12 10:07:48.407 | INFO     | screeners.growth_catalyst_screener:__init__:165 - ✅ Rule-Based Screening Engine initialized (v4.0)
+2026-02-12 10:07:48.407 | INFO     | screeners.growth_catalyst_screener:__init__:166 -    Benefits: Configurable thresholds, A/B testing, performance tracking
+2026-02-12 10:07:48.407 | INFO     | screeners.momentum_growth_screener:__init__:39 - ✅ Momentum Growth Screener v1.0 initialized
+2026-02-12 10:07:48.407 | INFO     | screeners.momentum_growth_screener:__init__:40 -    Using momentum & trend filters (NOT composite scores)
+2026-02-12 10:07:48.420 | INFO     | __main__:start_web_server:134 - Web Server started at http://localhost:5000
+
+============================================================
+  🚀 RAPID TRADING SYSTEM
+  Target: 5-15% per month
+============================================================
+
+ * Serving Flask app 'web.app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.7.20:5000
+[33mPress CTRL+C to quit[0m
+2026-02-12 10:07:50.420 | INFO     | __main__:start_rapid_portfolio_monitor:147 - Starting Rapid Portfolio Monitor...
+2026-02-12 10:07:50.440 | INFO     | __main__:start_rapid_portfolio_monitor:193 - Rapid Portfolio Monitor started (check every 5 minutes)
+2026-02-12 10:07:50.975 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - AIT: Price $290.31 from daily bars (fetched) (realtime: False)
+2026-02-12 10:07:51.058 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - GBCI: Price $51.70 from daily bars (fetched) (realtime: False)
+2026-02-12 10:07:51.135 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - NOV: Price $19.47 from daily bars (fetched) (realtime: False)
+2026-02-12 10:07:51.136 | WARNING  | __main__:run_monitor:168 - 🟠 WARNING: GBCI - 🟠 WATCH CLOSELY
+2026-02-12 10:07:51.441 | INFO     | __main__:start_realtime_price_streamer:211 - Starting Real-time Price Streamer...
+2026-02-12 10:07:51.624 | INFO     | alpaca_streamer:__init__:64 - AlpacaStreamer v1.1 initialized (paper=True, feed=IEX)
+2026-02-12 10:07:51.624 | INFO     | alpaca_streamer:subscribe:205 - Queued subscription for: ['AIT', 'GBCI', 'NOV']
+2026-02-12 10:07:51.624 | INFO     | __main__:start_realtime_price_streamer:253 - 📡 Subscribed to real-time prices: ['AIT', 'GBCI', 'NOV']
+2026-02-12 10:07:51.624 | INFO     | alpaca_streamer:_run_stream:253 - Streaming started for: ['NOV', 'GBCI', 'AIT']
+2026-02-12 10:07:51.625 | INFO     | alpaca_streamer:start:295 - AlpacaStreamer started
+2026-02-12 10:07:51.625 | INFO     | __main__:start_realtime_price_streamer:261 - ✅ Real-time Price Streamer started (WebSocket active!)
+2026-02-12 10:07:52.627 | INFO     | __main__:start_health_checker:351 - Health Checker started (check every 5 minutes)
+2026-02-12 10:07:52.628 | INFO     | __main__:start_universe_maintenance_scheduler:414 - Universe Maintenance Scheduler started (daily at 2:00 AM)
+2026-02-12 10:07:52.653 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+2026-02-12 10:07:53.741 | INFO     | auto_trading_engine:_load_config_from_yaml:814 - ✅ Loaded ALL parameters from RapidRotationConfig (v6.10)
+2026-02-12 10:07:53.741 | INFO     | auto_trading_engine:_load_config_from_yaml:815 -    SL range: 2.5%-3.5%
+2026-02-12 10:07:53.742 | INFO     | auto_trading_engine:_load_config_from_yaml:816 -    Max positions: 5
+2026-02-12 10:07:53.742 | INFO     | auto_trading_engine:_load_config_from_yaml:817 -    Regime filter: ENABLED
+2026-02-12 10:07:53.742 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+2026-02-12 10:07:54.080 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 25 cached items from disk
+2026-02-12 10:07:54.394 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 25 cached items from disk
+2026-02-12 10:07:54.705 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 25 cached items from disk
+2026-02-12 10:07:54.716 | INFO     | api.data_manager:__init__:82 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: Yes
+2026-02-12 10:07:54.716 | INFO     | auto_trading_engine:__init__:430 - DataManager initialized with broker integration
+2026-02-12 10:07:54.716 | INFO     | trading_safety:_load_from_rapid_config:145 - Safety config loaded from RapidRotationConfig
+2026-02-12 10:07:54.716 | DEBUG    | trading_safety:_load_from_rapid_config:146 -   DAILY_LOSS_LIMIT: 5.0%
+2026-02-12 10:07:54.716 | DEBUG    | trading_safety:_load_from_rapid_config:147 -   MAX_POSITIONS: 5
+2026-02-12 10:07:54.716 | DEBUG    | trading_safety:_load_from_rapid_config:148 -   MAX_HOLD_DAYS: 5
+2026-02-12 10:07:54.716 | INFO     | trading_safety:__init__:129 - Trading Safety System initialized
+2026-02-12 10:07:54.716 | INFO     | pdt_smart_guard:_load_entry_dates:326 - PDT Guard: Loaded 7 entry dates from disk
+2026-02-12 10:07:54.716 | INFO     | pdt_smart_guard:__init__:255 - PDT Smart Guard v2.3 initialized (No Override Mode)
+2026-02-12 10:07:54.716 | INFO     | pdt_smart_guard:__init__:256 -   SL Threshold: -2.5%
+2026-02-12 10:07:54.716 | INFO     | pdt_smart_guard:__init__:257 -   TP Threshold: 4.0%
+2026-02-12 10:07:54.716 | INFO     | pdt_smart_guard:__init__:258 -   Reserve: 1 day trades
+2026-02-12 10:07:54.716 | INFO     | pdt_smart_guard:__init__:259 -   Budget = 0 → HOLD (ไม่ override PDT เด็ดขาด)
+2026-02-12 10:07:54.716 | INFO     | auto_trading_engine:__init__:444 - PDT Smart Guard v2.3 initialized (No Override - uses RapidRotationConfig)
+2026-02-12 10:07:54.717 | INFO     | trade_logger:__init__:220 - TradeLogger initialized - logs: /home/saengtawan/work/project/cc/stock-analyzer/trade_logs, db: /home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db
+2026-02-12 10:07:54.717 | INFO     | auto_trading_engine:__init__:448 - Trade Logger v1.0 initialized
+2026-02-12 10:07:54.718 | INFO     | alert_manager:_load:345 - Loaded 200 alerts (next_id=2821)
+2026-02-12 10:07:54.718 | INFO     | auto_trading_engine:__init__:453 - Alert Manager v1.0 initialized
+2026-02-12 10:07:54.718 | INFO     | filters.entry_protection_filter:__init__:74 - 🛡️ Entry Protection Filter initialized (enabled=True)
+2026-02-12 10:07:54.718 | INFO     | filters.entry_protection_filter:__init__:76 -    Layer 1: Block first 15 min
+2026-02-12 10:07:54.718 | INFO     | filters.entry_protection_filter:__init__:77 -    Layer 2: Max VWAP distance 1.5%
+2026-02-12 10:07:54.718 | INFO     | filters.entry_protection_filter:__init__:78 -    Layer 3: Max chase 0.2%
+2026-02-12 10:07:54.718 | INFO     | auto_trading_engine:__init__:459 - ✅ Entry Protection Filter v6.17 initialized
+2026-02-12 10:07:54.727 | DEBUG    | screeners.rapid_rotation_screener:__init__:216 - Loaded RapidRotationConfig from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
+2026-02-12 10:07:54.728 | INFO     | screeners.rapid_rotation_screener:_load_sector_cache:841 - 📦 Loaded 355 sectors from cache
+2026-02-12 10:07:54.728 | INFO     | screeners.rapid_rotation_screener:_init_ai_universe:447 - ✅ AI Universe Generator initialized
+2026-02-12 10:07:54.728 | INFO     | screeners.rapid_rotation_screener:_init_market_regime:457 - ✅ Market Regime Detector initialized
+2026-02-12 10:07:55.029 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 25 cached items from disk
+2026-02-12 10:07:55.342 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 25 cached items from disk
+2026-02-12 10:07:55.654 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 25 cached items from disk
+2026-02-12 10:07:55.664 | INFO     | api.data_manager:__init__:82 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
+2026-02-12 10:07:55.664 | INFO     | sector_regime_detector:update_all_sectors:419 - Updating sector regimes (5-min realtime, MCW)...
+2026-02-12 10:07:55.664 | INFO     | sector_regime_detector:_build_sector_company_map:298 - Built sector company map: 550 stocks across 11 sectors (with market weights)
+2026-02-12 10:07:55.664 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:328 - Batch downloading 550 sector stocks for 1d returns...
+2026-02-12 10:07:55.665 | DEBUG    | api.yahoo_finance_client:batch_download_prices:626 - Cache hit for batch download (550 symbols)
+2026-02-12 10:07:55.726 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Technology (XLK): MCW 1d = +0.16% (50/50 stocks, weight=88.7%)
+2026-02-12 10:07:55.727 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Energy (XLE): MCW 1d = +2.25% (50/50 stocks, weight=92.2%)
+2026-02-12 10:07:55.727 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Financial Services (XLF): MCW 1d = -1.51% (50/50 stocks, weight=77.5%)
+2026-02-12 10:07:55.727 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Healthcare (XLV): MCW 1d = +0.55% (50/50 stocks, weight=81.4%)
+2026-02-12 10:07:55.727 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Cyclical (XLY): MCW 1d = -0.54% (50/50 stocks, weight=86.4%)
+2026-02-12 10:07:55.727 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Defensive (XLP): MCW 1d = +1.39% (49/50 stocks, weight=95.7%)
+2026-02-12 10:07:55.727 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Industrials (XLI): MCW 1d = +1.17% (50/50 stocks, weight=68.5%)
+2026-02-12 10:07:55.727 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Utilities (XLU): MCW 1d = +0.80% (49/50 stocks, weight=97.0%)
+2026-02-12 10:07:55.728 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Basic Materials (XLB): MCW 1d = +1.55% (50/50 stocks, weight=92.7%)
+2026-02-12 10:07:55.728 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Communication Services (XLC): MCW 1d = -1.30% (49/50 stocks, weight=99.0%)
+2026-02-12 10:07:55.728 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Real Estate (XLRE): MCW 1d = -0.23% (50/50 stocks, weight=81.4%)
+2026-02-12 10:07:55.728 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:396 - Market-cap weighted 1d returns calculated for 11 sectors
+2026-02-12 10:07:55.728 | INFO     | sector_regime_detector:update_all_sectors:424 - Using market-cap weighted 1d returns for 11 sectors
+2026-02-12 10:07:55.728 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLK
+2026-02-12 10:07:55.728 | INFO     | sector_regime_detector:update_all_sectors:466 - XLK (Technology): SIDEWAYS (score=+1.5) | 1d[M]: +0.2% | 5d: +5.4% | 20d: -2.40%
+2026-02-12 10:07:55.728 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLE
+2026-02-12 10:07:55.729 | INFO     | sector_regime_detector:update_all_sectors:466 - XLE (Energy): STRONG BULL (score=+6.8) | 1d[M]: +2.3% | 5d: +5.3% | 20d: +16.98%
+2026-02-12 10:07:55.729 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLF
+2026-02-12 10:07:55.729 | INFO     | sector_regime_detector:update_all_sectors:466 - XLF (Financial Services): SIDEWAYS (score=-1.6) | 1d[M]: -1.5% | 5d: -1.0% | 20d: -2.75%
+2026-02-12 10:07:55.729 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLV
+2026-02-12 10:07:55.729 | INFO     | sector_regime_detector:update_all_sectors:466 - XLV (Healthcare): SIDEWAYS (score=+0.5) | 1d[M]: +0.6% | 5d: +0.9% | 20d: -0.31%
+2026-02-12 10:07:55.729 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLY
+2026-02-12 10:07:55.729 | INFO     | sector_regime_detector:update_all_sectors:466 - XLY (Consumer Cyclical): SIDEWAYS (score=-1.2) | 1d[M]: -0.5% | 5d: +0.2% | 20d: -5.19%
+2026-02-12 10:07:55.729 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLP
+2026-02-12 10:07:55.729 | INFO     | sector_regime_detector:update_all_sectors:466 - XLP (Consumer Defensive): BULL (score=+3.5) | 1d[M]: +1.4% | 5d: +1.7% | 20d: +8.99%
+2026-02-12 10:07:55.729 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLI
+2026-02-12 10:07:55.729 | INFO     | sector_regime_detector:update_all_sectors:466 - XLI (Industrials): BULL (score=+3.7) | 1d[M]: +1.2% | 5d: +3.8% | 20d: +6.60%
+2026-02-12 10:07:55.729 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLU
+2026-02-12 10:07:55.729 | INFO     | sector_regime_detector:update_all_sectors:466 - XLU (Utilities): BULL (score=+2.4) | 1d[M]: +0.8% | 5d: +3.5% | 20d: +4.06%
+2026-02-12 10:07:55.729 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLB
+2026-02-12 10:07:55.730 | INFO     | sector_regime_detector:update_all_sectors:466 - XLB (Basic Materials): STRONG BULL (score=+5.4) | 1d[M]: +1.6% | 5d: +6.2% | 20d: +10.03%
+2026-02-12 10:07:55.730 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLC
+2026-02-12 10:07:55.730 | INFO     | sector_regime_detector:update_all_sectors:466 - XLC (Communication Services): SIDEWAYS (score=-0.5) | 1d[M]: -1.3% | 5d: +0.5% | 20d: -0.13%
+2026-02-12 10:07:55.730 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLRE
+2026-02-12 10:07:55.730 | INFO     | sector_regime_detector:update_all_sectors:466 - XLRE (Real Estate): BULL (score=+2.1) | 1d[M]: -0.2% | 5d: +3.8% | 20d: +4.57%
+2026-02-12 10:07:55.730 | INFO     | screeners.rapid_rotation_screener:_init_sector_regime:471 - ✅ Sector Regime Detector initialized
+2026-02-12 10:07:55.730 | INFO     | screeners.rapid_rotation_screener:_init_alt_data:481 - ✅ Alternative Data Aggregator initialized (6 sources)
+2026-02-12 10:07:55.730 | INFO     | strategies.strategy_manager:register:48 - ✅ Registered strategy: Dip-Bounce (dip_bounce)
+2026-02-12 10:07:55.733 | INFO     | strategies.vix_adaptive.engine_integration:__init__:66 - VIX Adaptive v3.0: Loading...
+2026-02-12 10:07:55.867 | INFO     | strategies.vix_adaptive.engine_integration:__init__:76 - VIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)
+2026-02-12 10:07:55.867 | INFO     | strategies.vix_adaptive.engine_integration:__init__:85 - ✅ VIX Adaptive v3.0 initialized
+2026-02-12 10:07:55.867 | INFO     | strategies.vix_adaptive.engine_integration:__init__:86 -    Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}
+2026-02-12 10:07:55.867 | INFO     | strategies.vix_adaptive.engine_integration:__init__:87 -    Score adaptation: True
+2026-02-12 10:07:55.867 | INFO     | strategies.vix_adaptive_strategy_wrapper:__init__:48 - ✅ VIX Adaptive wrapper initialized: VIXAdaptiveIntegration(tier=N/A, VIX=N/A)
+2026-02-12 10:07:55.867 | INFO     | strategies.strategy_manager:register:48 - ✅ Registered strategy: VIX Adaptive (vix_adaptive)
+2026-02-12 10:07:55.867 | INFO     | screeners.rapid_rotation_screener:_init_strategy_manager:530 - ✅ VIX Adaptive registered (tier=None)
+2026-02-12 10:07:55.867 | INFO     | screeners.rapid_rotation_screener:_init_strategy_manager:534 - ✅ Strategy Manager initialized (2 strategies active)
+2026-02-12 10:07:55.867 | INFO     | auto_trading_engine:__init__:469 - Screener initialized
+2026-02-12 10:07:55.867 | INFO     | auto_trading_engine:__init__:480 - OvernightGapScanner initialized
+2026-02-12 10:07:55.867 | INFO     | auto_trading_engine:__init__:487 - BreakoutScanner initialized
+2026-02-12 10:07:55.870 | INFO     | strategies.vix_adaptive.engine_integration:__init__:66 - VIX Adaptive v3.0: Loading...
+2026-02-12 10:07:55.912 | INFO     | strategies.vix_adaptive.engine_integration:__init__:76 - VIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)
+2026-02-12 10:07:55.912 | INFO     | strategies.vix_adaptive.engine_integration:__init__:85 - ✅ VIX Adaptive v3.0 initialized
+2026-02-12 10:07:55.912 | INFO     | strategies.vix_adaptive.engine_integration:__init__:86 -    Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}
+2026-02-12 10:07:55.912 | INFO     | strategies.vix_adaptive.engine_integration:__init__:87 -    Score adaptation: True
+2026-02-12 10:07:55.912 | INFO     | auto_trading_engine:__init__:499 - ✅ VIX Adaptive Strategy initialized: VIXAdaptiveIntegration(tier=N/A, VIX=N/A)
+2026-02-12 10:07:55.912 | INFO     | auto_trading_engine:__init__:506 - SLTPCalculator initialized
+2026-02-12 10:07:56.921 | INFO     | auto_trading_engine:_load_positions_state:841 - Loaded persisted state: 3 positions (saved at unknown)
+2026-02-12 10:07:56.922 | INFO     | auto_trading_engine:_sync_positions:1164 - Restored position: AIT (peak=$290.31, trail=OFF)
+2026-02-12 10:07:56.923 | DEBUG    | pdt_smart_guard:record_entry:340 - PDT Guard: Recorded entry for AIT on 2026-02-10 (ET)
+2026-02-12 10:07:56.923 | INFO     | auto_trading_engine:_sync_positions:1164 - Restored position: GBCI (peak=$52.63, trail=OFF)
+2026-02-12 10:07:56.930 | DEBUG    | pdt_smart_guard:record_entry:340 - PDT Guard: Recorded entry for GBCI on 2026-02-11 (ET)
+2026-02-12 10:07:56.930 | INFO     | auto_trading_engine:_sync_positions:1164 - Restored position: NOV (peak=$19.47, trail=OFF)
+2026-02-12 10:07:56.931 | DEBUG    | pdt_smart_guard:record_entry:340 - PDT Guard: Recorded entry for NOV on 2026-02-11 (ET)
+2026-02-12 10:07:56.931 | INFO     | auto_trading_engine:_sync_positions:1177 - Synced 3 positions
+2026-02-12 10:07:57.177 | INFO     | pdt_smart_guard:log_status:567 - ==================================================
+2026-02-12 10:07:57.178 | INFO     | pdt_smart_guard:log_status:568 - PDT SMART GUARD STATUS
+2026-02-12 10:07:57.178 | INFO     | pdt_smart_guard:log_status:569 - ==================================================
+2026-02-12 10:07:57.178 | INFO     | pdt_smart_guard:log_status:570 - Day Trades: 1/3 (remaining: 2)
+2026-02-12 10:07:57.178 | INFO     | pdt_smart_guard:log_status:571 - Reserve Active: False
+2026-02-12 10:07:57.178 | INFO     | pdt_smart_guard:log_status:572 - Flagged: False
+2026-02-12 10:07:57.178 | INFO     | pdt_smart_guard:log_status:575 - Positions:
+2026-02-12 10:07:57.178 | INFO     | pdt_smart_guard:log_status:578 -   LMT: Day 5
+2026-02-12 10:07:57.178 | INFO     | pdt_smart_guard:log_status:578 -   GOOGL: Day 5
+2026-02-12 10:07:57.179 | INFO     | pdt_smart_guard:log_status:578 -   MCHP: Day 1
+2026-02-12 10:07:57.179 | INFO     | pdt_smart_guard:log_status:578 -   SYNA: Day 1
+2026-02-12 10:07:57.179 | INFO     | pdt_smart_guard:log_status:578 -   AIT: Day 1
+2026-02-12 10:07:57.179 | INFO     | pdt_smart_guard:log_status:578 -   GBCI: Day 0 ⚠️ DAY TRADE
+2026-02-12 10:07:57.179 | INFO     | pdt_smart_guard:log_status:578 -   NOV: Day 0 ⚠️ DAY TRADE
+2026-02-12 10:07:57.179 | INFO     | pdt_smart_guard:log_status:580 - ==================================================
+2026-02-12 10:07:57.180 | DEBUG    | auto_trading_engine:_save_positions_state:831 - Position state saved: 3 positions
+2026-02-12 10:07:57.181 | INFO     | auto_trading_engine:_load_loss_counters:2189 - Loaded loss counters: consecutive=1, weekly_pnl=$-9.99
+2026-02-12 10:07:57.181 | INFO     | auto_trading_engine:__init__:566 - AutoTradingEngine initialized (paper=True)
+2026-02-12 10:07:57.181 | INFO     | auto_trading_engine:_run_loop:4978 - Trading loop started
+2026-02-12 10:07:57.182 | INFO     | auto_trading_engine:start:4639 - Trading engine started
+2026-02-12 10:07:57.959 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-12 10:07:58.927 | WARNING  | __main__:run_health:318 - ========================================
+2026-02-12 10:07:58.927 | WARNING  | __main__:run_health:319 - HEALTH CHECK FAILED
+2026-02-12 10:07:58.927 | WARNING  | __main__:run_health:321 -   HEALTH: Dead threads: web
+2026-02-12 10:07:58.927 | WARNING  | __main__:run_health:322 - ========================================
+2026-02-12 10:07:58.934 | INFO     | alert_manager:add:105 - Alert [WARNING] Health Check Failed: 1 issue(s): Dead threads: web
+2026-02-12 10:08:00.451 | DEBUG    | auto_trading_engine:_get_spy_data_from_broker:1267 - SPY data from broker: 44 bars
+2026-02-12 10:08:00.578 | INFO     | auto_trading_engine:_check_market_regime:1357 - ✅ Market Regime: BULL: SMA20=OK(+0.2%) | RSI=OK(53) | Ret5d=OK(+0.8%) | VIX=OK(17.6)
+2026-02-12 10:08:01.066 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1632 - 🐂⛔ Consumer Cyclical (XLY) return_20d=-5.2% < -5% → BLOCKED in BULL
+2026-02-12 10:08:01.066 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1637 - 🐂 BULL blocked sectors: ['Consumer Cyclical']
+2026-02-12 10:08:01.311 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1632 - 🐂⛔ Consumer Cyclical (XLY) return_20d=-5.2% < -5% → BLOCKED in BULL
+2026-02-12 10:08:01.312 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1637 - 🐂 BULL blocked sectors: ['Consumer Cyclical']
+127.0.0.1 - - [12/Feb/2026 10:08:01] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-12 10:12:51.372 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - AIT: Price $290.31 from daily bars (fetched) (realtime: False)
+2026-02-12 10:12:51.479 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - GBCI: Price $51.70 from daily bars (fetched) (realtime: False)
+2026-02-12 10:12:51.562 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - NOV: Price $19.47 from daily bars (fetched) (realtime: False)
+2026-02-12 10:12:51.562 | WARNING  | __main__:run_monitor:168 - 🟠 WARNING: GBCI - 🟠 WATCH CLOSELY
+2026-02-12 10:12:58.989 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+2026-02-12 10:13:00.255 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-12 10:13:02.756 | DEBUG    | auto_trading_engine:_get_spy_data_from_broker:1267 - SPY data from broker: 44 bars
+2026-02-12 10:13:02.915 | INFO     | auto_trading_engine:_check_market_regime:1357 - ✅ Market Regime: BULL: SMA20=OK(+0.2%) | RSI=OK(53) | Ret5d=OK(+0.8%) | VIX=OK(17.6)
+2026-02-12 10:13:03.404 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1632 - 🐂⛔ Consumer Cyclical (XLY) return_20d=-5.2% < -5% → BLOCKED in BULL
+2026-02-12 10:13:03.405 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1637 - 🐂 BULL blocked sectors: ['Consumer Cyclical']
+2026-02-12 10:13:03.648 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1632 - 🐂⛔ Consumer Cyclical (XLY) return_20d=-5.2% < -5% → BLOCKED in BULL
+2026-02-12 10:13:03.649 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1637 - 🐂 BULL blocked sectors: ['Consumer Cyclical']
+127.0.0.1 - - [12/Feb/2026 10:13:03] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-12 10:13:04.143 | DEBUG    | __main__:run_health:331 - Health check: All OK
+127.0.0.1 - - [12/Feb/2026 10:15:03] "[33mGET /api/account HTTP/1.1[0m" 404 -
+2026-02-12 10:17:51.792 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - AIT: Price $290.31 from daily bars (fetched) (realtime: False)
+2026-02-12 10:17:51.896 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - GBCI: Price $51.70 from daily bars (fetched) (realtime: False)
+2026-02-12 10:17:51.978 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - NOV: Price $19.47 from daily bars (fetched) (realtime: False)
+2026-02-12 10:17:51.978 | WARNING  | __main__:run_monitor:168 - 🟠 WARNING: GBCI - 🟠 WATCH CLOSELY
+2026-02-12 10:18:04.196 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+2026-02-12 10:18:05.453 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-12 10:18:07.947 | DEBUG    | auto_trading_engine:_get_spy_data_from_broker:1267 - SPY data from broker: 44 bars
+2026-02-12 10:18:08.099 | INFO     | auto_trading_engine:_check_market_regime:1357 - ✅ Market Regime: BULL: SMA20=OK(+0.2%) | RSI=OK(53) | Ret5d=OK(+0.8%) | VIX=OK(17.6)
+2026-02-12 10:18:08.586 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1632 - 🐂⛔ Consumer Cyclical (XLY) return_20d=-5.2% < -5% → BLOCKED in BULL
+2026-02-12 10:18:08.586 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1637 - 🐂 BULL blocked sectors: ['Consumer Cyclical']
+2026-02-12 10:18:08.831 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1632 - 🐂⛔ Consumer Cyclical (XLY) return_20d=-5.2% < -5% → BLOCKED in BULL
+2026-02-12 10:18:08.832 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1637 - 🐂 BULL blocked sectors: ['Consumer Cyclical']
+127.0.0.1 - - [12/Feb/2026 10:18:09] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-12 10:18:09.320 | DEBUG    | __main__:run_health:331 - Health check: All OK
+2026-02-12 10:22:52.208 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - AIT: Price $290.31 from daily bars (fetched) (realtime: False)
+2026-02-12 10:22:52.324 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - GBCI: Price $51.70 from daily bars (fetched) (realtime: False)
+2026-02-12 10:22:52.398 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - NOV: Price $19.47 from daily bars (fetched) (realtime: False)
+2026-02-12 10:22:52.398 | WARNING  | __main__:run_monitor:168 - 🟠 WARNING: GBCI - 🟠 WATCH CLOSELY
+2026-02-12 10:23:09.374 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+2026-02-12 10:23:10.625 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-12 10:23:13.096 | DEBUG    | auto_trading_engine:_get_spy_data_from_broker:1267 - SPY data from broker: 44 bars
+2026-02-12 10:23:13.246 | INFO     | auto_trading_engine:_check_market_regime:1357 - ✅ Market Regime: BULL: SMA20=OK(+0.2%) | RSI=OK(53) | Ret5d=OK(+0.8%) | VIX=OK(17.6)
+2026-02-12 10:23:13.731 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1632 - 🐂⛔ Consumer Cyclical (XLY) return_20d=-5.2% < -5% → BLOCKED in BULL
+2026-02-12 10:23:13.732 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1637 - 🐂 BULL blocked sectors: ['Consumer Cyclical']
+2026-02-12 10:23:13.978 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1632 - 🐂⛔ Consumer Cyclical (XLY) return_20d=-5.2% < -5% → BLOCKED in BULL
+2026-02-12 10:23:13.978 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1637 - 🐂 BULL blocked sectors: ['Consumer Cyclical']
+127.0.0.1 - - [12/Feb/2026 10:23:14] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-12 10:23:14.468 | DEBUG    | __main__:run_health:331 - Health check: All OK
+2026-02-12 10:27:52.643 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - AIT: Price $290.31 from daily bars (fetched) (realtime: False)
+2026-02-12 10:27:52.747 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - GBCI: Price $51.70 from daily bars (fetched) (realtime: False)
+2026-02-12 10:27:52.827 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - NOV: Price $19.47 from daily bars (fetched) (realtime: False)
+2026-02-12 10:27:52.827 | WARNING  | __main__:run_monitor:168 - 🟠 WARNING: GBCI - 🟠 WATCH CLOSELY
+2026-02-12 10:28:14.515 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+2026-02-12 10:28:15.774 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-12 10:28:18.261 | DEBUG    | auto_trading_engine:_get_spy_data_from_broker:1267 - SPY data from broker: 44 bars
+2026-02-12 10:28:18.406 | INFO     | auto_trading_engine:_check_market_regime:1357 - ✅ Market Regime: BULL: SMA20=OK(+0.2%) | RSI=OK(53) | Ret5d=OK(+0.8%) | VIX=OK(17.6)
+2026-02-12 10:28:18.892 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1632 - 🐂⛔ Consumer Cyclical (XLY) return_20d=-5.2% < -5% → BLOCKED in BULL
+2026-02-12 10:28:18.892 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1637 - 🐂 BULL blocked sectors: ['Consumer Cyclical']
+2026-02-12 10:28:19.137 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1632 - 🐂⛔ Consumer Cyclical (XLY) return_20d=-5.2% < -5% → BLOCKED in BULL
+2026-02-12 10:28:19.137 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1637 - 🐂 BULL blocked sectors: ['Consumer Cyclical']
+127.0.0.1 - - [12/Feb/2026 10:28:19] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-12 10:28:19.628 | DEBUG    | __main__:run_health:331 - Health check: All OK
+2026-02-12 10:32:53.058 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - AIT: Price $290.31 from daily bars (fetched) (realtime: False)
+2026-02-12 10:32:53.174 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - GBCI: Price $51.70 from daily bars (fetched) (realtime: False)
+2026-02-12 10:32:53.258 | DEBUG    | rapid_portfolio_manager:get_current_price:469 - NOV: Price $19.47 from daily bars (fetched) (realtime: False)
+2026-02-12 10:32:53.258 | WARNING  | __main__:run_monitor:168 - 🟠 WARNING: GBCI - 🟠 WATCH CLOSELY
+2026-02-12 10:33:19.677 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+2026-02-12 10:33:20.937 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-12 10:33:23.421 | DEBUG    | auto_trading_engine:_get_spy_data_from_broker:1267 - SPY data from broker: 44 bars
+2026-02-12 10:33:23.575 | INFO     | auto_trading_engine:_check_market_regime:1357 - ✅ Market Regime: BULL: SMA20=OK(+0.2%) | RSI=OK(53) | Ret5d=OK(+0.8%) | VIX=OK(17.6)
+2026-02-12 10:33:24.059 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1632 - 🐂⛔ Consumer Cyclical (XLY) return_20d=-5.2% < -5% → BLOCKED in BULL
+2026-02-12 10:33:24.060 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1637 - 🐂 BULL blocked sectors: ['Consumer Cyclical']
+2026-02-12 10:33:24.303 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1632 - 🐂⛔ Consumer Cyclical (XLY) return_20d=-5.2% < -5% → BLOCKED in BULL
+2026-02-12 10:33:24.303 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1637 - 🐂 BULL blocked sectors: ['Consumer Cyclical']
+127.0.0.1 - - [12/Feb/2026 10:33:24] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-12 10:33:24.789 | DEBUG    | __main__:run_health:331 - Health check: All OK
+2026-02-12 10:34:16.160 | INFO     | __main__:_shutdown:74 - ============================================================
+2026-02-12 10:34:16.160 | INFO     | __main__:_shutdown:75 - SHUTTING DOWN ALL SERVICES...
+2026-02-12 10:34:16.160 | INFO     | __main__:_shutdown:76 - ============================================================
+2026-02-12 10:34:16.161 | INFO     | __main__:_shutdown:82 - Stopping price streamer...
+2026-02-12 10:34:16.161 | INFO     | alpaca_streamer:stop:316 - AlpacaStreamer stopped
+2026-02-12 10:34:16.913 | INFO     | __main__:run:714 - All services stopped
+
+============================================================
+  SERVICES STATUS
+============================================================
+   Web Server:        ✅ Running
+   Portfolio Monitor: ✅ Running
+   Price Streamer:    ✅ Real-time WebSocket
+   Signal Scanner:    ✅ Via Trading Engine (single source)
+   Universe Cleanup:  ✅ Daily at 2:00 AM
+
+============================================================
+  WEB UI
+============================================================
+   🚀 Rapid Trader:  http://localhost:5000/rapid
+   📊 Portfolio:     http://localhost:5000/portfolio
+   🔍 Screen:        http://localhost:5000/screen
+
+============================================================
+  RAPID TRADER v5.1.0 - FULLY INTEGRATED
+============================================================
+   🤖 AI Universe: 680+ stocks (DeepSeek)
+   📊 Market Regime: Bull/Bear/Sideways
+   🔥 Sector Regime: Hot sectors
+   📰 Alt Data: Insider, Sentiment, Short
+
+============================================================
+  TRADING RULES
+============================================================
+   📈 Buy:  TRUE DIP only (Mom1d < 0)
+   🔴 Stop Loss:  1.5-2.5% (ATR-based)
+   🎯 Take Profit: +4-6%
+   ⏰ Max Hold: 4 days
+
+============================================================
+  MONITORS
+============================================================
+   Portfolio: เช็คทุก 5 นาที
+   Scanner:   หาหุ้นใหม่ทุก 15 นาที
+
+============================================================
+   Press Ctrl+C to stop
+============================================================
+
+
+
+
+============================================================
+  Goodbye!
+============================================================

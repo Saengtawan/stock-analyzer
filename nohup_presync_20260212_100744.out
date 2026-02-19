@@ -1,0 +1,876 @@
+2026-02-12 10:03:10.572 | INFO     | __main__:<module>:37 - Environment loaded - Alpaca API configured: True
+2026-02-12 10:03:10.576 | INFO     | __main__:start_web_server:119 - Starting Web Server...
+2026-02-12 10:03:11.428 | WARNING  | web.app:<module>:49 - No RAPID_API_SECRET set — generated ephemeral key (set env var for persistence)
+2026-02-12 10:03:11.737 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 13 cached items from disk
+2026-02-12 10:03:12.092 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 13 cached items from disk
+2026-02-12 10:03:12.413 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 13 cached items from disk
+2026-02-12 10:03:12.424 | INFO     | api.data_manager:__init__:81 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
+2026-02-12 10:03:12.424 | INFO     | analysis.enhanced_stock_analyzer:__init__:60 - Enhanced Stock Analyzer initialized with strategy: swing_trading, risk: moderate
+2026-02-12 10:03:12.424 | INFO     | main:__init__:54 - Enhanced Stock Analyzer initialized with strategy: swing_trading
+2026-02-12 10:03:12.424 | INFO     | screeners.support_level_screener:__init__:32 - Support level screener initialized with AI-only universe generation
+2026-02-12 10:03:12.424 | INFO     | screeners.dividend_screener:__init__:30 - Dividend screener initialized with AI-only universe generation
+2026-02-12 10:03:12.424 | INFO     | screeners.value_screener:__init__:32 - Value stock screener initialized with AI-only universe generation
+2026-02-12 10:03:12.424 | INFO     | screeners.premarket_scanner:__init__:33 - ✅ Pre-market scanner initialized (FREE - Yahoo Finance + Smart Indicators)
+2026-02-12 10:03:12.424 | INFO     | screeners.growth_catalyst_screener:__init__:128 - ✅ Alternative Data sources initialized (6 sources)
+2026-02-12 10:03:12.424 | INFO     | screeners.growth_catalyst_screener:__init__:136 - ✅ Sector Rotation detector initialized
+2026-02-12 10:03:12.438 | DEBUG    | market_regime_detector:__init__:82 - MarketRegimeDetector: Loaded config from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
+2026-02-12 10:03:12.438 | INFO     | screeners.growth_catalyst_screener:__init__:145 - ✅ Market Regime Detector initialized
+2026-02-12 10:03:12.439 | INFO     | screeners.growth_catalyst_screener:__init__:155 - ✅ Sector Regime Detector initialized
+2026-02-12 10:03:12.439 | INFO     | screeners.growth_catalyst_screener:__init__:156 - Growth Catalyst Screener v3.3 initialized: Tiered Quality + Alt Data + Sector Rotation + Market Regime + SECTOR-AWARE REGIME
+2026-02-12 10:03:12.439 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:340 -    Initialized 14 screening rules
+2026-02-12 10:03:12.439 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    CRITICAL: 4 rules
+2026-02-12 10:03:12.439 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    HIGH: 6 rules
+2026-02-12 10:03:12.439 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    MEDIUM: 2 rules
+2026-02-12 10:03:12.439 | INFO     | screening_rules_engine:_initialize_growth_catalyst_rules:343 -    LOW: 2 rules
+2026-02-12 10:03:12.439 | INFO     | screening_rules_engine:__init__:99 - ✅ Screening Rules Engine initialized with Growth Catalyst rules
+2026-02-12 10:03:12.439 | INFO     | screeners.growth_catalyst_screener:__init__:165 - ✅ Rule-Based Screening Engine initialized (v4.0)
+2026-02-12 10:03:12.439 | INFO     | screeners.growth_catalyst_screener:__init__:166 -    Benefits: Configurable thresholds, A/B testing, performance tracking
+2026-02-12 10:03:12.439 | INFO     | screeners.momentum_growth_screener:__init__:39 - ✅ Momentum Growth Screener v1.0 initialized
+2026-02-12 10:03:12.439 | INFO     | screeners.momentum_growth_screener:__init__:40 -    Using momentum & trend filters (NOT composite scores)
+2026-02-12 10:03:12.452 | INFO     | __main__:start_web_server:134 - Web Server started at http://localhost:5000
+
+============================================================
+  🚀 RAPID TRADING SYSTEM
+  Target: 5-15% per month
+============================================================
+
+ * Serving Flask app 'web.app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.7.20:5000
+[33mPress CTRL+C to quit[0m
+2026-02-12 10:03:14.453 | INFO     | __main__:start_rapid_portfolio_monitor:147 - Starting Rapid Portfolio Monitor...
+2026-02-12 10:03:14.484 | INFO     | __main__:start_rapid_portfolio_monitor:193 - Rapid Portfolio Monitor started (check every 5 minutes)
+2026-02-12 10:03:15.035 | DEBUG    | rapid_portfolio_manager:get_current_price:468 - GOOGL: Price $310.96 from daily bars (fetched) (realtime: False)
+2026-02-12 10:03:15.045 | DEBUG    | screeners.rapid_rotation_screener:__init__:216 - Loaded RapidRotationConfig from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
+2026-02-12 10:03:15.045 | INFO     | screeners.rapid_rotation_screener:_load_sector_cache:841 - 📦 Loaded 325 sectors from cache
+2026-02-12 10:03:15.045 | INFO     | screeners.rapid_rotation_screener:_init_ai_universe:447 - ✅ AI Universe Generator initialized
+2026-02-12 10:03:15.045 | INFO     | screeners.rapid_rotation_screener:_init_market_regime:457 - ✅ Market Regime Detector initialized
+2026-02-12 10:03:15.347 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 13 cached items from disk
+2026-02-12 10:03:15.485 | INFO     | __main__:start_realtime_price_streamer:211 - Starting Real-time Price Streamer...
+2026-02-12 10:03:15.713 | INFO     | alpaca_streamer:__init__:64 - AlpacaStreamer v1.1 initialized (paper=True, feed=IEX)
+2026-02-12 10:03:15.713 | INFO     | alpaca_streamer:subscribe:205 - Queued subscription for: ['GOOGL', 'LMT']
+2026-02-12 10:03:15.713 | INFO     | __main__:start_realtime_price_streamer:253 - 📡 Subscribed to real-time prices: ['GOOGL', 'LMT']
+2026-02-12 10:03:15.714 | INFO     | alpaca_streamer:start:295 - AlpacaStreamer started
+2026-02-12 10:03:15.714 | INFO     | alpaca_streamer:_run_stream:253 - Streaming started for: ['LMT', 'GOOGL']
+2026-02-12 10:03:15.714 | INFO     | __main__:start_realtime_price_streamer:261 - ✅ Real-time Price Streamer started (WebSocket active!)
+2026-02-12 10:03:15.877 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 13 cached items from disk
+2026-02-12 10:03:16.196 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 13 cached items from disk
+2026-02-12 10:03:16.206 | INFO     | api.data_manager:__init__:81 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
+2026-02-12 10:03:16.206 | INFO     | sector_regime_detector:update_all_sectors:419 - Updating sector regimes (5-min realtime, MCW)...
+2026-02-12 10:03:16.207 | INFO     | sector_regime_detector:_build_sector_company_map:298 - Built sector company map: 550 stocks across 11 sectors (with market weights)
+2026-02-12 10:03:16.207 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:328 - Batch downloading 550 sector stocks for 1d returns...
+2026-02-12 10:03:16.207 | INFO     | api.yahoo_finance_client:_smart_throttle:54 - 🚀 Starting Yahoo Finance session...
+2026-02-12 10:03:16.715 | INFO     | __main__:start_health_checker:351 - Health Checker started (check every 5 minutes)
+2026-02-12 10:03:16.717 | INFO     | __main__:start_universe_maintenance_scheduler:414 - Universe Maintenance Scheduler started (daily at 2:00 AM)
+2026-02-12 10:03:16.743 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+2026-02-12 10:03:17.801 | INFO     | auto_trading_engine:_load_config_from_yaml:814 - ✅ Loaded ALL parameters from RapidRotationConfig (v6.10)
+2026-02-12 10:03:17.801 | INFO     | auto_trading_engine:_load_config_from_yaml:815 -    SL range: 2.5%-3.5%
+2026-02-12 10:03:17.801 | INFO     | auto_trading_engine:_load_config_from_yaml:816 -    Max positions: 5
+2026-02-12 10:03:17.801 | INFO     | auto_trading_engine:_load_config_from_yaml:817 -    Regime filter: ENABLED
+2026-02-12 10:03:17.801 | INFO     | engine.brokers.alpaca_broker:__init__:119 - AlpacaBroker initialized (paper)
+2026-02-12 10:03:18.110 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 13 cached items from disk
+2026-02-12 10:03:20.196 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 13 cached items from disk
+2026-02-12 10:03:23.030 | WARNING  | __main__:run_health:318 - ========================================
+2026-02-12 10:03:23.031 | WARNING  | __main__:run_health:319 - HEALTH CHECK FAILED
+2026-02-12 10:03:23.031 | WARNING  | __main__:run_health:321 -   HEALTH: Dead threads: web
+2026-02-12 10:03:23.031 | WARNING  | __main__:run_health:321 -   HEALTH: Position mismatch: memory=2, Alpaca=3
+2026-02-12 10:03:23.031 | WARNING  | __main__:run_health:322 - ========================================
+2026-02-12 10:03:23.034 | INFO     | alert_manager:_load:345 - Loaded 200 alerts (next_id=2820)
+2026-02-12 10:03:23.037 | INFO     | alert_manager:add:105 - Alert [WARNING] Health Check Failed: 2 issue(s): Dead threads: web; Position mismatch: memory=2, Alpaca=3
+2026-02-12 10:03:23.712 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 13 cached items from disk
+2026-02-12 10:03:24.103 | INFO     | api.data_manager:__init__:81 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: Yes
+2026-02-12 10:03:24.103 | INFO     | auto_trading_engine:__init__:430 - DataManager initialized with broker integration
+2026-02-12 10:03:24.103 | INFO     | trading_safety:_load_from_rapid_config:145 - Safety config loaded from RapidRotationConfig
+2026-02-12 10:03:24.103 | DEBUG    | trading_safety:_load_from_rapid_config:146 -   DAILY_LOSS_LIMIT: 5.0%
+2026-02-12 10:03:24.103 | DEBUG    | trading_safety:_load_from_rapid_config:147 -   MAX_POSITIONS: 5
+2026-02-12 10:03:24.103 | DEBUG    | trading_safety:_load_from_rapid_config:148 -   MAX_HOLD_DAYS: 5
+2026-02-12 10:03:24.103 | INFO     | trading_safety:__init__:129 - Trading Safety System initialized
+2026-02-12 10:03:24.103 | INFO     | pdt_smart_guard:_load_entry_dates:326 - PDT Guard: Loaded 7 entry dates from disk
+2026-02-12 10:03:24.103 | INFO     | pdt_smart_guard:__init__:255 - PDT Smart Guard v2.3 initialized (No Override Mode)
+2026-02-12 10:03:24.103 | INFO     | pdt_smart_guard:__init__:256 -   SL Threshold: -2.5%
+2026-02-12 10:03:24.103 | INFO     | pdt_smart_guard:__init__:257 -   TP Threshold: 4.0%
+2026-02-12 10:03:24.103 | INFO     | pdt_smart_guard:__init__:258 -   Reserve: 1 day trades
+2026-02-12 10:03:24.103 | INFO     | pdt_smart_guard:__init__:259 -   Budget = 0 → HOLD (ไม่ override PDT เด็ดขาด)
+2026-02-12 10:03:24.103 | INFO     | auto_trading_engine:__init__:444 - PDT Smart Guard v2.3 initialized (No Override - uses RapidRotationConfig)
+2026-02-12 10:03:24.104 | INFO     | trade_logger:__init__:220 - TradeLogger initialized - logs: /home/saengtawan/work/project/cc/stock-analyzer/trade_logs, db: /home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db
+2026-02-12 10:03:24.104 | INFO     | auto_trading_engine:__init__:448 - Trade Logger v1.0 initialized
+2026-02-12 10:03:24.104 | INFO     | auto_trading_engine:__init__:453 - Alert Manager v1.0 initialized
+2026-02-12 10:03:24.105 | INFO     | filters.entry_protection_filter:__init__:74 - 🛡️ Entry Protection Filter initialized (enabled=True)
+2026-02-12 10:03:24.105 | INFO     | filters.entry_protection_filter:__init__:76 -    Layer 1: Block first 15 min
+2026-02-12 10:03:24.105 | INFO     | filters.entry_protection_filter:__init__:77 -    Layer 2: Max VWAP distance 1.5%
+2026-02-12 10:03:24.105 | INFO     | filters.entry_protection_filter:__init__:78 -    Layer 3: Max chase 0.2%
+2026-02-12 10:03:24.106 | INFO     | auto_trading_engine:__init__:459 - ✅ Entry Protection Filter v6.17 initialized
+2026-02-12 10:03:24.115 | DEBUG    | screeners.rapid_rotation_screener:__init__:216 - Loaded RapidRotationConfig from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
+2026-02-12 10:03:24.116 | INFO     | screeners.rapid_rotation_screener:_load_sector_cache:841 - 📦 Loaded 325 sectors from cache
+2026-02-12 10:03:24.116 | INFO     | screeners.rapid_rotation_screener:_init_ai_universe:447 - ✅ AI Universe Generator initialized
+2026-02-12 10:03:24.116 | INFO     | screeners.rapid_rotation_screener:_init_market_regime:457 - ✅ Market Regime Detector initialized
+2026-02-12 10:03:26.210 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 13 cached items from disk
+
+3 Failed downloads:
+['K', 'FYBR', 'ALE']: YFPricesMissingError('possibly delisted; no price data found  (period=5d)')
+2026-02-12 10:03:28.025 | INFO     | api.yahoo_finance_client:batch_download_prices:644 - Batch downloaded 550 symbols (5 rows)
+2026-02-12 10:03:28.048 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Technology (XLK): MCW 1d = +0.16% (50/50 stocks, weight=88.7%)
+2026-02-12 10:03:28.049 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Energy (XLE): MCW 1d = +2.25% (50/50 stocks, weight=92.2%)
+2026-02-12 10:03:28.049 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Financial Services (XLF): MCW 1d = -1.51% (50/50 stocks, weight=77.5%)
+2026-02-12 10:03:28.049 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Healthcare (XLV): MCW 1d = +0.55% (50/50 stocks, weight=81.4%)
+2026-02-12 10:03:28.049 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Cyclical (XLY): MCW 1d = -0.54% (50/50 stocks, weight=86.4%)
+2026-02-12 10:03:28.049 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Defensive (XLP): MCW 1d = +1.39% (49/50 stocks, weight=95.7%)
+2026-02-12 10:03:28.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Industrials (XLI): MCW 1d = +1.17% (50/50 stocks, weight=68.5%)
+2026-02-12 10:03:28.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Utilities (XLU): MCW 1d = +0.80% (49/50 stocks, weight=97.0%)
+2026-02-12 10:03:28.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Basic Materials (XLB): MCW 1d = +1.55% (50/50 stocks, weight=92.7%)
+2026-02-12 10:03:28.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Communication Services (XLC): MCW 1d = -1.30% (49/50 stocks, weight=99.0%)
+2026-02-12 10:03:28.050 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Real Estate (XLRE): MCW 1d = -0.23% (50/50 stocks, weight=81.4%)
+2026-02-12 10:03:28.050 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:396 - Market-cap weighted 1d returns calculated for 11 sectors
+2026-02-12 10:03:28.051 | INFO     | sector_regime_detector:update_all_sectors:424 - Using market-cap weighted 1d returns for 11 sectors
+2026-02-12 10:03:28.185 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 13 cached items from disk
+2026-02-12 10:03:28.526 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 14 cached items from disk
+2026-02-12 10:03:28.537 | INFO     | api.data_manager:__init__:81 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
+2026-02-12 10:03:28.537 | INFO     | sector_regime_detector:update_all_sectors:419 - Updating sector regimes (5-min realtime, MCW)...
+2026-02-12 10:03:28.537 | INFO     | sector_regime_detector:_build_sector_company_map:298 - Built sector company map: 550 stocks across 11 sectors (with market weights)
+2026-02-12 10:03:28.538 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:328 - Batch downloading 550 sector stocks for 1d returns...
+2026-02-12 10:03:28.538 | INFO     | api.yahoo_finance_client:_smart_throttle:54 - 🚀 Starting Yahoo Finance session...
+2026-02-12 10:03:29.225 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLK
+2026-02-12 10:03:29.225 | INFO     | sector_regime_detector:update_all_sectors:466 - XLK (Technology): SIDEWAYS (score=+1.5) | 1d[M]: +0.2% | 5d: +5.4% | 20d: -2.40%
+2026-02-12 10:03:30.625 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLE
+2026-02-12 10:03:30.626 | INFO     | sector_regime_detector:update_all_sectors:466 - XLE (Energy): STRONG BULL (score=+6.8) | 1d[M]: +2.3% | 5d: +5.3% | 20d: +16.98%
+2026-02-12 10:03:32.501 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLF
+2026-02-12 10:03:32.519 | INFO     | sector_regime_detector:update_all_sectors:466 - XLF (Financial Services): SIDEWAYS (score=-1.6) | 1d[M]: -1.5% | 5d: -1.0% | 20d: -2.75%
+2026-02-12 10:03:34.232 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLV
+2026-02-12 10:03:34.241 | INFO     | sector_regime_detector:update_all_sectors:466 - XLV (Healthcare): SIDEWAYS (score=+0.5) | 1d[M]: +0.6% | 5d: +0.9% | 20d: -0.31%
+2026-02-12 10:03:35.949 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLY
+2026-02-12 10:03:35.951 | INFO     | sector_regime_detector:update_all_sectors:466 - XLY (Consumer Cyclical): SIDEWAYS (score=-1.2) | 1d[M]: -0.5% | 5d: +0.2% | 20d: -5.19%
+2026-02-12 10:03:37.350 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLP
+2026-02-12 10:03:37.350 | INFO     | sector_regime_detector:update_all_sectors:466 - XLP (Consumer Defensive): BULL (score=+3.5) | 1d[M]: +1.4% | 5d: +1.7% | 20d: +8.99%
+2026-02-12 10:03:38.613 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLI
+2026-02-12 10:03:38.614 | INFO     | sector_regime_detector:update_all_sectors:466 - XLI (Industrials): BULL (score=+3.7) | 1d[M]: +1.2% | 5d: +3.8% | 20d: +6.60%
+2026-02-12 10:03:40.425 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLU
+2026-02-12 10:03:40.461 | INFO     | sector_regime_detector:update_all_sectors:466 - XLU (Utilities): BULL (score=+2.4) | 1d[M]: +0.8% | 5d: +3.5% | 20d: +4.06%
+
+3 Failed downloads:
+['K', 'FYBR', 'ALE']: YFPricesMissingError('possibly delisted; no price data found  (period=5d)')
+2026-02-12 10:03:41.449 | INFO     | api.yahoo_finance_client:batch_download_prices:644 - Batch downloaded 550 symbols (5 rows)
+2026-02-12 10:03:41.469 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Technology (XLK): MCW 1d = +0.16% (50/50 stocks, weight=88.7%)
+2026-02-12 10:03:41.469 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Energy (XLE): MCW 1d = +2.25% (50/50 stocks, weight=92.2%)
+2026-02-12 10:03:41.469 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Financial Services (XLF): MCW 1d = -1.51% (50/50 stocks, weight=77.5%)
+2026-02-12 10:03:41.469 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Healthcare (XLV): MCW 1d = +0.55% (50/50 stocks, weight=81.4%)
+2026-02-12 10:03:41.469 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Cyclical (XLY): MCW 1d = -0.54% (50/50 stocks, weight=86.4%)
+2026-02-12 10:03:41.470 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Defensive (XLP): MCW 1d = +1.39% (49/50 stocks, weight=95.7%)
+2026-02-12 10:03:41.470 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Industrials (XLI): MCW 1d = +1.17% (50/50 stocks, weight=68.5%)
+2026-02-12 10:03:41.470 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Utilities (XLU): MCW 1d = +0.80% (49/50 stocks, weight=97.0%)
+2026-02-12 10:03:41.470 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Basic Materials (XLB): MCW 1d = +1.55% (50/50 stocks, weight=92.7%)
+2026-02-12 10:03:41.470 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Communication Services (XLC): MCW 1d = -1.30% (49/50 stocks, weight=99.0%)
+2026-02-12 10:03:41.470 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Real Estate (XLRE): MCW 1d = -0.23% (50/50 stocks, weight=81.4%)
+2026-02-12 10:03:41.470 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:396 - Market-cap weighted 1d returns calculated for 11 sectors
+2026-02-12 10:03:41.470 | INFO     | sector_regime_detector:update_all_sectors:424 - Using market-cap weighted 1d returns for 11 sectors
+2026-02-12 10:03:41.978 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLB
+2026-02-12 10:03:41.978 | INFO     | sector_regime_detector:update_all_sectors:466 - XLB (Basic Materials): STRONG BULL (score=+5.4) | 1d[M]: +1.6% | 5d: +6.2% | 20d: +10.03%
+2026-02-12 10:03:43.079 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLC
+2026-02-12 10:03:43.080 | INFO     | sector_regime_detector:update_all_sectors:466 - XLC (Communication Services): SIDEWAYS (score=-0.5) | 1d[M]: -1.3% | 5d: +0.5% | 20d: -0.13%
+2026-02-12 10:03:43.091 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLK
+2026-02-12 10:03:43.092 | INFO     | sector_regime_detector:update_all_sectors:466 - XLK (Technology): SIDEWAYS (score=+1.5) | 1d[M]: +0.2% | 5d: +5.4% | 20d: -2.40%
+2026-02-12 10:03:44.386 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLRE
+2026-02-12 10:03:44.386 | INFO     | sector_regime_detector:update_all_sectors:466 - XLRE (Real Estate): BULL (score=+2.1) | 1d[M]: -0.2% | 5d: +3.8% | 20d: +4.57%
+2026-02-12 10:03:44.386 | INFO     | screeners.rapid_rotation_screener:_init_sector_regime:471 - ✅ Sector Regime Detector initialized
+2026-02-12 10:03:44.387 | INFO     | screeners.rapid_rotation_screener:_init_alt_data:481 - ✅ Alternative Data Aggregator initialized (6 sources)
+2026-02-12 10:03:44.387 | INFO     | strategies.strategy_manager:register:48 - ✅ Registered strategy: Dip-Bounce (dip_bounce)
+2026-02-12 10:03:44.390 | INFO     | strategies.vix_adaptive.engine_integration:__init__:66 - VIX Adaptive v3.0: Loading...
+2026-02-12 10:03:44.458 | INFO     | strategies.vix_adaptive.engine_integration:__init__:76 - VIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)
+2026-02-12 10:03:44.458 | INFO     | strategies.vix_adaptive.engine_integration:__init__:85 - ✅ VIX Adaptive v3.0 initialized
+2026-02-12 10:03:44.458 | INFO     | strategies.vix_adaptive.engine_integration:__init__:86 -    Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}
+2026-02-12 10:03:44.458 | INFO     | strategies.vix_adaptive.engine_integration:__init__:87 -    Score adaptation: True
+2026-02-12 10:03:44.458 | INFO     | strategies.vix_adaptive_strategy_wrapper:__init__:48 - ✅ VIX Adaptive wrapper initialized: VIXAdaptiveIntegration(tier=N/A, VIX=N/A)
+2026-02-12 10:03:44.458 | INFO     | strategies.strategy_manager:register:48 - ✅ Registered strategy: VIX Adaptive (vix_adaptive)
+2026-02-12 10:03:44.458 | INFO     | screeners.rapid_rotation_screener:_init_strategy_manager:530 - ✅ VIX Adaptive registered (tier=None)
+2026-02-12 10:03:44.458 | INFO     | screeners.rapid_rotation_screener:_init_strategy_manager:534 - ✅ Strategy Manager initialized (2 strategies active)
+2026-02-12 10:03:44.460 | INFO     | screeners.rapid_rotation_screener:generate_universe:586 - 📦 Using pre-filtered pool: 205 stocks (age: 1.7h)
+2026-02-12 10:03:44.461 | INFO     | screeners.rapid_rotation_screener:generate_universe:656 - 🔥 Hot sectors: Energy, Consumer Defensive, Industrials, Utilities, Basic Materials, Real Estate
+2026-02-12 10:03:44.461 | INFO     | screeners.rapid_rotation_screener:_load_data_via_yfinance:1049 - 📊 Loading data for 205 stocks via yfinance (parallel)...
+2026-02-12 10:03:44.621 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLE
+2026-02-12 10:03:44.623 | INFO     | sector_regime_detector:update_all_sectors:466 - XLE (Energy): STRONG BULL (score=+6.8) | 1d[M]: +2.3% | 5d: +5.3% | 20d: +16.98%
+2026-02-12 10:03:46.088 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLF
+2026-02-12 10:03:46.098 | INFO     | sector_regime_detector:update_all_sectors:466 - XLF (Financial Services): SIDEWAYS (score=-1.6) | 1d[M]: -1.5% | 5d: -1.0% | 20d: -2.75%
+2026-02-12 10:03:47.623 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLV
+2026-02-12 10:03:47.632 | INFO     | sector_regime_detector:update_all_sectors:466 - XLV (Healthcare): SIDEWAYS (score=+0.5) | 1d[M]: +0.6% | 5d: +0.9% | 20d: -0.31%
+2026-02-12 10:03:48.328 | INFO     | screeners.rapid_rotation_screener:_load_data_via_yfinance:1085 - ✅ Loaded 205/205 stocks via yfinance (parallel)
+2026-02-12 10:03:48.331 | DEBUG    | screeners.rapid_rotation_screener:_clear_stale_caches:339 - Failed to clear yfinance cache: module 'yfinance.cache' has no attribute 'clear'
+2026-02-12 10:03:48.331 | DEBUG    | data_sources.realtime_price:clear_cache:169 - Real-time price cache cleared
+2026-02-12 10:03:48.331 | DEBUG    | screeners.rapid_rotation_screener:_clear_stale_caches:344 - Cleared real-time price cache
+2026-02-12 10:03:48.332 | INFO     | sector_regime_detector:update_all_sectors:412 - Using cached sector regimes (updated 0min ago)
+2026-02-12 10:03:48.547 | INFO     | screeners.rapid_rotation_screener:check_spy_regime:749 - ✅ SPY Regime: BULL: SPY $691.96 > SMA20 $690.12 (+0.3%)
+2026-02-12 10:03:48.547 | INFO     | screeners.rapid_rotation_screener:screen:1381 - 🟢 SPY BULL REGIME - Scanning for signals...
+2026-02-12 10:03:48.547 | INFO     | screeners.rapid_rotation_screener:screen:1382 -    BULL: SPY $691.96 > SMA20 $690.12 (+0.3%)
+2026-02-12 10:03:48.729 | DEBUG    | market_regime_detector:_fetch_market_data:154 - Using yfinance fallback for SPY
+2026-02-12 10:03:49.053 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLY
+2026-02-12 10:03:49.054 | INFO     | sector_regime_detector:update_all_sectors:466 - XLY (Consumer Cyclical): SIDEWAYS (score=-1.2) | 1d[M]: -0.5% | 5d: +0.2% | 20d: -5.19%
+2026-02-12 10:03:50.405 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLP
+2026-02-12 10:03:50.405 | INFO     | sector_regime_detector:update_all_sectors:466 - XLP (Consumer Defensive): BULL (score=+3.5) | 1d[M]: +1.4% | 5d: +1.7% | 20d: +8.99%
+2026-02-12 10:03:51.576 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLI
+2026-02-12 10:03:51.577 | INFO     | sector_regime_detector:update_all_sectors:466 - XLI (Industrials): BULL (score=+3.7) | 1d[M]: +1.2% | 5d: +3.8% | 20d: +6.60%
+2026-02-12 10:03:52.850 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLU
+2026-02-12 10:03:52.851 | INFO     | sector_regime_detector:update_all_sectors:466 - XLU (Utilities): BULL (score=+2.4) | 1d[M]: +0.8% | 5d: +3.5% | 20d: +4.06%
+2026-02-12 10:03:54.307 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLB
+2026-02-12 10:03:54.308 | INFO     | sector_regime_detector:update_all_sectors:466 - XLB (Basic Materials): STRONG BULL (score=+5.4) | 1d[M]: +1.6% | 5d: +6.2% | 20d: +10.03%
+2026-02-12 10:03:55.658 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLC
+2026-02-12 10:03:55.659 | INFO     | sector_regime_detector:update_all_sectors:466 - XLC (Communication Services): SIDEWAYS (score=-0.5) | 1d[M]: -1.3% | 5d: +0.5% | 20d: -0.13%
+2026-02-12 10:03:56.858 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 22 rows for XLRE
+2026-02-12 10:03:56.858 | INFO     | sector_regime_detector:update_all_sectors:466 - XLRE (Real Estate): BULL (score=+2.1) | 1d[M]: -0.2% | 5d: +3.8% | 20d: +4.57%
+2026-02-12 10:03:56.858 | INFO     | screeners.rapid_rotation_screener:_init_sector_regime:471 - ✅ Sector Regime Detector initialized
+2026-02-12 10:03:56.858 | INFO     | screeners.rapid_rotation_screener:_init_alt_data:481 - ✅ Alternative Data Aggregator initialized (6 sources)
+2026-02-12 10:03:56.858 | INFO     | strategies.strategy_manager:register:48 - ✅ Registered strategy: Dip-Bounce (dip_bounce)
+2026-02-12 10:03:56.862 | INFO     | strategies.vix_adaptive.engine_integration:__init__:66 - VIX Adaptive v3.0: Loading...
+2026-02-12 10:03:56.920 | INFO     | strategies.vix_adaptive.engine_integration:__init__:76 - VIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)
+2026-02-12 10:03:56.920 | INFO     | strategies.vix_adaptive.engine_integration:__init__:85 - ✅ VIX Adaptive v3.0 initialized
+2026-02-12 10:03:56.920 | INFO     | strategies.vix_adaptive.engine_integration:__init__:86 -    Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}
+2026-02-12 10:03:56.920 | INFO     | strategies.vix_adaptive.engine_integration:__init__:87 -    Score adaptation: True
+2026-02-12 10:03:56.920 | INFO     | strategies.vix_adaptive_strategy_wrapper:__init__:48 - ✅ VIX Adaptive wrapper initialized: VIXAdaptiveIntegration(tier=N/A, VIX=N/A)
+2026-02-12 10:03:56.920 | INFO     | strategies.strategy_manager:register:48 - ✅ Registered strategy: VIX Adaptive (vix_adaptive)
+2026-02-12 10:03:56.920 | INFO     | screeners.rapid_rotation_screener:_init_strategy_manager:530 - ✅ VIX Adaptive registered (tier=None)
+2026-02-12 10:03:56.920 | INFO     | screeners.rapid_rotation_screener:_init_strategy_manager:534 - ✅ Strategy Manager initialized (2 strategies active)
+2026-02-12 10:03:56.920 | INFO     | auto_trading_engine:__init__:469 - Screener initialized
+2026-02-12 10:03:56.921 | INFO     | auto_trading_engine:__init__:480 - OvernightGapScanner initialized
+2026-02-12 10:03:56.921 | INFO     | auto_trading_engine:__init__:487 - BreakoutScanner initialized
+2026-02-12 10:03:56.924 | INFO     | strategies.vix_adaptive.engine_integration:__init__:66 - VIX Adaptive v3.0: Loading...
+2026-02-12 10:03:56.977 | INFO     | strategies.vix_adaptive.engine_integration:__init__:76 - VIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)
+2026-02-12 10:03:56.977 | INFO     | strategies.vix_adaptive.engine_integration:__init__:85 - ✅ VIX Adaptive v3.0 initialized
+2026-02-12 10:03:56.977 | INFO     | strategies.vix_adaptive.engine_integration:__init__:86 -    Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}
+2026-02-12 10:03:56.977 | INFO     | strategies.vix_adaptive.engine_integration:__init__:87 -    Score adaptation: True
+2026-02-12 10:03:56.977 | INFO     | auto_trading_engine:__init__:499 - ✅ VIX Adaptive Strategy initialized: VIXAdaptiveIntegration(tier=N/A, VIX=N/A)
+2026-02-12 10:03:56.977 | INFO     | auto_trading_engine:__init__:506 - SLTPCalculator initialized
+2026-02-12 10:03:57.981 | INFO     | auto_trading_engine:_load_positions_state:841 - Loaded persisted state: 3 positions (saved at 2026-02-12T04:33:09.376033)
+2026-02-12 10:03:57.982 | INFO     | auto_trading_engine:_sync_positions:1164 - Restored position: AIT (peak=$289.30, trail=OFF)
+2026-02-12 10:03:57.983 | DEBUG    | pdt_smart_guard:record_entry:340 - PDT Guard: Recorded entry for AIT on 2026-02-10 (ET)
+2026-02-12 10:03:57.983 | INFO     | auto_trading_engine:_sync_positions:1164 - Restored position: GBCI (peak=$52.63, trail=OFF)
+2026-02-12 10:03:57.984 | DEBUG    | pdt_smart_guard:record_entry:340 - PDT Guard: Recorded entry for GBCI on 2026-02-11 (ET)
+2026-02-12 10:03:57.984 | INFO     | auto_trading_engine:_sync_positions:1164 - Restored position: NOV (peak=$19.19, trail=OFF)
+2026-02-12 10:03:57.984 | DEBUG    | pdt_smart_guard:record_entry:340 - PDT Guard: Recorded entry for NOV on 2026-02-11 (ET)
+2026-02-12 10:03:57.985 | INFO     | auto_trading_engine:_sync_positions:1177 - Synced 3 positions
+2026-02-12 10:03:58.230 | INFO     | pdt_smart_guard:log_status:567 - ==================================================
+2026-02-12 10:03:58.230 | INFO     | pdt_smart_guard:log_status:568 - PDT SMART GUARD STATUS
+2026-02-12 10:03:58.230 | INFO     | pdt_smart_guard:log_status:569 - ==================================================
+2026-02-12 10:03:58.230 | INFO     | pdt_smart_guard:log_status:570 - Day Trades: 1/3 (remaining: 2)
+2026-02-12 10:03:58.230 | INFO     | pdt_smart_guard:log_status:571 - Reserve Active: False
+2026-02-12 10:03:58.230 | INFO     | pdt_smart_guard:log_status:572 - Flagged: False
+2026-02-12 10:03:58.231 | INFO     | pdt_smart_guard:log_status:575 - Positions:
+2026-02-12 10:03:58.231 | INFO     | pdt_smart_guard:log_status:578 -   LMT: Day 5
+2026-02-12 10:03:58.231 | INFO     | pdt_smart_guard:log_status:578 -   GOOGL: Day 5
+2026-02-12 10:03:58.231 | INFO     | pdt_smart_guard:log_status:578 -   MCHP: Day 1
+2026-02-12 10:03:58.231 | INFO     | pdt_smart_guard:log_status:578 -   SYNA: Day 1
+2026-02-12 10:03:58.231 | INFO     | pdt_smart_guard:log_status:578 -   AIT: Day 1
+2026-02-12 10:03:58.231 | INFO     | pdt_smart_guard:log_status:578 -   GBCI: Day 0 ⚠️ DAY TRADE
+2026-02-12 10:03:58.231 | INFO     | pdt_smart_guard:log_status:578 -   NOV: Day 0 ⚠️ DAY TRADE
+2026-02-12 10:03:58.231 | INFO     | pdt_smart_guard:log_status:580 - ==================================================
+2026-02-12 10:03:58.232 | DEBUG    | auto_trading_engine:_save_positions_state:831 - Position state saved: 3 positions
+2026-02-12 10:03:58.232 | INFO     | auto_trading_engine:_load_loss_counters:2189 - Loaded loss counters: consecutive=1, weekly_pnl=$-9.99
+2026-02-12 10:03:58.232 | INFO     | auto_trading_engine:__init__:566 - AutoTradingEngine initialized (paper=True)
+2026-02-12 10:03:58.233 | INFO     | auto_trading_engine:_run_loop:4978 - Trading loop started
+2026-02-12 10:03:58.233 | INFO     | auto_trading_engine:start:4639 - Trading engine started
+2026-02-12 10:03:58.478 | INFO     | trading_safety:run_health_check:493 - Running health check...
+2026-02-12 10:04:00.962 | DEBUG    | auto_trading_engine:_get_spy_data_from_broker:1267 - SPY data from broker: 44 bars
+2026-02-12 10:04:01.118 | INFO     | auto_trading_engine:_check_market_regime:1357 - ✅ Market Regime: BULL: SMA20=OK(+0.2%) | RSI=OK(53) | Ret5d=OK(+0.8%) | VIX=OK(17.6)
+2026-02-12 10:04:01.603 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1632 - 🐂⛔ Consumer Cyclical (XLY) return_20d=-5.2% < -5% → BLOCKED in BULL
+2026-02-12 10:04:01.603 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1637 - 🐂 BULL blocked sectors: ['Consumer Cyclical']
+2026-02-12 10:04:01.849 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1632 - 🐂⛔ Consumer Cyclical (XLY) return_20d=-5.2% < -5% → BLOCKED in BULL
+2026-02-12 10:04:01.850 | INFO     | auto_trading_engine:_get_bull_blocked_sectors:1637 - 🐂 BULL blocked sectors: ['Consumer Cyclical']
+127.0.0.1 - - [12/Feb/2026 10:04:02] "GET /api/auto/status HTTP/1.1" 200 -
+2026-02-12 10:04:18.451 | INFO     | screeners.rapid_rotation_screener:screen:1443 - 🎯 Using Strategy Manager for scanning...
+2026-02-12 10:04:18.451 | INFO     | strategies.strategy_manager:scan_all:107 - 🔍 Running 2 strategies on 205 stocks
+2026-02-12 10:04:18.459 | INFO     | strategies.strategy_manager:scan_all:111 -    Running Dip-Bounce...
+2026-02-12 10:04:18.460 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GPOR: Price $201.29 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:18.470 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WHD: Price $57.34 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:19.451 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RRC: Price $36.38 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:19.455 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AR: Price $35.11 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:19.456 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - XPRO: Price $16.86 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:19.458 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NOV: Price $19.47 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:19.459 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PUMP: Price $11.62 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:19.461 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LBRT: Price $24.46 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:19.462 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PBF: Price $35.77 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:19.464 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SLB: Price $51.56 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:19.465 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NESR: Price $21.39 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:19.467 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EQT: Price $56.93 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:20.451 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CVI: Price $24.43 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:20.460 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HP: Price $34.32 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:20.466 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HAL: Price $35.03 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.486 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ALB: Price $175.43 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.496 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NTR: Price $73.07 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.501 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CENX: Price $53.44 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.504 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NEM: Price $124.60 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.506 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FMC: Price $16.05 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.507 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FCX: Price $65.46 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.508 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AG: Price $23.81 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.510 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ZEUS: Price $50.84 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.512 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CDE: Price $23.08 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.513 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FNV: Price $257.70 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.515 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PAAS: Price $59.88 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.516 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EGO: Price $46.30 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.517 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RGLD: Price $285.22 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.519 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WPM: Price $149.11 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.520 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EXP: Price $229.71 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.522 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AA: Price $63.15 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.523 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HWKN: Price $149.53 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.525 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MLM: Price $661.65 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.526 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FSS: Price $119.20 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.528 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AIT: Price $290.31 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.529 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CMI: Price $598.90 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.531 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LMT: Price $628.70 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.532 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HXL: Price $87.85 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.534 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - KAI: Price $334.84 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.535 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HWM: Price $230.85 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.536 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DCO: Price $120.52 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.538 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SNDR: Price $29.72 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.539 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - OTIS: Price $89.42 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.541 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TXT: Price $97.28 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.542 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LSTR: Price $162.75 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.544 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ODFL: Price $194.46 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.545 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SAIA: Price $388.68 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.547 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EMR: Price $154.67 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.548 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - KNX: Price $60.26 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.550 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DG: Price $147.16 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.551 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - OLLI: Price $113.75 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:21.552 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CALM: Price $83.18 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:22.451 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SENEA: Price $122.73 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:22.454 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TGT: Price $114.61 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:23.453 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CHEF: Price $64.15 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:23.457 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ACI: Price $17.73 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.458 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NRG: Price $160.63 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.460 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - VST: Price $160.15 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.467 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SBAC: Price $190.96 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.468 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AKR: Price $20.54 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.470 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CCI: Price $86.07 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.471 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SUI: Price $127.81 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.473 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AVB: Price $179.83 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.475 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AMT: Price $180.48 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.476 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CRS: Price $369.70 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.478 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ROCK: Price $54.12 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.479 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - META: Price $668.69 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.481 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DDOG: Price $127.33 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.482 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BILL: Price $47.02 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.484 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RNG: Price $28.11 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.485 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ZM: Price $92.15 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.487 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ANET: Price $140.66 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.489 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DOCN: Price $62.40 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.490 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NET: Price $189.41 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.492 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SMCI: Price $32.04 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.493 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FFIV: Price $282.67 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.495 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DELL: Price $124.16 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.497 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WDC: Price $273.74 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.499 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MU: Price $410.34 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.500 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MCHP: Price $80.75 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.502 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AVGO: Price $342.76 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.504 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AMAT: Price $339.88 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.505 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NVDA: Price $190.05 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.507 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TENB: Price $22.55 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.508 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - STX: Price $407.25 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.510 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LRCX: Price $235.12 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.511 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NXPI: Price $249.75 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.512 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ASML: Price $1435.63 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.514 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NTAP: Price $105.90 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.515 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MRVL: Price $81.34 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.517 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MPWR: Price $1196.73 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.518 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HPQ: Price $19.76 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.520 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - QRVO: Price $85.82 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.521 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CRUS: Price $141.18 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.523 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SWKS: Price $63.68 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.524 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WOLF: Price $18.03 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.526 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ONTO: Price $222.42 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.527 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SMTC: Price $88.53 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.529 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SYNA: Price $90.75 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.530 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AMBA: Price $66.87 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.531 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PLAB: Price $38.10 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.533 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ACLS: Price $91.82 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.534 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GS: Price $944.59 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.536 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MTSI: Price $236.94 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.537 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CAMT: Price $158.41 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.539 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - JPM: Price $310.82 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.540 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WAL: Price $94.83 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.542 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EWBC: Price $119.10 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.543 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - POWI: Price $48.27 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.545 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ZION: Price $62.91 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.546 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BKU: Price $49.29 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.548 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - C: Price $117.39 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.549 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PNFP: Price $97.81 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.551 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ABCB: Price $83.62 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.552 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WTFC: Price $154.18 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.553 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BOH: Price $77.20 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.555 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BANR: Price $64.71 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.556 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GBCI: Price $51.70 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.558 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CATY: Price $53.20 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.559 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ASB: Price $28.29 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.561 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CPAY: Price $346.61 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.562 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SFBS: Price $85.87 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.564 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - OZK: Price $49.25 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.565 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - STNE: Price $17.67 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.567 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FFIN: Price $33.63 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.568 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PAGS: Price $11.17 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.570 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FBP: Price $22.72 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.571 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CVBF: Price $20.62 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.573 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TRMK: Price $43.52 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.574 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WEX: Price $165.67 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.575 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BEN: Price $27.55 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.577 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TCBI: Price $103.02 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.578 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HWC: Price $71.41 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.580 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - KNSL: Price $405.40 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.581 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - STT: Price $131.61 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.583 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EG: Price $332.42 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.584 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PGR: Price $208.37 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.585 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HCI: Price $164.77 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.587 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BK: Price $121.70 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.588 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ALL: Price $204.73 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.590 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - APAM: Price $44.27 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.591 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MET: Price $78.89 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.593 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MKTX: Price $178.77 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.594 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FAF: Price $64.34 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.595 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FTV: Price $58.71 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.597 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - REGN: Price $778.97 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.599 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - IONS: Price $84.35 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.600 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ABBV: Price $220.89 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.602 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AMGN: Price $366.58 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.603 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SUPN: Price $51.34 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.604 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NBIX: Price $137.44 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.606 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SYK: Price $363.70 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.607 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CORT: Price $40.83 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.609 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PRGO: Price $14.60 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.610 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PCRX: Price $21.73 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.612 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RMD: Price $259.62 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:24.613 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ULTA: Price $683.05 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:25.452 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MD: Price $21.47 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:25.457 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TFX: Price $106.95 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:25.458 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WSM: Price $213.16 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:25.460 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SGRY: Price $15.00 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:25.462 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BBY: Price $67.08 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:25.463 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AHCO: Price $10.54 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:25.465 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - KSS: Price $18.78 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:25.466 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CI: Price $294.73 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:26.452 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TSCO: Price $54.53 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:26.455 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CAH: Price $224.25 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:26.457 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RL: Price $359.51 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:26.458 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - M: Price $21.73 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:27.450 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GRMN: Price $206.58 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:27.460 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BOOT: Price $189.64 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:27.466 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BURL: Price $305.86 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:28.449 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SBUX: Price $99.12 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:29.450 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SCVL: Price $20.25 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:29.454 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - VFC: Price $20.81 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:29.457 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CAKE: Price $61.57 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:30.448 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EAT: Price $166.47 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:31.466 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PSNY: Price $19.03 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:31.469 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WH: Price $79.50 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:31.471 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SHAK: Price $97.04 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:32.464 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DRI: Price $212.79 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.461 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MGM: Price $36.36 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.464 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MTN: Price $139.95 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.465 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - H: Price $168.63 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.467 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CHH: Price $109.03 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.468 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TSLA: Price $428.27 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.470 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WYNN: Price $115.51 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.471 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PAG: Price $173.22 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.473 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NCLH: Price $22.95 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.474 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FIBK: Price $37.93 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.476 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - JCAP: Price $22.07 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.477 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CCOI: Price $26.51 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.479 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NYT: Price $71.38 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.480 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LEG: Price $12.40 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.482 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SPOT: Price $487.17 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.483 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SIRI: Price $21.90 from daily bars (fallback) (realtime: False)
+2026-02-12 10:04:33.484 | INFO     | strategies.dip_bounce_strategy:scan:219 - 📋 Dip-Bounce filter breakdown (184 rejected, min_score=85): no_dip=124 still_falling=18 no_bounce=11 gap_up=15 above_sma5=8 low_atr=0 below_sma20=0 overextended=3 sma20_ext=0 low_score=5
+2026-02-12 10:04:33.485 | INFO     | strategies.dip_bounce_strategy:scan:229 - 📊 Dip-Bounce: Found 12 signals from 205 stocks
+2026-02-12 10:04:33.485 | INFO     | strategies.strategy_manager:scan_all:124 -    ✅ Dip-Bounce: 12 signals
+2026-02-12 10:04:33.485 | INFO     | strategies.strategy_manager:scan_all:111 -    Running VIX Adaptive...
+2026-02-12 10:04:34.205 | INFO     | strategies.vix_adaptive.data_enricher:add_vix_indicators_to_cache:229 - ✅ Added VIX indicators to 205/205 stocks
+VIX data not available for 2026-02-12
+No VIX data for 2026-02-12, skipping
+2026-02-12 10:04:34.205 | INFO     | strategies.strategy_manager:scan_all:124 -    ✅ VIX Adaptive: 0 signals
+2026-02-12 10:04:34.205 | INFO     | strategies.strategy_manager:scan_all:134 - 📊 Total: 12 signals (12 unique stocks)
+2026-02-12 10:04:34.218 | INFO     | screeners.rapid_rotation_screener:_save_execution_trace:910 - 📊 Execution trace saved to /home/saengtawan/work/project/cc/stock-analyzer/data/cache
+2026-02-12 10:04:34.218 | INFO     | screeners.rapid_rotation_screener:screen:1524 - 📊 Execution trace saved: 205 stocks traced
+2026-02-12 10:04:34.218 | INFO     | screeners.rapid_rotation_screener:screen:1600 - 📊 Found 12 signals from 205 stocks
+2026-02-12 10:04:34.218 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 ZEUS: score=140, sector=Basic Materials, gap=0.0%
+2026-02-12 10:04:34.218 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 WHD: score=130, sector=Energy, gap=0.0%
+2026-02-12 10:04:34.219 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 CALM: score=130, sector=Consumer Defensive, gap=0.0%
+2026-02-12 10:04:34.219 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 ACI: score=115, sector=Consumer Defensive, gap=0.0%
+2026-02-12 10:04:34.219 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 REGN: score=110, sector=Healthcare, gap=0.0%
+2026-02-12 10:04:34.219 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 CAKE: score=105, sector=Consumer Cyclical, gap=0.0%
+2026-02-12 10:04:34.219 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 HAL: score=100, sector=Energy, gap=0.0%
+2026-02-12 10:04:34.219 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 TGT: score=100, sector=Consumer Defensive, gap=0.0%
+2026-02-12 10:04:34.219 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 EAT: score=100, sector=Consumer Cyclical, gap=0.0%
+2026-02-12 10:04:34.219 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 EQT: score=90, sector=Energy, gap=0.0%
+2026-02-12 10:04:34.219 | INFO     | screeners.rapid_rotation_screener:screen:1617 - 🔍 Fetching alt data for Top 10 candidates...
+2026-02-12 10:04:48.264 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - ZEUS: Alt data +7
+2026-02-12 10:04:56.240 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - WHD: Alt data +10
+2026-02-12 10:05:03.703 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - CALM: Alt data +3
+2026-02-12 10:05:11.192 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - ACI: Alt data +13
+2026-02-12 10:05:19.124 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - REGN: Alt data +14
+2026-02-12 10:05:26.598 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - CAKE: Alt data +15
+2026-02-12 10:05:34.578 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - HAL: Alt data +15
+2026-02-12 10:05:49.463 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - EAT: Alt data +15
+2026-02-12 10:05:57.916 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - EQT: Alt data +3
+2026-02-12 10:05:57.917 | INFO     | screeners.rapid_rotation_screener:get_portfolio_signals:1675 - ✅ Found 12 new signals (slots: 2): ['ZEUS', 'WHD', 'CALM', 'ACI', 'REGN']
+2026-02-12 10:05:58.054 | DEBUG    | rapid_portfolio_manager:get_current_price:468 - LMT: Price $628.70 from daily bars (fetched) (realtime: False)
+2026-02-12 10:05:58.065 | DEBUG    | screeners.rapid_rotation_screener:__init__:216 - Loaded RapidRotationConfig from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
+2026-02-12 10:05:58.066 | INFO     | screeners.rapid_rotation_screener:_load_sector_cache:841 - 📦 Loaded 355 sectors from cache
+2026-02-12 10:05:58.066 | INFO     | screeners.rapid_rotation_screener:_init_ai_universe:447 - ✅ AI Universe Generator initialized
+2026-02-12 10:05:58.066 | INFO     | screeners.rapid_rotation_screener:_init_market_regime:457 - ✅ Market Regime Detector initialized
+2026-02-12 10:05:58.385 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 25 cached items from disk
+2026-02-12 10:05:58.708 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 25 cached items from disk
+2026-02-12 10:05:59.030 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 25 cached items from disk
+2026-02-12 10:05:59.041 | INFO     | api.data_manager:__init__:81 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
+2026-02-12 10:05:59.041 | INFO     | sector_regime_detector:update_all_sectors:419 - Updating sector regimes (5-min realtime, MCW)...
+2026-02-12 10:05:59.041 | INFO     | sector_regime_detector:_build_sector_company_map:298 - Built sector company map: 550 stocks across 11 sectors (with market weights)
+2026-02-12 10:05:59.041 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:328 - Batch downloading 550 sector stocks for 1d returns...
+2026-02-12 10:05:59.041 | DEBUG    | api.yahoo_finance_client:batch_download_prices:626 - Cache hit for batch download (550 symbols)
+2026-02-12 10:05:59.116 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Technology (XLK): MCW 1d = +0.16% (50/50 stocks, weight=88.7%)
+2026-02-12 10:05:59.116 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Energy (XLE): MCW 1d = +2.25% (50/50 stocks, weight=92.2%)
+2026-02-12 10:05:59.116 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Financial Services (XLF): MCW 1d = -1.51% (50/50 stocks, weight=77.5%)
+2026-02-12 10:05:59.116 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Healthcare (XLV): MCW 1d = +0.55% (50/50 stocks, weight=81.4%)
+2026-02-12 10:05:59.116 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Cyclical (XLY): MCW 1d = -0.54% (50/50 stocks, weight=86.4%)
+2026-02-12 10:05:59.117 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Consumer Defensive (XLP): MCW 1d = +1.39% (49/50 stocks, weight=95.7%)
+2026-02-12 10:05:59.117 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Industrials (XLI): MCW 1d = +1.17% (50/50 stocks, weight=68.5%)
+2026-02-12 10:05:59.117 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Utilities (XLU): MCW 1d = +0.80% (49/50 stocks, weight=97.0%)
+2026-02-12 10:05:59.117 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Basic Materials (XLB): MCW 1d = +1.55% (50/50 stocks, weight=92.7%)
+2026-02-12 10:05:59.117 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Communication Services (XLC): MCW 1d = -1.30% (49/50 stocks, weight=99.0%)
+2026-02-12 10:05:59.117 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:390 - Real Estate (XLRE): MCW 1d = -0.23% (50/50 stocks, weight=81.4%)
+2026-02-12 10:05:59.117 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:396 - Market-cap weighted 1d returns calculated for 11 sectors
+2026-02-12 10:05:59.118 | INFO     | sector_regime_detector:update_all_sectors:424 - Using market-cap weighted 1d returns for 11 sectors
+2026-02-12 10:05:59.118 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLK
+2026-02-12 10:05:59.118 | INFO     | sector_regime_detector:update_all_sectors:466 - XLK (Technology): SIDEWAYS (score=+1.5) | 1d[M]: +0.2% | 5d: +5.4% | 20d: -2.40%
+2026-02-12 10:05:59.118 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLE
+2026-02-12 10:05:59.118 | INFO     | sector_regime_detector:update_all_sectors:466 - XLE (Energy): STRONG BULL (score=+6.8) | 1d[M]: +2.3% | 5d: +5.3% | 20d: +16.98%
+2026-02-12 10:05:59.118 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLF
+2026-02-12 10:05:59.118 | INFO     | sector_regime_detector:update_all_sectors:466 - XLF (Financial Services): SIDEWAYS (score=-1.6) | 1d[M]: -1.5% | 5d: -1.0% | 20d: -2.75%
+2026-02-12 10:05:59.118 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLV
+2026-02-12 10:05:59.118 | INFO     | sector_regime_detector:update_all_sectors:466 - XLV (Healthcare): SIDEWAYS (score=+0.5) | 1d[M]: +0.6% | 5d: +0.9% | 20d: -0.31%
+2026-02-12 10:05:59.118 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLY
+2026-02-12 10:05:59.118 | INFO     | sector_regime_detector:update_all_sectors:466 - XLY (Consumer Cyclical): SIDEWAYS (score=-1.2) | 1d[M]: -0.5% | 5d: +0.2% | 20d: -5.19%
+2026-02-12 10:05:59.119 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLP
+2026-02-12 10:05:59.119 | INFO     | sector_regime_detector:update_all_sectors:466 - XLP (Consumer Defensive): BULL (score=+3.5) | 1d[M]: +1.4% | 5d: +1.7% | 20d: +8.99%
+2026-02-12 10:05:59.119 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLI
+2026-02-12 10:05:59.119 | INFO     | sector_regime_detector:update_all_sectors:466 - XLI (Industrials): BULL (score=+3.7) | 1d[M]: +1.2% | 5d: +3.8% | 20d: +6.60%
+2026-02-12 10:05:59.119 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLU
+2026-02-12 10:05:59.119 | INFO     | sector_regime_detector:update_all_sectors:466 - XLU (Utilities): BULL (score=+2.4) | 1d[M]: +0.8% | 5d: +3.5% | 20d: +4.06%
+2026-02-12 10:05:59.119 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLB
+2026-02-12 10:05:59.119 | INFO     | sector_regime_detector:update_all_sectors:466 - XLB (Basic Materials): STRONG BULL (score=+5.4) | 1d[M]: +1.6% | 5d: +6.2% | 20d: +10.03%
+2026-02-12 10:05:59.119 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLC
+2026-02-12 10:05:59.119 | INFO     | sector_regime_detector:update_all_sectors:466 - XLC (Communication Services): SIDEWAYS (score=-0.5) | 1d[M]: -1.3% | 5d: +0.5% | 20d: -0.13%
+2026-02-12 10:05:59.119 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLRE
+2026-02-12 10:05:59.119 | INFO     | sector_regime_detector:update_all_sectors:466 - XLRE (Real Estate): BULL (score=+2.1) | 1d[M]: -0.2% | 5d: +3.8% | 20d: +4.57%
+2026-02-12 10:05:59.119 | INFO     | screeners.rapid_rotation_screener:_init_sector_regime:471 - ✅ Sector Regime Detector initialized
+2026-02-12 10:05:59.119 | INFO     | screeners.rapid_rotation_screener:_init_alt_data:481 - ✅ Alternative Data Aggregator initialized (6 sources)
+2026-02-12 10:05:59.119 | INFO     | strategies.strategy_manager:register:48 - ✅ Registered strategy: Dip-Bounce (dip_bounce)
+2026-02-12 10:05:59.122 | INFO     | strategies.vix_adaptive.engine_integration:__init__:66 - VIX Adaptive v3.0: Loading...
+2026-02-12 10:05:59.186 | INFO     | strategies.vix_adaptive.engine_integration:__init__:76 - VIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)
+2026-02-12 10:05:59.186 | INFO     | strategies.vix_adaptive.engine_integration:__init__:85 - ✅ VIX Adaptive v3.0 initialized
+2026-02-12 10:05:59.186 | INFO     | strategies.vix_adaptive.engine_integration:__init__:86 -    Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}
+2026-02-12 10:05:59.186 | INFO     | strategies.vix_adaptive.engine_integration:__init__:87 -    Score adaptation: True
+2026-02-12 10:05:59.186 | INFO     | strategies.vix_adaptive_strategy_wrapper:__init__:48 - ✅ VIX Adaptive wrapper initialized: VIXAdaptiveIntegration(tier=N/A, VIX=N/A)
+2026-02-12 10:05:59.186 | INFO     | strategies.strategy_manager:register:48 - ✅ Registered strategy: VIX Adaptive (vix_adaptive)
+2026-02-12 10:05:59.186 | INFO     | screeners.rapid_rotation_screener:_init_strategy_manager:530 - ✅ VIX Adaptive registered (tier=None)
+2026-02-12 10:05:59.186 | INFO     | screeners.rapid_rotation_screener:_init_strategy_manager:534 - ✅ Strategy Manager initialized (2 strategies active)
+2026-02-12 10:05:59.188 | INFO     | screeners.rapid_rotation_screener:generate_universe:586 - 📦 Using pre-filtered pool: 205 stocks (age: 1.7h)
+2026-02-12 10:05:59.188 | INFO     | screeners.rapid_rotation_screener:generate_universe:656 - 🔥 Hot sectors: Energy, Consumer Defensive, Industrials, Utilities, Basic Materials, Real Estate
+2026-02-12 10:05:59.188 | INFO     | screeners.rapid_rotation_screener:_load_data_via_yfinance:1049 - 📊 Loading data for 205 stocks via yfinance (parallel)...
+2026-02-12 10:06:03.588 | INFO     | screeners.rapid_rotation_screener:_load_data_via_yfinance:1085 - ✅ Loaded 205/205 stocks via yfinance (parallel)
+2026-02-12 10:06:03.593 | DEBUG    | screeners.rapid_rotation_screener:_clear_stale_caches:339 - Failed to clear yfinance cache: module 'yfinance.cache' has no attribute 'clear'
+2026-02-12 10:06:03.594 | DEBUG    | data_sources.realtime_price:clear_cache:169 - Real-time price cache cleared
+2026-02-12 10:06:03.594 | DEBUG    | screeners.rapid_rotation_screener:_clear_stale_caches:344 - Cleared real-time price cache
+2026-02-12 10:06:03.594 | INFO     | sector_regime_detector:update_all_sectors:412 - Using cached sector regimes (updated 0min ago)
+2026-02-12 10:06:03.794 | INFO     | screeners.rapid_rotation_screener:check_spy_regime:749 - ✅ SPY Regime: BULL: SPY $691.96 > SMA20 $690.12 (+0.3%)
+2026-02-12 10:06:03.794 | INFO     | screeners.rapid_rotation_screener:screen:1381 - 🟢 SPY BULL REGIME - Scanning for signals...
+2026-02-12 10:06:03.794 | INFO     | screeners.rapid_rotation_screener:screen:1382 -    BULL: SPY $691.96 > SMA20 $690.12 (+0.3%)
+2026-02-12 10:06:03.958 | DEBUG    | market_regime_detector:_fetch_market_data:154 - Using yfinance fallback for SPY
+2026-02-12 10:06:03.959 | INFO     | screeners.rapid_rotation_screener:screen:1443 - 🎯 Using Strategy Manager for scanning...
+2026-02-12 10:06:03.959 | INFO     | strategies.strategy_manager:scan_all:107 - 🔍 Running 2 strategies on 205 stocks
+2026-02-12 10:06:03.959 | INFO     | strategies.strategy_manager:scan_all:111 -    Running Dip-Bounce...
+2026-02-12 10:06:03.960 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AR: Price $35.11 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.961 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RRC: Price $36.38 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.963 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GPOR: Price $201.29 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.964 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NOV: Price $19.47 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.966 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EQT: Price $56.93 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.968 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - XPRO: Price $16.86 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.969 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HAL: Price $35.03 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.971 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PUMP: Price $11.62 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.973 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LBRT: Price $24.46 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.974 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WHD: Price $57.34 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.976 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NESR: Price $21.39 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.978 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HP: Price $34.32 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.979 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PBF: Price $35.77 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.981 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SLB: Price $51.56 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.982 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ALB: Price $175.43 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.984 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NTR: Price $73.07 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.985 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CVI: Price $24.43 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.987 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ZEUS: Price $50.84 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.989 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FCX: Price $65.46 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.990 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FMC: Price $16.05 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.992 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FNV: Price $257.70 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.993 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CENX: Price $53.44 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.995 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EGO: Price $46.30 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.996 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CDE: Price $23.08 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:03.998 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AG: Price $23.81 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.000 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AA: Price $63.15 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.002 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NEM: Price $124.60 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.003 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PAAS: Price $59.88 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.005 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HWKN: Price $149.53 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.007 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WPM: Price $149.11 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.008 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MLM: Price $661.65 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.010 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RGLD: Price $285.22 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.011 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EXP: Price $229.71 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.013 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DCO: Price $120.52 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.014 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FSS: Price $119.20 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.016 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AIT: Price $290.31 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.017 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TXT: Price $97.28 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.019 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HWM: Price $230.85 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.021 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LMT: Price $628.70 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.022 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HXL: Price $87.85 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.024 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SNDR: Price $29.72 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.025 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - OTIS: Price $89.42 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.027 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - KNX: Price $60.26 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.028 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ODFL: Price $194.46 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.030 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SAIA: Price $388.68 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.031 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EMR: Price $154.67 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.033 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - KAI: Price $334.84 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.034 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CMI: Price $598.90 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.036 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LSTR: Price $162.75 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.037 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DG: Price $147.16 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.039 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - OLLI: Price $113.75 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.040 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CALM: Price $83.18 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.042 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SENEA: Price $122.73 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.044 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TGT: Price $114.61 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.046 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ACI: Price $17.73 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.047 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CHEF: Price $64.15 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.049 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AMT: Price $180.48 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.050 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SBAC: Price $190.96 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.052 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CCI: Price $86.07 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.053 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NRG: Price $160.63 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.055 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - VST: Price $160.15 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.056 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SUI: Price $127.81 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.058 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AVB: Price $179.83 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.059 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AKR: Price $20.54 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.061 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CRS: Price $369.70 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.062 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ROCK: Price $54.12 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.065 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DDOG: Price $127.33 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.066 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - META: Price $668.69 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.068 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NET: Price $189.41 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.069 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ZM: Price $92.15 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.071 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BILL: Price $47.02 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.072 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DOCN: Price $62.40 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.074 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DELL: Price $124.16 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.075 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ANET: Price $140.66 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.077 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SMCI: Price $32.04 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.079 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TENB: Price $22.55 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.080 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NTAP: Price $105.90 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.082 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RNG: Price $28.11 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.083 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MCHP: Price $80.75 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.085 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - QRVO: Price $85.82 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.086 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FFIV: Price $282.67 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.088 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WDC: Price $273.74 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.089 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LRCX: Price $235.12 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.091 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AVGO: Price $342.76 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.092 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HPQ: Price $19.76 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.094 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SWKS: Price $63.68 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.095 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NVDA: Price $190.05 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.097 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NXPI: Price $249.75 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.098 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AMAT: Price $339.88 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.100 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MRVL: Price $81.34 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.101 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ONTO: Price $222.42 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.103 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - STX: Price $407.25 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.104 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MPWR: Price $1196.73 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.106 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ASML: Price $1435.63 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.107 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MU: Price $410.34 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.109 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PLAB: Price $38.10 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.110 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ACLS: Price $91.82 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.112 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CRUS: Price $141.18 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.113 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CAMT: Price $158.41 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.115 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SMTC: Price $88.53 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.116 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - POWI: Price $48.27 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.118 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SYNA: Price $90.75 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.120 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WOLF: Price $18.03 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.121 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ZION: Price $62.91 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.123 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MTSI: Price $236.94 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.125 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GS: Price $944.59 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.126 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AMBA: Price $66.87 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.128 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EWBC: Price $119.10 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.129 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WTFC: Price $154.18 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.131 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BOH: Price $77.20 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.133 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WAL: Price $94.83 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.134 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BKU: Price $49.29 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.136 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - JPM: Price $310.82 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.137 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ASB: Price $28.29 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.139 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - C: Price $117.39 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.140 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PNFP: Price $97.81 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.142 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CVBF: Price $20.62 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.144 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BANR: Price $64.71 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.145 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GBCI: Price $51.70 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.147 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CATY: Price $53.20 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.148 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HWC: Price $71.41 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.150 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ABCB: Price $83.62 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.151 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PAGS: Price $11.17 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.153 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - STNE: Price $17.67 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.154 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FIBK: Price $37.93 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.156 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - OZK: Price $49.25 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.158 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FFIN: Price $33.63 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.159 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BEN: Price $27.55 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.161 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - STT: Price $131.61 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.162 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SFBS: Price $85.87 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.164 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FBP: Price $22.72 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.165 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TCBI: Price $103.02 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.167 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CPAY: Price $346.61 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.168 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BK: Price $121.70 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.170 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WEX: Price $165.67 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.171 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - APAM: Price $44.27 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.173 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PGR: Price $208.37 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.174 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TRMK: Price $43.52 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.175 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ALL: Price $204.73 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.177 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MKTX: Price $178.77 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.178 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - KNSL: Price $405.40 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.180 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EG: Price $332.42 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.181 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MET: Price $78.89 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.183 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - HCI: Price $164.77 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.184 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FTV: Price $58.71 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.186 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - FAF: Price $64.34 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.187 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AMGN: Price $366.58 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.189 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ABBV: Price $220.89 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.190 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CORT: Price $40.83 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.191 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - IONS: Price $84.35 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.193 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - REGN: Price $778.97 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.195 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NBIX: Price $137.44 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.197 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RMD: Price $259.62 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.198 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PCRX: Price $21.73 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.199 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SUPN: Price $51.34 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.201 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CI: Price $294.73 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.203 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SYK: Price $363.70 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.204 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PRGO: Price $14.60 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.206 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TFX: Price $106.95 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.207 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CAH: Price $224.25 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.209 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MD: Price $21.47 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.210 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BBY: Price $67.08 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.212 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - AHCO: Price $10.54 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.213 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TSCO: Price $54.53 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.214 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WSM: Price $213.16 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.216 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SGRY: Price $15.00 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.217 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BURL: Price $305.86 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.219 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - M: Price $21.73 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.220 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - KSS: Price $18.78 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.222 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SHAK: Price $97.04 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.223 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - GRMN: Price $206.58 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.225 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - VFC: Price $20.81 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.226 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - BOOT: Price $189.64 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.228 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CAKE: Price $61.57 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.229 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SCVL: Price $20.25 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.231 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - RL: Price $359.51 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.232 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SBUX: Price $99.12 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.234 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - ULTA: Price $683.05 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.235 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - DRI: Price $212.79 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.237 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NCLH: Price $22.95 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.238 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - EAT: Price $166.47 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.240 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CHH: Price $109.03 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.241 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - TSLA: Price $428.27 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.243 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MTN: Price $139.95 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.244 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WH: Price $79.50 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.246 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - H: Price $168.63 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.247 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - MGM: Price $36.36 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.249 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PSNY: Price $19.03 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.250 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - WYNN: Price $115.51 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.252 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - PAG: Price $173.22 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.253 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - JCAP: Price $22.07 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.255 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - CCOI: Price $26.51 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.256 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - NYT: Price $71.38 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.257 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SPOT: Price $487.17 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.259 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - LEG: Price $12.40 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.260 | DEBUG    | strategies.dip_bounce_strategy:_calc_indicators:469 - SIRI: Price $21.90 from daily bars (fallback) (realtime: False)
+2026-02-12 10:06:04.262 | INFO     | strategies.dip_bounce_strategy:scan:219 - 📋 Dip-Bounce filter breakdown (184 rejected, min_score=85): no_dip=124 still_falling=18 no_bounce=11 gap_up=15 above_sma5=8 low_atr=0 below_sma20=0 overextended=3 sma20_ext=0 low_score=5
+2026-02-12 10:06:04.262 | INFO     | strategies.dip_bounce_strategy:scan:229 - 📊 Dip-Bounce: Found 12 signals from 205 stocks
+2026-02-12 10:06:04.262 | INFO     | strategies.strategy_manager:scan_all:124 -    ✅ Dip-Bounce: 12 signals
+2026-02-12 10:06:04.262 | INFO     | strategies.strategy_manager:scan_all:111 -    Running VIX Adaptive...
+2026-02-12 10:06:04.992 | INFO     | strategies.vix_adaptive.data_enricher:add_vix_indicators_to_cache:229 - ✅ Added VIX indicators to 205/205 stocks
+VIX data not available for 2026-02-12
+No VIX data for 2026-02-12, skipping
+2026-02-12 10:06:04.992 | INFO     | strategies.strategy_manager:scan_all:124 -    ✅ VIX Adaptive: 0 signals
+2026-02-12 10:06:04.992 | INFO     | strategies.strategy_manager:scan_all:134 - 📊 Total: 12 signals (12 unique stocks)
+2026-02-12 10:06:05.004 | INFO     | screeners.rapid_rotation_screener:_save_execution_trace:910 - 📊 Execution trace saved to /home/saengtawan/work/project/cc/stock-analyzer/data/cache
+2026-02-12 10:06:05.004 | INFO     | screeners.rapid_rotation_screener:screen:1524 - 📊 Execution trace saved: 205 stocks traced
+2026-02-12 10:06:05.004 | INFO     | screeners.rapid_rotation_screener:screen:1600 - 📊 Found 12 signals from 205 stocks
+2026-02-12 10:06:05.004 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 ZEUS: score=140, sector=Basic Materials, gap=0.0%
+2026-02-12 10:06:05.005 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 WHD: score=130, sector=Energy, gap=0.0%
+2026-02-12 10:06:05.005 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 CALM: score=130, sector=Consumer Defensive, gap=0.0%
+2026-02-12 10:06:05.005 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 ACI: score=115, sector=Consumer Defensive, gap=0.0%
+2026-02-12 10:06:05.005 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 REGN: score=110, sector=Healthcare, gap=0.0%
+2026-02-12 10:06:05.005 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 CAKE: score=105, sector=Consumer Cyclical, gap=0.0%
+2026-02-12 10:06:05.005 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 HAL: score=100, sector=Energy, gap=0.0%
+2026-02-12 10:06:05.005 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 TGT: score=100, sector=Consumer Defensive, gap=0.0%
+2026-02-12 10:06:05.005 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 EAT: score=100, sector=Consumer Cyclical, gap=0.0%
+2026-02-12 10:06:05.005 | INFO     | screeners.rapid_rotation_screener:screen:1604 -    📈 EQT: score=90, sector=Energy, gap=0.0%
+2026-02-12 10:06:05.005 | INFO     | screeners.rapid_rotation_screener:screen:1617 - 🔍 Fetching alt data for Top 10 candidates...
+2026-02-12 10:06:12.688 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - ZEUS: Alt data +7
+2026-02-12 10:06:20.299 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - WHD: Alt data +10
+2026-02-12 10:06:27.421 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - CALM: Alt data +3
+2026-02-12 10:06:34.599 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - ACI: Alt data +13
+2026-02-12 10:06:42.212 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - REGN: Alt data +14
+2026-02-12 10:06:49.330 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - CAKE: Alt data +15
+2026-02-12 10:06:56.935 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - HAL: Alt data +15
+2026-02-12 10:07:11.178 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - EAT: Alt data +15
+2026-02-12 10:07:18.824 | DEBUG    | screeners.rapid_rotation_screener:screen:1629 - EQT: Alt data +3
+2026-02-12 10:07:18.825 | INFO     | screeners.rapid_rotation_screener:get_portfolio_signals:1675 - ✅ Found 12 new signals (slots: 2): ['ZEUS', 'WHD', 'CALM', 'ACI', 'REGN']
+2026-02-12 10:07:18.829 | WARNING  | __main__:run_monitor:165 - 🔴 CRITICAL: GOOGL - 🔴 SELL NOW!
+2026-02-12 10:07:18.830 | WARNING  | __main__:run_monitor:165 - 🔴 CRITICAL: LMT - 🔴 SELL - Trailing Stop!
+2026-02-12 10:07:32.990 | INFO     | __main__:_shutdown:74 - ============================================================
+2026-02-12 10:07:32.991 | INFO     | __main__:_shutdown:75 - SHUTTING DOWN ALL SERVICES...
+2026-02-12 10:07:32.991 | INFO     | __main__:_shutdown:76 - ============================================================
+2026-02-12 10:07:32.991 | INFO     | __main__:_shutdown:82 - Stopping price streamer...
+2026-02-12 10:07:32.991 | INFO     | alpaca_streamer:stop:316 - AlpacaStreamer stopped
+2026-02-12 10:07:33.024 | INFO     | __main__:run:714 - All services stopped
+
+============================================================
+  SERVICES STATUS
+============================================================
+   Web Server:        ✅ Running
+   Portfolio Monitor: ✅ Running
+   Price Streamer:    ✅ Real-time WebSocket
+   Signal Scanner:    ✅ Via Trading Engine (single source)
+   Universe Cleanup:  ✅ Daily at 2:00 AM
+
+============================================================
+  WEB UI
+============================================================
+   🚀 Rapid Trader:  http://localhost:5000/rapid
+   📊 Portfolio:     http://localhost:5000/portfolio
+   🔍 Screen:        http://localhost:5000/screen
+
+============================================================
+  RAPID TRADER v5.1.0 - FULLY INTEGRATED
+============================================================
+   🤖 AI Universe: 680+ stocks (DeepSeek)
+   📊 Market Regime: Bull/Bear/Sideways
+   🔥 Sector Regime: Hot sectors
+   📰 Alt Data: Insider, Sentiment, Short
+
+============================================================
+  TRADING RULES
+============================================================
+   📈 Buy:  TRUE DIP only (Mom1d < 0)
+   🔴 Stop Loss:  1.5-2.5% (ATR-based)
+   🎯 Take Profit: +4-6%
+   ⏰ Max Hold: 4 days
+
+============================================================
+  MONITORS
+============================================================
+   Portfolio: เช็คทุก 5 นาที
+   Scanner:   หาหุ้นใหม่ทุก 15 นาที
+
+============================================================
+   Press Ctrl+C to stop
+============================================================
+
+
+🔴 ALERT: GOOGL ลง -5.7% - ขายทันที!
+
+
+🔴 ALERT: LMT ลง 2.6% - ขายทันที!
+
+
+
+
+============================================================
+  Goodbye!
+============================================================

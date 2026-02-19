@@ -1,0 +1,112 @@
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║     🚀 STOCK ANALYZER - START HERE                          ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ 🎯 ONE COMMAND - EVERYTHING AUTO                            │
+└──────────────────────────────────────────────────────────────┘
+
+  ./scripts/run_all.sh
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ ✅ สิ่งที่จะ AUTO ทั้งหมด                                   │
+└──────────────────────────────────────────────────────────────┘
+
+  ✓ Pre-market Gap Scanner (6:00-9:30 AM)
+  ✓ Rapid Rotation Scanner (ตลอดเวลา)
+  ✓ Auto Buy/Sell Orders
+  ✓ Portfolio Monitor (every 5 min)
+  ✓ Real-time Price Streaming
+  ✓ Stop Loss / Take Profit (auto)
+  ✓ Health Checks (every 5 min)
+  ✓ Universe Cleanup (daily 2 AM)
+  ✓ Web UI (http://localhost:5000)
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ 📋 MANAGEMENT                                                │
+└──────────────────────────────────────────────────────────────┘
+
+  Start:    ./scripts/run_all.sh
+  Status:   ./scripts/status.sh
+  Stop:     ./scripts/stop_all.sh
+  Logs:     tail -f logs/*.log
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ 📊 WEB UI                                                    │
+└──────────────────────────────────────────────────────────────┘
+
+  http://localhost:5000
+
+  Pages:
+  - /rapid         → Rapid Trader (main)
+  - /portfolio     → Portfolio view
+  - /screen        → Stock screener
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ 📝 LOGS                                                      │
+└──────────────────────────────────────────────────────────────┘
+
+  All logs:       tail -f logs/*.log
+  Trading:        tail -f logs/auto_trading_engine.log
+  Web UI:         tail -f logs/web_app.log
+  Gap Scanner:    tail -f logs/auto_trading_engine.log | grep Gap
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ 🗓️  DAILY TIMELINE (All Automatic)                         │
+└──────────────────────────────────────────────────────────────┘
+
+  02:00 AM → Universe cleanup
+  06:00 AM → Gap scanner starts
+  09:30 AM → Market open → Buy gap stocks
+  09:30-16:00 → Monitor & scan continuously
+  15:50 PM → Pre-close check
+  16:00 PM → Market close → Sell gap trades
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ 📖 DOCUMENTATION                                             │
+└──────────────────────────────────────────────────────────────┘
+
+  Complete list:  AUTO_SERVICES.md
+  Gap Scanner:    docs/PREMARKET_GAP_SCANNER.md
+  Daily Flow:     docs/GAP_SCANNER_FLOW.md
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ ⚙️  REQUIREMENTS                                             │
+└──────────────────────────────────────────────────────────────┘
+
+  - Python 3.11+
+  - .env file with ALPACA_API_KEY and ALPACA_SECRET_KEY
+  - ALPACA_PAPER=true (for paper trading)
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ 🆘 TROUBLESHOOTING                                           │
+└──────────────────────────────────────────────────────────────┘
+
+  Nothing running:
+    → Check .env file exists
+    → Check Python environment: which python
+
+  Services won't start:
+    → Check logs: tail -50 logs/*.log
+    → Kill old processes: ./scripts/stop_all.sh
+    → Restart: ./scripts/run_all.sh
+
+  Gap scanner not working:
+    → Check time: 6:00-9:30 AM ET only
+    → Check logs: grep Gap logs/auto_trading_engine.log
+
+
+╔══════════════════════════════════════════════════════════════╗
+║  🎯 QUICK START: ./scripts/run_all.sh                       ║
+╚══════════════════════════════════════════════════════════════╝

@@ -1,0 +1,107 @@
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║     🚀 AUTO TRADING ENGINE - QUICK START                    ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ 📦 INSTALLATION (เลือก 1 วิธี)                              │
+└──────────────────────────────────────────────────────────────┘
+
+  🔸 แบบง่าย (One-Click):
+     sudo ./scripts/install_systemd.sh
+
+  🔸 แบบ Manual:
+     sudo cp scripts/auto-trading.service /etc/systemd/system/
+     sudo systemctl daemon-reload
+     sudo systemctl enable auto-trading
+     sudo systemctl start auto-trading
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ 🎛️  MANAGEMENT (คำสั่งที่ใช้บ่อย)                          │
+└──────────────────────────────────────────────────────────────┘
+
+  Start:    sudo systemctl start auto-trading
+  Stop:     sudo systemctl stop auto-trading
+  Restart:  sudo systemctl restart auto-trading
+  Status:   sudo systemctl status auto-trading
+  Logs:     sudo journalctl -u auto-trading -f
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ 📊 MONITORING (ดูสถานะ)                                     │
+└──────────────────────────────────────────────────────────────┘
+
+  Live logs:         sudo journalctl -u auto-trading -f
+  Gap scanner logs:  sudo journalctl -u auto-trading -f | grep Gap
+  Last 50 lines:     sudo journalctl -u auto-trading -n 50
+  Engine logs:       tail -f logs/auto_trading_engine.log
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ 🔍 VERIFICATION (เช็คว่าทำงาน)                              │
+└──────────────────────────────────────────────────────────────┘
+
+  ps aux | grep auto_trading_engine
+  sudo systemctl is-active auto-trading
+  sudo systemctl is-enabled auto-trading
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ 📅 WHAT TO EXPECT (ควรเห็นอะไร)                            │
+└──────────────────────────────────────────────────────────────┘
+
+  06:00 AM ET → Scanner starts
+  06:15 AM    → Gaps detected (if any)
+  09:30 AM    → Market opens → Buy executed
+  09:31-15:50 → Monitor positions
+  15:50 PM    → Pre-close check
+  16:00 PM    → Market closes → Gap trades sold
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ ⚠️  TROUBLESHOOTING (แก้ปัญหา)                              │
+└──────────────────────────────────────────────────────────────┘
+
+  Service won't start:
+    → sudo journalctl -u auto-trading -n 100 --no-pager
+
+  Missing .env:
+    → ls -la .env
+    → Create it with ALPACA_API_KEY, ALPACA_SECRET_KEY
+
+  Permission issues:
+    → sudo chown -R saengtawan:saengtawan logs/
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ 📁 IMPORTANT FILES                                           │
+└──────────────────────────────────────────────────────────────┘
+
+  Service:              /etc/systemd/system/auto-trading.service
+  Engine:               src/auto_trading_engine.py
+  Gap Scanner:          src/screeners/premarket_gap_scanner.py
+  Logs:                 logs/auto_trading_engine.log
+  Config:               .env
+  Full Guide:           SYSTEMD_INSTALL_COMMANDS.txt
+  Documentation:        docs/AUTO_START_SETUP.md
+
+
+┌──────────────────────────────────────────────────────────────┐
+│ ✅ CHECKLIST                                                 │
+└──────────────────────────────────────────────────────────────┘
+
+  [ ] Systemd service installed
+  [ ] Service enabled (auto-start on boot)
+  [ ] Service started and running
+  [ ] Logs showing scanner activity
+  [ ] .env file configured
+  [ ] Paper trading mode enabled (ALPACA_PAPER=true)
+  [ ] Monitoring setup (check logs daily)
+
+
+╔══════════════════════════════════════════════════════════════╗
+║  🎯 ALL SET! System will scan for gaps automatically!       ║
+╚══════════════════════════════════════════════════════════════╝
