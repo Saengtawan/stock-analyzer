@@ -387,6 +387,18 @@ pre_filter_intraday_minute: 45          # Minute of each scheduled hour (10:45, 
 #   13:45 → 15 min before Afternoon push (14:00-15:30): fresh RSI + momentum
 #   15:45 → Pre-close pool update: fresh pool ready for next morning gap-scanner
 pre_filter_on_demand_enabled: true      # Enable on-demand refresh (low pool)
+
+# =============================================================================
+# v6.32 — BETA/VOLATILITY FILTER (Test Mode)
+# =============================================================================
+# Prevents buying slow-moving defensive stocks unsuitable for swing trading
+# Example: KHC (beta 0.047, ATR 3.19%) scored 150 but too slow for rapid rotation
+
+beta_filter_enabled: true           # Enable beta/volatility filter
+beta_filter_log_only: true          # TEST MODE: Log only, don't reject (set false to enforce)
+beta_filter_min_beta: 0.5           # Minimum beta for entry (0.5 = moderate volatility)
+beta_filter_min_atr_pct: 5.0        # Minimum ATR% for entry (alternative to beta)
+beta_filter_bypass_core: true       # Bypass check for CORE_STOCKS (manually curated)
 pre_filter_on_demand_min_pool: 200      # Refresh if pool < 200 stocks
 pre_filter_on_demand_zero_signals: 3    # Refresh if 0 signals for N scans
 pre_filter_max_per_day: 6               # Max pre-filters per day (safety)

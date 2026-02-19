@@ -396,6 +396,15 @@ class RapidRotationConfig:
     pre_filter_max_dip_5d: float = -15.0        # But not crashed > 15% (safety)
 
     # =========================================================================
+    # BETA/VOLATILITY FILTER (v6.32 - Test Mode)
+    # =========================================================================
+    beta_filter_enabled: bool = True            # Enable beta/volatility filter
+    beta_filter_log_only: bool = True           # TEST MODE: Log only, don't reject
+    beta_filter_min_beta: float = 0.5           # Minimum beta for entry
+    beta_filter_min_atr_pct: float = 5.0        # Minimum ATR% for entry
+    beta_filter_bypass_core: bool = True        # Bypass check for CORE_STOCKS
+
+    # =========================================================================
     # CACHE SETTINGS
     # =========================================================================
     sector_cache_ttl_days: int = 3      # Sector cache TTL (days)

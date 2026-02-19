@@ -883,14 +883,26 @@ class AutoTradingEngine:
         self.VIX_ADAPTIVE_ENABLED = cfg.vix_adaptive_enabled
 
         # =====================================================================
+        # BETA/VOLATILITY FILTER v6.32 (Test Mode)
+        # =====================================================================
+        self.BETA_FILTER_ENABLED = getattr(cfg, 'beta_filter_enabled', True)
+        self.BETA_FILTER_LOG_ONLY = getattr(cfg, 'beta_filter_log_only', True)
+        self.BETA_FILTER_MIN_BETA = getattr(cfg, 'beta_filter_min_beta', 0.5)
+        self.BETA_FILTER_MIN_ATR_PCT = getattr(cfg, 'beta_filter_min_atr_pct', 5.0)
+        self.BETA_FILTER_BYPASS_CORE = getattr(cfg, 'beta_filter_bypass_core', True)
+
+        # =====================================================================
         # MONITOR
         # =====================================================================
         self.MONITOR_INTERVAL_SECONDS = cfg.monitor_interval_seconds
         
-        logger.info("✅ Loaded ALL parameters from RapidRotationConfig (v6.10)")
+        logger.info("✅ Loaded ALL parameters from RapidRotationConfig (v6.32)")
         logger.info(f"   SL range: {self.SL_MIN_PCT}%-{self.SL_MAX_PCT}%")
         logger.info(f"   Max positions: {self.MAX_POSITIONS}")
         logger.info(f"   Regime filter: {'ENABLED' if self.REGIME_FILTER_ENABLED else 'DISABLED'}")
+        if self.BETA_FILTER_ENABLED:
+            mode_str = "LOG-ONLY" if self.BETA_FILTER_LOG_ONLY else "ENFORCED"
+            logger.info(f"   Beta filter: {mode_str} (beta>={self.BETA_FILTER_MIN_BETA}, atr>={self.BETA_FILTER_MIN_ATR_PCT}%)")
     
     
     def _save_positions_state(self):
@@ -3804,6 +3816,89 @@ class AutoTradingEngine:
 
         return True, ""
 
+    def _check_beta_volatility(self, symbol: str, signal, current_price: float, mode: str) -> Tuple[bool, str]:
+        """
+        v6.32: Beta/Volatility Filter - Prevent buying slow-moving stocks
+
+        Checks if stock has sufficient volatility for swing trading.
+        In LOG_ONLY mode: logs rejection but doesn't block execution.
+
+        Criteria (ANY passes):
+        1. Beta >= min_beta (default 0.5)
+        2. ATR >= min_atr_pct (default 5%)
+        3. In CORE_STOCKS (manually curated high-beta stocks)
+
+        Returns:
+            (passed, reason)
+        """
+        if not self.BETA_FILTER_ENABLED:
+            return True, "filter_disabled"
+
+        # Check if in CORE_STOCKS (bypass filter)
+        if self.BETA_FILTER_BYPASS_CORE:
+            from screeners.rapid_rotation_screener import RapidRotationScreener
+            if symbol in RapidRotationScreener.CORE_STOCKS:
+                return True, "in_core_stocks"
+
+        # Get ATR from signal
+        atr_pct = getattr(signal, 'atr_pct', None)
+
+        # Get beta from yfinance (with caching)
+        beta = None
+        try:
+            import yfinance as yf
+            ticker = yf.Ticker(symbol)
+            beta = ticker.info.get('beta', None)
+        except Exception as e:
+            logger.debug(f"Beta fetch failed for {symbol}: {e}")
+
+        # Check if passes criteria
+        passed = False
+        reason_parts = []
+
+        if beta and beta >= self.BETA_FILTER_MIN_BETA:
+            passed = True
+            reason_parts.append(f"beta={beta:.2f}")
+
+        if atr_pct and atr_pct >= self.BETA_FILTER_MIN_ATR_PCT:
+            passed = True
+            reason_parts.append(f"atr={atr_pct:.1f}%")
+
+        if not passed:
+            # Failed both checks
+            beta_str = f"{beta:.3f}" if beta else "N/A"
+            atr_str = f"{atr_pct:.1f}%" if atr_pct else "N/A"
+            fail_reason = f"low_volatility (beta={beta_str}<{self.BETA_FILTER_MIN_BETA}, atr={atr_str}<{self.BETA_FILTER_MIN_ATR_PCT}%)"
+
+            if self.BETA_FILTER_LOG_ONLY:
+                # LOG ONLY MODE: warn but allow
+                logger.warning(f"⚠️ BETA FILTER (log-only): {symbol} {fail_reason} - WOULD REJECT but allowing for testing")
+                signal_score = getattr(signal, 'score', 0)
+                signal_sector = getattr(signal, 'sector', '') or ''
+                signal_source = self._derive_signal_source(signal)
+                # Log to trade_history for analysis
+                self.trade_logger.log_skip(
+                    symbol=symbol,
+                    price=current_price,
+                    reason="BETA_FILTER_TEST",
+                    skip_detail=f"TEST MODE: {fail_reason}",
+                    filters={"beta_volatility": {"passed": False, "reason": fail_reason, "test_mode": True}},
+                    signal_score=signal_score,
+                    sector=signal_sector,
+                    signal_source=signal_source,
+                    atr_pct=atr_pct,
+                    entry_rsi=getattr(signal, 'rsi', None),
+                )
+                return True, f"test_mode_{fail_reason}"  # Allow but mark as test
+            else:
+                # ENFORCE MODE: actually reject
+                logger.warning(f"❌ BETA FILTER REJECT {symbol}: {fail_reason}")
+                return False, fail_reason
+
+        # Passed
+        pass_reason = "+".join(reason_parts) if reason_parts else "data_unavailable"
+        return True, pass_reason
+
     def _exec_calculate_position(self, signal, params: Dict, current_price: float) -> Tuple[bool, str, float, float, str]:
         """
         Block 3: Calculate position size and conviction.
@@ -4347,6 +4442,22 @@ class AutoTradingEngine:
             quality_ok, skip_reason = self._exec_quality_filters(signal, params, current_price)
             if not quality_ok:
                 self._last_skip_reason = skip_reason
+                return False
+
+            # BLOCK 2.5: Beta/Volatility filter (v6.32 - Test Mode)
+            beta_ok, beta_reason = self._check_beta_volatility(symbol, signal, current_price, mode)
+            if not beta_ok:
+                # Only happens if BETA_FILTER_LOG_ONLY = False (enforce mode)
+                signal_score = getattr(signal, 'score', 0)
+                signal_sector = getattr(signal, 'sector', '') or ''
+                signal_source = self._derive_signal_source(signal)
+                self._log_filter_rejection(
+                    symbol, current_price, "BETA_FILTER",
+                    f"Low volatility stock: {beta_reason}",
+                    {"beta_volatility": {"passed": False, "reason": beta_reason}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
+                self._last_skip_reason = f"beta_{beta_reason}"
                 return False
 
             # BLOCK 3: Calculate position size and conviction
