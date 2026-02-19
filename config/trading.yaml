@@ -374,8 +374,8 @@ breakout_sl_pct: 3.0
 pre_filter_enabled: true
 pre_filter_min_price: 5.0          # Minimum stock price
 pre_filter_min_volume: 500000      # Minimum average volume (fallback)
-pre_filter_min_atr_pct: 3.0        # Minimum ATR% (increased from 2.5 to filter low-volatility)
-pre_filter_max_overextended: 10.0  # Max % above SMA20
+pre_filter_min_atr_pct: 2.0        # v6.27: Relaxed 3.0→2.0 to reach target pool 200-300
+pre_filter_max_overextended: 12.0  # v6.27: Relaxed 10→12% for bull markets
 pre_filter_pool_stale_hours: 12    # Hours before pool considered stale
 
 # -- Intraday Pre-Filter Refresh (v6.18 + v6.27) --
@@ -404,7 +404,7 @@ pre_filter_on_demand_zero_signals: 3    # Refresh if 0 signals for N scans
 pre_filter_max_per_day: 6               # Max pre-filters per day (safety)
 
 # -- Pre-Filter Quality (v6.5) --
-pre_filter_max_rsi: 65             # Filter overbought (RSI > 65 = 20% WR)
+pre_filter_max_rsi: 70             # v6.27: Relaxed 65→70 to reach target pool 200-300
 pre_filter_min_dollar_volume: 5000000  # $5M avg dollar volume (liquidity)
 pre_filter_min_dip_5d: 99.0        # Disabled (screener handles dip detection)
 pre_filter_max_dip_5d: -15.0       # But not crashed > 15% (safety)
