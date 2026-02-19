@@ -5081,6 +5081,114 @@ class AutoTradingEngine:
             alpaca_pos = self.broker.get_position(symbol)
             if not alpaca_pos:
                 logger.info(f"{symbol} position already closed (SL may have triggered)")
+
+                # FIX: Log SELL for externally closed positions (stop loss triggered at broker)
+                try:
+                    from alpaca.trading.requests import GetOrdersRequest
+                    from alpaca.trading.enums import QueryOrderStatus
+
+                    # Get recent closed orders for this symbol
+                    request = GetOrdersRequest(
+                        status=QueryOrderStatus.CLOSED,
+                        symbols=[symbol],
+                        limit=5
+                    )
+                    orders = self.broker.client.get_orders(filter=request)
+
+                    # Find the most recent SELL order
+                    sell_order = None
+                    for order in orders:
+                        if order.side.value == 'sell' and order.status.value == 'filled':
+                            sell_order = order
+                            break
+
+                    if sell_order:
+                        # Calculate P&L from the sell order
+                        exit_price = float(sell_order.filled_avg_price)
+                        actual_qty = int(sell_order.filled_qty)
+                        entry_price = managed_pos.entry_price
+                        pnl_usd = (exit_price - entry_price) * actual_qty
+                        pnl_pct = ((exit_price - entry_price) / entry_price) * 100
+
+                        # Calculate hold duration
+                        entry_time = managed_pos.entry_time
+                        exit_time = sell_order.filled_at
+                        if exit_time:
+                            hold_delta = exit_time - entry_time
+                            hold_hours = int(hold_delta.total_seconds() / 3600)
+                            hold_minutes = int((hold_delta.total_seconds() % 3600) / 60)
+                            hold_duration = f"{hold_hours}h {hold_minutes}m" if hold_hours > 0 else f"{hold_minutes}m"
+                        else:
+                            hold_duration = "unknown"
+
+                        # Determine reason
+                        if 'stop' in reason.lower() or 'sl' in reason.lower():
+                            exit_reason = "STOP_LOSS_EXTERNAL"
+                        else:
+                            exit_reason = "EXTERNAL_CLOSE"
+
+                        # Log the SELL
+                        try:
+                            days_held = self.pdt_guard.get_days_held(symbol)
+                            pdt_status = self.pdt_guard.get_pdt_status()
+                            pdt_used = days_held == 0
+
+                            # Calculate price action metrics (best effort)
+                            max_gain = ((managed_pos.peak_price - managed_pos.entry_price) / managed_pos.entry_price) * 100 if managed_pos.peak_price > managed_pos.entry_price else 0
+                            trough = getattr(managed_pos, 'trough_price', 0)
+                            max_dd = ((trough - managed_pos.entry_price) / managed_pos.entry_price) * 100 if trough > 0 and trough < managed_pos.entry_price else 0
+                            exit_eff = round(pnl_pct / max_gain * 100, 1) if max_gain > 0 else (0 if pnl_pct <= 0 else 100)
+
+                            self.trade_logger.log_sell(
+                                symbol=symbol,
+                                qty=actual_qty,
+                                price=exit_price,
+                                reason=exit_reason,
+                                entry_price=entry_price,
+                                pnl_usd=pnl_usd,
+                                pnl_pct=pnl_pct,
+                                hold_duration=hold_duration,
+                                pdt_used=pdt_used,
+                                pdt_remaining=pdt_status.remaining - (1 if pdt_used else 0),
+                                day_held=days_held,
+                                sl_price=managed_pos.current_sl_price,
+                                trail_active=managed_pos.trailing_active,
+                                peak_price=managed_pos.peak_price,
+                                order_id=sell_order.id,
+                                trough_price=trough if trough > 0 else None,
+                                max_gain_pct=round(max_gain, 2),
+                                max_drawdown_pct=round(max_dd, 2),
+                                exit_efficiency=exit_eff,
+                                signal_score=getattr(managed_pos, 'signal_score', 0),
+                                sector=getattr(managed_pos, 'sector', ''),
+                                atr_pct=getattr(managed_pos, 'atr_pct', 0.0),
+                                signal_source=getattr(managed_pos, 'source', 'dip_bounce'),
+                                mode=getattr(managed_pos, 'entry_mode', 'NORMAL'),
+                                regime=getattr(managed_pos, 'entry_regime', 'BULL'),
+                                entry_rsi=getattr(managed_pos, 'entry_rsi', 0.0),
+                                momentum_5d=getattr(managed_pos, 'momentum_5d', 0.0),
+                            )
+
+                            logger.info(f"✅ Logged external SELL for {symbol}: {pnl_pct:+.2f}% ({exit_reason})")
+
+                            # Update stats
+                            self.daily_stats.realized_pnl += pnl_usd
+                            with self._stats_lock:
+                                self.weekly_realized_pnl += pnl_usd
+                            if pnl_pct > 0:
+                                self.daily_stats.trades_won += 1
+                            else:
+                                self.daily_stats.trades_lost += 1
+
+                        except Exception as log_err:
+                            logger.warning(f"Failed to log external sell for {symbol}: {log_err}")
+                    else:
+                        logger.warning(f"{symbol}: No filled sell order found in Alpaca history")
+
+                except Exception as e:
+                    logger.warning(f"{symbol}: Could not fetch closed order info: {e}")
+
+                # Clean up memory
                 with self._positions_lock:
                     if symbol in self.positions:
                         del self.positions[symbol]
@@ -6838,4 +6946,24 @@ def test_engine():
 
 
 if __name__ == "__main__":
-    test_engine()
+    # Production startup
+    import signal
+    import time
+
+    engine = AutoTradingEngine()
+    engine.start()
+
+    # Keep main thread alive
+    def signal_handler(sig, frame):
+        logger.info("Shutdown signal received")
+        engine.stop()
+        exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    try:
+        while engine.running:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        engine.stop()

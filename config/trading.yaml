@@ -18,25 +18,25 @@ rapid_rotation:
   # -- Stop Loss / Take Profit --
   atr_sl_multiplier: 1.5      # SL = 1.5 × ATR
   atr_tp_multiplier: 3.0      # TP = 3 × ATR (note: existing config uses 3.5)
-  min_sl_pct: 2.3             # Minimum SL% (tightest allowed) - v6.30: tightened for $5k capital
-  max_sl_pct: 3.0             # Maximum SL% (widest allowed) - v6.30: 3.5→3.0 for better R:R
-  min_tp_pct: 4.0             # Minimum TP% (must be > max_sl_pct) - v6.30: 4.5→4.0
-  max_tp_pct: 8.0             # Maximum TP% (longest allowed)
-  default_sl_pct: 2.5         # Default SL if ATR fails
-  default_tp_pct: 5.0         # Default TP if ATR fails
+  min_sl_pct: 4.0             # PHASE 1 FIX: Widened from 2.3 (was cutting MTN, NOV before bounce)
+  max_sl_pct: 5.0             # PHASE 1 FIX: Widened from 3.0 (allow more room for volatility)
+  min_tp_pct: 6.0             # Adjusted (must be > max_sl_pct=5.0)
+  max_tp_pct: 10.0            # Adjusted for wider SL range
+  default_sl_pct: 4.5         # PHASE 1 FIX: Increased from 2.5 (match new min_sl_pct)
+  default_tp_pct: 7.0         # Adjusted for new ranges
 
   # -- Trailing Stop --
   trail_activation_pct: 2.5   # Activate trailing at +2.5% gain (v6.20: 3.0→2.5 for earlier lock)
   trail_lock_pct: 80.0        # Lock 80% of peak gains (note: existing uses 75%)
 
   # -- Position Management --
-  max_positions: 3            # Max concurrent positions (v6.24: 5→3 for higher concentration)
+  max_positions: 3            # PHASE 1: Kept at 3 (paper trade = can be aggressive)
   max_hold_days: 10           # Max days to hold (v6.26: 7→10 for more flexibility)
-  position_size_pct: 42.0     # Position size (% of equity) - v6.30: 33→42 for $5k capital (6% target)
-  max_position_pct: 45.0      # Max position size (% of equity) - v6.30: 35→45 to accommodate 42%
+  position_size_pct: 42.0     # PHASE 1: Kept at 42% (paper trade = test fixes at full strength)
+  max_position_pct: 45.0      # Max position size (% of equity)
 
   # -- Scoring & Filtering --
-  min_score: 85               # Minimum score to qualify (note: existing uses 90)
+  min_score: 70               # PHASE 1 FIX: Lowered from 85 (too strict in current market)
   min_atr_pct: 2.5            # Minimum volatility (ATR%)
   momentum_5d_min_dip: -1.0   # Must have dipped at least -1.0% (block shallow dips like -0.79%)
   momentum_5d_max_dip: -15.0  # Max dip allowed -15% (block crashed stocks)
@@ -74,7 +74,7 @@ rapid_rotation:
 
   # -- SPY Intraday Filter (block new entries when SPY already selling off) --
   spy_intraday_filter_enabled: true
-  spy_intraday_filter_pct: -1.0   # Block if SPY down >1% from today's open
+  spy_intraday_filter_pct: -1.5   # PHASE 2 FIX: Block if SPY down >1.5% from today's open (prevents Feb 11-12 scenario)
 
   # -- VIX Spike Protection (tighten SLs when VIX jumps sharply) --
   vix_spike_protection_enabled: true
@@ -105,10 +105,10 @@ rapid_rotation:
 
   entry_allow_discount_exception: true     # Allow if price drops 0.5% from signal
   entry_discount_exception_pct: -0.5       # Exception threshold
-  entry_vwap_max_distance_pct: 1.5         # Layer 2: Block if > 1.5% above VWAP (v6.20: tighter)
+  entry_vwap_max_distance_pct: 3.0         # PHASE 1 FIX: Increased from 1.5 (was rejecting AA at 1.55%)
   entry_vwap_allow_below: true             # Always allow if below VWAP
   entry_limit_order_only: true             # Layer 3: Use limit orders only
-  entry_max_chase_pct: 0.2                 # Max chase above signal price
+  entry_max_chase_pct: 0.8                 # PHASE 1 FIX: Increased from 0.2 (was rejecting WEX, STX)
   entry_limit_timeout_minutes: 5           # Cancel limit order after timeout
 
   # Layer 4: Intraday Position Filter (v6.22)
@@ -130,8 +130,8 @@ rapid_rotation:
 # =============================================================================
 
 # -- Position Management --
-max_positions: 3
-position_size_pct: 42          # v6.30: 40→42 for $5k capital (6% target)
+max_positions: 3               # PHASE 1: Kept at 3 (paper trade = full test)
+position_size_pct: 42          # PHASE 1: Kept at 42% (paper trade = full strength)
 simulated_capital: 5000        # v6.30: 4000→5000 (updated capital)
 
 # -- Risk-Parity Sizing (v4.9) --
@@ -141,16 +141,16 @@ max_position_pct: 50           # v4.9.4: 40→50 (allow A+ conviction)
 
 # -- ATR-based SL/TP (v4.6) -- v6.10: Updated to new naming
 atr_sl_multiplier: 1.5        # SL = 1.5 x ATR%
-min_sl_pct: 2.3               # Floor: at least 2.3% SL - v6.30: tightened for better R:R
-max_sl_pct: 3.0               # Cap: max 3.0% SL - v6.30: 3.5→3.0 for $5k capital
+min_sl_pct: 4.0               # PHASE 1 FIX: Widened from 2.3 (sync with rapid_rotation)
+max_sl_pct: 5.0               # PHASE 1 FIX: Widened from 3.0 (sync with rapid_rotation)
 atr_tp_multiplier: 3.0        # v6.10: Use same as rapid_rotation (3.0 not 3.5)
-min_tp_pct: 4.0               # v6.30: Adjusted (must be > max_sl_pct=3.0)
-max_tp_pct: 8.0               # v6.0: 12→8 (trailing captures gains)
+min_tp_pct: 6.0               # Adjusted (must be > max_sl_pct=5.0)
+max_tp_pct: 10.0              # Adjusted for wider SL range
 
 # -- Fallback fixed SL/TP -- v6.10: Updated to new naming
-default_sl_pct: 2.5
-default_tp_pct: 5.0           # v6.10: Use same as rapid_rotation (5.0 not 8.0)
-pdt_tp_threshold: 4.0
+default_sl_pct: 4.5           # PHASE 1 FIX: Increased from 2.5 (sync with rapid_rotation)
+default_tp_pct: 7.0           # Adjusted for new ranges
+pdt_tp_threshold: 6.0         # Adjusted (was 4.0)
 
 # -- Trailing Stop --
 trail_enabled: true           # v6.0: ENABLED (backtest: +2%/60% optimal)
@@ -162,7 +162,7 @@ max_hold_days: 10             # v6.0: 5→10 (more time for trade)
 daily_loss_limit_pct: 3.0
 weekly_loss_limit_pct: 7.0
 max_consecutive_losses: 3
-min_score: 90                  # v6.2: 95→90 (backtest: 71% WR vs 46% for <90)
+min_score: 70                  # PHASE 1 FIX: Lowered from 90 (too strict in current market)
 
 # -- Stock Quality Filters (v6.2) --
 max_rsi_entry: 65              # Block RSI > 65 (backtest: only 20% WR)
@@ -314,7 +314,7 @@ bull_sector_min_return: -3         # Absolute: block sector if return_20d < -3% 
 sector_weak_relative_n: 2          # Relative: also block bottom N sectors by 20d return (0=disable)
 
 # -- Quant Research Findings (v5.3) --
-stock_d_filter_enabled: true       # Require dip-bounce pattern
+stock_d_filter_enabled: false      # PHASE 1 FIX: DISABLED (40% accuracy, rejecting winners)
 bear_dd_control_exempt: true       # Don't apply DD controls in BEAR
 
 # =============================================================================
