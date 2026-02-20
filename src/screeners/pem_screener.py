@@ -61,6 +61,14 @@ class PEMScreener:
         # Cache for 20d avg volume (expensive to fetch, cache per run)
         self._vol_cache: Dict[str, float] = {}
 
+        # v6.33: Sector filter for win rate improvement
+        try:
+            from filters.sector_filter import SectorFilter
+            self.sector_filter = SectorFilter(enabled=True)
+        except ImportError:
+            logger.warning("Sector filter not available")
+            self.sector_filter = None
+
     def get_universe(self) -> List[str]:
         """
         Get scan universe from pre-filter pool.
@@ -126,6 +134,22 @@ class PEMScreener:
                 logger.debug(f"PEM: Error checking {symbol}: {e}")
 
         signals.sort(key=lambda s: s['gap_pct'], reverse=True)
+
+        # v6.33: Apply sector filter (remove weak sectors)
+        # PEM signals are dicts, need to convert for filtering
+        if self.sector_filter and self.sector_filter.enabled and signals:
+            before_count = len(signals)
+            # Filter by sector field
+            filtered = []
+            for sig in signals:
+                sector = sig.get('sector', 'Unknown')
+                if self.sector_filter.is_good_sector(sector):
+                    filtered.append(sig)
+                else:
+                    logger.debug(f"PEM: Filtered {sig['symbol']} (sector: {sector})")
+            signals = filtered
+            if before_count != len(signals):
+                logger.info(f"🏭 PEM sector filter: {len(signals)}/{before_count} passed")
 
         if signals:
             logger.info(f"PEM: ✅ Found {len(signals)} earnings gap signals")

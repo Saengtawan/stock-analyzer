@@ -43,6 +43,14 @@ class OvernightGapScanner:
         """
         self.data_cache = data_manager or {}
 
+        # v6.33: Sector filter for win rate improvement
+        try:
+            from filters.sector_filter import SectorFilter
+            self.sector_filter = SectorFilter(enabled=True)
+        except ImportError:
+            logger.warning("Sector filter not available")
+            self.sector_filter = None
+
     def scan(self, universe: dict = None, sector_regime=None,
              min_score: int = 70, position_pct: float = 35,
              target_pct: float = 3.0, sl_pct: float = 1.5) -> List:
@@ -85,6 +93,10 @@ class OvernightGapScanner:
 
         # Sort by score descending
         candidates.sort(key=lambda x: x.score, reverse=True)
+
+        # v6.33: Apply sector filter (remove weak sectors)
+        if self.sector_filter and self.sector_filter.enabled and candidates:
+            candidates = self.sector_filter.filter_signals(candidates)
 
         if candidates:
             logger.info(f"OvernightGap: Found {len(candidates)} candidates")
