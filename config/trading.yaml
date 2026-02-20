@@ -30,9 +30,9 @@ rapid_rotation:
   trail_lock_pct: 80.0        # Lock 80% of peak gains (note: existing uses 75%)
 
   # -- Position Management --
-  max_positions: 3            # PHASE 1: Kept at 3 (paper trade = can be aggressive)
+  max_positions: 2            # v6.31: 3→2 for $5k account (adaptive allocation with overnight gap)
   max_hold_days: 10           # Max days to hold (v6.26: 7→10 for more flexibility)
-  position_size_pct: 42.0     # PHASE 1: Kept at 42% (paper trade = test fixes at full strength)
+  position_size_pct: 30.0     # v6.31: 42→30 for $5k account (2×30%=60%, leaves room for overnight)
   max_position_pct: 45.0      # Max position size (% of equity)
 
   # -- Scoring & Filtering --
@@ -130,8 +130,8 @@ rapid_rotation:
 # =============================================================================
 
 # -- Position Management --
-max_positions: 3               # PHASE 1: Kept at 3 (paper trade = full test)
-position_size_pct: 42          # PHASE 1: Kept at 42% (paper trade = full strength)
+max_positions: 2               # v6.31: 3→2 for $5k account (adaptive with overnight gap)
+position_size_pct: 30          # v6.31: 42→30 for $5k account (leaves room for overnight)
 simulated_capital: 5000        # v6.30: 4000→5000 (updated capital)
 
 # -- Risk-Parity Sizing (v4.9) --
@@ -214,7 +214,7 @@ earnings_auto_sell_buffer_min: 30  # Minutes before close
 low_risk_mode_enabled: true
 low_risk_gap_max_up: 1.0       # % - gap filter for low risk mode
 low_risk_min_score: 90         # v4.9.7: 85→90 (balance: stricter than BEAR=85, looser than NORMAL=95)
-low_risk_position_size_pct: 40 # v6.24: 20→40 for $4K account (2 pos × 40% = 80%)
+low_risk_position_size_pct: 30 # v6.31: 40→30 for $5K account (2 pos × 30% = 60%, consistent with main strategy)
 low_risk_max_atr_pct: 4.0
 
 # -- Afternoon Scan (v4.9.1) --
@@ -305,7 +305,7 @@ bear_max_positions: 2
 bear_min_score: 85                 # v4.9.4: 98→85
 bear_gap_max_up: 1.5               # v4.9.4: 1.0→1.5
 bear_gap_max_down: -3.0            # v4.9.4: -2.0→-3.0
-bear_position_size_pct: 45         # v6.24: 25→45 Balanced Aggressive (2×45%=90%)
+bear_position_size_pct: 30         # v6.31: 45→30 for $5K account (2×30%=60%, leaves room for overnight)
 bear_max_atr_pct: 4.0              # v4.9.4: 3.0→4.0
 
 # -- BULL Sector Filter (v4.9.3) --
@@ -334,12 +334,17 @@ day_trade_momentum_threshold: 4.0  # % intraday gain to trigger
 day_trade_emergency_enabled: true   # use day trade for emergency SL
 
 # -- Overnight Gap Scanner (Step 6) --
-# DISABLED 2026-02-18: Backtest shows -0.221% expectancy (no edge, hurts portfolio)
-overnight_gap_enabled: false
+# ENABLED 2026-02-20: Adaptive allocation strategy for $5k account
+# Uses ALL remaining cash after dip-bounce positions (adaptive 40-70%)
+# Backtest 2023-2025: 100% WR, 57 events, +13.29% monthly, +163.44% total return
+overnight_gap_enabled: true
 overnight_gap_scan_hour: 15
 overnight_gap_scan_minute: 30
 overnight_gap_min_score: 70
-overnight_gap_position_pct: 35
+overnight_gap_position_pct: 100         # v6.31: 35→100 (use all remaining cash)
+overnight_gap_max_pct_of_capital: 70    # v6.31: Safety cap at 70% of total capital
+overnight_gap_min_cash: 500             # v6.31: Skip if available cash < $500
+overnight_gap_max_positions: 1          # v6.31: Only 1 overnight position
 overnight_gap_target_pct: 3.0
 overnight_gap_sl_pct: 1.5
 

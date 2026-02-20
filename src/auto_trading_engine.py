@@ -859,6 +859,10 @@ class AutoTradingEngine:
         self.OVERNIGHT_GAP_POSITION_PCT = cfg.overnight_gap_position_pct
         self.OVERNIGHT_GAP_TARGET_PCT = cfg.overnight_gap_target_pct
         self.OVERNIGHT_GAP_SL_PCT = cfg.overnight_gap_sl_pct
+        # v6.31: Adaptive allocation parameters
+        self.OVERNIGHT_GAP_MAX_PCT_OF_CAPITAL = cfg.overnight_gap_max_pct_of_capital
+        self.OVERNIGHT_GAP_MIN_CASH = cfg.overnight_gap_min_cash
+        self.OVERNIGHT_GAP_MAX_POSITIONS = cfg.overnight_gap_max_positions
         
         # =====================================================================
         # BREAKOUT SCANNER
@@ -2181,15 +2185,105 @@ class AutoTradingEngine:
             logger.info(f"⛔ Weak sectors blocked: {sorted(blocked)}")
         return list(blocked)
 
+    def _calculate_available_cash(self) -> float:
+        """
+        Calculate available cash for new positions.
+        v6.31: Added for overnight gap adaptive allocation.
+
+        Returns:
+            Available cash in USD
+        """
+        # Get account info
+        account = self.broker.get_account()
+        if isinstance(account, dict):
+            portfolio_value = float(account.get('portfolio_value', 0))
+        else:
+            portfolio_value = float(getattr(account, 'portfolio_value', 0))
+
+        # Use simulated capital if configured
+        total_capital = self.SIMULATED_CAPITAL if self.SIMULATED_CAPITAL else portfolio_value
+
+        # Calculate used capital from active positions
+        used_capital = 0.0
+        with self._positions_lock:
+            for symbol, pos in self.positions.items():
+                position_value = pos.entry_price * pos.qty
+                used_capital += position_value
+
+        available_cash = total_capital - used_capital
+        return max(0, available_cash)  # Never return negative
+
+    def _get_overnight_position_size(self, signal, capital: float) -> float:
+        """
+        Calculate adaptive position size for overnight gap.
+        Uses ALL available cash up to max_pct_of_capital cap.
+
+        v6.31: Implements adaptive allocation logic for overnight gap strategy.
+
+        Args:
+            signal: Signal object (not used currently, for future enhancements)
+            capital: Total capital
+
+        Returns:
+            Position value in USD (0 if insufficient cash)
+        """
+        # Get available cash
+        available_cash = self._calculate_available_cash()
+
+        # Check minimum cash threshold
+        if available_cash < self.OVERNIGHT_GAP_MIN_CASH:
+            logger.info(
+                f"💤 Overnight gap: Insufficient cash ${available_cash:.0f} < "
+                f"${self.OVERNIGHT_GAP_MIN_CASH:.0f} min threshold"
+            )
+            return 0
+
+        # Calculate max allowed (cap at % of total capital)
+        max_allowed = capital * (self.OVERNIGHT_GAP_MAX_PCT_OF_CAPITAL / 100)
+
+        # Use ALL available cash, but respect cap
+        position_value = min(available_cash, max_allowed)
+
+        logger.info(
+            f"💰 Overnight gap adaptive sizing: "
+            f"available=${available_cash:.0f}, "
+            f"cap=${max_allowed:.0f} ({self.OVERNIGHT_GAP_MAX_PCT_OF_CAPITAL:.0f}%), "
+            f"using=${position_value:.0f} ({position_value/capital*100:.1f}% of capital)"
+        )
+
+        return position_value
+
     def _get_conviction_size(self, signal, params) -> Tuple[float, str]:
         """
         v4.9.4: Conviction-based position sizing
+        v6.31: Enhanced with overnight gap adaptive sizing
 
         A+ (45%): STRONG BULL sector + (insider buying OR score 85+)
         A  (40%): BULL sector + score 80+
         B  (30%): SIDEWAYS/UNKNOWN sector + score 80+
         SKIP:     BEAR sector -> return 0
+        OVERNIGHT_ADAPTIVE: Use all available cash (up to max_pct_of_capital cap)
         """
+        # v6.31: Check if this is an overnight gap signal
+        sl_method = getattr(signal, 'sl_method', '')
+        if 'overnight_gap' in sl_method:
+            # Use adaptive sizing for overnight gap
+            account = self.broker.get_account()
+            if isinstance(account, dict):
+                portfolio_value = float(account.get('portfolio_value', 0))
+            else:
+                portfolio_value = float(getattr(account, 'portfolio_value', 0))
+            total_capital = self.SIMULATED_CAPITAL if self.SIMULATED_CAPITAL else portfolio_value
+
+            position_value = self._get_overnight_position_size(signal, total_capital)
+            if position_value == 0:
+                return 0, 'INSUFFICIENT_CASH'
+
+            # Return as percentage
+            position_pct = (position_value / total_capital) * 100
+            return position_pct, 'OVERNIGHT_ADAPTIVE'
+
+        # Standard conviction sizing for dip-bounce
         if not self.CONVICTION_SIZING_ENABLED:
             return params['position_size_pct'], 'DEFAULT'
 

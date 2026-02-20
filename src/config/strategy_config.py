@@ -354,6 +354,10 @@ class RapidRotationConfig:
     overnight_gap_position_pct: int = 35        # Position size (%)
     overnight_gap_target_pct: float = 3.0       # Target profit (%)
     overnight_gap_sl_pct: float = 1.5           # Stop loss (%)
+    # v6.31: Adaptive allocation parameters
+    overnight_gap_max_pct_of_capital: float = 70.0  # Max % of total capital for overnight
+    overnight_gap_min_cash: float = 500.0       # Min cash required to enter overnight position
+    overnight_gap_max_positions: int = 1        # Max overnight positions at once
 
     # =========================================================================
     # BREAKOUT SCANNER (v4.9.4)
