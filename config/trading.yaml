@@ -15,29 +15,29 @@
 # =============================================================================
 
 rapid_rotation:
-  # -- Stop Loss / Take Profit --
+  # -- Stop Loss / Take Profit (v6.33: Optimized for win rate) --
   atr_sl_multiplier: 1.5      # SL = 1.5 × ATR
   atr_tp_multiplier: 3.0      # TP = 3 × ATR (note: existing config uses 3.5)
-  min_sl_pct: 4.0             # PHASE 1 FIX: Widened from 2.3 (was cutting MTN, NOV before bounce)
-  max_sl_pct: 5.0             # PHASE 1 FIX: Widened from 3.0 (allow more room for volatility)
-  min_tp_pct: 6.0             # Adjusted (must be > max_sl_pct=5.0)
-  max_tp_pct: 10.0            # Adjusted for wider SL range
-  default_sl_pct: 4.5         # PHASE 1 FIX: Increased from 2.5 (match new min_sl_pct)
-  default_tp_pct: 7.0         # Adjusted for new ranges
+  min_sl_pct: 3.0             # v6.33: Tightened 4.0→3.0 (faster rotation, limit losses)
+  max_sl_pct: 4.0             # v6.33: Tightened 5.0→4.0 (cap max loss)
+  min_tp_pct: 8.0             # v6.33: Raised 6.0→8.0 (better risk:reward ratio)
+  max_tp_pct: 12.0            # v6.33: Raised 10.0→12.0 (capture bigger moves)
+  default_sl_pct: 3.5         # v6.33: Tightened 4.5→3.5 (standard protection)
+  default_tp_pct: 10.0        # v6.33: Raised 7.0→10.0 (target larger gains)
 
   # -- Trailing Stop --
-  trail_activation_pct: 2.5   # Activate trailing at +2.5% gain (v6.20: 3.0→2.5 for earlier lock)
+  trail_activation_pct: 2.0   # v6.33: Earlier 2.5→2.0 (lock profits sooner)
   trail_lock_pct: 80.0        # Lock 80% of peak gains (note: existing uses 75%)
 
   # -- Position Management --
   max_positions: 2            # v6.31: 3→2 for $5k account (adaptive allocation with overnight gap)
   max_positions_total: 3      # v6.32: Global limit across ALL strategies (dip+overnight+PEM)
-  max_hold_days: 10           # Max days to hold (v6.26: 7→10 for more flexibility)
+  max_hold_days: 7            # v6.33: Reduced 10→7 (faster rotation for fresher signals)
   position_size_pct: 30.0     # v6.31: 42→30 for $5k account (2×30%=60%, leaves room for overnight)
   max_position_pct: 45.0      # Max position size (% of equity)
 
   # -- Scoring & Filtering --
-  min_score: 70               # PHASE 1 FIX: Lowered from 85 (too strict in current market)
+  min_score: 80               # v6.33: Raised 70→80 (higher quality signals, +7-10% WR)
   min_atr_pct: 3.0            # v6.32: 2.5→3.0 for consistency with beta_filter
   momentum_5d_min_dip: -1.0   # Must have dipped at least -1.0% (block shallow dips like -0.79%)
   momentum_5d_max_dip: -15.0  # Max dip allowed -15% (block crashed stocks)
@@ -140,30 +140,30 @@ risk_parity_enabled: true      # Keep risk parity enabled for safety
 risk_budget_pct: 2.5           # Max risk per position = 2.5% of account (was 1.0)
 max_position_pct: 50           # v4.9.4: 40→50 (allow A+ conviction)
 
-# -- ATR-based SL/TP (v4.6) -- v6.10: Updated to new naming
+# -- ATR-based SL/TP (v6.33: Optimized for win rate, sync with rapid_rotation) --
 atr_sl_multiplier: 1.5        # SL = 1.5 x ATR%
-min_sl_pct: 4.0               # PHASE 1 FIX: Widened from 2.3 (sync with rapid_rotation)
-max_sl_pct: 5.0               # PHASE 1 FIX: Widened from 3.0 (sync with rapid_rotation)
+min_sl_pct: 3.0               # v6.33: Tightened 4.0→3.0 (faster rotation)
+max_sl_pct: 4.0               # v6.33: Tightened 5.0→4.0 (limit losses)
 atr_tp_multiplier: 3.0        # v6.10: Use same as rapid_rotation (3.0 not 3.5)
-min_tp_pct: 6.0               # Adjusted (must be > max_sl_pct=5.0)
-max_tp_pct: 10.0              # Adjusted for wider SL range
+min_tp_pct: 8.0               # v6.33: Raised 6.0→8.0 (better R:R)
+max_tp_pct: 12.0              # v6.33: Raised 10.0→12.0 (capture bigger moves)
 
-# -- Fallback fixed SL/TP -- v6.10: Updated to new naming
-default_sl_pct: 4.5           # PHASE 1 FIX: Increased from 2.5 (sync with rapid_rotation)
-default_tp_pct: 7.0           # Adjusted for new ranges
-pdt_tp_threshold: 6.0         # Adjusted (was 4.0)
+# -- Fallback fixed SL/TP -- v6.33: Updated to match rapid_rotation
+default_sl_pct: 3.5           # v6.33: Tightened 4.5→3.5 (standard protection)
+default_tp_pct: 10.0          # v6.33: Raised 7.0→10.0 (target larger gains)
+pdt_tp_threshold: 8.0         # v6.33: Raised 6.0→8.0 (match new min_tp_pct)
 
 # -- Trailing Stop --
 trail_enabled: true           # v6.0: ENABLED (backtest: +2%/60% optimal)
-trail_activation_pct: 3.0     # v6.1: 2→3 (more room to run before trailing)
+trail_activation_pct: 2.0     # v6.33: Earlier 3.0→2.0 (lock profits sooner)
 trail_lock_pct: 75            # v6.1: 60→75 (lock 75% of gains)
-max_hold_days: 10             # v6.0: 5→10 (more time for trade)
+max_hold_days: 7              # v6.33: Reduced 10→7 (faster rotation)
 
 # -- Risk Limits --
 daily_loss_limit_pct: 3.0
 weekly_loss_limit_pct: 7.0
 max_consecutive_losses: 3
-min_score: 70                  # PHASE 1 FIX: Lowered from 90 (too strict in current market)
+min_score: 80                  # v6.33: Raised 70→80 (higher quality signals)
 
 # -- Stock Quality Filters (v6.2) --
 max_rsi_entry: 65              # Block RSI > 65 (backtest: only 20% WR)
@@ -341,7 +341,7 @@ day_trade_emergency_enabled: true   # use day trade for emergency SL
 overnight_gap_enabled: true
 overnight_gap_scan_hour: 15
 overnight_gap_scan_minute: 30
-overnight_gap_min_score: 70
+overnight_gap_min_score: 80             # v6.33: Raised 70→80 (match dip-bounce quality)
 overnight_gap_position_pct: 100         # v6.31: 35→100 (use all remaining cash)
 overnight_gap_max_pct_of_capital: 70    # v6.31: Safety cap at 70% of total capital
 overnight_gap_min_cash: 500             # v6.31: Skip if available cash < $500

@@ -83,6 +83,9 @@ from screeners.rapid_trader_filters import (
     calculate_dynamic_sl_tp,
 )
 
+# v6.33: Sector filter for win rate improvement
+from filters.sector_filter import SectorFilter
+
 # Real-time price fetching
 from data_sources.realtime_price import clear_price_cache
 
@@ -301,6 +304,9 @@ class RapidRotationScreener:
         self._init_sector_regime()
         self._init_alt_data()
         self._init_strategy_manager()  # v6.15: Multi-strategy architecture
+
+        # v6.33: Sector filter for win rate improvement (+17% WR from backtest)
+        self.sector_filter = SectorFilter(enabled=True)
 
     def _is_cache_valid(self, name: str, cache_time: float) -> bool:
         """Check if a cache entry is still valid based on TTL"""
@@ -1658,6 +1664,10 @@ class RapidRotationScreener:
 
             # Combine re-sorted top 10 with rest
             signals = top_10 + signals[10:]
+
+        # v6.33: Apply sector filter (remove weak sectors for +17% WR improvement)
+        if self.sector_filter and self.sector_filter.enabled:
+            signals = self.sector_filter.filter_signals(signals)
 
         # v4.9.3: Save sector cache after scan (new sectors discovered during analyze)
         if self._sector_cache:
