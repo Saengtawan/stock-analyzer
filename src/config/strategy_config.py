@@ -92,6 +92,7 @@ class RapidRotationConfig:
     # POSITION MANAGEMENT
     # =========================================================================
     max_positions: int = 3              # Max concurrent positions (legacy)
+    max_positions_total: int = 3        # v6.32: Global limit across ALL strategies (dip+overnight+PEM)
     max_hold_days: int = 10             # Max days to hold (time stop, legacy: 10)
     position_size_pct: float = 40.0     # Position size (% of equity, legacy)
     max_position_pct: float = 50.0      # Max position size (% of equity, legacy: 50)
