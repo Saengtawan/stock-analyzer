@@ -13000,3 +13000,106 @@ TypeError: Object of type bool_ is not JSON serializable
 [32m21:19:13[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
 [32m21:19:13[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
 [32m21:19:13[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
+127.0.0.1 - - [21/Feb/2026 21:19:30] "GET /api/rapid/signals HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:19:30] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:19:30] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
+[32m21:19:30[0m | [1mINFO    [0m | [1mRunning health check...[0m
+[32m21:19:31[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
+[32m21:19:31[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
+[32m21:19:31[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
+127.0.0.1 - - [21/Feb/2026 21:19:32] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+[32m21:19:32[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
+[32m21:19:32[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
+[32m21:19:32[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
+[32m21:19:33[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
+[32m21:19:33[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
+[32m21:19:33[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
+127.0.0.1 - - [21/Feb/2026 21:19:33] "GET /api/auto/status HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:20:00] "GET /api/rapid/signals HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:20:00] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
+[32m21:20:00[0m | [1mINFO    [0m | [1mRunning health check...[0m
+[32m21:20:01[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
+[32m21:20:01[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
+[32m21:20:01[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
+127.0.0.1 - - [21/Feb/2026 21:20:02] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+[32m21:20:02[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
+[32m21:20:02[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
+[32m21:20:02[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
+[32m21:20:03[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
+[32m21:20:03[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
+[32m21:20:03[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
+127.0.0.1 - - [21/Feb/2026 21:20:03] "GET /api/auto/status HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:20:30] "GET /api/rapid/signals HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:20:30] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:20:30] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
+[32m21:20:30[0m | [1mINFO    [0m | [1mRunning health check...[0m
+[32m21:20:31[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
+[32m21:20:31[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
+[32m21:20:31[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
+127.0.0.1 - - [21/Feb/2026 21:20:32] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+[32m21:20:33[0m | [1mINFO    [0m | [1m✅ Market Regime: BULL: SMA20=OK(+0.1%) | RSI=OK(48) | Ret5d=OK(+1.2%) | VIX=OK(19.1)[0m
+[32m21:20:33[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
+[32m21:20:33[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
+[32m21:20:33[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
+[32m21:20:34[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
+[32m21:20:34[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
+[32m21:20:34[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
+127.0.0.1 - - [21/Feb/2026 21:20:34] "GET /api/auto/status HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:21:00] "GET /api/rapid/signals HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:21:00] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
+[32m21:21:00[0m | [1mINFO    [0m | [1mRunning health check...[0m
+[32m21:21:02[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
+[32m21:21:02[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
+[32m21:21:02[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
+[32m21:21:02[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
+[32m21:21:02[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
+[32m21:21:02[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
+[32m21:21:03[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
+[32m21:21:03[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
+[32m21:21:03[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
+127.0.0.1 - - [21/Feb/2026 21:21:03] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:21:03] "GET /api/auto/status HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:21:30] "GET /api/rapid/signals HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:21:30] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:21:30] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
+[32m21:21:30[0m | [1mINFO    [0m | [1mRunning health check...[0m
+[32m21:21:30[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
+[32m21:21:30[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
+[32m21:21:30[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
+127.0.0.1 - - [21/Feb/2026 21:21:31] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+[32m21:21:32[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
+[32m21:21:32[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
+[32m21:21:32[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
+[32m21:21:33[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
+[32m21:21:33[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
+[32m21:21:33[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
+127.0.0.1 - - [21/Feb/2026 21:21:33] "GET /api/auto/status HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:22:00] "GET /api/rapid/signals HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:22:00] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
+[32m21:22:00[0m | [1mINFO    [0m | [1mRunning health check...[0m
+[32m21:22:02[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
+[32m21:22:02[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
+[32m21:22:02[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
+[32m21:22:03[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
+[32m21:22:03[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
+[32m21:22:03[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
+127.0.0.1 - - [21/Feb/2026 21:22:03] "GET /api/auto/status HTTP/1.1" 200 -
+[32m21:22:03[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
+[32m21:22:03[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
+[32m21:22:03[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
+127.0.0.1 - - [21/Feb/2026 21:22:04] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:22:30] "GET /api/rapid/signals HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:22:30] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Feb/2026 21:22:30] "GET /api/health HTTP/1.1" 200 -
+[32m21:22:30[0m | [1mINFO    [0m | [1mRunning health check...[0m
+[32m21:22:31[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
+[32m21:22:31[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
+[32m21:22:31[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
+127.0.0.1 - - [21/Feb/2026 21:22:32] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+[32m21:22:32[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
+[32m21:22:32[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
+[32m21:22:32[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
+[32m21:22:33[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
+[32m21:22:33[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
+[32m21:22:33[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
+127.0.0.1 - - [21/Feb/2026 21:22:33] "GET /api/auto/status HTTP/1.1" 200 -

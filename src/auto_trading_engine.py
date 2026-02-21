@@ -571,6 +571,9 @@ class AutoTradingEngine:
         self.signal_queue: List[QueuedSignal] = []
         self._queue_lock = threading.Lock()  # v6.41: Queue lock for thread-safe operations
 
+        # v6.41: Opening window stagger lock (protect counter race conditions)
+        self._opening_window_lock = threading.Lock()
+
         # v5.3: Track last skip reason for UI display
         self._last_skip_reason: str = ""
 
@@ -3548,8 +3551,28 @@ class AutoTradingEngine:
 
         # v6.3: Prevent concurrent scans (refresh spam protection)
         if not self._scan_lock.acquire(blocking=False):
-            logger.warning("⚠️ Scan lock held - another scan in progress, skipping")
-            return []
+            # v6.41: CRITICAL FIX - Watchdog check if lock held too long (prevent deadlock)
+            if hasattr(self, '_scan_lock_acquired_at') and self._scan_lock_acquired_at:
+                held_seconds = (datetime.now() - self._scan_lock_acquired_at).total_seconds()
+                if held_seconds > 300:  # 5 minutes timeout
+                    logger.critical(f"🚨 SCAN LOCK STUCK for {held_seconds:.0f}s - forcing release!")
+                    try:
+                        self._scan_lock.release()
+                        logger.info("✅ Scan lock force-released, retrying acquire")
+                        if self._scan_lock.acquire(blocking=False):
+                            self._scan_lock_acquired_at = datetime.now()
+                        else:
+                            logger.error("❌ Failed to acquire lock even after force release")
+                            return []
+                    except Exception as e:
+                        logger.error(f"Failed to force-release scan lock: {e}")
+                        return []
+                else:
+                    logger.warning(f"⚠️ Scan lock held - another scan in progress ({held_seconds:.0f}s), skipping")
+                    return []
+            else:
+                logger.warning("⚠️ Scan lock held - another scan in progress, skipping")
+                return []
 
         self._scan_lock_acquired_at = datetime.now()  # v6.24: track for watchdog
 
@@ -4017,28 +4040,30 @@ class AutoTradingEngine:
         # Backtest: max-1 loses 44% of trades (45.5% win) leaving +200% P&L on table.
         # Stagger-15min allows 2 positions in 30min, retains 87% of baseline profit.
         if self.OPENING_WINDOW_LIMIT_ENABLED:
-            et_now = self._get_et_time()
-            today = et_now.date()
-            # Reset stagger tracker on new trading day
-            if self._opening_window_date != today:
-                self._opening_window_buys = 0
-                self._opening_window_date = today
-                self._opening_last_buy_time = None
-            # Check if we're in the opening window (9:30 to 9:30+window_minutes)
-            market_open_et = et_now.replace(hour=9, minute=30, second=0, microsecond=0)
-            window_end_et = market_open_et + timedelta(minutes=self.OPENING_WINDOW_MINUTES)
-            if market_open_et <= et_now < window_end_et:
-                last_buy = getattr(self, '_opening_last_buy_time', None)
-                if last_buy is not None:
-                    elapsed = (et_now - last_buy).total_seconds() / 60
-                    stagger = self.OPENING_WINDOW_STAGGER_MINUTES  # v6.35: Renamed for clarity
-                    if elapsed < stagger:
-                        wait_min = stagger - elapsed
-                        logger.warning(
-                            f"⛔ OPENING STAGGER: Must wait {wait_min:.0f}min more before next buy "
-                            f"(last buy {elapsed:.0f}min ago, stagger={stagger}min in first {self.OPENING_WINDOW_MINUTES}min)"
-                        )
-                        return False, f"Opening stagger ({stagger}min)"
+            # v6.41: CRITICAL FIX - Protect counter updates with lock (prevent race condition)
+            with self._opening_window_lock:
+                et_now = self._get_et_time()
+                today = et_now.date()
+                # Reset stagger tracker on new trading day
+                if self._opening_window_date != today:
+                    self._opening_window_buys = 0
+                    self._opening_window_date = today
+                    self._opening_last_buy_time = None
+                # Check if we're in the opening window (9:30 to 9:30+window_minutes)
+                market_open_et = et_now.replace(hour=9, minute=30, second=0, microsecond=0)
+                window_end_et = market_open_et + timedelta(minutes=self.OPENING_WINDOW_MINUTES)
+                if market_open_et <= et_now < window_end_et:
+                    last_buy = getattr(self, '_opening_last_buy_time', None)
+                    if last_buy is not None:
+                        elapsed = (et_now - last_buy).total_seconds() / 60
+                        stagger = self.OPENING_WINDOW_STAGGER_MINUTES  # v6.35: Renamed for clarity
+                        if elapsed < stagger:
+                            wait_min = stagger - elapsed
+                            logger.warning(
+                                f"⛔ OPENING STAGGER: Must wait {wait_min:.0f}min more before next buy "
+                                f"(last buy {elapsed:.0f}min ago, stagger={stagger}min in first {self.OPENING_WINDOW_MINUTES}min)"
+                            )
+                            return False, f"Opening stagger ({stagger}min)"
 
         # SPY intraday filter: block new entries when SPY already selling off from open
         if self.SPY_INTRADAY_FILTER_ENABLED:
@@ -4521,13 +4546,15 @@ class AutoTradingEngine:
 
         # Opening window stagger: record last buy time
         if self.OPENING_WINDOW_LIMIT_ENABLED:
-            et_now = self._get_et_time()
-            market_open_et = et_now.replace(hour=9, minute=30, second=0, microsecond=0)
-            window_end_et = market_open_et + timedelta(minutes=self.OPENING_WINDOW_MINUTES)
-            if market_open_et <= et_now < window_end_et:
-                self._opening_last_buy_time = et_now
-                self._opening_window_buys += 1
-                logger.info(f"📊 Opening stagger: buy #{self._opening_window_buys} at {et_now.strftime('%H:%M')} ET, next allowed after {(et_now + timedelta(minutes=self.OPENING_WINDOW_STAGGER_MINUTES)).strftime('%H:%M')} ET")
+            # v6.41: CRITICAL FIX - Protect counter updates with lock (prevent race condition)
+            with self._opening_window_lock:
+                et_now = self._get_et_time()
+                market_open_et = et_now.replace(hour=9, minute=30, second=0, microsecond=0)
+                window_end_et = market_open_et + timedelta(minutes=self.OPENING_WINDOW_MINUTES)
+                if market_open_et <= et_now < window_end_et:
+                    self._opening_last_buy_time = et_now
+                    self._opening_window_buys += 1
+                    logger.info(f"📊 Opening stagger: buy #{self._opening_window_buys} at {et_now.strftime('%H:%M')} ET, next allowed after {(et_now + timedelta(minutes=self.OPENING_WINDOW_STAGGER_MINUTES)).strftime('%H:%M')} ET")
 
         # Update stats
         self.daily_stats.trades_executed += 1
