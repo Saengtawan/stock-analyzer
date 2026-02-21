@@ -1,0 +1,77 @@
+{
+  "saved_at": "2026-02-20T22:16:41.440898",
+  "count": 3,
+  "queue": [
+    {
+      "symbol": "ON",
+      "signal_price": 68.36,
+      "score": 140,
+      "stop_loss": 66.99,
+      "take_profit": 72.28,
+      "queued_at": "2026-02-20T21:40:53.443882",
+      "reasons": [
+        "Bounce confirmed",
+        "Good dip -3.2%",
+        "Big dip yesterday -3.6%",
+        "Strong uptrend",
+        "High vol 4.4%",
+        "Some room 7%",
+        "BEAR sector -3.4%",
+        "SL:EMA5(2.0%)",
+        "TP:52wHigh(5.7%)",
+        "Insider buying",
+        "Squeeze",
+        "Analyst upgrade"
+      ],
+      "atr_pct": 4.41,
+      "sl_pct": 2.0040959625512063,
+      "tp_pct": 5.734347571679347
+    },
+    {
+      "symbol": "SGRY",
+      "signal_price": 15.48,
+      "score": 140,
+      "stop_loss": 15.17,
+      "take_profit": 16.2,
+      "queued_at": "2026-02-20T22:04:31.721638",
+      "reasons": [
+        "Strong bounce",
+        "Mild dip -0.1%",
+        "Big dip yesterday -4.0%",
+        "Strong uptrend",
+        "High vol 4.4%",
+        "Sideways sector -1.1%",
+        "SL:EMA5(2.0%)",
+        "TP:Resistance(4.6%)",
+        "Insider buying",
+        "Strong alt (75)",
+        "Squeeze"
+      ],
+      "atr_pct": 4.37,
+      "sl_pct": 2.002583979328169,
+      "tp_pct": 4.651162790697667
+    },
+    {
+      "symbol": "PAG",
+      "signal_price": 168.21,
+      "score": 138,
+      "stop_loss": 164.84,
+      "take_profit": 175.75,
+      "queued_at": "2026-02-20T22:16:41.440867",
+      "reasons": [
+        "Strong bounce",
+        "Deep dip -5.1%",
+        "Strong uptrend",
+        "Some room 6%",
+        "BEAR sector -4.6%",
+        "SL:EMA5(2.0%)",
+        "TP:52wHigh(4.5%)",
+        "Insider buying",
+        "Squeeze"
+      ],
+      "atr_pct": 3.59,
+      "sl_pct": 2.003448070863804,
+      "tp_pct": 4.482492122941556
+    }
+  ]
+}

@@ -6847,6 +6847,202 @@ class AutoTradingEngine:
             'sessions': sessions,
         }
 
+    def _get_cron_schedule(self) -> Dict:
+        """Get complete cron/scheduled tasks timeline for UI.
+
+        Returns all scheduled tasks organized by time of day.
+        v6.36: Complete cron timeline for system monitoring.
+        """
+        today = datetime.now().strftime('%Y-%m-%d')
+        et_now = self._get_et_time()
+        current_mins = et_now.hour * 60 + et_now.minute
+
+        # Build scheduled tasks list (ordered by time)
+        tasks = []
+
+        # Pre-market gap scan (06:00-09:30 ET)
+        tasks.append({
+            'name': 'premarket_gap',
+            'label': 'Pre-Market Gap',
+            'time': '06:00',
+            'minutes': 360,
+            'frequency': 'Once per day',
+            'window': '06:00-09:30',
+            'status': 'done' if getattr(self, '_premarket_scan_done', None) == today else 'pending',
+            'description': 'Scan high-confidence gap opportunities before market open',
+            'strategy': 'Gap',
+        })
+
+        # Pre-open pre-filter (09:00 ET)
+        tasks.append({
+            'name': 'pre_open_filter',
+            'label': 'Pre-Open Filter',
+            'time': '09:00',
+            'minutes': 540,
+            'frequency': 'Once per day',
+            'window': '09:00-09:30',
+            'status': 'done' if getattr(self, '_pre_open_filter_done', None) == today else 'pending',
+            'description': 'Re-validate existing stock pool (~280 stocks)',
+            'strategy': 'Filter',
+        })
+
+        # Morning scan (09:35 ET)
+        tasks.append({
+            'name': 'morning_scan',
+            'label': 'Morning DIP Scan',
+            'time': '09:35',
+            'minutes': 575,
+            'frequency': 'Once per day',
+            'window': '09:35',
+            'status': 'done' if getattr(self, '_morning_scan_done', None) == today else 'pending',
+            'description': 'Main dip-bounce signal generator (max 2 positions)',
+            'strategy': 'DIP',
+        })
+
+        # PEM scan (09:35 ET)
+        tasks.append({
+            'name': 'pem_scan',
+            'label': 'PEM Scan',
+            'time': f"{self.PEM_SCAN_HOUR:02d}:{self.PEM_SCAN_MINUTE:02d}",
+            'minutes': self.PEM_SCAN_HOUR * 60 + self.PEM_SCAN_MINUTE,
+            'frequency': 'Once per day',
+            'window': f"{self.PEM_SCAN_HOUR:02d}:{self.PEM_SCAN_MINUTE:02d}",
+            'status': 'done' if getattr(self, '_pem_scan_done', None) == today else 'pending',
+            'description': 'Post-earnings momentum: Gap ≥8%, EOD exit (max 1 position)',
+            'strategy': 'PEM',
+        })
+
+        # Continuous scan (09:45-15:45 ET, adaptive interval)
+        is_volatile = current_mins >= 585 and current_mins < 660  # 09:45-11:00
+        interval = self.CONTINUOUS_SCAN_VOLATILE_INTERVAL if is_volatile else self.CONTINUOUS_SCAN_INTERVAL_MINUTES
+        last_cont = getattr(self, '_last_continuous_scan', None)
+        cont_status = 'active' if last_cont and (et_now - last_cont).total_seconds() < interval * 60 else 'pending'
+
+        tasks.append({
+            'name': 'continuous_scan',
+            'label': 'Continuous DIP',
+            'time': '09:45-15:45',
+            'minutes': 585,
+            'frequency': f'{interval} min' if self.CONTINUOUS_SCAN_ENABLED else 'Disabled',
+            'window': '09:45-15:45',
+            'status': cont_status,
+            'description': f'Catch new dip signals (5 min volatile, 15 min normal)',
+            'strategy': 'DIP',
+        })
+
+        # Skip window (10:00-11:00 ET)
+        in_skip = current_mins >= 600 and current_mins < 660
+        tasks.append({
+            'name': 'skip_window',
+            'label': 'SKIP Window',
+            'time': '10:00-11:00',
+            'minutes': 600,
+            'frequency': 'Daily',
+            'window': '10:00-11:00',
+            'status': 'active' if in_skip else 'pending',
+            'description': 'No trading during volatile mid-morning period',
+            'strategy': 'Protection',
+        })
+
+        # Intraday pre-filter #1 (10:45 ET)
+        tasks.append({
+            'name': 'intraday_filter_1',
+            'label': 'Midday Filter',
+            'time': '10:45',
+            'minutes': 645,
+            'frequency': 'Once',
+            'window': '10:45',
+            'status': 'done' if '10:45' in getattr(self, '_intraday_filter_times', []) else 'pending',
+            'description': 'Refresh pool with new dip candidates since open',
+            'strategy': 'Filter',
+        })
+
+        # Intraday pre-filter #2 (13:45 ET)
+        tasks.append({
+            'name': 'intraday_filter_2',
+            'label': 'Afternoon Filter',
+            'time': '13:45',
+            'minutes': 825,
+            'frequency': 'Once',
+            'window': '13:45',
+            'status': 'done' if '13:45' in getattr(self, '_intraday_filter_times', []) else 'pending',
+            'description': 'Update RSI/momentum for afternoon session',
+            'strategy': 'Filter',
+        })
+
+        # Overnight gap scan (15:30 ET)
+        tasks.append({
+            'name': 'overnight_gap',
+            'label': 'Overnight Gap',
+            'time': f"{self.OVERNIGHT_GAP_SCAN_HOUR:02d}:{self.OVERNIGHT_GAP_SCAN_MINUTE:02d}",
+            'minutes': self.OVERNIGHT_GAP_SCAN_HOUR * 60 + self.OVERNIGHT_GAP_SCAN_MINUTE,
+            'frequency': 'Once per day',
+            'window': f"{self.OVERNIGHT_GAP_SCAN_HOUR:02d}:{self.OVERNIGHT_GAP_SCAN_MINUTE:02d}-15:50",
+            'status': 'done' if getattr(self, '_overnight_scan_done', None) == today else 'pending',
+            'description': 'Near-high close, hold 1-3 days (max 1 position)',
+            'strategy': 'OVN',
+        })
+
+        # Intraday pre-filter #3 (15:45 ET)
+        tasks.append({
+            'name': 'intraday_filter_3',
+            'label': 'Pre-Close Filter',
+            'time': '15:45',
+            'minutes': 945,
+            'frequency': 'Once',
+            'window': '15:45',
+            'status': 'done' if '15:45' in getattr(self, '_intraday_filter_times', []) else 'pending',
+            'description': 'Final pool refresh for next morning',
+            'strategy': 'Filter',
+        })
+
+        # Pre-close check (15:50 ET)
+        in_preclose = current_mins >= 950 and current_mins < 960
+        tasks.append({
+            'name': 'pre_close',
+            'label': 'Pre-Close',
+            'time': '15:50',
+            'minutes': 950,
+            'frequency': 'Daily',
+            'window': '15:50-16:00',
+            'status': 'active' if in_preclose else 'pending',
+            'description': 'Force exit PEM, trailing stop updates, daily summary',
+            'strategy': 'Protection',
+        })
+
+        # Evening pre-filter (20:00 ET)
+        tasks.append({
+            'name': 'evening_filter',
+            'label': 'Evening Filter',
+            'time': '20:00',
+            'minutes': 1200,
+            'frequency': 'Once per day',
+            'window': '20:00',
+            'status': 'done' if getattr(self, '_evening_filter_done', None) == today else 'pending',
+            'description': 'Full 987-stock universe scan → ~280 pool',
+            'strategy': 'Filter',
+        })
+
+        # Continuous monitoring (all market hours)
+        tasks.append({
+            'name': 'monitoring',
+            'label': 'Position Monitor',
+            'time': 'Continuous',
+            'minutes': 570,  # Start at market open
+            'frequency': '30 sec',
+            'window': '09:30-16:00',
+            'status': 'active' if self.state == TradingState.MONITORING else 'pending',
+            'description': 'Real-time position management, SL/TP checks, VIX updates',
+            'strategy': 'Monitor',
+        })
+
+        return {
+            'tasks': tasks,
+            'current_time': et_now.strftime('%H:%M'),
+            'current_minutes': current_mins,
+            'trading_day': today,
+        }
+
     def get_status(self) -> Dict:
         """Get current engine status"""
         # Snapshot shared state under lock
@@ -6930,7 +7126,7 @@ class AutoTradingEngine:
             'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v6.11',  # v6.11: Gap Scanner + UI Timeline (5 sessions)
+            'version': 'v6.37',  # v6.37: Cron Timeline + Complete Scheduled Tasks Overview
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
@@ -6943,6 +7139,8 @@ class AutoTradingEngine:
             'effective_params': self._get_effective_params(),
             # v4.9.6: Scanner schedule for UI timeline
             'scanner_schedule': self._get_scanner_schedule(),
+            # v6.36: Complete cron schedule for system monitoring
+            'cron_schedule': self._get_cron_schedule(),
             # VIX Adaptive tier
             'vix_tier': (
                 self.vix_adaptive.strategy.current_tier.upper()

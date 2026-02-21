@@ -33,8 +33,8 @@ from ai_market_analyst import AIMarketAnalyst
 from analysis.fundamental.earnings_analyst import EarningsAnalystAnalyzer
 from analysis.enhanced_features import analyze_stock as enhanced_analyze
 
-# v6.11: Single Source of Truth for version
-APP_VERSION = 'v6.11'  # Gap Scanner + UI Timeline (5 sessions)
+# v6.37: Single Source of Truth for version
+APP_VERSION = 'v6.37'  # Cron Timeline + Complete Scheduled Tasks Overview
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True  # v5.3: Disable template caching

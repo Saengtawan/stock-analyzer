@@ -1,0 +1,15 @@
+2026-02-19 13:53:58.337 | INFO     | __main__:_load_config_from_yaml:899 - ✅ Loaded ALL parameters from RapidRotationConfig (v6.32)
+2026-02-19 13:53:58.337 | INFO     | __main__:_load_config_from_yaml:900 -    SL range: 4.0%-5.0%
+2026-02-19 13:53:58.337 | INFO     | __main__:_load_config_from_yaml:901 -    Max positions: 3
+2026-02-19 13:53:58.337 | INFO     | __main__:_load_config_from_yaml:902 -    Regime filter: ENABLED
+2026-02-19 13:53:58.337 | INFO     | __main__:_load_config_from_yaml:905 -    Beta filter: LOG-ONLY (beta>=0.5, atr>=3.0%)
+Traceback (most recent call last):
+  File "/home/saengtawan/work/project/cc/stock-analyzer/src/auto_trading_engine.py", line 6953, in <module>
+    engine = AutoTradingEngine()
+             ^^^^^^^^^^^^^^^^^^^
+  File "/home/saengtawan/work/project/cc/stock-analyzer/src/auto_trading_engine.py", line 432, in __init__
+    self.broker: BrokerInterface = AlpacaBroker(
+                                   ^^^^^^^^^^^^^
+  File "/home/saengtawan/work/project/cc/stock-analyzer/src/engine/brokers/alpaca_broker.py", line 205, in __init__
+    raise ValueError("Alpaca API key and secret key required")
+ValueError: Alpaca API key and secret key required
