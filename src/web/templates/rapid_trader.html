@@ -1213,6 +1213,11 @@ function initWebSocket() {
     socket.on('connect', function() {
         connectionStatus = 'connected';
         updateConnectionIndicator(true);
+        // v6.41: Clear fallback polling when socket reconnects
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
         socket.emit('request_update');
     });
     socket.on('disconnect', function() {
@@ -2296,7 +2301,10 @@ function loadAlerts() {
         .then(response => { clearTimeout(timeoutId); return response.json(); })
         .then(data => {
             if (data.error) return;
-            updatePositionsUI(data);
+            // v6.41: Only update positions when socket disconnected (socket handles positions when connected)
+            if (connectionStatus !== 'connected') {
+                updatePositionsUI(data);
+            }
             if (data.pdt) {
                 if (data.daily_stats) {
                     const stats = data.daily_stats;
