@@ -1,43 +1,43 @@
-2026-02-21 13:37:18.474 | INFO     | __main__:<module>:43 - Environment loaded - Alpaca API configured: True
-[32m13:37:18[0m | [1mINFO    [0m | [1mInitializing monitoring system...[0m
-[32m13:37:18[0m | [1mINFO    [0m | [1mAutoMonitor loop started[0m
-[32m13:37:18[0m | [1mINFO    [0m | [1mAutoMonitor started (health checks every 300s)[0m
-[32m13:37:18[0m | [1mINFO    [0m | [1m✅ Automatic monitoring started (checks every 300s)[0m
-[32m13:37:18[0m | [1mINFO    [0m | [1m✅ Signal handlers installed in main thread[0m
-[32m13:37:18[0m | [1mINFO    [0m | [1mStarting Web Server...[0m
-[32m13:37:18[0m | [33m[1mWARNING [0m | [33m[1mALERT [health]: System health warning: 1 warning(s) detected[0m
-[32m13:37:18[0m | [33m[1mWARNING [0m | [33m[1mALERT [health]: System health warning: 1 warning(s) detected[0m
-[32m13:37:18[0m | [1mINFO    [0m | [1mAlert created: [WARNING] System health warning: 1 warning(s) detected[0m
-[32m13:37:18[0m | [33m[1mWARNING [0m | [33m[1mALERT [performance]: Performance degraded: 0.0/100[0m
-[32m13:37:18[0m | [33m[1mWARNING [0m | [33m[1mALERT [performance]: Performance degraded: 0.0/100[0m
-[32m13:37:18[0m | [1mINFO    [0m | [1mAlert created: [ERROR] Performance degraded: 0.0/100[0m
-[32m13:37:19[0m | [33m[1mWARNING [0m | [33m[1mNo RAPID_API_SECRET set — generated ephemeral key (set env var for persistence)[0m
-[32m13:37:19[0m | [1mINFO    [0m | [1m📦 Loaded 23 cached items from disk[0m
-[32m13:37:19[0m | [1mINFO    [0m | [1m📦 Loaded 45 cached items from disk[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m📦 Loaded 23 cached items from disk[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1mDataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1mEnhanced Stock Analyzer initialized with strategy: swing_trading, risk: moderate[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1mEnhanced Stock Analyzer initialized with strategy: swing_trading[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1mSupport level screener initialized with AI-only universe generation[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1mDividend screener initialized with AI-only universe generation[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1mValue stock screener initialized with AI-only universe generation[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m✅ Pre-market scanner initialized (FREE - Yahoo Finance + Smart Indicators)[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m✅ Alternative Data sources initialized (6 sources)[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m✅ Sector Rotation detector initialized[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m✅ Market Regime Detector initialized[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m✅ Sector Regime Detector initialized[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1mGrowth Catalyst Screener v3.3 initialized: Tiered Quality + Alt Data + Sector Rotation + Market Regime + SECTOR-AWARE REGIME[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m   Initialized 14 screening rules[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m   CRITICAL: 4 rules[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m   HIGH: 6 rules[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m   MEDIUM: 2 rules[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m   LOW: 2 rules[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m✅ Screening Rules Engine initialized with Growth Catalyst rules[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m✅ Rule-Based Screening Engine initialized (v4.0)[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m   Benefits: Configurable thresholds, A/B testing, performance tracking[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m✅ Momentum Growth Screener v1.0 initialized[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1m   Using momentum & trend filters (NOT composite scores)[0m
-[32m13:37:20[0m | [1mINFO    [0m | [1mWeb Server started at http://localhost:5000[0m
+2026-02-21 14:01:12.817 | INFO     | __main__:<module>:43 - Environment loaded - Alpaca API configured: True
+[32m14:01:12[0m | [1mINFO    [0m | [1mInitializing monitoring system...[0m
+[32m14:01:12[0m | [1mINFO    [0m | [1mAutoMonitor loop started[0m
+[32m14:01:12[0m | [1mINFO    [0m | [1mAutoMonitor started (health checks every 300s)[0m
+[32m14:01:12[0m | [1mINFO    [0m | [1m✅ Automatic monitoring started (checks every 300s)[0m
+[32m14:01:12[0m | [1mINFO    [0m | [1m✅ Signal handlers installed in main thread[0m
+[32m14:01:12[0m | [1mINFO    [0m | [1mStarting Web Server...[0m
+[32m14:01:13[0m | [33m[1mWARNING [0m | [33m[1mALERT [health]: System health warning: 1 warning(s) detected[0m
+[32m14:01:13[0m | [33m[1mWARNING [0m | [33m[1mALERT [health]: System health warning: 1 warning(s) detected[0m
+[32m14:01:13[0m | [1mINFO    [0m | [1mAlert created: [WARNING] System health warning: 1 warning(s) detected[0m
+[32m14:01:13[0m | [33m[1mWARNING [0m | [33m[1mALERT [performance]: Performance degraded: 0.0/100[0m
+[32m14:01:13[0m | [33m[1mWARNING [0m | [33m[1mALERT [performance]: Performance degraded: 0.0/100[0m
+[32m14:01:13[0m | [1mINFO    [0m | [1mAlert created: [ERROR] Performance degraded: 0.0/100[0m
+[32m14:01:13[0m | [33m[1mWARNING [0m | [33m[1mNo RAPID_API_SECRET set — generated ephemeral key (set env var for persistence)[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m📦 Loaded 23 cached items from disk[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m📦 Loaded 45 cached items from disk[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m📦 Loaded 23 cached items from disk[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1mDataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1mEnhanced Stock Analyzer initialized with strategy: swing_trading, risk: moderate[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1mEnhanced Stock Analyzer initialized with strategy: swing_trading[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1mSupport level screener initialized with AI-only universe generation[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1mDividend screener initialized with AI-only universe generation[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1mValue stock screener initialized with AI-only universe generation[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m✅ Pre-market scanner initialized (FREE - Yahoo Finance + Smart Indicators)[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m✅ Alternative Data sources initialized (6 sources)[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m✅ Sector Rotation detector initialized[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m✅ Market Regime Detector initialized[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m✅ Sector Regime Detector initialized[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1mGrowth Catalyst Screener v3.3 initialized: Tiered Quality + Alt Data + Sector Rotation + Market Regime + SECTOR-AWARE REGIME[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m   Initialized 14 screening rules[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m   CRITICAL: 4 rules[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m   HIGH: 6 rules[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m   MEDIUM: 2 rules[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m   LOW: 2 rules[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m✅ Screening Rules Engine initialized with Growth Catalyst rules[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m✅ Rule-Based Screening Engine initialized (v4.0)[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m   Benefits: Configurable thresholds, A/B testing, performance tracking[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m✅ Momentum Growth Screener v1.0 initialized[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1m   Using momentum & trend filters (NOT composite scores)[0m
+[32m14:01:14[0m | [1mINFO    [0m | [1mWeb Server started at http://localhost:5000[0m
 
 ============================================================
   🚀 RAPID TRADING SYSTEM
@@ -51,872 +51,137 @@
  * Running on http://127.0.0.1:5000
  * Running on http://192.168.7.20:5000
 [33mPress CTRL+C to quit[0m
-[32m13:37:21[0m | [1mINFO    [0m | [1mWebSocket client connected: ZowkUo4pPzBjYgnZAAAB (total: 1)[0m
-[32m13:37:21[0m | [1mINFO    [0m | [1m✅ Loaded ALL parameters from RapidRotationConfig (v6.32)[0m
-[32m13:37:21[0m | [1mINFO    [0m | [1m   SL range: 3.0%-4.0%[0m
-[32m13:37:21[0m | [1mINFO    [0m | [1m   Max positions: 2[0m
-[32m13:37:21[0m | [1mINFO    [0m | [1m   Regime filter: ENABLED[0m
-[32m13:37:21[0m | [1mINFO    [0m | [1m   Beta filter: LOG-ONLY (beta>=0.5, atr>=3.0%)[0m
-[32m13:37:21[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
-[32m13:37:21[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
-[32m13:37:21[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
-[32m13:37:21[0m | [1mINFO    [0m | [1mAlertManager using database storage[0m
-127.0.0.1 - - [21/Feb/2026 13:37:21] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:37:21] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:37:22[0m | [1mINFO    [0m | [1m📦 Loaded 23 cached items from disk[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mStarting Rapid Portfolio Monitor...[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m✅ Loaded 2 positions from database[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mRapid Portfolio Monitor started (check every 5 minutes)[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m📦 Loaded 45 cached items from disk[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m📦 Loaded 23 cached items from disk[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mDataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: Yes[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mDataManager initialized with broker integration[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mSafety config loaded from RapidRotationConfig[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mTrading Safety System initialized[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mPDT Guard: Loaded 2 entry dates from disk[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mPDT Smart Guard v2.3 initialized (No Override Mode)[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m  SL Threshold: -3.5%[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m  TP Threshold: 8.0%[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m  Reserve: 1 day trades[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m  Budget = 0 → HOLD (ไม่ override PDT เด็ดขาด)[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mPDT Smart Guard v2.3 initialized (No Override - uses RapidRotationConfig)[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mTradeLogger initialized - logs: /home/saengtawan/work/project/cc/stock-analyzer/trade_logs, db: /home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db (direct SQLite)[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mTrade Logger v1.0 initialized[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mAlert Manager v1.0 initialized[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m🛡️ Entry Protection Filter initialized (enabled=True)[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m   Layer 1: Adaptive timing (Gap Down <-1.5%: 5min, Mild: 10min, Flat: 15min, Gap Up: 20min)[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m   Layer 2: Max VWAP distance 3.0%[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m   Layer 3: Max chase 0.8%[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m   Layer 4: Block if in top 20% of range or >2.5% from low[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m✅ Entry Protection Filter v6.17 initialized[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m📦 Loaded 423 sectors from cache[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m✅ AI Universe Generator initialized[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m✅ Market Regime Detector initialized[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mFAST: After-hours $46.50 (regular close $46.22)[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1mKHC: After-hours $24.40 (regular close $24.4)[0m
-[32m13:37:22[0m | [1mINFO    [0m | [1m📦 Loaded 23 cached items from disk[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m📦 Loaded 45 cached items from disk[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mStarting Real-time Price Streamer...[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mAlpacaStreamer v1.1 initialized (paper=True, feed=IEX)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mQueued subscription for: ['FAST', 'KHC'][0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m📡 Subscribed to real-time prices: ['FAST', 'KHC'][0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mAlpacaStreamer started[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m✅ Real-time Price Streamer started (WebSocket active!)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mStreaming started for: ['KHC', 'FAST'][0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m📦 Loaded 23 cached items from disk[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mDataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mUpdating sector regimes (5-min realtime, MCW)...[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mBuilt sector company map: 550 stocks across 11 sectors (with market weights)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mBatch downloading 550 sector stocks for 1d returns...[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mMarket-cap weighted 1d returns calculated for 11 sectors[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mUsing market-cap weighted 1d returns for 11 sectors[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mXLK (Technology): SIDEWAYS (score=+0.0) | 1d[M]: +0.5% | 5d: +0.9% | 20d: -2.76%[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mXLE (Energy): BULL (score=+3.1) | 1d[M]: -0.4% | 5d: +1.0% | 20d: +12.21%[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mXLF (Financial Services): SIDEWAYS (score=+0.4) | 1d[M]: +0.6% | 5d: +1.6% | 20d: -2.45%[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mXLV (Healthcare): SIDEWAYS (score=-0.5) | 1d[M]: -0.3% | 5d: -0.5% | 20d: -0.93%[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mXLY (Consumer Cyclical): SIDEWAYS (score=+0.1) | 1d[M]: +1.2% | 5d: +1.1% | 20d: -4.22%[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mXLP (Consumer Defensive): SIDEWAYS (score=+0.7) | 1d[M]: -0.0% | 5d: -1.8% | 20d: +6.83%[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mXLI (Industrials): BULL (score=+2.7) | 1d[M]: +0.3% | 5d: +1.8% | 20d: +7.09%[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mXLU (Utilities): BULL (score=+2.2) | 1d[M]: +0.4% | 5d: -0.4% | 20d: +8.48%[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mXLB (Basic Materials): BULL (score=+1.6) | 1d[M]: +0.9% | 5d: -0.7% | 20d: +6.95%[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mXLC (Communication Services): BULL (score=+1.8) | 1d[M]: +2.4% | 5d: +1.9% | 20d: +0.47%[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mXLRE (Real Estate): BULL (score=+1.5) | 1d[M]: +0.7% | 5d: +0.1% | 20d: +5.88%[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m✅ Sector Regime Detector initialized[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m✅ Alternative Data Aggregator initialized (6 sources)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m✅ Registered strategy: Dip-Bounce (dip_bounce)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mVIX Adaptive v3.0: Loading...[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mVIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mInitial VIX: 19.09 → tier=NORMAL[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m✅ VIX Adaptive v3.0 initialized[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m   Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m   Score adaptation: True[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m✅ VIX Adaptive wrapper initialized: VIXAdaptiveIntegration(tier=NORMAL, VIX=19.1)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m✅ Registered strategy: VIX Adaptive (vix_adaptive)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m✅ VIX Adaptive registered (tier=normal)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m✅ Strategy Manager initialized (2 strategies active)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m🏭 Sector Filter initialized (enabled=True)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m   Excluding sectors: Aerospace, Aerospace & Defense, Basic Materials, Communication Services, Consumer Defensive, Consumer Staples, Energy, Energy/Oil, Materials, Media, Oil & Gas[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mScreener initialized[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m🏭 Sector Filter initialized (enabled=True)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m   Excluding sectors: Aerospace, Aerospace & Defense, Basic Materials, Communication Services, Consumer Defensive, Consumer Staples, Energy, Energy/Oil, Materials, Media, Oil & Gas[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mOvernightGapScanner initialized[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m✅ PreMarketGapScanner initialized (v6.11)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m🏭 Sector Filter initialized (enabled=True)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m   Excluding sectors: Aerospace, Aerospace & Defense, Basic Materials, Communication Services, Consumer Defensive, Consumer Staples, Energy, Energy/Oil, Materials, Media, Oil & Gas[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m✅ PEMScreener initialized (v6.29)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mVIX Adaptive v3.0: Loading...[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mVIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mInitial VIX: 19.09 → tier=NORMAL[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m✅ VIX Adaptive v3.0 initialized[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m   Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m   Score adaptation: True[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1m✅ VIX Adaptive Strategy initialized: VIXAdaptiveIntegration(tier=NORMAL, VIX=19.1)[0m
-[32m13:37:23[0m | [1mINFO    [0m | [1mSLTPCalculator initialized[0m
-[32m13:37:24[0m | [1mINFO    [0m | [1mHealth Checker started (check every 5 minutes)[0m
-[32m13:37:24[0m | [1mINFO    [0m | [1mUniverse Maintenance Scheduler started (daily at 2:00 AM)[0m
-[32m13:37:24[0m | [1mINFO    [0m | [1mMonitoringMetrics initialized (window: 3600s)[0m
-[32m13:37:24[0m | [1mINFO    [0m | [1mLoaded persisted state: 2 positions from DB[0m
-[32m13:37:24[0m | [1mINFO    [0m | [1mRestored position: FAST (peak=$46.69, trail=OFF)[0m
-[32m13:37:24[0m | [1mINFO    [0m | [1mRestored position: KHC (peak=$24.43, trail=OFF)[0m
-[32m13:37:24[0m | [1mINFO    [0m | [1m✅ Synced 2 positions[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1m==================================================[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1mPDT SMART GUARD STATUS[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1m==================================================[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1mDay Trades: 1/3 (remaining: 2)[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1mReserve Active: False[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1mFlagged: True[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1mPositions:[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1m  FAST: Day 7[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1m  KHC: Day 2[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1m==================================================[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1mLoaded loss counters: consecutive=0, weekly_pnl=$-34.18[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1mAutoTradingEngine initialized (paper=True)[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1mTrading loop started[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1mTrading engine started[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:37:25[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-[32m13:37:25[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:37:26[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:37:26[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:37:26[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-[32m13:37:26[0m | [1mINFO    [0m | [1m✅ Market Regime: BULL: SMA20=OK(+0.1%) | RSI=OK(48) | Ret5d=OK(+1.2%) | VIX=OK(19.1)[0m
-[32m13:37:27[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:37:27[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:37:27[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:37:27[0m | [1mINFO    [0m | [1mScanning for signals (regime: BULL, blocked: ['Consumer Cyclical', 'Technology'])...[0m
-[32m13:37:27[0m | [1mINFO    [0m | [1m📦 Using pre-filtered pool: 280 stocks (age: 2.4h)[0m
-[32m13:37:27[0m | [1mINFO    [0m | [1m🔥 Hot sectors: Energy, Industrials, Utilities, Basic Materials, Communication Services, Real Estate[0m
-[32m13:37:27[0m | [1mINFO    [0m | [1m📊 Loading data for 280 stocks via yfinance (parallel)...[0m
-127.0.0.1 - - [21/Feb/2026 13:37:27] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:37:28[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:37:28[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:37:28[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:37:28[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:37:28[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:37:28[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:37:29] "GET /api/auto/status HTTP/1.1" 200 -
-HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: SPR"}}}
-$SPR: possibly delisted; no timezone found
-[32m13:37:30[0m | [1mINFO    [0m | [1m✅ Loaded 279/280 stocks via yfinance (parallel)[0m
-[32m13:37:31[0m | [1mINFO    [0m | [1mUsing cached sector regimes (updated 0min ago, TTL=5min)[0m
-[32m13:37:31[0m | [1mINFO    [0m | [1m✅ SPY Regime: BULL: SPY $689.43 > SMA20 $689.12 (+0.0%)[0m
-[32m13:37:31[0m | [1mINFO    [0m | [1m🟢 SPY BULL REGIME - Scanning for signals...[0m
-[32m13:37:31[0m | [1mINFO    [0m | [1m   BULL: SPY $689.43 > SMA20 $689.12 (+0.0%)[0m
-[32m13:37:31[0m | [1mINFO    [0m | [1m🐂⛔ Blocking declining sectors: ['Consumer Cyclical', 'Technology'][0m
-[32m13:37:31[0m | [1mINFO    [0m | [1m🎯 Using Strategy Manager for scanning...[0m
-[32m13:37:31[0m | [1mINFO    [0m | [1m🔍 Running 2 strategies on 201 stocks[0m
-[32m13:37:31[0m | [1mINFO    [0m | [1m   Running Dip-Bounce...[0m
-[32m13:37:35[0m | [33m[1mWARNING [0m | [33m[1mFailed to load sessions from config: Config file not found: /home/saengtawan/work/project/cc/stock-analyzer/src/config/trading.yaml[0m
-127.0.0.1 - - [21/Feb/2026 13:37:35] "GET /rapid HTTP/1.1" 200 -
-[32m13:37:35[0m | [1mINFO    [0m | [1mWebSocket client disconnected: ZowkUo4pPzBjYgnZAAAB (total: 0)[0m
-127.0.0.1 - - [21/Feb/2026 13:37:35] "[35m[1mGET /socket.io/?EIO=4&transport=websocket HTTP/1.1[0m" 500 -
-Error on request:
-Traceback (most recent call last):
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/werkzeug/serving.py", line 370, in run_wsgi
-    execute(self.server.app)
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/werkzeug/serving.py", line 336, in execute
-    write(b"")
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/werkzeug/serving.py", line 261, in write
-    assert status_set is not None, "write() before start_response"
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-AssertionError: write() before start_response
-127.0.0.1 - - [21/Feb/2026 13:37:35] "GET /api/cron/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:37:35] "POST /api/auto/start HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:37:35] "GET /api/config/market HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:37:35] "GET /api/engine/config HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:37:35] "GET /api/engine/config HTTP/1.1" 200 -
-[32m13:37:35[0m | [1mINFO    [0m | [1mWebSocket client connected: DUelVe7Ug1LjHTTgAAAD (total: 1)[0m
-127.0.0.1 - - [21/Feb/2026 13:37:35] "GET /api/rapid/sector-regimes HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:37:35] "GET /api/health HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:37:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:37:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:37:35] "GET /api/trade-logs HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:37:35] "GET /api/cron/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:37:35] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
-[32m13:37:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:37:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:37:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:37:37[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:37:37[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:37:37[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-[32m13:37:37[0m | [33m[1mWARNING [0m | [33m[1m⚠️ Scan lock held - another scan in progress, skipping[0m
-[32m13:37:37[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:37:37[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:37:37[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:37:37] "GET /api/rapid/signals HTTP/1.1" 200 -
-[32m13:37:37[0m | [1mINFO    [0m | [1mRunning health check...[0m
-127.0.0.1 - - [21/Feb/2026 13:37:38] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:37:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:37:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:37:38] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:37:38] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:37:38] "GET /api/rapid/spy-regime HTTP/1.1" 200 -
-[32m13:37:39[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:37:42[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:37:42[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:37:42[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:37:42[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:37:42[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:37:42[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-Exception in thread Thread-40 (_handle_event_internal):
-Traceback (most recent call last):
-  File "/home/saengtawan/.pyenv/versions/3.11.8/lib/python3.11/threading.py", line 1045, in _bootstrap_inner
-    self.run()
-  File "/home/saengtawan/.pyenv/versions/3.11.8/lib/python3.11/threading.py", line 982, in run
-    self._target(*self._args, **self._kwargs)
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/socketio/server.py", line 594, in _handle_event_internal
-    r = server._trigger_event(data[0], namespace, sid, *data[1:])
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/socketio/server.py", line 620, in _trigger_event
-    return handler(*args)
-           ^^^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/flask_socketio/__init__.py", line 291, in _handler
-    return self._handle_event(handler, message, real_ns, sid,
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/flask_socketio/__init__.py", line 834, in _handle_event
-    ret = handler(*args)
-          ^^^^^^^^^^^^^^
-  File "/home/saengtawan/work/project/cc/stock-analyzer/src/web/app.py", line 4500, in handle_request_update
-    emit('regime_update', get_regime_data())
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/flask_socketio/__init__.py", line 909, in emit
-    return socketio.emit(event, *args, namespace=namespace, to=to,
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/flask_socketio/__init__.py", line 471, in emit
-    self.server.emit(event, *args, namespace=namespace, to=to,
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/socketio/server.py", line 166, in emit
-    self.manager.emit(event, data, namespace, room=room,
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/socketio/manager.py", line 44, in emit
-    encoded_packet = pkt.encode()
-                     ^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/socketio/packet.py", line 64, in encode
-    encoded_packet += self.json.dumps(data, separators=(',', ':'))
-                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/3.11.8/lib/python3.11/json/__init__.py", line 238, in dumps
-    **kw).encode(obj)
-          ^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/3.11.8/lib/python3.11/json/encoder.py", line 200, in encode
-    chunks = self.iterencode(o, _one_shot=True)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/3.11.8/lib/python3.11/json/encoder.py", line 258, in iterencode
-    return _iterencode(o, 0)
-           ^^^^^^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/3.11.8/lib/python3.11/json/encoder.py", line 180, in default
-    raise TypeError(f'Object of type {o.__class__.__name__} '
-TypeError: Object of type bool_ is not JSON serializable
-[32m13:38:02[0m | [1mINFO    [0m | [1m📋 Dip-Bounce filter breakdown (171 rejected, min_score=80): no_dip=145 still_falling=1 no_bounce=14 gap_up=0 above_sma5=1 low_atr=0 below_sma20=0 overextended=3 sma20_ext=0 low_score=7[0m
-[32m13:38:02[0m | [1mINFO    [0m | [1m📊 Dip-Bounce: Found 24 signals from 201 stocks[0m
-[32m13:38:02[0m | [1mINFO    [0m | [1m   ✅ Dip-Bounce: 24 signals[0m
-[32m13:38:02[0m | [1mINFO    [0m | [1m   Running VIX Adaptive...[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m✅ Added VIX indicators to 279/279 stocks[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m   ✅ VIX Adaptive: 0 signals[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m📊 Total: 24 signals (24 unique stocks)[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m🐂 Sector filter: 78 blocked, 201 analyzed, 24 signals[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m📊 Execution trace saved to /home/saengtawan/work/project/cc/stock-analyzer/data/cache[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m📊 Execution trace saved: 201 stocks traced[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m📊 Found 24 signals from 279 stocks[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m   📈 OLN: score=155, sector=Basic Materials, gap=0.0%[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m   📈 LYB: score=140, sector=Basic Materials, gap=0.0%[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m   📈 STLD: score=135, sector=Basic Materials, gap=0.0%[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m   📈 WAL: score=135, sector=Financial Services, gap=0.0%[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m   📈 PPG: score=130, sector=Basic Materials, gap=0.0%[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m   📈 CARR: score=125, sector=Industrials, gap=0.0%[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m   📈 UFCS: score=125, sector=Financial Services, gap=0.0%[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m   📈 RPM: score=120, sector=Basic Materials, gap=0.0%[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m   📈 RGLD: score=115, sector=Basic Materials, gap=0.0%[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m   📈 MPC: score=110, sector=Energy, gap=0.0%[0m
-[32m13:38:03[0m | [1mINFO    [0m | [1m🔍 Fetching alt data for Top 10 candidates...[0m
-127.0.0.1 - - [21/Feb/2026 13:38:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:38:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:38:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:38:06[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:38:06[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:38:06[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:38:07] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:38:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:38:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:38:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:38:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:38:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:38:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:38:08] "GET /api/auto/status HTTP/1.1" 200 -
-[32m13:38:24[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
-[32m13:38:24[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
-[32m13:38:24[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
-127.0.0.1 - - [21/Feb/2026 13:38:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:38:35] "GET /api/health HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:38:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:38:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:38:36[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:38:36[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:38:36[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:38:37] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:38:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:38:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:38:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:38:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:38:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:38:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:38:38] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:39:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:39:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:39:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:39:08[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:39:08[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:39:08[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-[32m13:39:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:39:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:39:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:39:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:39:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:39:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:39:08] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:39:09] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:39:24[0m | [1mINFO    [0m | [1m🏭 Sector filter: 13/24 signals passed (11 removed from weak sectors)[0m
-[32m13:39:24[0m | [1mINFO    [0m | [1m⚠️ Positions FULL (2/2): ['WAL', 'UFCS', 'CARR', 'ALL', 'SGRY'] available but no slots[0m
-[32m13:39:24[0m | [1mINFO    [0m | [1mFound 10 signals (regime: BULL)[0m
-[32m13:39:24[0m | [1mINFO    [0m | [1m✅ Added VIX indicators to 279/279 stocks[0m
-[32m13:39:25[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:39:27[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:39:30[0m | [1mINFO    [0m | [1m✅ Market Regime: BULL: SMA20=OK(+0.1%) | RSI=OK(48) | Ret5d=OK(+1.2%) | VIX=OK(19.1)[0m
-[32m13:39:31[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:39:31[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:39:31[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:39:31[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:39:31[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:39:31[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-Exception in thread Thread-7 (_handle_event_internal):
-Traceback (most recent call last):
-  File "/home/saengtawan/.pyenv/versions/3.11.8/lib/python3.11/threading.py", line 1045, in _bootstrap_inner
-    self.run()
-  File "/home/saengtawan/.pyenv/versions/3.11.8/lib/python3.11/threading.py", line 982, in run
-    self._target(*self._args, **self._kwargs)
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/socketio/server.py", line 594, in _handle_event_internal
-    r = server._trigger_event(data[0], namespace, sid, *data[1:])
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/socketio/server.py", line 620, in _trigger_event
-    return handler(*args)
-           ^^^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/flask_socketio/__init__.py", line 291, in _handler
-    return self._handle_event(handler, message, real_ns, sid,
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/flask_socketio/__init__.py", line 834, in _handle_event
-    ret = handler(*args)
-          ^^^^^^^^^^^^^^
-  File "/home/saengtawan/work/project/cc/stock-analyzer/src/web/app.py", line 4500, in handle_request_update
-    emit('regime_update', get_regime_data())
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/flask_socketio/__init__.py", line 909, in emit
-    return socketio.emit(event, *args, namespace=namespace, to=to,
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/flask_socketio/__init__.py", line 471, in emit
-    self.server.emit(event, *args, namespace=namespace, to=to,
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/socketio/server.py", line 166, in emit
-    self.manager.emit(event, data, namespace, room=room,
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/socketio/manager.py", line 44, in emit
-    encoded_packet = pkt.encode()
-                     ^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/cc/lib/python3.11/site-packages/socketio/packet.py", line 64, in encode
-    encoded_packet += self.json.dumps(data, separators=(',', ':'))
-                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/3.11.8/lib/python3.11/json/__init__.py", line 238, in dumps
-    **kw).encode(obj)
-          ^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/3.11.8/lib/python3.11/json/encoder.py", line 200, in encode
-    chunks = self.iterencode(o, _one_shot=True)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/3.11.8/lib/python3.11/json/encoder.py", line 258, in iterencode
-    return _iterencode(o, 0)
-           ^^^^^^^^^^^^^^^^^
-  File "/home/saengtawan/.pyenv/versions/3.11.8/lib/python3.11/json/encoder.py", line 180, in default
-    raise TypeError(f'Object of type {o.__class__.__name__} '
-TypeError: Object of type bool_ is not JSON serializable
-127.0.0.1 - - [21/Feb/2026 13:39:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:39:35] "GET /api/health HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:39:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:39:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:39:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:39:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:39:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:39:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:39:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:39:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:39:38] "GET /api/auto/status HTTP/1.1" 200 -
-[32m13:39:39[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:39:39[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:39:39[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:39:40] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:40:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:40:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:40:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:40:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:40:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:40:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:40:08[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:40:08[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:40:08[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-[32m13:40:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:40:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:40:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:40:08] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:40:09] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:40:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:40:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:40:35] "GET /api/health HTTP/1.1" 200 -
-[32m13:40:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:40:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:40:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:40:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:40:38[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:40:38[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:40:38[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-[32m13:40:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:40:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:40:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:40:38] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:40:39] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:41:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:41:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:41:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:41:06[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:41:06[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:41:06[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:41:07] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:41:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:41:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:41:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:41:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:41:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:41:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:41:08] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:41:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:41:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:41:35] "GET /api/health HTTP/1.1" 200 -
-[32m13:41:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:41:39[0m | [1mINFO    [0m | [1m✅ Market Regime: BULL: SMA20=OK(+0.1%) | RSI=OK(48) | Ret5d=OK(+1.2%) | VIX=OK(19.1)[0m
-[32m13:41:40[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:41:40[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:41:40[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:41:40[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:41:40[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:41:40[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:41:40] "GET /api/auto/status HTTP/1.1" 200 -
-[32m13:41:41[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:41:41[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:41:41[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:41:42] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:42:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:42:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:42:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:42:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:42:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:42:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:42:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:42:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:42:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:42:08] "GET /api/auto/status HTTP/1.1" 200 -
-[32m13:42:09[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:42:09[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:42:09[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:42:09] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:42:26[0m | [1mINFO    [0m | [1mFAST: After-hours $46.50 (regular close $46.22)[0m
-[32m13:42:27[0m | [1mINFO    [0m | [1mKHC: After-hours $24.40 (regular close $24.4)[0m
-127.0.0.1 - - [21/Feb/2026 13:42:35] "GET /api/cron/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:42:35] "GET /api/rapid/sector-regimes HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:42:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:42:35] "GET /api/health HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:42:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:42:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:42:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:42:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:42:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:42:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:42:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:42:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:42:38[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:42:38[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:42:38[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:42:38] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:42:39] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:43:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:43:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:43:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:43:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:43:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:43:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:43:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:43:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:43:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:43:08] "GET /api/auto/status HTTP/1.1" 200 -
-[32m13:43:09[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:43:09[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:43:09[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:43:10] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:43:25[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
-[32m13:43:25[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
-[32m13:43:25[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
-127.0.0.1 - - [21/Feb/2026 13:43:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:43:35] "GET /api/health HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:43:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:43:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:43:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:43:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:43:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:43:38[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:43:38[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:43:38[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-[32m13:43:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:43:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:43:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:43:38] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:43:39] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:44:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:44:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:44:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:44:08[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:44:08[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:44:08[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:44:09] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:44:09[0m | [1mINFO    [0m | [1m✅ Market Regime: BULL: SMA20=OK(+0.1%) | RSI=OK(48) | Ret5d=OK(+1.2%) | VIX=OK(19.1)[0m
-[32m13:44:10[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:44:10[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:44:10[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:44:10[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:44:10[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:44:10[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:44:10] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:44:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:44:35] "GET /api/health HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:44:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:44:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:44:36[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:44:36[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:44:36[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:44:37] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:44:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:44:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:44:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:44:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:44:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:44:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:44:38] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:45:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:45:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:45:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:45:06[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:45:06[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:45:06[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:45:07] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:45:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:45:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:45:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:45:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:45:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:45:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:45:08] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:45:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:45:35] "GET /api/health HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:45:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:45:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:45:36[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:45:36[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:45:36[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:45:37] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:45:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:45:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:45:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:45:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:45:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:45:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:45:38] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:46:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:46:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:46:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:46:06[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:46:06[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:46:06[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:46:07] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:46:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:46:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:46:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:46:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:46:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:46:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:46:08] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:46:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:46:35] "GET /api/health HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:46:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:46:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:46:36[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:46:36[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:46:36[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:46:37] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:46:38[0m | [1mINFO    [0m | [1m✅ Market Regime: BULL: SMA20=OK(+0.1%) | RSI=OK(48) | Ret5d=OK(+1.2%) | VIX=OK(19.1)[0m
-[32m13:46:39[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:46:39[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:46:39[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:46:39[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:46:39[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:46:39[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:46:39] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:47:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:47:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:47:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:47:06[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:47:06[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:47:06[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:47:07] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:47:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:47:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:47:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:47:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:47:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:47:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:47:08] "GET /api/auto/status HTTP/1.1" 200 -
-[32m13:47:28[0m | [1mINFO    [0m | [1mFAST: After-hours $46.50 (regular close $46.22)[0m
-[32m13:47:28[0m | [1mINFO    [0m | [1mKHC: After-hours $24.40 (regular close $24.4)[0m
-127.0.0.1 - - [21/Feb/2026 13:47:35] "GET /api/cron/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:47:35] "GET /api/rapid/sector-regimes HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:47:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:47:35] "GET /api/health HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:47:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:47:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:47:38[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:47:38[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:47:38[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-[32m13:47:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:47:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:47:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:47:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:47:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:47:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:47:38] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:47:39] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:48:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:48:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:48:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:48:06[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:48:06[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:48:06[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:48:07] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:48:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:48:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:48:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:48:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:48:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:48:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:48:08] "GET /api/auto/status HTTP/1.1" 200 -
-[32m13:48:27[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
-[32m13:48:27[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
-[32m13:48:27[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
-127.0.0.1 - - [21/Feb/2026 13:48:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:48:35] "GET /api/health HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:48:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:48:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:48:36[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:48:36[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:48:36[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:48:37] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:48:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:48:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:48:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:48:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:48:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:48:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:48:38] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:49:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:49:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:49:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:49:06[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:49:06[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:49:06[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:49:07] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:49:08[0m | [1mINFO    [0m | [1m✅ Market Regime: BULL: SMA20=OK(+0.1%) | RSI=OK(48) | Ret5d=OK(+1.2%) | VIX=OK(19.1)[0m
-[32m13:49:09[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:49:09[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:49:09[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:49:09[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:49:09[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:49:09[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:49:09] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:49:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:49:35] "GET /api/health HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:49:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:49:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:49:37[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:49:37[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:49:37[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:49:37] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:49:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:49:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:49:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:49:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:49:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:49:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:49:38] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:50:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:50:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:50:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:50:08[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:50:08[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:50:08[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-[32m13:50:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:50:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:50:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:50:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:50:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:50:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:50:08] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:50:09] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:50:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:50:35] "GET /api/health HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:50:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:50:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:50:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:50:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:50:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:50:38[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:50:38[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:50:38[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-[32m13:50:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:50:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:50:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:50:38] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:50:39] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:51:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:51:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:51:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:51:06[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:51:06[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:51:06[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:51:07] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:51:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:51:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:51:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:51:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:51:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:51:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:51:08] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:51:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:51:35] "GET /api/health HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:51:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:51:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:51:36[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:51:36[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:51:36[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:51:37] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:51:38[0m | [1mINFO    [0m | [1m✅ Market Regime: BULL: SMA20=OK(+0.1%) | RSI=OK(48) | Ret5d=OK(+1.2%) | VIX=OK(19.1)[0m
-[32m13:51:39[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:51:39[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:51:39[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:51:39[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:51:39[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:51:39[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:51:39] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:52:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:52:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:52:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:52:06[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:52:06[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:52:06[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:52:07] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:52:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:52:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:52:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:52:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:52:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:52:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:52:08] "GET /api/auto/status HTTP/1.1" 200 -
-[32m13:52:28[0m | [1mINFO    [0m | [1mFAST: After-hours $46.50 (regular close $46.22)[0m
-[32m13:52:28[0m | [1mINFO    [0m | [1mKHC: After-hours $24.40 (regular close $24.4)[0m
-127.0.0.1 - - [21/Feb/2026 13:52:35] "GET /api/cron/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:52:35] "GET /api/rapid/sector-regimes HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:52:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:52:35] "GET /api/health HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:52:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:52:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:52:36[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:52:36[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:52:36[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:52:37] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:52:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:52:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:52:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:52:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:52:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:52:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:52:38] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:53:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:53:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:53:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:53:06[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:53:06[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:53:06[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:53:07] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:53:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:53:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:53:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:53:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:53:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:53:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:53:08] "GET /api/auto/status HTTP/1.1" 200 -
-[32m13:53:28[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
-[32m13:53:28[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
-[32m13:53:28[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
-127.0.0.1 - - [21/Feb/2026 13:53:35] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:53:35] "GET /api/health HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:53:35] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:53:36[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:53:36[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:53:36[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:53:36[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:53:37] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-[32m13:53:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:53:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:53:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:53:38[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:53:38[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:53:38[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:53:38] "GET /api/auto/status HTTP/1.1" 200 -
-[32m13:54:00[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:54:03[0m | [1mINFO    [0m | [1m✅ Market Regime: BULL: SMA20=OK(+0.1%) | RSI=OK(48) | Ret5d=OK(+1.2%) | VIX=OK(19.1)[0m
-[32m13:54:04[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:54:04[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:54:04[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:54:04[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:54:04[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:54:04[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-127.0.0.1 - - [21/Feb/2026 13:54:05] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:54:05] "GET /api/rapid/signals HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:54:05] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
-[32m13:54:06[0m | [1mINFO    [0m | [1mRunning health check...[0m
-[32m13:54:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:54:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:54:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:54:08[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
-[32m13:54:08[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
-[32m13:54:08[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
-[32m13:54:08[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
-[32m13:54:08[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
-[32m13:54:08[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
-127.0.0.1 - - [21/Feb/2026 13:54:08] "GET /api/auto/status HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:54:09] "GET /api/rapid/portfolio HTTP/1.1" 200 -
-127.0.0.1 - - [21/Feb/2026 13:54:12] "GET / HTTP/1.1" 200 -
+[32m14:01:14[0m | [1mINFO    [0m | [1mWebSocket client connected: B0N316P1AF0ub881AAAB (total: 1)[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m✅ Loaded ALL parameters from RapidRotationConfig (v6.32)[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m   SL range: 3.0%-4.0%[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m   Max positions: 2[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m   Regime filter: ENABLED[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m   Beta filter: LOG-ONLY (beta>=0.5, atr>=3.0%)[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m📦 Loaded 23 cached items from disk[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m📦 Loaded 45 cached items from disk[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m📦 Loaded 23 cached items from disk[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1mDataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: Yes[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1mDataManager initialized with broker integration[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1mSafety config loaded from RapidRotationConfig[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1mTrading Safety System initialized[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1mPDT Guard: Loaded 2 entry dates from disk[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1mPDT Smart Guard v2.3 initialized (No Override Mode)[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m  SL Threshold: -3.5%[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m  TP Threshold: 8.0%[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m  Reserve: 1 day trades[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m  Budget = 0 → HOLD (ไม่ override PDT เด็ดขาด)[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1mPDT Smart Guard v2.3 initialized (No Override - uses RapidRotationConfig)[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1mTradeLogger initialized - logs: /home/saengtawan/work/project/cc/stock-analyzer/trade_logs, db: /home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db (direct SQLite)[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1mTrade Logger v1.0 initialized[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1mAlertManager using database storage[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1mAlert Manager v1.0 initialized[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m🛡️ Entry Protection Filter initialized (enabled=True)[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m   Layer 1: Adaptive timing (Gap Down <-1.5%: 5min, Mild: 10min, Flat: 15min, Gap Up: 20min)[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m   Layer 2: Max VWAP distance 3.0%[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m   Layer 3: Max chase 0.8%[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m   Layer 4: Block if in top 20% of range or >2.5% from low[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m✅ Entry Protection Filter v6.17 initialized[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m📦 Loaded 423 sectors from cache[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m✅ AI Universe Generator initialized[0m
+[32m14:01:15[0m | [1mINFO    [0m | [1m✅ Market Regime Detector initialized[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m📦 Loaded 23 cached items from disk[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m📦 Loaded 45 cached items from disk[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mStarting Rapid Portfolio Monitor...[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m✅ Loaded 2 positions from database[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mRapid Portfolio Monitor started (check every 5 minutes)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m📦 Loaded 23 cached items from disk[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mDataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mUpdating sector regimes (5-min realtime, MCW)...[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mBuilt sector company map: 550 stocks across 11 sectors (with market weights)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mBatch downloading 550 sector stocks for 1d returns...[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mMarket-cap weighted 1d returns calculated for 11 sectors[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mUsing market-cap weighted 1d returns for 11 sectors[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mXLK (Technology): SIDEWAYS (score=+0.0) | 1d[M]: +0.5% | 5d: +0.9% | 20d: -2.76%[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mXLE (Energy): BULL (score=+3.1) | 1d[M]: -0.4% | 5d: +1.0% | 20d: +12.21%[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mXLF (Financial Services): SIDEWAYS (score=+0.4) | 1d[M]: +0.6% | 5d: +1.6% | 20d: -2.45%[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mXLV (Healthcare): SIDEWAYS (score=-0.5) | 1d[M]: -0.3% | 5d: -0.5% | 20d: -0.93%[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mXLY (Consumer Cyclical): SIDEWAYS (score=+0.1) | 1d[M]: +1.2% | 5d: +1.1% | 20d: -4.22%[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mXLP (Consumer Defensive): SIDEWAYS (score=+0.7) | 1d[M]: -0.0% | 5d: -1.8% | 20d: +6.83%[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mXLI (Industrials): BULL (score=+2.7) | 1d[M]: +0.3% | 5d: +1.8% | 20d: +7.09%[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mXLU (Utilities): BULL (score=+2.2) | 1d[M]: +0.4% | 5d: -0.4% | 20d: +8.48%[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mXLB (Basic Materials): BULL (score=+1.6) | 1d[M]: +0.9% | 5d: -0.7% | 20d: +6.95%[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mXLC (Communication Services): BULL (score=+1.8) | 1d[M]: +2.4% | 5d: +1.9% | 20d: +0.47%[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mXLRE (Real Estate): BULL (score=+1.5) | 1d[M]: +0.7% | 5d: +0.1% | 20d: +5.88%[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m✅ Sector Regime Detector initialized[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m✅ Alternative Data Aggregator initialized (6 sources)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m✅ Registered strategy: Dip-Bounce (dip_bounce)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mVIX Adaptive v3.0: Loading...[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mVIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mInitial VIX: 19.09 → tier=NORMAL[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m✅ VIX Adaptive v3.0 initialized[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m   Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m   Score adaptation: True[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m✅ VIX Adaptive wrapper initialized: VIXAdaptiveIntegration(tier=NORMAL, VIX=19.1)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m✅ Registered strategy: VIX Adaptive (vix_adaptive)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m✅ VIX Adaptive registered (tier=normal)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m✅ Strategy Manager initialized (2 strategies active)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m🏭 Sector Filter initialized (enabled=True)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m   Excluding sectors: Aerospace, Aerospace & Defense, Basic Materials, Communication Services, Consumer Defensive, Consumer Staples, Energy, Energy/Oil, Materials, Media, Oil & Gas[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mScreener initialized[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m🏭 Sector Filter initialized (enabled=True)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m   Excluding sectors: Aerospace, Aerospace & Defense, Basic Materials, Communication Services, Consumer Defensive, Consumer Staples, Energy, Energy/Oil, Materials, Media, Oil & Gas[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1mOvernightGapScanner initialized[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m✅ PreMarketGapScanner initialized (v6.11)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m🏭 Sector Filter initialized (enabled=True)[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m   Excluding sectors: Aerospace, Aerospace & Defense, Basic Materials, Communication Services, Consumer Defensive, Consumer Staples, Energy, Energy/Oil, Materials, Media, Oil & Gas[0m
+[32m14:01:16[0m | [1mINFO    [0m | [1m✅ PEMScreener initialized (v6.29)[0m
+[32m14:01:17[0m | [1mINFO    [0m | [1mVIX Adaptive v3.0: Loading...[0m
+[32m14:01:17[0m | [1mINFO    [0m | [1mVIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)[0m
+[32m14:01:17[0m | [1mINFO    [0m | [1mInitial VIX: 19.09 → tier=NORMAL[0m
+[32m14:01:17[0m | [1mINFO    [0m | [1m✅ VIX Adaptive v3.0 initialized[0m
+[32m14:01:17[0m | [1mINFO    [0m | [1m   Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}[0m
+[32m14:01:17[0m | [1mINFO    [0m | [1m   Score adaptation: True[0m
+[32m14:01:17[0m | [1mINFO    [0m | [1m✅ VIX Adaptive Strategy initialized: VIXAdaptiveIntegration(tier=NORMAL, VIX=19.1)[0m
+[32m14:01:17[0m | [1mINFO    [0m | [1mSLTPCalculator initialized[0m
+[32m14:01:17[0m | [1mINFO    [0m | [1mFAST: After-hours $46.50 (regular close $46.22)[0m
+[32m14:01:17[0m | [1mINFO    [0m | [1mKHC: After-hours $24.40 (regular close $24.4)[0m
+[32m14:01:17[0m | [1mINFO    [0m | [1mStarting Real-time Price Streamer...[0m
+[32m14:01:17[0m | [1mINFO    [0m | [1mAlpacaStreamer v1.1 initialized (paper=True, feed=IEX)[0m
+[32m14:01:17[0m | [1mINFO    [0m | [1mQueued subscription for: ['FAST', 'KHC'][0m
+[32m14:01:17[0m | [1mINFO    [0m | [1m📡 Subscribed to real-time prices: ['FAST', 'KHC'][0m
+[32m14:01:17[0m | [1mINFO    [0m | [1mAlpacaStreamer started[0m
+[32m14:01:17[0m | [1mINFO    [0m | [1m✅ Real-time Price Streamer started (WebSocket active!)[0m
+[32m14:01:17[0m | [1mINFO    [0m | [1mStreaming started for: ['FAST', 'KHC'][0m
+[32m14:01:17[0m | [1mINFO    [0m | [1mMonitoringMetrics initialized (window: 3600s)[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1mLoaded persisted state: 2 positions from DB[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1mRestored position: FAST (peak=$46.69, trail=OFF)[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1mRestored position: KHC (peak=$24.43, trail=OFF)[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1m✅ Synced 2 positions[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1m==================================================[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1mPDT SMART GUARD STATUS[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1m==================================================[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1mDay Trades: 1/3 (remaining: 2)[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1mReserve Active: False[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1mFlagged: True[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1mPositions:[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1m  FAST: Day 7[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1m  KHC: Day 2[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1m==================================================[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1mLoaded loss counters: consecutive=0, weekly_pnl=$-34.18[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1mAutoTradingEngine initialized (paper=True)[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1mTrading loop started[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1mTrading engine started[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1mHealth Checker started (check every 5 minutes)[0m
+[32m14:01:18[0m | [1mINFO    [0m | [1mUniverse Maintenance Scheduler started (daily at 2:00 AM)[0m
+[32m14:01:19[0m | [1mINFO    [0m | [1mPortfolio API: market_open=False, extended_prices=['FAST'][0m
+[32m14:01:19[0m | [1mINFO    [0m | [1mFAST: Using after-hours price $46.50[0m
+[32m14:01:19[0m | [1mINFO    [0m | [1mKHC: Using broker price $24.40 (market_open=False, in_extended=False)[0m
+[32m14:01:20[0m | [1mINFO    [0m | [1m✅ Market Regime: BULL: SMA20=OK(+0.1%) | RSI=OK(48) | Ret5d=OK(+1.2%) | VIX=OK(19.1)[0m
+[32m14:01:20[0m | [1mINFO    [0m | [1m🔴 Consumer Cyclical return_20d=-4.2% < -3% → BLOCKED (absolute)[0m
+[32m14:01:20[0m | [1mINFO    [0m | [1m🔴 Technology return_20d=-2.8% (bottom 2) → BLOCKED (relative)[0m
+[32m14:01:20[0m | [1mINFO    [0m | [1m⛔ Weak sectors blocked: ['Consumer Cyclical', 'Technology'][0m
+[32m14:01:20[0m | [1mINFO    [0m | [1mScanning for signals (regime: BULL, blocked: ['Consumer Cyclical', 'Technology'])...[0m
+[32m14:01:20[0m | [1mINFO    [0m | [1m📦 Using pre-filtered pool: 280 stocks (age: 2.8h)[0m
+[32m14:01:20[0m | [1mINFO    [0m | [1m🔥 Hot sectors: Energy, Industrials, Utilities, Basic Materials, Communication Services, Real Estate[0m
+[32m14:01:20[0m | [1mINFO    [0m | [1m📊 Loading data for 280 stocks via yfinance (parallel)...[0m

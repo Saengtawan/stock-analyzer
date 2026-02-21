@@ -148,30 +148,28 @@
     .tl-connector { display: none; }
     .tl-progress { height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; margin-top: 6px; overflow: hidden; }
 
-    /* v6.36: Cron Timeline Styles */
-    .cron-timeline-section { background: rgba(15, 23, 42, 0.6); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; border: 1px solid rgba(71, 85, 105, 0.3); }
-    .cron-header { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; color: #94a3b8; cursor: pointer; user-select: none; }
-    .cron-header i.fa-clock { color: #3b82f6; font-size: 0.9rem; }
-    .cron-toggle { background: none; border: none; color: #64748b; cursor: pointer; padding: 4px 8px; margin-left: auto; transition: transform 0.2s; }
-    .cron-toggle:hover { color: #94a3b8; }
-    .cron-toggle.open { transform: rotate(180deg); }
-    .cron-timeline-container { margin-top: 12px; }
-    .cron-timeline-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
-    .cron-task { background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(71, 85, 105, 0.3); border-radius: 6px; padding: 8px 10px; transition: all 0.2s; }
-    .cron-task:hover { background: rgba(30, 41, 59, 0.8); border-color: rgba(71, 85, 105, 0.5); }
-    .cron-task.active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
-    .cron-task.done { border-color: #10b981; background: rgba(16, 185, 129, 0.1); }
-    .cron-task-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    /* v6.37: Cron Timeline Bar (Horizontal) */
+    .cron-timeline-section { background: rgba(15, 23, 42, 0.6); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; border: 1px solid rgba(71, 85, 105, 0.3); }
+    .cron-timeline-header { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; color: #94a3b8; margin-bottom: 8px; }
+    .cron-timeline-header i.fa-clock { color: #3b82f6; font-size: 0.85rem; }
+    .cron-timeline-bar { display: flex; align-items: center; gap: 3px; overflow-x: auto; padding: 4px 0; }
+    .cron-timeline-bar::-webkit-scrollbar { height: 4px; }
+    .cron-timeline-bar::-webkit-scrollbar-track { background: rgba(71, 85, 105, 0.2); border-radius: 2px; }
+    .cron-timeline-bar::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, 0.5); border-radius: 2px; }
+    .cron-task { flex: 1; text-align: center; padding: 6px 4px; min-width: 0; background: rgba(30, 41, 59, 0.3); border-radius: 4px; transition: all 0.2s; }
+    .cron-task:hover { background: rgba(30, 41, 59, 0.6); }
+    .cron-task-header { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 3px; }
     .cron-task-indicator { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
     .cron-task.pending .cron-task-indicator { border: 2px solid #475569; background: transparent; }
     .cron-task.active .cron-task-indicator { background: #3b82f6; box-shadow: 0 0 6px #3b82f6; animation: pulse-glow 1.5s ease-in-out infinite; }
     .cron-task.done .cron-task-indicator { background: #10b981; box-shadow: 0 0 4px #10b981; }
-    .cron-task-name { font-size: 0.75rem; font-weight: 600; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+    .cron-task-name { font-size: 0.65rem; font-weight: 600; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cron-task.done .cron-task-name { color: #10b981; }
-    .cron-task.active .cron-task-name { color: #3b82f6; }
-    .cron-task-time { font-size: 0.7rem; color: #94a3b8; margin: 2px 0; }
+    .cron-task.active .cron-task-name { color: #3b82f6; font-weight: 700; }
+    .cron-task.pending .cron-task-name { color: #64748b; }
+    .cron-task-time { font-size: 0.6rem; color: #94a3b8; margin: 2px 0; white-space: nowrap; }
     .cron-task.pending .cron-task-time { color: #64748b; }
-    .cron-task-strategy { font-size: 0.65rem; padding: 2px 6px; border-radius: 8px; display: inline-block; margin-top: 4px; font-weight: 600; }
+    .cron-task-strategy { font-size: 0.55rem; padding: 2px 4px; border-radius: 6px; display: inline-block; margin-top: 3px; font-weight: 600; }
     .cron-task-strategy.DIP { background: #3b82f6; color: white; }
     .cron-task-strategy.OVN { background: #f59e0b; color: white; }
     .cron-task-strategy.PEM { background: #10b981; color: white; }
@@ -180,7 +178,7 @@
     .cron-task-strategy.Protection { background: #ef4444; color: white; }
     .cron-task-strategy.Monitor { background: #64748b; color: white; }
     .cron-task.pending .cron-task-strategy { opacity: 0.4; }
-    .cron-loading { text-align: center; color: #64748b; font-size: 0.75rem; padding: 12px; }
+    .cron-loading { text-align: center; color: #64748b; font-size: 0.7rem; padding: 8px; }
     .tl-progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
     .tl-session.done .tl-progress-fill { background: #10b981; width: 100% !important; }
     .tl-session.active .tl-progress-fill { background: linear-gradient(90deg, #3b82f6, #8b5cf6); animation: shimmer 2s infinite; background-size: 200% 100%; }
@@ -613,21 +611,16 @@
 </div>
 
 <!-- ============================================================
-     CRON TIMELINE — Scheduled Tasks Overview
+     CRON TIMELINE — Scheduled Tasks (Timeline Bar)
      ============================================================ -->
 <div class="cron-timeline-section" id="cronTimelineSection">
-    <div class="cron-header">
+    <div class="cron-timeline-header">
         <i class="fas fa-clock"></i>
-        <span>Scheduled Tasks</span>
-        <button class="cron-toggle" id="cronToggle" onclick="toggleCronTimeline()">
-            <i class="fas fa-chevron-down"></i>
-        </button>
+        <span>Daily Schedule</span>
     </div>
-    <div class="cron-timeline-container" id="cronTimelineContainer" style="display: none;">
-        <div class="cron-timeline-grid" id="cronTimelineGrid">
-            <!-- Tasks rendered dynamically from API -->
-            <div class="cron-loading">Loading scheduled tasks...</div>
-        </div>
+    <div class="cron-timeline-bar" id="cronTimelineBar">
+        <!-- Tasks rendered as timeline items -->
+        <div class="cron-loading">Loading schedule...</div>
     </div>
 </div>
 
@@ -1841,61 +1834,39 @@ function updateTimelineCountdown(nextScanTimestamp) {
 }
 
 // ============================================
-// Cron Timeline (v6.36: Complete scheduled tasks overview)
+// Cron Timeline Bar (v6.37: Horizontal timeline)
 // ============================================
-function toggleCronTimeline() {
-    const container = document.getElementById('cronTimelineContainer');
-    const toggle = document.getElementById('cronToggle');
-    if (!container || !toggle) return;
-
-    if (container.style.display === 'none') {
-        container.style.display = 'block';
-        toggle.classList.add('open');
-        localStorage.setItem('cronTimelineOpen', 'true');
-    } else {
-        container.style.display = 'none';
-        toggle.classList.remove('open');
-        localStorage.setItem('cronTimelineOpen', 'false');
-    }
-}
-
 function updateCronTimeline(cronSchedule) {
     if (!cronSchedule || !cronSchedule.tasks) return;
 
-    const grid = document.getElementById('cronTimelineGrid');
-    if (!grid) return;
+    const bar = document.getElementById('cronTimelineBar');
+    if (!bar) return;
 
     let html = '';
-    cronSchedule.tasks.forEach(task => {
+    // Sort tasks by time (minutes)
+    const sortedTasks = cronSchedule.tasks
+        .filter(t => t.time !== 'Continuous')  // Exclude continuous monitoring
+        .sort((a, b) => a.minutes - b.minutes);
+
+    sortedTasks.forEach(task => {
         const statusClass = task.status || 'pending';
-        const time = task.time === 'Continuous' ? 'All Day' : task.time;
+        const time = task.time;
+        const shortLabel = task.label.replace(' Filter', '').replace(' Scan', '').replace(' DIP', '');
 
         html += `
-            <div class="cron-task ${statusClass}" title="${task.description}">
+            <div class="cron-task ${statusClass}" title="${task.description} (${task.frequency})">
                 <div class="cron-task-header">
                     <div class="cron-task-indicator"></div>
-                    <div class="cron-task-name">${task.label}</div>
                 </div>
+                <div class="cron-task-name">${shortLabel}</div>
                 <div class="cron-task-time">${time}</div>
                 <div class="cron-task-strategy ${task.strategy}">${task.strategy}</div>
             </div>
         `;
     });
 
-    grid.innerHTML = html;
-
-    // Restore open/closed state from localStorage
-    const isOpen = localStorage.getItem('cronTimelineOpen') === 'true';
-    const container = document.getElementById('cronTimelineContainer');
-    const toggle = document.getElementById('cronToggle');
-    if (isOpen && container && toggle) {
-        container.style.display = 'block';
-        toggle.classList.add('open');
-    }
+    bar.innerHTML = html;
 }
-
-// Make toggle function globally accessible
-window.toggleCronTimeline = toggleCronTimeline;
 
 // ============================================
 // Header Bar Updates
