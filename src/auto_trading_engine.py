@@ -664,6 +664,7 @@ class AutoTradingEngine:
         # Position Management
         self.MAX_HOLD_DAYS = cfg.max_hold_days
         self.MAX_POSITIONS = cfg.max_positions
+        self.MAX_POSITIONS_TOTAL = getattr(cfg, 'max_positions_total', cfg.max_positions + 2)  # v6.35: Total limit (DIP+OVN+PEM)
         self.POSITION_SIZE_PCT = cfg.position_size_pct
         self.MAX_POSITION_PCT = cfg.max_position_pct
         self.RISK_PARITY_ENABLED = cfg.risk_parity_enabled
@@ -688,7 +689,14 @@ class AutoTradingEngine:
         self.MARKET_CLOSE_HOUR = cfg.market_close_hour
         self.MARKET_CLOSE_MINUTE = cfg.market_close_minute
         self.PRE_CLOSE_MINUTE = cfg.pre_close_minute
-        
+
+        # v6.36: Skip Window
+        self.SKIP_WINDOW_ENABLED = cfg.skip_window_enabled
+        self.SKIP_WINDOW_START_HOUR = cfg.skip_window_start_hour
+        self.SKIP_WINDOW_START_MINUTE = cfg.skip_window_start_minute
+        self.SKIP_WINDOW_END_HOUR = cfg.skip_window_end_hour
+        self.SKIP_WINDOW_END_MINUTE = cfg.skip_window_end_minute
+
         # =====================================================================
         # REGIME FILTERING
         # =====================================================================
@@ -702,7 +710,7 @@ class AutoTradingEngine:
         self.VIX_SKIP_ZONE_HIGH = cfg.vix_skip_zone_high
         self.OPENING_WINDOW_LIMIT_ENABLED = cfg.opening_window_limit_enabled
         self.OPENING_WINDOW_MINUTES = cfg.opening_window_minutes
-        self.OPENING_WINDOW_MAX_BUYS = cfg.opening_window_max_buys
+        self.OPENING_WINDOW_STAGGER_MINUTES = getattr(cfg, 'opening_window_stagger_minutes', getattr(cfg, 'opening_window_max_buys', 15))  # v6.35: Renamed
         self._opening_window_buys = 0       # resets each trading day
         self._opening_window_date = None    # tracks which date the counter is for
         self.SPY_INTRADAY_FILTER_ENABLED = cfg.spy_intraday_filter_enabled
@@ -929,64 +937,46 @@ class AutoTradingEngine:
         try:
             from database import PositionRepository
             from database.models.position import Position as DBPosition
-            from datetime import datetime as _dt
 
             repo = PositionRepository()
 
             with self._positions_lock:
                 positions_snapshot = dict(self.positions)
 
-            current_symbols = list(positions_snapshot.keys())
-            engine_sources = self._ENGINE_SOURCES
-            src_placeholders = ','.join('?' * len(engine_sources))
-
-            # Remove stale engine-owned positions (scoped — do NOT delete rapid_trader rows)
-            if current_symbols:
-                sym_placeholders = ','.join('?' * len(current_symbols))
-                repo.db.execute(
-                    f"DELETE FROM active_positions WHERE source IN ({src_placeholders}) AND symbol NOT IN ({sym_placeholders})",
-                    list(engine_sources) + current_symbols
-                )
-            else:
-                repo.db.execute(
-                    f"DELETE FROM active_positions WHERE source IN ({src_placeholders})",
-                    list(engine_sources)
-                )
-
-            # Upsert current engine positions
+            # Build DB Position list from ManagedPosition
+            db_positions = []
             for sym, pos in positions_snapshot.items():
-                repo.db.execute("""
-                    INSERT OR REPLACE INTO active_positions
-                    (symbol, entry_date, entry_price, qty, stop_loss, take_profit,
-                     peak_price, trough_price, trailing_stop, day_held, sl_pct, tp_pct,
-                     entry_atr_pct, sl_order_id, sector, source, signal_score, mode,
-                     regime, entry_rsi, momentum_5d, updated_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                """, (
-                    sym,
-                    pos.entry_time.isoformat() if hasattr(pos.entry_time, 'isoformat') else pos.entry_time,
-                    pos.entry_price, pos.qty,
-                    pos.current_sl_price,
-                    getattr(pos, 'tp_price', 0.0),
-                    pos.peak_price,
-                    getattr(pos, 'trough_price', 0.0),
-                    1 if pos.trailing_active else 0,
-                    pos.days_held,
-                    pos.sl_pct,
-                    getattr(pos, 'tp_pct', 5.0),
-                    getattr(pos, 'atr_pct', 0.0),
-                    pos.sl_order_id,
-                    getattr(pos, 'sector', ''),
-                    getattr(pos, 'source', 'dip_bounce'),
-                    getattr(pos, 'signal_score', 0),
-                    getattr(pos, 'entry_mode', 'NORMAL'),
-                    getattr(pos, 'entry_regime', 'BULL'),
-                    getattr(pos, 'entry_rsi', 0.0),
-                    getattr(pos, 'momentum_5d', 0.0),
-                    _dt.now().isoformat()
-                ))
+                db_pos = DBPosition(
+                    symbol=pos.symbol,
+                    entry_date=pos.entry_time.isoformat() if hasattr(pos.entry_time, 'isoformat') else pos.entry_time,
+                    entry_price=pos.entry_price,
+                    qty=pos.qty,
+                    stop_loss=pos.current_sl_price,
+                    take_profit=getattr(pos, 'tp_price', 0.0),
+                    peak_price=pos.peak_price,
+                    trough_price=getattr(pos, 'trough_price', 0.0),
+                    trailing_stop=pos.trailing_active,
+                    day_held=pos.days_held,
+                    sl_pct=pos.sl_pct,
+                    tp_pct=getattr(pos, 'tp_pct', 5.0),
+                    entry_atr_pct=getattr(pos, 'atr_pct', 0.0),
+                    sl_order_id=pos.sl_order_id,
+                    tp_order_id=None,
+                    entry_order_id=None,
+                    sector=getattr(pos, 'sector', ''),
+                    source=getattr(pos, 'source', 'dip_bounce'),
+                    signal_score=getattr(pos, 'signal_score', 0),
+                    mode=getattr(pos, 'entry_mode', 'NORMAL'),
+                    regime=getattr(pos, 'entry_regime', 'BULL'),
+                    entry_rsi=getattr(pos, 'entry_rsi', 0.0),
+                    momentum_5d=getattr(pos, 'momentum_5d', 0.0),
+                )
+                db_positions.append(db_pos)
 
-            logger.debug(f"✅ DB synced: {len(positions_snapshot)} positions via PositionRepository")
+            # Use scoped sync (only touches engine-owned sources)
+            repo.sync_positions_scoped(db_positions, self._ENGINE_SOURCES)
+
+            logger.debug(f"✅ DB synced: {len(db_positions)} positions via PositionRepository")
         except Exception as e:
             logger.warning(f"DB active_positions sync failed (non-critical): {e}")
 
@@ -1030,15 +1020,10 @@ class AutoTradingEngine:
     # =========================================================================
 
     def _save_queue_state(self):
-        """Persist signal queue to JSON file (atomic write)."""
-        from engine.state_manager import serialize_queued_signal, atomic_write_json
-        try:
-            entries = [serialize_queued_signal(q) for q in self.signal_queue]
-            data = {'saved_at': datetime.now().isoformat(), 'count': len(entries), 'queue': entries}
-            if atomic_write_json(self._queue_file, data):
-                logger.debug(f"Queue state saved: {len(entries)} signals")
-        except Exception as e:
-            logger.error(f"Failed to save queue state: {e}")
+        """Persist signal queue to database (single source of truth)."""
+        # Phase 1D: Write to database only
+        self._save_queue_to_db()
+        logger.debug(f"💾 Queue saved to DB: {len(self.signal_queue)} signals")
 
     def _load_queue_state(self):
         """Load persisted signal queue from JSON file on startup."""
@@ -1083,20 +1068,15 @@ class AutoTradingEngine:
     def _save_signals_cache(self, signals: list, scan_type: str, scan_duration: float = 0,
                              waiting_signals: list = None, positions_status: dict = None):
         """
-        Write signals to JSON cache file for UI consumption.
+        Save signals to database for UI consumption.
 
-        This is the SINGLE SOURCE OF TRUTH for Buy Signals in the UI.
-        UI reads from this cache instead of running its own scanner.
+        Phase 1D: Database is the SINGLE SOURCE OF TRUTH.
+        UI reads from database via API.
 
         v6.4: Added waiting_signals and positions_status for UI to show
               signals that are waiting for position slots to open.
         """
-        import tempfile
         from dataclasses import asdict
-
-        cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'cache')
-        os.makedirs(cache_dir, exist_ok=True)
-        cache_file = os.path.join(cache_dir, 'rapid_signals.json')
 
         try:
             # Convert signals to dict
@@ -1221,29 +1201,166 @@ class AutoTradingEngine:
                 'pool_size': pool_size,
             }
 
-            # Atomic write
-            fd, tmp_path = tempfile.mkstemp(dir=cache_dir, suffix='.tmp')
-            try:
-                with os.fdopen(fd, 'w') as f:
-                    json.dump(cache_data, f, indent=2, default=str)
-                os.replace(tmp_path, cache_file)
-                waiting_info = f", {len(waiting_data)} waiting" if waiting_data else ""
-                logger.info(f"📤 Signals cache: {len(signals_data)} signals{waiting_info} ({scan_type}, mode={cache_data['mode']})")
-            except Exception:
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
-                raise
+            # Phase 1D: Write to database (single source of truth)
+            self._save_signals_to_db(cache_data, signals_data, waiting_data, scan_type, scan_duration)
+
+            waiting_info = f", {len(waiting_data)} waiting" if waiting_data else ""
+            logger.info(f"📤 Signals saved to DB: {len(signals_data)} signals{waiting_info} ({scan_type}, mode={cache_data['mode']})")
 
         except Exception as e:
-            logger.warning(f"Failed to write signals cache: {e}")
+            logger.error(f"Failed to save signals to database: {e}")
+            raise  # Critical - must succeed
+
+    def _save_signals_to_db(self, cache_data: dict, signals_data: list, waiting_data: list, scan_type: str, scan_duration: float):
+        """
+        Phase 1B: Save signals to database (dual-write).
+
+        Args:
+            cache_data: Full cache data dict
+            signals_data: Active signals list
+            waiting_data: Waiting signals list
+            scan_type: Scan type string
+            scan_duration: Scan duration in seconds
+        """
+        try:
+            from database.repositories import SignalRepository, ScanRepository
+            from database.models import TradingSignal, ScanSession
+
+            # Create scan session first
+            scan_repo = ScanRepository()
+            session = ScanSession.from_json_signals(cache_data, scan_type, scan_duration)
+            session_id = scan_repo.create(session)
+
+            if not session_id:
+                logger.warning("DB: Failed to create scan session, skipping signal write")
+                return
+
+            # Store session_id for execution records
+            self._current_scan_session_id = session_id
+
+            # Save active signals
+            sig_repo = SignalRepository()
+            active_count = 0
+            for signal_data in signals_data:
+                try:
+                    signal = TradingSignal.from_json_signal(signal_data, status='active', scan_session_id=session_id)
+                    if sig_repo.create(signal):
+                        active_count += 1
+                except Exception as e:
+                    logger.debug(f"DB: Failed to create signal {signal_data.get('symbol', '?')}: {e}")
+
+            # Save waiting signals
+            waiting_count = 0
+            for signal_data in waiting_data:
+                try:
+                    signal = TradingSignal.from_json_signal(signal_data, status='waiting', scan_session_id=session_id)
+                    if sig_repo.create(signal):
+                        waiting_count += 1
+                except Exception as e:
+                    logger.debug(f"DB: Failed to create waiting signal {signal_data.get('symbol', '?')}: {e}")
+
+            logger.debug(f"💾 DB sync: session={session_id}, active={active_count}, waiting={waiting_count}")
+
+        except Exception as e:
+            logger.error(f"DB signals write failed (non-fatal): {e}")
+            # Continue - JSON is primary during dual-write phase
+
+    def _save_execution_to_db(self, scan_results: list):
+        """
+        Phase 1B: Save execution records to database (dual-write).
+
+        Args:
+            scan_results: List of scan result dicts with action_taken, skip_reason, etc.
+        """
+        try:
+            from database.repositories import ExecutionRepository
+            from database.models import ExecutionRecord
+
+            exec_repo = ExecutionRepository()
+            count = 0
+
+            for result in scan_results:
+                try:
+                    record = ExecutionRecord.from_scan_result(
+                        result,
+                        scan_session_id=getattr(self, '_current_scan_session_id', None)
+                    )
+                    if exec_repo.create(record):
+                        count += 1
+                except Exception as e:
+                    logger.debug(f"DB: Failed to create execution record for {result.get('symbol', '?')}: {e}")
+
+            if count > 0:
+                logger.debug(f"💾 DB exec history: {count} records")
+
+        except Exception as e:
+            logger.error(f"DB execution write failed (non-fatal): {e}")
+            # Continue - JSON is primary during dual-write phase
+
+    def _cleanup_old_signals(self):
+        """
+        Phase 1B: Expire old signals to prevent DB bloat.
+
+        Marks signals older than 2 hours as expired.
+        """
+        try:
+            from database.repositories import SignalRepository
+
+            sig_repo = SignalRepository()
+            expired_count = sig_repo.expire_old_signals(hours=2)
+
+            if expired_count > 0:
+                logger.info(f"🧹 Expired {expired_count} old signals (>2h)")
+
+        except Exception as e:
+            logger.debug(f"Signal cleanup failed (non-fatal): {e}")
+
+    def _save_queue_to_db(self):
+        """
+        Phase 1B: Save signal queue to database (dual-write).
+
+        Replaces entire queue in DB with current in-memory queue.
+        """
+        try:
+            from database.repositories import QueueRepository
+            from database.models import QueuedSignal as DBQueuedSignal
+
+            queue_repo = QueueRepository()
+
+            # Clear existing queue
+            queue_repo.clear()
+
+            # Add current queue
+            count = 0
+            for queued in self.signal_queue:
+                try:
+                    # Convert engine QueuedSignal to DB QueuedSignal
+                    db_queued = DBQueuedSignal(
+                        symbol=queued.symbol,
+                        signal_price=queued.signal_price,
+                        score=queued.score,
+                        stop_loss=queued.stop_loss,
+                        take_profit=queued.take_profit,
+                        sl_pct=queued.sl_pct,
+                        tp_pct=queued.tp_pct,
+                        queued_at=queued.queued_at,
+                        atr_pct=queued.atr_pct,
+                        reasons=queued.reasons
+                    )
+                    if queue_repo.add(db_queued):
+                        count += 1
+                except Exception as e:
+                    logger.debug(f"DB: Failed to add {queued.symbol} to queue: {e}")
+
+            if count > 0:
+                logger.debug(f"💾 DB queue: {count} signals")
+
+        except Exception as e:
+            logger.error(f"DB queue write failed (non-fatal): {e}")
+            # Continue - JSON is primary during dual-write phase
 
     def _save_market_closed_cache(self):
-        """Write market closed status to cache for UI."""
-        from engine.state_manager import safe_read_json, atomic_write_json
-        cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'cache')
-        os.makedirs(cache_dir, exist_ok=True)
-        cache_file = os.path.join(cache_dir, 'rapid_signals.json')
-
+        """Write market closed status to database (single source of truth)."""
         try:
             next_open = None
             try:
@@ -1251,18 +1368,38 @@ class AutoTradingEngine:
             except Exception:
                 pass
 
-            old_data = safe_read_json(cache_file, {})
-            cache_data = {
-                'mode': 'closed', 'is_market_open': False, 'timestamp': datetime.now().isoformat(),
-                'scan_time': old_data.get('scan_time'), 'session': 'Closed', 'scan_type': 'market_closed',
-                'next_scan': f"{next_open.strftime('%Y-%m-%d %H:%M ET')}" if next_open else "Next Market Open",
-                'next_open': next_open.isoformat() if next_open else None,
-                'count': len(old_data.get('signals', [])), 'signals': old_data.get('signals', []),
-                'scan_duration_seconds': 0, 'regime': 'CLOSED',
-            }
-            atomic_write_json(cache_file, cache_data)
+            # Convert pandas Timestamp to Python datetime if needed
+            next_open_dt = None
+            if next_open:
+                next_open_dt = next_open.to_pydatetime() if hasattr(next_open, 'to_pydatetime') else next_open
+
+            # Phase 1D: Write to database only (single source of truth)
+            from database.repositories import ScanRepository
+            from database.models import ScanSession
+
+            # Get ET time for display
+            et_now = self._get_et_time()
+
+            scan_repo = ScanRepository()
+            session = ScanSession(
+                session_type='market_closed',
+                scan_time=datetime.now(),
+                scan_time_et=et_now.strftime('%Y-%m-%d %H:%M:%S ET'),  # Use ET time
+                mode='closed',
+                is_market_open=False,
+                market_regime='CLOSED',
+                signal_count=0,
+                waiting_count=0,
+                next_scan_et=f"{next_open.strftime('%Y-%m-%d %H:%M ET')}" if next_open else "Next Market Open",
+                next_open=next_open_dt,
+                status='completed'
+            )
+            scan_repo.create(session)
+            logger.debug("💾 DB: Market closed status saved")
+
         except Exception as e:
-            logger.warning(f"Failed to write market closed cache: {e}")
+            logger.error(f"Failed to save market closed status to database: {e}")
+            raise  # Critical - must succeed
 
     # =========================================================================
     # POSITION SYNC
@@ -1547,6 +1684,34 @@ class AutoTradingEngine:
             second=0
         )
         return market_open <= now <= market_close
+
+    def _is_skip_window(self) -> bool:
+        """
+        Check if in skip window (configurable, default 10:00-11:00 ET).
+
+        v6.36: Block all signal generation and trade execution during this period.
+        Prevents chasing volatile price action after morning rush.
+
+        Config:
+            skip_window_enabled: Enable/disable skip window
+            skip_window_start_hour/minute: Start time
+            skip_window_end_hour/minute: End time
+        """
+        if not self.SKIP_WINDOW_ENABLED:
+            return False
+
+        now = self._get_et_time()
+        skip_start = now.replace(
+            hour=self.SKIP_WINDOW_START_HOUR,
+            minute=self.SKIP_WINDOW_START_MINUTE,
+            second=0
+        )
+        skip_end = now.replace(
+            hour=self.SKIP_WINDOW_END_HOUR,
+            minute=self.SKIP_WINDOW_END_MINUTE,
+            second=0
+        )
+        return skip_start <= now < skip_end
 
     def _is_pre_close(self) -> bool:
         """Check if in pre-close period (15:50-16:00 ET)"""
@@ -3347,18 +3512,10 @@ class AutoTradingEngine:
             cleanup_old_files(scan_dir, max_age_days=90, pattern='scan_*.json')
 
     def _save_execution_status(self, scan_results):
-        """Write latest execution results to cache for UI signal status display."""
-        from engine.state_manager import safe_read_json, atomic_write_json
-        cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'cache')
-        os.makedirs(cache_dir, exist_ok=True)
-        filepath = os.path.join(cache_dir, 'execution_status.json')
-
-        status_map = {r.get('symbol', ''): {'action': r.get('action_taken', 'UNKNOWN'), 'skip_reason': r.get('skip_reason', ''), 'timestamp': datetime.now().isoformat()}
-                      for r in scan_results if r.get('symbol', '')}
-
-        existing = safe_read_json(filepath, {})
-        existing.update(status_map)
-        atomic_write_json(filepath, existing)
+        """Save execution results to database (single source of truth)."""
+        # Phase 1D: Write to database only
+        self._save_execution_to_db(scan_results)
+        logger.debug(f"💾 Execution status saved to DB: {len(scan_results)} results")
 
     # =========================================================================
     # SCANNING
@@ -3369,6 +3526,11 @@ class AutoTradingEngine:
         """Run screener to find signals (with regime filter)"""
         if not self.screener:
             logger.warning("Screener not available")
+            return []
+
+        # v6.36: Skip window check (10:00-11:00 ET)
+        if self._is_skip_window():
+            logger.info("⏸️  SKIP WINDOW (10:00-11:00 ET): No scanning during volatile mid-morning period")
             return []
 
         # v6.3: Prevent concurrent scans (refresh spam protection)
@@ -3775,6 +3937,11 @@ class AutoTradingEngine:
         """
         mode = params['mode']
 
+        # v6.36: Skip window check (10:00-11:00 ET) - Block all trades
+        if self._is_skip_window():
+            logger.info(f"⏸️  {symbol}: SKIP WINDOW (10:00-11:00 ET) - No trades during this period")
+            return False, "Skip Window"
+
         # Safety check
         can_trade, reason = self.safety.can_open_new_position(mode=mode)
         if not can_trade:
@@ -3833,7 +4000,7 @@ class AutoTradingEngine:
                 last_buy = getattr(self, '_opening_last_buy_time', None)
                 if last_buy is not None:
                     elapsed = (et_now - last_buy).total_seconds() / 60
-                    stagger = self.OPENING_WINDOW_MAX_BUYS  # reuse field as stagger minutes
+                    stagger = self.OPENING_WINDOW_STAGGER_MINUTES  # v6.35: Renamed for clarity
                     if elapsed < stagger:
                         wait_min = stagger - elapsed
                         logger.warning(
@@ -4316,20 +4483,32 @@ class AutoTradingEngine:
             if market_open_et <= et_now < window_end_et:
                 self._opening_last_buy_time = et_now
                 self._opening_window_buys += 1
-                logger.info(f"📊 Opening stagger: buy #{self._opening_window_buys} at {et_now.strftime('%H:%M')} ET, next allowed after {(et_now + timedelta(minutes=self.OPENING_WINDOW_MAX_BUYS)).strftime('%H:%M')} ET")
+                logger.info(f"📊 Opening stagger: buy #{self._opening_window_buys} at {et_now.strftime('%H:%M')} ET, next allowed after {(et_now + timedelta(minutes=self.OPENING_WINDOW_STAGGER_MINUTES)).strftime('%H:%M')} ET")
 
         # Update stats
         self.daily_stats.trades_executed += 1
         self.daily_stats.signals_executed += 1
+
+        # Strategy tag for display (v6.36: portfolio alert strategy labels)
+        strategy_tags = {
+            'dip_bounce': '[DIP]',
+            'overnight_gap': '[OVN]',
+            'pem': '[PEM]',
+            'vix_adaptive': '[VIX]',
+            'mean_reversion': '[MR]',
+            'rapid_rotation': '[DIP]'  # alias
+        }
+        strategy_tag = strategy_tags.get(signal_source, '[???]')
+
         if 'LOW_RISK' in mode:
             self.daily_stats.low_risk_trades += 1
-            logger.info(f"✅ Bought {symbol} x{qty} @ ${entry_price:.2f} [LOW RISK MODE]")
+            logger.info(f"✅ Bought {symbol} x{qty} @ ${entry_price:.2f} {strategy_tag} [LOW RISK MODE]")
         else:
-            logger.info(f"✅ Bought {symbol} x{qty} @ ${entry_price:.2f}")
+            logger.info(f"✅ Bought {symbol} x{qty} @ ${entry_price:.2f} {strategy_tag}")
         logger.info(f"   SL: ${sl_price:.2f} (-{sl_pct}%) | TP: ${tp_price:.2f} (+{tp_pct}%) | ATR: {atr_pct}%")
 
-        # Alert
-        self.alerts.alert_trade_executed(symbol, 'BUY', entry_price, qty)
+        # Alert (with strategy tag)
+        self.alerts.alert_trade_executed(symbol, 'BUY', entry_price, qty, strategy=strategy_tag)
 
         # Trade log
         try:
@@ -5358,17 +5537,29 @@ class AutoTradingEngine:
             pnl_pct = ((exit_price - managed_pos.entry_price) / managed_pos.entry_price) * 100
             pnl_usd = (exit_price - managed_pos.entry_price) * actual_qty
 
-            logger.info(f"✅ Closed {symbol}: {pnl_pct:+.2f}% (${pnl_usd:+.2f}) - {reason}")
+            # Strategy tag for display (v6.36)
+            strategy_tags = {
+                'dip_bounce': '[DIP]',
+                'overnight_gap': '[OVN]',
+                'pem': '[PEM]',
+                'vix_adaptive': '[VIX]',
+                'mean_reversion': '[MR]',
+                'rapid_rotation': '[DIP]'
+            }
+            pos_source = getattr(managed_pos, 'source', 'dip_bounce')
+            strategy_tag = strategy_tags.get(pos_source, '[???]')
+
+            logger.info(f"✅ Closed {symbol} {strategy_tag}: {pnl_pct:+.2f}% (${pnl_usd:+.2f}) - {reason}")
 
             # Alert: trade closed
             if 'stop loss' in reason.lower() or 'sl' in reason.lower():
-                self.alerts.alert_sl_hit(symbol, exit_price, managed_pos.current_sl_price, pnl_pct)
+                self.alerts.alert_sl_hit(symbol, exit_price, managed_pos.current_sl_price, pnl_pct, strategy=strategy_tag)
             elif 'take profit' in reason.lower() or 'tp' in reason.lower():
-                self.alerts.alert_tp_hit(symbol, exit_price, managed_pos.tp_price, pnl_pct)
+                self.alerts.alert_tp_hit(symbol, exit_price, managed_pos.tp_price, pnl_pct, strategy=strategy_tag)
             elif 'max hold' in reason.lower():
-                self.alerts.alert_max_hold_exit(symbol, managed_pos.days_held, pnl_pct)
+                self.alerts.alert_max_hold_exit(symbol, managed_pos.days_held, pnl_pct, strategy=strategy_tag)
             else:
-                self.alerts.alert_trade_executed(symbol, 'SELL', exit_price, actual_qty)
+                self.alerts.alert_trade_executed(symbol, 'SELL', exit_price, actual_qty, strategy=strategy_tag)
 
             # Update stats
             self.daily_stats.realized_pnl += pnl_usd
@@ -5847,6 +6038,9 @@ class AutoTradingEngine:
         Execute morning scan logic. Returns True if should continue to next loop iteration.
         Handles late start, BEAR mode, and BULL mode scanning.
         """
+        # Phase 1B: Cleanup old signals at start of new day
+        self._cleanup_old_signals()
+
         et_now = self._get_et_time()
         market_open = et_now.replace(
             hour=self.MARKET_OPEN_HOUR,
@@ -6141,7 +6335,7 @@ class AutoTradingEngine:
         self._last_continuous_scan = et_now
 
     def _loop_overnight_gap_scan(self, today: str):
-        """Execute overnight gap scan (15:30-15:50 ET)."""
+        """Execute overnight gap scan (15:30-15:50 ET). v6.35: Dedicated slot implementation."""
         if not (self.overnight_scanner and self.OVERNIGHT_GAP_ENABLED):
             return
         if hasattr(self, '_overnight_scan_done') and self._overnight_scan_done == today:
@@ -6157,16 +6351,24 @@ class AutoTradingEngine:
         if not (gap_scan_start <= et_now < gap_scan_end):
             return
 
-        params = self._get_effective_params()
-        overnight_max = params.get('max_positions') or self.MAX_POSITIONS
-        if len(self.positions) >= overnight_max:
+        # v6.35: Check dedicated OVN slot (not counted in dip-bounce limit)
+        overnight_count = sum(1 for p in self.positions.values()
+                             if getattr(p, 'source', '') == 'overnight_gap')
+        if overnight_count >= self.OVERNIGHT_GAP_MAX_POSITIONS:
+            logger.debug(f"OVN: Max OVN positions reached ({overnight_count}/{self.OVERNIGHT_GAP_MAX_POSITIONS})")
             return
 
-        logger.info(f"Overnight gap scan: {len(self.positions)}/{overnight_max} positions")
+        # v6.35: Check total positions (all strategies combined)
+        if len(self.positions) >= self.MAX_POSITIONS_TOTAL:
+            logger.debug(f"OVN: Total positions full ({len(self.positions)}/{self.MAX_POSITIONS_TOTAL})")
+            return
+
+        logger.info(f"Overnight gap scan: {len(self.positions)}/{self.MAX_POSITIONS_TOTAL} total, {overnight_count}/{self.OVERNIGHT_GAP_MAX_POSITIONS} OVN")
         self._overnight_scan_done = today
 
-        mode = params.get('mode', 'NORMAL')
         is_bull, _ = self._check_market_regime()
+        params = self._get_effective_params()
+        mode = params.get('mode', 'NORMAL')
         if not (is_bull or self.BEAR_MODE_ENABLED) or self._loop_check_loss_limits(mode):
             return
 
@@ -6180,7 +6382,7 @@ class AutoTradingEngine:
                 target_pct=self.OVERNIGHT_GAP_TARGET_PCT,
                 sl_pct=self.OVERNIGHT_GAP_SL_PCT,
             )
-            self._process_scan_signals(gap_signals, "overnight_gap", max_positions=overnight_max)
+            self._process_scan_signals(gap_signals, "overnight_gap", max_positions=self.MAX_POSITIONS_TOTAL)
         except Exception as e:
             logger.warning(f"Overnight gap scan error: {e}")
 
@@ -6343,21 +6545,20 @@ class AutoTradingEngine:
         if et_now < scan_time or et_now > scan_window_end:
             return
 
-        # Verify market is open
-        params = self._get_effective_params()
-        max_pos = params.get('max_positions') or self.MAX_POSITIONS
-
-        # Count non-PEM positions to check if there's room
+        # v6.35: Check dedicated PEM slot (not counted in dip-bounce limit)
         pem_count = sum(1 for pos in self.positions.values() if getattr(pos, 'source', '') == 'pem')
         if pem_count >= self.PEM_MAX_POSITIONS:
             logger.debug(f"PEM: Max PEM positions reached ({pem_count}/{self.PEM_MAX_POSITIONS})")
             return
-        if len(self.positions) >= max_pos:
-            logger.debug(f"PEM: All positions full ({len(self.positions)}/{max_pos}), skipping PEM")
+
+        # v6.35: Check total positions (all strategies combined)
+        if len(self.positions) >= self.MAX_POSITIONS_TOTAL:
+            logger.debug(f"PEM: Total positions full ({len(self.positions)}/{self.MAX_POSITIONS_TOTAL})")
             return
 
         self._pem_scan_done = today
-        logger.info(f"📊 PEM Scan: {len(self.positions)}/{max_pos} positions, "
+        params = self._get_effective_params()
+        logger.info(f"📊 PEM Scan: {len(self.positions)}/{self.MAX_POSITIONS_TOTAL} total, {pem_count}/{self.PEM_MAX_POSITIONS} PEM, "
                    f"scanning for earnings gaps ≥{self.PEM_GAP_THRESHOLD_PCT}%...")
 
         try:
@@ -6910,6 +7111,12 @@ class AutoTradingEngine:
             'afternoon_gap_max_down': self.AFTERNOON_GAP_MAX_DOWN,
             'monitor_interval_seconds': self.MONITOR_INTERVAL_SECONDS,
             'pre_close_minute': self.PRE_CLOSE_MINUTE,
+            # v6.36: Skip Window
+            'skip_window_enabled': self.SKIP_WINDOW_ENABLED,
+            'skip_window_start_hour': self.SKIP_WINDOW_START_HOUR,
+            'skip_window_start_minute': self.SKIP_WINDOW_START_MINUTE,
+            'skip_window_end_hour': self.SKIP_WINDOW_END_HOUR,
+            'skip_window_end_minute': self.SKIP_WINDOW_END_MINUTE,
         }
 
     def get_sector_regimes(self) -> list:

@@ -359,9 +359,94 @@ class PositionRepository:
     def clear_all(self) -> bool:
         """
         Clear all positions (use with caution!).
-        
+
         Returns:
             True if successful
         """
         logger.warning("Clearing all positions!")
         return self._save_to_database([])
+
+    def sync_positions_scoped(self, positions: List[Position], source_filter: List[str]) -> bool:
+        """
+        Sync positions for specific sources only (scoped sync).
+
+        This method:
+        1. Deletes positions where source IN source_filter AND symbol NOT IN new positions
+        2. Upserts all positions in the list
+        3. Does NOT touch positions with other sources (e.g., rapid_trader)
+
+        Used by auto_trading_engine to sync without affecting rapid_trader positions.
+
+        Args:
+            positions: List of Position objects to sync
+            source_filter: List of source names to scope the sync (e.g., ['dip_bounce', 'overnight_gap'])
+
+        Returns:
+            True if successful
+        """
+        try:
+            current_symbols = [p.symbol for p in positions]
+            src_placeholders = ','.join('?' * len(source_filter))
+
+            # Remove stale positions (scoped — only delete specified sources)
+            if current_symbols:
+                sym_placeholders = ','.join('?' * len(current_symbols))
+                self.db.execute(
+                    f"DELETE FROM active_positions WHERE source IN ({src_placeholders}) AND symbol NOT IN ({sym_placeholders})",
+                    list(source_filter) + current_symbols
+                )
+            else:
+                self.db.execute(
+                    f"DELETE FROM active_positions WHERE source IN ({src_placeholders})",
+                    list(source_filter)
+                )
+
+            # Upsert current positions
+            for position in positions:
+                self.db.execute("""
+                    INSERT OR REPLACE INTO active_positions (
+                        symbol, entry_date, entry_price, qty,
+                        stop_loss, take_profit, peak_price, trough_price,
+                        trailing_stop, day_held,
+                        sl_pct, tp_pct, entry_atr_pct,
+                        sl_order_id, tp_order_id, entry_order_id,
+                        sector, source, signal_score,
+                        mode, regime, entry_rsi, momentum_5d,
+                        updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    position.symbol,
+                    position.entry_date,
+                    position.entry_price,
+                    position.qty,
+                    position.stop_loss,
+                    position.take_profit,
+                    position.peak_price,
+                    position.trough_price,
+                    1 if position.trailing_stop else 0,
+                    position.day_held,
+                    position.sl_pct,
+                    position.tp_pct,
+                    position.entry_atr_pct,
+                    position.sl_order_id,
+                    position.tp_order_id,
+                    position.entry_order_id,
+                    position.sector,
+                    position.source,
+                    position.signal_score,
+                    position.mode,
+                    position.regime,
+                    position.entry_rsi,
+                    position.momentum_5d,
+                    datetime.now().isoformat()
+                ))
+
+            # Clear cache
+            self._cache = None
+
+            logger.debug(f"✅ Scoped sync: {len(positions)} positions (sources: {source_filter})")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to sync positions (scoped): {e}")
+            return False

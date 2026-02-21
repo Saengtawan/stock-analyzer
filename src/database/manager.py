@@ -206,10 +206,10 @@ _db_lock = threading.Lock()
 def get_db_manager(db_name: str = 'trade_history') -> DatabaseManager:
     """
     Get or create database manager (singleton per database).
-    
+
     Args:
         db_name: Database name ('trade_history', 'stocks')
-        
+
     Returns:
         DatabaseManager instance
     """
@@ -223,7 +223,24 @@ def get_db_manager(db_name: str = 'trade_history') -> DatabaseManager:
                     db_path = 'data/database/stocks.db'
                 else:
                     raise ValueError(f"Unknown database: {db_name}")
-                
+
                 _db_managers[db_name] = DatabaseManager(db_path)
-    
+
     return _db_managers[db_name]
+
+
+def close_all_connections():
+    """
+    Close all database connections (for graceful shutdown).
+
+    This should be called during application shutdown to ensure
+    all database connections are properly closed.
+    """
+    with _db_lock:
+        for db_name, manager in _db_managers.items():
+            try:
+                manager.close()
+                logger.debug(f"Closed connection for {db_name}")
+            except Exception as e:
+                logger.warning(f"Error closing {db_name}: {e}")
+        _db_managers.clear()

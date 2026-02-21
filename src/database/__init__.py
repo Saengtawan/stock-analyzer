@@ -10,13 +10,17 @@ Components:
 - Validators: Data validation layer
 """
 
-from .manager import DatabaseManager
+from .manager import DatabaseManager, close_all_connections
 from .models import Trade, Position, StockPrice
 from .repositories import TradeRepository, PositionRepository, StockDataRepository
 from .repositories.alerts_repository import AlertsRepository, Alert
+from .models.pre_filter_session import PreFilterSession
+from .models.filtered_stock import FilteredStock
+from .repositories.pre_filter_repository import PreFilterRepository
 
 __all__ = [
     'DatabaseManager',
+    'close_all_connections',
     'Trade',
     'Position',
     'StockPrice',
@@ -25,4 +29,7 @@ __all__ = [
     'StockDataRepository',
     'AlertsRepository',
     'Alert',
+    'PreFilterSession',
+    'FilteredStock',
+    'PreFilterRepository',
 ]

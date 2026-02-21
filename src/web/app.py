@@ -2509,9 +2509,9 @@ def rapid_trader_page():
         config = RapidRotationConfig.from_yaml(config_path)
         sessions_cfg = config.sessions
 
-        # Build sessions list for frontend
+        # Build sessions list for frontend (v6.36: Added PEM, SKIP, OVN sessions)
         sessions = []
-        for key in ['gapscan', 'morning', 'midday', 'afternoon', 'preclose']:
+        for key in ['gapscan', 'morning', 'pem', 'skip', 'midday', 'afternoon', 'ovn', 'preclose']:
             if hasattr(sessions_cfg, key):
                 s = getattr(sessions_cfg, key)
                 sessions.append({
@@ -2522,24 +2522,30 @@ def rapid_trader_page():
                     'interval': s.interval if hasattr(s, 'interval') else 5,
                 })
 
-        # Fallback if no sessions found
+        # Fallback if no sessions found (v6.36: 8 sessions with PEM, SKIP, OVN)
         if not sessions:
             sessions = [
                 {'name': 'gapscan', 'label': 'Gap Scan', 'start': 360, 'end': 575, 'interval': -1},
-                {'name': 'morning', 'label': 'Morning', 'start': 575, 'end': 660, 'interval': 3},
+                {'name': 'morning', 'label': 'Morning', 'start': 575, 'end': 615, 'interval': 3},
+                {'name': 'pem', 'label': 'PEM', 'start': 575, 'end': 615, 'interval': -1},
+                {'name': 'skip', 'label': 'SKIP', 'start': 600, 'end': 660, 'interval': -1},
                 {'name': 'midday', 'label': 'Midday', 'start': 660, 'end': 840, 'interval': 5},
                 {'name': 'afternoon', 'label': 'Afternoon', 'start': 840, 'end': 930, 'interval': 5},
-                {'name': 'preclose', 'label': 'Pre-Close', 'start': 930, 'end': 960, 'interval': 0},
+                {'name': 'ovn', 'label': 'OVN', 'start': 930, 'end': 950, 'interval': -1},
+                {'name': 'preclose', 'label': 'Pre-Close', 'start': 950, 'end': 960, 'interval': 0},
             ]
     except Exception as e:
         logger.warning(f"Failed to load sessions from config: {e}")
-        # Fallback sessions
+        # Fallback sessions (v6.36: 8 sessions with PEM, SKIP, OVN)
         sessions = [
             {'name': 'gapscan', 'label': 'Gap Scan', 'start': 360, 'end': 575, 'interval': -1},
-            {'name': 'morning', 'label': 'Morning', 'start': 575, 'end': 660, 'interval': 3},
+            {'name': 'morning', 'label': 'Morning', 'start': 575, 'end': 615, 'interval': 3},
+            {'name': 'pem', 'label': 'PEM', 'start': 575, 'end': 615, 'interval': -1},
+            {'name': 'skip', 'label': 'SKIP', 'start': 600, 'end': 660, 'interval': -1},
             {'name': 'midday', 'label': 'Midday', 'start': 660, 'end': 840, 'interval': 5},
             {'name': 'afternoon', 'label': 'Afternoon', 'start': 840, 'end': 930, 'interval': 5},
-            {'name': 'preclose', 'label': 'Pre-Close', 'start': 930, 'end': 960, 'interval': 0},
+            {'name': 'ovn', 'label': 'OVN', 'start': 930, 'end': 950, 'interval': -1},
+            {'name': 'preclose', 'label': 'Pre-Close', 'start': 950, 'end': 960, 'interval': 0},
         ]
 
     return render_template('rapid_trader.html', default_sessions=sessions, app_version=APP_VERSION)
@@ -2733,83 +2739,116 @@ def api_scan_progress():
 
 @app.route('/api/rapid/signals')
 def api_rapid_signals():
-    """Get rapid rotation buy signals from background scanner cache"""
+    """Get rapid rotation buy signals from DB (primary) or cache (fallback)"""
+    import json as _json
+
+    # Phase 1B: Try database first
     try:
-        import json as _json
+        from database.repositories import SignalRepository, ScanRepository
 
-        cache_path = os.path.join(
-            os.path.dirname(__file__), '..', '..', 'data', 'cache', 'rapid_signals.json'
-        )
+        sig_repo = SignalRepository()
+        scan_repo = ScanRepository()
 
-        if not os.path.exists(cache_path):
-            return jsonify({
-                'count': 0,
-                'signals': [],
-                'timestamp': None,
-                'cache_age_seconds': None,
-                'status': 'waiting_for_first_scan'
-            })
+        # Get latest scan session
+        latest_scan = scan_repo.get_latest()
 
-        with open(cache_path, 'r') as f:
-            data = _json.load(f)
+        # Get active and waiting signals from LATEST scan only (not all history)
+        if latest_scan:
+            active_signals = sig_repo.get_by_session(latest_scan.id)
+            active_signals = [s for s in active_signals if s.status == 'active']
+            waiting_signals = [s for s in active_signals if s.status == 'waiting']
+            # Remove waiting from active list
+            active_signals = [s for s in active_signals if s.status == 'active']
+        else:
+            active_signals = sig_repo.get_active()
+            waiting_signals = sig_repo.get_waiting()
 
-        # Compute cache age
-        cache_ts = datetime.fromisoformat(data['timestamp'])
-        cache_age = (datetime.now() - cache_ts).total_seconds()
-        data['cache_age_seconds'] = round(cache_age, 0)
-        data['status'] = 'fresh' if cache_age < 1200 else 'stale'
+        if latest_scan or active_signals or waiting_signals:
+            # Build response from DB
+            data = {
+                'mode': latest_scan.mode if (latest_scan and latest_scan.mode) else ('closed' if (latest_scan and not latest_scan.is_market_open) else 'market'),
+                'is_market_open': latest_scan.is_market_open if latest_scan else False,
+                'timestamp': latest_scan.scan_time.isoformat() if latest_scan else datetime.now().isoformat(),
+                'scan_time': latest_scan.scan_time_et if latest_scan else '',
+                'session': latest_scan.session_type.title() if latest_scan else 'Unknown',
+                'scan_type': latest_scan.session_type if latest_scan else 'unknown',
+                'next_scan': latest_scan.next_scan_et if latest_scan else None,
+                'next_scan_timestamp': latest_scan.next_scan_timestamp.isoformat() if latest_scan and latest_scan.next_scan_timestamp else None,
+                'count': len(active_signals),
+                'signals': [s.to_dict() for s in active_signals],
+                'waiting_signals': [s.to_dict() for s in waiting_signals],
+                'scan_duration_seconds': latest_scan.scan_duration_seconds if latest_scan else 0,
+                'regime': latest_scan.market_regime if latest_scan else 'UNKNOWN',
+                'positions_status': {
+                    'current': latest_scan.positions_current if latest_scan else 0,
+                    'max': latest_scan.positions_max if latest_scan else 0,
+                    'is_full': latest_scan.positions_full if latest_scan else False
+                },
+                'pool_size': latest_scan.pool_size if latest_scan else 0,
+                'source': 'database'  # For monitoring
+            }
 
-        # v5.1: Enrich signals with execution status (BOUGHT/SKIPPED/QUEUED/PENDING)
-        exec_status_path = os.path.join(
-            os.path.dirname(__file__), '..', '..', 'data', 'cache', 'execution_status.json'
-        )
-        exec_status = {}
-        if os.path.exists(exec_status_path):
+            # Calculate cache age
+            if latest_scan:
+                cache_ts = latest_scan.scan_time
+                cache_age = (datetime.now() - cache_ts).total_seconds()
+                data['cache_age_seconds'] = round(cache_age, 0)
+                data['status'] = 'fresh' if cache_age < 1200 else 'stale'
+            else:
+                data['cache_age_seconds'] = 0
+                data['status'] = 'fresh'
+
+            # Phase 2: Add pre-filter status from database
             try:
-                with open(exec_status_path, 'r') as ef:
-                    exec_status = _json.load(ef)
-            except Exception:
-                pass
+                from database import PreFilterRepository
+                pf_repo = PreFilterRepository()
+                latest_pf = pf_repo.get_latest_session()
 
-        for sig in data.get('signals', []):
-            symbol = sig.get('symbol', '')
-            if symbol in exec_status:
-                sig['execution_status'] = exec_status[symbol].get('action', 'PENDING')
-                sig['skip_reason'] = exec_status[symbol].get('skip_reason', '')  # v5.3
-            else:
-                sig['execution_status'] = 'PENDING'
-                sig['skip_reason'] = ''
-
-        # v6.3: Get next scan time from engine (single source of truth)
-        try:
-            engine = get_auto_trading_engine()
-            if engine and engine.running:
-                schedule = engine._get_scanner_schedule()
-                data['next_scan_timestamp'] = schedule.get('next_continuous_scan')
-                data['next_scan_interval'] = schedule.get('next_continuous_interval')
-                data['continuous_enabled'] = schedule.get('continuous_enabled', False)
-        except Exception as sched_err:
-            logger.debug(f"Could not get scanner schedule: {sched_err}")
-
-        # v6.2: Get pre-filter status
-        try:
-            prefilter_status_path = os.path.join(
-                os.path.dirname(__file__), '..', '..', 'data', 'pre_filter_status.json'
-            )
-            if os.path.exists(prefilter_status_path):
-                with open(prefilter_status_path, 'r') as pf:
-                    data['prefilter_status'] = _json.load(pf)
-            else:
+                if latest_pf:
+                    data['prefilter_status'] = {
+                        'pool_size': latest_pf.pool_size,
+                        'last_updated': latest_pf.scan_time.isoformat() if latest_pf.scan_time else None,
+                        'is_ready': latest_pf.is_ready,
+                        'evening_status': latest_pf.status if latest_pf.scan_type == 'evening' else None,
+                        'pre_open_status': latest_pf.status if latest_pf.scan_type == 'pre_open' else None,
+                        'total_scanned': latest_pf.total_scanned,
+                        'duration_seconds': latest_pf.duration_seconds,
+                        'source': 'database'
+                    }
+                else:
+                    data['prefilter_status'] = None
+            except Exception as pf_err:
+                logger.debug(f"Could not get pre-filter from DB: {pf_err}")
                 data['prefilter_status'] = None
-        except Exception as pf_err:
-            logger.debug(f"Could not get pre-filter status: {pf_err}")
-            data['prefilter_status'] = None
 
-        return jsonify(data)
+            logger.debug(f"📊 Signals from DB: {len(active_signals)} active, {len(waiting_signals)} waiting")
+            return jsonify(data)
 
-    except Exception as e:
-        logger.error(f"Rapid signals error: {e}")
-        return jsonify({'error': str(e)}), 500
+    except Exception as db_err:
+        # Phase 1D: Database is single source of truth - no fallback
+        logger.error(f"🚨 CRITICAL: Database read failed: {db_err}")
+
+        # Alert: DB read failure
+        try:
+            from database.repositories import AlertsRepository, Alert
+            alerts_repo = AlertsRepository()
+            alerts_repo.create(Alert(
+                alert_type='db_read_failure',
+                severity='critical',
+                message=f'Database read failed (no fallback available): {str(db_err)}',
+                source='web_api'
+            ))
+        except Exception:
+            pass  # Don't let alert failure break the request
+
+        # Return error - no JSON fallback in Phase 1D
+        return jsonify({
+            'error': 'Database unavailable',
+            'message': 'Unable to fetch signals from database. Please try again.',
+            'source': 'error',
+            'count': 0,
+            'signals': []
+        }), 503  # Service Unavailable
 
 
 @app.route('/api/rapid/portfolio')
@@ -4710,6 +4749,7 @@ def _build_positions_from_engine():
             'sl_pct': mp.sl_pct,
             'tp_pct': mp.tp_pct,
             'atr_pct': mp.atr_pct,
+            'source': getattr(mp, 'source', 'dip_bounce'),  # v6.36: Strategy source
         }
 
         # Extended hours price

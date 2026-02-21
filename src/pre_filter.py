@@ -190,12 +190,32 @@ class PreFilterRunner:
         return PreFilterStatus()
 
     def _save_status(self):
-        """Save status to file."""
+        """Save status to file and database."""
+        # Write to JSON (legacy/backup)
         try:
             with open(self.STATUS_FILE, 'w') as f:
                 json.dump(self.status.to_dict(), f, indent=2)
         except Exception as e:
-            logger.error(f"Failed to save pre-filter status: {e}")
+            logger.error(f"Failed to save pre-filter status to JSON: {e}")
+
+        # Phase 2: Write to database
+        try:
+            from database import PreFilterRepository, PreFilterSession
+            repo = PreFilterRepository()
+
+            # Create or update session
+            if hasattr(self, '_current_session_id') and self._current_session_id:
+                # Update existing session
+                repo.update_session_status(
+                    session_id=self._current_session_id,
+                    status=self.status.evening_status or self.status.pre_open_status or 'completed',
+                    pool_size=self.status.pool_size
+                )
+            else:
+                # Create new session (should not happen - session created in run_scan)
+                logger.warning("No current session ID - status not saved to DB")
+        except Exception as e:
+            logger.error(f"Failed to save pre-filter status to DB: {e}")
 
     def _load_sector_cache(self) -> Dict[str, Dict]:
         """
@@ -245,7 +265,48 @@ class PreFilterRunner:
                 json.dump(data, tmp, indent=2, default=default_encoder)
                 tmp_path = tmp.name
             os.replace(tmp_path, target)  # atomic on Linux
-            logger.info(f"Saved pre-filtered data: {len(data.get('stocks', {}))} stocks")
+            logger.info(f"Saved pre-filtered data to JSON: {len(data.get('stocks', {}))} stocks")
+
+            # Phase 2: Save to database
+            try:
+                from database import PreFilterRepository, FilteredStock
+
+                if not hasattr(self, '_current_session_id') or not self._current_session_id:
+                    logger.warning("No current session ID - stocks not saved to DB")
+                    return
+
+                repo = PreFilterRepository()
+                stocks_data = data.get('stocks', {})
+
+                # Convert to FilteredStock objects
+                filtered_stocks = []
+                for symbol, stock_data in stocks_data.items():
+                    if isinstance(stock_data, dict):
+                        stock = FilteredStock(
+                            session_id=self._current_session_id,
+                            symbol=symbol,
+                            sector=stock_data.get('sector'),
+                            score=stock_data.get('score'),
+                            close_price=stock_data.get('close') or stock_data.get('close_price'),
+                            volume_avg_20d=stock_data.get('volume_avg_20d'),
+                            atr_pct=stock_data.get('atr_pct'),
+                            rsi=stock_data.get('rsi')
+                        )
+                        filtered_stocks.append(stock)
+
+                # Bulk insert
+                if filtered_stocks:
+                    added = repo.add_stocks_bulk(filtered_stocks)
+                    logger.info(f"Saved {added} stocks to database (session {self._current_session_id})")
+
+                    # Update session pool size
+                    repo.update_session_status(
+                        session_id=self._current_session_id,
+                        pool_size=added
+                    )
+            except Exception as db_err:
+                logger.error(f"Failed to save pre-filtered data to DB: {db_err}")
+
         except Exception as e:
             logger.error(f"Failed to save pre-filtered data: {e}")
 
@@ -414,7 +475,23 @@ class PreFilterRunner:
         logger.info("EVENING SCAN - Starting full universe scan")
         logger.info("="*60)
 
+        # Phase 2: Create database session
+        from database import PreFilterRepository, PreFilterSession
+        from datetime import datetime
+        repo = PreFilterRepository()
+        db_session = PreFilterSession(
+            scan_type='evening',
+            scan_time=datetime.now(),
+            total_scanned=0,  # Will update later
+            status='running',
+            is_ready=False
+        )
+        self._current_session_id = repo.create_session(db_session)
+        logger.info(f"📊 Created DB session ID: {self._current_session_id}")
+
+        # v6.35: Reset pre_open_status (new evening scan invalidates old pre-open scan)
         self.status.evening_status = "running"
+        self.status.pre_open_status = "pending"
         self._save_status()
 
         start_time = time.time()
@@ -431,6 +508,12 @@ class PreFilterRunner:
             universe = list(sector_cache.keys())
             total = len(universe)
             logger.info(f"Universe: {total} stocks")
+
+            # Update DB session with total count
+            repo.update_session_status(
+                session_id=self._current_session_id,
+                total_scanned=total
+            )
 
             # Import pandas here (lazy import)
             global pd
@@ -556,6 +639,20 @@ class PreFilterRunner:
         logger.info("PRE-OPEN SCAN - Updating filtered pool")
         logger.info("="*60)
 
+        # Phase 2: Create database session
+        from database import PreFilterRepository, PreFilterSession
+        from datetime import datetime
+        repo = PreFilterRepository()
+        db_session = PreFilterSession(
+            scan_type='pre_open',
+            scan_time=datetime.now(),
+            total_scanned=0,  # Will update later
+            status='running',
+            is_ready=False
+        )
+        self._current_session_id = repo.create_session(db_session)
+        logger.info(f"📊 Created DB session ID: {self._current_session_id}")
+
         self.status.pre_open_status = "running"
         self._save_status()
 
@@ -576,6 +673,12 @@ class PreFilterRunner:
 
             total = len(evening_stocks)
             logger.info(f"Updating {total} stocks from evening scan")
+
+            # Update DB session with total count
+            repo.update_session_status(
+                session_id=self._current_session_id,
+                total_scanned=total
+            )
 
             # Re-validate each stock
             updated_stocks = {}
