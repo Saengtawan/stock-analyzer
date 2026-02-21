@@ -33,8 +33,8 @@ from ai_market_analyst import AIMarketAnalyst
 from analysis.fundamental.earnings_analyst import EarningsAnalystAnalyzer
 from analysis.enhanced_features import analyze_stock as enhanced_analyze
 
-# v6.37: Single Source of Truth for version
-APP_VERSION = 'v6.37'  # Cron Timeline + Complete Scheduled Tasks Overview
+# v6.41: Version fetched from backend engine (single source of truth)
+APP_VERSION = '...'  # Placeholder - actual version loaded from engine via API
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True  # v5.3: Disable template caching
@@ -4097,12 +4097,17 @@ def api_auto_status():
 
         # v6.37: Read cron_schedule from file (written by standalone engine)
         try:
-            cron_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'cron_schedule.json')
+            # Path: src/web/app.py → src/web → src → project_root → data/cron_schedule.json
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            cron_file = os.path.join(project_root, 'data', 'cron_schedule.json')
             if os.path.exists(cron_file):
                 with open(cron_file, 'r') as f:
                     status['cron_schedule'] = json.load(f)
+                    logger.debug(f"✅ Loaded cron_schedule from {cron_file}")
+            else:
+                logger.debug(f"⚠️ cron_schedule file not found: {cron_file}")
         except Exception as e:
-            logger.debug(f"Could not read cron_schedule from file: {e}")
+            logger.error(f"Could not read cron_schedule from file: {e}")
 
         return jsonify(status)
 
@@ -5452,10 +5457,12 @@ def api_config_reload():
 
             param_count = len(new_config.__dataclass_fields__)
             logger.info(f"✅ Config reloaded: {param_count} parameters from RapidRotationConfig")
+            # v6.41: Get version from engine (single source of truth)
+            engine_version = engine.get_status().get('version', APP_VERSION) if engine else APP_VERSION
             return jsonify({
                 'success': True,
                 'params': param_count,
-                'version': APP_VERSION,
+                'version': engine_version,
                 'source': 'RapidRotationConfig'
             })
         else:
