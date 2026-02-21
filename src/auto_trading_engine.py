@@ -569,6 +569,7 @@ class AutoTradingEngine:
 
         # Signal Queue (v4.1)
         self.signal_queue: List[QueuedSignal] = []
+        self._queue_lock = threading.Lock()  # v6.41: Queue lock for thread-safe operations
 
         # v5.3: Track last skip reason for UI display
         self._last_skip_reason: str = ""
@@ -1034,32 +1035,34 @@ class AutoTradingEngine:
         expired = 0
         now = datetime.now()
 
-        for entry in entries:
-            try:
-                queued = deserialize_queued_signal(entry, QueuedSignal)
+        # v6.41: Queue load must be atomic (even during startup for consistency)
+        with self._queue_lock:
+            for entry in entries:
+                try:
+                    queued = deserialize_queued_signal(entry, QueuedSignal)
 
-                # Skip if already have position
-                if queued.symbol in self.positions:
-                    expired += 1
-                    continue
+                    # Skip if already have position
+                    if queued.symbol in self.positions:
+                        expired += 1
+                        continue
 
-                # Clear signals older than 24 hours (stale from previous day)
-                age_hours = (now - queued.queued_at).total_seconds() / 3600
-                if age_hours > 24:
-                    expired += 1
-                    logger.debug(f"Skipping stale queue entry: {queued.symbol} (age: {age_hours:.1f}h)")
-                    continue
+                    # Clear signals older than 24 hours (stale from previous day)
+                    age_hours = (now - queued.queued_at).total_seconds() / 3600
+                    if age_hours > 24:
+                        expired += 1
+                        logger.debug(f"Skipping stale queue entry: {queued.symbol} (age: {age_hours:.1f}h)")
+                        continue
 
-                self.signal_queue.append(queued)
-                loaded += 1
-            except (KeyError, ValueError) as e:
-                logger.warning(f"Skipping invalid queue entry: {e}")
+                    self.signal_queue.append(queued)
+                    loaded += 1
+                except (KeyError, ValueError) as e:
+                    logger.warning(f"Skipping invalid queue entry: {e}")
 
-        if loaded:
-            logger.info(f"Loaded persisted queue: {loaded} signals (saved at {data.get('saved_at', 'unknown')})")
-        if expired:
-            logger.info(f"Cleared {expired} stale/duplicate signals from queue")
-            self._save_queue_state()  # Save cleaned queue
+            if loaded:
+                logger.info(f"Loaded persisted queue: {loaded} signals (saved at {data.get('saved_at', 'unknown')})")
+            if expired:
+                logger.info(f"Cleared {expired} stale/duplicate signals from queue")
+                self._save_queue_state()  # Save cleaned queue
 
     # =========================================================================
     # SIGNALS CACHE (v6.1 - Single Source of Truth for UI)
@@ -3634,51 +3637,53 @@ class AutoTradingEngine:
 
         symbol = signal.symbol
 
-        # Don't queue if already in queue
-        if any(q.symbol == symbol for q in self.signal_queue):
-            logger.debug(f"Queue: {symbol} already in queue")
-            return False
-
-        # Don't queue if already have position
+        # Don't queue if already have position (check outside lock - fast path)
         if symbol in self.positions:
             return False
 
-        # Check queue size limit
-        if len(self.signal_queue) >= self.QUEUE_MAX_SIZE:
-            # Remove lowest score signal if new one is better
-            lowest = min(self.signal_queue, key=lambda q: q.score)
-            new_score = getattr(signal, 'score', 0)
-            if new_score > lowest.score:
-                self.signal_queue.remove(lowest)
-                logger.debug(f"Queue: Removed {lowest.symbol} (score {lowest.score:.0f}) for {symbol} (score {new_score:.0f})")
-            else:
-                logger.debug(f"Queue: Full, {symbol} not better than worst")
+        # v6.41: Queue operations must be atomic - protect with lock
+        with self._queue_lock:
+            # Don't queue if already in queue
+            if any(q.symbol == symbol for q in self.signal_queue):
+                logger.debug(f"Queue: {symbol} already in queue")
                 return False
 
-        sig_price = getattr(signal, 'entry_price', getattr(signal, 'close', 0))
-        sig_sl = getattr(signal, 'stop_loss', 0)
-        sig_tp = getattr(signal, 'take_profit', 0)
+            # Check queue size limit
+            if len(self.signal_queue) >= self.QUEUE_MAX_SIZE:
+                # Remove lowest score signal if new one is better
+                lowest = min(self.signal_queue, key=lambda q: q.score)
+                new_score = getattr(signal, 'score', 0)
+                if new_score > lowest.score:
+                    self.signal_queue.remove(lowest)
+                    logger.debug(f"Queue: Removed {lowest.symbol} (score {lowest.score:.0f}) for {symbol} (score {new_score:.0f})")
+                else:
+                    logger.debug(f"Queue: Full, {symbol} not better than worst")
+                    return False
 
-        # Calculate SL/TP as percentages for recalculation when executed later
-        sl_pct = ((sig_price - sig_sl) / sig_price * 100) if sig_price and sig_sl else self.STOP_LOSS_PCT
-        tp_pct = ((sig_tp - sig_price) / sig_price * 100) if sig_price and sig_tp else self.TAKE_PROFIT_PCT
+            sig_price = getattr(signal, 'entry_price', getattr(signal, 'close', 0))
+            sig_sl = getattr(signal, 'stop_loss', 0)
+            sig_tp = getattr(signal, 'take_profit', 0)
 
-        queued = QueuedSignal(
-            symbol=symbol,
-            signal_price=sig_price,
-            score=getattr(signal, 'score', 0),
-            stop_loss=sig_sl,
-            take_profit=sig_tp,
-            queued_at=datetime.now(),
-            reasons=getattr(signal, 'reasons', []),
-            atr_pct=getattr(signal, 'atr_pct', 5.0),  # Default 5% if not available
-            sl_pct=sl_pct,
-            tp_pct=tp_pct,
-        )
+            # Calculate SL/TP as percentages for recalculation when executed later
+            sl_pct = ((sig_price - sig_sl) / sig_price * 100) if sig_price and sig_sl else self.STOP_LOSS_PCT
+            tp_pct = ((sig_tp - sig_price) / sig_price * 100) if sig_price and sig_tp else self.TAKE_PROFIT_PCT
 
-        self.signal_queue.append(queued)
-        self.daily_stats.queue_added += 1
-        self._save_queue_state()
+            queued = QueuedSignal(
+                symbol=symbol,
+                signal_price=sig_price,
+                score=getattr(signal, 'score', 0),
+                stop_loss=sig_sl,
+                take_profit=sig_tp,
+                queued_at=datetime.now(),
+                reasons=getattr(signal, 'reasons', []),
+                atr_pct=getattr(signal, 'atr_pct', 5.0),  # Default 5% if not available
+                sl_pct=sl_pct,
+                tp_pct=tp_pct,
+            )
+
+            self.signal_queue.append(queued)
+            self.daily_stats.queue_added += 1
+            self._save_queue_state()
 
         logger.info(f"📋 Queue: Added {symbol} @ ${queued.signal_price:.2f} (score: {queued.score:.0f}, ATR: {queued.atr_pct:.1f}%)")
         return True
@@ -3696,67 +3701,70 @@ class AutoTradingEngine:
         if not self.QUEUE_ENABLED or not self.signal_queue:
             return None
 
-        # Sort queue: Fresh signals first (< QUEUE_FRESHNESS_WINDOW), then by score
-        def sort_key(q):
-            is_fresh = q.is_fresh(self.QUEUE_FRESHNESS_WINDOW)
-            return (0 if is_fresh else 1, -q.score)  # Fresh first, then highest score
+        # v6.41: Queue iteration must be atomic - protect with lock
+        with self._queue_lock:
+            # Sort queue: Fresh signals first (< QUEUE_FRESHNESS_WINDOW), then by score
+            def sort_key(q):
+                is_fresh = q.is_fresh(self.QUEUE_FRESHNESS_WINDOW)
+                return (0 if is_fresh else 1, -q.score)  # Fresh first, then highest score
 
-        sorted_queue = sorted(self.signal_queue, key=sort_key)
+            sorted_queue = sorted(self.signal_queue, key=sort_key)
 
-        # Check each queued signal in priority order
-        for queued in sorted_queue:
-            symbol = queued.symbol
-            age_min = queued.minutes_since_queued()
+            # Check each queued signal in priority order
+            for queued in sorted_queue:
+                symbol = queued.symbol
+                age_min = queued.minutes_since_queued()
 
-            # Skip if already have position now
-            if symbol in self.positions:
-                self.signal_queue.remove(queued)
-                self._save_queue_state()
-                continue
-
-            # Get current price
-            try:
-                pos = self.broker.get_position(symbol)
-                if pos:
-                    current_price = pos.current_price
-                else:
-                    # v6.9: Use DataManager for current price (broker → yfinance fallback)
-                    if self.data_manager:
-                        current_price = self.data_manager.get_current_price(symbol) or 0
-                    else:
-                        # Fallback to direct yfinance
-                        import yfinance as yf
-                        ticker = yf.Ticker(symbol)
-                        current_price = ticker.info.get('regularMarketPrice', 0)
-
-                if current_price <= 0:
-                    logger.warning(f"Queue: Could not get price for {symbol}")
+                # Skip if already have position now
+                if symbol in self.positions:
+                    self.signal_queue.remove(queued)
+                    self._save_queue_state()
                     continue
 
-                # Check price deviation with ATR-based limits
-                acceptable, deviation, max_allowed = queued.is_price_acceptable(
-                    current_price,
-                    self.QUEUE_ATR_MULT,
-                    self.QUEUE_MIN_DEVIATION,
-                    self.QUEUE_MAX_DEVIATION
-                )
+                # Get current price
+                try:
+                    pos = self.broker.get_position(symbol)
+                    if pos:
+                        current_price = pos.current_price
+                    else:
+                        # v6.9: Use DataManager for current price (broker → yfinance fallback)
+                        if self.data_manager:
+                            current_price = self.data_manager.get_current_price(symbol) or 0
+                        else:
+                            # Fallback to direct yfinance
+                            import yfinance as yf
+                            ticker = yf.Ticker(symbol)
+                            current_price = ticker.info.get('regularMarketPrice', 0)
 
-                fresh_tag = "🆕" if queued.is_fresh(self.QUEUE_FRESHNESS_WINDOW) else "⏰"
+                    if current_price <= 0:
+                        logger.warning(f"Queue: Could not get price for {symbol}")
+                        continue
 
-                if acceptable:
-                    logger.info(f"✅ Queue: {fresh_tag} {symbol} price OK - ${queued.signal_price:.2f} → ${current_price:.2f} ({deviation:+.1f}% <= {max_allowed:.1f}%) [age: {age_min:.0f}min]")
-                    self.signal_queue.remove(queued)
-                    self._save_queue_state()
-                    return queued
-                else:
-                    logger.warning(f"❌ Queue: {fresh_tag} {symbol} price moved - ${queued.signal_price:.2f} → ${current_price:.2f} ({deviation:+.1f}% > {max_allowed:.1f}%) [age: {age_min:.0f}min]")
-                    self.signal_queue.remove(queued)
-                    self._save_queue_state()
-                    self.daily_stats.queue_expired += 1
+                    # Check price deviation with ATR-based limits
+                    acceptable, deviation, max_allowed = queued.is_price_acceptable(
+                        current_price,
+                        self.QUEUE_ATR_MULT,
+                        self.QUEUE_MIN_DEVIATION,
+                        self.QUEUE_MAX_DEVIATION
+                    )
 
-            except Exception as e:
-                logger.error(f"Queue: Error checking {symbol}: {e}")
+                    fresh_tag = "🆕" if queued.is_fresh(self.QUEUE_FRESHNESS_WINDOW) else "⏰"
 
+                    if acceptable:
+                        logger.info(f"✅ Queue: {fresh_tag} {symbol} price OK - ${queued.signal_price:.2f} → ${current_price:.2f} ({deviation:+.1f}% <= {max_allowed:.1f}%) [age: {age_min:.0f}min]")
+                        self.signal_queue.remove(queued)
+                        self._save_queue_state()
+                        return queued
+                    else:
+                        logger.warning(f"❌ Queue: {fresh_tag} {symbol} price moved - ${queued.signal_price:.2f} → ${current_price:.2f} ({deviation:+.1f}% > {max_allowed:.1f}%) [age: {age_min:.0f}min]")
+                        self.signal_queue.remove(queued)
+                        self._save_queue_state()
+                        self.daily_stats.queue_expired += 1
+
+                except Exception as e:
+                    logger.error(f"Queue: Error checking {symbol}: {e}")
+
+        # v6.41: End of queue lock - no executable signal found
         return None
 
     def _execute_from_queue(self, queued: QueuedSignal) -> bool:
@@ -3862,6 +3870,10 @@ class AutoTradingEngine:
                     for sym in stale:
                         self.positions.pop(sym, None)
 
+                # v6.41: Persist stale position removal to DB (prevent reload on restart)
+                self._save_positions_state()
+                logger.info(f"✅ RECONCILE: Removed {len(stale)} stale position(s) and saved state")
+
             if not ghost and not stale:
                 logger.info(f"✅ RECONCILE: OK ({len(engine_symbols)} positions match)")
 
@@ -3870,20 +3882,24 @@ class AutoTradingEngine:
 
     def _clear_queue_end_of_day(self):
         """Clear queue at end of day"""
-        if self.signal_queue:
-            expired_count = len(self.signal_queue)
-            symbols = [q.symbol for q in self.signal_queue]
-            self.signal_queue.clear()
-            self._save_queue_state()
-            self.daily_stats.queue_expired += expired_count
-            logger.info(f"📋 Queue: Cleared {expired_count} signals at EOD: {symbols}")
+        # v6.41: Queue clear must be atomic - protect with lock
+        with self._queue_lock:
+            if self.signal_queue:
+                expired_count = len(self.signal_queue)
+                symbols = [q.symbol for q in self.signal_queue]
+                self.signal_queue.clear()
+                self._save_queue_state()
+                self.daily_stats.queue_expired += expired_count
+                logger.info(f"📋 Queue: Cleared {expired_count} signals at EOD: {symbols}")
 
     def get_queue_status(self) -> List[Dict]:
         """Get current queue status for UI"""
-        return [
-            {
-                'symbol': q.symbol,
-                'signal_price': q.signal_price,
+        # v6.41: Queue read must be atomic - protect with lock
+        with self._queue_lock:
+            return [
+                {
+                    'symbol': q.symbol,
+                    'signal_price': q.signal_price,
                 'score': q.score,
                 'atr_pct': q.atr_pct,
                 'max_deviation': q.get_max_deviation(
@@ -4775,6 +4791,14 @@ class AutoTradingEngine:
                 symbol, qty, sl_pct, current_price, limit_price=entry_limit_price
             )
             if not order_ok:
+                # v6.41: Cancel SL order if it was placed (prevent orphaned SL orders)
+                if sl_order_id:
+                    try:
+                        self.broker.cancel_order(sl_order_id)
+                        logger.info(f"✅ Cancelled orphaned SL order {sl_order_id} (buy failed)")
+                    except Exception as e:
+                        logger.error(f"Failed to cancel orphaned SL order {sl_order_id}: {e}")
+
                 signal_score = getattr(signal, 'score', 0)
                 signal_sector = getattr(signal, 'sector', '') or ''
                 signal_source = self._derive_signal_source(signal)
@@ -4797,10 +4821,20 @@ class AutoTradingEngine:
                 atr_sl_tp['atr_pct'], params
             )
             if not position_ok:
+                # v6.41: Cancel both buy order AND SL order (prevent orphaned orders)
                 try:
                     self.broker.cancel_order(buy_order.id)
-                except Exception:
-                    pass
+                    logger.info(f"✅ Cancelled buy order {buy_order.id} (position creation failed)")
+                except Exception as e:
+                    logger.warning(f"Failed to cancel buy order {buy_order.id}: {e}")
+
+                if sl_order_id:
+                    try:
+                        self.broker.cancel_order(sl_order_id)
+                        logger.info(f"✅ Cancelled SL order {sl_order_id} (position creation failed)")
+                    except Exception as e:
+                        logger.error(f"Failed to cancel SL order {sl_order_id}: {e}")
+
                 return False
 
             # BLOCK 8: Post-trade logging
@@ -5236,6 +5270,17 @@ class AutoTradingEngine:
                     managed_pos.current_sl_price = sl_order.stop_price
                     _state_changed = True
                     logger.info(f"✅ {symbol} SL order placed @ ${sl_order.stop_price:.2f}")
+                else:
+                    # v6.41: CRITICAL - Day 1 SL placement failed, position is unprotected!
+                    logger.error(f"🚨 CRITICAL: Failed to place SL order for {symbol} on Day {days_held}!")
+                    logger.error(f"   Position UNPROTECTED: qty={managed_pos.qty}, entry=${entry_price:.2f}, target SL=${sl_price:.2f}")
+                    try:
+                        self.alerts.add('CRITICAL', f'SL Placement Failed: {symbol}',
+                                      f'{symbol} Day {days_held} SL order failed - UNPROTECTED position!',
+                                      category='risk', symbol=symbol)
+                    except Exception as e:
+                        logger.warning(f"Failed to add SL placement failure alert: {e}")
+                    # Continue monitoring manually (Day 0 logic will handle it)
 
             # Check take profit (v4.6: use per-position TP)
             if pnl_pct >= pos_tp_pct:
@@ -5536,6 +5581,10 @@ class AutoTradingEngine:
             exit_price = order.filled_avg_price
             pnl_pct = ((exit_price - managed_pos.entry_price) / managed_pos.entry_price) * 100
             pnl_usd = (exit_price - managed_pos.entry_price) * actual_qty
+
+            # v6.41: Capture final trough price at exit (for accurate max_dd analytics)
+            if exit_price < managed_pos.trough_price or managed_pos.trough_price == 0:
+                managed_pos.trough_price = exit_price
 
             # Strategy tag for display (v6.36)
             strategy_tags = {
@@ -6086,32 +6135,41 @@ class AutoTradingEngine:
         if not is_bull and not self.BEAR_MODE_ENABLED:
             logger.warning(f"📉 BEAR market - skipping all new trades today")
             self.daily_stats.regime_skipped = True
-        elif not is_bull and self.BEAR_MODE_ENABLED:
-            # BEAR mode - trade defensive sectors only
-            logger.info(f"🐻 BEAR market — Smart Bear Mode active (defensive sectors only)")
-            params = self._get_effective_params()
-            mode = params.get('mode', 'BEAR')
-            if not self._loop_check_loss_limits(mode):
-                self._clear_queue_end_of_day()
-                effective_max = params.get('max_positions') or self.MAX_POSITIONS
-                signals = self.scan_for_signals()
-                signals = self._loop_add_breakout_signals(signals, "BEAR breakout", check_pdt=True)
-                # Note: overnight gap morning signals rarely fire (no today's close data yet)
-                # Real overnight scan runs at 15:30 ET via _loop_overnight_gap_scan
-                self._process_scan_signals(signals, "morning", max_positions=effective_max)
-        else:
-            # BULL mode
-            params = self._get_effective_params()
-            mode = params.get('mode', 'NORMAL')
-            if not self._loop_check_loss_limits(mode):
-                self._clear_queue_end_of_day()
-                signals = self.scan_for_signals()
-                signals = self._loop_add_breakout_signals(signals, "Breakout scan")
-                # Note: overnight gap morning signals rarely fire (no today's close data yet)
-                # Real overnight scan runs at 15:30 ET via _loop_overnight_gap_scan
-                self._process_scan_signals(signals, "morning")
+        try:
+            if not is_bull and self.BEAR_MODE_ENABLED:
+                # BEAR mode - trade defensive sectors only
+                logger.info(f"🐻 BEAR market — Smart Bear Mode active (defensive sectors only)")
+                params = self._get_effective_params()
+                mode = params.get('mode', 'BEAR')
+                if not self._loop_check_loss_limits(mode):
+                    self._clear_queue_end_of_day()
+                    effective_max = params.get('max_positions') or self.MAX_POSITIONS
+                    signals = self.scan_for_signals()
+                    signals = self._loop_add_breakout_signals(signals, "BEAR breakout", check_pdt=True)
+                    # Note: overnight gap morning signals rarely fire (no today's close data yet)
+                    # Real overnight scan runs at 15:30 ET via _loop_overnight_gap_scan
+                    self._process_scan_signals(signals, "morning", max_positions=effective_max)
+            else:
+                # BULL mode
+                params = self._get_effective_params()
+                mode = params.get('mode', 'NORMAL')
+                if not self._loop_check_loss_limits(mode):
+                    self._clear_queue_end_of_day()
+                    signals = self.scan_for_signals()
+                    signals = self._loop_add_breakout_signals(signals, "Breakout scan")
+                    # Note: overnight gap morning signals rarely fire (no today's close data yet)
+                    # Real overnight scan runs at 15:30 ET via _loop_overnight_gap_scan
+                    self._process_scan_signals(signals, "morning")
 
-        self._morning_scan_done = today
+            self._morning_scan_done = today
+        except Exception as e:
+            logger.error(f"❌ Morning scan failed: {e}", exc_info=True)
+            self._morning_scan_error = {
+                'date': today,
+                'message': str(e),
+                'timestamp': datetime.now().isoformat()
+            }
+            self._morning_scan_done = today  # Mark done to prevent infinite retries
         return False
 
     def _loop_afternoon_scan(self, today: str):
@@ -6133,21 +6191,41 @@ class AutoTradingEngine:
         params = self._get_effective_params()
         afternoon_max = params.get('max_positions') or self.MAX_POSITIONS
         if len(self.positions) >= afternoon_max:
+            logger.info(f"❌ Afternoon: Positions full ({len(self.positions)}/{afternoon_max}) - skipping scan")
+            self._afternoon_scan_done = today
             return
 
-        logger.info(f"☀️ Afternoon scan: {len(self.positions)}/{afternoon_max} positions, scanning for more...")
-        self._afternoon_scan_done = today
-
+        # v6.40: Check regime BEFORE marking done
         mode = params.get('mode', 'NORMAL')
-        is_bull, _ = self._check_market_regime()
-        if not (is_bull or self.BEAR_MODE_ENABLED) or self._loop_check_loss_limits(mode):
+        is_bull, regime_detail = self._check_market_regime()
+        if not (is_bull or self.BEAR_MODE_ENABLED):
+            logger.info(f"❌ Afternoon: Regime check failed (is_bull={is_bull}, regime={regime_detail}) - skipping scan")
+            self._afternoon_scan_done = today
             return
 
-        def scan_with_breakout():
-            signals = self.scan_for_signals()
-            return self._loop_add_breakout_signals(signals, "Afternoon breakout")
+        if self._loop_check_loss_limits(mode):
+            logger.info(f"❌ Afternoon: Loss limits hit (mode={mode}) - skipping scan")
+            self._afternoon_scan_done = today
+            return
 
-        self._loop_with_afternoon_params(scan_with_breakout, "afternoon", afternoon_max)
+        # All checks passed - execute scan
+        logger.info(f"☀️ Afternoon Scan START: {len(self.positions)}/{afternoon_max} positions, scanning for more...")
+
+        try:
+            def scan_with_breakout():
+                signals = self.scan_for_signals()
+                return self._loop_add_breakout_signals(signals, "Afternoon breakout")
+
+            self._loop_with_afternoon_params(scan_with_breakout, "afternoon", afternoon_max)
+            logger.info(f"☀️ Afternoon Scan COMPLETE")
+
+            # v6.40: Only mark done AFTER successful execution
+            self._afternoon_scan_done = today
+
+        except Exception as e:
+            logger.error(f"❌ Afternoon Scan FAILED: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
     def _loop_intraday_prefilter(self, today: str):
         """
@@ -6174,12 +6252,13 @@ class AutoTradingEngine:
 
         # Find which scheduled hour we should trigger (if any)
         triggered_hour = None
+        done_attr = None
         for sched_hour in self.PRE_FILTER_INTRADAY_SCHEDULE:
             if current_hour == sched_hour and current_minute >= sched_minute:
                 done_attr = f'_intraday_prefilter_done_{sched_hour}'
                 if getattr(self, done_attr, None) != today:
                     triggered_hour = sched_hour
-                    setattr(self, done_attr, today)
+                    # v6.41: DON'T set done flag yet - wait for subprocess success
                     break
 
         if triggered_hour is None:
@@ -6196,18 +6275,41 @@ class AutoTradingEngine:
         label = window_labels.get(triggered_hour, f'hour-{triggered_hour}')
 
         try:
-            subprocess.Popen(
-                ['python3', pre_filter_script, 'evening'],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True
-            )
+            # v6.41: Capture stderr to file instead of suppressing (for error visibility)
+            stderr_log = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'logs', f'prefilter_intraday_{triggered_hour}h.err')
+            with open(stderr_log, 'a') as err_file:
+                subprocess.Popen(
+                    ['python3', pre_filter_script, 'evening'],
+                    stdout=subprocess.DEVNULL,
+                    stderr=err_file,
+                    start_new_session=True
+                )
             logger.info(
                 f"🔄 Intraday pre-filter FULL refresh [{label}] triggered at "
                 f"{et_now.strftime('%H:%M')} ET (schedule {triggered_hour}:{sched_minute:02d})"
             )
+            # v6.41: Set done flag AFTER successful subprocess spawn
+            setattr(self, done_attr, today)
+
+            # Clear error flag on success
+            if triggered_hour == 10:
+                self._midday_prefilter_error = None
+            elif triggered_hour == 13:
+                self._afternoon_prefilter_error = None
         except Exception as e:
             logger.error(f"Intraday pre-filter trigger failed: {e}")
+            # v6.41: Set done flag even on failure to prevent infinite retry
+            setattr(self, done_attr, today)
+            # Set error flag for UI display
+            error_info = {
+                'date': today,
+                'message': str(e),
+                'time': et_now.strftime('%H:%M:%S')
+            }
+            if triggered_hour == 10:
+                self._midday_prefilter_error = error_info
+            elif triggered_hour == 13:
+                self._afternoon_prefilter_error = error_info
 
     def _loop_evening_prefilter(self, today: str):
         """
@@ -6223,7 +6325,7 @@ class AutoTradingEngine:
             return
         if getattr(self, '_evening_prefilter_done', None) == today:
             return
-        self._evening_prefilter_done = today
+        # v6.41: DON'T set done flag yet - wait for subprocess success
 
         import subprocess
         import os as _os
@@ -6232,15 +6334,30 @@ class AutoTradingEngine:
             'pre_filter.py'
         )
         try:
-            subprocess.Popen(
-                ['python3', pre_filter_script, 'evening'],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True
-            )
+            # v6.41: Capture stderr to file instead of suppressing (for error visibility)
+            stderr_log = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'logs', 'prefilter_evening.err')
+            with open(stderr_log, 'a') as err_file:
+                subprocess.Popen(
+                    ['python3', pre_filter_script, 'evening'],
+                    stdout=subprocess.DEVNULL,
+                    stderr=err_file,
+                    start_new_session=True
+                )
             logger.info(f"🌙 Evening pre-filter scan triggered at {et_now.strftime('%H:%M')} ET (full 987 stocks)")
+            # v6.41: Set done flag AFTER successful subprocess spawn
+            self._evening_prefilter_done = today
+            # Clear error flag on success
+            self._evening_prefilter_error = None
         except Exception as e:
             logger.error(f"Evening pre-filter trigger failed: {e}")
+            # v6.41: Set done flag even on failure to prevent infinite retry
+            self._evening_prefilter_done = today
+            # Set error flag for UI display
+            self._evening_prefilter_error = {
+                'date': today,
+                'message': str(e),
+                'time': et_now.strftime('%H:%M:%S')
+            }
 
     def _loop_pre_open_prefilter(self, today: str):
         """
@@ -6257,7 +6374,7 @@ class AutoTradingEngine:
             return
         if getattr(self, '_pre_open_prefilter_done', None) == today:
             return
-        self._pre_open_prefilter_done = today
+        # v6.41: DON'T set done flag yet - wait for subprocess success
 
         import subprocess
         import os as _os
@@ -6266,15 +6383,30 @@ class AutoTradingEngine:
             'pre_filter.py'
         )
         try:
-            subprocess.Popen(
-                ['python3', pre_filter_script, 'evening'],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True
-            )
-            logger.info(f"🌅 Pre-open pre-filter scan triggered at {et_now.strftime('%H:%M')} ET (full 987 stocks)")
+            # v6.41: Capture stderr to file instead of suppressing (for error visibility)
+            stderr_log = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'logs', 'prefilter_preopen.err')
+            with open(stderr_log, 'a') as err_file:
+                subprocess.Popen(
+                    ['python3', pre_filter_script, 'pre_open'],  # v6.41: FIX - use 'pre_open' not 'evening'
+                    stdout=subprocess.DEVNULL,
+                    stderr=err_file,
+                    start_new_session=True
+                )
+            logger.info(f"🌅 Pre-open pre-filter scan triggered at {et_now.strftime('%H:%M')} ET (fast validation)")
+            # v6.41: Set done flag AFTER successful subprocess spawn
+            self._pre_open_prefilter_done = today
+            # Clear error flag on success
+            self._pre_open_prefilter_error = None
         except Exception as e:
             logger.error(f"Pre-open pre-filter trigger failed: {e}")
+            # v6.41: Set done flag even on failure to prevent infinite retry
+            self._pre_open_prefilter_done = today
+            # Set error flag for UI display
+            self._pre_open_prefilter_error = {
+                'date': today,
+                'message': str(e),
+                'time': et_now.strftime('%H:%M:%S')
+            }
 
     def _loop_continuous_scan(self, today: str):
         """Execute continuous scan with dynamic interval (volatile: 3min, normal: 5min)."""
@@ -6335,8 +6467,10 @@ class AutoTradingEngine:
         self._last_continuous_scan = et_now
 
     def _loop_overnight_gap_scan(self, today: str):
-        """Execute overnight gap scan (15:30-15:50 ET). v6.35: Dedicated slot implementation."""
+        """Execute overnight gap scan (15:30-15:50 ET). v6.35: Dedicated slot implementation.
+        v6.40: Fixed bug - only mark done after successful execution, add detailed logging."""
         if not (self.overnight_scanner and self.OVERNIGHT_GAP_ENABLED):
+            logger.debug(f"OVN: Disabled (scanner={bool(self.overnight_scanner)}, enabled={self.OVERNIGHT_GAP_ENABLED})")
             return
         if hasattr(self, '_overnight_scan_done') and self._overnight_scan_done == today:
             return
@@ -6355,22 +6489,33 @@ class AutoTradingEngine:
         overnight_count = sum(1 for p in self.positions.values()
                              if getattr(p, 'source', '') == 'overnight_gap')
         if overnight_count >= self.OVERNIGHT_GAP_MAX_POSITIONS:
-            logger.debug(f"OVN: Max OVN positions reached ({overnight_count}/{self.OVERNIGHT_GAP_MAX_POSITIONS})")
+            logger.info(f"❌ OVN: Max OVN positions reached ({overnight_count}/{self.OVERNIGHT_GAP_MAX_POSITIONS}) - skipping scan")
+            self._overnight_scan_done = today  # Mark done to prevent repeated logs
             return
 
         # v6.35: Check total positions (all strategies combined)
         if len(self.positions) >= self.MAX_POSITIONS_TOTAL:
-            logger.debug(f"OVN: Total positions full ({len(self.positions)}/{self.MAX_POSITIONS_TOTAL})")
+            logger.info(f"❌ OVN: Total positions full ({len(self.positions)}/{self.MAX_POSITIONS_TOTAL}) - skipping scan")
+            self._overnight_scan_done = today  # Mark done to prevent repeated logs
             return
 
-        logger.info(f"Overnight gap scan: {len(self.positions)}/{self.MAX_POSITIONS_TOTAL} total, {overnight_count}/{self.OVERNIGHT_GAP_MAX_POSITIONS} OVN")
-        self._overnight_scan_done = today
-
-        is_bull, _ = self._check_market_regime()
+        # Market regime check BEFORE marking as done
+        is_bull, regime_detail = self._check_market_regime()
         params = self._get_effective_params()
         mode = params.get('mode', 'NORMAL')
-        if not (is_bull or self.BEAR_MODE_ENABLED) or self._loop_check_loss_limits(mode):
+
+        if not (is_bull or self.BEAR_MODE_ENABLED):
+            logger.info(f"❌ OVN: Regime check failed (is_bull={is_bull}, bear_mode={self.BEAR_MODE_ENABLED}, regime={regime_detail}) - skipping scan")
+            self._overnight_scan_done = today
             return
+
+        if self._loop_check_loss_limits(mode):
+            logger.info(f"❌ OVN: Loss limits hit (mode={mode}) - skipping scan")
+            self._overnight_scan_done = today
+            return
+
+        # All checks passed - execute scan
+        logger.info(f"🌙 OVN Scan START: {et_now.strftime('%H:%M')} ET | Pos: {len(self.positions)}/{self.MAX_POSITIONS_TOTAL} total, {overnight_count}/{self.OVERNIGHT_GAP_MAX_POSITIONS} OVN")
 
         try:
             data_cache, sector_regime = self._loop_get_screener_data()
@@ -6382,9 +6527,22 @@ class AutoTradingEngine:
                 target_pct=self.OVERNIGHT_GAP_TARGET_PCT,
                 sl_pct=self.OVERNIGHT_GAP_SL_PCT,
             )
+            logger.info(f"🌙 OVN Scan COMPLETE: Found {len(gap_signals) if gap_signals else 0} signals")
             self._process_scan_signals(gap_signals, "overnight_gap", max_positions=self.MAX_POSITIONS_TOTAL)
+
+            # ✅ Only mark done AFTER successful execution
+            self._overnight_scan_done = today
+
         except Exception as e:
-            logger.warning(f"Overnight gap scan error: {e}")
+            logger.error(f"❌ OVN Scan FAILED: {e}")
+            # Track error for UI display
+            self._overnight_scan_error = {
+                'date': today,
+                'message': str(e),
+                'time': et_now.strftime('%H:%M:%S')
+            }
+            import traceback
+            logger.error(traceback.format_exc())
 
     def _loop_premarket_gap_scan(self, today: str):
         """
@@ -6416,20 +6574,20 @@ class AutoTradingEngine:
         max_pos = params.get('max_positions') or self.MAX_POSITIONS
 
         if len(self.positions) >= max_pos:
-            logger.debug(f"PreMarket Gap: Positions full ({len(self.positions)}/{max_pos})")
+            logger.info(f"❌ PreMarket Gap: Positions full ({len(self.positions)}/{max_pos}) - skipping scan")
+            self._premarket_scan_done = today
             return
 
-        # Mark as scanned
-        self._premarket_scan_done = today
-
-        logger.info(f"🔍 Pre-Market Gap Scan starting ({len(self.positions)}/{max_pos} positions)")
+        # v6.40: DON'T mark as scanned yet - only after successful execution
+        logger.info(f"🔍 PreMarket Gap Scan START: ({len(self.positions)}/{max_pos} positions)")
 
         try:
             # Scan for gaps (min confidence 80% for high-quality signals)
             gap_signals = self.premarket_gap_scanner.scan_premarket(min_confidence=80)
 
             if not gap_signals:
-                logger.info("Pre-Market Gap: No high-confidence gaps found")
+                logger.info("🔍 PreMarket Gap Scan COMPLETE: No high-confidence gaps found")
+                self._premarket_scan_done = today
                 return
 
             logger.info(f"✅ Found {len(gap_signals)} gap signals")
@@ -6511,12 +6669,21 @@ class AutoTradingEngine:
             # Process signals through existing pipeline
             if converted_signals:
                 self._process_scan_signals(converted_signals, "premarket_gap", max_positions=max_pos)
-                logger.info(f"Pre-Market Gap: Processed {len(converted_signals)} signals")
+                logger.info(f"🔍 PreMarket Gap Scan COMPLETE: Processed {len(converted_signals)} signals")
             else:
-                logger.info("Pre-Market Gap: No gaps worth rotating after filter")
+                logger.info("🔍 PreMarket Gap Scan COMPLETE: No gaps worth rotating after filter")
+
+            # v6.40: Only mark done AFTER successful execution
+            self._premarket_scan_done = today
 
         except Exception as e:
-            logger.error(f"Pre-Market Gap scan error: {e}")
+            logger.error(f"❌ PreMarket Gap Scan FAILED: {e}")
+            # Track error for UI display
+            self._premarket_scan_error = {
+                'date': today,
+                'message': str(e),
+                'time': et_now.strftime('%H:%M:%S')
+            }
             import traceback
             logger.error(traceback.format_exc())
 
@@ -6553,17 +6720,20 @@ class AutoTradingEngine:
 
         # v6.35: Check total positions (all strategies combined)
         if len(self.positions) >= self.MAX_POSITIONS_TOTAL:
-            logger.debug(f"PEM: Total positions full ({len(self.positions)}/{self.MAX_POSITIONS_TOTAL})")
+            logger.info(f"❌ PEM: Total positions full ({len(self.positions)}/{self.MAX_POSITIONS_TOTAL}) - skipping scan")
+            self._pem_scan_done = today  # Mark done to prevent repeated logs
             return
 
-        self._pem_scan_done = today
+        # v6.40: DON'T set done flag yet - only after successful execution
         params = self._get_effective_params()
-        logger.info(f"📊 PEM Scan: {len(self.positions)}/{self.MAX_POSITIONS_TOTAL} total, {pem_count}/{self.PEM_MAX_POSITIONS} PEM, "
+        logger.info(f"📊 PEM Scan START: {len(self.positions)}/{self.MAX_POSITIONS_TOTAL} total, {pem_count}/{self.PEM_MAX_POSITIONS} PEM, "
                    f"scanning for earnings gaps ≥{self.PEM_GAP_THRESHOLD_PCT}%...")
 
         try:
             raw_signals = self.pem_screener.scan()
             if not raw_signals:
+                logger.info(f"📊 PEM Scan COMPLETE: Found 0 signals")
+                self._pem_scan_done = today
                 return
 
             try:
@@ -6614,11 +6784,21 @@ class AutoTradingEngine:
                 converted.append(rapid_signal)
 
             if converted:
-                self._process_scan_signals(converted, "pem", max_positions=max_pos)
-                logger.info(f"PEM: Processed {len(converted)} earnings gap signals")
+                # v6.40: Fix undefined variable bug (was max_pos, should be self.MAX_POSITIONS_TOTAL)
+                self._process_scan_signals(converted, "pem", max_positions=self.MAX_POSITIONS_TOTAL)
+                logger.info(f"📊 PEM Scan COMPLETE: Processed {len(converted)} earnings gap signals")
+
+            # v6.40: Only mark done AFTER successful execution
+            self._pem_scan_done = today
 
         except Exception as e:
-            logger.error(f"PEM scan error: {e}")
+            logger.error(f"❌ PEM Scan FAILED: {e}")
+            # Track error for UI display
+            self._pem_scan_error = {
+                'date': today,
+                'message': str(e),
+                'time': et_now.strftime('%H:%M:%S')
+            }
             import traceback
             logger.error(traceback.format_exc())
 
@@ -6862,199 +7042,143 @@ class AutoTradingEngine:
         }
 
     def _get_cron_schedule(self) -> Dict:
-        """Get complete cron/scheduled tasks timeline for UI.
+        """Get REAL background cron jobs for system monitoring.
 
-        Returns all scheduled tasks organized by time of day.
-        v6.36: Complete cron timeline for system monitoring.
+        Returns actual scheduled maintenance/background tasks, NOT trading scans.
+        v6.38: Show real cron jobs (universe update, cleanup, backup, etc.)
+        v6.39: Add error tracking - show 'failed' status when errors detected
         """
-        today = datetime.now().strftime('%Y-%m-%d')
         et_now = self._get_et_time()
-        current_mins = et_now.hour * 60 + et_now.minute
+        current_time = f"{et_now.hour:02d}:{et_now.minute:02d}"
+        today = datetime.now().strftime('%Y-%m-%d')
 
-        # Build scheduled tasks list (ordered by time)
-        tasks = []
+        def get_status(done_attr, error_attr):
+            """Determine task status based on done/error flags."""
+            error_info = getattr(self, error_attr, None)
+            if error_info and error_info.get('date') == today:
+                return 'failed'
+            if getattr(self, done_attr, None) == today:
+                return 'done'
+            return 'pending'
 
-        # Pre-market gap scan (06:00-09:30 ET)
-        tasks.append({
-            'name': 'premarket_gap',
-            'label': 'Pre-Market Gap',
-            'time': '06:00',
-            'minutes': 360,
-            'frequency': 'Once per day',
-            'window': '06:00-09:30',
-            'status': 'done' if getattr(self, '_premarket_scan_done', None) == today else 'pending',
-            'description': 'Scan high-confidence gap opportunities before market open',
-            'strategy': 'Gap',
-        })
-
-        # Pre-open pre-filter (09:00 ET)
-        tasks.append({
-            'name': 'pre_open_filter',
-            'label': 'Pre-Open Filter',
-            'time': '09:00',
-            'minutes': 540,
-            'frequency': 'Once per day',
-            'window': '09:00-09:30',
-            'status': 'done' if getattr(self, '_pre_open_filter_done', None) == today else 'pending',
-            'description': 'Re-validate existing stock pool (~280 stocks)',
-            'strategy': 'Filter',
-        })
-
-        # Morning scan (09:35 ET)
-        tasks.append({
-            'name': 'morning_scan',
-            'label': 'Morning DIP Scan',
-            'time': '09:35',
-            'minutes': 575,
-            'frequency': 'Once per day',
-            'window': '09:35',
-            'status': 'done' if getattr(self, '_morning_scan_done', None) == today else 'pending',
-            'description': 'Main dip-bounce signal generator (max 2 positions)',
-            'strategy': 'DIP',
-        })
-
-        # PEM scan (09:35 ET)
-        tasks.append({
-            'name': 'pem_scan',
-            'label': 'PEM Scan',
-            'time': f"{self.PEM_SCAN_HOUR:02d}:{self.PEM_SCAN_MINUTE:02d}",
-            'minutes': self.PEM_SCAN_HOUR * 60 + self.PEM_SCAN_MINUTE,
-            'frequency': 'Once per day',
-            'window': f"{self.PEM_SCAN_HOUR:02d}:{self.PEM_SCAN_MINUTE:02d}",
-            'status': 'done' if getattr(self, '_pem_scan_done', None) == today else 'pending',
-            'description': 'Post-earnings momentum: Gap ≥8%, EOD exit (max 1 position)',
-            'strategy': 'PEM',
-        })
-
-        # Continuous scan (09:45-15:45 ET, adaptive interval)
-        is_volatile = current_mins >= 585 and current_mins < 660  # 09:45-11:00
-        interval = self.CONTINUOUS_SCAN_VOLATILE_INTERVAL if is_volatile else self.CONTINUOUS_SCAN_INTERVAL_MINUTES
-        last_cont = getattr(self, '_last_continuous_scan', None)
-        cont_status = 'active' if last_cont and (et_now - last_cont).total_seconds() < interval * 60 else 'pending'
-
-        tasks.append({
-            'name': 'continuous_scan',
-            'label': 'Continuous DIP',
-            'time': '09:45-15:45',
-            'minutes': 585,
-            'frequency': f'{interval} min' if self.CONTINUOUS_SCAN_ENABLED else 'Disabled',
-            'window': '09:45-15:45',
-            'status': cont_status,
-            'description': f'Catch new dip signals (5 min volatile, 15 min normal)',
-            'strategy': 'DIP',
-        })
-
-        # Skip window (10:00-11:00 ET)
-        in_skip = current_mins >= 600 and current_mins < 660
-        tasks.append({
-            'name': 'skip_window',
-            'label': 'SKIP Window',
-            'time': '10:00-11:00',
-            'minutes': 600,
-            'frequency': 'Daily',
-            'window': '10:00-11:00',
-            'status': 'active' if in_skip else 'pending',
-            'description': 'No trading during volatile mid-morning period',
-            'strategy': 'Protection',
-        })
-
-        # Intraday pre-filter #1 (10:45 ET)
-        tasks.append({
-            'name': 'intraday_filter_1',
-            'label': 'Midday Filter',
-            'time': '10:45',
-            'minutes': 645,
-            'frequency': 'Once',
-            'window': '10:45',
-            'status': 'done' if '10:45' in getattr(self, '_intraday_filter_times', []) else 'pending',
-            'description': 'Refresh pool with new dip candidates since open',
-            'strategy': 'Filter',
-        })
-
-        # Intraday pre-filter #2 (13:45 ET)
-        tasks.append({
-            'name': 'intraday_filter_2',
-            'label': 'Afternoon Filter',
-            'time': '13:45',
-            'minutes': 825,
-            'frequency': 'Once',
-            'window': '13:45',
-            'status': 'done' if '13:45' in getattr(self, '_intraday_filter_times', []) else 'pending',
-            'description': 'Update RSI/momentum for afternoon session',
-            'strategy': 'Filter',
-        })
-
-        # Overnight gap scan (15:30 ET)
-        tasks.append({
-            'name': 'overnight_gap',
-            'label': 'Overnight Gap',
-            'time': f"{self.OVERNIGHT_GAP_SCAN_HOUR:02d}:{self.OVERNIGHT_GAP_SCAN_MINUTE:02d}",
-            'minutes': self.OVERNIGHT_GAP_SCAN_HOUR * 60 + self.OVERNIGHT_GAP_SCAN_MINUTE,
-            'frequency': 'Once per day',
-            'window': f"{self.OVERNIGHT_GAP_SCAN_HOUR:02d}:{self.OVERNIGHT_GAP_SCAN_MINUTE:02d}-15:50",
-            'status': 'done' if getattr(self, '_overnight_scan_done', None) == today else 'pending',
-            'description': 'Near-high close, hold 1-3 days (max 1 position)',
-            'strategy': 'OVN',
-        })
-
-        # Intraday pre-filter #3 (15:45 ET)
-        tasks.append({
-            'name': 'intraday_filter_3',
-            'label': 'Pre-Close Filter',
-            'time': '15:45',
-            'minutes': 945,
-            'frequency': 'Once',
-            'window': '15:45',
-            'status': 'done' if '15:45' in getattr(self, '_intraday_filter_times', []) else 'pending',
-            'description': 'Final pool refresh for next morning',
-            'strategy': 'Filter',
-        })
-
-        # Pre-close check (15:50 ET)
-        in_preclose = current_mins >= 950 and current_mins < 960
-        tasks.append({
-            'name': 'pre_close',
-            'label': 'Pre-Close',
-            'time': '15:50',
-            'minutes': 950,
-            'frequency': 'Daily',
-            'window': '15:50-16:00',
-            'status': 'active' if in_preclose else 'pending',
-            'description': 'Force exit PEM, trailing stop updates, daily summary',
-            'strategy': 'Protection',
-        })
-
-        # Evening pre-filter (20:00 ET)
-        tasks.append({
-            'name': 'evening_filter',
-            'label': 'Evening Filter',
-            'time': '20:00',
-            'minutes': 1200,
-            'frequency': 'Once per day',
-            'window': '20:00',
-            'status': 'done' if getattr(self, '_evening_filter_done', None) == today else 'pending',
-            'description': 'Full 987-stock universe scan → ~280 pool',
-            'strategy': 'Filter',
-        })
-
-        # Continuous monitoring (all market hours)
-        tasks.append({
-            'name': 'monitoring',
-            'label': 'Position Monitor',
-            'time': 'Continuous',
-            'minutes': 570,  # Start at market open
-            'frequency': '30 sec',
-            'window': '09:30-16:00',
-            'status': 'active' if self.state == TradingState.MONITORING else 'pending',
-            'description': 'Real-time position management, SL/TP checks, VIX updates',
-            'strategy': 'Monitor',
-        })
+        # Real background cron jobs (from actual crontab)
+        tasks = [
+            {
+                'name': 'universe_maintenance',
+                'label': 'Universe Update',
+                'time': '03:00',
+                'schedule': '0 3 * * 0',
+                'frequency': 'Weekly (Sun)',
+                'status': get_status('_universe_update_done', '_universe_update_error'),
+                'description': 'Maintain 1000-stock universe',
+                'type': 'maintenance',
+                'error': getattr(self, '_universe_update_error', {}).get('message') if getattr(self, '_universe_update_error', {}).get('date') == today else None
+            },
+            {
+                'name': 'cleanup_alerts',
+                'label': 'Alert Cleanup',
+                'time': '04:00',
+                'schedule': '0 4 * * *',
+                'frequency': 'Daily',
+                'status': get_status('_cleanup_alerts_done', '_cleanup_alerts_error'),
+                'description': 'Clean old alert records',
+                'type': 'cleanup',
+                'error': getattr(self, '_cleanup_alerts_error', {}).get('message') if getattr(self, '_cleanup_alerts_error', {}).get('date') == today else None
+            },
+            {
+                'name': 'cleanup_logs',
+                'label': 'Log Cleanup',
+                'time': '04:30',
+                'schedule': '30 4 * * *',
+                'frequency': 'Daily',
+                'status': get_status('_cleanup_logs_done', '_cleanup_logs_error'),
+                'description': 'Archive and compress old logs',
+                'type': 'cleanup',
+                'error': getattr(self, '_cleanup_logs_error', {}).get('message') if getattr(self, '_cleanup_logs_error', {}).get('date') == today else None
+            },
+            {
+                'name': 'outcome_tracker',
+                'label': 'Outcome Tracker',
+                'time': '05:00',
+                'schedule': '0 5 * * 2-6',
+                'frequency': 'Daily (Tue-Sat)',
+                'status': get_status('_outcome_tracker_done', '_outcome_tracker_error'),
+                'description': 'Track trade outcomes and performance',
+                'type': 'analytics',
+                'error': getattr(self, '_outcome_tracker_error', {}).get('message') if getattr(self, '_outcome_tracker_error', {}).get('date') == today else None
+            },
+            {
+                'name': 'db_backup',
+                'label': 'Database Backup',
+                'time': '06:00',
+                'schedule': '0 6 * * 0',
+                'frequency': 'Weekly (Sun)',
+                'status': get_status('_db_backup_done', '_db_backup_error'),
+                'description': 'Backup all databases with compression',
+                'type': 'backup',
+                'error': getattr(self, '_db_backup_error', {}).get('message') if getattr(self, '_db_backup_error', {}).get('date') == today else None
+            },
+            {
+                'name': 'prefilter_evening',
+                'label': 'Pre-Filter (Evening)',
+                'time': '20:00',
+                'schedule': '0 20 * * 2-6',
+                'frequency': 'Daily (Tue-Sat)',
+                'status': get_status('_evening_prefilter_done', '_evening_prefilter_error'),
+                'description': 'Evening pre-filter scan (987 stocks)',
+                'type': 'filter',
+                'error': getattr(self, '_evening_prefilter_error', {}).get('message') if getattr(self, '_evening_prefilter_error', {}).get('date') == today else None
+            },
+            {
+                'name': 'prefilter_preopen',
+                'label': 'Pre-Filter (Pre-Open)',
+                'time': '09:00',
+                'schedule': '0 9 * * 1-5',
+                'frequency': 'Daily (Mon-Fri)',
+                'status': get_status('_pre_open_prefilter_done', '_pre_open_prefilter_error'),
+                'description': 'Pre-open pool validation',
+                'type': 'filter',
+                'error': getattr(self, '_pre_open_prefilter_error', {}).get('message') if getattr(self, '_pre_open_prefilter_error', {}).get('date') == today else None
+            },
+            {
+                'name': 'prefilter_midday',
+                'label': 'Pre-Filter (Midday)',
+                'time': '10:45',
+                'schedule': '45 10 * * 1-5',
+                'frequency': 'Daily (Mon-Fri)',
+                'status': get_status('_midday_prefilter_done', '_midday_prefilter_error'),
+                'description': 'Midday pool refresh',
+                'type': 'filter',
+                'error': getattr(self, '_midday_prefilter_error', {}).get('message') if getattr(self, '_midday_prefilter_error', {}).get('date') == today else None
+            },
+            {
+                'name': 'prefilter_afternoon',
+                'label': 'Pre-Filter (Afternoon)',
+                'time': '13:45',
+                'schedule': '45 13 * * 1-5',
+                'frequency': 'Daily (Mon-Fri)',
+                'status': get_status('_afternoon_prefilter_done', '_afternoon_prefilter_error'),
+                'description': 'Afternoon pool update',
+                'type': 'filter',
+                'error': getattr(self, '_afternoon_prefilter_error', {}).get('message') if getattr(self, '_afternoon_prefilter_error', {}).get('date') == today else None
+            },
+            {
+                'name': 'health_check',
+                'label': 'Health Monitor',
+                'time': 'Every 5min',
+                'schedule': '*/5 * * * *',
+                'frequency': 'Continuous',
+                'status': 'active',
+                'description': 'System health check and monitoring',
+                'type': 'monitor',
+                'error': None
+            }
+        ]
 
         return {
             'tasks': tasks,
-            'current_time': et_now.strftime('%H:%M'),
-            'current_minutes': current_mins,
-            'trading_day': today,
+            'current_time': current_time,
+            'last_updated': datetime.now().isoformat()
         }
 
     def get_status(self) -> Dict:

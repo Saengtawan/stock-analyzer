@@ -429,15 +429,22 @@ class RapidRotationScreener:
             )
 
             # Run full evening scan (987 stocks) to catch new intraday dips, not just re-validate
-            subprocess.Popen(
-                ['python3', pre_filter_script, 'evening'],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True  # Detach from parent
+            # v6.41: Capture stderr to file instead of suppressing (for error visibility)
+            stderr_log = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                '..', 'logs', 'prefilter_ondemand.err'
             )
+            with open(stderr_log, 'a') as err_file:
+                subprocess.Popen(
+                    ['python3', pre_filter_script, 'evening'],
+                    stdout=subprocess.DEVNULL,
+                    stderr=err_file,
+                    start_new_session=True  # Detach from parent
+                )
 
             self._prefilter_refresh_count += 1
             logger.info(f"🔄 Pre-filter refresh triggered (reason: {reason}, count: {self._prefilter_refresh_count}/{self.config.pre_filter_max_per_day})")
+            # v6.41: Returns True = "triggered", NOT "completed" (subprocess is detached)
             return True
 
         except Exception as e:
