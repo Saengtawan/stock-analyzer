@@ -148,47 +148,40 @@
     .tl-connector { display: none; }
     .tl-progress { height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; margin-top: 6px; overflow: hidden; }
 
-    /* v6.37: Cron Timeline Tube (Progress Bar Style) */
-    .cron-timeline-section { background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95)); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; border: 1px solid rgba(100, 116, 139, 0.4); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
-    .cron-timeline-header { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; color: #e2e8f0; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .cron-timeline-header i.fa-clock { color: #60a5fa; font-size: 0.95rem; }
-    .cron-timeline-bar { display: flex; align-items: stretch; gap: 2px; overflow-x: auto; padding: 6px 0; border-radius: 6px; background: rgba(15, 23, 42, 0.5); }
-    .cron-timeline-bar::-webkit-scrollbar { height: 6px; }
-    .cron-timeline-bar::-webkit-scrollbar-track { background: rgba(71, 85, 105, 0.3); border-radius: 3px; }
-    .cron-timeline-bar::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.6); border-radius: 3px; }
-    .cron-timeline-bar::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.8); }
-    /* Task Tube/Bar */
-    .cron-task { flex: 1; text-align: center; padding: 8px 4px; min-width: 0; position: relative; overflow: hidden; border-radius: 4px; transition: all 0.3s; }
-    .cron-task::before { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 0%; transition: height 0.3s; }
-    .cron-task.pending { background: linear-gradient(180deg, rgba(71, 85, 105, 0.3), rgba(51, 65, 85, 0.3)); border: 1px solid rgba(71, 85, 105, 0.4); }
-    .cron-task.pending::before { background: transparent; }
-    .cron-task.active { background: linear-gradient(180deg, rgba(59, 130, 246, 0.4), rgba(37, 99, 235, 0.4)); border: 1px solid rgba(59, 130, 246, 0.6); box-shadow: 0 0 12px rgba(59, 130, 246, 0.4); animation: pulse-glow 1.5s ease-in-out infinite; }
-    .cron-task.active::before { background: linear-gradient(0deg, rgba(59, 130, 246, 0.6), transparent); height: 50%; }
-    .cron-task.done { background: linear-gradient(180deg, rgba(16, 185, 129, 0.4), rgba(5, 150, 105, 0.4)); border: 1px solid rgba(16, 185, 129, 0.6); box-shadow: 0 0 8px rgba(16, 185, 129, 0.3); }
-    .cron-task.done::before { background: linear-gradient(0deg, rgba(16, 185, 129, 0.6), transparent); height: 100%; }
-    .cron-task:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); }
-    /* Task Content */
-    .cron-task-header { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 4px; position: relative; z-index: 1; }
-    .cron-task-indicator { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .cron-task.pending .cron-task-indicator { border: 2px solid #64748b; background: rgba(71, 85, 105, 0.3); }
-    .cron-task.active .cron-task-indicator { background: #60a5fa; box-shadow: 0 0 8px #60a5fa; }
-    .cron-task.done .cron-task-indicator { background: #34d399; box-shadow: 0 0 6px #34d399; }
-    .cron-task-name { font-size: 0.7rem; font-weight: 700; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: relative; z-index: 1; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
-    .cron-task.done .cron-task-name { color: #d1fae5; }
-    .cron-task.active .cron-task-name { color: #dbeafe; }
-    .cron-task.pending .cron-task-name { color: #cbd5e1; }
-    .cron-task-time { font-size: 0.65rem; color: #cbd5e1; margin: 3px 0; white-space: nowrap; position: relative; z-index: 1; font-weight: 600; }
-    .cron-task.pending .cron-task-time { color: #94a3b8; }
-    .cron-task-strategy { font-size: 0.6rem; padding: 3px 6px; border-radius: 8px; display: inline-block; margin-top: 4px; font-weight: 700; position: relative; z-index: 1; text-transform: uppercase; letter-spacing: 0.3px; }
-    .cron-task-strategy.DIP { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.4); }
-    .cron-task-strategy.OVN { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.4); }
-    .cron-task-strategy.PEM { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.4); }
-    .cron-task-strategy.Filter { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; box-shadow: 0 2px 4px rgba(139, 92, 246, 0.4); }
-    .cron-task-strategy.Gap { background: linear-gradient(135deg, #ec4899, #db2777); color: white; box-shadow: 0 2px 4px rgba(236, 72, 153, 0.4); }
-    .cron-task-strategy.Protection { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.4); }
-    .cron-task-strategy.Monitor { background: linear-gradient(135deg, #64748b, #475569); color: white; box-shadow: 0 2px 4px rgba(100, 116, 139, 0.4); }
-    .cron-task.pending .cron-task-strategy { opacity: 0.5; }
-    .cron-loading { text-align: center; color: #cbd5e1; font-size: 0.75rem; padding: 10px; font-weight: 600; }
+    /* v6.37: Cron Schedule - Light Theme with Progress Bars */
+    .cron-timeline-section { background: white; border-radius: 8px; padding: 14px 18px; margin-bottom: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+    .cron-timeline-header { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; font-weight: 700; color: #475569; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .cron-timeline-header i.fa-clock { color: #3b82f6; font-size: 0.85rem; }
+    .cron-timeline-bar { display: flex; flex-direction: column; gap: 8px; }
+    /* Progress Bar Row */
+    .cron-task { display: flex; align-items: center; gap: 10px; padding: 0; min-height: 32px; }
+    .cron-task-info { flex: 0 0 180px; display: flex; align-items: center; gap: 8px; }
+    .cron-task-indicator { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .cron-task.pending .cron-task-indicator { background: #cbd5e1; border: 2px solid #94a3b8; }
+    .cron-task.active .cron-task-indicator { background: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.6); animation: pulse-glow 1.5s ease-in-out infinite; }
+    .cron-task.done .cron-task-indicator { background: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.5); }
+    .cron-task-label { display: flex; flex-direction: column; gap: 1px; }
+    .cron-task-name { font-size: 0.7rem; font-weight: 600; color: #1e293b; white-space: nowrap; }
+    .cron-task.done .cron-task-name { color: #059669; }
+    .cron-task.active .cron-task-name { color: #2563eb; }
+    .cron-task-time { font-size: 0.6rem; color: #64748b; white-space: nowrap; }
+    /* Progress Tube */
+    .cron-task-progress { flex: 1; height: 20px; background: #f1f5f9; border-radius: 10px; overflow: hidden; position: relative; border: 1px solid #e2e8f0; }
+    .cron-task-progress-fill { height: 100%; transition: width 0.5s ease; border-radius: 10px; position: relative; }
+    .cron-task.pending .cron-task-progress-fill { width: 0%; background: linear-gradient(90deg, #e2e8f0, #cbd5e1); }
+    .cron-task.active .cron-task-progress-fill { width: 50%; background: linear-gradient(90deg, #3b82f6, #60a5fa); animation: progress-pulse 2s ease-in-out infinite; }
+    .cron-task.done .cron-task-progress-fill { width: 100%; background: linear-gradient(90deg, #10b981, #34d399); }
+    @keyframes progress-pulse { 0%, 100% { opacity: 0.9; } 50% { opacity: 1; box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.3); } }
+    /* Type Badge */
+    .cron-task-type { flex: 0 0 90px; text-align: center; }
+    .cron-type-badge { font-size: 0.6rem; padding: 4px 8px; border-radius: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; display: inline-block; }
+    .cron-type-badge.filter { background: #dbeafe; color: #1e40af; }
+    .cron-type-badge.cleanup { background: #fef3c7; color: #92400e; }
+    .cron-type-badge.backup { background: #d1fae5; color: #065f46; }
+    .cron-type-badge.analytics { background: #e9d5ff; color: #6b21a8; }
+    .cron-type-badge.maintenance { background: #fecaca; color: #991b1b; }
+    .cron-type-badge.monitor { background: #e0e7ff; color: #3730a3; }
+    .cron-loading { text-align: center; color: #64748b; font-size: 0.7rem; padding: 10px; }
     .tl-progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
     .tl-session.done .tl-progress-fill { background: #10b981; width: 100% !important; }
     .tl-session.active .tl-progress-fill { background: linear-gradient(90deg, #3b82f6, #8b5cf6); animation: shimmer 2s infinite; background-size: 200% 100%; }
@@ -1844,7 +1837,7 @@ function updateTimelineCountdown(nextScanTimestamp) {
 }
 
 // ============================================
-// Cron Timeline Tube (v6.37: All tasks with progress fill)
+// Cron Schedule (v6.37: Progress bars with real cron jobs)
 // ============================================
 function updateCronTimeline(cronSchedule) {
     if (!cronSchedule || !cronSchedule.tasks) return;
@@ -1853,32 +1846,32 @@ function updateCronTimeline(cronSchedule) {
     if (!bar) return;
 
     let html = '';
-    // Sort tasks by time (minutes), put continuous at end
+    // Sort by time
     const sortedTasks = cronSchedule.tasks.sort((a, b) => {
-        if (a.time === 'Continuous') return 1;
-        if (b.time === 'Continuous') return -1;
-        return a.minutes - b.minutes;
+        const timeA = a.time === 'Every 5min' ? '00:00' : a.time;
+        const timeB = b.time === 'Every 5min' ? '00:00' : b.time;
+        return timeA.localeCompare(timeB);
     });
 
     sortedTasks.forEach(task => {
         const statusClass = task.status || 'pending';
-        const time = task.time === 'Continuous' ? 'All Day' : task.time;
-        const shortLabel = task.label
-            .replace(' Filter', '')
-            .replace(' Scan', '')
-            .replace(' DIP', '')
-            .replace('Pre-Market ', '')
-            .replace('Intraday ', '')
-            .replace('Post-Earnings ', '');
+        const typeClass = task.type || 'monitor';
 
         html += `
-            <div class="cron-task ${statusClass}" title="${task.description}\nFrequency: ${task.frequency}\nWindow: ${task.window}">
-                <div class="cron-task-header">
+            <div class="cron-task ${statusClass}">
+                <div class="cron-task-info">
                     <div class="cron-task-indicator"></div>
+                    <div class="cron-task-label">
+                        <div class="cron-task-name">${task.label}</div>
+                        <div class="cron-task-time">${task.time} • ${task.frequency}</div>
+                    </div>
                 </div>
-                <div class="cron-task-name">${shortLabel}</div>
-                <div class="cron-task-time">${time}</div>
-                <div class="cron-task-strategy ${task.strategy}">${task.strategy}</div>
+                <div class="cron-task-progress" title="${task.description}\nSchedule: ${task.schedule || task.time}">
+                    <div class="cron-task-progress-fill"></div>
+                </div>
+                <div class="cron-task-type">
+                    <span class="cron-type-badge ${typeClass}">${typeClass}</span>
+                </div>
             </div>
         `;
     });
