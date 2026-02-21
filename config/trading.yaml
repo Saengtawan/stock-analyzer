@@ -30,8 +30,8 @@ rapid_rotation:
   trail_lock_pct: 80.0        # Lock 80% of peak gains (note: existing uses 75%)
 
   # -- Position Management --
-  max_positions: 2            # v6.31: 3→2 for $5k account (adaptive allocation with overnight gap)
-  max_positions_total: 4      # v6.34: 3→4 (Overnight gets dedicated slot, always available)
+  max_positions: 2            # v6.31: 3→2 for $5k account (DIP-bounce strategy only)
+  max_positions_total: 4      # v6.35: Total limit (2 DIP + 1 OVN + 1 PEM = 4 max)
   max_hold_days: 7            # v6.33: Reduced 10→7 (faster rotation for fresher signals)
   position_size_pct: 30.0     # v6.31: 42→30 for $5k account (2×30%=60%, leaves room for overnight)
   max_position_pct: 45.0      # Max position size (% of equity)
@@ -93,6 +93,13 @@ rapid_rotation:
   market_close_minute: 0      # Market close minute
   pre_close_minute: 50        # Pre-close check (15:50 ET)
 
+  # -- Skip Window (v6.36: No trading period to avoid volatile mid-morning) --
+  skip_window_enabled: true   # Enable skip window (block all trading during this period)
+  skip_window_start_hour: 10  # Skip window start hour (ET)
+  skip_window_start_minute: 0 # Skip window start minute
+  skip_window_end_hour: 11    # Skip window end hour (ET)
+  skip_window_end_minute: 0   # Skip window end minute
+
   # -- 4-Layer Entry Protection (v6.23: Adaptive Timing) --
   entry_protection_enabled: true           # Master switch for entry protection
   entry_block_minutes_after_open: 0        # Layer 1: DISABLED - no time block after open
@@ -128,6 +135,11 @@ rapid_rotation:
 # =============================================================================
 # These settings are kept for backward compatibility with existing features.
 # New code should use the rapid_rotation section above.
+#
+# v6.35: Removed all duplicates. Legacy section now contains ONLY:
+#   - Backward compatibility settings (max_positions, position_size_pct, simulated_capital)
+#   - Feature-specific settings NOT in rapid_rotation (risk_parity, weekly_loss, etc.)
+# All core trading parameters moved to rapid_rotation section.
 # =============================================================================
 
 # -- Position Management --
@@ -135,35 +147,14 @@ max_positions: 2               # v6.31: 3→2 for $5k account (adaptive with ove
 position_size_pct: 30          # v6.31: 42→30 for $5k account (leaves room for overnight)
 simulated_capital: 5000        # v6.30: 4000→5000 (updated capital)
 
-# -- Risk-Parity Sizing (v4.9) --
+# -- Risk-Parity Sizing (v4.9) -- Legacy feature-specific settings
 risk_parity_enabled: true      # Keep risk parity enabled for safety
 risk_budget_pct: 2.5           # Max risk per position = 2.5% of account (was 1.0)
-max_position_pct: 50           # v4.9.4: 40→50 (allow A+ conviction)
 
-# -- ATR-based SL/TP (v6.33: Optimized for win rate, sync with rapid_rotation) --
-atr_sl_multiplier: 1.5        # SL = 1.5 x ATR%
-min_sl_pct: 3.0               # v6.33: Tightened 4.0→3.0 (faster rotation)
-max_sl_pct: 4.0               # v6.33: Tightened 5.0→4.0 (limit losses)
-atr_tp_multiplier: 3.0        # v6.10: Use same as rapid_rotation (3.0 not 3.5)
-min_tp_pct: 8.0               # v6.33: Raised 6.0→8.0 (better R:R)
-max_tp_pct: 12.0              # v6.33: Raised 10.0→12.0 (capture bigger moves)
-
-# -- Fallback fixed SL/TP -- v6.33: Updated to match rapid_rotation
-default_sl_pct: 3.5           # v6.33: Tightened 4.5→3.5 (standard protection)
-default_tp_pct: 10.0          # v6.33: Raised 7.0→10.0 (target larger gains)
-pdt_tp_threshold: 8.0         # v6.33: Raised 6.0→8.0 (match new min_tp_pct)
-
-# -- Trailing Stop --
-trail_enabled: true           # v6.0: ENABLED (backtest: +2%/60% optimal)
-trail_activation_pct: 2.0     # v6.33: Earlier 3.0→2.0 (lock profits sooner)
-trail_lock_pct: 75            # v6.1: 60→75 (lock 75% of gains)
-max_hold_days: 7              # v6.33: Reduced 10→7 (faster rotation)
-
-# -- Risk Limits --
-daily_loss_limit_pct: 3.0
-weekly_loss_limit_pct: 7.0
-max_consecutive_losses: 3
-min_score: 80                  # v6.33: Raised 70→80 (higher quality signals)
+# -- Risk Limits -- Legacy-only settings (non-duplicates)
+weekly_loss_limit_pct: 7.0     # Weekly loss limit (% of equity)
+pdt_tp_threshold: 8.0          # PDT mode TP threshold
+trail_enabled: true            # v6.0: ENABLED (backtest: +2%/60% optimal)
 
 # -- Stock Quality Filters (v6.2) --
 max_rsi_entry: 65              # Block RSI > 65 (backtest: only 20% WR)
@@ -297,7 +288,7 @@ vix_skip_zone_low: 20.0            # VIX Adaptive SKIP tier lower bound
 vix_skip_zone_high: 24.0           # VIX Adaptive SKIP tier upper bound
 opening_window_limit_enabled: true  # v6.24: Stagger buys during first 30 min (9:30-10:00 ET)
 opening_window_minutes: 30          # Duration of opening window (minutes after open)
-opening_window_max_buys: 15         # Stagger gap: must wait this many minutes between buys in opening window
+opening_window_stagger_minutes: 15  # v6.35: Stagger gap - wait N minutes between buys in opening window
 skip_before_holiday: true          # v4.7: Skip new positions before long weekends/holidays
 
 # -- BEAR Mode Params (v4.9.4: relaxed — conviction sizing handles risk) --

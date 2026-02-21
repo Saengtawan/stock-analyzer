@@ -129,6 +129,22 @@
     .tl-session[data-session="gapscan"] .tl-name { color: #8b5cf6; font-weight: 600; }
     .tl-session[data-session="gapscan"].active .tl-name { color: #8b5cf6; }
     .tl-session[data-session="gapscan"].done .tl-name { color: #10b981; }
+    /* v6.36: PEM styling (post-earnings momentum) */
+    .tl-session[data-session="pem"] .tl-interval { background: #10b981; color: white; }
+    .tl-session[data-session="pem"] .tl-name { color: #10b981; font-weight: 600; }
+    .tl-session[data-session="pem"].active .tl-name { color: #10b981; }
+    .tl-session[data-session="pem"].done .tl-name { color: #10b981; }
+    /* v6.36: OVN styling (overnight gap) */
+    .tl-session[data-session="ovn"] .tl-interval { background: #f59e0b; color: white; }
+    .tl-session[data-session="ovn"] .tl-name { color: #f59e0b; font-weight: 600; }
+    .tl-session[data-session="ovn"].active .tl-name { color: #f59e0b; }
+    .tl-session[data-session="ovn"].done .tl-name { color: #10b981; }
+    /* v6.36: SKIP styling (no trading window) */
+    .tl-session[data-session="skip"] .tl-interval { background: #ef4444; color: white; }
+    .tl-session[data-session="skip"] .tl-name { color: #ef4444; font-weight: 600; }
+    .tl-session[data-session="skip"].active .tl-name { color: #ef4444; }
+    .tl-session[data-session="skip"].done .tl-name { color: #94a3b8; }
+    .tl-session[data-session="skip"] { opacity: 0.8; }
     .tl-connector { display: none; }
     .tl-progress { height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; margin-top: 6px; overflow: hidden; }
     .tl-progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
@@ -1063,6 +1079,18 @@ function renderTimelineFromConfig(sessions) {
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
     };
 
+    // v6.36: Session tooltips
+    const sessionTooltips = {
+        'gapscan': 'Pre-market monitoring: Track overnight gaps',
+        'morning': 'DIP scan: Main dip-bounce signals (max 2 positions)',
+        'pem': 'Post-Earnings Momentum: Gap ≥8%, EOD exit (max 1 position)',
+        'skip': 'SKIP WINDOW: No trading 10:00-11:00 (avoid volatile mid-morning)',
+        'midday': 'Continuous scanning: Fill DIP positions',
+        'afternoon': 'Afternoon scan: Final DIP opportunities',
+        'ovn': 'Overnight Gap: Near-high close, hold 1-3 days (max 1 position)',
+        'preclose': 'Pre-close: Force exit PEM, final monitoring'
+    };
+
     let html = '';
     sessions.forEach((session, idx) => {
         if (idx > 0) html += '<div class="tl-connector"></div>';
@@ -1071,9 +1099,10 @@ function renderTimelineFromConfig(sessions) {
         const intervalClass = session.interval === -1 ? 'normal' : (session.interval <= 3 ? 'volatile' : 'normal');
         const intervalText = session.interval === -1 ? 'Once' : (session.interval > 0 ? `${session.interval}min` : 'Monitor');
         const timeRange = `${minsToTime(session.start)}-${minsToTime(session.end)}`;
+        const tooltip = sessionTooltips[session.name] || session.label;
 
         html += `
-            <div class="tl-session pending" data-session="${session.name}" data-start="${session.start}" data-end="${session.end}">
+            <div class="tl-session pending" data-session="${session.name}" data-start="${session.start}" data-end="${session.end}" title="${tooltip}">
                 <div class="tl-header">
                     <span class="tl-indicator"></span>
                     <span class="tl-name">${session.label}</span>
@@ -1091,7 +1120,7 @@ function renderTimelineFromConfig(sessions) {
 document.addEventListener('DOMContentLoaded', function() {
     positionModal = new bootstrap.Modal(document.getElementById('addPositionModal'));
     setMode('auto');
-    // v6.11: Render timeline immediately with DEFAULT_SESSIONS (5 sessions including Gap Scan)
+    // v6.36: Render timeline immediately with DEFAULT_SESSIONS (8 sessions: Gap, Morning, PEM, SKIP, Midday, Afternoon, OVN, Pre-Close)
     renderTimelineFromConfig(DEFAULT_SESSIONS);
     initWebSocket();
     startMarketCountdown();
@@ -2270,6 +2299,15 @@ function updatePositionsUI(data) {
 
     const maxHoldDays = (_baseConfig && _baseConfig.max_hold_days) || 10;
     let html = '';
+    // v6.36: Strategy tag mapping
+    const strategyTags = {
+        'dip_bounce': '[DIP]',
+        'overnight_gap': '[OVN]',
+        'pem': '[PEM]',
+        'vix_adaptive': '[VIX]',
+        'mean_reversion': '[MR]',
+        'rapid_rotation': '[DIP]'
+    };
     statuses.forEach(status => {
         const alertClass = getAlertClass(status.signal);
         const icon = getAlertIcon(status.signal);
@@ -2280,6 +2318,8 @@ function updatePositionsUI(data) {
         const priceRange = tpPrice - slPrice;
         const currentPos = ((status.current_price - slPrice) / priceRange) * 100;
         const markerPos = Math.max(0, Math.min(100, currentPos));
+        // v6.36: Get strategy tag
+        const strategyTag = strategyTags[status.source] || '';
 
         // Distance to SL/TP
         const distToSL = ((status.current_price - slPrice) / status.current_price * 100).toFixed(1);
@@ -2314,6 +2354,7 @@ function updatePositionsUI(data) {
                 <div class="d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
                         <h6 class="mb-1">${icon} ${status.symbol}
+                            ${strategyTag ? `<span class="badge bg-primary" style="font-size:0.55rem;opacity:0.9;">${strategyTag}</span>` : ''}
                             <span class="day-counter ${dayCounterClass}">Day ${daysHeld}/${maxHoldDays}</span>
                             <span class="badge bg-secondary" style="font-size:0.6rem;">${shares} sh</span>
                         </h6>
@@ -2368,7 +2409,7 @@ function updatePositionsUI(data) {
 function updateSignalsUI(data) { loadSignals(); }
 
 // v6.2: Update pre-filter pool status in Buy Signals header
-function updatePreFilterStatus(status, actualPoolSize) {
+function updatePreFilterStatus(status, actualPoolSize, mode) {
     const el = document.getElementById('preFilterStatus');
     if (!el) return;
 
@@ -2376,9 +2417,15 @@ function updatePreFilterStatus(status, actualPoolSize) {
     const poolSize = actualPoolSize || (status && status.pool_size);
 
     if (!poolSize) {
-        // No pool data - show AI fallback
-        el.innerHTML = '<span class="badge bg-secondary bg-opacity-50" style="font-size:0.6rem">Pool: AI</span>';
-        el.title = 'Using AI-generated universe (pre-filter not available)';
+        // Check if market is closed
+        if (mode === 'closed') {
+            el.innerHTML = '<span class="badge bg-dark bg-opacity-50" style="font-size:0.6rem">Market Closed</span>';
+            el.title = 'Market is closed - no active pool';
+            return;
+        }
+        // No pool data - show pre-filter fallback
+        el.innerHTML = '<span class="badge bg-secondary bg-opacity-50" style="font-size:0.6rem">Pre-filter</span>';
+        el.title = 'Using pre-filter pool (size not available)';
         return;
     }
     // v6.10: Handle optional status (when only actualPoolSize is available)
@@ -2534,7 +2581,7 @@ function loadSignals() {
 
             // v6.2: Update pre-filter status
             // v6.10: Use actual scanned pool_size from signals cache (not pre-filter pool)
-            updatePreFilterStatus(data.prefilter_status, data.pool_size);
+            updatePreFilterStatus(data.prefilter_status, data.pool_size, data.mode);
 
             const signals = data.signals || [];
             const waitingCount = (data.waiting_signals || []).length;

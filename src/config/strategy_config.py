@@ -92,7 +92,7 @@ class RapidRotationConfig:
     # POSITION MANAGEMENT
     # =========================================================================
     max_positions: int = 3              # Max concurrent positions (legacy)
-    max_positions_total: int = 3        # v6.32: Global limit across ALL strategies (dip+overnight+PEM)
+    max_positions_total: int = 4        # v6.35: Global limit (2 DIP + 1 OVN + 1 PEM = 4 max)
     max_hold_days: int = 10             # Max days to hold (time stop, legacy: 10)
     position_size_pct: float = 40.0     # Position size (% of equity, legacy)
     max_position_pct: float = 50.0      # Max position size (% of equity, legacy: 50)
@@ -125,7 +125,7 @@ class RapidRotationConfig:
     vix_skip_zone_high: float = 24.0    # VIX skip zone upper bound
     opening_window_limit_enabled: bool = True  # Stagger buys during first 30 min of market open
     opening_window_minutes: int = 30    # Duration of opening window
-    opening_window_max_buys: int = 15   # Stagger gap in minutes between buys during opening window
+    opening_window_stagger_minutes: int = 15   # v6.35: Minutes to wait between buys in opening window
     skip_before_holiday: bool = True    # Skip new positions before holidays
 
     # =========================================================================
@@ -279,6 +279,13 @@ class RapidRotationConfig:
     pre_close_minute: int = 50          # Pre-close check (15:50 ET)
     market_open_minutes: int = 570      # 09:30 ET = 9*60+30
     market_close_minutes: int = 960     # 16:00 ET = 16*60
+
+    # v6.36: Skip Window (no trading period to avoid volatile mid-morning)
+    skip_window_enabled: bool = True    # Enable skip window
+    skip_window_start_hour: int = 10    # Skip window start hour (ET)
+    skip_window_start_minute: int = 0   # Skip window start minute
+    skip_window_end_hour: int = 11      # Skip window end hour (ET)
+    skip_window_end_minute: int = 0     # Skip window end minute
 
     # =========================================================================
     # SESSION TIMELINE (v6.4 Single Source of Truth)
@@ -557,6 +564,9 @@ class RapidRotationConfig:
             'pdt_day_trade_limit', 'pdt_reserve', 'pdt_enforce_always', 'max_consecutive_losses',
             'circuit_breaker_pause_hours', 'market_open_hour', 'market_open_minute',
             'market_close_hour', 'market_close_minute', 'pre_close_minute',
+            # v6.36: Skip Window
+            'skip_window_enabled', 'skip_window_start_hour', 'skip_window_start_minute',
+            'skip_window_end_hour', 'skip_window_end_minute',
             'sector_cache_ttl_days', 'price_cache_ttl_seconds',
             # v6.17: Entry Protection fields
             'entry_protection_enabled', 'entry_block_minutes_after_open',

@@ -169,29 +169,35 @@ class AlertManager:
     # Convenience methods for common alerts
     # ------------------------------------------------------------------
 
-    def alert_sl_hit(self, symbol: str, price: float, sl_price: float, pnl_pct: float):
+    def alert_sl_hit(self, symbol: str, price: float, sl_price: float, pnl_pct: float, strategy: str = ''):
+        """Alert for stop loss hit (v6.36: added strategy tag)"""
+        strategy_suffix = f' {strategy}' if strategy else ''
         self.add(
             'CRITICAL',
-            f'SL Hit: {symbol}',
-            f'{symbol} hit stop loss at ${price:.2f} (SL ${sl_price:.2f}, P&L {pnl_pct:+.1f}%)',
+            f'SL Hit: {symbol}{strategy_suffix}',
+            f'{symbol}{strategy_suffix} hit stop loss at ${price:.2f} (SL ${sl_price:.2f}, P&L {pnl_pct:+.1f}%)',
             category='trade',
             symbol=symbol,
         )
 
-    def alert_tp_hit(self, symbol: str, price: float, tp_price: float, pnl_pct: float):
+    def alert_tp_hit(self, symbol: str, price: float, tp_price: float, pnl_pct: float, strategy: str = ''):
+        """Alert for take profit hit (v6.36: added strategy tag)"""
+        strategy_suffix = f' {strategy}' if strategy else ''
         self.add(
             'INFO',
-            f'TP Hit: {symbol}',
-            f'{symbol} hit take profit at ${price:.2f} (TP ${tp_price:.2f}, P&L {pnl_pct:+.1f}%)',
+            f'TP Hit: {symbol}{strategy_suffix}',
+            f'{symbol}{strategy_suffix} hit take profit at ${price:.2f} (TP ${tp_price:.2f}, P&L {pnl_pct:+.1f}%)',
             category='trade',
             symbol=symbol,
         )
 
-    def alert_trade_executed(self, symbol: str, action: str, price: float, qty: int):
+    def alert_trade_executed(self, symbol: str, action: str, price: float, qty: int, strategy: str = ''):
+        """Alert for trade execution (v6.36: added strategy tag)"""
+        strategy_suffix = f' {strategy}' if strategy else ''
         self.add(
             'INFO',
-            f'{action}: {symbol}',
-            f'{action} {qty} shares of {symbol} at ${price:.2f}',
+            f'{action}: {symbol}{strategy_suffix}',
+            f'{action} {qty} shares of {symbol} at ${price:.2f}{strategy_suffix}',
             category='trade',
             symbol=symbol,
         )
@@ -281,11 +287,13 @@ class AlertManager:
             symbol=symbol,
         )
 
-    def alert_max_hold_exit(self, symbol: str, days: int, pnl_pct: float):
+    def alert_max_hold_exit(self, symbol: str, days: int, pnl_pct: float, strategy: str = ''):
+        """Alert for max hold exit (v6.36: added strategy tag)"""
+        strategy_suffix = f' {strategy}' if strategy else ''
         self.add(
             'WARNING',
-            f'Max Hold: {symbol}',
-            f'{symbol} exited after {days} days (P&L {pnl_pct:+.1f}%)',
+            f'Max Hold: {symbol}{strategy_suffix}',
+            f'{symbol}{strategy_suffix} exited after {days} days (P&L {pnl_pct:+.1f}%)',
             category='trade',
             symbol=symbol,
         )
