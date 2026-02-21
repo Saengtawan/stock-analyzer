@@ -36,6 +36,14 @@ ET = pytz.timezone('US/Eastern')
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, PROJECT_ROOT)
 
+# Import DB repository
+try:
+    from src.database.repositories.outcome_repository import OutcomeRepository
+    USE_DATABASE = True
+except ImportError:
+    USE_DATABASE = False
+    print("Warning: OutcomeRepository not available, falling back to JSON")
+
 
 def _get_trading_days_after(start_date: str, days_needed: int) -> List[str]:
     """Get N trading days after a date (approximation: skip weekends)."""
@@ -261,27 +269,42 @@ def track_sell_outcomes(dry_run: bool = False) -> int:
         print(f"1d: {pnl_1d:+.1f}% ({direction})" if pnl_1d else "partial")
 
     if outcomes and not dry_run:
-        # Remove old incomplete entries for re-tracked trade_ids
-        retracked_ids = {o['trade_id'] for o in outcomes if o['trade_id'] in incomplete_ids}
-        if retracked_ids:
-            for f in os.listdir(outcomes_dir):
-                if f.startswith('sell_outcomes_') and f.endswith('.json'):
-                    fpath = os.path.join(outcomes_dir, f)
-                    entries = _load_json_file(fpath)
-                    filtered = [e for e in entries if e.get('trade_id') not in retracked_ids]
-                    if len(filtered) < len(entries):
-                        if filtered:
-                            _save_json_atomic(fpath, filtered)
-                        else:
-                            os.unlink(fpath)
-                        print(f"  Removed {len(entries) - len(filtered)} old incomplete entries from {f}")
+        # Save to database (preferred) or fallback to JSON
+        if USE_DATABASE:
+            try:
+                repo = OutcomeRepository()
+                count = repo.save_sell_outcomes_batch(outcomes)
+                print(f"  ✅ Saved {count}/{len(outcomes)} sell outcomes to database")
+            except Exception as e:
+                print(f"  ⚠️  Database save failed: {e}, falling back to JSON")
+                # Fallback to JSON
+                outfile = os.path.join(outcomes_dir, f'sell_outcomes_{today.strftime("%Y-%m-%d")}.json')
+                existing = _load_json_file(outfile) if os.path.exists(outfile) else []
+                existing.extend(outcomes)
+                _save_json_atomic(outfile, existing)
+                print(f"  Saved {len(outcomes)} sell outcomes to {outfile}")
+        else:
+            # JSON fallback
+            # Remove old incomplete entries for re-tracked trade_ids
+            retracked_ids = {o['trade_id'] for o in outcomes if o['trade_id'] in incomplete_ids}
+            if retracked_ids:
+                for f in os.listdir(outcomes_dir):
+                    if f.startswith('sell_outcomes_') and f.endswith('.json'):
+                        fpath = os.path.join(outcomes_dir, f)
+                        entries = _load_json_file(fpath)
+                        filtered = [e for e in entries if e.get('trade_id') not in retracked_ids]
+                        if len(filtered) < len(entries):
+                            if filtered:
+                                _save_json_atomic(fpath, filtered)
+                            else:
+                                os.unlink(fpath)
+                            print(f"  Removed {len(entries) - len(filtered)} old incomplete entries from {f}")
 
-        outfile = os.path.join(outcomes_dir, f'sell_outcomes_{today.strftime("%Y-%m-%d")}.json')
-        # Append to existing file
-        existing = _load_json_file(outfile) if os.path.exists(outfile) else []
-        existing.extend(outcomes)
-        _save_json_atomic(outfile, existing)
-        print(f"  Saved {len(outcomes)} sell outcomes to {outfile}")
+            outfile = os.path.join(outcomes_dir, f'sell_outcomes_{today.strftime("%Y-%m-%d")}.json')
+            existing = _load_json_file(outfile) if os.path.exists(outfile) else []
+            existing.extend(outcomes)
+            _save_json_atomic(outfile, existing)
+            print(f"  Saved {len(outcomes)} sell outcomes to {outfile}")
     elif outcomes and dry_run:
         print(f"  [DRY RUN] Would save {len(outcomes)} sell outcomes")
         for o in outcomes[:3]:
@@ -471,31 +494,66 @@ def track_rejected_outcomes(dry_run: bool = False) -> int:
         print(f"tracked {len([r for r in rejects if any(o['symbol'] == symbol for o in outcomes)])} rejections")
 
     if outcomes and not dry_run:
-        # Remove old incomplete entries for re-tracked rejections
-        retracked_keys = set()
-        for o in outcomes:
-            key = f"{o['reject_id']}_{o['symbol']}"
-            if key in incomplete_keys:
-                retracked_keys.add(key)
-        if retracked_keys:
-            for f in os.listdir(outcomes_dir):
-                if f.startswith('rejected_outcomes_') and f.endswith('.json'):
-                    fpath = os.path.join(outcomes_dir, f)
-                    entries = _load_json_file(fpath)
-                    filtered = [e for e in entries
-                                if f"{e.get('reject_id')}_{e.get('symbol')}" not in retracked_keys]
-                    if len(filtered) < len(entries):
-                        if filtered:
-                            _save_json_atomic(fpath, filtered)
-                        else:
-                            os.unlink(fpath)
-                        print(f"  Removed {len(entries) - len(filtered)} old incomplete rejection entries from {f}")
+        # Save to database (preferred) or fallback to JSON
+        if USE_DATABASE:
+            try:
+                # Map JSON field names to DB schema
+                mapped_outcomes = []
+                for outcome in outcomes:
+                    mapped_outcomes.append({
+                        'scan_id': outcome.get('reject_id'),
+                        'scan_date': outcome.get('reject_date'),
+                        'scan_type': outcome.get('reject_type'),
+                        'rejection_reason': outcome.get('reject_detail'),
+                        'symbol': outcome.get('symbol'),
+                        'scan_price': outcome.get('reject_price'),
+                        'score': outcome.get('signal_score'),
+                        'signal_source': outcome.get('signal_source', 'dip_bounce'),
+                        'outcome_1d': outcome.get('outcome_1d'),
+                        'outcome_3d': outcome.get('outcome_3d'),
+                        'outcome_5d': outcome.get('outcome_5d'),
+                        'outcome_max_gain_5d': outcome.get('outcome_max_gain_5d'),
+                        'outcome_max_dd_5d': outcome.get('outcome_max_dd_5d'),
+                        'tracked_at': outcome.get('tracked_at')
+                    })
 
-        outfile = os.path.join(outcomes_dir, f'rejected_outcomes_{today.strftime("%Y-%m-%d")}.json')
-        existing = _load_json_file(outfile) if os.path.exists(outfile) else []
-        existing.extend(outcomes)
-        _save_json_atomic(outfile, existing)
-        print(f"  Saved {len(outcomes)} rejected signal outcomes to {outfile}")
+                repo = OutcomeRepository()
+                count = repo.save_rejected_outcomes_batch(mapped_outcomes)
+                print(f"  ✅ Saved {count}/{len(outcomes)} rejected outcomes to database")
+            except Exception as e:
+                print(f"  ⚠️  Database save failed: {e}, falling back to JSON")
+                # Fallback to JSON
+                outfile = os.path.join(outcomes_dir, f'rejected_outcomes_{today.strftime("%Y-%m-%d")}.json')
+                existing = _load_json_file(outfile) if os.path.exists(outfile) else []
+                existing.extend(outcomes)
+                _save_json_atomic(outfile, existing)
+                print(f"  Saved {len(outcomes)} rejected signal outcomes to {outfile}")
+        else:
+            # JSON fallback
+            retracked_keys = set()
+            for o in outcomes:
+                key = f"{o['reject_id']}_{o['symbol']}"
+                if key in incomplete_keys:
+                    retracked_keys.add(key)
+            if retracked_keys:
+                for f in os.listdir(outcomes_dir):
+                    if f.startswith('rejected_outcomes_') and f.endswith('.json'):
+                        fpath = os.path.join(outcomes_dir, f)
+                        entries = _load_json_file(fpath)
+                        filtered = [e for e in entries
+                                    if f"{e.get('reject_id')}_{e.get('symbol')}" not in retracked_keys]
+                        if len(filtered) < len(entries):
+                            if filtered:
+                                _save_json_atomic(fpath, filtered)
+                            else:
+                                os.unlink(fpath)
+                            print(f"  Removed {len(entries) - len(filtered)} old incomplete rejection entries from {f}")
+
+            outfile = os.path.join(outcomes_dir, f'rejected_outcomes_{today.strftime("%Y-%m-%d")}.json')
+            existing = _load_json_file(outfile) if os.path.exists(outfile) else []
+            existing.extend(outcomes)
+            _save_json_atomic(outfile, existing)
+            print(f"  Saved {len(outcomes)} rejected signal outcomes to {outfile}")
     elif outcomes and dry_run:
         print(f"  [DRY RUN] Would save {len(outcomes)} rejected signal outcomes")
         for o in outcomes[:3]:
@@ -670,31 +728,46 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
         print(f"tracked {len([s for s in sigs if any(o['symbol'] == symbol for o in outcomes)])} signals")
 
     if outcomes and not dry_run:
-        # Remove old incomplete entries for re-tracked signals
-        retracked_keys = set()
-        for o in outcomes:
-            key = f"{o['scan_id']}_{o['symbol']}_{o['signal_rank']}"
-            if key in incomplete_keys:
-                retracked_keys.add(key)
-        if retracked_keys:
-            for f in os.listdir(outcomes_dir):
-                if f.startswith('signal_outcomes_') and f.endswith('.json'):
-                    fpath = os.path.join(outcomes_dir, f)
-                    entries = _load_json_file(fpath)
-                    filtered = [e for e in entries
-                                if f"{e.get('scan_id')}_{e.get('symbol')}_{e.get('signal_rank', 0)}" not in retracked_keys]
-                    if len(filtered) < len(entries):
-                        if filtered:
-                            _save_json_atomic(fpath, filtered)
-                        else:
-                            os.unlink(fpath)
-                        print(f"  Removed {len(entries) - len(filtered)} old incomplete signal entries from {f}")
+        # Save to database (preferred) or fallback to JSON
+        if USE_DATABASE:
+            try:
+                repo = OutcomeRepository()
+                count = repo.save_signal_outcomes_batch(outcomes)
+                print(f"  ✅ Saved {count}/{len(outcomes)} signal outcomes to database")
+            except Exception as e:
+                print(f"  ⚠️  Database save failed: {e}, falling back to JSON")
+                # Fallback to JSON
+                outfile = os.path.join(outcomes_dir, f'signal_outcomes_{today.strftime("%Y-%m-%d")}.json')
+                existing = _load_json_file(outfile) if os.path.exists(outfile) else []
+                existing.extend(outcomes)
+                _save_json_atomic(outfile, existing)
+                print(f"  Saved {len(outcomes)} signal outcomes to {outfile}")
+        else:
+            # JSON fallback
+            retracked_keys = set()
+            for o in outcomes:
+                key = f"{o['scan_id']}_{o['symbol']}_{o['signal_rank']}"
+                if key in incomplete_keys:
+                    retracked_keys.add(key)
+            if retracked_keys:
+                for f in os.listdir(outcomes_dir):
+                    if f.startswith('signal_outcomes_') and f.endswith('.json'):
+                        fpath = os.path.join(outcomes_dir, f)
+                        entries = _load_json_file(fpath)
+                        filtered = [e for e in entries
+                                    if f"{e.get('scan_id')}_{e.get('symbol')}_{e.get('signal_rank', 0)}" not in retracked_keys]
+                        if len(filtered) < len(entries):
+                            if filtered:
+                                _save_json_atomic(fpath, filtered)
+                            else:
+                                os.unlink(fpath)
+                            print(f"  Removed {len(entries) - len(filtered)} old incomplete signal entries from {f}")
 
-        outfile = os.path.join(outcomes_dir, f'signal_outcomes_{today.strftime("%Y-%m-%d")}.json')
-        existing = _load_json_file(outfile) if os.path.exists(outfile) else []
-        existing.extend(outcomes)
-        _save_json_atomic(outfile, existing)
-        print(f"  Saved {len(outcomes)} signal outcomes to {outfile}")
+            outfile = os.path.join(outcomes_dir, f'signal_outcomes_{today.strftime("%Y-%m-%d")}.json')
+            existing = _load_json_file(outfile) if os.path.exists(outfile) else []
+            existing.extend(outcomes)
+            _save_json_atomic(outfile, existing)
+            print(f"  Saved {len(outcomes)} signal outcomes to {outfile}")
     elif outcomes and dry_run:
         print(f"  [DRY RUN] Would save {len(outcomes)} signal outcomes")
         for o in outcomes[:3]:
