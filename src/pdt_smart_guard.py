@@ -44,6 +44,14 @@ import pytz
 if TYPE_CHECKING:
     from engine.broker_interface import BrokerInterface
 
+# v2.4: PDT tracking database support
+try:
+    from database.repositories.pdt_repository import PDTRepository
+    PDT_DB_AVAILABLE = True
+except ImportError:
+    PDT_DB_AVAILABLE = False
+    logger.warning("PDTRepository not available, using JSON fallback")
+
 
 class SellDecision(Enum):
     """Sell decision types"""
@@ -243,6 +251,9 @@ class PDTSmartGuard:
         os.makedirs(self._data_dir, exist_ok=True)
         self._entry_dates_file = os.path.join(self._data_dir, 'pdt_entry_dates.json')
 
+        # v2.4: Initialize database repository
+        self._pdt_repo = PDTRepository() if PDT_DB_AVAILABLE else None
+
         # Cache for entry dates (symbol -> date in US Eastern Time)
         self._entry_dates: Dict[str, date] = {}
 
@@ -252,7 +263,8 @@ class PDTSmartGuard:
         # Load persisted entry dates
         self._load_entry_dates()
 
-        logger.info(f"PDT Smart Guard v2.3 initialized (No Override Mode)")
+        logger.info(f"PDT Smart Guard v2.4 initialized (DB-enabled, No Override Mode)")
+        logger.info(f"  Storage: {'Database' if self._pdt_repo else 'JSON (fallback)'}")
         logger.info(f"  SL Threshold: -{self._get_sl_threshold()}%")
         logger.info(f"  TP Threshold: {self._get_tp_threshold()}%")
         logger.info(f"  Reserve: {self._get_reserve()} day trades")
@@ -299,7 +311,24 @@ class PDTSmartGuard:
         return datetime.now(self._et_tz).date()
 
     def _save_entry_dates(self):
-        """Persist entry dates to disk (atomic write)"""
+        """
+        Persist entry dates to database (preferred) or JSON (fallback).
+
+        v2.4: Database-first with JSON fallback
+        """
+        # Try database first
+        if self._pdt_repo:
+            try:
+                # Sync all in-memory entries to database
+                # Note: We only track active entries (no exit_date)
+                # So we just upsert all current entries
+                for symbol, entry_date in self._entry_dates.items():
+                    self._pdt_repo.add_entry(symbol, entry_date.isoformat())
+                return  # Success - no need for JSON
+            except Exception as e:
+                logger.warning(f"PDT Guard: DB save failed ({e}), falling back to JSON")
+
+        # Fallback to JSON
         try:
             data = {sym: d.isoformat() for sym, d in self._entry_dates.items()}
             fd, tmp_path = tempfile.mkstemp(dir=self._data_dir, suffix='.tmp')
@@ -315,7 +344,23 @@ class PDTSmartGuard:
             logger.error(f"PDT Guard: Failed to save entry dates: {e}")
 
     def _load_entry_dates(self):
-        """Load persisted entry dates from disk"""
+        """
+        Load persisted entry dates from database (preferred) or JSON (fallback).
+
+        v2.4: Database-first with JSON fallback
+        """
+        # Try database first
+        if self._pdt_repo:
+            try:
+                db_entries = self._pdt_repo.get_all_entries()
+                for symbol, entry_date_str in db_entries.items():
+                    self._entry_dates[symbol] = date.fromisoformat(entry_date_str)
+                logger.info(f"PDT Guard: Loaded {len(self._entry_dates)} entry dates from database")
+                return  # Success - no need for JSON
+            except Exception as e:
+                logger.warning(f"PDT Guard: DB load failed ({e}), falling back to JSON")
+
+        # Fallback to JSON
         try:
             if not os.path.exists(self._entry_dates_file):
                 return
@@ -323,7 +368,7 @@ class PDTSmartGuard:
                 data = json.load(f)
             for sym, date_str in data.items():
                 self._entry_dates[sym] = date.fromisoformat(date_str)
-            logger.info(f"PDT Guard: Loaded {len(self._entry_dates)} entry dates from disk")
+            logger.info(f"PDT Guard: Loaded {len(self._entry_dates)} entry dates from JSON")
         except Exception as e:
             logger.error(f"PDT Guard: Failed to load entry dates: {e}")
 

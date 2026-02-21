@@ -90,6 +90,14 @@ from pdt_smart_guard import PDTSmartGuard, SellDecision, init_pdt_guard  # v6.10
 from trade_logger import get_trade_logger, TradeLogger
 from loguru import logger
 
+# v6.42: Loss tracking database support
+try:
+    from database.repositories.loss_tracking_repository import LossTrackingRepository
+    LOSS_TRACKING_DB_AVAILABLE = True
+except ImportError:
+    LOSS_TRACKING_DB_AVAILABLE = False
+    logger.warning("LossTrackingRepository not available, using JSON fallback")
+
 # v6.7: Import unified configuration
 try:
     from config.strategy_config import RapidRotationConfig
@@ -604,6 +612,9 @@ class AutoTradingEngine:
 
         # Load persisted signal queue
         self._load_queue_state()
+
+        # v6.42: Initialize loss tracking repository
+        self._loss_repo = LossTrackingRepository() if LOSS_TRACKING_DB_AVAILABLE else None
 
         # Load persisted loss counters
         self._load_loss_counters()
@@ -3001,7 +3012,57 @@ class AutoTradingEngine:
     # =========================================================================
 
     def _save_loss_counters(self):
-        """Persist loss tracking counters (atomic write)"""
+        """
+        Persist loss tracking counters to database (preferred) or JSON (fallback).
+
+        v6.42: Database-first with JSON fallback
+        """
+        # Try database first
+        if self._loss_repo:
+            try:
+                # Sync in-memory state to database
+                # Main tracking (single UPDATE)
+                conn = self._loss_repo._get_connection()
+                try:
+                    conn.execute("""
+                        UPDATE loss_tracking
+                        SET consecutive_losses = ?,
+                            weekly_realized_pnl = ?,
+                            cooldown_until = ?,
+                            weekly_reset_date = ?,
+                            saved_at = ?
+                        WHERE id = 1
+                    """, (
+                        self.consecutive_losses,
+                        self.weekly_realized_pnl,
+                        self.cooldown_until.isoformat() if self.cooldown_until else None,
+                        self.weekly_reset_date.isoformat() if self.weekly_reset_date else None,
+                        datetime.now().isoformat()
+                    ))
+
+                    # Sector tracking (upsert all)
+                    for sector, data in self.sector_loss_tracker.items():
+                        conn.execute("""
+                            INSERT INTO sector_loss_tracking (sector, losses, cooldown_until)
+                            VALUES (LOWER(?), ?, ?)
+                            ON CONFLICT(sector) DO UPDATE
+                            SET losses = excluded.losses,
+                                cooldown_until = excluded.cooldown_until
+                        """, (
+                            sector,
+                            data['losses'],
+                            data['cooldown_until'].isoformat() if data.get('cooldown_until') else None
+                        ))
+
+                    conn.commit()
+                    return  # Success - no need for JSON
+                finally:
+                    conn.close()
+
+            except Exception as e:
+                logger.warning(f"Loss counters DB save failed ({e}), falling back to JSON")
+
+        # Fallback to JSON
         from engine.state_manager import atomic_write_json
         try:
             state = {
@@ -3020,24 +3081,64 @@ class AutoTradingEngine:
             logger.error(f"Failed to save loss counters: {e}")
 
     def _load_loss_counters(self):
-        """Load persisted loss tracking counters"""
-        from engine.state_manager import safe_read_json
+        """
+        Load persisted loss tracking counters from database (preferred) or JSON (fallback).
+
+        v6.42: Database-first with JSON fallback
+        """
         from datetime import date as date_type
+
+        # Try database first
+        if self._loss_repo:
+            try:
+                state = self._loss_repo.get_state()
+                sectors = self._loss_repo.get_all_sector_losses()
+
+                # Load main tracking
+                self.consecutive_losses = state.get('consecutive_losses', 0)
+                self.weekly_realized_pnl = state.get('weekly_realized_pnl', 0.0)
+
+                if state.get('cooldown_until'):
+                    self.cooldown_until = date_type.fromisoformat(state['cooldown_until'])
+
+                if state.get('weekly_reset_date'):
+                    self.weekly_reset_date = date_type.fromisoformat(state['weekly_reset_date'])
+
+                # Load sector tracking
+                for sector, data in sectors.items():
+                    self.sector_loss_tracker[sector] = {
+                        'losses': data['losses'],
+                        'cooldown_until': date_type.fromisoformat(data['cooldown_until']) if data.get('cooldown_until') else None
+                    }
+
+                logger.info(f"Loaded loss counters from database: consecutive={self.consecutive_losses}, weekly_pnl=${self.weekly_realized_pnl:.2f}, sectors={len(sectors)}")
+                return  # Success - no need for JSON
+
+            except Exception as e:
+                logger.warning(f"Loss counters DB load failed ({e}), falling back to JSON")
+
+        # Fallback to JSON
+        from engine.state_manager import safe_read_json
         state = safe_read_json(os.path.join(self._state_dir, 'loss_counters.json'), {})
         if not state:
             return
+
         self.consecutive_losses = state.get('consecutive_losses', 0)
         self.weekly_realized_pnl = state.get('weekly_realized_pnl', 0.0)
+
         if state.get('cooldown_until'):
             self.cooldown_until = date_type.fromisoformat(state['cooldown_until'])
+
         if state.get('weekly_reset_date'):
             self.weekly_reset_date = date_type.fromisoformat(state['weekly_reset_date'])
+
         for k, v in state.get('sector_loss_tracker', {}).items():
             self.sector_loss_tracker[k] = {
                 'losses': v['losses'],
                 'cooldown_until': date_type.fromisoformat(v['cooldown_until']) if v.get('cooldown_until') else None
             }
-        logger.info(f"Loaded loss counters: consecutive={self.consecutive_losses}, weekly_pnl=${self.weekly_realized_pnl:.2f}")
+
+        logger.info(f"Loaded loss counters from JSON: consecutive={self.consecutive_losses}, weekly_pnl=${self.weekly_realized_pnl:.2f}")
 
     # =========================================================================
     # LATE START PROTECTION (v4.4 NEW!)
