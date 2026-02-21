@@ -1223,10 +1223,14 @@ function initWebSocket() {
     socket.on('disconnect', function() {
         connectionStatus = 'disconnected';
         updateConnectionIndicator(false);
+        // v6.41: Start fallback polling immediately on disconnect
+        startFallbackPolling();
     });
     socket.on('connect_error', function(err) {
         connectionStatus = 'error';
         updateConnectionIndicator(false);
+        // v6.41: Start fallback polling on connection errors
+        startFallbackPolling();
     });
     socket.on('reconnect_failed', function() {
         connectionStatus = 'failed';
@@ -3077,13 +3081,25 @@ function showHealthDetail() {
 // Cron Status
 let lastCronData = null;
 function fetchCronStatus() {
-    fetch('/api/cron/status')
-        .then(r => r.json())
+    // v6.41: Add timeout to prevent hanging on slow health checks
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);  // 10s timeout
+
+    fetch('/api/cron/status', { signal: controller.signal })
+        .then(r => {
+            clearTimeout(timeoutId);
+            return r.json();
+        })
         .then(data => {
             lastCronData = data;
             updateCronDot(data);
         })
-        .catch(err => console.error('Cron status error:', err));
+        .catch(err => {
+            clearTimeout(timeoutId);
+            if (err.name !== 'AbortError') {
+                console.error('Cron status error:', err);
+            }
+        });
 }
 
 function updateCronDot(data) {
@@ -3319,9 +3335,22 @@ function loadMarketConfig() {
 
 loadMarketConfig();
 loadSystemAlerts();
-setInterval(loadSystemAlerts, 30000);
-setInterval(loadSignals, 30000);  // v6.21: Reduce polling to 30s (was 15s)
-setInterval(loadAlerts, 30000);  // v6.21: Portfolio + PDT stats + queue - reduced to 30s (was 15s)
+// v6.41: Guard continuous pollers - only run when socket disconnected (prevent duplicate API calls)
+setInterval(function() {
+    if (connectionStatus !== 'connected') {
+        loadSystemAlerts();
+    }
+}, 30000);
+setInterval(function() {
+    if (connectionStatus !== 'connected') {
+        loadSignals();
+    }
+}, 30000);
+setInterval(function() {
+    if (connectionStatus !== 'connected') {
+        loadAlerts();
+    }
+}, 30000);
 
 // ============================================
 // Scan Progress (Socket.IO + polling)
