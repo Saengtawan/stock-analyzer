@@ -6664,6 +6664,8 @@ class AutoTradingEngine:
                     self._loop_evening_prefilter(_closed_today)
                     # Pre-filter pre-open scan (09:00 ET, before open) — re-validate ~200 stocks
                     self._loop_pre_open_prefilter(_closed_today)
+                    # v6.37: Write cron schedule even when market closed
+                    self._write_heartbeat()
                     time.sleep(60)
                     continue
                 else:
@@ -6742,6 +6744,18 @@ class AutoTradingEngine:
         from engine.state_manager import write_heartbeat
         heartbeat_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'heartbeat.json')
         write_heartbeat(heartbeat_path, {'state': self.state.value, 'positions': len(self.positions), 'running': self.running})
+
+        # v6.37: Write cron schedule for web app
+        try:
+            cron_schedule = self._get_cron_schedule()
+            cron_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'cron_schedule.json')
+            from engine.state_manager import atomic_write_json
+            atomic_write_json(cron_path, cron_schedule)
+            logger.debug(f"✅ Cron schedule written to {cron_path}")
+        except Exception as e:
+            logger.error(f"Failed to write cron schedule: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
     def _get_scanner_schedule(self) -> Dict:
         """Get scanner timing for UI timeline bar."""

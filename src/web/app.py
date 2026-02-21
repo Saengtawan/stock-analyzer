@@ -4094,6 +4094,16 @@ def api_auto_status():
         status = engine.get_status()
         # Convert numpy types to native Python types
         status = convert_numpy_types(status)
+
+        # v6.37: Read cron_schedule from file (written by standalone engine)
+        try:
+            cron_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'cron_schedule.json')
+            if os.path.exists(cron_file):
+                with open(cron_file, 'r') as f:
+                    status['cron_schedule'] = json.load(f)
+        except Exception as e:
+            logger.debug(f"Could not read cron_schedule from file: {e}")
+
         return jsonify(status)
 
     except Exception as e:
