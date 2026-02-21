@@ -931,9 +931,13 @@ class AutoTradingEngine:
 
     def _sync_active_positions_db(self):
         """Sync in-memory positions to DB via PositionRepository.
-        Called after every _save_positions_state(). Non-critical: errors logged only.
+        Called after every _save_positions_state().
 
+        v6.41: CRITICAL - Fail-fast on DB errors (no silent failures).
         Scoped to engine-owned sources only — rapid_trader positions are NOT touched.
+
+        Raises:
+            Exception: If DB sync fails, re-raises to caller for handling
         """
         try:
             from database import PositionRepository
@@ -979,7 +983,11 @@ class AutoTradingEngine:
 
             logger.debug(f"✅ DB synced: {len(db_positions)} positions via PositionRepository")
         except Exception as e:
-            logger.warning(f"DB active_positions sync failed (non-critical): {e}")
+            # v6.41: CRITICAL FIX - Fail-fast on DB errors (prevent memory/DB divergence)
+            logger.error(f"❌ CRITICAL: DB sync failed - {e}")
+            logger.error(f"   Positions in memory: {list(positions_snapshot.keys())}")
+            logger.error(f"   This position will be LOST on restart if not fixed!")
+            raise  # Re-raise to caller - position must be rolled back
 
     def _load_positions_state(self) -> Dict[str, dict]:
         """Load persisted position state from DB (single source of truth)."""
@@ -1551,7 +1559,8 @@ class AutoTradingEngine:
             # ===================================================================
             # Check for missing SL orders and create them
             positions_without_sl = []
-            for symbol, managed_pos in self.positions.items():
+            # v6.41: CRITICAL FIX - Use list() to avoid RuntimeError if dict modified during iteration
+            for symbol, managed_pos in list(self.positions.items()):
                 if not managed_pos.sl_order_id:
                     positions_without_sl.append(symbol)
                     logger.error(
@@ -2929,7 +2938,8 @@ class AutoTradingEngine:
         )
 
         if same_sector_count >= effective_max:
-            existing = [s for s, p in self.positions.items() if p.sector and p.sector.lower() == sector.lower()]
+            # v6.41: Use list() to prevent RuntimeError if positions modified during iteration
+            existing = [s for s, p in list(self.positions.items()) if p.sector and p.sector.lower() == sector.lower()]
             return False, f"Already {same_sector_count} positions in {sector}: {existing} (max {effective_max})"
 
         return True, f"{sector}: {same_sector_count}/{effective_max} positions"
@@ -3780,6 +3790,11 @@ class AutoTradingEngine:
         try:
             symbol = queued.symbol
 
+            # v6.41: CRITICAL FIX - Check memory positions first (prevent duplicate execution race)
+            if symbol in self.positions:
+                logger.warning(f"Queue: {symbol} already in memory positions (duplicate execution race detected)")
+                return False
+
             # Get current price for fresh SL/TP calculation
             current_price = queued.signal_price  # fallback
             try:
@@ -4427,6 +4442,11 @@ class AutoTradingEngine:
         tp_price = round(entry_price * (1 + tp_pct / 100), 2)
 
         with self._positions_lock:
+            # v6.41: CRITICAL FIX - Re-check symbol existence under lock (prevent double-buy race)
+            if symbol in self.positions:
+                logger.warning(f"⚠️ {symbol} already in positions (double-buy race detected) — cancelling")
+                return False
+
             # Re-check max positions under lock
             effective_max = params.get('max_positions') or self.MAX_POSITIONS
             actual_count = max(len(self.positions), getattr(self, '_alpaca_position_count', 0))
@@ -4469,7 +4489,15 @@ class AutoTradingEngine:
                                f"{managed_pos.gap_confidence}% confidence (exit at EOD)")
 
             self.positions[symbol] = managed_pos
-            self._save_positions_state()
+
+            # v6.41: CRITICAL - Try to save to DB, rollback if fails
+            try:
+                self._save_positions_state()
+            except Exception as e:
+                # DB sync failed - rollback position from memory
+                logger.error(f"❌ ROLLBACK: Removing {symbol} from memory (DB sync failed)")
+                del self.positions[symbol]
+                raise  # Re-raise to caller
 
         return True
 
