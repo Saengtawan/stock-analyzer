@@ -1,0 +1,33 @@
+{
+  "consecutive_losses": 0,
+  "weekly_realized_pnl": -34.179999999999964,
+  "cooldown_until": "2026-02-13",
+  "weekly_reset_date": "2026-02-09",
+  "sector_loss_tracker": {
+    "healthcare": {
+      "losses": 1,
+      "cooldown_until": null
+    },
+    "industrials": {
+      "losses": 0,
+      "cooldown_until": null
+    },
+    "financial services": {
+      "losses": 1,
+      "cooldown_until": null
+    },
+    "consumer cyclical": {
+      "losses": 1,
+      "cooldown_until": null
+    },
+    "energy": {
+      "losses": 1,
+      "cooldown_until": null
+    },
+    "real estate": {
+      "losses": 1,
+      "cooldown_until": null
+    }
+  },
+  "saved_at": "2026-02-17T21:43:59.973629"
+}
