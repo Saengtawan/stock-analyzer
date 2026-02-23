@@ -5695,9 +5695,41 @@ class AutoTradingEngine:
 
                 logger.info(f"PDT Guard ALLOWED: {symbol} - {pdt_reason}")
 
+            # Initialize updated position variable
+            alpaca_pos_updated = None
+
             # Cancel SL order first (if exists)
             if managed_pos.sl_order_id:
-                self.broker.cancel_order(managed_pos.sl_order_id)
+                try:
+                    logger.info(f"Cancelling SL order {managed_pos.sl_order_id} for {symbol}...")
+                    self.broker.cancel_order(managed_pos.sl_order_id)
+                    logger.info(f"✅ Cancelled SL order {managed_pos.sl_order_id} for {symbol}")
+                except Exception as e:
+                    logger.error(f"Failed to cancel SL order {managed_pos.sl_order_id}: {e}")
+                    # Continue anyway - maybe order already cancelled
+
+                # CRITICAL: Wait for Alpaca to release shares (max 5 seconds)
+                logger.info(f"Waiting for Alpaca to release shares for {symbol}...")
+                shares_released = False
+                for attempt in range(5):
+                    time.sleep(1)
+                    try:
+                        pos_check = self.broker.get_position(symbol)
+                        if pos_check:
+                            logger.info(f"  Attempt {attempt+1}: qty={pos_check.qty}, available={pos_check.qty_available}")
+                            if int(pos_check.qty) == int(pos_check.qty_available):
+                                logger.info(f"✅ Shares released for {symbol} after {attempt+1}s (available: {pos_check.qty_available})")
+                                shares_released = True
+                                alpaca_pos_updated = pos_check  # Use updated position
+                                break
+                        else:
+                            logger.warning(f"  Attempt {attempt+1}: Position not found (may have been closed)")
+                            return  # Position already closed, exit
+                    except Exception as e:
+                        logger.warning(f"  Attempt {attempt+1} failed: {e}")
+
+                if not shares_released:
+                    logger.warning(f"⚠️ Shares still locked after 5s for {symbol}, will retry with available qty")
 
             # v4.9: Check for existing pending sell orders (prevent duplication)
             try:
@@ -5714,9 +5746,18 @@ class AutoTradingEngine:
                 logger.info(f"{symbol}: Market closed — will retry close when market opens (reason: {reason})")
                 return
 
-            # Sell using actual qty from Alpaca (not managed_pos.qty)
-            # In case of partial fills or discrepancies
-            actual_qty = int(alpaca_pos.qty)
+            # Use updated position if shares were released, otherwise use original
+            pos_to_sell = alpaca_pos_updated if alpaca_pos_updated else alpaca_pos
+
+            # Sell using qty_available (not locked by orders)
+            # If qty_available is 0, use qty as fallback (shouldn't happen after waiting)
+            actual_qty = int(pos_to_sell.qty_available) if pos_to_sell.qty_available > 0 else int(pos_to_sell.qty)
+
+            if actual_qty == 0:
+                logger.error(f"❌ Cannot sell {symbol}: qty_available=0, qty={pos_to_sell.qty} (shares still locked)")
+                return
+
+            logger.info(f"Selling {symbol}: {actual_qty} shares (available: {pos_to_sell.qty_available}, total: {pos_to_sell.qty})")
             sell_order = self.broker.place_market_sell(symbol, actual_qty)
 
             # Wait for fill with retry (max 10 seconds)

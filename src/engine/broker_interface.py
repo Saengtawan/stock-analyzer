@@ -73,6 +73,7 @@ class Position:
 
     # Optional fields
     side: str = "long"  # "long" or "short"
+    qty_available: float = 0.0  # Available shares (not locked by orders)
     cost_basis: float = 0.0
 
     def __post_init__(self):

@@ -285,6 +285,7 @@ class AlpacaBroker(BrokerInterface):
             unrealized_plpc=float(alpaca_pos.unrealized_plpc),
             side="long" if float(alpaca_pos.qty) > 0 else "short",
             cost_basis=float(alpaca_pos.cost_basis),
+            qty_available=float(getattr(alpaca_pos, 'qty_available', alpaca_pos.qty)),  # Fallback to qty if not available
         )
 
     # =========================================================================
