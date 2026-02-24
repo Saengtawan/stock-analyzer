@@ -7316,7 +7316,7 @@ class AutoTradingEngine:
                 'status': get_status('_universe_update_done', '_universe_update_error'),
                 'description': 'Maintain 1000-stock universe',
                 'type': 'maintenance',
-                'error': getattr(self, '_universe_update_error', {}).get('message') if getattr(self, '_universe_update_error', {}).get('date') == today else None
+                'error': (lambda err: err.get('message') if err and err.get('date') == today else None)(getattr(self, '_universe_update_error', None))
             },
             {
                 'name': 'cleanup_alerts',
@@ -7327,7 +7327,7 @@ class AutoTradingEngine:
                 'status': get_status('_cleanup_alerts_done', '_cleanup_alerts_error'),
                 'description': 'Clean old alert records',
                 'type': 'cleanup',
-                'error': getattr(self, '_cleanup_alerts_error', {}).get('message') if getattr(self, '_cleanup_alerts_error', {}).get('date') == today else None
+                'error': (lambda err: err.get('message') if err and err.get('date') == today else None)(getattr(self, '_cleanup_alerts_error', None))
             },
             {
                 'name': 'cleanup_logs',
@@ -7338,7 +7338,7 @@ class AutoTradingEngine:
                 'status': get_status('_cleanup_logs_done', '_cleanup_logs_error'),
                 'description': 'Archive and compress old logs',
                 'type': 'cleanup',
-                'error': getattr(self, '_cleanup_logs_error', {}).get('message') if getattr(self, '_cleanup_logs_error', {}).get('date') == today else None
+                'error': (lambda err: err.get('message') if err and err.get('date') == today else None)(getattr(self, '_cleanup_logs_error', None))
             },
             {
                 'name': 'outcome_tracker',
@@ -7349,7 +7349,7 @@ class AutoTradingEngine:
                 'status': get_status('_outcome_tracker_done', '_outcome_tracker_error'),
                 'description': 'Track trade outcomes and performance',
                 'type': 'analytics',
-                'error': getattr(self, '_outcome_tracker_error', {}).get('message') if getattr(self, '_outcome_tracker_error', {}).get('date') == today else None
+                'error': (lambda err: err.get('message') if err and err.get('date') == today else None)(getattr(self, '_outcome_tracker_error', None))
             },
             {
                 'name': 'db_backup',
@@ -7360,7 +7360,7 @@ class AutoTradingEngine:
                 'status': get_status('_db_backup_done', '_db_backup_error'),
                 'description': 'Backup all databases with compression',
                 'type': 'backup',
-                'error': getattr(self, '_db_backup_error', {}).get('message') if getattr(self, '_db_backup_error', {}).get('date') == today else None
+                'error': (lambda err: err.get('message') if err and err.get('date') == today else None)(getattr(self, '_db_backup_error', None))
             },
             {
                 'name': 'prefilter_evening',
@@ -7382,7 +7382,7 @@ class AutoTradingEngine:
                 'status': get_status('_pre_open_prefilter_done', '_pre_open_prefilter_error'),
                 'description': 'Pre-open pool validation',
                 'type': 'filter',
-                'error': getattr(self, '_pre_open_prefilter_error', {}).get('message') if getattr(self, '_pre_open_prefilter_error', {}).get('date') == today else None
+                'error': (lambda err: err.get('message') if err and err.get('date') == today else None)(getattr(self, '_pre_open_prefilter_error', None))
             },
             {
                 'name': 'prefilter_midday',
@@ -7393,7 +7393,7 @@ class AutoTradingEngine:
                 'status': get_status('_midday_prefilter_done', '_midday_prefilter_error'),
                 'description': 'Midday pool refresh',
                 'type': 'filter',
-                'error': getattr(self, '_midday_prefilter_error', {}).get('message') if getattr(self, '_midday_prefilter_error', {}).get('date') == today else None
+                'error': (lambda err: err.get('message') if err and err.get('date') == today else None)(getattr(self, '_midday_prefilter_error', None))
             },
             {
                 'name': 'prefilter_afternoon',
@@ -7404,7 +7404,7 @@ class AutoTradingEngine:
                 'status': get_status('_afternoon_prefilter_done', '_afternoon_prefilter_error'),
                 'description': 'Afternoon pool update',
                 'type': 'filter',
-                'error': getattr(self, '_afternoon_prefilter_error', {}).get('message') if getattr(self, '_afternoon_prefilter_error', {}).get('date') == today else None
+                'error': (lambda err: err.get('message') if err and err.get('date') == today else None)(getattr(self, '_afternoon_prefilter_error', None))
             },
             {
                 'name': 'health_check',
