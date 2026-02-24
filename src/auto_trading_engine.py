@@ -5270,52 +5270,99 @@ class AutoTradingEngine:
         if not alpaca_pos:
             # Position closed externally (SL triggered at Alpaca)
             logger.warning(f"{symbol} position not found - SL likely triggered at Alpaca")
+
+            # v6.43: Fix KHC bug - Query actual fill price from Alpaca
+            actual_fill_price = None
+            if managed_pos.sl_order_id:
+                try:
+                    filled_order = self.broker.get_order(managed_pos.sl_order_id)
+                    if filled_order and filled_order.status == 'filled':
+                        actual_fill_price = filled_order.filled_avg_price
+                        logger.info(f"✅ Retrieved actual fill price for {symbol}: ${actual_fill_price:.2f} (stop @ ${managed_pos.current_sl_price:.2f})")
+                except Exception as e:
+                    logger.warning(f"Failed to get fill price from order {managed_pos.sl_order_id}: {e}")
+
+            # Fallback to stop price if can't get actual fill
+            sell_price = actual_fill_price if actual_fill_price else managed_pos.current_sl_price
+            if not actual_fill_price:
+                logger.warning(f"⚠️ Using stop price ${sell_price:.2f} as fallback (actual fill not available)")
+
             # Record SL exit for stats tracking
             try:
-                sl_price = managed_pos.current_sl_price
-                pnl_pct = ((sl_price - managed_pos.entry_price) / managed_pos.entry_price) * 100
-                pnl_usd = (sl_price - managed_pos.entry_price) * managed_pos.qty
+                pnl_pct = ((sell_price - managed_pos.entry_price) / managed_pos.entry_price) * 100
+                pnl_usd = (sell_price - managed_pos.entry_price) * managed_pos.qty
                 logger.info(f"SL fill detected for {symbol}: {pnl_pct:+.2f}% (${pnl_usd:+.2f})")
-                # Update stats
-                self.daily_stats.realized_pnl += pnl_usd
-                with self._stats_lock:
-                    self.weekly_realized_pnl += pnl_usd
-                if pnl_pct > 0:
-                    self.daily_stats.trades_won += 1
-                else:
-                    self.daily_stats.trades_lost += 1
-                self._record_trade_result(pnl_pct)
-                self._record_sector_trade_result(managed_pos.sector, pnl_pct)
-                # Log the SL trade
+
+                # v6.43: Idempotency check - prevent duplicate logging
+                # Generate deterministic trade_id from timestamp + symbol + action
+                trade_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                trade_id_candidate = f"tr_{trade_timestamp}_{symbol}_SELL"
+
+                # Check if this trade was already logged (within last 5 minutes)
+                already_logged = False
                 try:
-                    days_held = self.pdt_guard.get_days_held(symbol)
-                    hold_delta = datetime.now() - managed_pos.entry_time
-                    hold_hours = int(hold_delta.total_seconds() / 3600)
-                    hold_minutes = int((hold_delta.total_seconds() % 3600) / 60)
-                    hold_duration = f"{hold_hours}h {hold_minutes}m" if hold_hours > 0 else f"{hold_minutes}m"
-                    # v5.0: Fetch exit context (best-effort, never blocks sell)
-                    exit_ctx = self._get_exit_context(symbol, sl_price)
-                    self.trade_logger.log_sell(
-                        symbol=symbol, qty=managed_pos.qty, price=sl_price,
-                        reason="SL_FILLED_AT_ALPACA", entry_price=managed_pos.entry_price,
-                        pnl_usd=pnl_usd, pnl_pct=pnl_pct, hold_duration=hold_duration,
-                        day_held=days_held, sl_price=sl_price,
-                        trail_active=managed_pos.trailing_active, peak_price=managed_pos.peak_price,
-                        # v4.9.8: Carry entry context to SELL for analytics
-                        signal_score=managed_pos.signal_score,
-                        sector=managed_pos.sector,
-                        atr_pct=managed_pos.atr_pct,
-                        # v4.9.9: Signal source, mode, regime, rsi, momentum
-                        signal_source=managed_pos.source,
-                        mode=managed_pos.entry_mode,
-                        regime=managed_pos.entry_regime,
-                        entry_rsi=managed_pos.entry_rsi,
-                        momentum_5d=managed_pos.momentum_5d,
-                        # v5.0: Exit-time indicators
-                        **exit_ctx,
-                    )
-                except Exception as log_err:
-                    logger.warning(f"Trade log error for SL fill: {log_err}")
+                    import sqlite3
+                    db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
+                    if os.path.exists(db_path):
+                        conn = sqlite3.connect(db_path)
+                        cursor = conn.cursor()
+                        # Check for recent SELL of same symbol
+                        five_min_ago = (datetime.now() - timedelta(minutes=5)).isoformat()
+                        cursor.execute("""
+                            SELECT COUNT(*) FROM trades
+                            WHERE symbol = ? AND action = 'SELL'
+                            AND timestamp > ?
+                        """, (symbol, five_min_ago))
+                        count = cursor.fetchone()[0]
+                        conn.close()
+                        if count > 0:
+                            already_logged = True
+                            logger.warning(f"⚠️ Trade already logged for {symbol} within last 5 min - skipping duplicate")
+                except Exception as e:
+                    logger.debug(f"Idempotency check failed (non-critical): {e}")
+
+                if not already_logged:
+                    # Update stats
+                    self.daily_stats.realized_pnl += pnl_usd
+                    with self._stats_lock:
+                        self.weekly_realized_pnl += pnl_usd
+                    if pnl_pct > 0:
+                        self.daily_stats.trades_won += 1
+                    else:
+                        self.daily_stats.trades_lost += 1
+                    self._record_trade_result(pnl_pct)
+                    self._record_sector_trade_result(managed_pos.sector, pnl_pct)
+
+                    # Log the SL trade
+                    try:
+                        days_held = self.pdt_guard.get_days_held(symbol)
+                        hold_delta = datetime.now() - managed_pos.entry_time
+                        hold_hours = int(hold_delta.total_seconds() / 3600)
+                        hold_minutes = int((hold_delta.total_seconds() % 3600) / 60)
+                        hold_duration = f"{hold_hours}h {hold_minutes}m" if hold_hours > 0 else f"{hold_minutes}m"
+                        # v5.0: Fetch exit context (best-effort, never blocks sell)
+                        exit_ctx = self._get_exit_context(symbol, sell_price)
+                        self.trade_logger.log_sell(
+                            symbol=symbol, qty=managed_pos.qty, price=sell_price,
+                            reason="SL_FILLED_AT_ALPACA", entry_price=managed_pos.entry_price,
+                            pnl_usd=pnl_usd, pnl_pct=pnl_pct, hold_duration=hold_duration,
+                            day_held=days_held, sl_price=sell_price,
+                            trail_active=managed_pos.trailing_active, peak_price=managed_pos.peak_price,
+                            # v4.9.8: Carry entry context to SELL for analytics
+                            signal_score=managed_pos.signal_score,
+                            sector=managed_pos.sector,
+                            atr_pct=managed_pos.atr_pct,
+                            # v4.9.9: Signal source, mode, regime, rsi, momentum
+                            signal_source=managed_pos.source,
+                            mode=managed_pos.entry_mode,
+                            regime=managed_pos.entry_regime,
+                            entry_rsi=managed_pos.entry_rsi,
+                            momentum_5d=managed_pos.momentum_5d,
+                            # v5.0: Exit-time indicators
+                            **exit_ctx,
+                        )
+                    except Exception as log_err:
+                        logger.warning(f"Trade log error for SL fill: {log_err}")
             except Exception as e:
                 logger.warning(f"Failed to track SL fill for {symbol}: {e}")
             with self._positions_lock:
@@ -7324,7 +7371,7 @@ class AutoTradingEngine:
                 'status': get_status('_evening_prefilter_done', '_evening_prefilter_error'),
                 'description': 'Evening pre-filter scan (987 stocks)',
                 'type': 'filter',
-                'error': getattr(self, '_evening_prefilter_error', {}).get('message') if getattr(self, '_evening_prefilter_error', {}).get('date') == today else None
+                'error': (lambda err: err.get('message') if err and err.get('date') == today else None)(getattr(self, '_evening_prefilter_error', None))
             },
             {
                 'name': 'prefilter_preopen',
