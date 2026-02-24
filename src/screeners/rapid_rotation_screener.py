@@ -574,31 +574,29 @@ class RapidRotationScreener:
         # v6.18: Check pool health and trigger refresh if needed
         self._check_prefilter_pool_health()
 
-        # v6.2: Try pre-filtered pool first (from overnight scan)
+        # v6.44: Read pre-filtered pool from database (single source of truth)
         try:
-            pre_filter_file = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-                'data', 'pre_filtered.json'
-            )
-            if os.path.exists(pre_filter_file):
-                with open(pre_filter_file) as f:
-                    pre_filtered = json.load(f)
+            from database.repositories.pre_filter_repository import PreFilterRepository
+            from datetime import datetime
 
+            repo = PreFilterRepository()
+            latest_session = repo.get_latest_session(scan_type='evening')
+
+            if latest_session and latest_session.status == 'completed' and latest_session.is_ready:
                 # Check if pool is fresh (< 12 hours old)
-                generated_at = pre_filtered.get('generated_at', '')
-                if generated_at:
-                    from datetime import datetime
-                    gen_time = datetime.fromisoformat(generated_at)
-                    age_hours = (datetime.now() - gen_time).total_seconds() / 3600
+                age_hours = (datetime.now() - latest_session.scan_time).total_seconds() / 3600
 
-                    if age_hours < 12:
-                        pool_stocks = list(pre_filtered.get('stocks', {}).keys())
-                        if len(pool_stocks) >= 50:
-                            universe = pool_stocks  # v6.17: Use ALL stocks from pre-filter (no max limit)
-                            logger.info(f"📦 Using pre-filtered pool: {len(universe)} stocks (age: {age_hours:.1f}h)")
-                            self._using_prefilter = True
-                    else:
-                        logger.warning(f"⚠️ Pre-filtered pool is stale ({age_hours:.1f}h old)")
+                if age_hours < 12:
+                    # Get filtered stocks from this session
+                    pool_stocks = repo.get_filtered_pool(session_id=latest_session.id)
+                    if len(pool_stocks) >= 50:
+                        universe = [stock.symbol for stock in pool_stocks]
+                        logger.info(f"📦 Using pre-filtered pool (DB): {len(universe)} stocks (age: {age_hours:.1f}h, session: {latest_session.id})")
+                        self._using_prefilter = True
+                else:
+                    logger.warning(f"⚠️ Pre-filtered pool is stale ({age_hours:.1f}h old)")
+            else:
+                logger.debug(f"Pre-filtered pool not ready (status: {latest_session.status if latest_session else 'None'})")
         except Exception as e:
             logger.debug(f"Pre-filtered pool not available: {e}")
 

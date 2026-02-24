@@ -235,80 +235,86 @@ class PreFilterRunner:
         return {}
 
     def _load_pre_filtered(self) -> Dict[str, Any]:
-        """Load pre-filtered data."""
+        """Load pre-filtered data from database."""
         try:
-            if os.path.exists(self.PRE_FILTERED_FILE):
-                with open(self.PRE_FILTERED_FILE, 'r') as f:
-                    return json.load(f)
+            from database import PreFilterRepository
+
+            repo = PreFilterRepository()
+            latest_session = repo.get_latest_session(scan_type='evening')
+
+            if not latest_session:
+                logger.warning("No evening scan session found in DB")
+                return {"stocks": {}, "generated_at": "", "windows_completed": []}
+
+            # Get filtered stocks
+            filtered_stocks = repo.get_filtered_pool(session_id=latest_session.id)
+
+            # Convert to legacy format for compatibility
+            stocks_dict = {}
+            for stock in filtered_stocks:
+                stocks_dict[stock.symbol] = {
+                    'symbol': stock.symbol,
+                    'sector': stock.sector,
+                    'score': stock.score,
+                    'close_price': stock.close_price,
+                    'volume_avg_20d': stock.volume_avg_20d,
+                    'atr_pct': stock.atr_pct,
+                    'rsi': stock.rsi
+                }
+
+            return {
+                "stocks": stocks_dict,
+                "generated_at": latest_session.scan_time.isoformat(),
+                "windows_completed": []
+            }
+
         except Exception as e:
-            logger.warning(f"Failed to load pre-filtered data: {e}")
-        return {"stocks": {}, "generated_at": "", "windows_completed": []}
+            logger.warning(f"Failed to load pre-filtered data from DB: {e}")
+            return {"stocks": {}, "generated_at": "", "windows_completed": []}
 
     def _save_pre_filtered(self, data: Dict[str, Any]):
-        """Save pre-filtered data (atomic write via tempfile → rename)."""
+        """Save pre-filtered data to database (single source of truth)."""
         try:
-            import numpy as np
-            import tempfile
+            from database import PreFilterRepository, FilteredStock
 
-            def default_encoder(obj):
-                if isinstance(obj, (np.bool_, np.integer)):
-                    return int(obj)
-                elif isinstance(obj, np.floating):
-                    return float(obj)
-                elif isinstance(obj, np.ndarray):
-                    return obj.tolist()
-                raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+            if not hasattr(self, '_current_session_id') or not self._current_session_id:
+                logger.warning("No current session ID - stocks not saved to DB")
+                return
 
-            target = self.PRE_FILTERED_FILE
-            dir_ = os.path.dirname(target) or '.'
-            with tempfile.NamedTemporaryFile('w', dir=dir_, suffix='.tmp', delete=False) as tmp:
-                json.dump(data, tmp, indent=2, default=default_encoder)
-                tmp_path = tmp.name
-            os.replace(tmp_path, target)  # atomic on Linux
-            logger.info(f"Saved pre-filtered data to JSON: {len(data.get('stocks', {}))} stocks")
+            repo = PreFilterRepository()
+            stocks_data = data.get('stocks', {})
 
-            # Phase 2: Save to database
-            try:
-                from database import PreFilterRepository, FilteredStock
-
-                if not hasattr(self, '_current_session_id') or not self._current_session_id:
-                    logger.warning("No current session ID - stocks not saved to DB")
-                    return
-
-                repo = PreFilterRepository()
-                stocks_data = data.get('stocks', {})
-
-                # Convert to FilteredStock objects
-                filtered_stocks = []
-                for symbol, stock_data in stocks_data.items():
-                    if isinstance(stock_data, dict):
-                        stock = FilteredStock(
-                            session_id=self._current_session_id,
-                            symbol=symbol,
-                            sector=stock_data.get('sector'),
-                            score=stock_data.get('score'),
-                            close_price=stock_data.get('close') or stock_data.get('close_price'),
-                            volume_avg_20d=stock_data.get('volume_avg_20d'),
-                            atr_pct=stock_data.get('atr_pct'),
-                            rsi=stock_data.get('rsi')
-                        )
-                        filtered_stocks.append(stock)
-
-                # Bulk insert
-                if filtered_stocks:
-                    added = repo.add_stocks_bulk(filtered_stocks)
-                    logger.info(f"Saved {added} stocks to database (session {self._current_session_id})")
-
-                    # Update session pool size
-                    repo.update_session_status(
+            # Convert to FilteredStock objects
+            filtered_stocks = []
+            for symbol, stock_data in stocks_data.items():
+                if isinstance(stock_data, dict):
+                    stock = FilteredStock(
                         session_id=self._current_session_id,
-                        pool_size=added
+                        symbol=symbol,
+                        sector=stock_data.get('sector'),
+                        score=stock_data.get('score'),
+                        close_price=stock_data.get('close') or stock_data.get('close_price'),
+                        volume_avg_20d=stock_data.get('volume_avg_20d'),
+                        atr_pct=stock_data.get('atr_pct'),
+                        rsi=stock_data.get('rsi')
                     )
-            except Exception as db_err:
-                logger.error(f"Failed to save pre-filtered data to DB: {db_err}")
+                    filtered_stocks.append(stock)
+
+            # Bulk insert
+            if filtered_stocks:
+                added = repo.add_stocks_bulk(filtered_stocks)
+                logger.info(f"✅ Saved {added} stocks to database (session {self._current_session_id})")
+
+                # Update session pool size
+                repo.update_session_status(
+                    session_id=self._current_session_id,
+                    pool_size=added
+                )
+            else:
+                logger.warning("No stocks to save")
 
         except Exception as e:
-            logger.error(f"Failed to save pre-filtered data: {e}")
+            logger.error(f"Failed to save pre-filtered data to DB: {e}")
 
     def _fetch_stock_data(self, symbol: str) -> Optional[Dict]:
         """

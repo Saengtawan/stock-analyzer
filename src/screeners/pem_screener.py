@@ -71,23 +71,26 @@ class PEMScreener:
 
     def get_universe(self) -> List[str]:
         """
-        Get scan universe from pre-filter pool.
+        Get scan universe from pre-filter pool (database).
 
         Pre-filter pool has ~200-400 quality stocks. PEM looks for earnings gaps
         among these stocks. Not all earnings gaps will be in the pool, but this
         provides a quality-screened starting point without rate limit issues.
         """
         try:
-            if os.path.exists(self.PRE_FILTERED_FILE):
-                with open(self.PRE_FILTERED_FILE, 'r') as f:
-                    data = json.load(f)
-                stocks = data.get('stocks', [])
-                if isinstance(stocks, list) and stocks:
-                    if isinstance(stocks[0], dict):
-                        return [s['symbol'] for s in stocks if s.get('symbol')]
-                    return [s for s in stocks if isinstance(s, str)]
+            from database.repositories.pre_filter_repository import PreFilterRepository
+
+            repo = PreFilterRepository()
+            latest_session = repo.get_latest_session(scan_type='evening')
+
+            if latest_session and latest_session.status == 'completed' and latest_session.is_ready:
+                pool_stocks = repo.get_filtered_pool(session_id=latest_session.id)
+                if pool_stocks:
+                    symbols = [stock.symbol for stock in pool_stocks]
+                    logger.info(f"PEM: Loaded {len(symbols)} stocks from pre-filtered pool (DB session: {latest_session.id})")
+                    return symbols
         except Exception as e:
-            logger.debug(f"PEM: Error loading pre-filtered pool: {e}")
+            logger.debug(f"PEM: Error loading pre-filtered pool from DB: {e}")
 
         logger.warning("PEM: Pre-filtered pool unavailable, using fallback list")
         return self._get_fallback_universe()
