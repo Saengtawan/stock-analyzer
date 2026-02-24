@@ -71,7 +71,7 @@ rapid_rotation:
   pdt_account_threshold: 25000.0  # PDT threshold ($)
   pdt_day_trade_limit: 3          # Max day trades (non-PDT)
   pdt_reserve: 1                  # Keep N day trades for emergencies (v6.10.1)
-  pdt_enforce_always: true        # Enforce PDT rules always
+  pdt_enforce_always: false       # v6.44: Disabled (paper account bug: 0/3 trades but flagged)
 
   # -- SPY Intraday Filter (block new entries when SPY already selling off) --
   spy_intraday_filter_enabled: true

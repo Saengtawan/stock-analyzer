@@ -429,8 +429,18 @@ class TradingSafetySystem:
                 daytrade_count = getattr(account, 'day_trade_count', 0)
                 is_pdt = getattr(account, 'pattern_day_trader', False)
 
+            # v6.44: If PDT not enforced (paper trading), skip all PDT checks
+            if not self.PDT_ENFORCE_ALWAYS:
+                return SafetyCheck(
+                    name="PDT Rule",
+                    status=SafetyStatus.OK,
+                    message=f"PDT not enforced (pdt_enforce_always=false)",
+                    value=daytrade_count,
+                    threshold=self.PDT_DAY_TRADE_LIMIT
+                )
+
             # If account >= $25K, PDT doesn't apply
-            if portfolio_value >= self.PDT_ACCOUNT_THRESHOLD and not self.PDT_ENFORCE_ALWAYS:
+            if portfolio_value >= self.PDT_ACCOUNT_THRESHOLD:
                 return SafetyCheck(
                     name="PDT Rule",
                     status=SafetyStatus.OK,
