@@ -113,8 +113,9 @@ class PreFilterRepository:
             logger.error(f"Failed to get session: {e}")
             return None
 
-    def update_session_status(self, session_id: int, status: str,
+    def update_session_status(self, session_id: int, status: str = None,
                              pool_size: Optional[int] = None,
+                             total_scanned: Optional[int] = None,
                              duration: Optional[float] = None,
                              error_message: Optional[str] = None) -> bool:
         """
@@ -122,8 +123,9 @@ class PreFilterRepository:
 
         Args:
             session_id: Session ID
-            status: New status ('running', 'completed', 'failed')
+            status: Optional new status ('running', 'completed', 'failed')
             pool_size: Optional pool size
+            total_scanned: Optional total stocks scanned
             duration: Optional duration in seconds
             error_message: Optional error message
 
@@ -131,12 +133,20 @@ class PreFilterRepository:
             True if successful
         """
         try:
-            params = [status]
-            query_parts = ["status = ?"]
+            params = []
+            query_parts = []
+
+            if status is not None:
+                query_parts.append("status = ?")
+                params.append(status)
 
             if pool_size is not None:
                 query_parts.append("pool_size = ?")
                 params.append(pool_size)
+
+            if total_scanned is not None:
+                query_parts.append("total_scanned = ?")
+                params.append(total_scanned)
 
             if duration is not None:
                 query_parts.append("duration_seconds = ?")
@@ -148,6 +158,10 @@ class PreFilterRepository:
 
             if status == 'completed':
                 query_parts.append("is_ready = 1")
+
+            # Nothing to update
+            if not query_parts:
+                return True
 
             params.append(session_id)
 
