@@ -268,6 +268,7 @@ class RapidRotationScreener:
         self._data_cache_time: Dict[str, float] = {}
         self.universe: List[str] = []
         self.data_manager = None  # v4.9.3: Shared DataManager for Tiingo routing
+        self._using_prefilter = False  # v6.44: Track if using pre-filtered pool (default False)
 
         # v4.9.3: Persistent sector cache (memory + disk)
         self._sector_cache: Dict[str, dict] = {}
