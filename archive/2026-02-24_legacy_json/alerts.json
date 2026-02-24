@@ -1,0 +1,2005 @@
+{
+  "next_id": 2825,
+  "alerts": [
+    {
+      "id": 2625,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (119m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T05:57:36.658243-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2626,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (124m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T06:02:41.870295-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2627,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (130m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T06:07:47.053801-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2628,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (135m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T06:12:52.334066-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2629,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (140m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T06:17:57.795781-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2630,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (145m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T06:23:03.100537-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2631,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (150m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T06:28:08.313767-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2632,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (155m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T06:33:14.031082-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2633,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (160m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T06:38:19.236193-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2634,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (165m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T06:43:24.522697-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2635,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (170m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T06:48:29.946807-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2636,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (175m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T06:53:35.216092-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2637,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (180m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T06:58:40.453327-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2638,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (186m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T07:03:45.668249-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2639,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (191m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T07:08:50.946686-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2640,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (196m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T07:13:56.163832-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2641,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (201m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T07:19:01.576880-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2642,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (206m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T07:24:06.763399-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2643,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (211m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T07:29:11.961781-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2644,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (216m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T07:34:17.133178-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2645,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (221m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T07:39:22.336501-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2646,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (226m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T07:44:27.523968-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2647,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (231m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T07:49:33.496601-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2648,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (236m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T07:54:38.684522-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2649,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (241m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T07:59:44.325599-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2650,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T08:04:48.753810-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2651,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T08:09:53.500155-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2652,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T08:14:57.784965-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2653,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T08:20:05.794250-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2654,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Dead threads: web; Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T08:20:14.324349-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2655,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T08:25:18.894128-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2656,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T08:30:23.183488-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2657,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T08:35:05.760468-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2658,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Dead threads: web; Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T08:35:25.458519-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2659,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T08:36:49.111746-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2660,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T08:40:05.915316-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2661,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T08:45:06.222076-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2662,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T08:50:06.538929-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2663,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T08:55:06.848942-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2664,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T09:00:07.161136-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2665,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T09:05:07.572416-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2666,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T09:10:07.948217-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2667,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T09:15:08.339955-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2668,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T09:20:08.740602-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2669,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T09:25:09.057931-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2670,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T09:30:09.614580-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2671,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T09:35:09.979646-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2672,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T09:40:10.425934-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2673,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T09:45:10.852049-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2674,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T09:50:11.166761-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2675,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T09:55:11.679738-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2676,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T10:00:12.103082-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2677,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T10:05:12.427976-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2678,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T10:10:12.896077-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2679,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T10:15:13.208514-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2680,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Alpaca API down: alpaca-trade-api package not installed; Market clock: trader not available",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T10:20:13.816943-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2681,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Dead threads: web; Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T10:20:54.509808-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2682,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T10:25:59.011251-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2683,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Dead threads: web; Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T10:29:41.441869-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2684,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Dead threads: web; Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T10:32:41.962044-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2685,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T10:37:46.605059-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2686,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Dead threads: web; Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T10:42:11.744525-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2687,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T10:47:16.412939-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2688,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T10:52:21.091514-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2689,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T10:57:25.373425-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2690,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T11:02:29.932262-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2691,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T11:07:34.365093-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2692,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Scanner stale (30m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T11:12:39.266614-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2693,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (14m); Scanner stale (35m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T11:17:43.565340-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2694,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (19m); Scanner stale (40m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T11:22:48.370791-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2695,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (24m); Scanner stale (45m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T11:27:52.672932-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2696,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (30m); Scanner stale (50m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T11:32:56.963570-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2697,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (35m); Scanner stale (56m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T11:38:01.266793-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2698,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (40m); Scanner stale (61m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T11:43:05.580190-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2699,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (45m); Scanner stale (66m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T11:48:09.853559-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2700,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (50m); Scanner stale (71m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T11:53:14.641460-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2701,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (55m); Scanner stale (76m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T11:58:18.939456-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2702,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (60m); Scanner stale (81m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T12:03:23.224570-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2703,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (65m); Scanner stale (86m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T12:08:27.554054-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2704,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (70m); Scanner stale (91m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T12:13:31.867579-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2705,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (75m); Scanner stale (96m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T12:18:36.172258-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2706,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (80m); Scanner stale (101m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T12:23:40.399823-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2707,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (85m); Scanner stale (106m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T12:28:44.699831-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2708,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (90m); Scanner stale (111m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T12:33:48.979535-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2709,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (95m); Scanner stale (116m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T12:38:53.207056-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2710,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (101m); Scanner stale (121m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T12:43:57.489742-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2711,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (106m); Scanner stale (127m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T12:49:01.772615-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2712,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (111m); Scanner stale (132m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T12:54:06.066310-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2713,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (116m); Scanner stale (137m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T12:59:10.326611-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2714,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (121m); Scanner stale (142m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T13:04:14.631542-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2715,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (126m); Scanner stale (147m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T13:09:19.071133-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2716,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (131m); Scanner stale (152m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T13:14:23.408421-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2717,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (136m); Scanner stale (157m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T13:19:27.702113-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2718,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (141m); Scanner stale (162m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T13:24:31.992770-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2719,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (146m); Scanner stale (167m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T13:29:36.316068-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2720,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (151m); Scanner stale (172m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T13:34:40.949141-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2721,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (156m); Scanner stale (177m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T13:39:45.279301-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2722,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (161m); Scanner stale (182m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T13:44:49.567800-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2723,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (166m); Scanner stale (187m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T13:49:54.435098-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2724,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (172m); Scanner stale (193m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T13:54:58.763248-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2725,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (177m); Scanner stale (198m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T14:00:03.070521-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2726,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (182m); Scanner stale (203m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T14:05:07.468028-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2727,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (187m); Scanner stale (208m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T14:10:12.326762-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2728,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (192m); Scanner stale (213m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T14:15:16.656874-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2729,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (197m); Scanner stale (218m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T14:20:21.043594-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2730,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (202m); Scanner stale (223m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T14:25:26.094125-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2731,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (207m); Scanner stale (228m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T14:30:30.458286-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2732,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (212m); Scanner stale (233m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T14:35:34.814427-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2733,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (217m); Scanner stale (238m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T14:40:39.556327-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2734,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (222m); Scanner stale (243m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T14:45:43.857823-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2735,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (227m); Scanner stale (248m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T14:50:48.404328-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2736,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (232m); Scanner stale (253m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T14:55:52.730898-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2737,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (238m); Scanner stale (258m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T15:00:57.820992-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2738,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (243m); Scanner stale (264m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T15:06:02.120203-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2739,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (248m); Scanner stale (269m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T15:11:06.458243-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2740,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (253m); Scanner stale (274m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T15:16:10.721947-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2741,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (258m); Scanner stale (279m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T15:21:15.026208-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2742,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (263m); Scanner stale (284m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T15:26:19.311955-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2743,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (268m); Scanner stale (289m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T15:31:23.561633-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2744,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (273m); Scanner stale (294m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T15:36:27.832128-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2745,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (278m); Scanner stale (299m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T15:41:32.099704-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2746,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (283m); Scanner stale (304m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T15:46:36.400776-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2747,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (288m); Scanner stale (309m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T15:51:40.679152-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2748,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (293m); Scanner stale (314m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T15:56:44.967864-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2749,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (298m); Scanner stale (319m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T16:01:49.491972-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2750,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (303m); Scanner stale (324m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T16:06:53.773599-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2751,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (309m); Scanner stale (329m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T16:11:58.496270-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2752,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (314m); Scanner stale (335m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T16:17:02.773668-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2753,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (319m); Scanner stale (340m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T16:22:07.044550-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2754,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Portfolio monitor stale (324m); Scanner stale (345m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T16:27:11.784218-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2755,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "3 issue(s): Dead threads: web; Scanner stale (350m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T16:32:25.833397-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2756,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T16:37:30.573061-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2757,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T16:42:35.010513-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2758,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T16:47:39.371302-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2759,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T16:52:43.920229-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2760,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T16:57:48.255956-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2761,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T17:02:53.262916-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2762,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T17:07:58.259374-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2763,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T17:13:02.535785-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2764,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T17:18:06.926901-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2765,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T17:23:11.356332-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2766,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (12m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T17:28:15.601655-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2767,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (17m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T17:33:19.871782-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2768,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (22m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T17:38:24.132757-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2769,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (27m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T17:43:28.378836-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2770,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (32m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T17:48:32.634755-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2771,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (38m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T17:53:36.925731-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2772,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (43m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T17:58:41.196808-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2773,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (48m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T18:03:45.436585-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2774,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (53m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T18:08:49.690944-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2775,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (58m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T18:13:53.958481-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2776,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (63m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T18:18:58.696697-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2777,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (68m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T18:26:16.997814-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2778,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (75m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T18:31:21.287083-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2779,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (80m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T18:36:25.644664-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2780,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (85m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T18:41:29.895526-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2781,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (90m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T18:46:34.133982-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2782,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (96m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T18:51:38.385043-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2783,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (101m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T18:56:42.627316-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2784,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (106m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T19:01:47.895079-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2785,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (111m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T19:06:53.143470-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2786,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (116m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T19:11:58.766851-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2787,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (121m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T19:17:04.417767-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2788,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (126m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T19:22:09.693148-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2789,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (131m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T19:27:14.963048-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2790,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (136m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T19:32:20.273933-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2791,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (141m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T19:37:25.524676-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2792,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (146m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T19:42:31.047615-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2793,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (151m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T19:47:36.310464-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2794,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (157m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T19:52:41.602447-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2795,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (162m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T20:00:01.778933-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2796,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (169m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T20:05:07.033011-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2797,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (174m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T20:10:12.301228-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2798,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (179m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T20:15:17.618088-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2799,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (184m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T20:20:22.993230-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2800,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (189m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T20:25:28.255634-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2801,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (194m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T20:30:33.594714-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2802,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (200m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T20:35:38.873214-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2803,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (205m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T20:40:44.185926-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2804,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (210m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T20:45:49.443716-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2805,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (215m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T20:50:54.749342-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2806,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (220m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T20:56:00.024851-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2807,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (225m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T21:01:05.215907-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2808,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (230m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T21:06:10.449184-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2809,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (235m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T21:11:15.731669-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2810,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (240m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T21:16:21.532820-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2811,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (245m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T21:21:26.801745-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2812,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (250m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T21:26:32.096989-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2813,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (255m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T21:31:37.368818-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2814,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (261m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T21:36:42.707094-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2815,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (266m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T21:41:47.937261-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2816,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (271m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T21:46:53.185984-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2817,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (276m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T21:51:58.502090-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2818,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (281m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T21:57:03.786628-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2819,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Portfolio monitor stale (286m); Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T22:02:09.078073-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2820,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "2 issue(s): Dead threads: web; Position mismatch: memory=2, Alpaca=3",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T22:03:23.034599-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2821,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Dead threads: web",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T22:07:58.927917-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2822,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Dead threads: web",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T22:34:46.848486-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2823,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Dead threads: web",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-11T22:55:09.237883-05:00",
+      "acknowledged": false
+    },
+    {
+      "id": 2824,
+      "level": "WARNING",
+      "title": "Health Check Failed",
+      "message": "1 issue(s): Dead threads: web",
+      "category": "health",
+      "symbol": "",
+      "timestamp": "2026-02-12T03:29:56.135782-05:00",
+      "acknowledged": false
+    }
+  ]
+}

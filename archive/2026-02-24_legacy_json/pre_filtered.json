@@ -1,0 +1,4661 @@
+{
+  "generated_at": "2026-02-24T14:29:55.816696",
+  "windows_completed": [
+    "evening"
+  ],
+  "pool_size": 232,
+  "scan_duration_sec": 1379.2,
+  "filter_stats": {
+    "price": 21,
+    "atr": 149,
+    "sma20": 394,
+    "overextended": 21,
+    "rsi_high": 73,
+    "dollar_vol": 2,
+    "no_dip": 0,
+    "crash": 0,
+    "error": 95
+  },
+  "stocks": {
+    "AAPL": {
+      "symbol": "AAPL",
+      "sector": "Technology",
+      "price": 266.17999267578125,
+      "sma20": 265.8142623901367,
+      "sma50": 265.69377990722654,
+      "atr_pct": 2.5473269269077305,
+      "avg_volume": 55502010.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.13758866147962648,
+      "rsi": 46.686193731778175,
+      "dollar_volume": 14773524615.291138,
+      "return_5d": 0.8716036646998551,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:06:59.448262"
+    },
+    "DELL": {
+      "symbol": "DELL",
+      "sector": "Technology",
+      "price": 119.13999938964844,
+      "sma20": 118.5180004119873,
+      "sma50": 121.81565521240235,
+      "atr_pct": 5.30708198793418,
+      "avg_volume": 7514825.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 0.5248139316382059,
+      "rsi": 49.98113516517451,
+      "dollar_volume": 895316245.9133148,
+      "return_5d": 2.6272746558458815,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:08:34.884544"
+    },
+    "WDC": {
+      "symbol": "WDC",
+      "sector": "Technology",
+      "price": 280.4200134277344,
+      "sma20": 274.68749923706054,
+      "sma50": 227.2921987915039,
+      "atr_pct": 8.279417040811207,
+      "avg_volume": 11783480.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.08692212299278,
+      "rsi": 53.26247279855926,
+      "dollar_volume": 3304323619.8254395,
+      "return_5d": -1.298782905944714,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:04.129589"
+    },
+    "NVDA": {
+      "symbol": "NVDA",
+      "sector": "Semiconductors",
+      "price": 191.5500030517578,
+      "sma20": 186.40900039672852,
+      "sma50": 184.93160034179687,
+      "atr_pct": 3.58280196518315,
+      "avg_volume": 170752635.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.7579154676479463,
+      "rsi": 55.81896693471189,
+      "dollar_volume": 32707667755.345688,
+      "return_5d": 3.55733458811169,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:10.029073"
+    },
+    "AVGO": {
+      "symbol": "AVGO",
+      "sector": "Semiconductors",
+      "price": 330.3399963378906,
+      "sma20": 330.11700134277345,
+      "sma50": 339.92249084472655,
+      "atr_pct": 5.013017527949977,
+      "avg_volume": 24448775.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 0.06755029102110124,
+      "rsi": 49.594016069439654,
+      "dollar_volume": 8076408243.965912,
+      "return_5d": -0.661578201268993,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:12.354069"
+    },
+    "TXN": {
+      "symbol": "TXN",
+      "sector": "Semiconductors",
+      "price": 219.86000061035156,
+      "sma20": 218.9579086303711,
+      "sma50": 196.77205963134764,
+      "atr_pct": 2.983717774964341,
+      "avg_volume": 9577035.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.4119933304182747,
+      "rsi": 42.24164881340972,
+      "dollar_volume": 2105606920.9453583,
+      "return_5d": -2.5831901138679263,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:14.863060"
+    },
+    "MU": {
+      "symbol": "MU",
+      "sector": "Semiconductors",
+      "price": 420.9700012207031,
+      "sma20": 408.97200164794924,
+      "sma50": 347.9793817138672,
+      "atr_pct": 6.356409611536986,
+      "avg_volume": 37431640.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.9336970561329494,
+      "rsi": 45.636057040620194,
+      "dollar_volume": 15757597536.49292,
+      "return_5d": 5.300415855247534,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:16.400918"
+    },
+    "AMAT": {
+      "symbol": "AMAT",
+      "sector": "Semiconductors",
+      "price": 373.54998779296875,
+      "sma20": 337.33704833984376,
+      "sma50": 304.1965203857422,
+      "atr_pct": 5.024557366033649,
+      "avg_volume": 8673385.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 10.734942880226708,
+      "rsi": 66.66511127905329,
+      "dollar_volume": 3239942860.8737183,
+      "return_5d": 4.144975621343903,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:17.760218"
+    },
+    "LRCX": {
+      "symbol": "LRCX",
+      "sector": "Semiconductors",
+      "price": 242.27000427246094,
+      "sma20": 233.1159996032715,
+      "sma50": 207.7717999267578,
+      "atr_pct": 5.2353034004320005,
+      "avg_volume": 11727280.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.9268024008511606,
+      "rsi": 52.72977301825624,
+      "dollar_volume": 2841168175.7043457,
+      "return_5d": 2.8398006576992727,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:19.270265"
+    },
+    "KLAC": {
+      "symbol": "KLAC",
+      "sector": "Semiconductors",
+      "price": 1487.6600341796875,
+      "sma20": 1469.368231201172,
+      "sma50": 1389.108603515625,
+      "atr_pct": 4.280444688367597,
+      "avg_volume": 1250450.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.2448753545979716,
+      "rsi": 59.77915832353402,
+      "dollar_volume": 1860244489.7399902,
+      "return_5d": 1.188288144369101,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:20.710834"
+    },
+    "ON": {
+      "symbol": "ON",
+      "sector": "Semiconductors",
+      "price": 69.47000122070312,
+      "sma20": 65.89449958801269,
+      "sma50": 61.01219993591309,
+      "atr_pct": 4.425342526532106,
+      "avg_volume": 10270685.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 5.426100289167195,
+      "rsi": 68.31180704677085,
+      "dollar_volume": 713504499.4874573,
+      "return_5d": -3.460252772997626,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:26.085308"
+    },
+    "SWKS": {
+      "symbol": "SWKS",
+      "sector": "Semiconductors",
+      "price": 59.779998779296875,
+      "sma20": 59.749999618530275,
+      "sma50": 61.60859962463379,
+      "atr_pct": 4.094775766244944,
+      "avg_volume": 4374385.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 0.050207800766740925,
+      "rsi": 58.11776897502412,
+      "dollar_volume": 261500729.96017456,
+      "return_5d": -3.828830556559791,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:28.620660"
+    },
+    "MPWR": {
+      "symbol": "MPWR",
+      "sector": "Semiconductors",
+      "price": 1190.06005859375,
+      "sma20": 1164.830499267578,
+      "sma50": 1048.1982678222657,
+      "atr_pct": 5.233050652490774,
+      "avg_volume": 707180.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.1659425420295744,
+      "rsi": 52.09924012602076,
+      "dollar_volume": 841586672.2363281,
+      "return_5d": 1.4388247421543363,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:29.926224"
+    },
+    "ENTG": {
+      "symbol": "ENTG",
+      "sector": "Semiconductors",
+      "price": 136.4199981689453,
+      "sma20": 124.82719802856445,
+      "sma50": 107.95145416259766,
+      "atr_pct": 5.475211961494878,
+      "avg_volume": 3486070.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 9.287078716393246,
+      "rsi": 66.05382773441775,
+      "dollar_volume": 475569663.0168152,
+      "return_5d": 5.294844658552201,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:31.089865"
+    },
+    "ASML": {
+      "symbol": "ASML",
+      "sector": "Semiconductors",
+      "price": 1485.989990234375,
+      "sma20": 1424.1676025390625,
+      "sma50": 1276.0561108398438,
+      "atr_pct": 3.2418254595928,
+      "avg_volume": 1904330.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.340948887272333,
+      "rsi": 56.52442155508274,
+      "dollar_volume": 2829815318.1030273,
+      "return_5d": 4.663395707170885,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:32.415210"
+    },
+    "TSM": {
+      "symbol": "TSM",
+      "sector": "Semiconductors",
+      "price": 370.0400085449219,
+      "sma20": 350.9595001220703,
+      "sma50": 327.322099609375,
+      "atr_pct": 4.284478634155443,
+      "avg_volume": 12520375.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 5.436669591851763,
+      "rsi": 66.23643043756041,
+      "dollar_volume": 4633039671.985626,
+      "return_5d": 1.603513493176615,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:33.609632"
+    },
+    "QRVO": {
+      "symbol": "QRVO",
+      "sector": "Semiconductors",
+      "price": 82.45999908447266,
+      "sma20": 81.98549995422363,
+      "sma50": 83.45759948730469,
+      "atr_pct": 2.985170818566157,
+      "avg_volume": 1625190.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 0.5787598179116604,
+      "rsi": 57.37430248556382,
+      "dollar_volume": 134013165.91209412,
+      "return_5d": -2.171078195726507,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:34.951539"
+    },
+    "WOLF": {
+      "symbol": "WOLF",
+      "sector": "Semiconductors",
+      "price": 18.469999313354492,
+      "sma20": 17.26500000953674,
+      "sma50": 18.147399997711183,
+      "atr_pct": 10.800526893830634,
+      "avg_volume": 2009150.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 6.979434133519489,
+      "rsi": 57.01288146965595,
+      "dollar_volume": 37108999.12042618,
+      "return_5d": -3.3995894212783284,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:36.095565"
+    },
+    "CRUS": {
+      "symbol": "CRUS",
+      "sector": "Semiconductors",
+      "price": 142.9499969482422,
+      "sma20": 137.3555000305176,
+      "sma50": 128.51559951782227,
+      "atr_pct": 4.713935096842648,
+      "avg_volume": 813135.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.073005388558605,
+      "rsi": 63.93001083312368,
+      "dollar_volume": 116237645.76850891,
+      "return_5d": -0.8943486521033251,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:37.366390"
+    },
+    "LSCC": {
+      "symbol": "LSCC",
+      "sector": "Semiconductors",
+      "price": 97.66000366210938,
+      "sma20": 89.89950027465821,
+      "sma50": 83.72920059204101,
+      "atr_pct": 5.98358808619008,
+      "avg_volume": 2381950.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 8.632421052109871,
+      "rsi": 68.42368280014607,
+      "dollar_volume": 232621245.72296143,
+      "return_5d": 0.1641063201121795,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:38.724799"
+    },
+    "MKSI": {
+      "symbol": "MKSI",
+      "sector": "Semiconductors",
+      "price": 253.7100067138672,
+      "sma20": 243.2135009765625,
+      "sma50": 203.98020050048828,
+      "atr_pct": 6.254890616737234,
+      "avg_volume": 2026980.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.3157578403989145,
+      "rsi": 59.55589637746245,
+      "dollar_volume": 514265109.4088745,
+      "return_5d": -3.5103048763361446,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:41.268969"
+    },
+    "ONTO": {
+      "symbol": "ONTO",
+      "sector": "Semiconductors",
+      "price": 213.24000549316406,
+      "sma20": 210.69100112915038,
+      "sma50": 191.1024005126953,
+      "atr_pct": 6.185886123423409,
+      "avg_volume": 1055630.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.2098306763710247,
+      "rsi": 56.872231371896994,
+      "dollar_volume": 225102546.99874878,
+      "return_5d": -3.200321398081655,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:44.054815"
+    },
+    "SITM": {
+      "symbol": "SITM",
+      "sector": "Semiconductors",
+      "price": 396.010009765625,
+      "sma20": 391.55599822998045,
+      "sma50": 372.8931982421875,
+      "atr_pct": 8.266078195772405,
+      "avg_volume": 391620.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.1375158485066776,
+      "rsi": 55.8850543317296,
+      "dollar_volume": 155085440.02441406,
+      "return_5d": -4.356956541286994,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:46.736960"
+    },
+    "AMBA": {
+      "symbol": "AMBA",
+      "sector": "Semiconductors",
+      "price": 67.12999725341797,
+      "sma20": 65.02500057220459,
+      "sma50": 68.75400032043457,
+      "atr_pct": 4.668980282695942,
+      "avg_volume": 650580.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 3.2372113228602957,
+      "rsi": 62.76274136533063,
+      "dollar_volume": 43673433.61312866,
+      "return_5d": 2.036778111025026,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:50.523336"
+    },
+    "DIOD": {
+      "symbol": "DIOD",
+      "sector": "Semiconductors",
+      "price": 67.91999816894531,
+      "sma20": 63.81299934387207,
+      "sma50": 57.31679992675781,
+      "atr_pct": 6.834720678365265,
+      "avg_volume": 468395.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 6.4359908910434775,
+      "rsi": 60.3714295648072,
+      "dollar_volume": 31813387.54234314,
+      "return_5d": 0.5626254786304097,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:51.704141"
+    },
+    "PLAB": {
+      "symbol": "PLAB",
+      "sector": "Semiconductors",
+      "price": 37.029998779296875,
+      "sma20": 36.534999465942384,
+      "sma50": 35.19099975585937,
+      "atr_pct": 6.1610269404964315,
+      "avg_volume": 978270.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.3548633381421693,
+      "rsi": 53.90428469758184,
+      "dollar_volume": 36225336.905822754,
+      "return_5d": -4.117038313212336,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:52.800745"
+    },
+    "SMTC": {
+      "symbol": "SMTC",
+      "sector": "Semiconductors",
+      "price": 86.81999969482422,
+      "sma20": 85.19749946594239,
+      "sma50": 79.47740020751954,
+      "atr_pct": 6.258430996316652,
+      "avg_volume": 1464055.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.9043988838315917,
+      "rsi": 47.72506877896564,
+      "dollar_volume": 127109254.65320587,
+      "return_5d": -0.9582522612285084,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:54.357756"
+    },
+    "KLIC": {
+      "symbol": "KLIC",
+      "sector": "Semiconductors",
+      "price": 69.08000183105469,
+      "sma20": 65.73950004577637,
+      "sma50": 57.0136799621582,
+      "atr_pct": 5.719042883677549,
+      "avg_volume": 928630.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 5.08142255866295,
+      "rsi": 67.86058086143396,
+      "dollar_volume": 64149762.100372314,
+      "return_5d": -3.748077104405989,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:09:58.574672"
+    },
+    "CAMT": {
+      "symbol": "CAMT",
+      "sector": "Semiconductors",
+      "price": 153.11000061035156,
+      "sma20": 149.90700073242186,
+      "sma50": 133.52400009155272,
+      "atr_pct": 6.310589199792214,
+      "avg_volume": 556295.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.1366579694612984,
+      "rsi": 58.66025934509507,
+      "dollar_volume": 85174327.78953552,
+      "return_5d": -2.47770661761047,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:10:02.215236"
+    },
+    "COHU": {
+      "symbol": "COHU",
+      "sector": "Semiconductors",
+      "price": 30.40999984741211,
+      "sma20": 30.327999973297118,
+      "sma50": 27.510200004577637,
+      "atr_pct": 6.5368530455206635,
+      "avg_volume": 1062300.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.2703767943391917,
+      "rsi": 53.72714316851936,
+      "dollar_volume": 32304542.837905884,
+      "return_5d": 0.46250210614889614,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:10:03.668223"
+    },
+    "MTSI": {
+      "symbol": "MTSI",
+      "sector": "Semiconductors",
+      "price": 245.52999877929688,
+      "sma20": 232.77299880981445,
+      "sma50": 205.68119873046874,
+      "atr_pct": 5.184410453872603,
+      "avg_volume": 1343175.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 5.480446630283541,
+      "rsi": 63.44904280055511,
+      "dollar_volume": 329789756.1103821,
+      "return_5d": -0.02442996843861809,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:10:04.912067"
+    },
+    "BPOP": {
+      "symbol": "BPOP",
+      "sector": "Finance_Banks",
+      "price": 141.2899932861328,
+      "sma20": 140.40899925231935,
+      "sma50": 131.4925993347168,
+      "atr_pct": 3.123765998236236,
+      "avg_volume": 656610.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.6274484103617115,
+      "rsi": 57.19198164364568,
+      "dollar_volume": 92772422.49160767,
+      "return_5d": -2.4913738871034896,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:11:11.625862"
+    },
+    "OFG": {
+      "symbol": "OFG",
+      "sector": "Finance_Banks",
+      "price": 41.38999938964844,
+      "sma20": 40.90849990844727,
+      "sma50": 41.2668000793457,
+      "atr_pct": 2.521315064005757,
+      "avg_volume": 387640.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.177015735797595,
+      "rsi": 56.626525404968156,
+      "dollar_volume": 16044419.36340332,
+      "return_5d": -1.8961821832203043,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:11:23.598285"
+    },
+    "GPN": {
+      "symbol": "GPN",
+      "sector": "Finance_Payments",
+      "price": 79.48999786376953,
+      "sma20": 73.31850051879883,
+      "sma50": 76.46189666748047,
+      "atr_pct": 4.317703638702864,
+      "avg_volume": 4066355.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 8.417380744698038,
+      "rsi": 60.17915410632942,
+      "dollar_volume": 323234550.26332855,
+      "return_5d": 13.931491598644183,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:11:45.553866"
+    },
+    "CPAY": {
+      "symbol": "CPAY",
+      "sector": "Finance_Payments",
+      "price": 332.57000732421875,
+      "sma20": 331.23250274658204,
+      "sma50": 321.9816003417969,
+      "atr_pct": 5.096885990324156,
+      "avg_volume": 788895.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.40379629612013035,
+      "rsi": 58.27656802463291,
+      "dollar_volume": 262362815.92803955,
+      "return_5d": -2.9021056780816594,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:11:49.860540"
+    },
+    "BEN": {
+      "symbol": "BEN",
+      "sector": "Finance_Asset_Mgmt",
+      "price": 27.06999969482422,
+      "sma20": 27.005499935150148,
+      "sma50": 25.473756828308105,
+      "atr_pct": 3.1241754937112955,
+      "avg_volume": 6742955.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.23883934690695527,
+      "rsi": 50.0,
+      "dollar_volume": 182531789.79221344,
+      "return_5d": -1.5278285914545924,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:12:18.931823"
+    },
+    "VCTR": {
+      "symbol": "VCTR",
+      "sector": "Finance_Asset_Mgmt",
+      "price": 74.33000183105469,
+      "sma20": 72.6875,
+      "sma50": 68.39450019836426,
+      "atr_pct": 3.696927716756341,
+      "avg_volume": 534160.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.2596757778912293,
+      "rsi": 58.59031059094582,
+      "dollar_volume": 39704113.77807617,
+      "return_5d": -1.3143890968942225,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:12:39.125591"
+    },
+    "ALL": {
+      "symbol": "ALL",
+      "sector": "Finance_Insurance",
+      "price": 206.16000366210938,
+      "sma20": 203.76399993896484,
+      "sma50": 204.11260070800782,
+      "atr_pct": 3.101613793068738,
+      "avg_volume": 1782450.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.1758719517982696,
+      "rsi": 54.95231908666695,
+      "dollar_volume": 367469898.52752686,
+      "return_5d": -2.9012827098780534,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:12:48.931295"
+    },
+    "RNR": {
+      "symbol": "RNR",
+      "sector": "Finance_Insurance",
+      "price": 301.8999938964844,
+      "sma20": 294.00950317382814,
+      "sma50": 282.71040283203126,
+      "atr_pct": 3.384989097182351,
+      "avg_volume": 446740.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.6837536329535308,
+      "rsi": 60.22326242569185,
+      "dollar_volume": 134870803.27331543,
+      "return_5d": -1.7028655302902336,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:13:02.181087"
+    },
+    "EG": {
+      "symbol": "EG",
+      "sector": "Finance_Insurance",
+      "price": 337.7699890136719,
+      "sma20": 333.00150299072266,
+      "sma50": 331.1154022216797,
+      "atr_pct": 2.8781216518402672,
+      "avg_volume": 411010.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.431971321487419,
+      "rsi": 55.56581787720297,
+      "dollar_volume": 138826843.18450928,
+      "return_5d": -2.3870790956749843,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:13:03.693718"
+    },
+    "ACGL": {
+      "symbol": "ACGL",
+      "sector": "Finance_Insurance",
+      "price": 98.69999694824219,
+      "sma20": 97.64499855041504,
+      "sma50": 95.65539947509765,
+      "atr_pct": 2.8694452976149707,
+      "avg_volume": 2031540.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.080442842428271,
+      "rsi": 55.40466225756174,
+      "dollar_volume": 200512991.80023193,
+      "return_5d": -0.18203914864040838,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:13:04.999762"
+    },
+    "WRB": {
+      "symbol": "WRB",
+      "sector": "Finance_Insurance",
+      "price": 71.0,
+      "sma20": 69.68950042724609,
+      "sma50": 69.30974411010742,
+      "atr_pct": 2.530181240028059,
+      "avg_volume": 2292895.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.8804835229404997,
+      "rsi": 62.64681474949412,
+      "dollar_volume": 162795545.0,
+      "return_5d": -0.05630759432971893,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:13:06.442145"
+    },
+    "FAF": {
+      "symbol": "FAF",
+      "sector": "Finance_Insurance",
+      "price": 66.33999633789062,
+      "sma20": 65.66949996948242,
+      "sma50": 63.571800231933594,
+      "atr_pct": 3.237652399784633,
+      "avg_volume": 1139940.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.021016405972024,
+      "rsi": 57.51098553699836,
+      "dollar_volume": 75623615.42541504,
+      "return_5d": -2.4411818560431984,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:13:14.805336"
+    },
+    "UFCS": {
+      "symbol": "UFCS",
+      "sector": "Finance_Insurance",
+      "price": 38.040000915527344,
+      "sma20": 37.17500038146973,
+      "sma50": 36.53859985351563,
+      "atr_pct": 3.1808611995471985,
+      "avg_volume": 146420.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.3268339614833815,
+      "rsi": 58.79783074725654,
+      "dollar_volume": 5569816.934051514,
+      "return_5d": -3.963644712527269,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:13:20.999330"
+    },
+    "VIRT": {
+      "symbol": "VIRT",
+      "sector": "Finance_Exchanges",
+      "price": 39.97999954223633,
+      "sma20": 38.86599979400635,
+      "sma50": 36.1447998046875,
+      "atr_pct": 3.1319242852509777,
+      "avg_volume": 1361250.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.866257793789657,
+      "rsi": 52.949051311749116,
+      "dollar_volume": 54422774.3768692,
+      "return_5d": 2.302962305560751,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:13:44.814811"
+    },
+    "CAT": {
+      "symbol": "CAT",
+      "sector": "Industrial_Machinery",
+      "price": 756.469970703125,
+      "sma20": 715.8144958496093,
+      "sma50": 649.4024047851562,
+      "atr_pct": 3.612077835609634,
+      "avg_volume": 3397950.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 5.679610442264258,
+      "rsi": 66.33118459794909,
+      "dollar_volume": 2570447136.9506836,
+      "return_5d": -1.084005303185327,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:13:45.999095"
+    },
+    "CMI": {
+      "symbol": "CMI",
+      "sector": "Industrial_Machinery",
+      "price": 587.3599853515625,
+      "sma20": 585.8788024902344,
+      "sma50": 555.1470495605469,
+      "atr_pct": 4.154266110885135,
+      "avg_volume": 1151155.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.2528138678225636,
+      "rsi": 48.56674995600275,
+      "dollar_volume": 676142383.9373779,
+      "return_5d": -1.061903176168675,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:13:51.605009"
+    },
+    "PCAR": {
+      "symbol": "PCAR",
+      "sector": "Industrial_Machinery",
+      "price": 126.05999755859375,
+      "sma20": 125.55638885498047,
+      "sma50": 119.0383757019043,
+      "atr_pct": 2.518441810306495,
+      "avg_volume": 3629730.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.40110161514358056,
+      "rsi": 53.77930190455877,
+      "dollar_volume": 457563754.9383545,
+      "return_5d": -0.36357816683349187,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:13:52.744428"
+    },
+    "TEX": {
+      "symbol": "TEX",
+      "sector": "Industrial_Machinery",
+      "price": 67.6500015258789,
+      "sma20": 63.60150032043457,
+      "sma50": 59.28400016784668,
+      "atr_pct": 5.62137135540142,
+      "avg_volume": 3082900.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 6.365417773240159,
+      "rsi": 63.42218878155475,
+      "dollar_volume": 208558189.70413208,
+      "return_5d": -2.6758747708081,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:13:56.896231"
+    },
+    "ALG": {
+      "symbol": "ALG",
+      "sector": "Industrial_Machinery",
+      "price": 211.17999267578125,
+      "sma20": 203.11499938964843,
+      "sma50": 189.24902221679687,
+      "atr_pct": 2.8290012254843773,
+      "avg_volume": 104175.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.970653723441285,
+      "rsi": 69.39116994530683,
+      "dollar_volume": 21999675.73699951,
+      "return_5d": 1.0914307543860802,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:13:58.104131"
+    },
+    "IR": {
+      "symbol": "IR",
+      "sector": "Industrial_Machinery",
+      "price": 93.94000244140625,
+      "sma20": 93.76049995422363,
+      "sma50": 87.29520050048828,
+      "atr_pct": 3.7744455503174326,
+      "avg_volume": 5481415.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.19144787759264836,
+      "rsi": 59.60061128892192,
+      "dollar_volume": 514924138.48236084,
+      "return_5d": -4.8805180139379365,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:13:59.393740"
+    },
+    "FSS": {
+      "symbol": "FSS",
+      "sector": "Industrial_Machinery",
+      "price": 115.62000274658203,
+      "sma20": 114.84599952697754,
+      "sma50": 113.82400009155273,
+      "atr_pct": 2.8974216740164183,
+      "avg_volume": 382035.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.6739487860199085,
+      "rsi": 58.97950062764085,
+      "dollar_volume": 44170887.74929047,
+      "return_5d": -2.2240991572244977,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:14:08.503993"
+    },
+    "AIT": {
+      "symbol": "AIT",
+      "sector": "Industrial_Machinery",
+      "price": 278.739990234375,
+      "sma20": 276.98605194091795,
+      "sma50": 271.03739685058594,
+      "atr_pct": 3.0852057200690397,
+      "avg_volume": 427515.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.6332226049531097,
+      "rsi": 57.021678407877815,
+      "dollar_volume": 119165526.92504883,
+      "return_5d": 0.15450134007159477,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:14:13.178498"
+    },
+    "FTV": {
+      "symbol": "FTV",
+      "sector": "Industrial_Machinery",
+      "price": 57.18000030517578,
+      "sma20": 56.88900032043457,
+      "sma50": 55.788799896240235,
+      "atr_pct": 4.304701806395338,
+      "avg_volume": 5084520.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.5115224087294868,
+      "rsi": 59.255318307077864,
+      "dollar_volume": 290732855.15167236,
+      "return_5d": 0.6512918904077322,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:14:16.894674"
+    },
+    "IEX": {
+      "symbol": "IEX",
+      "sector": "Industrial_Machinery",
+      "price": 206.64999389648438,
+      "sma20": 205.68450012207032,
+      "sma50": 192.2910726928711,
+      "atr_pct": 2.8979289881220573,
+      "avg_volume": 1076830.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.469405217136465,
+      "rsi": 60.74979335851947,
+      "dollar_volume": 222526912.92755127,
+      "return_5d": -1.2236569644032833,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:14:18.232803"
+    },
+    "LMT": {
+      "symbol": "LMT",
+      "sector": "Industrial_Aerospace",
+      "price": 660.6199951171875,
+      "sma20": 630.0865020751953,
+      "sma50": 561.585400390625,
+      "atr_pct": 2.6852484728276123,
+      "avg_volume": 1691330.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.845920828557645,
+      "rsi": 59.2709791833106,
+      "dollar_volume": 1117326416.3415527,
+      "return_5d": 1.6995562882004118,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:14:23.835505"
+    },
+    "NOC": {
+      "symbol": "NOC",
+      "sector": "Industrial_Aerospace",
+      "price": 725.3900146484375,
+      "sma20": 698.6529998779297,
+      "sma50": 640.6085986328125,
+      "atr_pct": 2.5812704425452315,
+      "avg_volume": 958420.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.8269376607814416,
+      "rsi": 62.54428474541297,
+      "dollar_volume": 695228297.8393555,
+      "return_5d": 3.461607100107512,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:14:25.142210"
+    },
+    "HII": {
+      "symbol": "HII",
+      "sector": "Industrial_Aerospace",
+      "price": 438.010009765625,
+      "sma20": 416.2590042114258,
+      "sma50": 386.693203125,
+      "atr_pct": 4.606710763592473,
+      "avg_volume": 604195.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 5.225353766317918,
+      "rsi": 54.9884555543139,
+      "dollar_volume": 264643457.8503418,
+      "return_5d": 4.82972114062693,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:14:28.918588"
+    },
+    "LHX": {
+      "symbol": "LHX",
+      "sector": "Industrial_Aerospace",
+      "price": 355.1400146484375,
+      "sma20": 349.3365020751953,
+      "sma50": 327.12860107421875,
+      "atr_pct": 2.57323062060582,
+      "avg_volume": 1312785.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.6612957817940741,
+      "rsi": 60.888639903514196,
+      "dollar_volume": 466222484.130249,
+      "return_5d": 2.466897025559694,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:14:30.232876"
+    },
+    "HEI": {
+      "symbol": "HEI",
+      "sector": "Industrial_Aerospace",
+      "price": 346.2699890136719,
+      "sma20": 333.06449737548826,
+      "sma50": 333.9406280517578,
+      "atr_pct": 2.7078372611496047,
+      "avg_volume": 461750.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.964845170302282,
+      "rsi": 61.85075369697959,
+      "dollar_volume": 159890167.427063,
+      "return_5d": 2.6867524059709513,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:14:37.395864"
+    },
+    "CW": {
+      "symbol": "CW",
+      "sector": "Industrial_Aerospace",
+      "price": 699.239990234375,
+      "sma20": 665.1744964599609,
+      "sma50": 620.0571984863282,
+      "atr_pct": 4.534209206234707,
+      "avg_volume": 253050.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 5.121286813566916,
+      "rsi": 58.674144639968084,
+      "dollar_volume": 176942679.5288086,
+      "return_5d": 1.63371951081032,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:14:46.772311"
+    },
+    "DCO": {
+      "symbol": "DCO",
+      "sector": "Industrial_Aerospace",
+      "price": 124.7300033569336,
+      "sma20": 119.41900024414062,
+      "sma50": 108.75040008544921,
+      "atr_pct": 3.639862738186137,
+      "avg_volume": 154960.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.447368594557935,
+      "rsi": 68.76691692958134,
+      "dollar_volume": 19328161.32019043,
+      "return_5d": -0.36744075046084734,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:14:47.910368"
+    },
+    "MMM": {
+      "symbol": "MMM",
+      "sector": "Industrial_Conglomerate",
+      "price": 166.33999633789062,
+      "sma20": 163.83516998291014,
+      "sma50": 163.29619903564452,
+      "atr_pct": 2.848360022220277,
+      "avg_volume": 4288400.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.528869750763381,
+      "rsi": 66.89748218152522,
+      "dollar_volume": 713332440.2954102,
+      "return_5d": -0.7636313188065628,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:14:57.677408"
+    },
+    "TT": {
+      "symbol": "TT",
+      "sector": "Industrial_Conglomerate",
+      "price": 459.94000244140625,
+      "sma20": 442.99550170898436,
+      "sma50": 411.0207989501953,
+      "atr_pct": 2.573007711395114,
+      "avg_volume": 1748325.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.824982571392606,
+      "rsi": 66.52441535492261,
+      "dollar_volume": 804124604.7683716,
+      "return_5d": -2.2277987090653526,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:15:07.487139"
+    },
+    "CARR": {
+      "symbol": "CARR",
+      "sector": "Industrial_Conglomerate",
+      "price": 63.459999084472656,
+      "sma20": 62.68199996948242,
+      "sma50": 57.523137130737304,
+      "atr_pct": 3.6036214669545554,
+      "avg_volume": 8749260.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.2411842560368473,
+      "rsi": 59.24820008303107,
+      "dollar_volume": 555228031.5898132,
+      "return_5d": -4.470873411198408,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:15:08.676675"
+    },
+    "OTIS": {
+      "symbol": "OTIS",
+      "sector": "Industrial_Conglomerate",
+      "price": 90.55000305175781,
+      "sma20": 89.65994529724121,
+      "sma50": 88.87320495605469,
+      "atr_pct": 2.6541453570682094,
+      "avg_volume": 4683565.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.9927038786002818,
+      "rsi": 63.38405900506688,
+      "dollar_volume": 424096825.0431061,
+      "return_5d": -2.044568736188023,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:15:10.020357"
+    },
+    "HUBB": {
+      "symbol": "HUBB",
+      "sector": "Industrial_Conglomerate",
+      "price": 516.989990234375,
+      "sma20": 505.13250122070315,
+      "sma50": 478.9294006347656,
+      "atr_pct": 3.3038995895403245,
+      "avg_volume": 641869.1,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.3474017183643987,
+      "rsi": 62.69577254772173,
+      "dollar_volume": 331839899.74074703,
+      "return_5d": -1.3848373420362423,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:15:14.481339"
+    },
+    "MAS": {
+      "symbol": "MAS",
+      "sector": "Industrial_Conglomerate",
+      "price": 73.81999969482422,
+      "sma20": 71.78408355712891,
+      "sma50": 68.33262748718262,
+      "atr_pct": 3.679502144227883,
+      "avg_volume": 3116140.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.8361665104703033,
+      "rsi": 67.13518923800183,
+      "dollar_volume": 230033453.84902954,
+      "return_5d": -2.670312505658273,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:15:18.532595"
+    },
+    "SWK": {
+      "symbol": "SWK",
+      "sector": "Industrial_Conglomerate",
+      "price": 87.29000091552734,
+      "sma20": 86.10499992370606,
+      "sma50": 81.30120040893554,
+      "atr_pct": 4.1593697255894,
+      "avg_volume": 2235960.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.3762278530529723,
+      "rsi": 66.57166164253177,
+      "dollar_volume": 195176950.44708252,
+      "return_5d": -3.9713977445025765,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:15:19.935903"
+    },
+    "JBHT": {
+      "symbol": "JBHT",
+      "sector": "Industrial_Transport",
+      "price": 222.07000732421875,
+      "sma20": 219.09803771972656,
+      "sma50": 208.18830444335939,
+      "atr_pct": 3.4205264338865256,
+      "avg_volume": 1185710.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.3564565139072469,
+      "rsi": 59.044414029233586,
+      "dollar_volume": 263310628.3843994,
+      "return_5d": -0.6442607570164591,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:15:43.294652"
+    },
+    "SAIA": {
+      "symbol": "SAIA",
+      "sector": "Industrial_Transport",
+      "price": 397.0,
+      "sma20": 380.7550018310547,
+      "sma50": 359.35400024414065,
+      "atr_pct": 5.06117396236281,
+      "avg_volume": 611420.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.2665225908584095,
+      "rsi": 59.898477157360404,
+      "dollar_volume": 242733740.0,
+      "return_5d": 2.2273706091248777,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:15:46.023290"
+    },
+    "ODFL": {
+      "symbol": "ODFL",
+      "sector": "Industrial_Transport",
+      "price": 193.8800048828125,
+      "sma20": 189.86700134277345,
+      "sma50": 174.93700134277344,
+      "atr_pct": 4.271050935634617,
+      "avg_volume": 2680535.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.1135866220345667,
+      "rsi": 55.57634270335979,
+      "dollar_volume": 519702138.8885498,
+      "return_5d": 0.28967387615218376,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:15:47.399486"
+    },
+    "KNX": {
+      "symbol": "KNX",
+      "sector": "Industrial_Transport",
+      "price": 59.20000076293945,
+      "sma20": 58.718499946594235,
+      "sma50": 56.25959991455078,
+      "atr_pct": 3.688464706341267,
+      "avg_volume": 3175765.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.8200155262534861,
+      "rsi": 50.17065246331281,
+      "dollar_volume": 188005290.4229164,
+      "return_5d": -1.1356050318072994,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:15:50.282515"
+    },
+    "BLBD": {
+      "symbol": "BLBD",
+      "sector": "Industrial_Transport",
+      "price": 60.58000183105469,
+      "sma20": 55.34525032043457,
+      "sma50": 51.91370018005371,
+      "atr_pct": 5.139602299246052,
+      "avg_volume": 509270.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 9.458357276030496,
+      "rsi": 68.4068090436954,
+      "dollar_volume": 30851577.53250122,
+      "return_5d": 0.98349747637975,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:16:00.239970"
+    },
+    "PFE": {
+      "symbol": "PFE",
+      "sector": "Healthcare_Pharma",
+      "price": 27.059999465942383,
+      "sma20": 26.822500038146973,
+      "sma50": 25.732075958251954,
+      "atr_pct": 2.6211604677046108,
+      "avg_volume": 50754905.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.8854485132170291,
+      "rsi": 53.64963059052264,
+      "dollar_volume": 1373427702.1939564,
+      "return_5d": -1.132631946604275,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:16:10.340949"
+    },
+    "ABBV": {
+      "symbol": "ABBV",
+      "sector": "Healthcare_Pharma",
+      "price": 229.47999572753906,
+      "sma20": 224.1739990234375,
+      "sma50": 223.08189178466796,
+      "atr_pct": 3.0301424542814095,
+      "avg_volume": 7305450.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.3669099570940113,
+      "rsi": 54.46096456584043,
+      "dollar_volume": 1676454634.7877502,
+      "return_5d": -1.451518025402876,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:16:11.871361"
+    },
+    "LLY": {
+      "symbol": "LLY",
+      "sector": "Healthcare_Pharma",
+      "price": 1058.56005859375,
+      "sma20": 1035.3953063964843,
+      "sma50": 1050.5002490234374,
+      "atr_pct": 4.41915109732386,
+      "avg_volume": 3697805.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.2372858032249163,
+      "rsi": 51.91710912396494,
+      "dollar_volume": 3914348677.4682617,
+      "return_5d": 2.1726759041308905,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:16:14.854588"
+    },
+    "AMGN": {
+      "symbol": "AMGN",
+      "sector": "Healthcare_Pharma",
+      "price": 379.4200134277344,
+      "sma20": 361.02064056396483,
+      "sma50": 340.6049792480469,
+      "atr_pct": 2.8227194839374903,
+      "avg_volume": 3067915.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 5.096487789459114,
+      "rsi": 68.74489406475297,
+      "dollar_volume": 1164028350.4951477,
+      "return_5d": 1.6231059336649705,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:16:17.493749"
+    },
+    "GILD": {
+      "symbol": "GILD",
+      "sector": "Healthcare_Pharma",
+      "price": 149.8300018310547,
+      "sma20": 147.80499877929688,
+      "sma50": 133.1437074279785,
+      "atr_pct": 2.8784998658540033,
+      "avg_volume": 8059625.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.370050450581547,
+      "rsi": 59.403791124270136,
+      "dollar_volume": 1207573628.5076141,
+      "return_5d": -3.5035758947107225,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:16:18.952435"
+    },
+    "REGN": {
+      "symbol": "REGN",
+      "sector": "Healthcare_Pharma",
+      "price": 787.0399780273438,
+      "sma20": 771.8198150634765,
+      "sma50": 766.4443383789062,
+      "atr_pct": 2.8461438906907355,
+      "avg_volume": 802910.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.9719839613881205,
+      "rsi": 60.55601973149977,
+      "dollar_volume": 631922268.7579346,
+      "return_5d": -0.6985673950851314,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:16:20.097511"
+    },
+    "VRTX": {
+      "symbol": "VRTX",
+      "sector": "Healthcare_Pharma",
+      "price": 481.010009765625,
+      "sma20": 472.31299896240233,
+      "sma50": 462.7195983886719,
+      "atr_pct": 3.2219411436840284,
+      "avg_volume": 1542360.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.8413659633185278,
+      "rsi": 53.65912851517639,
+      "dollar_volume": 741890598.6621094,
+      "return_5d": 0.7730667863875696,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:16:21.359508"
+    },
+    "BIIB": {
+      "symbol": "BIIB",
+      "sector": "Healthcare_Pharma",
+      "price": 196.33999633789062,
+      "sma20": 187.1099983215332,
+      "sma50": 180.1552005004883,
+      "atr_pct": 3.3858901396033008,
+      "avg_volume": 1464450.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.932926139252287,
+      "rsi": 65.55455878832241,
+      "dollar_volume": 287530107.6370239,
+      "return_5d": 0.36806115871325085,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:16:22.887917"
+    },
+    "AZN": {
+      "symbol": "AZN",
+      "sector": "Healthcare_Pharma",
+      "price": 204.94000244140625,
+      "sma20": 195.46699905395508,
+      "sma50": 189.06359985351563,
+      "atr_pct": 2.717867931373337,
+      "avg_volume": 2889702.5,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.846344105808021,
+      "rsi": 67.8240364447422,
+      "dollar_volume": 592215637.4049377,
+      "return_5d": -2.167268177739402,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:16:25.407086"
+    },
+    "EXEL": {
+      "symbol": "EXEL",
+      "sector": "Healthcare_Pharma",
+      "price": 44.0099983215332,
+      "sma20": 43.24050025939941,
+      "sma50": 43.65920021057129,
+      "atr_pct": 3.0317798953150543,
+      "avg_volume": 2765145.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.779577149934851,
+      "rsi": 59.4043576006888,
+      "dollar_volume": 121694026.80879593,
+      "return_5d": -0.15881013297092558,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:16:38.619915"
+    },
+    "IONS": {
+      "symbol": "IONS",
+      "sector": "Healthcare_Pharma",
+      "price": 84.5999984741211,
+      "sma20": 83.22649955749512,
+      "sma50": 81.06280014038086,
+      "atr_pct": 3.1205647782437596,
+      "avg_volume": 1959085.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.6503144117903534,
+      "rsi": 54.64480899630065,
+      "dollar_volume": 165738588.01067352,
+      "return_5d": 3.9822982294290954,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:16:44.841351"
+    },
+    "AMRX": {
+      "symbol": "AMRX",
+      "sector": "Healthcare_Pharma",
+      "price": 14.420000076293945,
+      "sma20": 14.414500045776368,
+      "sma50": 13.491800003051758,
+      "atr_pct": 2.774419877573312,
+      "avg_volume": 4013605.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.03815623504187364,
+      "rsi": 54.54546482581117,
+      "dollar_volume": 57876184.40621376,
+      "return_5d": -5.069121299277386,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:16:48.745405"
+    },
+    "PRGO": {
+      "symbol": "PRGO",
+      "sector": "Healthcare_Pharma",
+      "price": 14.550000190734863,
+      "sma20": 14.402000045776367,
+      "sma50": 14.248000030517579,
+      "atr_pct": 3.2596948202900733,
+      "avg_volume": 2247695.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.0276360539375224,
+      "rsi": 53.20334853810272,
+      "dollar_volume": 32703962.6787138,
+      "return_5d": 0.7617771021337011,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:01.858073"
+    },
+    "SUPN": {
+      "symbol": "SUPN",
+      "sector": "Healthcare_Pharma",
+      "price": 50.689998626708984,
+      "sma20": 50.06349983215332,
+      "sma50": 49.936199798583985,
+      "atr_pct": 3.4199493503054237,
+      "avg_volume": 707215.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.2514083047651738,
+      "rsi": 58.88372337296006,
+      "dollar_volume": 35848727.378787994,
+      "return_5d": -1.8016279047253843,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:03.415006"
+    },
+    "TARS": {
+      "symbol": "TARS",
+      "sector": "Healthcare_Pharma",
+      "price": 69.58999633789062,
+      "sma20": 65.10250034332276,
+      "sma50": 72.85480018615722,
+      "atr_pct": 5.115164113511388,
+      "avg_volume": 608840.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 6.892970271345539,
+      "rsi": 57.734563538077964,
+      "dollar_volume": 42369173.37036133,
+      "return_5d": 10.847399953820167,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:04.555732"
+    },
+    "SYK": {
+      "symbol": "SYK",
+      "sector": "Healthcare_MedDevices",
+      "price": 384.7300109863281,
+      "sma20": 365.02150268554686,
+      "sma50": 360.0045007324219,
+      "atr_pct": 2.6547366359633244,
+      "avg_volume": 2237020.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 5.399273236174102,
+      "rsi": 65.49016970711716,
+      "dollar_volume": 860648729.1766357,
+      "return_5d": 4.212042531839775,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:14.360338"
+    },
+    "EW": {
+      "symbol": "EW",
+      "sector": "Healthcare_MedDevices",
+      "price": 82.44000244140625,
+      "sma20": 79.89850006103515,
+      "sma50": 82.85759994506836,
+      "atr_pct": 3.1875983024214274,
+      "avg_volume": 5022490.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 3.180913757366689,
+      "rsi": 49.468356953543385,
+      "dollar_volume": 414054087.8619385,
+      "return_5d": 5.086049264981477,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:16.769732"
+    },
+    "DXCM": {
+      "symbol": "DXCM",
+      "sector": "Healthcare_MedDevices",
+      "price": 73.26000213623047,
+      "sma20": 71.28300018310547,
+      "sma50": 69.56920028686524,
+      "atr_pct": 3.8736776002920124,
+      "avg_volume": 5440115.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.7734550286136237,
+      "rsi": 52.118405595532714,
+      "dollar_volume": 398542836.5213394,
+      "return_5d": 4.018176655959372,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:20.291103"
+    },
+    "TFX": {
+      "symbol": "TFX",
+      "sector": "Healthcare_MedDevices",
+      "price": 113.04000091552734,
+      "sma20": 106.79550018310547,
+      "sma50": 113.15700012207031,
+      "atr_pct": 3.6314584208269975,
+      "avg_volume": 1032375.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 5.847157157104377,
+      "rsi": 66.32929821097764,
+      "dollar_volume": 116699670.94516754,
+      "return_5d": 6.7825432304727205,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:22.610373"
+    },
+    "ALGN": {
+      "symbol": "ALGN",
+      "sector": "Healthcare_MedDevices",
+      "price": 181.25999450683594,
+      "sma20": 178.37949981689454,
+      "sma50": 169.85439910888672,
+      "atr_pct": 5.1776467067456124,
+      "avg_volume": 1395150.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.614812628636256,
+      "rsi": 61.23644579455667,
+      "dollar_volume": 252884881.33621216,
+      "return_5d": -3.183424140052895,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:23.874130"
+    },
+    "GMED": {
+      "symbol": "GMED",
+      "sector": "Healthcare_MedDevices",
+      "price": 93.4000015258789,
+      "sma20": 89.55649948120117,
+      "sma50": 89.82039978027343,
+      "atr_pct": 2.7554290732088704,
+      "avg_volume": 1158005.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.291706427722228,
+      "rsi": 64.14373815563604,
+      "dollar_volume": 108157668.7669754,
+      "return_5d": 4.943821939189783,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:32.137331"
+    },
+    "ICUI": {
+      "symbol": "ICUI",
+      "sector": "Healthcare_MedDevices",
+      "price": 151.57000732421875,
+      "sma20": 150.2625,
+      "sma50": 149.47459930419922,
+      "atr_pct": 4.478364272388247,
+      "avg_volume": 295320.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.8701487890982523,
+      "rsi": 50.132053707997606,
+      "dollar_volume": 44761654.56298828,
+      "return_5d": 2.2118916896550056,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:33.636262"
+    },
+    "RMD": {
+      "symbol": "RMD",
+      "sector": "Healthcare_MedDevices",
+      "price": 260.7900085449219,
+      "sma20": 258.64809494018556,
+      "sma50": 253.08724090576172,
+      "atr_pct": 3.161630479854661,
+      "avg_volume": 1343320.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.8281188404776967,
+      "rsi": 54.27158975301508,
+      "dollar_volume": 350324434.27856445,
+      "return_5d": 1.942772683296929,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:40.580702"
+    },
+    "STAA": {
+      "symbol": "STAA",
+      "sector": "Healthcare_MedDevices",
+      "price": 18.200000762939453,
+      "sma20": 17.786000156402586,
+      "sma50": 20.817399978637695,
+      "atr_pct": 4.532965794952485,
+      "avg_volume": 1225075.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 2.327676840752951,
+      "rsi": 51.449274861544374,
+      "dollar_volume": 22296365.93465805,
+      "return_5d": 12.345678430925608,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:41.890969"
+    },
+    "CI": {
+      "symbol": "CI",
+      "sector": "Healthcare_Services",
+      "price": 283.17999267578125,
+      "sma20": 282.485498046875,
+      "sma50": 278.50500061035154,
+      "atr_pct": 3.144641863758145,
+      "avg_volume": 1874500.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.2458514273150349,
+      "rsi": 58.4740607569221,
+      "dollar_volume": 530820896.27075195,
+      "return_5d": -2.590209831319281,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:47.489806"
+    },
+    "CNC": {
+      "symbol": "CNC",
+      "sector": "Healthcare_Services",
+      "price": 43.34000015258789,
+      "sma20": 41.68399982452392,
+      "sma50": 42.373599700927734,
+      "atr_pct": 3.9504925779065907,
+      "avg_volume": 7065350.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.9727481408578598,
+      "rsi": 52.008932752878486,
+      "dollar_volume": 306212270.07808685,
+      "return_5d": 5.117634328833939,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:49.879249"
+    },
+    "CVS": {
+      "symbol": "CVS",
+      "sector": "Healthcare_Services",
+      "price": 77.0,
+      "sma20": 76.64449958801269,
+      "sma50": 78.18383575439454,
+      "atr_pct": 3.0157687270353812,
+      "avg_volume": 10543275.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 0.46383029949732796,
+      "rsi": 55.791789348392236,
+      "dollar_volume": 811832175.0,
+      "return_5d": -1.534523011601168,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:51.315666"
+    },
+    "MCK": {
+      "symbol": "MCK",
+      "sector": "Healthcare_Services",
+      "price": 949.25,
+      "sma20": 899.7909973144531,
+      "sma50": 853.312998046875,
+      "atr_pct": 3.8000664183013373,
+      "avg_volume": 880450.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 5.496721220057096,
+      "rsi": 65.6864594263647,
+      "dollar_volume": 835767162.5,
+      "return_5d": 0.29372609622360635,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:52.613753"
+    },
+    "CAH": {
+      "symbol": "CAH",
+      "sector": "Healthcare_Services",
+      "price": 224.82000732421875,
+      "sma20": 219.3734992980957,
+      "sma50": 210.723935546875,
+      "atr_pct": 3.244817641313617,
+      "avg_volume": 1762855.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.4827556854176143,
+      "rsi": 54.33791134571808,
+      "dollar_volume": 396325074.01153564,
+      "return_5d": -0.3369068626061657,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:56.183971"
+    },
+    "HCA": {
+      "symbol": "HCA",
+      "sector": "Healthcare_Services",
+      "price": 535.969970703125,
+      "sma20": 510.9349960327148,
+      "sma50": 488.56294799804687,
+      "atr_pct": 2.79266858376383,
+      "avg_volume": 1247490.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.899835569064681,
+      "rsi": 68.3765489246444,
+      "dollar_volume": 668617178.7524414,
+      "return_5d": 0.2225104418754243,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:17:57.616478"
+    },
+    "SGRY": {
+      "symbol": "SGRY",
+      "sector": "Healthcare_Services",
+      "price": 15.489999771118164,
+      "sma20": 14.854000091552734,
+      "sma50": 15.39140007019043,
+      "atr_pct": 4.433275576946584,
+      "avg_volume": 1606740.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.281672786087527,
+      "rsi": 56.85884311146596,
+      "dollar_volume": 24888402.2322464,
+      "return_5d": -0.7051321003954937,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:18:05.494248"
+    },
+    "BHC": {
+      "symbol": "BHC",
+      "sector": "Healthcare_Services",
+      "price": 5.980000019073486,
+      "sma20": 5.875499963760376,
+      "sma50": 6.605999984741211,
+      "atr_pct": 4.8733868058475265,
+      "avg_volume": 2216390.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 1.7785729888121609,
+      "rsi": 55.85105640956444,
+      "dollar_volume": 13254012.242274284,
+      "return_5d": -0.16694077507136637,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:18:09.114017"
+    },
+    "AHCO": {
+      "symbol": "AHCO",
+      "sector": "Healthcare_Services",
+      "price": 10.289999961853027,
+      "sma20": 10.225000047683716,
+      "sma50": 10.270599994659424,
+      "atr_pct": 3.8976813771581487,
+      "avg_volume": 959185.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.6356959791314201,
+      "rsi": 53.90945436121318,
+      "dollar_volume": 9870013.613409996,
+      "return_5d": -0.09708959899662353,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:18:13.229517"
+    },
+    "HSTM": {
+      "symbol": "HSTM",
+      "sector": "Healthcare_Services",
+      "price": 21.239999771118164,
+      "sma20": 20.77549991607666,
+      "sma50": 22.10779998779297,
+      "atr_pct": 3.319208716116387,
+      "avg_volume": 409920.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 2.2358059104130605,
+      "rsi": 42.10525856353542,
+      "dollar_volume": 8706700.706176758,
+      "return_5d": 4.733723135940626,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:18:18.026413"
+    },
+    "LFST": {
+      "symbol": "LFST",
+      "sector": "Healthcare_Services",
+      "price": 7.090000152587891,
+      "sma20": 7.0240000009536745,
+      "sma50": 7.086800031661987,
+      "atr_pct": 4.047953464537497,
+      "avg_volume": 1691840.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.9396376939814216,
+      "rsi": 46.97987522221742,
+      "dollar_volume": 11995145.858154297,
+      "return_5d": 0.7102299858777631,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:18:19.430442"
+    },
+    "LMAT": {
+      "symbol": "LMAT",
+      "sector": "Healthcare_Services",
+      "price": 91.37999725341797,
+      "sma20": 87.61000022888183,
+      "sma50": 85.55540008544922,
+      "atr_pct": 2.5279058358596176,
+      "avg_volume": 135010.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.303158332024873,
+      "rsi": 67.73273830987671,
+      "dollar_volume": 12337213.42918396,
+      "return_5d": 2.3865515444459033,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:18:20.909405"
+    },
+    "DG": {
+      "symbol": "DG",
+      "sector": "Consumer_Retail",
+      "price": 152.89999389648438,
+      "sma20": 148.03999710083008,
+      "sma50": 143.19789657592773,
+      "atr_pct": 3.155658273709811,
+      "avg_volume": 2647370.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.2828944142333047,
+      "rsi": 64.94745898322408,
+      "dollar_volume": 404782856.84173584,
+      "return_5d": 2.151256933635682,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:18:37.985945"
+    },
+    "DLTR": {
+      "symbol": "DLTR",
+      "sector": "Consumer_Retail",
+      "price": 130.41000366210938,
+      "sma20": 124.37699928283692,
+      "sma50": 127.60679946899414,
+      "atr_pct": 3.695487402184842,
+      "avg_volume": 3175560.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.850578816066488,
+      "rsi": 69.16595014041549,
+      "dollar_volume": 414124791.22924805,
+      "return_5d": 1.4705877114987176,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:18:39.108035"
+    },
+    "TSCO": {
+      "symbol": "TSCO",
+      "sector": "Consumer_Retail",
+      "price": 53.88999938964844,
+      "sma20": 53.79649963378906,
+      "sma50": 52.47440010070801,
+      "atr_pct": 3.1452954426082362,
+      "avg_volume": 7627720.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.1738026758169413,
+      "rsi": 53.62549762044945,
+      "dollar_volume": 411057826.1444092,
+      "return_5d": 2.27747351341012,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:18:42.092372"
+    },
+    "AZO": {
+      "symbol": "AZO",
+      "sector": "Consumer_Retail",
+      "price": 3829.27001953125,
+      "sma20": 3733.439501953125,
+      "sma50": 3562.298203125,
+      "atr_pct": 2.8589744885891,
+      "avg_volume": 137200.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.566815868530669,
+      "rsi": 56.97830550348342,
+      "dollar_volume": 525375846.6796875,
+      "return_5d": 2.3321758292691075,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:18:44.450237"
+    },
+    "AAP": {
+      "symbol": "AAP",
+      "sector": "Consumer_Retail",
+      "price": 55.369998931884766,
+      "sma20": 53.662499809265135,
+      "sma50": 46.94769599914551,
+      "atr_pct": 6.388193400027367,
+      "avg_volume": 2225560.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.181922438739652,
+      "rsi": 66.88641157068247,
+      "dollar_volume": 123229254.82284546,
+      "return_5d": -2.414527152017967,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:18:45.729785"
+    },
+    "BURL": {
+      "symbol": "BURL",
+      "sector": "Consumer_Retail",
+      "price": 311.3800048828125,
+      "sma20": 303.16699676513673,
+      "sma50": 296.0327990722656,
+      "atr_pct": 3.833626655801835,
+      "avg_volume": 761090.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.709070645984062,
+      "rsi": 58.3355366259338,
+      "dollar_volume": 236988207.91625977,
+      "return_5d": -0.48577470224391495,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:18:51.113281"
+    },
+    "DECK": {
+      "symbol": "DECK",
+      "sector": "Consumer_Retail",
+      "price": 118.16999816894531,
+      "sma20": 112.75349998474121,
+      "sma50": 106.6934001159668,
+      "atr_pct": 3.1939455963352485,
+      "avg_volume": 3201810.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.80384039957705,
+      "rsi": 55.473200980251434,
+      "dollar_volume": 378357881.8373108,
+      "return_5d": 0.6987641290894872,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:19:03.763788"
+    },
+    "CROX": {
+      "symbol": "CROX",
+      "sector": "Consumer_Retail",
+      "price": 96.6500015258789,
+      "sma20": 89.23000030517578,
+      "sma50": 88.05200012207031,
+      "atr_pct": 5.231688486418928,
+      "avg_volume": 1495815.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 8.315590267091741,
+      "rsi": 62.72467870676642,
+      "dollar_volume": 144570522.03243256,
+      "return_5d": -3.2726147948256332,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:19:05.071387"
+    },
+    "COLM": {
+      "symbol": "COLM",
+      "sector": "Consumer_Retail",
+      "price": 61.810001373291016,
+      "sma20": 60.15250072479248,
+      "sma50": 57.30800033569336,
+      "atr_pct": 5.052350276045143,
+      "avg_volume": 1018645.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.7554974914207975,
+      "rsi": 62.338153224994606,
+      "dollar_volume": 62962448.84889603,
+      "return_5d": -3.436964051738759,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:19:07.747213"
+    },
+    "PVH": {
+      "symbol": "PVH",
+      "sector": "Consumer_Retail",
+      "price": 69.12000274658203,
+      "sma20": 66.08450031280518,
+      "sma50": 67.41780006408692,
+      "atr_pct": 3.6975022453841446,
+      "avg_volume": 911275.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.593365190640122,
+      "rsi": 69.22143239176313,
+      "dollar_volume": 62987330.50289154,
+      "return_5d": -0.302897849309723,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:19:10.360374"
+    },
+    "RL": {
+      "symbol": "RL",
+      "sector": "Consumer_Retail",
+      "price": 365.0400085449219,
+      "sma20": 359.9000015258789,
+      "sma50": 362.1400274658203,
+      "atr_pct": 4.0535674918770335,
+      "avg_volume": 752155.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.428176437135517,
+      "rsi": 54.82735240878867,
+      "dollar_volume": 274566667.6271057,
+      "return_5d": -1.473681904204622,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:19:11.664891"
+    },
+    "BOOT": {
+      "symbol": "BOOT",
+      "sector": "Consumer_Retail",
+      "price": 194.60000610351562,
+      "sma20": 188.5790008544922,
+      "sma50": 190.68959930419922,
+      "atr_pct": 4.8412852994465005,
+      "avg_volume": 714535.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.1928291176329053,
+      "rsi": 59.16641036584851,
+      "dollar_volume": 139048515.36117554,
+      "return_5d": -1.483315290785261,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:19:18.243166"
+    },
+    "DKS": {
+      "symbol": "DKS",
+      "sector": "Consumer_Retail",
+      "price": 211.33999633789062,
+      "sma20": 204.4314987182617,
+      "sma50": 207.8931655883789,
+      "atr_pct": 3.4815248879334346,
+      "avg_volume": 1063800.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.3793704311437343,
+      "rsi": 57.973234369939874,
+      "dollar_volume": 224823488.10424805,
+      "return_5d": 2.517585542113741,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:19:21.957513"
+    },
+    "FSLR": {
+      "symbol": "FSLR",
+      "sector": "Consumer_Retail",
+      "price": 242.14999389648438,
+      "sma20": 232.09300079345704,
+      "sma50": 246.60800048828125,
+      "atr_pct": 5.149700782615079,
+      "avg_volume": 2510200.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 4.333173800435802,
+      "rsi": 57.49934646067766,
+      "dollar_volume": 607844914.6789551,
+      "return_5d": 7.122313924959429,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:19:26.219932"
+    },
+    "SCVL": {
+      "symbol": "SCVL",
+      "sector": "Consumer_Retail",
+      "price": 21.15999984741211,
+      "sma20": 19.937499904632567,
+      "sma50": 19.039458503723143,
+      "atr_pct": 3.8718610935103293,
+      "avg_volume": 343580.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 6.131661184336804,
+      "rsi": 68.51062534621401,
+      "dollar_volume": 7270152.747573853,
+      "return_5d": 3.878247303049408,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:19:37.702788"
+    },
+    "VSCO": {
+      "symbol": "VSCO",
+      "sector": "Consumer_Retail",
+      "price": 60.869998931884766,
+      "sma20": 59.17400016784668,
+      "sma50": 58.236000061035156,
+      "atr_pct": 6.098594379514532,
+      "avg_volume": 1776260.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.8661215385598364,
+      "rsi": 55.725456356115735,
+      "dollar_volume": 108120944.30274963,
+      "return_5d": 0.8449276281911434,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:19:38.801678"
+    },
+    "DPZ": {
+      "symbol": "DPZ",
+      "sector": "Consumer_Food",
+      "price": 400.3599853515625,
+      "sma20": 395.0344970703125,
+      "sma50": 408.49868041992187,
+      "atr_pct": 2.92308355216904,
+      "avg_volume": 955335.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 1.3481071452608102,
+      "rsi": 43.462217664408925,
+      "dollar_volume": 382477906.60583496,
+      "return_5d": 7.1914284743139225,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:19:46.236903"
+    },
+    "DRI": {
+      "symbol": "DRI",
+      "sector": "Consumer_Food",
+      "price": 214.25999450683594,
+      "sma20": 209.09649963378905,
+      "sma50": 200.36733917236327,
+      "atr_pct": 2.845340191334204,
+      "avg_volume": 1304400.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.4694315218524534,
+      "rsi": 63.63264943877257,
+      "dollar_volume": 279480736.8347168,
+      "return_5d": -2.012260624523119,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:19:49.120667"
+    },
+    "CAKE": {
+      "symbol": "CAKE",
+      "sector": "Consumer_Food",
+      "price": 63.95000076293945,
+      "sma20": 60.73199977874756,
+      "sma50": 56.87799995422363,
+      "atr_pct": 4.19189122598591,
+      "avg_volume": 1538945.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 5.298690963438351,
+      "rsi": 63.183832010536,
+      "dollar_volume": 98415533.92412186,
+      "return_5d": 2.2218659832732603,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:19:55.205416"
+    },
+    "ARCO": {
+      "symbol": "ARCO",
+      "sector": "Consumer_Food",
+      "price": 8.729999542236328,
+      "sma20": 8.380999994277953,
+      "sma50": 7.843846673965454,
+      "atr_pct": 3.943708024516688,
+      "avg_volume": 1827125.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.164175494531092,
+      "rsi": 58.90909292678342,
+      "dollar_volume": 15950800.413608551,
+      "return_5d": 4.425836133420868,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:20:04.080580"
+    },
+    "CALM": {
+      "symbol": "CALM",
+      "sector": "Consumer_Food",
+      "price": 84.12999725341797,
+      "sma20": 83.17008209228516,
+      "sma50": 81.33905899047852,
+      "atr_pct": 3.1914898027272045,
+      "avg_volume": 1134100.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.1541592084371095,
+      "rsi": 50.74726116538016,
+      "dollar_volume": 95411829.88510132,
+      "return_5d": 3.570101904023667,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:20:07.740100"
+    },
+    "POST": {
+      "symbol": "POST",
+      "sector": "Consumer_Food",
+      "price": 105.91000366210938,
+      "sma20": 105.78150062561035,
+      "sma50": 101.77580032348632,
+      "atr_pct": 3.7504888711098037,
+      "avg_volume": 1042760.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.12147968760041858,
+      "rsi": 58.38780891930429,
+      "dollar_volume": 110438715.41870117,
+      "return_5d": -2.3870933989775347,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:20:16.028735"
+    },
+    "MAR": {
+      "symbol": "MAR",
+      "sector": "Consumer_Travel",
+      "price": 342.6199951171875,
+      "sma20": 335.7205017089844,
+      "sma50": 322.94580078125,
+      "atr_pct": 3.1576005406571657,
+      "avg_volume": 1785260.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.05513019701843,
+      "rsi": 65.61788414919911,
+      "dollar_volume": 611665772.4829102,
+      "return_5d": -4.8119150988332375,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:20:19.068396"
+    },
+    "HLT": {
+      "symbol": "HLT",
+      "sector": "Consumer_Travel",
+      "price": 311.79998779296875,
+      "sma20": 310.03350219726565,
+      "sma50": 299.2843994140625,
+      "atr_pct": 2.50206048890152,
+      "avg_volume": 2198710.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.5697724869034112,
+      "rsi": 59.001412219414306,
+      "dollar_volume": 685557751.1602783,
+      "return_5d": -1.894160025334333,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:20:20.386540"
+    },
+    "CHH": {
+      "symbol": "CHH",
+      "sector": "Consumer_Travel",
+      "price": 106.76000213623047,
+      "sma20": 106.70850067138672,
+      "sma50": 102.35341751098633,
+      "atr_pct": 4.0625162163679995,
+      "avg_volume": 684235.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.048263694569520524,
+      "rsi": 61.126006641455824,
+      "dollar_volume": 73048930.06168365,
+      "return_5d": -2.9542768265519848,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:20:24.236923"
+    },
+    "NCLH": {
+      "symbol": "NCLH",
+      "sector": "Consumer_Travel",
+      "price": 23.489999771118164,
+      "sma20": 22.7435001373291,
+      "sma50": 22.540800170898436,
+      "atr_pct": 6.215409876094256,
+      "avg_volume": 23552260.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.282254838883958,
+      "rsi": 49.38875434846917,
+      "dollar_volume": 553242582.0093155,
+      "return_5d": -2.5311228244651254,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:20:32.252865"
+    },
+    "MTN": {
+      "symbol": "MTN",
+      "sector": "Consumer_Travel",
+      "price": 140.47999572753906,
+      "sma20": 136.99499969482423,
+      "sma50": 140.0494564819336,
+      "atr_pct": 3.983790701594444,
+      "avg_volume": 827370.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.5438855728151792,
+      "rsi": 63.406780863110626,
+      "dollar_volume": 116228934.065094,
+      "return_5d": 1.9818480780682848,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:20:42.966322"
+    },
+    "IHG": {
+      "symbol": "IHG",
+      "sector": "Consumer_Travel",
+      "price": 142.85000610351562,
+      "sma20": 142.26000061035157,
+      "sma50": 140.56200103759767,
+      "atr_pct": 2.9246456190453607,
+      "avg_volume": 258030.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.4147374459670324,
+      "rsi": 51.08905868087172,
+      "dollar_volume": 36859587.07489014,
+      "return_5d": -3.629487808872621,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:20:48.162098"
+    },
+    "LI": {
+      "symbol": "LI",
+      "sector": "Consumer_Auto",
+      "price": 18.43000030517578,
+      "sma20": 17.892000007629395,
+      "sma50": 17.21560001373291,
+      "atr_pct": 3.1202994523997876,
+      "avg_volume": 3470560.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.006932133450566,
+      "rsi": 69.01408829071539,
+      "dollar_volume": 63962421.85913086,
+      "return_5d": 0.1630472134102368,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:21:05.009794"
+    },
+    "PSNY": {
+      "symbol": "PSNY",
+      "sector": "Consumer_Auto",
+      "price": 18.100000381469727,
+      "sma20": 16.875000047683717,
+      "sma50": 17.401800079345705,
+      "atr_pct": 11.02367812952059,
+      "avg_volume": 278830.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 7.259261216737922,
+      "rsi": 61.10765426480772,
+      "dollar_volume": 5046823.106365204,
+      "return_5d": 7.674009259434709,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:21:17.826031"
+    },
+    "SAH": {
+      "symbol": "SAH",
+      "sector": "Consumer_Auto",
+      "price": 62.75,
+      "sma20": 61.43199977874756,
+      "sma50": 62.87221542358398,
+      "atr_pct": 5.641433985041975,
+      "avg_volume": 260390.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 2.145462016537516,
+      "rsi": 54.621853998832236,
+      "dollar_volume": 16339472.5,
+      "return_5d": 7.669871850256503,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:21:26.279666"
+    },
+    "WMT": {
+      "symbol": "WMT",
+      "sector": "Consumer_Staples",
+      "price": 125.80999755859375,
+      "sma20": 125.33750038146972,
+      "sma50": 119.24969528198243,
+      "atr_pct": 3.179965869879035,
+      "avg_volume": 27610780.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.3769798948327214,
+      "rsi": 52.52671170133125,
+      "dollar_volume": 3473712164.390869,
+      "return_5d": -2.3593390771589022,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:21:27.518478"
+    },
+    "TGT": {
+      "symbol": "TGT",
+      "sector": "Consumer_Staples",
+      "price": 113.33999633789062,
+      "sma20": 110.7999423980713,
+      "sma50": 104.8610498046875,
+      "atr_pct": 3.1352833434843914,
+      "avg_volume": 6436790.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.2924686465031456,
+      "rsi": 58.67976803376779,
+      "dollar_volume": 729545755.027771,
+      "return_5d": -2.745842245149976,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:21:30.489923"
+    },
+    "KR": {
+      "symbol": "KR",
+      "sector": "Consumer_Staples",
+      "price": 68.26000213623047,
+      "sma20": 66.23912200927734,
+      "sma50": 63.685340042114255,
+      "atr_pct": 3.5243474947040645,
+      "avg_volume": 6773785.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.0508860408356404,
+      "rsi": 64.00186273343735,
+      "dollar_volume": 462378578.5703659,
+      "return_5d": -2.0097637844949157,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:21:31.964180"
+    },
+    "PEP": {
+      "symbol": "PEP",
+      "sector": "Consumer_Staples",
+      "price": 168.32000732421875,
+      "sma20": 161.38050003051757,
+      "sma50": 151.61600006103515,
+      "atr_pct": 2.5202837090314403,
+      "avg_volume": 9520185.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.300090340771593,
+      "rsi": 68.41662907659507,
+      "dollar_volume": 1602437608.9279175,
+      "return_5d": 3.9525748688532882,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:21:39.215169"
+    },
+    "EL": {
+      "symbol": "EL",
+      "sector": "Consumer_Staples",
+      "price": 113.0199966430664,
+      "sma20": 110.59049987792969,
+      "sma50": 110.04680023193359,
+      "atr_pct": 5.682937150919918,
+      "avg_volume": 4783230.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.196840386668302,
+      "rsi": 44.20903550376928,
+      "dollar_volume": 540600638.5430145,
+      "return_5d": 0.784730924030307,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:21:44.616917"
+    },
+    "MDLZ": {
+      "symbol": "MDLZ",
+      "sector": "Consumer_Staples",
+      "price": 60.380001068115234,
+      "sma20": 59.70050048828125,
+      "sma50": 56.7236262512207,
+      "atr_pct": 2.712581754229112,
+      "avg_volume": 11659710.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.1381823841951964,
+      "rsi": 57.74519649006012,
+      "dollar_volume": 704013302.2539139,
+      "return_5d": 0.8686943743093587,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:21:51.939862"
+    },
+    "SJM": {
+      "symbol": "SJM",
+      "sector": "Consumer_Staples",
+      "price": 111.0,
+      "sma20": 106.90404624938965,
+      "sma50": 102.13440338134765,
+      "atr_pct": 2.8200174905796542,
+      "avg_volume": 1721245.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.8314300480780292,
+      "rsi": 68.09671513242559,
+      "dollar_volume": 191058195.0,
+      "return_5d": 4.500092943291376,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:21:53.426811"
+    },
+    "HRL": {
+      "symbol": "HRL",
+      "sector": "Consumer_Staples",
+      "price": 25.15999984741211,
+      "sma20": 24.530000114440917,
+      "sma50": 23.983794059753418,
+      "atr_pct": 2.5181691419710033,
+      "avg_volume": 5090120.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.568282633640549,
+      "rsi": 56.86275463111866,
+      "dollar_volume": 128067418.42330933,
+      "return_5d": 7.337880862482852,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:21:57.163767"
+    },
+    "KHC": {
+      "symbol": "KHC",
+      "sector": "Consumer_Staples",
+      "price": 24.540000915527344,
+      "sma20": 24.126749992370605,
+      "sma50": 24.008900032043456,
+      "atr_pct": 3.0515767126086955,
+      "avg_volume": 16959505.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.7128329480241518,
+      "rsi": 61.279844234465855,
+      "dollar_volume": 416186268.22689056,
+      "return_5d": 3.195963864326718,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:21:59.921223"
+    },
+    "PFGC": {
+      "symbol": "PFGC",
+      "sector": "Consumer_Staples",
+      "price": 95.79000091552734,
+      "sma20": 95.25399971008301,
+      "sma50": 93.44300003051758,
+      "atr_pct": 4.303461249627067,
+      "avg_volume": 3379665.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.562707295311189,
+      "rsi": 51.72987568854293,
+      "dollar_volume": 323738113.4441757,
+      "return_5d": -2.7512681060636104,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:22:13.363207"
+    },
+    "SFM": {
+      "symbol": "SFM",
+      "sector": "Consumer_Staples",
+      "price": 71.5,
+      "sma20": 68.58249969482422,
+      "sma50": 74.54699981689453,
+      "atr_pct": 4.239759721479692,
+      "avg_volume": 3141240.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 4.254001120049517,
+      "rsi": 55.24437934626042,
+      "dollar_volume": 224598660.0,
+      "return_5d": 5.831856991985748,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:22:14.901243"
+    },
+    "ACI": {
+      "symbol": "ACI",
+      "sector": "Consumer_Staples",
+      "price": 18.510000228881836,
+      "sma20": 17.632500076293944,
+      "sma50": 17.2942010307312,
+      "atr_pct": 3.0327218262109974,
+      "avg_volume": 6329735.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.9766065435476685,
+      "rsi": 69.78416772592361,
+      "dollar_volume": 117163396.29876137,
+      "return_5d": 0.21657237149121933,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:22:17.719052"
+    },
+    "GO": {
+      "symbol": "GO",
+      "sector": "Consumer_Staples",
+      "price": 9.979999542236328,
+      "sma20": 9.884499788284302,
+      "sma50": 9.948699970245361,
+      "atr_pct": 4.564843003576784,
+      "avg_volume": 2142290.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.9661566695081361,
+      "rsi": 60.88327715076933,
+      "dollar_volume": 21380053.219337463,
+      "return_5d": -0.5976137434728165,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:22:20.358591"
+    },
+    "JBSS": {
+      "symbol": "JBSS",
+      "sector": "Consumer_Staples",
+      "price": 83.16000366210938,
+      "sma20": 79.01950073242188,
+      "sma50": 75.4174006652832,
+      "atr_pct": 2.705628897102471,
+      "avg_volume": 73770.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 5.239849519814344,
+      "rsi": 65.53030330396936,
+      "dollar_volume": 6134713.470153809,
+      "return_5d": 4.236656974842697,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:22:22.992684"
+    },
+    "XOM": {
+      "symbol": "XOM",
+      "sector": "Energy_Oil",
+      "price": 150.75999450683594,
+      "sma20": 145.31096496582032,
+      "sma50": 131.36183181762695,
+      "atr_pct": 2.707355886995216,
+      "avg_volume": 22746040.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.7499094044949235,
+      "rsi": 66.45709467395855,
+      "dollar_volume": 3429192865.4522705,
+      "return_5d": 3.126063334776511,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:22:29.167841"
+    },
+    "COP": {
+      "symbol": "COP",
+      "sector": "Energy_Oil",
+      "price": 109.87999725341797,
+      "sma20": 106.07668571472168,
+      "sma50": 99.25902969360351,
+      "atr_pct": 2.7885639987983586,
+      "avg_volume": 8349355.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.585435869409385,
+      "rsi": 67.15479925281977,
+      "dollar_volume": 917427104.4678116,
+      "return_5d": 1.7972971416062768,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:22:32.324281"
+    },
+    "DVN": {
+      "symbol": "DVN",
+      "sector": "Energy_Oil",
+      "price": 43.66999816894531,
+      "sma20": 42.570999717712404,
+      "sma50": 38.96988342285156,
+      "atr_pct": 3.403776057531862,
+      "avg_volume": 12086550.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.581565992155104,
+      "rsi": 67.91876442613047,
+      "dollar_volume": 527819616.36886597,
+      "return_5d": -0.8401515415309131,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:22:36.038050"
+    },
+    "APA": {
+      "symbol": "APA",
+      "sector": "Energy_Oil",
+      "price": 28.719999313354492,
+      "sma20": 27.221499824523924,
+      "sma50": 25.774214057922364,
+      "atr_pct": 4.158375896774791,
+      "avg_volume": 6882055.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 5.5048380819949,
+      "rsi": 65.26429539505887,
+      "dollar_volume": 197652614.87446785,
+      "return_5d": 5.047546280412059,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:22:38.329795"
+    },
+    "CTRA": {
+      "symbol": "CTRA",
+      "sector": "Energy_Oil",
+      "price": 30.75,
+      "sma20": 29.948499965667725,
+      "sma50": 27.53440002441406,
+      "atr_pct": 3.382112367920205,
+      "avg_volume": 12148920.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.6762610322757263,
+      "rsi": 68.70229655975886,
+      "dollar_volume": 373579290.0,
+      "return_5d": -1.0299314385816545,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:22:40.641351"
+    },
+    "MGY": {
+      "symbol": "MGY",
+      "sector": "Energy_Oil",
+      "price": 27.299999237060547,
+      "sma20": 26.058004951477052,
+      "sma50": 23.729202613830566,
+      "atr_pct": 3.330205295465652,
+      "avg_volume": 3595225.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.766267747267023,
+      "rsi": 67.9912793146994,
+      "dollar_volume": 98149639.757061,
+      "return_5d": 4.959627054313823,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:22:46.318126"
+    },
+    "CHRD": {
+      "symbol": "CHRD",
+      "sector": "Energy_Oil",
+      "price": 105.25,
+      "sma20": 100.68350028991699,
+      "sma50": 96.04920043945313,
+      "atr_pct": 3.7041049590950546,
+      "avg_volume": 787905.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.535499557458595,
+      "rsi": 62.78106880181444,
+      "dollar_volume": 82927001.25,
+      "return_5d": 5.853363850911364,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:22:47.645892"
+    },
+    "NOG": {
+      "symbol": "NOG",
+      "sector": "Energy_Oil",
+      "price": 27.299999237060547,
+      "sma20": 25.53449993133545,
+      "sma50": 23.387150802612304,
+      "atr_pct": 4.369440405454223,
+      "avg_volume": 1926750.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 6.914172239412099,
+      "rsi": 65.166521426526,
+      "dollar_volume": 52600273.53000641,
+      "return_5d": 6.9749167216623835,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:22:51.077389"
+    },
+    "RRC": {
+      "symbol": "RRC",
+      "sector": "Energy_Oil",
+      "price": 38.58000183105469,
+      "sma20": 36.95800018310547,
+      "sma50": 35.81215156555176,
+      "atr_pct": 3.6177124609426494,
+      "avg_volume": 3135625.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.388770063080092,
+      "rsi": 66.25643950998102,
+      "dollar_volume": 120972418.24150085,
+      "return_5d": 5.122618607718681,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:09.438064"
+    },
+    "EQT": {
+      "symbol": "EQT",
+      "sector": "Energy_Oil",
+      "price": 59.029998779296875,
+      "sma20": 56.81751537322998,
+      "sma50": 54.77666374206543,
+      "atr_pct": 3.3913404676117884,
+      "avg_volume": 9525450.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.894016469275817,
+      "rsi": 68.0613943734152,
+      "dollar_volume": 562287301.8722534,
+      "return_5d": 2.2164481026785716,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:14.558079"
+    },
+    "SLB": {
+      "symbol": "SLB",
+      "sector": "Energy_Services",
+      "price": 51.2400016784668,
+      "sma20": 50.022212982177734,
+      "sma50": 45.11046043395996,
+      "atr_pct": 3.202948076903228,
+      "avg_volume": 19892140.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.434495844322091,
+      "rsi": 63.555293941015194,
+      "dollar_volume": 1019273286.9882965,
+      "return_5d": 2.8089918169998493,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:17.883941"
+    },
+    "HAL": {
+      "symbol": "HAL",
+      "sector": "Energy_Services",
+      "price": 35.2400016784668,
+      "sma20": 34.247500038146974,
+      "sma50": 31.82040008544922,
+      "atr_pct": 3.269417930081465,
+      "avg_volume": 12552945.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.8980265397892206,
+      "rsi": 64.19317748329553,
+      "dollar_volume": 442365802.8697014,
+      "return_5d": 4.538720366500643,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:19.062731"
+    },
+    "NOV": {
+      "symbol": "NOV",
+      "sector": "Energy_Services",
+      "price": 20.280000686645508,
+      "sma20": 19.08499984741211,
+      "sma50": 17.677599868774415,
+      "atr_pct": 3.715837067449158,
+      "avg_volume": 5403250.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 6.261466328465481,
+      "rsi": 64.89030050021584,
+      "dollar_volume": 109577913.71011734,
+      "return_5d": 6.345049875117172,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:21.640580"
+    },
+    "HP": {
+      "symbol": "HP",
+      "sector": "Energy_Services",
+      "price": 35.130001068115234,
+      "sma20": 34.23037109375,
+      "sma50": 31.60585735321045,
+      "atr_pct": 4.802674738856885,
+      "avg_volume": 2175670.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.628163077465126,
+      "rsi": 54.4331223148824,
+      "dollar_volume": 76431289.42386627,
+      "return_5d": 5.463823535845155,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:25.989466"
+    },
+    "PTEN": {
+      "symbol": "PTEN",
+      "sector": "Energy_Services",
+      "price": 8.359999656677246,
+      "sma20": 8.025500011444091,
+      "sma50": 7.112799997329712,
+      "atr_pct": 4.716335657846672,
+      "avg_volume": 10871210.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.167960186358107,
+      "rsi": 61.99376872998137,
+      "dollar_volume": 90883311.86766624,
+      "return_5d": 5.555550203847883,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:27.183708"
+    },
+    "NBR": {
+      "symbol": "NBR",
+      "sector": "Energy_Services",
+      "price": 77.58000183105469,
+      "sma20": 69.7649995803833,
+      "sma50": 62.49199974060058,
+      "atr_pct": 5.13387040021179,
+      "avg_volume": 412510.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 11.201895359673772,
+      "rsi": 66.25958874516093,
+      "dollar_volume": 32002526.55532837,
+      "return_5d": 7.884853122226905,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:28.569323"
+    },
+    "LBRT": {
+      "symbol": "LBRT",
+      "sector": "Energy_Services",
+      "price": 26.639999389648438,
+      "sma20": 24.94700002670288,
+      "sma50": 21.511599922180174,
+      "atr_pct": 5.789897647136895,
+      "avg_volume": 5777285.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 6.786384579842853,
+      "rsi": 53.30926080727427,
+      "dollar_volume": 153906868.87382507,
+      "return_5d": -0.14992846727810485,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:32.494974"
+    },
+    "XPRO": {
+      "symbol": "XPRO",
+      "sector": "Energy_Services",
+      "price": 18.18000030517578,
+      "sma20": 16.471000099182127,
+      "sma50": 15.185200061798096,
+      "atr_pct": 5.480906190522752,
+      "avg_volume": 1114950.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 10.375813221435866,
+      "rsi": 68.96551127308375,
+      "dollar_volume": 20269791.340255737,
+      "return_5d": 11.46536419659748,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:36.004590"
+    },
+    "SOC": {
+      "symbol": "SOC",
+      "sector": "Energy_Services",
+      "price": 8.90999984741211,
+      "sma20": 8.846000027656554,
+      "sma50": 9.001599969863891,
+      "atr_pct": 8.470420896834915,
+      "avg_volume": 5229560.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 0.7234888034757273,
+      "rsi": 49.06716139074069,
+      "dollar_volume": 46595378.80203247,
+      "return_5d": 2.531648764695392,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:40.420384"
+    },
+    "MPC": {
+      "symbol": "MPC",
+      "sector": "Energy_Refining",
+      "price": 192.82000732421875,
+      "sma20": 190.8404556274414,
+      "sma50": 180.08623779296875,
+      "atr_pct": 3.858910192714434,
+      "avg_volume": 2300975.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.0372809529661933,
+      "rsi": 64.52180490258641,
+      "dollar_volume": 443674016.35284424,
+      "return_5d": -3.3677388934647583,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:50.527661"
+    },
+    "VLO": {
+      "symbol": "VLO",
+      "sector": "Energy_Refining",
+      "price": 197.38999938964844,
+      "sma20": 193.39495086669922,
+      "sma50": 181.3623016357422,
+      "atr_pct": 3.3322363704704925,
+      "avg_volume": 2952850.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.0657460316546086,
+      "rsi": 66.41828547853336,
+      "dollar_volume": 582863059.6977234,
+      "return_5d": 0.025338528775583832,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:51.689428"
+    },
+    "PSX": {
+      "symbol": "PSX",
+      "sector": "Energy_Refining",
+      "price": 154.85000610351562,
+      "sma20": 152.06399993896486,
+      "sma50": 142.51979949951172,
+      "atr_pct": 3.0794774609274644,
+      "avg_volume": 2478285.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.8321273711522856,
+      "rsi": 67.9578317153932,
+      "dollar_volume": 383762447.3762512,
+      "return_5d": -2.092815808012485,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:52.850858"
+    },
+    "DK": {
+      "symbol": "DK",
+      "sector": "Energy_Refining",
+      "price": 33.25,
+      "sma20": 32.3504997253418,
+      "sma50": 31.088399925231933,
+      "atr_pct": 6.088078188460828,
+      "avg_volume": 1435575.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.7804833999320797,
+      "rsi": 64.36629977287728,
+      "dollar_volume": 47732868.75,
+      "return_5d": -5.027130551019481,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:54.193311"
+    },
+    "PBF": {
+      "symbol": "PBF",
+      "sector": "Energy_Refining",
+      "price": 34.31999969482422,
+      "sma20": 34.02899990081787,
+      "sma50": 31.228200149536132,
+      "atr_pct": 6.023142496950577,
+      "avg_volume": 2812480.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.8551523549164083,
+      "rsi": 57.405915374231114,
+      "dollar_volume": 96524312.74169922,
+      "return_5d": 1.060072497222662,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:55.416702"
+    },
+    "PARR": {
+      "symbol": "PARR",
+      "sector": "Energy_Refining",
+      "price": 40.709999084472656,
+      "sma20": 40.19850044250488,
+      "sma50": 38.48979995727539,
+      "atr_pct": 4.618031357007669,
+      "avg_volume": 946545.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.2724321463169073,
+      "rsi": 61.67711572973883,
+      "dollar_volume": 38533846.08341217,
+      "return_5d": -5.39158670843478,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:23:56.851808"
+    },
+    "USAC": {
+      "symbol": "USAC",
+      "sector": "Energy_Midstream",
+      "price": 26.940000534057617,
+      "sma20": 26.13100004196167,
+      "sma50": 24.632092056274413,
+      "atr_pct": 2.746843936334205,
+      "avg_volume": 220860.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.0959415667094197,
+      "rsi": 67.23045693303149,
+      "dollar_volume": 5949968.517951965,
+      "return_5d": 3.895103035074913,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:24:24.896753"
+    },
+    "CEG": {
+      "symbol": "CEG",
+      "sector": "Utilities_Electric",
+      "price": 293.79998779296875,
+      "sma20": 279.5215019226074,
+      "sma50": 317.3970999145508,
+      "atr_pct": 4.773655894719901,
+      "avg_volume": 4227220.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 5.108188734015428,
+      "rsi": 61.596833237908,
+      "dollar_volume": 1241957184.3981934,
+      "return_5d": -3.0395108002471942,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:25:05.604945"
+    },
+    "VST": {
+      "symbol": "VST",
+      "sector": "Utilities_Electric",
+      "price": 167.8000030517578,
+      "sma20": 160.77000045776367,
+      "sma50": 163.06506439208985,
+      "atr_pct": 4.364804721603945,
+      "avg_volume": 5476855.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.372707951718276,
+      "rsi": 62.860961698782425,
+      "dollar_volume": 919016285.714035,
+      "return_5d": -3.385530787648041,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:25:06.848303"
+    },
+    "AWK": {
+      "symbol": "AWK",
+      "sector": "Utilities_Water",
+      "price": 132.9199981689453,
+      "sma20": 127.7838794708252,
+      "sma50": 129.12284240722656,
+      "atr_pct": 2.965415994416797,
+      "avg_volume": 1932015.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.019379220125149,
+      "rsi": 62.63796226831362,
+      "dollar_volume": 256803430.26237488,
+      "return_5d": -0.4419117385705653,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:25:20.103435"
+    },
+    "MSEX": {
+      "symbol": "MSEX",
+      "sector": "Utilities_Water",
+      "price": 54.79999923706055,
+      "sma20": 52.5737190246582,
+      "sma50": 52.16440689086914,
+      "atr_pct": 3.0587911949843787,
+      "avg_volume": 115795.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.234587648931913,
+      "rsi": 63.99814966967929,
+      "dollar_volume": 6345565.911655426,
+      "return_5d": -0.508356181346879,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:25:29.933324"
+    },
+    "UTL": {
+      "symbol": "UTL",
+      "sector": "Utilities_Gas",
+      "price": 52.06999969482422,
+      "sma20": 50.76553230285644,
+      "sma50": 49.571697311401365,
+      "atr_pct": 2.8440256436792826,
+      "avg_volume": 96305.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.56959266020417,
+      "rsi": 64.0031788809506,
+      "dollar_volume": 5014601.320610046,
+      "return_5d": -1.5876018805714966,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:25:41.150048"
+    },
+    "GTY": {
+      "symbol": "GTY",
+      "sector": "Real_Estate_Industrial",
+      "price": 32.31999969482422,
+      "sma20": 30.95950002670288,
+      "sma50": 29.382059478759764,
+      "atr_pct": 2.7515026019155973,
+      "avg_volume": 663075.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.3944497390070705,
+      "rsi": 65.29209411769847,
+      "dollar_volume": 21430583.79764557,
+      "return_5d": -4.463500013305772,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:25:52.893501"
+    },
+    "AKR": {
+      "symbol": "AKR",
+      "sector": "Real_Estate_Retail",
+      "price": 20.559999465942383,
+      "sma20": 20.339500141143798,
+      "sma50": 20.442152099609373,
+      "atr_pct": 2.7306826708665093,
+      "avg_volume": 1173190.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.0840941186777113,
+      "rsi": 57.93101452478105,
+      "dollar_volume": 24120785.773448944,
+      "return_5d": 0.09736392173147876,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:26:21.110097"
+    },
+    "AVB": {
+      "symbol": "AVB",
+      "sector": "Real_Estate_Residential",
+      "price": 176.36000061035156,
+      "sma20": 175.96999969482422,
+      "sma50": 178.0320980834961,
+      "atr_pct": 2.6779636979699637,
+      "avg_volume": 1225390.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 0.22162920736699251,
+      "rsi": 51.595080681964454,
+      "dollar_volume": 216109781.1479187,
+      "return_5d": -0.7261431637788202,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:26:24.883157"
+    },
+    "EQR": {
+      "symbol": "EQR",
+      "sector": "Real_Estate_Residential",
+      "price": 63.31999969482422,
+      "sma20": 62.95949993133545,
+      "sma50": 61.992778091430665,
+      "atr_pct": 2.676880595241495,
+      "avg_volume": 3181365.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.5725899409651195,
+      "rsi": 57.060272175787176,
+      "dollar_volume": 201444030.82912445,
+      "return_5d": -0.2520476505448834,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:26:26.027483"
+    },
+    "SUI": {
+      "symbol": "SUI",
+      "sector": "Real_Estate_Residential",
+      "price": 131.16000366210938,
+      "sma20": 127.7379997253418,
+      "sma50": 125.41919891357422,
+      "atr_pct": 2.625474917580903,
+      "avg_volume": 844010.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.678924003918541,
+      "rsi": 63.835337158232925,
+      "dollar_volume": 110700354.69085693,
+      "return_5d": -0.2357933792617425,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:26:40.862537"
+    },
+    "DLR": {
+      "symbol": "DLR",
+      "sector": "Real_Estate_Data",
+      "price": 176.08999633789062,
+      "sma20": 170.95199966430664,
+      "sma50": 161.87004180908204,
+      "atr_pct": 2.6410995776045048,
+      "avg_volume": 2144830.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.0055200779594946,
+      "rsi": 68.98339630486133,
+      "dollar_volume": 377683106.84539795,
+      "return_5d": -2.1124037270837186,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:26:43.373503"
+    },
+    "AMT": {
+      "symbol": "AMT",
+      "sector": "Real_Estate_Data",
+      "price": 190.0500030517578,
+      "sma20": 180.93250045776367,
+      "sma50": 177.73294708251953,
+      "atr_pct": 2.7955045074474785,
+      "avg_volume": 3259640.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 5.039173487862402,
+      "rsi": 68.30907988635019,
+      "dollar_volume": 619494591.9476318,
+      "return_5d": -1.5743919124702295,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:26:44.691873"
+    },
+    "CCI": {
+      "symbol": "CCI",
+      "sector": "Real_Estate_Data",
+      "price": 87.69999694824219,
+      "sma20": 86.03499984741211,
+      "sma50": 87.04488876342774,
+      "atr_pct": 3.946079827057441,
+      "avg_volume": 4167375.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.935255539934961,
+      "rsi": 54.45963287008097,
+      "dollar_volume": 365478774.7821808,
+      "return_5d": -4.528634481241872,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:26:46.237110"
+    },
+    "UNIT": {
+      "symbol": "UNIT",
+      "sector": "Real_Estate_Data",
+      "price": 8.0600004196167,
+      "sma20": 8.011499977111816,
+      "sma50": 7.5885999965667725,
+      "atr_pct": 4.27773702528442,
+      "avg_volume": 1934005.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.6053852916862618,
+      "rsi": 49.115044807937956,
+      "dollar_volume": 15588081.111540794,
+      "return_5d": -3.2412905949851614,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:26:49.267618"
+    },
+    "DHC": {
+      "symbol": "DHC",
+      "sector": "Real_Estate_Healthcare",
+      "price": 6.150000095367432,
+      "sma20": 6.13800003528595,
+      "sma50": 5.560703477859497,
+      "atr_pct": 4.157955712185084,
+      "avg_volume": 1860360.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.1955043990305636,
+      "rsi": 58.85714363565271,
+      "dollar_volume": 11441214.177417755,
+      "return_5d": -8.071748239676173,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:04.950136"
+    },
+    "DD": {
+      "symbol": "DD",
+      "sector": "Materials_Chemicals",
+      "price": 50.08000183105469,
+      "sma20": 47.629500007629396,
+      "sma50": 44.25459991455078,
+      "atr_pct": 3.5115257695979523,
+      "avg_volume": 5064480.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 5.144924517437229,
+      "rsi": 66.58838655917711,
+      "dollar_volume": 253629167.67333984,
+      "return_5d": -1.5529725131071637,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:23.148068"
+    },
+    "PPG": {
+      "symbol": "PPG",
+      "sector": "Materials_Chemicals",
+      "price": 125.3499984741211,
+      "sma20": 122.67285957336426,
+      "sma50": 112.14324829101562,
+      "atr_pct": 2.728539950698696,
+      "avg_volume": 2441685.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.1823400139749514,
+      "rsi": 66.19878905206218,
+      "dollar_volume": 306065211.02428436,
+      "return_5d": -2.4071753309122843,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:25.878912"
+    },
+    "EMN": {
+      "symbol": "EMN",
+      "sector": "Materials_Chemicals",
+      "price": 76.56999969482422,
+      "sma20": 75.89349975585938,
+      "sma50": 69.85065559387208,
+      "atr_pct": 3.7621965300097515,
+      "avg_volume": 1981880.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.891380607220724,
+      "rsi": 60.34131055614871,
+      "dollar_volume": 151752550.99517822,
+      "return_5d": -3.210720384187412,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:27.208537"
+    },
+    "ALB": {
+      "symbol": "ALB",
+      "sector": "Materials_Chemicals",
+      "price": 177.52000427246094,
+      "sma20": 171.6594985961914,
+      "sma50": 161.1260824584961,
+      "atr_pct": 5.464175498074558,
+      "avg_volume": 2984195.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.414029357067895,
+      "rsi": 57.91525799973485,
+      "dollar_volume": 529754309.14985657,
+      "return_5d": 5.091171084973805,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:29.756832"
+    },
+    "CF": {
+      "symbol": "CF",
+      "sector": "Materials_Chemicals",
+      "price": 95.44999694824219,
+      "sma20": 93.82894096374511,
+      "sma50": 85.95228424072266,
+      "atr_pct": 3.6971778530885215,
+      "avg_volume": 2305970.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.7276716201277829,
+      "rsi": 60.83811114591701,
+      "dollar_volume": 220104829.46273804,
+      "return_5d": 1.769907257181852,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:33.441813"
+    },
+    "NTR": {
+      "symbol": "NTR",
+      "sector": "Materials_Chemicals",
+      "price": 71.91000366210938,
+      "sma20": 70.49600028991699,
+      "sma50": 66.07179992675782,
+      "atr_pct": 2.890019715141397,
+      "avg_volume": 2851595.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.0057923376890177,
+      "rsi": 58.65592152056369,
+      "dollar_volume": 205058206.89285278,
+      "return_5d": 2.934444651943006,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:36.262111"
+    },
+    "LYB": {
+      "symbol": "LYB",
+      "sector": "Materials_Chemicals",
+      "price": 56.65999984741211,
+      "sma20": 54.45450019836426,
+      "sma50": 49.482800064086916,
+      "atr_pct": 4.93041159056266,
+      "avg_volume": 7279890.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.050169666444027,
+      "rsi": 65.1536710481296,
+      "dollar_volume": 412478566.28917694,
+      "return_5d": 1.2147200977783648,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:37.832072"
+    },
+    "CC": {
+      "symbol": "CC",
+      "sector": "Materials_Chemicals",
+      "price": 18.030000686645508,
+      "sma20": 17.973500108718873,
+      "sma50": 15.181400032043458,
+      "atr_pct": 8.763171733411701,
+      "avg_volume": 3997175.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.31435489796017035,
+      "rsi": 58.76879222926847,
+      "dollar_volume": 72069067.99464226,
+      "return_5d": -12.81431131249564,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:40.497744"
+    },
+    "AXTA": {
+      "symbol": "AXTA",
+      "sector": "Materials_Chemicals",
+      "price": 34.04999923706055,
+      "sma20": 34.026500129699706,
+      "sma50": 33.097000198364256,
+      "atr_pct": 3.292425512292568,
+      "avg_volume": 3222210.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.06906119427878006,
+      "rsi": 52.86041509539372,
+      "dollar_volume": 109716248.04164886,
+      "return_5d": -2.575111605815061,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:41.862255"
+    },
+    "RPM": {
+      "symbol": "RPM",
+      "sector": "Materials_Chemicals",
+      "price": 116.01000213623047,
+      "sma20": 113.9185001373291,
+      "sma50": 109.86861511230468,
+      "atr_pct": 2.5496572277991807,
+      "avg_volume": 1015660.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.8359634268183413,
+      "rsi": 69.42412729230477,
+      "dollar_volume": 117826718.76968384,
+      "return_5d": -1.3520377198308533,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:43.325882"
+    },
+    "KWR": {
+      "symbol": "KWR",
+      "sector": "Materials_Chemicals",
+      "price": 169.97000122070312,
+      "sma20": 167.53450088500978,
+      "sma50": 154.77911712646485,
+      "atr_pct": 3.770832660567016,
+      "avg_volume": 150430.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.453730618366778,
+      "rsi": 67.4890149764405,
+      "dollar_volume": 25568587.28363037,
+      "return_5d": -5.870302748829712,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:45.785608"
+    },
+    "WLK": {
+      "symbol": "WLK",
+      "sector": "Materials_Chemicals",
+      "price": 93.0199966430664,
+      "sma20": 92.09850006103515,
+      "sma50": 83.8568000793457,
+      "atr_pct": 5.263077325077518,
+      "avg_volume": 1427390.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.0005554720441292,
+      "rsi": 62.26464910253978,
+      "dollar_volume": 132775813.00834656,
+      "return_5d": -4.906975124445627,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:47.253640"
+    },
+    "FCX": {
+      "symbol": "FCX",
+      "sector": "Materials_Metals",
+      "price": 65.55000305175781,
+      "sma20": 62.67599945068359,
+      "sma50": 57.18405143737793,
+      "atr_pct": 4.619156721241041,
+      "avg_volume": 22150830.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.585493053582053,
+      "rsi": 58.959979072681755,
+      "dollar_volume": 1451986974.0989685,
+      "return_5d": 7.300708607022302,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:48.514400"
+    },
+    "NEM": {
+      "symbol": "NEM",
+      "sector": "Materials_Metals",
+      "price": 124.25,
+      "sma20": 121.21999969482422,
+      "sma50": 112.56159973144531,
+      "atr_pct": 4.870364679005955,
+      "avg_volume": 10771160.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.4995877848572117,
+      "rsi": 60.34482639254762,
+      "dollar_volume": 1338316630.0,
+      "return_5d": 1.586135622704819,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:50.044415"
+    },
+    "STLD": {
+      "symbol": "STLD",
+      "sector": "Materials_Metals",
+      "price": 196.00999450683594,
+      "sma20": 191.20800018310547,
+      "sma50": 180.20929321289063,
+      "atr_pct": 3.966268808098116,
+      "avg_volume": 1485985.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.511398225561672,
+      "rsi": 58.30406232955757,
+      "dollar_volume": 291267911.6872406,
+      "return_5d": 2.1310944023093628,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:52.632035"
+    },
+    "AA": {
+      "symbol": "AA",
+      "sector": "Materials_Metals",
+      "price": 59.810001373291016,
+      "sma20": 59.71649990081787,
+      "sma50": 57.74160011291504,
+      "atr_pct": 5.99565168074508,
+      "avg_volume": 7495180.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.15657560745930876,
+      "rsi": 53.01887180848438,
+      "dollar_volume": 448286726.09306335,
+      "return_5d": 4.071689756193921,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:27:57.261998"
+    },
+    "CENX": {
+      "symbol": "CENX",
+      "sector": "Materials_Metals",
+      "price": 51.84000015258789,
+      "sma20": 49.620499992370604,
+      "sma50": 44.29259990692139,
+      "atr_pct": 8.264439947873793,
+      "avg_volume": 2614380.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.472950011705939,
+      "rsi": 56.848486333729866,
+      "dollar_volume": 135529459.59892273,
+      "return_5d": 6.03395540962936,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:28:06.249590"
+    },
+    "CDE": {
+      "symbol": "CDE",
+      "sector": "Materials_Metals",
+      "price": 24.43000030517578,
+      "sma20": 22.72500009536743,
+      "sma50": 20.83100004196167,
+      "atr_pct": 7.063912585101254,
+      "avg_volume": 28803010.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 7.502751166790624,
+      "rsi": 63.98911162210344,
+      "dollar_volume": 703657543.0899811,
+      "return_5d": 12.012842289724428,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:28:19.678664"
+    },
+    "FNV": {
+      "symbol": "FNV",
+      "sector": "Materials_Metals",
+      "price": 270.8800048828125,
+      "sma20": 249.72399978637696,
+      "sma50": 233.82300079345703,
+      "atr_pct": 4.082462319926883,
+      "avg_volume": 947770.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 8.471754863182216,
+      "rsi": 67.5562935529754,
+      "dollar_volume": 256731942.2277832,
+      "return_5d": 8.469150489374359,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:28:22.373285"
+    },
+    "GOLD": {
+      "symbol": "GOLD",
+      "sector": "Materials_Metals",
+      "price": 56.97999954223633,
+      "sma20": 55.57470760345459,
+      "sma50": 44.09190269470215,
+      "atr_pct": 8.647880439350082,
+      "avg_volume": 1147690.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.528653769641034,
+      "rsi": 58.65490741406892,
+      "dollar_volume": 65395375.67462921,
+      "return_5d": -2.581520746656315,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:28:23.466444"
+    },
+    "HL": {
+      "symbol": "HL",
+      "sector": "Materials_Metals",
+      "price": 23.989999771118164,
+      "sma20": 23.732500076293945,
+      "sma50": 22.69960006713867,
+      "atr_pct": 8.095636458097738,
+      "avg_volume": 29305460.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 1.0850087179876657,
+      "rsi": 57.17646813310279,
+      "dollar_volume": 703037978.6925125,
+      "return_5d": 12.947269442721035,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:28:24.924921"
+    },
+    "PAAS": {
+      "symbol": "PAAS",
+      "sector": "Materials_Metals",
+      "price": 65.18000030517578,
+      "sma20": 59.210999488830566,
+      "sma50": 55.963999862670896,
+      "atr_pct": 5.657958272298818,
+      "avg_volume": 10501120.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 10.080898596334611,
+      "rsi": 66.03721157375603,
+      "dollar_volume": 684463004.8046875,
+      "return_5d": 16.206097571508913,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:28:26.118386"
+    },
+    "RGLD": {
+      "symbol": "RGLD",
+      "sector": "Materials_Metals",
+      "price": 285.2099914550781,
+      "sma20": 277.82350158691406,
+      "sma50": 255.03368133544922,
+      "atr_pct": 4.602874042497525,
+      "avg_volume": 1027670.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.6586987155416293,
+      "rsi": 62.32174723198196,
+      "dollar_volume": 293101751.91864014,
+      "return_5d": 2.200159089015269,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:28:27.213568"
+    },
+    "WPM": {
+      "symbol": "WPM",
+      "sector": "Materials_Metals",
+      "price": 155.86000061035156,
+      "sma20": 143.725,
+      "sma50": 132.31739959716796,
+      "atr_pct": 4.338141041128508,
+      "avg_volume": 2889295.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 8.443207939016572,
+      "rsi": 67.05610736837008,
+      "dollar_volume": 450325520.4634857,
+      "return_5d": 9.506076445749608,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:28:28.446105"
+    },
+    "MLM": {
+      "symbol": "MLM",
+      "sector": "Materials_Construction",
+      "price": 683.5999755859375,
+      "sma20": 669.1825012207031,
+      "sma50": 650.9340014648437,
+      "atr_pct": 3.2187774463380525,
+      "avg_volume": 527780.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.1544906417807494,
+      "rsi": 58.884226556030434,
+      "dollar_volume": 360790395.1147461,
+      "return_5d": 2.5610168392667396,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:28:29.841157"
+    },
+    "VMC": {
+      "symbol": "VMC",
+      "sector": "Materials_Construction",
+      "price": 310.7900085449219,
+      "sma20": 310.46300354003904,
+      "sma50": 302.2318017578125,
+      "atr_pct": 3.343783279288766,
+      "avg_volume": 1201825.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.10532817152258944,
+      "rsi": 52.895705254295116,
+      "dollar_volume": 373515202.01950073,
+      "return_5d": 2.8356850273322265,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:28:31.173972"
+    },
+    "EXP": {
+      "symbol": "EXP",
+      "sector": "Materials_Construction",
+      "price": 225.1999969482422,
+      "sma20": 224.66199951171876,
+      "sma50": 222.91208282470703,
+      "atr_pct": 3.9885177126772886,
+      "avg_volume": 572145.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.23946970902632034,
+      "rsi": 63.101782480221146,
+      "dollar_volume": 128847052.25395203,
+      "return_5d": -1.9676145953518214,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:28:32.754622"
+    },
+    "STRL": {
+      "symbol": "STRL",
+      "sector": "Materials_Construction",
+      "price": 434.6400146484375,
+      "sma20": 398.96900177001953,
+      "sma50": 352.5731994628906,
+      "atr_pct": 6.292234146874597,
+      "avg_volume": 492010.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 8.940798087110553,
+      "rsi": 67.76221996009451,
+      "dollar_volume": 213847233.60717773,
+      "return_5d": 3.1908836780375314,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:28:43.782817"
+    },
+    "CCK": {
+      "symbol": "CCK",
+      "sector": "Materials_Packaging",
+      "price": 115.0999984741211,
+      "sma20": 110.27899971008301,
+      "sma50": 105.69220001220702,
+      "atr_pct": 2.689586029729034,
+      "avg_volume": 1345105.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 4.371638096747524,
+      "rsi": 67.21542558631675,
+      "dollar_volume": 154821583.44753265,
+      "return_5d": 4.332848796700218,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:28:48.311859"
+    },
+    "LBRDK": {
+      "symbol": "LBRDK",
+      "sector": "Telecom",
+      "price": 52.970001220703125,
+      "sma20": 51.58600006103516,
+      "sma50": 49.18179992675781,
+      "atr_pct": 3.791905599212909,
+      "avg_volume": 1603975.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 2.68290070567684,
+      "rsi": 60.878243158355595,
+      "dollar_volume": 84962557.7079773,
+      "return_5d": -3.848246371415516,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:29:12.882932"
+    },
+    "GSAT": {
+      "symbol": "GSAT",
+      "sector": "Telecom",
+      "price": 60.790000915527344,
+      "sma20": 60.19800033569336,
+      "sma50": 62.252200317382815,
+      "atr_pct": 5.5519003481645175,
+      "avg_volume": 542900.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 0.9834223338527897,
+      "rsi": 50.0273133080187,
+      "dollar_volume": 33002891.497039795,
+      "return_5d": 2.9292236742457884,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:29:16.642069"
+    },
+    "NYT": {
+      "symbol": "NYT",
+      "sector": "Media",
+      "price": 75.29000091552734,
+      "sma20": 72.49499969482422,
+      "sma50": 71.03559844970704,
+      "atr_pct": 3.798644193361742,
+      "avg_volume": 3071590.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 3.8554400061645593,
+      "rsi": 53.758874355965524,
+      "dollar_volume": 231260013.91212463,
+      "return_5d": 1.7020156112481786,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:29:29.805523"
+    },
+    "OMC": {
+      "symbol": "OMC",
+      "sector": "Media",
+      "price": 80.75,
+      "sma20": 73.6435001373291,
+      "sma50": 77.15884582519531,
+      "atr_pct": 4.950905436701819,
+      "avg_volume": 6248695.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 9.649867061477016,
+      "rsi": 55.29147364918943,
+      "dollar_volume": 504582121.25,
+      "return_5d": 18.784930880360033,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:29:31.061663"
+    },
+    "MSGS": {
+      "symbol": "MSGS",
+      "sector": "Media",
+      "price": 314.0899963378906,
+      "sma20": 292.2675018310547,
+      "sma50": 273.0302001953125,
+      "atr_pct": 4.631179914438405,
+      "avg_volume": 280045.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 7.466616839066301,
+      "rsi": 62.62196663034426,
+      "dollar_volume": 87959333.02444458,
+      "return_5d": 6.913335708007712,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:29:48.689792"
+    },
+    "FWONA": {
+      "symbol": "FWONA",
+      "sector": "Media",
+      "price": 79.62999725341797,
+      "sma20": 79.61449966430663,
+      "sma50": 83.34119979858399,
+      "atr_pct": 2.9807506595769957,
+      "avg_volume": 162695.0,
+      "above_sma20": 1,
+      "above_sma50": 0,
+      "pct_from_sma20": 0.019465787233078354,
+      "rsi": 52.384378047415794,
+      "dollar_volume": 12955402.403144836,
+      "return_5d": 0.0,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:29:50.237706"
+    },
+    "SIRI": {
+      "symbol": "SIRI",
+      "sector": "Media",
+      "price": 20.959999084472656,
+      "sma20": 20.795960235595704,
+      "sma50": 20.747907218933104,
+      "atr_pct": 4.092887651104906,
+      "avg_volume": 6452160.0,
+      "above_sma20": 1,
+      "above_sma50": 1,
+      "pct_from_sma20": 0.7888015124984369,
+      "rsi": 56.46091834319802,
+      "dollar_volume": 135237267.6928711,
+      "return_5d": -0.2854489628179542,
+      "pass_count": 1,
+      "windows": [
+        "evening"
+      ],
+      "last_updated": "2026-02-24T14:29:53.263301"
+    }
+  }
+}
