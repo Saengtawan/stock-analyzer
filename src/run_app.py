@@ -257,14 +257,18 @@ class ServiceManager:
         try:
             logger.info("Starting Web Server...")
 
-            from web.app import app
+            from web.app import app, socketio, start_monitor, start_price_streamer
 
             # Store reference to ServiceManager so web endpoints can access scan progress
             app.config['service_manager'] = self
 
-            # Run in thread
+            # v6.45: Start background monitor BEFORE running socketio
+            start_monitor()
+            start_price_streamer()
+
+            # Run in thread (v6.45: Use socketio.run() for WebSocket support)
             def run_flask():
-                app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)
+                socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False, allow_unsafe_werkzeug=True)
 
             flask_thread = threading.Thread(target=run_flask, daemon=True)
             flask_thread.start()

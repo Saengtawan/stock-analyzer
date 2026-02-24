@@ -4501,7 +4501,7 @@ def handle_connect():
         client_count = len(connected_clients)
     logger.info(f"WebSocket client connected: {request.sid} (total: {client_count})")
     # Send initial data immediately
-    emit('connected', {'status': 'connected', 'clients': client_count})
+    emit('connected', {'status': 'connected', 'clients': int(client_count)})
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -4514,10 +4514,11 @@ def handle_disconnect():
 @socketio.on('request_update')
 def handle_request_update(data=None):
     """Client requests immediate update"""
-    emit('positions_update', get_positions_data())
-    emit('signals_update', get_signals_data())
-    emit('status_update', get_status_data())
-    emit('regime_update', get_regime_data())
+    # v6.45: Convert numpy types before emit to prevent JSON serialization errors
+    emit('positions_update', convert_numpy_types(get_positions_data()))
+    emit('signals_update', convert_numpy_types(get_signals_data()))
+    emit('status_update', convert_numpy_types(get_status_data()))
+    emit('regime_update', convert_numpy_types(get_regime_data()))
 
 def _get_extended_hours_prices(symbols: list) -> dict:
     """
