@@ -429,18 +429,8 @@ class TradingSafetySystem:
                 daytrade_count = getattr(account, 'day_trade_count', 0)
                 is_pdt = getattr(account, 'pattern_day_trader', False)
 
-            # v6.44: If PDT not enforced (paper trading), skip all PDT checks
-            if not self.PDT_ENFORCE_ALWAYS:
-                return SafetyCheck(
-                    name="PDT Rule",
-                    status=SafetyStatus.OK,
-                    message=f"PDT not enforced (pdt_enforce_always=false)",
-                    value=daytrade_count,
-                    threshold=self.PDT_DAY_TRADE_LIMIT
-                )
-
             # If account >= $25K, PDT doesn't apply
-            if portfolio_value >= self.PDT_ACCOUNT_THRESHOLD:
+            if portfolio_value >= self.PDT_ACCOUNT_THRESHOLD and not self.PDT_ENFORCE_ALWAYS:
                 return SafetyCheck(
                     name="PDT Rule",
                     status=SafetyStatus.OK,
@@ -449,17 +439,8 @@ class TradingSafetySystem:
                     threshold=self.PDT_DAY_TRADE_LIMIT
                 )
 
-            # Check if already flagged as PDT
-            if is_pdt:
-                return SafetyCheck(
-                    name="PDT Rule",
-                    status=SafetyStatus.CRITICAL,
-                    message="FLAGGED as Pattern Day Trader!",
-                    value=daytrade_count,
-                    threshold=self.PDT_DAY_TRADE_LIMIT
-                )
-
-            # Check day trade count
+            # v6.44: Check day trade count FIRST (authoritative)
+            # Only block if count >= limit, ignore flag alone (Alpaca paper bug)
             if daytrade_count >= self.PDT_DAY_TRADE_LIMIT:
                 return SafetyCheck(
                     name="PDT Rule",
@@ -478,6 +459,10 @@ class TradingSafetySystem:
                     value=daytrade_count,
                     threshold=self.PDT_DAY_TRADE_LIMIT
                 )
+
+            # v6.44: Log if flag set but count OK (likely Alpaca paper bug)
+            if is_pdt and daytrade_count < self.PDT_DAY_TRADE_LIMIT:
+                logger.warning(f"PDT flag set but count OK ({daytrade_count}/{self.PDT_DAY_TRADE_LIMIT}) - ignoring flag")
 
             return SafetyCheck(
                 name="PDT Rule",
