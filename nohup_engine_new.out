@@ -1,0 +1,219 @@
+2026-02-24 00:21:23.012 | INFO     | __main__:_load_config_from_yaml:930 - ✅ Loaded ALL parameters from RapidRotationConfig (v6.32)
+2026-02-24 00:21:23.012 | INFO     | __main__:_load_config_from_yaml:931 -    SL range: 3.0%-4.0%
+2026-02-24 00:21:23.012 | INFO     | __main__:_load_config_from_yaml:932 -    Max positions: 2
+2026-02-24 00:21:23.012 | INFO     | __main__:_load_config_from_yaml:933 -    Regime filter: ENABLED
+2026-02-24 00:21:23.012 | INFO     | __main__:_load_config_from_yaml:936 -    Beta filter: LOG-ONLY (beta>=0.5, atr>=3.0%)
+2026-02-24 00:21:23.012 | INFO     | engine.rate_limiter:__init__:78 - AlpacaAPI initialized: 150 req/60s (150 req/min)
+2026-02-24 00:21:23.012 | INFO     | engine.brokers.alpaca_broker:__init__:222 - ✅ Rate limiter enabled (150 req/min)
+2026-02-24 00:21:23.012 | INFO     | engine.brokers.alpaca_broker:__init__:227 - AlpacaBroker initialized (paper)
+2026-02-24 00:21:23.118 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 12 cached items from disk
+2026-02-24 00:21:23.227 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 12 cached items from disk
+2026-02-24 00:21:23.335 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 12 cached items from disk
+2026-02-24 00:21:23.339 | INFO     | api.data_manager:__init__:80 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: Yes
+2026-02-24 00:21:23.339 | INFO     | __main__:__init__:453 - DataManager initialized with broker integration
+2026-02-24 00:21:23.339 | INFO     | trading_safety:_load_from_rapid_config:145 - Safety config loaded from RapidRotationConfig
+2026-02-24 00:21:23.339 | DEBUG    | trading_safety:_load_from_rapid_config:146 -   DAILY_LOSS_LIMIT: 5.0%
+2026-02-24 00:21:23.339 | DEBUG    | trading_safety:_load_from_rapid_config:147 -   MAX_POSITIONS: 2
+2026-02-24 00:21:23.339 | DEBUG    | trading_safety:_load_from_rapid_config:148 -   MAX_HOLD_DAYS: 7
+2026-02-24 00:21:23.339 | INFO     | trading_safety:__init__:129 - Trading Safety System initialized
+2026-02-24 00:21:23.339 | INFO     | pdt_smart_guard:_load_entry_dates:358 - PDT Guard: Loaded 2 entry dates from database
+2026-02-24 00:21:23.339 | INFO     | pdt_smart_guard:__init__:266 - PDT Smart Guard v2.4 initialized (DB-enabled, No Override Mode)
+2026-02-24 00:21:23.339 | INFO     | pdt_smart_guard:__init__:267 -   Storage: Database
+2026-02-24 00:21:23.339 | INFO     | pdt_smart_guard:__init__:268 -   SL Threshold: -3.5%
+2026-02-24 00:21:23.339 | INFO     | pdt_smart_guard:__init__:269 -   TP Threshold: 8.0%
+2026-02-24 00:21:23.339 | INFO     | pdt_smart_guard:__init__:270 -   Reserve: 1 day trades
+2026-02-24 00:21:23.339 | INFO     | pdt_smart_guard:__init__:271 -   Budget = 0 → HOLD (ไม่ override PDT เด็ดขาด)
+2026-02-24 00:21:23.340 | INFO     | __main__:__init__:467 - PDT Smart Guard v2.3 initialized (No Override - uses RapidRotationConfig)
+2026-02-24 00:21:23.340 | INFO     | trade_logger:_load_today_logs:385 - Loaded 1 logs from /home/saengtawan/work/project/cc/stock-analyzer/trade_logs/trade_log_2026-02-23.json
+2026-02-24 00:21:23.347 | INFO     | trade_logger:__init__:235 - TradeLogger initialized - logs: /home/saengtawan/work/project/cc/stock-analyzer/trade_logs, db: /home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db (direct SQLite)
+2026-02-24 00:21:23.347 | INFO     | __main__:__init__:471 - Trade Logger v1.0 initialized
+2026-02-24 00:21:23.349 | INFO     | alert_manager:__init__:54 - AlertManager using database storage
+2026-02-24 00:21:23.349 | INFO     | __main__:__init__:476 - Alert Manager v1.0 initialized
+2026-02-24 00:21:23.349 | INFO     | filters.entry_protection_filter:__init__:94 - 🛡️ Entry Protection Filter initialized (enabled=True)
+2026-02-24 00:21:23.349 | INFO     | filters.entry_protection_filter:__init__:97 -    Layer 1: Adaptive timing (Gap Down <-1.5%: 5min, Mild: 10min, Flat: 15min, Gap Up: 20min)
+2026-02-24 00:21:23.349 | INFO     | filters.entry_protection_filter:__init__:100 -    Layer 2: Max VWAP distance 3.0%
+2026-02-24 00:21:23.349 | INFO     | filters.entry_protection_filter:__init__:101 -    Layer 3: Max chase 0.8%
+2026-02-24 00:21:23.349 | INFO     | filters.entry_protection_filter:__init__:102 -    Layer 4: Block if in top 20% of range or >2.5% from low
+2026-02-24 00:21:23.349 | INFO     | __main__:__init__:482 - ✅ Entry Protection Filter v6.17 initialized
+2026-02-24 00:21:23.362 | DEBUG    | screeners.rapid_rotation_screener:__init__:221 - Loaded RapidRotationConfig from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
+2026-02-24 00:21:23.362 | INFO     | screeners.rapid_rotation_screener:_load_sector_cache:858 - 📦 Loaded 286 sectors from cache
+2026-02-24 00:21:23.362 | INFO     | screeners.rapid_rotation_screener:_init_ai_universe:459 - ✅ AI Universe Generator initialized
+2026-02-24 00:21:23.362 | INFO     | screeners.rapid_rotation_screener:_init_market_regime:469 - ✅ Market Regime Detector initialized
+2026-02-24 00:21:23.477 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 12 cached items from disk
+2026-02-24 00:21:23.585 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 12 cached items from disk
+2026-02-24 00:21:23.719 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 12 cached items from disk
+2026-02-24 00:21:23.723 | INFO     | api.data_manager:__init__:80 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
+2026-02-24 00:21:23.723 | INFO     | sector_regime_detector:update_all_sectors:527 - Updating sector regimes (5-min realtime, MCW)...
+2026-02-24 00:21:23.724 | INFO     | sector_regime_detector:_build_sector_company_map:309 - Built sector company map: 550 stocks across 11 sectors (with market weights)
+2026-02-24 00:21:23.724 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:339 - Batch downloading 550 sector stocks for 1d returns...
+2026-02-24 00:21:23.724 | DEBUG    | api.yahoo_finance_client:batch_download_prices:626 - Cache hit for batch download (550 symbols)
+2026-02-24 00:21:23.746 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Technology (XLK): MCW 1d = -1.11% (50/50 stocks, weight=88.7%)
+2026-02-24 00:21:23.746 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Energy (XLE): MCW 1d = +0.18% (50/50 stocks, weight=91.6%)
+2026-02-24 00:21:23.746 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Financial Services (XLF): MCW 1d = -3.29% (49/50 stocks, weight=76.6%)
+2026-02-24 00:21:23.746 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Healthcare (XLV): MCW 1d = +1.22% (50/50 stocks, weight=81.4%)
+2026-02-24 00:21:23.746 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Consumer Cyclical (XLY): MCW 1d = -2.82% (50/50 stocks, weight=85.9%)
+2026-02-24 00:21:23.747 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Consumer Defensive (XLP): MCW 1d = +1.07% (50/50 stocks, weight=96.5%)
+2026-02-24 00:21:23.747 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Industrials (XLI): MCW 1d = -1.04% (50/50 stocks, weight=68.9%)
+2026-02-24 00:21:23.747 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Utilities (XLU): MCW 1d = +0.13% (49/50 stocks, weight=97.0%)
+2026-02-24 00:21:23.747 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Basic Materials (XLB): MCW 1d = +0.21% (50/50 stocks, weight=92.7%)
+2026-02-24 00:21:23.747 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Communication Services (XLC): MCW 1d = -0.90% (47/50 stocks, weight=98.8%)
+2026-02-24 00:21:23.747 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Real Estate (XLRE): MCW 1d = +0.06% (50/50 stocks, weight=81.8%)
+2026-02-24 00:21:23.747 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:407 - Market-cap weighted 1d returns calculated for 11 sectors
+2026-02-24 00:21:23.748 | INFO     | sector_regime_detector:update_all_sectors:532 - Using market-cap weighted 1d returns for 11 sectors
+2026-02-24 00:21:23.748 | INFO     | api.yahoo_finance_client:_smart_throttle:54 - 🚀 Starting Yahoo Finance session...
+2026-02-24 00:21:26.211 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLK
+2026-02-24 00:21:26.211 | INFO     | sector_regime_detector:update_all_sectors:574 - XLK (Technology): SIDEWAYS (score=-1.6) | 1d[M]: -1.1% | 5d: -0.5% | 20d: -4.39%
+2026-02-24 00:21:27.312 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLE
+2026-02-24 00:21:27.312 | INFO     | sector_regime_detector:update_all_sectors:574 - XLE (Energy): BULL (score=+3.7) | 1d[M]: +0.2% | 5d: +2.2% | 20d: +11.71%
+2026-02-24 00:21:28.848 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLF
+2026-02-24 00:21:28.848 | INFO     | sector_regime_detector:update_all_sectors:574 - XLF (Financial Services): BEAR (score=-3.3) | 1d[M]: -3.3% | 5d: -2.8% | 20d: -4.36%
+2026-02-24 00:21:30.247 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLV
+2026-02-24 00:21:30.247 | INFO     | sector_regime_detector:update_all_sectors:574 - XLV (Healthcare): SIDEWAYS (score=+0.9) | 1d[M]: +1.2% | 5d: +0.7% | 20d: +0.60%
+2026-02-24 00:21:31.370 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLY
+2026-02-24 00:21:31.371 | INFO     | sector_regime_detector:update_all_sectors:574 - XLY (Consumer Cyclical): BEAR (score=-3.8) | 1d[M]: -2.8% | 5d: -1.6% | 20d: -7.24%
+2026-02-24 00:21:32.817 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLP
+2026-02-24 00:21:32.817 | INFO     | sector_regime_detector:update_all_sectors:574 - XLP (Consumer Defensive): BULL (score=+2.6) | 1d[M]: +1.1% | 5d: +0.5% | 20d: +6.97%
+2026-02-24 00:21:34.236 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLI
+2026-02-24 00:21:34.237 | INFO     | sector_regime_detector:update_all_sectors:574 - XLI (Industrials): SIDEWAYS (score=+0.8) | 1d[M]: -1.0% | 5d: -0.1% | 20d: +6.46%
+2026-02-24 00:21:35.799 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLU
+2026-02-24 00:21:35.799 | INFO     | sector_regime_detector:update_all_sectors:574 - XLU (Utilities): BULL (score=+2.5) | 1d[M]: +0.1% | 5d: +0.3% | 20d: +9.26%
+2026-02-24 00:21:37.001 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLB
+2026-02-24 00:21:37.001 | INFO     | sector_regime_detector:update_all_sectors:574 - XLB (Basic Materials): SIDEWAYS (score=+1.1) | 1d[M]: +0.2% | 5d: -0.2% | 20d: +5.22%
+2026-02-24 00:21:38.226 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLC
+2026-02-24 00:21:38.226 | INFO     | sector_regime_detector:update_all_sectors:574 - XLC (Communication Services): SIDEWAYS (score=-0.2) | 1d[M]: -0.9% | 5d: +1.1% | 20d: -1.09%
+2026-02-24 00:21:39.737 | DEBUG    | api.yahoo_finance_client:get_price_data:151 - ✅ Retrieved 21 rows for XLRE
+2026-02-24 00:21:39.737 | INFO     | sector_regime_detector:update_all_sectors:574 - XLRE (Real Estate): SIDEWAYS (score=+0.8) | 1d[M]: +0.1% | 5d: -0.9% | 20d: +5.58%
+2026-02-24 00:21:39.737 | INFO     | screeners.rapid_rotation_screener:_init_sector_regime:483 - ✅ Sector Regime Detector initialized
+2026-02-24 00:21:39.738 | INFO     | screeners.rapid_rotation_screener:_init_alt_data:493 - ✅ Alternative Data Aggregator initialized (6 sources)
+2026-02-24 00:21:39.738 | INFO     | strategies.strategy_manager:register:48 - ✅ Registered strategy: Dip-Bounce (dip_bounce)
+2026-02-24 00:21:39.742 | INFO     | strategies.vix_adaptive.engine_integration:__init__:66 - VIX Adaptive v3.0: Loading...
+2026-02-24 00:21:39.806 | INFO     | strategies.vix_adaptive.engine_integration:__init__:76 - VIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)
+2026-02-24 00:21:39.806 | INFO     | strategies.vix_adaptive.engine_integration:__init__:93 - Initial VIX: 21.17 → tier=SKIP
+2026-02-24 00:21:39.806 | INFO     | strategies.vix_adaptive.engine_integration:__init__:99 - ✅ VIX Adaptive v3.0 initialized
+2026-02-24 00:21:39.806 | INFO     | strategies.vix_adaptive.engine_integration:__init__:100 -    Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}
+2026-02-24 00:21:39.806 | INFO     | strategies.vix_adaptive.engine_integration:__init__:101 -    Score adaptation: True
+2026-02-24 00:21:39.806 | INFO     | strategies.vix_adaptive_strategy_wrapper:__init__:48 - ✅ VIX Adaptive wrapper initialized: VIXAdaptiveIntegration(tier=SKIP, VIX=21.2)
+2026-02-24 00:21:39.806 | INFO     | strategies.strategy_manager:register:48 - ✅ Registered strategy: VIX Adaptive (vix_adaptive)
+2026-02-24 00:21:39.806 | INFO     | screeners.rapid_rotation_screener:_init_strategy_manager:542 - ✅ VIX Adaptive registered (tier=skip)
+2026-02-24 00:21:39.807 | INFO     | screeners.rapid_rotation_screener:_init_strategy_manager:546 - ✅ Strategy Manager initialized (2 strategies active)
+2026-02-24 00:21:39.807 | INFO     | filters.sector_filter:__init__:53 - 🏭 Sector Filter initialized (enabled=True)
+2026-02-24 00:21:39.807 | INFO     | filters.sector_filter:__init__:54 -    Excluding sectors: Aerospace, Aerospace & Defense, Basic Materials, Communication Services, Consumer Defensive, Consumer Staples, Energy, Energy/Oil, Materials, Media, Oil & Gas
+2026-02-24 00:21:39.807 | INFO     | __main__:__init__:492 - Screener initialized
+2026-02-24 00:21:39.807 | INFO     | filters.sector_filter:__init__:53 - 🏭 Sector Filter initialized (enabled=True)
+2026-02-24 00:21:39.807 | INFO     | filters.sector_filter:__init__:54 -    Excluding sectors: Aerospace, Aerospace & Defense, Basic Materials, Communication Services, Consumer Defensive, Consumer Staples, Energy, Energy/Oil, Materials, Media, Oil & Gas
+2026-02-24 00:21:39.807 | INFO     | __main__:__init__:505 - OvernightGapScanner initialized
+2026-02-24 00:21:39.807 | INFO     | __main__:__init__:520 - ✅ PreMarketGapScanner initialized (v6.11)
+2026-02-24 00:21:39.807 | INFO     | filters.sector_filter:__init__:53 - 🏭 Sector Filter initialized (enabled=True)
+2026-02-24 00:21:39.807 | INFO     | filters.sector_filter:__init__:54 -    Excluding sectors: Aerospace, Aerospace & Defense, Basic Materials, Communication Services, Consumer Defensive, Consumer Staples, Energy, Energy/Oil, Materials, Media, Oil & Gas
+2026-02-24 00:21:39.807 | INFO     | __main__:__init__:534 - ✅ PEMScreener initialized (v6.29)
+2026-02-24 00:21:39.810 | INFO     | strategies.vix_adaptive.engine_integration:__init__:66 - VIX Adaptive v3.0: Loading...
+2026-02-24 00:21:39.872 | INFO     | strategies.vix_adaptive.engine_integration:__init__:76 - VIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)
+2026-02-24 00:21:39.872 | INFO     | strategies.vix_adaptive.engine_integration:__init__:93 - Initial VIX: 21.17 → tier=SKIP
+2026-02-24 00:21:39.872 | INFO     | strategies.vix_adaptive.engine_integration:__init__:99 - ✅ VIX Adaptive v3.0 initialized
+2026-02-24 00:21:39.872 | INFO     | strategies.vix_adaptive.engine_integration:__init__:100 -    Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}
+2026-02-24 00:21:39.872 | INFO     | strategies.vix_adaptive.engine_integration:__init__:101 -    Score adaptation: True
+2026-02-24 00:21:39.872 | INFO     | __main__:__init__:546 - ✅ VIX Adaptive Strategy initialized: VIXAdaptiveIntegration(tier=SKIP, VIX=21.2)
+2026-02-24 00:21:39.872 | INFO     | __main__:__init__:553 - SLTPCalculator initialized
+2026-02-24 00:21:40.630 | INFO     | engine.monitoring_metrics:__init__:131 - MonitoringMetrics initialized (window: 3600s)
+2026-02-24 00:21:40.875 | INFO     | __main__:_load_positions_state:1035 - Loaded persisted state: 1 positions from DB
+2026-02-24 00:21:40.875 | INFO     | __main__:_sync_positions:1511 - Restored position: FAST (peak=$46.69, trail=OFF)
+2026-02-24 00:21:40.897 | DEBUG    | pdt_smart_guard:record_entry:385 - PDT Guard: Recorded entry for FAST on 2026-02-14 (ET)
+2026-02-24 00:21:40.898 | INFO     | __main__:_sync_positions:1665 - ✅ Synced 1 positions
+2026-02-24 00:21:41.142 | INFO     | pdt_smart_guard:log_status:624 - ==================================================
+2026-02-24 00:21:41.142 | INFO     | pdt_smart_guard:log_status:625 - PDT SMART GUARD STATUS
+2026-02-24 00:21:41.142 | INFO     | pdt_smart_guard:log_status:626 - ==================================================
+2026-02-24 00:21:41.142 | INFO     | pdt_smart_guard:log_status:627 - Day Trades: 1/3 (remaining: 2)
+2026-02-24 00:21:41.142 | INFO     | pdt_smart_guard:log_status:628 - Reserve Active: False
+2026-02-24 00:21:41.142 | INFO     | pdt_smart_guard:log_status:629 - Flagged: True
+2026-02-24 00:21:41.142 | INFO     | pdt_smart_guard:log_status:632 - Positions:
+2026-02-24 00:21:41.142 | INFO     | pdt_smart_guard:log_status:635 -   KHC: Day 4
+2026-02-24 00:21:41.142 | INFO     | pdt_smart_guard:log_status:635 -   FAST: Day 9
+2026-02-24 00:21:41.142 | INFO     | pdt_smart_guard:log_status:637 - ==================================================
+2026-02-24 00:21:41.155 | DEBUG    | database.repositories.position_repository:sync_positions_scoped:447 - ✅ Scoped sync: 1 positions (sources: ('dip_bounce', 'vix_adaptive', 'mean_reversion', 'rapid_rotation'))
+2026-02-24 00:21:41.155 | DEBUG    | __main__:_sync_active_positions_db:998 - ✅ DB synced: 1 positions via PositionRepository
+2026-02-24 00:21:41.157 | INFO     | __main__:_load_loss_counters:3114 - Loaded loss counters from database: consecutive=0, weekly_pnl=$25.52, sectors=6
+2026-02-24 00:21:41.157 | INFO     | __main__:__init__:622 - AutoTradingEngine initialized (paper=True)
+2026-02-24 00:21:41.157 | INFO     | __main__:_run_loop:6988 - Trading loop started
+2026-02-24 00:21:41.157 | INFO     | __main__:start:6144 - Trading engine started
+2026-02-24 00:21:41.639 | INFO     | __main__:_reconcile_positions:4017 - ✅ RECONCILE: OK (1 positions match)
+2026-02-24 00:21:41.640 | WARNING  | __main__:_is_late_start:3171 - ⚠️ Late start: 172 min after open (cutoff: 20 min)
+2026-02-24 00:21:41.641 | INFO     | __main__:_loop_morning_scan:6295 - ⏰ Late start: 172 min after open (cutoff: 20 min) — skipping late_start scan, continuous scan will handle
+2026-02-24 00:21:42.441 | DEBUG    | __main__:_get_spy_data_from_broker:1799 - SPY data from broker: 42 bars
+/home/saengtawan/work/project/cc/stock-analyzer/src/auto_trading_engine.py:2005: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  vix = yf.download('^VIX', period='5d', progress=False)
+2026-02-24 00:21:42.592 | WARNING  | __main__:_check_market_regime:1901 - ⚠️ Market Regime: BEAR: SPY < SMA20, RSI 40 < 40 [SMA20=FAIL(-1.0%) | RSI=FAIL(40) | Ret5d=OK(+0.0%) | VIX=OK(21.2)] - SKIPPING NEW TRADES
+2026-02-24 00:21:42.837 | INFO     | __main__:_get_bear_allowed_sectors:2314 - 🐻 Technology (XLK) regime=SIDEWAYS → ALLOWED
+2026-02-24 00:21:42.837 | INFO     | __main__:_get_bear_allowed_sectors:2314 - 🐻 Energy (XLE) regime=BULL → ALLOWED
+2026-02-24 00:21:42.837 | INFO     | __main__:_get_bear_allowed_sectors:2316 - 🐻 Financial Services (XLF) regime=BEAR → BLOCKED
+2026-02-24 00:21:42.837 | INFO     | __main__:_get_bear_allowed_sectors:2314 - 🐻 Healthcare (XLV) regime=SIDEWAYS → ALLOWED
+2026-02-24 00:21:42.837 | INFO     | __main__:_get_bear_allowed_sectors:2316 - 🐻 Consumer Cyclical (XLY) regime=BEAR → BLOCKED
+2026-02-24 00:21:42.838 | INFO     | __main__:_get_bear_allowed_sectors:2314 - 🐻 Consumer Defensive (XLP) regime=BULL → ALLOWED
+2026-02-24 00:21:42.838 | INFO     | __main__:_get_bear_allowed_sectors:2314 - 🐻 Industrials (XLI) regime=SIDEWAYS → ALLOWED
+2026-02-24 00:21:42.838 | INFO     | __main__:_get_bear_allowed_sectors:2314 - 🐻 Utilities (XLU) regime=BULL → ALLOWED
+2026-02-24 00:21:42.838 | INFO     | __main__:_get_bear_allowed_sectors:2314 - 🐻 Basic Materials (XLB) regime=SIDEWAYS → ALLOWED
+2026-02-24 00:21:42.838 | INFO     | __main__:_get_bear_allowed_sectors:2314 - 🐻 Communication Services (XLC) regime=SIDEWAYS → ALLOWED
+2026-02-24 00:21:42.838 | INFO     | __main__:_get_bear_allowed_sectors:2314 - 🐻 Real Estate (XLRE) regime=SIDEWAYS → ALLOWED
+2026-02-24 00:21:42.838 | INFO     | __main__:_get_bear_allowed_sectors:2320 - 🐻 Bear allowed sectors (9/11): ['Technology', 'Energy', 'Healthcare', 'Consumer Defensive', 'Industrials', 'Utilities', 'Basic Materials', 'Communication Services', 'Real Estate']
+2026-02-24 00:21:42.838 | INFO     | __main__:_get_effective_params:2576 - 🐻 BEAR MODE: BEAR MODE: BEAR: SPY < SMA20, RSI 40 < 40 [SMA20=FAIL(-1.0%) | RSI=FAIL(40) | Ret5d=OK(+0.0%) | VIX=OK(21.2)]
+2026-02-24 00:21:42.839 | DEBUG    | __main__:check_daily_loss_limit:5928 - Daily loss limit check SKIPPED (BEAR DD exempt, mode=BEAR)
+2026-02-24 00:21:42.839 | DEBUG    | __main__:check_weekly_loss_limit:5958 - Weekly loss limit check SKIPPED (BEAR DD exempt, mode=BEAR)
+2026-02-24 00:21:42.839 | DEBUG    | __main__:check_consecutive_loss_cooldown:5998 - Consecutive loss cooldown check SKIPPED (BEAR DD exempt, mode=BEAR)
+2026-02-24 00:21:42.839 | INFO     | __main__:_loop_continuous_scan:6640 - 🔄 Continuous scan (afternoon params, 5min/normal): 1/2 positions
+2026-02-24 00:21:42.839 | INFO     | __main__:_loop_with_afternoon_params:6238 - 🔍 ENTER _loop_with_afternoon_params: continuous_afternoon
+2026-02-24 00:21:42.839 | INFO     | __main__:_loop_with_afternoon_params:6246 - 📊 Executing continuous_afternoon scan...
+2026-02-24 00:21:42.839 | DEBUG    | utils.timeout:wrapper:64 - Timeout skipped for scan_for_signals (not in main thread)
+2026-02-24 00:21:42.840 | INFO     | __main__:scan_for_signals:3691 - 🐻 Bear mode scan — 9 sectors allowed: ['Technology', 'Energy', 'Healthcare', 'Consumer Defensive', 'Industrials', 'Utilities', 'Basic Materials', 'Communication Services', 'Real Estate']
+2026-02-24 00:21:43.085 | INFO     | __main__:_get_effective_params:2576 - 🐻 BEAR MODE: BEAR MODE: BEAR: SPY < SMA20, RSI 40 < 40 [SMA20=FAIL(-1.0%) | RSI=FAIL(40) | Ret5d=OK(+0.0%) | VIX=OK(21.2)]
+2026-02-24 00:21:43.085 | INFO     | __main__:scan_for_signals:3705 - Scanning for signals (regime: BEAR_MODE)...
+2026-02-24 00:21:43.094 | WARNING  | screeners.rapid_rotation_screener:generate_universe:601 - ⚠️ Pre-filtered pool is stale (61.2h old)
+2026-02-24 00:21:43.094 | INFO     | screeners.rapid_rotation_screener:generate_universe:608 - 🤖 Generating universe with AI...
+2026-02-24 00:21:43.094 | DEBUG    | deepseek_service:call_api:53 - DeepSeek API call attempt 1/3
+2026-02-24 00:22:01.007 | DEBUG    | deepseek_service:call_api:65 - DeepSeek API call successful
+2026-02-24 00:22:01.010 | INFO     | ai_universe_generator:generate_volatile_universe:762 - ✅ AI generated 205 volatile trading symbols
+2026-02-24 00:22:01.010 | INFO     | screeners.rapid_rotation_screener:generate_universe:619 - ✅ AI generated 200 stocks
+2026-02-24 00:22:01.011 | INFO     | screeners.rapid_rotation_screener:generate_universe:625 - 💾 AI universe saved to /home/saengtawan/work/project/cc/stock-analyzer/data/ai_universe_cache.json
+2026-02-24 00:22:01.011 | ERROR    | __main__:scan_for_signals:3752 - Scan failed: 'RapidRotationScreener' object has no attribute '_using_prefilter'
+2026-02-24 00:22:01.012 | INFO     | __main__:_loop_with_afternoon_params:6248 - ✅ continuous_afternoon: Found 0 signals
+2026-02-24 00:22:01.259 | DEBUG    | __main__:_save_signals_to_db:1287 - 💾 DB sync: session=127, active=0, waiting=0
+2026-02-24 00:22:01.260 | INFO     | __main__:_save_signals_cache:1233 - 📤 Signals saved to DB: 0 signals (continuous_afternoon, mode=market)
+/home/saengtawan/work/project/cc/stock-analyzer/src/auto_trading_engine.py:2188: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  vix_data = yf.download('^VIX', period='5d', progress=False)
+2026-02-24 00:22:02.498 | DEBUG    | __main__:monitor_positions:5225 - Monitoring 1 positions...
+2026-02-24 00:22:02.984 | INFO     | __main__:_check_position:5503 - ⏰ FAST held 9 days with -2.34% - time exit
+2026-02-24 00:22:03.227 | INFO     | __main__:_close_position:5696 - PDT Guard ALLOWED: FAST - Day 9 - not a day trade
+2026-02-24 00:22:03.227 | INFO     | __main__:_close_position:5701 - Cancelling SL order 4750adf9-ef20-431b-a914-e8ca5bde5b90 for FAST...
+2026-02-24 00:22:03.468 | INFO     | __main__:_close_position:5703 - ✅ Cancelled SL order 4750adf9-ef20-431b-a914-e8ca5bde5b90 for FAST
+2026-02-24 00:22:03.468 | INFO     | __main__:_close_position:5709 - Waiting for Alpaca to release shares for FAST...
+2026-02-24 00:22:04.710 | WARNING  | __main__:_close_position:5722 -   Attempt 1 failed: 'Position' object has no attribute 'qty_available'
+2026-02-24 00:22:05.952 | WARNING  | __main__:_close_position:5722 -   Attempt 2 failed: 'Position' object has no attribute 'qty_available'
+2026-02-24 00:22:09.677 | WARNING  | __main__:_close_position:5725 - ⚠️ Shares still locked after 5s for FAST, proceeding with market sell anyway
+2026-02-24 00:22:10.641 | WARNING  | engine.brokers.alpaca_broker:wrapper:132 - API retry 1/3: Order validation failed: No position found for FAST (wait 1.0s)
+2026-02-24 00:22:12.123 | WARNING  | engine.brokers.alpaca_broker:wrapper:132 - API retry 2/3: Order validation failed: No position found for FAST (wait 2.0s)
+2026-02-24 00:22:14.606 | WARNING  | engine.brokers.alpaca_broker:wrapper:132 - API retry 3/3: Order validation failed: No position found for FAST (wait 4.0s)
+2026-02-24 00:22:19.087 | INFO     | engine.dead_letter_queue:_load:130 - Loaded 197 DLQ items from disk
+2026-02-24 00:22:19.087 | INFO     | engine.dead_letter_queue:__init__:115 - DLQ initialized: 197 items loaded from /home/saengtawan/work/project/cc/stock-analyzer/src/engine/../../data/dlq/dead_letter_queue.json
+2026-02-24 00:22:19.098 | WARNING  | engine.dead_letter_queue:add:196 - ⚠️ DLQ: Added api_call_place_market_sell - ValueError: Order validation failed: No position found for FAST (retry scheduled in 60s)
+2026-02-24 00:22:19.098 | ERROR    | __main__:_close_position:5908 - Failed to close FAST: Order validation failed: No position found for FAST
+2026-02-24 00:22:19.340 | DEBUG    | __main__:_write_heartbeat:7115 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+/home/saengtawan/work/project/cc/stock-analyzer/src/auto_trading_engine.py:2188: FutureWarning: YF.download() has changed argument auto_adjust default to True
+  vix_data = yf.download('^VIX', period='5d', progress=False)
+2026-02-24 00:22:35.440 | DEBUG    | __main__:monitor_positions:5225 - Monitoring 1 positions...
+2026-02-24 00:22:35.680 | WARNING  | __main__:_check_position:5272 - FAST position not found - SL likely triggered at Alpaca
+2026-02-24 00:22:35.680 | INFO     | __main__:_check_position:5278 - SL fill detected for FAST: -4.76% ($-17.60)
+2026-02-24 00:22:35.680 | INFO     | __main__:_record_trade_result:6024 - 📉 Consecutive losses: 1/5
+2026-02-24 00:22:35.682 | INFO     | __main__:_record_sector_trade_result:3002 - 📉 Industrials consecutive losses: 1/2
+2026-02-24 00:22:35.925 | DEBUG    | __main__:_get_exit_context:3487 - Exit context fetch error for FAST: 'Quote' object has no attribute 'get'
+2026-02-24 00:22:35.928 | INFO     | trade_logger:log_sell:656 - 📝 Trade Log: SELL FAST x8 @ $44.01 [SL_FILLED_AT_ALPACA] $-17.60 (-4.8%)
+2026-02-24 00:22:35.929 | DEBUG    | database.repositories.position_repository:sync_positions_scoped:447 - ✅ Scoped sync: 0 positions (sources: ('dip_bounce', 'vix_adaptive', 'mean_reversion', 'rapid_rotation'))
+2026-02-24 00:22:35.929 | DEBUG    | __main__:_sync_active_positions_db:998 - ✅ DB synced: 0 positions via PositionRepository
+2026-02-24 00:22:36.188 | DEBUG    | __main__:_write_heartbeat:7115 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 00:22:51.429 | DEBUG    | __main__:_write_heartbeat:7115 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 00:23:06.669 | DEBUG    | __main__:_write_heartbeat:7115 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 00:23:21.912 | DEBUG    | __main__:_write_heartbeat:7115 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 00:23:37.156 | DEBUG    | __main__:_write_heartbeat:7115 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 00:23:52.397 | DEBUG    | __main__:_write_heartbeat:7115 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 00:24:07.638 | DEBUG    | __main__:_write_heartbeat:7115 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 00:24:22.887 | DEBUG    | __main__:_write_heartbeat:7115 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 00:24:38.129 | DEBUG    | __main__:_write_heartbeat:7115 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 00:24:53.370 | DEBUG    | __main__:_write_heartbeat:7115 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 00:25:08.610 | DEBUG    | __main__:_write_heartbeat:7115 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json

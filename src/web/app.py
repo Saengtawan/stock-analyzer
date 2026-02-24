@@ -2752,22 +2752,37 @@ def api_rapid_signals():
         # Get latest scan session
         latest_scan = scan_repo.get_latest()
 
-        # Get active and waiting signals from LATEST scan only (not all history)
-        if latest_scan:
-            active_signals = sig_repo.get_by_session(latest_scan.id)
-            active_signals = [s for s in active_signals if s.status == 'active']
-            waiting_signals = [s for s in active_signals if s.status == 'waiting']
-            # Remove waiting from active list
-            active_signals = [s for s in active_signals if s.status == 'active']
-        else:
-            active_signals = sig_repo.get_active()
-            waiting_signals = sig_repo.get_waiting()
+        # v6.44: Get ALL active signals (not just from latest scan)
+        # Reason: When continuous scan finds 0 signals, previous valid signals should still show
+        # Filter: Only show signals from last 30 minutes (not old stale signals)
+        # Deduplicate: Only keep latest signal per symbol (engine creates duplicates)
+        from datetime import timedelta
+        active_signals = sig_repo.get_active()
+        waiting_signals = sig_repo.get_waiting()
+
+        # Filter recent signals only (last 30 minutes)
+        cutoff_time = datetime.now() - timedelta(minutes=30)
+        active_signals = [s for s in active_signals if s.signal_time and s.signal_time >= cutoff_time]
+        waiting_signals = [s for s in waiting_signals if s.signal_time and s.signal_time >= cutoff_time]
+
+        # Deduplicate: Keep only the latest signal per symbol
+        symbol_map = {}
+        for sig in active_signals:
+            if sig.symbol not in symbol_map or sig.signal_time > symbol_map[sig.symbol].signal_time:
+                symbol_map[sig.symbol] = sig
+        active_signals = list(symbol_map.values())
+
+        symbol_map_waiting = {}
+        for sig in waiting_signals:
+            if sig.symbol not in symbol_map_waiting or sig.signal_time > symbol_map_waiting[sig.symbol].signal_time:
+                symbol_map_waiting[sig.symbol] = sig
+        waiting_signals = list(symbol_map_waiting.values())
 
         if latest_scan or active_signals or waiting_signals:
-            # Build response from DB
+            # Build response from DB (v6.44: convert all types to JSON-safe)
             data = {
                 'mode': latest_scan.mode if (latest_scan and latest_scan.mode) else ('closed' if (latest_scan and not latest_scan.is_market_open) else 'market'),
-                'is_market_open': latest_scan.is_market_open if latest_scan else False,
+                'is_market_open': int(bool(latest_scan.is_market_open)) if latest_scan else 0,
                 'timestamp': latest_scan.scan_time.isoformat() if latest_scan else datetime.now().isoformat(),
                 'scan_time': latest_scan.scan_time_et if latest_scan else '',
                 'session': latest_scan.session_type.title() if latest_scan else 'Unknown',
@@ -2777,14 +2792,14 @@ def api_rapid_signals():
                 'count': len(active_signals),
                 'signals': [s.to_dict() for s in active_signals],
                 'waiting_signals': [s.to_dict() for s in waiting_signals],
-                'scan_duration_seconds': latest_scan.scan_duration_seconds if latest_scan else 0,
+                'scan_duration_seconds': float(latest_scan.scan_duration_seconds) if latest_scan and latest_scan.scan_duration_seconds else 0.0,
                 'regime': latest_scan.market_regime if latest_scan else 'UNKNOWN',
                 'positions_status': {
-                    'current': latest_scan.positions_current if latest_scan else 0,
-                    'max': latest_scan.positions_max if latest_scan else 0,
-                    'is_full': latest_scan.positions_full if latest_scan else False
+                    'current': int(latest_scan.positions_current) if latest_scan and latest_scan.positions_current else 0,
+                    'max': int(latest_scan.positions_max) if latest_scan and latest_scan.positions_max else 0,
+                    'is_full': int(bool(latest_scan.positions_full)) if latest_scan and latest_scan.positions_full else 0
                 },
-                'pool_size': latest_scan.pool_size if latest_scan else 0,
+                'pool_size': int(latest_scan.pool_size) if latest_scan and latest_scan.pool_size else 0,
                 'source': 'database'  # For monitoring
             }
 
@@ -4893,7 +4908,7 @@ def get_regime_data():
 def broadcast_update(event_type, data):
     """Broadcast update to all connected clients"""
     if connected_clients:
-        socketio.emit(event_type, data)  # emit to all clients (no broadcast param needed)
+        socketio.emit(event_type, convert_numpy_types(data))  # v6.45: Convert numpy types before emit
 
 def background_monitor():
     """Background thread that monitors for changes and broadcasts updates"""

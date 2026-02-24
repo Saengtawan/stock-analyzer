@@ -1,0 +1,429 @@
+2026-02-24 09:44:36.826 | INFO     | __main__:_load_config_from_yaml:930 - ✅ Loaded ALL parameters from RapidRotationConfig (v6.32)
+2026-02-24 09:44:36.826 | INFO     | __main__:_load_config_from_yaml:931 -    SL range: 3.0%-4.0%
+2026-02-24 09:44:36.826 | INFO     | __main__:_load_config_from_yaml:932 -    Max positions: 2
+2026-02-24 09:44:36.826 | INFO     | __main__:_load_config_from_yaml:933 -    Regime filter: ENABLED
+2026-02-24 09:44:36.826 | INFO     | __main__:_load_config_from_yaml:936 -    Beta filter: LOG-ONLY (beta>=0.5, atr>=3.0%)
+2026-02-24 09:44:36.827 | INFO     | engine.rate_limiter:__init__:78 - AlpacaAPI initialized: 150 req/60s (150 req/min)
+2026-02-24 09:44:36.827 | INFO     | engine.brokers.alpaca_broker:__init__:222 - ✅ Rate limiter enabled (150 req/min)
+2026-02-24 09:44:36.827 | INFO     | engine.brokers.alpaca_broker:__init__:227 - AlpacaBroker initialized (paper)
+2026-02-24 09:44:36.928 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 23 cached items from disk
+2026-02-24 09:44:37.033 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 23 cached items from disk
+2026-02-24 09:44:37.135 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 23 cached items from disk
+2026-02-24 09:44:37.138 | INFO     | api.data_manager:__init__:80 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: Yes
+2026-02-24 09:44:37.138 | INFO     | __main__:__init__:453 - DataManager initialized with broker integration
+2026-02-24 09:44:37.138 | INFO     | trading_safety:_load_from_rapid_config:145 - Safety config loaded from RapidRotationConfig
+2026-02-24 09:44:37.138 | DEBUG    | trading_safety:_load_from_rapid_config:146 -   DAILY_LOSS_LIMIT: 5.0%
+2026-02-24 09:44:37.138 | DEBUG    | trading_safety:_load_from_rapid_config:147 -   MAX_POSITIONS: 2
+2026-02-24 09:44:37.138 | DEBUG    | trading_safety:_load_from_rapid_config:148 -   MAX_HOLD_DAYS: 7
+2026-02-24 09:44:37.138 | INFO     | trading_safety:__init__:129 - Trading Safety System initialized
+2026-02-24 09:44:37.138 | INFO     | pdt_smart_guard:_load_entry_dates:358 - PDT Guard: Loaded 0 entry dates from database
+2026-02-24 09:44:37.138 | INFO     | pdt_smart_guard:__init__:266 - PDT Smart Guard v2.4 initialized (DB-enabled, No Override Mode)
+2026-02-24 09:44:37.138 | INFO     | pdt_smart_guard:__init__:267 -   Storage: Database
+2026-02-24 09:44:37.138 | INFO     | pdt_smart_guard:__init__:268 -   SL Threshold: -3.5%
+2026-02-24 09:44:37.138 | INFO     | pdt_smart_guard:__init__:269 -   TP Threshold: 8.0%
+2026-02-24 09:44:37.138 | INFO     | pdt_smart_guard:__init__:270 -   Reserve: 1 day trades
+2026-02-24 09:44:37.138 | INFO     | pdt_smart_guard:__init__:271 -   Budget = 0 → HOLD (ไม่ override PDT เด็ดขาด)
+2026-02-24 09:44:37.138 | INFO     | __main__:__init__:467 - PDT Smart Guard v2.3 initialized (No Override - uses RapidRotationConfig)
+2026-02-24 09:44:37.139 | INFO     | trade_logger:_load_today_logs:385 - Loaded 2 logs from /home/saengtawan/work/project/cc/stock-analyzer/trade_logs/trade_log_2026-02-23.json
+2026-02-24 09:44:37.146 | INFO     | trade_logger:__init__:235 - TradeLogger initialized - logs: /home/saengtawan/work/project/cc/stock-analyzer/trade_logs, db: /home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db (direct SQLite)
+2026-02-24 09:44:37.146 | INFO     | __main__:__init__:471 - Trade Logger v1.0 initialized
+2026-02-24 09:44:37.147 | INFO     | alert_manager:__init__:54 - AlertManager using database storage
+2026-02-24 09:44:37.147 | INFO     | __main__:__init__:476 - Alert Manager v1.0 initialized
+2026-02-24 09:44:37.147 | INFO     | filters.entry_protection_filter:__init__:94 - 🛡️ Entry Protection Filter initialized (enabled=True)
+2026-02-24 09:44:37.147 | INFO     | filters.entry_protection_filter:__init__:97 -    Layer 1: Adaptive timing (Gap Down <-1.5%: 5min, Mild: 10min, Flat: 15min, Gap Up: 20min)
+2026-02-24 09:44:37.147 | INFO     | filters.entry_protection_filter:__init__:100 -    Layer 2: Max VWAP distance 3.0%
+2026-02-24 09:44:37.147 | INFO     | filters.entry_protection_filter:__init__:101 -    Layer 3: Max chase 0.8%
+2026-02-24 09:44:37.147 | INFO     | filters.entry_protection_filter:__init__:102 -    Layer 4: Block if in top 20% of range or >2.5% from low
+2026-02-24 09:44:37.147 | INFO     | __main__:__init__:482 - ✅ Entry Protection Filter v6.17 initialized
+2026-02-24 09:44:37.159 | DEBUG    | screeners.rapid_rotation_screener:__init__:221 - Loaded RapidRotationConfig from /home/saengtawan/work/project/cc/stock-analyzer/config/trading.yaml
+2026-02-24 09:44:37.160 | INFO     | screeners.rapid_rotation_screener:_load_sector_cache:858 - 📦 Loaded 248 sectors from cache
+2026-02-24 09:44:37.160 | INFO     | screeners.rapid_rotation_screener:_init_ai_universe:459 - ✅ AI Universe Generator initialized
+2026-02-24 09:44:37.160 | INFO     | screeners.rapid_rotation_screener:_init_market_regime:469 - ✅ Market Regime Detector initialized
+2026-02-24 09:44:37.258 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 23 cached items from disk
+2026-02-24 09:44:37.361 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 23 cached items from disk
+2026-02-24 09:44:37.484 | INFO     | api.base_client:_load_disk_cache:220 - 📦 Loaded 23 cached items from disk
+2026-02-24 09:44:37.487 | INFO     | api.data_manager:__init__:80 - DataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No
+2026-02-24 09:44:37.487 | INFO     | sector_regime_detector:update_all_sectors:527 - Updating sector regimes (5-min realtime, MCW)...
+2026-02-24 09:44:37.488 | INFO     | sector_regime_detector:_build_sector_company_map:309 - Built sector company map: 550 stocks across 11 sectors (with market weights)
+2026-02-24 09:44:37.488 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:339 - Batch downloading 550 sector stocks for 1d returns...
+2026-02-24 09:44:37.488 | DEBUG    | api.yahoo_finance_client:batch_download_prices:626 - Cache hit for batch download (550 symbols)
+2026-02-24 09:44:37.508 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Technology (XLK): MCW 1d = -1.20% (50/50 stocks, weight=88.7%)
+2026-02-24 09:44:37.508 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Energy (XLE): MCW 1d = +0.37% (50/50 stocks, weight=91.6%)
+2026-02-24 09:44:37.508 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Financial Services (XLF): MCW 1d = -3.39% (50/50 stocks, weight=77.4%)
+2026-02-24 09:44:37.509 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Healthcare (XLV): MCW 1d = +1.19% (50/50 stocks, weight=81.4%)
+2026-02-24 09:44:37.509 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Consumer Cyclical (XLY): MCW 1d = -2.32% (50/50 stocks, weight=85.9%)
+2026-02-24 09:44:37.509 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Consumer Defensive (XLP): MCW 1d = +1.49% (50/50 stocks, weight=96.5%)
+2026-02-24 09:44:37.509 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Industrials (XLI): MCW 1d = -0.96% (50/50 stocks, weight=68.9%)
+2026-02-24 09:44:37.509 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Utilities (XLU): MCW 1d = +0.62% (50/50 stocks, weight=97.4%)
+2026-02-24 09:44:37.509 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Basic Materials (XLB): MCW 1d = +0.74% (50/50 stocks, weight=92.7%)
+2026-02-24 09:44:37.510 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Communication Services (XLC): MCW 1d = -1.51% (49/50 stocks, weight=99.0%)
+2026-02-24 09:44:37.510 | DEBUG    | sector_regime_detector:_fetch_stock_based_1d_returns:401 - Real Estate (XLRE): MCW 1d = +0.11% (50/50 stocks, weight=81.8%)
+2026-02-24 09:44:37.510 | INFO     | sector_regime_detector:_fetch_stock_based_1d_returns:407 - Market-cap weighted 1d returns calculated for 11 sectors
+2026-02-24 09:44:37.510 | INFO     | sector_regime_detector:update_all_sectors:532 - Using market-cap weighted 1d returns for 11 sectors
+2026-02-24 09:44:37.510 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLK
+2026-02-24 09:44:37.510 | INFO     | sector_regime_detector:update_all_sectors:574 - XLK (Technology): SIDEWAYS (score=-1.8) | 1d[M]: -1.2% | 5d: -0.7% | 20d: -5.18%
+2026-02-24 09:44:37.510 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLE
+2026-02-24 09:44:37.510 | INFO     | sector_regime_detector:update_all_sectors:574 - XLE (Energy): BULL (score=+4.0) | 1d[M]: +0.4% | 5d: +2.6% | 20d: +12.05%
+2026-02-24 09:44:37.510 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLF
+2026-02-24 09:44:37.511 | INFO     | sector_regime_detector:update_all_sectors:574 - XLF (Financial Services): BEAR (score=-3.5) | 1d[M]: -3.4% | 5d: -2.8% | 20d: -5.02%
+2026-02-24 09:44:37.511 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLV
+2026-02-24 09:44:37.511 | INFO     | sector_regime_detector:update_all_sectors:574 - XLV (Healthcare): SIDEWAYS (score=+0.9) | 1d[M]: +1.2% | 5d: +0.7% | 20d: +0.28%
+2026-02-24 09:44:37.511 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLY
+2026-02-24 09:44:37.511 | INFO     | sector_regime_detector:update_all_sectors:574 - XLY (Consumer Cyclical): BEAR (score=-3.1) | 1d[M]: -2.3% | 5d: -0.9% | 20d: -5.99%
+2026-02-24 09:44:37.511 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLP
+2026-02-24 09:44:37.511 | INFO     | sector_regime_detector:update_all_sectors:574 - XLP (Consumer Defensive): BULL (score=+3.0) | 1d[M]: +1.5% | 5d: +0.9% | 20d: +7.48%
+2026-02-24 09:44:37.511 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLI
+2026-02-24 09:44:37.511 | INFO     | sector_regime_detector:update_all_sectors:574 - XLI (Industrials): SIDEWAYS (score=+0.8) | 1d[M]: -1.0% | 5d: -0.1% | 20d: +6.36%
+2026-02-24 09:44:37.511 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLU
+2026-02-24 09:44:37.511 | INFO     | sector_regime_detector:update_all_sectors:574 - XLU (Utilities): BULL (score=+2.8) | 1d[M]: +0.6% | 5d: +0.6% | 20d: +8.89%
+2026-02-24 09:44:37.511 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLB
+2026-02-24 09:44:37.511 | INFO     | sector_regime_detector:update_all_sectors:574 - XLB (Basic Materials): BULL (score=+1.7) | 1d[M]: +0.7% | 5d: +0.5% | 20d: +5.86%
+2026-02-24 09:44:37.511 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLC
+2026-02-24 09:44:37.511 | INFO     | sector_regime_detector:update_all_sectors:574 - XLC (Communication Services): SIDEWAYS (score=-0.8) | 1d[M]: -1.5% | 5d: +0.8% | 20d: -2.05%
+2026-02-24 09:44:37.511 | DEBUG    | api.yahoo_finance_client:get_price_data:120 - 📦 Cache hit for XLRE
+2026-02-24 09:44:37.512 | INFO     | sector_regime_detector:update_all_sectors:574 - XLRE (Real Estate): SIDEWAYS (score=+0.9) | 1d[M]: +0.1% | 5d: -0.8% | 20d: +5.80%
+2026-02-24 09:44:37.512 | INFO     | screeners.rapid_rotation_screener:_init_sector_regime:483 - ✅ Sector Regime Detector initialized
+2026-02-24 09:44:37.512 | INFO     | screeners.rapid_rotation_screener:_init_alt_data:493 - ✅ Alternative Data Aggregator initialized (6 sources)
+2026-02-24 09:44:37.512 | INFO     | strategies.strategy_manager:register:48 - ✅ Registered strategy: Dip-Bounce (dip_bounce)
+2026-02-24 09:44:37.515 | INFO     | strategies.vix_adaptive.engine_integration:__init__:66 - VIX Adaptive v3.0: Loading...
+2026-02-24 09:44:37.950 | INFO     | strategies.vix_adaptive.engine_integration:__init__:76 - VIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)
+2026-02-24 09:44:37.950 | INFO     | strategies.vix_adaptive.engine_integration:__init__:93 - Initial VIX: 21.01 → tier=SKIP
+2026-02-24 09:44:37.950 | INFO     | strategies.vix_adaptive.engine_integration:__init__:99 - ✅ VIX Adaptive v3.0 initialized
+2026-02-24 09:44:37.950 | INFO     | strategies.vix_adaptive.engine_integration:__init__:100 -    Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}
+2026-02-24 09:44:37.950 | INFO     | strategies.vix_adaptive.engine_integration:__init__:101 -    Score adaptation: True
+2026-02-24 09:44:37.950 | INFO     | strategies.vix_adaptive_strategy_wrapper:__init__:48 - ✅ VIX Adaptive wrapper initialized: VIXAdaptiveIntegration(tier=SKIP, VIX=21.0)
+2026-02-24 09:44:37.950 | INFO     | strategies.strategy_manager:register:48 - ✅ Registered strategy: VIX Adaptive (vix_adaptive)
+2026-02-24 09:44:37.950 | INFO     | screeners.rapid_rotation_screener:_init_strategy_manager:542 - ✅ VIX Adaptive registered (tier=skip)
+2026-02-24 09:44:37.950 | INFO     | screeners.rapid_rotation_screener:_init_strategy_manager:546 - ✅ Strategy Manager initialized (2 strategies active)
+2026-02-24 09:44:37.950 | INFO     | filters.sector_filter:__init__:53 - 🏭 Sector Filter initialized (enabled=True)
+2026-02-24 09:44:37.950 | INFO     | filters.sector_filter:__init__:54 -    Excluding sectors: Aerospace, Aerospace & Defense, Basic Materials, Communication Services, Consumer Defensive, Consumer Staples, Energy, Energy/Oil, Materials, Media, Oil & Gas
+2026-02-24 09:44:37.950 | INFO     | __main__:__init__:492 - Screener initialized
+2026-02-24 09:44:37.951 | INFO     | filters.sector_filter:__init__:53 - 🏭 Sector Filter initialized (enabled=True)
+2026-02-24 09:44:37.951 | INFO     | filters.sector_filter:__init__:54 -    Excluding sectors: Aerospace, Aerospace & Defense, Basic Materials, Communication Services, Consumer Defensive, Consumer Staples, Energy, Energy/Oil, Materials, Media, Oil & Gas
+2026-02-24 09:44:37.951 | INFO     | __main__:__init__:505 - OvernightGapScanner initialized
+2026-02-24 09:44:37.951 | INFO     | __main__:__init__:520 - ✅ PreMarketGapScanner initialized (v6.11)
+2026-02-24 09:44:37.951 | INFO     | filters.sector_filter:__init__:53 - 🏭 Sector Filter initialized (enabled=True)
+2026-02-24 09:44:37.951 | INFO     | filters.sector_filter:__init__:54 -    Excluding sectors: Aerospace, Aerospace & Defense, Basic Materials, Communication Services, Consumer Defensive, Consumer Staples, Energy, Energy/Oil, Materials, Media, Oil & Gas
+2026-02-24 09:44:37.951 | INFO     | __main__:__init__:534 - ✅ PEMScreener initialized (v6.29)
+2026-02-24 09:44:37.954 | INFO     | strategies.vix_adaptive.engine_integration:__init__:66 - VIX Adaptive v3.0: Loading...
+2026-02-24 09:44:38.018 | INFO     | strategies.vix_adaptive.engine_integration:__init__:76 - VIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)
+2026-02-24 09:44:38.018 | INFO     | strategies.vix_adaptive.engine_integration:__init__:93 - Initial VIX: 21.01 → tier=SKIP
+2026-02-24 09:44:38.018 | INFO     | strategies.vix_adaptive.engine_integration:__init__:99 - ✅ VIX Adaptive v3.0 initialized
+2026-02-24 09:44:38.018 | INFO     | strategies.vix_adaptive.engine_integration:__init__:100 -    Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}
+2026-02-24 09:44:38.019 | INFO     | strategies.vix_adaptive.engine_integration:__init__:101 -    Score adaptation: True
+2026-02-24 09:44:38.019 | INFO     | __main__:__init__:546 - ✅ VIX Adaptive Strategy initialized: VIXAdaptiveIntegration(tier=SKIP, VIX=21.0)
+2026-02-24 09:44:38.019 | INFO     | __main__:__init__:553 - SLTPCalculator initialized
+2026-02-24 09:44:38.789 | INFO     | engine.monitoring_metrics:__init__:131 - MonitoringMetrics initialized (window: 3600s)
+2026-02-24 09:44:39.035 | INFO     | __main__:_sync_positions:1665 - ✅ Synced 0 positions
+2026-02-24 09:44:39.281 | INFO     | pdt_smart_guard:log_status:624 - ==================================================
+2026-02-24 09:44:39.282 | INFO     | pdt_smart_guard:log_status:625 - PDT SMART GUARD STATUS
+2026-02-24 09:44:39.282 | INFO     | pdt_smart_guard:log_status:626 - ==================================================
+2026-02-24 09:44:39.282 | INFO     | pdt_smart_guard:log_status:627 - Day Trades: 0/3 (remaining: 3)
+2026-02-24 09:44:39.282 | INFO     | pdt_smart_guard:log_status:628 - Reserve Active: False
+2026-02-24 09:44:39.282 | INFO     | pdt_smart_guard:log_status:629 - Flagged: True
+2026-02-24 09:44:39.282 | INFO     | pdt_smart_guard:log_status:637 - ==================================================
+2026-02-24 09:44:39.287 | INFO     | __main__:_load_loss_counters:3114 - Loaded loss counters from database: consecutive=1, weekly_pnl=$7.92, sectors=6
+2026-02-24 09:44:39.288 | INFO     | __main__:__init__:622 - AutoTradingEngine initialized (paper=True)
+2026-02-24 09:44:39.288 | INFO     | __main__:_run_loop:7051 - Trading loop started
+2026-02-24 09:44:39.294 | INFO     | __main__:start:6207 - Trading engine started
+2026-02-24 09:44:39.788 | DEBUG    | __main__:_save_market_closed_cache:1423 - 💾 DB: Market closed status saved
+2026-02-24 09:44:39.790 | INFO     | __main__:_loop_evening_prefilter:6590 - 🌙 Evening pre-filter scan triggered at 21:44 ET (full 987 stocks)
+2026-02-24 09:44:39.793 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 09:45:40.038 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 09:46:40.282 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 09:47:40.525 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 09:48:40.769 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 09:49:41.013 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 09:50:41.259 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 09:51:41.503 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 09:52:41.746 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 09:53:41.989 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 09:54:42.232 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 09:55:42.476 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 09:56:42.722 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 09:57:42.970 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 09:58:43.213 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 09:59:43.454 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:00:43.700 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:01:43.944 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:02:44.195 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:03:44.446 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:04:44.685 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:05:44.930 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:06:45.185 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:07:45.436 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:08:45.688 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:09:45.939 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:10:46.196 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:11:46.445 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:12:46.688 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:13:46.945 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:14:47.199 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:15:47.450 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:16:47.698 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:17:47.946 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:18:48.188 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:19:48.429 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:20:48.669 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:21:48.913 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:22:49.154 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:23:49.401 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:24:49.654 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:25:49.894 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:26:50.143 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:27:50.394 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:28:50.648 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:29:50.891 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:30:51.140 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:31:51.390 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:32:51.638 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:33:51.882 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:34:52.128 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:35:52.390 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:36:52.644 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:37:52.894 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:38:53.147 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:39:53.391 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:40:53.650 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:41:53.888 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:42:54.131 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:43:54.377 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:44:54.638 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:45:55.592 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:46:55.850 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:47:56.095 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:48:56.348 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:49:56.598 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:50:56.846 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:51:57.097 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:52:57.340 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:53:57.620 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:54:57.863 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:55:58.103 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:56:58.350 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:57:58.595 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:58:58.839 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 10:59:59.083 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:00:59.329 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:01:59.580 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:02:59.833 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:04:00.078 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:05:00.330 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:06:00.576 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:07:00.821 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:08:01.066 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:09:01.317 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:10:01.569 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:11:01.813 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:12:02.064 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:13:02.310 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:14:02.559 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:15:02.805 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:16:03.065 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:17:03.306 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:18:03.547 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:19:03.809 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:20:04.054 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:21:04.300 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:22:04.538 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:23:04.779 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:24:05.019 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:25:05.264 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:26:05.512 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:27:05.757 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:28:06.003 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:29:06.248 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:30:06.493 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:31:06.738 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:32:06.983 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:33:07.224 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:34:07.466 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:35:07.711 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:36:07.959 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:37:08.205 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:38:08.455 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:39:08.697 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:40:08.942 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:41:09.189 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:42:09.435 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:43:09.688 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:44:09.952 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:45:10.214 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:46:10.473 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:47:11.410 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:48:11.663 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:49:11.907 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:50:12.152 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:51:12.398 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:52:12.643 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:53:12.889 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:54:13.141 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:55:13.385 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:56:13.638 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:57:13.889 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:58:14.146 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 11:59:14.402 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:00:14.650 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:01:14.897 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:02:15.145 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:03:15.392 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:04:15.646 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:05:15.896 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:06:16.152 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:07:16.405 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:08:16.658 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:09:16.917 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:10:17.164 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:11:17.410 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:12:17.656 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:13:17.901 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:14:18.151 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:15:18.405 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:16:18.656 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:17:18.900 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:18:19.150 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:19:19.401 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:20:19.653 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:21:19.911 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:22:20.173 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:23:20.415 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:24:20.666 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:25:20.914 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:26:21.158 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:27:21.399 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:28:21.638 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:29:21.884 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:30:22.128 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:31:22.372 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:32:22.616 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:33:22.861 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:34:23.111 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:35:23.355 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:36:23.606 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:37:23.854 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:38:24.098 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:39:24.341 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:40:24.605 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:41:24.850 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:42:25.101 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:43:25.344 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:44:25.588 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:45:25.846 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:46:26.090 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:47:26.342 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:48:27.216 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:49:27.464 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:50:27.713 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:51:27.968 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:52:28.215 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:53:28.459 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:54:28.704 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:55:28.956 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:56:29.206 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:57:29.452 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:58:29.696 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 12:59:29.941 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:00:30.187 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:01:30.432 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:02:30.678 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:03:30.922 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:04:31.168 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:05:31.419 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:06:31.665 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:07:31.907 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:08:32.153 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:09:32.398 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:10:32.644 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:11:32.896 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:12:33.141 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:13:33.383 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:14:33.627 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:15:33.872 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:16:34.115 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:17:34.362 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:18:34.613 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:19:34.865 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:20:35.109 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:21:35.351 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:22:35.604 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:23:35.850 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:24:36.094 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:25:36.340 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:26:36.585 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:27:36.831 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:28:37.076 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:29:37.323 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:30:37.568 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:31:37.815 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:32:38.060 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:33:38.305 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:34:38.551 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:35:38.795 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:36:39.042 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:37:39.287 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:38:39.532 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:39:39.776 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:40:40.022 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:41:40.268 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:42:40.514 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:43:40.759 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:44:41.004 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:45:41.249 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:46:41.493 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:47:41.745 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:48:41.990 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:49:42.832 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:50:43.076 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:51:43.322 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:52:43.567 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:53:43.813 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:54:44.057 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:55:44.302 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:56:44.547 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:57:44.792 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:58:45.038 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 13:59:45.290 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:00:45.533 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:01:45.779 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:02:46.024 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:03:46.269 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:04:46.511 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:05:46.756 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:06:47.004 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:07:47.246 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:08:47.487 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:09:47.732 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:10:47.972 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:11:48.215 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:12:48.459 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:13:48.702 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:14:48.948 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:15:49.194 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:16:49.440 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:17:49.686 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:18:49.929 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:19:50.180 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:20:50.425 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:21:50.672 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:22:50.915 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:23:51.165 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:24:51.417 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:25:51.659 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:26:51.900 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:27:52.144 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:28:52.389 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:29:52.634 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:30:52.875 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:31:53.121 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:32:53.363 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:33:53.608 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:34:53.855 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:35:54.102 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:36:54.344 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:37:54.590 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:38:54.836 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:39:55.079 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:40:55.325 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:41:55.570 | DEBUG    | __main__:_write_heartbeat:7178 - ✅ Cron schedule written to /home/saengtawan/work/project/cc/stock-analyzer/data/cron_schedule.json
+2026-02-24 14:42:27.161 | INFO     | __main__:signal_handler:7843 - Shutdown signal received
+2026-02-24 14:42:27.163 | INFO     | __main__:stop:6216 - Trading engine stopped

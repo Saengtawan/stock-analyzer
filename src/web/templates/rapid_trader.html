@@ -2666,7 +2666,8 @@ let _lastSignalHash = '';
 let _firstLoadDone = false;
 
 function _signalHash(data) {
-    const sigs = (data.signals || []).map(s => s.symbol + s.score + s.entry_price.toFixed(2)).join(',');
+    // v6.44: Use signal_price (not entry_price) to match database field name
+    const sigs = (data.signals || []).map(s => s.symbol + s.score + (s.signal_price || s.entry_price || 0).toFixed(2)).join(',');
     // v6.4: Include waiting signals in hash
     const waiting = (data.waiting_signals || []).map(s => s.symbol + s.score).join(',');
     const fs = data.filter_stats ? JSON.stringify(data.filter_stats) : '';
@@ -2787,7 +2788,7 @@ function loadSignals() {
                                 </h6>
                                 <small class="text-muted">Score: ${signal.score}${signal.sector ? ' | ' + signal.sector : ''}</small>
                             </div>
-                            <div class="price-tag">$${signal.entry_price.toFixed(2)}</div>
+                            <div class="price-tag">$${signal.signal_price.toFixed(2)}</div>
                         </div>
                         <div class="row mb-1">
                             <div class="col-6">
@@ -2826,7 +2827,7 @@ function loadSignals() {
                     ? '<div class="text-center"><span class="badge bg-success bg-opacity-25 text-success"><i class="fas fa-check me-1"></i>Already in Portfolio</span></div>'
                     : isMarketClosed
                         ? '<button class="btn btn-secondary btn-sm w-100" disabled><i class="fas fa-moon me-1"></i>Market Closed</button>'
-                        : `<button class="btn btn-success btn-sm w-100" onclick="openAddPosition('${signal.symbol}', ${signal.entry_price}, ${signal.stop_loss}, ${signal.take_profit})"><i class="fas fa-plus me-1"></i>Add to Portfolio</button>`;
+                        : `<button class="btn btn-success btn-sm w-100" onclick="openAddPosition('${signal.symbol}', ${signal.signal_price}, ${signal.stop_loss}, ${signal.take_profit})"><i class="fas fa-plus me-1"></i>Add to Portfolio</button>`;
                 html += `
                     <div class="signal-card${isBought ? ' border-success' : ''}${isMarketClosed ? ' opacity-75' : ''}">
                         <div class="d-flex justify-content-between align-items-start mb-1">
@@ -2839,7 +2840,7 @@ function loadSignals() {
                                 </h6>
                                 <small class="text-muted">Score: ${signal.score}${signal.sector ? ' | ' + signal.sector : ''}</small>
                             </div>
-                            <div class="price-tag">$${signal.entry_price.toFixed(2)}</div>
+                            <div class="price-tag">$${signal.signal_price.toFixed(2)}</div>
                         </div>
                         <div class="row mb-1">
                             <div class="col-6">
@@ -2877,7 +2878,7 @@ function loadSignals() {
                                 </h6>
                                 <small class="text-muted">Score: ${signal.score}${signal.sector ? ' | ' + signal.sector : ''}</small>
                             </div>
-                            <div class="price-tag" style="opacity:0.7">$${signal.entry_price.toFixed(2)}</div>
+                            <div class="price-tag" style="opacity:0.7">$${signal.signal_price.toFixed(2)}</div>
                         </div>
                         <div class="row mb-1">
                             <div class="col-6">

@@ -1,0 +1,271 @@
+2026-02-25 01:02:24.240 | INFO     | __main__:<module>:43 - Environment loaded - Alpaca API configured: True
+[32m01:02:24[0m | [1mINFO    [0m | [1mInitializing monitoring system...[0m
+[32m01:02:24[0m | [1mINFO    [0m | [1mAutoMonitor loop started[0m
+[32m01:02:24[0m | [1mINFO    [0m | [1mAutoMonitor started (health checks every 300s)[0m
+[32m01:02:24[0m | [1mINFO    [0m | [1m✅ Automatic monitoring started (checks every 300s)[0m
+[32m01:02:24[0m | [1mINFO    [0m | [1m✅ Signal handlers installed in main thread[0m
+[32m01:02:24[0m | [1mINFO    [0m | [1mStarting Web Server...[0m
+[32m01:02:24[0m | [33m[1mWARNING [0m | [33m[1mALERT [health]: System health warning: 1 warning(s) detected[0m
+[32m01:02:24[0m | [33m[1mWARNING [0m | [33m[1mALERT [health]: System health warning: 1 warning(s) detected[0m
+[32m01:02:24[0m | [1mINFO    [0m | [1mAlert created: [WARNING] System health warning: 1 warning(s) detected[0m
+[32m01:02:24[0m | [33m[1mWARNING [0m | [33m[1mALERT [performance]: Performance degraded: 0.0/100[0m
+[32m01:02:24[0m | [33m[1mWARNING [0m | [33m[1mALERT [performance]: Performance degraded: 0.0/100[0m
+[32m01:02:24[0m | [1mINFO    [0m | [1mAlert created: [ERROR] Performance degraded: 0.0/100[0m
+[32m01:02:25[0m | [33m[1mWARNING [0m | [33m[1mNo RAPID_API_SECRET set — generated ephemeral key (set env var for persistence)[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m📦 Loaded 932 cached items from disk[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m📦 Loaded 949 cached items from disk[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m📦 Loaded 941 cached items from disk[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1mDataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1mEnhanced Stock Analyzer initialized with strategy: swing_trading, risk: moderate[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1mEnhanced Stock Analyzer initialized with strategy: swing_trading[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1mSupport level screener initialized with AI-only universe generation[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1mDividend screener initialized with AI-only universe generation[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1mValue stock screener initialized with AI-only universe generation[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m✅ Pre-market scanner initialized (FREE - Yahoo Finance + Smart Indicators)[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m✅ Alternative Data sources initialized (6 sources)[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m✅ Sector Rotation detector initialized[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m✅ Market Regime Detector initialized[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m✅ Sector Regime Detector initialized[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1mGrowth Catalyst Screener v3.3 initialized: Tiered Quality + Alt Data + Sector Rotation + Market Regime + SECTOR-AWARE REGIME[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m   Initialized 14 screening rules[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m   CRITICAL: 4 rules[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m   HIGH: 6 rules[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m   MEDIUM: 2 rules[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m   LOW: 2 rules[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m✅ Screening Rules Engine initialized with Growth Catalyst rules[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m✅ Rule-Based Screening Engine initialized (v4.0)[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m   Benefits: Configurable thresholds, A/B testing, performance tracking[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m✅ Momentum Growth Screener v1.0 initialized[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1m   Using momentum & trend filters (NOT composite scores)[0m
+[32m01:02:25[0m | [1mINFO    [0m | [1mWeb Server started at http://localhost:5000[0m
+
+============================================================
+  🚀 RAPID TRADING SYSTEM
+  Target: 5-15% per month
+============================================================
+
+ * Serving Flask app 'web.app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.7.20:5000
+[33mPress CTRL+C to quit[0m
+[32m01:02:27[0m | [1mINFO    [0m | [1mAlertManager using database storage[0m
+127.0.0.1 - - [25/Feb/2026 01:02:27] "GET /api/health HTTP/1.1" 200 -
+[32m01:02:27[0m | [1mINFO    [0m | [1mStarting Rapid Portfolio Monitor...[0m
+[32m01:02:27[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
+[32m01:02:27[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
+[32m01:02:27[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
+[32m01:02:27[0m | [1mINFO    [0m | [1m✅ Loaded 2 positions from database[0m
+[32m01:02:27[0m | [1mINFO    [0m | [1mRapid Portfolio Monitor started (check every 5 minutes)[0m
+[32m01:02:27[0m | [1mINFO    [0m | [1m✅ Loaded ALL parameters from RapidRotationConfig (v6.32)[0m
+[32m01:02:27[0m | [1mINFO    [0m | [1m   SL range: 3.0%-4.0%[0m
+[32m01:02:27[0m | [1mINFO    [0m | [1m   Max positions: 2[0m
+[32m01:02:27[0m | [1mINFO    [0m | [1m   Regime filter: ENABLED[0m
+[32m01:02:27[0m | [1mINFO    [0m | [1m   Beta filter: LOG-ONLY (beta>=0.5, atr>=3.0%)[0m
+[32m01:02:27[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
+[32m01:02:27[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
+[32m01:02:27[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
+127.0.0.1 - - [25/Feb/2026 01:02:27] "GET /api/alerts?limit=50 HTTP/1.1" 200 -
+127.0.0.1 - - [25/Feb/2026 01:02:27] "GET /api/rapid/signals HTTP/1.1" 200 -
+[32m01:02:27[0m | [1mINFO    [0m | [1m📦 Loaded 932 cached items from disk[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m📦 Loaded 948 cached items from disk[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m📦 Loaded 941 cached items from disk[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mDataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: Yes[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mDataManager initialized with broker integration[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mSafety config loaded from RapidRotationConfig[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mTrading Safety System initialized[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mPDT Guard: Loaded 2 entry dates from database[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mPDT Smart Guard v2.4 initialized (DB-enabled, No Override Mode)[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m  Storage: Database[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m  SL Threshold: -3.5%[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m  TP Threshold: 8.0%[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m  Reserve: 1 day trades[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m  Budget = 0 → HOLD (ไม่ override PDT เด็ดขาด)[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mPDT Smart Guard v2.3 initialized (No Override - uses RapidRotationConfig)[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mLoaded 61 logs from /home/saengtawan/work/project/cc/stock-analyzer/trade_logs/trade_log_2026-02-24.json[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mTradeLogger initialized - logs: /home/saengtawan/work/project/cc/stock-analyzer/trade_logs, db: /home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db (direct SQLite)[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mTrade Logger v1.0 initialized[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mAlert Manager v1.0 initialized[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m🛡️ Entry Protection Filter initialized (enabled=True)[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m   Layer 1: Adaptive timing (Gap Down <-1.5%: 5min, Mild: 10min, Flat: 15min, Gap Up: 20min)[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m   Layer 2: Max VWAP distance 3.0%[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m   Layer 3: Max chase 0.8%[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m   Layer 4: Block if in top 20% of range or >2.5% from low[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m✅ Entry Protection Filter v6.17 initialized[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m📦 Loaded 509 sectors from cache[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m✅ AI Universe Generator initialized[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m✅ Market Regime Detector initialized[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m📦 Loaded 932 cached items from disk[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m📦 Loaded 948 cached items from disk[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mMonitoringMetrics initialized (window: 3600s)[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m📦 Loaded 940 cached items from disk[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mDataManager initialized with primary: yahoo, backup: tiingo, price_backup: tiingo, broker: No[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mUpdating sector regimes (5-min realtime, MCW)...[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mBuilt sector company map: 550 stocks across 11 sectors (with market weights)[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mBatch downloading 550 sector stocks for 1d returns...[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mMarket-cap weighted 1d returns calculated for 11 sectors[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mUsing market-cap weighted 1d returns for 11 sectors[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mXLK (Technology): SIDEWAYS (score=-0.2) | 1d[M]: +1.3% | 5d: -0.1% | 20d: -3.68%[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mXLE (Energy): BULL (score=+2.7) | 1d[M]: -0.5% | 5d: +0.2% | 20d: +11.53%[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mXLF (Financial Services): SIDEWAYS (score=-2.0) | 1d[M]: +0.2% | 5d: -3.2% | 20d: -4.69%[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mXLV (Healthcare): SIDEWAYS (score=+0.0) | 1d[M]: -0.3% | 5d: +0.4% | 20d: +0.12%[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mXLY (Consumer Cyclical): SIDEWAYS (score=-0.4) | 1d[M]: +1.5% | 5d: -0.3% | 20d: -4.61%[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mXLP (Consumer Defensive): BULL (score=+2.8) | 1d[M]: +0.4% | 5d: +1.4% | 20d: +7.86%[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mXLI (Industrials): BULL (score=+2.8) | 1d[M]: +1.1% | 5d: +0.9% | 20d: +7.46%[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mXLU (Utilities): BULL (score=+3.6) | 1d[M]: +0.5% | 5d: +2.9% | 20d: +9.44%[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mXLB (Basic Materials): BULL (score=+2.1) | 1d[M]: +1.1% | 5d: +0.7% | 20d: +6.67%[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mXLC (Communication Services): SIDEWAYS (score=+0.3) | 1d[M]: +0.3% | 5d: +1.3% | 20d: -1.44%[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mXLRE (Real Estate): SIDEWAYS (score=+1.5) | 1d[M]: +0.1% | 5d: +0.8% | 20d: +5.98%[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m✅ Sector Regime Detector initialized[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m✅ Alternative Data Aggregator initialized (6 sources)[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1m✅ Registered strategy: Dip-Bounce (dip_bounce)[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mVIX Adaptive v3.0: Loading...[0m
+[32m01:02:28[0m | [1mINFO    [0m | [1mStarting Real-time Price Streamer...[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1mAlpacaStreamer v1.1 initialized (paper=True, feed=IEX)[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1mQueued subscription for: ['BWXT', 'ETN'][0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m📡 Subscribed to real-time prices: ['BWXT', 'ETN'][0m
+[32m01:02:29[0m | [1mINFO    [0m | [1mAlpacaStreamer started[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m✅ Real-time Price Streamer started (WebSocket active!)[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1mStreaming started for: ['BWXT', 'ETN'][0m
+[32m01:02:29[0m | [1mINFO    [0m | [1mVIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1mInitial VIX: 19.54 → tier=NORMAL[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m✅ VIX Adaptive v3.0 initialized[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m   Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m   Score adaptation: True[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m✅ VIX Adaptive wrapper initialized: VIXAdaptiveIntegration(tier=NORMAL, VIX=19.5)[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m✅ Registered strategy: VIX Adaptive (vix_adaptive)[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m✅ VIX Adaptive registered (tier=normal)[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m✅ Strategy Manager initialized (2 strategies active)[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m🏭 Sector Filter initialized (enabled=True)[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m   Excluding sectors: Aerospace, Aerospace & Defense, Basic Materials, Communication Services, Consumer Defensive, Consumer Staples, Energy, Energy/Oil, Materials, Media, Oil & Gas[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1mScreener initialized[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m🏭 Sector Filter initialized (enabled=True)[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m   Excluding sectors: Aerospace, Aerospace & Defense, Basic Materials, Communication Services, Consumer Defensive, Consumer Staples, Energy, Energy/Oil, Materials, Media, Oil & Gas[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1mOvernightGapScanner initialized[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m✅ PreMarketGapScanner initialized (v6.11)[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m🏭 Sector Filter initialized (enabled=True)[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m   Excluding sectors: Aerospace, Aerospace & Defense, Basic Materials, Communication Services, Consumer Defensive, Consumer Staples, Energy, Energy/Oil, Materials, Media, Oil & Gas[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m✅ PEMScreener initialized (v6.29)[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1mVIX Adaptive v3.0: Loading...[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1mWebSocket client connected: 6n6YzNNVpPEf2QXKAAAB (total: 1)[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1mVIX data loaded: VIXDataProvider(251 days, VIX range: 13.5-52.3)[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1mInitial VIX: 19.54 → tier=NORMAL[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m✅ VIX Adaptive v3.0 initialized[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m   Boundaries: {'normal_max': 20, 'skip_max': 24, 'high_max': 38}[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m   Score adaptation: True[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1m✅ VIX Adaptive Strategy initialized: VIXAdaptiveIntegration(tier=NORMAL, VIX=19.5)[0m
+[32m01:02:29[0m | [1mINFO    [0m | [1mSLTPCalculator initialized[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1mHealth Checker started (check every 5 minutes)[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1mUniverse Maintenance Scheduler started (daily at 2:00 AM)[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1mLoaded persisted state: 2 positions from DB[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1mRestored position: BWXT (peak=$203.97, trail=OFF)[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1mRestored position: ETN (peak=$376.17, trail=OFF)[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1m✅ Synced 2 positions[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1m==================================================[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1mPDT SMART GUARD STATUS[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1m==================================================[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1mDay Trades: 2/3 (remaining: 1)[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1mReserve Active: True[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1mFlagged: True[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1mPositions:[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1m  ETN: Day -1[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1m  BWXT: Day -1[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1m==================================================[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1mLoaded loss counters from database: consecutive=1, weekly_pnl=$7.92, sectors=6[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1mAutoTradingEngine initialized (paper=True)[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1mTrading loop started[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1mTrading engine started[0m
+[32m01:02:30[0m | [1mINFO    [0m | [1mRunning health check...[0m
+[32m01:02:31[0m | [1mINFO    [0m | [1m✅ RECONCILE: OK (2 positions match)[0m
+[32m01:02:31[0m | [33m[1mWARNING [0m | [33m[1m⚠️ Late start: 213 min after open (cutoff: 20 min)[0m
+[32m01:02:31[0m | [1mINFO    [0m | [1m⏰ Late start: 213 min after open (cutoff: 20 min) — skipping late_start scan, continuous scan will handle[0m
+[32m01:02:31[0m | [1mINFO    [0m | [1mPortfolio API: market_open=True, extended_prices=[][0m
+[32m01:02:31[0m | [1mINFO    [0m | [1mBWXT: Using broker price $202.84 (market_open=True, in_extended=False)[0m
+[32m01:02:31[0m | [1mINFO    [0m | [1mETN: Using broker price $376.17 (market_open=True, in_extended=False)[0m
+[32m01:02:31[0m | [1mINFO    [0m | [1mPortfolio API: market_open=True, extended_prices=[][0m
+[32m01:02:31[0m | [1mINFO    [0m | [1mBWXT: Using broker price $202.84 (market_open=True, in_extended=False)[0m
+[32m01:02:31[0m | [1mINFO    [0m | [1mETN: Using broker price $376.17 (market_open=True, in_extended=False)[0m
+127.0.0.1 - - [25/Feb/2026 01:02:32] "GET /api/rapid/portfolio HTTP/1.1" 200 -
+[32m01:02:32[0m | [33m[1mWARNING [0m | [33m[1m⚠️ Market Regime: BEAR: SPY < SMA20 [SMA20=FAIL(-0.1%) | RSI=OK(49) | Ret5d=OK(+0.7%) | VIX=OK(19.5)] - SKIPPING NEW TRADES[0m
+[32m01:02:32[0m | [33m[1mWARNING [0m | [33m[1m⚠️ Market Regime: BEAR: SPY < SMA20 [SMA20=FAIL(-0.1%) | RSI=OK(49) | Ret5d=OK(+0.7%) | VIX=OK(19.5)] - SKIPPING NEW TRADES[0m
+[32m01:02:32[0m | [1mINFO    [0m | [1m🐻 Technology (XLK) regime=SIDEWAYS → ALLOWED[0m
+[32m01:02:32[0m | [1mINFO    [0m | [1m🐻 Energy (XLE) regime=BULL → ALLOWED[0m
+[32m01:02:32[0m | [1mINFO    [0m | [1m🐻 Financial Services (XLF) regime=SIDEWAYS → ALLOWED[0m
+[32m01:02:32[0m | [1mINFO    [0m | [1m🐻 Healthcare (XLV) regime=SIDEWAYS → ALLOWED[0m
+[32m01:02:32[0m | [1mINFO    [0m | [1m🐻 Consumer Cyclical (XLY) regime=SIDEWAYS → ALLOWED[0m
+[32m01:02:32[0m | [1mINFO    [0m | [1m🐻 Consumer Defensive (XLP) regime=BULL → ALLOWED[0m
+[32m01:02:32[0m | [1mINFO    [0m | [1m🐻 Industrials (XLI) regime=BULL → ALLOWED[0m
+[32m01:02:32[0m | [1mINFO    [0m | [1m🐻 Utilities (XLU) regime=BULL → ALLOWED[0m
+[32m01:02:32[0m | [1mINFO    [0m | [1m🐻 Basic Materials (XLB) regime=BULL → ALLOWED[0m
+[32m01:02:32[0m | [1mINFO    [0m | [1m🐻 Communication Services (XLC) regime=SIDEWAYS → ALLOWED[0m
+[32m01:02:32[0m | [1mINFO    [0m | [1m🐻 Real Estate (XLRE) regime=SIDEWAYS → ALLOWED[0m
+[32m01:02:32[0m | [1mINFO    [0m | [1m🐻 Bear allowed sectors (11/11): ['Technology', 'Energy', 'Financial Services', 'Healthcare', 'Consumer Cyclical', 'Consumer Defensive', 'Industrials', 'Utilities', 'Basic Materials', 'Communication Services', 'Real Estate'][0m
+[32m01:02:32[0m | [1mINFO    [0m | [1m🐻 Bear mode scan — 11 sectors allowed: ['Technology', 'Energy', 'Financial Services', 'Healthcare', 'Consumer Cyclical', 'Consumer Defensive', 'Industrials', 'Utilities', 'Basic Materials', 'Communication Services', 'Real Estate'][0m
+[32m01:02:33[0m | [1mINFO    [0m | [1m🐻🛡️ BEAR+LOW_RISK MODE: BEAR MODE: BEAR: SPY < SMA20 [SMA20=FAIL(-0.1%) | RSI=OK(49) | Ret5d=OK(+0.7%) | VIX=OK(19.5)] | PDT budget = 1 (≤ reserve 1) → Low Risk Mode[0m
+[32m01:02:33[0m | [1mINFO    [0m | [1mScanning for signals (regime: BEAR_MODE)...[0m
+[32m01:02:33[0m | [33m[1mWARNING [0m | [33m[1m⚠️ Pre-filtered pool not found - triggering initial refresh[0m
+[32m01:02:33[0m | [1mINFO    [0m | [1m🔄 Pre-filter refresh triggered (reason: initial, count: 1/6)[0m
+[32m01:02:33[0m | [1mINFO    [0m | [1m🤖 Generating universe with AI...[0m
+[32m01:02:33[0m | [1mINFO    [0m | [1m🐻🛡️ BEAR+LOW_RISK MODE: BEAR MODE: BEAR: SPY < SMA20 [SMA20=FAIL(-0.1%) | RSI=OK(49) | Ret5d=OK(+0.7%) | VIX=OK(19.5)] | PDT budget = 1 (≤ reserve 1) → Low Risk Mode[0m
+[32m01:02:33[0m | [1mINFO    [0m | [1m🔄 Continuous scan (afternoon params, 5min/normal): 2/2 positions [FULL][0m
+[32m01:02:33[0m | [1mINFO    [0m | [1m🔍 ENTER _loop_with_afternoon_params: continuous_afternoon[0m
+[32m01:02:33[0m | [1mINFO    [0m | [1m📊 Executing continuous_afternoon scan...[0m
+[32m01:02:33[0m | [33m[1mWARNING [0m | [33m[1m⚠️ Scan lock held - another scan in progress (1s), skipping[0m
+[32m01:02:33[0m | [1mINFO    [0m | [1m✅ continuous_afternoon: Found 0 signals[0m
+[32m01:02:33[0m | [1mINFO    [0m | [1m📤 Signals saved to DB: 0 signals (continuous_afternoon, mode=market)[0m
+[32m01:02:33[0m | [33m[1mWARNING [0m | [33m[1m⚠️ Market Regime: BEAR: SPY < SMA20 [SMA20=FAIL(-0.1%) | RSI=OK(49) | Ret5d=OK(+0.7%) | VIX=OK(19.5)] - SKIPPING NEW TRADES[0m
+[32m01:02:34[0m | [1mINFO    [0m | [1m🐻🛡️ BEAR+LOW_RISK MODE: BEAR MODE: BEAR: SPY < SMA20 [SMA20=FAIL(-0.1%) | RSI=OK(49) | Ret5d=OK(+0.7%) | VIX=OK(19.5)] | PDT budget = 1 (≤ reserve 1) → Low Risk Mode[0m
+127.0.0.1 - - [25/Feb/2026 01:02:34] "GET /api/auto/status HTTP/1.1" 200 -
+[32m01:02:37[0m | [1mINFO    [0m | [1m📈 ETN peak updated: $376.17 → $376.33 (real-time!)[0m
+[32m01:02:55[0m | [1mINFO    [0m | [1m✅ AI generated 195 volatile trading symbols[0m
+[32m01:02:55[0m | [1mINFO    [0m | [1m✅ AI generated 195 stocks[0m
+[32m01:02:55[0m | [1mINFO    [0m | [1m💾 AI universe saved to /home/saengtawan/work/project/cc/stock-analyzer/data/ai_universe_cache.json[0m
+[32m01:02:55[0m | [1mINFO    [0m | [1m🐂 Added 60 BULL sector stocks (Energy/Utilities/Real Estate)[0m
+[32m01:02:55[0m | [1mINFO    [0m | [1m🔥 Hot sectors: Energy, Consumer Defensive, Industrials, Utilities, Basic Materials[0m
+[32m01:02:55[0m | [1mINFO    [0m | [1m📊 Loading data for 255 stocks via yfinance (parallel)...[0m
+$SQ: possibly delisted; no timezone found
+$NOVA: possibly delisted; no timezone found
+[32m01:02:57[0m | [1mINFO    [0m | [1mRunning health check...[0m
+$VERV: possibly delisted; no timezone found
+$FSR: possibly delisted; no timezone found
+$KRON: possibly delisted; no timezone found
+$CERE: possibly delisted; no timezone found
+$CDMO: possibly delisted; no timezone found
+$BPMC: possibly delisted; no timezone found
+$BLUE: possibly delisted; no timezone found
+$ALLK: possibly delisted; no timezone found
+$EIGR: possibly delisted; no timezone found
+$IMGN: possibly delisted; no timezone found
+$ETNB: possibly delisted; no timezone found
+$DCPH: possibly delisted; no timezone found
+$OB: possibly delisted; no timezone found
+$SAGE: possibly delisted; no timezone found
+$YMAB: possibly delisted; no timezone found
+[32m01:03:00[0m | [1mINFO    [0m | [1m🐻🛡️ BEAR+LOW_RISK MODE: BEAR MODE: BEAR: SPY < SMA20 [SMA20=FAIL(-0.1%) | RSI=OK(49) | Ret5d=OK(+0.7%) | VIX=OK(19.5)] | PDT budget = 1 (≤ reserve 1) → Low Risk Mode[0m
+127.0.0.1 - - [25/Feb/2026 01:03:01] "GET /api/auto/status HTTP/1.1" 200 -
+[32m01:03:01[0m | [1mINFO    [0m | [1m✅ Loaded 236/255 stocks via yfinance (parallel)[0m
+[32m01:03:01[0m | [1mINFO    [0m | [1mUsing cached sector regimes (updated 0min ago, TTL=5min)[0m
+[32m01:03:01[0m | [33m[1mWARNING [0m | [33m[1m⚠️ SPY Regime: BEAR: SPY $687.88 < SMA20 $688.53 (-0.1%) - SKIP NEW TRADES[0m
+[32m01:03:01[0m | [1mINFO    [0m | [1m🐻 SPY BEAR — Smart Bear Mode scan (11 sectors)[0m
+[32m01:03:01[0m | [1mINFO    [0m | [1m   BEAR: SPY $687.88 < SMA20 $688.53 (-0.1%)[0m
+[32m01:03:01[0m | [1mINFO    [0m | [1m   Allowed: ['Technology', 'Energy', 'Financial Services', 'Healthcare', 'Consumer Cyclical', 'Consumer Defensive', 'Industrials', 'Utilities', 'Basic Materials', 'Communication Services', 'Real Estate'][0m
+[32m01:03:02[0m | [33m[1mWARNING [0m | [33m[1m🐻 Internal regime BEAR - bear mode active[0m
+[32m01:03:02[0m | [1mINFO    [0m | [1m🐻 Pre-filtering universe by sectors: ['Technology', 'Energy', 'Financial Services', 'Healthcare', 'Consumer Cyclical', 'Consumer Defensive', 'Industrials', 'Utilities', 'Basic Materials', 'Communication Services', 'Real Estate'][0m
+[32m01:03:03[0m | [1mINFO    [0m | [1m📈 ETN peak updated: $376.33 → $376.35 (real-time!)[0m
+127.0.0.1 - - [25/Feb/2026 01:03:27] "GET /api/health HTTP/1.1" 200 -
+[32m01:03:28[0m | [1mINFO    [0m | [1mRunning health check...[0m
+[32m01:03:30[0m | [1mINFO    [0m | [1mAlpacaAPI initialized: 150 req/60s (150 req/min)[0m
+[32m01:03:30[0m | [1mINFO    [0m | [1m✅ Rate limiter enabled (150 req/min)[0m
+[32m01:03:30[0m | [1mINFO    [0m | [1mAlpacaBroker initialized (paper)[0m
+[32m01:03:31[0m | [1mINFO    [0m | [1m🐻🛡️ BEAR+LOW_RISK MODE: BEAR MODE: BEAR: SPY < SMA20 [SMA20=FAIL(-0.1%) | RSI=OK(49) | Ret5d=OK(+0.7%) | VIX=OK(19.5)] | PDT budget = 1 (≤ reserve 1) → Low Risk Mode[0m
+127.0.0.1 - - [25/Feb/2026 01:03:31] "GET /api/auto/status HTTP/1.1" 200 -
+127.0.0.1 - - [25/Feb/2026 01:03:40] "[33mGET /api/positions HTTP/1.1[0m" 404 -
+127.0.0.1 - - [25/Feb/2026 01:03:45] "[33mGET /api/positions HTTP/1.1[0m" 404 -
+127.0.0.1 - - [25/Feb/2026 01:03:46] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [25/Feb/2026 01:03:46] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [25/Feb/2026 01:03:57] "GET /api/auto/positions HTTP/1.1" 200 -
+[32m01:03:58[0m | [1mINFO    [0m | [1mRunning health check...[0m
+[32m01:04:01[0m | [1mINFO    [0m | [1m🐻🛡️ BEAR+LOW_RISK MODE: BEAR MODE: BEAR: SPY < SMA20 [SMA20=FAIL(-0.1%) | RSI=OK(49) | Ret5d=OK(+0.7%) | VIX=OK(19.5)] | PDT budget = 1 (≤ reserve 1) → Low Risk Mode[0m
+127.0.0.1 - - [25/Feb/2026 01:04:01] "GET /api/auto/status HTTP/1.1" 200 -
