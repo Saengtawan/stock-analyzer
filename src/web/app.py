@@ -4523,9 +4523,10 @@ def handle_request_update(data=None):
 def _get_extended_hours_prices(symbols: list) -> dict:
     """
     Get extended hours prices using yfinance.
-    Returns {symbol: {premarket_price, premarket_change, premarket_session}}
+    Returns {symbol: {premarket_price, premarket_change, premarket_session, regular_close}}
 
     v6.24: Switched from Alpaca snapshots to yfinance for reliability.
+    v6.47: Add pre-market price support + return regular_close for "N" display.
     """
     results = {}
     if not symbols:
@@ -4533,6 +4534,20 @@ def _get_extended_hours_prices(symbols: list) -> dict:
 
     try:
         import yfinance as yf
+        import pytz
+
+        et_tz = pytz.timezone('America/New_York')
+        now_et = datetime.now(et_tz)
+        et_mins = now_et.hour * 60 + now_et.minute
+
+        # ET session windows (in minutes from midnight)
+        PRE_MARKET_START = 4 * 60       # 04:00 ET
+        PRE_MARKET_END   = 9 * 60 + 30  # 09:30 ET
+        AFTER_HOURS_START = 16 * 60     # 16:00 ET
+        AFTER_HOURS_END   = 20 * 60     # 20:00 ET
+
+        is_premarket  = PRE_MARKET_START  <= et_mins < PRE_MARKET_END
+        is_afterhours = AFTER_HOURS_START <= et_mins < AFTER_HOURS_END
 
         for symbol in symbols:
             try:
@@ -4540,20 +4555,36 @@ def _get_extended_hours_prices(symbols: list) -> dict:
                 info = ticker.info
 
                 regular_close = info.get('regularMarketPrice', 0)
-                after_hours = info.get('postMarketPrice', None)
+                after_hours   = info.get('postMarketPrice', None)
+                pre_market    = info.get('preMarketPrice', None)
 
-                if after_hours and regular_close > 0:
-                    change = ((after_hours - regular_close) / regular_close) * 100
+                # Pick extended price based on current ET session
+                ext_price = None
+                session   = None
+                if is_premarket and pre_market and regular_close > 0:
+                    ext_price = pre_market
+                    session   = 'Pre'
+                elif is_afterhours and after_hours and regular_close > 0:
+                    ext_price = after_hours
+                    session   = 'AH'
+                elif after_hours and regular_close > 0:
+                    # Outside AH window but stale AH data still available
+                    ext_price = after_hours
+                    session   = 'AH'
+
+                if ext_price and regular_close > 0:
+                    change = ((ext_price - regular_close) / regular_close) * 100
                     # Only include if there's actual movement (> 0.01%)
                     if abs(change) > 0.01:
                         results[symbol] = {
-                            'premarket_price': round(after_hours, 2),
-                            'premarket_change': round(change, 2),
-                            'premarket_session': 'AH'
+                            'premarket_price':   round(ext_price, 2),
+                            'premarket_change':  round(change, 2),
+                            'premarket_session': session,
+                            'regular_close':     round(regular_close, 2),
                         }
-                        logger.debug(f"After-hours: {symbol} ${after_hours:.2f} ({change:+.2f}% vs ${regular_close:.2f})")
+                        logger.debug(f"{session}: {symbol} ${ext_price:.2f} ({change:+.2f}% vs ${regular_close:.2f})")
             except Exception as e:
-                logger.debug(f"Failed to fetch after-hours price for {symbol}: {e}")
+                logger.debug(f"Failed to fetch extended hours price for {symbol}: {e}")
                 continue
 
     except Exception as e:
@@ -4726,13 +4757,16 @@ def _build_positions_from_engine():
     for symbol, mp in engine.positions.items():
         ap = alpaca_prices.get(symbol, {})
 
-        # v6.24: Prefer after-hours price when market is closed
-        if not market_open and symbol in extended_prices:
-            current_price = extended_prices[symbol].get('premarket_price', ap.get('current_price', mp.entry_price))
-            logger.info(f"{symbol}: Using after-hours price ${current_price:.2f}")
-        else:
-            current_price = ap.get('current_price', mp.entry_price)
-            logger.info(f"{symbol}: Using broker price ${current_price:.2f} (market_open={market_open}, in_extended={symbol in extended_prices})")
+        # v6.47: "N" always shows regular market close (Alpaca).
+        # AH/Pre price is displayed separately via pos_data.update(premarket) below.
+        # Fallback chain: Alpaca current_price → yfinance regular_close → entry_price
+        ext = extended_prices.get(symbol, {})
+        current_price = (
+            ap.get('current_price')
+            or ext.get('regular_close')
+            or mp.entry_price
+        )
+        logger.info(f"{symbol}: current_price=${current_price:.2f} (market_open={market_open}, in_extended={symbol in extended_prices})")
 
         pnl_pct = ((current_price - mp.entry_price) / mp.entry_price) * 100
         pnl_usd = (current_price - mp.entry_price) * mp.qty
