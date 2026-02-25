@@ -1477,7 +1477,14 @@ class AutoTradingEngine:
                     if saved.get('entry_time'):
                         try:
                             entry_time = datetime.fromisoformat(saved['entry_time'])
-                            entry_date = entry_time.date()  # v6.10: Update entry_date to match restored entry_time
+                            # v6.49: Convert server-local (Thailand) naive datetime → ET date
+                            # entry_time stored without timezone (server local = Thailand UTC+7)
+                            # Must convert to ET for correct PDT day counting across midnight
+                            if entry_time.tzinfo is None:
+                                local_tz = pytz.timezone('Asia/Bangkok')
+                                entry_date = local_tz.localize(entry_time).astimezone(self.et_tz).date()
+                            else:
+                                entry_date = entry_time.astimezone(self.et_tz).date()
                         except (ValueError, TypeError):
                             pass  # Fall back to portfolio_entry_dates
 
