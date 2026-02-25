@@ -4745,13 +4745,11 @@ def _build_positions_from_engine():
     except Exception as e:
         logger.warning(f"Failed to fetch Alpaca prices: {e}")
 
-    # Extended hours prices (v6.24: prefer after-hours when market closed)
-    extended_prices = _get_extended_hours_prices(symbols)
     market_open = engine.broker.is_market_open() if engine.broker else True
 
-    # v6.47: When market closed, fetch official close from Alpaca Bars API.
-    # More reliable than positions current_price (which returns intraday last trade).
-    # Priority: Alpaca Bars close → yfinance regularMarketPrice → Alpaca positions price
+    # v6.48: When market closed, fetch official close from Alpaca Bars API (IEX feed).
+    # "N" = IEX regular-hours close (reliable).
+    # "AH/Pre" = Alpaca positions current_price (includes AH/pre-market) — replaces yfinance.
     alpaca_bar_closes = {}
     if not market_open and engine.broker:
         try:
@@ -4767,29 +4765,34 @@ def _build_positions_from_engine():
         except Exception as e:
             logger.warning(f"Failed to fetch Alpaca Bars close: {e}")
 
-    logger.info(f"Portfolio API: market_open={market_open}, extended_prices={list(extended_prices.keys())}")
+    # v6.48: ET session detection for AH/Pre label
+    import pytz as _pytz
+    _et_tz = _pytz.timezone('America/New_York')
+    _now_et = datetime.now(_et_tz)
+    _et_mins = _now_et.hour * 60 + _now_et.minute
+    _is_premarket  = (4 * 60) <= _et_mins < (9 * 60 + 30)
+    _is_afterhours = (16 * 60) <= _et_mins < (20 * 60)
+
+    logger.info(f"Portfolio API: market_open={market_open}, premarket={_is_premarket}, afterhours={_is_afterhours}")
 
     statuses_data = []
     total_pnl_usd = 0.0
 
     for symbol, mp in engine.positions.items():
         ap = alpaca_prices.get(symbol, {})
-        ext = extended_prices.get(symbol, {})
 
-        # v6.47: "N" price source depends on market session:
-        # - Market OPEN: Alpaca live positions price (real-time)
-        # - Market CLOSED: official close (Alpaca Bars > yfinance) — NOT intraday last trade
-        # AH/Pre price shown separately via pos_data.update(premarket) below.
+        # v6.48: "N" price source:
+        # - Market OPEN: Alpaca positions live price (real-time)
+        # - Market CLOSED: Alpaca Bars IEX close (regular-hours only, not AH/pre-market)
         if market_open:
-            current_price = ap.get('current_price') or mp.entry_price
+            current_price = float(ap.get('current_price') or mp.entry_price)
         else:
-            current_price = (
+            current_price = float(
                 alpaca_bar_closes.get(symbol)
-                or ext.get('regular_close')
                 or ap.get('current_price')
                 or mp.entry_price
             )
-        logger.info(f"{symbol}: current_price=${current_price:.2f} source={'live' if market_open else 'close'} (market_open={market_open})")
+        logger.info(f"{symbol}: current_price=${current_price:.2f} source={'live' if market_open else 'IEX_close'} (market_open={market_open})")
 
         pnl_pct = ((current_price - mp.entry_price) / mp.entry_price) * 100
         pnl_usd = (current_price - mp.entry_price) * mp.qty
@@ -4840,9 +4843,20 @@ def _build_positions_from_engine():
             'source': getattr(mp, 'source', 'dip_bounce'),  # v6.36: Strategy source
         }
 
-        # Extended hours price
-        premarket = extended_prices.get(symbol, {})
-        pos_data.update(premarket)
+        # v6.48: AH/Pre price from Alpaca positions (replaces yfinance).
+        # Alpaca positions.current_price includes AH and pre-market prices.
+        # Compare against IEX close — if different, it's extended-hours movement.
+        if not market_open:
+            alpaca_live = ap.get('current_price')
+            if alpaca_live:
+                alpaca_live = float(alpaca_live)
+                change_pct = (alpaca_live - current_price) / current_price * 100
+                if abs(change_pct) > 0.05:  # > 0.05% movement = real AH/Pre activity
+                    session = 'Pre' if _is_premarket else 'AH'
+                    pos_data['premarket_price']   = round(alpaca_live, 2)
+                    pos_data['premarket_change']  = round(change_pct, 2)
+                    pos_data['premarket_session'] = session
+                    logger.info(f"{symbol}: {session} ${alpaca_live:.2f} ({change_pct:+.2f}% vs close ${current_price:.2f})")
 
         statuses_data.append(pos_data)
 
