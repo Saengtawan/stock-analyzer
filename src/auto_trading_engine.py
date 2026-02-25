@@ -1489,7 +1489,9 @@ class AutoTradingEngine:
                         sl_order_id=sl_order.id if sl_order else saved.get('sl_order_id', ''),
                         current_sl_price=sl_order.stop_price if sl_order else saved.get('current_sl_price', pos.avg_entry_price * 0.975),
                         # Restore dynamic state from persisted data
-                        peak_price=saved.get('peak_price', pos.current_price),
+                        # v6.47: Update peak if current price exceeds stored peak
+                        # (covers AH/pre-market moves while engine was offline)
+                        peak_price=max(saved.get('peak_price', pos.current_price), pos.current_price),
                         trailing_active=saved.get('trailing_active', False),
                         days_held=saved.get('days_held', 0),
                         sl_pct=saved.get('sl_pct', self.STOP_LOSS_PCT),
@@ -1508,7 +1510,8 @@ class AutoTradingEngine:
                     )
 
                     if saved:
-                        logger.info(f"Restored position: {pos.symbol} (peak=${saved.get('peak_price', 0):.2f}, trail={'ON' if saved.get('trailing_active') else 'OFF'})")
+                        mp = self.positions[pos.symbol]
+                        logger.info(f"Restored position: {pos.symbol} (peak=${mp.peak_price:.2f}, trail={'ON' if mp.trailing_active else 'OFF'})")
                     else:
                         logger.info(f"Synced position: {pos.symbol} (no persisted state)")
 
