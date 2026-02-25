@@ -4749,6 +4749,24 @@ def _build_positions_from_engine():
     extended_prices = _get_extended_hours_prices(symbols)
     market_open = engine.broker.is_market_open() if engine.broker else True
 
+    # v6.47: When market closed, fetch official close from Alpaca Bars API.
+    # More reliable than positions current_price (which returns intraday last trade).
+    # Priority: Alpaca Bars close → yfinance regularMarketPrice → Alpaca positions price
+    alpaca_bar_closes = {}
+    if not market_open and engine.broker:
+        try:
+            for symbol in symbols:
+                bars = engine.broker.get_bars(symbol, timeframe='1Day', limit=10)
+                if bars:
+                    b = bars[-1]  # Most recent bar (ascending chronological order)
+                    close = getattr(b, 'c', None) or getattr(b, 'close', None)
+                    if close:
+                        alpaca_bar_closes[symbol] = float(close)
+            if alpaca_bar_closes:
+                logger.info(f"Alpaca Bars closes: { {s: f'${v:.2f}' for s, v in alpaca_bar_closes.items()} }")
+        except Exception as e:
+            logger.warning(f"Failed to fetch Alpaca Bars close: {e}")
+
     logger.info(f"Portfolio API: market_open={market_open}, extended_prices={list(extended_prices.keys())}")
 
     statuses_data = []
@@ -4756,17 +4774,22 @@ def _build_positions_from_engine():
 
     for symbol, mp in engine.positions.items():
         ap = alpaca_prices.get(symbol, {})
-
-        # v6.47: "N" always shows regular market close (Alpaca).
-        # AH/Pre price is displayed separately via pos_data.update(premarket) below.
-        # Fallback chain: Alpaca current_price → yfinance regular_close → entry_price
         ext = extended_prices.get(symbol, {})
-        current_price = (
-            ap.get('current_price')
-            or ext.get('regular_close')
-            or mp.entry_price
-        )
-        logger.info(f"{symbol}: current_price=${current_price:.2f} (market_open={market_open}, in_extended={symbol in extended_prices})")
+
+        # v6.47: "N" price source depends on market session:
+        # - Market OPEN: Alpaca live positions price (real-time)
+        # - Market CLOSED: official close (Alpaca Bars > yfinance) — NOT intraday last trade
+        # AH/Pre price shown separately via pos_data.update(premarket) below.
+        if market_open:
+            current_price = ap.get('current_price') or mp.entry_price
+        else:
+            current_price = (
+                alpaca_bar_closes.get(symbol)
+                or ext.get('regular_close')
+                or ap.get('current_price')
+                or mp.entry_price
+            )
+        logger.info(f"{symbol}: current_price=${current_price:.2f} source={'live' if market_open else 'close'} (market_open={market_open})")
 
         pnl_pct = ((current_price - mp.entry_price) / mp.entry_price) * 100
         pnl_usd = (current_price - mp.entry_price) * mp.qty
