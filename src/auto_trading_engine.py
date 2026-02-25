@@ -1511,6 +1511,13 @@ class AutoTradingEngine:
 
                     if saved:
                         mp = self.positions[pos.symbol]
+                        # v6.47: Activate trailing at startup if already profitable enough
+                        # (handles case where engine was offline when threshold was crossed)
+                        if not mp.trailing_active and mp.peak_price > 0:
+                            pnl_at_peak = ((mp.peak_price - mp.entry_price) / mp.entry_price) * 100
+                            if pnl_at_peak >= self.TRAIL_ACTIVATION_PCT:
+                                mp.trailing_active = True
+                                logger.info(f"📈 {pos.symbol}: Trailing activated on startup (peak gain {pnl_at_peak:+.2f}% >= {self.TRAIL_ACTIVATION_PCT}%)")
                         logger.info(f"Restored position: {pos.symbol} (peak=${mp.peak_price:.2f}, trail={'ON' if mp.trailing_active else 'OFF'})")
                     else:
                         logger.info(f"Synced position: {pos.symbol} (no persisted state)")
