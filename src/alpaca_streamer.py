@@ -13,11 +13,17 @@ Usage:
 
 import os
 import asyncio
+import logging
 import threading
 import time
 from datetime import datetime
 from typing import List, Set, Callable, Optional
 from loguru import logger
+
+# Suppress alpaca websocket "error during websocket communication" spam
+logging.getLogger('alpaca').setLevel(logging.CRITICAL)
+logging.getLogger('alpaca.data.live.websocket').setLevel(logging.CRITICAL)
+logging.getLogger('websockets').setLevel(logging.CRITICAL)
 
 # Alpaca-py SDK
 from alpaca.data.live import StockDataStream
@@ -244,6 +250,14 @@ class AlpacaStreamer:
                 # Create new event loop for this thread
                 self.loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(self.loop)
+
+                # Suppress known connection errors from asyncio traceback spam
+                def _suppress_known_errors(loop, context):
+                    exc = context.get('exception')
+                    if exc and any(msg in str(exc).lower() for msg in ('connection limit', 'auth failed')):
+                        return  # Handled in try/except below
+                    loop.default_exception_handler(context)
+                self.loop.set_exception_handler(_suppress_known_errors)
 
                 # Create stream
                 self.stream = self._create_stream()

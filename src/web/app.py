@@ -4079,8 +4079,10 @@ def get_auto_trading_engine():
 
 
 def convert_numpy_types(obj):
-    """Convert numpy types to native Python types for JSON serialization"""
+    """Convert numpy/pandas/datetime types to native Python types for JSON serialization"""
     import numpy as np
+    import pandas as pd
+    from datetime import datetime, date
 
     if isinstance(obj, dict):
         return {k: convert_numpy_types(v) for k, v in obj.items()}
@@ -4094,6 +4096,8 @@ def convert_numpy_types(obj):
         return bool(obj)
     elif isinstance(obj, np.ndarray):
         return obj.tolist()
+    elif isinstance(obj, (pd.Timestamp, datetime, date)):
+        return obj.isoformat()
     else:
         return obj
 
