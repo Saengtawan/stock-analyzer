@@ -1518,6 +1518,20 @@ class AutoTradingEngine:
                             if pnl_at_peak >= self.TRAIL_ACTIVATION_PCT:
                                 mp.trailing_active = True
                                 logger.info(f"📈 {pos.symbol}: Trailing activated on startup (peak gain {pnl_at_peak:+.2f}% >= {self.TRAIL_ACTIVATION_PCT}%)")
+
+                        # v6.47: Safety check — if trailing SL would be above current price,
+                        # trailing stop was breached while engine was offline.
+                        # Reset peak to current price so trailing starts fresh (avoid bad SL order).
+                        if mp.trailing_active and mp.peak_price > 0:
+                            gain_amount = mp.peak_price - mp.entry_price
+                            trailing_sl = mp.entry_price + gain_amount * (self.TRAIL_LOCK_PCT / 100)
+                            if trailing_sl > pos.current_price > 0:
+                                logger.warning(
+                                    f"⚠️ {pos.symbol}: Trailing SL ${trailing_sl:.2f} > current ${pos.current_price:.2f} "
+                                    f"(stop breached offline) — resetting peak from ${mp.peak_price:.2f} to ${pos.current_price:.2f}"
+                                )
+                                mp.peak_price = pos.current_price
+
                         logger.info(f"Restored position: {pos.symbol} (peak=${mp.peak_price:.2f}, trail={'ON' if mp.trailing_active else 'OFF'})")
                     else:
                         logger.info(f"Synced position: {pos.symbol} (no persisted state)")
