@@ -1527,19 +1527,19 @@ class AutoTradingEngine:
                                 logger.info(f"📈 {pos.symbol}: Trailing activated on startup (peak gain {pnl_at_peak:+.2f}% >= {self.TRAIL_ACTIVATION_PCT}%)")
 
                         # v6.47: Safety check — if trailing SL would be above current price,
-                        # trailing stop was breached while engine was offline.
-                        # Reset peak to current price so trailing starts fresh (avoid bad SL order).
-                        if mp.trailing_active and mp.peak_price > 0:
+                        # trailing stop was breached while engine was offline DURING MARKET HOURS.
+                        # v6.49: Skip during AH/pre-market — Alpaca SL orders don't execute AH,
+                        # so AH price below trail SL is normal volatility, NOT a breach.
+                        if mp.trailing_active and mp.peak_price > 0 and self._is_market_hours():
                             gain_amount = mp.peak_price - mp.entry_price
                             trailing_sl = mp.entry_price + gain_amount * (self.TRAIL_LOCK_PCT / 100)
                             if trailing_sl > pos.current_price > 0:
                                 logger.warning(
                                     f"⚠️ {pos.symbol}: Trailing SL ${trailing_sl:.2f} > current ${pos.current_price:.2f} "
-                                    f"(stop breached offline) — resetting peak from ${mp.peak_price:.2f} to ${pos.current_price:.2f}"
+                                    f"(stop breached offline during market hours) — resetting peak from ${mp.peak_price:.2f} to ${pos.current_price:.2f}"
                                 )
                                 mp.peak_price = pos.current_price
-                                # v6.49: Reset current_sl_price to original SL since trail SL is now stale
-                                # (prevents accidental close when trail check runs with old high SL)
+                                # Reset current_sl_price to original SL since trail SL is now stale
                                 mp.current_sl_price = mp.entry_price * (1 - mp.sl_pct / 100)
 
                         logger.info(f"Restored position: {pos.symbol} (peak=${mp.peak_price:.2f}, trail={'ON' if mp.trailing_active else 'OFF'})")
