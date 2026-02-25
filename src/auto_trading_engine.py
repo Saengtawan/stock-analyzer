@@ -1531,6 +1531,9 @@ class AutoTradingEngine:
                                     f"(stop breached offline) — resetting peak from ${mp.peak_price:.2f} to ${pos.current_price:.2f}"
                                 )
                                 mp.peak_price = pos.current_price
+                                # v6.49: Reset current_sl_price to original SL since trail SL is now stale
+                                # (prevents accidental close when trail check runs with old high SL)
+                                mp.current_sl_price = mp.entry_price * (1 - mp.sl_pct / 100)
 
                         logger.info(f"Restored position: {pos.symbol} (peak=${mp.peak_price:.2f}, trail={'ON' if mp.trailing_active else 'OFF'})")
                     else:
@@ -5469,7 +5472,10 @@ class AutoTradingEngine:
                 self.alerts.alert_trailing_activated(symbol, current_price, managed_pos.peak_price)
 
             # Day 0: Check trailing stop trigger (manual close if drops from peak)
-            if managed_pos.trailing_active and pnl_pct >= self.TRAIL_ACTIVATION_PCT:
+            # v6.49: Removed pnl_pct >= TRAIL_ACTIVATION_PCT from outer condition.
+            # calculate_trailing_stop() returns current_sl_price unchanged when gain_pct < threshold,
+            # so trail SL locked above entry is correctly enforced even if pnl dips below 2%.
+            if managed_pos.trailing_active:
                 # Calculate what the trailing SL should be
                 trailing_sl, _ = self.broker.calculate_trailing_stop(
                     entry_price,
@@ -7542,7 +7548,7 @@ class AutoTradingEngine:
             'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v6.47',  # v6.47: Price display fixes (N price source, peak startup, trailing activation, trailing SL safety)
+            'version': 'v6.49',  # v6.49: Fix Day 0 trail SL gap — enforce locked trail SL even when pnl dips below 2% activation threshold
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
