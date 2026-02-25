@@ -7542,7 +7542,7 @@ class AutoTradingEngine:
             'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v6.41',  # v6.41: Comprehensive Bug Audit - 15 critical fixes (scan retries, queue locks, pre-filter, position mgmt)
+            'version': 'v6.47',  # v6.47: Price display fixes (N price source, peak startup, trailing activation, trailing SL safety)
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),

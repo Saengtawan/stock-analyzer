@@ -2457,7 +2457,8 @@ function updatePositionsUI(data) {
 
         // Trail info
         const trailActPct = (_baseConfig && _baseConfig.trail_activation_pct) || 2;
-        const isTrailActive = status.pnl_pct >= trailActPct;
+        // v6.47: Use backend trailing_active flag (not pnl_pct) — trailing stays ON even when price pulls back
+        const isTrailActive = status.trailing_active === true;
         const peakPrice = status.highest_price || status.current_price;
         const trailActivation = status.entry_price * (1 + trailActPct / 100);
 
