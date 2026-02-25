@@ -604,6 +604,14 @@ class PreFilterRunner:
             self.status.is_ready = True
             self._save_status()
 
+            # Fix: Update DB session status to 'completed' (was stuck at 'running')
+            if hasattr(self, '_current_session_id') and self._current_session_id:
+                repo.update_session_status(
+                    session_id=self._current_session_id,
+                    status='completed',
+                    duration=elapsed
+                )
+
             logger.info("="*60)
             logger.info(f"EVENING SCAN COMPLETE")
             logger.info(f"  Scanned: {total} stocks")
@@ -741,6 +749,14 @@ class PreFilterRunner:
             self.status.last_updated = now.isoformat()
             self.status.is_ready = True
             self._save_status()
+
+            # Fix: Update DB session status to 'completed' (was stuck at 'running')
+            if hasattr(self, '_current_session_id') and self._current_session_id:
+                repo.update_session_status(
+                    session_id=self._current_session_id,
+                    status='completed',
+                    duration=elapsed
+                )
 
             logger.info("="*60)
             logger.info(f"PRE-OPEN SCAN COMPLETE")

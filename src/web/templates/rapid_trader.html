@@ -1802,6 +1802,12 @@ function updateTimelineBar(schedule) {
         }
     });
 
+    // Fix: Dim timeline after market close (trading day but market is closed after hours)
+    const isAfterClose = !schedule.market_calendar?.is_open && currentMins >= 960; // 960 = 16:00
+    if (isAfterClose && timelineBar) {
+        timelineBar.style.opacity = '0.4';
+    }
+
     // Update next/last scan info - v6.4: Fix timezone to show Eastern time
     const etTimeFormat = { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/New_York' };
     const tlNextTime = document.getElementById('tlNextTime');
@@ -2558,7 +2564,9 @@ function updatePreFilterStatus(status, actualPoolSize, mode) {
     }
 
     let badgeClass, icon, text;
-    if (status && (status.evening_status === 'running' || status.pre_open_status === 'running')) {
+    // Fix: Don't show 'scanning...' if poolSize is available (DB session may be stuck at 'running')
+    const isActuallyScanning = status && (status.evening_status === 'running' || status.pre_open_status === 'running') && !poolSize;
+    if (isActuallyScanning) {
         badgeClass = 'bg-info';
         icon = '<i class="fas fa-sync-alt fa-spin me-1"></i>';
         text = 'scanning...';

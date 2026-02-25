@@ -3519,6 +3519,9 @@ class AutoTradingEngine:
             action = "SKIPPED_FILTER"
             skip_reason = ""
             self._last_skip_reason = ""  # v5.3: Reset before execute
+            # Fix: Tag signal with effective_max so execute_signal can bypass per-strategy DIP limit
+            if max_positions is not None:
+                signal._max_positions_override = effective_max
             if len(self.positions) < effective_max:
                 result = self.execute_signal(signal)
                 action = "BOUGHT" if result else "SKIPPED_FILTER"
@@ -4831,6 +4834,13 @@ class AutoTradingEngine:
 
             if 'LOW_RISK' in mode:
                 logger.info(f"🛡️ {symbol}: Using LOW RISK parameters")
+
+            # Fix: OVN/PEM dedicated slot — override max_positions from signal to bypass DIP limit
+            _max_override = getattr(signal, '_max_positions_override', None)
+            if _max_override:
+                params = dict(params)  # copy to avoid mutating shared state
+                params['max_positions'] = _max_override
+                logger.debug(f"🔒 {symbol}: max_positions override → {_max_override} (dedicated slot)")
 
             # BLOCK 1: Pre-flight checks (safety, PDT, duplicate, max positions, VIX)
             preflight_ok, skip_reason = self._exec_preflight_checks(symbol, params)
