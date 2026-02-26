@@ -6757,6 +6757,67 @@ class AutoTradingEngine:
 
         self._last_continuous_scan = et_now
 
+    def _load_ovn_universe_data(self) -> dict:
+        """Load OHLCV data for full 987-stock universe for OVN scanning.
+
+        OVN needs strong/momentum stocks (green day, near HOD, high volume).
+        DIP pre-filter pool selects WEAK/dipping stocks — opposite of OVN criteria.
+        So OVN must use its own universe from full_universe_cache.json (987 stocks).
+
+        Uses batch yf.download() for all 987 symbols in one API call (~20-30s).
+        Returns {symbol: DataFrame} with lowercase OHLCV columns.
+        """
+        import json as _json
+        import pandas as _pd
+
+        try:
+            universe_file = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                'data', 'full_universe_cache.json'
+            )
+            with open(universe_file) as f:
+                symbols = list(_json.load(f).keys())
+
+            logger.info(f"🌙 OVN Universe: Batch loading {len(symbols)} stocks...")
+
+            if not self.data_manager:
+                return {}
+
+            batch_df = self.data_manager.yahoo_client.batch_download_prices(
+                symbols, period='3mo', interval='1d', data_type='ovn_universe'
+            )
+
+            if batch_df is None or batch_df.empty:
+                logger.warning("🌙 OVN Universe: Batch download returned empty")
+                return {}
+
+            # Parse MultiIndex DataFrame → {symbol: DataFrame}
+            data_cache = {}
+            for symbol in symbols:
+                try:
+                    if isinstance(batch_df.columns, _pd.MultiIndex):
+                        sym_df = batch_df.xs(symbol, level=1, axis=1).copy()
+                    else:
+                        sym_df = batch_df.copy()
+                    sym_df = sym_df.dropna(how='all')
+                    if len(sym_df) >= 25:
+                        sym_df.columns = [c.lower() for c in sym_df.columns]
+                        data_cache[symbol] = sym_df
+                except KeyError:
+                    pass
+                except Exception:
+                    pass
+
+            logger.info(f"🌙 OVN Universe: {len(data_cache)}/{len(symbols)} stocks ready")
+            return data_cache
+
+        except FileNotFoundError:
+            logger.warning("🌙 OVN Universe: full_universe_cache.json not found")
+            return {}
+        except Exception as e:
+            logger.warning(f"🌙 OVN Universe: Load failed: {e}")
+            return {}
+
     def _loop_overnight_gap_scan(self, today: str):
         """Execute overnight gap scan (15:30-15:50 ET). v6.35: Dedicated slot implementation.
         v6.40: Fixed bug - only mark done after successful execution, add detailed logging."""
@@ -6809,9 +6870,19 @@ class AutoTradingEngine:
         logger.info(f"🌙 OVN Scan START: {et_now.strftime('%H:%M')} ET | Pos: {len(self.positions)}/{self.MAX_POSITIONS_TOTAL} total, {overnight_count}/{self.OVERNIGHT_GAP_MAX_POSITIONS} OVN")
 
         try:
-            data_cache, sector_regime = self._loop_get_screener_data()
+            # v6.50: OVN uses its own full 987-stock universe (NOT DIP pre-filter pool).
+            # DIP pool selects WEAK/dipping stocks → OVN needs STRONG/momentum stocks.
+            # Using DIP pool caused "No candidates found" every scan (wrong universe).
+            ovn_data_cache = self._load_ovn_universe_data()
+            sector_regime = self.screener.sector_regime if self.screener and hasattr(self.screener, 'sector_regime') else None
+
+            if not ovn_data_cache:
+                # Fallback to screener cache if universe load fails
+                logger.warning("🌙 OVN: Universe load failed, falling back to screener cache")
+                ovn_data_cache, sector_regime = self._loop_get_screener_data()
+
             gap_signals = self.overnight_scanner.scan(
-                universe=data_cache,
+                universe=ovn_data_cache,
                 sector_regime=sector_regime,
                 min_score=self.OVERNIGHT_GAP_MIN_SCORE,
                 position_pct=self.OVERNIGHT_GAP_POSITION_PCT,
@@ -7555,7 +7626,7 @@ class AutoTradingEngine:
             'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v6.49',  # v6.49: Fix Day 0 trail SL gap — enforce locked trail SL even when pnl dips below 2% activation threshold
+            'version': 'v6.50',  # v6.50: OVN uses dedicated 987-stock universe (not DIP pool) — fixes "No candidates found"
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
