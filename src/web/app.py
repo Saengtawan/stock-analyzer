@@ -4246,7 +4246,7 @@ def api_cron_status():
             'outcome_tracker': {'interval': '0 5 * * 2-6', 'desc': '05:00 Tue-Sat'},
             'prefilter_evening': {'interval': '0 8 * * 2-6', 'desc': '08:00 Tue-Sat'},
             'prefilter_pre_open': {'interval': '0 21 * * 1-5', 'desc': '21:00 Mon-Fri'},
-            'universe_maintenance': {'interval': '0 2 * * *', 'desc': '02:00 daily'},
+            'universe_maintenance': {'interval': '0 3 * * 0', 'desc': '03:00 Sunday'},
             'db_backup': {'interval': '0 6 * * 0', 'desc': '06:00 Sunday'}
         }
 

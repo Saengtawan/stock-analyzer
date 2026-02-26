@@ -3227,24 +3227,24 @@ function updateHeaderCronStatus(data) {
         }
     }
 
-    // Universe Maintenance (daily at 2 AM)
+    // Universe Maintenance (weekly, Sunday 3:00 AM Bangkok)
     const cronUniverse = document.getElementById('cronUniverse');
     if (cronUniverse) {
         const u = status.universe_maintenance;
         cronUniverse.classList.remove('ok', 'error', 'stale');
-        if (u && u.status === 'ok' && isRecent(u.last_run, 1500)) { // 25 hours (daily job)
+        if (u && u.status === 'ok' && isRecent(u.last_run, 10200)) { // 7 days + 1h buffer (weekly job)
             cronUniverse.classList.add('ok');
             const lastRun = new Date(u.last_run);
             const nextRun = new Date(lastRun);
-            nextRun.setDate(nextRun.getDate() + 1);
-            nextRun.setHours(2, 0, 0, 0);
+            nextRun.setDate(nextRun.getDate() + 7);
+            nextRun.setHours(3, 0, 0, 0);
             cronUniverse.title = `Universe: OK (Last: ${lastRun.toLocaleString()})\nNext: ${nextRun.toLocaleString()}`;
         } else if (u && u.status === 'error') {
             cronUniverse.classList.add('error');
             cronUniverse.title = 'Universe: ERROR - Check logs';
         } else {
             cronUniverse.classList.add('stale');
-            cronUniverse.title = 'Universe: Scheduled for 2:00 AM daily';
+            cronUniverse.title = 'Universe: Scheduled Sunday 3:00 AM (weekly)';
         }
     }
 }
