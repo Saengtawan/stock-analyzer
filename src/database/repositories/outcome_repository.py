@@ -159,7 +159,7 @@ class OutcomeRepository:
                 conn.execute("""
                     UPDATE signal_outcomes SET
                         scan_date = ?, scan_type = ?, signal_rank = ?,
-                        action_taken = ?, score = ?, signal_source = ?,
+                        action_taken = ?, skip_reason = ?, score = ?, signal_source = ?,
                         scan_price = ?, outcome_1d = ?, outcome_3d = ?,
                         outcome_5d = ?, outcome_max_gain_5d = ?,
                         outcome_max_dd_5d = ?, updated_at = ?
@@ -169,6 +169,7 @@ class OutcomeRepository:
                     outcome.get('scan_type'),
                     outcome.get('signal_rank'),
                     outcome.get('action_taken'),
+                    outcome.get('skip_reason'),
                     outcome.get('score'),
                     outcome.get('signal_source'),
                     outcome.get('scan_price'),
@@ -188,10 +189,10 @@ class OutcomeRepository:
                 cursor = conn.execute("""
                     INSERT INTO signal_outcomes (
                         scan_id, symbol, scan_date, scan_type, signal_rank,
-                        action_taken, score, signal_source, scan_price,
+                        action_taken, skip_reason, score, signal_source, scan_price,
                         outcome_1d, outcome_3d, outcome_5d,
                         outcome_max_gain_5d, outcome_max_dd_5d, tracked_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     outcome['scan_id'],
                     outcome['symbol'],
@@ -199,6 +200,7 @@ class OutcomeRepository:
                     outcome.get('scan_type'),
                     outcome.get('signal_rank'),
                     outcome.get('action_taken'),
+                    outcome.get('skip_reason'),
                     outcome.get('score'),
                     outcome.get('signal_source'),
                     outcome.get('scan_price'),

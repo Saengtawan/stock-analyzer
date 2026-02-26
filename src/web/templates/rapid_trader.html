@@ -134,6 +134,11 @@
     .tl-session[data-session="pem"] .tl-name { color: #10b981; font-weight: 600; }
     .tl-session[data-session="pem"].active .tl-name { color: #10b981; }
     .tl-session[data-session="pem"].done .tl-name { color: #10b981; }
+    /* v6.54: PED styling (pre-earnings drift) */
+    .tl-session[data-session="ped"] .tl-interval { background: #0d9488; color: white; }
+    .tl-session[data-session="ped"] .tl-name { color: #0d9488; font-weight: 600; }
+    .tl-session[data-session="ped"].active .tl-name { color: #0d9488; }
+    .tl-session[data-session="ped"].done .tl-name { color: #0d9488; }
     /* v6.36: OVN styling (overnight gap) */
     .tl-session[data-session="ovn"] .tl-interval { background: #f59e0b; color: white; }
     .tl-session[data-session="ovn"] .tl-name { color: #f59e0b; font-weight: 600; }
@@ -1152,6 +1157,7 @@ function renderTimelineFromConfig(sessions) {
         'gapscan': 'Pre-market monitoring: Track overnight gaps',
         'morning': 'DIP scan: Main dip-bounce signals (max 2 positions)',
         'pem': 'Post-Earnings Momentum: Gap ≥8%, EOD exit (max 1 position)',
+        'ped': 'Pre-Earnings Drift: Buy D-4/D-5 before earnings, exit D-1 via auto-sell (max 1 position)',
         'skip': 'SKIP WINDOW: No trading 10:00-11:00 (avoid volatile mid-morning)',
         'midday': 'Continuous scanning: Fill DIP positions',
         'afternoon': 'Afternoon scan: Final DIP opportunities',

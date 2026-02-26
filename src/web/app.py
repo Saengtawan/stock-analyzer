@@ -2514,9 +2514,9 @@ def rapid_trader_page():
         config = RapidRotationConfig.from_yaml(config_path)
         sessions_cfg = config.sessions
 
-        # Build sessions list for frontend (v6.36: Added PEM, SKIP, OVN sessions)
+        # Build sessions list for frontend (v6.54: Added PED session)
         sessions = []
-        for key in ['gapscan', 'morning', 'pem', 'skip', 'midday', 'afternoon', 'ovn', 'preclose']:
+        for key in ['gapscan', 'morning', 'pem', 'ped', 'skip', 'midday', 'afternoon', 'ovn', 'preclose']:
             if hasattr(sessions_cfg, key):
                 s = getattr(sessions_cfg, key)
                 sessions.append({
@@ -2527,12 +2527,13 @@ def rapid_trader_page():
                     'interval': s.interval if hasattr(s, 'interval') else 5,
                 })
 
-        # Fallback if no sessions found (v6.36: 8 sessions with PEM, SKIP, OVN)
+        # Fallback if no sessions found (v6.54: 9 sessions with PEM, PED, SKIP, OVN)
         if not sessions:
             sessions = [
                 {'name': 'gapscan', 'label': 'Gap Scan', 'start': 360, 'end': 575, 'interval': -1},
                 {'name': 'morning', 'label': 'Morning', 'start': 575, 'end': 615, 'interval': 3},
                 {'name': 'pem', 'label': 'PEM', 'start': 575, 'end': 615, 'interval': -1},
+                {'name': 'ped', 'label': 'PED', 'start': 575, 'end': 630, 'interval': -1},
                 {'name': 'skip', 'label': 'SKIP', 'start': 600, 'end': 660, 'interval': -1},
                 {'name': 'midday', 'label': 'Midday', 'start': 660, 'end': 840, 'interval': 5},
                 {'name': 'afternoon', 'label': 'Afternoon', 'start': 840, 'end': 930, 'interval': 5},
@@ -2541,11 +2542,12 @@ def rapid_trader_page():
             ]
     except Exception as e:
         logger.warning(f"Failed to load sessions from config: {e}")
-        # Fallback sessions (v6.36: 8 sessions with PEM, SKIP, OVN)
+        # Fallback sessions (v6.54: 9 sessions with PEM, PED, SKIP, OVN)
         sessions = [
             {'name': 'gapscan', 'label': 'Gap Scan', 'start': 360, 'end': 575, 'interval': -1},
             {'name': 'morning', 'label': 'Morning', 'start': 575, 'end': 615, 'interval': 3},
             {'name': 'pem', 'label': 'PEM', 'start': 575, 'end': 615, 'interval': -1},
+            {'name': 'ped', 'label': 'PED', 'start': 575, 'end': 630, 'interval': -1},
             {'name': 'skip', 'label': 'SKIP', 'start': 600, 'end': 660, 'interval': -1},
             {'name': 'midday', 'label': 'Midday', 'start': 660, 'end': 840, 'interval': 5},
             {'name': 'afternoon', 'label': 'Afternoon', 'start': 840, 'end': 930, 'interval': 5},
