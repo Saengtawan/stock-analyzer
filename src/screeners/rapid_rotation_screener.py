@@ -728,7 +728,7 @@ class RapidRotationScreener:
 
         try:
             # Download SPY data (need 90 days to compute SMA50)
-            spy = yf.download('SPY', period='90d', progress=False)
+            spy = yf.download('SPY', period='90d', progress=False, auto_adjust=True)
 
             if spy.empty or len(spy) < self.REGIME_SMA_PERIOD:
                 logger.warning("Not enough SPY data for regime check — defaulting to BEAR (fail-closed)")

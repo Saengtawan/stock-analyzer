@@ -1871,7 +1871,7 @@ class AutoTradingEngine:
             # v4.7 Fix #8: Try Alpaca bars first, fall back to yfinance
             spy = self._get_spy_data_from_broker(60)
             if spy is None or spy.empty:
-                spy = yf.download('SPY', period='60d', progress=False)
+                spy = yf.download('SPY', period='60d', progress=False, auto_adjust=True)
 
             if spy.empty or len(spy) < self.REGIME_SMA_PERIOD:
                 logger.warning("Not enough SPY data for regime check — blocking trades (fail-closed)")
@@ -2036,7 +2036,7 @@ class AutoTradingEngine:
         Returns (50.0, True) on error (fail-safe → BEAR)."""
         for attempt in range(2):
             try:
-                vix = yf.download('^VIX', period='5d', progress=False)
+                vix = yf.download('^VIX', period='5d', progress=False, auto_adjust=True)
                 if vix.empty:
                     if attempt == 0:
                         logger.warning("VIX data empty — retrying in 3s...")
@@ -2118,7 +2118,7 @@ class AutoTradingEngine:
         if cache and (datetime.now() - cache[1]).total_seconds() < 300:
             return cache[0]
         try:
-            spy = yf.download('SPY', period='1d', interval='5m', progress=False)
+            spy = yf.download('SPY', period='1d', interval='5m', progress=False, auto_adjust=True)
             if spy.empty:
                 return 0.0
             open_col = spy['Open']
@@ -2144,7 +2144,7 @@ class AutoTradingEngine:
         if cache and (datetime.now() - cache[1]).total_seconds() < 300:
             return cache[0]
         try:
-            data = yf.download(ticker, period='1d', interval='5m', progress=False)
+            data = yf.download(ticker, period='1d', interval='5m', progress=False, auto_adjust=True)
             if data.empty:
                 return None
             open_col = data['Open']
@@ -2171,7 +2171,7 @@ class AutoTradingEngine:
         if cache and (datetime.now() - cache[1]).total_seconds() < 300:
             return cache[0]
         try:
-            vix = yf.download('^VIX', period='5d', progress=False)
+            vix = yf.download('^VIX', period='5d', progress=False, auto_adjust=True)
             if vix.empty or len(vix) < 2:
                 return None
             close_col = vix['Close']
@@ -2219,7 +2219,7 @@ class AutoTradingEngine:
         if getattr(self, '_vix_spike_triggered_today', None) == today_et:
             return
         try:
-            vix_data = yf.download('^VIX', period='5d', progress=False)
+            vix_data = yf.download('^VIX', period='5d', progress=False, auto_adjust=True)
             if len(vix_data) < 2:
                 return
             close = vix_data['Close']
@@ -4738,7 +4738,7 @@ class AutoTradingEngine:
             # SPY % above SMA20 (from regime check data)
             spy_pct_above_sma = None
             try:
-                spy_data = yf.download('SPY', period='60d', progress=False)
+                spy_data = yf.download('SPY', period='60d', progress=False, auto_adjust=True)
                 if not spy_data.empty:
                     close_col = spy_data['Close']
                     if hasattr(close_col, 'columns'):
