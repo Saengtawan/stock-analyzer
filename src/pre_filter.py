@@ -36,10 +36,6 @@ import pandas as pd
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-try:
-    from sector_regime_detector import SectorRegimeDetector
-except ImportError:
-    SectorRegimeDetector = None
 
 
 @dataclass
@@ -119,7 +115,6 @@ class PreFilterRunner:
     def __init__(self):
         """Initialize PreFilterRunner."""
         self.status = self._load_status()
-        self._sector_regime = None
 
         # Ensure data directory exists
         os.makedirs(self.DATA_DIR, exist_ok=True)
@@ -150,15 +145,6 @@ class PreFilterRunner:
                         f"Dip5d: {self.MAX_DIP_5D}% to {self.MIN_DIP_5D}%")
         except Exception as e:
             logger.warning(f"Failed to load pre-filter config: {e}")
-
-    def _get_sector_regime(self) -> Any:
-        """Get or create SectorRegimeDetector instance."""
-        if self._sector_regime is None:
-            if SectorRegimeDetector is None:
-                logger.warning("SectorRegimeDetector not available")
-                return None
-            self._sector_regime = SectorRegimeDetector()
-        return self._sector_regime
 
     def _load_status(self) -> PreFilterStatus:
         """Load status from file."""
@@ -555,15 +541,6 @@ class PreFilterRunner:
                     elapsed = time.time() - start_time
                     logger.info(f"Progress: {i+1}/{total} ({len(passed_stocks)} passed) - {elapsed:.1f}s")
 
-            # Update sector regime
-            try:
-                sr = self._get_sector_regime()
-                if sr:
-                    sr.update_all_sectors()
-                    logger.info("Sector regime updated")
-            except Exception as e:
-                logger.warning(f"Failed to update sector regime: {e}")
-
             # Save results
             elapsed = time.time() - start_time
             now = datetime.now()
@@ -703,15 +680,6 @@ class PreFilterRunner:
                 stock.pass_count = stock_data.get('pass_count', 1) + 1
                 stock.windows = stock_data.get('windows', ['evening']) + ['pre_open']
                 updated_stocks[symbol] = asdict(stock)
-
-            # Update sector regime
-            try:
-                sr = self._get_sector_regime()
-                if sr:
-                    sr.update_all_sectors()
-                    logger.info("Sector regime updated")
-            except Exception as e:
-                logger.warning(f"Failed to update sector regime: {e}")
 
             # Save results
             elapsed = time.time() - start_time
