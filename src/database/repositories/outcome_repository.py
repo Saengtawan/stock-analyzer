@@ -160,7 +160,7 @@ class OutcomeRepository:
                     UPDATE signal_outcomes SET
                         scan_date = ?, scan_type = ?, signal_rank = ?,
                         action_taken = ?, skip_reason = ?, score = ?, signal_source = ?,
-                        scan_price = ?, days_until_earnings = ?,
+                        scan_price = ?, days_until_earnings = ?, earnings_gap_pct = ?,
                         outcome_1d = ?, outcome_3d = ?,
                         outcome_5d = ?, outcome_max_gain_5d = ?,
                         outcome_max_dd_5d = ?, updated_at = ?
@@ -175,6 +175,7 @@ class OutcomeRepository:
                     outcome.get('signal_source'),
                     outcome.get('scan_price'),
                     outcome.get('days_until_earnings'),
+                    outcome.get('earnings_gap_pct'),
                     outcome.get('outcome_1d'),
                     outcome.get('outcome_3d'),
                     outcome.get('outcome_5d'),
@@ -192,10 +193,10 @@ class OutcomeRepository:
                     INSERT INTO signal_outcomes (
                         scan_id, symbol, scan_date, scan_type, signal_rank,
                         action_taken, skip_reason, score, signal_source, scan_price,
-                        days_until_earnings,
+                        days_until_earnings, earnings_gap_pct,
                         outcome_1d, outcome_3d, outcome_5d,
                         outcome_max_gain_5d, outcome_max_dd_5d, tracked_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     outcome['scan_id'],
                     outcome['symbol'],
@@ -208,6 +209,7 @@ class OutcomeRepository:
                     outcome.get('signal_source'),
                     outcome.get('scan_price'),
                     outcome.get('days_until_earnings'),
+                    outcome.get('earnings_gap_pct'),
                     outcome.get('outcome_1d'),
                     outcome.get('outcome_3d'),
                     outcome.get('outcome_5d'),

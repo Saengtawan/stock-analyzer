@@ -94,6 +94,7 @@ def _fetch_price_history(symbol: str, start_date: str, end_date: str) -> Optiona
             'close': [float(x) for x in df['Close'].values],
             'high': [float(x) for x in df['High'].values],
             'low': [float(x) for x in df['Low'].values],
+            'open': [float(x) for x in df['Open'].values],  # v6.54: for earnings_gap_pct
         }
     except Exception as e:
         print(f"  Warning: Failed to fetch {symbol}: {e}")
@@ -709,6 +710,21 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
             if post_lows:
                 max_dd = round(min(post_lows), 2)
 
+            # v6.54: earnings_gap_pct for PED signals (gap on earnings day open)
+            earnings_gap_pct = None
+            _due = sig.get('days_until_earnings')
+            if sig.get('signal_source') == 'ped' and _due and int(_due) > 0:
+                earn_trading_days = _get_trading_days_after(scan_date, int(_due))
+                if earn_trading_days:
+                    earnings_date = earn_trading_days[-1]
+                    if earnings_date <= today_str and earnings_date in history['dates']:
+                        e_idx = history['dates'].index(earnings_date)
+                        if e_idx > 0 and 'open' in history:
+                            prev_close = history['close'][e_idx - 1]
+                            earn_open = history['open'][e_idx]
+                            if prev_close > 0:
+                                earnings_gap_pct = round((earn_open - prev_close) / prev_close * 100, 2)
+
             outcomes.append({
                 "scan_id": sig['scan_id'],
                 "scan_date": scan_date,
@@ -721,6 +737,7 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                 "signal_source": sig['signal_source'],
                 "scan_price": scan_price,
                 "days_until_earnings": sig.get('days_until_earnings'),
+                "earnings_gap_pct": earnings_gap_pct,
                 "outcome_1d": outcome_1d,
                 "outcome_3d": outcome_3d,
                 "outcome_5d": outcome_5d,
