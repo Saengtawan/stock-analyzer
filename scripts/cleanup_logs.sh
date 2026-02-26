@@ -68,3 +68,32 @@ echo "Recent log files:"
 ls -lht "$LOG_DIR" | head -10
 echo ""
 echo "✓ Log cleanup completed successfully"
+
+# Update cron_status.json
+STATUS_FILE="$PROJECT_ROOT/data/cron_status.json"
+LOG_SIZE=$(du -sh "$LOG_DIR" 2>/dev/null | cut -f1)
+REMOVED_COUNT=$(find "$LOG_DIR" -name "*.log.gz" -mtime +$RETENTION_DAYS -type f 2>/dev/null | wc -l)
+python3 -c "
+import json
+from datetime import datetime
+
+status_file = '$STATUS_FILE'
+try:
+    with open(status_file, 'r') as f:
+        status = json.load(f)
+except:
+    status = {}
+
+status['log_cleanup'] = {
+    'last_run': datetime.now().isoformat(),
+    'status': 'ok',
+    'removed': int('$REMOVED_COUNT'),
+    'remaining': None,
+    'size': '$LOG_SIZE',
+}
+
+with open(status_file, 'w') as f:
+    json.dump(status, f, indent=2)
+
+print('  cron_status.json updated')
+"
