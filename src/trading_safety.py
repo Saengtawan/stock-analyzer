@@ -550,13 +550,15 @@ class TradingSafetySystem:
 
         return report
 
-    def can_open_new_position(self, mode: str = '') -> Tuple[bool, str]:
+    def can_open_new_position(self, mode: str = '', max_positions_override: int = None) -> Tuple[bool, str]:
         """Check if safe to open a new position
 
         Args:
             mode: Trading mode (e.g. 'BEAR+LOW_RISK', 'LOW_RISK', 'NORMAL').
                   In LOW_RISK mode, PDT limit doesn't block buying because
                   positions are held overnight (no same-day sell).
+            max_positions_override: If set, use this limit instead of self.MAX_POSITIONS.
+                  Used for dedicated slots (OVN/PEM/PED) that have total limit > DIP limit.
         """
         # Run fresh health check
         report = self.run_health_check()
@@ -573,10 +575,14 @@ class TradingSafetySystem:
             else:
                 return False, "; ".join(report.reasons)
 
-        # Check position count
+        # Check position count — use override for dedicated-slot strategies (OVN/PEM/PED)
+        # v6.54: OVN/PEM/PED have their own dedicated slots beyond DIP limit.
+        # Without override, safety.MAX_POSITIONS=2 (DIP) blocks the 3rd position even when
+        # MAX_POSITIONS_TOTAL=5 allows it.
+        effective_max = max_positions_override if max_positions_override else self.MAX_POSITIONS
         positions = self.broker.get_positions()
-        if len(positions) >= self.MAX_POSITIONS:
-            return False, f"Max positions ({self.MAX_POSITIONS}) reached"
+        if len(positions) >= effective_max:
+            return False, f"Max positions ({effective_max}) reached"
 
         return True, "OK"
 

@@ -4199,14 +4199,20 @@ class AutoTradingEngine:
             logger.info(f"⏸️  {symbol}: SKIP WINDOW (10:00-11:00 ET) - No trades during this period")
             return False, "Skip Window"
 
-        # Safety check
-        can_trade, reason = self.safety.can_open_new_position(mode=mode)
+        # Safety check — pass effective max so OVN/PEM/PED dedicated slots aren't blocked by DIP limit
+        # v6.54: max_positions override lets safety check use MAX_POSITIONS_TOTAL (5) not DIP limit (2)
+        _effective_max_for_safety = params.get('max_positions')  # None for DIP, 5 for OVN/PEM/PED
+        can_trade, reason = self.safety.can_open_new_position(
+            mode=mode, max_positions_override=_effective_max_for_safety
+        )
         if not can_trade:
             logger.warning(f"Safety block: {reason}")
             return False, f"Safety: {reason}"
 
-        # PDT pre-buy budget check (skip in LOW_RISK mode or when PDT not enforced)
-        if 'LOW_RISK' not in mode and self.pdt_guard._get_enforce_on_paper():
+        # PDT pre-buy budget check — skip for overnight holds (OVN/PED): not day trades, don't use PDT budget
+        # v6.54: OVN buys at 15:30, sells next morning → never a day trade → PDT budget irrelevant
+        _is_overnight_hold = params.get('source', '') in ('overnight_gap', 'ped')
+        if 'LOW_RISK' not in mode and not _is_overnight_hold and self.pdt_guard._get_enforce_on_paper():
             pdt_status = self.pdt_guard.get_pdt_status()
             if pdt_status.remaining <= self.pdt_guard._get_reserve():
                 logger.warning(f"❌ PDT pre-buy block: remaining={pdt_status.remaining}")
@@ -4936,12 +4942,25 @@ class AutoTradingEngine:
             if 'LOW_RISK' in mode:
                 logger.info(f"🛡️ {symbol}: Using LOW RISK parameters")
 
-            # Fix: OVN/PEM dedicated slot — override max_positions from signal to bypass DIP limit
+            # Fix: OVN/PEM/PED dedicated slot — override max_positions from signal to bypass DIP limit
             _max_override = getattr(signal, '_max_positions_override', None)
-            if _max_override:
+            # v6.54: Determine signal source for PDT overnight bypass (OVN/PED are not day trades)
+            _sig_dict = getattr(signal, '__dict__', {})
+            _signal_source = (
+                _sig_dict.get('source', '') or
+                getattr(signal, 'source', '') or
+                # Fallback: derive from sl_method (OVN uses 'overnight_gap_fixed')
+                ('overnight_gap' if 'overnight' in str(getattr(signal, 'sl_method', '')).lower() else '') or
+                ('ped' if 'ped' in str(getattr(signal, 'sl_method', '')).lower() else '')
+            )
+            if _max_override or _signal_source:
                 params = dict(params)  # copy to avoid mutating shared state
-                params['max_positions'] = _max_override
-                logger.debug(f"🔒 {symbol}: max_positions override → {_max_override} (dedicated slot)")
+                if _max_override:
+                    params['max_positions'] = _max_override
+                    logger.debug(f"🔒 {symbol}: max_positions override → {_max_override} (dedicated slot)")
+                # v6.54: Tag params with source so _exec_preflight_checks can identify overnight holds
+                if _signal_source:
+                    params['source'] = _signal_source
 
             # BLOCK 1: Pre-flight checks (safety, PDT, duplicate, max positions, VIX)
             preflight_ok, skip_reason = self._exec_preflight_checks(symbol, params)
