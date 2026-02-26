@@ -1,0 +1,152 @@
+{
+  "AAPL": {
+    "close": 274.23,
+    "sma20": 267.4728,
+    "sma50": 265.4954,
+    "atr_pct": 2.4432,
+    "avg_volume": 54255325.0,
+    "rsi": 48.1637,
+    "dollar_volume": 14878438371.0,
+    "return_5d": 5.2383
+  },
+  "MSFT": {
+    "close": 400.6,
+    "sma20": 408.7728,
+    "sma50": 447.5997,
+    "atr_pct": 2.6147,
+    "avg_volume": 46933545.0,
+    "rsi": 42.9852,
+    "dollar_volume": 18801578413.0,
+    "return_5d": 0.5371
+  },
+  "NVDA": {
+    "close": 195.56,
+    "sma20": 187.08,
+    "sma50": 185.4056,
+    "atr_pct": 3.242,
+    "avg_volume": 178271695.0,
+    "rsi": 74.49,
+    "dollar_volume": 34862812239.0,
+    "return_5d": 4.0766
+  },
+  "META": {
+    "close": 653.69,
+    "sma20": 667.0855,
+    "sma50": 656.4173,
+    "atr_pct": 2.9801,
+    "avg_volume": 16904270.0,
+    "rsi": 43.3409,
+    "dollar_volume": 11050152298.0,
+    "return_5d": 1.3819
+  },
+  "AMD": {
+    "close": 210.86,
+    "sma20": 215.7795,
+    "sma50": 218.9592,
+    "atr_pct": 4.9125,
+    "avg_volume": 42660230.0,
+    "rsi": 56.6613,
+    "dollar_volume": 8995336124.0,
+    "return_5d": 3.6829
+  },
+  "JPM": {
+    "close": 303.3,
+    "sma20": 308.7655,
+    "sma50": 313.6188,
+    "atr_pct": 3.1141,
+    "avg_volume": 10526190.0,
+    "rsi": 39.7865,
+    "dollar_volume": 3192593299.0,
+    "return_5d": -1.542
+  },
+  "AMZN": {
+    "close": 210.64,
+    "sma20": 216.7575,
+    "sma50": 227.2072,
+    "atr_pct": 3.5948,
+    "avg_volume": 64632135.0,
+    "rsi": 29.948,
+    "dollar_volume": 13614112877.0,
+    "return_5d": 2.8214
+  },
+  "GOOGL": {
+    "close": 312.9,
+    "sma20": 320.493,
+    "sma50": 319.951,
+    "atr_pct": 3.1197,
+    "avg_volume": 41307450.0,
+    "rsi": 31.3311,
+    "dollar_volume": 12925100853.0,
+    "return_5d": 3.3185
+  },
+  "TSLA": {
+    "close": 417.4,
+    "sma20": 415.6965,
+    "sma50": 438.6028,
+    "atr_pct": 3.3929,
+    "avg_volume": 61600205.0,
+    "rsi": 56.3996,
+    "dollar_volume": 25711925191.0,
+    "return_5d": 1.382
+  },
+  "NFLX": {
+    "close": 82.7,
+    "sma20": 80.0335,
+    "sma50": 86.5124,
+    "atr_pct": 3.4894,
+    "avg_volume": 43916190.0,
+    "rsi": 55.2961,
+    "dollar_volume": 3631868779.0,
+    "return_5d": 7.4026
+  },
+  "KO": {
+    "close": 80.47,
+    "sma20": 77.951,
+    "sma50": 73.4642,
+    "atr_pct": 1.7034,
+    "avg_volume": 20550050.0,
+    "rsi": 65.6,
+    "dollar_volume": 1653662549.0,
+    "return_5d": 1.9769
+  },
+  "PEP": {
+    "close": 169.17,
+    "sma20": 163.5835,
+    "sma50": 152.4154,
+    "atr_pct": 2.1795,
+    "avg_volume": 9492535.0,
+    "rsi": 55.6996,
+    "dollar_volume": 1605852129.0,
+    "return_5d": 2.7827
+  },
+  "JNJ": {
+    "close": 245.17,
+    "sma20": 238.961,
+    "sma50": 222.4844,
+    "atr_pct": 1.5208,
+    "avg_volume": 9369055.0,
+    "rsi": 69.4687,
+    "dollar_volume": 2297011197.0,
+    "return_5d": -0.7047
+  },
+  "XOM": {
+    "close": 149.06,
+    "sma20": 146.7334,
+    "sma50": 132.5783,
+    "atr_pct": 2.491,
+    "avg_volume": 22687905.0,
+    "rsi": 53.7184,
+    "dollar_volume": 3381859064.0,
+    "return_5d": -1.2652
+  },
+  "GE": {
+    "close": 342.89,
+    "sma20": 319.486,
+    "sma50": 314.8046,
+    "atr_pct": 3.0226,
+    "avg_volume": 5499620.0,
+    "rsi": 75.1566,
+    "dollar_volume": 1885764782.0,
+    "return_5d": 2.4347
+  }
+}

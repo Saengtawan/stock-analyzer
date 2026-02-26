@@ -1,0 +1,62 @@
+{
+  "AAPL": {
+    "passed": false,
+    "reason": "atr"
+  },
+  "MSFT": {
+    "passed": false,
+    "reason": "sma20"
+  },
+  "NVDA": {
+    "passed": false,
+    "reason": "rsi_high"
+  },
+  "META": {
+    "passed": false,
+    "reason": "sma20"
+  },
+  "AMD": {
+    "passed": false,
+    "reason": "sma20"
+  },
+  "JPM": {
+    "passed": false,
+    "reason": "sma20"
+  },
+  "AMZN": {
+    "passed": false,
+    "reason": "sma20"
+  },
+  "GOOGL": {
+    "passed": false,
+    "reason": "sma20"
+  },
+  "TSLA": {
+    "passed": true,
+    "reason": ""
+  },
+  "NFLX": {
+    "passed": true,
+    "reason": ""
+  },
+  "KO": {
+    "passed": false,
+    "reason": "atr"
+  },
+  "PEP": {
+    "passed": false,
+    "reason": "atr"
+  },
+  "JNJ": {
+    "passed": false,
+    "reason": "atr"
+  },
+  "XOM": {
+    "passed": false,
+    "reason": "atr"
+  },
+  "GE": {
+    "passed": false,
+    "reason": "rsi_high"
+  }
+}

@@ -26,19 +26,15 @@ Usage:
 import os
 import json
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, asdict
 from loguru import logger
+import pandas as pd
 
 # Add src to path for imports
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-try:
-    from api.data_manager import DataManager
-except ImportError:
-    DataManager = None
 
 try:
     from sector_regime_detector import SectorRegimeDetector
@@ -120,14 +116,8 @@ class PreFilterRunner:
     TARGET_POOL_MIN = 200
     TARGET_POOL_MAX = 400
 
-    def __init__(self, data_manager: Optional[Any] = None):
-        """
-        Initialize PreFilterRunner.
-
-        Args:
-            data_manager: Optional DataManager instance. Creates new one if not provided.
-        """
-        self.data_manager = data_manager
+    def __init__(self):
+        """Initialize PreFilterRunner."""
         self.status = self._load_status()
         self._sector_regime = None
 
@@ -160,14 +150,6 @@ class PreFilterRunner:
                         f"Dip5d: {self.MAX_DIP_5D}% to {self.MIN_DIP_5D}%")
         except Exception as e:
             logger.warning(f"Failed to load pre-filter config: {e}")
-
-    def _get_data_manager(self) -> Any:
-        """Get or create DataManager instance."""
-        if self.data_manager is None:
-            if DataManager is None:
-                raise ImportError("DataManager not available")
-            self.data_manager = DataManager()
-        return self.data_manager
 
     def _get_sector_regime(self) -> Any:
         """Get or create SectorRegimeDetector instance."""
@@ -316,80 +298,80 @@ class PreFilterRunner:
         except Exception as e:
             logger.error(f"Failed to save pre-filtered data to DB: {e}")
 
-    def _fetch_stock_data(self, symbol: str) -> Optional[Dict]:
+    def _batch_fetch_all(self, symbols: list) -> dict:
         """
-        Fetch stock data for analysis.
-
-        Returns dict with: close, sma20, sma50, atr_pct, avg_volume, rsi, dollar_volume, return_5d
-        or None if failed.
+        Batch download 60d OHLCV for all symbols via yf.download.
+        Returns {symbol: DataFrame(lowercase cols)} for symbols with >= 20 rows.
+        Missing/empty symbols are silently omitted (caller treats as error).
         """
-        try:
-            dm = self._get_data_manager()
+        import yfinance as yf
 
-            # Fetch 60 days of price data
-            df = dm.get_price_data(symbol, period='60d')
-            if df is None or len(df) < 20:
-                return None
+        BATCH = 500
+        result = {}
+        batches = [symbols[i:i+BATCH] for i in range(0, len(symbols), BATCH)]
 
-            # Handle MultiIndex columns from yfinance
+        for idx, batch in enumerate(batches):
+            logger.info(f"Batch fetch {idx+1}/{len(batches)}: {len(batch)} symbols")
+            df = yf.download(batch, period='60d', interval='1d',
+                             progress=False, auto_adjust=True, threads=True)
+            if df is None or df.empty:
+                logger.warning(f"Batch {idx+1} returned empty DataFrame")
+                continue
+
             if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
+                for sym in batch:
+                    try:
+                        sym_df = df.xs(sym, axis=1, level=1).copy()
+                        sym_df.columns = [c.lower() for c in sym_df.columns]
+                        sym_df = sym_df.dropna(subset=['close'])
+                        if len(sym_df) >= 20:
+                            result[sym] = sym_df
+                    except KeyError:
+                        pass  # symbol absent from batch — treated as error by caller
 
-            # Normalize column names to lowercase (cache uses lowercase)
-            df.columns = [c.lower() if isinstance(c, str) else c for c in df.columns]
+        logger.info(f"Batch fetch complete: {len(result)}/{len(symbols)} symbols have data")
+        return result
 
-            close = df['close'].iloc[-1]
+    def _compute_indicators(self, df: pd.DataFrame) -> dict:
+        """
+        Compute all pre-filter indicators from a pre-fetched OHLCV DataFrame.
+        DataFrame must have lowercase columns: close, high, low, volume.
+        Returns same dict shape as old _fetch_stock_data().
+        """
+        close_s = df['close']
+        close    = float(close_s.iloc[-1])
+        sma20    = float(close_s.rolling(20).mean().iloc[-1])
+        sma50    = float(close_s.rolling(50).mean().iloc[-1]) if len(df) >= 50 else sma20
 
-            # Calculate indicators
-            sma20 = df['close'].rolling(20).mean().iloc[-1]
-            sma50 = df['close'].rolling(50).mean().iloc[-1] if len(df) >= 50 else sma20
+        prev_close_s = close_s.shift(1)
+        tr = pd.concat([
+            df['high'] - df['low'],
+            (df['high'] - prev_close_s).abs(),
+            (df['low']  - prev_close_s).abs(),
+        ], axis=1).max(axis=1)
+        atr     = float(tr.rolling(14).mean().iloc[-1])
+        atr_pct = (atr / close * 100) if close > 0 else 0.0
 
-            # ATR calculation
-            high = df['high']
-            low = df['low']
-            prev_close = df['close'].shift(1)
-            tr = pd.concat([
-                high - low,
-                (high - prev_close).abs(),
-                (low - prev_close).abs()
-            ], axis=1).max(axis=1)
-            atr = tr.rolling(14).mean().iloc[-1]
-            atr_pct = (atr / close) * 100 if close > 0 else 0
+        avg_volume    = float(df['volume'].rolling(20).mean().iloc[-1])
+        dollar_volume = close * avg_volume
 
-            # Average volume
-            avg_volume = df['volume'].rolling(20).mean().iloc[-1]
+        delta = close_s.diff()
+        gain  = delta.where(delta > 0, 0.0).rolling(14).mean()
+        loss  = (-delta.where(delta < 0, 0.0)).rolling(14).mean()
+        rs    = gain / loss.replace(0, 0.0001)
+        rsi_s = 100 - (100 / (1 + rs))
+        rsi   = float(rsi_s.iloc[-1]) if not pd.isna(rsi_s.iloc[-1]) else 50.0
 
-            # v6.5: RSI calculation (14-period)
-            delta = df['close'].diff()
-            gain = delta.where(delta > 0, 0).rolling(14).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-            rs = gain / loss.replace(0, 0.0001)  # Avoid div by zero
-            rsi = 100 - (100 / (1 + rs))
-            rsi_value = rsi.iloc[-1] if not pd.isna(rsi.iloc[-1]) else 50.0
+        if len(df) >= 5:
+            return_5d = float((close - close_s.iloc[-5]) / close_s.iloc[-5] * 100)
+        else:
+            return_5d = 0.0
 
-            # v6.5: Dollar volume (price × volume)
-            dollar_volume = close * avg_volume
-
-            # v6.5: 5-day return (for dip detection)
-            if len(df) >= 5:
-                close_5d_ago = df['close'].iloc[-5]
-                return_5d = ((close - close_5d_ago) / close_5d_ago) * 100
-            else:
-                return_5d = 0.0
-
-            return {
-                'close': close,
-                'sma20': sma20,
-                'sma50': sma50,
-                'atr_pct': atr_pct,
-                'avg_volume': avg_volume,
-                'rsi': rsi_value,
-                'dollar_volume': dollar_volume,
-                'return_5d': return_5d,
-            }
-        except Exception as e:
-            logger.debug(f"Failed to fetch data for {symbol}: {e}")
-            return None
+        return {
+            'close': close, 'sma20': sma20, 'sma50': sma50,
+            'atr_pct': atr_pct, 'avg_volume': avg_volume,
+            'rsi': rsi, 'dollar_volume': dollar_volume, 'return_5d': return_5d,
+        }
 
     def _apply_structural_filter(self, symbol: str, data: Dict, sector: str) -> Tuple[Optional[PreFilterStock], str]:
         """
@@ -521,9 +503,9 @@ class PreFilterRunner:
                 total_scanned=total
             )
 
-            # Import pandas here (lazy import)
-            global pd
-            import pandas as pd
+            # Batch fetch all symbols at once
+            batch_data = self._batch_fetch_all(universe)
+            logger.info(f"Batch fetch: {len(batch_data)}/{len(universe)} symbols ready")
 
             # Scan each stock
             passed_stocks = {}
@@ -547,11 +529,12 @@ class PreFilterRunner:
                 sector_info = sector_cache.get(symbol, {})
                 sector = sector_info.get('sector', 'Unknown') if isinstance(sector_info, dict) else 'Unknown'
 
-                # Fetch data
-                data = self._fetch_stock_data(symbol)
-                if data is None:
+                # Use pre-fetched batch data
+                if symbol not in batch_data:
                     filtered_counts['error'] += 1
                     continue
+
+                data = self._compute_indicators(batch_data[symbol])
 
                 # Apply filters (returns tuple now)
                 stock, reason = self._apply_structural_filter(symbol, data, sector)
@@ -681,10 +664,6 @@ class PreFilterRunner:
                 logger.warning("No evening scan data found. Running full scan...")
                 return self.evening_scan(progress_callback)
 
-            # Import pandas
-            global pd
-            import pandas as pd
-
             total = len(evening_stocks)
             logger.info(f"Updating {total} stocks from evening scan")
 
@@ -694,6 +673,11 @@ class PreFilterRunner:
                 total_scanned=total
             )
 
+            # Batch fetch all symbols at once
+            symbols_to_check = list(evening_stocks.keys())
+            batch_data = self._batch_fetch_all(symbols_to_check)
+            logger.info(f"Batch fetch: {len(batch_data)}/{len(symbols_to_check)} symbols ready")
+
             # Re-validate each stock
             updated_stocks = {}
             removed = 0
@@ -702,11 +686,12 @@ class PreFilterRunner:
                 if progress_callback:
                     progress_callback(i + 1, total, symbol, "updating")
 
-                # Fetch fresh data
-                data = self._fetch_stock_data(symbol)
-                if data is None:
+                # Use pre-fetched batch data
+                if symbol not in batch_data:
                     removed += 1
                     continue
+
+                data = self._compute_indicators(batch_data[symbol])
 
                 # Re-apply filters (returns tuple now)
                 stock, reason = self._apply_structural_filter(symbol, data, stock_data.get('sector', 'Unknown'))
