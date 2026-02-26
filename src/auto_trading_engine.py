@@ -388,6 +388,15 @@ class AutoTradingEngine:
     PEM_POSITION_SIZE_PCT: float
     PEM_SL_PCT: float
 
+    # Pre-Earnings Drift (PED) v6.53
+    PED_ENABLED: bool
+    PED_SCAN_HOUR: int
+    PED_SCAN_MINUTE: int
+    PED_MAX_POSITIONS: int
+    PED_POSITION_SIZE_PCT: float
+    PED_DAYS_BEFORE_MIN: int
+    PED_DAYS_BEFORE_MAX: int
+
     # Market Regime Filter
     REGIME_FILTER_ENABLED: bool
     REGIME_SMA_PERIOD: int
@@ -534,6 +543,20 @@ class AutoTradingEngine:
                 logger.info("✅ PEMScreener initialized (v6.29)")
             except Exception as e:
                 logger.warning(f"PEMScreener init failed: {e}")
+
+        # v6.53: Pre-Earnings Drift (PED) Scanner
+        self.ped_screener = None
+        if self.PED_ENABLED:
+            try:
+                from screeners.ped_screener import PEDScreener
+                ped_config = {
+                    'ped_days_before_min': self.PED_DAYS_BEFORE_MIN,
+                    'ped_days_before_max': self.PED_DAYS_BEFORE_MAX,
+                }
+                self.ped_screener = PEDScreener(broker=self.broker, config=ped_config)
+                logger.info("✅ PEDScreener initialized (v6.53)")
+            except Exception as e:
+                logger.warning(f"PEDScreener init failed: {e}")
 
         # VIX Adaptive Strategy v3.0
         self.vix_adaptive = None
@@ -907,6 +930,17 @@ class AutoTradingEngine:
         self.PEM_MAX_POSITIONS = getattr(cfg, 'pem_max_positions', 1)
         self.PEM_POSITION_SIZE_PCT = getattr(cfg, 'pem_position_size_pct', 33.0)
         self.PEM_SL_PCT = getattr(cfg, 'pem_sl_pct', 5.0)
+
+        # =====================================================================
+        # PRE-EARNINGS DRIFT (PED) STRATEGY (v6.53)
+        # =====================================================================
+        self.PED_ENABLED = getattr(cfg, 'ped_enabled', False)
+        self.PED_SCAN_HOUR = getattr(cfg, 'ped_scan_hour', 9)
+        self.PED_SCAN_MINUTE = getattr(cfg, 'ped_scan_minute', 35)
+        self.PED_MAX_POSITIONS = getattr(cfg, 'ped_max_positions', 1)
+        self.PED_POSITION_SIZE_PCT = getattr(cfg, 'ped_position_size_pct', 30.0)
+        self.PED_DAYS_BEFORE_MIN = getattr(cfg, 'ped_days_before_min', 4)
+        self.PED_DAYS_BEFORE_MAX = getattr(cfg, 'ped_days_before_max', 5)
 
         # =====================================================================
         # VIX ADAPTIVE STRATEGY v3.0
@@ -4250,6 +4284,8 @@ class AutoTradingEngine:
             effective_min_score = self.OVERNIGHT_GAP_MIN_SCORE
         elif signal_source == SignalSource.PEM or 'pem' in sl_method:
             effective_min_score = 50   # PEM score is based on gap size, not dip-bounce formula
+        elif signal_source == SignalSource.PED or 'ped' in sl_method:
+            effective_min_score = 60   # PED base score is 60 (quality offsets on top)
         else:
             effective_min_score = params['min_score']
 
@@ -4447,9 +4483,9 @@ class AutoTradingEngine:
             )
             return False, f"Gap {gap_pct:+.1f}%", gap_pct
 
-        # Stock-D filter (skip for PEM — earnings gap stocks don't need dip-bounce pattern)
-        if signal_source == 'pem':
-            stock_d_ok, stock_d_reason, stock_d_data = True, "PEM skip", {}
+        # Stock-D filter (skip for PEM/PED — earnings plays don't need dip-bounce pattern)
+        if signal_source in ('pem', 'ped'):
+            stock_d_ok, stock_d_reason, stock_d_data = True, "PEM/PED skip", {}
         else:
             stock_d_ok, stock_d_reason, stock_d_data = self._check_stock_d_filter(symbol)
         if not stock_d_ok:
@@ -4465,10 +4501,10 @@ class AutoTradingEngine:
             )
             return False, "Stock-D ❌", gap_pct
 
-        # Earnings filter (skip for PEM — PEM IS the earnings play, we want to trade it)
+        # Earnings filter (skip for PEM/PED — these ARE the earnings plays, we want to trade them)
         _skip_earnings = signal.__dict__.get('skip_earnings_filter', False) if hasattr(signal, '__dict__') else False
-        if _skip_earnings or signal_source == 'pem':
-            earnings_ok, earnings_reason, earnings_data = True, "PEM skip", {}
+        if _skip_earnings or signal_source in ('pem', 'ped'):
+            earnings_ok, earnings_reason, earnings_data = True, "PEM/PED skip", {}
         else:
             earnings_ok, earnings_reason, earnings_data = self._check_earnings_filter(symbol)
         if not earnings_ok:
@@ -7228,6 +7264,102 @@ class AutoTradingEngine:
             import traceback
             logger.error(traceback.format_exc())
 
+    def _loop_ped_scan(self, today: str):
+        """
+        v6.53: Pre-Earnings Drift scan at market open (9:35 ET).
+        Buys stocks 4-5 trading days before earnings.
+        Exit: EARNINGS_AUTO_SELL closes at D-1 automatically.
+        """
+        if not self.PED_ENABLED or not self.ped_screener:
+            return
+        if hasattr(self, '_ped_scan_done') and self._ped_scan_done == today:
+            return
+
+        et_now = self._get_et_time()
+        scan_time = et_now.replace(hour=self.PED_SCAN_HOUR, minute=self.PED_SCAN_MINUTE, second=0, microsecond=0)
+        scan_window_end = et_now.replace(hour=10, minute=30, second=0, microsecond=0)
+        if et_now < scan_time or et_now > scan_window_end:
+            return
+
+        # Check dedicated PED slot
+        ped_count = sum(1 for pos in self.positions.values() if getattr(pos, 'source', '') == 'ped')
+        if ped_count >= self.PED_MAX_POSITIONS:
+            logger.debug(f"PED: Max PED positions reached ({ped_count}/{self.PED_MAX_POSITIONS})")
+            return
+
+        # Check total positions
+        if len(self.positions) >= self.MAX_POSITIONS_TOTAL:
+            logger.info(f"❌ PED: Total positions full ({len(self.positions)}/{self.MAX_POSITIONS_TOTAL})")
+            self._ped_scan_done = today
+            return
+
+        logger.info(f"📅 PED Scan START: {len(self.positions)}/{self.MAX_POSITIONS_TOTAL} total, "
+                   f"{ped_count}/{self.PED_MAX_POSITIONS} PED, "
+                   f"scanning D-{self.PED_DAYS_BEFORE_MIN}/D-{self.PED_DAYS_BEFORE_MAX} setups...")
+
+        try:
+            raw_signals = self.ped_screener.scan()
+            if not raw_signals:
+                logger.info("📅 PED Scan COMPLETE: Found 0 signals")
+                self._ped_scan_done = today
+                return
+
+            try:
+                from screeners.rapid_rotation_screener import RapidRotationSignal
+            except ImportError:
+                from src.screeners.rapid_rotation_screener import RapidRotationSignal
+
+            converted = []
+            for sig in raw_signals[:self.PED_MAX_POSITIONS]:  # Take top-scoring only
+                entry_price = sig['entry_price']
+                sl_pct = sig['sl_pct']
+                stop_loss = sig['stop_loss']
+                # Wide TP: let EARNINGS_AUTO_SELL handle exit, but have a backstop
+                tp_pct = max(8.0, sl_pct * 2.5)
+                take_profit = round(entry_price * (1 + tp_pct / 100), 2)
+
+                rapid_signal = RapidRotationSignal(
+                    symbol=sig['symbol'],
+                    score=sig['score'],
+                    entry_price=entry_price,
+                    stop_loss=stop_loss,
+                    take_profit=take_profit,
+                    risk_reward=tp_pct / sl_pct,
+                    atr_pct=sig['atr_pct'],
+                    rsi=sig['rsi'],
+                    momentum_5d=sig['momentum_5d'],
+                    momentum_20d=0.0,
+                    distance_from_high=0.0,
+                    reasons=[
+                        f"Pre-earnings drift: D-{sig['days_until_earnings']}",
+                        f"RSI: {sig['rsi']:.0f} | VolRatio: {sig['volume_ratio']:.2f}x",
+                        f"SL: {sl_pct:.1f}% | Exit: EARNINGS_AUTO_SELL D-1",
+                    ],
+                    sector="",
+                    market_regime="",
+                    sector_score=0,
+                    alt_data_score=0,
+                    sl_method="ped",
+                    tp_method="ped_autosell",
+                    volume_ratio=sig['volume_ratio'],
+                )
+                rapid_signal.__dict__['source'] = 'ped'
+                rapid_signal.__dict__['skip_earnings_filter'] = True   # PED IS the pre-earnings play
+                rapid_signal.__dict__['gap_trade'] = False             # Multi-day hold (not EOD)
+                rapid_signal.__dict__['days_until_earnings'] = sig['days_until_earnings']
+                converted.append(rapid_signal)
+
+            if converted:
+                self._process_scan_signals(converted, "ped", max_positions=self.MAX_POSITIONS_TOTAL)
+                logger.info(f"📅 PED Scan COMPLETE: Processed {len(converted)} pre-earnings signals")
+
+            self._ped_scan_done = today
+
+        except Exception as e:
+            logger.error(f"❌ PED Scan FAILED: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+
     def _run_loop(self):
         """Main trading loop (v6.6 refactored)"""
         logger.info("Trading loop started")
@@ -7300,6 +7432,7 @@ class AutoTradingEngine:
 
                 # Scheduled scans
                 self._loop_pem_scan(today)           # v6.29: PEM scan at 9:35 ET
+                self._loop_ped_scan(today)           # v6.53: PED scan at 9:35 ET
                 self._loop_afternoon_scan(today)
                 self._loop_intraday_prefilter(today)
                 self._loop_continuous_scan(today)

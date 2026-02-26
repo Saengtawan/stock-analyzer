@@ -31,7 +31,7 @@ rapid_rotation:
 
   # -- Position Management --
   max_positions: 2            # v6.31: 3→2 for $5k account (DIP-bounce strategy only)
-  max_positions_total: 4      # v6.35: Total limit (2 DIP + 1 OVN + 1 PEM = 4 max)
+  max_positions_total: 5      # v6.53: 4→5 (2 DIP + 1 OVN + 1 PEM + 1 PED)
   max_hold_days: 7            # v6.33: Reduced 10→7 (faster rotation for fresher signals)
   position_size_pct: 30.0     # v6.31: 42→30 for $5k account (2×30%=60%, leaves room for overnight)
   max_position_pct: 45.0      # Max position size (% of equity)
@@ -385,6 +385,21 @@ pre_filter_intraday_minute: 45          # Minute of each scheduled hour (10:45, 
 #   13:45 → 15 min before Afternoon push (14:00-15:30): fresh RSI + momentum
 #   15:45 → Pre-close pool update: fresh pool ready for next morning gap-scanner
 pre_filter_on_demand_enabled: true      # Enable on-demand refresh (low pool)
+
+# -- PED Strategy (Pre-Earnings Drift v1.0) --
+# Backtest (signal_outcomes, 2023-2026): D-4/D-5 buy → D-1 exit via EARNINGS_AUTO_SELL
+# Win rate: 88-100% | Avg5d: +8-11% | ~2-4 trades/month
+# Exit: EARNINGS_AUTO_SELL in _check_position() (days_until ∈ {0,1}) — no new exit code needed
+ped_enabled: true
+ped_scan_hour: 9
+ped_scan_minute: 35
+ped_max_positions: 1              # Dedicated slot (not counted in DIP limit)
+ped_position_size_pct: 30.0       # Consistent with OVN/PEM sizing
+ped_days_before_min: 4            # Buy at D-4 (4 trading days before earnings)
+ped_days_before_max: 5            # Also allow D-5
+ped_rsi_min: 35.0                 # Avoid oversold
+ped_rsi_max: 65.0                 # Avoid overbought
+ped_volume_ratio_min: 0.8         # Normal volume (no unusual selling)
 
 # =============================================================================
 # v6.32 — BETA/VOLATILITY FILTER (Test Mode)

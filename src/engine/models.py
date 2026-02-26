@@ -34,7 +34,8 @@ class SignalSource:
     OVERNIGHT_GAP = "overnight_gap"
     BREAKOUT = "breakout"
     PEM = "pem"                      # v6.29: Post-Earnings Momentum
-    ALL = (DIP_BOUNCE, OVERNIGHT_GAP, BREAKOUT, PEM)
+    PED = "ped"                      # v6.53: Pre-Earnings Drift
+    ALL = (DIP_BOUNCE, OVERNIGHT_GAP, BREAKOUT, PEM, PED)
 
 
 @dataclass

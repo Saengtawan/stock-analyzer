@@ -92,7 +92,7 @@ class RapidRotationConfig:
     # POSITION MANAGEMENT
     # =========================================================================
     max_positions: int = 3              # Max concurrent positions (legacy)
-    max_positions_total: int = 4        # v6.35: Global limit (2 DIP + 1 OVN + 1 PEM = 4 max)
+    max_positions_total: int = 5        # v6.53: Global limit (2 DIP + 1 OVN + 1 PEM + 1 PED = 5 max)
     max_hold_days: int = 10             # Max days to hold (time stop, legacy: 10)
     position_size_pct: float = 40.0     # Position size (% of equity, legacy)
     max_position_pct: float = 50.0      # Max position size (% of equity, legacy: 50)
@@ -387,6 +387,20 @@ class RapidRotationConfig:
     pem_max_positions: int = 1                  # Max PEM positions at once
     pem_position_size_pct: float = 33.0         # Position size (% of equity)
     pem_sl_pct: float = 5.0                     # Stop loss % (wider for earnings day)
+
+    # =========================================================================
+    # PRE-EARNINGS DRIFT (PED) STRATEGY (v6.53)
+    # =========================================================================
+    ped_enabled: bool = False                   # Disabled by default
+    ped_scan_hour: int = 9                      # Scan hour (ET)
+    ped_scan_minute: int = 35                   # Scan minute (9:35 = after open)
+    ped_max_positions: int = 1                  # Dedicated slot (not counted in DIP limit)
+    ped_position_size_pct: float = 30.0         # Position size (% of equity)
+    ped_days_before_min: int = 4                # Buy at D-4 (4 trading days before earnings)
+    ped_days_before_max: int = 5                # Also allow D-5
+    ped_rsi_min: float = 35.0                   # Avoid oversold
+    ped_rsi_max: float = 65.0                   # Avoid overbought
+    ped_volume_ratio_min: float = 0.8           # Normal volume (no unusual selling)
 
     # =========================================================================
     # VIX ADAPTIVE STRATEGY v3.0 (2026-02-11)
