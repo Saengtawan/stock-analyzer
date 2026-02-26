@@ -401,6 +401,7 @@ class RapidRotationConfig:
     ped_rsi_min: float = 35.0                   # Avoid oversold
     ped_rsi_max: float = 65.0                   # Avoid overbought
     ped_volume_ratio_min: float = 0.8           # Normal volume (no unusual selling)
+    ped_max_slippage_pct: float = 1.5           # v6.55: Cancel if live price < signal price by >1.5%
 
     # =========================================================================
     # VIX ADAPTIVE STRATEGY v3.0 (2026-02-11)

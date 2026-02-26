@@ -950,6 +950,7 @@ class AutoTradingEngine:
         self.PED_RSI_MIN = getattr(cfg, 'ped_rsi_min', 35.0)
         self.PED_RSI_MAX = getattr(cfg, 'ped_rsi_max', 65.0)
         self.PED_VOLUME_RATIO_MIN = getattr(cfg, 'ped_volume_ratio_min', 0.8)
+        self.PED_MAX_SLIPPAGE_PCT = getattr(cfg, 'ped_max_slippage_pct', 1.5)  # v6.55
 
         # =====================================================================
         # VIX ADAPTIVE STRATEGY v3.0
@@ -7357,6 +7358,50 @@ class AutoTradingEngine:
                 logger.info("📅 PED Scan COMPLETE: Found 0 signals")
                 self._ped_scan_done = today
                 return
+
+            # v6.55: Slippage gate — PED entry_price is previous day's close.
+            # If the stock has gapped down significantly at open, the signal is stale.
+            # Fetch live price and reject if current_price < signal_price * (1 - threshold).
+            gated_signals = []
+            for sig in raw_signals:
+                symbol = sig['symbol']
+                signal_price = sig['entry_price']
+                try:
+                    live_price = None
+                    if self.data_manager:
+                        live_price = self.data_manager.get_current_price(symbol)
+                    if not live_price or live_price <= 0:
+                        # yfinance fallback
+                        import yfinance as yf
+                        ticker = yf.Ticker(symbol)
+                        fast = ticker.fast_info
+                        live_price = getattr(fast, 'last_price', None) or getattr(fast, 'regular_market_price', None)
+                    if live_price and live_price > 0:
+                        slippage_pct = (live_price - signal_price) / signal_price * 100
+                        if slippage_pct < -self.PED_MAX_SLIPPAGE_PCT:
+                            logger.info(
+                                f"📅 PED SLIPPAGE GATE: {symbol} rejected — "
+                                f"live ${live_price:.2f} vs signal ${signal_price:.2f} "
+                                f"= {slippage_pct:+.2f}% (threshold: -{self.PED_MAX_SLIPPAGE_PCT:.1f}%)"
+                            )
+                            continue
+                        else:
+                            logger.debug(
+                                f"PED slippage OK: {symbol} live ${live_price:.2f} "
+                                f"vs signal ${signal_price:.2f} = {slippage_pct:+.2f}%"
+                            )
+                    else:
+                        logger.debug(f"PED: could not fetch live price for {symbol}, skipping slippage gate")
+                except Exception as e:
+                    logger.debug(f"PED slippage gate error for {symbol}: {e}")
+                gated_signals.append(sig)
+
+            if not gated_signals:
+                logger.info("📅 PED Scan COMPLETE: All signals rejected by slippage gate")
+                self._ped_scan_done = today
+                return
+
+            raw_signals = gated_signals
 
             try:
                 from screeners.rapid_rotation_screener import RapidRotationSignal

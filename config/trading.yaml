@@ -400,6 +400,7 @@ ped_days_before_max: 5            # Also allow D-5
 ped_rsi_min: 35.0                 # Avoid oversold
 ped_rsi_max: 65.0                 # Avoid overbought
 ped_volume_ratio_min: 0.8         # Normal volume (no unusual selling)
+ped_max_slippage_pct: 1.5         # v6.55: Cancel if live price < signal price by >1.5% (gap-down filter)
 
 # =============================================================================
 # v6.32 — BETA/VOLATILITY FILTER (Test Mode)
