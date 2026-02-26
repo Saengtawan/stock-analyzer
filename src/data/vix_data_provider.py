@@ -110,24 +110,36 @@ class VIXDataProvider:
         """
         Get current VIX value.
 
+        v6.56: Uses intraday (period='1d') bars to return live VIX during
+        market hours. Falls back to cached daily data on error.
+
         Args:
             force_refresh: Force refresh from API
 
         Returns:
             Current VIX value
         """
+        # v6.56: Try live intraday data first (period='1d' → 1m bars = live price)
+        try:
+            vix_ticker = yf.Ticker("^VIX")
+            vix_intraday = vix_ticker.history(period='1d')
+            if not vix_intraday.empty:
+                val = float(vix_intraday['Close'].iloc[-1])
+                if 5 <= val <= 100:
+                    return val
+        except Exception as e:
+            logger.debug(f"VIX intraday fetch failed: {e} — using cached daily data")
+
+        # Fallback: use cached daily historical data
         if self._needs_refresh() or force_refresh:
-            # Fetch recent data (last 5 days to get latest)
             end_date = datetime.now().strftime('%Y-%m-%d')
             start = datetime.now() - timedelta(days=5)
             start_date = start.strftime('%Y-%m-%d')
-
             self.fetch_vix_data(start_date=start_date, end_date=end_date, force_refresh=True)
 
         if self.vix_data is None or len(self.vix_data) == 0:
             raise ValueError("No VIX data available")
 
-        # Return most recent value
         return float(self.vix_data['vix'].iloc[-1])
 
     def get_vix_history(

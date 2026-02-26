@@ -2095,23 +2095,38 @@ class AutoTradingEngine:
 
     def _get_vix(self) -> Tuple[float, bool]:
         """Fetch current VIX value with retry. Returns (value, is_fallback).
-        Returns (50.0, True) on error (fail-safe → BEAR)."""
+        Returns (50.0, True) on error (fail-safe → BEAR).
+
+        v6.56: Use intraday data (Ticker.history period='1d') so the engine
+        reads the LIVE VIX during market hours instead of yesterday's close.
+        Previously used yf.download(period='5d', interval='1d') which returned
+        daily OHLC bars — during market hours iloc[-1] was yesterday's settle.
+        """
         for attempt in range(2):
             try:
-                vix = yf.download('^VIX', period='5d', progress=False, auto_adjust=True)
-                if vix.empty:
+                # v6.56: Prefer intraday live data (1m bars, today's session)
+                vix_ticker = yf.Ticker('^VIX')
+                vix_data = vix_ticker.history(period='1d')
+                if not vix_data.empty:
+                    val = float(vix_data['Close'].iloc[-1])
+                    if 5 <= val <= 100:
+                        return val, False
+                    logger.warning(f"VIX intraday value {val} looks invalid — trying fallback")
+
+                # Fallback: daily bars (covers pre/post market and weekends)
+                vix_dl = yf.download('^VIX', period='5d', progress=False, auto_adjust=True)
+                if vix_dl.empty:
                     if attempt == 0:
                         logger.warning("VIX data empty — retrying in 3s...")
                         time.sleep(3)
                         continue
                     logger.warning("VIX data empty after retry — fail-safe: 50.0")
                     return 50.0, True
-                close = vix['Close']
+                close = vix_dl['Close']
                 # Handle yfinance MultiIndex columns: ('Close', '^VIX')
                 if hasattr(close, 'columns'):
                     close = close.iloc[:, 0]
                 val = float(close.iloc[-1]) if hasattr(close, 'iloc') else float(close[-1])
-                # Sanity check: VIX should be 5-100, not a stock price
                 if val > 100 or val < 5:
                     logger.warning(f"VIX value {val} looks invalid — fail-safe: 25.0")
                     return 25.0, True
@@ -7934,7 +7949,7 @@ class AutoTradingEngine:
             'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v6.51',  # v6.51: Cross-process guard for pre-filter duplicate spawns
+            'version': 'v6.56',  # v6.56: Live intraday VIX (_get_vix uses Ticker.history period='1d')
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
@@ -7960,7 +7975,12 @@ class AutoTradingEngine:
                 round(self.vix_adaptive.strategy.current_vix, 2)
                 if self.vix_adaptive and self.vix_adaptive.enabled
                    and self.vix_adaptive.strategy.current_vix is not None
-                else None
+                else (
+                    # v6.56: Fall back to regime_cache VIX (live intraday via _get_vix)
+                    self._regime_cache[3].get('vix')
+                    if self._regime_cache and len(self._regime_cache) >= 4
+                    else None
+                )
             ),
             # Dynamic Sector Gate
             'effective_sector_max': self._get_effective_sector_max(),
