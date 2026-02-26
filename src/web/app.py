@@ -2,6 +2,11 @@
 Flask Web Application for Stock Analyzer
 v4.0: Added WebSocket support for real-time updates
 """
+# v6.51: eventlet monkey-patch MUST be first before any other imports
+# Fixes "AssertionError: write() before start_response" on WebSocket upgrade
+import eventlet
+eventlet.monkey_patch()
+
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
@@ -41,7 +46,7 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True  # v5.3: Disable template caching
 CORS(app)
 
 # v4.0: WebSocket for real-time updates
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # v4.9: API authentication for dangerous endpoints
 # Set RAPID_API_SECRET in environment, or a random key is generated per session
@@ -5771,4 +5776,5 @@ if __name__ == '__main__':
     start_price_streamer()
 
     # Use socketio.run instead of app.run for WebSocket support
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
+    # v6.51: eventlet handles WebSocket natively — no allow_unsafe_werkzeug needed
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
