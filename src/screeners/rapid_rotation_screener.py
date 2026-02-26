@@ -385,20 +385,16 @@ class RapidRotationScreener:
             return False
 
         try:
-            # Load current pool
-            pre_filter_file = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-                'data', 'pre_filtered.json'
-            )
+            # Load current pool from DB (single source of truth since v6.42)
+            from database import PreFilterRepository
+            repo = PreFilterRepository()
+            latest_session = repo.get_latest_session(scan_type='evening')
 
-            if not os.path.exists(pre_filter_file):
-                logger.warning("⚠️ Pre-filtered pool not found - triggering initial refresh")
+            if not latest_session:
+                logger.warning("⚠️ Pre-filtered pool not found in DB - triggering initial refresh")
                 return self._trigger_prefilter_refresh("initial")
 
-            with open(pre_filter_file) as f:
-                pool = json.load(f)
-
-            pool_size = len(pool.get('stocks', {}))
+            pool_size = latest_session.pool_size or 0
             min_pool = self.config.pre_filter_on_demand_min_pool
 
             if pool_size < min_pool:
