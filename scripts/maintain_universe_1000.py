@@ -98,14 +98,15 @@ else:
         assets = client.get_all_assets(req)
 
         # Filter: tradable + major exchange + easy_to_borrow (liquidity proxy)
+        # Exclude ARCA (mostly ETFs — SPY, QQQ, GLD, VOO, etc. trade on ARCA)
         candidates_raw = [
             a.symbol for a in assets
             if a.tradable
             and a.easy_to_borrow
-            and a.exchange.value in ('NYSE', 'NASDAQ', 'ARCA')
-            and a.symbol not in current_symbols    # not already in universe
-            and '.' not in a.symbol                # skip class shares (BRK.B etc)
-            and len(a.symbol) <= 5                 # skip long symbols
+            and a.exchange.value in ('NYSE', 'NASDAQ')  # exclude ARCA (ETFs)
+            and a.symbol not in current_symbols         # not already in universe
+            and '.' not in a.symbol                    # skip class shares (BRK.B etc)
+            and len(a.symbol) <= 5                     # skip long symbols
         ]
         print(f"Alpaca candidates (tradable+ETB, not in universe): {len(candidates_raw)}")
 
@@ -160,15 +161,18 @@ else:
     # 5. Get sector for top candidates via yfinance
     # ─────────────────────────────────────────────────────────
     print(f"\n[Step 4] Fetching sector for {len(top_candidates)} candidates...")
-    sector_map = {}
+    sector_map = {}   # sym -> sector string, or 'ETF_SKIP' to exclude
 
     for i in range(0, len(top_candidates), SECTOR_BATCH):
         batch = top_candidates[i:i + SECTOR_BATCH]
         for sym in batch:
             try:
-                info = yf.Ticker(sym).fast_info
-                # fast_info doesn't have sector — fallback to info
                 full_info = yf.Ticker(sym).info
+                quote_type = full_info.get('quoteType', '')
+                # Exclude ETFs, funds, indices — universe is individual stocks only
+                if quote_type in ('ETF', 'MUTUALFUND', 'INDEX', 'CURRENCY', 'FUTURE'):
+                    sector_map[sym] = 'ETF_SKIP'
+                    continue
                 sector = full_info.get('sector', 'Unknown')
                 sector_map[sym] = sector if sector else 'Unknown'
             except Exception:
@@ -187,6 +191,8 @@ else:
         if sym not in top_candidates:
             continue
         sector = sector_map.get(sym, 'Unknown')
+        if sector == 'ETF_SKIP':
+            continue  # Skip ETFs/funds
         cache[sym] = {
             'sector': sector,
             'ts': now_ts,
