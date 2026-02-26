@@ -12,9 +12,9 @@ EnvironmentFile=/home/saengtawan/work/project/cc/stock-analyzer/.env
 
 ExecStart=/home/saengtawan/.pyenv/versions/cc/bin/python src/auto_trading_engine.py
 
-# Restart on failure
-Restart=on-failure
-RestartSec=10s
+# Always restart (even after manual kill/pkill) — engine must never stay down
+Restart=always
+RestartSec=5s
 
 # Logging
 StandardOutput=append:/home/saengtawan/work/project/cc/stock-analyzer/logs/auto_trading_engine.log
