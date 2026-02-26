@@ -1049,42 +1049,60 @@ class AutoTradingEngine:
         logger.debug(f"💾 Queue saved to DB: {len(self.signal_queue)} signals")
 
     def _load_queue_state(self):
-        """Load persisted signal queue from JSON file on startup."""
-        from engine.state_manager import safe_read_json, deserialize_queued_signal
-        data = safe_read_json(self._queue_file, {})
-        entries = data.get('queue', [])
+        """Load persisted signal queue from DB on startup (SSoT: DB only, no JSON)."""
         loaded = 0
         expired = 0
         now = datetime.now()
 
+        # v6.52: Load from DB (SSoT) — JSON was archived in 2026-02-22 migration
         # v6.41: Queue load must be atomic (even during startup for consistency)
         with self._queue_lock:
-            for entry in entries:
-                try:
-                    queued = deserialize_queued_signal(entry, QueuedSignal)
+            try:
+                from database.repositories import QueueRepository
+                queue_repo = QueueRepository()
+                db_signals = queue_repo.get_all(status='waiting')
+            except Exception as e:
+                logger.warning(f"Failed to load queue from DB: {e}")
+                db_signals = []
 
+            for db_q in db_signals:
+                try:
                     # Skip if already have position
-                    if queued.symbol in self.positions:
+                    if db_q.symbol in self.positions:
                         expired += 1
                         continue
 
                     # Clear signals older than 24 hours (stale from previous day)
-                    age_hours = (now - queued.queued_at).total_seconds() / 3600
+                    queued_at = db_q.queued_at or now
+                    age_hours = (now - queued_at).total_seconds() / 3600
                     if age_hours > 24:
                         expired += 1
-                        logger.debug(f"Skipping stale queue entry: {queued.symbol} (age: {age_hours:.1f}h)")
+                        logger.debug(f"Skipping stale queue entry: {db_q.symbol} (age: {age_hours:.1f}h)")
                         continue
 
+                    # Convert DB model to engine QueuedSignal
+                    queued = QueuedSignal(
+                        symbol=db_q.symbol,
+                        signal_price=db_q.signal_price,
+                        score=db_q.score,
+                        stop_loss=db_q.stop_loss,
+                        take_profit=db_q.take_profit,
+                        queued_at=queued_at,
+                        reasons=db_q.reasons or [],
+                        atr_pct=db_q.atr_pct or 5.0,
+                        sl_pct=db_q.sl_pct or 0.0,
+                        tp_pct=db_q.tp_pct or 0.0,
+                    )
                     self.signal_queue.append(queued)
                     loaded += 1
-                except (KeyError, ValueError) as e:
-                    logger.warning(f"Skipping invalid queue entry: {e}")
+                except Exception as e:
+                    logger.warning(f"Skipping invalid DB queue entry: {e}")
 
             if loaded:
-                logger.info(f"Loaded persisted queue: {loaded} signals (saved at {data.get('saved_at', 'unknown')})")
+                logger.info(f"Loaded persisted queue from DB: {loaded} signals")
             if expired:
                 logger.info(f"Cleared {expired} stale/duplicate signals from queue")
-                self._save_queue_state()  # Save cleaned queue
+                self._save_queue_state()  # Sync cleaned queue back to DB
 
     # =========================================================================
     # SIGNALS CACHE (v6.1 - Single Source of Truth for UI)
