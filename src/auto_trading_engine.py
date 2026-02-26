@@ -3814,8 +3814,13 @@ class AutoTradingEngine:
             # Get signals (excluding current positions)
             existing = list(self.positions.keys())
             effective_max = params.get('max_positions') or self.MAX_POSITIONS
+            # v6.54: Don't count OVN/PEM/PED positions against DIP limit.
+            # get_portfolio_signals uses: available_slots = max_positions - len(existing)
+            # existing includes ALL positions, so we add non-DIP count to max to offset.
+            _non_dip = sum(1 for p in self.positions.values()
+                           if getattr(p, 'source', 'dip_bounce') in ('overnight_gap', 'pem', 'ped'))
             signals = self.screener.get_portfolio_signals(
-                max_positions=effective_max,
+                max_positions=effective_max + _non_dip,
                 existing_positions=existing,
                 allowed_sectors=allowed_sectors,
                 blocked_sectors=blocked_sectors,
