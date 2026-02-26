@@ -984,7 +984,7 @@ class AutoTradingEngine:
         self._sync_active_positions_db()
 
     # Engine sources that this engine owns (do NOT touch rapid_trader positions)
-    _ENGINE_SOURCES = ('dip_bounce', 'vix_adaptive', 'mean_reversion', 'rapid_rotation')
+    _ENGINE_SOURCES = ('dip_bounce', 'vix_adaptive', 'mean_reversion', 'rapid_rotation', 'overnight_gap', 'pem', 'ped')
 
     def _sync_active_positions_db(self):
         """Sync in-memory positions to DB via PositionRepository.
@@ -6528,22 +6528,29 @@ class AutoTradingEngine:
                 if not self._loop_check_loss_limits(mode):
                     self._clear_queue_end_of_day()
                     effective_max = params.get('max_positions') or self.MAX_POSITIONS
+                    # v6.54: Don't count OVN/PEM/PED dedicated-slot positions against DIP limit
+                    _non_dip = sum(1 for p in self.positions.values()
+                                   if getattr(p, 'source', 'dip_bounce') in ('overnight_gap', 'pem', 'ped'))
                     signals = self.scan_for_signals()
                     signals = self._loop_add_breakout_signals(signals, "BEAR breakout", check_pdt=True)
                     # Note: overnight gap morning signals rarely fire (no today's close data yet)
                     # Real overnight scan runs at 15:30 ET via _loop_overnight_gap_scan
-                    self._process_scan_signals(signals, "morning", max_positions=effective_max)
+                    self._process_scan_signals(signals, "morning", max_positions=effective_max + _non_dip)
             else:
                 # BULL mode
                 params = self._get_effective_params()
                 mode = params.get('mode', 'NORMAL')
                 if not self._loop_check_loss_limits(mode):
                     self._clear_queue_end_of_day()
+                    # v6.54: Don't count OVN/PEM/PED dedicated-slot positions against DIP limit
+                    effective_max = params.get('max_positions') or self.MAX_POSITIONS
+                    _non_dip = sum(1 for p in self.positions.values()
+                                   if getattr(p, 'source', 'dip_bounce') in ('overnight_gap', 'pem', 'ped'))
                     signals = self.scan_for_signals()
                     signals = self._loop_add_breakout_signals(signals, "Breakout scan")
                     # Note: overnight gap morning signals rarely fire (no today's close data yet)
                     # Real overnight scan runs at 15:30 ET via _loop_overnight_gap_scan
-                    self._process_scan_signals(signals, "morning")
+                    self._process_scan_signals(signals, "morning", max_positions=effective_max + _non_dip)
 
             self._morning_scan_done = today
         except Exception as e:
@@ -6881,18 +6888,23 @@ class AutoTradingEngine:
             self._last_continuous_scan = et_now
             return
 
+        # v6.54: Don't count OVN/PEM/PED dedicated-slot positions against DIP limit
+        _non_dip = sum(1 for p in self.positions.values()
+                       if getattr(p, 'source', 'dip_bounce') in ('overnight_gap', 'pem', 'ped'))
+        cont_max_adj = cont_max + _non_dip
+
         # Dynamic params based on time of day
         use_afternoon = et_now.hour >= self.CONTINUOUS_SCAN_MIDDAY_HOUR
         session_label = "afternoon" if use_afternoon else "morning"
-        is_full = len(self.positions) >= cont_max
+        is_full = len(self.positions) >= cont_max_adj
         full_tag = " [FULL]" if is_full else ""
-        logger.info(f"🔄 Continuous scan ({session_label} params, {interval_minutes}min/{interval_label}): {len(self.positions)}/{cont_max} positions{full_tag}")
+        logger.info(f"🔄 Continuous scan ({session_label} params, {interval_minutes}min/{interval_label}): {len(self.positions)}/{cont_max_adj} positions{full_tag}")
 
         if use_afternoon:
-            self._loop_with_afternoon_params(self.scan_for_signals, f"continuous_{session_label}", cont_max)
+            self._loop_with_afternoon_params(self.scan_for_signals, f"continuous_{session_label}", cont_max_adj)
         else:
             signals = self.scan_for_signals()
-            self._process_scan_signals(signals, f"continuous_{session_label}", max_positions=cont_max)
+            self._process_scan_signals(signals, f"continuous_{session_label}", max_positions=cont_max_adj)
 
         self._last_continuous_scan = et_now
 
