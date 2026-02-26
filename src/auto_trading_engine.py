@@ -396,6 +396,9 @@ class AutoTradingEngine:
     PED_POSITION_SIZE_PCT: float
     PED_DAYS_BEFORE_MIN: int
     PED_DAYS_BEFORE_MAX: int
+    PED_RSI_MIN: float
+    PED_RSI_MAX: float
+    PED_VOLUME_RATIO_MIN: float
 
     # Market Regime Filter
     REGIME_FILTER_ENABLED: bool
@@ -552,6 +555,9 @@ class AutoTradingEngine:
                 ped_config = {
                     'ped_days_before_min': self.PED_DAYS_BEFORE_MIN,
                     'ped_days_before_max': self.PED_DAYS_BEFORE_MAX,
+                    'ped_rsi_min': self.PED_RSI_MIN,
+                    'ped_rsi_max': self.PED_RSI_MAX,
+                    'ped_volume_ratio_min': self.PED_VOLUME_RATIO_MIN,
                 }
                 self.ped_screener = PEDScreener(broker=self.broker, config=ped_config)
                 logger.info("✅ PEDScreener initialized (v6.53)")
@@ -941,6 +947,9 @@ class AutoTradingEngine:
         self.PED_POSITION_SIZE_PCT = getattr(cfg, 'ped_position_size_pct', 30.0)
         self.PED_DAYS_BEFORE_MIN = getattr(cfg, 'ped_days_before_min', 4)
         self.PED_DAYS_BEFORE_MAX = getattr(cfg, 'ped_days_before_max', 5)
+        self.PED_RSI_MIN = getattr(cfg, 'ped_rsi_min', 35.0)
+        self.PED_RSI_MAX = getattr(cfg, 'ped_rsi_max', 65.0)
+        self.PED_VOLUME_RATIO_MIN = getattr(cfg, 'ped_volume_ratio_min', 0.8)
 
         # =====================================================================
         # VIX ADAPTIVE STRATEGY v3.0
@@ -3682,10 +3691,14 @@ class AutoTradingEngine:
             return SignalSource.OVERNIGHT_GAP
         if scan_type == 'pem':
             return SignalSource.PEM
+        if scan_type == 'ped':
+            return SignalSource.PED
         # sl_method / source attribute from screener output (secondary)
         sl_method = getattr(signal, 'sl_method', '')
         source_attr = signal.__dict__.get('source', '') if hasattr(signal, '__dict__') else ''
-        if source_attr == 'pem' or 'pem' in sl_method:
+        if source_attr == 'ped' or 'ped' in sl_method:
+            return SignalSource.PED
+        elif source_attr == 'pem' or 'pem' in sl_method:
             return SignalSource.PEM
         elif 'overnight_gap' in sl_method:
             return SignalSource.OVERNIGHT_GAP
@@ -7281,8 +7294,11 @@ class AutoTradingEngine:
         if et_now < scan_time or et_now > scan_window_end:
             return
 
-        # Check dedicated PED slot
-        ped_count = sum(1 for pos in self.positions.values() if getattr(pos, 'source', '') == 'ped')
+        # Clear stale earnings cache from previous days (instance persists across days)
+        self.ped_screener._earnings_cache = {}
+
+        # Check dedicated PED slot (list() for thread safety — v6.41 pattern)
+        ped_count = sum(1 for pos in list(self.positions.values()) if getattr(pos, 'source', '') == 'ped')
         if ped_count >= self.PED_MAX_POSITIONS:
             logger.debug(f"PED: Max PED positions reached ({ped_count}/{self.PED_MAX_POSITIONS})")
             return

@@ -125,7 +125,7 @@ class PEDScreener:
             return None
 
         # Volume ratio (20d avg)
-        vol_avg = float(df['Volume'].rolling(20).mean().iloc[-2])  # exclude today
+        vol_avg = float(df['Volume'].rolling(20).mean().iloc[-1])  # 20-day rolling avg
         today_vol = float(df['Volume'].iloc[-1])
         volume_ratio = today_vol / vol_avg if vol_avg > 0 else 1.0
         if volume_ratio < self.volume_ratio_min:
