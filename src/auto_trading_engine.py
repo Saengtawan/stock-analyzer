@@ -3643,6 +3643,8 @@ class AutoTradingEngine:
                 "volume_ratio": getattr(signal, 'volume_ratio', None),
                 "stop_loss": getattr(signal, 'stop_loss', None),
                 "take_profit": getattr(signal, 'take_profit', None),
+                # v6.54: PED earnings data
+                "days_until_earnings": getattr(signal, '__dict__', {}).get('days_until_earnings'),
             })
 
         # Summary counts for monitoring

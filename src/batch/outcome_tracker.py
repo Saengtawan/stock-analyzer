@@ -628,6 +628,7 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                             'scan_price': sig.get('scan_price') or sig.get('price', 0),
                             'score': sig.get('score', 0),
                             'signal_source': sig.get('signal_source', ''),
+                            'days_until_earnings': sig.get('days_until_earnings'),
                         })
 
     if not signals_to_track:
@@ -719,6 +720,7 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                 "score": sig['score'],
                 "signal_source": sig['signal_source'],
                 "scan_price": scan_price,
+                "days_until_earnings": sig.get('days_until_earnings'),
                 "outcome_1d": outcome_1d,
                 "outcome_3d": outcome_3d,
                 "outcome_5d": outcome_5d,
