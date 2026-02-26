@@ -6555,6 +6555,22 @@ class AutoTradingEngine:
         if triggered_hour is None:
             return
 
+        # v6.51: Cross-process guard — block duplicate spawn if a scan was started
+        # within the last 15 minutes (multiple engines sharing same DB)
+        try:
+            from database.repositories.pre_filter_repository import PreFilterRepository
+            from datetime import datetime as _dt
+            _repo = PreFilterRepository()
+            _latest = _repo.get_latest_session(scan_type='evening')
+            if _latest and _latest.scan_time:
+                _age = (_dt.now() - _latest.scan_time).total_seconds()
+                if _age < 900 and _latest.status in ('running', 'completed'):  # 15-min window
+                    logger.debug(f"🔄 Intraday pre-filter [{triggered_hour}h]: session {_latest.id} already {_latest.status} ({_age:.0f}s ago) — skipping duplicate spawn")
+                    setattr(self, done_attr, today)
+                    return
+        except Exception as _e:
+            logger.debug(f"🔄 Intraday pre-filter DB guard check failed: {_e}")
+
         import subprocess
         import os as _os
         pre_filter_script = _os.path.join(
@@ -6616,7 +6632,23 @@ class AutoTradingEngine:
             return
         if getattr(self, '_evening_prefilter_done', None) == today:
             return
-        # v6.41: DON'T set done flag yet - wait for subprocess success
+
+        # v6.51: Cross-process guard — DB check prevents duplicate spawns when
+        # multiple engine instances run (e.g., app.py engine + systemd engine both
+        # call this method at 20:00 ET; in-memory flag doesn't work across processes)
+        try:
+            from database.repositories.pre_filter_repository import PreFilterRepository
+            from datetime import datetime as _dt
+            _repo = PreFilterRepository()
+            _latest = _repo.get_latest_session(scan_type='evening')
+            if _latest and _latest.scan_time:
+                _session_date = _latest.scan_time.date() if hasattr(_latest.scan_time, 'date') else None
+                if _session_date == _dt.now().date() and _latest.status in ('running', 'completed'):
+                    logger.debug(f"🌙 Evening pre-filter: session {_latest.id} already {_latest.status} today — skipping duplicate spawn")
+                    self._evening_prefilter_done = today
+                    return
+        except Exception as _e:
+            logger.debug(f"🌙 Evening pre-filter DB guard check failed: {_e}")
 
         import subprocess
         import os as _os
@@ -6665,7 +6697,21 @@ class AutoTradingEngine:
             return
         if getattr(self, '_pre_open_prefilter_done', None) == today:
             return
-        # v6.41: DON'T set done flag yet - wait for subprocess success
+
+        # v6.51: Cross-process guard — DB check prevents duplicate spawns
+        try:
+            from database.repositories.pre_filter_repository import PreFilterRepository
+            from datetime import datetime as _dt
+            _repo = PreFilterRepository()
+            _latest = _repo.get_latest_session(scan_type='pre_open')
+            if _latest and _latest.scan_time:
+                _session_date = _latest.scan_time.date() if hasattr(_latest.scan_time, 'date') else None
+                if _session_date == _dt.now().date() and _latest.status in ('running', 'completed'):
+                    logger.debug(f"🌅 Pre-open pre-filter: session {_latest.id} already {_latest.status} today — skipping duplicate spawn")
+                    self._pre_open_prefilter_done = today
+                    return
+        except Exception as _e:
+            logger.debug(f"🌅 Pre-open pre-filter DB guard check failed: {_e}")
 
         import subprocess
         import os as _os
@@ -7626,7 +7672,7 @@ class AutoTradingEngine:
             'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v6.50',  # v6.50: OVN uses dedicated 987-stock universe (not DIP pool) — fixes "No candidates found"
+            'version': 'v6.51',  # v6.51: Cross-process guard for pre-filter duplicate spawns
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
