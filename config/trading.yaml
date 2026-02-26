@@ -41,6 +41,8 @@ rapid_rotation:
   min_atr_pct: 3.0            # v6.32: 2.5→3.0 for consistency with beta_filter
   momentum_5d_min_dip: -1.0   # Must have dipped at least -1.0% (block shallow dips like -0.79%)
   momentum_5d_max_dip: -15.0  # Max dip allowed -15% (block crashed stocks)
+  momentum_5d_deep_dip_threshold: -3.0  # v6.55: If dip deeper than this, require oversold RSI
+  momentum_5d_deep_dip_rsi_max: 45.0   # v6.55: Max RSI for deep dip (ETN=56 blocked, legit=35 passes)
 
   # -- Regime Filtering --
   regime_filter_enabled: true # Enable SPY regime filter

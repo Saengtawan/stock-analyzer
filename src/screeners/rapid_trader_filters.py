@@ -203,16 +203,20 @@ def check_sma20_filter(current_price: float, sma20: float) -> Tuple[bool, str]:
 # ============================================================================
 def check_momentum_5d_filter(
     mom_5d: float,
-    config: 'RapidRotationConfig' = None
+    config: 'RapidRotationConfig' = None,
+    rsi: float = None,
 ) -> Tuple[bool, str]:
     """
     Check momentum 5d filter - ensures proper dip for dip-bounce strategy
 
     v6.20: Block shallow dips (like -0.79%) and crashed stocks (< -15%)
+    v6.55: Deep dip RSI guard — if dip deeper than threshold, require oversold RSI.
+           Prevents buying sustained downtrends masquerading as dips (e.g. ETN: -4.2%, RSI=56).
 
     Args:
         mom_5d: 5-day momentum percentage
         config: Optional config (loads from YAML if None)
+        rsi: Current RSI (optional; enables deep-dip RSI guard when provided)
 
     Returns:
         Tuple of (passed, rejection_reason)
@@ -230,9 +234,13 @@ def check_momentum_5d_filter(
             # Use defaults
             min_dip = -1.0
             max_dip = -15.0
-    else:
+            deep_dip_threshold = -3.0
+            deep_dip_rsi_max = 45.0
+    if config is not None:
         min_dip = config.momentum_5d_min_dip
         max_dip = config.momentum_5d_max_dip
+        deep_dip_threshold = getattr(config, 'momentum_5d_deep_dip_threshold', -3.0)
+        deep_dip_rsi_max = getattr(config, 'momentum_5d_deep_dip_rsi_max', 45.0)
 
     # Check if dip is too shallow (not a real dip)
     if mom_5d > min_dip:
@@ -241,6 +249,13 @@ def check_momentum_5d_filter(
     # Check if dip is too deep (crashed stock)
     if mom_5d < max_dip:
         return False, f"Dip too deep ({mom_5d:.2f}% < {max_dip}% max dip)"
+
+    # v6.55: Deep dip RSI guard — sustained decline without oversold reading = falling knife
+    if rsi is not None and mom_5d < deep_dip_threshold and rsi > deep_dip_rsi_max:
+        return False, (
+            f"Deep dip without oversold ({mom_5d:.2f}% < {deep_dip_threshold}% "
+            f"but RSI {rsi:.0f} > {deep_dip_rsi_max:.0f}) — falling knife, not bounce"
+        )
 
     return True, ""
 

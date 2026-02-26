@@ -1215,8 +1215,8 @@ class RapidRotationScreener:
         if not passed:
             return 'below_sma20'
 
-        # Momentum 5d filter (v6.20 - from filters.py)
-        passed, reason = check_momentum_5d_filter(ind['mom_5d'], self.config)
+        # Momentum 5d filter (v6.20 - from filters.py; v6.55: +RSI guard)
+        passed, reason = check_momentum_5d_filter(ind['mom_5d'], self.config, rsi=ind['rsi'])
         if not passed:
             return 'mom_5d_reject'
 

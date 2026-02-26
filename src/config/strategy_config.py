@@ -111,6 +111,8 @@ class RapidRotationConfig:
     # v6.20: Momentum 5d Filter (dip-bounce strategy requirement)
     momentum_5d_min_dip: float = -1.0   # Must have dipped at least -1.0% (block shallow dips)
     momentum_5d_max_dip: float = -15.0  # Max dip allowed -15% (block crashed stocks)
+    momentum_5d_deep_dip_threshold: float = -3.0  # v6.55: If dip deeper than this, require oversold RSI
+    momentum_5d_deep_dip_rsi_max: float = 45.0    # v6.55: Max RSI for deep dip (ETN=56 blocked, legit=35 passes)
 
     # =========================================================================
     # REGIME FILTERING
