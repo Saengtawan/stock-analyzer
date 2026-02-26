@@ -5508,6 +5508,12 @@ class AutoTradingEngine:
                     del self.positions[symbol]
                     self._save_positions_state()
             self.pdt_guard.remove_entry(symbol)
+            # v6.55: Mark trading_signals as closed so UI doesn't re-display stale signal
+            try:
+                from database.repositories import SignalRepository
+                SignalRepository().update_status_by_symbol(symbol, 'closed', 'SL_FILLED_AT_ALPACA')
+            except Exception:
+                pass
             return
 
         current_price = alpaca_pos.current_price
@@ -6072,6 +6078,12 @@ class AutoTradingEngine:
                     del self.positions[symbol]
                     self._save_positions_state()
             self.pdt_guard.remove_entry(symbol)
+            # v6.55: Mark trading_signals as closed so UI doesn't re-display stale signal
+            try:
+                from database.repositories import SignalRepository
+                SignalRepository().update_status_by_symbol(symbol, 'closed', reason)
+            except Exception:
+                pass
 
             # Re-verify position is actually gone from Alpaca before opening new
             try:
