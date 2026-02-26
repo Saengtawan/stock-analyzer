@@ -71,28 +71,42 @@ class PEMScreener:
 
     def get_universe(self) -> List[str]:
         """
-        Get scan universe from pre-filter pool (database).
+        Get full 987-stock universe for PEM scanning.
 
-        Pre-filter pool has ~200-400 quality stocks. PEM looks for earnings gaps
-        among these stocks. Not all earnings gaps will be in the pool, but this
-        provides a quality-screened starting point without rate limit issues.
+        v6.50: PEM now uses the full universe instead of DIP pre-filter pool.
+        Earnings gaps can occur in any liquid stock — limiting to 222 DIP
+        candidates misses the majority of earnings movers (e.g. NVDA, AAPL
+        after earnings typically aren't in the DIP pool as they're strong stocks).
+
+        Uses full_universe_cache.json (987 stocks from maintain_universe_1000.py).
+        Falls back to DIP pre-filter pool, then static fallback list.
         """
+        # Primary: full 987-stock universe
+        try:
+            universe_file = os.path.join(self.DATA_DIR, 'full_universe_cache.json')
+            with open(universe_file) as f:
+                symbols = list(json.load(f).keys())
+            if len(symbols) >= 100:
+                logger.info(f"PEM: Loaded {len(symbols)} stocks from full universe")
+                return symbols
+        except Exception as e:
+            logger.debug(f"PEM: full_universe_cache.json unavailable: {e}")
+
+        # Fallback: DIP pre-filter pool
         try:
             from database.repositories.pre_filter_repository import PreFilterRepository
-
             repo = PreFilterRepository()
             latest_session = repo.get_latest_session(scan_type='evening')
-
             if latest_session and latest_session.status == 'completed' and latest_session.is_ready:
                 pool_stocks = repo.get_filtered_pool(session_id=latest_session.id)
                 if pool_stocks:
                     symbols = [stock.symbol for stock in pool_stocks]
-                    logger.info(f"PEM: Loaded {len(symbols)} stocks from pre-filtered pool (DB session: {latest_session.id})")
+                    logger.warning(f"PEM: Fallback to pre-filtered pool ({len(symbols)} stocks)")
                     return symbols
         except Exception as e:
-            logger.debug(f"PEM: Error loading pre-filtered pool from DB: {e}")
+            logger.debug(f"PEM: Error loading pre-filtered pool: {e}")
 
-        logger.warning("PEM: Pre-filtered pool unavailable, using fallback list")
+        logger.warning("PEM: Using static fallback list")
         return self._get_fallback_universe()
 
     def _get_fallback_universe(self) -> List[str]:
@@ -127,8 +141,25 @@ class PEMScreener:
 
         logger.info(f"PEM: Scanning {len(universe)} symbols for earnings gaps ≥{self.gap_threshold}%...")
 
+        # v6.50: Batch pre-filter — fetch all snapshots in ONE API call, then
+        # deep-check only stocks that already show gap ≥ threshold.
+        # Avoids 987 individual snapshot calls; only ~0-5 stocks need deep analysis.
+        gap_candidates = list(universe)  # fallback: check all if no broker
+        if self.broker:
+            try:
+                batch_snaps = self.broker.get_snapshots(universe)
+                gap_candidates = []
+                for symbol, snap in batch_snaps.items():
+                    if snap and snap.open > 0 and snap.prev_close > 0:
+                        gap_pct = ((snap.open - snap.prev_close) / snap.prev_close) * 100
+                        if gap_pct >= self.gap_threshold:
+                            gap_candidates.append(symbol)
+                logger.info(f"PEM: Batch snapshot done — {len(gap_candidates)} gap candidates from {len(batch_snaps)} stocks")
+            except Exception as e:
+                logger.warning(f"PEM: Batch snapshot failed ({e}), falling back to individual checks")
+
         signals = []
-        for symbol in universe:
+        for symbol in gap_candidates:
             try:
                 sig = self._check_symbol(symbol)
                 if sig:
