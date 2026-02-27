@@ -896,15 +896,9 @@ class RapidPortfolioManager:
         pnl_pct = ((current_price - pos.entry_price) / pos.entry_price) * 100
         pnl_usd = (current_price - pos.entry_price) * pos.qty
 
-        # Calculate days held
-        try:
-            if 'T' in pos.entry_time:
-                entry_date = datetime.fromisoformat(pos.entry_time.split('T')[0])
-            else:
-                entry_date = datetime.strptime(pos.entry_time[:10], '%Y-%m-%d')
-        except:
-            entry_date = datetime.now()
-        days_held = (datetime.now() - entry_date).days
+        # Use engine's days_held (ET-based, set by pdt_guard.get_days_held in _check_position)
+        # Do NOT recalculate from datetime.now() — Bangkok local time causes off-by-one vs ET
+        days_held = pos.days_held
 
         # Determine exit signal
         signal = ExitSignal.HOLD
@@ -1174,15 +1168,8 @@ class RapidPortfolioManager:
                 pnl_pct = ((current_price - pos.entry_price) / pos.entry_price) * 100
                 pnl_usd = (current_price - pos.entry_price) * pos.qty
 
-                # Calculate days held
-                try:
-                    if 'T' in pos.entry_time:
-                        entry_date = datetime.fromisoformat(pos.entry_time.split('T')[0])
-                    else:
-                        entry_date = datetime.strptime(pos.entry_time[:10], '%Y-%m-%d')
-                except:
-                    entry_date = datetime.now()
-                days_held = (datetime.now() - entry_date).days
+                # Use engine's days_held (ET-based, set by pdt_guard.get_days_held in _check_position)
+                days_held = pos.days_held
 
                 # Determine exit signal (same logic as analyze_position)
                 signal = ExitSignal.HOLD
