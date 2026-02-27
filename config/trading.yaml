@@ -401,7 +401,7 @@ ped_days_before_min: 5            # v6.58: D-4 WR3d=38% (bad at PED exit), D-5 o
 ped_days_before_max: 5            # Buy at exactly D-5 before earnings
 ped_rsi_min: 35.0                 # Avoid oversold
 ped_rsi_max: 65.0                 # Avoid overbought
-ped_volume_ratio_min: 0.8         # Normal volume (no unusual selling)
+ped_volume_ratio_min: 1.0         # v6.58: 0.8→1.0 (match DIP quality threshold)
 ped_max_slippage_pct: 1.5         # v6.55: Cancel if live price < signal price by >1.5% (gap-down filter)
 
 # =============================================================================
