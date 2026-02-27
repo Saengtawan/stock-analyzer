@@ -409,6 +409,10 @@ class AutoTradingEngine:
 
     # Simulated capital
     SIMULATED_CAPITAL: float
+    SIMULATED_CAPITAL_DIP: int
+    SIMULATED_CAPITAL_OVN: int
+    SIMULATED_CAPITAL_PEM: int
+    SIMULATED_CAPITAL_PED: int
 
     # Monitor interval
     MONITOR_INTERVAL_SECONDS: int
@@ -714,6 +718,11 @@ class AutoTradingEngine:
         self.RISK_PARITY_ENABLED = cfg.risk_parity_enabled
         self.RISK_BUDGET_PCT = cfg.risk_budget_pct
         self.SIMULATED_CAPITAL = cfg.simulated_capital
+        # v6.63: Per-strategy budget allocation
+        self.SIMULATED_CAPITAL_DIP = getattr(cfg, 'simulated_capital_dip', 2500)
+        self.SIMULATED_CAPITAL_OVN = getattr(cfg, 'simulated_capital_ovn', 1500)
+        self.SIMULATED_CAPITAL_PEM = getattr(cfg, 'simulated_capital_pem', 500)
+        self.SIMULATED_CAPITAL_PED = getattr(cfg, 'simulated_capital_ped', 500)
         self.PDT_TP_THRESHOLD = cfg.pdt_tp_threshold
         self.TRAIL_ENABLED = cfg.trail_enabled
         
@@ -2547,8 +2556,17 @@ class AutoTradingEngine:
         Returns:
             Position value in USD (0 if insufficient cash)
         """
-        # Get available cash
-        available_cash = self._calculate_available_cash()
+        # v6.63: When simulated, use OVN-specific budget (not all-positions cash)
+        if self.SIMULATED_CAPITAL:
+            with self._positions_lock:
+                ovn_deployed = sum(
+                    getattr(p, 'qty', 0) * getattr(p, 'entry_price', 0)
+                    for p in self.positions.values()
+                    if getattr(p, 'source', '') == SignalSource.OVERNIGHT_GAP
+                )
+            available_cash = max(0, capital - ovn_deployed)
+        else:
+            available_cash = self._calculate_available_cash()
 
         # Check minimum cash threshold
         if available_cash < self.OVERNIGHT_GAP_MIN_CASH:
@@ -2558,17 +2576,13 @@ class AutoTradingEngine:
             )
             return 0
 
-        # Calculate max allowed (cap at % of total capital)
-        max_allowed = capital * (self.OVERNIGHT_GAP_MAX_PCT_OF_CAPITAL / 100)
-
-        # Use ALL available cash, but respect cap
-        position_value = min(available_cash, max_allowed)
+        # Use ALL available OVN budget (no further cap needed — budget IS the cap)
+        position_value = available_cash
 
         logger.info(
             f"💰 Overnight gap adaptive sizing: "
-            f"available=${available_cash:.0f}, "
-            f"cap=${max_allowed:.0f} ({self.OVERNIGHT_GAP_MAX_PCT_OF_CAPITAL:.0f}%), "
-            f"using=${position_value:.0f} ({position_value/capital*100:.1f}% of capital)"
+            f"available=${available_cash:.0f} (OVN budget=${capital:.0f}), "
+            f"using=${position_value:.0f}"
         )
 
         return position_value
@@ -2587,21 +2601,26 @@ class AutoTradingEngine:
         # v6.31: Check if this is an overnight gap signal
         sl_method = getattr(signal, 'sl_method', '')
         if 'overnight_gap' in sl_method:
-            # Use adaptive sizing for overnight gap
+            # Use adaptive sizing for overnight gap — v6.63: use OVN budget
             account = self.broker.get_account()
             if isinstance(account, dict):
                 portfolio_value = float(account.get('portfolio_value', 0))
             else:
                 portfolio_value = float(getattr(account, 'portfolio_value', 0))
-            total_capital = self.SIMULATED_CAPITAL if self.SIMULATED_CAPITAL else portfolio_value
+            total_capital = self.SIMULATED_CAPITAL_OVN if self.SIMULATED_CAPITAL else portfolio_value
 
             position_value = self._get_overnight_position_size(signal, total_capital)
             if position_value == 0:
                 return 0, 'INSUFFICIENT_CASH'
 
-            # Return as percentage
+            # Return as percentage of OVN budget
             position_pct = (position_value / total_capital) * 100
             return position_pct, 'OVERNIGHT_ADAPTIVE'
+
+        # v6.63: PEM/PED — use 100% of their dedicated budget (handled by _exec_calculate_position)
+        signal_source = self._derive_signal_source(signal)
+        if signal_source in (SignalSource.PEM, SignalSource.PED):
+            return 100.0, 'DEDICATED_FULL_BUDGET'
 
         # Standard conviction sizing for dip-bounce
         if not self.CONVICTION_SIZING_ENABLED:
@@ -4489,15 +4508,34 @@ class AutoTradingEngine:
             portfolio_value = getattr(account, 'portfolio_value', 0)
 
         if self.SIMULATED_CAPITAL:
-            # v6.62: Subtract already-deployed capital so each new trade
-            # doesn't over-allocate from the same $5k budget.
-            already_deployed = sum(
-                getattr(p, 'qty', 0) * getattr(p, 'entry_price', 0)
-                for p in self.positions.values()
-            )
-            available_simulated = max(0, self.SIMULATED_CAPITAL - already_deployed)
+            # v6.63: Per-strategy budget — each strategy draws only from its own slice.
+            signal_source = self._derive_signal_source(signal)
+            _DEDICATED = (SignalSource.OVERNIGHT_GAP, SignalSource.PEM, SignalSource.PED)
+            _BUDGETS = {
+                SignalSource.OVERNIGHT_GAP: self.SIMULATED_CAPITAL_OVN,
+                SignalSource.PEM: self.SIMULATED_CAPITAL_PEM,
+                SignalSource.PED: self.SIMULATED_CAPITAL_PED,
+            }
+            strategy_budget = _BUDGETS.get(signal_source, self.SIMULATED_CAPITAL_DIP)
+            with self._positions_lock:
+                if signal_source in _DEDICATED:
+                    already_deployed = sum(
+                        getattr(p, 'qty', 0) * getattr(p, 'entry_price', 0)
+                        for p in self.positions.values()
+                        if getattr(p, 'source', '') == signal_source
+                    )
+                else:
+                    already_deployed = sum(
+                        getattr(p, 'qty', 0) * getattr(p, 'entry_price', 0)
+                        for p in self.positions.values()
+                        if getattr(p, 'source', '') not in _DEDICATED
+                    )
+            available_simulated = max(0, strategy_budget - already_deployed)
             capital = min(available_simulated, real_buying_power)
-            logger.debug(f"Simulated capital: ${self.SIMULATED_CAPITAL:,.0f} - deployed=${already_deployed:,.0f} = available=${available_simulated:,.0f}")
+            logger.debug(
+                f"[{signal_source}] budget=${strategy_budget:,.0f} - "
+                f"deployed=${already_deployed:,.0f} = avail=${available_simulated:,.0f}"
+            )
         else:
             capital = portfolio_value
 

@@ -148,6 +148,11 @@ rapid_rotation:
 max_positions: 2               # v6.31: 3→2 for $5k account (adaptive with overnight gap)
 position_size_pct: 30          # v6.31: 42→30 for $5k account (leaves room for overnight)
 simulated_capital: 5000        # v6.30: 4000→5000 (updated capital)
+# v6.63: Per-strategy budget allocation (sum = simulated_capital)
+simulated_capital_dip: 2500   # DIP pool (2 positions × up to $1,250)
+simulated_capital_ovn: 1500   # OVN dedicated slot
+simulated_capital_pem: 500    # PEM dedicated slot (rare, high-conviction)
+simulated_capital_ped: 500    # PED dedicated slot (pre-earnings)
 
 # -- Risk-Parity Sizing (v4.9) -- Legacy feature-specific settings
 risk_parity_enabled: true      # Keep risk parity enabled for safety

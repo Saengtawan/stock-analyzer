@@ -97,6 +97,11 @@ class RapidRotationConfig:
     position_size_pct: float = 40.0     # Position size (% of equity, legacy)
     max_position_pct: float = 50.0      # Max position size (% of equity, legacy: 50)
     simulated_capital: Optional[int] = 4000  # Simulated capital (null = use real account)
+    # v6.63: Per-strategy budget allocation (sum = simulated_capital)
+    simulated_capital_dip: int = 2500   # DIP pool (2 positions × up to $1,250)
+    simulated_capital_ovn: int = 1500   # OVN dedicated slot
+    simulated_capital_pem: int = 500    # PEM dedicated slot (rare, high-conviction)
+    simulated_capital_ped: int = 500    # PED dedicated slot (pre-earnings)
     risk_parity_enabled: bool = True    # Enable risk-parity sizing
     risk_budget_pct: float = 1.0        # Max risk per position (% of account)
 
