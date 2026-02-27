@@ -1000,6 +1000,41 @@ class AutoTradingEngine:
         """Persist all ManagedPosition state to DB (single source of truth)."""
         self._sync_active_positions_db()
 
+    def _write_trade_event(self, event_type: str, symbol: str, price: float, qty: int,
+                           pnl_pct: float = 0.0, pnl_usd: float = 0.0,
+                           strategy: str = '', reason: str = ''):
+        """v6.68: Write BUY/SELL event to DB for real-time UI notification (≤2s latency)."""
+        try:
+            import sqlite3
+            from pathlib import Path
+            db_path = str(Path(__file__).resolve().parent.parent / 'data' / 'trade_history.db')
+            with sqlite3.connect(db_path) as conn:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS trade_events (
+                        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                        event_type TEXT NOT NULL,
+                        symbol   TEXT NOT NULL,
+                        price    REAL,
+                        qty      INTEGER,
+                        pnl_pct  REAL DEFAULT 0,
+                        pnl_usd  REAL DEFAULT 0,
+                        strategy TEXT DEFAULT '',
+                        reason   TEXT DEFAULT '',
+                        created_at TEXT NOT NULL,
+                        notified INTEGER DEFAULT 0
+                    )
+                """)
+                conn.execute("""
+                    INSERT INTO trade_events
+                        (event_type, symbol, price, qty, pnl_pct, pnl_usd, strategy, reason, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (event_type, symbol, float(price), int(qty),
+                      float(pnl_pct), float(pnl_usd), str(strategy), str(reason),
+                      datetime.now().isoformat()))
+                conn.commit()
+        except Exception as e:
+            logger.debug(f"Trade event write failed (non-critical): {e}")
+
     # Engine sources that this engine owns (do NOT touch rapid_trader positions)
     _ENGINE_SOURCES = ('dip_bounce', 'vix_adaptive', 'mean_reversion', 'rapid_rotation', 'overnight_gap', 'pem', 'ped')
 
@@ -4822,6 +4857,9 @@ class AutoTradingEngine:
                 del self.positions[symbol]
                 raise  # Re-raise to caller
 
+        # v6.68: Real-time UI notification via trade_events DB table
+        strategy = getattr(managed_pos, 'source', 'dip_bounce')
+        self._write_trade_event('BUY', symbol, entry_price, qty, strategy=strategy)
         return True
 
     def _exec_post_trade_logging(self, signal, buy_order, entry_price: float, qty: int,
@@ -6209,6 +6247,11 @@ class AutoTradingEngine:
                 SignalRepository().update_status_by_symbol(symbol, 'closed', reason)
             except Exception:
                 pass
+
+            # v6.68: Real-time UI notification via trade_events DB table
+            self._write_trade_event('SELL', symbol, exit_price, actual_qty,
+                                    pnl_pct=pnl_pct, pnl_usd=pnl_usd,
+                                    strategy=pos_source, reason=reason)
 
             # Re-verify position is actually gone from Alpaca before opening new
             try:

@@ -1251,6 +1251,7 @@ function initWebSocket() {
     socket.on('trade_event', function(data) {
         showTradeNotification(data);
         loadTradeLogs();
+        // positions_update arrives immediately after from server — no extra fetch needed
     });
     socket.on('price_update', function(data) { updateRealTimePrice(data); });
     socket.on('scan_progress', function(data) { updateScanProgress(data); });
@@ -1607,13 +1608,46 @@ function updateConnectionIndicator(connected) {
 }
 
 function showTradeNotification(data) {
+    const isBuy = data.type === 'BUY';
+    const strategyLabels = {
+        'dip_bounce': '[DIP]', 'overnight_gap': '[OVN]',
+        'pem': '[PEM]', 'ped': '[PED]', 'vix_adaptive': '[VIX]',
+        'mean_reversion': '[MR]', 'rapid_rotation': '[DIP]'
+    };
+    const stratTag = strategyLabels[data.strategy] || (data.strategy ? `[${data.strategy.toUpperCase()}]` : '');
+    const price = data.price ? `$${parseFloat(data.price).toFixed(2)}` : '';
+    const qty = data.qty ? `${data.qty} sh` : '';
+
+    let bodyHtml;
+    if (isBuy) {
+        bodyHtml = `<span class="fw-bold">${stratTag}</span> ${qty} @ ${price}`;
+    } else {
+        const pnl = parseFloat(data.pnl_pct || 0);
+        const pnlUsd = parseFloat(data.pnl_usd || 0);
+        const pnlSign = pnl >= 0 ? '+' : '';
+        const pnlColor = pnl >= 0 ? '#28a745' : '#dc3545';
+        const reasonShort = (data.reason || 'CLOSE').replace(/_/g, ' ').substring(0, 20);
+        bodyHtml = `<span class="fw-bold">${stratTag}</span> ${qty} @ ${price}<br>
+            <span style="color:${pnlColor};font-weight:bold;">${pnlSign}${pnl.toFixed(2)}% (${pnlSign}$${Math.abs(pnlUsd).toFixed(2)})</span>
+            <span class="text-muted ms-1" style="font-size:0.8em;">${reasonShort}</span>`;
+    }
+
+    const time = data.timestamp ? new Date(data.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+
     const toast = document.createElement('div');
     toast.className = 'toast position-fixed top-0 end-0 m-3';
     toast.setAttribute('role', 'alert');
-    toast.innerHTML = `<div class="toast-header ${data.type === 'BUY' ? 'bg-success text-white' : 'bg-danger text-white'}"><strong class="me-auto">${data.type === 'BUY' ? 'BUY' : 'SELL'} ${data.symbol}</strong><button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button></div><div class="toast-body">${data.type === 'BUY' ? 'Position opened' : 'Position closed'}</div>`;
+    toast.style.zIndex = '9999';
+    toast.style.minWidth = '240px';
+    toast.innerHTML = `
+        <div class="toast-header ${isBuy ? 'bg-success' : (parseFloat(data.pnl_pct||0) >= 0 ? 'bg-primary' : 'bg-danger')} text-white py-1">
+            <strong class="me-auto">${isBuy ? '🟢 BUY' : '🔴 SELL'} ${data.symbol}</strong>
+            <small class="opacity-75">${time}</small>
+            <button type="button" class="btn-close btn-close-white ms-2" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body py-2" style="font-size:0.85rem;">${bodyHtml}</div>`;
     document.body.appendChild(toast);
-    const bsToast = new bootstrap.Toast(toast, { delay: 5000 });
-    bsToast.show();
+    new bootstrap.Toast(toast, { delay: 8000 }).show();
     toast.addEventListener('hidden.bs.toast', () => toast.remove());
 }
 

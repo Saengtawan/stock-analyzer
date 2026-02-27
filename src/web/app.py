@@ -5079,6 +5079,30 @@ def broadcast_update(event_type, data):
     if connected_clients:
         socketio.emit(event_type, convert_numpy_types(data))  # v6.45: Convert numpy types before emit
 
+
+def _get_pending_trade_events():
+    """v6.68: Read unnotified trade events from DB and mark them as notified."""
+    try:
+        import sqlite3
+        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data', 'trade_history.db')
+        db_path = os.path.normpath(db_path)
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT * FROM trade_events WHERE notified = 0 ORDER BY id"
+            ).fetchall()
+            if rows:
+                ids = [r['id'] for r in rows]
+                conn.execute(
+                    f"UPDATE trade_events SET notified = 1 WHERE id IN ({','.join('?' * len(ids))})",
+                    ids
+                )
+                conn.commit()
+            return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+
 def background_monitor():
     """Background thread that monitors for changes and broadcasts updates"""
     global monitor_running
@@ -5086,78 +5110,83 @@ def background_monitor():
     last_positions = {}
     last_signals_count = 0
     last_regime = None
-    update_interval = 10  # seconds between checks
-    sync_counter = 0
-    sync_interval = 3  # Sync with Alpaca every 3 cycles (30 seconds)
-    # Skip trade_event on first position load so existing positions at
-    # startup don't trigger spurious BUY snack messages
     first_position_load = True
+    # v6.68: Two-speed loop — trade events every 2s, heavy checks every 10s
+    trade_check_interval = 2   # seconds between trade_event checks
+    heavy_check_every = 5      # run full position/signal/status check every N trade-check cycles
+    heavy_counter = 0
+    sync_counter = 0
+    sync_interval = 15         # Sync with Alpaca every 15 heavy cycles (150s)
 
-    logger.info("WebSocket background monitor started")
+    logger.info("WebSocket background monitor started (v6.68: trade events every 2s)")
 
     while monitor_running:
         try:
             if connected_clients:
-                # Periodically sync portfolio with Alpaca (every 30 seconds)
-                sync_counter += 1
-                if sync_counter >= sync_interval:
-                    sync_counter = 0
-                    changes = sync_portfolio_with_alpaca()
-                    if changes:
-                        logger.info(f"Auto-synced {len(changes)} position changes from Alpaca")
+                heavy_counter += 1
 
-                # Check positions
-                positions_data = get_positions_data()
-                current_positions = {s['symbol']: s for s in positions_data.get('statuses', [])}
+                # ── v6.68: Trade events check (every 2s) ──────────────────────
+                pending = _get_pending_trade_events()
+                if pending:
+                    for ev in pending:
+                        broadcast_update('trade_event', {
+                            'type':     ev['event_type'],
+                            'symbol':   ev['symbol'],
+                            'price':    ev['price'],
+                            'qty':      ev['qty'],
+                            'pnl_pct':  ev.get('pnl_pct', 0),
+                            'pnl_usd':  ev.get('pnl_usd', 0),
+                            'strategy': ev.get('strategy', ''),
+                            'reason':   ev.get('reason', ''),
+                            'timestamp': ev['created_at'],
+                        })
+                    # Immediately refresh positions panel after a trade
+                    positions_data = get_positions_data()
+                    broadcast_update('positions_update', positions_data)
+                    current_positions = {s['symbol']: s for s in positions_data.get('statuses', [])}
+                    last_positions = current_positions.copy()
+                    first_position_load = False
 
-                # Detect position changes
-                if current_positions != last_positions:
-                    if first_position_load:
-                        # First load: treat all positions as already known
-                        logger.info(f"Background monitor: first load, {len(current_positions)} existing positions (no trade events)")
-                        broadcast_update('positions_update', positions_data)
-                        last_positions = current_positions.copy()
-                        first_position_load = False
-                    else:
-                        # Detect changes BEFORE updating last_positions
-                        new_symbols = set(current_positions.keys()) - set(last_positions.keys())
-                        closed_symbols = set(last_positions.keys()) - set(current_positions.keys())
+                # ── Heavy check (every 10s) ───────────────────────────────────
+                if heavy_counter >= heavy_check_every:
+                    heavy_counter = 0
 
-                        broadcast_update('positions_update', positions_data)
-                        last_positions = current_positions.copy()
+                    # Periodically sync portfolio with Alpaca
+                    sync_counter += 1
+                    if sync_counter >= sync_interval:
+                        sync_counter = 0
+                        changes = sync_portfolio_with_alpaca()
+                        if changes:
+                            logger.info(f"Auto-synced {len(changes)} position changes from Alpaca")
 
-                        for symbol in new_symbols:
-                            broadcast_update('trade_event', {
-                                'type': 'BUY',
-                                'symbol': symbol,
-                                'data': current_positions[symbol],
-                                'timestamp': datetime.now().isoformat()
-                            })
+                    # Check positions
+                    positions_data = get_positions_data()
+                    current_positions = {s['symbol']: s for s in positions_data.get('statuses', [])}
 
-                        for symbol in closed_symbols:
-                            broadcast_update('trade_event', {
-                                'type': 'SELL',
-                                'symbol': symbol,
-                                'timestamp': datetime.now().isoformat()
-                            })
+                    if current_positions != last_positions:
+                        if first_position_load:
+                            logger.info(f"Background monitor: first load, {len(current_positions)} existing positions (no trade events)")
+                            broadcast_update('positions_update', positions_data)
+                            last_positions = current_positions.copy()
+                            first_position_load = False
+                        else:
+                            broadcast_update('positions_update', positions_data)
+                            last_positions = current_positions.copy()
 
-                # Check signals (less frequently)
-                signals_data = get_signals_data()
-                if signals_data.get('count', 0) != last_signals_count:
-                    broadcast_update('signals_update', signals_data)
-                    last_signals_count = signals_data.get('count', 0)
+                    # Check signals
+                    signals_data = get_signals_data()
+                    if signals_data.get('count', 0) != last_signals_count:
+                        broadcast_update('signals_update', signals_data)
+                        last_signals_count = signals_data.get('count', 0)
 
-                # Check regime - always broadcast to keep VIX updated in UI
-                # (P3: VIX can change without regime flip)
-                regime_data = get_regime_data()
-                broadcast_update('regime_update', regime_data)
-                if regime_data.get('regime') != last_regime:
-                    last_regime = regime_data.get('regime')
+                    # Regime + status
+                    regime_data = get_regime_data()
+                    broadcast_update('regime_update', regime_data)
+                    if regime_data.get('regime') != last_regime:
+                        last_regime = regime_data.get('regime')
+                    broadcast_update('status_update', get_status_data())
 
-                # Broadcast status update
-                broadcast_update('status_update', get_status_data())
-
-            time.sleep(update_interval)
+            time.sleep(trade_check_interval)
 
         except Exception as e:
             logger.error(f"Background monitor error: {e}")
