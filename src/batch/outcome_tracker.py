@@ -498,7 +498,9 @@ def track_rejected_outcomes(dry_run: bool = False) -> int:
             ]
 
             outcome_1d = None
+            outcome_2d = None
             outcome_3d = None
+            outcome_4d = None
             outcome_5d = None
             max_gain = None
             max_dd = None
@@ -520,8 +522,12 @@ def track_rejected_outcomes(dry_run: bool = False) -> int:
 
                 if day_num == 0:
                     outcome_1d = round(pct, 2)
+                if day_num == 1:
+                    outcome_2d = round(pct, 2)
                 if day_num == 2:
                     outcome_3d = round(pct, 2)
+                if day_num == 3:
+                    outcome_4d = round(pct, 2)
                 if day_num == 4:
                     outcome_5d = round(pct, 2)
 
@@ -547,7 +553,9 @@ def track_rejected_outcomes(dry_run: bool = False) -> int:
                 "earnings_date": rej['earnings_date'],
                 "days_until_earnings": rej['days_until_earnings'],
                 "outcome_1d": outcome_1d,
+                "outcome_2d": outcome_2d,
                 "outcome_3d": outcome_3d,
+                "outcome_4d": outcome_4d,
                 "outcome_5d": outcome_5d,
                 "outcome_max_gain_5d": max_gain,
                 "outcome_max_dd_5d": max_dd,
@@ -758,7 +766,9 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
             ]
 
             outcome_1d = None
+            outcome_2d = None
             outcome_3d = None
+            outcome_4d = None
             outcome_5d = None
             max_gain = None
             max_dd = None
@@ -780,8 +790,12 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
 
                 if day_num == 0:
                     outcome_1d = round(pct, 2)
+                if day_num == 1:
+                    outcome_2d = round(pct, 2)
                 if day_num == 2:
                     outcome_3d = round(pct, 2)
+                if day_num == 3:
+                    outcome_4d = round(pct, 2)
                 if day_num == 4:
                     outcome_5d = round(pct, 2)
 
@@ -819,7 +833,9 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                 "days_until_earnings": days_until_earnings,  # v6.58: resolved (not raw sig field)
                 "earnings_gap_pct": earnings_gap_pct,
                 "outcome_1d": outcome_1d,
+                "outcome_2d": outcome_2d,
                 "outcome_3d": outcome_3d,
+                "outcome_4d": outcome_4d,
                 "outcome_5d": outcome_5d,
                 "outcome_max_gain_5d": max_gain,
                 "outcome_max_dd_5d": max_dd,

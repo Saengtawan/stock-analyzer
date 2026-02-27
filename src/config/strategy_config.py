@@ -398,8 +398,8 @@ class RapidRotationConfig:
     ped_scan_minute: int = 35                   # Scan minute (9:35 = after open)
     ped_max_positions: int = 1                  # Dedicated slot (not counted in DIP limit)
     ped_position_size_pct: float = 30.0         # Position size (% of equity)
-    ped_days_before_min: int = 4                # Buy at D-4 (4 trading days before earnings)
-    ped_days_before_max: int = 5                # Also allow D-5
+    ped_days_before_min: int = 5                # v6.58: D-4 WR3d=38% (bad), D-5 only
+    ped_days_before_max: int = 5                # Buy at exactly D-5 before earnings
     ped_rsi_min: float = 35.0                   # Avoid oversold
     ped_rsi_max: float = 65.0                   # Avoid overbought
     ped_volume_ratio_min: float = 0.8           # Normal volume (no unusual selling)
