@@ -361,7 +361,7 @@ breakout_scan_enabled: false
 # Exit: Same-day at market close (gap_trade=True → pre_close_check EOD exit)
 pem_enabled: true                # Enabled 2026-02-18
 pem_gap_threshold_pct: 8.0       # Minimum gap up % from prev close to open
-pem_volume_early_ratio_min: 0.30 # v6.64: 0.15→0.30 (at 9:35, 30% = ~5x by EOD → WR 48%→64%)
+pem_volume_early_ratio_min: 0.05 # v6.67: 0.30→0.05 (calibrated for 9:35: 5% of daily in 5min = ~4× normal rate)
 pem_scan_hour: 9                 # Scan at 9:35 ET (when open prices confirmed)
 pem_scan_minute: 35
 pem_max_positions: 1             # Max PEM positions at once (1-day hold, high conviction)

@@ -10,6 +10,12 @@ Backtest (2023-2025, 148 stocks):
 - Estimated monthly: ~$396 on $25k capital
 - Source: backtests/backtest_post_earnings_momentum.py
 
+v6.67: volume_early_ratio_min 0.30→0.05
+  Backtest calibrated on EOD volume; screener measures at 9:35 (5 min).
+  Observed ratios for major gap stocks: NFLX+11.6%=0.02x, DELL+13.1%=0.01x,
+  HCI+9.4%=0.11x. Threshold 0.30 was near-impossible at 9:35.
+  New 0.05 = stock trading at ~4× normal rate in first 5 min (meaningful filter).
+
 Exit: Same-day at market close (gap_trade=True → pre_close_check() closes at EOD)
 """
 
@@ -52,11 +58,11 @@ class PEMScreener:
         self.config = config or {}
 
         self.gap_threshold = float(self.config.get('pem_gap_threshold_pct', 8.0))
-        # Volume check: today's partial volume (9:35) / 20d avg.
-        # At 9:35 (~5 min of trading), earnings stocks typically have 30%+ of daily vol already.
-        # Normal stocks at 9:35 have ~5-10% of daily vol.
-        # Threshold 0.15 = "already 15% of daily avg in first 5 min" → ~2-3x by EOD.
-        self.volume_early_ratio_min = float(self.config.get('pem_volume_early_ratio_min', 0.15))
+        # Volume check: today's partial volume (9:35) / 20d avg full-day volume.
+        # At 9:35 (~5 min of 390-min session), baseline rate = 5/390 = 1.3% (0.013x).
+        # Threshold 0.05 = "already 5% of daily avg in first 5 min" → ~4× normal trading rate.
+        # Gap stocks at 9:35 observed: 0.01-0.11x (NFLX 0.02, DELL 0.01, HCI 0.11).
+        self.volume_early_ratio_min = float(self.config.get('pem_volume_early_ratio_min', 0.05))
 
         # Cache for 20d avg volume (expensive to fetch, cache per run)
         self._vol_cache: Dict[str, float] = {}
