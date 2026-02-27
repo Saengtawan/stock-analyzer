@@ -38,7 +38,7 @@ class PEMScreener:
     """
 
     DATA_DIR = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data'
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data'
     )
     PRE_FILTERED_FILE = os.path.join(DATA_DIR, 'pre_filtered.json')
 
