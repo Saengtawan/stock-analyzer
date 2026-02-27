@@ -101,6 +101,68 @@ def _fetch_price_history(symbol: str, start_date: str, end_date: str) -> Optiona
         return None
 
 
+def _fetch_next_earnings_date(symbol: str, after_date: str) -> Optional[int]:
+    """
+    Get trading days until next earnings after after_date.
+
+    Uses yfinance earnings_dates (includes past quarters) to find the
+    nearest upcoming earnings from the perspective of after_date.
+    Returns None if no earnings date found within 30 trading days.
+    """
+    try:
+        import yfinance as yf
+        import pandas as pd
+
+        ticker = yf.Ticker(symbol)
+        after_dt = pd.Timestamp(after_date)
+
+        # Try earnings_dates first (includes past + future quarters)
+        ed = None
+        try:
+            ed = ticker.earnings_dates
+        except Exception:
+            pass
+
+        if ed is not None and not ed.empty:
+            # earnings_dates is indexed by Timestamp (may be tz-aware America/New_York)
+            # Normalize index to tz-naive date strings for comparison
+            idx_dates = [i.strftime('%Y-%m-%d') if hasattr(i, 'strftime') else str(i)[:10]
+                         for i in ed.index]
+            upcoming_dates = [d for d in idx_dates if d > after_date]
+            if upcoming_dates:
+                next_earnings = min(upcoming_dates)
+                bdays = pd.bdate_range(start=after_date, end=next_earnings)
+                days = max(0, len(bdays) - 1)  # exclude after_date itself
+                return int(days) if days <= 30 else None
+
+        # Fallback: calendar (only gives next upcoming, not past)
+        try:
+            cal = ticker.calendar
+            if cal and isinstance(cal, dict):
+                dates = cal.get('Earnings Date')
+                if dates:
+                    if not isinstance(dates, (list, tuple)):
+                        dates = [dates]
+                    for ed_raw in sorted(dates):
+                        if hasattr(ed_raw, 'date'):
+                            ed_str = ed_raw.strftime('%Y-%m-%d')
+                        elif hasattr(ed_raw, 'strftime'):
+                            ed_str = ed_raw.strftime('%Y-%m-%d')
+                        else:
+                            ed_str = str(ed_raw)[:10]
+                        if ed_str > after_date:
+                            bdays = pd.bdate_range(start=after_date, end=ed_str)
+                            days = max(0, len(bdays) - 1)
+                            return int(days) if days <= 30 else None
+        except Exception:
+            pass
+
+        return None
+
+    except Exception:
+        return None
+
+
 def _load_json_file(filepath: str) -> list:
     """Load JSON file, return empty list on error."""
     try:
@@ -665,12 +727,30 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
             print("no data")
             continue
 
+        # v6.58: Populate days_until_earnings for signals that don't have it.
+        # PED signals already have it from screener; DIP/OVN/PEM signals don't.
+        # Cache per (symbol, scan_date) to avoid duplicate API calls.
+        earnings_days_cache: Dict[str, Optional[int]] = {}
+        needs_earnings_lookup = any(
+            sig.get('days_until_earnings') is None for sig in sigs
+        )
+        if needs_earnings_lookup:
+            # One lookup per unique scan_date for this symbol
+            unique_scan_dates = set(s['scan_date'] for s in sigs if s.get('days_until_earnings') is None)
+            for sd in unique_scan_dates:
+                earnings_days_cache[sd] = _fetch_next_earnings_date(symbol, sd)
+
         for sig in sigs:
             scan_price = sig['scan_price']
             if not scan_price or scan_price <= 0:
                 continue
 
             scan_date = sig['scan_date']
+
+            # v6.58: Resolve days_until_earnings (None for DIP/OVN signals, populated for PED)
+            days_until_earnings = sig.get('days_until_earnings')
+            if days_until_earnings is None and scan_date in earnings_days_cache:
+                days_until_earnings = earnings_days_cache[scan_date]
 
             # Use actual trading days from history (handles holidays correctly)
             post_scan_dates = [
@@ -710,11 +790,11 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
             if post_lows:
                 max_dd = round(min(post_lows), 2)
 
-            # v6.54: earnings_gap_pct for PED signals (gap on earnings day open)
+            # v6.54/v6.58: earnings_gap_pct for PED signals (gap on earnings day open)
+            # v6.58: also works for DIP/OVN signals that happened to be near earnings
             earnings_gap_pct = None
-            _due = sig.get('days_until_earnings')
-            if sig.get('signal_source') == 'ped' and _due and int(_due) > 0:
-                earn_trading_days = _get_trading_days_after(scan_date, int(_due))
+            if days_until_earnings and int(days_until_earnings) > 0:
+                earn_trading_days = _get_trading_days_after(scan_date, int(days_until_earnings))
                 if earn_trading_days:
                     earnings_date = earn_trading_days[-1]
                     if earnings_date <= today_str and earnings_date in history['dates']:
@@ -736,7 +816,7 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                 "score": sig['score'],
                 "signal_source": sig['signal_source'],
                 "scan_price": scan_price,
-                "days_until_earnings": sig.get('days_until_earnings'),
+                "days_until_earnings": days_until_earnings,  # v6.58: resolved (not raw sig field)
                 "earnings_gap_pct": earnings_gap_pct,
                 "outcome_1d": outcome_1d,
                 "outcome_3d": outcome_3d,
