@@ -915,7 +915,11 @@ class AutoTradingEngine:
         self.OVERNIGHT_GAP_MAX_PCT_OF_CAPITAL = cfg.overnight_gap_max_pct_of_capital
         self.OVERNIGHT_GAP_MIN_CASH = cfg.overnight_gap_min_cash
         self.OVERNIGHT_GAP_MAX_POSITIONS = cfg.overnight_gap_max_positions
-        
+        # v6.59: OVN exit improvements
+        self.OVN_GAP_DOWN_THRESHOLD = getattr(cfg, 'ovn_gap_down_threshold', -1.0)
+        self.OVN_TRAIL_ACTIVATION_PCT = getattr(cfg, 'ovn_trail_activation_pct', 0.0)
+        self.OVN_TRAIL_LOCK_PCT = getattr(cfg, 'ovn_trail_lock_pct', 90.0)
+
         # =====================================================================
         # BREAKOUT SCANNER
         # =====================================================================
@@ -1580,13 +1584,17 @@ class AutoTradingEngine:
 
                     if saved:
                         mp = self.positions[pos.symbol]
+                        # v6.59: OVN uses different trailing params at startup too
+                        _is_ovn_startup = getattr(mp, 'source', '') == SignalSource.OVERNIGHT_GAP
+                        _startup_trail_act = self.OVN_TRAIL_ACTIVATION_PCT if _is_ovn_startup else self.TRAIL_ACTIVATION_PCT
+                        _startup_trail_lock = self.OVN_TRAIL_LOCK_PCT if _is_ovn_startup else self.TRAIL_LOCK_PCT
                         # v6.47: Activate trailing at startup if already profitable enough
                         # (handles case where engine was offline when threshold was crossed)
                         if not mp.trailing_active and mp.peak_price > 0:
                             pnl_at_peak = ((mp.peak_price - mp.entry_price) / mp.entry_price) * 100
-                            if pnl_at_peak >= self.TRAIL_ACTIVATION_PCT:
+                            if pnl_at_peak >= _startup_trail_act:
                                 mp.trailing_active = True
-                                logger.info(f"📈 {pos.symbol}: Trailing activated on startup (peak gain {pnl_at_peak:+.2f}% >= {self.TRAIL_ACTIVATION_PCT}%)")
+                                logger.info(f"📈 {pos.symbol}: Trailing activated on startup (peak gain {pnl_at_peak:+.2f}% >= {_startup_trail_act}%)")
 
                         # v6.47: Safety check — if trailing SL would be above current price,
                         # trailing stop was breached while engine was offline DURING MARKET HOURS.
@@ -1594,7 +1602,7 @@ class AutoTradingEngine:
                         # so AH price below trail SL is normal volatility, NOT a breach.
                         if mp.trailing_active and mp.peak_price > 0 and self._is_market_hours():
                             gain_amount = mp.peak_price - mp.entry_price
-                            trailing_sl = mp.entry_price + gain_amount * (self.TRAIL_LOCK_PCT / 100)
+                            trailing_sl = mp.entry_price + gain_amount * (_startup_trail_lock / 100)
                             if trailing_sl > pos.current_price > 0:
                                 logger.warning(
                                     f"⚠️ {pos.symbol}: Trailing SL ${trailing_sl:.2f} > current ${pos.current_price:.2f} "
@@ -5565,6 +5573,11 @@ class AutoTradingEngine:
         pos_tp_pct = managed_pos.tp_pct or self.TAKE_PROFIT_PCT
         pos_tp_price = managed_pos.tp_price or (entry_price * (1 + pos_tp_pct / 100))
 
+        # v6.59: OVN uses different trailing params (immediate activation, 90% lock)
+        is_ovn = getattr(managed_pos, 'source', '') == SignalSource.OVERNIGHT_GAP
+        eff_trail_activation = self.OVN_TRAIL_ACTIVATION_PCT if is_ovn else self.TRAIL_ACTIVATION_PCT
+        eff_trail_lock = self.OVN_TRAIL_LOCK_PCT if is_ovn else self.TRAIL_LOCK_PCT
+
         # ==== PDT Smart Guard v2.0: Day 0 Handling ====
         if is_day0:
             # v4.9.4: Smart Day Trade — check before normal SL/TP
@@ -5587,7 +5600,8 @@ class AutoTradingEngine:
                 return
 
             # Day 0: Trailing stop (v6.10: internal tracking only, no broker order)
-            if self.TRAIL_ENABLED and not managed_pos.trailing_active and pnl_pct >= self.TRAIL_ACTIVATION_PCT:
+            # v6.59: OVN uses eff_trail_activation=0% (immediate), others use global 2%
+            if self.TRAIL_ENABLED and not managed_pos.trailing_active and pnl_pct >= eff_trail_activation:
                 managed_pos.trailing_active = True
                 _state_changed = True
                 logger.info(f"📈 {symbol} Day 0 trailing activated at {pnl_pct:+.2f}%")
@@ -5599,12 +5613,13 @@ class AutoTradingEngine:
             # so trail SL locked above entry is correctly enforced even if pnl dips below 2%.
             if managed_pos.trailing_active:
                 # Calculate what the trailing SL should be
+                # v6.59: OVN uses eff_trail_activation/eff_trail_lock (0%/90%)
                 trailing_sl, _ = self.broker.calculate_trailing_stop(
                     entry_price,
                     managed_pos.peak_price,
                     managed_pos.current_sl_price,  # v6.10: Pass current_stop parameter
-                    self.TRAIL_ACTIVATION_PCT,
-                    self.TRAIL_LOCK_PCT
+                    eff_trail_activation,
+                    eff_trail_lock
                 )
 
                 # If current price drops below trailing SL, close position
@@ -5654,7 +5669,8 @@ class AutoTradingEngine:
                 return
 
             # Check trailing activation (v5.6: can be disabled)
-            if self.TRAIL_ENABLED and not managed_pos.trailing_active and pnl_pct >= self.TRAIL_ACTIVATION_PCT:
+            # v6.59: OVN uses eff_trail_activation=0% (immediate), others use global 2%
+            if self.TRAIL_ENABLED and not managed_pos.trailing_active and pnl_pct >= eff_trail_activation:
                 managed_pos.trailing_active = True
                 _state_changed = True
                 logger.info(f"📈 {symbol} trailing activated at {pnl_pct:+.2f}%")
@@ -5662,12 +5678,13 @@ class AutoTradingEngine:
 
             # Update trailing stop (only if SL order exists and trailing enabled)
             if managed_pos.trailing_active and managed_pos.sl_order_id:
+                # v6.59: OVN uses eff_trail_activation/eff_trail_lock (0%/90%)
                 new_sl, _ = self.broker.calculate_trailing_stop(
                     entry_price,
                     managed_pos.peak_price,
                     managed_pos.current_sl_price,  # v6.10: Pass current_stop parameter
-                    self.TRAIL_ACTIVATION_PCT,
-                    self.TRAIL_LOCK_PCT
+                    eff_trail_activation,
+                    eff_trail_lock
                 )
 
                 # v6.17: Only update if new SL is meaningfully higher (prevents order spam)
@@ -5699,12 +5716,21 @@ class AutoTradingEngine:
         # Check days held (update for display)
         managed_pos.days_held = days_held
 
-        # v4.9.4: Overnight gap position — sell at open next day (9:31-10:00 ET)
-        if getattr(managed_pos, 'source', '') == SignalSource.OVERNIGHT_GAP and days_held >= 1:
+        # v6.59: OVN exit strategy (replaces fixed 9:31 exit)
+        if is_ovn and days_held >= 1:
             et_now = self._get_et_time()
-            if (et_now.hour == 9 and et_now.minute >= 31) or (et_now.hour == 10 and et_now.minute < 1):
-                logger.info(f"OVERNIGHT_GAP_EXIT: {symbol} Day {days_held}, P&L {pnl_pct:+.2f}%")
-                self._close_position(symbol, managed_pos, "OVERNIGHT_GAP_EXIT")
+            # 1) Gap-down at open: sell immediately if price < entry * (1 + threshold%)
+            #    Data: threshold=-1.0% separates non-recoverers (WERN/RNG/LULU) from recoverers (GOOGL/CMS/QCOM)
+            if et_now.hour == 9 and 30 <= et_now.minute <= 35:
+                gap_pct = pnl_pct  # pnl_pct already = (current-entry)/entry*100
+                if gap_pct < self.OVN_GAP_DOWN_THRESHOLD:
+                    logger.info(f"OVN_GAP_DOWN: {symbol} gap {gap_pct:+.2f}% < {self.OVN_GAP_DOWN_THRESHOLD}% threshold → exit")
+                    self._close_position(symbol, managed_pos, "OVN_GAP_DOWN")
+                    return
+            # 2) Force-close at 3:20 PM ET — before the 3:30 OVN scan to free up the slot
+            if et_now.hour == 15 and 20 <= et_now.minute <= 29:
+                logger.info(f"OVN_FORCE_CLOSE_PRE_SCAN: {symbol} Day {days_held}, P&L {pnl_pct:+.2f}% — closing before OVN scan")
+                self._close_position(symbol, managed_pos, "OVN_FORCE_CLOSE_PRE_SCAN")
                 return
 
         # Time exit (only for Day 1+)

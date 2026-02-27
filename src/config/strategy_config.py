@@ -368,6 +368,10 @@ class RapidRotationConfig:
     overnight_gap_max_pct_of_capital: float = 70.0  # Max % of total capital for overnight
     overnight_gap_min_cash: float = 500.0       # Min cash required to enter overnight position
     overnight_gap_max_positions: int = 1        # Max overnight positions at once
+    # v6.59: OVN exit improvements
+    ovn_gap_down_threshold: float = -1.0       # Sell if gap down > this% from entry at open
+    ovn_trail_activation_pct: float = 0.0      # OVN trailing activates immediately
+    ovn_trail_lock_pct: float = 90.0           # OVN locks 90% of peak gains
 
     # =========================================================================
     # BREAKOUT SCANNER (v4.9.4)

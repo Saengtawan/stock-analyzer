@@ -342,6 +342,9 @@ overnight_gap_min_cash: 500             # v6.31: Skip if available cash < $500
 overnight_gap_max_positions: 1          # v6.34: Dedicated slot (not counted in dip-bounce limit)
 overnight_gap_target_pct: 3.0
 overnight_gap_sl_pct: 1.5
+ovn_gap_down_threshold: -1.0     # v6.59: Sell immediately if gap down > 1% from entry at open
+ovn_trail_activation_pct: 0.0    # v6.59: Trailing activates immediately (was 2.0%)
+ovn_trail_lock_pct: 90.0         # v6.59: Lock 90% of peak gains (was 80%)
 
 # -- Breakout Scanner (Step 7) --
 # DISABLED 2026-02-18: Backtest shows -0.413% expectancy (no edge, hurts portfolio)
