@@ -940,6 +940,9 @@ class AutoTradingEngine:
         self.PEM_MAX_POSITIONS = getattr(cfg, 'pem_max_positions', 1)
         self.PEM_POSITION_SIZE_PCT = getattr(cfg, 'pem_position_size_pct', 33.0)
         self.PEM_SL_PCT = getattr(cfg, 'pem_sl_pct', 5.0)
+        # v6.60: PEM trailing
+        self.PEM_TRAIL_ACTIVATION_PCT = getattr(cfg, 'pem_trail_activation_pct', 2.0)
+        self.PEM_TRAIL_LOCK_PCT = getattr(cfg, 'pem_trail_lock_pct', 80.0)
 
         # =====================================================================
         # PRE-EARNINGS DRIFT (PED) STRATEGY (v6.53)
@@ -1584,10 +1587,17 @@ class AutoTradingEngine:
 
                     if saved:
                         mp = self.positions[pos.symbol]
-                        # v6.59: OVN uses different trailing params at startup too
-                        _is_ovn_startup = getattr(mp, 'source', '') == SignalSource.OVERNIGHT_GAP
-                        _startup_trail_act = self.OVN_TRAIL_ACTIVATION_PCT if _is_ovn_startup else self.TRAIL_ACTIVATION_PCT
-                        _startup_trail_lock = self.OVN_TRAIL_LOCK_PCT if _is_ovn_startup else self.TRAIL_LOCK_PCT
+                        # v6.59/v6.60: Per-strategy trailing params at startup
+                        _startup_src = getattr(mp, 'source', '')
+                        if _startup_src == SignalSource.OVERNIGHT_GAP:
+                            _startup_trail_act = self.OVN_TRAIL_ACTIVATION_PCT
+                            _startup_trail_lock = self.OVN_TRAIL_LOCK_PCT
+                        elif _startup_src == SignalSource.PEM:
+                            _startup_trail_act = self.PEM_TRAIL_ACTIVATION_PCT
+                            _startup_trail_lock = self.PEM_TRAIL_LOCK_PCT
+                        else:
+                            _startup_trail_act = self.TRAIL_ACTIVATION_PCT
+                            _startup_trail_lock = self.TRAIL_LOCK_PCT
                         # v6.47: Activate trailing at startup if already profitable enough
                         # (handles case where engine was offline when threshold was crossed)
                         if not mp.trailing_active and mp.peak_price > 0:
@@ -5573,10 +5583,22 @@ class AutoTradingEngine:
         pos_tp_pct = managed_pos.tp_pct or self.TAKE_PROFIT_PCT
         pos_tp_price = managed_pos.tp_price or (entry_price * (1 + pos_tp_pct / 100))
 
-        # v6.59: OVN uses different trailing params (immediate activation, 90% lock)
-        is_ovn = getattr(managed_pos, 'source', '') == SignalSource.OVERNIGHT_GAP
-        eff_trail_activation = self.OVN_TRAIL_ACTIVATION_PCT if is_ovn else self.TRAIL_ACTIVATION_PCT
-        eff_trail_lock = self.OVN_TRAIL_LOCK_PCT if is_ovn else self.TRAIL_LOCK_PCT
+        # v6.59/v6.60: Per-strategy trailing params
+        # OVN: 0%/90% (immediate, tight lock)
+        # PEM: 2%/80% (avoid opening volatility, EOD as fallback)
+        # Others: global 2%/80%
+        _src = getattr(managed_pos, 'source', '')
+        is_ovn = _src == SignalSource.OVERNIGHT_GAP
+        is_pem = _src == SignalSource.PEM
+        if is_ovn:
+            eff_trail_activation = self.OVN_TRAIL_ACTIVATION_PCT
+            eff_trail_lock = self.OVN_TRAIL_LOCK_PCT
+        elif is_pem:
+            eff_trail_activation = self.PEM_TRAIL_ACTIVATION_PCT
+            eff_trail_lock = self.PEM_TRAIL_LOCK_PCT
+        else:
+            eff_trail_activation = self.TRAIL_ACTIVATION_PCT
+            eff_trail_lock = self.TRAIL_LOCK_PCT
 
         # ==== PDT Smart Guard v2.0: Day 0 Handling ====
         if is_day0:

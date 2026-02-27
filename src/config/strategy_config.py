@@ -393,6 +393,9 @@ class RapidRotationConfig:
     pem_max_positions: int = 1                  # Max PEM positions at once
     pem_position_size_pct: float = 33.0         # Position size (% of equity)
     pem_sl_pct: float = 5.0                     # Stop loss % (wider for earnings day)
+    # v6.60: PEM trailing (keep EOD as fallback)
+    pem_trail_activation_pct: float = 2.0       # Trailing activates at +2% (avoids opening volatility)
+    pem_trail_lock_pct: float = 80.0            # Lock 80% of peak gains
 
     # =========================================================================
     # PRE-EARNINGS DRIFT (PED) STRATEGY (v6.53)

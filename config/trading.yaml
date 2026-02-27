@@ -362,6 +362,8 @@ pem_scan_minute: 35
 pem_max_positions: 1             # Max PEM positions at once (1-day hold, high conviction)
 pem_position_size_pct: 30.0      # v6.32: 42→30 for $5k account consistency
 pem_sl_pct: 5.0                  # Stop loss % (wider for volatile earnings day)
+pem_trail_activation_pct: 2.0    # v6.60: Trailing activates at +2% (avoids opening volatility)
+pem_trail_lock_pct: 80.0         # v6.60: Lock 80% of peak gains
 breakout_min_volume_mult: 1.5
 breakout_min_score: 75
 breakout_target_pct: 8.0
