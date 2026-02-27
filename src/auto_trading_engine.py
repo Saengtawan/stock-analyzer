@@ -7596,6 +7596,99 @@ class AutoTradingEngine:
             import traceback
             logger.error(traceback.format_exc())
 
+    def _loop_earnings_calendar_refresh(self, today: str):
+        """
+        v6.66: Refresh earnings calendar DB once per day at 7 AM ET.
+
+        Runs incremental refresh — only stale symbols (>26h since last fetch).
+        Typical: ~3-5s for ~20-50 stale symbols per day.
+
+        Requires DB seeded first: python3 src/batch/fetch_earnings_dates.py
+        """
+        if not self.PED_ENABLED:
+            return
+        if hasattr(self, '_earnings_refresh_done') and self._earnings_refresh_done == today:
+            return
+
+        et_now = self._get_et_time()
+        # Run at 7:00 AM ET (before pre-open pre-filter at 9:00 AM)
+        refresh_time = et_now.replace(hour=7, minute=0, second=0, microsecond=0)
+        refresh_end = et_now.replace(hour=8, minute=30, second=0, microsecond=0)
+        if et_now < refresh_time or et_now > refresh_end:
+            return
+
+        self._earnings_refresh_done = today
+        logger.info("📅 Earnings calendar refresh START (v6.66)")
+
+        try:
+            from database.repositories.earnings_calendar_repository import EarningsCalendarRepository
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            import yfinance as yf
+
+            repo = EarningsCalendarRepository()
+
+            # Load universe
+            universe_file = os.path.join(self.DATA_DIR, 'full_universe_cache.json')
+            with open(universe_file) as f:
+                universe = list(json.load(f).keys())
+
+            # Only refresh stale symbols (>26h old or missing)
+            to_fetch = repo.get_stale_symbols(universe, max_age_hours=26.0)
+            if not to_fetch:
+                logger.info(f"📅 Earnings calendar: all {len(universe)} symbols up to date")
+                return
+
+            logger.info(f"📅 Earnings calendar: refreshing {len(to_fetch)}/{len(universe)} stale symbols")
+
+            def _fetch_one(symbol: str):
+                from datetime import date as _date, datetime as _datetime
+                today_d = _date.today()
+                try:
+                    ticker = yf.Ticker(symbol)
+                    ed = ticker.earnings_dates
+                    if ed is not None and not ed.empty:
+                        future = sorted([
+                            _datetime.strptime(i.strftime('%Y-%m-%d'), '%Y-%m-%d').date()
+                            for i in ed.index
+                            if i.strftime('%Y-%m-%d') > today_d.strftime('%Y-%m-%d')
+                        ])
+                        if future:
+                            return symbol, future[0].isoformat()
+                    cal = ticker.calendar
+                    if cal and isinstance(cal, dict):
+                        dates = cal.get('Earnings Date', [])
+                        if not isinstance(dates, (list, tuple)):
+                            dates = [dates]
+                        for d in dates:
+                            if hasattr(d, 'date'):
+                                d = d.date()
+                            elif isinstance(d, str):
+                                d = _datetime.strptime(d[:10], '%Y-%m-%d').date()
+                            if d > today_d:
+                                return symbol, d.isoformat()
+                    return symbol, None
+                except Exception:
+                    return symbol, None
+
+            results = {}
+            with ThreadPoolExecutor(max_workers=30) as ex:
+                futures = {ex.submit(_fetch_one, sym): sym for sym in to_fetch}
+                for future in as_completed(futures):
+                    sym, dt = future.result()
+                    results[sym] = dt
+
+            written = repo.upsert_batch(results)
+            found = sum(1 for v in results.values() if v)
+            logger.info(
+                f"📅 Earnings calendar refresh DONE: {written} updated, "
+                f"{found} with upcoming earnings (DB total: {repo.count()})"
+            )
+
+        except Exception as e:
+            logger.error(f"❌ Earnings calendar refresh FAILED: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+
     def _run_loop(self):
         """Main trading loop (v6.6 refactored)"""
         logger.info("Trading loop started")
@@ -7638,6 +7731,8 @@ class AutoTradingEngine:
                     self._loop_evening_prefilter(_closed_today)
                     # Pre-filter pre-open scan (09:00 ET, before open) — re-validate ~200 stocks
                     self._loop_pre_open_prefilter(_closed_today)
+                    # v6.66: Refresh earnings calendar DB at 7 AM ET (for PED full universe)
+                    self._loop_earnings_calendar_refresh(_closed_today)
                     # v6.37: Write cron schedule even when market closed
                     self._write_heartbeat()
                     time.sleep(60)
