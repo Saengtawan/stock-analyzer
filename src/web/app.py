@@ -4732,8 +4732,18 @@ def _build_positions_from_engine():
     This is the single source of truth — used by both REST and WebSocket.
 
     v4.8: Added fallback to RapidPortfolioManager when engine not running
+    v6.56: Refresh positions from DB so app.py reflects nohup engine's current state
     """
     engine = get_auto_trading_engine()
+
+    # v6.56: Re-load positions from DB on every call so the app.py engine
+    # stays in sync with the nohup engine process (which manages all positions).
+    if engine:
+        try:
+            engine._load_positions_state()
+        except Exception as _e:
+            logger.debug(f"Position refresh from DB failed (non-critical): {_e}")
+
     if not engine or not engine.positions:
         # v4.8: Fallback to RapidPortfolioManager (reads from rapid_portfolio.json)
         logger.debug("Engine not running, falling back to RapidPortfolioManager")
