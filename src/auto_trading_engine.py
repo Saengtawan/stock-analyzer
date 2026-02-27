@@ -5657,6 +5657,22 @@ class AutoTradingEngine:
 
             # Day 0: Manual SL monitoring (no SL order at Alpaca)
             if pnl_pct <= -pos_sl_pct:
+                # v6.65: If PEM is active, skip day-0 SL for DIP to preserve PDT for PEM exit.
+                # DIP holds overnight — loses day-trade budget protection, gains PDT for PEM.
+                _src = getattr(managed_pos, 'source', 'dip_bounce')
+                _is_dip = _src not in ('pem', 'overnight_gap', 'ped')
+                if _is_dip:
+                    with self._positions_lock:
+                        _has_pem = any(
+                            getattr(p, 'source', '') == 'pem'
+                            for p in self.positions.values()
+                        )
+                    if _has_pem:
+                        logger.warning(
+                            f"⏸ {symbol} Day0 SL {pnl_pct:.2f}% — PEM active, "
+                            f"skip sell → hold overnight (PDT reserved for PEM)"
+                        )
+                        return
                 logger.warning(f"🛑 {symbol} Day 0 SL hit at {pnl_pct:.2f}% (SL: -{pos_sl_pct}%)")
                 self._close_position(symbol, managed_pos, "DAY0_SL")
                 return
