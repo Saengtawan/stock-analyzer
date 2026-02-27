@@ -4489,7 +4489,15 @@ class AutoTradingEngine:
             portfolio_value = getattr(account, 'portfolio_value', 0)
 
         if self.SIMULATED_CAPITAL:
-            capital = min(self.SIMULATED_CAPITAL, real_buying_power)
+            # v6.62: Subtract already-deployed capital so each new trade
+            # doesn't over-allocate from the same $5k budget.
+            already_deployed = sum(
+                getattr(p, 'qty', 0) * getattr(p, 'entry_price', 0)
+                for p in self.positions.values()
+            )
+            available_simulated = max(0, self.SIMULATED_CAPITAL - already_deployed)
+            capital = min(available_simulated, real_buying_power)
+            logger.debug(f"Simulated capital: ${self.SIMULATED_CAPITAL:,.0f} - deployed=${already_deployed:,.0f} = available=${available_simulated:,.0f}")
         else:
             capital = portfolio_value
 
