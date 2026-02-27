@@ -392,7 +392,7 @@ class RapidRotationConfig:
     # =========================================================================
     pem_enabled: bool = False                   # Disabled by default (paper trade first)
     pem_gap_threshold_pct: float = 8.0          # Minimum gap up % to qualify
-    pem_volume_early_ratio_min: float = 0.15    # Early-session vol ratio vs 20d avg
+    pem_volume_early_ratio_min: float = 0.30    # v6.64: 0.15→0.30 (~5x EOD vol, WR 48%→64%)
     pem_scan_hour: int = 9                      # Scan hour (ET)
     pem_scan_minute: int = 35                   # Scan minute (9:35 = after open)
     pem_max_positions: int = 1                  # Max PEM positions at once
