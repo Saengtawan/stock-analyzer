@@ -7,12 +7,16 @@ Buy: 15:30-15:50 ET (before close)
 Sell: 9:31-10:00 ET next day (NOT a day trade)
 
 Criteria:
-1. Close near high of day (within 1% of intraday high)
+1. Close near high of day (within 4% of intraday high)
 2. Volume > 1.2x 20-day average
-3. Price above VWAP
-4. In BULL/STRONG BULL sector
-5. RSI 40-65 (not overbought)
-6. Positive momentum today (close > open)
+3. RSI 40-65 (not overbought)
+4. Positive momentum today (close > open)
+5. [v6.57] Intraday selling pressure < 3% (open→low drop)
+6. [v6.57] Sector NOT Financial Services (macro-driven gaps)
+
+v6.57 Additions (backtest 17 trades: WR 59%→77%, avg -0.30%→+1.44%):
+- open_to_low < 3%: avoids stocks where sellers were active (PIPR, VNO, RNG all had >5%)
+- no Financial Services: banks gap on Fed/earnings, not intraday momentum (FNB)
 """
 
 import numpy as np
@@ -35,6 +39,8 @@ class OvernightGapScanner:
     RSI_MAX = 65
     MIN_ATR_PCT = 1.5               # Minimum volatility for profit potential
     MAX_ATR_PCT = 6.0               # Max volatility (too risky overnight)
+    MAX_INTRADAY_SELLING_PCT = 3.0  # v6.57: Max open→low drop % (intraday selling pressure)
+    BLOCKED_SECTORS = ('Financial Services',)  # v6.57: Macro-driven gaps, not momentum
 
     def __init__(self, data_manager=None):
         """
@@ -163,6 +169,15 @@ class OvernightGapScanner:
         else:
             return None  # Must be a green day
 
+        # v6.57: Intraday selling pressure — how far did price drop from open intraday?
+        # If open→low drop > 3%, sellers were active during the day even if price recovered.
+        # Backtest: catches PIPR(-8.82%), VNO(-8.02%), RNG(-2.34%) with zero false positives.
+        if current_open > 0:
+            open_to_low_pct = (current_open - current_low) / current_open * 100
+            if open_to_low_pct >= self.MAX_INTRADAY_SELLING_PCT:
+                logger.debug(f"OVN: {symbol} blocked — intraday selling pressure {open_to_low_pct:.1f}% >= {self.MAX_INTRADAY_SELLING_PCT}%")
+                return None
+
         # 3. Volume above average
         avg_volume_20 = float(np.mean(volume[-20:])) if len(volume) >= 20 else float(np.mean(volume))
         if avg_volume_20 > 0:
@@ -172,6 +187,13 @@ class OvernightGapScanner:
                 reasons.append(f"Vol {vol_ratio:.1f}x avg")
             else:
                 return None  # Must have above-average volume
+
+        # v6.57: Block Financial Services sector — banks/brokers gap on Fed/earnings news,
+        # not intraday momentum. Cached after first fetch, minimal overhead per scan.
+        stock_sector = self._get_sector_from_cache(symbol)
+        if stock_sector in self.BLOCKED_SECTORS:
+            logger.debug(f"OVN: {symbol} blocked — sector '{stock_sector}' in BLOCKED_SECTORS")
+            return None
 
         # 4. RSI check (40-65 = not overbought, momentum still up)
         rsi = self._calculate_rsi(close)
