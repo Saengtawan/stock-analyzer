@@ -4055,10 +4055,20 @@ _auto_trading_engine = None
 _engine_lock = threading.Lock()  # v6.3: Thread-safe singleton
 
 def get_auto_trading_engine():
-    """Get or create auto trading engine singleton (thread-safe)"""
+    """Get or create auto trading engine singleton (thread-safe).
+
+    v6.56: Always refreshes positions from DB before returning so that
+    app.py never serves stale in-memory state from a previous session.
+    The nohup engine is the true owner of positions — it writes to DB;
+    app.py reads DB here to stay in sync without any IPC needed.
+    """
     global _auto_trading_engine
-    # Fast path: already created
+    # Fast path: already created — refresh positions from DB then return
     if _auto_trading_engine is not None:
+        try:
+            _auto_trading_engine._load_positions_state()
+        except Exception as _e:
+            logger.debug(f"Position refresh skipped: {_e}")
         return _auto_trading_engine
     # Slow path: create with lock
     with _engine_lock:
@@ -4735,14 +4745,6 @@ def _build_positions_from_engine():
     v6.56: Refresh positions from DB so app.py reflects nohup engine's current state
     """
     engine = get_auto_trading_engine()
-
-    # v6.56: Re-load positions from DB on every call so the app.py engine
-    # stays in sync with the nohup engine process (which manages all positions).
-    if engine:
-        try:
-            engine._load_positions_state()
-        except Exception as _e:
-            logger.debug(f"Position refresh from DB failed (non-critical): {_e}")
 
     if not engine or not engine.positions:
         # v4.8: Fallback to RapidPortfolioManager (reads from rapid_portfolio.json)
