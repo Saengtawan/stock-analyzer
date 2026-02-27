@@ -7470,8 +7470,8 @@ class AutoTradingEngine:
         if et_now < scan_time or et_now > scan_window_end:
             return
 
-        # Clear stale earnings cache from previous days (instance persists across days)
-        self.ped_screener._earnings_cache = {}
+        # v6.66: Cache is date-aware (_earnings_cache_date) — no manual clear needed.
+        # Screener auto-reloads DB when date changes (new trading day).
 
         # Check dedicated PED slot (list() for thread safety — v6.41 pattern)
         ped_count = sum(1 for pos in list(self.positions.values()) if getattr(pos, 'source', '') == 'ped')
@@ -7628,7 +7628,10 @@ class AutoTradingEngine:
             repo = EarningsCalendarRepository()
 
             # Load universe
-            universe_file = os.path.join(self.DATA_DIR, 'full_universe_cache.json')
+            universe_file = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                'data', 'full_universe_cache.json'
+            )
             with open(universe_file) as f:
                 universe = list(json.load(f).keys())
 
