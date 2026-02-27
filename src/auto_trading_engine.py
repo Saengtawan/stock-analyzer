@@ -7403,7 +7403,7 @@ class AutoTradingEngine:
                     score=sig['score'],
                     entry_price=entry_price,
                     stop_loss=stop_loss,
-                    take_profit=0.0,   # EOD exit — no TP target
+                    take_profit=round(entry_price * 1.20, 2),  # Dummy 20% TP (EOD exit fires first)
                     risk_reward=2.0,
                     atr_pct=sig['atr_pct'],
                     rsi=50.0,          # Neutral RSI (not a dip-bounce signal)
