@@ -240,7 +240,7 @@ class RapidRotationConfig:
     # EARNINGS FILTER (v4.4)
     # =========================================================================
     earnings_filter_enabled: bool = True        # Enable earnings filter
-    earnings_skip_days_before: int = 5          # Skip days before earnings
+    earnings_skip_days_before: int = 11         # Skip days before earnings (v6.71: was 5, D=6-11 WR<30%)
     earnings_skip_days_after: int = 0           # Skip days after earnings
     earnings_no_data_action: str = "warn"       # Action when no data: allow, skip, warn
     earnings_auto_sell: bool = True             # Auto-sell before earnings

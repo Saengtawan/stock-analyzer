@@ -203,7 +203,7 @@ gap_max_down: -5.0
 
 # -- Earnings Filter (v4.4) --
 earnings_filter_enabled: true
-earnings_skip_days_before: 5
+earnings_skip_days_before: 11     # v6.71: was 5; D=6-11 all have WR<30% (ICUI -8% at D=6)
 earnings_skip_days_after: 0
 earnings_no_data_action: warn  # allow, skip, warn
 earnings_auto_sell: true       # Auto-sell before earnings
