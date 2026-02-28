@@ -4567,12 +4567,13 @@ class AutoTradingEngine:
                     )
                     available_simulated = max(0, strategy_budget - already_deployed)
                 else:
-                    # v6.70: DIP — each position is capped at per_pos_budget.
-                    # Prevents first buy consuming too much real buying_power (SWK 25 shares → $2,178)
-                    # leaving second buy with only $312 real BP → 1 share.
-                    # Each slot = budget / max_positions regardless of what others deployed.
-                    per_pos_budget = strategy_budget / max(1, self.MAX_POSITIONS)
-                    available_simulated = per_pos_budget
+                    # DIP: use actual deployed amount (budget - already used)
+                    already_deployed = sum(
+                        getattr(p, 'qty', 0) * getattr(p, 'entry_price', 0)
+                        for p in self.positions.values()
+                        if getattr(p, 'source', '') not in _DEDICATED
+                    )
+                    available_simulated = max(0, strategy_budget - already_deployed)
             capital = min(available_simulated, real_buying_power)
             logger.debug(
                 f"[{signal_source}] budget=${strategy_budget:,.0f} - "
