@@ -92,9 +92,8 @@ class PreFilterRunner:
 
     # File paths
     DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
-    UNIVERSE_FILE = os.path.join(DATA_DIR, 'full_universe_cache.json')  # v6.17: Universe from maintain_universe_1000.py (987 stocks)
+    UNIVERSE_FILE = os.path.join(DATA_DIR, 'full_universe_cache.json')  # v6.72: fallback only; primary is universe_stocks DB
     PRE_FILTERED_FILE = os.path.join(DATA_DIR, 'pre_filtered.json')
-    STATUS_FILE = os.path.join(DATA_DIR, 'pre_filter_status.json')
 
     # Structural filter thresholds (defaults, overridden by config)
     MIN_PRICE = 5.0
@@ -147,26 +146,31 @@ class PreFilterRunner:
             logger.warning(f"Failed to load pre-filter config: {e}")
 
     def _load_status(self) -> PreFilterStatus:
-        """Load status from file."""
+        """Load status from DB (v6.72: DB-only, JSON removed)."""
         try:
-            if os.path.exists(self.STATUS_FILE):
-                with open(self.STATUS_FILE, 'r') as f:
-                    data = json.load(f)
-                return PreFilterStatus(**data)
+            from database.repositories.pre_filter_repository import PreFilterRepository
+            repo = PreFilterRepository()
+            evening = repo.get_latest_session(scan_type='evening')
+            pre_open = repo.get_latest_session(scan_type='pre_open')
+            status = PreFilterStatus()
+            if evening:
+                status.evening_count = evening.pool_size
+                status.evening_time = evening.scan_time.strftime('%H:%M') if evening.scan_time else ''
+                status.evening_status = evening.status
+                status.pool_size = evening.pool_size
+                status.is_ready = evening.is_ready
+                status.last_updated = evening.created_at.isoformat() if evening.created_at else ''
+            if pre_open:
+                status.pre_open_count = pre_open.pool_size
+                status.pre_open_time = pre_open.scan_time.strftime('%H:%M') if pre_open.scan_time else ''
+                status.pre_open_status = pre_open.status
+            return status
         except Exception as e:
-            logger.warning(f"Failed to load pre-filter status: {e}")
+            logger.warning(f"Failed to load pre-filter status from DB: {e}")
         return PreFilterStatus()
 
     def _save_status(self):
-        """Save status to file and database."""
-        # Write to JSON (legacy/backup)
-        try:
-            with open(self.STATUS_FILE, 'w') as f:
-                json.dump(self.status.to_dict(), f, indent=2)
-        except Exception as e:
-            logger.error(f"Failed to save pre-filter status to JSON: {e}")
-
-        # Phase 2: Write to database
+        """Save status to database (v6.72: DB-only, JSON removed)."""
         try:
             from database import PreFilterRepository, PreFilterSession
             repo = PreFilterRepository()
@@ -189,17 +193,26 @@ class PreFilterRunner:
         """
         Load universe for pre-filter scanning.
 
-        v6.17: Uses full_universe_cache.json (maintained by maintain_universe_1000.py cron job)
-        This contains 987 stocks from FULL_UNIVERSE with sector info.
+        v6.72: Reads from universe_stocks DB (maintained by maintain_universe_1000.py cron job).
+        Falls back to full_universe_cache.json if DB is empty.
         """
+        try:
+            from database.repositories.universe_repository import UniverseRepository
+            cache = UniverseRepository().get_all()
+            if cache:
+                logger.info(f"📦 Pre-filter using universe_stocks DB: {len(cache)} stocks")
+                return cache
+        except Exception as e:
+            logger.error(f"Failed to load universe from DB: {e}")
+        # Fallback to JSON (migration period)
         try:
             if os.path.exists(self.UNIVERSE_FILE):
                 with open(self.UNIVERSE_FILE, 'r') as f:
                     cache = json.load(f)
-                logger.info(f"📦 Pre-filter using full_universe_cache: {len(cache)} stocks")
+                logger.info(f"📦 Pre-filter using full_universe_cache JSON fallback: {len(cache)} stocks")
                 return cache
         except Exception as e:
-            logger.error(f"Failed to load universe cache: {e}")
+            logger.error(f"Failed to load universe JSON fallback: {e}")
         return {}
 
     def _load_pre_filtered(self) -> Dict[str, Any]:
