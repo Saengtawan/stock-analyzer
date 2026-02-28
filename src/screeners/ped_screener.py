@@ -34,8 +34,8 @@ from typing import List, Optional, Dict
 from loguru import logger
 
 try:
-    import yfinance as yf
     import pandas as pd
+    from api.yfinance_utils import fetch_history
     YFINANCE_AVAILABLE = True
 except ImportError:
     YFINANCE_AVAILABLE = False
@@ -191,8 +191,7 @@ class PEDScreener:
         """Deep check: OHLCV + quality filters for a D-5 candidate."""
 
         # Fetch OHLCV
-        ticker = yf.Ticker(symbol)
-        df = ticker.history(period='30d', interval='1d', auto_adjust=True)
+        df = fetch_history(symbol, period='30d', interval='1d')
         if df is None or len(df) < 20:
             return None
 
@@ -229,7 +228,7 @@ class PEDScreener:
 
         # SPY intraday filter
         try:
-            spy_df = yf.Ticker('SPY').history(period='1d', interval='5m', auto_adjust=True)
+            spy_df = fetch_history('SPY', period='1d', interval='5m')
             if spy_df is not None and len(spy_df) >= 2:
                 spy_open = float(spy_df['Open'].iloc[0])
                 spy_now = float(spy_df['Close'].iloc[-1])

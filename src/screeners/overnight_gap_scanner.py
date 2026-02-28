@@ -57,6 +57,16 @@ class OvernightGapScanner:
             logger.warning("Sector filter not available")
             self.sector_filter = None
 
+        # v6.73: Pre-load sector map from universe DB (replaces yf.Ticker.info calls)
+        self._sector_cache = {}
+        try:
+            from database.repositories.universe_repository import UniverseRepository
+            universe = UniverseRepository().get_all()
+            self._sector_cache = {sym: data.get('sector', '') for sym, data in universe.items()}
+            logger.debug(f"OVN: Loaded {len(self._sector_cache)} sectors from universe DB")
+        except Exception as e:
+            logger.warning(f"OVN: Could not load sector cache from DB: {e}")
+
     def scan(self, universe: dict = None, sector_regime=None,
              min_score: int = 70, position_pct: float = 35,
              target_pct: float = 3.0, sl_pct: float = 1.5) -> List:
@@ -315,16 +325,5 @@ class OvernightGapScanner:
         return (atr / current_price) * 100 if current_price > 0 else None
 
     def _get_sector_from_cache(self, symbol: str) -> str:
-        """Get sector from yfinance info (cached)"""
-        if not hasattr(self, '_sector_cache'):
-            self._sector_cache = {}
-        if symbol in self._sector_cache:
-            return self._sector_cache[symbol]
-        try:
-            import yfinance as yf
-            info = yf.Ticker(symbol).info
-            sector = info.get('sector', '')
-            self._sector_cache[symbol] = sector
-            return sector
-        except Exception:
-            return ''
+        """Get sector from universe DB cache (v6.73: no yfinance)."""
+        return self._sector_cache.get(symbol, '')

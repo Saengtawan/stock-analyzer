@@ -25,8 +25,8 @@ from typing import List, Optional, Dict
 from loguru import logger
 
 try:
-    import yfinance as yf
     import pandas as pd
+    from api.yfinance_utils import fetch_history
     YFINANCE_AVAILABLE = True
 except ImportError:
     YFINANCE_AVAILABLE = False
@@ -280,8 +280,7 @@ class PEMScreener:
     def _get_data_yfinance(self, symbol: str):
         """Get OHLCV data from yfinance as fallback."""
         try:
-            ticker = yf.Ticker(symbol)
-            df = ticker.history(period='25d', interval='1d')
+            df = fetch_history(symbol, period='25d', interval='1d')
             if df is None or len(df) < 2:
                 return None
 
@@ -300,8 +299,7 @@ class PEMScreener:
             return self._vol_cache[symbol]
 
         try:
-            ticker = yf.Ticker(symbol)
-            df = ticker.history(period='30d', interval='1d')
+            df = fetch_history(symbol, period='30d', interval='1d')
             if df is None or len(df) < 20:
                 return None
 
@@ -315,8 +313,7 @@ class PEMScreener:
     def _estimate_atr(self, symbol: str, prev_close: float) -> float:
         """Estimate ATR% from recent daily data."""
         try:
-            ticker = yf.Ticker(symbol)
-            df = ticker.history(period='25d', interval='1d')
+            df = fetch_history(symbol, period='25d', interval='1d')
             if df is None or len(df) < 10:
                 return 3.0  # Default for volatile earnings stocks
 
