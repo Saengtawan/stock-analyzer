@@ -7757,6 +7757,7 @@ class AutoTradingEngine:
                 # Skip weekends
                 if self._is_weekend():
                     self.state = TradingState.SLEEPING
+                    self._write_heartbeat()
                     time.sleep(60)
                     continue
 
