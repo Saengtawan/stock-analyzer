@@ -195,9 +195,6 @@ class RapidRotationScreener:
         'VTR', 'ARE', 'MAA', 'UDR', 'CPT', 'KIM', 'REG', 'HST', 'BXP', 'SUI',
     ]
 
-    # v4.9.3: Sector cache config (static paths)
-    SECTOR_CACHE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'sector_cache.json')
-
     # v4.9.3: AI universe disk cache
     AI_UNIVERSE_CACHE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'ai_universe_cache.json')
 
@@ -840,31 +837,21 @@ class RapidRotationScreener:
         return score, reasons
 
     def _load_sector_cache(self):
-        """v4.9.3: Load sector cache from disk"""
+        """v6.72: Load sector cache from DB (was sector_cache.json)."""
         try:
-            with open(self.SECTOR_CACHE_FILE) as f:
-                data = json.load(f)
-            now = time.time()
-            self._sector_cache = {
-                k: v for k, v in data.items()
-                if now - v.get('ts', 0) < self.SECTOR_CACHE_TTL
-            }
-            if self._sector_cache:
-                logger.info(f"📦 Loaded {len(self._sector_cache)} sectors from cache")
-        except Exception:
+            from database.repositories.sector_cache_repository import SectorCacheRepository
+            self._sector_cache = SectorCacheRepository().load_all(self.SECTOR_CACHE_TTL)
+        except Exception as e:
+            logger.debug(f"Failed to load sector cache from DB: {e}")
             self._sector_cache = {}
 
     def _save_sector_cache(self):
-        """v4.9.3: Save sector cache to disk (atomic write)"""
+        """v6.72: Save sector cache to DB (was sector_cache.json)."""
         try:
-            cache_dir = os.path.dirname(self.SECTOR_CACHE_FILE)
-            os.makedirs(cache_dir, exist_ok=True)
-            fd, tmp = tempfile.mkstemp(suffix='.tmp', dir=cache_dir)
-            with os.fdopen(fd, 'w') as f:
-                json.dump(self._sector_cache, f)
-            os.replace(tmp, self.SECTOR_CACHE_FILE)
+            from database.repositories.sector_cache_repository import SectorCacheRepository
+            SectorCacheRepository().save_bulk(self._sector_cache)
         except Exception as e:
-            logger.debug(f"Failed to save sector cache: {e}")
+            logger.debug(f"Failed to save sector cache to DB: {e}")
 
     def _save_execution_trace(self, trace_summary: dict, trace_full: list):
         """v6.15: Save execution trace for debugging/visualization"""
