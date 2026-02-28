@@ -1226,6 +1226,16 @@ class RapidRotationScreener:
         if ind['sma20_extension'] > 10.0:
             return 'sma20_extended'
 
+        # v6.69: Volume range filter (signal_outcomes sweet spot 0.3–0.6x, Win1d 65%)
+        if ind['volume_ratio'] < 0.3:
+            return 'low_volume'   # no buyer interest (Win1d 38%)
+        if ind['volume_ratio'] > 0.6:
+            return 'high_volume'  # unusual activity / panic selling
+
+        # v6.69: mom5d upper cap — >+2% = overextended, not a dip (signal_outcomes: Win1d 32%)
+        if ind['mom_5d'] > 2.0:
+            return 'mom_5d_extended'
+
         return None
 
     def _analyze_calc_score(self, ind: dict, symbol: str) -> tuple:
@@ -1567,6 +1577,7 @@ class RapidRotationScreener:
                 'no_dip': 0, 'still_falling': 0, 'no_bounce': 0,
                 'gap_up': 0, 'above_sma5': 0, 'low_atr': 0,
                 'below_sma20': 0, 'overextended': 0, 'sma20_extended': 0,
+                'low_volume': 0, 'high_volume': 0, 'mom_5d_extended': 0,
                 'low_score': 0, '_low_score_values': [],
             }
             analyzed_count = 0
@@ -1619,7 +1630,8 @@ class RapidRotationScreener:
                         f"no_bounce={fs['no_bounce']} gap_up={fs['gap_up']} "
                         f"above_sma5={fs['above_sma5']} low_atr={fs['low_atr']} "
                         f"below_sma20={fs['below_sma20']} overextended={fs['overextended']} "
-                        f"sma20_ext={fs['sma20_extended']} low_score={fs['low_score']}")
+                        f"sma20_ext={fs['sma20_extended']} low_vol={fs['low_volume']} "
+                        f"high_vol={fs['high_volume']} mom5d_ext={fs['mom_5d_extended']} low_score={fs['low_score']}")
             if fs['_low_score_values']:
                 top_near = sorted(fs['_low_score_values'], key=lambda x: x[1], reverse=True)[:5]
                 logger.info(f"📋 Near-miss scores: {[(s, sc) for s, sc in top_near]}")

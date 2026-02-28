@@ -952,6 +952,7 @@ class AutoTradingEngine:
         # v6.60: PEM trailing
         self.PEM_TRAIL_ACTIVATION_PCT = getattr(cfg, 'pem_trail_activation_pct', 2.0)
         self.PEM_TRAIL_LOCK_PCT = getattr(cfg, 'pem_trail_lock_pct', 80.0)
+        self.PEM_SKIP_VIX = getattr(cfg, 'pem_skip_vix', False)  # v6.69: bypass VIX for PEM
 
         # =====================================================================
         # PRE-EARNINGS DRIFT (PED) STRATEGY (v6.53)
@@ -4335,10 +4336,14 @@ class AutoTradingEngine:
                 logger.warning(f"Max positions ({effective_max}) reached")
                 return False, "Max Pos"
 
-        # Fresh VIX check
-        vix_ok, vix_val = self._check_vix_fresh_before_entry()
-        if not vix_ok:
-            return False, f"VIX {vix_val:.0f}"
+        # Fresh VIX check (v6.69: PEM bypasses VIX — earnings catalyst overrides macro fear)
+        _is_pem = params.get('source', '') == 'pem'
+        if _is_pem and self.PEM_SKIP_VIX:
+            logger.debug(f"PEM VIX bypass: skipping VIX check (pem_skip_vix=True)")
+        else:
+            vix_ok, vix_val = self._check_vix_fresh_before_entry()
+            if not vix_ok:
+                return False, f"VIX {vix_val:.0f}"
 
         # Opening window stagger: must wait OPENING_STAGGER_MIN between buys in first 30 min
         # Backtest: max-1 loses 44% of trades (45.5% win) leaving +200% P&L on table.
@@ -4554,18 +4559,23 @@ class AutoTradingEngine:
             strategy_budget = _BUDGETS.get(signal_source, self.SIMULATED_CAPITAL_DIP)
             with self._positions_lock:
                 if signal_source in _DEDICATED:
+                    # Dedicated slots: 1 position each — full budget per position
                     already_deployed = sum(
                         getattr(p, 'qty', 0) * getattr(p, 'entry_price', 0)
                         for p in self.positions.values()
                         if getattr(p, 'source', '') == signal_source
                     )
+                    available_simulated = max(0, strategy_budget - already_deployed)
                 else:
-                    already_deployed = sum(
-                        getattr(p, 'qty', 0) * getattr(p, 'entry_price', 0)
-                        for p in self.positions.values()
+                    # v6.69: DIP — per-position slice = budget / max_positions.
+                    # Prevents SWK taking $2,178 and leaving MRVL with $321 → 1 share.
+                    per_pos_budget = strategy_budget / max(1, self.MAX_POSITIONS)
+                    dip_count = sum(
+                        1 for p in self.positions.values()
                         if getattr(p, 'source', '') not in _DEDICATED
                     )
-            available_simulated = max(0, strategy_budget - already_deployed)
+                    already_deployed = dip_count * per_pos_budget  # virtual deployed
+                    available_simulated = max(0, strategy_budget - already_deployed)
             capital = min(available_simulated, real_buying_power)
             logger.debug(
                 f"[{signal_source}] budget=${strategy_budget:,.0f} - "

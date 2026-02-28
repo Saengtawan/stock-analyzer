@@ -4736,27 +4736,42 @@ def _build_positions_from_file():
 
 
 def _build_positions_from_engine():
-    """Build position data from engine's ManagedPosition + Alpaca live prices.
+    """Build position data from DB + Alpaca live prices.
 
     Returns (statuses_data, summary) or raises on error.
     This is the single source of truth — used by both REST and WebSocket.
 
     v4.8: Added fallback to RapidPortfolioManager when engine not running
     v6.56: Refresh positions from DB so app.py reflects nohup engine's current state
+    v6.69: Read from PositionRepository (DB) directly instead of engine.positions.
+           engine.positions in app.py singleton was never updated after the nohup engine
+           bought new positions — MRVL invisible until app restart. DB is always current.
     """
     engine = get_auto_trading_engine()
 
-    if not engine or not engine.positions:
+    # v6.69: Read from DB (always fresh) — engine.positions is stale in app.py singleton
+    db_positions = []
+    try:
+        from database import PositionRepository
+        db_positions = PositionRepository().get_all(use_cache=False)
+    except Exception as _e:
+        logger.warning(f"DB position read failed: {_e}")
+
+    if not db_positions:
         # v4.8: Fallback to RapidPortfolioManager (reads from rapid_portfolio.json)
-        logger.debug("Engine not running, falling back to RapidPortfolioManager")
+        logger.debug("No DB positions, falling back to RapidPortfolioManager")
         try:
             return _build_positions_from_file()
         except Exception as e:
             logger.error(f"Fallback to portfolio file failed: {e}")
             return [], {'positions': 0, 'total_pnl_usd': 0, 'total_pnl_pct': 0}
 
+    if not engine:
+        logger.warning("Engine not available — cannot fetch live prices")
+        return [], {'positions': 0, 'total_pnl_usd': 0, 'total_pnl_pct': 0}
+
     # Fetch live prices from Alpaca in one call
-    symbols = list(engine.positions.keys())
+    symbols = [p.symbol for p in db_positions]
     alpaca_prices = {}
     try:
         for pos in engine.broker.get_positions():
@@ -4832,36 +4847,47 @@ def _build_positions_from_engine():
     statuses_data = []
     total_pnl_usd = 0.0
 
-    for symbol, mp in engine.positions.items():
+    # v6.69: Iterate DB positions (always current) instead of stale engine.positions
+    for db_pos in db_positions:
+        symbol       = db_pos.symbol
+        entry_price  = db_pos.entry_price
+        qty          = db_pos.qty
+        stop_loss    = db_pos.stop_loss
+        take_profit  = db_pos.take_profit or 0.0
+        trailing_act = bool(db_pos.trailing_stop)
+        peak_price   = db_pos.peak_price or entry_price
+        sl_pct       = db_pos.sl_pct or 2.5
+        tp_pct       = db_pos.tp_pct or 5.0
+        atr_pct      = db_pos.entry_atr_pct or 0.0
+        days_held    = db_pos.day_held or 0
+        source       = db_pos.source or 'dip_bounce'
+
         ap = alpaca_prices.get(symbol, {})
 
         # v6.48: "N" price source:
         # - Market OPEN: Alpaca positions live price (real-time)
         # - Market CLOSED: Alpaca Bars IEX close (regular-hours only, not AH/pre-market)
         if market_open:
-            current_price = float(ap.get('current_price') or mp.entry_price)
+            current_price = float(ap.get('current_price') or entry_price)
         else:
             current_price = float(
                 alpaca_bar_closes.get(symbol)
                 or ap.get('current_price')
-                or mp.entry_price
+                or entry_price
             )
         logger.info(f"{symbol}: current_price=${current_price:.2f} source={'live' if market_open else 'IEX_close'} (market_open={market_open})")
 
-        pnl_pct = ((current_price - mp.entry_price) / mp.entry_price) * 100
-        pnl_usd = (current_price - mp.entry_price) * mp.qty
+        pnl_pct = ((current_price - entry_price) / entry_price) * 100
+        pnl_usd = (current_price - entry_price) * qty
         total_pnl_usd += pnl_usd
 
-        # Days held
-        days_held = max(0, (datetime.now() - mp.entry_time).days)
-
         # Determine signal type
-        if mp.tp_price > 0 and current_price >= mp.tp_price:
+        if take_profit > 0 and current_price >= take_profit:
             signal = 'TAKE_PROFIT'
-            action = f'Take profit target ${mp.tp_price:.2f} reached'
-        elif current_price <= mp.current_sl_price:
+            action = f'Take profit target ${take_profit:.2f} reached'
+        elif current_price <= stop_loss:
             signal = 'CRITICAL'
-            action = f'Price at/below stop loss ${mp.current_sl_price:.2f}'
+            action = f'Price at/below stop loss ${stop_loss:.2f}'
         elif pnl_pct <= -2.0:
             signal = 'WARNING'
             action = f'Down {pnl_pct:.1f}% — monitor closely'
@@ -4870,14 +4896,14 @@ def _build_positions_from_engine():
             action = f'Held {days_held} days — consider exit'
         elif pnl_pct >= 3.0:
             signal = 'HOLD'
-            action = f'Profitable +{pnl_pct:.1f}% — trailing {"active" if mp.trailing_active else "pending"}'
+            action = f'Profitable +{pnl_pct:.1f}% — trailing {"active" if trailing_act else "pending"}'
         else:
             signal = 'HOLD'
             action = 'Position within normal range'
 
         pos_data = {
             'symbol': symbol,
-            'entry_price': mp.entry_price,
+            'entry_price': entry_price,
             'current_price': current_price,
             'pnl_pct': round(pnl_pct, 2),
             'pnl_usd': round(pnl_usd, 2),
@@ -4886,15 +4912,15 @@ def _build_positions_from_engine():
             'reasons': [],
             'action': action,
             'new_candidates': [],
-            'shares': mp.qty,
-            'stop_loss': mp.current_sl_price,
-            'take_profit': mp.tp_price,
-            'trailing_active': mp.trailing_active,
-            'highest_price': mp.peak_price,
-            'sl_pct': mp.sl_pct,
-            'tp_pct': mp.tp_pct,
-            'atr_pct': mp.atr_pct,
-            'source': getattr(mp, 'source', 'dip_bounce'),  # v6.36: Strategy source
+            'shares': qty,
+            'stop_loss': stop_loss,
+            'take_profit': take_profit,
+            'trailing_active': trailing_act,
+            'highest_price': peak_price,
+            'sl_pct': sl_pct,
+            'tp_pct': tp_pct,
+            'atr_pct': atr_pct,
+            'source': source,
         }
 
         # v6.56: AH/Pre price — use IEX minute bars (reliable) with positions.current_price fallback.
@@ -4931,13 +4957,11 @@ def _build_positions_from_engine():
                     # Without this, a stock down in pre-market shows "Position within normal range"
                     # because signal was computed from IEX close before AH price was known.
                     if abs(change_pct) >= 2.0:
-                        ah_pnl_pct = ((alpaca_live - mp.entry_price) / mp.entry_price) * 100
-                        ah_pnl_usd = (alpaca_live - mp.entry_price) * mp.qty
+                        ah_pnl_pct = ((alpaca_live - entry_price) / entry_price) * 100
+                        ah_pnl_usd = (alpaca_live - entry_price) * qty
                         total_pnl_usd += ah_pnl_usd - pnl_usd
                         pos_data['pnl_pct'] = round(ah_pnl_pct, 2)
                         pos_data['pnl_usd'] = round(ah_pnl_usd, 2)
-                        stop_loss = mp.current_sl_price
-                        take_profit = mp.tp_price
                         if take_profit > 0 and alpaca_live >= take_profit:
                             pos_data['signal'] = 'TAKE_PROFIT'
                             pos_data['action'] = f'{session} price ${alpaca_live:.2f} reached TP ${take_profit:.2f}'
@@ -4949,7 +4973,7 @@ def _build_positions_from_engine():
                             pos_data['action'] = f'{session} down {ah_pnl_pct:.1f}% — monitor at open'
                         elif ah_pnl_pct >= 3.0:
                             pos_data['signal'] = 'HOLD'
-                            pos_data['action'] = f'{session} +{ah_pnl_pct:.1f}% — trailing {"active" if mp.trailing_active else "pending"}'
+                            pos_data['action'] = f'{session} +{ah_pnl_pct:.1f}% — trailing {"active" if trailing_act else "pending"}'
                         else:
                             pos_data['signal'] = 'HOLD'
                             pos_data['action'] = f'{session} {ah_pnl_pct:+.1f}% — within normal range'
