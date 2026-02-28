@@ -72,15 +72,24 @@ class PEDScreener:
 
     def get_universe(self) -> List[str]:
         """
-        v6.66: Full 987-stock universe (was pre-filter pool).
-        Earnings lookup is instant via DB so 987 stocks is no longer slow.
+        v6.72: Full 987-stock universe from universe_stocks DB.
+        Falls back to full_universe_cache.json if DB is empty.
         """
+        try:
+            from database.repositories.universe_repository import UniverseRepository
+            symbols = UniverseRepository().get_symbols()
+            if symbols:
+                logger.info(f"PED: Loaded {len(symbols)} stocks from universe_stocks DB")
+                return symbols
+        except Exception as e:
+            logger.warning(f"PED: universe_stocks DB unavailable: {e}")
+        # JSON fallback
         try:
             universe_file = os.path.join(self.DATA_DIR, 'full_universe_cache.json')
             with open(universe_file) as f:
                 symbols = list(json.load(f).keys())
             if symbols:
-                logger.info(f"PED: Loaded {len(symbols)} stocks from full universe")
+                logger.info(f"PED: Loaded {len(symbols)} stocks from full_universe_cache.json (fallback)")
                 return symbols
         except Exception as e:
             logger.warning(f"PED: full_universe_cache.json unavailable: {e}")

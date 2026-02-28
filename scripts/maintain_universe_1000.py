@@ -19,10 +19,12 @@ sys.path.insert(0, 'src')
 from dotenv import load_dotenv
 load_dotenv()
 
+from database.repositories.universe_repository import UniverseRepository
+
 print(f"=== Universe Maintenance {datetime.now().strftime('%Y-%m-%d %H:%M')} ===\n")
 
 DATA_DIR = 'data'
-CACHE_FILE = os.path.join(DATA_DIR, 'full_universe_cache.json')
+CACHE_FILE = os.path.join(DATA_DIR, 'full_universe_cache.json')  # fallback / migration source
 DELISTED_LOG = os.path.join(DATA_DIR, 'delisted_log.txt')
 TARGET_SIZE = 1000    # Target universe size
 BATCH_SIZE = 500      # Stocks per yf.download batch
@@ -33,13 +35,22 @@ MIN_PRICE = 5.0
 MIN_DOLLAR_VOL = 5_000_000   # $5M/day average
 
 # ─────────────────────────────────────────────────────────────
-# 1. Load current universe
+# 1. Load current universe (v6.72: DB-first, JSON fallback)
 # ─────────────────────────────────────────────────────────────
-try:
-    with open(CACHE_FILE) as f:
-        cache = json.load(f)
-except FileNotFoundError:
-    cache = {}
+_repo = UniverseRepository()
+cache = _repo.get_all()
+if not cache and os.path.exists(CACHE_FILE):
+    # One-time migration from JSON
+    try:
+        with open(CACHE_FILE) as f:
+            cache = json.load(f)
+        print(f"Migrating {len(cache)} stocks from JSON to DB...")
+        _repo.save_bulk(cache)
+        os.remove(CACHE_FILE)
+        print("Migration complete — JSON file deleted.")
+    except Exception as _e:
+        print(f"Migration from JSON failed: {_e}")
+        cache = {}
 
 print(f"Current universe: {len(cache)} stocks")
 current_symbols = set(cache.keys())
@@ -205,17 +216,16 @@ else:
     print(f"\n✅ Added {added} new stocks. Universe now: {len(cache)}")
 
 # ─────────────────────────────────────────────────────────────
-# 7. Save updated cache
+# 7. Save updated cache (v6.72: DB-only)
 # ─────────────────────────────────────────────────────────────
-with open(CACHE_FILE, 'w') as f:
-    json.dump(cache, f, indent=2)
+_repo.save_bulk(cache)
 
 print(f"\n{'='*60}")
 print(f"SUMMARY")
 print(f"  Removed (delisted): {len(delisted)}")
 print(f"  Added (new):        {added if need > 0 else 0}")
 print(f"  Final universe:     {len(cache)} stocks")
-print(f"  Saved to:           {CACHE_FILE}")
+print(f"  Saved to:           universe_stocks DB")
 if delisted:
     print(f"  Delisted:           {', '.join(sorted(delisted))}")
 print(f"{'='*60}")
