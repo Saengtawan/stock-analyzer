@@ -17,14 +17,15 @@ class PreFilterRepository:
     Provides unified API for pre-filter tracking.
     """
 
-    def __init__(self, db_name: str = 'trade_history'):
+    def __init__(self, db_name: str = 'trade_history', _db=None):
         """
         Initialize pre-filter repository.
 
         Args:
             db_name: Database name (default: trade_history)
+            _db: Optional DatabaseManager for testing (bypasses get_db_manager)
         """
-        self.db = get_db_manager(db_name)
+        self.db = _db if _db is not None else get_db_manager(db_name)
 
     # =========================================================================
     # Pre-filter Sessions
