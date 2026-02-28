@@ -71,7 +71,7 @@ class DeadLetterQueue:
     Dead Letter Queue for failed operations
 
     Features:
-    - Persistent storage (JSON file)
+    - Persistent storage (DB-backed via DLQRepository, v6.72)
     - Automatic retry with exponential backoff
     - Manual review and resolution
     - Alerting on accumulated failures
@@ -82,23 +82,20 @@ class DeadLetterQueue:
         storage_file: str = None,
         max_retries: int = 3,
         initial_retry_delay: int = 60,  # 1 minute
-        max_retry_delay: int = 3600     # 1 hour
+        max_retry_delay: int = 3600,    # 1 hour
+        _repo=None                       # injected repo (for testing)
     ):
         """
         Initialize DLQ
 
         Args:
-            storage_file: Path to JSON file for persistent storage
+            storage_file: Ignored (kept for backward compat); migration: if old JSON
+                          exists and DB is empty, items are imported automatically.
             max_retries: Maximum automatic retry attempts
             initial_retry_delay: Initial retry delay in seconds
             max_retry_delay: Maximum retry delay in seconds
+            _repo: Optional DLQRepository instance (for testing)
         """
-        if storage_file is None:
-            storage_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'dlq')
-            os.makedirs(storage_dir, exist_ok=True)
-            storage_file = os.path.join(storage_dir, 'dead_letter_queue.json')
-
-        self.storage_file = storage_file
         self.max_retries = max_retries
         self.initial_retry_delay = initial_retry_delay
         self.max_retry_delay = max_retry_delay
@@ -109,46 +106,52 @@ class DeadLetterQueue:
         # In-memory cache
         self.items: Dict[str, DLQItem] = {}
 
-        # Load from disk
-        self._load()
+        # DB repository
+        from database.repositories.dlq_repository import DLQRepository
+        self._repo = _repo if _repo is not None else DLQRepository()
 
-        logger.info(f"DLQ initialized: {len(self.items)} items loaded from {storage_file}")
+        # Migration: import from JSON if DB is empty and file exists
+        self._migrate_from_json(storage_file)
 
-    def _load(self):
-        """Load DLQ from disk"""
-        if not os.path.exists(self.storage_file):
+        # Load from DB
+        self._load_from_db()
+
+        logger.info(f"DLQ initialized: {len(self.items)} items loaded from DB")
+
+    def _migrate_from_json(self, storage_file: str = None):
+        """One-time migration: import items from old JSON file if DB is empty."""
+        if storage_file is None:
+            storage_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'dlq')
+            storage_file = os.path.join(storage_dir, 'dead_letter_queue.json')
+
+        if not os.path.exists(storage_file):
+            return
+
+        # Only migrate if DB is currently empty
+        if self._repo.get_all():
             return
 
         try:
-            with open(self.storage_file, 'r') as f:
+            with open(storage_file, 'r') as f:
                 data = json.load(f)
-
+            count = 0
             for item_data in data.get('items', []):
                 item = DLQItem(**item_data)
-                self.items[item.id] = item
-
-            logger.info(f"Loaded {len(self.items)} DLQ items from disk")
-
+                if self._repo.add(item):
+                    count += 1
+            if count:
+                logger.info(f"DLQ: Migrated {count} items from JSON to DB")
+                os.remove(storage_file)
         except Exception as e:
-            logger.error(f"Failed to load DLQ from disk: {e}")
+            logger.warning(f"DLQ migration from JSON failed (non-fatal): {e}")
 
-    def _save(self):
-        """Save DLQ to disk"""
+    def _load_from_db(self):
+        """Load all DLQ items from DB into in-memory cache."""
         try:
-            data = {
-                'items': [asdict(item) for item in self.items.values()],
-                'last_updated': datetime.now().isoformat()
-            }
-
-            # Atomic write (write to temp file, then rename)
-            temp_file = f"{self.storage_file}.tmp"
-            with open(temp_file, 'w') as f:
-                json.dump(data, f, indent=2)
-
-            os.replace(temp_file, self.storage_file)
-
+            rows = self._repo.get_all()
+            self.items = {r['id']: DLQItem(**r) for r in rows}
         except Exception as e:
-            logger.error(f"Failed to save DLQ to disk: {e}")
+            logger.error(f"Failed to load DLQ from DB: {e}")
 
     def add(
         self,
@@ -191,7 +194,7 @@ class DeadLetterQueue:
             )
 
             self.items[item_id] = item
-            self._save()
+            self._repo.add(item)
 
             logger.warning(
                 f"⚠️ DLQ: Added {operation_type} - {error} "
@@ -242,6 +245,7 @@ class DeadLetterQueue:
                 if item.retry_count >= self.max_retries:
                     # Mark as permanently failed
                     item.status = DLQStatus.FAILED.value
+                    self._repo.update(item)
                     logger.error(f"❌ DLQ: {item.id} exceeded max retries ({self.max_retries})")
                     continue
 
@@ -249,9 +253,6 @@ class DeadLetterQueue:
                     next_retry = datetime.fromisoformat(item.next_retry_at)
                     if next_retry <= now:
                         items.append(item)
-
-            if items:
-                self._save()
 
             return items
 
@@ -289,7 +290,7 @@ class DeadLetterQueue:
                 datetime.now() + timedelta(seconds=retry_delay)
             ).isoformat()
 
-            self._save()
+            self._repo.update(item)
 
             logger.info(
                 f"🔄 DLQ: Retrying {item.id} (attempt {item.retry_count}/{self.max_retries}, "
@@ -316,7 +317,7 @@ class DeadLetterQueue:
             item.resolved_at = datetime.now().isoformat()
             item.resolution_note = resolution_note
 
-            self._save()
+            self._repo.update(item)
 
             logger.info(f"✅ DLQ: Resolved {item.id} - {resolution_note}")
 
@@ -338,7 +339,7 @@ class DeadLetterQueue:
             item.resolved_at = datetime.now().isoformat()
             item.resolution_note = f"Ignored: {reason}"
 
-            self._save()
+            self._repo.update(item)
 
             logger.info(f"🚫 DLQ: Ignored {item.id} - {reason}")
 
@@ -388,13 +389,11 @@ class DeadLetterQueue:
         """
         with self.lock:
             cutoff = datetime.now() - timedelta(days=days)
-            removed = 0
 
             items_to_remove = []
             for item_id, item in self.items.items():
                 if item.status not in [DLQStatus.RESOLVED.value, DLQStatus.IGNORED.value]:
                     continue
-
                 if item.resolved_at:
                     resolved_time = datetime.fromisoformat(item.resolved_at)
                     if resolved_time < cutoff:
@@ -402,10 +401,9 @@ class DeadLetterQueue:
 
             for item_id in items_to_remove:
                 del self.items[item_id]
-                removed += 1
 
+            removed = self._repo.delete_old(days)
             if removed > 0:
-                self._save()
                 logger.info(f"🧹 DLQ: Cleaned up {removed} old items (>{days} days)")
 
 
@@ -432,7 +430,7 @@ if __name__ == '__main__':
     print("🧪 Testing Dead Letter Queue...")
 
     # Create DLQ
-    dlq = DeadLetterQueue(storage_file='/tmp/test_dlq.json')
+    dlq = DeadLetterQueue()
 
     # Test 1: Add failed operations
     print("\n1. Adding failed operations:")
