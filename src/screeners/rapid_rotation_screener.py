@@ -1229,7 +1229,7 @@ class RapidRotationScreener:
         # v6.69: Volume range filter (signal_outcomes sweet spot 0.3–0.6x, Win1d 65%)
         if ind['volume_ratio'] < 0.3:
             return 'low_volume'   # no buyer interest (Win1d 38%)
-        if ind['volume_ratio'] > 0.6:
+        if ind['volume_ratio'] > 1.2:
             return 'high_volume'  # unusual activity / panic selling
 
         # v6.69: mom5d upper cap — >+2% = overextended, not a dip (signal_outcomes: Win1d 32%)
