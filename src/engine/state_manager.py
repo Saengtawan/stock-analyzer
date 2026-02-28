@@ -160,58 +160,47 @@ def create_backup(filepath: str, backup_suffix: str = ".bak") -> bool:
         return False
 
 
-def write_heartbeat(filepath: str, status: Dict[str, Any] = None) -> bool:
+def write_heartbeat(filepath: str = None, status: Dict[str, Any] = None) -> bool:
     """
-    Write heartbeat file to indicate engine is alive.
+    Write heartbeat to DB (v6.72: DB-backed, filepath ignored).
 
     Args:
-        filepath: Path to heartbeat file
-        status: Optional status data to include
+        filepath: Ignored (kept for call-site backward compat)
+        status: Dict with 'state', 'positions', 'running'
 
     Returns:
         True if successful
     """
-    data = {
-        'timestamp': datetime.now().isoformat(),
-        'alive': True,
-    }
-    if status:
-        data.update(status)
+    try:
+        from database.repositories.heartbeat_repository import HeartbeatRepository
+        HeartbeatRepository().write(
+            state=status.get('state', 'unknown') if status else 'unknown',
+            positions=status.get('positions', 0) if status else 0,
+            running=bool(status.get('running', True)) if status else True,
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Heartbeat write failed: {e}")
+        return False
 
-    return atomic_write_json(filepath, data)
 
-
-def read_heartbeat(filepath: str, max_age_seconds: int = 120) -> Dict[str, Any]:
+def read_heartbeat(filepath: str = None, max_age_seconds: int = 120) -> Dict[str, Any]:
     """
-    Read heartbeat file and check if engine is alive.
+    Read heartbeat from DB (v6.72: DB-backed, filepath ignored).
 
     Args:
-        filepath: Path to heartbeat file
+        filepath: Ignored (kept for call-site backward compat)
         max_age_seconds: Maximum age to consider alive
 
     Returns:
-        Dict with 'alive' bool and 'last_seen' datetime
+        Dict with alive, stale, age_seconds, timestamp, state, positions, running
     """
-    data = safe_read_json(filepath, {})
-
-    result = {
-        'alive': False,
-        'last_seen': None,
-        'data': data
-    }
-
-    if not data:
-        return result
-
     try:
-        timestamp = datetime.fromisoformat(data.get('timestamp', ''))
-        age_seconds = (datetime.now() - timestamp).total_seconds()
-        result['alive'] = age_seconds < max_age_seconds
-        result['last_seen'] = timestamp
-    except Exception:
-        pass
-
-    return result
+        from database.repositories.heartbeat_repository import HeartbeatRepository
+        return HeartbeatRepository().read(max_age_seconds)
+    except Exception as e:
+        logger.error(f"Heartbeat read failed: {e}")
+        return {'alive': False, 'stale': True, 'error': str(e)}
 
 
 class StateFile:

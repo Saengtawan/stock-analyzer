@@ -4370,26 +4370,10 @@ def _do_close_all(engine):
 
 @app.route('/api/auto/heartbeat')
 def api_auto_heartbeat():
-    """v4.7 Fix #15: Get engine heartbeat status"""
+    """v4.7 Fix #15: Get engine heartbeat status (v6.72: DB-backed)"""
     try:
-        heartbeat_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            'data', 'heartbeat.json'
-        )
-        if not os.path.exists(heartbeat_path):
-            return jsonify({'alive': False, 'stale': True, 'error': 'No heartbeat file'})
-
-        with open(heartbeat_path, 'r') as f:
-            hb = json.load(f)
-
-        # Check staleness (> 120 seconds = stale)
-        from datetime import datetime
-        ts = datetime.fromisoformat(hb['timestamp'])
-        age_seconds = (datetime.now() - ts).total_seconds()
-        hb['age_seconds'] = round(age_seconds, 1)
-        hb['stale'] = age_seconds > 120
-        hb['alive'] = not hb['stale'] and hb.get('running', False)
-
+        from engine.state_manager import read_heartbeat
+        hb = read_heartbeat(max_age_seconds=120)
         return jsonify(hb)
     except Exception as e:
         return jsonify({'alive': False, 'stale': True, 'error': str(e)}), 500
