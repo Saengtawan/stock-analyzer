@@ -4984,31 +4984,33 @@ def get_positions_data():
         return {'error': str(e)}
 
 def get_signals_data():
-    """Get current signals data for WebSocket"""
-    try:
-        engine = get_auto_trading_engine()
-        if not engine:
-            return {'error': 'Engine not available'}
+    """Get current signals data for WebSocket.
 
-        signals = engine.scan_for_signals()
-        return {
-            'signals': [
-                {
-                    'symbol': s.symbol,
-                    'score': s.score,
-                    'entry_price': s.entry_price,
-                    'stop_loss': s.stop_loss,
-                    'take_profit': s.take_profit,
-                    'rsi': s.rsi,
-                    'momentum_5d': s.momentum_5d,
-                    'max_loss': abs(s.stop_loss - s.entry_price) / s.entry_price * 100,
-                    'expected_gain': abs(s.take_profit - s.entry_price) / s.entry_price * 100,
-                    'volume_ratio': getattr(s, 'volume_ratio', 1.0),
-                }
-                for s in signals
-            ],
-            'count': len(signals)
-        }
+    v6.73 FIX: Read active signals from DB (written by nohup engine) instead of
+    calling engine.scan_for_signals() which triggers a full 250-stock yfinance scan
+    every 10s from background_monitor. DB read is O(1) vs ~3 minute scan.
+    """
+    try:
+        from database.repositories.signal_repository import SignalRepository
+        signals = SignalRepository().get_active()
+        result = []
+        for s in signals:
+            price = s.signal_price or 0.0
+            sl = s.stop_loss or 0.0
+            tp = s.take_profit or 0.0
+            result.append({
+                'symbol': s.symbol,
+                'score': s.score,
+                'entry_price': price,
+                'stop_loss': sl,
+                'take_profit': tp,
+                'rsi': s.rsi,
+                'momentum_5d': s.momentum_5d,
+                'max_loss': abs(sl - price) / price * 100 if price else 0,
+                'expected_gain': abs(tp - price) / price * 100 if price else 0,
+                'volume_ratio': s.volume_ratio or 1.0,
+            })
+        return {'signals': result, 'count': len(result)}
     except Exception as e:
         logger.error(f"WebSocket signals error: {e}")
         return {'error': str(e)}
@@ -5043,16 +5045,25 @@ def get_regime_data():
     """
     try:
         # v6.20: Use engine as Single Source of Truth
+        # v6.73 FIX: Call _check_market_regime() directly (120s cached) instead of get_status().
+        # get_status() calls broker.get_account() (Alpaca API) every invocation — too heavy for
+        # background_monitor (every 10s). _check_market_regime() is cached and lightweight.
         engine = get_auto_trading_engine()
-        if engine:  # v6.73: removed engine.running check — engine is constructed but not started in app.py (auto_start=False)
-            status = engine.get_status()
-            regime_details = status.get('regime_details') or {}
-            return {
-                'is_bull': status.get('market_regime') in ('BULL',),
-                'reason': status.get('regime_detail', ''),
-                'details': regime_details,
-                'regime': status.get('market_regime', 'UNKNOWN')
-            }
+        if engine:
+            try:
+                is_bull, reason = engine._check_market_regime()
+                rc = getattr(engine, '_regime_cache', None)
+                details = rc[3] if rc and len(rc) >= 4 else {}
+                bear_mode = getattr(engine, 'BEAR_MODE_ENABLED', True)
+                market_regime = 'BULL' if is_bull else ('BEAR_MODE' if bear_mode else 'BEAR')
+                return {
+                    'is_bull': is_bull,
+                    'reason': reason,
+                    'details': details,
+                    'regime': market_regime
+                }
+            except Exception as _regime_err:
+                logger.debug(f"_check_market_regime error: {_regime_err}")
 
         # Fallback: Lightweight SPY check (no full screener initialization!)
         import yfinance as yf
