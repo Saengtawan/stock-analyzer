@@ -4144,9 +4144,19 @@ def convert_numpy_types(obj):
         return obj
 
 
+# v6.74: 30s TTL cache for /api/auto/status (avoids broker.get_account() + get_clock() on every browser poll)
+_auto_status_cache: dict = {'data': None, 'ts': 0.0}
+
 @app.route('/api/auto/status')
 def api_auto_status():
-    """Get auto trading engine status"""
+    """Get auto trading engine status.
+    v6.74: 30s TTL cache — engine.get_status() makes 2 Alpaca API calls (get_account + get_clock).
+    """
+    import time as _time
+    now = _time.monotonic()
+    if _auto_status_cache['data'] is not None and now - _auto_status_cache['ts'] < 30:
+        return jsonify(_auto_status_cache['data'])
+
     try:
         engine = get_auto_trading_engine()
         if not engine:
@@ -4170,6 +4180,7 @@ def api_auto_status():
         except Exception as e:
             logger.error(f"Could not read cron_schedule from file: {e}")
 
+        _auto_status_cache.update({'data': status, 'ts': now})
         return jsonify(status)
 
     except Exception as e:
