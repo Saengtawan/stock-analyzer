@@ -19,9 +19,14 @@ else
     echo "Engine: not running."
 fi
 
-# Stop Web App (nohup)
-if pgrep -f "python.*(run_app|web/app)\.py" > /dev/null; then
-    echo "Stopping Web App..."
+# Stop Web App (systemd-managed)
+if systemctl --user is-active stock-webapp.service > /dev/null 2>&1; then
+    echo "Stopping stock-webapp.service..."
+    systemctl --user stop stock-webapp.service
+    sleep 2
+    echo "   Stopped"
+elif pgrep -f "python.*(run_app|web/app)\.py" > /dev/null; then
+    echo "Stopping orphan web app..."
     pkill -f "python.*(run_app|web/app)\.py"
     sleep 2
     echo "   Stopped"
@@ -43,7 +48,8 @@ if systemctl --user is-active auto-trading.service > /dev/null 2>&1 || \
    pgrep -f "python.*auto_trading_engine" > /dev/null; then
     ENGINE_RUNNING=true
 fi
-if pgrep -f "python.*(run_app|web/app)" > /dev/null; then
+if systemctl --user is-active stock-webapp.service > /dev/null 2>&1 || \
+   pgrep -f "python.*(run_app|web/app)" > /dev/null; then
     APP_RUNNING=true
 fi
 

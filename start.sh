@@ -1,5 +1,5 @@
 #!/bin/bash
-# start.sh — Restart engine (via systemd) and/or web app (via nohup)
+# start.sh — Restart engine and web app (both via systemd)
 # Usage:
 #   ./start.sh              — restart both engine and app
 #   ./start.sh --engine-only
@@ -57,34 +57,25 @@ else
     echo "  Skipped (--app-only)"
 fi
 
-# --- 3. Restart Web App (nohup) ---
+# --- 3. Restart Web App (systemd-managed) ---
 echo ""
 echo "[3/3] Web App..."
 
 if [ "$ENGINE_ONLY" = false ]; then
-    # Kill existing webapp (pkill is safe here — no systemd restart for app)
-    if pgrep -f "python.*(web/app)\.py" > /dev/null; then
-        echo "  Stopping existing web app..."
-        pkill -TERM -f "python.*(web/app)\.py" || true
-        sleep 2
-        pkill -KILL -f "python.*(web/app)\.py" > /dev/null 2>&1 || true
-    fi
-
-    # Activate pyenv if available
-    if command -v pyenv > /dev/null 2>&1; then
-        eval "$(pyenv init -)"
-        eval "$(pyenv virtualenv-init -)" 2>/dev/null || true
-        pyenv activate cc 2>/dev/null || true
-    fi
-
-    echo "  Starting Web App..."
-    nohup python src/web/app.py >> nohup_webapp.out 2>&1 &
-    APP_PID=$!
-    sleep 3
-    if ps -p $APP_PID > /dev/null 2>&1; then
-        echo "  Web app running (PID: $APP_PID)"
+    if systemctl --user is-active stock-webapp.service > /dev/null 2>&1; then
+        echo "  Restarting stock-webapp.service..."
+        systemctl --user restart stock-webapp.service
     else
-        echo "ERROR: Web app failed to start — check nohup_webapp.out"
+        echo "  Starting stock-webapp.service..."
+        systemctl --user start stock-webapp.service
+    fi
+    sleep 3
+    if systemctl --user is-active stock-webapp.service > /dev/null 2>&1; then
+        APP_PID=$(pgrep -f "python.*web/app" | head -1)
+        echo "  Web app running (PID: ${APP_PID:-unknown})"
+    else
+        echo "ERROR: Web app failed to start — check:"
+        echo "  journalctl --user -u stock-webapp.service -n 20"
         exit 1
     fi
 else
@@ -97,6 +88,6 @@ echo "  ALL SYSTEMS RUNNING"
 echo "======================================"
 echo "Web UI:  http://localhost:5000"
 echo "Engine:  tail -f logs/auto_trading_engine_error.log"
-echo "App:     tail -f nohup_webapp.out"
+echo "App:     tail -f logs/web_app.log"
 echo "Stop:    ./scripts/stop_all.sh"
 echo ""
