@@ -79,26 +79,32 @@ class PEMScreener:
         """
         Get full 987-stock universe for PEM scanning.
 
-        v6.50: PEM now uses the full universe instead of DIP pre-filter pool.
-        Earnings gaps can occur in any liquid stock — limiting to 222 DIP
-        candidates misses the majority of earnings movers (e.g. NVDA, AAPL
-        after earnings typically aren't in the DIP pool as they're strong stocks).
-
-        Uses full_universe_cache.json (987 stocks from maintain_universe_1000.py).
-        Falls back to DIP pre-filter pool, then static fallback list.
+        v6.73: Primary source is universe_stocks DB (UniverseRepository),
+        consistent with v6.72 DB-only storage pattern.
+        Falls back to full_universe_cache.json → DIP pre-filter pool → static list.
         """
-        # Primary: full 987-stock universe
+        # Primary: universe_stocks DB (v6.73)
+        try:
+            from database.repositories.universe_repository import UniverseRepository
+            symbols = UniverseRepository().get_symbols()
+            if symbols:
+                logger.info(f"PEM: Loaded {len(symbols)} stocks from universe_stocks DB")
+                return symbols
+        except Exception as e:
+            logger.warning(f"PEM: universe_stocks DB unavailable: {e}")
+
+        # Fallback 1: full_universe_cache.json
         try:
             universe_file = os.path.join(self.DATA_DIR, 'full_universe_cache.json')
             with open(universe_file) as f:
                 symbols = list(json.load(f).keys())
             if len(symbols) >= 100:
-                logger.info(f"PEM: Loaded {len(symbols)} stocks from full universe")
+                logger.warning(f"PEM: Fallback to full_universe_cache.json ({len(symbols)} stocks)")
                 return symbols
         except Exception as e:
             logger.debug(f"PEM: full_universe_cache.json unavailable: {e}")
 
-        # Fallback: DIP pre-filter pool
+        # Fallback 2: DIP pre-filter pool
         try:
             from database.repositories.pre_filter_repository import PreFilterRepository
             repo = PreFilterRepository()
