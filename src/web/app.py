@@ -2591,13 +2591,18 @@ def api_health_legacy():
             checks['market_clock'] = {'ok': False, 'detail': str(e)}
             issues.append(f"Market clock: {e}")
 
-        # 3. Portfolio data - v6.4: Use AutoTradingEngine as Single Source of Truth
+        # 3. Portfolio data - v6.74: Use DB as source of truth (engine.positions is empty in webapp auto_start=False)
         try:
             engine = get_auto_trading_engine()
-            engine_positions = engine.positions if engine else {}
+            # v6.74: Use PositionRepository instead of engine.positions (always {} in webapp)
+            from database.repositories.position_repository import PositionRepository
+            try:
+                db_pos = PositionRepository().get_all(use_cache=False)
+                memory_count = len(db_pos) if db_pos else 0
+            except Exception:
+                memory_count = 0
             alpaca_positions = broker.get_positions() if broker else []
 
-            memory_count = len(engine_positions)
             alpaca_count = len(alpaca_positions)
 
             if memory_count != alpaca_count:
@@ -3305,13 +3310,22 @@ def api_rapid_alerts_cleanup():
 # Health Check & Monitoring APIs (Phase 5A)
 # ============================================================================
 
+# v6.74: 30s TTL cache for /api/health (avoids 3 DB queries per call × 4 calls/min)
+_health_cache: dict = {'data': None, 'ts': 0.0, 'status': 200}
+
 @app.route('/api/health')
 def api_health():
     """
     Quick health check endpoint.
     Returns basic system status for UI and monitoring.
     Format compatible with frontend health indicator.
+    v6.74: 30s TTL cache — avoids fresh HealthChecker() on every call from two 30s pollers.
     """
+    import time
+    now = time.monotonic()
+    if _health_cache['data'] is not None and now - _health_cache['ts'] < 30:
+        return jsonify(_health_cache['data']), _health_cache['status']
+
     try:
         from monitoring import HealthChecker
 
@@ -3345,6 +3359,7 @@ def api_health():
 
         status_code = 200 if response['healthy'] else 503
 
+        _health_cache.update({'data': response, 'ts': now, 'status': status_code})
         return jsonify(response), status_code
 
     except Exception as e:
@@ -5033,13 +5048,37 @@ def get_status_data():
             return {'error': 'Engine not available'}
 
         account = engine.broker.get_account()
+
+        # v6.74: Position count from DB (engine.positions is empty in webapp auto_start=False)
+        from database.repositories.position_repository import PositionRepository
+        try:
+            db_pos = PositionRepository().get_all(use_cache=False)
+            pos_count = len(db_pos) if db_pos else 0
+        except Exception:
+            pos_count = 0
+
+        # v6.74: Effective params for mode badge (cached via _check_market_regime 120s)
+        try:
+            effective_params = engine._get_effective_params()
+        except Exception:
+            effective_params = {}
+
+        # v6.74: Market regime for bear/bull sector visibility
+        try:
+            market_regime = get_regime_data().get('regime', 'UNKNOWN')
+        except Exception:
+            market_regime = 'UNKNOWN'
+
         return {
             'running': engine.running,
             'state': engine.state.value if hasattr(engine.state, 'value') else str(engine.state),
             'market_open': engine.broker.is_market_open(),
             'cash': float(getattr(account, 'cash', 0)),
             'account_value': float(getattr(account, 'portfolio_value', 0)),
-            'safety': engine.safety.get_status_summary()
+            'safety': engine.safety.get_status_summary(),
+            'positions': pos_count,
+            'effective_params': effective_params,
+            'market_regime': market_regime,
         }
     except Exception as e:
         logger.error(f"WebSocket status error: {e}")
