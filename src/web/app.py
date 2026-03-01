@@ -5210,6 +5210,8 @@ def background_monitor():
                 # ── v6.68: Trade events check (every 2s) ──────────────────────
                 pending = _get_pending_trade_events()
                 if pending:
+                    # v6.74: Invalidate status cache on trade — next browser poll gets fresh data
+                    _auto_status_cache['data'] = None
                     for ev in pending:
                         broadcast_update('trade_event', {
                             'type':     ev['event_type'],
