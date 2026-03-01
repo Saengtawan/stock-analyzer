@@ -4819,7 +4819,7 @@ def _build_positions_from_engine():
                     if close:
                         alpaca_bar_closes[symbol] = float(close)
             if alpaca_bar_closes:
-                logger.info(f"Alpaca Bars closes: { {s: f'${v:.2f}' for s, v in alpaca_bar_closes.items()} }")
+                logger.debug(f"Alpaca Bars closes: { {s: f'${v:.2f}' for s, v in alpaca_bar_closes.items()} }")
         except Exception as e:
             logger.warning(f"Failed to fetch Alpaca Bars close: {e}")
 
@@ -4831,7 +4831,7 @@ def _build_positions_from_engine():
     _is_premarket  = (4 * 60) <= _et_mins < (9 * 60 + 30)
     _is_afterhours = (16 * 60) <= _et_mins < (20 * 60)
 
-    logger.info(f"Portfolio API: market_open={market_open}, premarket={_is_premarket}, afterhours={_is_afterhours}")
+    logger.debug(f"Portfolio API: market_open={market_open}, premarket={_is_premarket}, afterhours={_is_afterhours}")
 
     # v6.56: Pre-fetch latest IEX minute bars for all positions (AH/pre-market price source).
     # Alpaca positions.current_price is unreliable in paper trading (IEX stale last-trade).
@@ -4895,7 +4895,7 @@ def _build_positions_from_engine():
                 or ap.get('current_price')
                 or entry_price
             )
-        logger.info(f"{symbol}: current_price=${current_price:.2f} source={'live' if market_open else 'IEX_close'} (market_open={market_open})")
+        logger.debug(f"{symbol}: current_price=${current_price:.2f} source={'live' if market_open else 'IEX_close'} (market_open={market_open})")
 
         pnl_pct = ((current_price - entry_price) / entry_price) * 100
         pnl_usd = (current_price - entry_price) * qty
@@ -4971,7 +4971,10 @@ def _build_positions_from_engine():
                     pos_data['premarket_price']   = round(alpaca_live, 2)
                     pos_data['premarket_change']  = round(change_pct, 2)
                     pos_data['premarket_session'] = session
-                    logger.info(f"{symbol}: {session} ${alpaca_live:.2f} ({change_pct:+.2f}% vs close ${current_price:.2f})")
+                    if abs(change_pct) >= 1.0:
+                        logger.info(f"{symbol}: {session} ${alpaca_live:.2f} ({change_pct:+.2f}% vs close ${current_price:.2f})")
+                    else:
+                        logger.debug(f"{symbol}: {session} ${alpaca_live:.2f} ({change_pct:+.2f}% vs close ${current_price:.2f})")
 
                     # v6.56: Recalculate signal using AH/Pre price when move is significant (>2%).
                     # Without this, a stock down in pre-market shows "Position within normal range"
