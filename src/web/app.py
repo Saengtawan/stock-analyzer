@@ -4087,7 +4087,7 @@ def get_auto_trading_engine():
                 api_key=API_KEY,
                 secret_key=SECRET_KEY,
                 paper=True,
-                auto_start=True  # Auto-start by default for background trading
+                auto_start=False  # v6.73: app.py is display-only — nohup engine owns trading loop
             )
         except Exception as e:
             logger.error(f"Failed to create auto trading engine: {e}")
