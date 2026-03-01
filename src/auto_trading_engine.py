@@ -8209,7 +8209,7 @@ class AutoTradingEngine:
             'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v6.73',
+            'version': 'v6.74',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
