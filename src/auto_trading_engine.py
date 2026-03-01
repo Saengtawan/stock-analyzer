@@ -8209,7 +8209,7 @@ class AutoTradingEngine:
             'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v6.56',  # v6.56: Live intraday VIX (_get_vix uses Ticker.history period='1d')
+            'version': 'v6.73',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
