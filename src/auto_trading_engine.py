@@ -1128,7 +1128,7 @@ class AutoTradingEngine:
                     'days_held': db_pos.day_held or 0,
                 }
             if positions:
-                logger.info(f"Loaded persisted state: {len(positions)} positions from DB")
+                logger.debug(f"Loaded persisted state: {len(positions)} positions from DB")
             return positions
         except Exception as e:
             logger.warning(f"Failed to load persisted state from DB: {e}")
