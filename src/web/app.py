@@ -5044,7 +5044,7 @@ def get_regime_data():
     try:
         # v6.20: Use engine as Single Source of Truth
         engine = get_auto_trading_engine()
-        if engine and engine.running:
+        if engine:  # v6.73: removed engine.running check — engine is constructed but not started in app.py (auto_start=False)
             status = engine.get_status()
             regime_details = status.get('regime_details') or {}
             return {

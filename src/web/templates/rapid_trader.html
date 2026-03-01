@@ -1209,7 +1209,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============================================
 function initWebSocket() {
     socket = io({
-        transports: ['websocket', 'polling'],
+        transports: ['polling', 'websocket'],
         reconnection: true,
         reconnectionAttempts: 10,
         reconnectionDelay: 1000,

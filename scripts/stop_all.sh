@@ -13,9 +13,9 @@ if pgrep -f "python.*auto_trading_engine.py" > /dev/null; then
 fi
 
 # Stop Web App
-if pgrep -f "python.*run_app.py" > /dev/null; then
+if pgrep -f "python.*(run_app|web/app)\.py" > /dev/null; then
     echo "🛑 Stopping Web App..."
-    pkill -f "python.*run_app.py"
+    pkill -f "python.*(run_app|web/app)\.py"
     sleep 2
     echo "   ✅ Stopped"
 fi
@@ -27,9 +27,9 @@ echo "======================================"
 echo ""
 
 # Verify
-if pgrep -f "python.*(auto_trading_engine|run_app)" > /dev/null; then
+if pgrep -f "python.*(auto_trading_engine|run_app|web/app)" > /dev/null; then
     echo "⚠️  Some processes still running:"
-    ps aux | grep -E "auto_trading_engine|run_app" | grep -v grep
+    ps aux | grep -E "auto_trading_engine|run_app|web/app" | grep -v grep
 else
     echo "✅ All processes stopped"
 fi
