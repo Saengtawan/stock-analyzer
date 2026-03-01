@@ -2745,7 +2745,7 @@ class AutoTradingEngine:
 
             if is_low_risk:
                 # BEAR + LOW_RISK: use stricter of both
-                logger.info(f"🐻🛡️ BEAR+LOW_RISK MODE: {bear_reason} | {lr_reason}")
+                logger.debug(f"🐻🛡️ BEAR+LOW_RISK MODE: {bear_reason} | {lr_reason}")
                 return {
                     'gap_max_up': min(self.BEAR_GAP_MAX_UP, self.LOW_RISK_GAP_MAX_UP),
                     'gap_max_down': self.BEAR_GAP_MAX_DOWN,
@@ -2757,7 +2757,7 @@ class AutoTradingEngine:
                     'mode': 'BEAR+LOW_RISK'
                 }
             else:
-                logger.info(f"🐻 BEAR MODE: {bear_reason}")
+                logger.debug(f"🐻 BEAR MODE: {bear_reason}")
                 return {
                     'gap_max_up': self.BEAR_GAP_MAX_UP,
                     'gap_max_down': self.BEAR_GAP_MAX_DOWN,
@@ -2770,7 +2770,7 @@ class AutoTradingEngine:
                 }
         elif is_low_risk:
             blocked = self._get_bull_blocked_sectors()
-            logger.info(f"⚠️ LOW RISK MODE: {lr_reason}")
+            logger.debug(f"⚠️ LOW RISK MODE: {lr_reason}")
             return {
                 'gap_max_up': self.LOW_RISK_GAP_MAX_UP,
                 'min_score': self.LOW_RISK_MIN_SCORE,
