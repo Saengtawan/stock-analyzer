@@ -690,25 +690,54 @@ class TradingSafetySystem:
     # =========================================================================
 
     def get_status_summary(self) -> Dict:
-        """Get current safety status summary"""
-        report = self.run_health_check()
+        """Get current safety status summary.
 
-        return {
-            'timestamp': report.timestamp.isoformat(),
-            'overall_status': report.overall_status.value,
-            'can_trade': report.can_trade,
-            'reasons': report.reasons,
-            'emergency_stop': self.emergency_stop,
-            'daily_loss_triggered': self.daily_loss_triggered,
-            'checks': [
-                {
-                    'name': c.name,
-                    'status': c.status.value,
-                    'message': c.message
-                }
-                for c in report.checks
-            ]
-        }
+        v6.73: Cache result for 5s with a lock to prevent the race condition where
+        two threads (background_monitor + browser poll) both read cache_time=0
+        simultaneously and both run run_health_check() before either writes the cache.
+        """
+        import time as _time
+        import threading as _threading
+
+        # Lazy-init lock (avoids __init__ change, safe with GIL)
+        if not hasattr(self, '_status_summary_lock'):
+            self._status_summary_lock = _threading.Lock()
+            self._status_summary_cache = None
+            self._status_summary_cache_time = 0.0
+
+        now = _time.monotonic()
+
+        # Fast path — check cache without lock (stale reads are fine here)
+        if self._status_summary_cache is not None and (now - self._status_summary_cache_time) < 10.0:
+            return self._status_summary_cache
+
+        # Slow path — acquire lock, double-check, then run health check
+        with self._status_summary_lock:
+            now = _time.monotonic()  # re-read after acquiring lock
+            if self._status_summary_cache is not None and (now - self._status_summary_cache_time) < 10.0:
+                return self._status_summary_cache
+
+            report = self.run_health_check()
+
+            result = {
+                'timestamp': report.timestamp.isoformat(),
+                'overall_status': report.overall_status.value,
+                'can_trade': report.can_trade,
+                'reasons': report.reasons,
+                'emergency_stop': self.emergency_stop,
+                'daily_loss_triggered': self.daily_loss_triggered,
+                'checks': [
+                    {
+                        'name': c.name,
+                        'status': c.status.value,
+                        'message': c.message
+                    }
+                    for c in report.checks
+                ]
+            }
+            self._status_summary_cache = result
+            self._status_summary_cache_time = now
+            return result
 
     def print_status(self):
         """Print formatted status to console"""
