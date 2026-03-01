@@ -708,13 +708,13 @@ class TradingSafetySystem:
         now = _time.monotonic()
 
         # Fast path — check cache without lock (stale reads are fine here)
-        if self._status_summary_cache is not None and (now - self._status_summary_cache_time) < 10.0:
+        if self._status_summary_cache is not None and (now - self._status_summary_cache_time) < 30.0:
             return self._status_summary_cache
 
         # Slow path — acquire lock, double-check, then run health check
         with self._status_summary_lock:
             now = _time.monotonic()  # re-read after acquiring lock
-            if self._status_summary_cache is not None and (now - self._status_summary_cache_time) < 10.0:
+            if self._status_summary_cache is not None and (now - self._status_summary_cache_time) < 30.0:
                 return self._status_summary_cache
 
             report = self.run_health_check()
