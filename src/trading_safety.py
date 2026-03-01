@@ -462,7 +462,7 @@ class TradingSafetySystem:
 
             # v6.44: Log if flag set but count OK (likely Alpaca paper bug)
             if is_pdt and daytrade_count < self.PDT_DAY_TRADE_LIMIT:
-                logger.warning(f"PDT flag set but count OK ({daytrade_count}/{self.PDT_DAY_TRADE_LIMIT}) - ignoring flag")
+                logger.debug(f"PDT flag set but count OK ({daytrade_count}/{self.PDT_DAY_TRADE_LIMIT}) - ignoring flag")
 
             return SafetyCheck(
                 name="PDT Rule",
