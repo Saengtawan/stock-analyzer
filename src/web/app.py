@@ -4053,6 +4053,8 @@ def _calculate_indicators(bars):
 # Global auto trading engine instance
 _auto_trading_engine = None
 _engine_lock = threading.Lock()  # v6.3: Thread-safe singleton
+_last_position_refresh: float = 0.0          # v6.73: throttle _load_positions_state
+_POSITION_REFRESH_INTERVAL: float = 5.0     # seconds — one DB read per 5s max
 
 def get_auto_trading_engine():
     """Get or create auto trading engine singleton (thread-safe).
@@ -4061,14 +4063,22 @@ def get_auto_trading_engine():
     app.py never serves stale in-memory state from a previous session.
     The nohup engine is the true owner of positions — it writes to DB;
     app.py reads DB here to stay in sync without any IPC needed.
+
+    v6.73: Throttle _load_positions_state to once per 5s. background_monitor
+    calls get_auto_trading_engine() 3x per 10s heavy cycle; without throttle
+    all three trigger a DB read in the same second.
     """
-    global _auto_trading_engine
-    # Fast path: already created — refresh positions from DB then return
+    global _auto_trading_engine, _last_position_refresh
+    # Fast path: already created — refresh positions from DB (throttled) then return
     if _auto_trading_engine is not None:
-        try:
-            _auto_trading_engine._load_positions_state()
-        except Exception as _e:
-            logger.debug(f"Position refresh skipped: {_e}")
+        import time as _time
+        now = _time.monotonic()
+        if now - _last_position_refresh >= _POSITION_REFRESH_INTERVAL:
+            try:
+                _auto_trading_engine._load_positions_state()
+                _last_position_refresh = now
+            except Exception as _e:
+                logger.debug(f"Position refresh skipped: {_e}")
         return _auto_trading_engine
     # Slow path: create with lock
     with _engine_lock:

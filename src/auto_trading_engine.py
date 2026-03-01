@@ -2485,9 +2485,9 @@ class AutoTradingEngine:
                     # v5.1: Allowlist (not blocklist) — UNKNOWN is BLOCKED for safety
                     if regime in ('BULL', 'STRONG BULL', 'SIDEWAYS'):
                         allowed.append(sector_name)
-                        logger.info(f"🐻 {sector_name} ({etf}) regime={regime} → ALLOWED")
+                        logger.debug(f"🐻 {sector_name} ({etf}) regime={regime} → ALLOWED")
                     else:
-                        logger.info(f"🐻 {sector_name} ({etf}) regime={regime} → BLOCKED")
+                        logger.debug(f"🐻 {sector_name} ({etf}) regime={regime} → BLOCKED")
                 except Exception as e:
                     logger.warning(f"Error checking sector {etf}: {e} — BLOCKED (fail-closed)")
 
