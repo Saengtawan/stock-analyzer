@@ -5632,6 +5632,8 @@ class AutoTradingEngine:
                 if symbol in self.positions:
                     del self.positions[symbol]
                     self._save_positions_state()
+                    # v6.75: Sync down so preflight max-pos check sees freed slot immediately
+                    self._alpaca_position_count = min(self._alpaca_position_count, len(self.positions))
             self.pdt_guard.remove_entry(symbol)
             # v6.55: Mark trading_signals as closed so UI doesn't re-display stale signal
             try:
@@ -6036,6 +6038,8 @@ class AutoTradingEngine:
                     if symbol in self.positions:
                         del self.positions[symbol]
                         self._save_positions_state()
+                        # v6.75: Sync down so preflight max-pos check sees freed slot immediately
+                        self._alpaca_position_count = min(self._alpaca_position_count, len(self.positions))
                 self.pdt_guard.remove_entry(symbol)
                 return
 
@@ -6248,6 +6252,8 @@ class AutoTradingEngine:
                 if symbol in self.positions:
                     del self.positions[symbol]
                     self._save_positions_state()
+                    # v6.75: Sync down so preflight max-pos check sees freed slot immediately
+                    self._alpaca_position_count = min(self._alpaca_position_count, len(self.positions))
             self.pdt_guard.remove_entry(symbol)
             # v6.55: Mark trading_signals as closed so UI doesn't re-display stale signal
             try:
@@ -8209,7 +8215,7 @@ class AutoTradingEngine:
             'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v6.74',
+            'version': 'v6.75',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
