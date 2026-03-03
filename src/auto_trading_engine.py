@@ -4291,8 +4291,11 @@ class AutoTradingEngine:
         """
         mode = params['mode']
 
-        # v6.36: Skip window check (10:00-11:00 ET) - Block all trades
-        if self._is_skip_window():
+        # v6.36: Skip window check (10:00-11:00 ET) - Block DIP trades only
+        # v6.78: PEM/OVN/PED exempt — earnings/overnight catalysts don't care about intraday volatility window
+        _source = params.get('source', '')
+        _skip_window_exempt = _source in ('pem', 'overnight_gap', 'ped')
+        if self._is_skip_window() and not _skip_window_exempt:
             logger.info(f"⏸️  {symbol}: SKIP WINDOW (10:00-11:00 ET) - No trades during this period")
             return False, "Skip Window"
 
@@ -8218,7 +8221,7 @@ class AutoTradingEngine:
             'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v6.77',
+            'version': 'v6.78',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
