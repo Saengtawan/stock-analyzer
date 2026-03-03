@@ -7108,21 +7108,21 @@ class AutoTradingEngine:
 
         OVN needs strong/momentum stocks (green day, near HOD, high volume).
         DIP pre-filter pool selects WEAK/dipping stocks — opposite of OVN criteria.
-        So OVN must use its own universe from full_universe_cache.json (987 stocks).
+        So OVN must use its own universe from UniverseRepository DB (v6.75: was JSON, deleted in v6.72).
 
-        Uses batch yf.download() for all 987 symbols in one API call (~20-30s).
+        Uses batch yf.download() for all 1000 symbols in one API call (~20-30s).
         Returns {symbol: DataFrame} with lowercase OHLCV columns.
         """
-        import json as _json
         import pandas as _pd
 
         try:
-            universe_file = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                'data', 'full_universe_cache.json'
-            )
-            with open(universe_file) as f:
-                symbols = list(_json.load(f).keys())
+            # v6.75: Read from DB (full_universe_cache.json deleted in v6.72 migration)
+            from database.repositories.universe_repository import UniverseRepository
+            universe_stocks = UniverseRepository().get_all()
+            symbols = [s.symbol for s in universe_stocks] if universe_stocks else []
+            if not symbols:
+                logger.warning("🌙 OVN Universe: UniverseRepository returned empty")
+                return {}
 
             logger.info(f"🌙 OVN Universe: Batch loading {len(symbols)} stocks...")
 
@@ -7157,9 +7157,6 @@ class AutoTradingEngine:
             logger.info(f"🌙 OVN Universe: {len(data_cache)}/{len(symbols)} stocks ready")
             return data_cache
 
-        except FileNotFoundError:
-            logger.warning("🌙 OVN Universe: full_universe_cache.json not found")
-            return {}
         except Exception as e:
             logger.warning(f"🌙 OVN Universe: Load failed: {e}")
             return {}
@@ -7684,13 +7681,13 @@ class AutoTradingEngine:
 
             repo = EarningsCalendarRepository()
 
-            # Load universe
-            universe_file = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                'data', 'full_universe_cache.json'
-            )
-            with open(universe_file) as f:
-                universe = list(json.load(f).keys())
+            # Load universe (v6.75: from DB, full_universe_cache.json deleted in v6.72)
+            from database.repositories.universe_repository import UniverseRepository
+            _universe_stocks = UniverseRepository().get_all()
+            universe = [s.symbol for s in _universe_stocks] if _universe_stocks else []
+            if not universe:
+                logger.warning("📅 Earnings calendar: UniverseRepository empty, skipping")
+                return
 
             # Only refresh stale symbols (>26h old or missing)
             to_fetch = repo.get_stale_symbols(universe, max_age_hours=26.0)
@@ -8215,7 +8212,7 @@ class AutoTradingEngine:
             'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v6.75',
+            'version': 'v6.76',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
