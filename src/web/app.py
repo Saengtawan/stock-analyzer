@@ -2506,9 +2506,9 @@ def rapid_trader_page():
     import os
 
     config_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
         'config', 'trading.yaml'
-    )
+    )  # v6.80: Fixed path — app.py is src/web/app.py → need 3× dirname to reach project root
 
     try:
         config = RapidRotationConfig.from_yaml(config_path)
@@ -4778,13 +4778,8 @@ def _build_positions_from_engine():
         logger.warning(f"DB position read failed: {_e}")
 
     if not db_positions:
-        # v4.8: Fallback to RapidPortfolioManager (reads from rapid_portfolio.json)
-        logger.debug("No DB positions, falling back to RapidPortfolioManager")
-        try:
-            return _build_positions_from_file()
-        except Exception as e:
-            logger.error(f"Fallback to portfolio file failed: {e}")
-            return [], {'positions': 0, 'total_pnl_usd': 0, 'total_pnl_pct': 0}
+        # v6.80: rapid_portfolio.json removed in v6.72 DB migration — return empty directly
+        return [], {'positions': 0, 'total_pnl_usd': 0, 'total_pnl_pct': 0}
 
     if not engine:
         logger.warning("Engine not available — cannot fetch live prices")
