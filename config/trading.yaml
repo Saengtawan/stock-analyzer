@@ -164,7 +164,7 @@ pdt_tp_threshold: 8.0          # PDT mode TP threshold
 trail_enabled: true            # v6.0: ENABLED (backtest: +2%/60% optimal)
 
 # -- Stock Quality Filters (v6.2) --
-max_rsi_entry: 65              # Block RSI > 65 (backtest: only 20% WR)
+max_rsi_entry: 60              # v6.79: Block RSI > 60 (live: RSI 60+ = 0% WR, was 65)
 avoid_mom_range: [10, 12]      # Skip momentum 10-12% (backtest: 33% WR)
 
 # -- Signal Queue (v4.1) --

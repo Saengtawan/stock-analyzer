@@ -110,7 +110,7 @@ class RapidRotationConfig:
     # =========================================================================
     min_score: int = 90                 # Minimum score to qualify (legacy: 90)
     min_atr_pct: float = 2.5            # Minimum volatility (ATR%)
-    max_rsi_entry: int = 65             # Block RSI > 65 (20% WR)
+    max_rsi_entry: int = 60             # v6.79: Block RSI > 60 (live: RSI 60+ = 0% WR)
     avoid_mom_range: List[int] = field(default_factory=lambda: [10, 12])  # Skip momentum 10-12%
 
     # v6.20: Momentum 5d Filter (dip-bounce strategy requirement)
