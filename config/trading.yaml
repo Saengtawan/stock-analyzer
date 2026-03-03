@@ -345,6 +345,7 @@ overnight_gap_position_pct: 100         # v6.31: 35→100 (use all remaining cas
 overnight_gap_max_pct_of_capital: 70    # v6.31: Safety cap at 70% of total capital
 overnight_gap_min_cash: 500             # v6.31: Skip if available cash < $500
 overnight_gap_max_positions: 1          # v6.34: Dedicated slot (not counted in dip-bounce limit)
+overnight_gap_skip_vix: true            # v6.76: OVN bypasses VIX check — overnight hold, own gap-down protection
 overnight_gap_target_pct: 3.0
 overnight_gap_sl_pct: 1.5
 ovn_gap_down_threshold: -1.0     # v6.59: Sell immediately if gap down > 1% from entry at open

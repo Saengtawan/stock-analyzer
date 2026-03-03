@@ -953,6 +953,7 @@ class AutoTradingEngine:
         self.PEM_TRAIL_ACTIVATION_PCT = getattr(cfg, 'pem_trail_activation_pct', 2.0)
         self.PEM_TRAIL_LOCK_PCT = getattr(cfg, 'pem_trail_lock_pct', 80.0)
         self.PEM_SKIP_VIX = getattr(cfg, 'pem_skip_vix', False)  # v6.69: bypass VIX for PEM
+        self.OVN_SKIP_VIX = getattr(cfg, 'overnight_gap_skip_vix', True)  # v6.76: bypass VIX for OVN (overnight holds, own gap-down protection)
 
         # =====================================================================
         # PRE-EARNINGS DRIFT (PED) STRATEGY (v6.53)
@@ -4337,9 +4338,14 @@ class AutoTradingEngine:
                 return False, "Max Pos"
 
         # Fresh VIX check (v6.69: PEM bypasses VIX — earnings catalyst overrides macro fear)
-        _is_pem = params.get('source', '') == 'pem'
+        # v6.76: OVN bypasses VIX — overnight hold, own gap-down protection (-1% exit at open)
+        _source = params.get('source', '')
+        _is_pem = _source == 'pem'
+        _is_ovn = _source == 'overnight_gap'
         if _is_pem and self.PEM_SKIP_VIX:
             logger.debug(f"PEM VIX bypass: skipping VIX check (pem_skip_vix=True)")
+        elif _is_ovn and self.OVN_SKIP_VIX:
+            logger.debug(f"OVN VIX bypass: skipping VIX check (overnight_gap_skip_vix=True)")
         else:
             vix_ok, vix_val = self._check_vix_fresh_before_entry()
             if not vix_ok:
@@ -8212,7 +8218,7 @@ class AutoTradingEngine:
             'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v6.76',
+            'version': 'v6.77',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),
