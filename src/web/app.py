@@ -2531,7 +2531,7 @@ def rapid_trader_page():
         if not sessions:
             sessions = [
                 {'name': 'gapscan', 'label': 'Gap Scan', 'start': 360, 'end': 575, 'interval': -1},
-                {'name': 'morning', 'label': 'Morning', 'start': 575, 'end': 615, 'interval': 3},
+                {'name': 'morning', 'label': 'Morning', 'start': 575, 'end': 600, 'interval': 3},
                 {'name': 'pem', 'label': 'PEM', 'start': 575, 'end': 615, 'interval': -1},
                 {'name': 'ped', 'label': 'PED', 'start': 575, 'end': 630, 'interval': -1},
                 {'name': 'skip', 'label': 'SKIP', 'start': 600, 'end': 605, 'interval': -1},
@@ -2545,7 +2545,7 @@ def rapid_trader_page():
         # Fallback sessions (v6.54: 9 sessions with PEM, PED, SKIP, OVN)
         sessions = [
             {'name': 'gapscan', 'label': 'Gap Scan', 'start': 360, 'end': 575, 'interval': -1},
-            {'name': 'morning', 'label': 'Morning', 'start': 575, 'end': 615, 'interval': 3},
+            {'name': 'morning', 'label': 'Morning', 'start': 575, 'end': 600, 'interval': 3},
             {'name': 'pem', 'label': 'PEM', 'start': 575, 'end': 615, 'interval': -1},
             {'name': 'ped', 'label': 'PED', 'start': 575, 'end': 630, 'interval': -1},
             {'name': 'skip', 'label': 'SKIP', 'start': 600, 'end': 605, 'interval': -1},

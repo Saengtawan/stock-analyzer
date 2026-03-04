@@ -238,7 +238,7 @@ sessions:
     label: "Gap Scan"
   morning:
     start: 575                             # 09:35 ET
-    end: 605                               # 10:05 ET
+    end: 600                               # 10:00 ET (skip window starts)
     interval: 3                            # Volatile: scan every 3 min
     label: "Morning"
   midday:
