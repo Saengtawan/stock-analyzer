@@ -2241,9 +2241,9 @@ function loadTradeLogs() {
                 return;
             }
             const summary = data.summary || {};
-            console.log('[Trade Log] Summary:', summary);  // DEBUG
-            console.log('[Trade Log] Setting count to:', summary.total_trades || 0);  // DEBUG
-            document.getElementById('tradeLogCount').textContent = summary.total_trades || 0;
+            // v6.81: count = trades + skips (skips were invisible before — engine is separate process)
+            const totalCount = (summary.total_trades || 0) + (summary.skips || 0);
+            document.getElementById('tradeLogCount').textContent = totalCount;
             document.getElementById('logWinners').textContent = (summary.winners || 0) + ' W';
             document.getElementById('logLosers').textContent = (summary.losers || 0) + ' L';
             const pnl = summary.total_pnl_usd || 0;

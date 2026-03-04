@@ -5470,18 +5470,74 @@ def api_rapid_sync():
 @app.route('/api/trade-logs')
 def api_trade_logs():
     """
-    Get today's trade logs and summary for UI display
+    Get today's trade logs and summary for UI display.
 
-    Returns:
-        summary: Today's trading summary (buys, sells, winners, losers, pnl)
-        logs: Recent trade log entries
+    v6.81: Read directly from SQLite trades table (engine + webapp same DB).
+    Previously used in-memory TradeLogger which only saw webapp-process logs,
+    missing all engine SKIPs (different process, different singleton).
     """
     try:
-        from trade_logger import get_trade_logger
+        import sqlite3
+        import pytz
+        et_tz = pytz.timezone('America/New_York')
+        today = datetime.now(et_tz).strftime('%Y-%m-%d')
 
-        trade_logger = get_trade_logger()
-        summary = trade_logger.get_today_summary()
-        logs = trade_logger.get_recent_logs(limit=20)
+        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data', 'trade_history.db')
+        db_path = os.path.normpath(db_path)
+
+        with sqlite3.connect(db_path, timeout=5) as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT * FROM trades WHERE date = ? ORDER BY timestamp DESC LIMIT 100",
+                (today,)
+            )
+            rows = cur.fetchall()
+
+        logs = []
+        for row in rows:
+            full = json.loads(row['full_data']) if row['full_data'] else {}
+            logs.append({
+                'id': row['id'],
+                'timestamp': row['timestamp'],
+                'action': row['action'],
+                'symbol': row['symbol'],
+                'qty': row['qty'],
+                'price': row['price'],
+                'reason': row['reason'],
+                'pnl_usd': row['pnl_usd'],
+                'pnl_pct': row['pnl_pct'],
+                'hold_duration': row['hold_duration'],
+                'mode': row['mode'],
+                'from_queue': bool(row['from_queue']),
+                'signal_score': row['signal_score'],
+                # Extra fields from full_data (not in columns)
+                'skip_reason': full.get('skip_reason'),
+                'entry_rsi': full.get('entry_rsi'),
+                'momentum_5d': full.get('momentum_5d'),
+            })
+
+        buys = [l for l in logs if l['action'] == 'BUY']
+        sells = [l for l in logs if l['action'] == 'SELL']
+        skips = [l for l in logs if l['action'] == 'SKIP']
+        winners = [l for l in sells if (l['pnl_usd'] or 0) > 0]
+        losers = [l for l in sells if (l['pnl_usd'] or 0) <= 0]
+        total_pnl = sum(l['pnl_usd'] or 0 for l in sells)
+
+        summary = {
+            'date': today,
+            'total_trades': len(buys) + len(sells),
+            'buys': len(buys),
+            'sells': len(sells),
+            'skips': len(skips),
+            'winners': len(winners),
+            'losers': len(losers),
+            'win_rate': round(len(winners) / len(sells) * 100, 1) if sells else 0,
+            'total_pnl_usd': round(total_pnl, 2),
+            'low_risk_trades': sum(1 for l in logs if l.get('mode') == 'LOW_RISK'),
+            'pdt_used': len(buys),
+            'queue_trades': sum(1 for l in logs if l.get('from_queue')),
+        }
 
         return jsonify({
             'summary': summary,
