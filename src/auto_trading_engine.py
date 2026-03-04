@@ -530,8 +530,9 @@ class AutoTradingEngine:
                 logger.warning(f"BreakoutScanner init failed: {e}")
 
         # v6.11: Pre-Market Gap Scanner (100% win rate, 6AM-9:30AM)
-        # v6.82: Pre-Market Gap Scanner — dedicated slot, 1 position max
+        # v6.83: Pre-Market Gap Scanner — dedicated slot, 1 position max
         self.PREMARKET_GAP_MAX_POSITIONS = 1
+        self._gap_candidates_today = []   # candidates from scan phase (executed at open)
         try:
             from screeners.premarket_gap_scanner import PreMarketGapScanner
             self.premarket_gap_scanner = PreMarketGapScanner()
@@ -7264,94 +7265,52 @@ class AutoTradingEngine:
 
     def _loop_premarket_gap_scan(self, today: str):
         """
-        Execute pre-market gap scan (6:00-9:35 AM ET)
+        Phase 1: Pre-market scan only (6:00-9:29 AM ET, market CLOSED branch).
 
-        v6.82: Redesigned
-        - Real pre-market prices via batch yf.download(prepost=True)
-        - Full universe (~1000 stocks from UniverseRepository)
-        - Dedicated slot (1 position, not counted against DIP limit)
-        - VIX guard at EXTREME (>38) only — gap trades have their own risk filter
+        v6.83: Split scan/execute — scan pre-market, execute at open.
+        Scans 1000 stocks for overnight gaps ≥8% and stores candidates.
+        Execution happens in _loop_premarket_gap_execute() at 9:30 ET.
         """
         if not self.premarket_gap_scanner:
             return
 
         # Check if already scanned today
-        if hasattr(self, '_premarket_scan_done') and self._premarket_scan_done == today:
+        if getattr(self, '_premarket_scan_done', None) == today:
             return
 
-        # Check time window (6:00 AM - 9:35 AM ET)
+        # Scan window: 6:00 AM - 9:29 AM ET (market closed; stop before open)
         et_now = self._get_et_time()
         scan_start = et_now.replace(hour=6, minute=0, second=0, microsecond=0)
-        scan_end = et_now.replace(hour=9, minute=35, second=0, microsecond=0)  # v6.82: was 9:30
+        scan_end = et_now.replace(hour=9, minute=29, second=0, microsecond=0)
 
         if not (scan_start <= et_now < scan_end):
             return
 
-        # v6.82: Dedicated gap slot (1 position, not counted against DIP limit)
-        gap_count = sum(1 for p in self.positions.values()
-                        if getattr(p, 'source', '') == 'premarket_gap')
-        if gap_count >= self.PREMARKET_GAP_MAX_POSITIONS:
-            logger.info(f"❌ PreMarket Gap: Max gap positions reached "
-                        f"({gap_count}/{self.PREMARKET_GAP_MAX_POSITIONS})")
-            self._premarket_scan_done = today
-            return
-
-        if len(self.positions) >= self.MAX_POSITIONS_TOTAL:
-            logger.info(f"❌ PreMarket Gap: Total positions full "
-                        f"({len(self.positions)}/{self.MAX_POSITIONS_TOTAL})")
-            self._premarket_scan_done = today
-            return
-
-        # v6.82: VIX guard — only block at EXTREME (>38); gap trades have own risk management
-        current_vix, _ = self._get_vix()  # returns (value, is_fallback)
-        if current_vix and current_vix > 38:
-            logger.info(f"❌ PreMarket Gap: VIX EXTREME ({current_vix:.1f} > 38) - skipping scan")
-            self._premarket_scan_done = today
-            return
-
-        logger.info(f"🔍 PreMarket Gap Scan START: {et_now.strftime('%H:%M')} ET | "
-                    f"Pos: {len(self.positions)}/{self.MAX_POSITIONS_TOTAL} total, "
-                    f"{gap_count}/{self.PREMARKET_GAP_MAX_POSITIONS} gap")
+        logger.info(f"🔍 PreMarket Gap SCAN: {et_now.strftime('%H:%M')} ET — scanning 1000 stocks...")
 
         try:
-            # Scan for gaps (min confidence 80% for high-quality signals)
             gap_signals = self.premarket_gap_scanner.scan_premarket(min_confidence=80)
 
-            if not gap_signals:
-                logger.info("🔍 PreMarket Gap Scan COMPLETE: No high-confidence gaps found")
-                self._premarket_scan_done = today
-                return
-
-            logger.info(f"✅ Found {len(gap_signals)} gap signals")
-
-            # Convert to RapidRotationSignal format
-            converted_signals = []
+            # Convert to RapidRotationSignal format and store as candidates
+            candidates = []
             for sig in gap_signals:
-                # Only trade gaps worth rotating
                 if not sig.worth_rotating:
                     logger.info(f"  {sig.symbol}: Gap {sig.gap_pct:+.1f}% ({sig.catalyst_type}) "
                                f"- NOT worth rotating (benefit: {sig.rotation_benefit:+.1f}%)")
                     continue
 
                 logger.info(f"  {sig.symbol}: Gap {sig.gap_pct:+.1f}% ({sig.catalyst_type}) "
-                           f"- WORTH ROTATING (benefit: {sig.rotation_benefit:+.1f}%)")
+                           f"- WORTH ROTATING (benefit: {sig.rotation_benefit:+.1f}%) → queued for open")
 
                 try:
                     from screeners.rapid_rotation_screener import RapidRotationSignal
                 except ImportError:
                     from src.screeners.rapid_rotation_screener import RapidRotationSignal
 
-                # Entry at pre-market price (market order at open)
                 entry_price = sig.current_price
-
-                # Stop loss: 2% below entry (conservative for gap trades)
                 stop_loss = round(entry_price * 0.98, 2)
-
-                # Take profit: conservative 30-40% of gap, capped at 5%
                 tp_pct = min(sig.day_return_estimate, 5.0)
                 take_profit = round(entry_price * (1 + tp_pct / 100), 2)
-
-                # Score: confidence + rotation benefit bonus
                 score = int(sig.confidence + min(sig.rotation_benefit * 5, 20))
 
                 rapid_signal = RapidRotationSignal(
@@ -7382,33 +7341,87 @@ class AutoTradingEngine:
                     tp_method="premarket_gap_estimated",
                     volume_ratio=sig.volume_ratio,
                 )
-
-                # Mark as gap trade for special exit handling (close at market close)
                 if hasattr(rapid_signal, '__dict__'):
                     rapid_signal.__dict__['gap_trade'] = True
                     rapid_signal.__dict__['gap_confidence'] = sig.confidence
                     rapid_signal.__dict__['gap_pct'] = sig.gap_pct
 
-                converted_signals.append(rapid_signal)
+                candidates.append(rapid_signal)
 
-            if converted_signals:
-                self._process_scan_signals(converted_signals, "premarket_gap",
-                                           max_positions=self.MAX_POSITIONS_TOTAL)
-                logger.info(f"🔍 PreMarket Gap Scan COMPLETE: Processed {len(converted_signals)} signals")
-            else:
-                logger.info("🔍 PreMarket Gap Scan COMPLETE: No gaps worth rotating")
-
+            # Store candidates for execution at market open
+            self._gap_candidates_today = candidates
             self._premarket_scan_done = today
+
+            if candidates:
+                logger.info(f"🔍 PreMarket Gap SCAN DONE: {len(candidates)} candidates queued for 9:30 ET open")
+            else:
+                logger.info("🔍 PreMarket Gap SCAN DONE: No gaps worth rotating today")
 
         except Exception as e:
             logger.error(f"❌ PreMarket Gap Scan FAILED: {e}")
             self._premarket_scan_error = {
-                'date': today,
-                'message': str(e),
-                'time': et_now.strftime('%H:%M:%S')
+                'date': today, 'message': str(e), 'time': et_now.strftime('%H:%M:%S')
             }
             import traceback
             logger.error(traceback.format_exc())
+
+    def _loop_premarket_gap_execute(self, today: str):
+        """
+        Phase 2: Execute gap candidates at market open (9:30-9:35 ET, market OPEN branch).
+
+        v6.83: Runs in the market-open loop right after PEM.
+        Executes candidates found during the pre-market scan phase.
+        Checks slot/VIX again at execution time (conditions may have changed).
+        """
+        if not self.premarket_gap_scanner:
+            return
+
+        # Only run once per day
+        if getattr(self, '_gap_executed_today', None) == today:
+            return
+
+        # Execute window: 9:30 AM - 9:35 AM ET
+        et_now = self._get_et_time()
+        exec_start = et_now.replace(hour=9, minute=30, second=0, microsecond=0)
+        exec_end = et_now.replace(hour=9, minute=35, second=0, microsecond=0)
+
+        if not (exec_start <= et_now < exec_end):
+            return
+
+        # Mark executed regardless of outcome (don't retry after window closes)
+        self._gap_executed_today = today
+
+        candidates = getattr(self, '_gap_candidates_today', [])
+        if not candidates:
+            logger.info("🔍 PreMarket Gap EXECUTE: No candidates from pre-market scan")
+            return
+
+        # Re-check slot availability at execution time
+        gap_count = sum(1 for p in self.positions.values()
+                        if getattr(p, 'source', '') == 'premarket_gap')
+        if gap_count >= self.PREMARKET_GAP_MAX_POSITIONS:
+            logger.info(f"❌ PreMarket Gap EXECUTE: Max gap positions reached "
+                        f"({gap_count}/{self.PREMARKET_GAP_MAX_POSITIONS})")
+            return
+
+        if len(self.positions) >= self.MAX_POSITIONS_TOTAL:
+            logger.info(f"❌ PreMarket Gap EXECUTE: Total positions full "
+                        f"({len(self.positions)}/{self.MAX_POSITIONS_TOTAL})")
+            return
+
+        # Re-check VIX at execution time
+        current_vix, _ = self._get_vix()
+        if current_vix and current_vix > 38:
+            logger.info(f"❌ PreMarket Gap EXECUTE: VIX EXTREME ({current_vix:.1f} > 38) - skipping")
+            return
+
+        logger.info(f"🚀 PreMarket Gap EXECUTE: {et_now.strftime('%H:%M')} ET | "
+                    f"{len(candidates)} candidates | "
+                    f"Pos: {len(self.positions)}/{self.MAX_POSITIONS_TOTAL}")
+
+        self._process_scan_signals(candidates, "premarket_gap",
+                                   max_positions=self.MAX_POSITIONS_TOTAL)
+        logger.info(f"🔍 PreMarket Gap EXECUTE DONE: Processed {len(candidates)} signals")
 
     def _loop_pem_scan(self, today: str):
         """
@@ -7839,6 +7852,7 @@ class AutoTradingEngine:
                     self._loop_morning_scan(today)
 
                 # Scheduled scans
+                self._loop_premarket_gap_execute(today)  # v6.83: execute gap candidates at open
                 self._loop_pem_scan(today)           # v6.29: PEM scan at 9:35 ET
                 self._loop_ped_scan(today)           # v6.53: PED scan at 9:35 ET
                 self._loop_afternoon_scan(today)
