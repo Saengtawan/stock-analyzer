@@ -7128,7 +7128,8 @@ class AutoTradingEngine:
             # v6.75: Read from DB (full_universe_cache.json deleted in v6.72 migration)
             from database.repositories.universe_repository import UniverseRepository
             universe_stocks = UniverseRepository().get_all()
-            symbols = [s.symbol for s in universe_stocks] if universe_stocks else []
+            # get_all() returns Dict[str, dict] — keys are symbols (v6.81: was .symbol on str → AttributeError)
+            symbols = list(universe_stocks.keys()) if universe_stocks else []
             if not symbols:
                 logger.warning("🌙 OVN Universe: UniverseRepository returned empty")
                 return {}
@@ -7693,7 +7694,8 @@ class AutoTradingEngine:
             # Load universe (v6.75: from DB, full_universe_cache.json deleted in v6.72)
             from database.repositories.universe_repository import UniverseRepository
             _universe_stocks = UniverseRepository().get_all()
-            universe = [s.symbol for s in _universe_stocks] if _universe_stocks else []
+            # get_all() returns Dict[str, dict] — keys are symbols (v6.81: same fix as _load_ovn_universe_data)
+            universe = list(_universe_stocks.keys()) if _universe_stocks else []
             if not universe:
                 logger.warning("📅 Earnings calendar: UniverseRepository empty, skipping")
                 return
