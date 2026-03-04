@@ -1041,7 +1041,7 @@ class AutoTradingEngine:
             logger.debug(f"Trade event write failed (non-critical): {e}")
 
     # Engine sources that this engine owns (do NOT touch rapid_trader positions)
-    _ENGINE_SOURCES = ('dip_bounce', 'vix_adaptive', 'mean_reversion', 'rapid_rotation', 'overnight_gap', 'pem', 'ped')
+    _ENGINE_SOURCES = ('dip_bounce', 'vix_adaptive', 'mean_reversion', 'rapid_rotation', 'overnight_gap', 'pem', 'ped', 'premarket_gap')
 
     def _sync_active_positions_db(self):
         """Sync in-memory positions to DB via PositionRepository.
@@ -3788,6 +3788,8 @@ class AutoTradingEngine:
             return SignalSource.PEM
         if scan_type == 'ped':
             return SignalSource.PED
+        if scan_type == 'premarket_gap':
+            return SignalSource.PREMARKET_GAP
         # sl_method / source attribute from screener output (secondary)
         sl_method = getattr(signal, 'sl_method', '')
         source_attr = signal.__dict__.get('source', '') if hasattr(signal, '__dict__') else ''
@@ -4298,7 +4300,7 @@ class AutoTradingEngine:
         # v6.78: PEM/OVN/PED exempt — earnings/overnight catalysts don't care about intraday volatility window
         # v6.82: premarket_gap exempt — gap already formed pre-market, skip window irrelevant
         _source = params.get('source', '')
-        _skip_window_exempt = _source in ('pem', 'overnight_gap', 'ped', 'premarket_gap')
+        _skip_window_exempt = _source in (SignalSource.PEM, SignalSource.OVERNIGHT_GAP, SignalSource.PED, SignalSource.PREMARKET_GAP)
         if self._is_skip_window() and not _skip_window_exempt:
             logger.info(f"⏸️  {symbol}: SKIP WINDOW (10:00-11:00 ET) - No trades during this period")
             return False, "Skip Window"
@@ -7398,7 +7400,7 @@ class AutoTradingEngine:
 
         # Re-check slot availability at execution time
         gap_count = sum(1 for p in self.positions.values()
-                        if getattr(p, 'source', '') == 'premarket_gap')
+                        if getattr(p, 'source', '') == SignalSource.PREMARKET_GAP)
         if gap_count >= self.PREMARKET_GAP_MAX_POSITIONS:
             logger.info(f"❌ PreMarket Gap EXECUTE: Max gap positions reached "
                         f"({gap_count}/{self.PREMARKET_GAP_MAX_POSITIONS})")
