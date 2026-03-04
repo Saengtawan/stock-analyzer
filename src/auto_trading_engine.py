@@ -7848,13 +7848,17 @@ class AutoTradingEngine:
 
                 # Morning scan (once per day)
                 today = now.strftime('%Y-%m-%d')
+
+                # v6.84: Execute BEFORE morning_scan (morning_scan blocks 241s until 09:35 ET,
+                # so execute must run first while window 09:30-09:35 is still open)
+                self._loop_premarket_gap_execute(today)
+
                 if last_scan_date != today:
                     # v6.21: Set date FIRST to prevent repeated execution if exception occurs
                     last_scan_date = today
                     self._loop_morning_scan(today)
 
                 # Scheduled scans
-                self._loop_premarket_gap_execute(today)  # v6.83: execute gap candidates at open
                 self._loop_pem_scan(today)           # v6.29: PEM scan at 9:35 ET
                 self._loop_ped_scan(today)           # v6.53: PED scan at 9:35 ET
                 self._loop_afternoon_scan(today)
