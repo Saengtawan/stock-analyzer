@@ -99,8 +99,8 @@ rapid_rotation:
   skip_window_enabled: true   # Enable skip window (block all trading during this period)
   skip_window_start_hour: 10  # Skip window start hour (ET)
   skip_window_start_minute: 0 # Skip window start minute
-  skip_window_end_hour: 11    # Skip window end hour (ET)
-  skip_window_end_minute: 0   # Skip window end minute
+  skip_window_end_hour: 10    # Skip window end hour (ET)
+  skip_window_end_minute: 5   # Skip window end minute
 
   # -- 4-Layer Entry Protection (v6.23: Adaptive Timing) --
   entry_protection_enabled: true           # Master switch for entry protection
