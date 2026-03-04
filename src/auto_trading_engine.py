@@ -7303,7 +7303,7 @@ class AutoTradingEngine:
             return
 
         # v6.82: VIX guard — only block at EXTREME (>38); gap trades have own risk management
-        current_vix = self._get_vix()
+        current_vix, _ = self._get_vix()  # returns (value, is_fallback)
         if current_vix and current_vix > 38:
             logger.info(f"❌ PreMarket Gap: VIX EXTREME ({current_vix:.1f} > 38) - skipping scan")
             self._premarket_scan_done = today
