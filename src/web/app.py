@@ -2791,10 +2791,19 @@ def api_rapid_signals():
         waiting_signals = list(symbol_map_waiting.values())
 
         if latest_scan or active_signals or waiting_signals:
+            # v6.84: Use real-time market status (not stale scan session value)
+            # latest_scan.is_market_open reflects scan time (e.g. 07:51 ET = closed)
+            # but market may have opened since then → show correct banner
+            try:
+                _engine = get_auto_trading_engine()
+                _real_market_open = _engine.broker.is_market_open() if _engine else bool(latest_scan.is_market_open if latest_scan else False)
+            except Exception:
+                _real_market_open = bool(latest_scan.is_market_open if latest_scan else False)
+
             # Build response from DB (v6.44: convert all types to JSON-safe)
             data = {
-                'mode': latest_scan.mode if (latest_scan and latest_scan.mode) else ('closed' if (latest_scan and not latest_scan.is_market_open) else 'market'),
-                'is_market_open': int(bool(latest_scan.is_market_open)) if latest_scan else 0,
+                'mode': latest_scan.mode if (latest_scan and latest_scan.mode and _real_market_open) else ('closed' if not _real_market_open else 'market'),
+                'is_market_open': int(_real_market_open),
                 'timestamp': latest_scan.scan_time.isoformat() if latest_scan else datetime.now().isoformat(),
                 'scan_time': latest_scan.scan_time_et if latest_scan else '',
                 'session': latest_scan.session_type.title() if latest_scan else 'Unknown',
