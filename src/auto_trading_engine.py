@@ -5431,6 +5431,10 @@ class AutoTradingEngine:
         """Re-place SL orders for positions missing them (recovery from SL placement failure)."""
         for symbol, pos in list(self.positions.items()):
             if not pos.sl_order_id:
+                # v6.84: Day 0 positions intentionally have no SL order — managed manually via PDT guard
+                days_held = self.pdt_guard.get_days_held(symbol)
+                if days_held == 0:
+                    continue
                 logger.warning(f"⚠️ NAKED POSITION: {symbol} has no SL order — attempting to place")
                 try:
                     sl_price = pos.stop_loss if hasattr(pos, 'stop_loss') else pos.current_sl_price
