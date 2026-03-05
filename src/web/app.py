@@ -2902,16 +2902,31 @@ def api_rapid_portfolio():
         if engine:
             ds = getattr(engine, 'daily_stats', None)
             daily_stats = asdict(ds) if ds else None
-            queue = getattr(engine, 'signal_queue', [])
+            # v6.93: Read queue from DB (SSoT) — webapp engine.signal_queue is stale
+            # (loaded once at startup, never updated by trading loop)
             queue_data = []
-            for q in queue:
-                age = (datetime.now() - q.queued_at).total_seconds() / 60
-                queue_data.append({
-                    'symbol': q.symbol,
-                    'signal_price': q.signal_price,
-                    'score': q.score,
-                    'age_minutes': round(age, 1),
-                })
+            try:
+                from database.repositories import QueueRepository
+                db_queue = QueueRepository().get_all(status='waiting')
+                for q in db_queue:
+                    queued_at = q.queued_at or datetime.now()
+                    age = (datetime.now() - queued_at).total_seconds() / 60
+                    queue_data.append({
+                        'symbol': q.symbol,
+                        'signal_price': q.signal_price,
+                        'score': q.score,
+                        'age_minutes': round(age, 1),
+                    })
+            except Exception:
+                # Fallback to in-memory queue
+                for q in getattr(engine, 'signal_queue', []):
+                    age = (datetime.now() - q.queued_at).total_seconds() / 60
+                    queue_data.append({
+                        'symbol': q.symbol,
+                        'signal_price': q.signal_price,
+                        'score': q.score,
+                        'age_minutes': round(age, 1),
+                    })
 
         return jsonify({
             'summary': summary,

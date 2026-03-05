@@ -4067,6 +4067,18 @@ class AutoTradingEngine:
                 symbol = queued.symbol
                 age_min = queued.minutes_since_queued()
 
+                # v6.93: Expire signals from a previous trading day
+                today_et_date = self._get_et_time().date()
+                if queued.queued_at.date() < today_et_date:
+                    logger.info(
+                        f"🗑️ Queue: {symbol} expired — queued {queued.queued_at.strftime('%Y-%m-%d')}, "
+                        f"now {today_et_date} (+{age_min:.0f}min)"
+                    )
+                    self.signal_queue.remove(queued)
+                    self._save_queue_state()
+                    self.daily_stats.queue_expired += 1
+                    continue
+
                 # Skip if already have position now
                 if symbol in self.positions:
                     self.signal_queue.remove(queued)
