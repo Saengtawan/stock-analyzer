@@ -65,7 +65,7 @@ import time
 import json
 import tempfile
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, time as dt_time
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
 from enum import Enum
@@ -728,6 +728,10 @@ class AutoTradingEngine:
         self.SIMULATED_CAPITAL_OVN = getattr(cfg, 'simulated_capital_ovn', 1500)
         self.SIMULATED_CAPITAL_PEM = getattr(cfg, 'simulated_capital_pem', 500)
         self.SIMULATED_CAPITAL_PED = getattr(cfg, 'simulated_capital_ped', 500)
+        # v6.92: PED budget reallocation — freed when PED has no candidates or missed window
+        self._ped_budget_freed: int = 0          # $0, $250, or $500
+        self._ped_realloc_t1_done: Optional[date] = None
+        self._ped_realloc_t2_done: Optional[date] = None
         self.PDT_TP_THRESHOLD = cfg.pdt_tp_threshold
         self.TRAIL_ENABLED = cfg.trail_enabled
         
@@ -4578,11 +4582,13 @@ class AutoTradingEngine:
             signal_source = self._derive_signal_source(signal)
             _DEDICATED = (SignalSource.OVERNIGHT_GAP, SignalSource.PEM, SignalSource.PED, SignalSource.PREMARKET_GAP)
             _PEM_GAP_GROUP = (SignalSource.PEM, SignalSource.PREMARKET_GAP)  # shared $500 pool
+            # v6.92: Apply PED reallocation — freed $0/$250/$500 split to OVN + PEM/GAP
+            _freed = self._ped_budget_freed
             _BUDGETS = {
-                SignalSource.OVERNIGHT_GAP: self.SIMULATED_CAPITAL_OVN,
-                SignalSource.PEM: self.SIMULATED_CAPITAL_PEM,
-                SignalSource.PED: self.SIMULATED_CAPITAL_PED,
-                SignalSource.PREMARKET_GAP: self.SIMULATED_CAPITAL_PEM,  # share PEM budget
+                SignalSource.OVERNIGHT_GAP: self.SIMULATED_CAPITAL_OVN + _freed // 2,
+                SignalSource.PEM: self.SIMULATED_CAPITAL_PEM + _freed // 2,
+                SignalSource.PED: max(0, self.SIMULATED_CAPITAL_PED - _freed),
+                SignalSource.PREMARKET_GAP: self.SIMULATED_CAPITAL_PEM + _freed // 2,  # share PEM pool
             }
             strategy_budget = _BUDGETS.get(signal_source, self.SIMULATED_CAPITAL_DIP)
             with self._positions_lock:
@@ -7737,6 +7743,107 @@ class AutoTradingEngine:
             import traceback
             logger.error(traceback.format_exc())
 
+    def _check_ped_reallocation_t1(self, today: date) -> None:
+        """
+        v6.92 T1: At 9:00 AM ET (after 7 AM earnings calendar refresh).
+        If no D=5 candidates today → PED is idle for sure → free $500 immediately.
+        Resets daily state for the new day.
+        """
+        if self._ped_realloc_t1_done == today:
+            return
+        now_et = self._get_et_time()
+        if not (dt_time(9, 0) <= now_et.time() <= dt_time(9, 29)):
+            return
+
+        # New day — reset freed budget and T2 tracker
+        self._ped_budget_freed = 0
+        self._ped_realloc_t2_done = None
+        self._ped_realloc_t1_done = today
+
+        try:
+            try:
+                from database.repositories.earnings_calendar_repository import EarningsCalendarRepository
+            except ImportError:
+                from src.database.repositories.earnings_calendar_repository import EarningsCalendarRepository
+            all_earnings = EarningsCalendarRepository().get_days_until_all()
+            d5_count = sum(1 for d in all_earnings.values() if d == 5)
+        except Exception as e:
+            logger.warning(f"PED realloc T1: earnings calendar error ({e}) — budget reserved")
+            return
+
+        if d5_count == 0:
+            self._ped_budget_freed = 500
+            logger.info(
+                f"💰 PED realloc T1: no D=5 candidates → freed $500 "
+                f"(OVN ${self.SIMULATED_CAPITAL_OVN}→${self.SIMULATED_CAPITAL_OVN + 250}, "
+                f"PEM/GAP ${self.SIMULATED_CAPITAL_PEM}→${self.SIMULATED_CAPITAL_PEM + 250})"
+            )
+        else:
+            logger.debug(f"PED realloc T1: {d5_count} D=5 candidate(s) → budget reserved")
+
+    def _check_ped_reallocation_t2(self, today: date) -> None:
+        """
+        v6.92 T2: At 10:35 AM ET (after PED window 9:35–10:30 closes).
+        If PED didn't fire + not in queue + no D=6 tomorrow → free $500.
+        Cases:
+          - PED fired           → keep budget (correct use)
+          - PED in queue        → keep budget (still pending)
+          - no fired + D=6>0   → keep budget (reserve for tomorrow)
+          - no fired + D=6=0   → free $500 (PED idle today AND tomorrow)
+        """
+        if self._ped_realloc_t2_done == today:
+            return
+        if self._ped_budget_freed > 0:  # T1 already freed
+            return
+        now_et = self._get_et_time()
+        if not (dt_time(10, 35) <= now_et.time() <= dt_time(10, 50)):
+            return
+        self._ped_realloc_t2_done = today
+
+        # Check if PED fired
+        with self._positions_lock:
+            ped_fired = any(
+                getattr(p, 'source', '') == 'ped'
+                for p in self.positions.values()
+            )
+        if ped_fired:
+            logger.debug("PED realloc T2: PED position open → budget stays")
+            return
+
+        # Check if PED signal is still in queue
+        with self._queue_lock:
+            ped_in_queue = any(
+                getattr(q, 'source', '') == 'ped'
+                for q in self.signal_queue
+            )
+        if ped_in_queue:
+            logger.debug("PED realloc T2: PED signal in queue → budget stays")
+            return
+
+        # Check D=6 (PED candidates for tomorrow)
+        try:
+            try:
+                from database.repositories.earnings_calendar_repository import EarningsCalendarRepository
+            except ImportError:
+                from src.database.repositories.earnings_calendar_repository import EarningsCalendarRepository
+            all_earnings = EarningsCalendarRepository().get_days_until_all()
+            d6_count = sum(1 for d in all_earnings.values() if d == 6)
+        except Exception as e:
+            logger.warning(f"PED realloc T2: earnings calendar error ({e}) — budget reserved")
+            return
+
+        if d6_count == 0:
+            self._ped_budget_freed = 500
+            logger.info(
+                f"💰 PED realloc T2: PED missed + no D=6 → freed $500 "
+                f"(OVN +$250 for 15:30 scan, PEM/GAP +$250 for tomorrow)"
+            )
+        else:
+            logger.info(
+                f"PED realloc T2: PED missed but {d6_count} D=6 candidate(s) → "
+                f"reserve $500 for tomorrow's PED"
+            )
+
     def _loop_earnings_calendar_refresh(self, today: str):
         """
         v6.66: Refresh earnings calendar DB once per day at 7 AM ET.
@@ -7879,6 +7986,8 @@ class AutoTradingEngine:
                     self._loop_pre_open_prefilter(_closed_today)
                     # v6.66: Refresh earnings calendar DB at 7 AM ET (for PED full universe)
                     self._loop_earnings_calendar_refresh(_closed_today)
+                    # v6.92: T1 — check PED D=5 candidates at 9:00 AM (after 7 AM calendar refresh)
+                    self._check_ped_reallocation_t1(now.date())
                     # v6.37: Write cron schedule even when market closed
                     self._write_heartbeat()
                     time.sleep(60)
@@ -7916,6 +8025,8 @@ class AutoTradingEngine:
                 # Scheduled scans
                 self._loop_pem_scan(today)           # v6.29: PEM scan at 9:35 ET
                 self._loop_ped_scan(today)           # v6.53: PED scan at 9:35 ET
+                # v6.92: T2 — check PED outcome at 10:35 AM (after window 9:35-10:30 closes)
+                self._check_ped_reallocation_t2(now.date())
                 self._loop_afternoon_scan(today)
                 self._loop_intraday_prefilter(today)
                 self._loop_continuous_scan(today)
