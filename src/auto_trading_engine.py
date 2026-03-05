@@ -7317,6 +7317,30 @@ class AutoTradingEngine:
             # vol threshold 0.3x→2.0x in scanner already ensures quality baseline
             gap_signals = self.premarket_gap_scanner.scan_premarket(min_confidence=70)
 
+            # v6.88: Option 1 — skip GAP for earnings day, let PEM handle (wider SL -5%)
+            # GAP ATR SL (~1%) is too tight for earnings volatility (normal swing 3-5%)
+            try:
+                from database.repositories.earnings_calendar_repository import EarningsCalendarRepository
+            except ImportError:
+                from src.database.repositories.earnings_calendar_repository import EarningsCalendarRepository
+            try:
+                _earnings_repo = EarningsCalendarRepository()
+            except Exception:
+                _earnings_repo = None
+
+            filtered_signals = []
+            for sig in gap_signals:
+                if _earnings_repo is not None:
+                    try:
+                        days_until = _earnings_repo.get_days_until(sig.symbol)
+                        if days_until is not None and 0 <= days_until <= 1:
+                            logger.info(f"  {sig.symbol}: Gap {sig.gap_pct:+.1f}% — EARNINGS in {days_until}d → skip GAP, let PEM handle")
+                            continue
+                    except Exception:
+                        pass
+                filtered_signals.append(sig)
+            gap_signals = filtered_signals
+
             # Convert to RapidRotationSignal format and store as candidates
             candidates = []
             for sig in gap_signals:
