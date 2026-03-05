@@ -1565,19 +1565,6 @@ class AutoTradingEngine:
             # Load persisted state (peak_price, trailing_active, etc.)
             persisted = self._load_positions_state()
 
-            # Try to load entry dates from rapid_portfolio.json
-            portfolio_entry_dates = {}
-            try:
-                portfolio_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "rapid_portfolio.json")
-                if os.path.exists(portfolio_file):
-                    with open(portfolio_file, 'r') as f:
-                        portfolio_data = json.load(f)
-                    for symbol, pos_data in portfolio_data.get('positions', {}).items():
-                        if 'entry_date' in pos_data:
-                            portfolio_entry_dates[symbol] = datetime.strptime(pos_data['entry_date'], '%Y-%m-%d').date()
-            except Exception as e:
-                logger.warning(f"Could not load portfolio entry dates: {e}")
-
             for pos in alpaca_positions:
                 # Find SL order for this position
                 sl_order = None
@@ -1586,8 +1573,8 @@ class AutoTradingEngine:
                         sl_order = order
                         break
 
-                # Get entry date from portfolio file or use today
-                entry_date = portfolio_entry_dates.get(pos.symbol, datetime.now().date())
+                # Entry date fallback (overridden below by persisted entry_time if available)
+                entry_date = datetime.now().date()
                 entry_time = datetime.combine(entry_date, datetime.min.time())
 
                 if pos.symbol not in self.positions:
