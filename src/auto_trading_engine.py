@@ -2238,29 +2238,16 @@ class AutoTradingEngine:
                           f"(fallback={is_fallback}) — trade blocked for safety")
             return False, vix_val
 
-        # VIX Skip Zone (20-24): block only when VIX is RISING (fear increasing)
-        # Backtest: VIX 20-24 + rising  → 28.1% win, -0.66% avg ❌
-        #           VIX 20-24 + falling → 46.8% win, +0.85% avg ✅ (better than NORMAL!)
+        # VIX Skip Zone (20-24): block ALL entries regardless of direction (v6.94)
+        # Rationale: VIX 20-24 is an uncertainty zone — not safe enough for DIP entries.
+        # Previous: allowed when FALLING (46.8% win, +0.85%) but too unpredictable in practice.
         if self.VIX_SKIP_ZONE_ENABLED:
             if self.VIX_SKIP_ZONE_LOW <= vix_val < self.VIX_SKIP_ZONE_HIGH:
-                vix_change = self._get_vix_change_pct()
-                vix_rising = (vix_change is not None and vix_change > 0)
-                vix_falling = (vix_change is not None and vix_change < 0)
-                if vix_rising:
-                    logger.warning(
-                        f"⛔ VIX SKIP ZONE (RISING): VIX {vix_val:.1f} in [{self.VIX_SKIP_ZONE_LOW}-{self.VIX_SKIP_ZONE_HIGH}) "
-                        f"and rising {vix_change:+.1f}% — fear increasing, win rate 28%, blocking"
-                    )
-                    return False, vix_val
-                elif vix_falling:
-                    logger.info(
-                        f"✅ VIX {vix_val:.1f} in skip zone but FALLING {vix_change:+.1f}% — "
-                        f"fear subsiding, allowing (backtest: 46.8% win, +0.85%)"
-                    )
-                else:
-                    # Unknown direction (fallback) → block to be safe
-                    logger.warning(f"⛔ VIX SKIP ZONE: VIX {vix_val:.1f}, direction unknown — blocking")
-                    return False, vix_val
+                logger.warning(
+                    f"⛔ VIX SKIP ZONE: VIX {vix_val:.1f} in [{self.VIX_SKIP_ZONE_LOW}-{self.VIX_SKIP_ZONE_HIGH}) "
+                    f"— uncertainty zone, blocking DIP entry"
+                )
+                return False, vix_val
 
         # Log VIX check for audit trail
         logger.info(f"✅ VIX entry check OK: {vix_val:.1f} (skip_zone={self.VIX_SKIP_ZONE_LOW}-{self.VIX_SKIP_ZONE_HIGH}, max={self.REGIME_VIX_MAX})")
