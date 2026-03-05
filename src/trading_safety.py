@@ -661,13 +661,31 @@ class TradingSafetySystem:
                 if order.type == 'stop' and order.side == 'sell':
                     sl_symbols[order.symbol] = order
 
+            # Load DB positions for entry_price + sl_pct
+            try:
+                from database.repositories.position_repository import PositionRepository
+            except ImportError:
+                from src.database.repositories.position_repository import PositionRepository
+            try:
+                db_positions = {p.symbol: p for p in PositionRepository().get_all(use_cache=False)}
+            except Exception:
+                db_positions = {}
+
             # Fix unprotected positions
             for pos in positions:
                 if pos.symbol not in sl_symbols:
                     logger.warning(f"🛡️ Adding missing SL for {pos.symbol}")
 
-                    # Calculate SL at -2.5% from current price
-                    sl_price = pos.current_price * 0.975
+                    # v6.90: Use entry_price + sl_pct from DB (consistent with strategy intent)
+                    # Previously used current_price × 0.975 → wrong SL when price moved from entry
+                    db_pos = db_positions.get(pos.symbol)
+                    if db_pos and db_pos.entry_price > 0 and db_pos.sl_pct > 0:
+                        sl_price = round(db_pos.entry_price * (1 - db_pos.sl_pct / 100), 2)
+                        logger.info(f"  {pos.symbol}: SL from DB entry=${db_pos.entry_price:.2f} sl_pct={db_pos.sl_pct}% → ${sl_price:.2f}")
+                    else:
+                        # Fallback: 3% below entry from Alpaca avg_entry_price
+                        sl_price = round(float(pos.avg_entry_price) * 0.97, 2)
+                        logger.warning(f"  {pos.symbol}: no DB entry, fallback 3% below avg_entry ${float(pos.avg_entry_price):.2f} → ${sl_price:.2f}")
 
                     try:
                         self.broker.place_stop_loss(
