@@ -4875,7 +4875,7 @@ def _build_positions_from_engine():
                 _sym_bars = _bars[_sym]
                 if _sym_bars:
                     alpaca_minute_closes[_sym] = float(_sym_bars[-1].close)
-                    logger.info(f"IEX minute latest {_sym}: ${_sym_bars[-1].close:.2f} @ {_sym_bars[-1].timestamp}")
+                    logger.debug(f"IEX minute latest {_sym}: ${_sym_bars[-1].close:.2f} @ {_sym_bars[-1].timestamp}")
         except Exception as _e:
             logger.debug(f"IEX minute bar pre-fetch failed: {_e}")
 
