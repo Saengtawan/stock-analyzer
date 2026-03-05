@@ -7313,7 +7313,9 @@ class AutoTradingEngine:
         logger.info(f"🔍 PreMarket Gap SCAN: {et_now.strftime('%H:%M')} ET — scanning 1000 stocks...")
 
         try:
-            gap_signals = self.premarket_gap_scanner.scan_premarket(min_confidence=80)
+            # v6.87: min_confidence=70 to include vol≥2x events (POSSIBLE_CATALYST)
+            # vol threshold 0.3x→2.0x in scanner already ensures quality baseline
+            gap_signals = self.premarket_gap_scanner.scan_premarket(min_confidence=70)
 
             # Convert to RapidRotationSignal format and store as candidates
             candidates = []
@@ -7332,7 +7334,10 @@ class AutoTradingEngine:
                     from src.screeners.rapid_rotation_screener import RapidRotationSignal
 
                 entry_price = sig.current_price
-                stop_loss = round(entry_price * 0.98, 2)
+                # v6.87: ATR-based SL (0.3×ATR) — backtest: sharpe 1.09→2.91 vs fixed 2%
+                atr_pct = getattr(sig, 'atr_pct', 3.0) or 3.0
+                sl_pct = max(atr_pct * 0.3, 0.5)   # floor 0.5% to avoid paper-thin SL
+                stop_loss = round(entry_price * (1 - sl_pct / 100), 2)
                 tp_pct = min(sig.day_return_estimate, 5.0)
                 take_profit = round(entry_price * (1 + tp_pct / 100), 2)
                 score = int(sig.confidence + min(sig.rotation_benefit * 5, 20))
@@ -7344,7 +7349,7 @@ class AutoTradingEngine:
                     stop_loss=stop_loss,
                     take_profit=take_profit,
                     risk_reward=round(tp_pct / 2.0, 2),
-                    atr_pct=3.0,
+                    atr_pct=atr_pct,
                     rsi=50.0,        # Neutral — gap trades bypass RSI filter
                     momentum_5d=sig.gap_pct,
                     momentum_20d=0.0,
@@ -7361,7 +7366,7 @@ class AutoTradingEngine:
                     market_regime="",
                     sector_score=0,
                     alt_data_score=0,
-                    sl_method="premarket_gap_fixed",
+                    sl_method="premarket_gap_atr",
                     tp_method="premarket_gap_estimated",
                     volume_ratio=sig.volume_ratio,
                 )
@@ -7434,9 +7439,10 @@ class AutoTradingEngine:
             return
 
         # Re-check VIX at execution time
+        # v6.87: skip at >30 (backtest: VIX>30 WR=8.3%, avg=-3.8%)
         current_vix, _ = self._get_vix()
-        if current_vix and current_vix > 38:
-            logger.info(f"❌ PreMarket Gap EXECUTE: VIX EXTREME ({current_vix:.1f} > 38) - skipping")
+        if current_vix and current_vix > 30:
+            logger.info(f"❌ PreMarket Gap EXECUTE: VIX HIGH ({current_vix:.1f} > 30) - skipping")
             return
 
         logger.info(f"🚀 PreMarket Gap EXECUTE: {et_now.strftime('%H:%M')} ET | "

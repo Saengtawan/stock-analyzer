@@ -37,7 +37,8 @@ class PreMarketGapSignal:
                  confidence: int, catalyst_type: str, volume_ratio: float,
                  prev_close: float, current_price: float,
                  day_return_estimate: float, rotation_benefit: float,
-                 worth_rotating: bool, reasons: List[str]):
+                 worth_rotating: bool, reasons: List[str],
+                 atr_pct: float = 3.0):
         self.symbol = symbol
         self.gap_type = gap_type          # 'OVERNIGHT_GAP'
         self.gap_pct = gap_pct
@@ -50,6 +51,7 @@ class PreMarketGapSignal:
         self.rotation_benefit = rotation_benefit
         self.worth_rotating = worth_rotating
         self.reasons = reasons
+        self.atr_pct = atr_pct            # v6.87: 5-day ATR % for dynamic SL
         self.timestamp = datetime.now()
 
     def __repr__(self):
@@ -77,10 +79,10 @@ class PreMarketGapScanner:
 
     # Volume thresholds (pre-market vol vs avg DAILY regular-hours vol)
     # Pre-market runs 4:00-9:30 ET (5.5h) vs regular 9:30-16:00 (6.5h)
-    # 0.3x = stock doing 30% of avg daily vol in pre-market → meaningful interest
-    MIN_VOLUME_RATIO = 0.3
-    HIGH_VOLUME_RATIO = 0.6
-    VERY_HIGH_VOLUME_RATIO = 1.0
+    # v6.87: raised to 2.0x (backtest OOS WR: 0.3x→WR=28%, 2.0x→WR=57%)
+    MIN_VOLUME_RATIO = 2.0
+    HIGH_VOLUME_RATIO = 3.0
+    VERY_HIGH_VOLUME_RATIO = 5.0
 
     # Rotation parameters
     ROTATION_COST = 0.1           # Slippage + fees
@@ -282,11 +284,38 @@ class PreMarketGapScanner:
 
             rotation_benefit, worth_rotating = self._calculate_rotation_benefit(day_return_estimate)
 
+            # v6.87: Compute 5-day ATR % from regular-hours daily H/L
+            daily_atr_pct = 3.0  # fallback
+            try:
+                dates = sorted(set(regular_prev.index.date))
+                daily_ranges = []
+                for i, d in enumerate(dates):
+                    day_bars = regular_prev[regular_prev.index.date == d]
+                    if day_bars.empty:
+                        continue
+                    day_high  = float(day_bars['High'].max())
+                    day_low   = float(day_bars['Low'].min())
+                    if i > 0:
+                        prev_day_bars = regular_prev[regular_prev.index.date == dates[i - 1]]
+                        prev_close_day = float(prev_day_bars['Close'].iloc[-1]) if not prev_day_bars.empty else day_low
+                        tr = max(day_high - day_low,
+                                 abs(day_high - prev_close_day),
+                                 abs(day_low  - prev_close_day))
+                    else:
+                        tr = day_high - day_low
+                    daily_ranges.append(tr)
+                if len(daily_ranges) >= 2:
+                    atr = sum(daily_ranges[-4:]) / len(daily_ranges[-4:])
+                    daily_atr_pct = round(atr / prev_close * 100, 2)
+            except Exception:
+                pass
+
             reasons = [
                 f"Gap: {gap_pct:+.1f}%",
                 f"Volume: {volume_ratio:.2f}x daily avg",
                 f"Catalyst: {catalyst_type}",
                 f"Prev close: ${prev_close:.2f} → ${premarket_price:.2f}",
+                f"ATR: {daily_atr_pct:.1f}% (SL≈{daily_atr_pct * 0.3:.1f}%)",
             ]
             if worth_rotating:
                 reasons.append(f"Worth rotating (+{rotation_benefit:.1f}% benefit)")
@@ -304,6 +333,7 @@ class PreMarketGapScanner:
                 rotation_benefit=rotation_benefit,
                 worth_rotating=worth_rotating,
                 reasons=reasons,
+                atr_pct=daily_atr_pct,
             )
 
         except Exception as e:
