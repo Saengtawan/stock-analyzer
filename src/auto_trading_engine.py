@@ -1673,6 +1673,24 @@ class AutoTradingEngine:
                                 # Reset current_sl_price to original SL since trail SL is now stale
                                 mp.current_sl_price = mp.entry_price * (1 - mp.sl_pct / 100)
 
+                        # v6.89: Corrupt-peak guard (AH/pre-market).
+                        # Alpaca paper trading bad ticks can inflate peak during market hours.
+                        # At restart outside market hours the above check is skipped, but if
+                        # trailing SL is >2% above current price the peak is almost certainly
+                        # corrupt (a real breach would have been caught by the Alpaca stop order).
+                        if mp.trailing_active and mp.peak_price > 0 and not self._is_market_hours():
+                            gain_amount = mp.peak_price - mp.entry_price
+                            trailing_sl = mp.entry_price + gain_amount * (_startup_trail_lock / 100)
+                            if trailing_sl > pos.current_price * 1.02 > 0:
+                                logger.warning(
+                                    f"⚠️ {pos.symbol}: Corrupt peak detected — trailing SL ${trailing_sl:.2f} "
+                                    f"> current ${pos.current_price:.2f} × 1.02 (bad Alpaca snapshot tick?) "
+                                    f"— resetting peak ${mp.peak_price:.2f} → ${pos.current_price:.2f}, trail OFF"
+                                )
+                                mp.peak_price = pos.current_price
+                                mp.trailing_active = False
+                                mp.current_sl_price = mp.entry_price * (1 - mp.sl_pct / 100)
+
                         logger.info(f"Restored position: {pos.symbol} (peak=${mp.peak_price:.2f}, trail={'ON' if mp.trailing_active else 'OFF'})")
                     else:
                         logger.info(f"Synced position: {pos.symbol} (no persisted state)")
@@ -5675,15 +5693,12 @@ class AutoTradingEngine:
         current_price = alpaca_pos.current_price
         entry_price = managed_pos.entry_price
 
-        # v4.7 Fix #7: Use intraday high from Alpaca snapshot for peak_price
-        # Prevents missing peaks between monitor intervals
+        # v6.89: Use current_price only for peak tracking (removed snapshot daily_high).
+        # Alpaca paper trading snapshot['daily_high'] can return bad ticks indistinguishable
+        # from real moves (e.g. +2.4% above entry), inflating peak → trailing SL above
+        # current price → immediate stop-out on next market open.
+        # 15s polling is sufficient; brief spikes between cycles shouldn't drive trailing stop.
         intraday_high = current_price
-        try:
-            snapshot = self.broker.get_snapshot(symbol)
-            if snapshot and snapshot.get('daily_high'):
-                intraday_high = max(current_price, snapshot['daily_high'])
-        except Exception:
-            pass  # Fallback to current_price
 
         # Update peak and trough
         _state_changed = False
