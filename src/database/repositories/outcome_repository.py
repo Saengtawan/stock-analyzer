@@ -161,6 +161,8 @@ class OutcomeRepository:
                         scan_date = ?, scan_type = ?, signal_rank = ?,
                         action_taken = ?, skip_reason = ?, score = ?, signal_source = ?,
                         scan_price = ?, days_until_earnings = ?, earnings_gap_pct = ?,
+                        volume_ratio = ?, atr_pct = ?, entry_rsi = ?,
+                        momentum_5d = ?, gap_pct = ?, gap_confidence = ?,
                         outcome_1d = ?, outcome_2d = ?, outcome_3d = ?,
                         outcome_4d = ?, outcome_5d = ?, outcome_max_gain_5d = ?,
                         outcome_max_dd_5d = ?, updated_at = ?
@@ -176,6 +178,12 @@ class OutcomeRepository:
                     outcome.get('scan_price'),
                     outcome.get('days_until_earnings'),
                     outcome.get('earnings_gap_pct'),
+                    outcome.get('volume_ratio'),
+                    outcome.get('atr_pct'),
+                    outcome.get('entry_rsi'),
+                    outcome.get('momentum_5d'),
+                    outcome.get('gap_pct'),
+                    outcome.get('gap_confidence'),
                     outcome.get('outcome_1d'),
                     outcome.get('outcome_2d'),
                     outcome.get('outcome_3d'),
@@ -196,10 +204,11 @@ class OutcomeRepository:
                         scan_id, symbol, scan_date, scan_type, signal_rank,
                         action_taken, skip_reason, score, signal_source, scan_price,
                         days_until_earnings, earnings_gap_pct,
+                        volume_ratio, atr_pct, entry_rsi, momentum_5d, gap_pct, gap_confidence,
                         outcome_1d, outcome_2d, outcome_3d,
                         outcome_4d, outcome_5d,
                         outcome_max_gain_5d, outcome_max_dd_5d, tracked_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     outcome['scan_id'],
                     outcome['symbol'],
@@ -213,6 +222,12 @@ class OutcomeRepository:
                     outcome.get('scan_price'),
                     outcome.get('days_until_earnings'),
                     outcome.get('earnings_gap_pct'),
+                    outcome.get('volume_ratio'),
+                    outcome.get('atr_pct'),
+                    outcome.get('entry_rsi'),
+                    outcome.get('momentum_5d'),
+                    outcome.get('gap_pct'),
+                    outcome.get('gap_confidence'),
                     outcome.get('outcome_1d'),
                     outcome.get('outcome_2d'),
                     outcome.get('outcome_3d'),
@@ -260,7 +275,10 @@ class OutcomeRepository:
                     UPDATE rejected_outcomes SET
                         scan_date = ?, scan_type = ?, signal_rank = ?,
                         rejection_reason = ?, score = ?, signal_source = ?,
-                        scan_price = ?, outcome_1d = ?, outcome_2d = ?,
+                        scan_price = ?,
+                        volume_ratio = ?, atr_pct = ?, entry_rsi = ?,
+                        momentum_5d = ?, gap_pct = ?, gap_confidence = ?,
+                        outcome_1d = ?, outcome_2d = ?,
                         outcome_3d = ?, outcome_4d = ?, outcome_5d = ?,
                         outcome_max_gain_5d = ?,
                         outcome_max_dd_5d = ?, updated_at = ?
@@ -273,6 +291,12 @@ class OutcomeRepository:
                     outcome.get('score'),
                     outcome.get('signal_source'),
                     outcome.get('scan_price'),
+                    outcome.get('volume_ratio'),
+                    outcome.get('atr_pct'),
+                    outcome.get('entry_rsi'),
+                    outcome.get('momentum_5d'),
+                    outcome.get('gap_pct'),
+                    outcome.get('gap_confidence'),
                     outcome.get('outcome_1d'),
                     outcome.get('outcome_2d'),
                     outcome.get('outcome_3d'),
@@ -292,10 +316,11 @@ class OutcomeRepository:
                     INSERT INTO rejected_outcomes (
                         scan_id, symbol, scan_date, scan_type, signal_rank,
                         rejection_reason, score, signal_source, scan_price,
+                        volume_ratio, atr_pct, entry_rsi, momentum_5d, gap_pct, gap_confidence,
                         outcome_1d, outcome_2d, outcome_3d,
                         outcome_4d, outcome_5d,
                         outcome_max_gain_5d, outcome_max_dd_5d, tracked_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     outcome['scan_id'],
                     outcome['symbol'],
@@ -306,6 +331,12 @@ class OutcomeRepository:
                     outcome.get('score'),
                     outcome.get('signal_source'),
                     outcome.get('scan_price'),
+                    outcome.get('volume_ratio'),
+                    outcome.get('atr_pct'),
+                    outcome.get('entry_rsi'),
+                    outcome.get('momentum_5d'),
+                    outcome.get('gap_pct'),
+                    outcome.get('gap_confidence'),
                     outcome.get('outcome_1d'),
                     outcome.get('outcome_2d'),
                     outcome.get('outcome_3d'),

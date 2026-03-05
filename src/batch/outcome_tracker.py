@@ -449,6 +449,8 @@ def track_rejected_outcomes(dry_run: bool = False) -> int:
                             'entry_rsi': log.get('entry_rsi'),
                             'momentum_5d': log.get('momentum_5d'),
                             'gap_pct': log.get('gap_pct'),
+                            'volume_ratio': log.get('volume_ratio'),
+                            'gap_confidence': log.get('gap_confidence') or log.get('confidence'),
                             'earnings_date': log.get('earnings_date'),
                             'days_until_earnings': log.get('days_until_earnings'),
                         })
@@ -550,6 +552,8 @@ def track_rejected_outcomes(dry_run: bool = False) -> int:
                 "entry_rsi": rej['entry_rsi'],
                 "momentum_5d": rej['momentum_5d'],
                 "gap_pct": rej['gap_pct'],
+                "volume_ratio": rej.get('volume_ratio'),
+                "gap_confidence": rej.get('gap_confidence'),
                 "earnings_date": rej['earnings_date'],
                 "days_until_earnings": rej['days_until_earnings'],
                 "outcome_1d": outcome_1d,
@@ -700,6 +704,12 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                             'score': sig.get('score', 0),
                             'signal_source': sig.get('signal_source', ''),
                             'days_until_earnings': sig.get('days_until_earnings'),
+                            'volume_ratio': sig.get('volume_ratio'),
+                            'atr_pct': sig.get('atr_pct'),
+                            'entry_rsi': sig.get('rsi') or sig.get('entry_rsi'),
+                            'momentum_5d': sig.get('momentum_5d'),
+                            'gap_pct': sig.get('gap_pct'),
+                            'gap_confidence': sig.get('gap_confidence') or sig.get('confidence'),
                         })
 
     if not signals_to_track:
@@ -832,6 +842,12 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                 "scan_price": scan_price,
                 "days_until_earnings": days_until_earnings,  # v6.58: resolved (not raw sig field)
                 "earnings_gap_pct": earnings_gap_pct,
+                "volume_ratio": sig.get('volume_ratio'),
+                "atr_pct": sig.get('atr_pct'),
+                "entry_rsi": sig.get('entry_rsi'),
+                "momentum_5d": sig.get('momentum_5d'),
+                "gap_pct": sig.get('gap_pct'),
+                "gap_confidence": sig.get('gap_confidence'),
                 "outcome_1d": outcome_1d,
                 "outcome_2d": outcome_2d,
                 "outcome_3d": outcome_3d,
