@@ -2660,8 +2660,9 @@ class AutoTradingEngine:
             return position_pct, 'OVERNIGHT_ADAPTIVE'
 
         # v6.63: PEM/PED — use 100% of their dedicated budget (handled by _exec_calculate_position)
+        # v6.85: GAP shares PEM budget — also use 100% of pool
         signal_source = self._derive_signal_source(signal)
-        if signal_source in (SignalSource.PEM, SignalSource.PED):
+        if signal_source in (SignalSource.PEM, SignalSource.PED, SignalSource.PREMARKET_GAP):
             return 100.0, 'DEDICATED_FULL_BUDGET'
 
         # Standard conviction sizing for dip-bounce
@@ -4568,21 +4569,26 @@ class AutoTradingEngine:
 
         if self.SIMULATED_CAPITAL:
             # v6.63: Per-strategy budget — each strategy draws only from its own slice.
+            # v6.85: GAP shares PEM budget (both are gap plays, rarely fire same day)
             signal_source = self._derive_signal_source(signal)
-            _DEDICATED = (SignalSource.OVERNIGHT_GAP, SignalSource.PEM, SignalSource.PED)
+            _DEDICATED = (SignalSource.OVERNIGHT_GAP, SignalSource.PEM, SignalSource.PED, SignalSource.PREMARKET_GAP)
+            _PEM_GAP_GROUP = (SignalSource.PEM, SignalSource.PREMARKET_GAP)  # shared $500 pool
             _BUDGETS = {
                 SignalSource.OVERNIGHT_GAP: self.SIMULATED_CAPITAL_OVN,
                 SignalSource.PEM: self.SIMULATED_CAPITAL_PEM,
                 SignalSource.PED: self.SIMULATED_CAPITAL_PED,
+                SignalSource.PREMARKET_GAP: self.SIMULATED_CAPITAL_PEM,  # share PEM budget
             }
             strategy_budget = _BUDGETS.get(signal_source, self.SIMULATED_CAPITAL_DIP)
             with self._positions_lock:
                 if signal_source in _DEDICATED:
                     # Dedicated slots: 1 position each — full budget per position
+                    # PEM/GAP group: count both sources against shared $500 pool
+                    group = _PEM_GAP_GROUP if signal_source in _PEM_GAP_GROUP else (signal_source,)
                     already_deployed = sum(
                         getattr(p, 'qty', 0) * getattr(p, 'entry_price', 0)
                         for p in self.positions.values()
-                        if getattr(p, 'source', '') == signal_source
+                        if getattr(p, 'source', '') in group
                     )
                     available_simulated = max(0, strategy_budget - already_deployed)
                 else:
