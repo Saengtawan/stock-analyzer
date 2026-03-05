@@ -620,6 +620,8 @@ class AutoTradingEngine:
 
         # v5.3: Track last skip reason for UI display
         self._last_skip_reason: str = ""
+        # v6.84: EOD SL placement failed symbols — skip retry until next day
+        self._eod_sl_failed: set = set()
 
         # Regime cache (v4.2) - avoid repeated yfinance calls
         self._regime_cache: Optional[Tuple[bool, str, datetime, Dict]] = None
@@ -6489,7 +6491,10 @@ class AutoTradingEngine:
                     logger.debug(f"Earnings auto-sell check error for {symbol}: {e}")
 
         # v4.9: Place overnight SL for Day 0 positions near close
+        # v6.84: Skip symbols that already failed (qty_available=0 on Day 0 — Alpaca paper restriction)
         for symbol, managed_pos in list(self.positions.items()):
+            if symbol in self._eod_sl_failed:
+                continue
             try:
                 should_place, reason = self.pdt_guard.should_place_eod_sl(symbol)
                 if should_place:
@@ -6503,8 +6508,13 @@ class AutoTradingEngine:
                         managed_pos.current_sl_price = sl_order.stop_price
                         self._save_positions_state()
                         logger.info(f"EOD SL placed for {symbol}: ${sl_order.stop_price:.2f}")
+                        self._eod_sl_failed.discard(symbol)
             except Exception as e:
-                logger.error(f"EOD SL error for {symbol}: {e}")
+                if 'qty available' in str(e).lower() or 'insufficient qty' in str(e).lower():
+                    logger.warning(f"EOD SL skipped for {symbol}: Day 0 qty unavailable — will place SL on Day 1")
+                    self._eod_sl_failed.add(symbol)
+                else:
+                    logger.error(f"EOD SL error for {symbol}: {e}")
 
     def daily_summary(self) -> Dict:
         """Generate daily summary"""
@@ -7860,6 +7870,7 @@ class AutoTradingEngine:
                 if last_scan_date != today:
                     # v6.21: Set date FIRST to prevent repeated execution if exception occurs
                     last_scan_date = today
+                    self._eod_sl_failed.clear()  # v6.84: Reset EOD SL retry-block on new day
                     self._loop_morning_scan(today)
 
                 # Scheduled scans
