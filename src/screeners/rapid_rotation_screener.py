@@ -758,7 +758,7 @@ class RapidRotationScreener:
                 logger.info(f"✅ SPY Regime: {reason}")
             else:
                 reason = f"BEAR: SPY ${current_price:.2f} < SMA{self.REGIME_SMA_PERIOD} ${sma:.2f} ({pct_above:.1f}%)"
-                logger.warning(f"⚠️ SPY Regime: {reason} - SKIP NEW TRADES")
+                logger.info(f"⚠️ SPY Regime: {reason} - SKIP NEW TRADES")
 
             # Cache the result
             self._spy_regime_cache = (is_bull, reason, details, _time.time())
@@ -1412,7 +1412,7 @@ class RapidRotationScreener:
         regime_name = regime.get('regime', 'UNKNOWN')
 
         if regime_name == 'BEAR':
-            logger.warning("🐻 Internal regime BEAR - still scanning (SPY is BULL)" if is_bull else "🐻 Internal regime BEAR - bear mode active")
+            logger.info("🐻 Internal regime BEAR - still scanning (SPY is BULL)" if is_bull else "🐻 Internal regime BEAR - bear mode active")
         elif regime_name == 'BULL':
             logger.info("🐂 Both SPY and internal regime BULL - optimal conditions")
 

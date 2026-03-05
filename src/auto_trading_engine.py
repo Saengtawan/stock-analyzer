@@ -2063,7 +2063,7 @@ class AutoTradingEngine:
                 if not vix_ok:
                     failed.append(f"VIX {vix_val:.1f} > {self.REGIME_VIX_MAX}")
                 reason = f"BEAR: {', '.join(failed)} [{check_str}]"
-                logger.warning(f"⚠️ Market Regime: {reason} - SKIPPING NEW TRADES")
+                logger.info(f"⚠️ Market Regime: {reason} - SKIPPING NEW TRADES")
 
             # v4.2: Cache result (v4.9.5: add SPY details for UI)
             # v5.1: Track VIX fallback — use shorter cache TTL if VIX was unreliable
@@ -3846,9 +3846,9 @@ class AutoTradingEngine:
             logger.warning("Screener not available")
             return []
 
-        # v6.36: Skip window check (10:00-11:00 ET)
+        # v6.36: Skip window check (10:00-10:05 ET)
         if self._is_skip_window():
-            logger.info("⏸️  SKIP WINDOW (10:00-11:00 ET): No scanning during volatile mid-morning period")
+            logger.info("⏸️  SKIP WINDOW (10:00-10:05 ET): No scanning during volatile mid-morning period")
             return []
 
         # v6.3: Prevent concurrent scans (refresh spam protection)
@@ -3926,6 +3926,8 @@ class AutoTradingEngine:
                 bear_mode_enabled=self.BEAR_MODE_ENABLED,  # v6.21: Pass BEAR mode flag
             )
 
+            if signals is None:
+                signals = []
             self.daily_stats.signals_found = len(signals)
             logger.info(f"Found {len(signals)} signals (regime: {regime_label})")
 
@@ -4298,13 +4300,13 @@ class AutoTradingEngine:
         """
         mode = params['mode']
 
-        # v6.36: Skip window check (10:00-11:00 ET) - Block DIP trades only
+        # v6.36: Skip window check (10:00-10:05 ET) - Block DIP trades only
         # v6.78: PEM/OVN/PED exempt — earnings/overnight catalysts don't care about intraday volatility window
         # v6.82: premarket_gap exempt — gap already formed pre-market, skip window irrelevant
         _source = params.get('source', '')
         _skip_window_exempt = _source in (SignalSource.PEM, SignalSource.OVERNIGHT_GAP, SignalSource.PED, SignalSource.PREMARKET_GAP)
         if self._is_skip_window() and not _skip_window_exempt:
-            logger.info(f"⏸️  {symbol}: SKIP WINDOW (10:00-11:00 ET) - No trades during this period")
+            logger.info(f"⏸️  {symbol}: SKIP WINDOW (10:00-10:05 ET) - No trades during this period")
             return False, "Skip Window"
 
         # Safety check — pass effective max so OVN/PEM/PED dedicated slots aren't blocked by DIP limit

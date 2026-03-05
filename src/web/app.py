@@ -4201,6 +4201,17 @@ def api_auto_status():
 def api_auto_start():
     """Start auto trading engine"""
     try:
+        # v6.84: Check if nohup engine is already running via heartbeat.
+        # If alive, don't start webapp engine — it would run a duplicate trading loop
+        # alongside the systemd-managed nohup engine (causes duplicate scans/SELLs).
+        try:
+            from database.repositories.heartbeat_repository import HeartbeatRepository
+            hb = HeartbeatRepository().read(max_age_seconds=60)
+            if hb.get('alive'):
+                return jsonify({'message': 'Engine running (systemd)', 'running': True})
+        except Exception:
+            pass
+
         engine = get_auto_trading_engine()
         if not engine:
             return jsonify({'error': 'Engine not available'}), 500
