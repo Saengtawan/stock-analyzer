@@ -299,7 +299,7 @@ class RapidRotationConfig:
     # =========================================================================
     # UI timeline bar uses these values. All times in minutes from midnight.
     sessions: Dict[str, SessionConfig] = field(default_factory=lambda: {
-        'morning': SessionConfig(start=575, end=660, interval=3, label='Morning'),
+        'morning': SessionConfig(start=572, end=660, interval=3, label='Morning'),
         'midday': SessionConfig(start=660, end=840, interval=5, label='Midday'),
         'afternoon': SessionConfig(start=840, end=930, interval=5, label='Afternoon'),
         'preclose': SessionConfig(start=930, end=960, interval=0, label='Pre-Close')
@@ -310,7 +310,7 @@ class RapidRotationConfig:
     # =========================================================================
     continuous_scan_enabled: bool = True            # Enable continuous scan
     continuous_scan_interval_minutes: int = 5       # Default/slow interval (11:00-16:00)
-    continuous_scan_volatile_interval: int = 3      # Volatile period interval (09:35-11:00)
+    continuous_scan_volatile_interval: int = 3      # Volatile period interval (09:32-11:00)
     continuous_scan_volatile_end_hour: int = 11     # Volatile period ends at 11:00
     continuous_scan_midday_hour: int = 12           # Switch to afternoon params after this hour
 
@@ -318,7 +318,7 @@ class RapidRotationConfig:
     # LATE START PROTECTION (v4.4)
     # =========================================================================
     late_start_protection: bool = True      # Enable late start protection
-    market_open_scan_delay: int = 5         # Minutes after open before scanning
+    market_open_scan_delay: int = 2         # Minutes after open before scanning
     market_open_scan_window: int = 20       # Minutes - skip scan if started after this
 
     # =========================================================================
@@ -393,10 +393,10 @@ class RapidRotationConfig:
     # =========================================================================
     pem_enabled: bool = False                   # Disabled by default (paper trade first)
     pem_gap_threshold_pct: float = 8.0          # Minimum gap up % to qualify
-    pem_volume_early_ratio_min: float = 0.11    # v6.69: 0.30→0.11 (HCI test: 0.11x observed at 9:35 ET)
+    pem_volume_early_ratio_min: float = 0.11    # v6.69: 0.30→0.11 (HCI test: 0.11x observed at 9:32 ET)
     pem_skip_vix: bool = False                  # v6.69: bypass VIX check for PEM (earnings catalyst)
     pem_scan_hour: int = 9                      # Scan hour (ET)
-    pem_scan_minute: int = 35                   # Scan minute (9:35 = after open)
+    pem_scan_minute: int = 32                   # Scan minute (9:32 = after open)
     pem_max_positions: int = 1                  # Max PEM positions at once
     pem_position_size_pct: float = 33.0         # Position size (% of equity)
     pem_sl_pct: float = 5.0                     # Stop loss % (wider for earnings day)
@@ -409,7 +409,7 @@ class RapidRotationConfig:
     # =========================================================================
     ped_enabled: bool = False                   # Disabled by default
     ped_scan_hour: int = 9                      # Scan hour (ET)
-    ped_scan_minute: int = 35                   # Scan minute (9:35 = after open)
+    ped_scan_minute: int = 32                   # Scan minute (9:32 = after open)
     ped_max_positions: int = 1                  # Dedicated slot (not counted in DIP limit)
     ped_position_size_pct: float = 30.0         # Position size (% of equity)
     ped_days_before_min: int = 5                # v6.58: D-4 WR3d=38% (bad), D-5 only

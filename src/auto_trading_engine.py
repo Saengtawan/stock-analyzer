@@ -1310,7 +1310,7 @@ class AutoTradingEngine:
                         next_scan = f"{next_cont_scan.strftime('%H:%M')} ET ({interval_min}min)"
                         next_scan_timestamp = next_cont_scan.isoformat()
                     else:
-                        next_scan = "Tomorrow 09:35 ET"
+                        next_scan = "Tomorrow 09:32 ET"
                         next_scan_timestamp = None
                 else:
                     # Legacy: fixed scan times
@@ -1321,7 +1321,7 @@ class AutoTradingEngine:
                         next_scan = "15:30 ET"
                         next_scan_timestamp = et_now.replace(hour=15, minute=30, second=0, microsecond=0).isoformat()
                     else:
-                        next_scan = "Tomorrow 09:35 ET"
+                        next_scan = "Tomorrow 09:32 ET"
                         next_scan_timestamp = None
             else:
                 next_scan = f"{next_open.strftime('%Y-%m-%d %H:%M ET')}" if next_open else "Next Market Open"
@@ -6868,7 +6868,7 @@ class AutoTradingEngine:
         )
         scan_time = market_open + timedelta(minutes=self.MARKET_OPEN_SCAN_DELAY)
 
-        # Wait for market to settle (09:30-09:35 = spread wide, volatile)
+        # Wait for market to settle (09:30-09:32 = spread wide, volatile)
         if et_now < scan_time:
             wait_secs = (scan_time - et_now).total_seconds()
             logger.info(f"⏳ Waiting {wait_secs:.0f}s for market to settle (scan at {scan_time.strftime('%H:%M')} ET)")
@@ -7574,7 +7574,7 @@ class AutoTradingEngine:
 
     def _loop_premarket_gap_execute(self, today: str):
         """
-        Phase 2: Execute gap candidates at market open (9:30-9:35 ET, market OPEN branch).
+        Phase 2: Execute gap candidates at market open (9:30-9:32 ET, market OPEN branch).
 
         v6.83: Runs in the market-open loop right after PEM.
         Executes candidates found during the pre-market scan phase.
@@ -7587,10 +7587,10 @@ class AutoTradingEngine:
         if getattr(self, '_gap_executed_today', None) == today:
             return
 
-        # Execute window: 9:30 AM - 9:35 AM ET
+        # Execute window: 9:30 AM - 9:32 AM ET
         et_now = self._get_et_time()
         exec_start = et_now.replace(hour=9, minute=30, second=0, microsecond=0)
-        exec_end = et_now.replace(hour=9, minute=35, second=0, microsecond=0)
+        exec_end = et_now.replace(hour=9, minute=32, second=0, microsecond=0)
 
         if not (exec_start <= et_now < exec_end):
             return
@@ -7633,12 +7633,12 @@ class AutoTradingEngine:
 
     def _loop_pem_scan(self, today: str):
         """
-        v6.29: Post-Earnings Momentum scan at market open (9:35 ET).
+        v6.29: Post-Earnings Momentum scan at market open (9:32 ET).
 
         Detects stocks that gapped up 8%+ at open (earnings catalyst).
         Buys at market and holds until EOD (gap_trade=True → pre_close_check exits).
 
-        Runs once per day at 9:35 ET, right after morning_scan_done.
+        Runs once per day at 9:32 ET, right after morning_scan_done.
         """
         if not self.PEM_ENABLED or not self.pem_screener:
             return
@@ -7651,7 +7651,7 @@ class AutoTradingEngine:
             minute=self.PEM_SCAN_MINUTE,
             second=0, microsecond=0
         )
-        # Only run between 9:35 and 10:15 (after that, open price no longer valid)
+        # Only run between 9:32 and 10:15 (after that, open price no longer valid)
         scan_window_end = et_now.replace(hour=10, minute=15, second=0, microsecond=0)
         if et_now < scan_time or et_now > scan_window_end:
             return
@@ -7748,7 +7748,7 @@ class AutoTradingEngine:
 
     def _loop_ped_scan(self, today: str):
         """
-        v6.53: Pre-Earnings Drift scan at market open (9:35 ET).
+        v6.53: Pre-Earnings Drift scan at market open (9:32 ET).
         Buys stocks 4-5 trading days before earnings.
         Exit: EARNINGS_AUTO_SELL closes at D-1 automatically.
         """
@@ -8158,8 +8158,8 @@ class AutoTradingEngine:
                 # Morning scan (once per day)
                 today = now.strftime('%Y-%m-%d')
 
-                # v6.84: Execute BEFORE morning_scan (morning_scan blocks 241s until 09:35 ET,
-                # so execute must run first while window 09:30-09:35 is still open)
+                # v6.84: Execute BEFORE morning_scan (morning_scan blocks 241s until 09:32 ET,
+                # so execute must run first while window 09:30-09:32 is still open)
                 self._loop_premarket_gap_execute(today)
 
                 if last_scan_date != today:
@@ -8169,9 +8169,9 @@ class AutoTradingEngine:
                     self._loop_morning_scan(today)
 
                 # Scheduled scans
-                self._loop_pem_scan(today)           # v6.29: PEM scan at 9:35 ET
-                self._loop_ped_scan(today)           # v6.53: PED scan at 9:35 ET
-                # v6.92: T2 — check PED outcome at 10:35 AM (after window 9:35-10:30 closes)
+                self._loop_pem_scan(today)           # v6.29: PEM scan at 9:32 ET
+                self._loop_ped_scan(today)           # v6.53: PED scan at 9:32 ET
+                # v6.92: T2 — check PED outcome at 10:35 AM (after window 9:32-10:30 closes)
                 self._check_ped_reallocation_t2(now.date())
                 self._loop_afternoon_scan(today)
                 self._loop_intraday_prefilter(today)
@@ -8315,7 +8315,7 @@ class AutoTradingEngine:
                     'name': 'gapscan',
                     'label': 'Gap Scan',
                     'start': 360,  # 06:00 AM
-                    'end': 575,    # 09:35 AM
+                    'end': 572,    # 09:32 AM
                     'interval': -1,  # Once per day
                 })
 

@@ -233,11 +233,11 @@ market_close_minutes: 960                  # 16:00 ET = 16*60
 sessions:
   gapscan:                                 # v6.11: Pre-market gap scanner
     start: 360                             # 06:00 ET
-    end: 575                               # 09:35 ET
+    end: 572                               # 09:32 ET
     interval: -1                           # Once per day (not continuous)
     label: "Gap Scan"
   morning:
-    start: 575                             # 09:35 ET
+    start: 572                             # 09:32 ET
     end: 600                               # 10:00 ET (skip window starts)
     interval: 3                            # Volatile: scan every 3 min
     label: "Morning"
@@ -272,7 +272,7 @@ continuous_scan_dynamic_calm_interval: 5        # Interval when VIX < threshold 
 
 # -- Late Start Protection (v4.4) --
 late_start_protection: true
-market_open_scan_delay: 5      # minutes after open before scanning
+market_open_scan_delay: 2      # minutes after open before scanning
 market_open_scan_window: 20    # minutes - skip scan if started after this
 
 # -- Monitor interval --
@@ -362,10 +362,10 @@ breakout_scan_enabled: false
 # Exit: Same-day at market close (gap_trade=True → pre_close_check EOD exit)
 pem_enabled: true                # Enabled 2026-02-18
 pem_gap_threshold_pct: 8.0       # Minimum gap up % from prev close to open
-pem_volume_early_ratio_min: 0.11 # v6.69: 0.30→0.11 (HCI test: 0.11x observed at 9:35 ET)
+pem_volume_early_ratio_min: 0.11 # v6.69: 0.30→0.11 (HCI test: 0.11x observed at 9:32 ET)
 pem_skip_vix: true               # v6.69: PEM bypasses VIX check — earnings catalyst overrides macro fear
-pem_scan_hour: 9                 # Scan at 9:35 ET (when open prices confirmed)
-pem_scan_minute: 35
+pem_scan_hour: 9                 # Scan at 9:32 ET (when open prices confirmed)
+pem_scan_minute: 32
 pem_max_positions: 1             # Max PEM positions at once (1-day hold, high conviction)
 pem_position_size_pct: 30.0      # v6.32: 42→30 for $5k account consistency
 pem_sl_pct: 5.0                  # Stop loss % (wider for volatile earnings day)
@@ -406,7 +406,7 @@ pre_filter_on_demand_enabled: true      # Enable on-demand refresh (low pool)
 # Exit: EARNINGS_AUTO_SELL in _check_position() (days_until ∈ {0,1}) — no new exit code needed
 ped_enabled: true
 ped_scan_hour: 9
-ped_scan_minute: 35
+ped_scan_minute: 32
 ped_max_positions: 1              # Dedicated slot (not counted in DIP limit)
 ped_position_size_pct: 30.0       # Consistent with OVN/PEM sizing
 ped_days_before_min: 5            # v6.58: D-4 WR3d=38% (bad at PED exit), D-5 only

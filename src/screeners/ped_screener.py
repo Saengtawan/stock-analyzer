@@ -101,7 +101,7 @@ class PEDScreener:
 
     def scan(self) -> List[dict]:
         """
-        Scan for PED signals. Call at 9:35 ET after market open.
+        Scan for PED signals. Call at 9:32 ET after market open.
 
         v6.66 flow:
         1. Load earnings calendar from DB → instant dict {sym: days_until}

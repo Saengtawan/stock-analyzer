@@ -3,7 +3,7 @@
 BREAKOUT SCANNER v1.0 (v4.9.4)
 
 Scans for breakout continuation candidates.
-Runs during morning (9:35 ET) and afternoon (14:00 ET) scans.
+Runs during morning (9:32 ET) and afternoon (14:00 ET) scans.
 
 Criteria:
 1. Price broke above 20-day high (today or yesterday)

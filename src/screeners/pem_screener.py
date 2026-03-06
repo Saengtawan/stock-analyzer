@@ -1,7 +1,7 @@
 """
 Post-Earnings Momentum (PEM) Screener v1.0
 
-Detects stocks with positive earnings gaps at market open (9:35 ET):
+Detects stocks with positive earnings gaps at market open (9:32 ET):
 - Gap up 8%+ from prev close to open
 - Elevated early-session volume (confirms real catalyst)
 
@@ -11,9 +11,9 @@ Backtest (2023-2025, 148 stocks):
 - Source: backtests/backtest_post_earnings_momentum.py
 
 v6.67: volume_early_ratio_min 0.30→0.05
-  Backtest calibrated on EOD volume; screener measures at 9:35 (5 min).
+  Backtest calibrated on EOD volume; screener measures at 9:32 (2 min).
   Observed ratios for major gap stocks: NFLX+11.6%=0.02x, DELL+13.1%=0.01x,
-  HCI+9.4%=0.11x. Threshold 0.30 was near-impossible at 9:35.
+  HCI+9.4%=0.11x. Threshold 0.30 was near-impossible at 9:32.
   New 0.05 = stock trading at ~4× normal rate in first 5 min (meaningful filter).
 
 Exit: Same-day at market close (gap_trade=True → pre_close_check() closes at EOD)
@@ -36,11 +36,11 @@ class PEMScreener:
     """
     Post-Earnings Momentum Screener.
 
-    Scans for confirmed earnings gaps at 9:35 ET when open prices are known.
+    Scans for confirmed earnings gaps at 9:32 ET when open prices are known.
     Uses broker snapshots for fast open/prev_close detection.
     Uses yfinance for 20d avg volume (cached to avoid repeated calls).
 
-    Run once per day at 9:35 ET via _loop_pem_scan() in auto_trading_engine.
+    Run once per day at 9:32 ET via _loop_pem_scan() in auto_trading_engine.
     """
 
     DATA_DIR = os.path.join(
@@ -58,10 +58,10 @@ class PEMScreener:
         self.config = config or {}
 
         self.gap_threshold = float(self.config.get('pem_gap_threshold_pct', 8.0))
-        # Volume check: today's partial volume (9:35) / 20d avg full-day volume.
-        # At 9:35 (~5 min of 390-min session), baseline rate = 5/390 = 1.3% (0.013x).
-        # Threshold 0.05 = "already 5% of daily avg in first 5 min" → ~4× normal trading rate.
-        # Gap stocks at 9:35 observed: 0.01-0.11x (NFLX 0.02, DELL 0.01, HCI 0.11).
+        # Volume check: today's partial volume (9:32) / 20d avg full-day volume.
+        # At 9:32 (~2 min of 390-min session), baseline rate = 2/390 = 0.5% (0.005x).
+        # Threshold 0.05 = "already 5% of daily avg in first 2 min" → ~10× normal trading rate.
+        # Gap stocks at 9:32 observed: 0.01-0.11x (NFLX 0.02, DELL 0.01, HCI 0.11).
         self.volume_early_ratio_min = float(self.config.get('pem_volume_early_ratio_min', 0.05))
 
         # Cache for 20d avg volume (expensive to fetch, cache per run)
@@ -134,7 +134,7 @@ class PEMScreener:
 
     def scan(self) -> List[dict]:
         """
-        Scan for PEM signals at market open (call at 9:35 ET).
+        Scan for PEM signals at market open (call at 9:32 ET).
 
         Returns list of signal dicts. The engine converts these to
         RapidRotationSignal format and marks them as gap_trade=True.

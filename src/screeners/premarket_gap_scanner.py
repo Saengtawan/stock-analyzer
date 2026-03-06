@@ -5,7 +5,7 @@ PRE-MARKET GAP SCANNER v6.82
 Redesigned to use batch yfinance with prepost=True for real pre-market bars.
 
 Strategy:
-- Scan between 6:00 AM - 9:35 AM ET (after gaps have formed)
+- Scan between 6:00 AM - 9:32 AM ET (after gaps have formed)
 - Detect overnight gaps ≥8% with pre-market volume ≥0.3x avg daily regular volume
 - Full universe: ~1000 stocks from UniverseRepository
 - Confidence tiers: MAJOR_CATALYST(90%), CATALYST(80%), POSSIBLE_CATALYST(70%)
