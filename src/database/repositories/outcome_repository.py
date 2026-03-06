@@ -149,6 +149,14 @@ class OutcomeRepository:
         """Save or update signal outcome"""
         conn = self._get_connection()
         try:
+            # v7.02: Skip dup — same symbol+date+action already recorded (continuous scans re-see same blocked signal)
+            dup = conn.execute(
+                "SELECT id FROM signal_outcomes WHERE symbol = ? AND scan_date = ? AND action_taken = ?",
+                (outcome['symbol'], outcome.get('scan_date'), outcome.get('action_taken'))
+            ).fetchone()
+            if dup:
+                return dup['id']
+
             existing = conn.execute(
                 "SELECT id FROM signal_outcomes WHERE scan_id = ? AND symbol = ?",
                 (outcome['scan_id'], outcome['symbol'])
