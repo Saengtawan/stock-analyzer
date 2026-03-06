@@ -2350,6 +2350,37 @@ class AutoTradingEngine:
             'entry_qqq_spy_spread': qqq_spy_spread,
         }
 
+    def _get_sector_1d_change(self, sector: str) -> Optional[float]:
+        """v6.96: Get sector ETF 1-day % change for composite_score logging. Cached in _sector_etf_cache."""
+        if not sector:
+            return None
+        _sector_etf_map = {
+            'Technology': 'XLK', 'Industrials': 'XLI', 'Healthcare': 'XLV',
+            'Financial Services': 'XLF', 'Energy': 'XLE', 'Consumer Cyclical': 'XLC',
+            'Real Estate': 'XLRE', 'Consumer Defensive': 'XLP', 'Utilities': 'XLU',
+            'Basic Materials': 'XLB', 'Communication Services': 'XLC',
+        }
+        etf = _sector_etf_map.get(sector)
+        if not etf:
+            return None
+        try:
+            cache_key = f'_sec1d_{etf}'
+            cached = getattr(self, cache_key, None)
+            if cached and cached[0] == datetime.now().date():
+                return cached[1]
+            data = yf.download(etf, period='5d', interval='1d', progress=False, auto_adjust=True)
+            close = data['Close']
+            if hasattr(close, 'columns'):
+                close = close.iloc[:, 0]
+            close = close.dropna()
+            if len(close) < 2:
+                return None
+            val = round(float((close.iloc[-1] / close.iloc[-2] - 1) * 100), 3)
+            setattr(self, cache_key, (datetime.now().date(), val))
+            return val
+        except Exception:
+            return None
+
     def _check_vix_spike_protection(self):
         """Tighten SLs on all positions when VIX spikes >VIX_SPIKE_PCT% vs yesterday.
         Only triggers once per trading session."""
@@ -5029,6 +5060,9 @@ class AutoTradingEngine:
                 entry_vix_change_pct=mkt_ctx['entry_vix_change_pct'],
                 entry_uvxy_pct=mkt_ctx['entry_uvxy_pct'],
                 entry_qqq_spy_spread=mkt_ctx['entry_qqq_spy_spread'],
+                # v6.96: volume_ratio + sector_1d for composite_score
+                volume_ratio=getattr(signal, 'volume_ratio', None),
+                entry_sector_change_1d=self._get_sector_1d_change(signal_sector),
             )
         except Exception as log_err:
             logger.warning(f"Trade log error: {log_err}")
@@ -8424,7 +8458,7 @@ class AutoTradingEngine:
             'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v6.95',
+            'version': 'v6.96',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),

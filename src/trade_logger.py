@@ -108,6 +108,7 @@ class TradeLogEntry:
     market_cap_tier: Optional[str] = None        # MEGA/LARGE/MID/SMALL
     beta: Optional[float] = None                 # Stock beta
     volume_ratio: Optional[float] = None         # Today volume / avg volume
+    composite_score: Optional[float] = None      # v6.96: Env quality 0-1 (RSI+Ret20d+Mom5d+SPY+Sector)
 
     # Execution Data (v4.8: Smart Buy tracking)
     order_type: Optional[str] = None          # limit / market_fallback / market
@@ -294,8 +295,9 @@ class TradeLogger:
                                     entry_price, pnl_usd, pnl_pct, hold_duration,
                                     pdt_used, pdt_remaining, day_held, mode,
                                     regime, spy_price, signal_score, gap_pct, atr_pct,
-                                    from_queue, version, source, full_data
-                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    from_queue, version, source, full_data,
+                                    volume_ratio, composite_score
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ''', (
                                 tid, ts, trade_date,
                                 t.get('action'), t.get('symbol'), t.get('qty'),
@@ -310,7 +312,8 @@ class TradeLogger:
                                 1 if t.get('from_queue') else 0,
                                 t.get('version') or t.get('config_version'),
                                 t.get('source'),
-                                json.dumps(t, default=str)
+                                json.dumps(t, default=str),
+                                t.get('volume_ratio'), t.get('composite_score')
                             ))
                             existing_ids.add(tid)
                             inserted += 1
@@ -357,7 +360,9 @@ class TradeLogger:
                 from_queue INTEGER,
                 version TEXT,
                 source TEXT,
-                full_data TEXT
+                full_data TEXT,
+                volume_ratio REAL,
+                composite_score REAL
             )
         ''')
 
@@ -425,6 +430,39 @@ class TradeLogger:
     # =========================================================================
     # LOGGING METHODS
     # =========================================================================
+
+    @staticmethod
+    def _compute_composite_score(
+        entry_rsi: float = None,
+        return_20d: float = None,
+        momentum_5d: float = None,
+        entry_spy_pct_above_sma: float = None,
+        entry_sector_change_1d: float = None,
+    ) -> Optional[float]:
+        """v6.96: Compute 0-1 environment quality score for DIP trades.
+        Uses normalized distance from ideal values across 5 dimensions.
+          A. RSI        ideal=42, tol=15  (oversold)
+          B. Ret20d     ideal=0%,  tol=5  (not extended)
+          C. Mom5d      ideal=-1%, tol=4  (slight dip, not crash)
+          D. SPY>SMA    ideal=0%,  tol=2  (market neutral/recovering)
+          E. Sector_1d  ideal=0.3%,tol=1  (sector aligned)
+        Returns None if fewer than 3 dimensions available.
+        """
+        def _dim(x, ideal, tol):
+            if x is None: return None
+            return max(0.0, 1.0 - abs(x - ideal) / tol)
+
+        scores = [
+            _dim(entry_rsi,                42,   15),
+            _dim(return_20d,               0,     5),
+            _dim(momentum_5d,             -1.0,   4),
+            _dim(entry_spy_pct_above_sma,  0,     2),
+            _dim(entry_sector_change_1d,   0.3,   1),
+        ]
+        known = [s for s in scores if s is not None]
+        if len(known) < 3:
+            return None
+        return round(sum(known) / len(known), 3)
 
     def log_buy(
         self,
@@ -559,8 +597,17 @@ class TradeLogger:
             note=note
         )
 
+        # v6.96: compute environment quality score at buy time
+        entry.composite_score = self._compute_composite_score(
+            entry_rsi=entry_rsi,
+            return_20d=return_20d,
+            momentum_5d=momentum_5d,
+            entry_spy_pct_above_sma=entry_spy_pct_above_sma,
+            entry_sector_change_1d=entry_sector_change_1d,
+        )
+
         self._add_entry(entry)
-        logger.info(f"📝 Trade Log: BUY {symbol} x{qty} @ ${price:.2f} [{reason}]")
+        logger.info(f"📝 Trade Log: BUY {symbol} x{qty} @ ${price:.2f} [{reason}] env={entry.composite_score}")
         return entry
 
     def log_sell(
@@ -853,8 +900,9 @@ class TradeLogger:
                         entry_price, pnl_usd, pnl_pct, hold_duration,
                         pdt_used, pdt_remaining, day_held, mode,
                         regime, spy_price, signal_score, gap_pct, atr_pct,
-                        from_queue, version, source, full_data
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        from_queue, version, source, full_data,
+                        volume_ratio, composite_score
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     entry.id, entry.timestamp, trade_date, entry.action,
                     entry.symbol, entry.qty, entry.price, entry.reason,
@@ -862,7 +910,8 @@ class TradeLogger:
                     1 if entry.pdt_used else 0, entry.pdt_remaining, entry.day_held, entry.mode,
                     entry.regime, entry.spy_price, entry.signal_score, entry.gap_pct, entry.atr_pct,
                     1 if entry.from_queue else 0, entry.version, entry.source,
-                    json.dumps(asdict(entry), default=str)
+                    json.dumps(asdict(entry), default=str),
+                    entry.volume_ratio, entry.composite_score
                 ))
 
                 conn.commit()
