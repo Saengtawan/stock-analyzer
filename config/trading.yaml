@@ -156,7 +156,7 @@ simulated_capital_ped: 500    # PED dedicated slot (pre-earnings)
 
 # -- Risk-Parity Sizing (v4.9) -- Legacy feature-specific settings
 risk_parity_enabled: true      # Keep risk parity enabled for safety
-risk_budget_pct: 2.5           # Max risk per position = 2.5% of account (was 1.0)
+risk_budget_pct: 3.0           # v7.0: 2.5→3.0 so sl_pct=3% (typical DIP) → 100% of per_slot
 
 # -- Risk Limits -- Legacy-only settings (non-duplicates)
 weekly_loss_limit_pct: 7.0     # Weekly loss limit (% of equity)
