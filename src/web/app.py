@@ -5113,6 +5113,13 @@ def get_status_data():
         except Exception:
             market_regime = 'UNKNOWN'
 
+        # Queue count from DB (engine.signal_queue is stale in webapp auto_start=False)
+        try:
+            from database.repositories.queue_repository import QueueRepository
+            queue_size = len(QueueRepository().get_all(status='waiting') or [])
+        except Exception:
+            queue_size = 0
+
         return {
             'running': engine.running,
             'state': engine.state.value if hasattr(engine.state, 'value') else str(engine.state),
@@ -5123,6 +5130,7 @@ def get_status_data():
             'positions': pos_count,
             'effective_params': effective_params,
             'market_regime': market_regime,
+            'queue_size': queue_size,
         }
     except Exception as e:
         logger.error(f"WebSocket status error: {e}")
