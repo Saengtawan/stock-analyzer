@@ -53,7 +53,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 _API_SECRET = os.environ.get('RAPID_API_SECRET', '')
 if not _API_SECRET:
     _API_SECRET = secrets.token_hex(32)
-    logger.warning(f"No RAPID_API_SECRET set — generated ephemeral key (set env var for persistence)")
+    logger.debug(f"No RAPID_API_SECRET set — generated ephemeral key (set env var for persistence)")
 
 
 def require_api_auth(f):
