@@ -5282,11 +5282,16 @@ class AutoTradingEngine:
             sl_pct = atr_sl_tp['sl_pct']
             tp_pct = atr_sl_tp['tp_pct']
 
-            # Risk-parity position sizing
-            if self.RISK_PARITY_ENABLED and sl_pct > 0:
+            # Risk-parity position sizing — DIP only (v7.0)
+            # Dedicated strategies (OVN/PEM/PED/GAP) use their own sizing from _exec_calculate_position:
+            #   OVN → _get_overnight_position_size() = full OVN budget
+            #   PEM/PED/GAP → DEDICATED_FULL_BUDGET = full $500 each
+            # _calculate_atr_sl_tp() still runs above for all strategies (sl_pct/tp_pct needed by BLOCK 6)
+            _dedicated = (SignalSource.OVERNIGHT_GAP, SignalSource.PEM,
+                          SignalSource.PED, SignalSource.PREMARKET_GAP)
+            if self.RISK_PARITY_ENABLED and sl_pct > 0 and _signal_source not in _dedicated:
                 risk_parity_pct = (self.RISK_BUDGET_PCT / sl_pct) * 100
-                # v7.0: cap at 100% of capital (DIP capital = per_slot = budget/MAX_POSITIONS)
-                # max_position_pct (45%) deprecated — per_slot is the hard ceiling
+                # cap at 100% of capital (DIP capital = per_slot = budget/MAX_POSITIONS)
                 risk_parity_pct = min(risk_parity_pct, 100.0)
                 position_value = capital * (risk_parity_pct / 100)
                 logger.info(f"Risk-Parity: SL {sl_pct}% → size {risk_parity_pct:.0f}% (${position_value:,.0f})")
