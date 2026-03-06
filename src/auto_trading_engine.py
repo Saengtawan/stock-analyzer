@@ -622,6 +622,8 @@ class AutoTradingEngine:
         self._last_skip_reason: str = ""
         # v6.84: EOD SL placement failed symbols — skip retry until next day
         self._eod_sl_failed: set = set()
+        # v6.99: SPY EOD deterioration check — run once per day at pre-close
+        self._spy_deterioration_done: Optional[date] = None
 
         # Regime cache (v4.2) - avoid repeated yfinance calls
         self._regime_cache: Optional[Tuple[bool, str, datetime, Dict]] = None
@@ -791,7 +793,9 @@ class AutoTradingEngine:
         self.QUEUE_MAX_SIZE = cfg.queue_max_size
         self.QUEUE_FRESHNESS_WINDOW = cfg.queue_freshness_window
         self.QUEUE_RESCAN_ON_EMPTY = cfg.queue_rescan_on_empty
-        
+        self.QUEUE_MAX_AGE_MINUTES = 150          # v6.98: Expire stale signals >2.5h
+        self.QUEUE_VIX_MAX = 28.0                 # v6.98: Expire queue if VIX too volatile
+
         # =====================================================================
         # SECTOR MANAGEMENT
         # =====================================================================
@@ -4097,6 +4101,29 @@ class AutoTradingEngine:
                     self.daily_stats.queue_expired += 1
                     continue
 
+                # v6.98: Age gate — expire signals queued >2.5h (stale, miss the opportunity)
+                if age_min > self.QUEUE_MAX_AGE_MINUTES:
+                    logger.warning(
+                        f"[v6.98] Queue age expired: {symbol} queued {age_min:.0f}min ago "
+                        f"(max={self.QUEUE_MAX_AGE_MINUTES}min, score={queued.score:.0f})"
+                    )
+                    self.signal_queue.remove(queued)
+                    self._save_queue_state()
+                    self.daily_stats.queue_expired += 1
+                    continue
+
+                # v6.98: VIX gate — expire stale signals when market is too volatile
+                vix_q, _ = self._get_vix()
+                if vix_q > self.QUEUE_VIX_MAX:
+                    logger.warning(
+                        f"[v6.98] Queue VIX expired: {symbol} VIX={vix_q:.1f} > {self.QUEUE_VIX_MAX} "
+                        f"(queued {age_min:.0f}min ago, score={queued.score:.0f})"
+                    )
+                    self.signal_queue.remove(queued)
+                    self._save_queue_state()
+                    self.daily_stats.queue_expired += 1
+                    continue
+
                 # Skip if already have position now
                 if symbol in self.positions:
                     self.signal_queue.remove(queued)
@@ -6509,6 +6536,9 @@ class AutoTradingEngine:
         """Pre-close check - handle max hold days, gap trades, and Day 0 SL"""
         logger.info("Pre-close check...")
 
+        # v6.99: Exit losing positions if SPY deteriorated ≥2% since entry
+        self._check_spy_deterioration_eod()
+
         # v6.11: Close gap trades at market close (same day exit)
         for symbol, managed_pos in list(self.positions.items()):
             # Check if this is a gap trade (marked during entry)
@@ -6572,6 +6602,77 @@ class AutoTradingEngine:
                     self._eod_sl_failed.add(symbol)
                 else:
                     logger.error(f"EOD SL error for {symbol}: {e}")
+
+    def _check_spy_deterioration_eod(self) -> None:
+        """
+        v6.99: Exit losing positions if SPY deteriorated ≥2% since entry date.
+
+        Runs once at pre-close (15:50 ET). Exits only losing positions (PnL < -1%)
+        to protect against continued macro deterioration. Winning positions are left
+        for trailing stop to manage.
+        """
+        today_et = self._get_et_time().date()
+        if self._spy_deterioration_done == today_et:
+            return
+
+        try:
+            bars = self.broker.get_bars('SPY', '1Day', limit=10)
+            if not bars:
+                logger.warning("[v6.99] SPY EOD check: no SPY bars available → skip")
+                return
+
+            # Guard: ensure latest bar is today (API lag / data delay)
+            latest_bar_date = bars[-1].timestamp.astimezone(self.et_tz).date()
+            if latest_bar_date != today_et:
+                logger.warning(
+                    f"[v6.99] SPY bar latest={latest_bar_date} != today={today_et} → skip"
+                )
+                return
+
+            spy_closes = {
+                bar.timestamp.astimezone(self.et_tz).date(): bar.close
+                for bar in bars
+            }
+            spy_today = bars[-1].close
+
+        except Exception as e:
+            logger.warning(f"[v6.99] SPY EOD check: failed to get SPY data: {e}")
+            return
+
+        for symbol, pos in list(self.positions.items()):
+            try:
+                entry_date_et = pos.entry_time.astimezone(self.et_tz).date()
+                spy_entry = spy_closes.get(entry_date_et)
+                if spy_entry is None:
+                    continue  # entry date not in recent bars
+
+                spy_drop_pct = (spy_today - spy_entry) / spy_entry * 100
+                if spy_drop_pct >= -2.0:
+                    continue  # SPY OK — no action
+
+                # SPY dropped ≥2% since entry — check position PnL
+                broker_pos = self.broker.get_position(symbol)
+                pnl_pct = (
+                    (broker_pos.current_price - pos.entry_price) / pos.entry_price * 100
+                    if broker_pos else 0.0
+                )
+
+                if pnl_pct < -1.0:
+                    logger.warning(
+                        f"[v6.99] SPY_DETERIORATE_EOD: {symbol} "
+                        f"SPY {spy_drop_pct:+.1f}% since {entry_date_et}, "
+                        f"PnL={pnl_pct:+.1f}% → EXIT"
+                    )
+                    self._close_position(symbol, pos, "SPY_DETERIORATE_EOD")
+                else:
+                    logger.info(
+                        f"[v6.99] SPY {spy_drop_pct:+.1f}% but {symbol} "
+                        f"PnL={pnl_pct:+.1f}% → hold (trailing handles)"
+                    )
+            except Exception as e:
+                logger.warning(f"[v6.99] SPY EOD check error for {symbol}: {e}")
+
+        self._spy_deterioration_done = today_et
 
     def daily_summary(self) -> Dict:
         """Generate daily summary"""
