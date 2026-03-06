@@ -5680,6 +5680,14 @@ class AutoTradingEngine:
                 SignalRepository().update_status_by_symbol(symbol, 'closed', 'SL_FILLED_AT_ALPACA')
             except Exception:
                 pass
+            # v6.95: SL fill opens a slot — expire stale queue items + try to execute
+            try:
+                queued = self._check_queue_for_execution()
+                if queued:
+                    logger.info(f"📋 Queue: Slot opened by SL fill, executing {queued.symbol}")
+                    self._execute_from_queue(queued)
+            except Exception as e:
+                logger.debug(f"Queue check after SL fill failed: {e}")
             return
 
         current_price = alpaca_pos.current_price
@@ -8416,7 +8424,7 @@ class AutoTradingEngine:
             'cash': account_cash,
             'daily_stats': asdict(self.daily_stats),
             'safety': safety_status,
-            'version': 'v6.80',
+            'version': 'v6.95',
             # v4.1: Queue status
             'queue_size': queue_size,
             'queue': self.get_queue_status(),

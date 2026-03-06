@@ -2417,7 +2417,7 @@ function updatePositionsUI(data) {
     // Trail count with bounce animation
     const statuses = data.statuses || [];
     const trailActivationPct = (_baseConfig && _baseConfig.trail_activation_pct) || 2;
-    const trailActiveCount = statuses.filter(s => s.pnl_pct >= trailActivationPct).length;
+    const trailActiveCount = statuses.filter(s => s.trailing_active === true).length;
     const hdrTrailCount = document.getElementById('hdrTrailCount');
     if (hdrTrailCount) {
         hdrTrailCount.textContent = `${trailActiveCount}/${posCount}`;
