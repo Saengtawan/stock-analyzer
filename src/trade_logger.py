@@ -719,6 +719,7 @@ class TradeLogger:
         atr_pct: float = None,
         entry_rsi: float = None,  # v5.1 P3-23: renamed from rsi
         momentum_5d: float = None,
+        volume_ratio: float = None,  # v7.03
         mode: str = None,
         # v5.0: Earnings context (EARNINGS_REJECT only)
         earnings_date: str = None,
@@ -755,6 +756,7 @@ class TradeLogger:
             atr_pct=atr_pct,
             entry_rsi=entry_rsi,
             momentum_5d=momentum_5d,
+            volume_ratio=volume_ratio,  # v7.03
             mode=mode,
             # v5.0: Earnings context
             earnings_date=earnings_date,

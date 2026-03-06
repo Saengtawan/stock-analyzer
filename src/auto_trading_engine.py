@@ -4044,6 +4044,7 @@ class AutoTradingEngine:
                 atr_pct=getattr(signal, 'atr_pct', 5.0),  # Default 5% if not available
                 sl_pct=sl_pct,
                 tp_pct=tp_pct,
+                volume_ratio=getattr(signal, 'volume_ratio', None),  # v7.03
             )
 
             self.signal_queue.append(queued)
@@ -4216,6 +4217,7 @@ class AutoTradingEngine:
             signal.take_profit = fresh_tp
             signal.score = queued.score
             signal.reasons = queued.reasons
+            signal.volume_ratio = queued.volume_ratio  # v7.03: preserve for log_buy
 
             logger.info(f"📋 Queue: {symbol} SL/TP recalculated: SL ${fresh_sl:.2f} ({sl_pct:.1f}%), TP ${fresh_tp:.2f} ({tp_pct:.1f}%) @ ${current_price:.2f}")
 
@@ -4341,6 +4343,7 @@ class AutoTradingEngine:
                 atr_pct=getattr(signal, 'atr_pct', None),
                 entry_rsi=getattr(signal, 'rsi', None),
                 momentum_5d=getattr(signal, 'momentum_5d', None),
+                volume_ratio=getattr(signal, 'volume_ratio', None),  # v7.03
                 mode=mode,
                 **extra_kwargs,
             )

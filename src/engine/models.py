@@ -116,6 +116,7 @@ class QueuedSignal:
     atr_pct: float = 5.0        # ATR% for deviation calculation
     sl_pct: float = 0.0         # SL percentage from entry (for recalculation)
     tp_pct: float = 0.0         # TP percentage from entry (for recalculation)
+    volume_ratio: float = None  # v7.03: preserved for log_buy when executed from queue
 
     def get_max_deviation(self, atr_mult: float, min_dev: float, max_dev: float) -> float:
         """
