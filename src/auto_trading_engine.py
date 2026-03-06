@@ -2701,11 +2701,8 @@ class AutoTradingEngine:
             return params['position_size_pct'], 'DEFAULT'
 
         sector = getattr(signal, 'sector', '')
-        score = getattr(signal, 'score', 0)
-        alt_score = getattr(signal, 'alt_data_score', 0)
-        has_insider = alt_score >= 5  # insider buying gives +5
 
-        # Get sector regime
+        # Get sector regime — keep BEAR sector skip (filter, not sizing)
         regime = 'UNKNOWN'
         if self.screener and hasattr(self.screener, 'sector_regime') and self.screener.sector_regime:
             try:
@@ -2713,20 +2710,14 @@ class AutoTradingEngine:
             except Exception:
                 regime = 'UNKNOWN'
 
-        # BEAR sector -> skip
+        # BEAR sector -> skip (signal quality filter — unchanged in v7.0)
         if regime in ('BEAR', 'STRONG BEAR'):
             return 0, 'SKIP_BEAR'
 
-        # A+: STRONG BULL + insider/high score
-        if regime == 'STRONG BULL' and (has_insider or score >= 85):
-            return self.CONVICTION_A_PLUS_PCT, 'A+'
-
-        # A: BULL + score 80+
-        if regime in ('BULL', 'STRONG BULL') and score >= 80:
-            return self.CONVICTION_A_PCT, 'A'
-
-        # B: SIDEWAYS/UNKNOWN
-        return self.CONVICTION_B_PCT, 'B'
+        # v7.0: Conviction tiers (B/A/A+) removed — risk parity in BLOCK 5 handles sizing.
+        # Tiers were dead code: risk_parity_pct always ≥ 45% (capped) when SL < 5.6%,
+        # making A+(45%) = A(40%) = B(30%) irrelevant in practice.
+        return 100.0, 'DEFAULT'
 
     def _should_use_day_trade(self, symbol: str, managed_pos: 'ManagedPosition', current_price: float) -> Tuple[bool, str]:
         """
@@ -4660,13 +4651,16 @@ class AutoTradingEngine:
                     )
                     available_simulated = max(0, strategy_budget - already_deployed)
                 else:
-                    # DIP: use actual deployed amount (budget - already used)
+                    # v7.0: DIP — per-slot sizing: each slot gets strategy_budget / MAX_POSITIONS
+                    # Prevents first DIP depleting pool so second DIP gets a smaller capital base.
+                    # e.g. $2,500 / 2 slots = $1,250/slot → risk parity → $1,041 each at SL=3%
+                    per_slot = strategy_budget / max(self.MAX_POSITIONS, 1)
                     already_deployed = sum(
                         getattr(p, 'qty', 0) * getattr(p, 'entry_price', 0)
                         for p in self.positions.values()
                         if getattr(p, 'source', '') not in _DEDICATED
                     )
-                    available_simulated = max(0, strategy_budget - already_deployed)
+                    available_simulated = min(per_slot, max(0, strategy_budget - already_deployed))
             capital = min(available_simulated, real_buying_power)
             logger.debug(
                 f"[{signal_source}] budget=${strategy_budget:,.0f} - "
@@ -5291,7 +5285,9 @@ class AutoTradingEngine:
             # Risk-parity position sizing
             if self.RISK_PARITY_ENABLED and sl_pct > 0:
                 risk_parity_pct = (self.RISK_BUDGET_PCT / sl_pct) * 100
-                risk_parity_pct = min(risk_parity_pct, self.MAX_POSITION_PCT)
+                # v7.0: cap at 100% of capital (DIP capital = per_slot = budget/MAX_POSITIONS)
+                # max_position_pct (45%) deprecated — per_slot is the hard ceiling
+                risk_parity_pct = min(risk_parity_pct, 100.0)
                 position_value = capital * (risk_parity_pct / 100)
                 logger.info(f"Risk-Parity: SL {sl_pct}% → size {risk_parity_pct:.0f}% (${position_value:,.0f})")
 

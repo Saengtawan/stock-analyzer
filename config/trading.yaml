@@ -34,7 +34,7 @@ rapid_rotation:
   max_positions_total: 5      # v6.53: 4→5 (2 DIP + 1 OVN + 1 PEM + 1 PED)
   max_hold_days: 7            # v6.33: Reduced 10→7 (faster rotation for fresher signals)
   position_size_pct: 30.0     # v6.31: 42→30 for $5k account (2×30%=60%, leaves room for overnight)
-  max_position_pct: 45.0      # Max position size (% of equity)
+  max_position_pct: 45.0      # deprecated v7.0 (DIP uses per_slot=budget/MAX_POSITIONS; kept for config compatibility)
 
   # -- Scoring & Filtering --
   min_score: 80               # v6.33: Raised 70→80 (higher quality signals, +7-10% WR)
@@ -304,7 +304,7 @@ bear_max_positions: 2
 bear_min_score: 85                 # v4.9.4: 98→85
 bear_gap_max_up: 1.5               # v4.9.4: 1.0→1.5
 bear_gap_max_down: -3.0            # v4.9.4: -2.0→-3.0
-bear_position_size_pct: 30         # v6.31: 45→30 for $5K account (2×30%=60%, leaves room for overnight)
+bear_position_size_pct: 30         # deprecated v7.0 (risk parity primary; BEAR uses same per_slot formula)
 bear_max_atr_pct: 4.0              # v4.9.4: 3.0→4.0
 
 # -- BULL Sector Filter (v4.9.3) --
