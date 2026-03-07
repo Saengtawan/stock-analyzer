@@ -248,7 +248,7 @@ sessions:
     label: "Midday"
   afternoon:
     start: 840                             # 14:00 ET
-    end: 930                               # 15:30 ET
+    end: 945                               # 15:45 ET
     interval: 5
     label: "Afternoon"
   preclose:
@@ -339,7 +339,7 @@ day_trade_emergency_enabled: true   # use day trade for emergency SL
 # v6.34: DEDICATED SLOT - Overnight always gets 1 position regardless of dip-bounce count
 overnight_gap_enabled: true
 overnight_gap_scan_hour: 15
-overnight_gap_scan_minute: 30
+overnight_gap_scan_minute: 45
 overnight_gap_min_score: 80             # v6.33: Raised 70→80 (match dip-bounce quality)
 overnight_gap_position_pct: 100         # v6.31: 35→100 (use all remaining cash)
 overnight_gap_max_pct_of_capital: 70    # v6.31: Safety cap at 70% of total capital

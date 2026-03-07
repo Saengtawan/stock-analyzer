@@ -1317,9 +1317,9 @@ class AutoTradingEngine:
                     if et_now.hour < 14:
                         next_scan = "14:00 ET"
                         next_scan_timestamp = et_now.replace(hour=14, minute=0, second=0, microsecond=0).isoformat()
-                    elif et_now.hour < 15 or (et_now.hour == 15 and et_now.minute < 30):
-                        next_scan = "15:30 ET"
-                        next_scan_timestamp = et_now.replace(hour=15, minute=30, second=0, microsecond=0).isoformat()
+                    elif et_now.hour < 15 or (et_now.hour == 15 and et_now.minute < 45):
+                        next_scan = "15:45 ET"
+                        next_scan_timestamp = et_now.replace(hour=15, minute=45, second=0, microsecond=0).isoformat()
                     else:
                         next_scan = "Tomorrow 09:32 ET"
                         next_scan_timestamp = None
@@ -4398,7 +4398,7 @@ class AutoTradingEngine:
             return False, f"Safety: {reason}"
 
         # PDT pre-buy budget check — skip for overnight holds (OVN/PED): not day trades, don't use PDT budget
-        # v6.54: OVN buys at 15:30, sells next morning → never a day trade → PDT budget irrelevant
+        # v6.54: OVN buys at 15:45, sells next morning → never a day trade → PDT budget irrelevant
         _is_overnight_hold = params.get('source', '') in ('overnight_gap', 'ped')
         if 'LOW_RISK' not in mode and not _is_overnight_hold and self.pdt_guard._get_enforce_on_paper():
             pdt_status = self.pdt_guard.get_pdt_status()
@@ -6937,7 +6937,7 @@ class AutoTradingEngine:
                     signals = self.scan_for_signals()
                     signals = self._loop_add_breakout_signals(signals, "BEAR breakout", check_pdt=True)
                     # Note: overnight gap morning signals rarely fire (no today's close data yet)
-                    # Real overnight scan runs at 15:30 ET via _loop_overnight_gap_scan
+                    # Real overnight scan runs at 15:45 ET via _loop_overnight_gap_scan
                     self._process_scan_signals(signals, "morning", max_positions=effective_max + _non_dip)
             else:
                 # BULL mode
@@ -6952,7 +6952,7 @@ class AutoTradingEngine:
                     signals = self.scan_for_signals()
                     signals = self._loop_add_breakout_signals(signals, "Breakout scan")
                     # Note: overnight gap morning signals rarely fire (no today's close data yet)
-                    # Real overnight scan runs at 15:30 ET via _loop_overnight_gap_scan
+                    # Real overnight scan runs at 15:45 ET via _loop_overnight_gap_scan
                     self._process_scan_signals(signals, "morning", max_positions=effective_max + _non_dip)
 
             self._morning_scan_done = today
@@ -7371,7 +7371,7 @@ class AutoTradingEngine:
             return {}
 
     def _loop_overnight_gap_scan(self, today: str):
-        """Execute overnight gap scan (15:30-15:50 ET). v6.35: Dedicated slot implementation.
+        """Execute overnight gap scan (15:45-15:50 ET). v6.35: Dedicated slot implementation.
         v6.40: Fixed bug - only mark done after successful execution, add detailed logging."""
         if not (self.overnight_scanner and self.OVERNIGHT_GAP_ENABLED):
             logger.debug(f"OVN: Disabled (scanner={bool(self.overnight_scanner)}, enabled={self.OVERNIGHT_GAP_ENABLED})")
@@ -7999,7 +7999,7 @@ class AutoTradingEngine:
             self._ped_budget_freed = 500
             logger.info(
                 f"💰 PED realloc T2: PED missed + no D=6 → freed $500 "
-                f"(OVN +$250 for 15:30 scan, PEM/GAP +$250 for tomorrow)"
+                f"(OVN +$250 for 15:45 scan, PEM/GAP +$250 for tomorrow)"
             )
         else:
             logger.info(

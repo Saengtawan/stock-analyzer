@@ -301,7 +301,7 @@ class RapidRotationConfig:
     sessions: Dict[str, SessionConfig] = field(default_factory=lambda: {
         'morning': SessionConfig(start=572, end=660, interval=3, label='Morning'),
         'midday': SessionConfig(start=660, end=840, interval=5, label='Midday'),
-        'afternoon': SessionConfig(start=840, end=930, interval=5, label='Afternoon'),
+        'afternoon': SessionConfig(start=840, end=945, interval=5, label='Afternoon'),
         'preclose': SessionConfig(start=930, end=960, interval=0, label='Pre-Close')
     })
 
@@ -364,7 +364,7 @@ class RapidRotationConfig:
     # =========================================================================
     overnight_gap_enabled: bool = True          # Enable overnight gap scanner
     overnight_gap_scan_hour: int = 15           # Scan hour (ET)
-    overnight_gap_scan_minute: int = 30         # Scan minute
+    overnight_gap_scan_minute: int = 45         # Scan minute
     overnight_gap_min_score: int = 70           # Min score for overnight
     overnight_gap_position_pct: int = 35        # Position size (%)
     overnight_gap_target_pct: float = 3.0       # Target profit (%)
