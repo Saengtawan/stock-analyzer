@@ -4006,6 +4006,23 @@ class AutoTradingEngine:
         if symbol in self.positions:
             return False
 
+        # v7.05: DIP signals in VIX SKIP zone must not be queued.
+        # Queue is for position-limit blocks only — not market-condition blocks.
+        # Queueing a SKIP-zone signal lets it execute the moment VIX crosses 24,
+        # which is still a deteriorating/uncertain environment.
+        _source = getattr(signal, 'source', '') or getattr(signal, 'sl_method', '')
+        if _source == SignalSource.DIP_BOUNCE and self.VIX_SKIP_ZONE_ENABLED:
+            try:
+                vix_val, _ = self._get_vix()
+                if self.VIX_SKIP_ZONE_LOW <= vix_val < self.VIX_SKIP_ZONE_HIGH:
+                    logger.info(
+                        f"⛔ Queue rejected: {symbol} VIX {vix_val:.1f} in SKIP zone "
+                        f"[{self.VIX_SKIP_ZONE_LOW}-{self.VIX_SKIP_ZONE_HIGH}) — drop, not queue"
+                    )
+                    return False
+            except Exception:
+                pass  # VIX unavailable → allow queue (fail-open)
+
         # v6.41: Queue operations must be atomic - protect with lock
         with self._queue_lock:
             # Don't queue if already in queue
