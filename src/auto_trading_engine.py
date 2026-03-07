@@ -1588,6 +1588,29 @@ class AutoTradingEngine:
                 entry_time = datetime.combine(entry_date, datetime.min.time())
 
                 if pos.symbol not in self.positions:
+                    # v7.1: Skip restore if recently closed — prevents dup SL log after restart
+                    # during Alpaca paper trading settlement lag (~60s position still visible).
+                    # Root cause: _check_position() closes X, engine restarts, _sync_positions()
+                    # finds X still at Alpaca (unsettled), restores it, fires SL again.
+                    try:
+                        _db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
+                        _five_min_ago = (datetime.now() - timedelta(minutes=5)).isoformat()
+                        import sqlite3 as _sqlite3
+                        _conn = _sqlite3.connect(_db_path)
+                        _recent_sell = _conn.execute(
+                            "SELECT COUNT(*) FROM trades WHERE symbol = ? AND action = 'SELL' AND timestamp > ?",
+                            (pos.symbol, _five_min_ago)
+                        ).fetchone()[0]
+                        _conn.close()
+                        if _recent_sell > 0:
+                            logger.info(
+                                f"_sync_positions: Skipping restore of {pos.symbol} — "
+                                f"SELL found in last 5 min (settlement lag after close)"
+                            )
+                            continue
+                    except Exception:
+                        pass  # Fail-open: if check fails, restore anyway
+
                     saved = persisted.get(pos.symbol, {})
 
                     # Restore entry_time from persisted state if available
