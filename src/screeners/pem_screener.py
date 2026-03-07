@@ -237,6 +237,14 @@ class PEMScreener:
         if today_open <= 0 or prev_close <= 0:
             return None
 
+        # v7.07: Override today_volume with 1m intraday sum.
+        # broker daily_bar.v under-reports at 9:32 ET in paper trading (~200K vs real 5M+).
+        # yfinance 1d partial bar at 9:32 is also near-zero.
+        # 1m bars give actual cumulative market volume from open to now.
+        intraday_vol = self._get_intraday_volume(symbol)
+        if intraday_vol is not None and intraday_vol > 0:
+            today_volume = intraday_vol
+
         # Step 2: Gap filter — must be ≥ threshold
         gap_pct = ((today_open - prev_close) / prev_close) * 100
         if gap_pct < self.gap_threshold:
@@ -282,6 +290,22 @@ class PEMScreener:
             'gap_trade': True,   # EOD exit via pre_close_check()
             'source': 'pem',
         }
+
+    def _get_intraday_volume(self, symbol: str) -> Optional[int]:
+        """Get today's cumulative intraday volume using 1m bars.
+
+        v7.07: Broker daily_bar.v under-reports volume in paper trading at 9:32 ET
+        (~200K vs actual 5M+). yfinance 1d partial bar is also near-zero.
+        1m bars accumulate real market volume from open to current minute.
+        Only called for gap candidates (0-5 stocks), so API cost is minimal.
+        """
+        try:
+            df = fetch_history(symbol, period='1d', interval='1m')
+            if df is None or len(df) == 0:
+                return None
+            return int(df['Volume'].sum())
+        except Exception:
+            return None
 
     def _get_data_yfinance(self, symbol: str):
         """Get OHLCV data from yfinance as fallback."""
