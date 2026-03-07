@@ -624,6 +624,8 @@ class AutoTradingEngine:
         self._eod_sl_failed: set = set()
         # v6.99: SPY EOD deterioration check — run once per day at pre-close
         self._spy_deterioration_done: Optional[date] = None
+        # v7.1: In-memory dup guard for SL fill logging (TOCTOU race + restore cycle)
+        self._recently_closed: Dict[str, datetime] = {}
 
         # Regime cache (v4.2) - avoid repeated yfinance calls
         self._regime_cache: Optional[Tuple[bool, str, datetime, Dict]] = None
@@ -5694,6 +5696,22 @@ class AutoTradingEngine:
                 pnl_usd = (sell_price - managed_pos.entry_price) * managed_pos.qty
                 logger.info(f"SL fill detected for {symbol}: {pnl_pct:+.2f}% (${pnl_usd:+.2f})")
 
+                # v7.1: Fast in-memory dup guard (solves TOCTOU race + restore cycle)
+                # Checked before DB idempotency — GIL-safe, no I/O
+                _now = datetime.now()
+                if symbol in self._recently_closed:
+                    _elapsed = (_now - self._recently_closed[symbol]).total_seconds()
+                    if _elapsed < 300:
+                        logger.warning(
+                            f"⚠️ {symbol}: skip dup SL log — already closed {_elapsed:.0f}s ago "
+                            f"(race condition or restore cycle)"
+                        )
+                        with self._positions_lock:
+                            if symbol in self.positions:
+                                del self.positions[symbol]
+                        return
+                self._recently_closed[symbol] = _now
+
                 # v6.43: Idempotency check - prevent duplicate logging
                 # Generate deterministic trade_id from timestamp + symbol + action
                 trade_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -6573,6 +6591,10 @@ class AutoTradingEngine:
     def pre_close_check(self):
         """Pre-close check - handle max hold days, gap trades, and Day 0 SL"""
         logger.info("Pre-close check...")
+
+        # v7.1: EOD cleanup of _recently_closed dup guard
+        cutoff = datetime.now() - timedelta(seconds=300)
+        self._recently_closed = {k: v for k, v in self._recently_closed.items() if v > cutoff}
 
         # v6.99: Exit losing positions if SPY deteriorated ≥2% since entry
         self._check_spy_deterioration_eod()
