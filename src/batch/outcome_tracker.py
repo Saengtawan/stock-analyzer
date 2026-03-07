@@ -710,6 +710,8 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                             'momentum_5d': sig.get('momentum_5d'),
                             'gap_pct': sig.get('gap_pct'),
                             'gap_confidence': sig.get('gap_confidence') or sig.get('confidence'),
+                            'momentum_20d': sig.get('momentum_20d'),
+                            'distance_from_high': sig.get('distance_from_high'),
                         })
 
     if not signals_to_track:

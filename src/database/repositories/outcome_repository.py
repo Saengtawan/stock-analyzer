@@ -171,6 +171,7 @@ class OutcomeRepository:
                         scan_price = ?, days_until_earnings = ?, earnings_gap_pct = ?,
                         volume_ratio = ?, atr_pct = ?, entry_rsi = ?,
                         momentum_5d = ?, gap_pct = ?, gap_confidence = ?,
+                        momentum_20d = ?, distance_from_high = ?,
                         outcome_1d = ?, outcome_2d = ?, outcome_3d = ?,
                         outcome_4d = ?, outcome_5d = ?, outcome_max_gain_5d = ?,
                         outcome_max_dd_5d = ?, updated_at = ?
@@ -192,6 +193,8 @@ class OutcomeRepository:
                     outcome.get('momentum_5d'),
                     outcome.get('gap_pct'),
                     outcome.get('gap_confidence'),
+                    outcome.get('momentum_20d'),
+                    outcome.get('distance_from_high'),
                     outcome.get('outcome_1d'),
                     outcome.get('outcome_2d'),
                     outcome.get('outcome_3d'),
@@ -213,10 +216,11 @@ class OutcomeRepository:
                         action_taken, skip_reason, score, signal_source, scan_price,
                         days_until_earnings, earnings_gap_pct,
                         volume_ratio, atr_pct, entry_rsi, momentum_5d, gap_pct, gap_confidence,
+                        momentum_20d, distance_from_high,
                         outcome_1d, outcome_2d, outcome_3d,
                         outcome_4d, outcome_5d,
                         outcome_max_gain_5d, outcome_max_dd_5d, tracked_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     outcome['scan_id'],
                     outcome['symbol'],
@@ -236,6 +240,8 @@ class OutcomeRepository:
                     outcome.get('momentum_5d'),
                     outcome.get('gap_pct'),
                     outcome.get('gap_confidence'),
+                    outcome.get('momentum_20d'),
+                    outcome.get('distance_from_high'),
                     outcome.get('outcome_1d'),
                     outcome.get('outcome_2d'),
                     outcome.get('outcome_3d'),

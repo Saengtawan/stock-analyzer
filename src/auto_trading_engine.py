@@ -3763,6 +3763,9 @@ class AutoTradingEngine:
                 "take_profit": getattr(signal, 'take_profit', None),
                 # v6.54: PED earnings data
                 "days_until_earnings": getattr(signal, '__dict__', {}).get('days_until_earnings'),
+                # v7.1: Additional features for score redesign
+                "momentum_20d": getattr(signal, 'momentum_20d', None),
+                "distance_from_high": getattr(signal, 'distance_from_high', None),
             })
 
         # Summary counts for monitoring
