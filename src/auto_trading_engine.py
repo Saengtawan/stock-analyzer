@@ -4523,6 +4523,11 @@ class AutoTradingEngine:
         # RSI filter (v6.2)
         signal_rsi = getattr(signal, 'rsi', None)
         max_rsi = getattr(self, 'MAX_RSI_ENTRY', None)
+        # v7.1: OVN uses screener's upper bound (RSI_MAX=65) — momentum strategy needs RSI 40-65.
+        # Global cap of 60 was calibrated for DIP (avoid overbought dips), not applicable to OVN.
+        # RSI > 65 never reaches engine (OVN screener blocks first) → aligned, no gap.
+        if signal_source == SignalSource.OVERNIGHT_GAP:
+            max_rsi = 65
         if max_rsi and signal_rsi and signal_rsi > max_rsi:
             logger.warning(f"❌ RSI Filter REJECT {symbol}: RSI {signal_rsi:.0f} > {max_rsi}")
             self._log_filter_rejection(
@@ -4717,8 +4722,11 @@ class AutoTradingEngine:
         logger.info(f"Conviction {conviction}: {signal.symbol} -> {conviction_pct}% (${position_value:,.0f})")
 
         # ATR check in low risk mode (v7.08: PEM exempt — same-day trade, no overnight risk)
+        # v7.1: OVN exempt — overnight hold, OVN screener already caps ATR≤6%. LOW_RISK ATR cap
+        # was designed for day trades running low on PDT budget; OVN is never a day trade.
         _is_pem_signal = getattr(signal, 'sl_method', '') == 'pem'
-        if 'LOW_RISK' in mode and params['max_atr_pct'] is not None and not _is_pem_signal:
+        _is_ovn_signal = signal_source == SignalSource.OVERNIGHT_GAP
+        if 'LOW_RISK' in mode and params['max_atr_pct'] is not None and not _is_pem_signal and not _is_ovn_signal:
             signal_atr = getattr(signal, 'atr_pct', None)
             if signal_atr and signal_atr > params['max_atr_pct']:
                 logger.warning(f"❌ ATR Filter REJECT {signal.symbol}: {signal_atr:.1f}%")
