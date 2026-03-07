@@ -4543,6 +4543,19 @@ class AutoTradingEngine:
                 )
                 return False, f"Mom {signal_mom:.1f}%"
 
+        # Falling Knife filter (v7.1): DIP-only, mom5d < -5% → 0% WR across all regimes (n=8/288)
+        if signal_source == SignalSource.DIP_BOUNCE:
+            mom5d = getattr(signal, 'momentum_5d', None)
+            if mom5d is not None and mom5d < -5.0:
+                logger.warning(f"❌ FALLING_KNIFE {symbol}: mom5d={mom5d:.1f}%")
+                self._log_filter_rejection(
+                    symbol, current_price, "FALLING_KNIFE",
+                    f"mom5d {mom5d:.1f}% < -5%",
+                    {"falling_knife": {"passed": False}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
+                return False, f"FALLING_KNIFE mom5d {mom5d:.1f}%"
+
         return True, ""
 
     def _check_beta_volatility(self, symbol: str, signal, current_price: float, mode: str) -> Tuple[bool, str]:
