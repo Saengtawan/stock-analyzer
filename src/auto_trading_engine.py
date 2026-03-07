@@ -4698,8 +4698,9 @@ class AutoTradingEngine:
         position_value = capital * (conviction_pct / 100)
         logger.info(f"Conviction {conviction}: {signal.symbol} -> {conviction_pct}% (${position_value:,.0f})")
 
-        # ATR check in low risk mode
-        if 'LOW_RISK' in mode and params['max_atr_pct'] is not None:
+        # ATR check in low risk mode (v7.08: PEM exempt — same-day trade, no overnight risk)
+        _is_pem_signal = getattr(signal, 'sl_method', '') == 'pem'
+        if 'LOW_RISK' in mode and params['max_atr_pct'] is not None and not _is_pem_signal:
             signal_atr = getattr(signal, 'atr_pct', None)
             if signal_atr and signal_atr > params['max_atr_pct']:
                 logger.warning(f"❌ ATR Filter REJECT {signal.symbol}: {signal_atr:.1f}%")
