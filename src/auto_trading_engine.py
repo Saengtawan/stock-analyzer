@@ -626,6 +626,7 @@ class AutoTradingEngine:
         self._spy_deterioration_done: Optional[date] = None
         # v7.1: In-memory dup guard for SL fill logging (TOCTOU race + restore cycle)
         self._recently_closed: Dict[str, datetime] = {}
+        self._trade_repo = None  # lazy-init in _was_recently_sold()
 
         # Regime cache (v4.2) - avoid repeated yfinance calls
         self._regime_cache: Optional[Tuple[bool, str, datetime, Dict]] = None
@@ -1560,6 +1561,25 @@ class AutoTradingEngine:
     # POSITION SYNC
     # =========================================================================
 
+    def _was_recently_sold(self, symbol: str, within_seconds: int = 300) -> bool:
+        """
+        Check trades DB for a recent SELL for symbol — survives engine restart.
+
+        Used by _sync_positions() to skip restoring positions closed during
+        Alpaca paper trading settlement lag (~60s). Complements _recently_closed
+        (in-memory, lost on restart) with a persistent DB-backed check.
+        """
+        try:
+            if self._trade_repo is None:
+                from database.repositories.trade_repository import TradeRepository
+                self._trade_repo = TradeRepository()
+            cutoff = datetime.now() - timedelta(seconds=within_seconds)
+            result = self._trade_repo.get_recent_sell(symbol, cutoff)
+            return result is not None
+        except Exception as e:
+            logger.warning(f"[sync] DB check failed for {symbol}: {e} → fail-open")
+            return False  # fail-open: allow restore if DB unavailable
+
     def _sync_positions(self):
         """
         Sync positions from Alpaca + merge persisted state.
@@ -1588,28 +1608,14 @@ class AutoTradingEngine:
                 entry_time = datetime.combine(entry_date, datetime.min.time())
 
                 if pos.symbol not in self.positions:
-                    # v7.1: Skip restore if recently closed — prevents dup SL log after restart
-                    # during Alpaca paper trading settlement lag (~60s position still visible).
-                    # Root cause: _check_position() closes X, engine restarts, _sync_positions()
-                    # finds X still at Alpaca (unsettled), restores it, fires SL again.
-                    try:
-                        _db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
-                        _five_min_ago = (datetime.now() - timedelta(minutes=5)).isoformat()
-                        import sqlite3 as _sqlite3
-                        _conn = _sqlite3.connect(_db_path)
-                        _recent_sell = _conn.execute(
-                            "SELECT COUNT(*) FROM trades WHERE symbol = ? AND action = 'SELL' AND timestamp > ?",
-                            (pos.symbol, _five_min_ago)
-                        ).fetchone()[0]
-                        _conn.close()
-                        if _recent_sell > 0:
-                            logger.info(
-                                f"_sync_positions: Skipping restore of {pos.symbol} — "
-                                f"SELL found in last 5 min (settlement lag after close)"
-                            )
-                            continue
-                    except Exception:
-                        pass  # Fail-open: if check fails, restore anyway
+                    # v7.1: Skip restore if recently closed — prevents dup SL log after engine restart
+                    # during Alpaca paper trading settlement lag (~60s). See _was_recently_sold().
+                    if self._was_recently_sold(pos.symbol):
+                        logger.warning(
+                            f"[sync] Skip restore {pos.symbol} — SELL found in DB within 5min "
+                            f"(settlement lag after close)"
+                        )
+                        continue
 
                     saved = persisted.get(pos.symbol, {})
 

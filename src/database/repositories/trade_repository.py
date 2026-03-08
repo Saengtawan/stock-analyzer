@@ -121,6 +121,22 @@ class TradeRepository:
 
         return [Trade.from_row(dict(row)) for row in rows]
 
+    def get_recent_sell(self, symbol: str, since: datetime) -> Optional[Trade]:
+        """
+        Return the most recent SELL for symbol after `since`, or None.
+
+        Used by _sync_positions() to skip restoring positions that were
+        recently closed (prevents duplicate SL logs after engine restart
+        during Alpaca paper trading settlement lag).
+        """
+        rows = self.db.fetch_all(
+            """SELECT * FROM trades
+               WHERE symbol = ? AND action = 'SELL' AND timestamp > ?
+               ORDER BY timestamp DESC LIMIT 1""",
+            (symbol, since.isoformat())
+        )
+        return Trade.from_row(dict(rows[0])) if rows else None
+
     def get_recent_trades(self, days: int = 30, limit: int = 500) -> List[Trade]:
         """
         Get recent trades within N days.
