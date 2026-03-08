@@ -3026,7 +3026,10 @@ class AutoTradingEngine:
 
         try:
             ticker = yf.Ticker(symbol)
-            now = datetime.now()
+            # v7.2: Use ET date — OVN scans at 15:45 ET = 03:45 Bangkok (next calendar day).
+            # datetime.now() (Bangkok) would give ET+1 date → AH earnings today (ET) appear
+            # as days_until=-1 and slip through the D=0 filter. ET date fixes this.
+            now = datetime.now(self.et_tz)
 
             # Method 1: calendar (returns dict in newer yfinance)
             try:
@@ -3108,7 +3111,7 @@ class AutoTradingEngine:
                     # earningsTimestamp or earningsDate
                     earnings_ts = info.get('earningsTimestamp') or info.get('earningsTimestampStart')
                     if earnings_ts:
-                        earnings_date = datetime.fromtimestamp(earnings_ts)
+                        earnings_date = datetime.fromtimestamp(earnings_ts, tz=self.et_tz)
                         days_until = (earnings_date.date() - now.date()).days
 
                         earnings_data['earnings_date'] = earnings_date.strftime('%Y-%m-%d')
