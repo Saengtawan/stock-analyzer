@@ -4598,6 +4598,18 @@ class AutoTradingEngine:
                 )
                 return False, f"FALLING_KNIFE mom5d {mom5d:.1f}%"
 
+            # v7.3: Long-term downtrend filter — catch stocks in structural decline
+            mom20d = getattr(signal, 'momentum_20d', None)
+            if mom20d is not None and mom20d < -10.0:
+                logger.warning(f"❌ LONG_TERM_DOWNTREND {symbol}: mom20d={mom20d:.1f}%")
+                self._log_filter_rejection(
+                    symbol, current_price, "LONG_TERM_DOWNTREND",
+                    f"mom20d {mom20d:.1f}% < -10%",
+                    {"long_term_downtrend": {"passed": False}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
+                return False, f"LONG_TERM_DOWNTREND mom20d {mom20d:.1f}%"
+
         return True, ""
 
     def _check_beta_volatility(self, symbol: str, signal, current_price: float, mode: str) -> Tuple[bool, str]:
