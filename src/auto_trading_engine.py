@@ -3205,52 +3205,55 @@ class AutoTradingEngine:
 
         return True, f"{sector}: {same_sector_count}/{effective_max} positions"
 
-    def _check_sector_cooldown(self, sector: str) -> Tuple[bool, str]:
+    def _check_sector_cooldown(self, sector: str, strategy: str = 'dip_bounce') -> Tuple[bool, str]:
         """
         Check if sector is in cooldown from consecutive losses.
-        Tech แพ้ 2 ครั้งติด → skip Tech 2 วัน
+        v7.3: Per-strategy isolation — DIP cooldown does not affect OVN and vice versa.
+        Key format: "{strategy}:{sector_lower}"
         """
         if not self.SECTOR_LOSS_TRACKING_ENABLED or not sector:
             return True, "Sector loss tracking disabled"
 
-        sector_key = sector.lower()
-        tracker = self.sector_loss_tracker.get(sector_key)
+        tracker_key = f"{strategy}:{sector.lower()}"
+        tracker = self.sector_loss_tracker.get(tracker_key)
         if not tracker:
-            return True, f"{sector}: no loss history"
+            return True, f"{sector}: no loss history ({strategy})"
 
         # Check cooldown
         if tracker.get('cooldown_until'):
             today = datetime.now(self.et_tz).date()
             if today <= tracker['cooldown_until']:
-                return False, f"{sector} cooldown until {tracker['cooldown_until']} ({tracker['losses']} consecutive losses)"
+                return False, f"{sector} [{strategy}] cooldown until {tracker['cooldown_until']} ({tracker['losses']} consecutive losses)"
             else:
                 # Cooldown expired, reset
-                self.sector_loss_tracker[sector_key] = {'losses': 0, 'cooldown_until': None}
-                return True, f"{sector}: cooldown ended"
+                self.sector_loss_tracker[tracker_key] = {'losses': 0, 'cooldown_until': None}
+                return True, f"{sector}: cooldown ended ({strategy})"
 
-        return True, f"{sector}: {tracker.get('losses', 0)}/{self.MAX_SECTOR_CONSECUTIVE_LOSS} losses"
+        return True, f"{sector}: {tracker.get('losses', 0)}/{self.MAX_SECTOR_CONSECUTIVE_LOSS} losses ({strategy})"
 
-    def _record_sector_trade_result(self, sector: str, pnl_pct: float):
-        """Record trade result per sector for consecutive loss tracking. Thread-safe."""
+    def _record_sector_trade_result(self, sector: str, pnl_pct: float, strategy: str = 'dip_bounce'):
+        """Record trade result per sector+strategy for consecutive loss tracking. Thread-safe.
+        v7.3: Per-strategy isolation — key = "{strategy}:{sector_lower}"
+        """
         if not self.SECTOR_LOSS_TRACKING_ENABLED or not sector:
             return
 
         with self._stats_lock:
-            sector_key = sector.lower()
-            if sector_key not in self.sector_loss_tracker:
-                self.sector_loss_tracker[sector_key] = {'losses': 0, 'cooldown_until': None}
+            tracker_key = f"{strategy}:{sector.lower()}"
+            if tracker_key not in self.sector_loss_tracker:
+                self.sector_loss_tracker[tracker_key] = {'losses': 0, 'cooldown_until': None}
 
-            tracker = self.sector_loss_tracker[sector_key]
+            tracker = self.sector_loss_tracker[tracker_key]
 
             if pnl_pct > 0:
                 tracker['losses'] = 0  # Reset on win
             else:
                 tracker['losses'] += 1
-                logger.info(f"📉 {sector} consecutive losses: {tracker['losses']}/{self.MAX_SECTOR_CONSECUTIVE_LOSS}")
+                logger.info(f"📉 {sector} [{strategy}] consecutive losses: {tracker['losses']}/{self.MAX_SECTOR_CONSECUTIVE_LOSS}")
 
                 if tracker['losses'] >= self.MAX_SECTOR_CONSECUTIVE_LOSS:
                     tracker['cooldown_until'] = datetime.now(self.et_tz).date() + timedelta(days=self.SECTOR_COOLDOWN_DAYS)
-                    logger.warning(f"🧊 {sector} cooldown {self.SECTOR_COOLDOWN_DAYS} days → until {tracker['cooldown_until']}")
+                    logger.warning(f"🧊 {sector} [{strategy}] cooldown {self.SECTOR_COOLDOWN_DAYS} days → until {tracker['cooldown_until']}")
 
         self._save_loss_counters()
 
@@ -3287,16 +3290,21 @@ class AutoTradingEngine:
                         datetime.now().isoformat()
                     ))
 
-                    # Sector tracking (upsert all)
-                    for sector, data in self.sector_loss_tracker.items():
+                    # Sector tracking (upsert all) — v7.3: key = "strategy:sector"
+                    for key, data in self.sector_loss_tracker.items():
+                        if ':' in key:
+                            strategy_part, sector_part = key.split(':', 1)
+                        else:
+                            strategy_part, sector_part = 'dip_bounce', key  # legacy key compat
                         conn.execute("""
-                            INSERT INTO sector_loss_tracking (sector, losses, cooldown_until)
-                            VALUES (LOWER(?), ?, ?)
-                            ON CONFLICT(sector) DO UPDATE
+                            INSERT INTO sector_loss_tracking (strategy, sector, losses, cooldown_until)
+                            VALUES (?, LOWER(?), ?, ?)
+                            ON CONFLICT(strategy, sector) DO UPDATE
                             SET losses = excluded.losses,
                                 cooldown_until = excluded.cooldown_until
                         """, (
-                            sector,
+                            strategy_part,
+                            sector_part,
                             data['losses'],
                             data['cooldown_until'].isoformat() if data.get('cooldown_until') else None
                         ))
@@ -3320,7 +3328,7 @@ class AutoTradingEngine:
                 'sector_loss_tracker': {
                     k: {'losses': v['losses'], 'cooldown_until': v['cooldown_until'].isoformat() if v.get('cooldown_until') else None}
                     for k, v in self.sector_loss_tracker.items()
-                },
+                },  # keys are "strategy:sector" (v7.3)
                 'saved_at': datetime.now().isoformat(),
             }
             atomic_write_json(os.path.join(self._state_dir, 'loss_counters.json'), state)
@@ -4857,8 +4865,8 @@ class AutoTradingEngine:
             )
             return False, "Sector Full", gap_pct
 
-        # Sector cooldown
-        sector_cd_ok, sector_cd_reason = self._check_sector_cooldown(signal_sector)
+        # Sector cooldown — v7.3: per-strategy isolation
+        sector_cd_ok, sector_cd_reason = self._check_sector_cooldown(signal_sector, signal_source)
         if not sector_cd_ok:
             logger.warning(f"🧊 Sector Cooldown REJECT {symbol}: {sector_cd_reason}")
             self.daily_stats.sector_rejected += 1
@@ -5802,7 +5810,7 @@ class AutoTradingEngine:
                     else:
                         self.daily_stats.trades_lost += 1
                     self._record_trade_result(pnl_pct)
-                    self._record_sector_trade_result(managed_pos.sector, pnl_pct)
+                    self._record_sector_trade_result(managed_pos.sector, pnl_pct, managed_pos.source)
 
                     # Log the SL trade
                     try:
@@ -6400,7 +6408,7 @@ class AutoTradingEngine:
 
             # v4.7: Track consecutive losses + cooldown
             self._record_trade_result(pnl_pct)
-            self._record_sector_trade_result(managed_pos.sector, pnl_pct)
+            self._record_sector_trade_result(managed_pos.sector, pnl_pct, managed_pos.source)
 
             # Trade Log: Log SELL
             try:

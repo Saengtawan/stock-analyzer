@@ -344,18 +344,19 @@ class LossTrackingRepository:
         Get all sector loss tracking data.
 
         Returns:
-            Dict mapping sector -> {losses, cooldown_until}
+            Dict mapping "strategy:sector" -> {losses, cooldown_until}
+            v7.3: includes strategy column for per-strategy isolation
         """
         conn = self._get_connection()
         try:
             rows = conn.execute("""
-                SELECT sector, losses, cooldown_until
+                SELECT strategy, sector, losses, cooldown_until
                 FROM sector_loss_tracking
-                ORDER BY sector
+                ORDER BY strategy, sector
             """).fetchall()
 
             return {
-                row['sector']: {
+                f"{row['strategy']}:{row['sector']}": {
                     'losses': row['losses'],
                     'cooldown_until': row['cooldown_until']
                 }
