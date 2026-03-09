@@ -1361,12 +1361,18 @@ function playAlertSound(type) {
     } catch (e) {}
 }
 
+const _priceFlashTimers = {};  // v7.2 SM-8: per-symbol timer to cancel rapid-fire overlaps
 function flashPriceChange(symbol, isUp) {
+    clearTimeout(_priceFlashTimers[symbol]);
     document.querySelectorAll(`[data-symbol="${symbol}"] .current-price`).forEach(el => {
         el.classList.remove('flash-up', 'flash-down');
         el.classList.add(isUp ? 'flash-up' : 'flash-down');
-        setTimeout(() => el.classList.remove('flash-up', 'flash-down'), 500);
     });
+    _priceFlashTimers[symbol] = setTimeout(() => {
+        document.querySelectorAll(`[data-symbol="${symbol}"] .current-price`).forEach(el => {
+            el.classList.remove('flash-up', 'flash-down');
+        });
+    }, 500);
 }
 
 // ============================================
@@ -1557,6 +1563,8 @@ let prevPnl = null;
 let prevTrailCount = 0;
 let prevWins = 0;
 let prevLosses = 0;
+let _trailBounceTimer = null;  // v7.2 SM-5: cancel previous before setting new
+let _wlFlashTimer = null;      // v7.2 SM-5
 let positionSectors = new Set(); // Track sectors with positions
 
 function initPnlChart() {
@@ -1605,6 +1613,9 @@ function updateConnectionIndicator(connected) {
         el.title = connected ? 'WebSocket Connected' : 'WebSocket Disconnected';
         el.style.fontSize = '0.6rem';
     }
+    // v7.2 SM-1: Dim main content on disconnect so user notices stale data
+    const mainContent = document.getElementById('mainContent') || document.querySelector('.container-fluid');
+    if (mainContent) mainContent.style.opacity = connected ? '' : '0.85';
 }
 
 function showTradeNotification(data) {
@@ -1962,10 +1973,7 @@ function updateHeaderBar(data) {
         );
     }
 
-    // Positions
-    const posEl = document.getElementById('hdrPositions');
-    if (posEl) posEl.textContent = data.positions || 0;
-
+    // Positions — v7.2 RC-1: written only by updatePositionsUI() to avoid race with positions_update
     // Queue count
     const queueEl = document.getElementById('hdrQueueCount');
     if (queueEl) queueEl.textContent = data.queue_size || 0;
@@ -2272,7 +2280,10 @@ function loadTradeLogs() {
         .catch(err => console.log('Trade logs error:', err));
 }
 
+let _spyRegimeLoading = false;  // v7.2 SM-9: debounce guard
 function loadSpyRegime() {
+    if (_spyRegimeLoading) return;
+    _spyRegimeLoading = true;
     fetch('/api/rapid/spy-regime')
         .then(response => response.json())
         .then(data => {
@@ -2339,7 +2350,8 @@ function loadSpyRegime() {
                 }
             }
         })
-        .catch(err => console.error('Error loading SPY regime:', err));
+        .catch(err => console.error('Error loading SPY regime:', err))
+        .finally(() => { _spyRegimeLoading = false; });  // v7.2 SM-9: release debounce
 }
 
 function loadAlerts() {
@@ -2422,10 +2434,11 @@ function updatePositionsUI(data) {
     if (hdrTrailCount) {
         hdrTrailCount.textContent = `${trailActiveCount}/${posCount}`;
         hdrTrailCount.className = 'hdr-value' + (trailActiveCount > 0 ? ' hdr-ok trail-glow' : '');
-        // Bounce when trail activates
+        // Bounce when trail activates (v7.2 SM-5: cancel previous timer)
         if (trailActiveCount > prevTrailCount) {
+            clearTimeout(_trailBounceTimer);
             hdrTrailCount.classList.add('trail-bounce');
-            setTimeout(() => hdrTrailCount.classList.remove('trail-bounce'), 500);
+            _trailBounceTimer = setTimeout(() => hdrTrailCount.classList.remove('trail-bounce'), 500);
         }
         prevTrailCount = trailActiveCount;
     }
@@ -2438,10 +2451,11 @@ function updatePositionsUI(data) {
         if (hdrTodayWL) {
             hdrTodayWL.textContent = `${wins}W ${losses}L`;
             hdrTodayWL.className = 'hdr-value' + (wins > losses ? ' hdr-up' : losses > wins ? ' hdr-down' : '');
-            // Flash on new trade
+            // Flash on new trade (v7.2 SM-5: cancel previous timer)
             if (wins !== prevWins || losses !== prevLosses) {
+                clearTimeout(_wlFlashTimer);
                 hdrTodayWL.classList.add('wl-flash');
-                setTimeout(() => hdrTodayWL.classList.remove('wl-flash'), 400);
+                _wlFlashTimer = setTimeout(() => hdrTodayWL.classList.remove('wl-flash'), 400);
             }
             prevWins = wins;
             prevLosses = losses;
@@ -2725,7 +2739,10 @@ function _signalHash(data) {
     return sigs + '|' + waiting + '|' + fs + '|' + pos + '|' + (data.status || '');
 }
 
+let _signalsLoading = false;  // v7.2 SM-11: prevent concurrent loadSignals() calls
 function loadSignals() {
+    if (_signalsLoading) return;  // v7.2 SM-11: drop duplicate call (scan done + signals_update)
+    _signalsLoading = true;
     const container = document.getElementById('signalsContainer');
     if (!_firstLoadDone && _lastSignalCount === 0 && !scanProgressActive) {
         container.innerHTML = '<div class="text-center text-muted py-4"><div class="spinner-border text-primary mb-3" role="status"></div><p>Loading signals...</p></div>';
@@ -2739,6 +2756,7 @@ function loadSignals() {
         .then(response => response.json())
         .then(data => {
             clearTimeout(timeoutId);
+            _signalsLoading = false;  // v7.2 SM-11: release lock on success
             _firstLoadDone = true;
 
             const ageEl = document.getElementById('signalCacheAge');
@@ -2952,6 +2970,7 @@ function loadSignals() {
         })
         .catch(err => {
             clearTimeout(timeoutId);
+            _signalsLoading = false;  // v7.2 SM-11: release lock on error/abort
             // Suppress AbortError (normal on page unload or timeout)
             if (err.name === 'AbortError') return;
             if (_lastSignalCount > 0 || scanProgressActive) return;
@@ -3387,18 +3406,11 @@ function loadMarketConfig() {
 loadMarketConfig();
 loadSystemAlerts();
 // v6.41: Guard continuous pollers - only run when socket disconnected (prevent duplicate API calls)
+// v7.2 SM-6: Combine three 30s intervals into one to avoid staggered wakeups
 setInterval(function() {
     if (connectionStatus !== 'connected') {
         loadSystemAlerts();
-    }
-}, 30000);
-setInterval(function() {
-    if (connectionStatus !== 'connected') {
         loadSignals();
-    }
-}, 30000);
-setInterval(function() {
-    if (connectionStatus !== 'connected') {
         loadAlerts();
     }
 }, 30000);

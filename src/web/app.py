@@ -4170,6 +4170,7 @@ def convert_numpy_types(obj):
 
 # v6.74: 30s TTL cache for /api/auto/status (avoids broker.get_account() + get_clock() on every browser poll)
 _auto_status_cache: dict = {'data': None, 'ts': 0.0}
+_status_cache_lock = threading.Lock()  # v7.2: RC-3 guard for _auto_status_cache
 
 @app.route('/api/auto/status')
 def api_auto_status():
@@ -4178,8 +4179,9 @@ def api_auto_status():
     """
     import time as _time
     now = _time.monotonic()
-    if _auto_status_cache['data'] is not None and now - _auto_status_cache['ts'] < 30:
-        return jsonify(_auto_status_cache['data'])
+    with _status_cache_lock:
+        if _auto_status_cache['data'] is not None and now - _auto_status_cache['ts'] < 30:
+            return jsonify(_auto_status_cache['data'])
 
     try:
         engine = get_auto_trading_engine()
@@ -4204,7 +4206,8 @@ def api_auto_status():
         except Exception as e:
             logger.error(f"Could not read cron_schedule from file: {e}")
 
-        _auto_status_cache.update({'data': status, 'ts': now})
+        with _status_cache_lock:
+            _auto_status_cache.update({'data': status, 'ts': now})
         return jsonify(status)
 
     except Exception as e:
@@ -5196,7 +5199,9 @@ def get_regime_data():
 
 def broadcast_update(event_type, data):
     """Broadcast update to all connected clients"""
-    if connected_clients:
+    with _clients_lock:  # v7.2: RC-2 guard — safe read of connected_clients across threads
+        has_clients = bool(connected_clients)
+    if has_clients:
         socketio.emit(event_type, convert_numpy_types(data))  # v6.45: Convert numpy types before emit
 
 
@@ -5242,14 +5247,17 @@ def background_monitor():
 
     while monitor_running:
         try:
-            if connected_clients:
+            with _clients_lock:  # v7.2: RC-2 guard
+                has_clients = bool(connected_clients)
+            if has_clients:
                 heavy_counter += 1
 
                 # ── v6.68: Trade events check (every 2s) ──────────────────────
                 pending = _get_pending_trade_events()
                 if pending:
                     # v6.74: Invalidate status cache on trade — next browser poll gets fresh data
-                    _auto_status_cache['data'] = None
+                    with _status_cache_lock:  # v7.2: RC-3 guard
+                        _auto_status_cache['data'] = None
                     for ev in pending:
                         broadcast_update('trade_event', {
                             'type':     ev['event_type'],
