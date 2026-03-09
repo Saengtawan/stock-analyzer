@@ -5004,6 +5004,8 @@ def _build_positions_from_engine():
                     pos_data['premarket_price']   = round(alpaca_live, 2)
                     pos_data['premarket_change']  = round(change_pct, 2)
                     pos_data['premarket_session'] = session
+                    # v7.3: Update current_price to AH/Pre so "N:" column shows live price not stale close
+                    pos_data['current_price'] = round(alpaca_live, 2)
                     if abs(change_pct) >= 1.0:
                         logger.info(f"{symbol}: {session} ${alpaca_live:.2f} ({change_pct:+.2f}% vs close ${current_price:.2f})")
                     else:

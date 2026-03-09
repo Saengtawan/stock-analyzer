@@ -137,6 +137,7 @@ class TradingSafetySystem:
         """
         self.DAILY_LOSS_LIMIT_PCT = config.daily_loss_limit_pct
         self.MAX_POSITIONS = config.max_positions
+        self.MAX_POSITIONS_TOTAL = getattr(config, 'max_positions_total', config.max_positions + 3)  # v7.3: Total across all strategies
         self.MAX_HOLD_DAYS = config.max_hold_days
         self.MIN_BUYING_POWER_PCT = config.min_buying_power_pct
         self.PDT_ACCOUNT_THRESHOLD = config.pdt_account_threshold
@@ -309,30 +310,34 @@ class TradingSafetySystem:
             positions = self.broker.get_positions()
             count = len(positions)
 
-            if count > self.MAX_POSITIONS:
+            # v7.3: Use MAX_POSITIONS_TOTAL (5) for CRIT — DIP+OVN+PEM+PED+GAP all count.
+            # MAX_POSITIONS=2 is the DIP-only limit; dedicated slots (OVN/PEM/PED/GAP) are
+            # excluded from that limit but still count against the total.
+            total_limit = getattr(self, 'MAX_POSITIONS_TOTAL', self.MAX_POSITIONS + 3)
+            if count > total_limit:
                 return SafetyCheck(
                     name="Position Count",
                     status=SafetyStatus.CRITICAL,
-                    message=f"OVER LIMIT: {count} positions (max: {self.MAX_POSITIONS})",
+                    message=f"OVER LIMIT: {count} positions (max: {total_limit})",
                     value=count,
-                    threshold=self.MAX_POSITIONS
+                    threshold=total_limit
                 )
 
-            if count == self.MAX_POSITIONS:
+            if count >= self.MAX_POSITIONS:
                 return SafetyCheck(
                     name="Position Count",
                     status=SafetyStatus.WARNING,
-                    message=f"At limit: {count}/{self.MAX_POSITIONS}",
+                    message=f"DIP slots full: {count} positions (DIP max: {self.MAX_POSITIONS}, total: {total_limit})",
                     value=count,
-                    threshold=self.MAX_POSITIONS
+                    threshold=total_limit
                 )
 
             return SafetyCheck(
                 name="Position Count",
                 status=SafetyStatus.OK,
-                message=f"Positions: {count}/{self.MAX_POSITIONS}",
+                message=f"Positions: {count}/{total_limit}",
                 value=count,
-                threshold=self.MAX_POSITIONS
+                threshold=total_limit
             )
 
         except Exception as e:
