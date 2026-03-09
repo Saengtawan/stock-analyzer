@@ -2770,6 +2770,20 @@ class AutoTradingEngine:
         if pdt_status.remaining <= self.pdt_guard._get_reserve():
             return False, "no PDT budget"
 
+        # v7.3: Protect PDT slot for active PEM/GAP Day 0 positions.
+        # PEM/GAP must exit same day — their exit counts as the day trade.
+        # DIP can hold overnight, so DIP forfeits SMART_DAY_TRADE when PEM/GAP is open.
+        # ห้ามเกิน PDT: ถ้า PEM/GAP เปิดอยู่ Day 0 → อย่าใช้ PDT budget สำหรับ DIP
+        _src_this = getattr(managed_pos, 'source', 'dip_bounce')
+        if _src_this not in ('pem', 'premarket_gap'):
+            with self._positions_lock:
+                _has_same_day = any(
+                    getattr(p, 'source', '') in ('pem', 'premarket_gap')
+                    for p in self.positions.values()
+                )
+            if _has_same_day:
+                return False, "PDT_RESERVED: PEM/GAP active — preserving day-trade budget"
+
         pnl_pct = ((current_price - managed_pos.entry_price) / managed_pos.entry_price) * 100
 
         # Case 1: Gap profit > threshold
@@ -4445,11 +4459,22 @@ class AutoTradingEngine:
         # PDT pre-buy budget check — skip for overnight holds (OVN/PED): not day trades, don't use PDT budget
         # v6.54: OVN buys at 15:45, sells next morning → never a day trade → PDT budget irrelevant
         _is_overnight_hold = params.get('source', '') in ('overnight_gap', 'ped')
-        if 'LOW_RISK' not in mode and not _is_overnight_hold and self.pdt_guard._get_enforce_on_paper():
+        # v7.3: PEM/GAP = same-day strategies — REQUIRE a day-trade for exit.
+        # Must check PDT budget even in LOW_RISK mode (the normal check skips LOW_RISK for DIP which holds overnight).
+        # ห้ามเกิน PDT เด็ดขาด: ถ้า budget=0 → ห้าม PEM/GAP เข้าเด็ดขาด
+        _is_same_day_entry = params.get('source', '') in ('pem', 'premarket_gap')
+        if not _is_overnight_hold and self.pdt_guard._get_enforce_on_paper():
             pdt_status = self.pdt_guard.get_pdt_status()
-            if pdt_status.remaining <= self.pdt_guard._get_reserve():
-                logger.warning(f"❌ PDT pre-buy block: remaining={pdt_status.remaining}")
-                return False, "PDT Full"
+            if _is_same_day_entry:
+                # PEM/GAP: block if NO budget at all (remaining=0) — must never enter without exit budget
+                if pdt_status.remaining <= 0:
+                    logger.warning(f"❌ PDT block: {params.get('source')} requires day-trade budget, remaining={pdt_status.remaining}")
+                    return False, "PDT_FULL: PEM/GAP require day-trade budget for same-day exit"
+            elif 'LOW_RISK' not in mode:
+                # DIP/others in NORMAL mode: use reserve buffer
+                if pdt_status.remaining <= self.pdt_guard._get_reserve():
+                    logger.warning(f"❌ PDT pre-buy block: remaining={pdt_status.remaining}")
+                    return False, "PDT Full"
 
         # Check duplicate position
         if symbol in self.positions:
@@ -5930,11 +5955,23 @@ class AutoTradingEngine:
                 if symbol not in self.positions:
                     return  # Close succeeded, done
 
+            # v7.3: PEM/GAP same-day exits — force=True only when PDT budget is available.
+            # ห้ามเกิน PDT เด็ดขาด: ถ้า budget=0 → force=False → PDT blocks → hold overnight (acceptable).
+            # Entry gate (Fix 1) + slot protection (Fix 2) ensure budget is available at exit in normal flow.
+            # This (Fix 3) is the final safety net: never violate PDT no matter what.
+            _is_same_day_pos = _src in ('pem', 'premarket_gap')
+            if _is_same_day_pos:
+                _pdt_st = self.pdt_guard.get_pdt_status()
+                _pdt_allows_force = not _pdt_st.is_flagged or _pdt_st.remaining > 0
+                if not _pdt_allows_force:
+                    logger.warning(f"⚠️ {symbol} Day0 exit: PDT budget=0, exits will NOT force (hold until GAP_TRADE_EOD or overnight)")
+            else:
+                _pdt_allows_force = False
+
             # Day 0: Manual SL monitoring (no SL order at Alpaca)
             if pnl_pct <= -pos_sl_pct:
                 # v6.65: If PEM is active, skip day-0 SL for DIP to preserve PDT for PEM exit.
                 # DIP holds overnight — loses day-trade budget protection, gains PDT for PEM.
-                _src = getattr(managed_pos, 'source', 'dip_bounce')
                 _is_dip = _src not in ('pem', 'overnight_gap', 'ped')
                 if _is_dip:
                     with self._positions_lock:
@@ -5949,19 +5986,13 @@ class AutoTradingEngine:
                         )
                         return
                 logger.warning(f"🛑 {symbol} Day 0 SL hit at {pnl_pct:.2f}% (SL: -{pos_sl_pct}%)")
-                # v7.3: PEM/GAP = same-day strategies — must exit to cut losses (force bypasses PDT)
-                _src = getattr(managed_pos, 'source', '')
-                _sl_force = _src in ('pem', 'premarket_gap')
-                self._close_position(symbol, managed_pos, "DAY0_SL", force=_sl_force)
+                self._close_position(symbol, managed_pos, "DAY0_SL", force=_pdt_allows_force)
                 return
 
             # Day 0: Check TP (v4.6: use per-position TP)
             if pnl_pct >= pos_tp_pct:
                 logger.info(f"🎯 {symbol} Day 0 TP at {pnl_pct:+.2f}% (TP: +{pos_tp_pct}%)")
-                # v7.3: PEM/GAP = same-day strategies — must exit to take profits (force bypasses PDT)
-                _src = getattr(managed_pos, 'source', '')
-                _tp_force = _src in ('pem', 'premarket_gap')
-                self._close_position(symbol, managed_pos, "DAY0_TP", force=_tp_force)
+                self._close_position(symbol, managed_pos, "DAY0_TP", force=_pdt_allows_force)
                 return
 
             # Day 0: Trailing stop (v6.10: internal tracking only, no broker order)
@@ -5991,10 +6022,7 @@ class AutoTradingEngine:
                 if current_price < trailing_sl:
                     locked_pct = ((trailing_sl - entry_price) / entry_price) * 100
                     logger.info(f"🔒 {symbol} Day 0 trailing stop triggered: ${current_price:.2f} < ${trailing_sl:.2f} (lock {locked_pct:+.2f}%)")
-                    # v7.3: PEM/GAP = same-day strategies — must exit to protect locked gains (force bypasses PDT)
-                    _src = getattr(managed_pos, 'source', '')
-                    _trail_force = _src in ('pem', 'premarket_gap')
-                    self._close_position(symbol, managed_pos, f"DAY0_TRAILING_STOP", force=_trail_force)
+                    self._close_position(symbol, managed_pos, f"DAY0_TRAILING_STOP", force=_pdt_allows_force)
                     return
 
                 # Store what the SL should be for Day 1 transition
@@ -6716,9 +6744,14 @@ class AutoTradingEngine:
             if is_gap_trade and managed_pos.days_held == 0:
                 # Gap trades should be closed same day (intraday strategy)
                 gap_pct = getattr(managed_pos, 'gap_pct', 0)
+                # v7.3: ห้ามเกิน PDT — force only when budget available
+                _pdt_eod = self.pdt_guard.get_pdt_status()
+                _eod_force = not _pdt_eod.is_flagged or _pdt_eod.remaining > 0
+                if not _eod_force:
+                    logger.warning(f"⚠️ {symbol} GAP_TRADE_EOD: PDT budget=0 — cannot force, will hold overnight")
                 logger.info(f"⚡ Closing GAP TRADE {symbol} at market close "
-                           f"(gap: {gap_pct:+.1f}%, held: intraday)")
-                self._close_position(symbol, managed_pos, "GAP_TRADE_EOD", force=True)
+                           f"(gap: {gap_pct:+.1f}%, held: intraday, force={_eod_force})")
+                self._close_position(symbol, managed_pos, "GAP_TRADE_EOD", force=_eod_force)
                 continue  # Skip other checks for this position
 
         for symbol, managed_pos in list(self.positions.items()):
