@@ -1670,9 +1670,14 @@ let prevSectorData = {}; // Track previous sector data for animations
 let allowedSectors = new Set(); // Track allowed sectors from engine
 let blockedSectors = new Set(); // Track blocked sectors
 
+let _sectorLoading = false;  // v7.2: concurrent guard
 function loadSectorRegimes() {
-    fetch('/api/rapid/sector-regimes')
-        .then(r => r.json())
+    if (_sectorLoading) return;
+    _sectorLoading = true;
+    const _sc = new AbortController();
+    const _st = setTimeout(() => _sc.abort(), 70000);
+    fetch('/api/rapid/sector-regimes', { signal: _sc.signal })
+        .then(r => { clearTimeout(_st); return r.json(); })
         .then(data => {
             const strip = document.getElementById('sectorStrip');
             if (!strip) return;
@@ -1758,7 +1763,8 @@ ${isBlocked ? '🚫 BLOCKED' : isAllowed ? '✅ ALLOWED' : ''}`;
                 });
             }, 600);
         })
-        .catch(err => console.warn('Sector regimes error:', err));
+        .catch(err => { clearTimeout(_st); if (err.name !== 'AbortError') console.warn('Sector regimes error:', err); })
+        .finally(() => { _sectorLoading = false; });
 }
 
 function updateSectorHighlights() {
@@ -2098,15 +2104,21 @@ function updateHeaderBar(data) {
 // ============================================
 // Engine Config (Single Source of Truth)
 // ============================================
+let _configLoading = false;  // v7.2: concurrent guard
 function loadEngineConfig() {
-    fetch('/api/engine/config')
-        .then(r => r.json())
+    if (_configLoading) return;
+    _configLoading = true;
+    const _cc = new AbortController();
+    const _ct = setTimeout(() => _cc.abort(), 70000);
+    fetch('/api/engine/config', { signal: _cc.signal })
+        .then(r => { clearTimeout(_ct); return r.json(); })
         .then(cfg => {
             if (cfg.error) { console.warn('Engine config error:', cfg.error); return; }
             _baseConfig = cfg;
             applyConfigToUI(cfg);
         })
-        .catch(err => console.warn('Engine config fetch failed:', err.message));
+        .catch(err => { clearTimeout(_ct); if (err.name !== 'AbortError') console.warn('Engine config fetch failed:', err.message); })
+        .finally(() => { _configLoading = false; });
 }
 
 function applyConfigToUI(cfg) {
@@ -2242,11 +2254,15 @@ function refreshAll() {
     fetchCronStatus();  // v6.11: Load cron status (including health check)
 }
 
+let _tradeLogsLoading = false;  // v7.2: concurrent guard
 function loadTradeLogs() {
-    fetch('/api/trade-logs')
-        .then(response => response.json())
+    if (_tradeLogsLoading) return;
+    _tradeLogsLoading = true;
+    const _tlc = new AbortController();
+    const _tlt = setTimeout(() => _tlc.abort(), 70000);
+    fetch('/api/trade-logs', { signal: _tlc.signal })
+        .then(response => { clearTimeout(_tlt); return response.json(); })
         .then(data => {
-            console.log('[Trade Log] API Response:', data);  // DEBUG
             if (data.error) {
                 console.error('[Trade Log] API Error:', data.error);
                 return;
@@ -2280,15 +2296,18 @@ function loadTradeLogs() {
                 return `<tr class="${log.action === 'SKIP' ? 'table-light' : ''}"><td class="small">${timeStr}</td><td>${actionBadge}</td><td class="fw-bold">${log.symbol}</td><td>${log.qty || '-'}</td><td>$${log.price?.toFixed(2) || '-'}</td><td><span class="badge bg-light text-dark">${log.reason}</span></td><td>${pnlHtml}</td><td class="small text-muted">${details.join(' | ')}</td></tr>`;
             }).join('');
         })
-        .catch(err => console.log('Trade logs error:', err));
+        .catch(err => { clearTimeout(_tlt); if (err.name !== 'AbortError') console.log('Trade logs error:', err); })
+        .finally(() => { _tradeLogsLoading = false; });
 }
 
 let _spyRegimeLoading = false;  // v7.2 SM-9: debounce guard
 function loadSpyRegime() {
     if (_spyRegimeLoading) return;
     _spyRegimeLoading = true;
-    fetch('/api/rapid/spy-regime')
-        .then(response => response.json())
+    const _src = new AbortController();
+    const _srt = setTimeout(() => _src.abort(), 70000);  // v7.2: add timeout
+    fetch('/api/rapid/spy-regime', { signal: _src.signal })
+        .then(response => { clearTimeout(_srt); return response.json(); })
         .then(data => {
             // v7.2 UI-3: skip DOM update if socket reconnected while fetch was in flight
             if (connectionStatus === 'connected') return;
@@ -2355,7 +2374,7 @@ function loadSpyRegime() {
                 }
             }
         })
-        .catch(err => console.error('Error loading SPY regime:', err))
+        .catch(err => { clearTimeout(_srt); if (err.name !== 'AbortError') console.error('Error loading SPY regime:', err); })
         .finally(() => { _spyRegimeLoading = false; });  // v7.2 SM-9: release debounce
 }
 
@@ -3066,7 +3085,10 @@ function setMode(mode) {
     }
 }
 
+let _autoStatusLoading = false;  // v7.2: concurrent guard
 function loadAutoStatus() {
+    if (_autoStatusLoading) return;
+    _autoStatusLoading = true;
     const controller = new AbortController();
     // v6.21: 70s timeout (backend rate limiter max_wait=65s + 5s buffer)
     const timeoutId = setTimeout(() => controller.abort(), 70000);
@@ -3084,7 +3106,8 @@ function loadAutoStatus() {
             if (err.name !== 'AbortError') {
                 console.error('loadAutoStatus error:', err);
             }
-        });
+        })
+        .finally(() => { _autoStatusLoading = false; });
 }
 
 function emergencyStop() {
@@ -3113,8 +3136,10 @@ function closeAllPositions() {
 let lastHealthData = null;
 
 function checkHealth() {
-    fetch('/api/health')
-        .then(r => r.json())
+    const _hc = new AbortController();
+    const _ht = setTimeout(() => _hc.abort(), 60000);  // v7.2: 60s timeout
+    fetch('/api/health', { signal: _hc.signal })
+        .then(r => { clearTimeout(_ht); return r.json(); })
         .then(data => {
             lastHealthData = data;
             const dot = document.getElementById('healthDot');
@@ -3122,6 +3147,7 @@ function checkHealth() {
             else { dot.style.color = '#ff1744'; dot.className = 'fas fa-heartbeat pulse'; dot.title = 'Issues: ' + data.issues.join(', '); }
         })
         .catch(() => {
+            clearTimeout(_ht);
             const dot = document.getElementById('healthDot');
             dot.style.color = '#ff1744'; dot.className = 'fas fa-heartbeat pulse'; dot.title = 'Health check failed';
             lastHealthData = null;
@@ -3357,12 +3383,17 @@ checkHealth();
 // ============================================
 // SYSTEM ALERTS
 // ============================================
+let _sysAlertsLoading = false;  // v7.2: concurrent guard (called from filter, acknowledge, interval)
 function loadSystemAlerts() {
+    if (_sysAlertsLoading) return;
+    _sysAlertsLoading = true;
     const level = document.getElementById('alertFilterLevel')?.value || '';
     const params = new URLSearchParams({ limit: '50' });
     if (level) params.set('level', level);
-    fetch('/api/alerts?' + params.toString())
-        .then(r => r.json())
+    const _ac = new AbortController();
+    const _at = setTimeout(() => _ac.abort(), 70000);
+    fetch('/api/alerts?' + params.toString(), { signal: _ac.signal })
+        .then(r => { clearTimeout(_at); return r.json(); })
         .then(data => {
             if (data.error) return;
             const container = document.getElementById('systemAlertsContainer');
@@ -3378,7 +3409,8 @@ function loadSystemAlerts() {
                 return `<div class="d-flex align-items-start px-3 py-2 border-bottom" style="border-left: 4px solid ${style.border}; background: ${style.bg}; ${opacity}"><i class="${style.icon} me-2 mt-1"></i><div class="flex-grow-1"><div class="d-flex justify-content-between"><div><strong class="small">${a.title}</strong> <span class="badge ${style.bc}" style="font-size:0.6rem;">${a.level}</span></div><small class="text-muted ms-2">${timeStr}</small></div><div class="small text-muted">${a.message}</div></div>${!a.acknowledged ? `<button class="btn btn-sm btn-link text-muted ms-2 p-0" onclick="acknowledgeAlert(${a.id})"><i class="fas fa-times"></i></button>` : ''}</div>`;
             }).join('');
         })
-        .catch(err => console.error('System alerts error:', err));
+        .catch(err => { clearTimeout(_at); if (err.name !== 'AbortError') console.error('System alerts error:', err); })
+        .finally(() => { _sysAlertsLoading = false; });
 }
 
 function acknowledgeAlert(id) {
