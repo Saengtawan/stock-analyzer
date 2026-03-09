@@ -5926,7 +5926,9 @@ class AutoTradingEngine:
             if should_dt:
                 logger.info(f"SMART DAY TRADE: {symbol} -- {dt_reason}")
                 self._close_position(symbol, managed_pos, f"SMART_DAY_TRADE:{dt_reason}")
-                return
+                # v7.3: If PDT blocked close, fall through to update trailing SL — don't lose state
+                if symbol not in self.positions:
+                    return  # Close succeeded, done
 
             # Day 0: Manual SL monitoring (no SL order at Alpaca)
             if pnl_pct <= -pos_sl_pct:
@@ -5983,7 +5985,10 @@ class AutoTradingEngine:
                 if current_price < trailing_sl:
                     locked_pct = ((trailing_sl - entry_price) / entry_price) * 100
                     logger.info(f"🔒 {symbol} Day 0 trailing stop triggered: ${current_price:.2f} < ${trailing_sl:.2f} (lock {locked_pct:+.2f}%)")
-                    self._close_position(symbol, managed_pos, f"DAY0_TRAILING_STOP")
+                    # v7.3: PEM/GAP = same-day strategies — must exit to protect locked gains (force bypasses PDT)
+                    _src = getattr(managed_pos, 'source', '')
+                    _trail_force = _src in ('pem', 'premarket_gap')
+                    self._close_position(symbol, managed_pos, f"DAY0_TRAILING_STOP", force=_trail_force)
                     return
 
                 # Store what the SL should be for Day 1 transition
@@ -6001,8 +6006,31 @@ class AutoTradingEngine:
             if not managed_pos.sl_order_id:
                 logger.info(f"PDT Guard: {symbol} Day {days_held} - placing SL order now")
                 sl_price = managed_pos.current_sl_price  # v4.6: use stored SL price
-                sl_order = self.broker.place_stop_loss(symbol, managed_pos.qty, sl_price)
-                if sl_order:
+
+                # v7.3: Adopt orphaned Alpaca stop order (e.g., placed pre-restart, sl_order_id lost)
+                try:
+                    open_orders = self.broker.get_orders(status='open')
+                    existing_stop = next(
+                        (o for o in open_orders
+                         if o.symbol == symbol and getattr(o, 'type', '') == 'stop'
+                         and getattr(o, 'side', '') == 'sell'),
+                        None
+                    )
+                    if existing_stop:
+                        managed_pos.sl_order_id = existing_stop.id
+                        managed_pos.current_sl_price = float(existing_stop.stop_price)
+                        _state_changed = True
+                        logger.info(f"✅ {symbol} adopted existing Alpaca stop @ ${existing_stop.stop_price:.2f} (id={existing_stop.id})")
+                        sl_order = None  # Skip placement below
+                    else:
+                        sl_order = self.broker.place_stop_loss(symbol, managed_pos.qty, sl_price)
+                except Exception as _e:
+                    logger.warning(f"{symbol} open-order check failed: {_e} — placing SL directly")
+                    sl_order = self.broker.place_stop_loss(symbol, managed_pos.qty, sl_price)
+
+                if managed_pos.sl_order_id:
+                    pass  # Already adopted above
+                elif sl_order:
                     managed_pos.sl_order_id = sl_order.id
                     managed_pos.current_sl_price = sl_order.stop_price
                     _state_changed = True
@@ -6017,7 +6045,7 @@ class AutoTradingEngine:
                                       category='risk', symbol=symbol)
                     except Exception as e:
                         logger.warning(f"Failed to add SL placement failure alert: {e}")
-                    # Continue monitoring manually (Day 0 logic will handle it)
+                    # Continue monitoring manually (trailing in-memory fallback below)
 
             # Check take profit (v4.6: use per-position TP)
             if pnl_pct >= pos_tp_pct:
@@ -6034,7 +6062,18 @@ class AutoTradingEngine:
                 self.alerts.alert_trailing_activated(symbol, current_price, managed_pos.peak_price)
 
             # Update trailing stop (only if SL order exists and trailing enabled)
-            if managed_pos.trailing_active and managed_pos.sl_order_id:
+            if managed_pos.trailing_active and not managed_pos.sl_order_id:
+                # v7.3: No Alpaca SL order (placement failed) — track trailing in memory so
+                # correct level is used when order is eventually placed (next-cycle retry)
+                new_sl, updated = self.broker.calculate_trailing_stop(
+                    entry_price, managed_pos.peak_price, managed_pos.current_sl_price,
+                    eff_trail_activation, eff_trail_lock
+                )
+                if updated:
+                    managed_pos.current_sl_price = new_sl
+                    _state_changed = True
+                    logger.debug(f"📊 {symbol} trailing SL in-memory (no order): ${new_sl:.2f}")
+            elif managed_pos.trailing_active and managed_pos.sl_order_id:
                 # v6.59: OVN uses eff_trail_activation/eff_trail_lock (0%/90%)
                 new_sl, _ = self.broker.calculate_trailing_stop(
                     entry_price,
@@ -6093,7 +6132,7 @@ class AutoTradingEngine:
         # Time exit (only for Day 1+)
         if days_held >= self.MAX_HOLD_DAYS and pnl_pct < 1:
             logger.info(f"⏰ {symbol} held {days_held} days with {pnl_pct:+.2f}% - time exit")
-            self._close_position(symbol, managed_pos, "TIME_EXIT")
+            self._close_position(symbol, managed_pos, "TIME_EXIT", force=True)
             return
 
         # v4.9.1: Earnings auto-sell — sell ASAP on Day 1+ if earnings today/tomorrow
@@ -6665,20 +6704,21 @@ class AutoTradingEngine:
 
         # v6.11: Close gap trades at market close (same day exit)
         for symbol, managed_pos in list(self.positions.items()):
-            # Check if this is a gap trade (marked during entry)
-            is_gap_trade = getattr(managed_pos, 'gap_trade', False)
+            # v7.3: PEM/GAP are always same-day — check source too (gap_trade not persisted to DB)
+            _src = getattr(managed_pos, 'source', '')
+            is_gap_trade = getattr(managed_pos, 'gap_trade', False) or _src in ('pem', 'premarket_gap')
             if is_gap_trade and managed_pos.days_held == 0:
                 # Gap trades should be closed same day (intraday strategy)
                 gap_pct = getattr(managed_pos, 'gap_pct', 0)
                 logger.info(f"⚡ Closing GAP TRADE {symbol} at market close "
                            f"(gap: {gap_pct:+.1f}%, held: intraday)")
-                self._close_position(symbol, managed_pos, "GAP_TRADE_EOD")
+                self._close_position(symbol, managed_pos, "GAP_TRADE_EOD", force=True)
                 continue  # Skip other checks for this position
 
         for symbol, managed_pos in list(self.positions.items()):
             if managed_pos.days_held >= self.MAX_HOLD_DAYS:
                 logger.info(f"Closing {symbol} - held {managed_pos.days_held} days")
-                self._close_position(symbol, managed_pos, "MAX_HOLD_DAYS")
+                self._close_position(symbol, managed_pos, "MAX_HOLD_DAYS", force=True)
 
         # v4.9.1: Earnings auto-sell (safety net — primary check is in _check_position)
         if self.EARNINGS_AUTO_SELL:
@@ -6709,10 +6749,11 @@ class AutoTradingEngine:
             try:
                 should_place, reason = self.pdt_guard.should_place_eod_sl(symbol)
                 if should_place:
-                    # Calculate SL price using position's SL%
+                    # v7.3: Use current_sl_price (trailing-updated) if better than original SL%
                     sl_pct = managed_pos.sl_pct or self.STOP_LOSS_PCT
-                    sl_price = round(managed_pos.entry_price * (1 - sl_pct / 100), 2)
-                    logger.info(f"Placing EOD SL for {symbol} (Day 0): ${sl_price:.2f} (-{sl_pct}%)")
+                    original_sl = round(managed_pos.entry_price * (1 - sl_pct / 100), 2)
+                    sl_price = max(original_sl, managed_pos.current_sl_price or original_sl)
+                    logger.info(f"Placing EOD SL for {symbol} (Day 0): ${sl_price:.2f} (trail={managed_pos.current_sl_price:.2f}, orig={original_sl:.2f})")
                     sl_order = self.broker.place_stop_loss(symbol, managed_pos.qty, sl_price)
                     if sl_order:
                         managed_pos.sl_order_id = sl_order.id

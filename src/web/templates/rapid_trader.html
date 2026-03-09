@@ -2572,8 +2572,17 @@ function updatePositionsUI(data) {
                         </div>
                         ${premarketHtml}
                         <div class="small sltp-line mt-1">
-                            <span class="text-danger">SL $${slPrice.toFixed(2)}</span>
-                            <span class="distance-badge distance-sl">${distToSL}% away</span>
+                            ${(() => {
+                                const isLocked = isTrailActive && slPrice > status.entry_price;
+                                if (isLocked) {
+                                    const lockedPct = ((slPrice - status.entry_price) / status.entry_price * 100).toFixed(1);
+                                    return `<span class="text-info fw-bold">🔒Lock $${slPrice.toFixed(2)}</span>
+                                            <span class="distance-badge" style="background:rgba(23,162,184,0.15);color:#17a2b8;">+${lockedPct}% locked</span>`;
+                                } else {
+                                    return `<span class="text-danger">SL $${slPrice.toFixed(2)}</span>
+                                            <span class="distance-badge distance-sl">${distToSL}% away</span>`;
+                                }
+                            })()}
                             <span class="mx-1">|</span>
                             <span class="text-success">TP $${tpPrice.toFixed(2)}</span>
                             <span class="distance-badge distance-tp">${distToTP}% away</span>
