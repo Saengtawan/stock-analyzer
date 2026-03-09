@@ -5949,13 +5949,19 @@ class AutoTradingEngine:
                         )
                         return
                 logger.warning(f"🛑 {symbol} Day 0 SL hit at {pnl_pct:.2f}% (SL: -{pos_sl_pct}%)")
-                self._close_position(symbol, managed_pos, "DAY0_SL")
+                # v7.3: PEM/GAP = same-day strategies — must exit to cut losses (force bypasses PDT)
+                _src = getattr(managed_pos, 'source', '')
+                _sl_force = _src in ('pem', 'premarket_gap')
+                self._close_position(symbol, managed_pos, "DAY0_SL", force=_sl_force)
                 return
 
             # Day 0: Check TP (v4.6: use per-position TP)
             if pnl_pct >= pos_tp_pct:
                 logger.info(f"🎯 {symbol} Day 0 TP at {pnl_pct:+.2f}% (TP: +{pos_tp_pct}%)")
-                self._close_position(symbol, managed_pos, "DAY0_TP")
+                # v7.3: PEM/GAP = same-day strategies — must exit to take profits (force bypasses PDT)
+                _src = getattr(managed_pos, 'source', '')
+                _tp_force = _src in ('pem', 'premarket_gap')
+                self._close_position(symbol, managed_pos, "DAY0_TP", force=_tp_force)
                 return
 
             # Day 0: Trailing stop (v6.10: internal tracking only, no broker order)
