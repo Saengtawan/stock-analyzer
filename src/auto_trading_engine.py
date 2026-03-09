@@ -4475,13 +4475,17 @@ class AutoTradingEngine:
 
         # Fresh VIX check (v6.69: PEM bypasses VIX — earnings catalyst overrides macro fear)
         # v6.76: OVN bypasses VIX — overnight hold, own gap-down protection (-1% exit at open)
+        # v7.3: GAP bypasses VIX — same-day exit like PEM; VIX>30 caught separately in _loop_premarket_gap_execute
         _source = params.get('source', '')
         _is_pem = _source == 'pem'
         _is_ovn = _source == 'overnight_gap'
+        _is_gap = _source == 'premarket_gap'
         if _is_pem and self.PEM_SKIP_VIX:
             logger.debug(f"PEM VIX bypass: skipping VIX check (pem_skip_vix=True)")
         elif _is_ovn and self.OVN_SKIP_VIX:
             logger.debug(f"OVN VIX bypass: skipping VIX check (overnight_gap_skip_vix=True)")
+        elif _is_gap:
+            logger.debug(f"GAP VIX bypass: skipping main VIX check (same-day exit; >30 guarded in execute loop)")
         else:
             vix_ok, vix_val = self._check_vix_fresh_before_entry()
             if not vix_ok:
