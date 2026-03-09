@@ -1795,14 +1795,14 @@ function updateTimelineBar(schedule) {
     }
 
     // v6.4: Render timeline from API config if not yet rendered
-    // v7.2 SM-14: reset flag on non-trading day so it re-renders on next trading day
-    const isTradingDay = schedule.market_calendar?.is_trading_day || schedule.market_calendar?.is_open;
-    if (!isTradingDay) _timelineRendered = false;
+    // Note: DEFAULT_SESSIONS is baked into HTML at render time from config/trading.yaml;
+    // sessions don't change dynamically so one-time render at DOMContentLoaded is sufficient.
     if (!_timelineRendered) {
         renderTimelineFromConfig(schedule.sessions);  // Uses DEFAULT_SESSIONS if not provided
     }
 
     // v6.4: Check if trading day - if not, show closed message
+    const isTradingDay = schedule.market_calendar?.is_trading_day || schedule.market_calendar?.is_open;
     const timelineContainer = document.getElementById('timelineContainer');
     const timelineBar = document.getElementById('timelineBar');
 
