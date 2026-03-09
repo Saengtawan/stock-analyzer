@@ -1382,6 +1382,7 @@ let countdownInterval = null;
 let _marketCalendar = null;  // Cached from API
 
 function startMarketCountdown() {
+    if (countdownInterval) clearInterval(countdownInterval);  // v7.2 SM-12: prevent interval leak on re-init
     updateMarketCountdown();
     countdownInterval = setInterval(updateMarketCountdown, 1000);
 }
@@ -1788,12 +1789,14 @@ function updateTimelineBar(schedule) {
     }
 
     // v6.4: Render timeline from API config if not yet rendered
+    // v7.2 SM-14: reset flag on non-trading day so it re-renders on next trading day
+    const isTradingDay = schedule.market_calendar?.is_trading_day || schedule.market_calendar?.is_open;
+    if (!isTradingDay) _timelineRendered = false;
     if (!_timelineRendered) {
         renderTimelineFromConfig(schedule.sessions);  // Uses DEFAULT_SESSIONS if not provided
     }
 
     // v6.4: Check if trading day - if not, show closed message
-    const isTradingDay = schedule.market_calendar?.is_trading_day || schedule.market_calendar?.is_open;
     const timelineContainer = document.getElementById('timelineContainer');
     const timelineBar = document.getElementById('timelineBar');
 
@@ -2287,6 +2290,8 @@ function loadSpyRegime() {
     fetch('/api/rapid/spy-regime')
         .then(response => response.json())
         .then(data => {
+            // v7.2 UI-3: skip DOM update if socket reconnected while fetch was in flight
+            if (connectionStatus === 'connected') return;
             if (data.error) return;
             const details = data.details || {};
 
