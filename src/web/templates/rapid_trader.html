@@ -784,7 +784,7 @@
 
         <!-- Bear Mode -->
         <div class="card ops-card" id="bearModeBox">
-            <div class="card-header py-2"><i class="fas fa-paw me-1"></i>BEAR Mode <small class="text-warning">(Composite Score v6.0)</small></div>
+            <div class="card-header py-2"><i class="fas fa-paw me-1"></i>BEAR Mode <small class="text-warning">(Composite Score v6.96)</small></div>
             <div class="card-body p-2">
                 <div class="rule-item">
                     <div class="rule-icon" style="background:#e67e22;">📊</div>
@@ -834,7 +834,7 @@
                         </div>
                         <div class="rule-item">
                             <div class="rule-icon" style="background:#f39c12;">💵</div>
-                            <div>Pos: <strong>Risk-Parity</strong> ATR: <strong>&le;<span data-cfg="low_risk_max_atr_pct">?</span>%</strong></div>
+                            <div>Pos: <strong>Risk-Parity</strong> ATR: <strong>&le;<span data-cfg="low_risk_max_atr_pct">?</span>%</strong> <small class="text-muted">(DIP only)</small></div>
                         </div>
                     </div>
                 </div>
@@ -882,9 +882,9 @@
                             <div class="rule-icon" style="background:#9b59b6;">ON</div>
                             <div>O/N: buy 15:45</div>
                         </div>
-                        <div class="rule-item">
-                            <div class="rule-icon" style="background:#3498db;">BO</div>
-                            <div>Breakout: <span data-cfg="breakout_min_volume_mult">?</span>x vol</div>
+                        <div class="rule-item" style="opacity:0.4;" title="Breakout scanner disabled">
+                            <div class="rule-icon" style="background:#7f8c8d;">BO</div>
+                            <div>Breakout: <span class="text-muted">OFF</span></div>
                         </div>
                     </div>
                 </div>
