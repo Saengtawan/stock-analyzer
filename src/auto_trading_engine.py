@@ -4653,6 +4653,19 @@ class AutoTradingEngine:
                 )
                 return False, f"LONG_TERM_DOWNTREND mom20d {mom20d:.1f}%"
 
+            # v7.4: Near-high filter — stock must be within 5% of 20d high (IC=0.521, n=2341)
+            # WR: >=5% below high=21.8%, 2-5% below=49.6%, within 2%=64-79%
+            dist_high = getattr(signal, 'distance_from_high', None)
+            if dist_high is not None and dist_high >= 5.0:
+                logger.warning(f"❌ NOT_NEAR_HIGH {symbol}: dist_from_20d_high={dist_high:.1f}%")
+                self._log_filter_rejection(
+                    symbol, current_price, "NOT_NEAR_HIGH",
+                    f"dist_from_20d_high {dist_high:.1f}% >= 5%",
+                    {"not_near_high": {"passed": False}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
+                return False, f"NOT_NEAR_HIGH dist {dist_high:.1f}%"
+
         return True, ""
 
     def _check_beta_volatility(self, symbol: str, signal, current_price: float, mode: str) -> Tuple[bool, str]:

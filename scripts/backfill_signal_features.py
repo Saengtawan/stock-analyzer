@@ -66,7 +66,8 @@ def load_rows_to_backfill(conn, target_date=None):
 
     rows = conn.execute(f"""
         SELECT id, symbol, scan_date, signal_source,
-               momentum_20d, distance_from_high, spy_pct_above_sma, sector_1d_change
+               momentum_20d, distance_from_high, distance_from_20d_high,
+               spy_pct_above_sma, sector_1d_change
         FROM signal_outcomes
         WHERE 1=1 {where}
         ORDER BY scan_date, symbol
@@ -115,12 +116,13 @@ def compute_features(scan_date_str, symbol, sector, price_data):
     """
     Compute backfill features for one signal row.
 
-    Returns dict with: momentum_20d, distance_from_high, spy_pct_above_sma, sector_1d_change
+    Returns dict with: momentum_20d, distance_from_high, distance_from_20d_high,
+                       spy_pct_above_sma, sector_1d_change
     All values are float or None.
     """
     result = {}
 
-    # ── momentum_20d & distance_from_high ─────────────────────────────────────
+    # ── momentum_20d & distance_from_high & distance_from_20d_high ────────────
     sym_series = price_data.get(symbol)
     if sym_series is not None and not sym_series.empty:
         # Find the close on or just before scan_date
@@ -144,7 +146,12 @@ def compute_features(scan_date_str, symbol, sector, price_data):
                 if price_20d_ago > 0:
                     result['momentum_20d'] = round((scan_price / price_20d_ago - 1) * 100, 2)
 
-            # distance_from_high: % below 52-week high
+                # distance_from_20d_high: % below 20-day high (negative convention)
+                high_20d = max(date_price[sorted_dates[scan_idx - i]] for i in range(21))
+                if high_20d > 0:
+                    result['distance_from_20d_high'] = round((scan_price / high_20d - 1) * 100, 2)
+
+            # distance_from_high: % below 52-week high (negative convention)
             lookback_dates = [d for d in sorted_dates if d <= scan_date_str][-252:]
             if lookback_dates:
                 high_52w = max(date_price[d] for d in lookback_dates)
@@ -214,10 +221,11 @@ def main():
     # Check how many need backfilling
     need_mom20d   = sum(1 for r in rows if r['momentum_20d'] is None)
     need_dist_hgh = sum(1 for r in rows if r['distance_from_high'] is None)
+    need_d20h     = sum(1 for r in rows if r['distance_from_20d_high'] is None)
     need_spy_sma  = sum(1 for r in rows if r['spy_pct_above_sma'] is None)
     need_sect_1d  = sum(1 for r in rows if r['sector_1d_change'] is None)
     print(f"Need backfill: momentum_20d={need_mom20d}, dist_high={need_dist_hgh}, "
-          f"spy_pct_above_sma={need_spy_sma}, sector_1d_change={need_sect_1d}")
+          f"dist_20d_high={need_d20h}, spy_pct_above_sma={need_spy_sma}, sector_1d_change={need_sect_1d}")
 
     if need_mom20d + need_dist_hgh + need_spy_sma + need_sect_1d == 0:
         print("Nothing to backfill!")
@@ -241,6 +249,7 @@ def main():
         needs_work = [r for r in date_rows if any([
             r['momentum_20d'] is None,
             r['distance_from_high'] is None,
+            r['distance_from_20d_high'] is None,
             r['spy_pct_above_sma'] is None,
             r['sector_1d_change'] is None,
         ])]
@@ -274,6 +283,8 @@ def main():
                 updates['momentum_20d']    = features['momentum_20d']
             if r['distance_from_high'] is None and 'distance_from_high' in features:
                 updates['distance_from_high'] = features['distance_from_high']
+            if r['distance_from_20d_high'] is None and 'distance_from_20d_high' in features:
+                updates['distance_from_20d_high'] = features['distance_from_20d_high']
             if r['spy_pct_above_sma'] is None and 'spy_pct_above_sma' in features:
                 updates['spy_pct_above_sma'] = features['spy_pct_above_sma']
             if r['sector_1d_change']  is None and 'sector_1d_change'  in features:
@@ -304,13 +315,15 @@ def main():
             SELECT
               SUM(CASE WHEN momentum_20d IS NOT NULL THEN 1 ELSE 0 END) mom20d,
               SUM(CASE WHEN distance_from_high IS NOT NULL THEN 1 ELSE 0 END) dist_high,
+              SUM(CASE WHEN distance_from_20d_high IS NOT NULL THEN 1 ELSE 0 END) dist_20d,
               SUM(CASE WHEN spy_pct_above_sma IS NOT NULL THEN 1 ELSE 0 END) spy_sma,
               SUM(CASE WHEN sector_1d_change IS NOT NULL THEN 1 ELSE 0 END) sect_1d,
               COUNT(*) total
             FROM signal_outcomes
         """).fetchone()
-        print(f"\nFinal coverage: momentum_20d={r2[0]}/{r2[4]}, dist_high={r2[1]}/{r2[4]}, "
-              f"spy_pct_above_sma={r2[2]}/{r2[4]}, sector_1d_change={r2[3]}/{r2[4]}")
+        print(f"\nFinal coverage: momentum_20d={r2[0]}/{r2[5]}, dist_high={r2[1]}/{r2[5]}, "
+              f"dist_20d_high={r2[2]}/{r2[5]}, spy_pct_above_sma={r2[3]}/{r2[5]}, "
+              f"sector_1d_change={r2[4]}/{r2[5]}")
 
     conn.close()
 
