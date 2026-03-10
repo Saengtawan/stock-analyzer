@@ -5004,8 +5004,14 @@ def _build_positions_from_engine():
                     pos_data['premarket_price']   = round(alpaca_live, 2)
                     pos_data['premarket_change']  = round(change_pct, 2)
                     pos_data['premarket_session'] = session
-                    # v7.3: Update current_price to AH/Pre so "N:" column shows live price not stale close
+                    # v7.3: Update current_price + PnL to AH/Pre for consistent N/PnL display.
+                    # N and PnL must use the same price — if N shows AH, PnL must also use AH.
+                    ah_pnl_pct = ((alpaca_live - entry_price) / entry_price) * 100
+                    ah_pnl_usd = (alpaca_live - entry_price) * qty
+                    total_pnl_usd += ah_pnl_usd - pnl_usd
                     pos_data['current_price'] = round(alpaca_live, 2)
+                    pos_data['pnl_pct'] = round(ah_pnl_pct, 2)
+                    pos_data['pnl_usd'] = round(ah_pnl_usd, 2)
                     if abs(change_pct) >= 1.0:
                         logger.info(f"{symbol}: {session} ${alpaca_live:.2f} ({change_pct:+.2f}% vs close ${current_price:.2f})")
                     else:
@@ -5015,11 +5021,6 @@ def _build_positions_from_engine():
                     # Without this, a stock down in pre-market shows "Position within normal range"
                     # because signal was computed from IEX close before AH price was known.
                     if abs(change_pct) >= 2.0:
-                        ah_pnl_pct = ((alpaca_live - entry_price) / entry_price) * 100
-                        ah_pnl_usd = (alpaca_live - entry_price) * qty
-                        total_pnl_usd += ah_pnl_usd - pnl_usd
-                        pos_data['pnl_pct'] = round(ah_pnl_pct, 2)
-                        pos_data['pnl_usd'] = round(ah_pnl_usd, 2)
                         if take_profit > 0 and alpaca_live >= take_profit:
                             pos_data['signal'] = 'TAKE_PROFIT'
                             pos_data['action'] = f'{session} price ${alpaca_live:.2f} reached TP ${take_profit:.2f}'

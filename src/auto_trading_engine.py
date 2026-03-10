@@ -1640,7 +1640,10 @@ class AutoTradingEngine:
                         entry_price=pos.avg_entry_price,
                         entry_time=entry_time,
                         sl_order_id=sl_order.id if sl_order else saved.get('sl_order_id', ''),
-                        current_sl_price=sl_order.stop_price if sl_order else saved.get('current_sl_price', pos.avg_entry_price * 0.975),
+                        # v7.3: Use max(Alpaca stop, DB saved) — trailing may have moved SL above
+                        # original Alpaca stop (Day 0 OVN: internal tracking only, Alpaca stop = original).
+                        # Webapp restart must NOT overwrite DB trailing level with lower Alpaca stop.
+                        current_sl_price=max(float(sl_order.stop_price), saved.get('current_sl_price') or 0) if sl_order else saved.get('current_sl_price', float(pos.avg_entry_price) * 0.975),
                         # Restore dynamic state from persisted data
                         # v6.47: Update peak if current price exceeds stored peak
                         # (covers AH/pre-market moves while engine was offline)
