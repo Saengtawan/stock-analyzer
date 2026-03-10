@@ -3825,6 +3825,9 @@ class AutoTradingEngine:
                 # v7.1: Additional features for score redesign
                 "momentum_20d": getattr(signal, 'momentum_20d', None),
                 "distance_from_high": getattr(signal, 'distance_from_high', None),
+                # v7.3: Market context at scan time (from regime cache — already computed, no extra API call)
+                "vix_at_signal": self._regime_cache[3].get('vix') if self._regime_cache and len(self._regime_cache) >= 4 else None,
+                "spy_pct_above_sma": self._regime_cache[3].get('pct_above_sma') if self._regime_cache and len(self._regime_cache) >= 4 else None,
             })
 
         # Summary counts for monitoring
@@ -5159,7 +5162,8 @@ class AutoTradingEngine:
             market_open = et_now.replace(hour=9, minute=30, second=0, microsecond=0)
             entry_mins = int((et_now - market_open).total_seconds() / 60) if et_now >= market_open else None
 
-            # SPY % above SMA20 (from regime check data)
+            # SPY price + % above SMA20 (from regime check data)
+            spy_price_at_buy = self._regime_cache[3].get('spy_price') if self._regime_cache and len(self._regime_cache) >= 4 else None
             spy_pct_above_sma = None
             try:
                 spy_data = yf.download('SPY', period='60d', progress=False, auto_adjust=True)
@@ -5179,6 +5183,7 @@ class AutoTradingEngine:
 
             self.trade_logger.log_buy(
                 symbol=symbol, qty=qty, price=entry_price, reason="SIGNAL",
+                spy_price=spy_price_at_buy,
                 filters={
                     "regime": {"passed": regime_ok, "detail": regime_reason},
                     "gap": {"passed": True, "detail": f"{gap_pct:+.1f}%"},
