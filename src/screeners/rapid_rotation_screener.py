@@ -117,6 +117,7 @@ class RapidRotationSignal:
     resistance: float = 0.0   # Resistance reference
     volume_ratio: float = 1.0  # v5.0: today_vol / avg_20d_vol
     vwap: float = 0.0          # v6.20: VWAP for entry protection filter
+    new_score: float = 0.0     # v7.4: IC-weighted DIP quality score [0-100]
 
     @property
     def expected_gain(self) -> float:
@@ -1225,6 +1226,30 @@ class RapidRotationScreener:
 
         return None
 
+    @staticmethod
+    def _compute_dip_score(dist_from_high: float, atr_pct: float, mom_5d: float, rsi: float) -> float:
+        """
+        v7.4: IC-weighted DIP quality score [0-100].
+
+        Features (Spearman IC on n=4432 dip_bounce signals with outcome_5d):
+          distance_from_high  IC=+0.521  lower (closer to 20d high) → better
+          atr_pct             IC=-0.312  lower volatility → better
+          momentum_5d         IC=+0.141  higher momentum → better
+          entry_rsi           IC=-0.110  lower RSI (less overbought) → better
+
+        Clips keep each feature in its empirical training range.
+        Weights are IC-proportional, normalized to sum=1.0.
+        """
+        # Normalize to [0,1] where 1=best; clip outliers at empirical bounds
+        norm_dist = max(0.0, 1.0 - dist_from_high / 25.0)          # 0=at high→1.0, 25%below→0.0
+        norm_atr  = max(0.0, 1.0 - (atr_pct - 0.5) / 11.5)         # 0.5%→1.0, 12%→0.0
+        norm_mom  = max(0.0, min(1.0, (mom_5d + 20.0) / 25.0))      # +5%→1.0, -20%→0.0
+        norm_rsi  = max(0.0, 1.0 - (rsi - 20.0) / 60.0)             # 20→1.0, 80→0.0
+
+        # IC weights: 0.521/1.084, 0.312/1.084, 0.141/1.084, 0.110/1.084
+        score = (0.481 * norm_dist + 0.288 * norm_atr + 0.130 * norm_mom + 0.101 * norm_rsi) * 100
+        return round(score, 1)
+
     def _analyze_calc_score(self, ind: dict, symbol: str) -> tuple:
         """Calculate score and reasons. Returns (score, reasons, sector, sector_score)."""
         # Core scoring from filters.py (single source of truth)
@@ -1323,6 +1348,14 @@ class RapidRotationScreener:
         market_regime = self._get_market_regime()
         regime_str = market_regime.get('regime', 'UNKNOWN')
 
+        # v7.4: IC-weighted DIP quality score
+        dip_score = self._compute_dip_score(
+            dist_from_high=ind['dist_from_high'],
+            atr_pct=ind['atr_pct'],
+            mom_5d=ind['mom_5d'],
+            rsi=ind['rsi'],
+        )
+
         return RapidRotationSignal(
             symbol=symbol,
             score=score,
@@ -1346,6 +1379,7 @@ class RapidRotationScreener:
             resistance=round(sl_tp['resistance'], 2),
             volume_ratio=round(ind['volume_ratio'], 2),
             vwap=0.0,  # v6.20: Populated from Alpaca snapshot during entry validation
+            new_score=dip_score,
         )
 
     def screen(self, top_n: int = 10, enable_alt_data: bool = True, allowed_sectors: List[str] = None, blocked_sectors: List[str] = None, progress_callback=None, min_score: int = None, gap_max_up: float = None, use_strategy_manager: bool = True, bear_mode_enabled: bool = False) -> List[RapidRotationSignal]:

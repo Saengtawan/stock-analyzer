@@ -3828,6 +3828,8 @@ class AutoTradingEngine:
                 # v7.3: Market context at scan time (from regime cache — already computed, no extra API call)
                 "vix_at_signal": self._regime_cache[3].get('vix') if self._regime_cache and len(self._regime_cache) >= 4 else None,
                 "spy_pct_above_sma": self._regime_cache[3].get('pct_above_sma') if self._regime_cache and len(self._regime_cache) >= 4 else None,
+                # v7.4: IC-weighted DIP quality score
+                "new_score": getattr(signal, 'new_score', None),
             })
 
         # Summary counts for monitoring
@@ -4665,6 +4667,19 @@ class AutoTradingEngine:
                     signal_score, signal_sector, signal_source, signal, mode,
                 )
                 return False, f"NOT_NEAR_HIGH dist {dist_high:.1f}%"
+
+            # v7.4: IC-weighted DIP quality score filter (n=4008, IC=+0.240 vs old IC=-0.063)
+            # Cuts bottom 37% of signals (score<70) with WR=14-33%; keeps 70+ with WR=52-64%
+            new_score = getattr(signal, 'new_score', None)
+            if new_score is not None and new_score < 70.0:
+                logger.warning(f"❌ DIP_SCORE {symbol}: new_score={new_score:.1f} < 70")
+                self._log_filter_rejection(
+                    symbol, current_price, "DIP_SCORE_REJECT",
+                    f"new_score {new_score:.1f} < 70",
+                    {"dip_score": {"passed": False}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
+                return False, f"DIP_SCORE {new_score:.1f}"
 
         return True, ""
 
