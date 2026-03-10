@@ -4886,20 +4886,30 @@ def _build_positions_from_engine():
                         _s = (_close[_sym] if len(symbols) > 1 else _close).dropna()
                         if _s.empty:
                             continue
-                        # Keep only today's bars (ET date)
+                        # Prefer today's pre-market bars; fall back to yesterday's AH
                         _today_mask = _s.index.tz_convert(_et_tz).date == _today_et2
                         _today_bars = _s[_today_mask]
-                        if _today_bars.empty:
-                            continue
-                        _price = float(_today_bars.iloc[-1])
-                        _ts = _today_bars.index[-1].tz_convert(_et_tz)
-                        _m = _ts.hour * 60 + _ts.minute
-                        if _m < 9 * 60 + 30:
-                            _sess = 'Pre'
-                        elif _m >= 16 * 60:
-                            _sess = 'AH'
+                        if not _today_bars.empty:
+                            _price = float(_today_bars.iloc[-1])
+                            _ts = _today_bars.index[-1].tz_convert(_et_tz)
+                            _m = _ts.hour * 60 + _ts.minute
+                            if _m < 9 * 60 + 30:
+                                _sess = 'Pre'
+                            elif _m >= 16 * 60:
+                                _sess = 'AH'
+                            else:
+                                continue  # regular-hours bar — skip
                         else:
-                            continue  # regular-hours bar — skip
+                            # No today bars yet (early pre-market) — use yesterday's AH close
+                            _yest = _today_et2 - timedelta(days=1)
+                            _yest_mask = _s.index.tz_convert(_et_tz).date == _yest
+                            _yest_bars = _s[_yest_mask]
+                            _ah_bars = _yest_bars[_yest_bars.index.tz_convert(_et_tz).hour >= 16]
+                            if _ah_bars.empty:
+                                continue
+                            _price = float(_ah_bars.iloc[-1])
+                            _ts = _ah_bars.index[-1].tz_convert(_et_tz)
+                            _sess = 'AH'
                         yf_ext_prices[_sym] = (_price, _sess)
                         logger.debug(f"yf {_sess} {_sym}: ${_price:.2f} @ {_ts}")
                     except Exception as _e2:
