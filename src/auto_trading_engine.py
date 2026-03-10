@@ -2450,7 +2450,7 @@ class AutoTradingEngine:
                     snapshot = self.broker.get_snapshot(symbol)
                     if not snapshot:
                         continue
-                    current_price = snapshot.price
+                    current_price = snapshot.last or snapshot.mid
                     new_sl = round(current_price * (1 - self.VIX_SPIKE_SL_TIGHTEN_PCT / 100), 2)
                     if new_sl <= managed_pos.current_sl_price:
                         logger.debug(f"  {symbol}: SL already tight (${managed_pos.current_sl_price:.2f}), skipping")
@@ -6828,19 +6828,29 @@ class AutoTradingEngine:
                 logger.warning("[v6.99] SPY EOD check: no SPY bars available → skip")
                 return
 
-            # Guard: ensure latest bar is today (API lag / data delay)
-            latest_bar_date = bars[-1].timestamp.astimezone(self.et_tz).date()
-            if latest_bar_date != today_et:
-                logger.warning(
-                    f"[v6.99] SPY bar latest={latest_bar_date} != today={today_et} → skip"
-                )
-                return
-
+            # v7.3: At 3:50 PM daily bars haven't closed yet (4 PM) → latest bar is yesterday.
+            # Use live SPY snapshot for today's price; fall back to latest bar if snapshot fails.
             spy_closes = {
                 bar.timestamp.astimezone(self.et_tz).date(): bar.close
                 for bar in bars
             }
-            spy_today = bars[-1].close
+
+            spy_snapshot = self.broker.get_snapshot('SPY')
+            if spy_snapshot and (spy_snapshot.last or spy_snapshot.mid):
+                spy_today = spy_snapshot.last or spy_snapshot.mid
+                spy_closes[today_et] = spy_today
+                logger.debug(f"[v6.99] SPY live price: ${spy_today:.2f}")
+            else:
+                # Fall back: use latest daily bar; guard against >2-day API lag
+                latest_bar_date = bars[-1].timestamp.astimezone(self.et_tz).date()
+                from datetime import timedelta
+                if (today_et - latest_bar_date).days > 2:
+                    logger.warning(
+                        f"[v6.99] SPY bar latest={latest_bar_date} > 2 days old → skip"
+                    )
+                    return
+                spy_today = bars[-1].close
+                spy_closes[today_et] = spy_today
 
         except Exception as e:
             logger.warning(f"[v6.99] SPY EOD check: failed to get SPY data: {e}")
