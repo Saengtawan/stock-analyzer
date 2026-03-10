@@ -1355,7 +1355,6 @@ class RapidRotationScreener:
             mom_5d=ind['mom_5d'],
             rsi=ind['rsi'],
         )
-
         return RapidRotationSignal(
             symbol=symbol,
             score=score,
@@ -1545,6 +1544,14 @@ class RapidRotationScreener:
             # Convert TradingSignal → RapidRotationSignal (for backward compatibility)
             signals = []
             for ts in trading_signals:
+                # v7.4: Compute IC-weighted DIP quality score for strategy-manager path
+                # (analyze_stock() path computes this, but strategy manager bypasses it)
+                dip_score = self._compute_dip_score(
+                    dist_from_high=ts.distance_from_high,
+                    atr_pct=ts.atr_pct,
+                    mom_5d=ts.momentum_5d,
+                    rsi=ts.rsi,
+                )
                 rrs = RapidRotationSignal(
                     symbol=ts.symbol,
                     score=ts.score,
@@ -1568,6 +1575,7 @@ class RapidRotationScreener:
                     resistance=ts.resistance,
                     volume_ratio=ts.volume_ratio,
                     vwap=0.0,  # v6.20: Populated during entry validation
+                    new_score=dip_score,  # v7.4: IC-weighted quality score
                 )
                 signals.append(rrs)
 

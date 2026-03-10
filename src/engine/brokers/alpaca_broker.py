@@ -493,26 +493,39 @@ class AlpacaBroker(BrokerInterface):
         logger.info(f"✅ Stop Loss {qty} {symbol} @ ${stop_price:.2f} → Order {order.id}")
         return self._convert_order(order)
 
-    @_retry_api()
     def modify_stop_loss(self, order_id: str, new_stop_price: float) -> Order:
-        """Modify an existing stop loss order."""
+        """Modify an existing stop loss order (cancel + replace).
+
+        v7.4: Removed @_retry_api() — retrying the whole function re-cancels
+        an already-canceled order, causing infinite cancel+fail loops.
+        Instead, retry only the place_stop_loss step with longer backoff.
+        Returns None on failure (never raises) so caller can reset sl_order_id.
+        """
         # Alpaca requires cancel + replace
         old_order = self.get_order(order_id)
         if not old_order:
-            raise ValueError(f"Order {order_id} not found")
+            logger.warning(f"modify_stop_loss: order {order_id} not found — returning None")
+            return None
 
         # Cancel old order
         self.cancel_order(order_id)
-        time.sleep(0.5)  # Brief pause for order cancellation
 
-        # Place new stop loss
-        new_order = self.place_stop_loss(
-            old_order.symbol,
-            int(old_order.qty),
-            new_stop_price
-        )
-        logger.info(f"Modified SL {old_order.symbol}: ${old_order.stop_price:.2f} → ${new_stop_price:.2f}")
-        return new_order
+        # Retry place_stop_loss with increasing sleep to handle Alpaca paper
+        # trading timing lag (cancel not immediately reflected in available qty).
+        symbol = old_order.symbol
+        qty = int(old_order.qty)
+        delays = [2.0, 3.0, 5.0]  # seconds between attempts
+        for attempt, delay in enumerate(delays, start=1):
+            time.sleep(delay)
+            try:
+                new_order = self.place_stop_loss(symbol, qty, new_stop_price)
+                logger.info(f"Modified SL {symbol}: ${old_order.stop_price:.2f} → ${new_stop_price:.2f} (attempt {attempt})")
+                return new_order
+            except Exception as e:
+                logger.warning(f"modify_stop_loss attempt {attempt}/{len(delays)} failed for {symbol}: {e}")
+
+        logger.error(f"modify_stop_loss: all {len(delays)} attempts failed for {symbol} @ ${new_stop_price:.2f} — returning None")
+        return None
 
     # =========================================================================
     # ORDER VALIDATION (v6.21 Production Grade - Phase 1 Item 1)

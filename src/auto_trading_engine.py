@@ -2460,6 +2460,9 @@ class AutoTradingEngine:
                         new_order = self.broker.modify_stop_loss(managed_pos.sl_order_id, new_sl)
                         if new_order:
                             managed_pos.sl_order_id = new_order.id
+                        else:
+                            # v7.4: modify returned None (old stop canceled, new failed) — reset for fresh placement
+                            managed_pos.sl_order_id = ''
                     managed_pos.current_sl_price = new_sl
                     logger.warning(f"  {symbol}: SL tightened ${managed_pos.current_sl_price:.2f} → ${new_sl:.2f} "
                                   f"({self.VIX_SPIKE_SL_TIGHTEN_PCT:.1f}% below ${current_price:.2f})")
@@ -5738,7 +5741,10 @@ class AutoTradingEngine:
                         self._save_positions_state()
                         # Update SL order at Alpaca
                         if managed_pos.sl_order_id:
-                            self.broker.modify_stop_loss(managed_pos.sl_order_id, managed_pos.current_sl_price)
+                            new_order = self.broker.modify_stop_loss(managed_pos.sl_order_id, managed_pos.current_sl_price)
+                            if not new_order:
+                                # v7.4: modify failed — reset for fresh placement next cycle
+                                managed_pos.sl_order_id = ''
             except Exception as e:
                 logger.debug(f"Split check error for {symbol}: {e}")
 
@@ -6162,22 +6168,33 @@ class AutoTradingEngine:
                 if sl_diff > min_threshold:
                     logger.info(f"📈 {symbol} updating SL: ${managed_pos.current_sl_price:.2f} → ${new_sl:.2f} (+${sl_diff:.2f})")
 
-                    # Modify SL order at Alpaca (has retry + fallback logic)
-                    new_order = self.broker.modify_stop_loss(
-                        managed_pos.sl_order_id,
-                        new_sl
-                    )
-
-                    if new_order:
-                        managed_pos.sl_order_id = new_order.id
-                        managed_pos.current_sl_price = new_order.stop_price
+                    # Modify SL order at Alpaca
+                    # v7.4: Wrap in try/except — modify_stop_loss does cancel+place;
+                    # if place fails (Alpaca timing lag), old stop is already canceled.
+                    # Reset sl_order_id so next cycle does fresh placement at correct level.
+                    try:
+                        new_order = self.broker.modify_stop_loss(
+                            managed_pos.sl_order_id,
+                            new_sl
+                        )
+                        if new_order:
+                            managed_pos.sl_order_id = new_order.id
+                            managed_pos.current_sl_price = new_order.stop_price
+                            _state_changed = True
+                            if new_order.stop_price != new_sl:
+                                logger.warning(f"{symbol} SL fallback to ${new_order.stop_price:.2f}")
+                        else:
+                            # modify returned None (all retries failed) — reset for fresh placement
+                            logger.warning(f"⚠️ {symbol}: modify_stop_loss returned None — resetting SL order for re-placement at ${new_sl:.2f}")
+                            managed_pos.sl_order_id = ''
+                            managed_pos.current_sl_price = new_sl  # Use correct trailing level
+                            _state_changed = True
+                    except Exception as _sl_err:
+                        # modify raised exception — old stop may be canceled, position unprotected
+                        logger.error(f"🚨 {symbol}: modify_stop_loss error ({_sl_err}) — resetting SL for re-placement at ${new_sl:.2f}")
+                        managed_pos.sl_order_id = ''
+                        managed_pos.current_sl_price = new_sl  # Use correct trailing level
                         _state_changed = True
-                        if new_order.stop_price != new_sl:
-                            logger.warning(f"{symbol} SL fallback to ${new_order.stop_price:.2f}")
-                    else:
-                        # CRITICAL: No SL protection - close position immediately
-                        logger.error(f"CRITICAL: {symbol} has no SL - closing position for safety")
-                        self._close_position(symbol, managed_pos, "NO_SL_PROTECTION")
 
         # Check days held (update for display)
         managed_pos.days_held = days_held
