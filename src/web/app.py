@@ -4866,36 +4866,46 @@ def _build_positions_from_engine():
 
     logger.debug(f"Portfolio API: market_open={market_open}, premarket={_is_premarket}, afterhours={_is_afterhours}")
 
-    # v6.56: Pre-fetch latest IEX minute bars for all positions (AH/pre-market price source).
-    # Alpaca positions.current_price is unreliable in paper trading (IEX stale last-trade).
-    # Minute bars from IEX are aggregated data — more trustworthy than a single last-trade tick.
-    # Only show AH/Pre price when IEX actually traded in the current extended-hours session.
-    alpaca_minute_closes = {}  # {symbol: latest_minute_bar_close}
-    if not market_open and (_is_premarket or _is_afterhours) and engine.broker:
+    # v7.3: yfinance 1m prepost=True for AH/pre-market prices (replaces Alpaca IEX — poor ext-hours coverage).
+    # Works for AH (4pm–8pm ET), pre-market (4am–9:30am ET), and overnight OVN positions.
+    # period='2d' ensures today's data is always in window. Session label derived from bar timestamp.
+    yf_ext_prices = {}  # {symbol: (price, 'AH'|'Pre')}
+    if not market_open and symbols:
         try:
-            from alpaca.data.historical import StockHistoricalDataClient
-            from alpaca.data.requests import StockBarsRequest
-            from alpaca.data.timeframe import TimeFrame
-            _data_client = StockHistoricalDataClient(
-                api_key=os.environ.get('ALPACA_API_KEY', ''),
-                secret_key=os.environ.get('ALPACA_SECRET_KEY', ''),
+            import yfinance as yf
+            _today_et2 = datetime.now(_et_tz).date()
+            _df_ext = yf.download(
+                symbols if len(symbols) > 1 else symbols[0],
+                period='2d', interval='1m', prepost=True,
+                auto_adjust=True, progress=False,
             )
-            # Look back 4h to cover AH (4h after close) and pre-market (up to 5.5h before open)
-            _lookback = datetime.utcnow() - timedelta(hours=6)
-            _req = StockBarsRequest(
-                symbol_or_symbols=symbols,
-                timeframe=TimeFrame.Minute,
-                start=_lookback,
-                feed='iex',
-            )
-            _bars = _data_client.get_stock_bars(_req)
-            for _sym in symbols:
-                _sym_bars = _bars[_sym]
-                if _sym_bars:
-                    alpaca_minute_closes[_sym] = float(_sym_bars[-1].close)
-                    logger.debug(f"IEX minute latest {_sym}: ${_sym_bars[-1].close:.2f} @ {_sym_bars[-1].timestamp}")
+            if not _df_ext.empty:
+                _close = _df_ext['Close']
+                for _sym in symbols:
+                    try:
+                        _s = (_close[_sym] if len(symbols) > 1 else _close).dropna()
+                        if _s.empty:
+                            continue
+                        # Keep only today's bars (ET date)
+                        _today_mask = _s.index.tz_convert(_et_tz).date == _today_et2
+                        _today_bars = _s[_today_mask]
+                        if _today_bars.empty:
+                            continue
+                        _price = float(_today_bars.iloc[-1])
+                        _ts = _today_bars.index[-1].tz_convert(_et_tz)
+                        _m = _ts.hour * 60 + _ts.minute
+                        if _m < 9 * 60 + 30:
+                            _sess = 'Pre'
+                        elif _m >= 16 * 60:
+                            _sess = 'AH'
+                        else:
+                            continue  # regular-hours bar — skip
+                        yf_ext_prices[_sym] = (_price, _sess)
+                        logger.debug(f"yf {_sess} {_sym}: ${_price:.2f} @ {_ts}")
+                    except Exception as _e2:
+                        logger.debug(f"yf ext {_sym}: {_e2}")
         except Exception as _e:
-            logger.debug(f"IEX minute bar pre-fetch failed: {_e}")
+            logger.debug(f"yfinance ext price fetch failed: {_e}")
 
     statuses_data = []
     total_pnl_usd = 0.0
@@ -4976,67 +4986,44 @@ def _build_positions_from_engine():
             'source': source,
         }
 
-        # v6.56: AH/Pre price — use IEX minute bars (reliable) with positions.current_price fallback.
-        # positions.current_price is a single last-trade tick from IEX and can be stale in paper
-        # trading (e.g., XPO showed $149.78 while real IEX bars showed $205 — a stale tick).
-        # Minute bars are aggregated, time-stamped data: far more trustworthy.
-        if not market_open and (_is_premarket or _is_afterhours):
-            # Primary: IEX minute bar (pre-fetched for all symbols above)
-            alpaca_live = alpaca_minute_closes.get(symbol)
-            # Fallback: positions.current_price, but only if it's within 10% of daily close
-            # (>10% diff almost always means stale IEX tick in paper trading, not a real move)
-            if alpaca_live is None:
-                raw_live = ap.get('current_price')
-                if raw_live:
-                    raw_live = float(raw_live)
-                    raw_diff = abs(raw_live - current_price) / current_price * 100
-                    if raw_diff <= 10.0:
-                        alpaca_live = raw_live
-                    else:
-                        logger.warning(f"{symbol}: positions.current_price ${raw_live:.2f} differs "
-                                       f"{raw_diff:.1f}% from IEX close ${current_price:.2f} — "
-                                       f"likely stale IEX tick, discarding")
+        # v7.3: AH/Pre price from yfinance (replaces IEX minute bars + positions.current_price fallback).
+        # Covers AH (4pm–8pm ET), pre-market (4am–9:30am ET), and overnight OVN positions.
+        if not market_open and symbol in yf_ext_prices:
+            yf_live, yf_session = yf_ext_prices[symbol]
+            change_pct = (yf_live - current_price) / current_price * 100
+            if abs(change_pct) > 0.05:  # > 0.05% = real movement
+                pos_data['premarket_price']   = round(yf_live, 2)
+                pos_data['premarket_change']  = round(change_pct, 2)
+                pos_data['premarket_session'] = yf_session
+                ah_pnl_pct = ((yf_live - entry_price) / entry_price) * 100
+                ah_pnl_usd = (yf_live - entry_price) * qty
+                total_pnl_usd += ah_pnl_usd - pnl_usd
+                pos_data['current_price'] = round(yf_live, 2)
+                pos_data['pnl_pct'] = round(ah_pnl_pct, 2)
+                pos_data['pnl_usd'] = round(ah_pnl_usd, 2)
+                if abs(change_pct) >= 1.0:
+                    logger.info(f"{symbol}: {yf_session} ${yf_live:.2f} ({change_pct:+.2f}% vs close ${current_price:.2f})")
+                else:
+                    logger.debug(f"{symbol}: {yf_session} ${yf_live:.2f} ({change_pct:+.2f}% vs close ${current_price:.2f})")
 
-            if alpaca_live is not None:
-                change_pct = (alpaca_live - current_price) / current_price * 100
-                if abs(change_pct) > 0.05:  # > 0.05% = real AH/Pre movement
-                    session = 'Pre' if _is_premarket else 'AH'
-                    pos_data['premarket_price']   = round(alpaca_live, 2)
-                    pos_data['premarket_change']  = round(change_pct, 2)
-                    pos_data['premarket_session'] = session
-                    # v7.3: Update current_price + PnL to AH/Pre for consistent N/PnL display.
-                    # N and PnL must use the same price — if N shows AH, PnL must also use AH.
-                    ah_pnl_pct = ((alpaca_live - entry_price) / entry_price) * 100
-                    ah_pnl_usd = (alpaca_live - entry_price) * qty
-                    total_pnl_usd += ah_pnl_usd - pnl_usd
-                    pos_data['current_price'] = round(alpaca_live, 2)
-                    pos_data['pnl_pct'] = round(ah_pnl_pct, 2)
-                    pos_data['pnl_usd'] = round(ah_pnl_usd, 2)
-                    if abs(change_pct) >= 1.0:
-                        logger.info(f"{symbol}: {session} ${alpaca_live:.2f} ({change_pct:+.2f}% vs close ${current_price:.2f})")
+                # Recalculate signal when move is significant (>2%)
+                if abs(change_pct) >= 2.0:
+                    if take_profit > 0 and yf_live >= take_profit:
+                        pos_data['signal'] = 'TAKE_PROFIT'
+                        pos_data['action'] = f'{yf_session} price ${yf_live:.2f} reached TP ${take_profit:.2f}'
+                    elif yf_live <= stop_loss:
+                        pos_data['signal'] = 'CRITICAL'
+                        pos_data['action'] = f'{yf_session} ${yf_live:.2f} below SL ${stop_loss:.2f} — gap risk at open'
+                    elif ah_pnl_pct <= -2.0:
+                        pos_data['signal'] = 'WARNING'
+                        pos_data['action'] = f'{yf_session} down {ah_pnl_pct:.1f}% — monitor at open'
+                    elif ah_pnl_pct >= 3.0:
+                        pos_data['signal'] = 'HOLD'
+                        pos_data['action'] = f'{yf_session} +{ah_pnl_pct:.1f}% — trailing {"active" if trailing_act else "pending"}'
                     else:
-                        logger.debug(f"{symbol}: {session} ${alpaca_live:.2f} ({change_pct:+.2f}% vs close ${current_price:.2f})")
-
-                    # v6.56: Recalculate signal using AH/Pre price when move is significant (>2%).
-                    # Without this, a stock down in pre-market shows "Position within normal range"
-                    # because signal was computed from IEX close before AH price was known.
-                    if abs(change_pct) >= 2.0:
-                        if take_profit > 0 and alpaca_live >= take_profit:
-                            pos_data['signal'] = 'TAKE_PROFIT'
-                            pos_data['action'] = f'{session} price ${alpaca_live:.2f} reached TP ${take_profit:.2f}'
-                        elif alpaca_live <= stop_loss:
-                            pos_data['signal'] = 'CRITICAL'
-                            pos_data['action'] = f'{session} ${alpaca_live:.2f} below SL ${stop_loss:.2f} — gap risk at open'
-                        elif ah_pnl_pct <= -2.0:
-                            pos_data['signal'] = 'WARNING'
-                            pos_data['action'] = f'{session} down {ah_pnl_pct:.1f}% — monitor at open'
-                        elif ah_pnl_pct >= 3.0:
-                            pos_data['signal'] = 'HOLD'
-                            pos_data['action'] = f'{session} +{ah_pnl_pct:.1f}% — trailing {"active" if trailing_act else "pending"}'
-                        else:
-                            pos_data['signal'] = 'HOLD'
-                            pos_data['action'] = f'{session} {ah_pnl_pct:+.1f}% — within normal range'
-                        logger.info(f"{symbol}: {session} signal updated → {pos_data['signal']} ({ah_pnl_pct:.1f}%)")
+                        pos_data['signal'] = 'HOLD'
+                        pos_data['action'] = f'{yf_session} {ah_pnl_pct:+.1f}% — within normal range'
+                    logger.info(f"{symbol}: {yf_session} signal updated → {pos_data['signal']} ({ah_pnl_pct:.1f}%)")
 
         statuses_data.append(pos_data)
 
