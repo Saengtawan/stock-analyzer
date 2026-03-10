@@ -150,11 +150,35 @@ class OutcomeRepository:
         conn = self._get_connection()
         try:
             # v7.02: Skip dup — same symbol+date+action already recorded (continuous scans re-see same blocked signal)
+            # v7.4: When dup has NULL outcome_5d and new data has it filled, UPDATE the dup row directly
             dup = conn.execute(
-                "SELECT id FROM signal_outcomes WHERE symbol = ? AND scan_date = ? AND action_taken = ?",
+                "SELECT id, outcome_5d FROM signal_outcomes WHERE symbol = ? AND scan_date = ? AND action_taken = ?",
                 (outcome['symbol'], outcome.get('scan_date'), outcome.get('action_taken'))
             ).fetchone()
             if dup:
+                if dup['outcome_5d'] is not None:
+                    return dup['id']  # already fully tracked
+                if outcome.get('outcome_5d') is None:
+                    return dup['id']  # no new outcome data to write
+                # dup exists but outcome_5d is NULL — fill it now
+                conn.execute("""
+                    UPDATE signal_outcomes SET
+                        outcome_1d = ?, outcome_2d = ?, outcome_3d = ?,
+                        outcome_4d = ?, outcome_5d = ?, outcome_max_gain_5d = ?,
+                        outcome_max_dd_5d = ?, updated_at = ?
+                    WHERE id = ?
+                """, (
+                    outcome.get('outcome_1d'),
+                    outcome.get('outcome_2d'),
+                    outcome.get('outcome_3d'),
+                    outcome.get('outcome_4d'),
+                    outcome.get('outcome_5d'),
+                    outcome.get('outcome_max_gain_5d'),
+                    outcome.get('outcome_max_dd_5d'),
+                    datetime.now().isoformat(),
+                    dup['id']
+                ))
+                conn.commit()
                 return dup['id']
 
             existing = conn.execute(
