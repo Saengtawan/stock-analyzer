@@ -41,6 +41,18 @@ class QueuedSignal:
     # Signal Reference
     signal_id: Optional[int] = None  # FK to trading_signals
 
+    # v7.03: Volume ratio preserved for log_buy when executed from queue
+    volume_ratio: Optional[float] = None
+
+    # v7.5: Signal quality attributes preserved for filter re-validation at execution
+    source: str = ''                        # Signal source ('dip_bounce', 'ped', etc.)
+    rsi: Optional[float] = None             # RSI at signal time
+    sector: str = ''                        # Sector for filter context
+    momentum_5d: Optional[float] = None     # 5d momentum for FALLING_KNIFE filter
+    momentum_20d: Optional[float] = None    # 20d momentum for LONG_TERM_DOWNTREND filter
+    distance_from_high: Optional[float] = None  # 20d high distance for NOT_NEAR_HIGH filter
+    new_score: Optional[float] = None       # IC-weighted DIP score for DIP_SCORE_REJECT filter
+
     # Status
     status: str = "waiting"  # waiting, executing, removed
 

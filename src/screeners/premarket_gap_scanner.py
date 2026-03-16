@@ -5,7 +5,7 @@ PRE-MARKET GAP SCANNER v6.82
 Redesigned to use batch yfinance with prepost=True for real pre-market bars.
 
 Strategy:
-- Scan between 6:00 AM - 9:32 AM ET (after gaps have formed)
+- Scan at 9:00 AM ET (after 5h pre-market; enough volume to reach 2.0x threshold)
 - Detect overnight gaps ≥8% with pre-market volume ≥0.3x avg daily regular volume
 - Full universe: ~1000 stocks from UniverseRepository
 - Confidence tiers: MAJOR_CATALYST(90%), CATALYST(80%), POSSIBLE_CATALYST(70%)
@@ -261,6 +261,16 @@ class PreMarketGapScanner:
             # Gap calculation
             gap_pct = (premarket_price - prev_close) / prev_close * 100
             if gap_pct < self.MIN_GAP_PCT:
+                if gap_pct > 0:
+                    try:
+                        from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                        ScreenerRejectionRepository().log_rejection(
+                            screener='gap', symbol=symbol, reject_reason='gap_below_threshold',
+                            scan_price=round(float(premarket_price), 2),
+                            gap_pct=round(gap_pct, 2),
+                        )
+                    except Exception:
+                        pass
                 return None
 
             # Volume ratio: pre-market vol vs avg daily regular-hours vol (past days)
@@ -273,6 +283,18 @@ class PreMarketGapScanner:
 
             volume_ratio = premarket_volume / avg_daily_vol
             if volume_ratio < self.MIN_VOLUME_RATIO:
+                # v7.4: log gap candidates rejected by volume so we can calibrate threshold
+                logger.info(f"  GAP_VOL_SKIP {symbol}: gap={gap_pct:+.1f}% vol={volume_ratio:.3f}x < {self.MIN_VOLUME_RATIO}x (pm_vol={premarket_volume:,.0f} avg_daily={avg_daily_vol:,.0f})")
+                # v7.5: Log to screener_rejections DB
+                try:
+                    from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                    ScreenerRejectionRepository().log_rejection(
+                        screener='gap', symbol=symbol, reject_reason='volume_too_low',
+                        scan_price=round(float(premarket_price), 2),
+                        gap_pct=round(gap_pct, 2), volume_ratio=round(volume_ratio, 3),
+                    )
+                except Exception:
+                    pass
                 return None
 
             # Classify catalyst and confidence
@@ -280,6 +302,16 @@ class PreMarketGapScanner:
                 gap_pct, volume_ratio
             )
             if confidence < min_confidence:
+                try:
+                    from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                    ScreenerRejectionRepository().log_rejection(
+                        screener='gap', symbol=symbol, reject_reason='low_confidence',
+                        scan_price=round(float(premarket_price), 2),
+                        gap_pct=round(gap_pct, 2), volume_ratio=round(volume_ratio, 3),
+                        catalyst_type=catalyst_type,
+                    )
+                except Exception:
+                    pass
                 return None
 
             rotation_benefit, worth_rotating = self._calculate_rotation_benefit(day_return_estimate)
@@ -310,6 +342,16 @@ class PreMarketGapScanner:
             except Exception:
                 pass
 
+            # v7.5: pm_range_pct — pre-market high/low range (conviction proxy)
+            pm_range_pct = None
+            try:
+                pm_high = float(premarket['High'].max())
+                pm_low = float(premarket['Low'].min())
+                if premarket_price > 0 and pm_high > 0 and pm_low >= 0:
+                    pm_range_pct = round((pm_high - pm_low) / premarket_price * 100, 2)
+            except Exception:
+                pass
+
             reasons = [
                 f"Gap: {gap_pct:+.1f}%",
                 f"Volume: {volume_ratio:.2f}x daily avg",
@@ -320,7 +362,7 @@ class PreMarketGapScanner:
             if worth_rotating:
                 reasons.append(f"Worth rotating (+{rotation_benefit:.1f}% benefit)")
 
-            return PreMarketGapSignal(
+            sig = PreMarketGapSignal(
                 symbol=symbol,
                 gap_type='OVERNIGHT_GAP',
                 gap_pct=gap_pct,
@@ -335,6 +377,8 @@ class PreMarketGapScanner:
                 reasons=reasons,
                 atr_pct=daily_atr_pct,
             )
+            sig.pm_range_pct = pm_range_pct
+            return sig
 
         except Exception as e:
             logger.debug(f"  {symbol}: _analyze_symbol error: {e}")

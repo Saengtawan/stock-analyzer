@@ -7,7 +7,7 @@
 set -e
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LOG_DIR="$PROJECT_ROOT/data/logs"
+LOG_DIR="$PROJECT_ROOT/logs"
 RETENTION_DAYS=7
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -47,7 +47,7 @@ cd "$PROJECT_ROOT"
 shopt -s nullglob
 for logfile in *.log; do
     if [ -f "$logfile" ]; then
-        echo "  Moving: $logfile → data/logs/"
+        echo "  Moving: $logfile → logs/"
         gzip -c "$logfile" > "$LOG_DIR/${logfile}.gz" 2>/dev/null || true
         rm "$logfile" 2>/dev/null || true
     fi

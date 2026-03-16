@@ -86,6 +86,32 @@ def report(weeks: int = 8):
     else:
         print(f"\n  ✅ Calibration target reached! Run weight calibration analysis.")
 
+    # --- new_score quality breakdown (QUEUE_FULL only, all-time) ---
+    score_rows = conn.execute("""
+        SELECT
+            SUM(CASE WHEN new_score IS NULL           THEN 1 ELSE 0 END) as no_score,
+            SUM(CASE WHEN new_score < 60              THEN 1 ELSE 0 END) as lt60,
+            SUM(CASE WHEN new_score >= 60 AND new_score < 70 THEN 1 ELSE 0 END) as s60_70,
+            SUM(CASE WHEN new_score >= 70 AND new_score < 75 THEN 1 ELSE 0 END) as s70_75,
+            SUM(CASE WHEN new_score >= 75 AND new_score < 80 THEN 1 ELSE 0 END) as s75_80,
+            SUM(CASE WHEN new_score >= 80                    THEN 1 ELSE 0 END) as ge80
+        FROM signal_outcomes
+        WHERE action_taken = 'QUEUE_FULL'
+          AND scan_date BETWEEN ? AND ?
+    """, (start_monday.isoformat(), today.isoformat())).fetchone()
+
+    if score_rows:
+        print(f"\n  new_score distribution (QUEUE_FULL, last {weeks} wks):")
+        print(f"    NULL={score_rows['no_score']}  <60={score_rows['lt60']}  "
+              f"60-70={score_rows['s60_70']}  70-75={score_rows['s70_75']}  "
+              f"75-80={score_rows['s75_80']}  ≥80={score_rows['ge80']}")
+        scored_total = (score_rows['lt60'] or 0) + (score_rows['s60_70'] or 0) + \
+                       (score_rows['s70_75'] or 0) + (score_rows['s75_80'] or 0) + \
+                       (score_rows['ge80'] or 0)
+        passing = (score_rows['s70_75'] or 0) + (score_rows['s75_80'] or 0) + (score_rows['ge80'] or 0)
+        if scored_total > 0:
+            print(f"    Pass rate (≥70): {passing}/{scored_total} = {passing/scored_total*100:.0f}%")
+
     print(f"{'='*62}\n")
     conn.close()
 

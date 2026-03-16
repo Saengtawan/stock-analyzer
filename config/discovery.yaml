@@ -1,0 +1,82 @@
+discovery:
+  # ===== Layer 0: Market Gates =====
+  # v2.1: VIX hard gate removed. L2 scoring handles VIX via 4 features
+  # (vix_close, vix3m, vix_delta_5d, stress_score = 24.8% of score weight).
+  # High VIX → low L2 score → fewer picks naturally. No need for hard skip.
+  market_gates: {}
+
+  # ===== Layer 1: Hard Filters (safety gates) =====
+  # v2.0: ATR raised 2.5→5.0 to capture sweet spot ATR 3-5% (100% TP hit in backtest)
+  # beta [0.3, 0.8] naturally excludes Semis/Tech (high-beta → 33% WR)
+  layer1:
+    min_beta: 0.3                    # beta<0.3 = uncorrelated with market
+    max_beta: 0.8                    # beta>0.8 = high-beta, Semis/Tech excluded
+    max_atr_pct: 5.0                 # v2.0: was 2.5, raised to capture ATR 3-5% sweet spot
+    min_distance_from_high: -3.0     # 52-week high, negative convention (0=at high)
+
+  # ===== Layer 1.5: Diversification =====
+  diversification:
+    max_per_sector: 3               # Max picks from same sector (prevents sector-heavy picks)
+    earnings_warning_days: 5        # Flag picks with earnings within N days (risk event)
+
+  # ===== Dynamic Quality Gates (v2.1) =====
+  # v2.0→v2.1: mom5d changed from hard gate (<0) to reject-zone [0,3) + cap<10.
+  # U-shape in mom5d: pullback (<0) WR=72%, danger zone [0,3) WR=38%, momentum [3,10) WR=83%.
+  # Extreme momentum (>=10) WR=53% n=17 — overextended, risk reversal.
+  # v2.1 backtest n=44: WR=75.0%, TP_hit=80%, avg=+3.18%, 16 active days.
+  quality_gates:
+    min_sector_1d_change: 0.0       # sector ETF must be up today (rotation signal)
+    min_momentum_20d: 0.0           # stock must be in uptrend
+    momentum_5d_reject_low: 0.0     # reject danger zone [low, high) — no edge, WR=38%
+    momentum_5d_reject_high: 3.0    # allow pullback (<0) + momentum [3,10)
+    momentum_5d_max: 10.0           # cap extreme momentum — WR=53% n=17, overextended
+    min_volume_ratio: 0.4           # volume confirmation (strongest filter)
+
+  # ===== Smart TP/SL (v2.2: R:R ≥ 1.25x guaranteed) =====
+  # v2.2: Fixed R:R < 1 bug (old tp=0.70/sl=1.50 → R:R=0.47x always).
+  # New: tp_mult > sl_mult ensures R:R ≥ 1.25x at all ATR levels.
+  # ATR 1.5-2.0%: TP=2.5% SL=2.0% R:R=1.25x (floor)
+  # ATR 2.5-5.0%: TP=3.0-6.0% SL=2.0-4.0% R:R=1.50x (ATR-driven)
+  smart_tp_sl:
+    tp_atr_mult: 1.20               # v2.2: was 0.70, raised for R:R ≥ 1.25x
+    tp_floor: 2.5                   # v2.2: was 2.0, minimum TP = 2.5%
+    sl_atr_mult: 0.80               # v2.2: was 1.5, tightened for R:R ≥ 1.25x
+    sl_floor: 2.0                   # v2.2: was 3.0, minimum SL = 2.0%
+    tp2_multiplier: 2.0             # TP2 = TP1 × 2.0 (stretch target)
+
+  # ===== Layer 2: Composite Score (v1.2: 20 features) =====
+  layer2:
+    min_score: 35                   # Score 0-100, base threshold
+    # IC-weighted features — 16 original + 4 macro stress features (v1.2)
+    # IC validated on signal_outcomes n=541, all p<0.001
+    # weight = |IC| / sum(|IC|), direction from IC sign
+    features:
+      # --- Macro stress features (v1.2, top 4 by IC) ---
+      breadth_delta_5d:   { weight: 0.094, direction: 1 }   # IC +0.295*** — breadth dropping = bad
+      crude_close:        { weight: 0.091, direction: -1 }  # IC -0.284*** — oil spike = bad
+      stress_score:       { weight: 0.085, direction: -1 }  # IC -0.267*** — composite crisis signal
+      vix_delta_5d:       { weight: 0.071, direction: -1 }  # IC -0.223*** — VIX accelerating = bad
+      # --- Original features (reweighted) ---
+      volume_ratio:       { weight: 0.084, direction: 1 }   # IC +0.264
+      momentum_5d:        { weight: 0.069, direction: 1 }   # IC +0.218
+      vix_term_structure: { weight: 0.063, direction: -1 }  # IC -0.199
+      new_52w_highs:      { weight: 0.053, direction: 1 }   # IC +0.167
+      bull_score:         { weight: 0.049, direction: 1 }   # IC +0.154
+      vix_close:          { weight: 0.041, direction: -1 }  # IC -0.116** (high VIX = bad for picks)
+      news_count:         { weight: 0.039, direction: -1 }  # IC -0.122
+      news_pos_ratio:     { weight: 0.036, direction: -1 }  # IC -0.114
+      highs_lows_ratio:   { weight: 0.036, direction: 1 }   # IC +0.113
+      ad_ratio:           { weight: 0.035, direction: 1 }   # IC +0.110
+      mcap_log:           { weight: 0.033, direction: -1 }  # IC -0.103
+      sector_1d_change:   { weight: 0.030, direction: 1 }   # IC +0.094
+      momentum_20d:       { weight: 0.027, direction: 1 }   # IC +0.084
+      vix3m_close:        { weight: 0.051, direction: -1 }  # IC -0.163*** (high VIX3M = bad)
+      rsi:                { weight: 0.022, direction: 1 }   # IC +0.069
+      upside_pct:         { weight: 0.018, direction: -1 }  # IC -0.058
+
+  # ===== Scan Schedule =====
+  schedule:
+    evening_scan_hour_et: 20    # 20:00 ET daily scan
+    price_refresh_minutes: 5    # Refresh current price every 5 min during market hours
+    max_pick_age_days: 5        # Expire picks after 5 trading days
+    max_picks_display: 10       # Show top N picks in UI

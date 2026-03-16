@@ -49,14 +49,33 @@ class SectorRegimeDetector:
         'Basic Materials': 'XLB',
         'Communication Services': 'XLC',
         'Real Estate': 'XLRE',
-        # Aliases
+        # Aliases (broad name variants)
         'Financial': 'XLF',
         'Financials': 'XLF',
         'Consumer Discretionary': 'XLY',
         'Consumer Staples': 'XLP',
         'Materials': 'XLB',
         'Communications': 'XLC',
-        'Telecommunication Services': 'XLC'
+        'Telecommunication Services': 'XLC',
+        # Sub-sector aliases (universe_stocks naming → parent ETF)
+        'Consumer_Auto': 'XLY', 'Consumer_Food': 'XLP', 'Consumer_Retail': 'XLY',
+        'Consumer_Staples': 'XLP', 'Consumer_Travel': 'XLY',
+        'Energy_Midstream': 'XLE', 'Energy_Oil': 'XLE', 'Energy_Refining': 'XLE',
+        'Energy_Services': 'XLE',
+        'Finance_Asset_Mgmt': 'XLF', 'Finance_Banks': 'XLF', 'Finance_Exchanges': 'XLF',
+        'Finance_Insurance': 'XLF', 'Finance_Payments': 'XLF',
+        'Healthcare_MedDevices': 'XLV', 'Healthcare_Pharma': 'XLV',
+        'Healthcare_Services': 'XLV',
+        'Industrial_Aerospace': 'XLI', 'Industrial_Conglomerate': 'XLI',
+        'Industrial_Machinery': 'XLI', 'Industrial_Transport': 'XLI',
+        'Materials_Chemicals': 'XLB', 'Materials_Construction': 'XLB',
+        'Materials_Metals': 'XLB', 'Materials_Packaging': 'XLB',
+        'Media': 'XLC', 'Telecom': 'XLC', 'Semiconductors': 'XLK',
+        'Real_Estate_Data': 'XLRE', 'Real_Estate_Healthcare': 'XLRE',
+        'Real_Estate_Industrial': 'XLRE', 'Real_Estate_Office': 'XLRE',
+        'Real_Estate_Residential': 'XLRE', 'Real_Estate_Retail': 'XLRE',
+        'Real_Estate_Storage': 'XLRE',
+        'Utilities_Electric': 'XLU', 'Utilities_Gas': 'XLU', 'Utilities_Water': 'XLU',
     }
 
     # v5.2: yfinance Sector API keys (for yf.Sector(key).top_companies)
@@ -506,11 +525,12 @@ class SectorRegimeDetector:
             logger.debug("VIX unavailable → Default 5 min")
             return self.SECTOR_REGIME_TTL_MINUTES
 
-    def update_all_sectors(self, force_update: bool = False) -> Dict[str, str]:
+    def update_all_sectors(self, force_update: bool = False, skip_mcw: bool = False) -> Dict[str, str]:
         """
         Update regime for all sector ETFs.
         v6.20: Dynamic TTL based on VIX (2 min if VIX > 20, else 5 min)
         v5.5: Market-cap weighted stock-based 1d returns (matches Yahoo methodology).
+        v7.5: skip_mcw=True skips 550-stock batch download (hangs under eventlet).
         """
         # v6.20: Check if update needed (dynamic TTL based on VIX)
         if not force_update and self.last_update:
@@ -527,7 +547,8 @@ class SectorRegimeDetector:
         logger.info("Updating sector regimes (5-min realtime, MCW)...")
 
         # v5.5: Fetch market-cap weighted stock-based 1d returns
-        stock_1d_returns = self._fetch_stock_based_1d_returns()
+        # v7.5: skip_mcw=True for webapp (eventlet can't handle threads=True in yf.download)
+        stock_1d_returns = {} if skip_mcw else self._fetch_stock_based_1d_returns()
         if stock_1d_returns:
             logger.info(f"Using market-cap weighted 1d returns for {len(stock_1d_returns)} sectors")
         else:

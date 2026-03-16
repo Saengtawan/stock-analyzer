@@ -161,12 +161,31 @@ class PEMScreener:
             try:
                 batch_snaps = self.broker.get_snapshots(universe)
                 gap_candidates = []
+                _pem_gap_rejects = []
                 for symbol, snap in batch_snaps.items():
                     if snap and snap.open > 0 and snap.prev_close > 0:
                         gap_pct = ((snap.open - snap.prev_close) / snap.prev_close) * 100
                         if gap_pct >= self.gap_threshold:
                             gap_candidates.append(symbol)
+                        elif gap_pct > 0:
+                            # v7.5: Log earnings stocks with gap but below threshold
+                            _pem_gap_rejects.append({
+                                'screener': 'pem', 'symbol': symbol, 'reject_reason': 'gap_below_threshold',
+                                'scan_price': round(float(snap.open), 2), 'gap_pct': round(gap_pct, 2),
+                            })
+                        else:
+                            # gap <= 0: earnings stock that gapped down or flat
+                            _pem_gap_rejects.append({
+                                'screener': 'pem', 'symbol': symbol, 'reject_reason': 'gap_down_or_flat',
+                                'scan_price': round(float(snap.open), 2), 'gap_pct': round(gap_pct, 2),
+                            })
                 logger.info(f"PEM: Batch snapshot done — {len(gap_candidates)} gap candidates from {len(batch_snaps)} stocks")
+                if _pem_gap_rejects:
+                    try:
+                        from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                        ScreenerRejectionRepository().bulk_insert(_pem_gap_rejects)
+                    except Exception:
+                        pass
             except Exception as e:
                 logger.warning(f"PEM: Batch snapshot failed ({e}), falling back to individual checks")
 
@@ -260,6 +279,17 @@ class PEMScreener:
         if volume_early_ratio < self.volume_early_ratio_min:
             logger.debug(f"PEM: {symbol} gap {gap_pct:+.1f}% but volume too low "
                         f"({volume_early_ratio:.2f}x < {self.volume_early_ratio_min}x)")
+            # v7.5: Log PEM volume rejection
+            try:
+                from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                _px = round(float(current_price or today_open or 0), 2)
+                ScreenerRejectionRepository().log_rejection(
+                    screener='pem', symbol=symbol, reject_reason='volume_too_low',
+                    scan_price=_px, gap_pct=round(gap_pct, 2),
+                    volume_ratio=round(volume_early_ratio, 3),
+                )
+            except Exception:
+                pass
             return None
 
         # Step 4: ATR-based stop loss (wider for earnings day volatility)
@@ -272,6 +302,65 @@ class PEMScreener:
 
         # Step 5: Score (higher gap + higher volume = higher conviction)
         score = min(100, int(50 + gap_pct * 2 + volume_early_ratio * 10))
+
+        # Step 6: Determine BMO/AMC timing from EarningsCalendarRepository (non-blocking)
+        timing = None
+        try:
+            from database.repositories.earnings_calendar_repository import EarningsCalendarRepository
+            import sqlite3 as _sqlite3
+            from pathlib import Path as _Path
+            _db_path = str(_Path(__file__).resolve().parent.parent.parent / 'data' / 'trade_history.db')
+            _conn = _sqlite3.connect(_db_path)
+            _conn.row_factory = _sqlite3.Row
+            _row = _conn.execute(
+                "SELECT next_earnings_date FROM earnings_calendar WHERE symbol = ?",
+                (symbol,)
+            ).fetchone()
+            _conn.close()
+            if _row and _row['next_earnings_date']:
+                import datetime as _dt
+                _today = _dt.date.today().isoformat()
+                if _row['next_earnings_date'] == _today:
+                    # Today is earnings day — check yfinance for BMO vs AMC
+                    try:
+                        import yfinance as _yf
+                        _tk = _yf.Ticker(symbol)
+                        _cal = _tk.earnings_dates
+                        if _cal is not None and not _cal.empty:
+                            import pytz as _pytz
+                            _et = _pytz.timezone('US/Eastern')
+                            # Find today's row (within last 2 entries)
+                            for _idx in _cal.index[:4]:
+                                _idx_et = _idx.astimezone(_et) if _idx.tzinfo else _idx
+                                if _idx_et.strftime('%Y-%m-%d') == _today:
+                                    _hour = _idx_et.hour
+                                    timing = 'BMO' if _hour < 12 else 'AMC'
+                                    break
+                    except Exception:
+                        timing = None
+        except Exception:
+            timing = None
+
+        # Step 7: EPS surprise % from yfinance (non-blocking, best-effort)
+        eps_surprise_pct = None
+        try:
+            import yfinance as _yf
+            _tk = _yf.Ticker(symbol)
+            _ed = _tk.earnings_dates
+            if _ed is not None and not _ed.empty and 'Surprise(%)' in _ed.columns:
+                _recent = _ed.dropna(subset=['Surprise(%)'])
+                if not _recent.empty:
+                    eps_surprise_pct = round(float(_recent['Surprise(%)'].iloc[0]), 2)
+        except Exception:
+            eps_surprise_pct = None
+
+        # v7.5: first_5min_return — proxy for gap-and-go vs fade at scan time (9:32)
+        first_5min_return = None
+        try:
+            if today_open > 0 and entry_price > 0:
+                first_5min_return = round((entry_price / today_open - 1) * 100, 3)
+        except Exception:
+            pass
 
         return {
             'symbol': symbol,
@@ -289,6 +378,9 @@ class PEMScreener:
             'score': score,
             'gap_trade': True,   # EOD exit via pre_close_check()
             'source': 'pem',
+            'timing': timing,
+            'eps_surprise_pct': eps_surprise_pct,
+            'first_5min_return': first_5min_return,
         }
 
     def _get_intraday_volume(self, symbol: str) -> Optional[int]:

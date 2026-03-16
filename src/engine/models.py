@@ -11,7 +11,7 @@ Classes:
 """
 
 from datetime import datetime
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
@@ -117,6 +117,14 @@ class QueuedSignal:
     sl_pct: float = 0.0         # SL percentage from entry (for recalculation)
     tp_pct: float = 0.0         # TP percentage from entry (for recalculation)
     volume_ratio: float = None  # v7.03: preserved for log_buy when executed from queue
+    # v7.5: Signal attributes preserved for quality filters when executing from queue
+    source: str = ''                        # Signal source ('dip_bounce', 'ped', etc.) — PED T2 reallocation check
+    rsi: float = 0.0                        # RSI at signal time (for log_buy)
+    sector: str = ''                        # Sector for filter context
+    momentum_5d: Optional[float] = None     # For FALLING_KNIFE filter (mom5d < -5% → 0% WR)
+    momentum_20d: Optional[float] = None    # For LONG_TERM_DOWNTREND filter (mom20d < -10%)
+    distance_from_high: Optional[float] = None  # For NOT_NEAR_HIGH filter (dist >= 5% → reject)
+    new_score: Optional[float] = None       # For DIP_SCORE_REJECT filter (score < 70 → reject)
 
     def get_max_deviation(self, atr_mult: float, min_dev: float, max_dev: float) -> float:
         """

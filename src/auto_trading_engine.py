@@ -226,6 +226,18 @@ class AutoTradingEngine:
     }
     BEAR_SECTOR_THRESHOLD = 3  # return_20d > 3% = sector is rising
 
+    # v7.4: Permanently blocked sectors for ALL strategies (Consumer WR5d=0%, Comm WR5d=0%)
+    PERMANENTLY_BLOCKED_SECTORS = frozenset({
+        'Consumer Cyclical',
+        'Consumer Defensive',
+        'Consumer_Travel',
+        'Consumer_Auto',
+        'Consumer_Retail',
+        'Consumer_Food',
+        'Consumer_Staples',
+        'Communication Services',
+    })
+
     # System defaults (rarely changed)
     CIRCUIT_BREAKER_MAX_ERRORS = 5
     TARGET_RR = 2.0  # Target Risk:Reward ratio
@@ -748,6 +760,7 @@ class AutoTradingEngine:
         # Scoring
         self.MIN_SCORE = cfg.min_score
         self.MAX_RSI_ENTRY = cfg.max_rsi_entry
+        self.DIP_SCORE_MIN = cfg.dip_score_min
         self.AVOID_MOM_RANGE = cfg.avoid_mom_range
         
         # Market Hours
@@ -1155,6 +1168,27 @@ class AutoTradingEngine:
     # QUEUE STATE PERSISTENCE
     # =========================================================================
 
+    def _cleanup_expired_queue(self):
+        """v7.5: Passive queue cleanup — expire signals older than QUEUE_MAX_AGE_MINUTES.
+        Runs every main loop cycle so stale signals don't persist indefinitely."""
+        if not self.signal_queue:
+            return
+        now = datetime.now()
+        expired = []
+        with self._queue_lock:
+            for queued in list(self.signal_queue):
+                age_min = (now - queued.queued_at).total_seconds() / 60
+                if age_min > self.QUEUE_MAX_AGE_MINUTES:
+                    expired.append(queued)
+                    self.signal_queue.remove(queued)
+                    self.daily_stats.queue_expired += 1
+                    logger.warning(
+                        f"[v7.5] Queue passive expired: {queued.symbol} "
+                        f"(age: {age_min:.0f}min > {self.QUEUE_MAX_AGE_MINUTES}min)"
+                    )
+            if expired:
+                self._save_queue_state()
+
     def _save_queue_state(self):
         """Persist signal queue to database (single source of truth)."""
         # Phase 1D: Write to database only
@@ -1185,12 +1219,12 @@ class AutoTradingEngine:
                         expired += 1
                         continue
 
-                    # Clear signals older than 24 hours (stale from previous day)
+                    # Clear signals older than QUEUE_MAX_AGE_MINUTES (v7.5: was 24h only)
                     queued_at = db_q.queued_at or now
-                    age_hours = (now - queued_at).total_seconds() / 3600
-                    if age_hours > 24:
+                    age_min = (now - queued_at).total_seconds() / 60
+                    if age_min > self.QUEUE_MAX_AGE_MINUTES:
                         expired += 1
-                        logger.debug(f"Skipping stale queue entry: {db_q.symbol} (age: {age_hours:.1f}h)")
+                        logger.debug(f"Skipping stale queue entry: {db_q.symbol} (age: {age_min:.0f}min > {self.QUEUE_MAX_AGE_MINUTES}min)")
                         continue
 
                     # Convert DB model to engine QueuedSignal
@@ -1205,6 +1239,15 @@ class AutoTradingEngine:
                         atr_pct=db_q.atr_pct or 5.0,
                         sl_pct=db_q.sl_pct or 0.0,
                         tp_pct=db_q.tp_pct or 0.0,
+                        volume_ratio=getattr(db_q, 'volume_ratio', None),  # v7.03: preserve for log_buy
+                        # v7.5: Restore quality-filter attributes from DB
+                        source=getattr(db_q, 'source', '') or '',
+                        rsi=getattr(db_q, 'rsi', 0.0) or 0.0,
+                        sector=getattr(db_q, 'sector', '') or '',
+                        momentum_5d=getattr(db_q, 'momentum_5d', None),
+                        momentum_20d=getattr(db_q, 'momentum_20d', None),
+                        distance_from_high=getattr(db_q, 'distance_from_high', None),
+                        new_score=getattr(db_q, 'new_score', None),
                     )
                     self.signal_queue.append(queued)
                     loaded += 1
@@ -1385,6 +1428,8 @@ class AutoTradingEngine:
             # Create scan session first
             scan_repo = ScanRepository()
             session = ScanSession.from_json_signals(cache_data, scan_type, scan_duration)
+            # v7.5: Link scan_sessions to signal_outcomes via scan_id string key
+            session.scan_id = getattr(self, '_current_scan_id', None)
             session_id = scan_repo.create(session)
 
             if not session_id:
@@ -1501,7 +1546,16 @@ class AutoTradingEngine:
                         tp_pct=queued.tp_pct,
                         queued_at=queued.queued_at,
                         atr_pct=queued.atr_pct,
-                        reasons=queued.reasons
+                        reasons=queued.reasons,
+                        volume_ratio=queued.volume_ratio,  # v7.03: preserve for log_buy
+                        # v7.5: Persist quality-filter attributes for re-validation after restart
+                        source=queued.source,
+                        rsi=queued.rsi,
+                        sector=queued.sector,
+                        momentum_5d=queued.momentum_5d,
+                        momentum_20d=queued.momentum_20d,
+                        distance_from_high=queued.distance_from_high,
+                        new_score=queued.new_score,
                     )
                     if queue_repo.add(db_queued):
                         count += 1
@@ -1707,18 +1761,30 @@ class AutoTradingEngine:
                         # At restart outside market hours the above check is skipped, but if
                         # trailing SL is >2% above current price the peak is almost certainly
                         # corrupt (a real breach would have been caught by the Alpaca stop order).
+                        # v7.8: Guard against bad Alpaca snapshot ticks — only reset trail if the
+                        # current price is within 10% of entry. A price >10% below entry outside
+                        # market hours means Alpaca's own SL would have fired already → the tick
+                        # is a stale/bad snapshot, NOT a real price. Do not reset the trail on it.
                         if mp.trailing_active and mp.peak_price > 0 and not self._is_market_hours():
                             gain_amount = mp.peak_price - mp.entry_price
                             trailing_sl = mp.entry_price + gain_amount * (_startup_trail_lock / 100)
+                            price_plausible = pos.current_price >= mp.entry_price * 0.90
                             if trailing_sl > pos.current_price * 1.02 > 0:
-                                logger.warning(
-                                    f"⚠️ {pos.symbol}: Corrupt peak detected — trailing SL ${trailing_sl:.2f} "
-                                    f"> current ${pos.current_price:.2f} × 1.02 (bad Alpaca snapshot tick?) "
-                                    f"— resetting peak ${mp.peak_price:.2f} → ${pos.current_price:.2f}, trail OFF"
-                                )
-                                mp.peak_price = pos.current_price
-                                mp.trailing_active = False
-                                mp.current_sl_price = mp.entry_price * (1 - mp.sl_pct / 100)
+                                if not price_plausible:
+                                    logger.warning(
+                                        f"⚠️ {pos.symbol}: Corrupt peak guard SKIPPED — current "
+                                        f"${pos.current_price:.2f} is >10% below entry ${mp.entry_price:.2f} "
+                                        f"(stale Alpaca snapshot tick, not a real price). Trail preserved."
+                                    )
+                                else:
+                                    logger.warning(
+                                        f"⚠️ {pos.symbol}: Corrupt peak detected — trailing SL ${trailing_sl:.2f} "
+                                        f"> current ${pos.current_price:.2f} × 1.02 (bad Alpaca snapshot tick?) "
+                                        f"— resetting peak ${mp.peak_price:.2f} → ${pos.current_price:.2f}, trail OFF"
+                                    )
+                                    mp.peak_price = pos.current_price
+                                    mp.trailing_active = False
+                                    mp.current_sl_price = mp.entry_price * (1 - mp.sl_pct / 100)
 
                         logger.info(f"Restored position: {pos.symbol} (peak=${mp.peak_price:.2f}, trail={'ON' if mp.trailing_active else 'OFF'})")
                     else:
@@ -1757,13 +1823,17 @@ class AutoTradingEngine:
                         if entry_price and qty and exit_price:
                             pnl_pct = (exit_price - entry_price) / entry_price * 100
                             pnl_usd = (exit_price - entry_price) * qty
+                            _peak_off = saved.get('peak_price', entry_price)
+                            _trough_off = saved.get('trough_price', 0)
+                            _mfe_off = round((_peak_off - entry_price) / entry_price * 100 if _peak_off > entry_price else 0.0, 2)
+                            _mae_off = round((_trough_off - entry_price) / entry_price * 100 if _trough_off > 0 and _trough_off < entry_price else 0.0, 2)
                             self.trade_logger.log_sell(
                                 symbol=sym, qty=qty, price=exit_price,
                                 reason="SL_FILLED_WHILE_OFFLINE",
                                 entry_price=entry_price, pnl_usd=pnl_usd, pnl_pct=pnl_pct,
                                 day_held=0, sl_price=saved.get('current_sl_price', exit_price),
                                 trail_active=saved.get('trailing_active', False),
-                                peak_price=saved.get('peak_price', entry_price),
+                                peak_price=_peak_off,
                                 signal_score=saved.get('signal_score', 0),
                                 sector=saved.get('sector', ''),
                                 atr_pct=saved.get('atr_pct', 0),
@@ -1772,6 +1842,8 @@ class AutoTradingEngine:
                                 regime=saved.get('entry_regime', 'BULL'),
                                 entry_rsi=saved.get('entry_rsi', 0),
                                 momentum_5d=saved.get('momentum_5d', 0),
+                                mfe_pct=_mfe_off,
+                                mae_pct=_mae_off,
                             )
                             logger.warning(
                                 f"⚠️ Offline exit logged for {sym}: {pnl_pct:+.2f}% (${pnl_usd:+.2f}) "
@@ -2394,7 +2466,7 @@ class AutoTradingEngine:
             return None
         _sector_etf_map = {
             'Technology': 'XLK', 'Industrials': 'XLI', 'Healthcare': 'XLV',
-            'Financial Services': 'XLF', 'Energy': 'XLE', 'Consumer Cyclical': 'XLC',
+            'Financial Services': 'XLF', 'Energy': 'XLE', 'Consumer Cyclical': 'XLY',
             'Real Estate': 'XLRE', 'Consumer Defensive': 'XLP', 'Utilities': 'XLU',
             'Basic Materials': 'XLB', 'Communication Services': 'XLC',
         }
@@ -2418,6 +2490,229 @@ class AutoTradingEngine:
             return val
         except Exception:
             return None
+
+    def _get_breadth_momentum(self) -> Tuple[Optional[float], Optional[float]]:
+        """v7.5: Get current market breadth level + 5-day delta from market_breadth table.
+        Returns (breadth_now, breadth_delta_5d). Cached per day.
+        Breadth < 35% = capitulation. Delta < -15 in 5d = structural breakdown."""
+        today = datetime.now().date()
+        if hasattr(self, '_breadth_cache') and self._breadth_cache[0] == today:
+            return self._breadth_cache[1], self._breadth_cache[2]
+        try:
+            import sqlite3 as _sq
+            from pathlib import Path as _Path
+            _db = str(_Path(__file__).resolve().parent.parent / 'data' / 'trade_history.db')
+            conn = _sq.connect(_db)
+            rows = conn.execute(
+                "SELECT pct_above_20d_ma FROM market_breadth ORDER BY date DESC LIMIT 6"
+            ).fetchall()
+            conn.close()
+            if not rows:
+                self._breadth_cache = (today, None, None)
+                return None, None
+            breadth_now = rows[0][0]
+            breadth_delta = None
+            if len(rows) >= 6 and rows[5][0] is not None and breadth_now is not None:
+                breadth_delta = round(breadth_now - rows[5][0], 1)
+            self._breadth_cache = (today, breadth_now, breadth_delta)
+            return breadth_now, breadth_delta
+        except Exception as e:
+            logger.debug(f"Breadth momentum lookup failed: {e}")
+            self._breadth_cache = (today, None, None)
+            return None, None
+
+    def _get_spy_intraday_pct(self) -> Optional[float]:
+        """v7.5: SPY % change vs today's open at this moment (non-blocking).
+        Uses yfinance 1m bars — broker.get_snapshot unreliable in paper trading."""
+        cache_key = f"spy_intraday_{datetime.now().strftime('%Y-%m-%d_%H%M')}"
+        if not hasattr(self, '_spy_intraday_cache'):
+            self._spy_intraday_cache = {}
+        if cache_key in self._spy_intraday_cache:
+            return self._spy_intraday_cache[cache_key]
+        try:
+            df = yf.download('SPY', period='1d', interval='1m',
+                             progress=False, auto_adjust=True)
+            if df is not None and len(df) >= 2:
+                close_col = df['Close']
+                if hasattr(close_col, 'columns'):
+                    close_col = close_col.iloc[:, 0]
+                open_col = df['Open']
+                if hasattr(open_col, 'columns'):
+                    open_col = open_col.iloc[:, 0]
+                first_open = float(open_col.iloc[0])
+                last_close = float(close_col.iloc[-1])
+                if first_open > 0:
+                    result = round((last_close / first_open - 1) * 100, 3)
+                    self._spy_intraday_cache[cache_key] = result
+                    return result
+        except Exception:
+            pass
+        return None
+
+    def _get_sector_5d_return(self, sector: str) -> Optional[float]:
+        """v7.5: Sector ETF 5-day return % — cached by date+sector (non-blocking)."""
+        _SECTOR_ETF = {
+            'Technology': 'XLK', 'Real Estate': 'XLRE', 'Energy': 'XLE',
+            'Financial Services': 'XLF', 'Healthcare': 'XLV',
+            'Consumer Cyclical': 'XLY', 'Consumer Defensive': 'XLP',
+            'Industrials': 'XLI', 'Utilities': 'XLU',
+            'Basic Materials': 'XLB', 'Communication Services': 'XLC',
+        }
+        etf = _SECTOR_ETF.get(sector)
+        if not etf:
+            return None
+        cache_key = f"{etf}_{datetime.now().strftime('%Y-%m-%d')}"
+        if not hasattr(self, '_sector5d_cache'):
+            self._sector5d_cache = {}
+        if cache_key in self._sector5d_cache:
+            return self._sector5d_cache[cache_key]
+        try:
+            df = yf.download(etf, period='10d', interval='1d', progress=False, auto_adjust=True)
+            if df is not None and len(df) >= 6:
+                close_col = df['Close']
+                if hasattr(close_col, 'columns'):
+                    close_col = close_col.iloc[:, 0]
+                close_col = close_col.dropna()
+                if len(close_col) >= 6:
+                    ret = round(float(close_col.iloc[-1] / close_col.iloc[-6] - 1) * 100, 3)
+                    self._sector5d_cache[cache_key] = ret
+                    return ret
+        except Exception:
+            pass
+        return None
+
+    def _get_insider_activity(self, symbol: str) -> tuple:
+        """v7.5: Insider buy activity in last 30 days from SEC EDGAR data — cached by date+symbol.
+        Returns (total_30d_value: float|None, days_ago: int|None) — tuple always."""
+        cache_key = f"insider_{datetime.now().strftime('%Y-%m-%d')}_{symbol}"
+        if not hasattr(self, '_insider_cache'):
+            self._insider_cache = {}
+        if cache_key in self._insider_cache:
+            return self._insider_cache[cache_key]
+        try:
+            from pathlib import Path as _Path
+            _db = str(_Path(__file__).resolve().parent.parent / 'data' / 'trade_history.db')
+            cutoff = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+            with sqlite3.connect(_db) as _conn:
+                row = _conn.execute("""
+                    SELECT SUM(total_value),
+                           MIN(CAST(julianday('now') - julianday(transaction_date) AS INTEGER))
+                    FROM insider_transactions
+                    WHERE symbol = ? AND transaction_date >= ?
+                      AND transaction_type = 'purchase'
+                """, (symbol, cutoff)).fetchone()
+            if row and row[0] is not None:
+                result = (round(float(row[0]), 0), int(row[1]) if row[1] is not None else None)
+            else:
+                result = (None, None)
+        except Exception:
+            result = (None, None)
+        self._insider_cache[cache_key] = result
+        return result
+
+    def _get_vix_1w_change(self) -> Optional[float]:
+        """v7.5: VIX absolute change vs 5 trading days ago — cached by date (non-blocking)."""
+        cache_key = f"vix1w_{datetime.now().strftime('%Y-%m-%d')}"
+        if not hasattr(self, '_vix1w_cache'):
+            self._vix1w_cache = {}
+        if cache_key in self._vix1w_cache:
+            return self._vix1w_cache[cache_key]
+        try:
+            df = yf.download('^VIX', period='10d', interval='1d', progress=False, auto_adjust=True)
+            if df is not None and len(df) >= 6:
+                close_col = df['Close']
+                if hasattr(close_col, 'columns'):
+                    close_col = close_col.iloc[:, 0]
+                close_col = close_col.dropna()
+                if len(close_col) >= 6:
+                    change = round(float(close_col.iloc[-1]) - float(close_col.iloc[-6]), 2)
+                    self._vix1w_cache[cache_key] = change
+                    return change
+        except Exception:
+            pass
+        return None
+
+    def _get_spy_rsi_at_scan(self) -> Optional[float]:
+        """v7.5: SPY RSI(14) on daily bars — cached by date (non-blocking)."""
+        cache_key = f"spy_rsi_{datetime.now().strftime('%Y-%m-%d')}"
+        if not hasattr(self, '_spy_rsi_cache'):
+            self._spy_rsi_cache = {}
+        if cache_key in self._spy_rsi_cache:
+            return self._spy_rsi_cache[cache_key]
+        try:
+            import numpy as np
+            df = yf.download('^GSPC', period='30d', interval='1d', progress=False, auto_adjust=True)
+            if df is not None and len(df) >= 15:
+                close_col = df['Close']
+                if hasattr(close_col, 'columns'):
+                    close_col = close_col.iloc[:, 0]
+                closes = close_col.dropna().values.flatten()
+                if len(closes) >= 15:
+                    deltas = np.diff(closes[-15:])
+                    gains = np.where(deltas > 0, deltas, 0)
+                    losses = np.where(deltas < 0, -deltas, 0)
+                    avg_gain = np.mean(gains)
+                    avg_loss = np.mean(losses)
+                    rsi = 100 - (100 / (1 + avg_gain / avg_loss)) if avg_loss > 0 else 100.0
+                    result = round(float(rsi), 1)
+                    self._spy_rsi_cache[cache_key] = result
+                    return result
+        except Exception:
+            pass
+        return None
+
+    def _get_intraday_spy_trend(self) -> Optional[float]:
+        """v7.5: SPY % change over last 30 minutes — shares the same 1m cache as _get_spy_intraday_pct."""
+        # Uses same 1m SPY download cached in _spy_intraday_cache (keyed by minute)
+        cache_key = f"spy_1m_{datetime.now().strftime('%Y-%m-%d_%H%M')}"
+        if not hasattr(self, '_spy_1m_cache'):
+            self._spy_1m_cache = {}
+        if cache_key not in self._spy_1m_cache:
+            try:
+                df = yf.download('SPY', period='1d', interval='1m',
+                                 progress=False, auto_adjust=True)
+                if df is not None and len(df) >= 2:
+                    close_col = df['Close']
+                    if hasattr(close_col, 'columns'):
+                        close_col = close_col.iloc[:, 0]
+                    self._spy_1m_cache[cache_key] = close_col
+                else:
+                    self._spy_1m_cache[cache_key] = None
+            except Exception:
+                self._spy_1m_cache[cache_key] = None
+        close_col = self._spy_1m_cache[cache_key]
+        if close_col is None or len(close_col) < 30:
+            return None
+        try:
+            price_now = float(close_col.iloc[-1])
+            price_30m_ago = float(close_col.iloc[-30])
+            if price_30m_ago > 0:
+                return round((price_now / price_30m_ago - 1) * 100, 3)
+        except Exception:
+            pass
+        return None
+
+    def _get_news_for_symbol(self, symbol: str, scan_date: str) -> tuple[Optional[str], Optional[float]]:
+        """v7.5: Query news_events for highest-impact news on symbol today.
+        Returns (sentiment_label, impact_score) or (None, None) if no news found.
+        Non-blocking — any DB error returns (None, None).
+        """
+        try:
+            _db = str(Path(__file__).resolve().parent.parent / 'data' / 'trade_history.db')
+            conn = sqlite3.connect(_db)
+            row = conn.execute("""
+                SELECT sentiment_label, impact_score
+                FROM news_events
+                WHERE symbol = ? AND scan_date_et = ?
+                ORDER BY impact_score DESC
+                LIMIT 1
+            """, (symbol, scan_date)).fetchone()
+            conn.close()
+            if row:
+                return row[0], row[1]
+        except Exception:
+            pass
+        return None, None
 
     def _check_vix_spike_protection(self):
         """Tighten SLs on all positions when VIX spikes >VIX_SPIKE_PCT% vs yesterday.
@@ -2469,6 +2764,7 @@ class AutoTradingEngine:
                 except Exception as e:
                     logger.error(f"VIX spike SL tighten failed for {symbol}: {e}")
 
+            self._save_positions_state()
             self._vix_spike_triggered_today = today_et
         except Exception as e:
             logger.warning(f"VIX spike protection check failed: {e}")
@@ -3765,11 +4061,17 @@ class AutoTradingEngine:
     def _process_scan_signals(self, signals, scan_type: str, max_positions: int = None):
         """Process all signals from a scan: execute/queue + log ALL signals."""
         effective_max = max_positions or self.MAX_POSITIONS
+        from zoneinfo import ZoneInfo as _ZI
+        _scan_date_et = datetime.now(_ZI('America/New_York')).strftime('%Y-%m-%d')
         positions_status = {
             'current': len(self.positions),
             'max': effective_max,
             'is_full': len(self.positions) >= effective_max
         }
+
+        # Always generate a unique scan_id first — needed for both empty and non-empty scans
+        # so scan_sessions rows always have a valid scan_id regardless of signal count or engine restarts
+        self._current_scan_id = f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_{scan_type}"
 
         # v6.3: Always save cache even if no signals (so UI knows scan happened)
         if not signals:
@@ -3781,9 +4083,6 @@ class AutoTradingEngine:
 
         params = self._get_effective_params()
         mode = params.get('mode', 'NORMAL')
-
-        # v5.1 P2-22: Generate scan_id before processing so execute_signal can link BUY→scan
-        self._current_scan_id = f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_{scan_type}"
 
         scan_results = []
         # v6.4: Track actionable vs waiting signals for UI
@@ -3807,6 +4106,10 @@ class AutoTradingEngine:
                 action = "QUEUED" if queued else "QUEUE_FULL"
                 skip_reason = "positions_full"
                 waiting_signals.append(signal)  # v6.4: Signals waiting for slot
+
+            # v7.5: Attach highest-impact news from today for this symbol (non-blocking)
+            _sym = getattr(signal, 'symbol', '')
+            _news_sentiment, _news_impact = self._get_news_for_symbol(_sym, _scan_date_et)
 
             scan_results.append({
                 "signal_rank": rank + 1,
@@ -3833,6 +4136,31 @@ class AutoTradingEngine:
                 "spy_pct_above_sma": self._regime_cache[3].get('pct_above_sma') if self._regime_cache and len(self._regime_cache) >= 4 else None,
                 # v7.4: IC-weighted DIP quality score
                 "new_score": getattr(signal, 'new_score', None),
+                # v7.5: New analytics fields
+                "timing": getattr(signal, 'timing', None),
+                "eps_surprise_pct": getattr(signal, 'eps_surprise_pct', None),
+                "close_to_high_pct": getattr(signal, 'close_to_high_pct', None),
+                "spy_intraday_pct": self._get_spy_intraday_pct(),
+                "sector_5d_return": self._get_sector_5d_return(getattr(signal, 'sector', '')),
+                "vix_1w_change": self._get_vix_1w_change(),
+                "entry_vs_open_pct": None,  # filled at execution time in _exec_create_position
+                # v7.5: New real-time context fields
+                "spy_rsi_at_scan": self._get_spy_rsi_at_scan(),
+                "intraday_spy_trend": self._get_intraday_spy_trend(),
+                "num_positions_open": len(self.positions),
+                "pm_range_pct": getattr(signal, 'pm_range_pct', None),
+                "first_5min_return": getattr(signal, 'first_5min_return', None),
+                "bounce_pct_from_lod": None,   # filled at execution time
+                "entry_vs_vwap_pct": None,     # filled at execution time
+                "catalyst_type": getattr(signal, 'catalyst_type', None),
+                # v7.5: News context from news_events table
+                "news_sentiment": _news_sentiment,
+                "news_impact_score": _news_impact,
+                # v7.5: Insider activity from SEC EDGAR (insider_transactions table)
+                **dict(zip(
+                    ("insider_buy_30d_value", "insider_buy_days_ago"),
+                    self._get_insider_activity(getattr(signal, 'symbol', ''))
+                )),
             })
 
         # Summary counts for monitoring
@@ -4080,8 +4408,9 @@ class AutoTradingEngine:
         # Queue is for position-limit blocks only — not market-condition blocks.
         # Queueing a SKIP-zone signal lets it execute the moment VIX crosses 24,
         # which is still a deteriorating/uncertain environment.
-        _source = getattr(signal, 'source', '') or getattr(signal, 'sl_method', '')
-        if _source == SignalSource.DIP_BOUNCE and self.VIX_SKIP_ZONE_ENABLED:
+        # v7.5: Use _derive_signal_source (authoritative) — raw source/sl_method attrs are not
+        # always set on DIP signals (sl_method='dip_bounce_atr' ≠ SignalSource.DIP_BOUNCE='dip_bounce')
+        if self._derive_signal_source(signal) == SignalSource.DIP_BOUNCE and self.VIX_SKIP_ZONE_ENABLED:
             try:
                 vix_val, _ = self._get_vix()
                 if self.VIX_SKIP_ZONE_LOW <= vix_val < self.VIX_SKIP_ZONE_HIGH:
@@ -4132,6 +4461,15 @@ class AutoTradingEngine:
                 sl_pct=sl_pct,
                 tp_pct=tp_pct,
                 volume_ratio=getattr(signal, 'volume_ratio', None),  # v7.03
+                # v7.5: Preserve signal attributes for quality filters at execution time
+                # v7.8: Use _derive_signal_source (sl_method='EMA5' was leaking into source col)
+                source=self._derive_signal_source(signal),
+                rsi=getattr(signal, 'rsi', 0.0) or 0.0,
+                sector=getattr(signal, 'sector', '') or '',
+                momentum_5d=getattr(signal, 'momentum_5d', None),
+                momentum_20d=getattr(signal, 'momentum_20d', None),
+                distance_from_high=getattr(signal, 'distance_from_high', None),
+                new_score=getattr(signal, 'new_score', None),
             )
 
             self.signal_queue.append(queued)
@@ -4305,6 +4643,16 @@ class AutoTradingEngine:
             signal.score = queued.score
             signal.reasons = queued.reasons
             signal.volume_ratio = queued.volume_ratio  # v7.03: preserve for log_buy
+            # v7.5: Restore signal attributes so quality filters run correctly
+            signal.source = queued.source
+            signal.sl_method = queued.source    # fallback for _derive_signal_source
+            signal.rsi = queued.rsi
+            signal.sector = queued.sector
+            signal.atr_pct = queued.atr_pct
+            signal.momentum_5d = queued.momentum_5d
+            signal.momentum_20d = queued.momentum_20d
+            signal.distance_from_high = queued.distance_from_high
+            signal.new_score = queued.new_score
 
             logger.info(f"📋 Queue: {symbol} SL/TP recalculated: SL ${fresh_sl:.2f} ({sl_pct:.1f}%), TP ${fresh_tp:.2f} ({tp_pct:.1f}%) @ ${current_price:.2f}")
 
@@ -4482,8 +4830,10 @@ class AutoTradingEngine:
                     logger.warning(f"❌ PDT block: {params.get('source')} requires day-trade budget, remaining={pdt_status.remaining}")
                     return False, "PDT_FULL: PEM/GAP require day-trade budget for same-day exit"
             elif 'LOW_RISK' not in mode:
-                # DIP/others in NORMAL mode: use reserve buffer
-                if pdt_status.remaining <= self.pdt_guard._get_reserve():
+                # DIP/others in NORMAL mode: block only if remaining is in reserve zone (remaining>0).
+                # v7.8: When remaining=0 (PDT 3/3), allow DIP entry — _dip_hold blocks Day0 exits so
+                # no PDT trade is consumed. DIP holds overnight and Day1+ Alpaca SL handles the exit.
+                if 0 < pdt_status.remaining <= self.pdt_guard._get_reserve():
                     logger.warning(f"❌ PDT pre-buy block: remaining={pdt_status.remaining}")
                     return False, "PDT Full"
 
@@ -4633,6 +4983,58 @@ class AutoTradingEngine:
                 )
                 return False, f"Mom {signal_mom:.1f}%"
 
+        # v7.5: Market condition gates — DIP-only
+        # Data-driven: breadth_delta>0 + sector_1d>0 lifts WR 42%→68% (n=102/615)
+        if signal_source == SignalSource.DIP_BOUNCE:
+            breadth_now, breadth_delta = self._get_breadth_momentum()
+
+            # Gate 1: BREADTH_LOW — capitulation territory
+            if breadth_now is not None and breadth_now < 35:
+                logger.warning(f"❌ BREADTH_LOW {symbol}: breadth={breadth_now:.1f}% < 35%")
+                self._log_filter_rejection(
+                    symbol, current_price, "BREADTH_LOW",
+                    f"breadth {breadth_now:.1f}% < 35% (capitulation)",
+                    {"breadth_low": {"passed": False}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
+                return False, f"BREADTH_LOW {breadth_now:.1f}%"
+
+            # Gate 2: BREADTH_CRASH — structural breakdown
+            if breadth_delta is not None and breadth_delta < -15:
+                logger.warning(f"❌ BREADTH_CRASH {symbol}: breadth_delta_5d={breadth_delta:.1f}%")
+                self._log_filter_rejection(
+                    symbol, current_price, "BREADTH_CRASH",
+                    f"breadth_delta_5d {breadth_delta:.1f}% < -15% (collapsing)",
+                    {"breadth_crash": {"passed": False}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
+                return False, f"BREADTH_CRASH delta={breadth_delta:.1f}%"
+
+            # Gate 3: BREADTH_NOT_RECOVERING — breadth must be improving (delta > 0)
+            # WR without: 42%, with breadth_delta>0: 54% (n=232). Fail-open if data unavailable.
+            if breadth_delta is not None and breadth_delta <= 0:
+                logger.warning(f"❌ BREADTH_NOT_RECOVERING {symbol}: breadth_delta_5d={breadth_delta:.1f}% <= 0")
+                self._log_filter_rejection(
+                    symbol, current_price, "BREADTH_NOT_RECOVERING",
+                    f"breadth_delta_5d {breadth_delta:.1f}% <= 0 (not recovering)",
+                    {"breadth_not_recovering": {"passed": False}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
+                return False, f"BREADTH_NOT_RECOVERING delta={breadth_delta:.1f}%"
+
+            # Gate 4: SECTOR_RED — stock's sector must be up today
+            # WR with sector_1d>0: 48% alone, combined with breadth_delta>0: 68% (n=102)
+            sector_1d = self._get_sector_1d_change(signal_sector)
+            if sector_1d is not None and sector_1d <= 0:
+                logger.warning(f"❌ SECTOR_RED {symbol}: sector_1d={sector_1d:+.2f}% ({signal_sector})")
+                self._log_filter_rejection(
+                    symbol, current_price, "SECTOR_RED",
+                    f"sector {signal_sector} 1d={sector_1d:+.2f}% <= 0 (no sector momentum)",
+                    {"sector_red": {"passed": False}},
+                    signal_score, signal_sector, signal_source, signal, mode,
+                )
+                return False, f"SECTOR_RED {signal_sector} {sector_1d:+.2f}%"
+
         # Falling Knife filter (v7.1): DIP-only, mom5d < -5% → 0% WR across all regimes (n=8/288)
         if signal_source == SignalSource.DIP_BOUNCE:
             mom5d = getattr(signal, 'momentum_5d', None)
@@ -4655,6 +5057,7 @@ class AutoTradingEngine:
                     f"mom20d {mom20d:.1f}% < -10%",
                     {"long_term_downtrend": {"passed": False}},
                     signal_score, signal_sector, signal_source, signal, mode,
+                    momentum_20d=mom20d,
                 )
                 return False, f"LONG_TERM_DOWNTREND mom20d {mom20d:.1f}%"
 
@@ -4668,19 +5071,22 @@ class AutoTradingEngine:
                     f"dist_from_20d_high {dist_high:.1f}% >= 5%",
                     {"not_near_high": {"passed": False}},
                     signal_score, signal_sector, signal_source, signal, mode,
+                    distance_from_high=dist_high,
+                    new_score=getattr(signal, 'new_score', None),
                 )
                 return False, f"NOT_NEAR_HIGH dist {dist_high:.1f}%"
 
             # v7.4: IC-weighted DIP quality score filter (n=4008, IC=+0.240 vs old IC=-0.063)
             # Cuts bottom 37% of signals (score<70) with WR=14-33%; keeps 70+ with WR=52-64%
             new_score = getattr(signal, 'new_score', None)
-            if new_score is not None and new_score < 70.0:
-                logger.warning(f"❌ DIP_SCORE {symbol}: new_score={new_score:.1f} < 70")
+            if new_score is not None and new_score < self.DIP_SCORE_MIN:
+                logger.warning(f"❌ DIP_SCORE {symbol}: new_score={new_score:.1f} < {self.DIP_SCORE_MIN}")
                 self._log_filter_rejection(
                     symbol, current_price, "DIP_SCORE_REJECT",
-                    f"new_score {new_score:.1f} < 70",
+                    f"new_score {new_score:.1f} < {self.DIP_SCORE_MIN}",
                     {"dip_score": {"passed": False}},
                     signal_score, signal_sector, signal_source, signal, mode,
+                    new_score=new_score,
                 )
                 return False, f"DIP_SCORE {new_score:.1f}"
 
@@ -4863,6 +5269,17 @@ class AutoTradingEngine:
         signal_sector = getattr(signal, 'sector', '') or ''
         signal_source = self._derive_signal_source(signal)
 
+        # v7.4: Permanently blocked sectors — all strategies, all market regimes
+        if signal_sector and signal_sector in self.PERMANENTLY_BLOCKED_SECTORS:
+            logger.warning(f"❌ SECTOR_PERM_BLOCK {symbol}: sector '{signal_sector}' permanently blocked")
+            self._log_filter_rejection(
+                symbol, current_price, "SECTOR_PERM_BLOCK",
+                f"Sector '{signal_sector}' permanently blocked (Consumer/Comm WR5d=0%)",
+                {"sector_perm": {"passed": False}},
+                signal_score, signal_sector, signal_source, signal, mode,
+            )
+            return False, "Sector Block", 0.0
+
         # Gap filter (skip for breakout and PEM — these legitimately gap up)
         sl_method = getattr(signal, 'sl_method', '')
         if 'breakout' in sl_method or signal_source == 'pem':
@@ -4943,9 +5360,10 @@ class AutoTradingEngine:
             )
             return False, "Sector CD", gap_pct
 
-        # Bear mode sector filter
+        # Bear mode sector filter (OVN bypasses — screener's BLOCKED_SECTORS handles sector risk)
         allowed_sectors = params.get('allowed_sectors')
-        if allowed_sectors and signal_sector and signal_sector not in allowed_sectors:
+        _is_ovn_signal = signal_source == SignalSource.OVERNIGHT_GAP
+        if allowed_sectors and signal_sector and signal_sector not in allowed_sectors and not _is_ovn_signal:
             logger.warning(f"❌ BEAR Sector Filter REJECT {symbol}")
             self._log_filter_rejection(
                 symbol, current_price, "BEAR_SECTOR_REJECT",
@@ -5058,6 +5476,22 @@ class AutoTradingEngine:
 
         sl_price = round(entry_price * (1 - sl_pct / 100), 2)
         tp_price = round(entry_price * (1 + tp_pct / 100), 2)
+
+        # v7.5: Config-at-entry for cohort analysis
+        _is_pem_src = signal_source == 'pem'
+        _is_ovn_src = signal_source == 'overnight_gap'
+        _is_gap_src = signal_source == 'premarket_gap'
+        if _is_ovn_src:
+            _trail_act = self.OVN_TRAIL_ACTIVATION_PCT
+            _trail_lock = self.OVN_TRAIL_LOCK_PCT
+        elif _is_pem_src or _is_gap_src:
+            _trail_act = self.PEM_TRAIL_ACTIVATION_PCT
+            _trail_lock = self.PEM_TRAIL_LOCK_PCT
+        else:
+            _trail_act = self.TRAIL_ACTIVATION_PCT
+            _trail_lock = self.TRAIL_LOCK_PCT
+        _sl_method = 'pem' if _is_pem_src else 'atr'
+        _sl_mult = self.SL_ATR_MULTIPLIER if _sl_method == 'atr' else None
 
         with self._positions_lock:
             # v6.41: CRITICAL FIX - Re-check symbol existence under lock (prevent double-buy race)
@@ -5179,6 +5613,22 @@ class AutoTradingEngine:
 
         # Trade log
         try:
+            # v7.5 fix: compute config-at-entry vars (were incorrectly scoped to _exec_create_position)
+            _is_pem_src2 = signal_source == 'pem'
+            _is_ovn_src2 = signal_source == 'overnight_gap'
+            _is_gap_src2 = signal_source == 'premarket_gap'
+            if _is_ovn_src2:
+                _trail_act = self.OVN_TRAIL_ACTIVATION_PCT
+                _trail_lock = self.OVN_TRAIL_LOCK_PCT
+            elif _is_pem_src2 or _is_gap_src2:
+                _trail_act = self.PEM_TRAIL_ACTIVATION_PCT
+                _trail_lock = self.PEM_TRAIL_LOCK_PCT
+            else:
+                _trail_act = self.TRAIL_ACTIVATION_PCT
+                _trail_lock = self.TRAIL_LOCK_PCT
+            _sl_method = 'pem' if _is_pem_src2 else 'atr'
+            _sl_mult = self.SL_ATR_MULTIPLIER if _sl_method == 'atr' else None
+
             pdt_status = self.pdt_guard.get_pdt_status()
             regime_ok, regime_reason = self._check_market_regime()
             analysis = self._get_analysis_data(symbol)
@@ -5192,6 +5642,16 @@ class AutoTradingEngine:
             et_now = self._get_et_time()
             market_open = et_now.replace(hour=9, minute=30, second=0, microsecond=0)
             entry_mins = int((et_now - market_open).total_seconds() / 60) if et_now >= market_open else None
+
+            # v7.5: entry_vs_open_pct — entry price vs day's open % (PEM/GAP/all at open)
+            try:
+                _snap = self.broker.get_snapshot(symbol)
+                if _snap and _snap.open > 0 and entry_price > 0:
+                    _entry_vs_open = round((entry_price / _snap.open - 1) * 100, 3)
+                else:
+                    _entry_vs_open = None
+            except Exception:
+                _entry_vs_open = None
 
             # SPY price + % above SMA20 (from regime check data)
             spy_price_at_buy = self._regime_cache[3].get('spy_price') if self._regime_cache and len(self._regime_cache) >= 4 else None
@@ -5251,7 +5711,62 @@ class AutoTradingEngine:
                 # v6.96: volume_ratio + sector_1d for composite_score
                 volume_ratio=getattr(signal, 'volume_ratio', None),
                 entry_sector_change_1d=self._get_sector_1d_change(signal_sector),
+                # v7.5: DIP filter context fields
+                momentum_20d=getattr(signal, 'momentum_20d', None),
+                distance_from_high=getattr(signal, 'distance_from_high', None),
+                new_score=getattr(signal, 'new_score', None),
+                # v7.5: Config-at-entry for cohort analysis
+                sl_multiplier=_sl_mult,
+                sl_method=_sl_method,
+                trail_activation_pct=_trail_act,
+                trail_lock_pct=_trail_lock,
+                tp_pct=tp_pct,
             )
+
+            # v7.5: Backfill entry_vs_open_pct into signal_outcomes for the BOUGHT row
+            if _entry_vs_open is not None:
+                try:
+                    import sqlite3 as _sq3
+                    _db = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'trade_history.db')
+                    _sc = self._current_scan_id
+                    if _sc:
+                        _c2 = _sq3.connect(_db)
+                        _c2.execute(
+                            "UPDATE signal_outcomes SET entry_vs_open_pct = ? WHERE scan_id = ? AND symbol = ?",
+                            (_entry_vs_open, _sc, symbol)
+                        )
+                        _c2.commit()
+                        _c2.close()
+                except Exception:
+                    pass
+
+            # v7.5: Backfill entry_vs_vwap_pct + bounce_pct_from_lod at execution time
+            try:
+                _snap2 = self.broker.get_snapshot(symbol)
+                _entry_vs_vwap = None
+                _bounce_from_lod = None
+                if _snap2:
+                    if _snap2.vwap > 0 and entry_price > 0:
+                        _entry_vs_vwap = round((entry_price / _snap2.vwap - 1) * 100, 3)
+                    if _snap2.low > 0 and entry_price > 0:
+                        _bounce_from_lod = round((entry_price / _snap2.low - 1) * 100, 3)
+                _sc = self._current_scan_id
+                if _sc and (_entry_vs_vwap is not None or _bounce_from_lod is not None):
+                    try:
+                        import sqlite3 as _sq3b
+                        _db = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'trade_history.db')
+                        _c3 = _sq3b.connect(_db)
+                        _c3.execute(
+                            "UPDATE signal_outcomes SET entry_vs_vwap_pct = ?, bounce_pct_from_lod = ? WHERE scan_id = ? AND symbol = ?",
+                            (_entry_vs_vwap, _bounce_from_lod, _sc, symbol)
+                        )
+                        _c3.commit()
+                        _c3.close()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
         except Exception as log_err:
             logger.warning(f"Trade log error: {log_err}")
 
@@ -5529,7 +6044,9 @@ class AutoTradingEngine:
             return True
 
         except Exception as e:
-            logger.error(f"Execute failed for {signal}: {e}")
+            import traceback as _tb
+            logger.error(f"Execute failed for {signal}: {e}\n{_tb.format_exc()}")
+            self._last_skip_reason = f"Exception: {e}"
             return False
 
     # =========================================================================
@@ -5745,6 +6262,7 @@ class AutoTradingEngine:
                             if not new_order:
                                 # v7.4: modify failed — reset for fresh placement next cycle
                                 managed_pos.sl_order_id = ''
+                                self._save_positions_state()
             except Exception as e:
                 logger.debug(f"Split check error for {symbol}: {e}")
 
@@ -5890,8 +6408,25 @@ class AutoTradingEngine:
                         hold_hours = int(hold_delta.total_seconds() / 3600)
                         hold_minutes = int((hold_delta.total_seconds() % 3600) / 60)
                         hold_duration = f"{hold_hours}h {hold_minutes}m" if hold_hours > 0 else f"{hold_minutes}m"
+                        hold_minutes_total = int(hold_delta.total_seconds() / 60)
                         # v5.0: Fetch exit context (best-effort, never blocks sell)
                         exit_ctx = self._get_exit_context(symbol, sell_price)
+                        # v7.5: MFE/MAE — use in-memory if available, else fall back to peak/trough (persisted in DB)
+                        _max_gain_sl = ((managed_pos.peak_price - managed_pos.entry_price) / managed_pos.entry_price) * 100 if managed_pos.peak_price > managed_pos.entry_price else 0.0
+                        _max_dd_sl = ((managed_pos.trough_price - managed_pos.entry_price) / managed_pos.entry_price) * 100 if managed_pos.trough_price > 0 and managed_pos.trough_price < managed_pos.entry_price else 0.0
+                        _mfe_sl = round(getattr(managed_pos, '_mfe', _max_gain_sl), 2)
+                        _mae_sl = round(getattr(managed_pos, '_mae', _max_dd_sl), 2)
+
+                        # v7.5: pct_from_mfe_to_close + exit_vs_vwap_pct
+                        _sl_mfe_to_close = round(_mfe_sl - pnl_pct, 2) if _mfe_sl > 0 else 0.0
+                        _sl_exit_vs_vwap = None
+                        try:
+                            _snap_sl = self.broker.get_snapshot(symbol)
+                            if _snap_sl and _snap_sl.vwap > 0 and sell_price > 0:
+                                _sl_exit_vs_vwap = round((sell_price / _snap_sl.vwap - 1) * 100, 3)
+                        except Exception:
+                            pass
+
                         self.trade_logger.log_sell(
                             symbol=symbol, qty=managed_pos.qty, price=sell_price,
                             reason="SL_FILLED_AT_ALPACA", entry_price=managed_pos.entry_price,
@@ -5910,6 +6445,14 @@ class AutoTradingEngine:
                             momentum_5d=managed_pos.momentum_5d,
                             # v5.0: Exit-time indicators
                             **exit_ctx,
+                            # v7.5: MFE/MAE/hold_minutes
+                            mfe_pct=_mfe_sl,
+                            mae_pct=_mae_sl,
+                            hold_minutes=hold_minutes_total,
+                            # v7.5: Exit quality fields
+                            exit_vs_vwap_pct=_sl_exit_vs_vwap,
+                            pct_from_mfe_to_close=_sl_mfe_to_close,
+                            mfe_timestamp=getattr(managed_pos, '_mfe_timestamp', None),
                         )
                     except Exception as log_err:
                         logger.warning(f"Trade log error for SL fill: {log_err}")
@@ -5960,6 +6503,20 @@ class AutoTradingEngine:
         # Calculate P&L
         pnl_pct = ((current_price - entry_price) / entry_price) * 100
 
+        # v7.5: Track MFE/MAE for analytics (non-blocking)
+        try:
+            if entry_price > 0 and current_price > 0:
+                _pnl_now = pnl_pct
+                _prev_mfe = getattr(managed_pos, '_mfe', 0.0)
+                managed_pos._mfe = max(_prev_mfe, _pnl_now)
+                managed_pos._mae = min(getattr(managed_pos, '_mae', 0.0), _pnl_now)
+                # Track timestamp when MFE was achieved (for mfe_timestamp column in trades)
+                if managed_pos._mfe > _prev_mfe:
+                    from zoneinfo import ZoneInfo
+                    managed_pos._mfe_timestamp = datetime.now(ZoneInfo('America/New_York')).strftime('%Y-%m-%d %H:%M:%S')
+        except Exception:
+            pass
+
         # Get PDT guard status for this position
         days_held = self.pdt_guard.get_days_held(symbol)
         is_day0 = days_held == 0
@@ -5988,15 +6545,6 @@ class AutoTradingEngine:
 
         # ==== PDT Smart Guard v2.0: Day 0 Handling ====
         if is_day0:
-            # v4.9.4: Smart Day Trade — check before normal SL/TP
-            should_dt, dt_reason = self._should_use_day_trade(symbol, managed_pos, current_price)
-            if should_dt:
-                logger.info(f"SMART DAY TRADE: {symbol} -- {dt_reason}")
-                self._close_position(symbol, managed_pos, f"SMART_DAY_TRADE:{dt_reason}")
-                # v7.3: If PDT blocked close, fall through to update trailing SL — don't lose state
-                if symbol not in self.positions:
-                    return  # Close succeeded, done
-
             # v7.3: PEM/GAP same-day exits — force=True only when PDT budget is available.
             # ห้ามเกิน PDT เด็ดขาด: ถ้า budget=0 → force=False → PDT blocks → hold overnight (acceptable).
             # Entry gate (Fix 1) + slot protection (Fix 2) ensure budget is available at exit in normal flow.
@@ -6010,32 +6558,59 @@ class AutoTradingEngine:
             else:
                 _pdt_allows_force = False
 
+            # v7.8: DIP overnight hold when PDT budget=0.
+            # DIP entry is allowed at PDT 3/3 (LOW_RISK mode bypasses entry check) because it can hold
+            # overnight. This flag explicitly blocks ALL Day0 exits for DIP when budget is exhausted.
+            # Trail state is still tracked so Day 1 Alpaca SL is placed correctly.
+            _dip_hold = False
+            if not _is_same_day_pos and _src not in ('overnight_gap', 'ped'):
+                _pdt_d0 = self.pdt_guard.get_pdt_status()
+                if _pdt_d0.is_flagged and _pdt_d0.remaining <= 0:
+                    _dip_hold = True
+                    logger.debug(f"⏸ {symbol} Day0: PDT 3/3 — DIP overnight hold (no Day0 exit, trail tracked)")
+
+            # v4.9.4: Smart Day Trade — check before normal SL/TP
+            # v7.8: Skip if _dip_hold (PDT 3/3) — no budget to execute the day trade
+            should_dt, dt_reason = self._should_use_day_trade(symbol, managed_pos, current_price)
+            if should_dt and not _dip_hold:
+                logger.info(f"SMART DAY TRADE: {symbol} -- {dt_reason}")
+                self._close_position(symbol, managed_pos, f"SMART_DAY_TRADE:{dt_reason}")
+                # v7.3: If PDT blocked close, fall through to update trailing SL — don't lose state
+                if symbol not in self.positions:
+                    return  # Close succeeded, done
+
             # Day 0: Manual SL monitoring (no SL order at Alpaca)
             if pnl_pct <= -pos_sl_pct:
-                # v6.65: If PEM is active, skip day-0 SL for DIP to preserve PDT for PEM exit.
-                # DIP holds overnight — loses day-trade budget protection, gains PDT for PEM.
-                _is_dip = _src not in ('pem', 'overnight_gap', 'ped')
-                if _is_dip:
-                    with self._positions_lock:
-                        _has_pem = any(
-                            getattr(p, 'source', '') == 'pem'
-                            for p in self.positions.values()
-                        )
-                    if _has_pem:
-                        logger.warning(
-                            f"⏸ {symbol} Day0 SL {pnl_pct:.2f}% — PEM active, "
-                            f"skip sell → hold overnight (PDT reserved for PEM)"
-                        )
-                        return
-                logger.warning(f"🛑 {symbol} Day 0 SL hit at {pnl_pct:.2f}% (SL: -{pos_sl_pct}%)")
-                self._close_position(symbol, managed_pos, "DAY0_SL", force=_pdt_allows_force)
-                return
+                if _dip_hold:
+                    # v7.8: PDT 3/3 — hold overnight, Alpaca SL handles exit at Day 1+
+                    logger.warning(f"⏸ {symbol} Day0 SL {pnl_pct:.2f}% — PDT 3/3, holding overnight")
+                else:
+                    # v6.65: If PEM is active, skip day-0 SL for DIP to preserve PDT for PEM exit.
+                    _is_dip = _src not in ('pem', 'overnight_gap', 'ped')
+                    if _is_dip:
+                        with self._positions_lock:
+                            _has_pem = any(
+                                getattr(p, 'source', '') == 'pem'
+                                for p in self.positions.values()
+                            )
+                        if _has_pem:
+                            logger.warning(
+                                f"⏸ {symbol} Day0 SL {pnl_pct:.2f}% — PEM active, "
+                                f"skip sell → hold overnight (PDT reserved for PEM)"
+                            )
+                            return
+                    logger.warning(f"🛑 {symbol} Day 0 SL hit at {pnl_pct:.2f}% (SL: -{pos_sl_pct}%)")
+                    self._close_position(symbol, managed_pos, "DAY0_SL", force=_pdt_allows_force)
+                    return
 
             # Day 0: Check TP (v4.6: use per-position TP)
             if pnl_pct >= pos_tp_pct:
-                logger.info(f"🎯 {symbol} Day 0 TP at {pnl_pct:+.2f}% (TP: +{pos_tp_pct}%)")
-                self._close_position(symbol, managed_pos, "DAY0_TP", force=_pdt_allows_force)
-                return
+                if _dip_hold:
+                    logger.info(f"⏸ {symbol} Day0 TP {pnl_pct:.2f}% — PDT 3/3, holding overnight (TP deferred to Day1+)")
+                else:
+                    logger.info(f"🎯 {symbol} Day 0 TP at {pnl_pct:+.2f}% (TP: +{pos_tp_pct}%)")
+                    self._close_position(symbol, managed_pos, "DAY0_TP", force=_pdt_allows_force)
+                    return
 
             # Day 0: Trailing stop (v6.10: internal tracking only, no broker order)
             # v6.59: OVN uses eff_trail_activation=0% (immediate), others use global 2%
@@ -6063,17 +6638,20 @@ class AutoTradingEngine:
                 # If current price drops below trailing SL, close position
                 if current_price < trailing_sl:
                     locked_pct = ((trailing_sl - entry_price) / entry_price) * 100
-                    logger.info(f"🔒 {symbol} Day 0 trailing stop triggered: ${current_price:.2f} < ${trailing_sl:.2f} (lock {locked_pct:+.2f}%)")
-                    self._close_position(symbol, managed_pos, f"DAY0_TRAILING_STOP", force=_pdt_allows_force)
-                    return
+                    if _dip_hold:
+                        logger.info(f"⏸ {symbol} Day0 trail SL ${current_price:.2f} < ${trailing_sl:.2f} — PDT 3/3, holding overnight")
+                    else:
+                        logger.info(f"🔒 {symbol} Day 0 trailing stop triggered: ${current_price:.2f} < ${trailing_sl:.2f} (lock {locked_pct:+.2f}%)")
+                        self._close_position(symbol, managed_pos, f"DAY0_TRAILING_STOP", force=_pdt_allows_force)
+                        return
 
-                # Store what the SL should be for Day 1 transition
+                # Store what the SL should be for Day 1 transition (always, even in _dip_hold)
                 managed_pos.current_sl_price = trailing_sl
                 if trailing_sl > entry_price * (1 - pos_sl_pct/100):  # Only if better than original
                     _state_changed = True
 
             # Day 0: Log status
-            logger.debug(f"PDT Guard: {symbol} Day 0 - P&L {pnl_pct:+.2f}% (SL: -{pos_sl_pct}%, TP: +{pos_tp_pct}%), Trail={'ON' if managed_pos.trailing_active else 'OFF'}")
+            logger.debug(f"PDT Guard: {symbol} Day 0 - P&L {pnl_pct:+.2f}% (SL: -{pos_sl_pct}%, TP: +{pos_tp_pct}%), Trail={'ON' if managed_pos.trailing_active else 'OFF'}, dip_hold={_dip_hold}")
 
         else:
             # ==== Day 1+: Normal operation ====
@@ -6204,13 +6782,14 @@ class AutoTradingEngine:
             et_now = self._get_et_time()
             # 1) Gap-down at open: sell immediately if price < entry * (1 + threshold%)
             #    Data: threshold=-1.0% separates non-recoverers (WERN/RNG/LULU) from recoverers (GOOGL/CMS/QCOM)
-            if et_now.hour == 9 and 30 <= et_now.minute <= 35:
+            #    v7.8: extended to 9:40 (was 9:35) to guard against engine restart at open
+            if et_now.hour == 9 and 30 <= et_now.minute <= 40:
                 gap_pct = pnl_pct  # pnl_pct already = (current-entry)/entry*100
                 if gap_pct < self.OVN_GAP_DOWN_THRESHOLD:
                     logger.info(f"OVN_GAP_DOWN: {symbol} gap {gap_pct:+.2f}% < {self.OVN_GAP_DOWN_THRESHOLD}% threshold → exit")
                     self._close_position(symbol, managed_pos, "OVN_GAP_DOWN")
                     return
-            # 2) Force-close at 3:20 PM ET — before the 3:30 OVN scan to free up the slot
+            # 2) Force-close at 3:20 PM ET — before the 3:45 OVN scan to free up the slot
             if et_now.hour == 15 and 20 <= et_now.minute <= 29:
                 logger.info(f"OVN_FORCE_CLOSE_PRE_SCAN: {symbol} Day {days_held}, P&L {pnl_pct:+.2f}% — closing before OVN scan")
                 self._close_position(symbol, managed_pos, "OVN_FORCE_CLOSE_PRE_SCAN")
@@ -6334,6 +6913,9 @@ class AutoTradingEngine:
                             trough = getattr(managed_pos, 'trough_price', 0)
                             max_dd = ((trough - managed_pos.entry_price) / managed_pos.entry_price) * 100 if trough > 0 and trough < managed_pos.entry_price else 0
                             exit_eff = round(pnl_pct / max_gain * 100, 1) if max_gain > 0 else (0 if pnl_pct <= 0 else 100)
+                            _mfe_ext = round(getattr(managed_pos, '_mfe', max_gain), 2)
+                            _mae_ext = round(getattr(managed_pos, '_mae', max_dd), 2)
+                            hold_minutes_ext = int(hold_delta.total_seconds() / 60) if hold_delta else None
 
                             self.trade_logger.log_sell(
                                 symbol=symbol,
@@ -6363,6 +6945,10 @@ class AutoTradingEngine:
                                 regime=getattr(managed_pos, 'entry_regime', 'BULL'),
                                 entry_rsi=getattr(managed_pos, 'entry_rsi', 0.0),
                                 momentum_5d=getattr(managed_pos, 'momentum_5d', 0.0),
+                                mfe_pct=_mfe_ext,
+                                mae_pct=_mae_ext,
+                                hold_minutes=hold_minutes_ext,
+                                mfe_timestamp=getattr(managed_pos, '_mfe_timestamp', None),
                             )
 
                             logger.info(f"✅ Logged external SELL for {symbol}: {pnl_pct:+.2f}% ({exit_reason})")
@@ -6552,6 +7138,7 @@ class AutoTradingEngine:
                 hold_hours = int(hold_delta.total_seconds() / 3600)
                 hold_minutes = int((hold_delta.total_seconds() % 3600) / 60)
                 hold_duration = f"{hold_hours}h {hold_minutes}m" if hold_hours > 0 else f"{hold_minutes}m"
+                hold_minutes_total = int(hold_delta.total_seconds() / 60)
 
                 # Calculate price action metrics
                 max_gain = ((managed_pos.peak_price - managed_pos.entry_price) / managed_pos.entry_price) * 100 if managed_pos.peak_price > managed_pos.entry_price else 0
@@ -6560,6 +7147,22 @@ class AutoTradingEngine:
 
                 # v5.0: Fetch exit context (best-effort, never blocks sell)
                 exit_ctx = self._get_exit_context(symbol, exit_price)
+
+                # v7.5: MFE/MAE from in-memory tracking
+                _mfe = round(getattr(managed_pos, '_mfe', max_gain), 2)
+                _mae = round(getattr(managed_pos, '_mae', max_dd), 2)
+
+                # v7.5: pct_from_mfe_to_close — profit given back from peak
+                _mfe_to_close = round(_mfe - pnl_pct, 2) if _mfe > 0 else 0.0
+
+                # v7.5: exit_vs_vwap_pct — exit relative to VWAP at close time
+                _exit_vs_vwap = None
+                try:
+                    _snap_exit = self.broker.get_snapshot(symbol)
+                    if _snap_exit and _snap_exit.vwap > 0 and exit_price > 0:
+                        _exit_vs_vwap = round((exit_price / _snap_exit.vwap - 1) * 100, 3)
+                except Exception:
+                    pass
 
                 self.trade_logger.log_sell(
                     symbol=symbol,
@@ -6594,6 +7197,14 @@ class AutoTradingEngine:
                     momentum_5d=managed_pos.momentum_5d,
                     # v5.0: Exit-time indicators
                     **exit_ctx,
+                    # v7.5: MFE/MAE/hold_minutes
+                    mfe_pct=_mfe,
+                    mae_pct=_mae,
+                    hold_minutes=hold_minutes_total,
+                    # v7.5: Exit quality fields
+                    exit_vs_vwap_pct=_exit_vs_vwap,
+                    pct_from_mfe_to_close=_mfe_to_close,
+                    mfe_timestamp=getattr(managed_pos, '_mfe_timestamp', None),
                 )
             except Exception as log_err:
                 logger.warning(f"Trade log error: {log_err}")
@@ -7508,8 +8119,8 @@ class AutoTradingEngine:
         # v6.18: Dynamic interval based on VIX or time
         if self.CONTINUOUS_SCAN_DYNAMIC_ENABLED:
             # VIX-based dynamic interval
-            regime_data = self.regime_detector.get_regime()
-            current_vix = regime_data.get('vix', 0)
+            _vix_val, _ = self._get_vix()
+            current_vix = _vix_val if _vix_val else 0
             is_volatile = current_vix > self.CONTINUOUS_SCAN_VIX_THRESHOLD
             interval_minutes = self.CONTINUOUS_SCAN_DYNAMIC_VOLATILE_INTERVAL if is_volatile else self.CONTINUOUS_SCAN_DYNAMIC_CALM_INTERVAL
             interval_label = f"VIX {current_vix:.1f} ({'volatile' if is_volatile else 'calm'})"
@@ -7639,14 +8250,20 @@ class AutoTradingEngine:
         overnight_count = sum(1 for p in self.positions.values()
                              if getattr(p, 'source', '') == 'overnight_gap')
         if overnight_count >= self.OVERNIGHT_GAP_MAX_POSITIONS:
-            logger.info(f"❌ OVN: Max OVN positions reached ({overnight_count}/{self.OVERNIGHT_GAP_MAX_POSITIONS}) - skipping scan")
-            self._overnight_scan_done = today  # Mark done to prevent repeated logs
+            # v7.8: DON'T set _overnight_scan_done here — position may close during 15:45-15:50
+            # window (force-close at 15:20 should have handled it, but protect against failure).
+            # Use separate flag to throttle log spam without locking out a retry.
+            if getattr(self, '_ovn_slot_full_logged', None) != today:
+                logger.info(f"❌ OVN: Max OVN positions reached ({overnight_count}/{self.OVERNIGHT_GAP_MAX_POSITIONS}) - skipping scan")
+                self._ovn_slot_full_logged = today
             return
 
         # v6.35: Check total positions (all strategies combined)
         if len(self.positions) >= self.MAX_POSITIONS_TOTAL:
-            logger.info(f"❌ OVN: Total positions full ({len(self.positions)}/{self.MAX_POSITIONS_TOTAL}) - skipping scan")
-            self._overnight_scan_done = today  # Mark done to prevent repeated logs
+            # v7.8: Same — don't lock out a retry if a position closes during scan window
+            if getattr(self, '_ovn_total_full_logged', None) != today:
+                logger.info(f"❌ OVN: Total positions full ({len(self.positions)}/{self.MAX_POSITIONS_TOTAL}) - skipping scan")
+                self._ovn_total_full_logged = today
             return
 
         # Market regime check BEFORE marking as done
@@ -7719,9 +8336,11 @@ class AutoTradingEngine:
         if getattr(self, '_premarket_scan_done', None) == today:
             return
 
-        # Scan window: 6:00 AM - 9:29 AM ET (market closed; stop before open)
+        # Scan window: 9:00 AM - 9:29 AM ET
+        # v7.4: moved from 06:00→09:00 ET — backtest 2.0x threshold validated on full 5.5h
+        # pre-market data; scanning at 06:00 ET (only 2h of data) made threshold unreachable.
         et_now = self._get_et_time()
-        scan_start = et_now.replace(hour=6, minute=0, second=0, microsecond=0)
+        scan_start = et_now.replace(hour=9, minute=0, second=0, microsecond=0)
         scan_end = et_now.replace(hour=9, minute=29, second=0, microsecond=0)
 
         if not (scan_start <= et_now < scan_end):
@@ -7812,9 +8431,12 @@ class AutoTradingEngine:
                     volume_ratio=sig.volume_ratio,
                 )
                 if hasattr(rapid_signal, '__dict__'):
+                    rapid_signal.__dict__['source'] = 'premarket_gap'  # v7.5: required by _derive_signal_source, PDT/exit logic
                     rapid_signal.__dict__['gap_trade'] = True
                     rapid_signal.__dict__['gap_confidence'] = sig.confidence
                     rapid_signal.__dict__['gap_pct'] = sig.gap_pct
+                    rapid_signal.__dict__['pm_range_pct'] = getattr(sig, 'pm_range_pct', None)
+                    rapid_signal.__dict__['catalyst_type'] = sig.catalyst_type
 
                 candidates.append(rapid_signal)
 
@@ -7987,6 +8609,10 @@ class AutoTradingEngine:
                 rapid_signal.__dict__['source'] = 'pem'
                 rapid_signal.__dict__['skip_entry_protection'] = True   # Bypass VWAP/timing
                 rapid_signal.__dict__['skip_earnings_filter'] = True    # PEM IS the earnings play
+                # v7.5: Pass through PEM-specific analytics fields
+                rapid_signal.__dict__['timing'] = sig.get('timing')
+                rapid_signal.__dict__['eps_surprise_pct'] = sig.get('eps_surprise_pct')
+                rapid_signal.__dict__['first_5min_return'] = sig.get('first_5min_return')
 
                 converted.append(rapid_signal)
 
@@ -8429,6 +9055,9 @@ class AutoTradingEngine:
                     # v6.21: Set date FIRST to prevent repeated execution if exception occurs
                     last_scan_date = today
                     self._eod_sl_failed.clear()  # v6.84: Reset EOD SL retry-block on new day
+                    # v7.8: Reset daily_stats for new trading day (engine may run continuously across midnight)
+                    self.daily_stats = DailyStats(date=today)
+                    logger.info(f"📅 New trading day {today} — daily_stats reset")
                     self._loop_morning_scan(today)
 
                 # Scheduled scans
@@ -8449,6 +9078,10 @@ class AutoTradingEngine:
                 # Monitor positions
                 self.state = TradingState.MONITORING
                 self.monitor_positions()
+
+                # v7.5: Passive queue cleanup — expire stale signals even without execution attempt
+                self._cleanup_expired_queue()
+
                 self._write_heartbeat()
 
                 time.sleep(self.MONITOR_INTERVAL_SECONDS)
@@ -8490,6 +9123,9 @@ class AutoTradingEngine:
         # v6.37: Write cron schedule for web app
         try:
             cron_schedule = self._get_cron_schedule()
+            # v7.8: Include daily_stats so webapp reads from engine (not its own stale instance)
+            from dataclasses import asdict as _asdict
+            cron_schedule['daily_stats'] = _asdict(self.daily_stats)
             cron_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'cron_schedule.json')
             from engine.state_manager import atomic_write_json
             atomic_write_json(cron_path, cron_schedule)
@@ -8661,7 +9297,7 @@ class AutoTradingEngine:
             {
                 'name': 'outcome_tracker',
                 'label': 'Outcome Tracker',
-                'time': '05:00',
+                'time': '05:00 ET',
                 'schedule': '0 5 * * 2-6',
                 'frequency': 'Daily (Tue-Sat)',
                 'status': get_status('_outcome_tracker_done', '_outcome_tracker_error'),
@@ -8683,9 +9319,9 @@ class AutoTradingEngine:
             {
                 'name': 'prefilter_evening',
                 'label': 'Pre-Filter (Evening)',
-                'time': '20:00',
-                'schedule': '0 20 * * 2-6',
-                'frequency': 'Daily (Tue-Sat)',
+                'time': '20:00 ET',
+                'schedule': '0 20 * * 1-5',
+                'frequency': 'Daily (Mon-Fri)',
                 'status': get_status('_evening_prefilter_done', '_evening_prefilter_error'),
                 'description': 'Evening pre-filter scan (987 stocks)',
                 'type': 'filter',
@@ -8694,7 +9330,7 @@ class AutoTradingEngine:
             {
                 'name': 'prefilter_preopen',
                 'label': 'Pre-Filter (Pre-Open)',
-                'time': '09:00',
+                'time': '09:00 ET',
                 'schedule': '0 9 * * 1-5',
                 'frequency': 'Daily (Mon-Fri)',
                 'status': get_status('_pre_open_prefilter_done', '_pre_open_prefilter_error'),
@@ -8705,7 +9341,7 @@ class AutoTradingEngine:
             {
                 'name': 'prefilter_midday',
                 'label': 'Pre-Filter (Midday)',
-                'time': '10:45',
+                'time': '10:45 ET',
                 'schedule': '45 10 * * 1-5',
                 'frequency': 'Daily (Mon-Fri)',
                 'status': get_status('_midday_prefilter_done', '_midday_prefilter_error'),
@@ -8716,7 +9352,7 @@ class AutoTradingEngine:
             {
                 'name': 'prefilter_afternoon',
                 'label': 'Pre-Filter (Afternoon)',
-                'time': '13:45',
+                'time': '13:45 ET',
                 'schedule': '45 13 * * 1-5',
                 'frequency': 'Daily (Mon-Fri)',
                 'status': get_status('_afternoon_prefilter_done', '_afternoon_prefilter_error'),

@@ -229,3 +229,22 @@ print(f"  Saved to:           universe_stocks DB")
 if delisted:
     print(f"  Delisted:           {', '.join(sorted(delisted))}")
 print(f"{'='*60}")
+
+# Update cron_status.json so UI shows green
+from datetime import datetime
+from pathlib import Path
+status_path = Path(__file__).resolve().parents[1] / 'data' / 'cron_status.json'
+try:
+    status = json.load(open(status_path)) if status_path.exists() else {}
+    status['universe_maintenance'] = {
+        'status': 'ok',
+        'last_run': datetime.now().isoformat(),
+        'updated_at': datetime.now().isoformat(),
+        'removed': len(delisted),
+        'added': added if need > 0 else 0,
+        'total': len(cache),
+    }
+    json.dump(status, open(status_path, 'w'), indent=2)
+    print(f"  Updated cron_status.json")
+except Exception as e:
+    print(f"  Warning: could not update cron_status: {e}")

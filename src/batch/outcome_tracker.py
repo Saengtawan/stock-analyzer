@@ -45,6 +45,55 @@ except ImportError:
     print("Warning: OutcomeRepository not available, falling back to JSON")
 
 
+def _fetch_eps_surprise(symbol: str, scan_date: str) -> Optional[float]:
+    """
+    Fetch EPS surprise% for the most recent earnings reported before scan_date.
+    Returns (actual - estimate) / abs(estimate) * 100, or None if unavailable.
+    """
+    try:
+        import yfinance as yf
+        from datetime import date as dt_date
+        ticker = yf.Ticker(symbol)
+        ed = ticker.earnings_dates
+        if ed is None or ed.empty:
+            return None
+        scan_dt = datetime.strptime(scan_date, '%Y-%m-%d').date()
+        ed_clean = ed.dropna(subset=['Reported EPS', 'EPS Estimate'])
+        # Index is timezone-aware datetime; compare as date
+        past = ed_clean[[d.date() <= scan_dt for d in ed_clean.index]]
+        if past.empty:
+            return None
+        latest = past.iloc[0]  # most recent first
+        reported = float(latest['Reported EPS'])
+        estimate = float(latest['EPS Estimate'])
+        if abs(estimate) < 0.001:
+            return None
+        return round((reported - estimate) / abs(estimate) * 100, 2)
+    except Exception:
+        return None
+
+
+def _fetch_short_pct_batch(symbols: List[str]) -> dict:
+    """
+    Fetch short % of float for each symbol from yfinance ticker.info.
+    Returns {symbol: short_pct_float} where value is 0-100 (%).
+    Biweekly FINRA data — represents current short interest, not historical.
+    """
+    import yfinance as yf
+    result = {}
+    for sym in symbols:
+        try:
+            info = yf.Ticker(sym).fast_info
+            # fast_info doesn't have short data; use .info but with timeout protection
+            full_info = yf.Ticker(sym).info
+            spf = full_info.get('shortPercentOfFloat')
+            if spf is not None and spf > 0:
+                result[sym] = round(float(spf) * 100, 2)
+        except Exception:
+            pass
+    return result
+
+
 def _get_trading_days_after(start_date: str, days_needed: int) -> List[str]:
     """Get N trading days after a date (approximation: skip weekends)."""
     from datetime import date as dt_date
@@ -585,7 +634,9 @@ def track_rejected_outcomes(dry_run: bool = False) -> int:
                         'score': outcome.get('signal_score'),
                         'signal_source': outcome.get('signal_source', 'dip_bounce'),
                         'outcome_1d': outcome.get('outcome_1d'),
+                        'outcome_2d': outcome.get('outcome_2d'),
                         'outcome_3d': outcome.get('outcome_3d'),
+                        'outcome_4d': outcome.get('outcome_4d'),
                         'outcome_5d': outcome.get('outcome_5d'),
                         'outcome_max_gain_5d': outcome.get('outcome_max_gain_5d'),
                         'outcome_max_dd_5d': outcome.get('outcome_max_dd_5d'),
@@ -703,6 +754,7 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                             'scan_price': sig.get('scan_price') or sig.get('price', 0),
                             'score': sig.get('score', 0),
                             'signal_source': sig.get('signal_source', ''),
+                            'sector': sig.get('sector', ''),
                             'days_until_earnings': sig.get('days_until_earnings'),
                             'volume_ratio': sig.get('volume_ratio'),
                             'atr_pct': sig.get('atr_pct'),
@@ -714,6 +766,24 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                             'distance_from_high': sig.get('distance_from_high'),
                             'vix_at_signal': sig.get('vix_at_signal'),
                             'spy_pct_above_sma': sig.get('spy_pct_above_sma'),
+                            # v7.4/v7.5: IC-weighted score + analytics fields
+                            'new_score': sig.get('new_score'),
+                            'sector_1d_change': sig.get('sector_1d_change'),
+                            'distance_from_20d_high': sig.get('distance_from_20d_high'),
+                            'spy_intraday_pct': sig.get('spy_intraday_pct'),
+                            'sector_5d_return': sig.get('sector_5d_return'),
+                            'vix_1w_change': sig.get('vix_1w_change'),
+                            'entry_vs_open_pct': sig.get('entry_vs_open_pct'),
+                            'entry_vs_vwap_pct': sig.get('entry_vs_vwap_pct'),
+                            'bounce_pct_from_lod': sig.get('bounce_pct_from_lod'),
+                            'num_positions_open': sig.get('num_positions_open'),
+                            'first_5min_return': sig.get('first_5min_return'),
+                            'intraday_spy_trend': sig.get('intraday_spy_trend'),
+                            'spy_rsi_at_scan': sig.get('spy_rsi_at_scan'),
+                            'pm_range_pct': sig.get('pm_range_pct'),
+                            'timing': sig.get('timing'),
+                            'eps_surprise_pct': sig.get('eps_surprise_pct'),
+                            'close_to_high_pct': sig.get('close_to_high_pct'),
                         })
 
     if not signals_to_track:
@@ -729,6 +799,12 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
         if sym not in symbols_data:
             symbols_data[sym] = []
         symbols_data[sym].append(sig)
+
+    # v7.5: Batch fetch short interest for all symbols (biweekly FINRA, one yfinance call each)
+    all_symbols = list(symbols_data.keys())
+    print(f"  Fetching short interest for {len(all_symbols)} symbols...")
+    short_pct_map = _fetch_short_pct_batch(all_symbols)
+    print(f"  Short interest fetched: {len(short_pct_map)}/{len(all_symbols)} symbols")
 
     outcomes = []
     for symbol, sigs in symbols_data.items():
@@ -818,6 +894,11 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
             if post_lows:
                 max_dd = round(min(post_lows), 2)
 
+            # v7.5: eps_surprise_pct — fetch from yfinance earnings_dates if not in scan log
+            eps_surprise_from_log = sig.get('eps_surprise_pct')
+            if eps_surprise_from_log is None:
+                eps_surprise_from_log = _fetch_eps_surprise(symbol, scan_date)
+
             # v6.54/v6.58: earnings_gap_pct for PED signals (gap on earnings day open)
             # v6.58: also works for DIP/OVN signals that happened to be near earnings
             earnings_gap_pct = None
@@ -844,7 +925,7 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                 "score": sig['score'],
                 "signal_source": sig['signal_source'],
                 "scan_price": scan_price,
-                "days_until_earnings": days_until_earnings,  # v6.58: resolved (not raw sig field)
+                "days_until_earnings": days_until_earnings,
                 "earnings_gap_pct": earnings_gap_pct,
                 "volume_ratio": sig.get('volume_ratio'),
                 "atr_pct": sig.get('atr_pct'),
@@ -852,6 +933,30 @@ def track_signal_outcomes(dry_run: bool = False) -> int:
                 "momentum_5d": sig.get('momentum_5d'),
                 "gap_pct": sig.get('gap_pct'),
                 "gap_confidence": sig.get('gap_confidence'),
+                # v7.4/v7.5: IC-weighted score + analytics fields
+                "momentum_20d": sig.get('momentum_20d'),
+                "distance_from_high": sig.get('distance_from_high'),
+                "vix_at_signal": sig.get('vix_at_signal'),
+                "spy_pct_above_sma": sig.get('spy_pct_above_sma'),
+                "new_score": sig.get('new_score'),
+                "sector_1d_change": sig.get('sector_1d_change'),
+                "distance_from_20d_high": sig.get('distance_from_20d_high'),
+                "spy_intraday_pct": sig.get('spy_intraday_pct'),
+                "sector_5d_return": sig.get('sector_5d_return'),
+                "vix_1w_change": sig.get('vix_1w_change'),
+                "entry_vs_open_pct": sig.get('entry_vs_open_pct'),
+                "entry_vs_vwap_pct": sig.get('entry_vs_vwap_pct'),
+                "bounce_pct_from_lod": sig.get('bounce_pct_from_lod'),
+                "num_positions_open": sig.get('num_positions_open'),
+                "first_5min_return": sig.get('first_5min_return'),
+                "intraday_spy_trend": sig.get('intraday_spy_trend'),
+                "spy_rsi_at_scan": sig.get('spy_rsi_at_scan'),
+                "pm_range_pct": sig.get('pm_range_pct'),
+                "timing": sig.get('timing'),
+                "eps_surprise_pct": eps_surprise_from_log,
+                "close_to_high_pct": sig.get('close_to_high_pct'),
+                "short_percent_of_float": short_pct_map.get(symbol),
+                "sector": sig.get('sector'),
                 "outcome_1d": outcome_1d,
                 "outcome_2d": outcome_2d,
                 "outcome_3d": outcome_3d,

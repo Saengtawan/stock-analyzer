@@ -24,6 +24,16 @@ class QueueRepository:
             db_name: Database name (default: trade_history)
         """
         self.db = get_db_manager(db_name)
+        self._ensure_columns()
+
+    def _ensure_columns(self):
+        """Add columns that may be missing from older schema."""
+        try:
+            cols = [r[1] for r in self.db.execute("PRAGMA table_info(signal_queue)").fetchall()]
+            if 'volume_ratio' not in cols:
+                self.db.execute("ALTER TABLE signal_queue ADD COLUMN volume_ratio REAL")
+        except Exception:
+            pass
 
     def get_all(self, status: str = "waiting") -> List[QueuedSignal]:
         """
@@ -119,8 +129,11 @@ class QueueRepository:
                     stop_loss, take_profit, sl_pct, tp_pct,
                     queued_at, attempts, last_attempt_at,
                     atr_pct, reasons,
-                    signal_id, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    signal_id, status,
+                    source, rsi, sector,
+                    momentum_5d, momentum_20d, distance_from_high, new_score,
+                    volume_ratio
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 signal.symbol,
                 signal.signal_price,
@@ -135,7 +148,15 @@ class QueueRepository:
                 signal.atr_pct,
                 reasons_json,
                 signal.signal_id,
-                signal.status
+                signal.status,
+                getattr(signal, 'source', ''),
+                getattr(signal, 'rsi', None),
+                getattr(signal, 'sector', ''),
+                getattr(signal, 'momentum_5d', None),
+                getattr(signal, 'momentum_20d', None),
+                getattr(signal, 'distance_from_high', None),
+                getattr(signal, 'new_score', None),
+                getattr(signal, 'volume_ratio', None),
             ))
 
             return True

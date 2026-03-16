@@ -54,6 +54,9 @@ class TradingSignal:
     sl_method: Optional[str] = None  # EMA5, ATR, SwingLow, etc.
     tp_method: Optional[str] = None  # 52wHigh, Resistance, RR, etc.
 
+    # v7.5: IC-weighted DIP quality score
+    new_score: Optional[float] = None  # IC-weighted score [0-100]; DIP_SCORE_REJECT if < 70
+
     # Signal Status
     status: str = "active"  # active, waiting, executed, expired
     wait_reason: Optional[str] = None  # positions_full, etc.
@@ -165,6 +168,7 @@ class TradingSignal:
             # Strategy
             sl_method=signal_data.get('sl_method'),
             tp_method=signal_data.get('tp_method'),
+            new_score=signal_data.get('new_score'),
 
             # Status
             status=status,

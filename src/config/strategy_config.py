@@ -103,7 +103,7 @@ class RapidRotationConfig:
     simulated_capital_pem: int = 500    # PEM dedicated slot (rare, high-conviction)
     simulated_capital_ped: int = 500    # PED dedicated slot (pre-earnings)
     risk_parity_enabled: bool = True    # Enable risk-parity sizing
-    risk_budget_pct: float = 1.0        # Max risk per position (% of account)
+    risk_budget_pct: float = 3.0        # v7.0: 2.5→3.0 so sl_pct=3% (typical DIP) → 100% of per_slot
 
     # =========================================================================
     # SCORING & FILTERING
@@ -111,6 +111,7 @@ class RapidRotationConfig:
     min_score: int = 90                 # Minimum score to qualify (legacy: 90)
     min_atr_pct: float = 2.5            # Minimum volatility (ATR%)
     max_rsi_entry: int = 60             # v6.79: Block RSI > 60 (live: RSI 60+ = 0% WR)
+    dip_score_min: float = 70.0         # v7.4: IC-weighted DIP score minimum (DIP_SCORE_REJECT if below)
     avoid_mom_range: List[int] = field(default_factory=lambda: [10, 12])  # Skip momentum 10-12%
 
     # v6.20: Momentum 5d Filter (dip-bounce strategy requirement)
@@ -313,6 +314,8 @@ class RapidRotationConfig:
     continuous_scan_volatile_interval: int = 3      # Volatile period interval (09:32-11:00)
     continuous_scan_volatile_end_hour: int = 11     # Volatile period ends at 11:00
     continuous_scan_midday_hour: int = 12           # Switch to afternoon params after this hour
+    continuous_scan_dynamic_enabled: bool = True    # v6.18: Enable VIX-based dynamic interval
+    continuous_scan_dynamic_calm_interval: int = 5  # v6.18: Interval when VIX < threshold (minutes)
 
     # =========================================================================
     # LATE START PROTECTION (v4.4)
@@ -392,7 +395,7 @@ class RapidRotationConfig:
     # POST-EARNINGS MOMENTUM (PEM) STRATEGY (v6.29)
     # =========================================================================
     pem_enabled: bool = False                   # Disabled by default (paper trade first)
-    pem_gap_threshold_pct: float = 8.0          # Minimum gap up % to qualify
+    pem_gap_threshold_pct: float = 8.0          # v7.5: 15→8 (collect data; raise to 15 when n≥30 PEM trades)
     pem_volume_early_ratio_min: float = 0.11    # v6.69: 0.30→0.11 (HCI test: 0.11x observed at 9:32 ET)
     pem_skip_vix: bool = False                  # v6.69: bypass VIX check for PEM (earnings catalyst)
     pem_scan_hour: int = 9                      # Scan hour (ET)

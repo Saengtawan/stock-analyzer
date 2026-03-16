@@ -40,7 +40,17 @@ class OvernightGapScanner:
     MIN_ATR_PCT = 1.5               # Minimum volatility for profit potential
     MAX_ATR_PCT = 6.0               # Max volatility (too risky overnight)
     MAX_INTRADAY_SELLING_PCT = 3.0  # v6.57: Max open→low drop % (intraday selling pressure)
-    BLOCKED_SECTORS = ('Financial Services',)  # v6.57: Macro-driven gaps, not momentum
+    BLOCKED_SECTORS = (
+        'Financial Services',   # v6.57: Macro-driven gaps, not momentum
+        'Consumer Cyclical',    # v7.4: OVN WR5d=0% avg=-3.47% (n=3)
+        'Consumer_Travel',      # v7.4: Consumer sub-sector (MTN etc.)
+        'Consumer_Auto',        # v7.4: Consumer sub-sector
+        'Consumer_Retail',      # v7.4: Consumer sub-sector
+        'Consumer_Food',        # v7.4: Consumer sub-sector
+        'Consumer_Staples',     # v7.4: Consumer sub-sector (defensive but same block)
+        'Consumer Defensive',   # v7.4: Consumer sub-sector
+        'Communication Services',  # v7.4: OVN WR5d=0% avg=-5.98% (n=14)
+    )
 
     def __init__(self, data_manager=None):
         """
@@ -169,6 +179,14 @@ class OvernightGapScanner:
             score += 30
             reasons.append(f"Close near HOD ({close_to_high_pct:.1f}%)")
         else:
+            try:
+                from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                ScreenerRejectionRepository().log_rejection(
+                    screener='ovn', symbol=symbol, reject_reason='not_close_to_high',
+                    scan_price=round(current_close, 2),
+                )
+            except Exception:
+                pass
             return None  # Must close near high
 
         # 2. Positive day (close > open)
@@ -177,6 +195,14 @@ class OvernightGapScanner:
             score += min(int(day_gain * 5), 20)  # Up to 20 pts for strong day
             reasons.append(f"Green day +{day_gain:.1f}%")
         else:
+            try:
+                from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                ScreenerRejectionRepository().log_rejection(
+                    screener='ovn', symbol=symbol, reject_reason='red_day',
+                    scan_price=round(current_close, 2),
+                )
+            except Exception:
+                pass
             return None  # Must be a green day
 
         # v6.57: Intraday selling pressure — how far did price drop from open intraday?
@@ -186,6 +212,14 @@ class OvernightGapScanner:
             open_to_low_pct = (current_open - current_low) / current_open * 100
             if open_to_low_pct >= self.MAX_INTRADAY_SELLING_PCT:
                 logger.debug(f"OVN: {symbol} blocked — intraday selling pressure {open_to_low_pct:.1f}% >= {self.MAX_INTRADAY_SELLING_PCT}%")
+                try:
+                    from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                    ScreenerRejectionRepository().log_rejection(
+                        screener='ovn', symbol=symbol, reject_reason='intraday_selling',
+                        scan_price=round(current_close, 2),
+                    )
+                except Exception:
+                    pass
                 return None
 
         # 3. Volume above average
@@ -196,24 +230,65 @@ class OvernightGapScanner:
                 score += min(int(vol_ratio * 10), 20)  # Up to 20 pts
                 reasons.append(f"Vol {vol_ratio:.1f}x avg")
             else:
+                # v7.5: Log volume rejection (after close_near_high + green_day passed — real candidate)
+                try:
+                    from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                    ScreenerRejectionRepository().log_rejection(
+                        screener='ovn', symbol=symbol, reject_reason='volume_too_low',
+                        scan_price=round(current_close, 2), volume_ratio=round(vol_ratio, 3),
+                    )
+                except Exception:
+                    pass
                 return None  # Must have above-average volume
+
+        # v7.5: Block stocks with earnings TODAY (D=0) — overnight hold through earnings
+        # is uncontrolled risk. PEM handles earnings-day plays with same-day exit.
+        if self._has_earnings_today(symbol):
+            logger.debug(f"OVN: {symbol} blocked — earnings today (D=0)")
+            try:
+                from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                ScreenerRejectionRepository().log_rejection(
+                    screener='ovn', symbol=symbol, reject_reason='earnings_today',
+                    scan_price=round(current_close, 2), volume_ratio=round(vol_ratio, 3),
+                )
+            except Exception:
+                pass
+            return None
 
         # v6.57: Block Financial Services sector — banks/brokers gap on Fed/earnings news,
         # not intraday momentum. Cached after first fetch, minimal overhead per scan.
         stock_sector = self._get_sector_from_cache(symbol)
         if stock_sector in self.BLOCKED_SECTORS:
             logger.debug(f"OVN: {symbol} blocked — sector '{stock_sector}' in BLOCKED_SECTORS")
+            # v7.5: Log sector rejection
+            try:
+                from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                ScreenerRejectionRepository().log_rejection(
+                    screener='ovn', symbol=symbol, reject_reason='sector_blocked',
+                    scan_price=round(current_close, 2), volume_ratio=round(vol_ratio, 3),
+                )
+            except Exception:
+                pass
             return None
 
         # 4. RSI check (40-65 = not overbought, momentum still up)
         rsi = self._calculate_rsi(close)
         if rsi is not None:
-            if self.RSI_MIN <= rsi <= self.RSI_MAX:
+            if rsi > self.RSI_MAX:
+                logger.debug(f"OVN: {symbol} blocked — RSI {rsi:.1f} > {self.RSI_MAX} (overbought)")
+                try:
+                    from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                    ScreenerRejectionRepository().log_rejection(
+                        screener='ovn', symbol=symbol, reject_reason='rsi_too_high',
+                        scan_price=round(current_close, 2), rsi=round(rsi, 1),
+                        volume_ratio=round(vol_ratio, 3),
+                    )
+                except Exception:
+                    pass
+                return None
+            elif self.RSI_MIN <= rsi <= self.RSI_MAX:
                 score += 15
                 reasons.append(f"RSI {rsi:.0f}")
-            elif rsi > self.RSI_MAX:
-                score -= 10  # Overbought penalty
-                reasons.append(f"RSI high {rsi:.0f}")
 
         # 5. ATR check
         atr_pct = self._calculate_atr_pct(high, low, close)
@@ -222,8 +297,26 @@ class OvernightGapScanner:
                 score += 10
                 reasons.append(f"ATR {atr_pct:.1f}%")
             elif atr_pct > self.MAX_ATR_PCT:
+                # v7.5: Log ATR rejection
+                try:
+                    from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                    ScreenerRejectionRepository().log_rejection(
+                        screener='ovn', symbol=symbol, reject_reason='atr_too_high',
+                        scan_price=round(current_close, 2), atr_pct=round(atr_pct, 2),
+                    )
+                except Exception:
+                    pass
                 return None  # Too volatile for overnight
             elif atr_pct < self.MIN_ATR_PCT:
+                # v7.5: Log ATR rejection
+                try:
+                    from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                    ScreenerRejectionRepository().log_rejection(
+                        screener='ovn', symbol=symbol, reject_reason='atr_too_low',
+                        scan_price=round(current_close, 2), atr_pct=round(atr_pct, 2),
+                    )
+                except Exception:
+                    pass
                 return None  # Not enough movement potential
         else:
             atr_pct = 3.0  # Default
@@ -245,6 +338,14 @@ class OvernightGapScanner:
                         score += 5
                         reasons.append(f"Sector BULL")
                     elif regime in ('BEAR', 'STRONG BEAR'):
+                        try:
+                            from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                            ScreenerRejectionRepository().log_rejection(
+                                screener='ovn', symbol=symbol, reject_reason='bear_sector',
+                                scan_price=round(current_close, 2), sector=sector,
+                            )
+                        except Exception:
+                            pass
                         return None  # Skip BEAR sectors
             except Exception:
                 pass
@@ -259,6 +360,17 @@ class OvernightGapScanner:
 
         # Check minimum score
         if score < min_score:
+            try:
+                from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                ScreenerRejectionRepository().log_rejection(
+                    screener='ovn', symbol=symbol, reject_reason='low_score',
+                    scan_price=round(current_close, 2), score=score,
+                    rsi=round(rsi, 1) if rsi else None,
+                    atr_pct=round(atr_pct, 2) if atr_pct else None,
+                    sector=sector or None,
+                )
+            except Exception:
+                pass
             return None
 
         # Calculate entry/SL/TP
@@ -273,7 +385,7 @@ class OvernightGapScanner:
         high_52w = float(np.max(close[-252:])) if len(close) >= 252 else float(np.max(close))
         dist_from_high = ((current_close / high_52w) - 1) * 100 if high_52w > 0 else 0
 
-        return RapidRotationSignal(
+        sig = RapidRotationSignal(
             symbol=symbol,
             score=score,
             entry_price=entry_price,
@@ -294,6 +406,9 @@ class OvernightGapScanner:
             tp_method="overnight_gap_fixed",
             volume_ratio=round(vol_ratio, 2),
         )
+        # v7.5: Attach close_to_high_pct for signal_outcomes logging
+        sig.close_to_high_pct = round(close_to_high_pct, 2)
+        return sig
 
     def _calculate_rsi(self, close, period: int = 14) -> Optional[float]:
         """Calculate RSI"""
@@ -327,3 +442,30 @@ class OvernightGapScanner:
     def _get_sector_from_cache(self, symbol: str) -> str:
         """Get sector from universe DB cache (v6.73: no yfinance)."""
         return self._sector_cache.get(symbol, '')
+
+    def _has_earnings_today(self, symbol: str) -> bool:
+        """
+        v7.5: Check if symbol has earnings TODAY (D=0).
+
+        Uses earnings_calendar table directly — same source as PED screener.
+        OVN holds overnight, so earnings D=0 = uncontrolled gap risk.
+        """
+        try:
+            import sqlite3
+            from pathlib import Path
+            from datetime import date
+            db_path = str(Path(__file__).resolve().parent.parent.parent / 'data' / 'trade_history.db')
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            try:
+                row = conn.execute(
+                    "SELECT next_earnings_date FROM earnings_calendar WHERE symbol = ?",
+                    (symbol,)
+                ).fetchone()
+                if row and row['next_earnings_date'] == date.today().isoformat():
+                    return True
+            finally:
+                conn.close()
+        except Exception:
+            pass  # Fail-open: if DB unavailable, don't block
+        return False

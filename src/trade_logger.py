@@ -29,9 +29,21 @@ from datetime import datetime, date, timedelta
 from dataclasses import dataclass, asdict, field
 from typing import Dict, List, Optional, Any
 from pathlib import Path
+import math
 import pytz
 
 from loguru import logger
+
+
+def _sanitize_for_json(obj):
+    """Replace NaN/Infinity with None for valid JSON (SQLite json_extract requires strict JSON)."""
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_for_json(v) for v in obj]
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
+    return obj
 
 # Use database layer
 from database import TradeRepository, Trade as TradeModel
@@ -109,6 +121,9 @@ class TradeLogEntry:
     beta: Optional[float] = None                 # Stock beta
     volume_ratio: Optional[float] = None         # Today volume / avg volume
     composite_score: Optional[float] = None      # v6.96: Env quality 0-1 (RSI+Ret20d+Mom5d+SPY+Sector)
+    new_score: Optional[float] = None            # v7.5: IC-weighted DIP quality score [0-100] (logged for DIP_SCORE_REJECT analysis)
+    momentum_20d: Optional[float] = None         # v7.5: 20d momentum (for LONG_TERM_DOWNTREND filter analysis)
+    distance_from_high: Optional[float] = None   # v7.5: distance from 20d high, positive conv (for NOT_NEAR_HIGH analysis)
 
     # Execution Data (v4.8: Smart Buy tracking)
     order_type: Optional[str] = None          # limit / market_fallback / market
@@ -125,6 +140,24 @@ class TradeLogEntry:
     max_gain_pct: Optional[float] = None      # Peak unrealized gain %
     max_drawdown_pct: Optional[float] = None  # Max drawdown from entry %
     exit_efficiency: Optional[float] = None   # exit P&L / max_gain (how much captured)
+
+    # v7.5: Excursion analytics
+    mfe_pct: Optional[float] = None          # Max favorable excursion (peak profit % during hold)
+    mae_pct: Optional[float] = None          # Max adverse excursion (max loss % during hold)
+    hold_minutes: Optional[int] = None       # Actual hold duration in minutes
+
+    # v7.5: Exit quality analytics
+    exit_vs_vwap_pct: Optional[float] = None      # Exit price vs VWAP at close time
+    pct_from_mfe_to_close: Optional[float] = None # Profit given back: (mfe_pct - final_pnl_pct)
+    next_day_open_pct: Optional[float] = None     # OVN: (D+1 open / sell_price - 1) × 100, filled by cron
+    mfe_timestamp: Optional[str] = None           # ET timestamp when MFE (peak profit) was achieved
+
+    # v7.5: Config-at-entry snapshot (dedicated columns for cohort analysis)
+    sl_multiplier: Optional[float] = None         # ATR multiplier used for SL (e.g. 1.5)
+    sl_method: Optional[str] = None               # 'atr' | 'pem' | 'fixed'
+    trail_activation_pct: Optional[float] = None  # Trailing activate threshold at entry time
+    trail_lock_pct: Optional[float] = None        # Trailing lock % at entry time
+    tp_pct: Optional[float] = None                # TP % used at entry time
 
     # Config Snapshot (v4.8: Version comparison)
     config_version: Optional[str] = None
@@ -362,7 +395,10 @@ class TradeLogger:
                 source TEXT,
                 full_data TEXT,
                 volume_ratio REAL,
-                composite_score REAL
+                composite_score REAL,
+                new_score REAL,
+                momentum_20d REAL,
+                distance_from_high REAL
             )
         ''')
 
@@ -496,6 +532,9 @@ class TradeLogger:
         market_cap_tier: str = None,
         beta: float = None,
         volume_ratio: float = None,
+        momentum_20d: float = None,       # v7.5: for LONG_TERM_DOWNTREND filter analysis
+        distance_from_high: float = None, # v7.5: for NOT_NEAR_HIGH filter analysis (positive conv)
+        new_score: float = None,          # v7.5: IC-weighted DIP quality score [0-100]
         # Execution data (v4.8)
         order_type: str = None,
         signal_price: float = None,
@@ -519,6 +558,12 @@ class TradeLogger:
         entry_vix_change_pct: float = None,
         entry_uvxy_pct: float = None,
         entry_qqq_spy_spread: float = None,
+        # v7.5: Config-at-entry for cohort analysis
+        sl_multiplier: float = None,
+        sl_method: str = None,
+        trail_activation_pct: float = None,
+        trail_lock_pct: float = None,
+        tp_pct: float = None,
         note: str = ""
     ) -> TradeLogEntry:
         """Log a BUY trade"""
@@ -558,6 +603,9 @@ class TradeLogger:
             market_cap_tier=market_cap_tier,
             beta=beta,
             volume_ratio=volume_ratio,
+            momentum_20d=momentum_20d,
+            distance_from_high=distance_from_high,
+            new_score=new_score,
             # Execution data
             order_type=order_type,
             signal_price=signal_price,
@@ -594,6 +642,12 @@ class TradeLogger:
             entry_vix_change_pct=entry_vix_change_pct,
             entry_uvxy_pct=entry_uvxy_pct,
             entry_qqq_spy_spread=entry_qqq_spy_spread,
+            # v7.5: Config-at-entry for cohort analysis
+            sl_multiplier=sl_multiplier,
+            sl_method=sl_method,
+            trail_activation_pct=trail_activation_pct,
+            trail_lock_pct=trail_lock_pct,
+            tp_pct=tp_pct,
             note=note
         )
 
@@ -651,6 +705,15 @@ class TradeLogger:
         exit_momentum_1d: float = None,
         exit_spy_change: float = None,
         exit_bid_ask_spread: float = None,
+        # v7.5: Excursion analytics
+        mfe_pct: float = None,
+        mae_pct: float = None,
+        hold_minutes: int = None,
+        # v7.5: Exit quality analytics
+        exit_vs_vwap_pct: float = None,
+        pct_from_mfe_to_close: float = None,
+        next_day_open_pct: float = None,
+        mfe_timestamp: str = None,
     ) -> TradeLogEntry:
         """Log a SELL trade"""
         entry = TradeLogEntry(
@@ -696,6 +759,15 @@ class TradeLogger:
             exit_momentum_1d=exit_momentum_1d,
             exit_spy_change=exit_spy_change,
             exit_bid_ask_spread=exit_bid_ask_spread,
+            # v7.5: Excursion analytics
+            mfe_pct=mfe_pct,
+            mae_pct=mae_pct,
+            hold_minutes=hold_minutes,
+            # v7.5: Exit quality analytics
+            exit_vs_vwap_pct=exit_vs_vwap_pct,
+            pct_from_mfe_to_close=pct_from_mfe_to_close,
+            next_day_open_pct=next_day_open_pct,
+            mfe_timestamp=mfe_timestamp,
         )
 
         self._add_entry(entry)
@@ -720,6 +792,8 @@ class TradeLogger:
         entry_rsi: float = None,  # v5.1 P3-23: renamed from rsi
         momentum_5d: float = None,
         volume_ratio: float = None,  # v7.03
+        momentum_20d: float = None,       # v7.5: for LONG_TERM_DOWNTREND filter analysis
+        distance_from_high: float = None, # v7.5: for NOT_NEAR_HIGH filter analysis (positive conv)
         mode: str = None,
         # v5.0: Earnings context (EARNINGS_REJECT only)
         earnings_date: str = None,
@@ -734,6 +808,7 @@ class TradeLogger:
         earnings_quarterly_growth: float = None,
         revenue_growth: float = None,
         short_percent_of_float: float = None,
+        new_score: float = None,     # v7.5: IC-weighted DIP quality score (for DIP_SCORE_REJECT analysis)
         note: str = ""
     ) -> TradeLogEntry:
         """Log a SKIP (rejected signal)"""
@@ -757,6 +832,8 @@ class TradeLogger:
             entry_rsi=entry_rsi,
             momentum_5d=momentum_5d,
             volume_ratio=volume_ratio,  # v7.03
+            momentum_20d=momentum_20d,
+            distance_from_high=distance_from_high,
             mode=mode,
             # v5.0: Earnings context
             earnings_date=earnings_date,
@@ -771,6 +848,7 @@ class TradeLogger:
             earnings_quarterly_growth=earnings_quarterly_growth,
             revenue_growth=revenue_growth,
             short_percent_of_float=short_percent_of_float,
+            new_score=new_score,
             note=note
         )
 
@@ -880,7 +958,7 @@ class TradeLogger:
                     from_queue=entry.from_queue,
                     version=entry.version,
                     source=entry.source,
-                    full_data=json.dumps(asdict(entry), default=str)
+                    full_data=json.dumps(_sanitize_for_json(asdict(entry)), default=str)
                 )
 
                 # Use repository (handles INSERT OR REPLACE)
@@ -903,8 +981,16 @@ class TradeLogger:
                         pdt_used, pdt_remaining, day_held, mode,
                         regime, spy_price, signal_score, gap_pct, atr_pct,
                         from_queue, version, source, full_data,
-                        volume_ratio, composite_score
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        volume_ratio, composite_score,
+                        mfe_pct, mae_pct, hold_minutes,
+                        exit_vs_vwap_pct, pct_from_mfe_to_close, next_day_open_pct,
+                        signal_source, entry_rsi, entry_vix,
+                        new_score, momentum_20d, distance_from_high,
+                        mfe_timestamp,
+                        sl_multiplier, sl_method,
+                        trail_activation_pct, trail_lock_pct, tp_pct,
+                        fill_time_sec, slippage_pct
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     entry.id, entry.timestamp, trade_date, entry.action,
                     entry.symbol, entry.qty, entry.price, entry.reason,
@@ -912,8 +998,22 @@ class TradeLogger:
                     1 if entry.pdt_used else 0, entry.pdt_remaining, entry.day_held, entry.mode,
                     entry.regime, entry.spy_price, entry.signal_score, entry.gap_pct, entry.atr_pct,
                     1 if entry.from_queue else 0, entry.version, entry.source,
-                    json.dumps(asdict(entry), default=str),
-                    entry.volume_ratio, entry.composite_score
+                    json.dumps(_sanitize_for_json(asdict(entry)), default=str),
+                    entry.volume_ratio, entry.composite_score,
+                    entry.mfe_pct, entry.mae_pct, entry.hold_minutes,
+                    entry.exit_vs_vwap_pct, entry.pct_from_mfe_to_close, entry.next_day_open_pct,
+                    entry.signal_source, entry.entry_rsi,
+                    getattr(entry, 'entry_vix', None),
+                    entry.new_score,
+                    entry.momentum_20d, entry.distance_from_high,
+                    getattr(entry, 'mfe_timestamp', None),
+                    getattr(entry, 'sl_multiplier', None),
+                    getattr(entry, 'sl_method', None),
+                    getattr(entry, 'trail_activation_pct', None),
+                    getattr(entry, 'trail_lock_pct', None),
+                    getattr(entry, 'tp_pct', None),
+                    entry.fill_time_sec,
+                    entry.slippage_pct,
                 ))
 
                 conn.commit()

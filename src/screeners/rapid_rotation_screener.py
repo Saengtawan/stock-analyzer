@@ -115,9 +115,10 @@ class RapidRotationSignal:
     tp_method: str = ""       # Which method determined TP
     swing_low: float = 0.0    # Swing low reference
     resistance: float = 0.0   # Resistance reference
-    volume_ratio: float = 1.0  # v5.0: today_vol / avg_20d_vol
-    vwap: float = 0.0          # v6.20: VWAP for entry protection filter
-    new_score: float = 0.0     # v7.4: IC-weighted DIP quality score [0-100]
+    volume_ratio: float = 1.0         # v5.0: today_vol / avg_20d_vol
+    vwap: float = 0.0                 # v6.20: VWAP for entry protection filter
+    new_score: float = 0.0            # v7.4: IC-weighted DIP quality score [0-100]
+    short_percent_of_float: float = 0.0  # v7.5: short interest % of float (biweekly FINRA)
 
     @property
     def expected_gain(self) -> float:
@@ -473,8 +474,10 @@ class RapidRotationScreener:
             from api.data_manager import DataManager
             self.data_manager = DataManager()  # v4.9.3: Store for load_data() Tiingo routing
             self.sector_regime = SectorRegimeDetector(data_manager=self.data_manager)
-            # Update sector regimes at startup
-            self.sector_regime.update_all_sectors()
+            # v7.5: skip_mcw=True for webapp — 550-stock yf.download(threads=True) hangs
+            # under eventlet. ETF-only (11 downloads) works fine. The nohup engine runs
+            # full MCW via screen() for trading decisions.
+            self.sector_regime.update_all_sectors(skip_mcw=True)
             logger.info("✅ Sector Regime Detector initialized")
         except Exception as e:
             self.sector_regime = None
@@ -1593,6 +1596,47 @@ class RapidRotationScreener:
                     logger.info(f"📊 Execution trace saved: {trace_summary['total_stocks']} stocks traced")
             except Exception as trace_err:
                 logger.debug(f"Failed to save execution trace: {trace_err}")
+
+            # v7.5: Flush DIP screener rejection batch to DB (Dimension 3)
+            try:
+                if self.dip_bounce_strategy and self.dip_bounce_strategy.rejection_batch:
+                    from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                    _rej_batch = self.dip_bounce_strategy.rejection_batch
+
+                    # v7.5: Enrich rejection batch with insider activity (batch query)
+                    try:
+                        import sqlite3 as _sqlite3
+                        from pathlib import Path as _Path
+                        _idb = str(_Path(__file__).resolve().parent.parent.parent / 'data' / 'trade_history.db')
+                        _cutoff = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+                        _unique_syms = list({r['symbol'] for r in _rej_batch if r.get('symbol')})
+                        if _unique_syms:
+                            _placeholders = ','.join('?' * len(_unique_syms))
+                            with _sqlite3.connect(_idb) as _ic:
+                                _irows = _ic.execute(f"""
+                                    SELECT symbol,
+                                           SUM(total_value) as total_val,
+                                           MIN(CAST(julianday('now') - julianday(transaction_date) AS INTEGER)) as days_ago
+                                    FROM insider_transactions
+                                    WHERE symbol IN ({_placeholders})
+                                      AND transaction_date >= ?
+                                      AND transaction_type = 'purchase'
+                                    GROUP BY symbol
+                                """, _unique_syms + [_cutoff]).fetchall()
+                            _insider_map = {r[0]: (round(float(r[1]), 0), int(r[2]) if r[2] is not None else None)
+                                            for r in _irows if r[1] is not None}
+                            for _r in _rej_batch:
+                                _ins = _insider_map.get(_r.get('symbol', ''))
+                                if _ins:
+                                    _r['insider_buy_30d_value'] = _ins[0]
+                                    _r['insider_buy_days_ago']  = _ins[1]
+                    except Exception as _ie:
+                        logger.debug(f"Insider enrichment for rejections error: {_ie}")
+
+                    ScreenerRejectionRepository().bulk_insert(_rej_batch)
+                    logger.debug(f"DIP screener rejections logged: {len(_rej_batch)}")
+            except Exception as rej_err:
+                logger.debug(f"Screener rejection log error: {rej_err}")
 
         # ======================================================================
         # LEGACY PATH (Direct analyze_stock loop - will be removed in future)

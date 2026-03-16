@@ -676,6 +676,33 @@
                 </div>
             </div>
         </div>
+
+        <!-- ========== DISCOVERY PICKS (below Buy Signals, same column) ========== -->
+        <div class="card mt-2">
+            <div class="card-header py-1 px-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="fas fa-binoculars me-1"></i>Discovery
+                        <small class="text-muted ms-1" id="discoveryLastScan" style="font-size:0.65rem;"></small>
+                    </span>
+                    <span>
+                        <button class="btn btn-sm btn-outline-success me-1" id="discoveryScanBtn" onclick="triggerDiscoveryScan()" style="font-size:0.65rem;padding:1px 6px;" title="Manual Scan">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <span class="badge bg-success" id="discoveryBadge">0</span>
+                    </span>
+                </div>
+                <div id="discoveryStatsLine" style="font-size:0.6rem;color:#888;margin-top:1px;"></div>
+            </div>
+            <!-- Sector distribution bar -->
+            <div id="discoverySectorBar" style="height:4px;display:flex;border-radius:0;"></div>
+            <div class="card-body p-2" id="discoveryContainer" style="max-height: 50vh; overflow-y: auto;">
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-search fa-2x mb-2 text-muted" style="opacity: 0.5;"></i>
+                    <p class="small mb-0">Scanning for picks...</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ========== CENTER COLUMN: Portfolio ========== -->
@@ -1438,11 +1465,26 @@ function updateHeaderMarketStatus(calendar) {
 }
 
 function getETOffset() {
-    const jan = new Date(new Date().getFullYear(), 0, 1);
-    const jul = new Date(new Date().getFullYear(), 6, 1);
-    const stdOffset = Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
-    const isDST = new Date().getTimezoneOffset() < stdOffset;
-    return isDST ? -4 : -5;
+    // Detect DST from New York timezone directly (not client timezone)
+    // Fixes Bangkok browser: client has no DST → old method always returned -5 (EST) year-round
+    try {
+        const tzName = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/New_York',
+            timeZoneName: 'short'
+        }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value;
+        return (tzName === 'EDT') ? -4 : -5;
+    } catch (e) {
+        // Fallback: Jan/Jul comparison using NY-offset dates
+        const now = new Date();
+        const jan = new Date(Date.UTC(now.getFullYear(), 0, 15));
+        const jul = new Date(Date.UTC(now.getFullYear(), 6, 15));
+        const nyJan = new Date(jan.toLocaleString('en-US', {timeZone: 'America/New_York'}));
+        const nyJul = new Date(jul.toLocaleString('en-US', {timeZone: 'America/New_York'}));
+        const nyNow = new Date(now.toLocaleString('en-US', {timeZone: 'America/New_York'}));
+        const stdOffset = Math.min(jan - nyJan, jul - nyJul);  // smaller offset = more behind UTC
+        const isDST = (now - nyNow) < stdOffset;
+        return isDST ? -4 : -5;
+    }
 }
 
 function updateMarketCountdown() {
@@ -1623,8 +1665,8 @@ function showTradeNotification(data) {
     const isBuy = data.type === 'BUY';
     const strategyLabels = {
         'dip_bounce': '[DIP]', 'overnight_gap': '[OVN]',
-        'pem': '[PEM]', 'ped': '[PED]', 'vix_adaptive': '[VIX]',
-        'mean_reversion': '[MR]', 'rapid_rotation': '[DIP]'
+        'pem': '[PEM]', 'ped': '[PED]', 'premarket_gap': '[GAP]',
+        'vix_adaptive': '[VIX]', 'mean_reversion': '[MR]', 'rapid_rotation': '[DIP]'
     };
     const stratTag = strategyLabels[data.strategy] || (data.strategy ? `[${data.strategy.toUpperCase()}]` : '');
     const price = data.price ? `$${parseFloat(data.price).toFixed(2)}` : '';
@@ -2080,18 +2122,22 @@ function updateHeaderBar(data) {
             vixEl.style.color = details.vix_ok ? '#27ae60' : '#e74c3c';
 
             if (vixIconEl) {
-                if (vix < 25) {
+                if (vix < 20) {
                     vixIconEl.textContent = '✅';
                     vixIconEl.className = 'hdr-ok';
-                    vixIconEl.title = 'VIX Safe (<25)';
-                } else if (vix < 30) {
-                    vixIconEl.textContent = '⚠️';
-                    vixIconEl.className = 'hdr-warn';
-                    vixIconEl.title = 'VIX Warning (25-29)';
-                } else {
+                    vixIconEl.title = 'VIX Normal (<20)';
+                } else if (vix < 24) {
                     vixIconEl.textContent = '⛔';
                     vixIconEl.className = 'hdr-danger';
-                    vixIconEl.title = 'VIX High (≥30) - Trading Blocked';
+                    vixIconEl.title = 'VIX SKIP [20-24) — DIP Blocked';
+                } else if (vix < 38) {
+                    vixIconEl.textContent = '⚠️';
+                    vixIconEl.className = 'hdr-warn';
+                    vixIconEl.title = 'VIX High [24-38) — Elevated Risk';
+                } else {
+                    vixIconEl.textContent = '🚨';
+                    vixIconEl.className = 'hdr-danger';
+                    vixIconEl.title = 'VIX EXTREME (≥38) — All Trading Blocked';
                 }
             }
         }
@@ -2358,18 +2404,22 @@ function loadSpyRegime() {
                 // VIX status icon with pulse animations
                 if (vixIconEl) {
                     vixIconEl.classList.remove('vix-pulse-warn', 'vix-pulse-danger');
-                    if (vix < 25) {
+                    if (vix < 20) {
                         vixIconEl.textContent = '✅';
                         vixIconEl.className = 'hdr-ok';
-                        vixIconEl.title = 'VIX Safe (<25)';
-                    } else if (vix < 30) {
-                        vixIconEl.textContent = '⚠️';
-                        vixIconEl.className = 'hdr-warn vix-pulse-warn';
-                        vixIconEl.title = 'VIX Warning (25-29)';
-                    } else {
+                        vixIconEl.title = 'VIX Normal (<20)';
+                    } else if (vix < 24) {
                         vixIconEl.textContent = '⛔';
                         vixIconEl.className = 'hdr-danger vix-pulse-danger';
-                        vixIconEl.title = 'VIX High (≥30) - Trading Blocked';
+                        vixIconEl.title = 'VIX SKIP [20-24) — DIP Blocked';
+                    } else if (vix < 38) {
+                        vixIconEl.textContent = '⚠️';
+                        vixIconEl.className = 'hdr-warn vix-pulse-warn';
+                        vixIconEl.title = 'VIX High [24-38) — Elevated Risk';
+                    } else {
+                        vixIconEl.textContent = '🚨';
+                        vixIconEl.className = 'hdr-danger vix-pulse-danger';
+                        vixIconEl.title = 'VIX EXTREME (≥38) — All Trading Blocked';
                     }
                 }
             }
@@ -2408,6 +2458,8 @@ function loadAlerts() {
                 if (data.queue) {
                     const queueCount = data.queue.length || 0;
                     document.getElementById('queueCount').textContent = queueCount;
+                    const hdrQ = document.getElementById('hdrQueueCount');
+                    if (hdrQ) hdrQ.textContent = queueCount;
                     const queueContainer = document.getElementById('queueContainer');
                     if (queueCount > 0) {
                         queueContainer.innerHTML = data.queue.map(q => `<div class="d-flex justify-content-between align-items-center small py-1 border-bottom"><span class="fw-bold">${q.symbol}</span><span>$${q.signal_price.toFixed(2)}</span><span class="text-muted">${formatTimeAgo(q.age_minutes)}</span></div>`).join('');
@@ -2507,6 +2559,7 @@ function updatePositionsUI(data) {
         'overnight_gap': '[OVN]',
         'pem': '[PEM]',
         'ped': '[PED]',
+        'premarket_gap': '[GAP]',
         'vix_adaptive': '[VIX]',
         'mean_reversion': '[MR]',
         'rapid_rotation': '[DIP]'
@@ -2541,10 +2594,10 @@ function updatePositionsUI(data) {
         const peakPrice = status.highest_price || status.current_price;
         const trailActivation = status.entry_price * (1 + trailActPct / 100);
 
-        // Price change arrow (compare with previous data)
+        // Price change arrow (vs entry price = P&L direction)
         const prevData = positionData[status.symbol];
-        const priceArrow = prevData ? (status.current_price > prevData.price ? '▲' : status.current_price < prevData.price ? '▼' : '') : '';
-        const arrowClass = priceArrow === '▲' ? 'up' : priceArrow === '▼' ? 'down' : '';
+        const priceArrow = status.pnl_pct > 0 ? '▲' : status.pnl_pct < 0 ? '▼' : '';
+        const arrowClass = status.pnl_pct > 0 ? 'up' : status.pnl_pct < 0 ? 'down' : '';
 
         // Card extra classes for near SL/TP pulsing
         const cardExtraClass = nearSL ? ' near-sl' : nearTP ? ' near-tp' : '';
@@ -3012,6 +3065,189 @@ function loadSignals() {
 }
 
 // ============================================
+// Discovery Picks
+// ============================================
+const _sectorColors = {
+    'Utilities': '#f1c40f', 'Energy': '#e67e22', 'Real Estate': '#9b59b6',
+    'Basic Materials': '#95a5a6', 'Industrials': '#3498db', 'Healthcare': '#e74c3c',
+    'Technology': '#2ecc71', 'Financial Services': '#1abc9c', 'Consumer Cyclical': '#e91e63',
+    'Consumer Defensive': '#8d6e63', 'Communication Services': '#00bcd4', 'Unknown': '#555'
+};
+let _discoveryLoaded = false;
+
+function loadDiscoveryPicks() {
+    fetch('/api/discovery/picks')
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('discoveryContainer');
+            const badge = document.getElementById('discoveryBadge');
+            const lastScan = document.getElementById('discoveryLastScan');
+
+            if (lastScan && data.last_scan) lastScan.textContent = data.last_scan;
+
+            const picks = data.picks || [];
+            if (badge) badge.textContent = picks.length;
+
+            if (picks.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-3"><i class="fas fa-moon fa-2x mb-2" style="opacity:0.3;"></i><p class="small mb-0">No picks yet. Scan runs at 20:00 ET.</p></div>';
+                _discoveryLoaded = true;
+                return;
+            }
+
+            // Build sector distribution bar
+            const sectorCounts = {};
+            picks.forEach(p => { const s = p.sector || 'Unknown'; sectorCounts[s] = (sectorCounts[s] || 0) + 1; });
+            const sectorBar = document.getElementById('discoverySectorBar');
+            if (sectorBar) {
+                sectorBar.innerHTML = Object.entries(sectorCounts)
+                    .sort((a,b) => b[1] - a[1])
+                    .map(([s, n]) => `<div style="flex:${n};background:${_sectorColors[s] || '#555'}" title="${s}: ${n}"></div>`)
+                    .join('');
+            }
+
+            let html = '';
+            picks.forEach(p => {
+                const pctChange = p.pct_change || 0;
+                const pctClass = pctChange >= 0 ? 'text-success' : 'text-danger';
+                const pctSign = pctChange >= 0 ? '+' : '';
+                const statusIcon = p.status === 'hit_tp1' ? '<i class="fas fa-trophy text-warning ms-1" title="Hit TP1"></i>'
+                    : p.status === 'hit_sl' ? '<i class="fas fa-times-circle text-danger ms-1" title="Hit SL"></i>' : '';
+                const earningsWarn = p.earnings_warning ? `<span class="badge ms-1" style="background:#e74c3c;font-size:0.5rem;" title="Earnings in ${p.days_to_earnings}d">ER ${p.days_to_earnings}d</span>` : '';
+                const shortBadge = p.short_pct_float && p.short_pct_float > 5 ? `<span style="font-size:0.5rem;color:#e67e22;" title="High short interest">SI ${p.short_pct_float}%</span>` : '';
+                const sectorShort = (p.sector || '').replace('Consumer ', 'C.').replace('Communication ', 'Comm.').replace('Financial ', 'Fin.').replace('Services', 'Svc');
+                const sectorColor = _sectorColors[p.sector] || '#888';
+                const rr = p.risk_reward || 0;
+
+                // Score tier color
+                const tierColor = p.score_tier === 'A+' ? '#2ecc71' : p.score_tier === 'A' ? '#27ae60' : p.score_tier === 'B' ? '#f39c12' : '#e74c3c';
+                const tierBg = p.score_tier === 'A+' ? 'rgba(46,204,113,0.25)' : p.score_tier === 'A' ? 'rgba(39,174,96,0.2)' : p.score_tier === 'B' ? 'rgba(243,156,18,0.15)' : 'rgba(231,76,60,0.15)';
+
+                // Card border color by score tier
+                const borderColor = p.score_tier === 'A+' ? 'rgba(46,204,113,0.4)' : p.score_tier === 'A' ? 'rgba(39,174,96,0.3)' : p.score_tier === 'B' ? 'rgba(243,156,18,0.25)' : 'rgba(231,76,60,0.2)';
+
+                html += `
+                <div class="border rounded p-2 mb-2" style="background: rgba(46,204,113,0.03); border-color: ${borderColor} !important;">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong style="color:#2ecc71;">${p.symbol}</strong>${statusIcon}
+                            <span class="badge ms-1" style="background:${tierBg};color:${tierColor};font-size:0.6rem;">${p.score_tier} ${p.layer2_score}</span>
+                            <span style="font-size:0.55rem;color:${sectorColor};font-weight:500;">${sectorShort}</span>
+                            ${earningsWarn}${shortBadge}
+                        </div>
+                        <div class="text-end">
+                            <div class="small"><strong>$${p.current_price}</strong> <span class="${pctClass}" style="font-size:0.7rem;">${pctSign}${pctChange.toFixed(1)}%</span></div>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1" style="font-size:0.65rem;">
+                        <span class="text-danger">SL $${p.sl_price} <span style="opacity:0.7">(-${p.sl_pct}%)</span></span>
+                        <span style="color:#aaa;">Entry $${p.scan_price}</span>
+                        <span class="text-success">TP1 $${p.tp1_price} <span style="opacity:0.7">(+${p.tp1_pct}%)</span></span>
+                        <span style="color:#2ecc71;">TP2 $${p.tp2_price}</span>
+                        <span style="color:${rr >= 2.0 ? '#2ecc71' : rr >= 1.5 ? '#f39c12' : '#e74c3c'};font-weight:600;">R:R ${rr}x</span>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1" style="font-size:0.6rem; color:#888;">
+                        <span title="Beta (market sensitivity)">B:${p.beta}</span>
+                        <span title="ATR% (daily volatility)">ATR:${p.atr_pct}%</span>
+                        <span title="RSI (momentum)">RSI:${p.rsi}</span>
+                        <span title="5-day momentum">5d:${p.momentum_5d > 0 ? '+' : ''}${p.momentum_5d}%</span>
+                        <span title="20-day momentum">20d:${p.momentum_20d > 0 ? '+' : ''}${p.momentum_20d}%</span>
+                        <span title="Distance from 52-week high">52w:${(p.distance_from_high || 0).toFixed(1)}%</span>
+                        ${p.stress_score != null ? `<span title="Market Stress Score (0=calm, 100=crisis)" style="color:${p.stress_score > 40 ? '#e74c3c' : p.stress_score > 20 ? '#f39c12' : '#2ecc71'};">S:${p.stress_score}</span>` : ''}
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+            _discoveryLoaded = true;
+        })
+        .catch(err => {
+            const container = document.getElementById('discoveryContainer');
+            if (!_discoveryLoaded) {
+                container.innerHTML = '<div class="text-center text-muted py-3 small">Discovery unavailable</div>';
+            }
+        });
+}
+
+// Load performance stats in header
+function loadDiscoveryStats() {
+    fetch('/api/discovery/stats')
+        .then(r => r.json())
+        .then(s => {
+            const el = document.getElementById('discoveryStatsLine');
+            if (!el) return;
+            if (s.has_outcome && s.has_outcome > 0) {
+                let text = `WR:${s.win_rate_5d}% (n=${s.has_outcome}) | 5d:${s.avg_return_5d > 0 ? '+' : ''}${s.avg_return_5d}%`;
+                // Show alpha vs benchmark if available
+                if (s.benchmark && s.benchmark.n > 0) {
+                    const alpha = s.benchmark.alpha_vs_basket;
+                    text += ` | vs XLU/XLE: ${alpha > 0 ? '+' : ''}${alpha.toFixed(2)}%`;
+                }
+                el.innerHTML = text;
+                el.style.color = s.win_rate_5d >= 60 ? '#2ecc71' : s.win_rate_5d >= 50 ? '#f39c12' : '#e74c3c';
+            } else {
+                el.textContent = `n=${s.total_picks} | Collecting data...`;
+            }
+        })
+        .catch(() => {});
+}
+
+// Load on page load + refresh every 5 min
+loadDiscoveryPicks();
+loadDiscoveryStats();
+setInterval(loadDiscoveryPicks, 300000);
+setInterval(loadDiscoveryStats, 600000);
+
+function triggerDiscoveryScan() {
+    const btn = document.getElementById('discoveryScanBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    const container = document.getElementById('discoveryContainer');
+    container.innerHTML = '<div class="text-center py-3"><i class="fas fa-spinner fa-spin fa-2x" style="color:#2ecc71;opacity:0.5;"></i><p class="small text-muted mt-2 mb-0" id="discoveryScanStatus">Starting scan...</p><div class="progress mt-2 mx-4" style="height:6px;"><div class="progress-bar bg-success" id="discoveryScanBar" style="width:0%"></div></div></div>';
+    // Poll progress until scan completes
+    const progressPoll = setInterval(() => {
+        fetch('/api/discovery/progress').then(r => r.json()).then(p => {
+            const bar = document.getElementById('discoveryScanBar');
+            const status = document.getElementById('discoveryScanStatus');
+            if (bar) bar.style.width = (p.pct || 0) + '%';
+            if (status) {
+                let text = p.stage || 'Scanning...';
+                if (p.l1 > 0) text += ' | L1: ' + p.l1;
+                if (p.l2 > 0) text += ' | L2: ' + p.l2;
+                status.textContent = text;
+            }
+            // Scan finished or errored — stop polling, reload picks
+            if (p.status === 'done' || p.status === 'error') {
+                clearInterval(progressPoll);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                if (p.status === 'error') {
+                    container.innerHTML = '<div class="text-center text-danger py-3 small">Scan failed: ' + (p.stage || 'Unknown error') + '</div>';
+                } else {
+                    loadDiscoveryPicks();
+                }
+            }
+        }).catch(() => {});
+    }, 2000);
+    // Fire-and-forget: backend runs scan in background thread
+    fetch('/api/discovery/scan', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'error') {
+                clearInterval(progressPoll);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                container.innerHTML = '<div class="text-center text-danger py-3 small">Scan failed: ' + (data.error || '') + '</div>';
+            }
+            // 'started' or 'already_running' — progress poll handles completion
+        })
+        .catch(err => {
+            clearInterval(progressPoll);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+            container.innerHTML = '<div class="text-center text-danger py-3 small">Scan failed: ' + err.message + '</div>';
+        });
+}
+
+// ============================================
 // UI Helpers
 // ============================================
 function getAlertClass(signal) {
@@ -3132,7 +3368,7 @@ function resetEmergency() {
 function closeAllPositions() {
     if (!confirm('CLOSE ALL POSITIONS - Sell everything at market?')) return;
     if (!confirm('Are you absolutely sure?')) return;
-    fetch('/api/auto/close-all', { method: 'POST' }).then(r => r.json()).then(data => {
+    fetch('/api/auto/close-all', { method: 'POST', headers: {'X-API-Key': '{{ api_key }}'} }).then(r => r.json()).then(data => {
         if (data.error) { alert('Error: ' + data.error); return; }
         alert(data.message);
         loadAutoStatus(); loadPositions();

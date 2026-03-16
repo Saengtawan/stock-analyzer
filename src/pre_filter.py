@@ -506,6 +506,10 @@ class PreFilterRunner:
             batch_data = self._batch_fetch_all(universe)
             logger.info(f"Batch fetch: {len(batch_data)}/{len(universe)} symbols ready")
 
+            # v7.5: Prepare pre_filter rejection batch (logged to DB at end)
+            scan_date_str = datetime.now().strftime('%Y-%m-%d')
+            rejection_batch = []
+
             # Scan each stock
             passed_stocks = {}
             filtered_counts = {
@@ -542,6 +546,15 @@ class PreFilterRunner:
                         filtered_counts[reason] += 1
                     else:
                         filtered_counts['error'] += 1
+                    # v7.5: Log rejection for counterfactual analysis
+                    rejection_batch.append((
+                        scan_date_str, symbol, sector, reason,
+                        round(float(data.get('close', 0) or 0), 2),
+                        round(float(data.get('atr_pct', 0) or 0), 2),
+                        round(float(data.get('rsi', 0) or 0), 1),
+                        round(float(data.get('return_5d', 0) or 0), 2),
+                        round(float(data.get('dollar_volume', 0) or 0), 0),
+                    ))
                     continue
 
                 # Passed all filters
@@ -567,6 +580,25 @@ class PreFilterRunner:
                 "stocks": passed_stocks
             }
             self._save_pre_filtered(pre_filtered_data)
+
+            # v7.5: Bulk-insert rejection log to DB (non-fatal)
+            if rejection_batch:
+                try:
+                    import sqlite3 as _sqlite3
+                    from pathlib import Path as _Path
+                    _db = str(_Path(__file__).resolve().parent.parent / 'data' / 'trade_history.db')
+                    _conn = _sqlite3.connect(_db)
+                    _conn.executemany("""
+                        INSERT INTO pre_filter_rejections
+                            (scan_date, symbol, sector, reject_reason,
+                             close_price, atr_pct, rsi, return_5d, dollar_volume, created_at)
+                        VALUES (?,?,?,?,?,?,?,?,?, datetime('now'))
+                    """, rejection_batch)
+                    _conn.commit()
+                    _conn.close()
+                    logger.info(f"📝 pre_filter_rejections: {len(rejection_batch)} rows logged")
+                except Exception as _e:
+                    logger.warning(f"pre_filter rejection log failed (non-fatal): {_e}")
 
             # Update status
             self.status.evening_count = len(passed_stocks)

@@ -45,8 +45,8 @@ class ScanRepository:
                     signal_count, waiting_count, pool_size, scan_duration_seconds,
                     positions_current, positions_max, positions_full,
                     next_scan_et, next_scan_timestamp, next_open, next_close,
-                    status, metadata
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    status, metadata, scan_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 session.session_type,
                 session.scan_time or datetime.now(),
@@ -66,7 +66,8 @@ class ScanRepository:
                 session.next_open,
                 session.next_close,
                 session.status,
-                session.metadata
+                session.metadata,
+                session.scan_id,
             ))
 
             return cursor.lastrowid

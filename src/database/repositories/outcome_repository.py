@@ -8,9 +8,29 @@ Handles CRUD operations for:
 """
 
 import sqlite3
+import yaml
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
+
+
+def _load_dip_thresholds() -> dict:
+    """Load DIP filter thresholds from trading.yaml. Returns hardcoded defaults as fallback."""
+    try:
+        config_path = Path(__file__).parent.parent.parent.parent / 'config' / 'trading.yaml'
+        with open(config_path) as f:
+            cfg = yaml.safe_load(f)
+        return {
+            'rsi':       float(cfg.get('max_rsi_entry',    60.0)),
+            'atr':       float(cfg.get('low_risk_max_atr_pct', 4.0)),
+            'score':     float(cfg.get('dip_score_min',    70.0)),
+            'vix_skip':  float(cfg.get('vix_skip_zone_high', 24.0)),
+        }
+    except Exception:
+        return {'rsi': 60.0, 'atr': 4.0, 'score': 70.0, 'vix_skip': 24.0}
+
+
+_DIP_THRESHOLDS = _load_dip_thresholds()
 
 
 class OutcomeRepository:
@@ -147,46 +167,80 @@ class OutcomeRepository:
 
     def save_signal_outcome(self, outcome: Dict) -> int:
         """Save or update signal outcome"""
+        # v7.5: Compute margin_to_threshold fields from raw values.
+        # Thresholds read from trading.yaml at module load (_DIP_THRESHOLDS) so they track config changes.
+        t = _DIP_THRESHOLDS
+        if outcome.get('entry_rsi') is not None:
+            outcome.setdefault('margin_to_rsi', round(outcome['entry_rsi'] - t['rsi'], 2))
+        if outcome.get('atr_pct') is not None:
+            outcome.setdefault('margin_to_atr', round(outcome['atr_pct'] - t['atr'], 2))
+        if outcome.get('new_score') is not None and outcome['new_score'] > 0:
+            outcome.setdefault('margin_to_score', round(outcome['new_score'] - t['score'], 2))
+        if outcome.get('vix_at_signal') is not None:
+            outcome.setdefault('margin_to_vix_skip', round(outcome['vix_at_signal'] - t['vix_skip'], 2))
+
         conn = self._get_connection()
         try:
-            # v7.02: Skip dup — same symbol+date+action already recorded (continuous scans re-see same blocked signal)
-            # v7.4: When dup has NULL outcome_5d and new data has it filled, UPDATE the dup row directly
-            dup = conn.execute(
-                "SELECT id, outcome_5d FROM signal_outcomes WHERE symbol = ? AND scan_date = ? AND action_taken = ?",
-                (outcome['symbol'], outcome.get('scan_date'), outcome.get('action_taken'))
-            ).fetchone()
+            # v7.8: Dedup by (symbol, scan_date, signal_source) — prevents same-strategy dups.
+            # Priority: BOUGHT=1 > QUEUED=2 > QUEUE_FULL=3 > SKIPPED_FILTER=4.
+            # Allows DIP+OVN on same day; blocks duplicate QUEUE_FULL rows from continuous scans.
+            ACTION_PRIORITY = {'BOUGHT': 1, 'QUEUED': 2, 'QUEUE_FULL': 3, 'SKIPPED_FILTER': 4}
+            signal_source = outcome.get('signal_source')
+            incoming_prio = ACTION_PRIORITY.get(outcome.get('action_taken'), 99)
+
+            if signal_source:
+                dup = conn.execute(
+                    "SELECT id, outcome_5d, action_taken FROM signal_outcomes "
+                    "WHERE symbol=? AND scan_date=? AND signal_source=?",
+                    (outcome['symbol'], outcome.get('scan_date'), signal_source)
+                ).fetchone()
+            else:
+                dup = conn.execute(
+                    "SELECT id, outcome_5d, action_taken FROM signal_outcomes "
+                    "WHERE symbol=? AND scan_date=? AND signal_source IS NULL AND action_taken=?",
+                    (outcome['symbol'], outcome.get('scan_date'), outcome.get('action_taken'))
+                ).fetchone()
+
+            _update_id = None  # row id to UPDATE; None → INSERT new row
+
             if dup:
-                if dup['outcome_5d'] is not None:
-                    return dup['id']  # already fully tracked
-                if outcome.get('outcome_5d') is None:
-                    return dup['id']  # no new outcome data to write
-                # dup exists but outcome_5d is NULL — fill it now
-                conn.execute("""
-                    UPDATE signal_outcomes SET
-                        outcome_1d = ?, outcome_2d = ?, outcome_3d = ?,
-                        outcome_4d = ?, outcome_5d = ?, outcome_max_gain_5d = ?,
-                        outcome_max_dd_5d = ?, updated_at = ?
-                    WHERE id = ?
-                """, (
-                    outcome.get('outcome_1d'),
-                    outcome.get('outcome_2d'),
-                    outcome.get('outcome_3d'),
-                    outcome.get('outcome_4d'),
-                    outcome.get('outcome_5d'),
-                    outcome.get('outcome_max_gain_5d'),
-                    outcome.get('outcome_max_dd_5d'),
-                    datetime.now().isoformat(),
-                    dup['id']
-                ))
-                conn.commit()
-                return dup['id']
+                existing_prio = ACTION_PRIORITY.get(dup['action_taken'], 99)
+                if incoming_prio < existing_prio:
+                    # Priority upgrade (e.g. BOUGHT replaces QUEUE_FULL) — overwrite full row
+                    _update_id = dup['id']
+                else:
+                    # Same or lower priority — only fill NULL outcome_5d if we now have it
+                    if dup['outcome_5d'] is None and outcome.get('outcome_5d') is not None:
+                        conn.execute("""
+                            UPDATE signal_outcomes SET
+                                outcome_1d = ?, outcome_2d = ?, outcome_3d = ?,
+                                outcome_4d = ?, outcome_5d = ?, outcome_max_gain_5d = ?,
+                                outcome_max_dd_5d = ?, updated_at = ?
+                            WHERE id = ?
+                        """, (
+                            outcome.get('outcome_1d'),
+                            outcome.get('outcome_2d'),
+                            outcome.get('outcome_3d'),
+                            outcome.get('outcome_4d'),
+                            outcome.get('outcome_5d'),
+                            outcome.get('outcome_max_gain_5d'),
+                            outcome.get('outcome_max_dd_5d'),
+                            datetime.now().isoformat(),
+                            dup['id']
+                        ))
+                        conn.commit()
+                    return dup['id']
 
-            existing = conn.execute(
-                "SELECT id FROM signal_outcomes WHERE scan_id = ? AND symbol = ?",
-                (outcome['scan_id'], outcome['symbol'])
-            ).fetchone()
+            if _update_id is None:
+                # Check for same scan_id re-saving its own row (same scan re-ran, no source dup)
+                row = conn.execute(
+                    "SELECT id FROM signal_outcomes WHERE scan_id = ? AND symbol = ?",
+                    (outcome['scan_id'], outcome['symbol'])
+                ).fetchone()
+                if row:
+                    _update_id = row['id']
 
-            if existing:
+            if _update_id is not None:
                 # Update
                 conn.execute("""
                     UPDATE signal_outcomes SET
@@ -197,10 +251,22 @@ class OutcomeRepository:
                         momentum_5d = ?, gap_pct = ?, gap_confidence = ?,
                         momentum_20d = ?, distance_from_high = ?,
                         vix_at_signal = ?, spy_pct_above_sma = ?,
+                        new_score = ?, distance_from_20d_high = ?, sector_1d_change = ?,
+                        timing = ?, eps_surprise_pct = ?, close_to_high_pct = ?,
+                        spy_intraday_pct = ?, sector_5d_return = ?,
+                        vix_1w_change = ?, entry_vs_open_pct = ?,
+                        entry_vs_vwap_pct = ?, bounce_pct_from_lod = ?,
+                        num_positions_open = ?, first_5min_return = ?,
+                        intraday_spy_trend = ?, spy_rsi_at_scan = ?, pm_range_pct = ?,
+                        catalyst_type = ?,
+                        short_percent_of_float = COALESCE(short_percent_of_float, ?),
+                        sector = ?, trade_id = COALESCE(trade_id, ?),
+                        margin_to_rsi = ?, margin_to_atr = ?,
+                        margin_to_score = ?, margin_to_vix_skip = ?,
                         outcome_1d = ?, outcome_2d = ?, outcome_3d = ?,
                         outcome_4d = ?, outcome_5d = ?, outcome_max_gain_5d = ?,
                         outcome_max_dd_5d = ?, updated_at = ?
-                    WHERE scan_id = ? AND symbol = ?
+                    WHERE id = ?
                 """, (
                     outcome.get('scan_date'),
                     outcome.get('scan_type'),
@@ -222,6 +288,30 @@ class OutcomeRepository:
                     outcome.get('distance_from_high'),
                     outcome.get('vix_at_signal'),
                     outcome.get('spy_pct_above_sma'),
+                    outcome.get('new_score'),
+                    outcome.get('distance_from_20d_high'),
+                    outcome.get('sector_1d_change'),
+                    outcome.get('timing'),
+                    outcome.get('eps_surprise_pct'),
+                    outcome.get('close_to_high_pct'),
+                    outcome.get('spy_intraday_pct'),
+                    outcome.get('sector_5d_return'),
+                    outcome.get('vix_1w_change'),
+                    outcome.get('entry_vs_open_pct'),
+                    outcome.get('entry_vs_vwap_pct'),
+                    outcome.get('bounce_pct_from_lod'),
+                    outcome.get('num_positions_open'),
+                    outcome.get('first_5min_return'),
+                    outcome.get('intraday_spy_trend'),
+                    outcome.get('spy_rsi_at_scan'),
+                    outcome.get('pm_range_pct'),
+                    outcome.get('catalyst_type'),
+                    outcome.get('sector'),
+                    outcome.get('trade_id'),
+                    outcome.get('margin_to_rsi'),
+                    outcome.get('margin_to_atr'),
+                    outcome.get('margin_to_score'),
+                    outcome.get('margin_to_vix_skip'),
                     outcome.get('outcome_1d'),
                     outcome.get('outcome_2d'),
                     outcome.get('outcome_3d'),
@@ -230,11 +320,10 @@ class OutcomeRepository:
                     outcome.get('outcome_max_gain_5d'),
                     outcome.get('outcome_max_dd_5d'),
                     datetime.now().isoformat(),
-                    outcome['scan_id'],
-                    outcome['symbol']
+                    _update_id
                 ))
                 conn.commit()
-                return existing['id']
+                return _update_id
             else:
                 # Insert
                 cursor = conn.execute("""
@@ -244,11 +333,21 @@ class OutcomeRepository:
                         days_until_earnings, earnings_gap_pct,
                         volume_ratio, atr_pct, entry_rsi, momentum_5d, gap_pct, gap_confidence,
                         momentum_20d, distance_from_high, vix_at_signal, spy_pct_above_sma,
-                        new_score,
+                        new_score, distance_from_20d_high, sector_1d_change,
+                        timing, eps_surprise_pct, close_to_high_pct,
+                        spy_intraday_pct, sector_5d_return, vix_1w_change, entry_vs_open_pct,
+                        entry_vs_vwap_pct, bounce_pct_from_lod,
+                        num_positions_open, first_5min_return,
+                        intraday_spy_trend, spy_rsi_at_scan, pm_range_pct,
+                        catalyst_type,
+                        short_percent_of_float, sector, trade_id,
+                        margin_to_rsi, margin_to_atr, margin_to_score, margin_to_vix_skip,
+                        news_sentiment, news_impact_score,
+                        insider_buy_30d_value, insider_buy_days_ago,
                         outcome_1d, outcome_2d, outcome_3d,
                         outcome_4d, outcome_5d,
                         outcome_max_gain_5d, outcome_max_dd_5d, tracked_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     outcome['scan_id'],
                     outcome['symbol'],
@@ -273,6 +372,34 @@ class OutcomeRepository:
                     outcome.get('vix_at_signal'),
                     outcome.get('spy_pct_above_sma'),
                     outcome.get('new_score'),
+                    outcome.get('distance_from_20d_high'),
+                    outcome.get('sector_1d_change'),
+                    outcome.get('timing'),
+                    outcome.get('eps_surprise_pct'),
+                    outcome.get('close_to_high_pct'),
+                    outcome.get('spy_intraday_pct'),
+                    outcome.get('sector_5d_return'),
+                    outcome.get('vix_1w_change'),
+                    outcome.get('entry_vs_open_pct'),
+                    outcome.get('entry_vs_vwap_pct'),
+                    outcome.get('bounce_pct_from_lod'),
+                    outcome.get('num_positions_open'),
+                    outcome.get('first_5min_return'),
+                    outcome.get('intraday_spy_trend'),
+                    outcome.get('spy_rsi_at_scan'),
+                    outcome.get('pm_range_pct'),
+                    outcome.get('catalyst_type'),
+                    outcome.get('short_percent_of_float'),
+                    outcome.get('sector'),
+                    outcome.get('trade_id'),
+                    outcome.get('margin_to_rsi'),
+                    outcome.get('margin_to_atr'),
+                    outcome.get('margin_to_score'),
+                    outcome.get('margin_to_vix_skip'),
+                    outcome.get('news_sentiment'),
+                    outcome.get('news_impact_score'),
+                    outcome.get('insider_buy_30d_value'),
+                    outcome.get('insider_buy_days_ago'),
                     outcome.get('outcome_1d'),
                     outcome.get('outcome_2d'),
                     outcome.get('outcome_3d'),

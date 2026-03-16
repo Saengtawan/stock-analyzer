@@ -165,6 +165,7 @@ trail_enabled: true            # v6.0: ENABLED (backtest: +2%/60% optimal)
 
 # -- Stock Quality Filters (v6.2) --
 max_rsi_entry: 60              # v6.79: Block RSI > 60 (live: RSI 60+ = 0% WR, was 65)
+dip_score_min: 70.0            # v7.4: DIP new_score minimum (IC-weighted, <70 = DIP_SCORE_REJECT)
 avoid_mom_range: [10, 12]      # Skip momentum 10-12% (backtest: 33% WR)
 
 # -- Signal Queue (v4.1) --
@@ -361,7 +362,7 @@ breakout_scan_enabled: false
 # Entry: Buy at open when stock gaps up 8%+ with high volume (earnings catalyst)
 # Exit: Same-day at market close (gap_trade=True → pre_close_check EOD exit)
 pem_enabled: true                # Enabled 2026-02-18
-pem_gap_threshold_pct: 8.0       # Minimum gap up % from prev close to open
+pem_gap_threshold_pct: 8.0       # v7.5: 15→8 (collect data with timing/eps_surprise; raise back to 15 when n≥30)
 pem_volume_early_ratio_min: 0.11 # v6.69: 0.30→0.11 (HCI test: 0.11x observed at 9:32 ET)
 pem_skip_vix: true               # v6.69: PEM bypasses VIX check — earnings catalyst overrides macro fear
 pem_scan_hour: 9                 # Scan at 9:32 ET (when open prices confirmed)

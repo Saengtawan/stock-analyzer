@@ -3081,3 +3081,8 @@ $GMRE: possibly delisted; no price data found  (period=1d)
 2026-02-28 14:55:08.523 | INFO     | __main__:__init__:655 - AutoTradingEngine initialized (paper=True)
 2026-02-28 14:55:08.523 | INFO     | __main__:_run_loop:7748 - Trading loop started
 2026-02-28 14:55:08.524 | INFO     | __main__:start:6536 - Trading engine started
+2026-02-28 20:06:48.869 | INFO     | __main__:signal_handler:8548 - Shutdown signal received
+2026-02-28 20:06:48.870 | DEBUG    | database.repositories.position_repository:sync_positions_scoped:447 - ✅ Scoped sync: 2 positions (sources: ('dip_bounce', 'vix_adaptive', 'mean_reversion', 'rapid_rotation', 'overnight_gap', 'pem', 'ped'))
+2026-02-28 20:06:48.870 | DEBUG    | __main__:_sync_active_positions_db:1094 - ✅ DB synced: 2 positions via PositionRepository
+2026-02-28 20:06:48.870 | INFO     | __main__:stop:6544 - Saved 2 position(s) state on shutdown
+2026-02-28 20:06:48.870 | INFO     | __main__:stop:6545 - Trading engine stopped

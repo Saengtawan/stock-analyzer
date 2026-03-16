@@ -22,6 +22,7 @@ from screeners.rapid_trader_filters import (
     calculate_score,
     check_bounce_confirmation,
     check_sma20_filter,
+    check_momentum_5d_filter,
     calculate_dynamic_sl_tp,
 )
 from data_sources.realtime_price import get_current_price
@@ -76,9 +77,13 @@ class DipBounceStrategy(BaseStrategy):
         self._filter_stats = {
             'no_dip': 0, 'still_falling': 0, 'no_bounce': 0,
             'gap_up': 0, 'above_sma5': 0, 'low_atr': 0,
-            'below_sma20': 0, 'overextended': 0, 'sma20_extended': 0,
-            'low_score': 0, '_low_score_values': [],
+            'below_sma20': 0, 'mom_5d_reject': 0, 'overextended': 0,
+            'sma20_extended': 0, 'low_volume': 0, 'high_volume': 0,
+            'mom_5d_extended': 0, 'low_score': 0, '_low_score_values': [],
         }
+
+        # v7.5: Screener rejection log (Dimension 3 — flushed to DB after each scan)
+        self.rejection_batch: list = []
 
         # NOTE: Trace system now handled by BaseStrategy.__init__()
         # - self.enable_trace
@@ -176,9 +181,12 @@ class DipBounceStrategy(BaseStrategy):
         self._filter_stats = {
             'no_dip': 0, 'still_falling': 0, 'no_bounce': 0,
             'gap_up': 0, 'above_sma5': 0, 'low_atr': 0,
-            'below_sma20': 0, 'overextended': 0, 'sma20_extended': 0,
-            'low_score': 0, '_low_score_values': [],
+            'below_sma20': 0, 'mom_5d_reject': 0, 'overextended': 0,
+            'sma20_extended': 0, 'low_volume': 0, 'high_volume': 0,
+            'mom_5d_extended': 0, 'low_score': 0, '_low_score_values': [],
         }
+        # v7.5: Clear per-scan rejection batch
+        self.rejection_batch = []
 
         analyzed_count = 0
         for symbol in universe:
@@ -220,8 +228,10 @@ class DipBounceStrategy(BaseStrategy):
                     f"no_dip={fs['no_dip']} still_falling={fs['still_falling']} "
                     f"no_bounce={fs['no_bounce']} gap_up={fs['gap_up']} "
                     f"above_sma5={fs['above_sma5']} low_atr={fs['low_atr']} "
-                    f"below_sma20={fs['below_sma20']} overextended={fs['overextended']} "
-                    f"sma20_ext={fs['sma20_extended']} low_score={fs['low_score']}")
+                    f"below_sma20={fs['below_sma20']} mom_5d_reject={fs['mom_5d_reject']} "
+                    f"overextended={fs['overextended']} sma20_ext={fs['sma20_extended']} "
+                    f"low_vol={fs['low_volume']} high_vol={fs['high_volume']} "
+                    f"mom_5d_ext={fs['mom_5d_extended']} low_score={fs['low_score']}")
 
         # Sort by score (descending)
         signals.sort(key=lambda x: x.score, reverse=True)
@@ -327,6 +337,26 @@ class DipBounceStrategy(BaseStrategy):
                 trace['rejection_reason'] = filter_hit
                 trace['final_result'] = 'REJECTED'
                 self.execution_trace.append(trace)
+            # v7.5: Log to screener rejection batch (flushed to DB at end of scan)
+            _d = ind.get('dist_from_high', 0) or 0
+            _a = ind.get('atr_pct', 0) or 0
+            _m = ind.get('mom_5d', 0) or 0
+            _r = ind.get('rsi', 50) or 50
+            _ns = round((0.481 * max(0.0, 1.0 - _d / 25.0)
+                         + 0.288 * max(0.0, 1.0 - (_a - 0.5) / 11.5)
+                         + 0.130 * max(0.0, min(1.0, (_m + 20.0) / 25.0))
+                         + 0.101 * max(0.0, 1.0 - (_r - 20.0) / 60.0)) * 100, 1)
+            self.rejection_batch.append({
+                'screener': 'dip_bounce', 'symbol': symbol, 'reject_reason': filter_hit,
+                'scan_price': ind.get('current_price'), 'gap_pct': ind.get('gap_pct'),
+                'volume_ratio': ind.get('volume_ratio'), 'rsi': ind.get('rsi'),
+                'momentum_5d': ind.get('mom_5d'), 'atr_pct': ind.get('atr_pct'),
+                'distance_from_high': ind.get('dist_from_high'),
+                'sector': self._get_sector(symbol),
+                'momentum_20d': ind.get('mom_20d'),
+                'distance_from_20d_high': ind.get('dist_from_high'),
+                'new_score': _ns,
+            })
             return None
 
         # STAGE 3: Scoring
@@ -363,6 +393,26 @@ class DipBounceStrategy(BaseStrategy):
                 trace['rejection_reason'] = f'Low score ({score} < {self.min_score})'
                 trace['final_result'] = 'REJECTED'
                 self.execution_trace.append(trace)
+            # v7.5: Log to screener rejection batch
+            _d2 = ind.get('dist_from_high', 0) or 0
+            _a2 = ind.get('atr_pct', 0) or 0
+            _m2 = ind.get('mom_5d', 0) or 0
+            _r2 = ind.get('rsi', 50) or 50
+            _ns2 = round((0.481 * max(0.0, 1.0 - _d2 / 25.0)
+                          + 0.288 * max(0.0, 1.0 - (_a2 - 0.5) / 11.5)
+                          + 0.130 * max(0.0, min(1.0, (_m2 + 20.0) / 25.0))
+                          + 0.101 * max(0.0, 1.0 - (_r2 - 20.0) / 60.0)) * 100, 1)
+            self.rejection_batch.append({
+                'screener': 'dip_bounce', 'symbol': symbol, 'reject_reason': 'low_score',
+                'scan_price': ind.get('current_price'), 'gap_pct': ind.get('gap_pct'),
+                'volume_ratio': ind.get('volume_ratio'), 'rsi': ind.get('rsi'),
+                'momentum_5d': ind.get('mom_5d'), 'atr_pct': ind.get('atr_pct'),
+                'distance_from_high': ind.get('dist_from_high'), 'score': score,
+                'sector': sector,
+                'momentum_20d': ind.get('mom_20d'),
+                'distance_from_20d_high': ind.get('dist_from_high'),
+                'new_score': _ns2,
+            })
             return None
 
         if trace:
@@ -628,6 +678,22 @@ class DipBounceStrategy(BaseStrategy):
             details['rejection_reason'] = reason
             return 'below_sma20', details
 
+        # Momentum 5d filter (from filters.py; validates -15% to -1% range + deep dip RSI guard)
+        passed, reason = check_momentum_5d_filter(ind['mom_5d'], config=None, rsi=ind['rsi'])
+        details['checks'].append({
+            'name': 'momentum_5d_filter',
+            'passed': passed,
+            'reason': reason if not passed else 'OK',
+            'values': {
+                'mom_5d': round(ind['mom_5d'], 2),
+                'rsi': round(ind['rsi'], 1),
+            }
+        })
+        if not passed:
+            details['passed'] = False
+            details['rejection_reason'] = reason
+            return 'mom_5d_reject', details
+
         # Strategy-specific filters (not in filters.py)
         overextended_check = ind['max_daily_move'] <= 8.0
         details['checks'].append({
@@ -658,6 +724,48 @@ class DipBounceStrategy(BaseStrategy):
             details['passed'] = False
             details['rejection_reason'] = f'Too extended from SMA20 ({ind["sma20_extension"]:.2f}%)'
             return 'sma20_extended', details
+
+        # Volume range filter (v6.69: sweet spot 0.3-1.2x)
+        vol_ratio = ind['volume_ratio']
+        if vol_ratio < 0.3:
+            details['checks'].append({
+                'name': 'volume_range',
+                'passed': False,
+                'reason': f'Volume ratio {vol_ratio:.2f}x < 0.3 (no buyer interest)',
+                'values': {'volume_ratio': round(vol_ratio, 2), 'min': 0.3, 'max': 1.2}
+            })
+            details['passed'] = False
+            details['rejection_reason'] = f'Volume too low ({vol_ratio:.2f}x < 0.3)'
+            return 'low_volume', details
+        if vol_ratio > 1.2:
+            details['checks'].append({
+                'name': 'volume_range',
+                'passed': False,
+                'reason': f'Volume ratio {vol_ratio:.2f}x > 1.2 (panic selling)',
+                'values': {'volume_ratio': round(vol_ratio, 2), 'min': 0.3, 'max': 1.2}
+            })
+            details['passed'] = False
+            details['rejection_reason'] = f'Volume too high ({vol_ratio:.2f}x > 1.2)'
+            return 'high_volume', details
+        details['checks'].append({
+            'name': 'volume_range',
+            'passed': True,
+            'reason': 'OK',
+            'values': {'volume_ratio': round(vol_ratio, 2), 'min': 0.3, 'max': 1.2}
+        })
+
+        # Momentum 5d upper cap (v6.69: >+2% = not a dip)
+        mom_5d_ext_check = ind['mom_5d'] <= 2.0
+        details['checks'].append({
+            'name': 'mom_5d_upper_cap',
+            'passed': mom_5d_ext_check,
+            'reason': f'mom_5d {ind["mom_5d"]:.2f}% > 2.0% (not a dip)' if not mom_5d_ext_check else 'OK',
+            'values': {'mom_5d': round(ind['mom_5d'], 2), 'threshold': 2.0}
+        })
+        if not mom_5d_ext_check:
+            details['passed'] = False
+            details['rejection_reason'] = f'Momentum 5d too high ({ind["mom_5d"]:.2f}% > 2.0%)'
+            return 'mom_5d_extended', details
 
         # All filters passed
         details['passed'] = True

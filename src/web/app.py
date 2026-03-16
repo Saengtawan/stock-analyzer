@@ -2555,7 +2555,7 @@ def rapid_trader_page():
             {'name': 'preclose', 'label': 'Pre-Close', 'start': 950, 'end': 960, 'interval': 0},
         ]
 
-    return render_template('rapid_trader.html', default_sessions=sessions, app_version=APP_VERSION)
+    return render_template('rapid_trader.html', default_sessions=sessions, app_version=APP_VERSION, api_key=_API_SECRET)
 
 
 @app.route('/api/health/legacy')
@@ -2887,6 +2887,70 @@ def api_rapid_signals():
         }), 503  # Service Unavailable
 
 
+@app.route('/api/discovery/picks')
+def api_discovery_picks():
+    """Get Discovery Engine picks — display only, no execution."""
+    try:
+        from discovery.engine import get_discovery_engine
+        engine = get_discovery_engine()
+        picks = engine.get_picks()
+        return jsonify({
+            'picks': picks,
+            'count': len(picks),
+            'last_scan': engine.get_last_scan(),
+        })
+    except Exception as e:
+        logger.error(f"Discovery API error: {e}")
+        return jsonify({'picks': [], 'count': 0, 'last_scan': None, 'error': str(e)})
+
+
+@app.route('/api/discovery/scan', methods=['POST'])
+def api_discovery_scan():
+    """Trigger a manual Discovery scan (runs in eventlet background task)."""
+    try:
+        from discovery.engine import get_discovery_engine
+        engine = get_discovery_engine()
+
+        # Check if scan already running
+        progress = engine.get_scan_progress()
+        if progress.get('status') in ('loading', 'scanning', 'scoring'):
+            return jsonify({'status': 'already_running', 'progress': progress})
+
+        def _run_scan():
+            try:
+                engine.run_scan()
+            except Exception as e:
+                logger.error(f"Discovery background scan error: {e}")
+                engine._scan_progress = {'status': 'error', 'pct': 0, 'stage': str(e)}
+
+        socketio.start_background_task(_run_scan)
+        return jsonify({'status': 'started', 'message': 'Scan started in background. Poll /api/discovery/progress for status.'})
+    except Exception as e:
+        logger.error(f"Discovery scan error: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/discovery/progress')
+def api_discovery_progress():
+    """Get Discovery scan progress."""
+    try:
+        from discovery.engine import get_discovery_engine
+        return jsonify(get_discovery_engine().get_scan_progress())
+    except Exception:
+        return jsonify({})
+
+
+@app.route('/api/discovery/stats')
+def api_discovery_stats():
+    """Get Discovery historical performance statistics."""
+    try:
+        from discovery.engine import get_discovery_engine
+        return jsonify(get_discovery_engine().get_stats())
+    except Exception as e:
+        logger.error(f"Discovery stats error: {e}")
+        return jsonify({'error': str(e)})
+
+
 @app.route('/api/rapid/portfolio')
 def api_rapid_portfolio():
     """Get rapid portfolio status with alerts — reads from engine positions"""
@@ -2895,13 +2959,28 @@ def api_rapid_portfolio():
         pdt_info = get_pdt_info()
 
         # Include daily_stats and queue from engine
+        # v7.8: Read daily_stats from cron_schedule.json (written by trading engine every cycle)
+        # Webapp's own engine instance has stale date (set at webapp startup, never resets).
         from dataclasses import asdict
         engine = get_auto_trading_engine()
         daily_stats = None
         queue_data = []
         if engine:
-            ds = getattr(engine, 'daily_stats', None)
-            daily_stats = asdict(ds) if ds else None
+            # Try cron_schedule.json first (written by actual trading engine, always fresh)
+            try:
+                import json as _json
+                _project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                _cron_file = os.path.join(_project_root, 'data', 'cron_schedule.json')
+                if os.path.exists(_cron_file):
+                    with open(_cron_file, 'r') as _f:
+                        _cron = _json.load(_f)
+                    daily_stats = _cron.get('daily_stats')
+            except Exception:
+                pass
+            # Fallback to in-memory (stale but better than nothing)
+            if daily_stats is None:
+                ds = getattr(engine, 'daily_stats', None)
+                daily_stats = asdict(ds) if ds else None
             # v6.93: Read queue from DB (SSoT) — webapp engine.signal_queue is stale
             # (loaded once at startup, never updated by trading loop)
             queue_data = []
@@ -2989,13 +3068,22 @@ def api_rapid_remove_position(symbol):
 
         # Initialize with broker for real-time data (v4.7)
         broker = AlpacaBroker(paper=True)
+
+        # v7.5: Place market sell order on Alpaca before removing from tracking
+        symbol_upper = symbol.upper()
+        alpaca_pos = broker.get_position(symbol_upper)
+        if alpaca_pos and int(float(alpaca_pos.qty)) > 0:
+            qty = int(float(alpaca_pos.qty))
+            logger.info(f"Selling {symbol_upper}: {qty} shares via rapid position remove")
+            broker.place_market_sell(symbol_upper, qty)
+
         pm = RapidPortfolioManager(broker=broker)
-        pos = pm.remove_position(symbol.upper())
+        pos = pm.remove_position(symbol_upper)
 
         if pos:
             return jsonify({
                 'success': True,
-                'message': f'Removed {symbol} from portfolio'
+                'message': f'Sold and removed {symbol} from portfolio'
             })
         else:
             return jsonify({'error': f'{symbol} not found'}), 404
@@ -4199,8 +4287,12 @@ def api_auto_status():
             cron_file = os.path.join(project_root, 'data', 'cron_schedule.json')
             if os.path.exists(cron_file):
                 with open(cron_file, 'r') as f:
-                    status['cron_schedule'] = json.load(f)
-                    logger.debug(f"✅ Loaded cron_schedule from {cron_file}")
+                    cron_data = json.load(f)
+                status['cron_schedule'] = cron_data
+                # v7.8: Override daily_stats with engine's authoritative copy
+                if 'daily_stats' in cron_data:
+                    status['daily_stats'] = cron_data['daily_stats']
+                logger.debug(f"✅ Loaded cron_schedule from {cron_file}")
             else:
                 logger.debug(f"⚠️ cron_schedule file not found: {cron_file}")
         except Exception as e:
@@ -4836,7 +4928,10 @@ def _build_positions_from_engine():
     except Exception as e:
         logger.warning(f"Failed to fetch Alpaca prices: {e}")
 
-    market_open = engine.broker.is_market_open() if engine.broker else True
+    try:
+        market_open = engine.broker.is_market_open() if engine.broker else True
+    except Exception:
+        market_open = False  # Alpaca unreachable — default to closed (safe for weekend)
 
     # v6.48: When market closed, fetch official close from Alpaca Bars API (IEX feed).
     # "N" = IEX regular-hours close (reliable).
@@ -4883,7 +4978,7 @@ def _build_positions_from_engine():
                 _close = _df_ext['Close']
                 for _sym in symbols:
                     try:
-                        _s = (_close[_sym] if len(symbols) > 1 else _close).dropna()
+                        _s = (_close[_sym] if len(symbols) > 1 else _close).squeeze().dropna()
                         if _s.empty:
                             continue
                         # Prefer today's pre-market bars; fall back to yesterday's AH
@@ -5078,6 +5173,10 @@ def get_signals_data():
                 'take_profit': tp,
                 'rsi': s.rsi,
                 'momentum_5d': s.momentum_5d,
+                'momentum_20d': s.momentum_20d,
+                'distance_from_high': s.distance_from_high,
+                'new_score': getattr(s, 'new_score', None),
+                'sl_method': s.sl_method,
                 'max_loss': abs(sl - price) / price * 100 if price else 0,
                 'expected_gain': abs(tp - price) / price * 100 if price else 0,
                 'volume_ratio': s.volume_ratio or 1.0,

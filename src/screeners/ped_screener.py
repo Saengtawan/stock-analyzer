@@ -201,13 +201,25 @@ class PEDScreener:
         if close <= 0 or sma20 <= 0:
             return None
 
+        def _log_ped_reject(reason, **kwargs):
+            try:
+                from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                ScreenerRejectionRepository().log_rejection(
+                    screener='ped', symbol=symbol, reject_reason=reason,
+                    scan_price=round(close, 2), **kwargs
+                )
+            except Exception:
+                pass
+
         # Green day filter
         if close <= prev_close:
             logger.debug(f"PED: {symbol} rejected — red day ({close:.2f} <= {prev_close:.2f})")
+            _log_ped_reject('red_day')
             return None
 
         # Above SMA20
         if close < sma20 * 0.97:
+            _log_ped_reject('below_sma20')
             return None
 
         # RSI
@@ -217,6 +229,7 @@ class PEDScreener:
         rs = gain / loss.replace(0, 0.0001)
         rsi = float((100 - 100 / (1 + rs)).iloc[-1])
         if not (self.rsi_min <= rsi <= self.rsi_max):
+            _log_ped_reject('rsi_out_of_range', rsi=round(rsi, 1))
             return None
 
         # Volume ratio (exclude today)
@@ -224,6 +237,7 @@ class PEDScreener:
         today_vol = float(df['Volume'].iloc[-1])
         volume_ratio = today_vol / vol_avg if vol_avg > 0 else 1.0
         if volume_ratio < self.volume_ratio_min:
+            _log_ped_reject('volume_too_low', volume_ratio=round(volume_ratio, 3))
             return None
 
         # SPY intraday filter
@@ -235,6 +249,7 @@ class PEDScreener:
                 spy_intraday = (spy_now - spy_open) / spy_open * 100
                 if spy_intraday < -1.0:
                     logger.debug(f"PED: {symbol} rejected — SPY intraday {spy_intraday:+.1f}%")
+                    _log_ped_reject('spy_intraday_bad')
                     return None
         except Exception:
             pass

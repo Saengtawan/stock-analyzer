@@ -72,20 +72,28 @@ class SignalRepository:
         Returns:
             List of TradingSignal objects
         """
+        query = "SELECT * FROM trading_signals"
         if status:
-            where_clause = "status = ?"
+            query += " WHERE status = ?"
             params = (status,)
         else:
-            where_clause = ""
             params = ()
 
-        query = "SELECT * FROM trading_signals"
-        if where_clause:
-            query += f" WHERE {where_clause}"
         query += f" ORDER BY signal_time DESC LIMIT {limit}"
 
-        return self._load_from_database(where_clause, params) if where_clause else \
-               [TradingSignal.from_row(dict(row)) for row in self.db.fetch_all(query)]
+        try:
+            rows = self.db.fetch_all(query, params)
+            signals = []
+            for row in rows:
+                try:
+                    signal = TradingSignal.from_row(dict(row))
+                    signals.append(signal)
+                except Exception as e:
+                    logger.warning(f"Failed to load signal {dict(row).get('symbol', 'UNKNOWN')}: {e}")
+            return signals
+        except Exception as e:
+            logger.error(f"Failed to load signals from database: {e}")
+            return []
 
     def get_active(self) -> List[TradingSignal]:
         """
@@ -177,12 +185,12 @@ class SignalRepository:
                     atr_pct, rsi, momentum_5d, momentum_20d, distance_from_high,
                     swing_low, resistance, volume_ratio, vwap,
                     sector, market_regime, sector_score, alt_data_score,
-                    sl_method, tp_method,
+                    sl_method, tp_method, new_score,
                     status, wait_reason,
                     scan_session_id, session_type, scan_time_et,
                     executed_at, execution_result,
                     reasons, metadata
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 signal.symbol, signal.score, signal.signal_price,
                 signal.signal_time or datetime.now(),
@@ -192,7 +200,7 @@ class SignalRepository:
                 signal.distance_from_high, signal.swing_low, signal.resistance,
                 signal.volume_ratio, signal.vwap,
                 signal.sector, signal.market_regime, signal.sector_score, signal.alt_data_score,
-                signal.sl_method, signal.tp_method,
+                signal.sl_method, signal.tp_method, signal.new_score,
                 signal.status, signal.wait_reason,
                 signal.scan_session_id, signal.session_type, signal.scan_time_et,
                 signal.executed_at, signal.execution_result,
