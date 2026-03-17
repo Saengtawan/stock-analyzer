@@ -1,4 +1,20 @@
 discovery:
+  # ===== v3: Kernel Regression E[R] Model =====
+  # Replaces v2 IC-weighted scoring with Gaussian kernel regression.
+  # Validated: WR ~60%, AvgRet +1.5%, SL3% hit ~14% (vs v2: 47%, -0%, 60%)
+  v3:
+    enabled: true                 # true=v3 kernel, false=v2 score fallback
+    bandwidth: 1.0                # Gaussian kernel bandwidth (validated best)
+    min_er: 0.5                   # E[R] floor (%) — picks must predict > 0.5% gain
+    max_picks: 5                  # Top N picks per scan
+    min_train_dates: 20           # Min unique dates in training data
+    tp_pct: 3.0                   # Fixed TP %
+    sl_pct: 3.0                   # Fixed SL %
+    tp2_multiplier: 2.0           # TP2 = TP1 × 2.0 (stretch target)
+    exclude_sectors:              # Chronic negative-EV sectors in DIP strategy
+      - Technology
+      - Semiconductors
+
   # ===== Layer 0: Market Gates =====
   # v2.1: VIX hard gate removed. L2 scoring handles VIX via 4 features
   # (vix_close, vix3m, vix_delta_5d, stress_score = 24.8% of score weight).

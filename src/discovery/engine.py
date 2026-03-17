@@ -31,6 +31,7 @@ import yaml
 
 from discovery.models import DiscoveryPick
 from discovery.scorer import DiscoveryScorer
+from discovery.kernel_estimator import KernelEstimator
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,21 @@ class DiscoveryEngine:
 
         with open(CONFIG_PATH) as f:
             self._config = yaml.safe_load(f)['discovery']
+
+        # v3: Initialize kernel estimator
+        v3_cfg = self._config.get('v3', {})
+        self._v3_enabled = v3_cfg.get('enabled', False)
+        self.kernel = None
+        if self._v3_enabled:
+            bw = v3_cfg.get('bandwidth', 1.0)
+            min_dates = v3_cfg.get('min_train_dates', 20)
+            self.kernel = KernelEstimator(bandwidth=bw, min_train_dates=min_dates)
+            if self.kernel.load_and_fit():
+                stats = self.kernel.get_stats()
+                logger.info(f"Discovery v3: kernel ready — {stats['n_rows']} rows, {stats['n_dates']} dates")
+            else:
+                logger.warning("Discovery v3: kernel fit failed, falling back to v2 scoring")
+                self._v3_enabled = False
 
     def get_scan_progress(self) -> dict:
         return self._scan_progress.copy()
@@ -91,6 +107,7 @@ class DiscoveryEngine:
         """)
         # Add columns for L2 features, outcomes, and enrichment (safe if already exist)
         new_cols = [
+            ('distance_from_20d_high', 'REAL'),
             ('vix_term_structure', 'REAL'), ('new_52w_highs', 'REAL'),
             ('bull_score', 'REAL'), ('news_count', 'REAL'), ('news_pos_ratio', 'REAL'),
             ('highs_lows_ratio', 'REAL'), ('ad_ratio', 'REAL'), ('mcap_log', 'REAL'),
@@ -219,13 +236,20 @@ class DiscoveryEngine:
             GROUP BY sector ORDER BY n DESC
         """).fetchall()
 
-        # Score tier breakdown
+        # Score tier breakdown (handles both v2 score 0-100 and v3 E[R] 0-5 ranges)
         tier_rows = conn.execute("""
             SELECT CASE
-                WHEN layer2_score >= 80 THEN 'A+'
-                WHEN layer2_score >= 70 THEN 'A'
-                WHEN layer2_score >= 60 THEN 'B'
-                ELSE 'C' END as tier,
+                WHEN layer2_score < 10 THEN
+                    CASE WHEN layer2_score >= 2.0 THEN 'A+'
+                         WHEN layer2_score >= 1.0 THEN 'A'
+                         WHEN layer2_score >= 0.5 THEN 'B'
+                         ELSE 'C' END
+                ELSE
+                    CASE WHEN layer2_score >= 80 THEN 'A+'
+                         WHEN layer2_score >= 70 THEN 'A'
+                         WHEN layer2_score >= 60 THEN 'B'
+                         ELSE 'C' END
+                END as tier,
                 COUNT(*) as n,
                 SUM(CASE WHEN outcome_5d > 0 THEN 1 ELSE 0 END) as wins,
                 AVG(outcome_5d) as avg_5d
@@ -325,14 +349,13 @@ class DiscoveryEngine:
         # 2. Load macro/breadth (market-wide, same for all stocks today)
         macro = self._load_macro(scan_date)
 
-        # 2.5 VIX — no hard gate. L2 scoring penalizes high VIX via 4 features (24.8% weight).
         vix = macro.get('vix_close', 0) or 0
-
-        adaptive_min_score = self._config['layer2']['min_score']  # 35
         qg = self._config.get('quality_gates', {})
         tp_sl_cfg = self._config.get('smart_tp_sl', {})
+        adaptive_min_score = self._config.get('layer2', {}).get('min_score', 35)
 
-        logger.info(f"Discovery: VIX={vix:.1f}, min_score={adaptive_min_score}, gates=dynamic")
+        mode = 'v3 kernel' if self._v3_enabled else 'v2 score'
+        logger.info(f"Discovery: VIX={vix:.1f}, mode={mode}")
 
         # 3. Compute per-stock technical features via yfinance
         candidates = []
@@ -394,107 +417,13 @@ class DiscoveryEngine:
         self._enrich_candidates(candidates)
         self._scan_progress.update(pct=92, stage=f'Scoring {len(candidates)} candidates...')
 
-        # 5. Dynamic quality gates + L2 scoring + Smart TP/SL (v2.1)
-        # v2.1: mom5d reject-zone [0,3) replaces hard gate <0.
-        # U-shape: pullback (<0) WR=72%, danger [0,3) WR=38%, momentum (>=3) WR=77%.
-        # n=45: WR=73.3%, TP_hit=78%, avg=+2.92%, 16 active days.
-        min_sector_1d = qg.get('min_sector_1d_change', 0.0)
-        min_mom20d = qg.get('min_momentum_20d', 0.0)
-        mom5d_rej_lo = qg.get('momentum_5d_reject_low', 0.0)
-        mom5d_rej_hi = qg.get('momentum_5d_reject_high', 3.0)
-        mom5d_max = qg.get('momentum_5d_max', 10.0)
-        min_vol = qg.get('min_volume_ratio', 0.4)
+        # 5. Scoring: v3 Kernel E[R] or v2 composite score
+        v3_cfg = self._config.get('v3', {})
 
-        tp_atr_mult = tp_sl_cfg.get('tp_atr_mult', 1.20)
-        tp_floor = tp_sl_cfg.get('tp_floor', 2.5)
-        sl_atr_mult = tp_sl_cfg.get('sl_atr_mult', 0.80)
-        sl_floor = tp_sl_cfg.get('sl_floor', 2.0)
-        tp2_mult = tp_sl_cfg.get('tp2_multiplier', 2.0)
-
-        picks = []
-        for c in candidates:
-            score = self.scorer.compute_layer2_score(c)
-            if score < adaptive_min_score:
-                continue
-
-            # Dynamic quality gates (sector rotation — no hardcoded sectors)
-            mom5d = c.get('momentum_5d', 0) or 0
-            mom20d = c.get('momentum_20d', 0) or 0
-            vol_ratio = c.get('volume_ratio', 0) or 0
-            sector_1d = c.get('sector_1d_change')
-
-            if sector_1d is None or sector_1d <= min_sector_1d:
-                continue
-            if mom20d <= min_mom20d:
-                continue
-            if mom5d_rej_lo <= mom5d < mom5d_rej_hi:
-                continue
-            if mom5d >= mom5d_max:
-                continue
-            if vol_ratio < min_vol:
-                continue
-
-            # Smart TP/SL: ATR-proportional with floors
-            price = c['close']
-            atr_pct = c.get('atr_pct', 2.0)
-
-            tp_pct = max(tp_floor, tp_atr_mult * atr_pct)
-            sl_pct = max(sl_floor, sl_atr_mult * atr_pct)
-            tp2_pct = tp_pct * tp2_mult
-
-            sl_price = price * (1 - sl_pct / 100)
-            tp1_price = price * (1 + tp_pct / 100)
-            tp2_price = price * (1 + tp2_pct / 100)
-
-            levels = {
-                'sl_price': round(sl_price, 2), 'sl_pct': round(sl_pct, 1),
-                'tp1_price': round(tp1_price, 2), 'tp1_pct': round(tp_pct, 1),
-                'tp2_price': round(tp2_price, 2), 'tp2_pct': round(tp2_pct, 1),
-                'expected_gain': round(tp_pct, 1),
-                'rr_ratio': round(tp_pct / sl_pct, 2) if sl_pct > 0 else 0,
-            }
-            logger.info(f"Discovery: {c['symbol']} sector_1d={sector_1d:+.1f} mom20d={mom20d:+.1f} mom5d={mom5d:+.1f} vol={vol_ratio:.2f} TP={tp_pct:.1f}% SL={sl_pct:.1f}%")
-
-            pick = DiscoveryPick(
-                symbol=c['symbol'], scan_date=scan_date, scan_price=price,
-                current_price=price, layer2_score=score,
-                beta=c.get('beta', 0), atr_pct=c['atr_pct'],
-                distance_from_high=c.get('distance_from_high', 0),
-                rsi=c.get('rsi', 0), momentum_5d=c.get('momentum_5d', 0),
-                momentum_20d=c.get('momentum_20d', 0),
-                volume_ratio=c.get('volume_ratio', 0),
-                sector=c.get('sector', ''), market_cap=c.get('market_cap', 0),
-                vix_close=macro.get('vix_close', 0),
-                pct_above_20d_ma=macro.get('pct_above_20d_ma', 0),
-                # L2 features (persisted for calibration)
-                vix_term_structure=c.get('vix_term_structure', 0),
-                new_52w_highs=c.get('new_52w_highs', 0),
-                bull_score=c.get('bull_score'),
-                news_count=c.get('news_count', 0),
-                news_pos_ratio=c.get('news_pos_ratio'),
-                highs_lows_ratio=c.get('highs_lows_ratio', 0),
-                ad_ratio=c.get('ad_ratio', 0),
-                mcap_log=c.get('mcap_log', 0),
-                sector_1d_change=c.get('sector_1d_change', 0),
-                vix3m_close=c.get('vix3m_close', 0),
-                upside_pct=c.get('upside_pct'),
-                days_to_earnings=c.get('days_to_earnings'),
-                put_call_ratio=c.get('put_call_ratio'),
-                short_pct_float=c.get('short_pct_float'),
-                # Macro stress (v1.2)
-                breadth_delta_5d=macro.get('breadth_delta_5d'),
-                vix_delta_5d=macro.get('vix_delta_5d'),
-                crude_close=macro.get('crude_close'),
-                gold_close=macro.get('gold_close'),
-                dxy_delta_5d=macro.get('dxy_delta_5d'),
-                stress_score=macro.get('stress_score'),
-                **levels,
-            )
-            picks.append(pick)
-
-        # Sort by score descending
-        picks.sort(key=lambda p: p.layer2_score, reverse=True)
-        logger.info(f"Discovery: {len(picks)} picks passed L2 (score >= {adaptive_min_score:.0f})")
+        if self._v3_enabled and self.kernel:
+            picks = self._score_v3(candidates, macro, scan_date, v3_cfg)
+        else:
+            picks = self._score_v2(candidates, macro, scan_date, qg, tp_sl_cfg, adaptive_min_score)
 
         # Log sector distribution
         pick_sectors: dict[str, int] = {}
@@ -503,7 +432,7 @@ class DiscoveryEngine:
             pick_sectors[s] = pick_sectors.get(s, 0) + 1
         sectors_summary = ', '.join(f"{s}:{n}" for s, n in sorted(pick_sectors.items(), key=lambda x: -x[1]))
         logger.info(f"Discovery: {len(picks)} total picks | sectors: {sectors_summary}")
-        self._scan_progress.update(pct=97, stage=f'L2 passed: {len(picks)} picks', l2=len(picks))
+        self._scan_progress.update(pct=97, stage=f'Scored: {len(picks)} picks', l2=len(picks))
 
         # 6. Deactivate all previous active picks + save new scan to DB
         #    Each scan replaces the full active set. Old picks kept as 'replaced' for calibration.
@@ -613,6 +542,13 @@ class DiscoveryEngine:
             high_52w = float(np.max(high[-252:])) if len(high) >= 252 else float(np.max(high))
             distance_from_high = (current / high_52w - 1) * 100 if high_52w > 0 else 0
 
+            # Distance from 20-day high (v3 kernel feature)
+            if len(close) >= 20:
+                high_20d = float(np.max(close[-20:]))
+                distance_from_20d_high = (current / high_20d - 1) * 100 if high_20d > 0 else 0
+            else:
+                distance_from_20d_high = 0
+
             # Volume ratio (today vs 20d avg)
             if len(volume) >= 21:
                 avg_vol_20 = float(np.mean(volume[-21:-1]))
@@ -641,6 +577,7 @@ class DiscoveryEngine:
                 'momentum_5d': momentum_5d,
                 'momentum_20d': momentum_20d,
                 'distance_from_high': distance_from_high,
+                'distance_from_20d_high': distance_from_20d_high,
                 'volume_ratio': volume_ratio,
                 'dist_from_20d_ma': dist_from_20d_ma,
                 'roc_10d': roc_10d,
@@ -857,6 +794,181 @@ class DiscoveryEngine:
             # Short interest
             if sym in short_data:
                 c['short_pct_float'] = short_data[sym]
+
+    def _score_v3(self, candidates: list, macro: dict, scan_date: str, v3_cfg: dict) -> list[DiscoveryPick]:
+        """v3: Kernel regression E[R] scoring with sector exclusion + fixed TP/SL."""
+        # Refit kernel with latest data each scan
+        self.kernel.load_and_fit()
+
+        min_er = v3_cfg.get('min_er', 0.5)
+        max_picks = v3_cfg.get('max_picks', 5)
+        exclude_sectors = set(v3_cfg.get('exclude_sectors', []))
+        tp_pct = v3_cfg.get('tp_pct', 3.0)
+        sl_pct = v3_cfg.get('sl_pct', 3.0)
+        tp2_mult = v3_cfg.get('tp2_multiplier', 2.0)
+        tp2_pct = tp_pct * tp2_mult
+
+        scored = []
+        for c in candidates:
+            # Sector exclusion
+            sector = c.get('sector', '')
+            if sector in exclude_sectors:
+                continue
+
+            # Set VIX for kernel (it uses vix_at_signal or vix_close)
+            c['vix_at_signal'] = macro.get('vix_close', 20) or 20
+
+            # Estimate E[R]
+            er, se, n_eff = self.kernel.estimate(c)
+            if er < min_er:
+                continue
+
+            scored.append((er, se, n_eff, c))
+
+        # Sort by E[R] descending, take top N
+        scored.sort(key=lambda x: x[0], reverse=True)
+        scored = scored[:max_picks]
+
+        picks = []
+        for er, se, n_eff, c in scored:
+            price = c['close']
+            sl_price = price * (1 - sl_pct / 100)
+            tp1_price = price * (1 + tp_pct / 100)
+            tp2_price = price * (1 + tp2_pct / 100)
+
+            logger.info(
+                f"Discovery v3: {c['symbol']} E[R]={er:+.2f}% SE={se:.2f} n_eff={n_eff:.0f} "
+                f"dist20d={c.get('distance_from_20d_high', 0):.1f} atr={c['atr_pct']:.1f} "
+                f"vol={c.get('volume_ratio', 0):.2f} mom20d={c.get('momentum_20d', 0):.1f}"
+            )
+
+            pick = DiscoveryPick(
+                symbol=c['symbol'], scan_date=scan_date, scan_price=price,
+                current_price=price, layer2_score=round(er, 2),  # E[R] stored as score
+                beta=c.get('beta', 0), atr_pct=c['atr_pct'],
+                distance_from_high=c.get('distance_from_high', 0),
+                rsi=c.get('rsi', 0), momentum_5d=c.get('momentum_5d', 0),
+                momentum_20d=c.get('momentum_20d', 0),
+                volume_ratio=c.get('volume_ratio', 0),
+                sl_price=round(sl_price, 2), sl_pct=round(sl_pct, 1),
+                tp1_price=round(tp1_price, 2), tp1_pct=round(tp_pct, 1),
+                tp2_price=round(tp2_price, 2), tp2_pct=round(tp2_pct, 1),
+                expected_gain=round(er, 2), rr_ratio=round(tp_pct / sl_pct, 2),
+                sector=c.get('sector', ''), market_cap=c.get('market_cap', 0),
+                vix_close=macro.get('vix_close', 0),
+                pct_above_20d_ma=macro.get('pct_above_20d_ma', 0),
+                vix_term_structure=c.get('vix_term_structure', 0),
+                new_52w_highs=c.get('new_52w_highs', 0),
+                bull_score=c.get('bull_score'),
+                news_count=c.get('news_count', 0),
+                news_pos_ratio=c.get('news_pos_ratio'),
+                highs_lows_ratio=c.get('highs_lows_ratio', 0),
+                ad_ratio=c.get('ad_ratio', 0),
+                mcap_log=c.get('mcap_log', 0),
+                sector_1d_change=c.get('sector_1d_change', 0),
+                vix3m_close=c.get('vix3m_close', 0),
+                upside_pct=c.get('upside_pct'),
+                days_to_earnings=c.get('days_to_earnings'),
+                put_call_ratio=c.get('put_call_ratio'),
+                short_pct_float=c.get('short_pct_float'),
+                breadth_delta_5d=macro.get('breadth_delta_5d'),
+                vix_delta_5d=macro.get('vix_delta_5d'),
+                crude_close=macro.get('crude_close'),
+                gold_close=macro.get('gold_close'),
+                dxy_delta_5d=macro.get('dxy_delta_5d'),
+                stress_score=macro.get('stress_score'),
+            )
+            picks.append(pick)
+
+        logger.info(f"Discovery v3: {len(picks)} picks (E[R] >= {min_er}%, top {max_picks})")
+        return picks
+
+    def _score_v2(self, candidates: list, macro: dict, scan_date: str,
+                   qg: dict, tp_sl_cfg: dict, adaptive_min_score: float) -> list[DiscoveryPick]:
+        """v2: IC-weighted composite score + quality gates + smart TP/SL (fallback)."""
+        min_sector_1d = qg.get('min_sector_1d_change', 0.0)
+        min_mom20d = qg.get('min_momentum_20d', 0.0)
+        mom5d_rej_lo = qg.get('momentum_5d_reject_low', 0.0)
+        mom5d_rej_hi = qg.get('momentum_5d_reject_high', 3.0)
+        mom5d_max = qg.get('momentum_5d_max', 10.0)
+        min_vol = qg.get('min_volume_ratio', 0.4)
+
+        tp_atr_mult = tp_sl_cfg.get('tp_atr_mult', 1.20)
+        tp_floor = tp_sl_cfg.get('tp_floor', 2.5)
+        sl_atr_mult = tp_sl_cfg.get('sl_atr_mult', 0.80)
+        sl_floor = tp_sl_cfg.get('sl_floor', 2.0)
+        tp2_mult = tp_sl_cfg.get('tp2_multiplier', 2.0)
+
+        picks = []
+        for c in candidates:
+            score = self.scorer.compute_layer2_score(c)
+            if score < adaptive_min_score:
+                continue
+
+            mom5d = c.get('momentum_5d', 0) or 0
+            mom20d = c.get('momentum_20d', 0) or 0
+            vol_ratio = c.get('volume_ratio', 0) or 0
+            sector_1d = c.get('sector_1d_change')
+
+            if sector_1d is None or sector_1d <= min_sector_1d:
+                continue
+            if mom20d <= min_mom20d:
+                continue
+            if mom5d_rej_lo <= mom5d < mom5d_rej_hi:
+                continue
+            if mom5d >= mom5d_max:
+                continue
+            if vol_ratio < min_vol:
+                continue
+
+            price = c['close']
+            atr_pct = c.get('atr_pct', 2.0)
+            tp_pct = max(tp_floor, tp_atr_mult * atr_pct)
+            sl_pct = max(sl_floor, sl_atr_mult * atr_pct)
+            tp2_pct = tp_pct * tp2_mult
+
+            pick = DiscoveryPick(
+                symbol=c['symbol'], scan_date=scan_date, scan_price=price,
+                current_price=price, layer2_score=score,
+                beta=c.get('beta', 0), atr_pct=c['atr_pct'],
+                distance_from_high=c.get('distance_from_high', 0),
+                rsi=c.get('rsi', 0), momentum_5d=c.get('momentum_5d', 0),
+                momentum_20d=c.get('momentum_20d', 0),
+                volume_ratio=c.get('volume_ratio', 0),
+                sl_price=round(price * (1 - sl_pct / 100), 2), sl_pct=round(sl_pct, 1),
+                tp1_price=round(price * (1 + tp_pct / 100), 2), tp1_pct=round(tp_pct, 1),
+                tp2_price=round(price * (1 + tp2_pct / 100), 2), tp2_pct=round(tp2_pct, 1),
+                expected_gain=round(tp_pct, 1),
+                rr_ratio=round(tp_pct / sl_pct, 2) if sl_pct > 0 else 0,
+                sector=c.get('sector', ''), market_cap=c.get('market_cap', 0),
+                vix_close=macro.get('vix_close', 0),
+                pct_above_20d_ma=macro.get('pct_above_20d_ma', 0),
+                vix_term_structure=c.get('vix_term_structure', 0),
+                new_52w_highs=c.get('new_52w_highs', 0),
+                bull_score=c.get('bull_score'),
+                news_count=c.get('news_count', 0),
+                news_pos_ratio=c.get('news_pos_ratio'),
+                highs_lows_ratio=c.get('highs_lows_ratio', 0),
+                ad_ratio=c.get('ad_ratio', 0),
+                mcap_log=c.get('mcap_log', 0),
+                sector_1d_change=c.get('sector_1d_change', 0),
+                vix3m_close=c.get('vix3m_close', 0),
+                upside_pct=c.get('upside_pct'),
+                days_to_earnings=c.get('days_to_earnings'),
+                put_call_ratio=c.get('put_call_ratio'),
+                short_pct_float=c.get('short_pct_float'),
+                breadth_delta_5d=macro.get('breadth_delta_5d'),
+                vix_delta_5d=macro.get('vix_delta_5d'),
+                crude_close=macro.get('crude_close'),
+                gold_close=macro.get('gold_close'),
+                dxy_delta_5d=macro.get('dxy_delta_5d'),
+                stress_score=macro.get('stress_score'),
+            )
+            picks.append(pick)
+
+        picks.sort(key=lambda p: p.layer2_score, reverse=True)
+        logger.info(f"Discovery v2: {len(picks)} picks passed L2 (score >= {adaptive_min_score:.0f})")
+        return picks
 
     def _save_picks(self, picks: list[DiscoveryPick], scan_date: str):
         """Save picks to DB with all L2 features for future calibration."""

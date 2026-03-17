@@ -83,14 +83,30 @@ class DiscoveryPick:
 
     @property
     def score_tier(self) -> str:
-        """Score quality tier for display."""
-        if self.layer2_score >= 80:
-            return 'A+'
-        elif self.layer2_score >= 70:
-            return 'A'
-        elif self.layer2_score >= 60:
-            return 'B'
-        return 'C'
+        """Score quality tier for display.
+        v3: layer2_score stores E[R] (0-5% range).
+        v2: layer2_score stores composite (0-100 range).
+        Detect by value range: E[R] is always < 10, v2 score is always >= 10.
+        """
+        s = self.layer2_score
+        if s < 10:
+            # v3 E[R] mode
+            if s >= 2.0:
+                return 'A+'
+            elif s >= 1.0:
+                return 'A'
+            elif s >= 0.5:
+                return 'B'
+            return 'C'
+        else:
+            # v2 score mode (backward compat for old DB rows)
+            if s >= 80:
+                return 'A+'
+            elif s >= 70:
+                return 'A'
+            elif s >= 60:
+                return 'B'
+            return 'C'
 
     def to_dict(self) -> dict:
         pct_change = round((self.current_price / self.scan_price - 1) * 100, 2) if self.scan_price > 0 and self.current_price > 0 else 0
