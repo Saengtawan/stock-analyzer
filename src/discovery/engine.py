@@ -805,6 +805,8 @@ class DiscoveryEngine:
         exclude_sectors = set(v3_cfg.get('exclude_sectors', []))
         max_atr = v3_cfg.get('max_atr_pct', 99.0)
         min_vol = v3_cfg.get('min_volume_ratio', 0.0)
+        min_dist_20d = v3_cfg.get('min_distance_20d', -99.0)
+        vix_skip_near = v3_cfg.get('vix_skip_near_high', -3.0)
         tp_pct = v3_cfg.get('tp_pct', 3.0)
         sl_pct = v3_cfg.get('sl_pct', 3.0)
         tp2_mult = v3_cfg.get('tp2_multiplier', 2.0)
@@ -827,8 +829,21 @@ class DiscoveryEngine:
             if vol < min_vol:
                 continue
 
-            # Set VIX for kernel (it uses vix_at_signal or vix_close)
-            c['vix_at_signal'] = macro.get('vix_close', 20) or 20
+            # Distance gate — deep dips have 82% SL rate, IC=+0.339 vs drawdown
+            dist_20d = c.get('distance_from_20d_high', 0) or 0
+            if dist_20d < min_dist_20d:
+                continue
+
+            # VIX regime gate:
+            # - VIX 24+: block all (SL 86-100%, toxic regardless of distance)
+            # - VIX 20-24 (SKIP): allow only near-high stocks (dist > -3%, WR=55.6%)
+            # - VIX <20: no restriction
+            vix = macro.get('vix_close', 20) or 20
+            c['vix_at_signal'] = vix
+            if vix >= 24:
+                continue
+            if 20 <= vix < 24 and dist_20d < vix_skip_near:
+                continue
 
             # Estimate E[R]
             er, se, n_eff = self.kernel.estimate(c)

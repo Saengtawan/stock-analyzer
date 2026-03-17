@@ -318,7 +318,8 @@ def run_backtest(data, v3_mode='rank_top_n', v3_top_n=10, er_floor=None,
                  method='bucket', kernel_bw=KERNEL_BW, min_train_days=20,
                  sector_cap_pct=None, breadth_gate=False,
                  max_atr_pct=None, min_volume_ratio=None,
-                 exclude_sectors=None):
+                 exclude_sectors=None, min_distance_20d=None,
+                 vix_skip_near_high=None):
     """
     Expanding window CV: train on ALL data strictly before test_date.
 
@@ -328,6 +329,8 @@ def run_backtest(data, v3_mode='rank_top_n', v3_top_n=10, er_floor=None,
     max_atr_pct: pre-filter ATR gate (SL reduction)
     min_volume_ratio: pre-filter volume gate
     exclude_sectors: set of sectors to exclude
+    min_distance_20d: min distance from 20d high (e.g., -5.0)
+    vix_skip_near_high: allow VIX 20-24 only if dist > this (e.g., -3.0)
     """
     # Apply pre-filters
     filtered = data
@@ -337,6 +340,19 @@ def run_backtest(data, v3_mode='rank_top_n', v3_top_n=10, er_floor=None,
         filtered = [r for r in filtered if (r.get('volume_ratio') or 0) >= min_volume_ratio]
     if exclude_sectors:
         filtered = [r for r in filtered if (r.get('sector') or '') not in exclude_sectors]
+    if min_distance_20d is not None:
+        filtered = [r for r in filtered if (r.get('distance_from_20d_high') or 0) >= min_distance_20d]
+    # VIX regime gate: block VIX≥24, allow VIX 20-24 only if near high
+    if vix_skip_near_high is not None:
+        def _vix_pass(r):
+            vix = r.get('vix_at_signal') or 20
+            if vix >= 24:
+                return False
+            if 20 <= vix < 24:
+                dist = r.get('distance_from_20d_high') or 0
+                return dist >= vix_skip_near_high
+            return True
+        filtered = [r for r in filtered if _vix_pass(r)]
 
     dates = sorted(set(r['scan_date'] for r in filtered))
     if not dates:
@@ -350,6 +366,10 @@ def run_backtest(data, v3_mode='rank_top_n', v3_top_n=10, er_floor=None,
         print(f"ATR gate: ≤ {max_atr_pct}%")
     if min_volume_ratio:
         print(f"Volume gate: ≥ {min_volume_ratio}")
+    if min_distance_20d is not None:
+        print(f"Distance gate: ≥ {min_distance_20d}%")
+    if vix_skip_near_high is not None:
+        print(f"VIX gate: block ≥24, SKIP(20-24) only if dist≥{vix_skip_near_high}%")
     if exclude_sectors:
         print(f"Excluded sectors: {exclude_sectors}")
     if sector_cap_pct:
@@ -764,30 +784,32 @@ if __name__ == '__main__':
     analyze_feature_importance(data)
 
     # ════════════════════════════════════════════════════════════
-    # TEST 7: PRODUCTION CONFIG — Kernel + ATR<2.5 + Vol>0.5 + Sector Exclusion
+    # TEST 7: PRODUCTION CONFIG v3.1 — Full gates
     # ════════════════════════════════════════════════════════════
+    PROD_GATES = dict(
+        max_atr_pct=4.0, min_volume_ratio=0.5, min_distance_20d=-5.0,
+        vix_skip_near_high=-3.0,
+        exclude_sectors={'Technology', 'Semiconductors'},
+    )
+
     print("\n" + "=" * 70)
-    print("  TEST 7: PRODUCTION CONFIG (ATR<2.5 + Vol>0.5 + Exclude Tech/Semi)")
+    print("  TEST 7: PROD v3.1 E[R]>0.5% (ATR<4 + dist>-5 + VIX gate)")
     print("=" * 70)
     v3_prod, _, _ = run_backtest(data, v3_mode='er_floor', er_floor=0.5,
-                                  method='kernel', max_atr_pct=2.5,
-                                  min_volume_ratio=0.5,
-                                  exclude_sectors={'Technology', 'Semiconductors'})
-    m_prod = compute_metrics(v3_prod, "v3 PRODUCTION: E[R]>0.5% + ATR<2.5 + Vol>0.5")
+                                  method='kernel', **PROD_GATES)
+    m_prod = compute_metrics(v3_prod, "v3 PROD v3.1: E[R]>0.5%")
     if m_prod:
-        show_comparison(m_prod, m_v2, "PRODUCTION vs v2")
+        show_comparison(m_prod, m_v2, "PROD v3.1 vs v2")
 
     # TEST 7b: Same but top 5 ranking
     print("\n" + "=" * 70)
-    print("  TEST 7b: PRODUCTION + Top 5 Ranking")
+    print("  TEST 7b: PROD v3.1 Top 5 Ranking")
     print("=" * 70)
     v3_prod5, _, _ = run_backtest(data, v3_mode='rank_top_n', v3_top_n=5,
-                                   method='kernel', max_atr_pct=2.5,
-                                   min_volume_ratio=0.5,
-                                   exclude_sectors={'Technology', 'Semiconductors'})
-    m_prod5 = compute_metrics(v3_prod5, "v3 PROD Top5: ATR<2.5 + Vol>0.5")
+                                   method='kernel', **PROD_GATES)
+    m_prod5 = compute_metrics(v3_prod5, "v3 PROD v3.1 Top5")
     if m_prod5:
-        show_comparison(m_prod5, m_v2, "PROD Top5 vs v2")
+        show_comparison(m_prod5, m_v2, "PROD v3.1 Top5 vs v2")
 
     # ════════════════════════════════════════════════════════════
     # FINAL SUMMARY

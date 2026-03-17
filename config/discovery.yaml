@@ -11,8 +11,10 @@ discovery:
     tp_pct: 3.0                   # Fixed TP %
     sl_pct: 3.0                   # Fixed SL %
     tp2_multiplier: 2.0           # TP2 = TP1 × 2.0 (stretch target)
-    max_atr_pct: 2.5              # ATR gate — SL IC=+0.277, ATR<2.5 → SL 23.5% (vs 37.5%)
+    max_atr_pct: 4.0              # ATR gate — peak WR at 4.0 (fixed data), SL drops 11pp
     min_volume_ratio: 0.5         # Volume gate — "free lunch" filter, SL→23.2%, WR→54.7%
+    min_distance_20d: -5.0        # Distance gate — dist>-5 flips avg return positive, SL 82%→49%
+    vix_skip_near_high: -3.0      # Allow DIP in VIX SKIP (20-24) if dist > this (WR=55.6%)
     exclude_sectors:              # Chronic negative-EV sectors in DIP strategy
       - Technology
       - Semiconductors
