@@ -542,9 +542,9 @@ class DiscoveryEngine:
             high_52w = float(np.max(high[-252:])) if len(high) >= 252 else float(np.max(high))
             distance_from_high = (current / high_52w - 1) * 100 if high_52w > 0 else 0
 
-            # Distance from 20-day high (v3 kernel feature)
-            if len(close) >= 20:
-                high_20d = float(np.max(close[-20:]))
+            # Distance from 20-day high (v3 kernel feature) — use High prices, not Close
+            if len(high) >= 20:
+                high_20d = float(np.max(high[-20:]))
                 distance_from_20d_high = (current / high_20d - 1) * 100 if high_20d > 0 else 0
             else:
                 distance_from_20d_high = 0

@@ -121,8 +121,11 @@ def compute_features(df_close, df_high, df_low, df_volume, symbol, date_idx):
     else:
         return None
 
-    # Distance from 20-day high (negative convention: 0 = at high)
-    high_20d = float(close.iloc[-20:].max())
+    # Distance from 20-day high (negative convention: 0 = at high) — use High prices
+    if high is not None and len(high) >= 20:
+        high_20d = float(high.iloc[-20:].max())
+    else:
+        high_20d = float(close.iloc[-20:].max())
     distance_from_20d_high = ((price - high_20d) / high_20d) * 100
 
     # Momentum 5d
@@ -351,8 +354,9 @@ def main():
                 **features,
             })
 
-        # Sort by distance_from_20d_high DESC (closest to high first) and take top N
-        candidates.sort(key=lambda c: c['distance_from_20d_high'], reverse=True)
+        # Random sample to avoid selection bias (old: sorted by dist → 93% zeros)
+        import random
+        random.shuffle(candidates)
         candidates = candidates[:MAX_CANDIDATES_PER_DAY]
 
         # Insert
