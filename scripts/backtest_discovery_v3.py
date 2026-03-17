@@ -316,19 +316,42 @@ class KernelEstimator:
 # ──────────────────────────────────────────────────────────────
 def run_backtest(data, v3_mode='rank_top_n', v3_top_n=10, er_floor=None,
                  method='bucket', kernel_bw=KERNEL_BW, min_train_days=20,
-                 sector_cap_pct=None, breadth_gate=False):
+                 sector_cap_pct=None, breadth_gate=False,
+                 max_atr_pct=None, min_volume_ratio=None,
+                 exclude_sectors=None):
     """
     Expanding window CV: train on ALL data strictly before test_date.
 
     method: 'bucket' (hierarchical Bayesian) or 'kernel' (Gaussian regression)
             or 'hybrid' (v2 score gate + v3 ranking)
     sector_cap_pct: if set, cap picks from any single sector to this % of total
+    max_atr_pct: pre-filter ATR gate (SL reduction)
+    min_volume_ratio: pre-filter volume gate
+    exclude_sectors: set of sectors to exclude
     """
-    dates = sorted(set(r['scan_date'] for r in data))
+    # Apply pre-filters
+    filtered = data
+    if max_atr_pct is not None:
+        filtered = [r for r in filtered if (r.get('atr_pct') or 0) <= max_atr_pct]
+    if min_volume_ratio is not None:
+        filtered = [r for r in filtered if (r.get('volume_ratio') or 0) >= min_volume_ratio]
+    if exclude_sectors:
+        filtered = [r for r in filtered if (r.get('sector') or '') not in exclude_sectors]
+
+    dates = sorted(set(r['scan_date'] for r in filtered))
+    if not dates:
+        print("No data after filtering")
+        return [], [], []
     print(f"\nDates: {len(dates)} ({dates[0]} to {dates[-1]})")
-    print(f"Total signals: {len(data)}")
+    print(f"Total signals: {len(filtered)} (from {len(data)})")
     print(f"Method: {method}, v3 mode: {v3_mode}" +
           (f" (top_n={v3_top_n})" if v3_mode == 'rank_top_n' else ''))
+    if max_atr_pct:
+        print(f"ATR gate: ≤ {max_atr_pct}%")
+    if min_volume_ratio:
+        print(f"Volume gate: ≥ {min_volume_ratio}")
+    if exclude_sectors:
+        print(f"Excluded sectors: {exclude_sectors}")
     if sector_cap_pct:
         print(f"Sector cap: {sector_cap_pct:.0f}%")
 
@@ -338,8 +361,8 @@ def run_backtest(data, v3_mode='rank_top_n', v3_top_n=10, er_floor=None,
 
     for i, test_date in enumerate(dates):
         # Expanding window: train on ALL data strictly BEFORE test_date
-        train = [r for r in data if r['scan_date'] < test_date]
-        test = [r for r in data if r['scan_date'] == test_date]
+        train = [r for r in filtered if r['scan_date'] < test_date]
+        test = [r for r in filtered if r['scan_date'] == test_date]
 
         if not test:
             continue
@@ -741,6 +764,32 @@ if __name__ == '__main__':
     analyze_feature_importance(data)
 
     # ════════════════════════════════════════════════════════════
+    # TEST 7: PRODUCTION CONFIG — Kernel + ATR<2.5 + Vol>0.5 + Sector Exclusion
+    # ════════════════════════════════════════════════════════════
+    print("\n" + "=" * 70)
+    print("  TEST 7: PRODUCTION CONFIG (ATR<2.5 + Vol>0.5 + Exclude Tech/Semi)")
+    print("=" * 70)
+    v3_prod, _, _ = run_backtest(data, v3_mode='er_floor', er_floor=0.5,
+                                  method='kernel', max_atr_pct=2.5,
+                                  min_volume_ratio=0.5,
+                                  exclude_sectors={'Technology', 'Semiconductors'})
+    m_prod = compute_metrics(v3_prod, "v3 PRODUCTION: E[R]>0.5% + ATR<2.5 + Vol>0.5")
+    if m_prod:
+        show_comparison(m_prod, m_v2, "PRODUCTION vs v2")
+
+    # TEST 7b: Same but top 5 ranking
+    print("\n" + "=" * 70)
+    print("  TEST 7b: PRODUCTION + Top 5 Ranking")
+    print("=" * 70)
+    v3_prod5, _, _ = run_backtest(data, v3_mode='rank_top_n', v3_top_n=5,
+                                   method='kernel', max_atr_pct=2.5,
+                                   min_volume_ratio=0.5,
+                                   exclude_sectors={'Technology', 'Semiconductors'})
+    m_prod5 = compute_metrics(v3_prod5, "v3 PROD Top5: ATR<2.5 + Vol>0.5")
+    if m_prod5:
+        show_comparison(m_prod5, m_v2, "PROD Top5 vs v2")
+
+    # ════════════════════════════════════════════════════════════
     # FINAL SUMMARY
     # ════════════════════════════════════════════════════════════
     print(f"\n{'='*70}")
@@ -753,6 +802,8 @@ if __name__ == '__main__':
         ('Kernel Top5+Cap30', m_kernel5_cap),
         ('Kernel E[R]>0', m_kernel_pos),
         ('Kernel E[R]>0.5%', m_kernel_05),
+        ('PROD E[R]>0.5%', m_prod),
+        ('PROD Top5', m_prod5),
     ]
     print(f"  {'Mode':<22} {'n':>5} {'p/day':>6} {'WR%':>6} {'AvgRet':>8} {'TP2%':>6} {'TP3%':>6} {'SL3%':>6} {'Exp3/3':>8}")
     print(f"  {'-'*75}")

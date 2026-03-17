@@ -803,6 +803,8 @@ class DiscoveryEngine:
         min_er = v3_cfg.get('min_er', 0.5)
         max_picks = v3_cfg.get('max_picks', 5)
         exclude_sectors = set(v3_cfg.get('exclude_sectors', []))
+        max_atr = v3_cfg.get('max_atr_pct', 99.0)
+        min_vol = v3_cfg.get('min_volume_ratio', 0.0)
         tp_pct = v3_cfg.get('tp_pct', 3.0)
         sl_pct = v3_cfg.get('sl_pct', 3.0)
         tp2_mult = v3_cfg.get('tp2_multiplier', 2.0)
@@ -813,6 +815,16 @@ class DiscoveryEngine:
             # Sector exclusion
             sector = c.get('sector', '')
             if sector in exclude_sectors:
+                continue
+
+            # ATR gate — strongest SL predictor (IC=+0.277)
+            atr = c.get('atr_pct', 0) or 0
+            if atr > max_atr:
+                continue
+
+            # Volume gate — "free lunch" filter (predicts downside without reducing upside)
+            vol = c.get('volume_ratio', 0) or 0
+            if vol < min_vol:
                 continue
 
             # Set VIX for kernel (it uses vix_at_signal or vix_close)
