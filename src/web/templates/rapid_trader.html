@@ -684,6 +684,7 @@
                     <span>
                         <i class="fas fa-binoculars me-1"></i>Discovery
                         <small class="text-muted ms-1" id="discoveryLastScan" style="font-size:0.65rem;"></small>
+                        <span id="discoveryRegimeBadge" style="font-size:0.55rem;font-weight:600;margin-left:4px;"></span>
                     </span>
                     <span>
                         <button class="btn btn-sm btn-outline-success me-1" id="discoveryScanBtn" onclick="triggerDiscoveryScan()" style="font-size:0.65rem;padding:1px 6px;" title="Manual Scan">
@@ -3075,6 +3076,39 @@ const _sectorColors = {
 };
 let _discoveryLoaded = false;
 
+function renderTimeline(t) {
+    const advLabels = {buy: '<span style="color:#2ecc71;font-weight:600;">BUY</span>', hold: '<span style="color:#3498db;">HOLD</span>', caution: '<span style="color:#f39c12;">CAUTION</span>', risky: '<span style="color:#e74c3c;">RISKY</span>'};
+    const adviceIcon = advLabels[t.advice] || advLabels.hold;
+    const pct1Color = t.show_pct1 >= 25 ? '#2ecc71' : '#f39c12';
+    const pct2Color = t.show_pct2 >= 40 ? '#2ecc71' : t.show_pct2 >= 25 ? '#f39c12' : '#e74c3c';
+    const wrColor = (t.actual_wr || 50) >= 60 ? '#2ecc71' : (t.actual_wr || 50) >= 52 ? '#f39c12' : '#e74c3c';
+    const erColor = (t.actual_er || 0) >= 0.1 ? '#2ecc71' : (t.actual_er || 0) >= 0 ? '#f39c12' : '#e74c3c';
+    const er = t.actual_er || 0;
+    return '<div class="d-flex justify-content-between mt-1" style="font-size:0.62rem;">'
+        + '<span><strong>D' + t.show_day1 + '</strong> <span style="color:' + pct1Color + ';">' + t.show_pct1 + '%</span></span>'
+        + '<span style="color:#555;">&rarr;</span>'
+        + '<span><strong>D' + t.show_day2 + '</strong> <span style="color:' + pct2Color + ';">' + t.show_pct2 + '%</span></span>'
+        + '<span style="color:#555;">|</span>'
+        + '<span>WR <span style="color:' + wrColor + ';font-weight:600;">' + (t.actual_wr || '?') + '%</span></span>'
+        + '<span>E[R] <span style="color:' + erColor + ';">' + (er > 0 ? '+' : '') + er.toFixed(2) + '%</span></span>'
+        + adviceIcon
+        + '</div>';
+}
+
+function renderWeekend(w) {
+    const wrColor = w.mon_wr >= 55 ? '#2ecc71' : w.mon_wr >= 50 ? '#f39c12' : '#e74c3c';
+    const advColor = w.advice === 'buy_fri' ? '#2ecc71' : w.advice === 'caution' ? '#f39c12' : '#e74c3c';
+    const advText = w.advice === 'buy_fri' ? 'BUY FRI' : w.advice.toUpperCase();
+    const retSign = w.mon_ret > 0 ? '+' : '';
+    return '<div class="d-flex justify-content-between mt-1" style="font-size:0.62rem;background:rgba(155,89,182,0.08);padding:2px 4px;border-radius:3px;">'
+        + '<span style="color:#9b59b6;font-weight:600;" title="Friday Buy - Monday Prediction (kernel-learned from ' + w.neff + ' similar Fridays)">FRI&rarr;MON</span>'
+        + '<span>WR <span style="color:' + wrColor + ';font-weight:600;">' + w.mon_wr + '%</span></span>'
+        + '<span>ret <span style="color:' + (w.mon_ret >= 0 ? '#2ecc71' : '#e74c3c') + ';">' + retSign + w.mon_ret.toFixed(2) + '%</span></span>'
+        + '<span title="Monday intraday high">high <span style="color:#2ecc71;">+' + w.mon_high + '%</span></span>'
+        + '<span style="color:' + advColor + ';font-weight:600;">' + advText + '</span>'
+        + '</div>';
+}
+
 function loadDiscoveryPicks() {
     fetch('/api/discovery/picks')
         .then(r => r.json())
@@ -3085,7 +3119,18 @@ function loadDiscoveryPicks() {
 
             if (lastScan && data.last_scan) lastScan.textContent = data.last_scan;
 
+            // Regime badge
+            const regimeBadge = document.getElementById('discoveryRegimeBadge');
+            if (regimeBadge && data.regime) {
+                const rc = {'BULL':'#2ecc71','STRESS':'#f39c12','CRISIS':'#e74c3c'}[data.regime] || '#888';
+                regimeBadge.innerHTML = `<span style="color:${rc};">${data.regime}</span>`;
+            }
+
             const picks = data.picks || [];
+            // Sort: confirmed > pending > unconfirmed
+            // v5.3: rank by E[R] only — validated best across all years
+            const rankScore = (p) => (p.layer2_score || 0);
+            picks.sort((a, b) => rankScore(b) - rankScore(a));
             if (badge) badge.textContent = picks.length;
 
             if (picks.length === 0) {
@@ -3110,29 +3155,45 @@ function loadDiscoveryPicks() {
                 const pctChange = p.pct_change || 0;
                 const pctClass = pctChange >= 0 ? 'text-success' : 'text-danger';
                 const pctSign = pctChange >= 0 ? '+' : '';
-                const statusIcon = p.status === 'hit_tp1' ? '<i class="fas fa-trophy text-warning ms-1" title="Hit TP1"></i>'
+                const statusIcon = p.status === 'hit_tp1' ? '<i class="fas fa-trophy text-warning ms-1" title="Hit TP"></i>'
                     : p.status === 'hit_sl' ? '<i class="fas fa-times-circle text-danger ms-1" title="Hit SL"></i>' : '';
                 const earningsWarn = p.earnings_warning ? `<span class="badge ms-1" style="background:#e74c3c;font-size:0.5rem;" title="Earnings in ${p.days_to_earnings}d">ER ${p.days_to_earnings}d</span>` : '';
-                const shortBadge = p.short_pct_float && p.short_pct_float > 5 ? `<span style="font-size:0.5rem;color:#e67e22;" title="High short interest">SI ${p.short_pct_float}%</span>` : '';
+                const shortBadge = p.short_pct_float && p.short_pct_float > 5 ? `<span style="font-size:0.6rem;color:#e67e22;font-weight:600;" title="High short interest">SI${p.short_pct_float}%</span>` : '';
+                // Gap validation badge — v5.2: show gap boost
+                let gapBadge = '';
+                if (p.validation_status === 'confirmed') {
+                    const boostTag = (p.gap_pct || 0) >= 0.5 ? ' BOOST' : '';
+                    gapBadge = `<span class="badge ms-1" style="background:rgba(46,204,113,0.2);color:#2ecc71;font-size:0.5rem;" title="Gap confirmed${boostTag ? ' — TP widened ×1.3' : ''}"><i class="fas fa-check"></i> +${(p.gap_pct||0).toFixed(1)}%${boostTag}</span>`;
+                } else if (p.validation_status === 'unconfirmed') {
+                    gapBadge = `<span class="badge ms-1" style="background:rgba(231,76,60,0.2);color:#e74c3c;font-size:0.5rem;" title="Pre-market gap negative"><i class="fas fa-times"></i> ${(p.gap_pct||0).toFixed(1)}%</span>`;
+                }
+                const intraBadge = p.scan_type === 'intraday' ? `<span class="badge ms-1" style="background:rgba(52,152,219,0.2);color:#3498db;font-size:0.5rem;">INTRA</span>` : '';
+                // Limit-buy badge
+                let limitBadge = '';
+                if (p.entry_status === 'filled') {
+                    limitBadge = `<span class="badge ms-1" style="background:rgba(46,204,113,0.2);color:#2ecc71;font-size:0.5rem;" title="Limit filled at $${p.entry_price}"><i class="fas fa-check-circle"></i> FILLED</span>`;
+                } else if (p.entry_status === 'pending' && p.limit_entry_price) {
+                    limitBadge = `<span class="badge ms-1" style="background:rgba(52,152,219,0.2);color:#3498db;font-size:0.5rem;" title="Limit buy at $${p.limit_entry_price} (-${p.limit_pct}%)"><i class="fas fa-clock"></i> LIMIT $${p.limit_entry_price}</span>`;
+                } else if (p.entry_status === 'missed') {
+                    limitBadge = `<span class="badge ms-1" style="background:rgba(231,76,60,0.1);color:#e74c3c;font-size:0.5rem;"><i class="fas fa-times"></i> MISSED</span>`;
+                }
                 const sectorShort = (p.sector || '').replace('Consumer ', 'C.').replace('Communication ', 'Comm.').replace('Financial ', 'Fin.').replace('Services', 'Svc');
                 const sectorColor = _sectorColors[p.sector] || '#888';
-                const rr = p.risk_reward || 0;
 
-                // Score tier color
-                const tierColor = p.score_tier === 'A+' ? '#2ecc71' : p.score_tier === 'A' ? '#27ae60' : p.score_tier === 'B' ? '#f39c12' : '#e74c3c';
-                const tierBg = p.score_tier === 'A+' ? 'rgba(46,204,113,0.25)' : p.score_tier === 'A' ? 'rgba(39,174,96,0.2)' : p.score_tier === 'B' ? 'rgba(243,156,18,0.15)' : 'rgba(231,76,60,0.15)';
-
-                // Card border color by score tier
-                const borderColor = p.score_tier === 'A+' ? 'rgba(46,204,113,0.4)' : p.score_tier === 'A' ? 'rgba(39,174,96,0.3)' : p.score_tier === 'B' ? 'rgba(243,156,18,0.25)' : 'rgba(231,76,60,0.2)';
+                // v5.2: E[R] badge replaces score tier
+                const er = p.layer2_score || 0;
+                const erColor = er >= 2.0 ? '#2ecc71' : er >= 1.0 ? '#27ae60' : er >= 0.5 ? '#f39c12' : '#e74c3c';
+                const erBg = er >= 2.0 ? 'rgba(46,204,113,0.25)' : er >= 1.0 ? 'rgba(39,174,96,0.2)' : er >= 0.5 ? 'rgba(243,156,18,0.15)' : 'rgba(231,76,60,0.15)';
+                const borderColor = er >= 2.0 ? 'rgba(46,204,113,0.4)' : er >= 1.0 ? 'rgba(39,174,96,0.3)' : er >= 0.5 ? 'rgba(243,156,18,0.25)' : 'rgba(231,76,60,0.2)';
 
                 html += `
                 <div class="border rounded p-2 mb-2" style="background: rgba(46,204,113,0.03); border-color: ${borderColor} !important;">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <strong style="color:#2ecc71;">${p.symbol}</strong>${statusIcon}
-                            <span class="badge ms-1" style="background:${tierBg};color:${tierColor};font-size:0.6rem;">${p.score_tier} ${p.layer2_score}</span>
+                            <span class="badge ms-1" style="background:${erBg};color:${erColor};font-size:0.6rem;" title="Kernel E[R]">E[R] ${er > 0 ? '+' : ''}${er.toFixed(1)}%</span>
                             <span style="font-size:0.55rem;color:${sectorColor};font-weight:500;">${sectorShort}</span>
-                            ${earningsWarn}${shortBadge}
+                            ${gapBadge}${intraBadge}${limitBadge}${earningsWarn}${shortBadge}
                         </div>
                         <div class="text-end">
                             <div class="small"><strong>$${p.current_price}</strong> <span class="${pctClass}" style="font-size:0.7rem;">${pctSign}${pctChange.toFixed(1)}%</span></div>
@@ -3140,20 +3201,17 @@ function loadDiscoveryPicks() {
                     </div>
                     <div class="d-flex justify-content-between mt-1" style="font-size:0.65rem;">
                         <span class="text-danger">SL $${p.sl_price} <span style="opacity:0.7">(-${p.sl_pct}%)</span></span>
-                        <span style="color:#aaa;">Entry $${p.scan_price}</span>
-                        <span class="text-success">TP1 $${p.tp1_price} <span style="opacity:0.7">(+${p.tp1_pct}%)</span></span>
-                        <span style="color:#2ecc71;">TP2 $${p.tp2_price}</span>
-                        <span style="color:${rr >= 2.0 ? '#2ecc71' : rr >= 1.5 ? '#f39c12' : '#e74c3c'};font-weight:600;">R:R ${rr}x</span>
+                        <span style="color:${p.entry_status === 'filled' ? '#2ecc71' : p.limit_entry_price ? '#3498db' : '#aaa'};">${p.entry_status === 'filled' ? 'Entry' : p.limit_entry_price ? 'Limit' : 'Scan'} $${p.entry_price || p.limit_entry_price || p.scan_price}</span>
+                        <span class="text-success">TP $${p.tp1_price} <span style="opacity:0.7">(+${p.tp1_pct}%)</span></span>
                     </div>
                     <div class="d-flex justify-content-between mt-1" style="font-size:0.6rem; color:#888;">
-                        <span title="Beta (market sensitivity)">B:${p.beta}</span>
-                        <span title="ATR% (daily volatility)">ATR:${p.atr_pct}%</span>
-                        <span title="RSI (momentum)">RSI:${p.rsi}</span>
-                        <span title="5-day momentum">5d:${p.momentum_5d > 0 ? '+' : ''}${p.momentum_5d}%</span>
-                        <span title="20-day momentum">20d:${p.momentum_20d > 0 ? '+' : ''}${p.momentum_20d}%</span>
-                        <span title="Distance from 52-week high">52w:${(p.distance_from_high || 0).toFixed(1)}%</span>
-                        ${p.stress_score != null ? `<span title="Market Stress Score (0=calm, 100=crisis)" style="color:${p.stress_score > 40 ? '#e74c3c' : p.stress_score > 20 ? '#f39c12' : '#2ecc71'};">S:${p.stress_score}</span>` : ''}
+                        <span title="ATR% (daily volatility)">ATR ${p.atr_pct}%</span>
+                        <span title="Volume ratio">Vol ${(p.volume_ratio || 0).toFixed(1)}x</span>
+                        <span title="5-day momentum">Mom ${p.momentum_5d > 0 ? '+' : ''}${p.momentum_5d}%</span>
+                        <span title="Distance from 20-day high">D20H ${(p.distance_from_20d_high || p.distance_from_high || 0).toFixed(1)}%</span>
                     </div>
+                    ${p.tp_timeline ? renderTimeline(p.tp_timeline) : ''}
+                    ${p.weekend_play && p.weekend_play.advice !== 'risky' ? renderWeekend(p.weekend_play) : ''}
                 </div>`;
             });
             container.innerHTML = html;

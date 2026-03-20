@@ -1,88 +1,102 @@
 discovery:
-  # ===== v3: Kernel Regression E[R] Model =====
-  # Replaces v2 IC-weighted scoring with Gaussian kernel regression.
-  # Validated: WR ~60%, AvgRet +1.5%, SL3% hit ~14% (vs v2: 47%, -0%, 60%)
+  # ===== v5.2: Elite Filter — Statistical Outlier Selection =====
+  # Two kernels: MacroKernel (8 feat, bw=0.4) → regime detection
+  #              StockKernel (13 feat, bw=1.0) → per-stock E[R] ranker
+  #
+  # v5.0: MacroKernel 6→8 features, bw 0.6→0.4
+  # v5.1: Dynamic sector selection (crude_5d_chg IC=-0.209)
+  # v5.2: Elite filter replaces hard pick limits
+  #       Keep only stocks with E[R] > mean + 1.5σ of daily distribution
+  #       Backtest: 2-3 picks/day, WR=58%, ret=+1.88% (vs 54%/+0.30% baseline)
+  #
+  # 3 Regimes (bonus filters unchanged):
+  #   BULL   (>0.5%): elite filter only, SL=3%
+  #   STRESS (-0.5 to 0.5%): bonus>=2 + elite filter, SL=2%
+  #   CRISIS (<-0.5%): bonus>=3 + dynamic sectors + elite filter, SL=2%
   v3:
-    enabled: true                 # true=v3 kernel, false=v2 score fallback
-    bandwidth: 1.0                # Gaussian kernel bandwidth (validated best)
-    min_er: 0.5                   # E[R] floor (%) — picks must predict > 0.5% gain
-    max_picks: 5                  # Top N picks per scan
+    enabled: true                 # true=v4 kernel, false=v2 score fallback
+    bandwidth: 0.4                # MacroKernel bandwidth (8D, v5.0: 0.6→0.4 with 51K data)
+    stock_bandwidth: 1.0          # StockKernel bandwidth (13D macro+stock)
+    min_er: 0.0                   # E[R] floor (unused, regime decides)
+    max_picks: 5                  # Fallback max (overridden by regime)
     min_train_dates: 20           # Min unique dates in training data
-    tp_pct: 3.0                   # Fixed TP %
-    sl_pct: 3.0                   # Fixed SL %
-    tp2_multiplier: 2.0           # TP2 = TP1 × 2.0 (stretch target)
-    max_atr_pct: 4.0              # ATR gate — peak WR at 4.0 (fixed data), SL drops 11pp
-    min_volume_ratio: 0.5         # Volume gate — "free lunch" filter, SL→23.2%, WR→54.7%
-    min_distance_20d: -5.0        # Distance gate — dist>-5 flips avg return positive, SL 82%→49%
-    vix_skip_near_high: -3.0      # Allow DIP in VIX SKIP (20-24) if dist > this (WR=55.6%)
-    exclude_sectors:              # Chronic negative-EV sectors in DIP strategy
-      - Technology
-      - Semiconductors
+    sl_pct: 3.0                   # Fixed SL % (overridden in STRESS/CRISIS)
 
-  # ===== Layer 0: Market Gates =====
-  # v2.1: VIX hard gate removed. L2 scoring handles VIX via 4 features
-  # (vix_close, vix3m, vix_delta_5d, stress_score = 24.8% of score weight).
-  # High VIX → low L2 score → fewer picks naturally. No need for hard skip.
+    # v5.3 Smart TP: TP = 0.5 × ATR (mean reversion optimal)
+    # Deep analysis 51K signals + 309K OHLC bars:
+    #   0.5x ATR: WR=71%, E[R]=+0.31%, stable 4 years — BEST
+    #   1.0x SL:  WR=51%, E[R]=+0.07% — SL too close to TP
+    # Gap boost: TP ×1.3 when D1 gap > 0.5% (momentum confirmed)
+    smart_tp:
+      # v5.3: regime-based TP ratio (validated 2022-2025, 51K signals)
+      # BULL=1.0×ATR (stable 3/4 years), CRISIS=0.5× (best in bear 2022)
+      tp_regime_ratios:
+        BULL: 1.0
+        STRESS: 0.75
+        CRISIS: 0.5
+      gap_threshold: 0.5          # D1 gap > this → boost TP
+      gap_boost: 1.3              # TP × 1.3 when gap confirms momentum
+
+    # v5.2 Regime thresholds + elite filter
+    regimes:
+      bull_er: 0.5                # E[R] > this → BULL, else STRESS
+      stress_er: -0.5             # E[R] < this → CRISIS
+      elite_sigma: 0.8            # Keep stocks > mean + k*σ (0.8 = best E[R]/trade +0.343%)
+      stress_sl_pct: 2.0          # Tighter SL in STRESS
+      crisis_sl_pct: 2.0          # Tighter SL in CRISIS
+
+  # ===== Layer 0: Market Gates — REMOVED in v4.0 =====
+  # Kernel regression replaces all market gates
   market_gates: {}
 
-  # ===== Layer 1: Hard Filters (safety gates) =====
-  # v2.0: ATR raised 2.5→5.0 to capture sweet spot ATR 3-5% (100% TP hit in backtest)
-  # beta [0.3, 0.8] naturally excludes Semis/Tech (high-beta → 33% WR)
+  # ===== Layer 1: Hard Filters — BYPASSED in v4.0 kernel mode =====
+  # Kept for v2 fallback only. When v3.enabled=true, Layer 1 is skipped.
   layer1:
-    min_beta: 0.3                    # beta<0.3 = uncorrelated with market
-    max_beta: 0.8                    # beta>0.8 = high-beta, Semis/Tech excluded
-    max_atr_pct: 5.0                 # v2.0: was 2.5, raised to capture ATR 3-5% sweet spot
-    min_distance_from_high: -3.0     # 52-week high, negative convention (0=at high)
+    min_beta: 0.3
+    max_beta: 0.8
+    max_atr_pct: 5.0
+    min_distance_from_high: -3.0
 
-  # ===== Layer 1.5: Diversification =====
+  # ===== Diversification =====
   diversification:
-    max_per_sector: 3               # Max picks from same sector (prevents sector-heavy picks)
-    earnings_warning_days: 5        # Flag picks with earnings within N days (risk event)
+    max_per_sector: 3               # Max picks from same sector
+    earnings_warning_days: 5        # Flag picks with earnings within N days
 
-  # ===== Dynamic Quality Gates (v2.1) =====
-  # v2.0→v2.1: mom5d changed from hard gate (<0) to reject-zone [0,3) + cap<10.
-  # U-shape in mom5d: pullback (<0) WR=72%, danger zone [0,3) WR=38%, momentum [3,10) WR=83%.
-  # Extreme momentum (>=10) WR=53% n=17 — overextended, risk reversal.
-  # v2.1 backtest n=44: WR=75.0%, TP_hit=80%, avg=+3.18%, 16 active days.
+  # ===== Quality Gates — BYPASSED in v4.0 kernel mode =====
+  # Kept for v2 fallback only.
   quality_gates:
-    min_sector_1d_change: 0.0       # sector ETF must be up today (rotation signal)
-    min_momentum_20d: 0.0           # stock must be in uptrend
-    momentum_5d_reject_low: 0.0     # reject danger zone [low, high) — no edge, WR=38%
-    momentum_5d_reject_high: 3.0    # allow pullback (<0) + momentum [3,10)
-    momentum_5d_max: 10.0           # cap extreme momentum — WR=53% n=17, overextended
-    min_volume_ratio: 0.4           # volume confirmation (strongest filter)
+    min_sector_1d_change: 0.0
+    min_momentum_20d: 0.0
+    momentum_5d_reject_low: 0.0
+    momentum_5d_reject_high: 3.0
+    momentum_5d_max: 10.0
+    min_volume_ratio: 0.4
 
-  # ===== Smart TP/SL (v2.2: R:R ≥ 1.25x guaranteed) =====
-  # v2.2: Fixed R:R < 1 bug (old tp=0.70/sl=1.50 → R:R=0.47x always).
-  # New: tp_mult > sl_mult ensures R:R ≥ 1.25x at all ATR levels.
-  # ATR 1.5-2.0%: TP=2.5% SL=2.0% R:R=1.25x (floor)
-  # ATR 2.5-5.0%: TP=3.0-6.0% SL=2.0-4.0% R:R=1.50x (ATR-driven)
+  # ===== Smart TP/SL (v2 fallback only) =====
   smart_tp_sl:
-    tp_atr_mult: 1.20               # v2.2: was 0.70, raised for R:R ≥ 1.25x
-    tp_floor: 2.5                   # v2.2: was 2.0, minimum TP = 2.5%
-    sl_atr_mult: 0.80               # v2.2: was 1.5, tightened for R:R ≥ 1.25x
-    sl_floor: 2.0                   # v2.2: was 3.0, minimum SL = 2.0%
-    tp2_multiplier: 2.0             # TP2 = TP1 × 2.0 (stretch target)
+    tp_atr_mult: 1.20
+    tp_floor: 2.5
+    sl_atr_mult: 0.80
+    sl_floor: 2.0
+    tp2_multiplier: 2.0
 
-  # ===== Layer 2: Composite Score (v1.2: 20 features) =====
+  # ===== Layer 2: Composite Score (stock ranker for v4.0) =====
+  # Used as tiebreaker when kernel says "good day" — ranks which stocks to pick
   layer2:
-    min_score: 35                   # Score 0-100, base threshold
-    # IC-weighted features — 16 original + 4 macro stress features (v1.2)
-    # IC validated on signal_outcomes n=541, all p<0.001
-    # weight = |IC| / sum(|IC|), direction from IC sign
+    min_score: 35                   # Score 0-100, base threshold (v2 fallback)
     features:
-      # --- Macro stress features (v1.2, top 4 by IC) ---
-      breadth_delta_5d:   { weight: 0.094, direction: 1 }   # IC +0.295*** — breadth dropping = bad
-      crude_close:        { weight: 0.091, direction: -1 }  # IC -0.284*** — oil spike = bad
-      stress_score:       { weight: 0.085, direction: -1 }  # IC -0.267*** — composite crisis signal
-      vix_delta_5d:       { weight: 0.071, direction: -1 }  # IC -0.223*** — VIX accelerating = bad
-      # --- Original features (reweighted) ---
+      # --- Macro stress features (top 4 by IC) ---
+      breadth_delta_5d:   { weight: 0.094, direction: 1 }   # IC +0.295***
+      crude_close:        { weight: 0.091, direction: -1 }  # IC -0.284***
+      stress_score:       { weight: 0.085, direction: -1 }  # IC -0.267***
+      vix_delta_5d:       { weight: 0.071, direction: -1 }  # IC -0.223***
+      # --- Stock-level features ---
       volume_ratio:       { weight: 0.084, direction: 1 }   # IC +0.264
       momentum_5d:        { weight: 0.069, direction: 1 }   # IC +0.218
       vix_term_structure: { weight: 0.063, direction: -1 }  # IC -0.199
       new_52w_highs:      { weight: 0.053, direction: 1 }   # IC +0.167
       bull_score:         { weight: 0.049, direction: 1 }   # IC +0.154
-      vix_close:          { weight: 0.041, direction: -1 }  # IC -0.116** (high VIX = bad for picks)
+      vix_close:          { weight: 0.041, direction: -1 }  # IC -0.116**
       news_count:         { weight: 0.039, direction: -1 }  # IC -0.122
       news_pos_ratio:     { weight: 0.036, direction: -1 }  # IC -0.114
       highs_lows_ratio:   { weight: 0.036, direction: 1 }   # IC +0.113
@@ -90,13 +104,46 @@ discovery:
       mcap_log:           { weight: 0.033, direction: -1 }  # IC -0.103
       sector_1d_change:   { weight: 0.030, direction: 1 }   # IC +0.094
       momentum_20d:       { weight: 0.027, direction: 1 }   # IC +0.084
-      vix3m_close:        { weight: 0.051, direction: -1 }  # IC -0.163*** (high VIX3M = bad)
+      vix3m_close:        { weight: 0.051, direction: -1 }  # IC -0.163***
       rsi:                { weight: 0.022, direction: 1 }   # IC +0.069
       upside_pct:         { weight: 0.018, direction: -1 }  # IC -0.058
+
+  # ===== Dynamic ATR-Based SL (v4.5) =====
+  # Regime-adaptive: wider in BULL (ride winners), tighter in CRISIS (cut fast)
+  # Backtest: WR=66.0%, SL=19.1% (vs fixed SL WR=62%, SL=25.5%)
+  dynamic_sl:
+    enabled: true
+    bull_mult: 2.0       # BULL: 2.0 × ATR% (ride winners)
+    stress_mult: 1.5     # STRESS: 1.5 × ATR% (moderate)
+    crisis_mult: 1.0     # CRISIS: 1.0 × ATR% (cut fast)
+    floor: 1.5           # Min SL% (never tighter than 1.5%)
+    cap: 5.0             # Max SL% (never wider than 5%)
+
+  # ===== Limit-Buy Strategy (v4.6) =====
+  # Buy at intraday pullback instead of at open.
+  # Backtest: ATR<3.5 + limit -0.3×ATR → WR=58%, SL=17%, E[R]=+0.27%
+  limit_buy:
+    enabled: true
+    pullback_atr_mult: 0.3      # limit = open - 0.3×ATR (filled 60% of time)
+    max_atr_pct: 3.5             # only limit-buy stocks with ATR < 3.5%
+    sl_pct: 2.5                  # SL from entry price
+    tp_pct: 2.0                  # TP from entry price
+    tp2_multiplier: 2.0          # TP2 = TP × 2.0
+    max_hold_days: 2             # sell at close D2 if no TP/SL
 
   # ===== Scan Schedule =====
   schedule:
     evening_scan_hour_et: 20    # 20:00 ET daily scan
     price_refresh_minutes: 5    # Refresh current price every 5 min during market hours
-    max_pick_age_days: 5        # Expire picks after 5 trading days
+    max_pick_age_days: 3        # v4.3: Expire after 3 days (returns peak D2, marginal negative after D2)
     max_picks_display: 10       # Show top N picks in UI
+    # Pre-market validation (v4.5)
+    premarket_validation_hour_et: 9   # 09:00 ET
+    gap_confirm_threshold: 0.0        # gap >= 0% = confirmed (IC=+0.229)
+    # Intraday re-scan (v4.5)
+    intraday_scan_enabled: true
+    intraday_scan_interval_minutes: 30
+    intraday_scan_start_et: 10
+    intraday_scan_end_et: 15
+    intraday_period: '1mo'
+    intraday_max_new_picks: 3
