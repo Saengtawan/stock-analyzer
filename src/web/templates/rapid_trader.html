@@ -3109,6 +3109,35 @@ function renderWeekend(w) {
         + '</div>';
 }
 
+function renderEnsemble(e) {
+    if (!e || !e.ensemble_score) return '';
+    var score = e.ensemble_score;
+    var agree = e.agreement || 'MIXED';
+    var barColor = score >= 65 ? '#2ecc71' : score >= 50 ? '#f39c12' : '#e74c3c';
+    var agreeColor = agree.indexOf('BUY') >= 0 ? '#2ecc71' : agree.indexOf('AVOID') >= 0 ? '#e74c3c' : '#888';
+    var seqText = '';
+    if (e.components && e.components.sequence && e.components.sequence.pattern !== 'N/A') {
+        var seq = e.components.sequence;
+        seqText = '<span title="Sequence: similar past patterns">Seq: ' + seq.pattern + '</span>';
+    }
+    var leadText = '';
+    if (e.components && e.components.leading && e.components.leading.forecast !== 'N/A') {
+        var lead = e.components.leading;
+        if (lead.bullish > 0 || lead.bearish > 0) {
+            leadText = '<span title="Leading indicators">' + (lead.bullish > 0 ? lead.bullish + ' bull' : '') + (lead.bearish > 0 ? ' ' + lead.bearish + ' bear' : '') + '</span>';
+        }
+    }
+    return '<div class="d-flex align-items-center justify-content-between mt-1" style="font-size:0.6rem;background:rgba(52,152,219,0.08);padding:2px 4px;border-radius:3px;">'
+        + '<span style="font-weight:600;color:#3498db;" title="v6 Ensemble Score (kernel+sequence+leading+calibrator)">AI</span>'
+        + '<div style="flex:1;margin:0 6px;background:#333;border-radius:2px;height:6px;overflow:hidden;" title="Ensemble ' + score.toFixed(0) + '/100">'
+        + '<div style="width:' + Math.min(100, score) + '%;height:100%;background:' + barColor + ';"></div></div>'
+        + '<span style="font-weight:600;color:' + barColor + ';">' + score.toFixed(0) + '</span>'
+        + '<span style="color:' + agreeColor + ';font-weight:600;margin-left:4px;" title="Model agreement: ' + e.n_bullish + ' bullish, ' + e.n_bearish + ' bearish">' + agree.replace('STRONG_', '') + '</span>'
+        + (seqText ? '<span style="color:#888;margin-left:4px;">' + seqText + '</span>' : '')
+        + (leadText ? '<span style="color:#888;margin-left:4px;">' + leadText + '</span>' : '')
+        + '</div>';
+}
+
 function loadDiscoveryPicks() {
     fetch('/api/discovery/picks')
         .then(r => r.json())
@@ -3212,6 +3241,7 @@ function loadDiscoveryPicks() {
                     </div>
                     ${p.tp_timeline ? renderTimeline(p.tp_timeline) : ''}
                     ${p.weekend_play && p.weekend_play.advice !== 'risky' ? renderWeekend(p.weekend_play) : ''}
+                    ${p.ensemble ? renderEnsemble(p.ensemble) : ''}
                 </div>`;
             });
             container.innerHTML = html;

@@ -185,4 +185,6 @@ class DiscoveryPick:
             # v5.2: TP timeline + weekend play (persisted as JSON in DB)
             'tp_timeline': getattr(self, 'tp_timeline', None),
             'weekend_play': getattr(self, 'weekend_play', None),
+            # v6.0: Ensemble scoring
+            'ensemble': getattr(self, 'ensemble', None),
         }

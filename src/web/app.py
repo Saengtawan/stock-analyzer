@@ -2894,10 +2894,19 @@ def api_discovery_picks():
         from discovery.engine import get_discovery_engine
         engine = get_discovery_engine()
         picks = engine.get_picks()
+        confidence = engine.get_confidence()
         return jsonify({
             'picks': picks,
             'count': len(picks),
             'last_scan': engine.get_last_scan(),
+            'last_validation': engine.get_last_validation(),
+            'last_intraday_scan': engine.get_last_intraday_scan(),
+            'regime': engine.get_current_regime(),
+            'confidence': confidence,
+            # v6.0: Ensemble context (market-level, shared across all picks)
+            'temporal_snapshot': engine._temporal_features or {},
+            'sequence_prediction': engine._sequence_prediction or {},
+            'leading_signals': engine._leading_signals or {},
         })
     except Exception as e:
         logger.error(f"Discovery API error: {e}")
@@ -2949,6 +2958,106 @@ def api_discovery_stats():
     except Exception as e:
         logger.error(f"Discovery stats error: {e}")
         return jsonify({'error': str(e)})
+
+
+@app.route('/api/discovery/system')
+def api_discovery_system():
+    """v6.0: Full system status — health check for all components."""
+    try:
+        from discovery.engine import get_discovery_engine
+        engine = get_discovery_engine()
+        return jsonify({
+            'version': '6.0',
+            'components': {
+                'kernel': {
+                    'macro': {'fitted': engine.kernel is not None and engine.kernel.n_rows > 0,
+                              'n_rows': getattr(engine.kernel, 'n_rows', 0) if engine.kernel else 0},
+                    'stock': {'fitted': engine.stock_kernel is not None and getattr(engine.stock_kernel, '_fitted', False),
+                              'n_rows': getattr(engine.stock_kernel, 'n_rows', 0) if engine.stock_kernel else 0},
+                    'hold': {'fitted': engine._hold_data is not None},
+                    'weekend': {'fitted': engine._weekend_data is not None},
+                },
+                'temporal': {'fitted': bool(engine._temporal_features),
+                             'n_features': len(engine._temporal_features)},
+                'sequence': {'fitted': engine._sequence_matcher._fitted,
+                             'n_sequences': len(engine._sequence_matcher._historical or [])},
+                'leading': {'fitted': engine._leading_indicators._historical_patterns is not None},
+                'ensemble': {'weights': engine._ensemble.weights,
+                             'v6_fitted': engine._v6_fitted},
+                'calibrator': {'cached': engine._calibrator._cache is not None},
+                'outcome_tracker': {'available': True},
+            },
+            'regime': engine.get_current_regime(),
+            'last_scan': engine.get_last_scan(),
+            'n_picks': len(engine._picks),
+            'temporal_snapshot': engine._temporal_features or {},
+            'sequence_prediction': engine._sequence_prediction or {},
+            'leading_signals': engine._leading_signals or {},
+        })
+    except Exception as e:
+        logger.error(f"Discovery system status error: {e}")
+        return jsonify({'error': str(e)})
+
+
+@app.route('/api/discovery/confidence')
+def api_discovery_confidence():
+    """Get Discovery self-calibration confidence and diagnostics."""
+    try:
+        from discovery.engine import get_discovery_engine
+        engine = get_discovery_engine()
+        return jsonify(engine.get_confidence())
+    except Exception as e:
+        logger.error(f"Discovery confidence error: {e}")
+        return jsonify({'confidence': 50, 'error': str(e)})
+
+
+@app.route('/api/discovery/learning')
+def api_discovery_learning():
+    """Get Discovery pattern learning analysis — feature IC, drift, interactions."""
+    try:
+        from discovery.pattern_learner import PatternLearner
+        learner = PatternLearner()
+        lookback = int(request.args.get('lookback', 90))
+
+        ic_analysis = learner.analyze_feature_ic(lookback_days=lookback)
+        interactions = learner.detect_interaction_effects(lookback_days=lookback)
+        regime_ic = learner.compute_regime_ic_shift()
+
+        return jsonify({
+            'feature_ic': ic_analysis,
+            'interactions': interactions[:5],  # top 5
+            'regime_ic': regime_ic,
+        })
+    except Exception as e:
+        logger.error(f"Discovery learning error: {e}")
+        return jsonify({'error': str(e)})
+
+
+@app.route('/api/discovery/outcomes')
+def api_discovery_outcomes():
+    """Get recent discovery outcomes for display."""
+    try:
+        import sqlite3
+        from pathlib import Path
+        db = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
+        conn = sqlite3.connect(str(db))
+        conn.row_factory = sqlite3.Row
+        limit = int(request.args.get('limit', 50))
+        rows = conn.execute("""
+            SELECT scan_date, symbol, predicted_er, actual_return_d3,
+                   actual_return_d5, max_gain, max_dd, tp_hit, sl_hit,
+                   regime, sector, atr_pct, vix_close
+            FROM discovery_outcomes
+            ORDER BY scan_date DESC, symbol
+            LIMIT ?
+        """, (limit,)).fetchall()
+        conn.close()
+
+        outcomes = [dict(r) for r in rows]
+        return jsonify({'outcomes': outcomes, 'count': len(outcomes)})
+    except Exception as e:
+        logger.error(f"Discovery outcomes error: {e}")
+        return jsonify({'outcomes': [], 'error': str(e)})
 
 
 @app.route('/api/rapid/portfolio')

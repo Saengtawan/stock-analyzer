@@ -34,6 +34,12 @@ import yaml
 from discovery.models import DiscoveryPick
 from discovery.scorer import DiscoveryScorer
 from discovery.kernel_estimator import KernelEstimator, StockKernelEstimator
+from discovery.outcome_tracker import OutcomeTracker
+from discovery.calibrator import Calibrator
+from discovery.temporal import TemporalFeatureBuilder
+from discovery.sequence_matcher import SequencePatternMatcher
+from discovery.leading_indicators import LeadingIndicatorEngine
+from discovery.ensemble import EnsembleBrain
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +63,17 @@ class DiscoveryEngine:
         self._hold_data: Optional[dict] = None  # v5.2: hold kernel data for P(TP) timeline
         self._advice_thresholds: dict = {'risky': 1.0, 'caution': 1.2}  # safe_ratio thresholds (legacy)
         self._advice_er_thresholds: dict = {'buy': 0.3, 'hold': 0.05, 'caution': -0.1}  # auto-learned each scan
+        self._outcome_tracker = OutcomeTracker()
+        self._calibrator = Calibrator()
+        # v6.0: Ensemble components
+        self._temporal = TemporalFeatureBuilder()
+        self._sequence_matcher = SequencePatternMatcher()
+        self._leading_indicators = LeadingIndicatorEngine()
+        self._ensemble = EnsembleBrain()
+        self._v6_fitted = False
+        self._temporal_features: dict = {}
+        self._sequence_prediction: dict = {}
+        self._leading_signals: dict = {}
         self._ensure_table()
         self._load_picks_from_db()
 
@@ -91,6 +108,7 @@ class DiscoveryEngine:
             self.stock_kernel.load_and_fit()  # stock kernel is optional, log only
             # Smart TP coefficients removed — TP=ATR×ratio is simpler and equally effective
             self._fit_hold_kernel()  # v5.2: P(TP hit) per day for UI
+            self._init_v6_components()  # v6.0: ensemble components
             self._v3_enabled = True
             return True
         logger.warning("Discovery v4.3: kernel fit failed, will retry next scan")
@@ -543,6 +561,40 @@ class DiscoveryEngine:
             'advice': advice,
         }
 
+    def _init_v6_components(self):
+        """v6.0: Initialize ensemble components (sequence matcher, leading indicators).
+        Safe to call multiple times — skips if already fitted.
+        """
+        if self._v6_fitted:
+            return
+        try:
+            ok = self._sequence_matcher.fit()
+            if ok:
+                logger.info("Discovery v6.0: SequenceMatcher fitted (%d sequences)",
+                            len(self._sequence_matcher._historical or []))
+            else:
+                logger.warning("Discovery v6.0: SequenceMatcher fit failed")
+        except Exception as e:
+            logger.error("Discovery v6.0: SequenceMatcher error: %s", e)
+
+        try:
+            ok = self._leading_indicators.fit()
+            if ok:
+                logger.info("Discovery v6.0: LeadingIndicators fitted")
+            else:
+                logger.warning("Discovery v6.0: LeadingIndicators fit failed")
+        except Exception as e:
+            logger.error("Discovery v6.0: LeadingIndicators error: %s", e)
+
+        # Optimize ensemble weights from recent outcomes
+        try:
+            opt = self._ensemble.optimize_weights(90)
+            logger.info("Discovery v6.0: Ensemble weights: %s", opt.get('new_weights', 'N/A'))
+        except Exception as e:
+            logger.error("Discovery v6.0: Ensemble weight optimization error: %s", e)
+
+        self._v6_fitted = True
+
     def get_scan_progress(self) -> dict:
         return self._scan_progress.copy()
 
@@ -847,6 +899,40 @@ class DiscoveryEngine:
         scan_date = datetime.now(ZoneInfo('America/New_York')).date().isoformat()
         logger.info(f"Discovery scan starting for {scan_date}")
         self._scan_progress = {'status': 'loading', 'pct': 0, 'stage': 'Loading universe...', 'l1': 0, 'l2': 0}
+
+        # Track outcomes for expired picks before new scan
+        try:
+            n_tracked = self._outcome_tracker.track_expired_picks()
+            if n_tracked:
+                logger.info(f"Discovery: tracked {n_tracked} expired pick outcomes")
+        except Exception as e:
+            logger.error(f"Discovery: outcome tracking error: {e}")
+
+        # v6.0: Build temporal features + sequence prediction + leading signals
+        try:
+            self._temporal_features = self._temporal.build_features(scan_date)
+            logger.info("Discovery v6.0: temporal features built (%d)", len(self._temporal_features))
+        except Exception as e:
+            logger.error("Discovery v6.0: temporal build error: %s", e)
+            self._temporal_features = {}
+
+        try:
+            if self._sequence_matcher._fitted:
+                self._sequence_prediction = self._sequence_matcher.predict(self._temporal_features)
+                logger.info("Discovery v6.0: sequence prediction: %s", self._sequence_prediction.get('pattern', 'N/A'))
+            else:
+                self._sequence_prediction = {}
+        except Exception as e:
+            logger.error("Discovery v6.0: sequence predict error: %s", e)
+            self._sequence_prediction = {}
+
+        try:
+            self._leading_signals = self._leading_indicators.compute_signals(scan_date)
+            logger.info("Discovery v6.0: leading signals: %s",
+                        self._leading_signals.get('regime_forecast', {}).get('forecast', 'N/A'))
+        except Exception as e:
+            logger.error("Discovery v6.0: leading signals error: %s", e)
+            self._leading_signals = {}
 
         # 1. Load universe + fundamentals
         stocks = self._load_universe()
@@ -1717,6 +1803,21 @@ class DiscoveryEngine:
                 if weekend:
                     pick.weekend_play = weekend
 
+            # v6.0: Ensemble score — combine kernel + temporal + sequence + leading
+            try:
+                cal_conf = self._calibrator.compute_confidence()
+                ensemble_result = self._ensemble.score(
+                    kernel_er=stock_er,
+                    temporal_features=self._temporal_features,
+                    sequence_prediction=self._sequence_prediction,
+                    leading_signals=self._leading_signals,
+                    calibrator_confidence=cal_conf.get('confidence', 50),
+                )
+                pick.ensemble = ensemble_result
+            except Exception as e:
+                logger.error("Discovery v6.0: ensemble score error for %s: %s", c['symbol'], e)
+                pick.ensemble = None
+
             picks.append(pick)
 
         logger.info(
@@ -1896,6 +1997,20 @@ class DiscoveryEngine:
 
     def get_current_regime(self) -> Optional[str]:
         return self._current_regime
+
+    def get_confidence(self) -> dict:
+        """Get calibrator confidence score and diagnostics."""
+        try:
+            return self._calibrator.compute_confidence()
+        except Exception as e:
+            logger.error(f"Discovery: calibrator error: {e}")
+            return {'confidence': 50, 'error': str(e)}
+
+    def get_outcome_tracker(self) -> OutcomeTracker:
+        return self._outcome_tracker
+
+    def get_calibrator(self) -> Calibrator:
+        return self._calibrator
 
     # --- Pre-market validation (v4.5) ---
 
