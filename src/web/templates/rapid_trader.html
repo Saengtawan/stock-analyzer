@@ -3212,9 +3212,8 @@ function loadDiscoveryPicks() {
             }
 
             const picks = data.picks || [];
-            // Sort: confirmed > pending > unconfirmed
-            // v5.3: rank by E[R] only — validated best across all years
-            const rankScore = (p) => (p.layer2_score || 0);
+            // v6.0: rank by AI ensemble score (falls back to E[R] if no ensemble)
+            const rankScore = (p) => (p.ensemble && p.ensemble.ensemble_score) ? p.ensemble.ensemble_score : (p.layer2_score || 0);
             picks.sort((a, b) => rankScore(b) - rankScore(a));
             if (badge) badge.textContent = picks.length;
 

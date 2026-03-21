@@ -747,8 +747,8 @@ class DiscoveryEngine:
         div_cfg = self._config.get('diversification', {})
         max_per_sector = div_cfg.get('max_per_sector', 3)
 
-        # v5.3: sort by E[R] only — validated best ranking across all years (R²=0.0003 for other factors)
-        rank_fn = lambda p: (p.layer2_score or 0)
+        # v6.0: sort by ensemble score (falls back to E[R] if no ensemble)
+        rank_fn = lambda p: getattr(p, 'ensemble', {}).get('ensemble_score', 0) if getattr(p, 'ensemble', None) else (p.layer2_score or 0)
         sorted_picks = sorted(self._picks, key=rank_fn, reverse=True)
 
         # Apply sector diversification
