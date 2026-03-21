@@ -2909,6 +2909,8 @@ def api_discovery_picks():
             'leading_signals': engine._leading_signals or {},
             # v7.0: Council regime decision
             'regime_decision': engine._regime_decision or {},
+            # v8.0: Strategy routing
+            'strategy': engine._current_strategy or {},
         })
     except Exception as e:
         logger.error(f"Discovery API error: {e}")
@@ -2991,6 +2993,7 @@ def api_discovery_system():
                 'regime_brain': engine._regime_brain.get_stats(),
                 'stock_brain': engine._stock_brain.get_stats(),
                 'risk_brain': engine._risk_brain.get_stats(),
+                'strategy_router': engine._strategy_router.get_stats(),
             },
             'regime': engine.get_current_regime(),
             'last_scan': engine.get_last_scan(),

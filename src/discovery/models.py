@@ -189,4 +189,6 @@ class DiscoveryPick:
             'ensemble': getattr(self, 'ensemble', None),
             # v7.0: Council decision
             'council': getattr(self, 'council', None),
+            # v8.0: Strategy info
+            'strategy': getattr(self, 'strategy_info', None),
         }

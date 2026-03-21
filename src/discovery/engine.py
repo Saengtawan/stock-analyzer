@@ -44,6 +44,7 @@ from discovery.regime_brain import RegimeBrain
 from discovery.stock_brain import StockBrain
 from discovery.risk_brain import RiskBrain
 from discovery.arbiter import DecisionArbiter
+from discovery.strategy_router import StrategyRouter
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,9 @@ class DiscoveryEngine:
         self._arbiter = DecisionArbiter()
         self._council_fitted = False
         self._regime_decision: dict = {}  # today's regime brain output
+        # v8.0: Multi-Strategy Router
+        self._strategy_router = StrategyRouter()
+        self._current_strategy: dict = {}  # today's strategy decision
         self._ensure_table()
         self._load_picks_from_db()
 
@@ -985,6 +989,17 @@ class DiscoveryEngine:
             logger.error("Discovery v7.0: Regime Brain error: %s", e)
             self._regime_decision = {'trade_today': True, 'confidence': 0, 'regime': 'UNKNOWN'}
 
+        # v8.0: Strategy routing — which strategy to use today?
+        try:
+            self._current_strategy = self._strategy_router.route(macro_for_regime)
+            logger.info("Discovery v8.0: Strategy → %s/%s (size=%.0f%%)",
+                        self._current_strategy.get('regime'),
+                        self._current_strategy.get('strategy'),
+                        self._current_strategy.get('sizing', 1) * 100)
+        except Exception as e:
+            logger.error("Discovery v8.0: Strategy router error: %s", e)
+            self._current_strategy = {'regime': 'NORMAL', 'strategy': 'SELECTIVE', 'sizing': 0.25}
+
         # 1. Load universe + fundamentals
         stocks = self._load_universe()
         logger.info(f"Discovery: {len(stocks)} stocks in universe")
@@ -1637,11 +1652,13 @@ class DiscoveryEngine:
             else:
                 stock_er = 0.0
 
-            # Regime-specific filtering (gate only, no E[R] boost)
-            # v6.0: removed bonus * 0.5 addition to stock_er — it double-counted
-            # features already in StockKernel (mom, vol, atr). Bonus is now
-            # filter-only: stocks must pass threshold to be considered.
-            if regime == 'STRESS':
+            # v8.0: Strategy overrides regime bonus gates
+            strategy_name = self._current_strategy.get('strategy', 'SELECTIVE')
+            if strategy_name.startswith('CALM') or strategy_name == 'SELECTIVE':
+                # CALM + SELECTIVE: skip regime bonus gates, use kernel E[R] only
+                # Kernel still filters negative E[R] below
+                pass
+            elif regime == 'STRESS':
                 atr = c.get('atr_pct') or 99
                 mom5 = c.get('momentum_5d') or 0
                 sector = c.get('sector') or ''
@@ -1744,20 +1761,34 @@ class DiscoveryEngine:
                 d0_close_pos = 0.5
             c['d0_close_position'] = round(d0_close_pos, 2)
 
-            # Filter: skip weak D0 candles
-            if d0_close_pos < 0.3:
-                continue
-            # v7.1: ATR filter relaxed for deep dip stocks in CRISIS
-            # Data: ATR 5-8% + d20h<-15 → WR 60%, E[R] +1.27% (better than low ATR)
-            # Still block ATR > 8% (WR drops to 47%)
+            # v8.0: Strategy-aware filters
+            strategy_mode = self._current_strategy.get('strategy', 'SELECTIVE')
+            pick_mode = self._strategy_router.get_pick_mode(strategy_mode)
             is_friday = datetime.now(ZoneInfo('America/New_York')).weekday() == 4
             d20h_val = c.get('distance_from_20d_high') or 0
-            if atr > 8.0 and not is_friday:
-                continue  # extreme volatility
-            if atr > 5.0 and not is_friday and d20h_val > -15:
-                continue  # high ATR but NOT deep dip → skip
-            # ATR > 5% allowed ONLY if deep dip (d20h < -15%) or Friday
-            c['_weekend_only'] = atr > 5.0 and not (d20h_val < -15)  # mark for UI
+
+            # D0 close filter — relaxed in CALM (momentum stocks close near high)
+            d0_min = 0.2 if strategy_mode.startswith('CALM') else 0.3
+            if d0_close_pos < d0_min:
+                continue
+
+            # ATR filter — strategy-dependent
+            if strategy_mode.startswith('CALM'):
+                # CALM: prefer low ATR stable stocks
+                if atr > 5.0:
+                    continue
+            elif strategy_mode in ('DIP_BOUNCE', 'WASHOUT'):
+                # FEAR: allow high ATR if deep dip
+                if atr > 8.0 and not is_friday:
+                    continue
+                if atr > 5.0 and not is_friday and d20h_val > -15:
+                    continue
+            else:
+                # SELECTIVE (NORMAL): strict ATR
+                if atr > 5.0:
+                    continue
+
+            c['_weekend_only'] = atr > 5.0 and not (d20h_val < -15)
 
             # v5.3: Divergence boost — stock UP while market weak
             d0_ret = ((price / c.get('open', price)) - 1) * 100 if c.get('open') else 0
@@ -1899,11 +1930,15 @@ class DiscoveryEngine:
                 logger.error("Discovery v7.0: council error for %s: %s", c['symbol'], e)
                 pick.council = {'decision': 'TRADE', 'confidence': 0, 'reasons': ['fallback']}
 
+            # v8.0: Attach strategy info
+            pick.strategy_info = self._current_strategy
+
             picks.append(pick)
 
         logger.info(
-            "Discovery v7.0: %d picks [%s] (macro E[R]=%+.2f%%, SL=%.1f%%, from %d candidates)",
-            len(picks), regime, macro_er, sl_pct, len(candidates),
+            "Discovery v8.0: %d picks [%s/%s] (macro E[R]=%+.2f%%, SL=%.1f%%, from %d candidates)",
+            len(picks), regime, self._current_strategy.get('strategy', '?'),
+            macro_er, sl_pct, len(candidates),
         )
         return picks
 
