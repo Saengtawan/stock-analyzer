@@ -1589,9 +1589,11 @@ class DiscoveryEngine:
             else:
                 stock_er = 0.0
 
-            # Regime-specific filtering
+            # Regime-specific filtering (gate only, no E[R] boost)
+            # v6.0: removed bonus * 0.5 addition to stock_er — it double-counted
+            # features already in StockKernel (mom, vol, atr). Bonus is now
+            # filter-only: stocks must pass threshold to be considered.
             if regime == 'STRESS':
-                # v5.1: Dynamic defensive filter
                 atr = c.get('atr_pct') or 99
                 mom5 = c.get('momentum_5d') or 0
                 sector = c.get('sector') or ''
@@ -1605,16 +1607,13 @@ class DiscoveryEngine:
                 if sector in stress_sectors:
                     bonus += 2
                 if bonus < 2:
-                    continue  # skip non-defensive stocks in STRESS
-                stock_er += bonus * 0.5
+                    continue
 
             elif regime == 'CRISIS':
-                # v5.1: Dynamic crisis filter — sector selection based on crisis type
                 atr = c.get('atr_pct') or 99
                 mom5 = c.get('momentum_5d') or 0
                 vol = c.get('volume_ratio') or 0
                 sector = c.get('sector') or ''
-                # Block overbought stocks in CRISIS
                 if mom5 >= 0:
                     continue
                 bonus = 0
@@ -1626,9 +1625,10 @@ class DiscoveryEngine:
                     bonus += 1
                 if sector in crisis_sectors:
                     bonus += 2
-                if bonus < 3:
-                    continue  # skip non-capitulation stocks in CRISIS
-                stock_er += bonus * 0.5
+                # v6.0: lowered from 3→2 since bonus no longer boosts E[R]
+                # Gate still filters non-defensive stocks, just less aggressively
+                if bonus < 2:
+                    continue
 
             # v4.4: never pick stocks with negative E[R]
             if stock_er < 0:
