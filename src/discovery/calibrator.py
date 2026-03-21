@@ -66,6 +66,7 @@ class Calibrator:
                    regime, atr_pct, sector, vix_close
             FROM discovery_outcomes
             WHERE scan_date >= ?
+            AND (predicted_er IS NULL OR predicted_er < 10)
             ORDER BY scan_date DESC
         """, (cutoff,)).fetchall()
 

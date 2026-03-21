@@ -128,8 +128,8 @@ class OutcomeTracker:
         sl_pct = pick['sl_pct'] or 3.0
         tp_pct = pick['tp1_pct'] or 3.0
 
-        # D0 is scan day, D1+ are post-scan
-        d0_close = None
+        # v6.0: Use scan_price as entry (not D0 close) — matches pick creation
+        d0_open = None
         max_high = 0
         min_low = float('inf')
         d3_close = None
@@ -137,8 +137,7 @@ class OutcomeTracker:
 
         for offset, open_p, high, low, close in bars:
             if offset == 0:
-                d0_close = close if close and close > 0 else scan_price
-                entry = d0_close
+                d0_open = open_p if open_p and open_p > 0 else scan_price
             if high and high > 0:
                 max_high = max(max_high, high)
             if low and low > 0:
@@ -148,15 +147,28 @@ class OutcomeTracker:
             if offset == 5 and close and close > 0:
                 d5_close = close
 
-        entry = d0_close or scan_price
+        entry = d0_open or scan_price
         if entry <= 0:
             return None
 
         max_gain_pct = ((max_high / entry) - 1) * 100 if max_high > 0 else 0
         max_dd_pct = ((min_low / entry) - 1) * 100 if min_low < float('inf') else 0
 
-        tp_hit = 1 if max_gain_pct >= tp_pct else 0
-        sl_hit = 1 if max_dd_pct <= -sl_pct else 0
+        # v6.0: Determine SL first, then TP (order matters — SL takes priority)
+        # Check day-by-day to see which hit first
+        tp_hit = 0
+        sl_hit = 0
+        for offset, open_p, high, low, close in bars:
+            if offset == 0:
+                continue  # skip scan day for TP/SL
+            day_high_pct = ((high / entry) - 1) * 100 if high and high > 0 else 0
+            day_low_pct = ((low / entry) - 1) * 100 if low and low > 0 else 0
+            if day_low_pct <= -sl_pct:
+                sl_hit = 1
+                break  # SL hit first on this day
+            if day_high_pct >= tp_pct:
+                tp_hit = 1
+                break  # TP hit first on this day
 
         d3_ret = ((d3_close / entry) - 1) * 100 if d3_close else None
         d5_ret = ((d5_close / entry) - 1) * 100 if d5_close else None
@@ -302,8 +314,11 @@ class OutcomeTracker:
             else:
                 regime = 'CRISIS'
 
-            tp_pct = max(0.5, 0.75 * (atr or 2.0))  # approximate TP
-            sl_pct = max(1.5, 1.5 * (atr or 2.0))    # approximate SL
+            # v6.0: TP/SL matching production config (1.0×ATR uniform, SL regime-adaptive)
+            atr_val = atr or 2.0
+            tp_pct = max(0.5, 1.0 * atr_val)
+            sl_mult = {'BULL': 2.0, 'STRESS': 1.5, 'CRISIS': 1.0}.get(regime, 1.5)
+            sl_pct = max(1.5, min(5.0, sl_mult * atr_val))
 
             tp_hit = 1 if (mg or 0) >= tp_pct else 0
             sl_hit = 1 if (mdd or 0) <= -sl_pct else 0
