@@ -361,16 +361,20 @@ class LeadingIndicatorEngine:
             """, (symbol,)).fetchone()
             if ana_row and ana_row[0] is not None:
                 upside = ana_row[0]
-                bull = ana_row[1] or 0
+                bull = ana_row[1] or 0  # 0-2 scale (avg 0.70)
                 n_analysts = ana_row[2] or 0
-                if upside > 30 and bull > 70:
+                if upside > 30 and bull > 0.8:
                     score += 8
-                    details['analyst'] = {'signal': 'bullish', 'upside': round(upside, 1), 'bull_score': round(bull),
-                                          'desc': f'Upside +{upside:.0f}% bull={bull:.0f}'}
+                    details['analyst'] = {'signal': 'bullish', 'upside': round(upside, 1), 'bull_score': round(bull, 2),
+                                          'desc': f'Upside +{upside:.0f}% bull={bull:.2f}'}
+                elif upside > 15 and bull > 0.6:
+                    score += 6
+                    details['analyst'] = {'signal': 'mildly_bullish', 'upside': round(upside, 1), 'bull_score': round(bull, 2),
+                                          'desc': f'Upside +{upside:.0f}% bull={bull:.2f}'}
                 elif upside > 15:
-                    score += 4
+                    score += 3
                     details['analyst'] = {'signal': 'mildly_bullish', 'upside': round(upside, 1),
-                                          'desc': f'Upside +{upside:.0f}%'}
+                                          'desc': f'Upside +{upside:.0f}% (low conviction)'}
                 elif upside < -5:
                     score -= 8
                     details['analyst'] = {'signal': 'bearish', 'upside': round(upside, 1),
