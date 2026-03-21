@@ -2911,6 +2911,8 @@ def api_discovery_picks():
             'regime_decision': engine._regime_decision or {},
             # v8.0: Strategy routing
             'strategy': engine._current_strategy or {},
+            # v9.0: Market-level signals
+            'market_signals': engine._market_signal_picks or [],
         })
     except Exception as e:
         logger.error(f"Discovery API error: {e}")

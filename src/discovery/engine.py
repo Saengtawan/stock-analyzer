@@ -45,6 +45,7 @@ from discovery.stock_brain import StockBrain
 from discovery.risk_brain import RiskBrain
 from discovery.arbiter import DecisionArbiter
 from discovery.strategy_router import StrategyRouter
+from discovery.market_signals import MarketSignalEngine
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,10 @@ class DiscoveryEngine:
         self._regime_decision: dict = {}  # today's regime brain output
         # v8.0: Multi-Strategy Router
         self._strategy_router = StrategyRouter()
-        self._current_strategy: dict = {}  # today's strategy decision
+        self._current_strategy: dict = {}
+        # v9.0: Market-level signals
+        self._market_signals = MarketSignalEngine()
+        self._market_signal_picks: list = []
         self._ensure_table()
         self._load_picks_from_db()
 
@@ -994,6 +998,17 @@ class DiscoveryEngine:
         except Exception as e:
             logger.error("Discovery v8.0: Strategy router error: %s", e)
             self._current_strategy = {'regime': 'NORMAL', 'strategy': 'SELECTIVE', 'sizing': 0.25}
+
+        # v9.0: Market-level signals (sector rotation, SPY drawdown, VIX spike)
+        try:
+            self._market_signal_picks = self._market_signals.compute_signals(scan_date)
+            if self._market_signal_picks:
+                logger.info("Discovery v9.0: %d market signals: %s",
+                            len(self._market_signal_picks),
+                            ', '.join(s['name'][:30] for s in self._market_signal_picks))
+        except Exception as e:
+            logger.error("Discovery v9.0: market signals error: %s", e)
+            self._market_signal_picks = []
 
         # 1. Load universe + fundamentals
         stocks = self._load_universe()
