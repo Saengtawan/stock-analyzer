@@ -3114,21 +3114,21 @@ function renderWeekend(w) {
 function renderCouncil(c) {
     if (!c || !c.decision) return '';
     var dec = c.decision;
-    var conf = c.confidence || 0;
+    var tier = c.tier || dec;
     var size = c.position_size || 1;
-    var colors = {TRADE: '#2ecc71', SKIP: '#f39c12', VETO: '#e74c3c'};
-    var bgColors = {TRADE: 'rgba(46,204,113,0.1)', SKIP: 'rgba(243,156,18,0.1)', VETO: 'rgba(231,76,60,0.1)'};
+    var tierColors = {TRADE: '#2ecc71', CAUTIOUS: '#f39c12', LEAN: '#e67e22', BLOCKED: '#e74c3c', VETO: '#e74c3c'};
+    var tierBg = {TRADE: 'rgba(46,204,113,0.1)', CAUTIOUS: 'rgba(243,156,18,0.08)', LEAN: 'rgba(230,126,34,0.08)', BLOCKED: 'rgba(231,76,60,0.1)', VETO: 'rgba(231,76,60,0.1)'};
     var brains = c.brains || {};
     var regime = brains.regime || {};
     var stock = brains.stock || {};
     var risk = brains.risk || {};
 
     var parts = [];
-    parts.push('<span style="font-weight:700;color:' + (colors[dec] || '#888') + ';">' + dec + '</span>');
-    if (regime.regime) parts.push('<span title="Regime Brain">R:' + (regime.trade ? 'GO' : 'STOP') + '</span>');
-    if (stock.probability) parts.push('<span title="Stock Brain prob">S:' + (stock.probability * 100).toFixed(0) + '%</span>');
-    if (risk.action) parts.push('<span title="Risk Brain">' + (risk.action === 'ALLOW' ? 'Risk:OK' : risk.action === 'REDUCE_SIZE' ? 'Risk:↓' : 'Risk:X') + '</span>');
-    if (size < 1) parts.push('<span>Size:' + (size * 100).toFixed(0) + '%</span>');
+    var tierLabel = tier === 'TRADE' ? 'TRADE 100%' : tier === 'CAUTIOUS' ? 'CAUTIOUS 50%' : tier === 'LEAN' ? 'LEAN 25%' : tier;
+    parts.push('<span style="font-weight:700;color:' + (tierColors[tier] || '#888') + ';">' + tierLabel + '</span>');
+    if (regime.probability !== undefined) parts.push('<span title="Regime Brain probability">R:' + (regime.probability * 100).toFixed(0) + '%</span>');
+    if (stock.probability) parts.push('<span title="Stock Brain probability">S:' + (stock.probability * 100).toFixed(0) + '%</span>');
+    if (risk.action && risk.action !== 'ALLOW') parts.push('<span title="Risk Brain" style="color:#e74c3c;">' + (risk.action === 'REDUCE_SIZE' ? 'Risk:↓' : 'Risk:X') + '</span>');
 
     return '<div class="d-flex align-items-center gap-2 mt-1" style="font-size:0.55rem;background:' + (bgColors[dec] || 'transparent') + ';padding:2px 4px;border-radius:3px;">'
         + parts.join('<span style="color:#555;">|</span>')
