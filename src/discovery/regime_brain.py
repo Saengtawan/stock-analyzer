@@ -202,8 +202,11 @@ class RegimeBrain:
             return np.array([]), np.array([]), [], np.array([])
 
         dates = [r[0] for r in rows]
-        X = np.array([[r[1], r[2], r[3], r[4] or 75, r[5] or 4,
-                        r[6], r[7], r[8] or 50] for r in rows], dtype=np.float64)
+        X = np.array([[r[1], r[2], r[3],
+                        r[4] if r[4] is not None else 75,
+                        r[5] if r[5] is not None else 4,
+                        r[6], r[7],
+                        r[8] if r[8] is not None else 50] for r in rows], dtype=np.float64)
         daily_wr = np.array([r[9] for r in rows])
         y = (daily_wr > 0.55).astype(np.int32)
 

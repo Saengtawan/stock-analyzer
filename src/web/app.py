@@ -2969,7 +2969,7 @@ def api_discovery_system():
         from discovery.engine import get_discovery_engine
         engine = get_discovery_engine()
         return jsonify({
-            'version': '6.0',
+            'version': '7.0',
             'components': {
                 'kernel': {
                     'macro': {'fitted': engine.kernel is not None and engine.kernel.n_rows > 0,

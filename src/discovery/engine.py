@@ -610,19 +610,24 @@ class DiscoveryEngine:
 
         self._v6_fitted = True
 
-        # v7.0: Council brains
+        # v7.0: Council brains (retry on next scan if fit fails)
         if not self._council_fitted:
+            rb_ok, sb_ok = False, False
             try:
-                ok = self._regime_brain.fit()
-                logger.info("Discovery v7.0: RegimeBrain fitted (%d days)", self._regime_brain._n_train)
+                rb_ok = self._regime_brain.fit()
+                if rb_ok:
+                    logger.info("Discovery v7.0: RegimeBrain fitted (%d days)", self._regime_brain._n_train)
             except Exception as e:
                 logger.error("Discovery v7.0: RegimeBrain fit error: %s", e)
             try:
-                ok = self._stock_brain.fit()
-                logger.info("Discovery v7.0: StockBrain fitted (%d signals)", self._stock_brain._n_train)
+                sb_ok = self._stock_brain.fit()
+                if sb_ok:
+                    logger.info("Discovery v7.0: StockBrain fitted (%d signals)", self._stock_brain._n_train)
             except Exception as e:
                 logger.error("Discovery v7.0: StockBrain fit error: %s", e)
-            self._council_fitted = True
+            # Only mark fitted if at least regime brain succeeded
+            if rb_ok:
+                self._council_fitted = True
 
     def get_scan_progress(self) -> dict:
         return self._scan_progress.copy()

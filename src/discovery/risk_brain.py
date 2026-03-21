@@ -67,7 +67,7 @@ class RiskBrain:
                 reasons.append(f'Sector {sector} full ({total_sector}/{self.max_per_sector})')
 
             # Rule 3: Max total positions
-            total_pos = n_active + len([r for r in results if r['risk_action'] == 'ALLOW'])
+            total_pos = n_active + len([r for r in results if r['risk_action'] in ('ALLOW', 'REDUCE_SIZE')])
             if total_pos >= self.max_positions:
                 action = 'BLOCK'
                 reasons.append(f'Max positions ({self.max_positions})')
@@ -79,15 +79,17 @@ class RiskBrain:
                 reasons.append(f'{consecutive_losses} consecutive losses → half size')
 
             # Rule 5: Max daily potential loss
+            # Each position is capital/max_positions, not full capital
             if action == 'ALLOW':
-                existing_risk = sum(p.get('sl_pct', 3) for p in active_positions) * self.capital / 100
-                new_risk = sl_pct * self.capital / 100
+                pos_size = self.capital / self.max_positions
+                existing_risk = sum(p.get('sl_pct', 3) * pos_size / 100 for p in active_positions)
+                new_risk = sl_pct * pos_size / 100
                 total_risk = existing_risk + new_risk
                 max_allowed = self.capital * self.max_daily_loss_pct / 100
                 if total_risk > max_allowed:
                     action = 'REDUCE_SIZE'
-                    safe_risk = max_allowed - existing_risk
-                    size_mult = max(0.25, safe_risk / new_risk) if new_risk > 0 else 0
+                    safe_risk = max(0, max_allowed - existing_risk)
+                    size_mult = max(0.25, safe_risk / new_risk) if new_risk > 0 else 0.25
                     reasons.append(f'Risk ${total_risk:.0f} > max ${max_allowed:.0f}')
 
             if not reasons:
@@ -104,7 +106,8 @@ class RiskBrain:
             }
             results.append(result)
 
-            if action == 'ALLOW':
+            # Count ALLOW and REDUCE_SIZE toward limits (both result in trades)
+            if action in ('ALLOW', 'REDUCE_SIZE'):
                 new_sectors[sector] += 1
 
         return results

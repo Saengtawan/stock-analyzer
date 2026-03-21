@@ -112,7 +112,8 @@ class StockBrain:
             dict with probability (0-1), predicted_class (0/1), confidence (0-100)
         """
         if not self._fitted or self.model is None:
-            return {'probability': 0.5, 'predicted_class': 0, 'confidence': 0}
+            # Return below threshold (0.49) so arbiter defaults to SKIP, not TRADE
+            return {'probability': 0.49, 'predicted_class': 0, 'confidence': 0}
 
         x = self._extract_features(candidate)
         prob = float(self.model.predict_proba(x.reshape(1, -1))[0, 1])
@@ -128,7 +129,7 @@ class StockBrain:
     def predict_batch(self, candidates: list) -> list:
         """Predict for multiple candidates at once (faster)."""
         if not self._fitted or self.model is None:
-            return [{'probability': 0.5, 'predicted_class': 0, 'confidence': 0}
+            return [{'probability': 0.49, 'predicted_class': 0, 'confidence': 0}
                     for _ in candidates]
 
         X = np.array([self._extract_features(c) for c in candidates])
