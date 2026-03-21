@@ -193,7 +193,7 @@ class LeadingIndicatorEngine:
             conn = sqlite3.connect(str(DB_PATH))
             insider_rows = conn.execute("""
                 SELECT COUNT(*) FROM insider_transactions
-                WHERE transaction_type = 'P' AND transaction_date >= date(?, '-7 days')
+                WHERE transaction_type = 'purchase' AND transaction_date >= date(?, '-7 days')
                 AND transaction_date <= ?
             """, (scan_date, scan_date)).fetchone()
             conn.close()
@@ -257,6 +257,16 @@ class LeadingIndicatorEngine:
 
     def compute_stock_signals(self, symbol: str, scan_date: str) -> dict:
         """Compute per-stock leading signals. Returns score 0-100 and details."""
+        # Per-stock cache (cleared on new scan_date)
+        if not hasattr(self, '_stock_signal_cache'):
+            self._stock_signal_cache = {}
+            self._stock_signal_cache_date = None
+        if self._stock_signal_cache_date != scan_date:
+            self._stock_signal_cache = {}
+            self._stock_signal_cache_date = scan_date
+        if symbol in self._stock_signal_cache:
+            return self._stock_signal_cache[symbol]
+
         score = 50.0  # neutral baseline
         details = {}
 
@@ -296,7 +306,7 @@ class LeadingIndicatorEngine:
             ins_row = conn.execute("""
                 SELECT COUNT(*) as n_buys, COALESCE(SUM(total_value), 0) as total_val
                 FROM insider_transactions
-                WHERE symbol = ? AND transaction_type = 'P'
+                WHERE symbol = ? AND transaction_type = 'purchase'
                 AND transaction_date >= date(?, '-30 days') AND transaction_date <= ?
             """, (symbol, scan_date, scan_date)).fetchone()
             n_buys = ins_row[0] if ins_row else 0
@@ -310,18 +320,7 @@ class LeadingIndicatorEngine:
                 details['insider'] = {'signal': 'mildly_bullish', 'buys_30d': n_buys, 'value': round(buy_val),
                                       'desc': f'{n_buys} insider buy'}
             else:
-                # Check for insider selling
-                sell_row = conn.execute("""
-                    SELECT COUNT(*) FROM insider_transactions
-                    WHERE symbol = ? AND transaction_type = 'S'
-                    AND transaction_date >= date(?, '-14 days') AND transaction_date <= ?
-                """, (symbol, scan_date, scan_date)).fetchone()
-                n_sells = sell_row[0] if sell_row else 0
-                if n_sells >= 3:
-                    score -= 8
-                    details['insider'] = {'signal': 'bearish', 'sells_14d': n_sells, 'desc': f'{n_sells} insider sells'}
-                else:
-                    details['insider'] = {'signal': 'neutral', 'buys_30d': 0, 'desc': 'No recent'}
+                details['insider'] = {'signal': 'neutral', 'buys_30d': 0, 'desc': 'No recent'}
 
             # 3. Short interest: squeeze potential
             si_row = conn.execute("""
@@ -391,4 +390,6 @@ class LeadingIndicatorEngine:
             conn.close()
 
         score = max(0, min(100, score))
-        return {'score': round(score, 1), 'details': details}
+        result = {'score': round(score, 1), 'details': details}
+        self._stock_signal_cache[symbol] = result
+        return result

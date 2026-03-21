@@ -219,8 +219,9 @@ class SequencePatternMatcher:
         ws = weights.sum()
         if ws < 1e-10:
             return {}
-        weights /= ws
+        # neff BEFORE normalization (correct formula: ws² / Σwi²)
         neff = float(ws ** 2 / (weights ** 2).sum())
+        weights /= ws
 
         # Weighted outcomes
         rets = sp['outcomes']
@@ -228,8 +229,8 @@ class SequencePatternMatcher:
         er = float((weights * rets).sum())
 
         # Score: normalize to 0-100 (center at 50)
-        # E[R] range typically -3% to +3%, map linearly
-        score = 50 + er * 15
+        # E[R] range typically -5% to +5%, slope=10 per 1%
+        score = 50 + er * 10
         score = max(0, min(100, score))
 
         return {

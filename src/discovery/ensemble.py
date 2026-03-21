@@ -247,10 +247,10 @@ class EnsembleBrain:
 
     @staticmethod
     def _normalize_er(er: float) -> float:
-        """Normalize E[R] (-2 to +5%) to 0-100 scale.
+        """Normalize E[R] (-5 to +5%) to 0-100 scale.
 
-        0% → 50 (neutral), +2% → 80, -2% → 20
+        0% → 50 (neutral), +5% → 100, -5% → 0
+        Slope=10 per 1% so elite picks (+2.9 to +4.8%) spread across 79-98.
         """
-        # Linear mapping: E[R]=0 → 50, slope=15 per 1%
-        score = 50 + er * 15
+        score = 50 + er * 10
         return max(0, min(100, score))
