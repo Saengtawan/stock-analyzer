@@ -273,6 +273,10 @@ class RapidRotationScreener:
         self._sector_cache: Dict[str, dict] = {}
         self._load_sector_cache()
 
+        # v7.5: Analyst target upside cache for DIP score
+        self._analyst_upside_cache: Dict[str, float] = {}
+        self._analyst_cache_loaded = False
+
         # Cache TTL in seconds (v6.10: MUST be defined BEFORE _init methods use it)
         self._cache_ttl = {
             'market_regime': 120,   # v5.1 P2-17: 300→120s (align with engine)
@@ -1229,28 +1233,56 @@ class RapidRotationScreener:
 
         return None
 
+    def _get_analyst_upside(self, symbol: str) -> float | None:
+        """v7.5: Get analyst target upside % from DB cache. Returns None if unavailable."""
+        if not self._analyst_cache_loaded:
+            try:
+                import sqlite3
+                db_path = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                    'data', 'trade_history.db'
+                )
+                conn = sqlite3.connect(db_path)
+                rows = conn.execute(
+                    "SELECT symbol, upside_pct FROM analyst_consensus WHERE upside_pct IS NOT NULL"
+                ).fetchall()
+                conn.close()
+                self._analyst_upside_cache = {r[0]: r[1] for r in rows}
+                logger.debug(f"Loaded analyst upside for {len(self._analyst_upside_cache)} symbols")
+            except Exception as e:
+                logger.warning(f"Failed to load analyst upside cache: {e}")
+            self._analyst_cache_loaded = True
+        return self._analyst_upside_cache.get(symbol)
+
     @staticmethod
-    def _compute_dip_score(dist_from_high: float, atr_pct: float, mom_5d: float, rsi: float) -> float:
+    def _compute_dip_score(dist_from_high: float, atr_pct: float,
+                           analyst_upside: float = None) -> float:
         """
-        v7.4: IC-weighted DIP quality score [0-100].
+        v7.5: IC-weighted DIP quality score [0-100].
 
-        Features (Spearman IC on n=4432 dip_bounce signals with outcome_5d):
-          distance_from_high  IC=+0.521  lower (closer to 20d high) → better
-          atr_pct             IC=-0.312  lower volatility → better
-          momentum_5d         IC=+0.141  higher momentum → better
-          entry_rsi           IC=-0.110  lower RSI (less overbought) → better
+        Features (Spearman IC on n=627 signals with outcome_5d, post-backfill 2026-03-17):
+          distance_from_high     IC=+0.296***  closer to high → better
+          analyst_target_upside  IC=+0.145***  higher analyst upside → better (cap 40%)
+          atr_pct                IC=-0.122***  lower volatility → better
 
-        Clips keep each feature in its empirical training range.
-        Weights are IC-proportional, normalized to sum=1.0.
+        v7.4→v7.5 changes (data-backed):
+          - Removed entry_rsi (IC=+0.001, p=0.96 — zero predictive power)
+          - Removed momentum_5d (IC=-0.022, p=0.08 — barely significant)
+          - Added analyst_target_upside (IC=+0.145, p=0.0004 — 4th strongest feature)
         """
         # Normalize to [0,1] where 1=best; clip outliers at empirical bounds
         norm_dist = max(0.0, 1.0 - dist_from_high / 25.0)          # 0=at high→1.0, 25%below→0.0
         norm_atr  = max(0.0, 1.0 - (atr_pct - 0.5) / 11.5)         # 0.5%→1.0, 12%→0.0
-        norm_mom  = max(0.0, min(1.0, (mom_5d + 20.0) / 25.0))      # +5%→1.0, -20%→0.0
-        norm_rsi  = max(0.0, 1.0 - (rsi - 20.0) / 60.0)             # 20→1.0, 80→0.0
 
-        # IC weights: 0.521/1.084, 0.312/1.084, 0.141/1.084, 0.110/1.084
-        score = (0.481 * norm_dist + 0.288 * norm_atr + 0.130 * norm_mom + 0.101 * norm_rsi) * 100
+        if analyst_upside is not None:
+            norm_analyst = max(0.0, min(1.0, analyst_upside / 40.0))  # 0%→0.0, 40%→1.0
+            # IC weights: 0.296/0.563, 0.145/0.563, 0.122/0.563
+            score = (0.526 * norm_dist + 0.258 * norm_analyst + 0.217 * norm_atr) * 100
+        else:
+            # Fallback: 2-feature score when analyst data unavailable (~4% of stocks)
+            # IC weights: 0.296/0.418, 0.122/0.418
+            score = (0.708 * norm_dist + 0.292 * norm_atr) * 100
+
         return round(score, 1)
 
     def _analyze_calc_score(self, ind: dict, symbol: str) -> tuple:
@@ -1351,12 +1383,11 @@ class RapidRotationScreener:
         market_regime = self._get_market_regime()
         regime_str = market_regime.get('regime', 'UNKNOWN')
 
-        # v7.4: IC-weighted DIP quality score
+        # v7.5: IC-weighted DIP quality score (3 features, analyst-enhanced)
         dip_score = self._compute_dip_score(
             dist_from_high=ind['dist_from_high'],
             atr_pct=ind['atr_pct'],
-            mom_5d=ind['mom_5d'],
-            rsi=ind['rsi'],
+            analyst_upside=self._get_analyst_upside(symbol),
         )
         return RapidRotationSignal(
             symbol=symbol,
@@ -1547,13 +1578,11 @@ class RapidRotationScreener:
             # Convert TradingSignal → RapidRotationSignal (for backward compatibility)
             signals = []
             for ts in trading_signals:
-                # v7.4: Compute IC-weighted DIP quality score for strategy-manager path
-                # (analyze_stock() path computes this, but strategy manager bypasses it)
+                # v7.5: IC-weighted DIP quality score (3 features, analyst-enhanced)
                 dip_score = self._compute_dip_score(
                     dist_from_high=ts.distance_from_high,
                     atr_pct=ts.atr_pct,
-                    mom_5d=ts.momentum_5d,
-                    rsi=ts.rsi,
+                    analyst_upside=self._get_analyst_upside(ts.symbol),
                 )
                 rrs = RapidRotationSignal(
                     symbol=ts.symbol,

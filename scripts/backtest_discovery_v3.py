@@ -41,51 +41,114 @@ BUCKETS = {
 SECTOR_FEATURE = 'sector'
 FEATURES = list(BUCKETS.keys()) + [SECTOR_FEATURE]
 
-# Kernel regression features (continuous, no buckets)
-KERNEL_FEATURES = ['distance_from_20d_high', 'atr_pct', 'entry_rsi', 'momentum_5d', 'vix_at_signal']
-# Derived features
+# Kernel regression features — MUST match production (src/discovery/kernel_estimator.py)
+# v4.0: Pure macro kernel — NO stock-level features. Kernel is a DAY SELECTOR.
+KERNEL_FEATURES = [
+    'new_52w_lows', 'crude_change_5d', 'pct_above_20d_ma',
+    'new_52w_highs', 'yield_10y', 'spy_close',
+]
+# Legacy derived features (kept for bucket method, not used by kernel)
 DERIVED_FEATURES = ['dist_x_rsi', 'mean_reversion_score', 'atr_risk']
-ALL_KERNEL_FEATURES = KERNEL_FEATURES + DERIVED_FEATURES
+ALL_KERNEL_FEATURES = KERNEL_FEATURES
 
-# Kernel bandwidth (validated: bw=1.0 was best in prior analysis)
-KERNEL_BW = 1.0
+# Kernel bandwidth (v4.0: bw=0.6 optimal for 6-feature pure macro kernel)
+KERNEL_BW = 0.6
+
+# v4.1: Stock kernel features (macro + stock-level)
+STOCK_KERNEL_FEATURES = [
+    'new_52w_lows', 'crude_change_5d', 'pct_above_20d_ma',
+    'new_52w_highs', 'yield_10y', 'spy_close',
+    'atr_pct', 'momentum_5d', 'volume_ratio', 'entry_rsi',
+]
+STOCK_KERNEL_BW = 1.0
+
+# v4.1: Regime thresholds
+BULL_ER = 0.5
+STRESS_ER = -0.5
+
+DEFENSIVE_SECTORS = frozenset({
+    'Utilities', 'Healthcare', 'Basic Materials', 'Real Estate', 'Energy',
+})
+# CRISIS-specific: HC(WR=27%) and BM(WR=37%) fail in crisis
+CRISIS_DEFENSIVE = frozenset({
+    'Utilities', 'Real Estate', 'Energy',
+})
 
 
 # ──────────────────────────────────────────────────────────────
 # Data Loading
 # ──────────────────────────────────────────────────────────────
 def load_data():
-    """Load combined dataset: live signal_outcomes + backfill_signal_outcomes."""
+    """Load combined dataset: live signal_outcomes + backfill_signal_outcomes.
+    JOINs with macro_snapshots + market_breadth for kernel macro features."""
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
 
     # Live signal_outcomes (has new_score for v2 comparison)
+    # JOIN macro + breadth for kernel features
     live_rows = conn.execute("""
-        SELECT scan_date, symbol, action_taken, scan_price,
-               outcome_5d, outcome_max_gain_5d, outcome_max_dd_5d,
-               distance_from_20d_high, vix_at_signal, atr_pct,
-               momentum_5d, entry_rsi, volume_ratio, sector,
-               new_score
-        FROM signal_outcomes
-        WHERE outcome_5d IS NOT NULL
-          AND distance_from_20d_high IS NOT NULL
-          AND vix_at_signal IS NOT NULL
-          AND atr_pct IS NOT NULL
-          AND momentum_5d IS NOT NULL
-          AND entry_rsi IS NOT NULL
+        SELECT s.scan_date, s.symbol, s.action_taken, s.scan_price,
+               s.outcome_5d, s.outcome_max_gain_5d, s.outcome_max_dd_5d,
+               s.distance_from_20d_high, s.vix_at_signal, s.atr_pct,
+               s.momentum_5d, s.entry_rsi, s.volume_ratio, s.sector,
+               s.new_score, s.momentum_20d,
+               m.crude_close, m.gold_close, m.yield_10y, m.spy_close,
+               b.pct_above_20d_ma, b.new_52w_lows, b.new_52w_highs
+        FROM signal_outcomes s
+        LEFT JOIN macro_snapshots m
+            ON m.date = CASE
+                WHEN strftime('%w', s.scan_date) = '6' THEN date(s.scan_date, '-1 day')
+                WHEN strftime('%w', s.scan_date) = '0' THEN date(s.scan_date, '-2 days')
+                ELSE s.scan_date END
+        LEFT JOIN market_breadth b
+            ON b.date = CASE
+                WHEN strftime('%w', s.scan_date) = '6' THEN date(s.scan_date, '-1 day')
+                WHEN strftime('%w', s.scan_date) = '0' THEN date(s.scan_date, '-2 days')
+                ELSE s.scan_date END
+        WHERE s.outcome_5d IS NOT NULL
+          AND s.atr_pct IS NOT NULL
     """).fetchall()
 
-    # Backfill synthetic outcomes
+    # Backfill synthetic outcomes — JOIN macro + breadth
     backfill_rows = conn.execute("""
-        SELECT scan_date, symbol, sector, scan_price,
-               atr_pct, entry_rsi, distance_from_20d_high,
-               momentum_5d, momentum_20d, volume_ratio,
-               vix_at_signal, outcome_5d,
-               outcome_max_gain_5d, outcome_max_dd_5d
-        FROM backfill_signal_outcomes
-        WHERE outcome_5d IS NOT NULL
+        SELECT s.scan_date, s.symbol, s.sector, s.scan_price,
+               s.atr_pct, s.entry_rsi, s.distance_from_20d_high,
+               s.momentum_5d, s.momentum_20d, s.volume_ratio,
+               s.vix_at_signal, s.outcome_5d,
+               s.outcome_max_gain_5d, s.outcome_max_dd_5d,
+               m.crude_close, m.gold_close, m.yield_10y, m.spy_close,
+               b.pct_above_20d_ma, b.new_52w_lows, b.new_52w_highs
+        FROM backfill_signal_outcomes s
+        LEFT JOIN macro_snapshots m
+            ON m.date = CASE
+                WHEN strftime('%w', s.scan_date) = '6' THEN date(s.scan_date, '-1 day')
+                WHEN strftime('%w', s.scan_date) = '0' THEN date(s.scan_date, '-2 days')
+                ELSE s.scan_date END
+        LEFT JOIN market_breadth b
+            ON b.date = CASE
+                WHEN strftime('%w', s.scan_date) = '6' THEN date(s.scan_date, '-1 day')
+                WHEN strftime('%w', s.scan_date) = '0' THEN date(s.scan_date, '-2 days')
+                ELSE s.scan_date END
+        WHERE s.outcome_5d IS NOT NULL
+    """).fetchall()
+
+    # Load crude_close time series for crude_change_5d computation
+    crude_series = conn.execute("""
+        SELECT date, crude_close FROM macro_snapshots
+        WHERE crude_close IS NOT NULL ORDER BY date
     """).fetchall()
     conn.close()
+
+    # Build date→crude map and compute crude_change_5d per date
+    crude_by_date = {r['date']: r['crude_close'] for r in crude_series}
+    crude_dates = sorted(crude_by_date.keys())
+    crude_chg_by_date = {}
+    for i, d in enumerate(crude_dates):
+        if i >= 5:
+            d5 = crude_dates[i - 5]
+            c5 = crude_by_date[d5]
+            if c5 and c5 > 0:
+                crude_chg_by_date[d] = (crude_by_date[d] / c5 - 1) * 100
 
     live_data = []
     for r in live_rows:
@@ -115,6 +178,21 @@ def load_data():
         else:
             seen[key] = row
     combined = sorted(seen.values(), key=lambda r: r['scan_date'])
+
+    # Compute crude_change_5d for each row (map scan_date → macro_date → crude change)
+    for row in combined:
+        sd = row['scan_date']
+        # Map weekend to Friday
+        import datetime as _dt
+        d_obj = _dt.date.fromisoformat(sd)
+        wd = d_obj.weekday()
+        if wd == 5:  # Saturday
+            macro_d = (d_obj - _dt.timedelta(days=1)).isoformat()
+        elif wd == 6:  # Sunday
+            macro_d = (d_obj - _dt.timedelta(days=2)).isoformat()
+        else:
+            macro_d = sd
+        row['crude_change_5d'] = crude_chg_by_date.get(macro_d)
 
     live_count = sum(1 for r in combined if r['source'] == 'live')
     bf_count = sum(1 for r in combined if r['source'] == 'backfill')
@@ -276,13 +354,18 @@ class KernelEstimator:
         self.train_features = (self.train_features - self.feature_means) / self.feature_stds
 
     def estimate(self, row):
-        """Return (E[R], SE, n_effective)."""
+        """Return (E[R], SE, n_effective).
+        Matches production: imputes missing macro features with training means (z=0)."""
         if len(self.train_features) == 0:
             return 0.0, 10.0, 0
 
-        vals = [row.get(f) for f in self.features]
-        if any(v is None for v in vals):
-            return 0.0, 10.0, 0
+        vals = []
+        for i, f in enumerate(self.features):
+            v = row.get(f)
+            if v is None:
+                # v4.0: all features are macro — impute with training mean (z=0)
+                v = self.feature_means[i]
+            vals.append(v)
 
         x = (np.array(vals, dtype=float) - self.feature_means) / self.feature_stds
 
@@ -317,7 +400,8 @@ class KernelEstimator:
 def run_backtest(data, v3_mode='rank_top_n', v3_top_n=10, er_floor=None,
                  method='bucket', kernel_bw=KERNEL_BW, min_train_days=20,
                  sector_cap_pct=None, breadth_gate=False,
-                 max_atr_pct=None, min_volume_ratio=None,
+                 min_atr_pct=None, max_atr_pct=None,
+                 min_volume_ratio=None,
                  exclude_sectors=None, min_distance_20d=None,
                  vix_skip_near_high=None):
     """
@@ -334,6 +418,8 @@ def run_backtest(data, v3_mode='rank_top_n', v3_top_n=10, er_floor=None,
     """
     # Apply pre-filters
     filtered = data
+    if min_atr_pct is not None:
+        filtered = [r for r in filtered if (r.get('atr_pct') or 0) >= min_atr_pct]
     if max_atr_pct is not None:
         filtered = [r for r in filtered if (r.get('atr_pct') or 0) <= max_atr_pct]
     if min_volume_ratio is not None:
@@ -362,8 +448,10 @@ def run_backtest(data, v3_mode='rank_top_n', v3_top_n=10, er_floor=None,
     print(f"Total signals: {len(filtered)} (from {len(data)})")
     print(f"Method: {method}, v3 mode: {v3_mode}" +
           (f" (top_n={v3_top_n})" if v3_mode == 'rank_top_n' else ''))
+    if min_atr_pct:
+        print(f"ATR floor: ≥ {min_atr_pct}%")
     if max_atr_pct:
-        print(f"ATR gate: ≤ {max_atr_pct}%")
+        print(f"ATR cap: ≤ {max_atr_pct}%")
     if min_volume_ratio:
         print(f"Volume gate: ≥ {min_volume_ratio}")
     if min_distance_20d is not None:
@@ -468,6 +556,264 @@ def run_backtest(data, v3_mode='rank_top_n', v3_top_n=10, er_floor=None,
 
     print(f"Skipped {skipped_dates} dates (< {min_train_days} train days)")
     return v3_results, v2_results, dates
+
+
+def run_regime_backtest(data, min_train_days=20, tp_pct=3.0):
+    """v4.2 Regime-Adaptive walk-forward backtest (3 regimes).
+
+    Matches production logic exactly:
+      1. Macro kernel (6 feat, bw=0.6) → E[R] → regime
+      2. Stock kernel (10 feat, bw=1.0) → per-stock E[R] + regime filter
+      3. 3 regimes: BULL/STRESS/CRISIS (NORMAL merged into STRESS)
+      4. CRISIS uses narrow defensive set {Utilities, Real Estate, Energy}
+    """
+    dates = sorted(set(r['scan_date'] for r in data))
+    if not dates:
+        return []
+
+    print(f"\nDates: {len(dates)} ({dates[0]} to {dates[-1]})")
+    print(f"Total signals: {len(data)}")
+    print(f"Method: v4.2 Regime-Adaptive Dual Kernel (3 regimes)")
+    print(f"Macro BW={KERNEL_BW}, Stock BW={STOCK_KERNEL_BW}")
+    print(f"Regimes: BULL(>{BULL_ER}%) "
+          f"STRESS({STRESS_ER} to {BULL_ER}%) CRISIS(<{STRESS_ER}%)")
+
+    results = []
+    regime_counts = defaultdict(int)
+    skipped = 0
+
+    for test_date in dates:
+        train = [r for r in data if r['scan_date'] < test_date]
+        test = [r for r in data if r['scan_date'] == test_date]
+        if not test:
+            continue
+
+        train_dates = set(r['scan_date'] for r in train)
+        if len(train_dates) < min_train_days:
+            skipped += 1
+            continue
+
+        # --- Stage 1: Macro kernel → regime ---
+        macro_kernel = KernelEstimator(bandwidth=KERNEL_BW, features=KERNEL_FEATURES)
+        macro_kernel.fit(train)
+
+        # Use first test row's macro features (same for all stocks on same day)
+        macro_er, _, macro_neff = macro_kernel.estimate(test[0])
+        if macro_neff < 3.0:
+            skipped += 1
+            continue
+
+        # Determine regime (3 regimes: no NORMAL)
+        if macro_er > BULL_ER:
+            regime = 'BULL'
+            max_picks = 5
+            sl_pct = tp_pct
+        elif macro_er > STRESS_ER:
+            regime = 'STRESS'
+            max_picks = 3
+            sl_pct = 2.0
+        else:
+            regime = 'CRISIS'
+            max_picks = 2
+            sl_pct = 2.0
+
+        regime_counts[regime] += 1
+
+        # --- Stage 2: Stock kernel → per-stock ranking ---
+        stock_kernel = KernelEstimator(bandwidth=STOCK_KERNEL_BW,
+                                       features=STOCK_KERNEL_FEATURES)
+        stock_kernel.fit(train)
+
+        scored = []
+        for row in test:
+            stock_er, _, stock_neff = stock_kernel.estimate(row)
+            if stock_neff < 3.0:
+                stock_er = 0.0
+
+            # Regime-specific filtering (matches production engine.py)
+            if regime == 'STRESS':
+                atr = row.get('atr_pct') or 99
+                mom5 = row.get('momentum_5d') or 0
+                sector = row.get('sector') or ''
+                bonus = 0
+                if atr < 3.0:
+                    bonus += 2
+                elif atr < 4.0:
+                    bonus += 1
+                if mom5 < 0:
+                    bonus += 1
+                if sector in DEFENSIVE_SECTORS:
+                    bonus += 2
+                if bonus < 2:
+                    continue
+                stock_er += bonus * 0.5
+
+            elif regime == 'CRISIS':
+                atr = row.get('atr_pct') or 99
+                mom5 = row.get('momentum_5d') or 0
+                vol = row.get('volume_ratio') or 0
+                sector = row.get('sector') or ''
+                bonus = 0
+                if mom5 < -5:
+                    bonus += 2
+                if vol > 1.0:
+                    bonus += 1
+                if atr < 3.0:
+                    bonus += 1
+                if sector in CRISIS_DEFENSIVE:
+                    bonus += 2
+                if bonus < 3:
+                    continue
+                stock_er += bonus * 0.5
+
+            scored.append((stock_er, row))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        scored = scored[:max_picks]
+
+        for stock_er, row in scored:
+            # Compute expectancy with regime-specific SL
+            mg = row.get('outcome_max_gain_5d')
+            md = row.get('outcome_max_dd_5d')
+            if mg is not None and md is not None:
+                if md <= -sl_pct:
+                    regime_outcome = -sl_pct
+                elif mg >= tp_pct:
+                    regime_outcome = tp_pct
+                else:
+                    regime_outcome = row['outcome_5d']
+            else:
+                regime_outcome = row['outcome_5d']
+
+            results.append({
+                'date': test_date, 'symbol': row['symbol'],
+                'er': stock_er, 'macro_er': macro_er, 'regime': regime,
+                'sl_pct': sl_pct, 'tp_pct': tp_pct,
+                'outcome_5d': row['outcome_5d'],
+                'regime_outcome': regime_outcome,
+                'max_gain': mg, 'max_dd': md,
+                'sector': row.get('sector', ''),
+                'atr_pct': row.get('atr_pct'),
+                'momentum_5d': row.get('momentum_5d'),
+                'volume_ratio': row.get('volume_ratio'),
+            })
+
+    print(f"Skipped {skipped} dates (< {min_train_days} train days or low n_eff)")
+    print(f"Regime distribution: {dict(regime_counts)}")
+    return results
+
+
+def compute_regime_metrics(results, label):
+    """Compute metrics for regime-adaptive backtest with per-regime SL/TP."""
+    if not results:
+        print(f"\n{'='*60}")
+        print(f"  {label}: NO PICKS")
+        print(f"{'='*60}")
+        return {}
+
+    n = len(results)
+    dates_active = len(set(r['date'] for r in results))
+    outcomes = [r['outcome_5d'] for r in results]
+    regime_outcomes = [r['regime_outcome'] for r in results]
+
+    wins = sum(1 for o in outcomes if o > 0)
+    wr = wins / n * 100
+
+    avg_ret = np.mean(outcomes)
+    median_ret = np.median(outcomes)
+    avg_regime_ret = np.mean(regime_outcomes)
+    total_pnl = sum(regime_outcomes)
+
+    # TP/SL hit rates (using regime-specific levels)
+    tp_hits = sum(1 for r in results
+                  if r.get('max_gain') is not None and r['max_gain'] >= r['tp_pct'])
+    sl_hits = sum(1 for r in results
+                  if r.get('max_dd') is not None and r['max_dd'] <= -r['sl_pct'])
+    n_valid = sum(1 for r in results if r.get('max_gain') is not None)
+    tp_rate = tp_hits / n_valid * 100 if n_valid else 0
+    sl_rate = sl_hits / n_valid * 100 if n_valid else 0
+
+    picks_per_day = n / dates_active if dates_active > 0 else 0
+
+    print(f"\n{'='*60}")
+    print(f"  {label}")
+    print(f"{'='*60}")
+    print(f"  Total picks:       {n}")
+    print(f"  Active days:       {dates_active} / {dates_active}")
+    print(f"  Picks/day:         {picks_per_day:.1f}")
+    print(f"  Win Rate:          {wr:.1f}%  ({wins}/{n})")
+    print(f"  Avg Return 5d:     {avg_ret:+.2f}%")
+    print(f"  Median Return 5d:  {median_ret:+.2f}%")
+    print(f"  TP hit rate:       {tp_rate:.1f}% (regime-specific SL/TP)")
+    print(f"  SL hit rate:       {sl_rate:.1f}%")
+    print(f"  Avg regime P&L:    {avg_regime_ret:+.3f}%")
+    print(f"  Total regime P&L:  {total_pnl:+.1f}%")
+
+    # Per-regime breakdown
+    regime_stats = defaultdict(lambda: {'n': 0, 'wins': 0, 'pnl': 0.0, 'days': set()})
+    for r in results:
+        rg = r['regime']
+        regime_stats[rg]['n'] += 1
+        regime_stats[rg]['days'].add(r['date'])
+        if r['outcome_5d'] > 0:
+            regime_stats[rg]['wins'] += 1
+        regime_stats[rg]['pnl'] += r['regime_outcome']
+
+    print(f"\n  Per-Regime Breakdown:")
+    print(f"    {'Regime':<10} {'Days':>5} {'Picks':>6} {'p/day':>6} {'WR%':>6} {'TotalPnL':>10} {'AvgPnL':>8}")
+    for rg in ['BULL', 'NORMAL', 'STRESS', 'CRISIS']:
+        rs = regime_stats.get(rg)
+        if not rs or rs['n'] == 0:
+            print(f"    {rg:<10} {'—':>5} {'—':>6} {'—':>6} {'—':>6} {'—':>10} {'—':>8}")
+            continue
+        rg_wr = rs['wins'] / rs['n'] * 100
+        rg_avg = rs['pnl'] / rs['n']
+        rg_ppd = rs['n'] / len(rs['days'])
+        print(f"    {rg:<10} {len(rs['days']):>5} {rs['n']:>6} {rg_ppd:>5.1f} {rg_wr:>5.1f}% "
+              f"{rs['pnl']:>+9.1f}% {rg_avg:>+7.2f}%")
+
+    # Monthly breakdown
+    month_stats = defaultdict(lambda: {'n': 0, 'wins': 0, 'pnl': 0.0, 'regimes': defaultdict(int)})
+    for r in results:
+        m = r['date'][:7]
+        month_stats[m]['n'] += 1
+        if r['outcome_5d'] > 0:
+            month_stats[m]['wins'] += 1
+        month_stats[m]['pnl'] += r['regime_outcome']
+        month_stats[m]['regimes'][r['regime']] += 1
+
+    print(f"\n  Monthly Breakdown:")
+    print(f"    {'Month':<10} {'n':>5} {'WR%':>6} {'PnL':>8} {'Regimes'}")
+    for m in sorted(month_stats.keys()):
+        ms = month_stats[m]
+        m_wr = ms['wins'] / ms['n'] * 100 if ms['n'] > 0 else 0
+        rg_str = ' '.join(f"{k}:{v}" for k, v in sorted(ms['regimes'].items()))
+        print(f"    {m:<10} {ms['n']:>5} {m_wr:>5.1f}% {ms['pnl']:>+7.1f}% {rg_str}")
+
+    # Sector breakdown
+    sector_stats = defaultdict(lambda: {'n': 0, 'wins': 0, 'pnl': 0.0})
+    for r in results:
+        s = r.get('sector', 'Unknown') or 'Unknown'
+        sector_stats[s]['n'] += 1
+        if r['outcome_5d'] > 0:
+            sector_stats[s]['wins'] += 1
+        sector_stats[s]['pnl'] += r['regime_outcome']
+
+    print(f"\n  Sector Breakdown (top 10):")
+    print(f"    {'Sector':<25} {'n':>4} {'WR%':>6} {'PnL':>8} {'Share':>6}")
+    for s in sorted(sector_stats, key=lambda x: sector_stats[x]['n'], reverse=True)[:10]:
+        ss = sector_stats[s]
+        s_wr = ss['wins'] / ss['n'] * 100 if ss['n'] > 0 else 0
+        s_avg = ss['pnl'] / ss['n'] if ss['n'] > 0 else 0
+        s_share = ss['n'] / n * 100
+        print(f"    {s:<25} {ss['n']:>4} {s_wr:>5.1f}% {s_avg:>+7.2f}% {s_share:>5.1f}%")
+
+    return {
+        'n': n, 'dates': dates_active, 'picks_per_day': picks_per_day,
+        'wr': wr, 'avg_ret': avg_ret, 'median_ret': median_ret,
+        'tp_rate': tp_rate, 'sl_rate': sl_rate,
+        'avg_regime_ret': avg_regime_ret, 'total_pnl': total_pnl,
+    }
 
 
 def _apply_sector_cap(picks, max_n, cap_pct):
@@ -787,29 +1133,39 @@ if __name__ == '__main__':
     # TEST 7: PRODUCTION CONFIG v3.1 — Full gates
     # ════════════════════════════════════════════════════════════
     PROD_GATES = dict(
-        max_atr_pct=4.0, min_volume_ratio=0.5, min_distance_20d=-5.0,
+        min_atr_pct=2.5, max_atr_pct=4.0,
+        min_volume_ratio=1.0, min_distance_20d=-5.0,
         vix_skip_near_high=-3.0,
-        exclude_sectors={'Technology', 'Semiconductors'},
+        exclude_sectors={'Technology', 'Semiconductors', 'Communication Services'},
     )
 
     print("\n" + "=" * 70)
-    print("  TEST 7: PROD v3.1 E[R]>0.5% (ATR<4 + dist>-5 + VIX gate)")
+    print("  TEST 7: PROD v3.2 E[R]>0.5% (ATR 2.5-4 + vol>=1.0 + dist>-5)")
     print("=" * 70)
     v3_prod, _, _ = run_backtest(data, v3_mode='er_floor', er_floor=0.5,
                                   method='kernel', **PROD_GATES)
-    m_prod = compute_metrics(v3_prod, "v3 PROD v3.1: E[R]>0.5%")
+    m_prod = compute_metrics(v3_prod, "v3 PROD v3.2: E[R]>0.5%")
     if m_prod:
-        show_comparison(m_prod, m_v2, "PROD v3.1 vs v2")
+        show_comparison(m_prod, m_v2, "PROD v3.2 vs v2")
 
     # TEST 7b: Same but top 5 ranking
     print("\n" + "=" * 70)
-    print("  TEST 7b: PROD v3.1 Top 5 Ranking")
+    print("  TEST 7b: PROD v3.2 Top 5 Ranking")
     print("=" * 70)
     v3_prod5, _, _ = run_backtest(data, v3_mode='rank_top_n', v3_top_n=5,
                                    method='kernel', **PROD_GATES)
-    m_prod5 = compute_metrics(v3_prod5, "v3 PROD v3.1 Top5")
+    m_prod5 = compute_metrics(v3_prod5, "v3 PROD v3.2 Top5")
     if m_prod5:
-        show_comparison(m_prod5, m_v2, "PROD v3.1 Top5 vs v2")
+        show_comparison(m_prod5, m_v2, "PROD v3.2 Top5 vs v2")
+
+    # ════════════════════════════════════════════════════════════
+    # TEST 8: v4.1 Regime-Adaptive Dual Kernel (PRODUCTION LOGIC)
+    # ════════════════════════════════════════════════════════════
+    print("\n" + "=" * 70)
+    print("  TEST 8: v4.1 REGIME-ADAPTIVE DUAL KERNEL (matches production)")
+    print("=" * 70)
+    regime_results = run_regime_backtest(data)
+    m_regime = compute_regime_metrics(regime_results, "v4.1 Regime-Adaptive")
 
     # ════════════════════════════════════════════════════════════
     # FINAL SUMMARY
@@ -834,6 +1190,13 @@ if __name__ == '__main__':
             continue
         print(f"  {name:<22} {m['n']:>5} {m['picks_per_day']:>5.1f} {m['wr']:>5.1f}% {m['avg_ret']:>+7.2f}% "
               f"{m['tp_2']:>5.1f}% {m['tp_3']:>5.1f}% {m['sl_3']:>5.1f}% {m['exp_3_3']:>+7.3f}%")
+
+    # v4.1 regime summary (different metrics)
+    if m_regime:
+        print(f"\n  {'v4.1 Regime-Adaptive':<22} {m_regime['n']:>5} {m_regime['picks_per_day']:>5.1f} "
+              f"{m_regime['wr']:>5.1f}% {m_regime['avg_ret']:>+7.2f}% "
+              f"  TP:{m_regime['tp_rate']:>4.1f}% SL:{m_regime['sl_rate']:>4.1f}% "
+              f"PnL:{m_regime['total_pnl']:>+.1f}%")
 
     print(f"\n{'='*70}")
     print(f"  BACKTEST COMPLETE — Combined Dataset ({len(data)} rows)")

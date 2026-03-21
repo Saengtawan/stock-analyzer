@@ -387,6 +387,12 @@ class PDTSmartGuard:
     def remove_entry(self, symbol: str):
         """Remove entry record when position closed"""
         if symbol in self._entry_dates:
+            # v7.8: Record exit_date + same_day_exit in DB before removing from memory
+            if self._pdt_repo:
+                try:
+                    self._pdt_repo.record_exit(symbol)
+                except Exception as e:
+                    logger.warning(f"PDT Guard: Failed to record exit for {symbol}: {e}")
             del self._entry_dates[symbol]
             self._save_entry_dates()
 

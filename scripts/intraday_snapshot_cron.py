@@ -363,4 +363,10 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        import traceback
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] FATAL: {e}")
+        traceback.print_exc()
+        sys.exit(1)
