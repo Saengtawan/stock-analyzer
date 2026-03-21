@@ -656,6 +656,8 @@ class DiscoveryEngine:
             ('entry_price', 'REAL'),
             ('entry_status', "TEXT DEFAULT 'pending'"),
             ('entry_filled_at', 'TEXT'),
+            # v6.0: Ensemble scoring
+            ('ensemble_json', 'TEXT'),
         ]
         for col_name, col_type in new_cols:
             try:
@@ -723,8 +725,9 @@ class DiscoveryEngine:
                 entry_filled_at=r['entry_filled_at'],
                 status=r['status'] or 'active',
             ))
-            # v5.2: restore tp_timeline + weekend_play from DB
-            for attr, col in [('tp_timeline', 'tp_timeline_json'), ('weekend_play', 'weekend_play_json')]:
+            # v5.2: restore tp_timeline + weekend_play + v6.0 ensemble from DB
+            for attr, col in [('tp_timeline', 'tp_timeline_json'), ('weekend_play', 'weekend_play_json'),
+                              ('ensemble', 'ensemble_json')]:
                 raw = r[col] if col in r.keys() else None
                 if raw:
                     try:
@@ -1941,8 +1944,8 @@ class DiscoveryEngine:
                  breadth_delta_5d, vix_delta_5d, crude_close, gold_close, dxy_delta_5d, stress_score,
                  premarket_price, gap_pct, scan_type,
                  limit_entry_price, limit_pct, entry_price, entry_status, entry_filled_at,
-                 tp_timeline_json, weekend_play_json)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 tp_timeline_json, weekend_play_json, ensemble_json)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, (p.scan_date, p.symbol, p.scan_price, p.current_price, p.layer2_score,
                   p.beta, p.atr_pct, p.distance_from_high, p.distance_from_20d_high, p.rsi, p.momentum_5d,
                   p.momentum_20d, p.volume_ratio,
@@ -1958,7 +1961,8 @@ class DiscoveryEngine:
                   p.premarket_price, p.gap_pct, p.scan_type,
                   p.limit_entry_price, p.limit_pct, p.entry_price, p.entry_status, p.entry_filled_at,
                   json.dumps(getattr(p, 'tp_timeline', None)),
-                  json.dumps(getattr(p, 'weekend_play', None))))
+                  json.dumps(getattr(p, 'weekend_play', None)),
+                  json.dumps(getattr(p, 'ensemble', None))))
         conn.commit()
         conn.close()
         logger.info(f"Discovery: saved {len(picks)} picks for {scan_date}")
