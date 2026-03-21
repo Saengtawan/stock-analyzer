@@ -787,8 +787,12 @@ class DiscoveryEngine:
         div_cfg = self._config.get('diversification', {})
         max_per_sector = div_cfg.get('max_per_sector', 3)
 
-        # v6.0: sort by ensemble score (falls back to E[R] if no ensemble)
-        rank_fn = lambda p: getattr(p, 'ensemble', {}).get('ensemble_score', 0) if getattr(p, 'ensemble', None) else (p.layer2_score or 0)
+        # v8.0: sort by council confidence (falls back to E[R])
+        def rank_fn(p):
+            council = getattr(p, 'council', None)
+            if council:
+                return council.get('confidence', 0)
+            return (p.layer2_score or 0)
         sorted_picks = sorted(self._picks, key=rank_fn, reverse=True)
 
         # Apply sector diversification
@@ -1890,10 +1894,9 @@ class DiscoveryEngine:
                 if weekend:
                     pick.weekend_play = weekend
 
-            # v6.0: Ensemble score — combine kernel + per-stock signals
+            # v8.0 Unified: Council + Strategy + per-stock signals → single decision
             try:
-                cal_conf = self._calibrator.compute_confidence()
-                # Per-stock signals (differentiate between picks)
+                # Per-stock signals (from v6.0 leading indicators)
                 stock_signals = self._leading_indicators.compute_stock_signals(
                     c['symbol'], scan_date)
                 stock_profile = self._sequence_matcher.predict_stock_profile(
@@ -1901,22 +1904,8 @@ class DiscoveryEngine:
                     c.get('volume_ratio') or 1,
                     c.get('distance_from_20d_high') or -5,
                     sector=c.get('sector', ''))
-                ensemble_result = self._ensemble.score(
-                    kernel_er=stock_er,
-                    temporal_features=self._temporal_features,
-                    sequence_prediction=self._sequence_prediction,
-                    leading_signals=self._leading_signals,
-                    calibrator_confidence=cal_conf.get('confidence', 50),
-                    stock_signals=stock_signals,
-                    stock_profile=stock_profile,
-                )
-                pick.ensemble = ensemble_result
-            except Exception as e:
-                logger.error("Discovery v6.0: ensemble score error for %s: %s", c['symbol'], e)
-                pick.ensemble = None
 
-            # v7.0: Council decision per pick
-            try:
+                # Council decision (regime + stock + risk → TRADE/VETO + sizing)
                 stock_brain_result = self._stock_brain.predict(c)
                 risk_result = self._risk_brain.evaluate(
                     [{'symbol': c['symbol'], 'sector': c.get('sector', ''),
@@ -1925,13 +1914,25 @@ class DiscoveryEngine:
                      for p in picks]
                 )[0]
                 council = self._arbiter.decide(stock_brain_result, self._regime_decision, risk_result)
-                pick.council = council
-            except Exception as e:
-                logger.error("Discovery v7.0: council error for %s: %s", c['symbol'], e)
-                pick.council = {'decision': 'TRADE', 'confidence': 0, 'reasons': ['fallback']}
 
-            # v8.0: Attach strategy info
-            pick.strategy_info = self._current_strategy
+                # Unified pick data — single object with all context
+                pick.council = {
+                    **council,
+                    'strategy': self._current_strategy,
+                    'stock_signals': stock_signals,
+                    'stock_profile': {
+                        'wr': stock_profile.get('wr', 0) if stock_profile else 0,
+                        'er': stock_profile.get('er', 0) if stock_profile else 0,
+                    },
+                }
+            except Exception as e:
+                logger.error("Discovery v8.0: unified decision error for %s: %s", c['symbol'], e)
+                pick.council = {
+                    'decision': 'TRADE', 'tier': 'LEAN', 'confidence': 0,
+                    'position_size': 0.25, 'reasons': ['fallback'],
+                    'brains': {}, 'strategy': self._current_strategy,
+                    'stock_signals': {}, 'stock_profile': {},
+                }
 
             picks.append(pick)
 

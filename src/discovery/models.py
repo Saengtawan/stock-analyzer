@@ -182,13 +182,9 @@ class DiscoveryPick:
             'entry_price': _r(self.entry_price),
             'entry_status': self.entry_status,
             'entry_filled_at': self.entry_filled_at,
-            # v5.2: TP timeline + weekend play (persisted as JSON in DB)
+            # v5.2: TP timeline + weekend play
             'tp_timeline': getattr(self, 'tp_timeline', None),
             'weekend_play': getattr(self, 'weekend_play', None),
-            # v6.0: Ensemble scoring
-            'ensemble': getattr(self, 'ensemble', None),
-            # v7.0: Council decision
+            # v8.0: Unified council (strategy + brains + signals + decision)
             'council': getattr(self, 'council', None),
-            # v8.0: Strategy info
-            'strategy': getattr(self, 'strategy_info', None),
         }
