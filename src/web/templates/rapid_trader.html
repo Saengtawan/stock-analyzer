@@ -695,6 +695,8 @@
                 </div>
                 <div id="discoveryStatsLine" style="font-size:0.6rem;color:#888;margin-top:1px;"></div>
             </div>
+            <!-- v6.0: Market context bar -->
+            <div id="discoveryMarketContext" style="font-size:0.55rem;padding:1px 6px;background:rgba(52,152,219,0.05);display:flex;flex-wrap:wrap;gap:2px;"></div>
             <!-- Sector distribution bar -->
             <div id="discoverySectorBar" style="height:4px;display:flex;border-radius:0;"></div>
             <div class="card-body p-2" id="discoveryContainer" style="max-height: 50vh; overflow-y: auto;">
@@ -3115,27 +3117,51 @@ function renderEnsemble(e) {
     var agree = e.agreement || 'MIXED';
     var barColor = score >= 65 ? '#2ecc71' : score >= 50 ? '#f39c12' : '#e74c3c';
     var agreeColor = agree.indexOf('BUY') >= 0 ? '#2ecc71' : agree.indexOf('AVOID') >= 0 ? '#e74c3c' : '#888';
-    var seqText = '';
-    if (e.components && e.components.sequence && e.components.sequence.pattern !== 'N/A') {
-        var seq = e.components.sequence;
-        seqText = '<span title="Sequence: similar past patterns">Seq: ' + seq.pattern + '</span>';
-    }
-    var leadText = '';
-    if (e.components && e.components.leading && e.components.leading.forecast !== 'N/A') {
-        var lead = e.components.leading;
-        if (lead.bullish > 0 || lead.bearish > 0) {
-            leadText = '<span title="Leading indicators">' + (lead.bullish > 0 ? lead.bullish + ' bull' : '') + (lead.bearish > 0 ? ' ' + lead.bearish + ' bear' : '') + '</span>';
-        }
-    }
-    return '<div class="d-flex align-items-center justify-content-between mt-1" style="font-size:0.6rem;background:rgba(52,152,219,0.08);padding:2px 4px;border-radius:3px;">'
-        + '<span style="font-weight:600;color:#3498db;" title="v6 Ensemble Score (kernel+sequence+leading+calibrator)">AI</span>'
+    var agreeLabel = agree.replace('STRONG_', '');
+
+    // Row 1: AI score bar + agreement
+    var row1 = '<div class="d-flex align-items-center mt-1" style="font-size:0.6rem;background:rgba(52,152,219,0.08);padding:2px 4px;border-radius:3px 3px 0 0;">'
+        + '<span style="font-weight:600;color:#3498db;" title="v6 Ensemble (kernel ' + (e.weights ? (e.weights.kernel * 100).toFixed(0) : 40) + '% + sequence ' + (e.weights ? (e.weights.sequence * 100).toFixed(0) : 24) + '% + leading ' + (e.weights ? (e.weights.leading * 100).toFixed(0) : 20) + '% + calibrator ' + (e.weights ? (e.weights.calibrator * 100).toFixed(0) : 16) + '%)">AI</span>'
         + '<div style="flex:1;margin:0 6px;background:#333;border-radius:2px;height:6px;overflow:hidden;" title="Ensemble ' + score.toFixed(0) + '/100">'
         + '<div style="width:' + Math.min(100, score) + '%;height:100%;background:' + barColor + ';"></div></div>'
         + '<span style="font-weight:600;color:' + barColor + ';">' + score.toFixed(0) + '</span>'
-        + '<span style="color:' + agreeColor + ';font-weight:600;margin-left:4px;" title="Model agreement: ' + e.n_bullish + ' bullish, ' + e.n_bearish + ' bearish">' + agree.replace('STRONG_', '') + '</span>'
-        + (seqText ? '<span style="color:#888;margin-left:4px;">' + seqText + '</span>' : '')
-        + (leadText ? '<span style="color:#888;margin-left:4px;">' + leadText + '</span>' : '')
+        + '<span style="color:' + agreeColor + ';font-weight:600;margin-left:4px;">' + agreeLabel + '</span>'
         + '</div>';
+
+    // Row 2: per-stock signals (only show non-neutral)
+    var signals = [];
+    var c = e.components || {};
+    if (c.leading && c.leading.stock_details) {
+        var det = c.leading.stock_details;
+        if (det.analyst && det.analyst.signal !== 'neutral') {
+            var aColor = det.analyst.signal === 'bullish' ? '#2ecc71' : det.analyst.signal === 'bearish' ? '#e74c3c' : '#f39c12';
+            signals.push('<span style="color:' + aColor + ';" title="' + (det.analyst.desc || '') + '">' + (det.analyst.upside ? 'Analyst +' + det.analyst.upside.toFixed(0) + '%' : 'Analyst') + '</span>');
+        }
+        if (det.insider && det.insider.signal !== 'neutral') {
+            signals.push('<span style="color:#2ecc71;" title="' + (det.insider.desc || '') + '">Insider ' + (det.insider.buys_30d || 0) + ' buys</span>');
+        }
+        if (det.options && det.options.signal !== 'neutral') {
+            var oColor = det.options.signal === 'bullish' ? '#2ecc71' : '#e74c3c';
+            signals.push('<span style="color:' + oColor + ';" title="' + (det.options.desc || '') + '">P/C ' + (det.options.pc_ratio || 0).toFixed(1) + '</span>');
+        }
+        if (det.short && det.short.signal !== 'neutral') {
+            var sColor = det.short.signal.indexOf('bull') >= 0 ? '#2ecc71' : '#e74c3c';
+            signals.push('<span style="color:' + sColor + ';" title="' + (det.short.desc || '') + '">SI ' + (det.short.si_pct || 0).toFixed(0) + '%</span>');
+        }
+    }
+    // Stock profile WR
+    if (c.sequence && c.sequence.stock_wr > 0) {
+        var swrColor = c.sequence.stock_wr >= 60 ? '#2ecc71' : c.sequence.stock_wr >= 52 ? '#f39c12' : '#e74c3c';
+        signals.push('<span style="color:' + swrColor + ';" title="Similar stocks historically: WR=' + c.sequence.stock_wr.toFixed(0) + '% E[R]=' + (c.sequence.stock_er > 0 ? '+' : '') + c.sequence.stock_er.toFixed(1) + '%">Profile WR ' + c.sequence.stock_wr.toFixed(0) + '%</span>');
+    }
+
+    if (signals.length === 0) return row1;
+
+    var row2 = '<div class="d-flex flex-wrap gap-1 mt-0" style="font-size:0.55rem;background:rgba(52,152,219,0.04);padding:1px 4px;border-radius:0 0 3px 3px;">'
+        + signals.join('<span style="color:#555;margin:0 2px;">|</span>')
+        + '</div>';
+
+    return row1 + row2;
 }
 
 function loadDiscoveryPicks() {
@@ -3153,6 +3179,36 @@ function loadDiscoveryPicks() {
             if (regimeBadge && data.regime) {
                 const rc = {'BULL':'#2ecc71','STRESS':'#f39c12','CRISIS':'#e74c3c'}[data.regime] || '#888';
                 regimeBadge.innerHTML = `<span style="color:${rc};">${data.regime}</span>`;
+            }
+
+            // v6.0: Market context bar
+            var ctxEl = document.getElementById('discoveryMarketContext');
+            if (ctxEl && data.leading_signals && data.leading_signals.regime_forecast) {
+                var ls = data.leading_signals;
+                var fc = ls.regime_forecast || {};
+                var fcColor = fc.forecast === 'IMPROVING' ? '#2ecc71' : fc.forecast === 'DETERIORATING' ? '#e74c3c' : '#888';
+                var parts = [];
+                parts.push('<span style="color:' + fcColor + ';font-weight:600;">' + (fc.forecast || 'STABLE') + '</span>');
+                // Active signals
+                var sigNames = ['vix_mean_reversion','breadth_recovery','put_call_extreme','insider_surge','consecutive_red_bounce'];
+                for (var si = 0; si < sigNames.length; si++) {
+                    var sig = ls[sigNames[si]];
+                    if (sig && sig.signal && sig.signal !== 'neutral') {
+                        var sc = sig.signal === 'bullish' ? '#2ecc71' : '#e74c3c';
+                        var label = sigNames[si].replace(/_/g,' ').replace(/\b\w/g, function(c){return c.toUpperCase();}).replace(/Vix/,'VIX').replace(/Put Call/,'P/C');
+                        parts.push('<span style="color:' + sc + ';" title="' + (sig.description || '') + '">' + label + '</span>');
+                    }
+                }
+                // Temporal snapshot
+                var t = data.temporal_snapshot || {};
+                if (t.breadth_current) {
+                    var bc = t.breadth_current < 30 ? '#e74c3c' : t.breadth_current < 50 ? '#f39c12' : '#2ecc71';
+                    parts.push('<span style="color:' + bc + ';">Brdth ' + t.breadth_current.toFixed(0) + '%</span>');
+                }
+                if (t.spy_drawdown_from_20d_high && t.spy_drawdown_from_20d_high < -2) {
+                    parts.push('<span style="color:#e74c3c;">SPY ' + t.spy_drawdown_from_20d_high.toFixed(1) + '%</span>');
+                }
+                ctxEl.innerHTML = parts.join('<span style="color:#444;margin:0 3px;">|</span>');
             }
 
             const picks = data.picks || [];
