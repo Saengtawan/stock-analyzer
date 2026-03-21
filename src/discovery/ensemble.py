@@ -38,23 +38,26 @@ class EnsembleBrain:
 
     def score(self, kernel_er: float, temporal_features: dict,
               sequence_prediction: dict, leading_signals: dict,
-              calibrator_confidence: float = 50.0) -> dict:
+              calibrator_confidence: float = 50.0,
+              stock_signals: dict = None,
+              stock_profile: dict = None) -> dict:
         """Compute ensemble score from all model outputs.
 
         Args:
             kernel_er: StockKernel E[R] (typically -2 to +5%)
-            temporal_features: from TemporalFeatureBuilder
-            sequence_prediction: from SequencePatternMatcher
-            leading_signals: from LeadingIndicatorEngine
+            temporal_features: from TemporalFeatureBuilder (market-level)
+            sequence_prediction: from SequencePatternMatcher.predict() (market-level)
+            leading_signals: from LeadingIndicatorEngine.compute_signals() (market-level)
             calibrator_confidence: from Calibrator (0-100)
+            stock_signals: from LeadingIndicatorEngine.compute_stock_signals() (per-stock)
+            stock_profile: from SequencePatternMatcher.predict_stock_profile() (per-stock)
 
         Returns:
             dict with combined_score (0-100), components, agreement info
         """
         components = {}
 
-        # 1. Kernel score: normalize E[R] to 0-100
-        # E[R] range roughly -2% to +5%, center at 0
+        # 1. Kernel score: normalize E[R] to 0-100 (PER-STOCK)
         kernel_score = self._normalize_er(kernel_er)
         components['kernel'] = {
             'score': round(kernel_score, 1),
@@ -62,23 +65,34 @@ class EnsembleBrain:
             'weight': self.weights['kernel'],
         }
 
-        # 2. Sequence score: normalize predicted D3 return
-        seq_score = 50.0  # neutral default
+        # 2. Sequence score: BLEND market-level + per-stock profile
+        seq_market = 50.0
         if sequence_prediction:
             seq_er = sequence_prediction.get('expected_d3', 0)
             seq_wr = sequence_prediction.get('wr_d3', 50)
-            # Weighted: 60% from WR, 40% from E[R] direction
-            seq_score = 0.6 * seq_wr + 0.4 * self._normalize_er(seq_er)
-            seq_score = max(0, min(100, seq_score))
+            seq_market = 0.6 * seq_wr + 0.4 * self._normalize_er(seq_er)
+            seq_market = max(0, min(100, seq_market))
+
+        seq_stock = 50.0
+        if stock_profile and stock_profile.get('score') is not None:
+            seq_stock = stock_profile['score']
+
+        # Blend: 40% market sequence + 60% stock profile (stock differentiates)
+        seq_score = 0.4 * seq_market + 0.6 * seq_stock
+        seq_score = max(0, min(100, seq_score))
+
         components['sequence'] = {
             'score': round(seq_score, 1),
-            'raw': sequence_prediction.get('expected_d3', 0) if sequence_prediction else 0,
+            'market_score': round(seq_market, 1),
+            'stock_score': round(seq_stock, 1),
             'pattern': sequence_prediction.get('pattern', 'N/A') if sequence_prediction else 'N/A',
+            'stock_wr': stock_profile.get('wr', 0) if stock_profile else 0,
+            'stock_er': stock_profile.get('er', 0) if stock_profile else 0,
             'weight': self.weights['sequence'],
         }
 
-        # 3. Leading indicator score: count bullish/bearish signals
-        leading_score = 50.0  # neutral default
+        # 3. Leading indicator: BLEND market-level + per-stock signals
+        lead_market = 50.0
         if leading_signals:
             bullish = 0
             bearish = 0
@@ -92,13 +106,24 @@ class EnsembleBrain:
                 elif v['signal'] == 'bearish':
                     bearish += 1
             if total > 0:
-                leading_score = 50 + (bullish - bearish) / total * 50
-                leading_score = max(0, min(100, leading_score))
+                lead_market = 50 + (bullish - bearish) / total * 50
+                lead_market = max(0, min(100, lead_market))
+
+        lead_stock = 50.0
+        if stock_signals and stock_signals.get('score') is not None:
+            lead_stock = stock_signals['score']
+
+        # Blend: 30% market + 70% stock (stock signals differentiate)
+        leading_score = 0.3 * lead_market + 0.7 * lead_stock
+        leading_score = max(0, min(100, leading_score))
+
+        stock_details = stock_signals.get('details', {}) if stock_signals else {}
         components['leading'] = {
             'score': round(leading_score, 1),
-            'bullish': bullish if leading_signals else 0,
-            'bearish': bearish if leading_signals else 0,
+            'market_score': round(lead_market, 1),
+            'stock_score': round(lead_stock, 1),
             'forecast': leading_signals.get('regime_forecast', {}).get('forecast', 'N/A') if leading_signals else 'N/A',
+            'stock_details': stock_details,
             'weight': self.weights['leading'],
         }
 
@@ -118,7 +143,7 @@ class EnsembleBrain:
         )
         combined = max(0, min(100, combined))
 
-        # Agreement: how many models are above 50 (bullish)?
+        # Agreement: how many models are above/below neutral?
         model_scores = [kernel_score, seq_score, leading_score, cal_score]
         n_bullish = sum(1 for s in model_scores if s > 55)
         n_bearish = sum(1 for s in model_scores if s < 45)
@@ -141,11 +166,6 @@ class EnsembleBrain:
             'n_bearish': n_bearish,
             'weights': dict(self.weights),
         }
-
-        logger.info(
-            "Ensemble: score=%.1f [kern=%.0f seq=%.0f lead=%.0f cal=%.0f] agreement=%s",
-            combined, kernel_score, seq_score, leading_score, cal_score, agreement,
-        )
 
         return result
 

@@ -254,3 +254,137 @@ class LeadingIndicatorEngine:
             signals['consecutive_red_bounce']['signal'],
         )
         return signals
+
+    def compute_stock_signals(self, symbol: str, scan_date: str) -> dict:
+        """Compute per-stock leading signals. Returns score 0-100 and details."""
+        score = 50.0  # neutral baseline
+        details = {}
+
+        conn = sqlite3.connect(str(DB_PATH))
+        try:
+            # 1. Options flow: stock's P/C ratio vs normal
+            row = conn.execute("""
+                SELECT put_call_ratio, unusual_call, unusual_put
+                FROM options_flow
+                WHERE symbol = ? AND date <= ?
+                ORDER BY date DESC LIMIT 1
+            """, (symbol, scan_date)).fetchone()
+            if row and row[0] is not None:
+                pc = row[0]
+                unusual_call = row[1] or 0
+                unusual_put = row[2] or 0
+                # High P/C = fear → contrarian bullish for dip picks
+                if pc > 1.5:
+                    score += 8
+                    details['options'] = {'signal': 'bullish', 'pc_ratio': round(pc, 2), 'desc': f'P/C={pc:.1f} extreme fear'}
+                elif pc < 0.5:
+                    score -= 5
+                    details['options'] = {'signal': 'bearish', 'pc_ratio': round(pc, 2), 'desc': f'P/C={pc:.1f} complacent'}
+                else:
+                    details['options'] = {'signal': 'neutral', 'pc_ratio': round(pc, 2), 'desc': f'P/C={pc:.1f}'}
+                # Unusual activity bonus
+                if unusual_call:
+                    score += 5
+                    details['options']['unusual'] = 'call_sweep'
+                elif unusual_put:
+                    score -= 3
+                    details['options']['unusual'] = 'put_sweep'
+            else:
+                details['options'] = {'signal': 'neutral', 'pc_ratio': 0, 'desc': 'No data'}
+
+            # 2. Insider transactions: recent buys for this stock
+            ins_row = conn.execute("""
+                SELECT COUNT(*) as n_buys, COALESCE(SUM(total_value), 0) as total_val
+                FROM insider_transactions
+                WHERE symbol = ? AND transaction_type = 'P'
+                AND transaction_date >= date(?, '-30 days') AND transaction_date <= ?
+            """, (symbol, scan_date, scan_date)).fetchone()
+            n_buys = ins_row[0] if ins_row else 0
+            buy_val = ins_row[1] if ins_row else 0
+            if n_buys >= 2 or buy_val > 500000:
+                score += 10
+                details['insider'] = {'signal': 'bullish', 'buys_30d': n_buys, 'value': round(buy_val),
+                                      'desc': f'{n_buys} insider buys ${buy_val/1000:.0f}K'}
+            elif n_buys >= 1:
+                score += 4
+                details['insider'] = {'signal': 'mildly_bullish', 'buys_30d': n_buys, 'value': round(buy_val),
+                                      'desc': f'{n_buys} insider buy'}
+            else:
+                # Check for insider selling
+                sell_row = conn.execute("""
+                    SELECT COUNT(*) FROM insider_transactions
+                    WHERE symbol = ? AND transaction_type = 'S'
+                    AND transaction_date >= date(?, '-14 days') AND transaction_date <= ?
+                """, (symbol, scan_date, scan_date)).fetchone()
+                n_sells = sell_row[0] if sell_row else 0
+                if n_sells >= 3:
+                    score -= 8
+                    details['insider'] = {'signal': 'bearish', 'sells_14d': n_sells, 'desc': f'{n_sells} insider sells'}
+                else:
+                    details['insider'] = {'signal': 'neutral', 'buys_30d': 0, 'desc': 'No recent'}
+
+            # 3. Short interest: squeeze potential
+            si_row = conn.execute("""
+                SELECT short_pct_float, short_ratio, short_change_pct
+                FROM short_interest
+                WHERE symbol = ? AND date <= ?
+                ORDER BY date DESC LIMIT 1
+            """, (symbol, scan_date)).fetchone()
+            if si_row and si_row[0] is not None:
+                si_pct = si_row[0]
+                si_ratio = si_row[1] or 0
+                si_change = si_row[2] or 0
+                if si_pct > 15 and si_change < 0:
+                    # High SI + shorts covering = squeeze potential
+                    score += 10
+                    details['short'] = {'signal': 'bullish', 'si_pct': round(si_pct, 1),
+                                        'desc': f'SI={si_pct:.0f}% covering → squeeze'}
+                elif si_pct > 20:
+                    score += 5  # high SI = contrarian
+                    details['short'] = {'signal': 'mildly_bullish', 'si_pct': round(si_pct, 1),
+                                        'desc': f'SI={si_pct:.0f}% high'}
+                elif si_pct > 10 and si_change > 20:
+                    score -= 5  # SI rising fast
+                    details['short'] = {'signal': 'bearish', 'si_pct': round(si_pct, 1),
+                                        'desc': f'SI={si_pct:.0f}% rising +{si_change:.0f}%'}
+                else:
+                    details['short'] = {'signal': 'neutral', 'si_pct': round(si_pct, 1), 'desc': f'SI={si_pct:.0f}%'}
+            else:
+                details['short'] = {'signal': 'neutral', 'si_pct': 0, 'desc': 'No data'}
+
+            # 4. Analyst consensus: upside vs market
+            ana_row = conn.execute("""
+                SELECT upside_pct, bull_score, total_analysts
+                FROM analyst_consensus
+                WHERE symbol = ?
+                ORDER BY updated_at DESC LIMIT 1
+            """, (symbol,)).fetchone()
+            if ana_row and ana_row[0] is not None:
+                upside = ana_row[0]
+                bull = ana_row[1] or 0
+                n_analysts = ana_row[2] or 0
+                if upside > 30 and bull > 70:
+                    score += 8
+                    details['analyst'] = {'signal': 'bullish', 'upside': round(upside, 1), 'bull_score': round(bull),
+                                          'desc': f'Upside +{upside:.0f}% bull={bull:.0f}'}
+                elif upside > 15:
+                    score += 4
+                    details['analyst'] = {'signal': 'mildly_bullish', 'upside': round(upside, 1),
+                                          'desc': f'Upside +{upside:.0f}%'}
+                elif upside < -5:
+                    score -= 8
+                    details['analyst'] = {'signal': 'bearish', 'upside': round(upside, 1),
+                                          'desc': f'Downside {upside:.0f}%'}
+                else:
+                    details['analyst'] = {'signal': 'neutral', 'upside': round(upside, 1),
+                                          'desc': f'Upside +{upside:.0f}%'}
+            else:
+                details['analyst'] = {'signal': 'neutral', 'upside': 0, 'desc': 'No data'}
+
+        except Exception as e:
+            logger.error("LeadingIndicators stock signals error for %s: %s", symbol, e)
+        finally:
+            conn.close()
+
+        score = max(0, min(100, score))
+        return {'score': round(score, 1), 'details': details}

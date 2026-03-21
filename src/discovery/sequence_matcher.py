@@ -1,6 +1,6 @@
 """
 Sequence Pattern Matcher — finds similar historical market sequences
-and predicts what happens next based on past outcomes.
+and similar stock profiles, predicts what happens next based on past outcomes.
 Part of Discovery AI v6.0.
 """
 import sqlite3
@@ -11,6 +11,9 @@ from discovery.temporal import TemporalFeatureBuilder
 
 logger = logging.getLogger(__name__)
 DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
+
+# Features for per-stock profile matching (from backfill_signal_outcomes)
+STOCK_PROFILE_FEATURES = ['atr_pct', 'momentum_5d', 'volume_ratio', 'distance_from_20d_high']
 
 # Features used for sequence matching (subset of temporal features)
 SEQUENCE_FEATURES = [
@@ -31,6 +34,8 @@ class SequencePatternMatcher:
         self._means = None
         self._stds = None
         self._fitted = False
+        self._stock_profiles_fitted = False
+        self._stock_profiles = None
 
     def fit(self, lookback_days: int = 730) -> bool:
         """Load historical sequences from DB and precompute feature vectors."""
@@ -182,3 +187,91 @@ class SequencePatternMatcher:
             pattern, avg_d3, wr_d3 * 100, confidence, timing,
         )
         return result
+
+    def predict_stock_profile(self, atr: float, mom5: float, vol: float,
+                              d20h: float, sector: str = '', top_n: int = 100) -> dict:
+        """Find historically similar stock profiles and predict outcome.
+
+        Uses backfill_signal_outcomes to find stocks with similar ATR, momentum,
+        volume, distance_from_20d_high. Returns WR and E[R] from those similar stocks.
+        This is PER-STOCK, not market-level.
+        """
+        if not self._stock_profiles_fitted:
+            self._fit_stock_profiles()
+        if self._stock_profiles is None:
+            return {}
+
+        sp = self._stock_profiles
+        # Normalize current stock features
+        vec = np.array([atr, mom5, vol, d20h], dtype=float)
+        vec_norm = (vec - sp['means']) / sp['stds']
+
+        # Kernel-weighted: Gaussian distance in feature space
+        diffs = sp['features_norm'] - vec_norm  # (N, 4)
+        dist_sq = (diffs ** 2).sum(axis=1)
+        weights = np.exp(-dist_sq / (2 * 0.5 ** 2))  # bw=0.5
+
+        # If sector matches, boost weight 1.5x
+        if sector:
+            sector_match = sp['sectors'] == sector
+            weights[sector_match] *= 1.5
+
+        ws = weights.sum()
+        if ws < 1e-10:
+            return {}
+        weights /= ws
+        neff = float(ws ** 2 / (weights ** 2).sum())
+
+        # Weighted outcomes
+        rets = sp['outcomes']
+        wr = float((weights * (rets > 0)).sum()) * 100
+        er = float((weights * rets).sum())
+
+        # Score: normalize to 0-100 (center at 50)
+        # E[R] range typically -3% to +3%, map linearly
+        score = 50 + er * 15
+        score = max(0, min(100, score))
+
+        return {
+            'score': round(score, 1),
+            'wr': round(wr, 1),
+            'er': round(er, 3),
+            'neff': round(neff),
+            'n_total': len(rets),
+        }
+
+    def _fit_stock_profiles(self):
+        """Load historical stock profiles from backfill_signal_outcomes."""
+        self._stock_profiles_fitted = True
+        self._stock_profiles = None
+
+        conn = sqlite3.connect(str(DB_PATH))
+        try:
+            rows = conn.execute("""
+                SELECT atr_pct, momentum_5d, volume_ratio, distance_from_20d_high,
+                       sector, outcome_5d
+                FROM backfill_signal_outcomes
+                WHERE outcome_5d IS NOT NULL AND atr_pct > 0
+                  AND distance_from_20d_high IS NOT NULL
+            """).fetchall()
+        finally:
+            conn.close()
+
+        if len(rows) < 500:
+            logger.warning("StockProfile: insufficient data (%d)", len(rows))
+            return
+
+        features = np.array([[r[0], r[1] or 0, r[2] or 1, r[3] or -5] for r in rows], dtype=float)
+        means = features.mean(axis=0)
+        stds = features.std(axis=0)
+        stds[stds == 0] = 1.0
+        features_norm = (features - means) / stds
+
+        self._stock_profiles = {
+            'features_norm': features_norm,
+            'means': means,
+            'stds': stds,
+            'sectors': np.array([r[4] or '' for r in rows]),
+            'outcomes': np.array([r[5] for r in rows], dtype=float),
+        }
+        logger.info("StockProfile: fitted on %d signals", len(rows))

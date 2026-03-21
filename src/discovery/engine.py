@@ -1803,15 +1803,25 @@ class DiscoveryEngine:
                 if weekend:
                     pick.weekend_play = weekend
 
-            # v6.0: Ensemble score — combine kernel + temporal + sequence + leading
+            # v6.0: Ensemble score — combine kernel + per-stock signals
             try:
                 cal_conf = self._calibrator.compute_confidence()
+                # Per-stock signals (differentiate between picks)
+                stock_signals = self._leading_indicators.compute_stock_signals(
+                    c['symbol'], scan_date)
+                stock_profile = self._sequence_matcher.predict_stock_profile(
+                    atr, c.get('momentum_5d') or 0,
+                    c.get('volume_ratio') or 1,
+                    c.get('distance_from_20d_high') or -5,
+                    sector=c.get('sector', ''))
                 ensemble_result = self._ensemble.score(
                     kernel_er=stock_er,
                     temporal_features=self._temporal_features,
                     sequence_prediction=self._sequence_prediction,
                     leading_signals=self._leading_signals,
                     calibrator_confidence=cal_conf.get('confidence', 50),
+                    stock_signals=stock_signals,
+                    stock_profile=stock_profile,
                 )
                 pick.ensemble = ensemble_result
             except Exception as e:
