@@ -99,7 +99,12 @@ class LeadingIndicatorEngine:
 
         signals = {}
         m = self._macro.get(scan_date, {})
-        b = self._breadth.get(scan_date, 50)
+        b = self._breadth.get(scan_date)
+        if b is None:
+            # Find closest date before scan_date
+            earlier = [d for d in sorted(self._breadth.keys()) if d <= scan_date]
+            b = self._breadth[earlier[-1]] if earlier else 50
+            logger.debug("LeadingIndicators: no breadth for %s, using %s (%.1f)", scan_date, earlier[-1] if earlier else 'default', b)
 
         vix = m.get('vix', 20)
         vix3m = m.get('vix3m')

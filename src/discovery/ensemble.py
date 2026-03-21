@@ -167,6 +167,11 @@ class EnsembleBrain:
             'weights': dict(self.weights),
         }
 
+        logger.debug(
+            "Ensemble: score=%.1f [kern=%.0f seq=%.0f lead=%.0f cal=%.0f] agreement=%s",
+            combined, kernel_score, seq_score, leading_score, cal_score, agreement,
+        )
+
         return result
 
     def optimize_weights(self, outcomes_days: int = 90) -> dict:

@@ -128,7 +128,7 @@ class TemporalFeatureBuilder:
             # SPY drawdown from 20d high
             if len(spy) >= 5:
                 spy_high = max(spy[-20:]) if len(spy) >= 20 else max(spy)
-                features['spy_drawdown_from_20d_high'] = (spy[-1] / spy_high - 1) * 100
+                features['spy_drawdown_from_20d_high'] = (spy[-1] / spy_high - 1) * 100 if spy_high > 0 else 0
             else:
                 features['spy_drawdown_from_20d_high'] = 0
 
