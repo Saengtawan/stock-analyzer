@@ -306,9 +306,14 @@ class DiscoveryEngine:
         cum_h3 = self._hold_data['cum_high_d3']
         cum_l3 = self._hold_data['cum_low_d3']
 
-        # Compute per-signal TP/SL and actual result
-        tp_arr = np.maximum(1.5, 0.70 * (0.86 * atr_arr + 0.18))
-        sl_arr = np.maximum(1.5, np.minimum(5.0, 1.5 * atr_arr))
+        # Compute per-signal TP/SL matching production config (v6.0: 1.0×ATR uniform)
+        tp_ratio = self._config.get('v3', {}).get('smart_tp', {}).get('tp_regime_ratios', {}).get('BULL', 1.0)
+        dsl = self._config.get('dynamic_sl', {})
+        sl_mult = dsl.get('bull_mult', 2.0)  # majority of data is BULL-like
+        sl_floor = dsl.get('floor', 1.5)
+        sl_cap = dsl.get('cap', 5.0)
+        tp_arr = np.maximum(0.5, tp_ratio * atr_arr)
+        sl_arr = np.maximum(sl_floor, np.minimum(sl_cap, sl_mult * atr_arr))
         tp_hit = cum_h3 >= tp_arr
         sl_hit = cum_l3 <= -sl_arr
 
@@ -353,9 +358,8 @@ class DiscoveryEngine:
         }
 
         # Auto-learn advice E[R] thresholds from simulated returns
-        # For each signal, simulate TP/SL, bucket by return, find where WR crosses key levels
-        tp_arr = np.maximum(0.5, np.where(atr_arr < 4.0, 0.5, 0.75) * atr_arr)
-        sl_arr_sim = np.maximum(1.5, np.minimum(5.0, 1.0 * atr_arr))
+        # Use same TP/SL as production (reuse tp_arr/sl_arr from above)
+        sl_arr_sim = sl_arr  # same as safe_ratio computation
 
         cum_low_d3 = self._hold_data['cum_low_d3']
         sl_hit_sim = cum_low_d3 <= -sl_arr_sim
@@ -2234,6 +2238,13 @@ class DiscoveryEngine:
             if not self._v3_enabled:
                 logger.warning("Discovery intraday: kernel not ready, skipping")
                 return []
+
+        # v6.0: Refresh temporal/leading for intraday (use today's date)
+        try:
+            self._temporal_features = self._temporal.build_features(scan_date)
+            self._leading_signals = self._leading_indicators.compute_signals(scan_date)
+        except Exception as e:
+            logger.debug("Discovery intraday: v6 feature refresh error: %s", e)
 
         # 1. Load universe + macro (macro = yesterday EOD, correct for intraday)
         stocks = self._load_universe()
