@@ -2973,7 +2973,7 @@ def api_discovery_system():
         from discovery.engine import get_discovery_engine
         engine = get_discovery_engine()
         return jsonify({
-            'version': '8.0',
+            'version': '9.0',
             'components': {
                 'kernel': {
                     'macro': {'fitted': engine.kernel is not None and engine.kernel.n_rows > 0,
@@ -2988,8 +2988,6 @@ def api_discovery_system():
                 'sequence': {'fitted': engine._sequence_matcher._fitted,
                              'n_sequences': len(engine._sequence_matcher._historical or [])},
                 'leading': {'fitted': engine._leading_indicators._historical_patterns is not None},
-                'ensemble': {'weights': engine._ensemble.weights,
-                             'v6_fitted': engine._v6_fitted},
                 'calibrator': {'cached': engine._calibrator._cache is not None},
                 'outcome_tracker': {'available': True},
                 'regime_brain': engine._regime_brain.get_stats(),

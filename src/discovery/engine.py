@@ -39,7 +39,6 @@ from discovery.calibrator import Calibrator
 from discovery.temporal import TemporalFeatureBuilder
 from discovery.sequence_matcher import SequencePatternMatcher
 from discovery.leading_indicators import LeadingIndicatorEngine
-from discovery.ensemble import EnsembleBrain
 from discovery.regime_brain import RegimeBrain
 from discovery.stock_brain import StockBrain
 from discovery.risk_brain import RiskBrain
@@ -75,7 +74,6 @@ class DiscoveryEngine:
         self._temporal = TemporalFeatureBuilder()
         self._sequence_matcher = SequencePatternMatcher()
         self._leading_indicators = LeadingIndicatorEngine()
-        self._ensemble = EnsembleBrain()
         self._v6_fitted = False
         self._temporal_features: dict = {}
         self._sequence_prediction: dict = {}

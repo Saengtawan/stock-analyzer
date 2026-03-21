@@ -126,7 +126,7 @@ class RiskBrain:
 
             count = 0
             for r in rows:
-                if r[0] <= 0:
+                if r[0] < 0:  # breakeven (0%) is NOT a loss
                     count += 1
                 else:
                     break
