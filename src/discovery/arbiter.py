@@ -21,7 +21,7 @@ class DecisionArbiter:
         self.stock_threshold = stock_threshold
 
     def decide(self, stock_result: dict, regime_result: dict,
-               risk_result: dict) -> dict:
+               risk_result: dict, calibrator_confidence: float = 50.0) -> dict:
         """Make final decision from 3 brains.
 
         Sizing tiers (always trade, adjust size):
@@ -77,6 +77,11 @@ class DecisionArbiter:
         if risk_action == 'REDUCE_SIZE' and decision == 'TRADE':
             position_size = min(position_size, risk_size)
             reasons.append(f'Risk: size capped at {risk_size:.0%}')
+
+        # Calibrator: reduce size when system accuracy is low
+        if calibrator_confidence < 30 and decision == 'TRADE':
+            position_size *= 0.5
+            reasons.append(f'Calibrator low ({calibrator_confidence:.0f}%) → size halved')
 
         # Confidence: blend regime + stock + risk
         confidence = (

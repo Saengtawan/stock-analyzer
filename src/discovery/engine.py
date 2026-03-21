@@ -605,12 +605,7 @@ class DiscoveryEngine:
         except Exception as e:
             logger.error("Discovery v6.0: LeadingIndicators error: %s", e)
 
-        # Optimize ensemble weights from recent outcomes
-        try:
-            opt = self._ensemble.optimize_weights(90)
-            logger.info("Discovery v6.0: Ensemble weights: %s", opt.get('new_weights', 'N/A'))
-        except Exception as e:
-            logger.error("Discovery v6.0: Ensemble weight optimization error: %s", e)
+        # v8.0: Ensemble weight optimization removed (superseded by council)
 
         self._v6_fitted = True
 
@@ -963,15 +958,9 @@ class DiscoveryEngine:
             logger.error("Discovery v6.0: temporal build error: %s", e)
             self._temporal_features = {}
 
-        try:
-            if self._sequence_matcher._fitted:
-                self._sequence_prediction = self._sequence_matcher.predict(self._temporal_features)
-                logger.info("Discovery v6.0: sequence prediction: %s", self._sequence_prediction.get('pattern', 'N/A'))
-            else:
-                self._sequence_prediction = {}
-        except Exception as e:
-            logger.error("Discovery v6.0: sequence predict error: %s", e)
-            self._sequence_prediction = {}
+        # v8.0: sequence market-level predict removed (corr=0.01, proven useless)
+        # stock_profile matching still used via predict_stock_profile() in council
+        self._sequence_prediction = {}
 
         try:
             self._leading_signals = self._leading_indicators.compute_signals(scan_date)
@@ -984,6 +973,8 @@ class DiscoveryEngine:
         # v7.0: Regime Brain — should we trade today?
         try:
             macro_for_regime = self._load_macro(scan_date)
+            # v8.0: merge temporal features into macro for RegimeBrain
+            macro_for_regime.update(self._temporal_features)
             self._regime_decision = self._regime_brain.predict(macro_for_regime)
             logger.info("Discovery v7.0: Regime Brain → %s (conf=%.0f%% regime=%s)",
                         'TRADE' if self._regime_decision.get('trade_today') else 'SKIP',
@@ -1913,7 +1904,10 @@ class DiscoveryEngine:
                     [{'symbol': p.symbol, 'sector': p.sector, 'sl_pct': p.sl_pct}
                      for p in picks]
                 )[0]
-                council = self._arbiter.decide(stock_brain_result, self._regime_decision, risk_result)
+                cal = self._calibrator.compute_confidence()
+                council = self._arbiter.decide(
+                    stock_brain_result, self._regime_decision, risk_result,
+                    calibrator_confidence=cal.get('confidence', 50))
 
                 # Unified pick data — single object with all context
                 pick.council = {

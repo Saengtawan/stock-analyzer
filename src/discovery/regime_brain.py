@@ -18,7 +18,9 @@ import numpy as np
 logger = logging.getLogger(__name__)
 DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
+# v8.0: 8 snapshot + 6 trajectory features from TemporalFeatureBuilder
 FEATURES = [
+    # Snapshot (8)
     'vix_close',
     'vix3m_close',
     'spy_close',
@@ -27,6 +29,13 @@ FEATURES = [
     'pct_above_20d_ma',
     'new_52w_lows',
     'new_52w_highs',
+    # Trajectory (6) — from TemporalFeatureBuilder
+    'vix_trend_5d',
+    'breadth_trend_5d',
+    'spy_drawdown_from_20d_high',
+    'spy_consecutive_red',
+    'crude_trend_5d',
+    'vix_acceleration',
 ]
 
 FEATURE_DEFAULTS = {
@@ -38,6 +47,12 @@ FEATURE_DEFAULTS = {
     'pct_above_20d_ma': 50.0,
     'new_52w_lows': 30.0,
     'new_52w_highs': 50.0,
+    'vix_trend_5d': 0.0,
+    'breadth_trend_5d': 0.0,
+    'spy_drawdown_from_20d_high': 0.0,
+    'spy_consecutive_red': 0,
+    'crude_trend_5d': 0.0,
+    'vix_acceleration': 0.0,
 }
 
 
@@ -173,16 +188,18 @@ class RegimeBrain:
         return np.array(vals, dtype=np.float64)
 
     def _load_training_data(self, max_date: str = None):
-        """Load daily aggregated data: macro → daily WR."""
+        """Load daily aggregated data: 8 snapshot + 6 trajectory features → daily WR."""
         conn = sqlite3.connect(str(DB_PATH))
         try:
             date_filter = f"AND b.scan_date <= '{max_date}'" if max_date else ""
+            # Get raw daily data with macro + breadth
             rows = conn.execute(f"""
                 SELECT b.scan_date,
                        COALESCE(m.vix_close, 20) as vix,
                        COALESCE(m.vix3m_close, 22) as vix3m,
                        m.spy_close, m.crude_close, m.yield_10y,
-                       mb.pct_above_20d_ma, mb.new_52w_lows, mb.new_52w_highs,
+                       mb.pct_above_20d_ma, mb.new_52w_lows,
+                       mb.new_52w_highs,
                        AVG(CASE WHEN b.outcome_5d > 0 THEN 1.0 ELSE 0.0 END) as daily_wr,
                        COUNT(*) as n
                 FROM backfill_signal_outcomes b
@@ -198,16 +215,63 @@ class RegimeBrain:
         finally:
             conn.close()
 
-        if not rows:
+        if not rows or len(rows) < 10:
             return np.array([]), np.array([]), [], np.array([])
 
         dates = [r[0] for r in rows]
-        X = np.array([[r[1], r[2], r[3],
-                        r[4] if r[4] is not None else 75,
-                        r[5] if r[5] is not None else 4,
-                        r[6], r[7],
-                        r[8] if r[8] is not None else 50] for r in rows], dtype=np.float64)
         daily_wr = np.array([r[9] for r in rows])
-        y = (daily_wr > 0.55).astype(np.int32)
 
+        # Build snapshot features (8)
+        vix = np.array([r[1] for r in rows])
+        vix3m = np.array([r[2] for r in rows])
+        spy = np.array([r[3] if r[3] is not None else 550 for r in rows])
+        crude = np.array([r[4] if r[4] is not None else 75 for r in rows])
+        y10 = np.array([r[5] if r[5] is not None else 4 for r in rows])
+        breadth = np.array([r[6] for r in rows])
+        lows = np.array([r[7] for r in rows])
+        highs = np.array([r[8] if r[8] is not None else 50 for r in rows])
+
+        # Compute trajectory features (6) using numpy
+        def slope_5d(arr, i):
+            if i < 4:
+                return 0.0
+            segment = arr[i-4:i+1]
+            x = np.arange(5, dtype=float)
+            return float(np.polyfit(x, segment, 1)[0])
+
+        n = len(rows)
+        vix_trend = np.array([slope_5d(vix, i) for i in range(n)])
+        breadth_trend = np.array([slope_5d(breadth, i) for i in range(n)])
+        crude_trend = np.array([slope_5d(crude, i) for i in range(n)])
+
+        # VIX acceleration = current trend - previous trend
+        vix_accel = np.zeros(n)
+        for i in range(1, n):
+            vix_accel[i] = vix_trend[i] - vix_trend[i-1]
+
+        # SPY drawdown from 20d high
+        spy_dd = np.zeros(n)
+        for i in range(n):
+            start = max(0, i-19)
+            spy_high = spy[start:i+1].max()
+            spy_dd[i] = (spy[i] / spy_high - 1) * 100 if spy_high > 0 else 0
+
+        # SPY consecutive red days
+        spy_red = np.zeros(n)
+        for i in range(1, n):
+            count = 0
+            for j in range(i, 0, -1):
+                if spy[j] < spy[j-1]:
+                    count += 1
+                else:
+                    break
+            spy_red[i] = count
+
+        # Build feature matrix: 8 snapshot + 6 trajectory = 14
+        X = np.column_stack([
+            vix, vix3m, spy, crude, y10, breadth, lows, highs,
+            vix_trend, breadth_trend, spy_dd, spy_red, crude_trend, vix_accel,
+        ])
+
+        y = (daily_wr > 0.55).astype(np.int32)
         return X, y, dates, daily_wr
