@@ -173,7 +173,9 @@ class OutcomeTracker:
         return {
             'scan_date': pick['scan_date'],
             'symbol': pick['symbol'],
-            'predicted_er': pick['layer2_score'],
+            # v6.0: Guard against v2 composite scores (>10) polluting outcomes
+            # v3 E[R] is always < 10%, v2 composite is 0-100
+            'predicted_er': pick['layer2_score'] if (pick['layer2_score'] or 0) < 10 else None,
             'predicted_wr': None,  # HoldKernel WR not stored per-pick yet
             'actual_return_d3': round(d3_ret, 4) if d3_ret is not None else None,
             'actual_return_d5': round(d5_ret, 4) if d5_ret is not None else None,
@@ -212,7 +214,7 @@ class OutcomeTracker:
         return {
             'scan_date': pick['scan_date'],
             'symbol': pick['symbol'],
-            'predicted_er': pick['layer2_score'],
+            'predicted_er': pick['layer2_score'] if (pick['layer2_score'] or 0) < 10 else None,
             'predicted_wr': None,
             'actual_return_d3': round(actual_ret, 4),
             'actual_return_d5': None,

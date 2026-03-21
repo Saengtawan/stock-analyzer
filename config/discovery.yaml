@@ -22,18 +22,17 @@ discovery:
     min_train_dates: 20           # Min unique dates in training data
     sl_pct: 3.0                   # Fixed SL % (overridden in STRESS/CRISIS)
 
-    # v5.3 Smart TP: TP = 0.5 × ATR (mean reversion optimal)
-    # Deep analysis 51K signals + 309K OHLC bars:
-    #   0.5x ATR: WR=71%, E[R]=+0.31%, stable 4 years — BEST
-    #   1.0x SL:  WR=51%, E[R]=+0.07% — SL too close to TP
-    # Gap boost: TP ×1.3 when D1 gap > 0.5% (momentum confirmed)
+    # v6.0 Smart TP: regime-based TP ratio
+    # v5.3 used CRISIS=0.5×ATR but that gives RR=0.50 → needs WR≥67% to breakeven
+    # Actual CRISIS WR=56% → guaranteed loss at 0.5×
+    # Simulation on 9,499 VIX>24 signals with SL=1.0×ATR:
+    #   0.50×ATR: -$288/mo | 0.75×: -$134/mo | 1.0×: -$20/mo | 1.25×: +$41/mo
+    # Only TP≥1.25×ATR is profitable in CRISIS (wider TP lets winners run)
     smart_tp:
-      # v5.3: regime-based TP ratio (validated 2022-2025, 51K signals)
-      # BULL=1.0×ATR (stable 3/4 years), CRISIS=0.5× (best in bear 2022)
       tp_regime_ratios:
         BULL: 1.0
-        STRESS: 0.75
-        CRISIS: 0.5
+        STRESS: 1.0
+        CRISIS: 1.0
       gap_threshold: 0.5          # D1 gap > this → boost TP
       gap_boost: 1.3              # TP × 1.3 when gap confirms momentum
 
