@@ -2996,6 +2996,7 @@ def api_discovery_system():
                 'stock_brain': engine._stock_brain.get_stats(),
                 'risk_brain': engine._risk_brain.get_stats(),
                 'strategy_router': engine._strategy_router.get_stats(),
+                'market_signals': engine._market_signals.get_stats(),
             },
             'regime': engine.get_current_regime(),
             'last_scan': engine.get_last_scan(),
