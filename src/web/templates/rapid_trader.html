@@ -3111,6 +3111,30 @@ function renderWeekend(w) {
         + '</div>';
 }
 
+function renderCouncil(c) {
+    if (!c || !c.decision) return '';
+    var dec = c.decision;
+    var conf = c.confidence || 0;
+    var size = c.position_size || 1;
+    var colors = {TRADE: '#2ecc71', SKIP: '#f39c12', VETO: '#e74c3c'};
+    var bgColors = {TRADE: 'rgba(46,204,113,0.1)', SKIP: 'rgba(243,156,18,0.1)', VETO: 'rgba(231,76,60,0.1)'};
+    var brains = c.brains || {};
+    var regime = brains.regime || {};
+    var stock = brains.stock || {};
+    var risk = brains.risk || {};
+
+    var parts = [];
+    parts.push('<span style="font-weight:700;color:' + (colors[dec] || '#888') + ';">' + dec + '</span>');
+    if (regime.regime) parts.push('<span title="Regime Brain">R:' + (regime.trade ? 'GO' : 'STOP') + '</span>');
+    if (stock.probability) parts.push('<span title="Stock Brain prob">S:' + (stock.probability * 100).toFixed(0) + '%</span>');
+    if (risk.action) parts.push('<span title="Risk Brain">' + (risk.action === 'ALLOW' ? 'Risk:OK' : risk.action === 'REDUCE_SIZE' ? 'Risk:↓' : 'Risk:X') + '</span>');
+    if (size < 1) parts.push('<span>Size:' + (size * 100).toFixed(0) + '%</span>');
+
+    return '<div class="d-flex align-items-center gap-2 mt-1" style="font-size:0.55rem;background:' + (bgColors[dec] || 'transparent') + ';padding:2px 4px;border-radius:3px;">'
+        + parts.join('<span style="color:#555;">|</span>')
+        + '</div>';
+}
+
 function renderEnsemble(e) {
     if (!e || !e.ensemble_score) return '';
     var score = e.ensemble_score;
@@ -3183,12 +3207,18 @@ function loadDiscoveryPicks() {
 
             // v6.0: Market context bar
             var ctxEl = document.getElementById('discoveryMarketContext');
-            if (ctxEl && data.leading_signals && data.leading_signals.regime_forecast) {
-                var ls = data.leading_signals;
-                var fc = ls.regime_forecast || {};
-                var fcColor = fc.forecast === 'IMPROVING' ? '#2ecc71' : fc.forecast === 'DETERIORATING' ? '#e74c3c' : '#888';
+            if (ctxEl) {
+                var ls = data.leading_signals || {};
+                var fc = (ls.regime_forecast) || {};
                 var parts = [];
-                parts.push('<span style="color:' + fcColor + ';font-weight:600;">' + (fc.forecast || 'STABLE') + '</span>');
+                // v7.0: Regime Brain decision
+                var rd = data.regime_decision || {};
+                if (rd.trade_today !== undefined) {
+                    var rdColor = rd.trade_today ? '#2ecc71' : '#e74c3c';
+                    parts.push('<span style="font-weight:700;color:' + rdColor + ';" title="Regime Brain (ML): ' + (rd.regime || '') + ' conf=' + (rd.confidence || 0).toFixed(0) + '%">' + (rd.trade_today ? 'BRAIN: TRADE' : 'BRAIN: SKIP') + '</span>');
+                }
+                var fcColor = (fc.forecast === 'IMPROVING') ? '#2ecc71' : (fc.forecast === 'DETERIORATING') ? '#e74c3c' : '#888';
+                if (fc.forecast) parts.push('<span style="color:' + fcColor + ';font-weight:600;">' + fc.forecast + '</span>');
                 // Active signals
                 var sigNames = ['vix_mean_reversion','breadth_recovery','put_call_extreme','insider_surge','consecutive_red_bounce'];
                 for (var si = 0; si < sigNames.length; si++) {
@@ -3297,6 +3327,7 @@ function loadDiscoveryPicks() {
                     ${p.tp_timeline ? renderTimeline(p.tp_timeline) : ''}
                     ${p.weekend_play && p.weekend_play.advice !== 'risky' ? renderWeekend(p.weekend_play) : ''}
                     ${p.ensemble ? renderEnsemble(p.ensemble) : ''}
+                    ${p.council ? renderCouncil(p.council) : ''}
                 </div>`;
             });
             container.innerHTML = html;

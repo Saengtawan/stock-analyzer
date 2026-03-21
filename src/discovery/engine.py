@@ -40,6 +40,10 @@ from discovery.temporal import TemporalFeatureBuilder
 from discovery.sequence_matcher import SequencePatternMatcher
 from discovery.leading_indicators import LeadingIndicatorEngine
 from discovery.ensemble import EnsembleBrain
+from discovery.regime_brain import RegimeBrain
+from discovery.stock_brain import StockBrain
+from discovery.risk_brain import RiskBrain
+from discovery.arbiter import DecisionArbiter
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +78,13 @@ class DiscoveryEngine:
         self._temporal_features: dict = {}
         self._sequence_prediction: dict = {}
         self._leading_signals: dict = {}
+        # v7.0: Multi-Brain Council
+        self._regime_brain = RegimeBrain(trade_threshold=0.50)
+        self._stock_brain = StockBrain()
+        self._risk_brain = RiskBrain()
+        self._arbiter = DecisionArbiter()
+        self._council_fitted = False
+        self._regime_decision: dict = {}  # today's regime brain output
         self._ensure_table()
         self._load_picks_from_db()
 
@@ -599,6 +610,20 @@ class DiscoveryEngine:
 
         self._v6_fitted = True
 
+        # v7.0: Council brains
+        if not self._council_fitted:
+            try:
+                ok = self._regime_brain.fit()
+                logger.info("Discovery v7.0: RegimeBrain fitted (%d days)", self._regime_brain._n_train)
+            except Exception as e:
+                logger.error("Discovery v7.0: RegimeBrain fit error: %s", e)
+            try:
+                ok = self._stock_brain.fit()
+                logger.info("Discovery v7.0: StockBrain fitted (%d signals)", self._stock_brain._n_train)
+            except Exception as e:
+                logger.error("Discovery v7.0: StockBrain fit error: %s", e)
+            self._council_fitted = True
+
     def get_scan_progress(self) -> dict:
         return self._scan_progress.copy()
 
@@ -662,6 +687,8 @@ class DiscoveryEngine:
             ('entry_filled_at', 'TEXT'),
             # v6.0: Ensemble scoring
             ('ensemble_json', 'TEXT'),
+            # v7.0: Council decision
+            ('council_json', 'TEXT'),
         ]
         for col_name, col_type in new_cols:
             try:
@@ -731,7 +758,7 @@ class DiscoveryEngine:
             ))
             # v5.2: restore tp_timeline + weekend_play + v6.0 ensemble from DB
             for attr, col in [('tp_timeline', 'tp_timeline_json'), ('weekend_play', 'weekend_play_json'),
-                              ('ensemble', 'ensemble_json')]:
+                              ('ensemble', 'ensemble_json'), ('council', 'council_json')]:
                 raw = r[col] if col in r.keys() else None
                 if raw:
                     try:
@@ -940,6 +967,18 @@ class DiscoveryEngine:
         except Exception as e:
             logger.error("Discovery v6.0: leading signals error: %s", e)
             self._leading_signals = {}
+
+        # v7.0: Regime Brain — should we trade today?
+        try:
+            macro_for_regime = self._load_macro(scan_date)
+            self._regime_decision = self._regime_brain.predict(macro_for_regime)
+            logger.info("Discovery v7.0: Regime Brain → %s (conf=%.0f%% regime=%s)",
+                        'TRADE' if self._regime_decision.get('trade_today') else 'SKIP',
+                        self._regime_decision.get('confidence', 0),
+                        self._regime_decision.get('regime', '?'))
+        except Exception as e:
+            logger.error("Discovery v7.0: Regime Brain error: %s", e)
+            self._regime_decision = {'trade_today': True, 'confidence': 0, 'regime': 'UNKNOWN'}
 
         # 1. Load universe + fundamentals
         stocks = self._load_universe()
@@ -1835,10 +1874,25 @@ class DiscoveryEngine:
                 logger.error("Discovery v6.0: ensemble score error for %s: %s", c['symbol'], e)
                 pick.ensemble = None
 
+            # v7.0: Council decision per pick
+            try:
+                stock_brain_result = self._stock_brain.predict(c)
+                risk_result = self._risk_brain.evaluate(
+                    [{'symbol': c['symbol'], 'sector': c.get('sector', ''),
+                      'sl_pct': pick.sl_pct, 'tp1_pct': pick.tp1_pct}],
+                    [{'symbol': p.symbol, 'sector': p.sector, 'sl_pct': p.sl_pct}
+                     for p in picks]
+                )[0]
+                council = self._arbiter.decide(stock_brain_result, self._regime_decision, risk_result)
+                pick.council = council
+            except Exception as e:
+                logger.error("Discovery v7.0: council error for %s: %s", c['symbol'], e)
+                pick.council = {'decision': 'TRADE', 'confidence': 0, 'reasons': ['fallback']}
+
             picks.append(pick)
 
         logger.info(
-            "Discovery v4.3: %d picks [%s] (macro E[R]=%+.2f%%, SL=%.1f%%, from %d candidates)",
+            "Discovery v7.0: %d picks [%s] (macro E[R]=%+.2f%%, SL=%.1f%%, from %d candidates)",
             len(picks), regime, macro_er, sl_pct, len(candidates),
         )
         return picks
@@ -1948,8 +2002,8 @@ class DiscoveryEngine:
                  breadth_delta_5d, vix_delta_5d, crude_close, gold_close, dxy_delta_5d, stress_score,
                  premarket_price, gap_pct, scan_type,
                  limit_entry_price, limit_pct, entry_price, entry_status, entry_filled_at,
-                 tp_timeline_json, weekend_play_json, ensemble_json)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 tp_timeline_json, weekend_play_json, ensemble_json, council_json)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, (p.scan_date, p.symbol, p.scan_price, p.current_price, p.layer2_score,
                   p.beta, p.atr_pct, p.distance_from_high, p.distance_from_20d_high, p.rsi, p.momentum_5d,
                   p.momentum_20d, p.volume_ratio,
@@ -1966,7 +2020,8 @@ class DiscoveryEngine:
                   p.limit_entry_price, p.limit_pct, p.entry_price, p.entry_status, p.entry_filled_at,
                   json.dumps(getattr(p, 'tp_timeline', None)),
                   json.dumps(getattr(p, 'weekend_play', None)),
-                  json.dumps(getattr(p, 'ensemble', None))))
+                  json.dumps(getattr(p, 'ensemble', None)),
+                  json.dumps(getattr(p, 'council', None))))
         conn.commit()
         conn.close()
         logger.info(f"Discovery: saved {len(picks)} picks for {scan_date}")

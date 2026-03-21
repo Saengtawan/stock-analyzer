@@ -187,4 +187,6 @@ class DiscoveryPick:
             'weekend_play': getattr(self, 'weekend_play', None),
             # v6.0: Ensemble scoring
             'ensemble': getattr(self, 'ensemble', None),
+            # v7.0: Council decision
+            'council': getattr(self, 'council', None),
         }

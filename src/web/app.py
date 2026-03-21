@@ -2907,6 +2907,8 @@ def api_discovery_picks():
             'temporal_snapshot': engine._temporal_features or {},
             'sequence_prediction': engine._sequence_prediction or {},
             'leading_signals': engine._leading_signals or {},
+            # v7.0: Council regime decision
+            'regime_decision': engine._regime_decision or {},
         })
     except Exception as e:
         logger.error(f"Discovery API error: {e}")
@@ -2986,6 +2988,9 @@ def api_discovery_system():
                              'v6_fitted': engine._v6_fitted},
                 'calibrator': {'cached': engine._calibrator._cache is not None},
                 'outcome_tracker': {'available': True},
+                'regime_brain': engine._regime_brain.get_stats(),
+                'stock_brain': engine._stock_brain.get_stats(),
+                'risk_brain': engine._risk_brain.get_stats(),
             },
             'regime': engine.get_current_regime(),
             'last_scan': engine.get_last_scan(),
