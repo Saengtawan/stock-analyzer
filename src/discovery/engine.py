@@ -1744,15 +1744,20 @@ class DiscoveryEngine:
                 d0_close_pos = 0.5
             c['d0_close_position'] = round(d0_close_pos, 2)
 
-            # Filter: skip weak D0 candles + overly volatile stocks
+            # Filter: skip weak D0 candles
             if d0_close_pos < 0.3:
                 continue
-            # ATR > 5%: SL cap=5% can't protect → SL hit > TP hit for swing
-            # Exception: Friday → allow through for weekend play (hold 1 day only)
+            # v7.1: ATR filter relaxed for deep dip stocks in CRISIS
+            # Data: ATR 5-8% + d20h<-15 → WR 60%, E[R] +1.27% (better than low ATR)
+            # Still block ATR > 8% (WR drops to 47%)
             is_friday = datetime.now(ZoneInfo('America/New_York')).weekday() == 4
-            if atr > 5.0 and not is_friday:
-                continue
-            c['_weekend_only'] = atr > 5.0  # mark for UI
+            d20h_val = c.get('distance_from_20d_high') or 0
+            if atr > 8.0 and not is_friday:
+                continue  # extreme volatility
+            if atr > 5.0 and not is_friday and d20h_val > -15:
+                continue  # high ATR but NOT deep dip → skip
+            # ATR > 5% allowed ONLY if deep dip (d20h < -15%) or Friday
+            c['_weekend_only'] = atr > 5.0 and not (d20h_val < -15)  # mark for UI
 
             # v5.3: Divergence boost — stock UP while market weak
             d0_ret = ((price / c.get('open', price)) - 1) * 100 if c.get('open') else 0
