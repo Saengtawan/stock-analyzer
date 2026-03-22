@@ -2995,6 +2995,8 @@ def api_discovery_system():
                 'risk_brain': engine._risk_brain.get_stats(),
                 'strategy_router': engine._strategy_router.get_stats(),
                 'market_signals': engine._market_signals.get_stats(),
+                'knowledge_graph': engine._knowledge_graph.get_stats(),
+                'unified_brain': engine._unified_brain.get_stats(),
                 'param_optimizer': engine._param_optimizer.get_stats(),
                 'performance': engine._perf_tracker.get_summary(30),
                 'auto_refit': engine._orchestrator.get_stats(),

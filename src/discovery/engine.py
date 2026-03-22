@@ -51,6 +51,8 @@ from discovery.performance_tracker import PerformanceTracker
 from discovery.auto_refit import AutoRefitOrchestrator
 from discovery.knowledge_graph import KnowledgeGraph
 from discovery.context_scorer import ContextScorer
+from discovery.sensors import SensorNetwork
+from discovery.unified_brain import UnifiedBrain
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +105,9 @@ class DiscoveryEngine:
         # v11.0: Knowledge Graph + Context
         self._knowledge_graph = KnowledgeGraph()
         self._context_scorer = ContextScorer(self._knowledge_graph)
+        # v12.0: Sensor Network + Unified Brain
+        self._sensors = SensorNetwork()
+        self._unified_brain = UnifiedBrain()
         # v10.0: Auto-optimization + monitoring
         self._param_optimizer = ParamOptimizer(self._params)
         self._perf_tracker = PerformanceTracker()
@@ -647,6 +652,14 @@ class DiscoveryEngine:
             # Only mark fitted if at least regime brain succeeded
             if rb_ok:
                 self._council_fitted = True
+
+        # v12.0: Unified Brain fit
+        if not self._unified_brain._fitted:
+            try:
+                self._unified_brain.fit()
+                logger.info("Discovery v12.0: UnifiedBrain fitted (%d signals)", self._unified_brain._n_train)
+            except Exception as e:
+                logger.error("Discovery v12.0: UnifiedBrain fit error: %s", e)
 
         # v11.0: Build Knowledge Graph (once)
         if not self._knowledge_graph._built:
@@ -1961,8 +1974,16 @@ class DiscoveryEngine:
                     c.get('distance_from_20d_high') or -5,
                     sector=c.get('sector', ''))
 
-                # Council decision (regime + stock + risk → TRADE/VETO + sizing)
-                stock_brain_result = self._stock_brain.predict(c)
+                # v12.0: Compute sensor signals for this stock
+                sensor_signals = self._sensors.compute_all(
+                    c['symbol'], scan_date, macro, c, self._temporal_features)
+
+                # v12.0: UnifiedBrain replaces StockBrain (sees ALL signals)
+                regime_prob = self._regime_decision.get('probability', 0.5)
+                if self._unified_brain._fitted:
+                    stock_brain_result = self._unified_brain.predict(c, sensor_signals, regime_prob)
+                else:
+                    stock_brain_result = self._stock_brain.predict(c)  # fallback
                 risk_result = self._risk_brain.evaluate(
                     [{'symbol': c['symbol'], 'sector': c.get('sector', ''),
                       'sl_pct': pick.sl_pct, 'tp1_pct': pick.tp1_pct}],
@@ -2017,6 +2038,8 @@ class DiscoveryEngine:
                     'hammer_shadow': c.get('d0_lower_shadow', 0),
                     # v11.0: Context intelligence
                     'context': ctx_result,
+                    # v12.0: Sensor readings
+                    'sensors': sensor_signals,
                 }
             except Exception as e:
                 logger.error("Discovery v8.0: unified decision error for %s: %s", c['symbol'], e)
@@ -2025,6 +2048,7 @@ class DiscoveryEngine:
                     'position_size': 0.25, 'reasons': ['fallback'],
                     'brains': {}, 'strategy': self._current_strategy,
                     'stock_signals': {}, 'stock_profile': {},
+                    'context': {}, 'sensors': {},
                 }
 
             picks.append(pick)

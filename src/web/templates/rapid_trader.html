@@ -3165,6 +3165,20 @@ function renderCouncil(c) {
         sigParts.push('<span style="color:#888;" title="D1 gap<-0.5%→CUT | D1 green→SELL | D1 red→HOLD D5">Exit: gap/green/D5</span>');
     }
 
+    // Sensor summary (compact)
+    var sens = c.sensors || {};
+    if (sens.sensor_vix !== undefined) {
+        var macroIcons = [];
+        if (sens.sensor_vix > 0.3) macroIcons.push('<span style="color:#e74c3c;">VIX↑</span>');
+        else if (sens.sensor_vix < -0.3) macroIcons.push('<span style="color:#2ecc71;">VIX↓</span>');
+        if (sens.sensor_crude > 0.3) macroIcons.push('<span style="color:#e67e22;">Oil↑</span>');
+        if (sens.sensor_breadth < -0.3) macroIcons.push('<span style="color:#e74c3c;">Brdth↓</span>');
+        if (sens.sensor_sector_leading > 0) macroIcons.push('<span style="color:#2ecc71;">Sect#' + (sens.sensor_sector_strength > 0.7 ? '1-3' : '4-6') + '</span>');
+        if (sens.sensor_sector_aligned > 0.2) macroIcons.push('<span style="color:#2ecc71;">Aligned</span>');
+        else if (sens.sensor_sector_aligned < -0.2) macroIcons.push('<span style="color:#e74c3c;">Misalign</span>');
+        if (macroIcons.length > 0) sigParts.push(macroIcons.join(' '));
+    }
+
     if (sigParts.length === 0) return row1;
     var row2 = '<div class="d-flex flex-wrap gap-1" style="font-size:0.5rem;background:' + (tierBg[tier] || 'transparent') + ';padding:1px 4px;border-radius:0 0 3px 3px;opacity:0.9;">'
         + sigParts.join('<span style="color:#555;margin:0 1px;">|</span>') + '</div>';
