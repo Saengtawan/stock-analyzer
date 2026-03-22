@@ -143,42 +143,66 @@ class KnowledgeGraph:
         logger.info("KnowledgeGraph: sector correlations computed")
 
     def _build_macro_sensitivities(self):
-        """Compute per-stock sensitivity to crude, VIX, SPY."""
+        """Compute per-stock sensitivity to crude CHANGES and VIX CHANGES.
+
+        v13.1 fix: correlate crude/VIX daily CHANGE with stock daily RETURN.
+        Loads macro changes separately to avoid SQL LAG cross-symbol bug.
+        """
         conn = sqlite3.connect(str(DB_PATH))
 
-        # Get stock returns + macro
-        rows = conn.execute("""
-            SELECT s.symbol, s.date, s.close,
-                   LAG(s.close) OVER (PARTITION BY s.symbol ORDER BY s.date) as prev_close,
-                   m.crude_close, m.vix_close, m.spy_close
-            FROM stock_daily_ohlc s
-            JOIN macro_snapshots m ON s.date = m.date
-            WHERE s.close > 0
-            ORDER BY s.symbol, s.date
+        # Load macro daily changes (computed in Python, not SQL LAG)
+        macro_rows = conn.execute("""
+            SELECT date, crude_close, vix_close FROM macro_snapshots
+            WHERE crude_close > 0 AND vix_close > 0
+            ORDER BY date
+        """).fetchall()
+
+        macro_chg = {}  # date → (crude_chg%, vix_chg_pts)
+        for i in range(1, len(macro_rows)):
+            dt = macro_rows[i][0]
+            prev_crude = macro_rows[i-1][1]
+            prev_vix = macro_rows[i-1][2]
+            if prev_crude > 0:
+                crude_chg = (macro_rows[i][1] / prev_crude - 1) * 100
+                vix_chg = macro_rows[i][2] - prev_vix
+                macro_chg[dt] = (crude_chg, vix_chg)
+
+        # Load stock daily returns
+        stock_rows = conn.execute("""
+            SELECT symbol, date, close,
+                   LAG(close) OVER (PARTITION BY symbol ORDER BY date) as prev_close
+            FROM stock_daily_ohlc
+            WHERE close > 0
+            ORDER BY symbol, date
         """).fetchall()
 
         stock_rets = defaultdict(list)
-        crude_by_sym = defaultdict(list)
-        vix_by_sym = defaultdict(list)
+        crude_chg_by_sym = defaultdict(list)
+        vix_chg_by_sym = defaultdict(list)
 
-        for r in rows:
-            if r[3] and r[3] > 0:
-                ret = (r[2] / r[3] - 1) * 100
-                stock_rets[r[0]].append(ret)
-                crude_by_sym[r[0]].append(r[4] or 75)
-                vix_by_sym[r[0]].append(r[5] or 20)
+        for sym, dt, close, prev_close in stock_rows:
+            if not prev_close or prev_close <= 0:
+                continue
+            if dt not in macro_chg:
+                continue
+            stock_ret = (close / prev_close - 1) * 100
+            c_chg, v_chg = macro_chg[dt]
+
+            stock_rets[sym].append(stock_ret)
+            crude_chg_by_sym[sym].append(c_chg)
+            vix_chg_by_sym[sym].append(v_chg)
 
         inserted = 0
         for sym in stock_rets:
             if len(stock_rets[sym]) < 100:
                 continue
             rets = np.array(stock_rets[sym])
-            crude = np.array(crude_by_sym[sym])
-            vix_arr = np.array(vix_by_sym[sym])
+            crude_arr = np.array(crude_chg_by_sym[sym])
+            vix_arr = np.array(vix_chg_by_sym[sym])
 
-            # Crude sensitivity
-            crude_corr = float(np.corrcoef(crude[:-1], rets[1:])[0, 1]) if len(crude) > 10 else 0
-            if abs(crude_corr) > 0.1:
+            # Crude sensitivity: corr(crude daily change, stock daily return)
+            crude_corr = float(np.corrcoef(crude_arr, rets)[0, 1])
+            if not np.isnan(crude_corr) and abs(crude_corr) > 0.05:
                 conn.execute("""
                     INSERT OR REPLACE INTO stock_context
                     (symbol, context_type, context_value, score)
@@ -186,9 +210,9 @@ class KnowledgeGraph:
                 """, (sym, f'corr={crude_corr:.3f}', round(crude_corr, 3)))
                 inserted += 1
 
-            # VIX sensitivity
-            vix_corr = float(np.corrcoef(vix_arr[:-1], rets[1:])[0, 1]) if len(vix_arr) > 10 else 0
-            if abs(vix_corr) > 0.1:
+            # VIX sensitivity: corr(VIX daily change, stock daily return)
+            vix_corr = float(np.corrcoef(vix_arr, rets)[0, 1])
+            if not np.isnan(vix_corr) and abs(vix_corr) > 0.05:
                 conn.execute("""
                     INSERT OR REPLACE INTO stock_context
                     (symbol, context_type, context_value, score)
@@ -259,11 +283,12 @@ class KnowledgeGraph:
         logger.info("KnowledgeGraph: %d speculative flags set", inserted)
 
     def _build_macro_impact_chains(self):
-        """Store macro impact chains."""
+        """Store macro impact chains (clear old + insert fresh)."""
         conn = sqlite3.connect(str(DB_PATH))
+        conn.execute("DELETE FROM macro_impact_chains")
         for chain in MACRO_CHAINS:
             conn.execute("""
-                INSERT OR REPLACE INTO macro_impact_chains
+                INSERT INTO macro_impact_chains
                 (trigger_type, affected_sectors, direction, magnitude, historical_evidence, confidence)
                 VALUES (?, ?, 'MIXED', ?, ?, 0.7)
             """, (chain['trigger'],
