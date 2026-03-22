@@ -164,7 +164,10 @@ class UnifiedFilter:
     def _elite_filter(self, scored, regime, config):
         """Keep only statistical outliers (mean + k*σ)."""
         if self._adaptive:
-            elite_k = self._adaptive.get('ALL', regime, 'elite_sigma')
+            # Use first candidate's sector for sector-aware sigma,
+            # fallback chain in adaptive handles unknown sectors
+            sector = scored[0][1].get('sector', '') if scored else ''
+            elite_k = self._adaptive.get(sector, regime, 'elite_sigma')
         else:
             regime_cfg = config.get('v3', {}).get('regimes', {})
             elite_k = regime_cfg.get('elite_sigma', 1.5)

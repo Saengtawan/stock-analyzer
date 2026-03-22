@@ -107,15 +107,24 @@ class UnifiedSizer:
         # Compute TP
         pick_tp_pct = round(max(0.5, tp_ratio * atr), 1)
 
+        # Ensure TP > SL (minimum RR ratio 1.0)
+        if pick_tp_pct <= pick_sl_pct:
+            pick_tp_pct = round(pick_sl_pct * 1.5, 1)
+
+        # TP2 = TP1 × 2.0 (extended target)
+        pick_tp2_pct = round(pick_tp_pct * 2.0, 1)
+
         sl_price = price * (1 - pick_sl_pct / 100)
         tp1_price = price * (1 + pick_tp_pct / 100)
+        tp2_price = price * (1 + pick_tp2_pct / 100)
 
         return {
             'sl_pct': pick_sl_pct,
             'tp_pct': pick_tp_pct,
+            'tp2_pct': pick_tp2_pct,
             'sl_price': round(sl_price, 2),
             'tp1_price': round(tp1_price, 2),
-            'tp2_price': round(tp1_price, 2),  # single TP
+            'tp2_price': round(tp2_price, 2),
             'limit_pct': pick_limit_pct,
             'entry_status': 'pending' if pick_limit_pct else 'filled',
         }
@@ -175,7 +184,7 @@ class UnifiedSizer:
             volume_ratio=c.get('volume_ratio', 0),
             sl_price=sl_tp['sl_price'], sl_pct=sl_tp['sl_pct'],
             tp1_price=sl_tp['tp1_price'], tp1_pct=sl_tp['tp_pct'],
-            tp2_price=sl_tp['tp2_price'], tp2_pct=sl_tp['tp_pct'],
+            tp2_price=sl_tp['tp2_price'], tp2_pct=sl_tp.get('tp2_pct', sl_tp['tp_pct']),
             expected_gain=round(macro_er, 2),
             rr_ratio=round(sl_tp['tp_pct'] / sl_tp['sl_pct'], 2) if sl_tp['sl_pct'] > 0 else 0,
             limit_pct=sl_tp['limit_pct'],
@@ -295,7 +304,7 @@ class UnifiedSizer:
                 council['reasons'] = council.get('reasons', []) + [
                     f'Context: {" | ".join(ctx_result["penalties"])}']
         except Exception as e:
-            logger.debug("Sizer: context error for %s: %s", c['symbol'], e)
+            logger.warning("Sizer: context error for %s: %s", c['symbol'], e)
             ctx_result = {'penalty': 0, 'penalties': [], 'flags': [],
                           'is_speculative': False}
 
@@ -311,6 +320,10 @@ class UnifiedSizer:
                 council.get('position_size', 1) * 0.5, 2)
             council['reasons'] = council.get('reasons', []) + [
                 f'Profile WR={profile_wr:.0f}% → size halved']
+
+        # Floor: position_size never below 0.05 (5%)
+        if council.get('position_size', 1) < 0.05:
+            council['position_size'] = 0.05
 
         # Build unified council dict
         council.update({

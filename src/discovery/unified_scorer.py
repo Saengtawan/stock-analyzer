@@ -264,7 +264,8 @@ class UnifiedScorer:
 
         # Refit kernels (skip for intraday — reuse evening fit)
         if refit:
-            self.kernel.load_and_fit()
+            if self.kernel:
+                self.kernel.load_and_fit()
             if self.stock_kernel:
                 self.stock_kernel.load_and_fit()
 
@@ -282,9 +283,9 @@ class UnifiedScorer:
         macro_er, se, n_eff = self.kernel.estimate(macro_candidate)
 
         if n_eff < MIN_N_EFF:
-            logger.warning("Scorer: n_eff=%.1f < %.1f — insufficient data",
+            logger.warning("Scorer: n_eff=%.1f < %.1f — insufficient data, defaulting to STRESS",
                            n_eff, MIN_N_EFF)
-            return [], 'UNKNOWN', 0.0
+            return [], 'STRESS', 0.0
 
         # Determine regime
         regime_cfg = v3_cfg.get('regimes', {})

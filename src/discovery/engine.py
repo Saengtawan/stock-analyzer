@@ -583,7 +583,9 @@ class DiscoveryEngine:
 
         if not macro_row:
             conn.close()
-            return {}
+            logger.warning("Discovery: no macro data found, using defaults")
+            return {'vix_close': 20, 'spy_close': 500, 'pct_above_20d_ma': 50,
+                    'crude_close': 75, 'yield_10y': 4, 'vix3m_close': 22}
 
         result = dict(macro_row)
 
