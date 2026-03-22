@@ -19,13 +19,15 @@ class AutoRefitOrchestrator:
     """Orchestrate all periodic maintenance tasks."""
 
     def __init__(self, regime_brain, stock_brain, param_optimizer,
-                 performance_tracker, param_manager, adaptive_params=None):
+                 performance_tracker, param_manager, adaptive_params=None,
+                 knowledge_graph=None):
         self._regime_brain = regime_brain
         self._stock_brain = stock_brain
         self._param_optimizer = param_optimizer
         self._perf_tracker = performance_tracker
         self._params = param_manager
         self._adaptive = adaptive_params
+        self._knowledge_graph = knowledge_graph
         self._last_run = 0.0
         self._last_results = {}
 
@@ -105,7 +107,18 @@ class AutoRefitOrchestrator:
                 logger.error("AutoRefit: adaptive params error: %s", e)
                 results['adaptive_refit'] = {'error': str(e)}
 
-        # 6. Health check
+        # 6. Rebuild Knowledge Graph (macro sensitivities + speculative flags)
+        if self._knowledge_graph:
+            try:
+                self._knowledge_graph.build_all()
+                results['kg_rebuild'] = True
+                logger.info("AutoRefit: KnowledgeGraph rebuilt (%s)",
+                            self._knowledge_graph.get_stats())
+            except Exception as e:
+                logger.error("AutoRefit: KG rebuild error: %s", e)
+                results['kg_rebuild'] = {'error': str(e)}
+
+        # 7. Health check
         try:
             drift_status = results.get('drift', {}).get('drift', 'UNKNOWN')
             if drift_status == 'MODEL_FAILING':

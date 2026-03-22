@@ -92,7 +92,8 @@ class DiscoveryEngine:
         self._orchestrator = AutoRefitOrchestrator(
             self._scorer.regime_brain, self._scorer.stock_brain,
             self._param_optimizer, self._perf_tracker, self._params,
-            adaptive_params=self._adaptive_params)
+            adaptive_params=self._adaptive_params,
+            knowledge_graph=self._sizer.knowledge_graph)
 
         # v2 fallback scorer (only used when kernel disabled)
         self._legacy_scorer = None
