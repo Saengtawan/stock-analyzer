@@ -1819,13 +1819,15 @@ class DiscoveryEngine:
 
             c['_weekend_only'] = atr > 5.0 and not (d20h_val < -15)
 
-            # v10.1: Filter fake dips — stocks with strong positive momentum are NOT dipping
+            # v10.1: Filter fake dips — stocks with positive momentum are NOT dipping
             # Data: big losers avg mom=+0.51% vs normal +0.17%
-            # Stocks clearly going UP (mom>3%) are NOT bounce candidates
             mom_val = c.get('momentum_5d') or 0
             if strategy_mode in ('DIP_BOUNCE', 'WASHOUT') and mom_val > 3:
                 continue
-            if strategy_mode == 'SELECTIVE' and mom_val > 5:
+            if strategy_mode == 'SELECTIVE' and mom_val > 2:
+                continue
+            # Combo: mom positive + not deep dip = NOT a dip at all
+            if mom_val > 0 and d20h_val > -8:
                 continue
 
             # v10.1: Hammer candle bonus — prefer stocks with lower shadow > 50%
@@ -1959,13 +1961,22 @@ class DiscoveryEngine:
                     stock_brain_result, self._regime_decision, risk_result,
                     calibrator_confidence=cal.get('confidence', 50))
 
+                # v10.1: Profile WR red flag — reduce size if historical match is bad
+                profile_wr = stock_profile.get('wr', 50) if stock_profile else 50
+                if profile_wr < 10:
+                    council['position_size'] = round(council.get('position_size', 1) * 0.25, 2)
+                    council['reasons'] = council.get('reasons', []) + [f'Profile WR={profile_wr:.0f}% → size quartered']
+                elif profile_wr < 30:
+                    council['position_size'] = round(council.get('position_size', 1) * 0.5, 2)
+                    council['reasons'] = council.get('reasons', []) + [f'Profile WR={profile_wr:.0f}% → size halved']
+
                 # Unified pick data — single object with all context
                 pick.council = {
                     **council,
                     'strategy': self._current_strategy,
                     'stock_signals': stock_signals,
                     'stock_profile': {
-                        'wr': stock_profile.get('wr', 0) if stock_profile else 0,
+                        'wr': profile_wr,
                         'er': stock_profile.get('er', 0) if stock_profile else 0,
                     },
                     # v10.1: Exit rules (shown to user)
