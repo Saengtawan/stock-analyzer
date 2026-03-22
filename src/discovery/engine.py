@@ -46,6 +46,9 @@ from discovery.arbiter import DecisionArbiter
 from discovery.strategy_router import StrategyRouter
 from discovery.market_signals import MarketSignalEngine
 from discovery.param_manager import ParamManager
+from discovery.param_optimizer import ParamOptimizer
+from discovery.performance_tracker import PerformanceTracker
+from discovery.auto_refit import AutoRefitOrchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +98,12 @@ class DiscoveryEngine:
         # v9.0: Market-level signals
         self._market_signals = MarketSignalEngine()
         self._market_signal_picks: list = []
+        # v10.0: Auto-optimization + monitoring
+        self._param_optimizer = ParamOptimizer(self._params)
+        self._perf_tracker = PerformanceTracker()
+        self._orchestrator = AutoRefitOrchestrator(
+            self._regime_brain, self._stock_brain,
+            self._param_optimizer, self._perf_tracker, self._params)
         self._ensure_table()
         self._load_picks_from_db()
 
@@ -948,18 +957,13 @@ class DiscoveryEngine:
         logger.info(f"Discovery scan starting for {scan_date}")
         self._scan_progress = {'status': 'loading', 'pct': 0, 'stage': 'Loading universe...', 'l1': 0, 'l2': 0}
 
-        # v9.0: Auto-refit ML brains if stale (every 30 days)
+        # v10.0: Auto-refit orchestrator (ML brains + param optimizer + performance)
         try:
-            if self._regime_brain.needs_refit(days=30):
-                logger.info("Discovery v9.0: RegimeBrain stale — refitting...")
-                self._regime_brain.fit()
-                logger.info("Discovery v9.0: RegimeBrain refitted (%d days)", self._regime_brain._n_train)
-            if self._stock_brain.needs_refit(days=30):
-                logger.info("Discovery v9.0: StockBrain stale — refitting...")
-                self._stock_brain.fit()
-                logger.info("Discovery v9.0: StockBrain refitted (%d signals)", self._stock_brain._n_train)
+            if self._orchestrator.needs_run(days=30):
+                refit_results = self._orchestrator.run_cycle()
+                logger.info("Discovery v10.0: auto-refit cycle complete")
         except Exception as e:
-            logger.error("Discovery v9.0: auto-refit error: %s", e)
+            logger.error("Discovery v10.0: auto-refit error: %s", e)
 
         # Track outcomes for expired picks before new scan
         try:

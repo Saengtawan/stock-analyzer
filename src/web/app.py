@@ -2973,7 +2973,7 @@ def api_discovery_system():
         from discovery.engine import get_discovery_engine
         engine = get_discovery_engine()
         return jsonify({
-            'version': '9.0',
+            'version': '10.0',
             'components': {
                 'kernel': {
                     'macro': {'fitted': engine.kernel is not None and engine.kernel.n_rows > 0,
@@ -2995,6 +2995,9 @@ def api_discovery_system():
                 'risk_brain': engine._risk_brain.get_stats(),
                 'strategy_router': engine._strategy_router.get_stats(),
                 'market_signals': engine._market_signals.get_stats(),
+                'param_optimizer': engine._param_optimizer.get_stats(),
+                'performance': engine._perf_tracker.get_summary(30),
+                'auto_refit': engine._orchestrator.get_stats(),
             },
             'regime': engine.get_current_regime(),
             'last_scan': engine.get_last_scan(),
