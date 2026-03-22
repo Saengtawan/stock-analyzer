@@ -1772,6 +1772,26 @@ class DiscoveryEngine:
 
         logger.info("Discovery v5.2: %d→%d elite picks [%s] (mean+%.1fσ)", pre_elite, len(scored), regime, elite_k)
 
+        # v12.0: UnifiedBrain re-rank — drop picks where UnifiedBrain says <40%
+        if self._unified_brain._fitted and len(scored) > 1:
+            re_ranked = []
+            for er, c in scored:
+                sensor_sigs = self._sensors.compute_all(
+                    c['symbol'], scan_date, macro, c, self._temporal_features)
+                rp = self._regime_decision.get('probability', 0.5)
+                ub_result = self._unified_brain.predict(c, sensor_sigs, rp)
+                ub_prob = ub_result.get('probability', 0.5)
+                # Drop if UnifiedBrain strongly disagrees (<40%)
+                if ub_prob < 0.40:
+                    logger.debug("Discovery v12.0: DROP %s — UnifiedBrain=%.0f%%", c['symbol'], ub_prob*100)
+                    continue
+                # Re-rank: blend kernel E[R] (70%) + UnifiedBrain prob (30%)
+                blended = er * 0.7 + (ub_prob - 0.5) * 10 * 0.3
+                re_ranked.append((blended, c))
+            if re_ranked:
+                scored = re_ranked
+            scored.sort(key=lambda x: x[0], reverse=True)
+
         # Dynamic ATR-based SL config (v4.5)
         dsl_cfg = self._config.get('dynamic_sl', {})
         dsl_enabled = dsl_cfg.get('enabled', False)

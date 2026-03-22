@@ -211,10 +211,10 @@ class SequencePatternMatcher:
         dist_sq = (diffs ** 2).sum(axis=1)
         weights = np.exp(-dist_sq / (2 * 0.5 ** 2))  # bw=0.5
 
-        # If sector matches, boost weight 1.5x
+        # Sector match: mild boost only (1.2x, was 1.5x which caused WR distortion)
         if sector:
             sector_match = sp['sectors'] == sector
-            weights[sector_match] *= 1.5
+            weights[sector_match] *= 1.2
 
         ws = weights.sum()
         if ws < 1e-10:
