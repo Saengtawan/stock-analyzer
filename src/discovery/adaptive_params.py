@@ -266,15 +266,23 @@ class AdaptiveParameterLearner:
         return float(best_cut)
 
     def _learn_elite_sigma(self, sigs):
-        """Find elite_sigma that maximizes E[R] per selected pick."""
+        """Find elite_sigma that maximizes Sharpe(E[R] × sqrt(n_picks)).
+
+        v13.1 fix: was maximizing E[R] alone → always converged to sigma=2.0
+        (highest sigma = fewest picks = highest E[R] by selection bias).
+        Now uses Sharpe-like metric: E[R] × sqrt(n) / std to balance
+        quality (high E[R]) with quantity (enough picks to trade).
+        """
         ohlc_sigs = [s for s in sigs if s.get('d1o')]
         if len(ohlc_sigs) < 50:
             return DEFAULTS['elite_sigma']
 
-        # Compute stock E[R] proxy = outcome_5d for each signal
         ers = np.array([s['o5d'] for s in ohlc_sigs])
+        n_days = len(set(s.get('scan_date', '') for s in ohlc_sigs))
+        if n_days == 0:
+            return DEFAULTS['elite_sigma']
 
-        best_er_per_pick = -999
+        best_score = -999
         best_sigma = DEFAULTS['elite_sigma']
 
         for sigma in PARAM_GRID['elite_sigma']:
@@ -283,9 +291,17 @@ class AdaptiveParameterLearner:
             n_elite = elite_mask.sum()
             if n_elite < 5:
                 continue
-            elite_er = ers[elite_mask].mean()
-            if elite_er > best_er_per_pick:
-                best_er_per_pick = elite_er
+            elite_ers = ers[elite_mask]
+            elite_mean = elite_ers.mean()
+            elite_std = max(elite_ers.std(), 0.01)
+            # Picks per day (want at least ~1-2)
+            picks_per_day = n_elite / max(n_days, 1)
+            if picks_per_day < 0.5:
+                continue  # too few picks
+            # Score: Sharpe × sqrt(picks_per_day) — balance quality + quantity
+            score = (elite_mean / elite_std) * np.sqrt(picks_per_day)
+            if score > best_score:
+                best_score = score
                 best_sigma = sigma
 
         return best_sigma
