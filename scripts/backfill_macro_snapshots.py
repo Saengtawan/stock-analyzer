@@ -28,6 +28,16 @@ SYMBOLS = {
     'gold_close': 'GC=F',
     'crude_close': 'CL=F',
     'hyg_close': 'HYG',
+    # v13.1: New signals
+    'btc_close': 'BTC-USD',
+    'usdjpy_close': 'USDJPY=X',
+    'skew_close': '^SKEW',
+    'vvix_close': '^VVIX',
+    'copper_close': 'HG=F',
+    'tlt_close': 'TLT',
+    'lqd_close': 'LQD',
+    'eem_close': 'EEM',
+    'ief_close': 'IEF',
 }
 
 
@@ -44,7 +54,9 @@ def main():
     conn = sqlite3.connect(DB_PATH, timeout=30)
     # Ensure all columns exist
     for col in ['vix3m_close', 'dxy_change_pct', 'regime_label', 'spy_regime',
-                'gold_close', 'crude_close', 'hyg_close']:
+                'gold_close', 'crude_close', 'hyg_close',
+                'btc_close', 'usdjpy_close', 'skew_close', 'vvix_close',
+                'copper_close', 'tlt_close', 'lqd_close', 'eem_close', 'ief_close']:
         try:
             conn.execute(f"ALTER TABLE macro_snapshots ADD COLUMN {col} REAL")
         except sqlite3.OperationalError:
@@ -150,11 +162,16 @@ def main():
                 (date, yield_10y, yield_3m, yield_spread, vix_close, vix3m_close,
                  spy_close, dxy_close, dxy_change_pct,
                  gold_close, crude_close, hyg_close,
+                 btc_close, usdjpy_close, skew_close, vvix_close,
+                 copper_close, tlt_close, lqd_close, eem_close, ief_close,
                  regime_label, spy_regime, collected_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         """, (d_str, y10, y3m, yield_spread, vix, vals.get('vix3m_close'),
               spy, dxy, dxy_change_pct,
               vals.get('gold_close'), vals.get('crude_close'), vals.get('hyg_close'),
+              vals.get('btc_close'), vals.get('usdjpy_close'), vals.get('skew_close'),
+              vals.get('vvix_close'), vals.get('copper_close'), vals.get('tlt_close'),
+              vals.get('lqd_close'), vals.get('eem_close'), vals.get('ief_close'),
               regime_label, spy_regime))
 
         inserted += 1

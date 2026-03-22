@@ -19,12 +19,13 @@ class AutoRefitOrchestrator:
     """Orchestrate all periodic maintenance tasks."""
 
     def __init__(self, regime_brain, stock_brain, param_optimizer,
-                 performance_tracker, param_manager):
+                 performance_tracker, param_manager, adaptive_params=None):
         self._regime_brain = regime_brain
         self._stock_brain = stock_brain
         self._param_optimizer = param_optimizer
         self._perf_tracker = performance_tracker
         self._params = param_manager
+        self._adaptive = adaptive_params
         self._last_run = 0.0
         self._last_results = {}
 
@@ -90,7 +91,21 @@ class AutoRefitOrchestrator:
             logger.error("AutoRefit: optimization error: %s", e)
             results['optimization'] = {'error': str(e)}
 
-        # 5. Health check
+        # 5. Refit adaptive parameters
+        if self._adaptive:
+            try:
+                if self._adaptive.needs_refit(30):
+                    self._adaptive.fit()
+                    results['adaptive_refit'] = True
+                    logger.info("AutoRefit: adaptive params refitted (%s)",
+                                self._adaptive.get_stats())
+                else:
+                    results['adaptive_refit'] = False
+            except Exception as e:
+                logger.error("AutoRefit: adaptive params error: %s", e)
+                results['adaptive_refit'] = {'error': str(e)}
+
+        # 6. Health check
         try:
             drift_status = results.get('drift', {}).get('drift', 'UNKNOWN')
             if drift_status == 'MODEL_FAILING':

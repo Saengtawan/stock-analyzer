@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-macro_snapshot_cron.py — v7.5
+macro_snapshot_cron.py — v13.1
 ==============================
-Daily macro snapshot: yield curve (10Y, 3M), VIX close, VIX3M close,
-SPY close, DXY close + dxy_change_pct, gold, crude oil, HYG.
-Saved to macro_snapshots table for correlation analysis with DIP outcomes.
+Daily macro snapshot: yield curve, VIX, SPY, DXY, commodities, credit, crypto,
+FX carry, bond vol, tail risk. 18 instruments total.
+
+v13.1: Added BTC, USD/JPY, SKEW, VVIX, Copper, TLT, LQD, EEM, IEF
+       for crash prediction (BTC + JPY detected 5/6 worst months).
 
 Cron (TZ=America/New_York — auto-handles EDT/EST DST):
   10 5 * * 2-6  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/macro_snapshot_cron.py >> logs/macro_snapshot.log 2>&1
@@ -21,9 +23,9 @@ DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.d
 LOG_DIR = os.path.join(os.path.dirname(__file__), '..', 'logs')
 os.makedirs(LOG_DIR, exist_ok=True)
 
-# Macro symbols
-YIELD_10Y = '^TNX'    # 10-year Treasury yield (×0.1 → %)
-YIELD_3M  = '^IRX'    # 13-week T-bill yield (×0.1 → %)
+# === Original macro symbols (v7.5) ===
+YIELD_10Y = '^TNX'    # 10-year Treasury yield (%)
+YIELD_3M  = '^IRX'    # 13-week T-bill yield (%)
 VIX       = '^VIX'
 VIX3M     = '^VIX3M'  # 3-month VIX (term structure analysis)
 SPY       = 'SPY'
@@ -31,6 +33,17 @@ DXY       = 'DX-Y.NYB'  # US Dollar Index
 GOLD      = 'GC=F'       # Gold futures (safe haven)
 CRUDE     = 'CL=F'       # WTI Crude Oil futures (commodity shock)
 HYG       = 'HYG'        # iShares High Yield Corporate Bond ETF (credit stress)
+
+# === v13.1: New signals for crash prediction ===
+BTC       = 'BTC-USD'    # Bitcoin — leads risk-off since 2020 (corr -0.046)
+USDJPY    = 'USDJPY=X'   # USD/JPY — yen carry trade (corr -0.090)
+SKEW      = '^SKEW'      # CBOE SKEW — tail risk pricing (corr +0.054)
+VVIX      = '^VVIX'      # VIX of VIX — volatility regime change
+COPPER    = 'HG=F'       # Copper futures — Dr. Copper, economic bellwether
+TLT       = 'TLT'        # Treasury 20+ Year ETF — flight to safety
+LQD       = 'LQD'        # Investment Grade Corp Bond — credit health (corr +0.040)
+EEM       = 'EEM'        # Emerging Markets ETF — global risk appetite
+IEF       = 'IEF'        # Treasury 7-10Y ETF — intermediate safe haven
 
 
 def _get_last_close(symbol: str, as_of_date: date) -> float | None:
@@ -70,7 +83,13 @@ def _ensure_table(conn: sqlite3.Connection):
     ''')
     conn.commit()
     # Add new columns (safe if already exist)
-    for col in ['gold_close', 'crude_close', 'hyg_close']:
+    new_cols = [
+        'gold_close', 'crude_close', 'hyg_close',
+        # v13.1: New signals
+        'btc_close', 'usdjpy_close', 'skew_close', 'vvix_close',
+        'copper_close', 'tlt_close', 'lqd_close', 'eem_close', 'ief_close',
+    ]
+    for col in new_cols:
         try:
             conn.execute(f"ALTER TABLE macro_snapshots ADD COLUMN {col} REAL")
         except sqlite3.OperationalError:
@@ -111,6 +130,17 @@ def main():
     crude = _get_last_close(CRUDE, target)
     hyg   = _get_last_close(HYG, target)
 
+    # v13.1: New signals
+    btc    = _get_last_close(BTC, target)
+    usdjpy = _get_last_close(USDJPY, target)
+    skew   = _get_last_close(SKEW, target)
+    vvix   = _get_last_close(VVIX, target)
+    copper = _get_last_close(COPPER, target)
+    tlt    = _get_last_close(TLT, target)
+    lqd    = _get_last_close(LQD, target)
+    eem    = _get_last_close(EEM, target)
+    ief    = _get_last_close(IEF, target)
+
     spread = round(y10 - y3m, 4) if y10 is not None and y3m is not None else None
 
     # Compute dxy_change_pct from previous day's recorded dxy_close
@@ -149,15 +179,18 @@ def main():
             (date, yield_10y, yield_3m, yield_spread, vix_close, vix3m_close,
              spy_close, dxy_close, dxy_change_pct,
              gold_close, crude_close, hyg_close,
+             btc_close, usdjpy_close, skew_close, vvix_close,
+             copper_close, tlt_close, lqd_close, eem_close, ief_close,
              regime_label, spy_regime, collected_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     ''', (target_str, y10, y3m, spread, vix, vix3m, spy, dxy, dxy_change_pct,
           gold, crude, hyg,
+          btc, usdjpy, skew, vvix, copper, tlt, lqd, eem, ief,
           regime_label, spy_regime))
     conn.commit()
     conn.close()
 
-    print(f"  ✅ Saved: 10Y={y10}% 3M={y3m}% spread={spread}% VIX={vix}({regime_label}) VIX3M={vix3m} SPY={spy}({spy_regime}) DXY={dxy} DXY_chg={dxy_change_pct}% Gold={gold} Crude={crude} HYG={hyg}")
+    print(f"  ✅ Saved: VIX={vix}({regime_label}) SPY={spy} BTC={btc} JPY={usdjpy} SKEW={skew} VVIX={vvix} Copper={copper} TLT={tlt} LQD={lqd}")
 
 
 if __name__ == '__main__':
