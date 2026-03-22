@@ -1756,6 +1756,19 @@ class DiscoveryEngine:
 
             scored.append((stock_er, c))
 
+        # v12.0: Blend kernel E[R] with UnifiedBrain before elite filter
+        if self._unified_brain._fitted:
+            blended_scored = []
+            for er, c in scored:
+                sens = self._sensors.compute_all(
+                    c['symbol'], scan_date, macro, c, self._temporal_features)
+                rp = self._regime_decision.get('probability', 0.5)
+                ub = self._unified_brain.predict(c, sens, rp)
+                ub_contrib = (ub.get('probability', 0.5) - 0.5) * 5  # scale to ~E[R] range
+                blended = er * 0.6 + ub_contrib * 0.4
+                blended_scored.append((blended, c))
+            scored = blended_scored
+
         scored.sort(key=lambda x: x[0], reverse=True)
 
         # v5.2: Elite filter — keep only statistical outliers (mean + k*σ)
@@ -1848,19 +1861,26 @@ class DiscoveryEngine:
                 continue
 
             # ATR filter — strategy-dependent
+            # v12.0: UnifiedBrain can override ATR filter for deep dips
+            ub_override = False
+            if self._unified_brain._fitted and d20h_val < -15:
+                ub_quick = self._unified_brain.predict(
+                    c, self._sensors.compute_all(c['symbol'], scan_date, macro, c, self._temporal_features),
+                    self._regime_decision.get('probability', 0.5))
+                if ub_quick.get('probability', 0) > 0.50:
+                    ub_override = True  # brain says BUY despite high ATR
+
             if strategy_mode.startswith('CALM'):
-                # CALM: prefer low ATR stable stocks
-                if atr > 5.0:
+                if atr > 5.0 and not ub_override:
                     continue
             elif strategy_mode in ('DIP_BOUNCE', 'WASHOUT'):
-                # FEAR: allow high ATR if deep dip
-                if atr > 8.0 and not is_friday:
+                if atr > 8.0 and not is_friday and not ub_override:
                     continue
-                if atr > 5.0 and not is_friday and d20h_val > -15:
+                if atr > 5.0 and not is_friday and d20h_val > -15 and not ub_override:
                     continue
             else:
-                # SELECTIVE (NORMAL): strict ATR
-                if atr > 5.0:
+                # SELECTIVE: allow ATR>5 if UnifiedBrain says YES + deep dip
+                if atr > 5.0 and not ub_override:
                     continue
 
             c['_weekend_only'] = atr > 5.0 and not (d20h_val < -15)
