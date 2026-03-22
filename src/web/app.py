@@ -3008,6 +3008,21 @@ def api_discovery_system():
         return jsonify({'error': str(e)})
 
 
+@app.route('/api/discovery/parameters')
+def api_discovery_parameters():
+    """v10.0: Get all system parameters + history."""
+    try:
+        from discovery.engine import get_discovery_engine
+        engine = get_discovery_engine()
+        return jsonify({
+            'parameters': engine._params.get_all(),
+            'history': engine._params.get_history(limit=20),
+        })
+    except Exception as e:
+        logger.error(f"Discovery parameters error: {e}")
+        return jsonify({'error': str(e)})
+
+
 @app.route('/api/discovery/confidence')
 def api_discovery_confidence():
     """Get Discovery self-calibration confidence and diagnostics."""

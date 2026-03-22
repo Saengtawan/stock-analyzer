@@ -17,8 +17,10 @@ logger = logging.getLogger(__name__)
 class DecisionArbiter:
     """Aggregate 3 brain outputs into final trading decision."""
 
-    def __init__(self, stock_threshold: float = 0.50):
-        self.stock_threshold = stock_threshold
+    def __init__(self, param_manager=None):
+        self._params = param_manager
+        # Defaults (overridden by param_manager if available)
+        self.stock_threshold = 0.50
 
     def decide(self, stock_result: dict, regime_result: dict,
                risk_result: dict, calibrator_confidence: float = 50.0) -> dict:
@@ -46,6 +48,12 @@ class DecisionArbiter:
         reasons = []
         decision = 'TRADE'
 
+        # Get thresholds from ParamManager (auto-optimizable)
+        p = self._params
+        trade_thresh = p.get('arbiter', 'trade_threshold', 0.50) if p else 0.50
+        cautious_thresh = p.get('arbiter', 'cautious_threshold', 0.35) if p else 0.35
+        cal_thresh = p.get('arbiter', 'calibrator_low_threshold', 30.0) if p else 30.0
+
         # Only hard stop: Risk BLOCK
         if risk_action == 'BLOCK':
             decision = 'VETO'
@@ -53,13 +61,13 @@ class DecisionArbiter:
             tier = 'BLOCKED'
             reasons.append(f'Risk: {", ".join(risk_reasons)}')
 
-        # Adaptive sizing by regime confidence
-        elif regime_prob >= 0.50:
+        # Adaptive sizing by regime probability
+        elif regime_prob >= trade_thresh:
             tier = 'TRADE'
             position_size = 1.0
             reasons.append(f'Regime TRADE (prob={regime_prob:.0%}) → full size')
 
-        elif regime_prob >= 0.35:
+        elif regime_prob >= cautious_thresh:
             tier = 'CAUTIOUS'
             position_size = 0.50
             reasons.append(f'Regime cautious (prob={regime_prob:.0%}) → 50% size')
@@ -79,7 +87,7 @@ class DecisionArbiter:
             reasons.append(f'Risk: size capped at {risk_size:.0%}')
 
         # Calibrator: reduce size when system accuracy is low
-        if calibrator_confidence < 30 and decision == 'TRADE':
+        if calibrator_confidence < cal_thresh and decision == 'TRADE':
             position_size *= 0.5
             reasons.append(f'Calibrator low ({calibrator_confidence:.0f}%) → size halved')
 

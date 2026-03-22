@@ -45,6 +45,7 @@ from discovery.risk_brain import RiskBrain
 from discovery.arbiter import DecisionArbiter
 from discovery.strategy_router import StrategyRouter
 from discovery.market_signals import MarketSignalEngine
+from discovery.param_manager import ParamManager
 
 logger = logging.getLogger(__name__)
 
@@ -79,12 +80,15 @@ class DiscoveryEngine:
         self._sequence_prediction: dict = {}
         self._leading_signals: dict = {}
         # v7.0: Multi-Brain Council
-        self._regime_brain = RegimeBrain(trade_threshold=0.50)
+        # v10.0: Parameter Manager — MUST init before other components
+        self._params = ParamManager()
+        # v7.0: Council brains
+        self._regime_brain = RegimeBrain(trade_threshold=self._params.get('arbiter', 'trade_threshold', 0.50))
         self._stock_brain = StockBrain()
         self._risk_brain = RiskBrain()
-        self._arbiter = DecisionArbiter()
+        self._arbiter = DecisionArbiter(param_manager=self._params)
         self._council_fitted = False
-        self._regime_decision: dict = {}  # today's regime brain output
+        self._regime_decision: dict = {}
         # v8.0: Multi-Strategy Router
         self._strategy_router = StrategyRouter()
         self._current_strategy: dict = {}
