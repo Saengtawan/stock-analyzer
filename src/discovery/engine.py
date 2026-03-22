@@ -103,6 +103,28 @@ class DiscoveryEngine:
         self._ensure_table()
         self._load_picks_from_db()
 
+    # === Compatibility properties (webapp accesses these directly) ===
+
+    @property
+    def _temporal_features(self):
+        return self._scorer._temporal_features
+
+    @property
+    def _sequence_prediction(self):
+        return {}
+
+    @property
+    def _leading_signals(self):
+        return self._scorer._leading_signals
+
+    @property
+    def _regime_decision(self):
+        return self._scorer._regime_decision
+
+    @property
+    def _current_strategy(self):
+        return self._scorer._current_strategy
+
     # === Public API ===
 
     def get_scan_progress(self) -> dict:
