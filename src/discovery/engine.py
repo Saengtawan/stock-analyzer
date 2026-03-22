@@ -49,6 +49,8 @@ from discovery.param_manager import ParamManager
 from discovery.param_optimizer import ParamOptimizer
 from discovery.performance_tracker import PerformanceTracker
 from discovery.auto_refit import AutoRefitOrchestrator
+from discovery.knowledge_graph import KnowledgeGraph
+from discovery.context_scorer import ContextScorer
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +100,9 @@ class DiscoveryEngine:
         # v9.0: Market-level signals
         self._market_signals = MarketSignalEngine()
         self._market_signal_picks: list = []
+        # v11.0: Knowledge Graph + Context
+        self._knowledge_graph = KnowledgeGraph()
+        self._context_scorer = ContextScorer(self._knowledge_graph)
         # v10.0: Auto-optimization + monitoring
         self._param_optimizer = ParamOptimizer(self._params)
         self._perf_tracker = PerformanceTracker()
@@ -642,6 +647,14 @@ class DiscoveryEngine:
             # Only mark fitted if at least regime brain succeeded
             if rb_ok:
                 self._council_fitted = True
+
+        # v11.0: Build Knowledge Graph (once)
+        if not self._knowledge_graph._built:
+            try:
+                self._knowledge_graph.build_all()
+                logger.info("Discovery v11.0: KnowledgeGraph built (%s)", self._knowledge_graph.get_stats())
+            except Exception as e:
+                logger.error("Discovery v11.0: KnowledgeGraph build error: %s", e)
 
     def get_scan_progress(self) -> dict:
         return self._scan_progress.copy()
@@ -1961,6 +1974,21 @@ class DiscoveryEngine:
                     stock_brain_result, self._regime_decision, risk_result,
                     calibrator_confidence=cal.get('confidence', 50))
 
+                # v11.0: Context scoring — penalize speculative/risky stocks
+                try:
+                    ctx_skip, ctx_reason = self._context_scorer.should_skip(c['symbol'], macro)
+                    if ctx_skip:
+                        logger.debug("Discovery v11.0: SKIP %s — %s", c['symbol'], ctx_reason)
+                        continue
+                    ctx_result = self._context_scorer.score(c['symbol'], macro)
+                    ctx_size = self._context_scorer.size_adjustment(c['symbol'], macro)
+                    council['position_size'] = round(council.get('position_size', 1) * ctx_size, 2)
+                    if ctx_result['penalty'] < -0.1:
+                        council['reasons'] = council.get('reasons', []) + [f'Context: {" | ".join(ctx_result["penalties"])}']
+                except Exception as e:
+                    logger.debug("Discovery v11.0: context error for %s: %s", c['symbol'], e)
+                    ctx_result = {'penalty': 0, 'penalties': [], 'flags': [], 'is_speculative': False}
+
                 # v10.1: Profile WR red flag — reduce size if historical match is bad
                 profile_wr = stock_profile.get('wr', 50) if stock_profile else 50
                 if profile_wr < 10:
@@ -1987,6 +2015,8 @@ class DiscoveryEngine:
                     },
                     'hammer': c.get('d0_hammer', False),
                     'hammer_shadow': c.get('d0_lower_shadow', 0),
+                    # v11.0: Context intelligence
+                    'context': ctx_result,
                 }
             except Exception as e:
                 logger.error("Discovery v8.0: unified decision error for %s: %s", c['symbol'], e)
