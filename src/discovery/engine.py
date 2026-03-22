@@ -89,11 +89,19 @@ class DiscoveryEngine:
         # v10.0: Auto-optimization + monitoring
         self._param_optimizer = ParamOptimizer(self._params)
         self._perf_tracker = PerformanceTracker()
+        # v14.0: Build Neural Graph
+        try:
+            if not self._sizer.neural_graph.load_from_db():
+                self._sizer.neural_graph.build_all()
+        except Exception as e:
+            logger.error("Discovery: neural graph init error: %s", e)
+
         self._orchestrator = AutoRefitOrchestrator(
             self._scorer.regime_brain, self._scorer.stock_brain,
             self._param_optimizer, self._perf_tracker, self._params,
             adaptive_params=self._adaptive_params,
-            knowledge_graph=self._sizer.knowledge_graph)
+            knowledge_graph=self._sizer.knowledge_graph,
+            neural_graph=self._sizer.neural_graph)
 
         # v2 fallback scorer (only used when kernel disabled)
         self._legacy_scorer = None
@@ -610,6 +618,12 @@ class DiscoveryEngine:
             ORDER BY date DESC LIMIT 1 OFFSET 5
         """).fetchone()
 
+        # v14.0: BTC 3-day ago for leading signal
+        btc_3d_row = conn.execute("""
+            SELECT btc_close FROM macro_snapshots
+            WHERE btc_close IS NOT NULL ORDER BY date DESC LIMIT 1 OFFSET 3
+        """).fetchone()
+
         conn.close()
 
         if macro_5d and macro_5d['vix_close'] and vix:
@@ -635,6 +649,13 @@ class DiscoveryEngine:
             result['crude_delta_5d_pct'] = round((crude_now / crude_5d_ago - 1) * 100, 2)
         else:
             result['crude_delta_5d_pct'] = None
+
+        # v14.0: BTC 3-day momentum (leading indicator for worst trades)
+        btc_now = result.get('btc_close')
+        if btc_now and btc_3d_row and btc_3d_row[0] and btc_3d_row[0] > 0:
+            result['btc_momentum_3d'] = round((btc_now / btc_3d_row[0] - 1) * 100, 2)
+        else:
+            result['btc_momentum_3d'] = None
 
         # Market Stress Score (0-100)
         stress_components = []

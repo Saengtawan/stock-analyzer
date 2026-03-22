@@ -18,6 +18,7 @@ from discovery.arbiter import DecisionArbiter
 from discovery.calibrator import Calibrator
 from discovery.context_scorer import ContextScorer
 from discovery.knowledge_graph import KnowledgeGraph
+from discovery.neural_graph import NeuralGraph
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class UnifiedSizer:
         self._risk_brain = RiskBrain()
         self._arbiter = DecisionArbiter(param_manager=param_manager)
         self._calibrator = Calibrator()
+        self._neural_graph = NeuralGraph(self._knowledge_graph)
 
     @property
     def knowledge_graph(self):
@@ -43,6 +45,10 @@ class UnifiedSizer:
     @property
     def context_scorer(self):
         return self._context_scorer
+
+    @property
+    def neural_graph(self):
+        return self._neural_graph
 
     def build_knowledge_graph(self):
         """Build KG (called once during fit)."""
@@ -321,6 +327,20 @@ class UnifiedSizer:
             council['reasons'] = council.get('reasons', []) + [
                 f'Profile WR={profile_wr:.0f}% → size halved']
 
+        # v14.0: Neural Graph risk assessment
+        try:
+            graph_risk = self._neural_graph.compute_risk_score(
+                c['symbol'], c.get('sector', ''), macro)
+            if graph_risk['size_mult'] < 1.0:
+                council['position_size'] = round(
+                    council.get('position_size', 1) * graph_risk['size_mult'], 2)
+                if graph_risk['risk_factors']:
+                    council['reasons'] = council.get('reasons', []) + [
+                        f'Graph: {graph_risk["risk_level"]} ({", ".join(graph_risk["risk_factors"][:2])})']
+        except Exception as e:
+            logger.debug("Sizer: neural graph error for %s: %s", c['symbol'], e)
+            graph_risk = {'risk_score': 0, 'risk_factors': [], 'risk_level': 'UNKNOWN', 'size_mult': 1.0}
+
         # Floor: position_size never below 0.05 (5%)
         if council.get('position_size', 1) < 0.05:
             council['position_size'] = 0.05
@@ -342,6 +362,7 @@ class UnifiedSizer:
             'hammer_shadow': c.get('d0_lower_shadow', 0),
             'context': ctx_result,
             'sensors': sensor_signals,
+            'graph_risk': graph_risk,
         })
 
         return council

@@ -12,7 +12,8 @@ Pipeline order:
   7. Momentum filter (fake dip detection)
   8. Beta filter (v13.1: beta > 1.5 → skip, worst trades have beta 1.37 avg)
   9. PE filter (v13.1: PE > 35 → skip, worst trades have PE 36.6 avg)
-  10. Context skip (high-risk stocks via KnowledgeGraph)
+  10. BTC leading signal (v14.0: BTC 3d momentum < threshold → skip)
+  11. Context skip (high-risk stocks via KnowledgeGraph)
 """
 import logging
 import numpy as np
@@ -83,7 +84,12 @@ class UnifiedFilter:
                 filtered, unified_brain, sensors, macro,
                 temporal_features, scan_date, regime_decision)
 
-        # Phase 5-10: Per-stock filters
+        # Phase 5-11: Per-stock filters
+        # Phase 10: BTC leading (informational — used by NeuralGraph for sizing)
+        btc_3d = macro.get('btc_momentum_3d')
+        if btc_3d is not None and btc_3d < -3.0:
+            logger.info("Filter: BTC 3d=%+.1f%% DANGER signal (informational)", btc_3d)
+
         result = []
         for er, c in filtered:
             if not self._passes_d0_close(c, strategy_mode, regime):
@@ -298,6 +304,19 @@ class UnifiedFilter:
         c['d0_hammer'] = d0_lower_shadow > 0.5
         c['d0_lower_shadow'] = round(d0_lower_shadow, 2)
 
+        return True
+
+    def _passes_btc_leading(self, macro):
+        """v14.0 BTC 3-day leading signal.
+        Data: worst trades have BTC 3d avg = -0.21% vs normal +0.95% (diff -1.16%).
+        BTC trades 24/7, reacts to risk-off BEFORE equities.
+        """
+        btc_3d = macro.get('btc_momentum_3d')
+        if btc_3d is None:
+            return True
+        if btc_3d < -3.0:
+            logger.info("Filter: BTC 3d momentum = %+.1f%% < -3%% → DANGER", btc_3d)
+            return False
         return True
 
     def _passes_beta(self, c):

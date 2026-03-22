@@ -20,7 +20,7 @@ class AutoRefitOrchestrator:
 
     def __init__(self, regime_brain, stock_brain, param_optimizer,
                  performance_tracker, param_manager, adaptive_params=None,
-                 knowledge_graph=None):
+                 knowledge_graph=None, neural_graph=None):
         self._regime_brain = regime_brain
         self._stock_brain = stock_brain
         self._param_optimizer = param_optimizer
@@ -28,6 +28,7 @@ class AutoRefitOrchestrator:
         self._params = param_manager
         self._adaptive = adaptive_params
         self._knowledge_graph = knowledge_graph
+        self._neural_graph = neural_graph
         self._last_run = 0.0
         self._last_results = {}
 
@@ -118,7 +119,18 @@ class AutoRefitOrchestrator:
                 logger.error("AutoRefit: KG rebuild error: %s", e)
                 results['kg_rebuild'] = {'error': str(e)}
 
-        # 7. Health check
+        # 7. Rebuild Neural Graph (clusters + vulnerability)
+        if self._neural_graph:
+            try:
+                self._neural_graph.build_all()
+                results['neural_graph'] = True
+                logger.info("AutoRefit: NeuralGraph rebuilt (%s)",
+                            self._neural_graph.get_stats())
+            except Exception as e:
+                logger.error("AutoRefit: NeuralGraph error: %s", e)
+                results['neural_graph'] = {'error': str(e)}
+
+        # 8. Health check
         try:
             drift_status = results.get('drift', {}).get('drift', 'UNKNOWN')
             if drift_status == 'MODEL_FAILING':
