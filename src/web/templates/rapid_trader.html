@@ -3156,6 +3156,15 @@ function renderCouncil(c) {
         sigParts.push('<span style="color:' + pc + ';" title="Similar stocks WR">Profile ' + profile.wr.toFixed(0) + '%</span>');
     }
 
+    // Hammer candle indicator
+    if (c.hammer) {
+        sigParts.push('<span style="color:#2ecc71;font-weight:600;" title="Hammer candle (lower shadow >50%) — bounce signal WR+6%">🔨 Hammer</span>');
+    }
+    // Exit rules hint
+    if (c.exit_rules) {
+        sigParts.push('<span style="color:#888;" title="D1 gap<-0.5%→CUT | D1 green→SELL | D1 red→HOLD D5">Exit: gap/green/D5</span>');
+    }
+
     if (sigParts.length === 0) return row1;
     var row2 = '<div class="d-flex flex-wrap gap-1" style="font-size:0.5rem;background:' + (tierBg[tier] || 'transparent') + ';padding:1px 4px;border-radius:0 0 3px 3px;opacity:0.9;">'
         + sigParts.join('<span style="color:#555;margin:0 1px;">|</span>') + '</div>';

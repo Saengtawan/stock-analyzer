@@ -1819,6 +1819,22 @@ class DiscoveryEngine:
 
             c['_weekend_only'] = atr > 5.0 and not (d20h_val < -15)
 
+            # v10.1: Filter fake dips — stocks with strong positive momentum are NOT dipping
+            # Data: big losers avg mom=+0.51% vs normal +0.17%
+            # Stocks clearly going UP (mom>3%) are NOT bounce candidates
+            mom_val = c.get('momentum_5d') or 0
+            if strategy_mode in ('DIP_BOUNCE', 'WASHOUT') and mom_val > 3:
+                continue
+            if strategy_mode == 'SELECTIVE' and mom_val > 5:
+                continue
+
+            # v10.1: Hammer candle bonus — prefer stocks with lower shadow > 50%
+            # Data: hammer + deep dip → WR=60%, +6% vs non-hammer
+            d0_range_val = d0_high - d0_low
+            d0_lower_shadow = ((min(price, c.get('open', price)) - d0_low) / d0_range_val) if d0_range_val > 0 else 0
+            c['d0_hammer'] = d0_lower_shadow > 0.5
+            c['d0_lower_shadow'] = round(d0_lower_shadow, 2)
+
             # v5.3: Divergence boost — stock UP while market weak
             d0_ret = ((price / c.get('open', price)) - 1) * 100 if c.get('open') else 0
             if d0_ret > 0.5 and breadth < 40:
@@ -1952,6 +1968,14 @@ class DiscoveryEngine:
                         'wr': stock_profile.get('wr', 0) if stock_profile else 0,
                         'er': stock_profile.get('er', 0) if stock_profile else 0,
                     },
+                    # v10.1: Exit rules (shown to user)
+                    'exit_rules': {
+                        'gap_cut': 'If D1 gap < -0.5% → CUT immediately (WR=44% if hold)',
+                        'green_sell': 'If D1 close > entry → SELL at D1 close (WR=70%)',
+                        'hold_d5': 'If D1 red → HOLD to D5 (recovery time)',
+                    },
+                    'hammer': c.get('d0_hammer', False),
+                    'hammer_shadow': c.get('d0_lower_shadow', 0),
                 }
             except Exception as e:
                 logger.error("Discovery v8.0: unified decision error for %s: %s", c['symbol'], e)
