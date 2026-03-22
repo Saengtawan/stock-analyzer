@@ -18,17 +18,21 @@ import numpy as np
 logger = logging.getLogger(__name__)
 DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
+# v9.0: Stock-only features + interaction terms (no macro — RegimeBrain handles macro)
+# Redesigned after testing: macro features dominated (50% importance), stock-only
+# with interactions gives WR=55% E[R]=+0.53% on 942 picks (vs macro-dominated 128 picks)
 FEATURES = [
     'atr_pct',
     'momentum_5d',
     'distance_from_20d_high',
     'volume_ratio',
-    'vix_at_signal',
-    'vix_close',        # macro
-    'spy_close',         # macro
-    'crude_close',       # macro
-    'pct_above_20d_ma',  # breadth
-    'new_52w_lows',      # breadth
+    # Interaction terms (data-validated, top features by importance)
+    'mom_x_d20h',        # dip depth × momentum (0.146 importance)
+    'atr_x_d20h',        # volatility × dip depth
+    'vol_x_mom',          # volume confirmation of momentum
+    'is_deep_dip',        # mom<-5 AND d20h<-15 (binary)
+    'is_momentum',        # mom>3 AND d20h>-5 (binary)
+    'dip_relative_atr',   # dip depth / ATR (normalized dip)
 ]
 
 FEATURE_DEFAULTS = {
@@ -36,12 +40,12 @@ FEATURE_DEFAULTS = {
     'momentum_5d': 0.0,
     'distance_from_20d_high': -5.0,
     'volume_ratio': 1.0,
-    'vix_at_signal': 20.0,
-    'vix_close': 20.0,
-    'spy_close': 550.0,
-    'crude_close': 75.0,
-    'pct_above_20d_ma': 50.0,
-    'new_52w_lows': 30.0,
+    'mom_x_d20h': 0.0,
+    'atr_x_d20h': 0.0,
+    'vol_x_mom': 0.0,
+    'is_deep_dip': 0,
+    'is_momentum': 0,
+    'dip_relative_atr': 0.0,
 }
 
 
@@ -165,30 +169,36 @@ class StockBrain:
         return (time.time() - self._last_fit_time) > days * 86400
 
     def _extract_features(self, candidate: dict) -> np.ndarray:
-        """Extract feature vector from candidate dict."""
-        vals = []
-        for feat in FEATURES:
-            v = candidate.get(feat)
-            if v is None:
-                v = FEATURE_DEFAULTS.get(feat, 0)
-            vals.append(float(v))
+        """Extract feature vector with interaction terms."""
+        atr = float(candidate.get('atr_pct') or 3.0)
+        mom = float(candidate.get('momentum_5d') or 0.0)
+        d20h = float(candidate.get('distance_from_20d_high') or -5.0)
+        vol = float(candidate.get('volume_ratio') or 1.0)
+
+        vals = [
+            atr,
+            mom,
+            d20h,
+            vol,
+            mom * d20h / 100,                          # interaction
+            atr * abs(d20h) / 100,                     # interaction
+            vol * abs(mom) / 10,                        # interaction
+            1.0 if mom < -5 and d20h < -15 else 0.0,   # deep dip flag
+            1.0 if mom > 3 and d20h > -5 else 0.0,     # momentum flag
+            abs(d20h) / max(atr, 0.5),                  # normalized dip
+        ]
         return np.array(vals, dtype=np.float64)
 
     def _load_training_data(self, max_date: str = None) -> tuple:
-        """Load features + outcomes from DB for training."""
+        """Load stock features + compute interactions for training."""
         conn = sqlite3.connect(str(DB_PATH))
         try:
             date_filter = f"AND b.scan_date <= '{max_date}'" if max_date else ""
             rows = conn.execute(f"""
                 SELECT b.atr_pct, b.momentum_5d, b.distance_from_20d_high,
-                       b.volume_ratio, b.vix_at_signal,
-                       COALESCE(m.vix_close, b.vix_at_signal) as vix_close,
-                       m.spy_close, m.crude_close,
-                       mb.pct_above_20d_ma, mb.new_52w_lows,
+                       b.volume_ratio,
                        b.outcome_5d
                 FROM backfill_signal_outcomes b
-                LEFT JOIN macro_snapshots m ON b.scan_date = m.date
-                LEFT JOIN market_breadth mb ON b.scan_date = mb.date
                 WHERE b.outcome_5d IS NOT NULL AND b.atr_pct > 0
                 {date_filter}
                 ORDER BY b.scan_date
@@ -203,12 +213,26 @@ class StockBrain:
         labels = []
         outcomes = []
         for r in rows:
-            # Skip rows with too many NULLs
-            vals = [r[i] if r[i] is not None else FEATURE_DEFAULTS[FEATURES[i]]
-                    for i in range(10)]
+            atr = r[0] if r[0] is not None else 3.0
+            mom = r[1] if r[1] is not None else 0.0
+            d20h = r[2] if r[2] is not None else -5.0
+            vol = r[3] if r[3] is not None else 1.0
+            outcome = r[4]
+            if outcome is None:
+                continue
+            # Compute same interaction features as _extract_features
+            vals = [
+                atr, mom, d20h, vol,
+                mom * d20h / 100,
+                atr * abs(d20h) / 100,
+                vol * abs(mom) / 10,
+                1.0 if mom < -5 and d20h < -15 else 0.0,
+                1.0 if mom > 3 and d20h > -5 else 0.0,
+                abs(d20h) / max(atr, 0.5),
+            ]
             feat_rows.append(vals)
-            labels.append(1 if r[10] > 0 else 0)
-            outcomes.append(r[10])
+            labels.append(1 if outcome > 0 else 0)
+            outcomes.append(outcome)
 
         return (np.array(feat_rows, dtype=np.float64),
                 np.array(labels, dtype=np.int32),
