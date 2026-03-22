@@ -944,6 +944,19 @@ class DiscoveryEngine:
         logger.info(f"Discovery scan starting for {scan_date}")
         self._scan_progress = {'status': 'loading', 'pct': 0, 'stage': 'Loading universe...', 'l1': 0, 'l2': 0}
 
+        # v9.0: Auto-refit ML brains if stale (every 30 days)
+        try:
+            if self._regime_brain.needs_refit(days=30):
+                logger.info("Discovery v9.0: RegimeBrain stale — refitting...")
+                self._regime_brain.fit()
+                logger.info("Discovery v9.0: RegimeBrain refitted (%d days)", self._regime_brain._n_train)
+            if self._stock_brain.needs_refit(days=30):
+                logger.info("Discovery v9.0: StockBrain stale — refitting...")
+                self._stock_brain.fit()
+                logger.info("Discovery v9.0: StockBrain refitted (%d signals)", self._stock_brain._n_train)
+        except Exception as e:
+            logger.error("Discovery v9.0: auto-refit error: %s", e)
+
         # Track outcomes for expired picks before new scan
         try:
             n_tracked = self._outcome_tracker.track_expired_picks()
