@@ -82,23 +82,32 @@ class NeuralGraph:
                     score += 0.05
                     factors.append(f'CLUSTER_STRONG: {cluster_name}')
 
-        # === Layer 2: Sector-macro vulnerability ===
+        # === Layer 2: Sector-macro — VVIX/VIX FLIPPED ===
+        # Data: VVIX>120 avg=+0.91% WR=58%, VIX>30 avg=+1.68% WR=65%
+        # = CRISIS bounce opportunity, NOT danger
+        # VIX 25-30 avg=-0.26% WR=50% = dead zone (penalty)
         vix = macro.get('vix_close', 20)
         vix_delta = macro.get('vix_delta_5d', 0)
         crude_delta = macro.get('crude_delta_5d_pct', 0)
+        vvix = macro.get('vvix_close')
 
-        # Check if macro shock is happening NOW
-        if vix_delta > 3 or vix > 28:
-            vuln = self._sector_vuln.get((sector, 'VIX_SPIKE'))
-            if vuln:
-                # More vulnerable sectors get bigger penalty
-                rank = vuln.get('rank', 6)
-                if rank <= 3:  # top 3 most vulnerable
-                    score -= 0.15
-                    factors.append(f'VIX_VULNERABLE: {sector} rank={rank}')
-                elif rank >= 9:  # defensive
-                    score += 0.10
-                    factors.append(f'VIX_DEFENSIVE: {sector} rank={rank}')
+        # VVIX signal (flipped: high = opportunity)
+        if vvix is not None:
+            if vvix > 120:
+                score += 0.15
+                factors.append(f'VVIX={vvix:.0f} CRISIS bounce opportunity')
+            elif vvix < 80:
+                score += 0.05
+
+        # VIX signal (flipped: >30 = bounce, 25-30 = dead zone)
+        if vix > 30:
+            score += 0.15
+            factors.append(f'VIX={vix:.0f}>30 CRISIS bounce WR=65%')
+        elif 25 <= vix < 30:
+            score -= 0.10
+            factors.append(f'VIX={vix:.0f} dead zone (25-30)')
+
+        # Sector vulnerability — keep for crude shocks (data confirms crude>85 = bad)
 
         if crude_delta and abs(crude_delta) > 3:
             vuln = self._sector_vuln.get((sector, 'CRUDE_SHOCK'))
@@ -121,13 +130,17 @@ class NeuralGraph:
                     score -= 0.08
                     factors.append(f'RISKY: {spec_score:+.1f}')
 
-            # VIX sensitivity (from KG, only extreme)
+            # VIX sensitivity — flipped for DIP strategy
+            # High VIX-sensitive stocks DROP more → but also BOUNCE more
+            # Only penalize in dead zone (VIX 25-30), boost in CRISIS (>30)
             vix_sens = ctx['flags'].get('VIX_SENSITIVE', {})
-            if vix_sens and vix > 25:
-                corr = vix_sens.get('score', 0)
-                if corr < -0.50:
-                    score -= 0.10
-                    factors.append(f'VIX_EXTREME_SENS: {corr:+.2f}')
+            if vix_sens:
+                corr_val = vix_sens.get('score', 0)
+                if vix > 30 and corr_val < -0.50:
+                    score += 0.05  # sensitive stocks bounce harder in CRISIS
+                elif 25 <= vix < 30 and corr_val < -0.50:
+                    score -= 0.10  # dead zone: sensitive stocks hurt
+                    factors.append(f'VIX_SENS_DEADZONE: {corr_val:+.2f}')
         except Exception:
             pass
 
