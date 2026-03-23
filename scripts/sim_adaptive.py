@@ -84,7 +84,7 @@ def sim_month_uniform(test_sigs):
 
 
 def sim_month_adaptive(test_sigs, learner):
-    """Per-sector adaptive params from learner."""
+    """Per-sector adaptive params from learner. v15.1: hybrid SL/TP."""
     pnls = []
     for s in test_sigs:
         sector = s['sector']
@@ -93,17 +93,26 @@ def sim_month_adaptive(test_sigs, learner):
         atr_max = learner.get(sector, regime, 'atr_max')
         mom_cut = learner.get(sector, regime, 'mom_cut')
         d0_min = learner.get(sector, regime, 'd0_close_min')
-        tp_ratio = learner.get(sector, regime, 'tp_ratio')
-        sl_mult = learner.get(sector, regime, 'sl_mult')
+
+        # v15.1: Hybrid — SL from ATR, TP from adaptive absolute %
+        sl_pct = max(1.5, min(3.5, 1.0 * s['atr']))  # ATR-based SL
+        tp_pct = learner.get(sector, regime, 'tp_pct')  # absolute TP
+        tp_pct = max(2.0, min(10.0, tp_pct))
+        if tp_pct <= sl_pct: tp_pct = sl_pct * 2.0
 
         if s['atr'] > atr_max: continue
         if s['mom'] > mom_cut: continue
         if s['d0_pos'] < d0_min: continue
 
-        pnl = _sim_trade(s['d1o'], s['d1h'], s['d1l'],
-                         s['d3h'], s['d3l'], s['d3c'],
-                         s['atr'], tp_ratio, sl_mult)
-        pnls.append(pnl)
+        # v15.1: simulate with absolute SL/TP %
+        d1o = s['d1o']
+        for h, l in [(s['d1h'], s['d1l']), (s['d3h'], s['d3l'])]:
+            if (l/d1o-1)*100 <= -sl_pct:
+                pnls.append(-sl_pct); break
+            if (h/d1o-1)*100 >= tp_pct:
+                pnls.append(tp_pct); break
+        else:
+            pnls.append((s['d3c']/d1o-1)*100)
     return pnls
 
 
