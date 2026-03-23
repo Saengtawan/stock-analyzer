@@ -3335,13 +3335,15 @@ function loadDiscoveryPicks() {
                             html += '<div style="font-size:0.75em;font-weight:700;color:' + (isBest ? '#2ecc71' : '#aaa') + ';margin-bottom:3px;">' + icon + ' ' + sName + (isBest ? ' ◄ BEST' : '') + ' <span style="font-weight:400;color:#666;">' + desc + '</span></div>';
 
                             for (const p of sp.slice(0, 3)) {
+                                const momVal = p.mom_5d || p.score || 0;
+                                const sector = p.sector || '';
                                 const pe = p.pe ? 'PE=' + Math.round(p.pe) : '';
-                                const momColor = p.mom_5d > 0 ? '#2ecc71' : '#e74c3c';
-                                html += '<div style="display:flex;justify-content:space-between;font-size:0.75em;padding:1px 0;">';
-                                html += '<span style="font-weight:600;color:#ddd;">' + p.symbol + '</span>';
-                                html += '<span style="color:#888;">' + (p.sector||'').substring(0,15) + '</span>';
-                                html += '<span style="color:' + momColor + ';">' + (p.mom_5d > 0 ? '+' : '') + Math.round(p.mom_5d) + '%</span>';
-                                html += '<span style="color:#888;">' + pe + '</span>';
+                                const momColor = momVal > 0 ? '#2ecc71' : '#e74c3c';
+                                html += '<div style="display:flex;align-items:center;font-size:0.75em;padding:2px 0;gap:4px;">';
+                                html += '<span style="font-weight:600;color:#ddd;min-width:42px;">' + (p.symbol||'') + '</span>';
+                                html += '<span style="color:#666;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.9em;">' + sector.substring(0,14) + '</span>';
+                                html += '<span style="color:' + momColor + ';min-width:38px;text-align:right;font-weight:600;">' + (momVal > 0 ? '+' : '') + momVal.toFixed(0) + '%</span>';
+                                if (pe) html += '<span style="color:#888;font-size:0.85em;min-width:35px;text-align:right;">' + pe + '</span>';
                                 html += '</div>';
                             }
                             html += '</div>';

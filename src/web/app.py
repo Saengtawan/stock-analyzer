@@ -3112,9 +3112,18 @@ def api_discovery_strategies():
                 name = r['strategy_name']
                 if name not in picks_by_strat:
                     picks_by_strat[name] = []
+                # Parse JSON rationale if available
+                try:
+                    rat = json.loads(r['rationale']) if r['rationale'] and r['rationale'].startswith('{') else {}
+                except Exception:
+                    rat = {}
                 picks_by_strat[name].append({
                     'rank': r['rank'], 'symbol': r['symbol'],
-                    'score': r['score'], 'rationale': r['rationale'],
+                    'score': r['score'],
+                    'sector': rat.get('sector', ''),
+                    'mom_5d': rat.get('mom_5d', r['score'] or 0),
+                    'beta': rat.get('beta', 1),
+                    'pe': rat.get('pe'),
                 })
 
             ms = {

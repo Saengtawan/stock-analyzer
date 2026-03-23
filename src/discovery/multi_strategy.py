@@ -330,19 +330,27 @@ class StrategySelector:
 
     def save_picks(self, scan_date, all_picks):
         """Save all strategies' picks for UI display."""
+        import json
         conn = sqlite3.connect(str(DB_PATH))
         conn.execute(
             "DELETE FROM discovery_strategy_picks WHERE scan_date=?",
             (scan_date,))
         for strat_name, picks in all_picks.items():
             for rank, p in enumerate(picks, 1):
+                mom = _safe(p.get('mom_5d', p.get('momentum_5d')), 0)
+                sector = p.get('sector', '')
+                beta = _safe(p.get('beta'), 1)
+                pe = p.get('pe_forward')
+                rationale = json.dumps({
+                    'sector': sector, 'mom_5d': round(mom, 1),
+                    'beta': round(beta, 2), 'pe': round(pe, 0) if pe else None,
+                })
                 conn.execute("""
                     INSERT OR REPLACE INTO discovery_strategy_picks
                     (scan_date, strategy_name, rank, symbol, score, rationale)
                     VALUES (?, ?, ?, ?, ?, ?)
                 """, (scan_date, strat_name, rank, p.get('symbol', ''),
-                      p.get('mom_5d', 0),
-                      f"{p.get('sector','')} mom={p.get('mom_5d',0):+.1f}%"))
+                      round(mom, 1), rationale))
         conn.commit()
         conn.close()
 
