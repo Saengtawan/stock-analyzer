@@ -55,18 +55,19 @@ class NeuralGraph:
         factors = []
         score = 0.0
 
-        # === Layer 0: BTC leading signal ===
+        # === Layer 0: BTC leading signal (FLIPPED for DIP strategy) ===
+        # Data: BTC<-5% avg=+0.46% WR=55% (contrarian bounce opportunity)
+        #       BTC>+5% avg=0.00% WR=50% (no edge)
         btc_3d = macro.get('btc_momentum_3d')
         if btc_3d is not None:
             if btc_3d < -5:
-                score -= 0.25
-                factors.append(f'BTC_CRASH: {btc_3d:+.1f}% 3d')
+                score += 0.15
+                factors.append(f'BTC_DIP: {btc_3d:+.1f}% 3d → bounce opportunity')
             elif btc_3d < -3:
-                score -= 0.15
-                factors.append(f'BTC_WEAK: {btc_3d:+.1f}% 3d')
-            elif btc_3d > 5:
                 score += 0.05
-                factors.append(f'BTC_STRONG: {btc_3d:+.1f}% 3d')
+            elif btc_3d > 5:
+                score -= 0.05
+                factors.append(f'BTC_EXTENDED: {btc_3d:+.1f}% 3d → no edge')
 
         # === Layer 1: Thematic cluster ===
         cluster_id = self._clusters.get(symbol)
@@ -227,9 +228,9 @@ class NeuralGraph:
             elif spread < -2:  # deep contango = calm
                 score += 0.10
 
-        # 5. Breadth level
+        # 5. Breadth level (data: <15 = extreme bounce +1.76%, 15-25 = dead zone)
         breadth = macro.get('pct_above_20d_ma') or 50
-        if breadth < 25:
+        if breadth < 15:
             score -= 0.15
             factors.append(f'Breadth={breadth:.0f}% very low')
         elif breadth > 60:

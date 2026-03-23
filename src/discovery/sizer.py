@@ -151,7 +151,7 @@ class UnifiedSizer:
         # 2. Divergence boost — stock UP while market weak
         breadth = macro.get('pct_above_20d_ma') or 50
         d0_ret = ((price / c.get('open', price)) - 1) * 100 if c.get('open') else 0
-        if d0_ret > 0.5 and breadth < 40:
+        if d0_ret > 0.5 and breadth < 30:
             score += 0.5
             c['divergence_boost'] = True
 

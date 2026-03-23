@@ -52,7 +52,7 @@ class ContextScorer:
             # Crude: penalize stocks that DROP when crude is HIGH
             # threshold -0.10 (only ~5 stocks: TLT, CLX, KMB etc.)
             crude_sens = ctx['flags'].get('CRUDE_SENSITIVE', {})
-            if crude_sens and crude > 90:
+            if crude_sens and crude > 85:
                 corr = crude_sens.get('score', 0)
                 if corr < -0.10:
                     penalty = round(corr * 2, 2)  # scale: corr=-0.15 → -0.30
