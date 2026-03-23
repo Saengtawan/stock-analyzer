@@ -39,6 +39,7 @@ from discovery.unified_scorer import UnifiedScorer
 from discovery.filter import UnifiedFilter
 from discovery.sizer import UnifiedSizer
 from discovery.adaptive_params import AdaptiveParameterLearner
+from discovery.multi_strategy import StrategySelector, detect_condition, STRATEGIES
 from discovery.outcome_tracker import OutcomeTracker
 from discovery.market_signals import MarketSignalEngine
 from discovery.param_manager import ParamManager
@@ -89,6 +90,14 @@ class DiscoveryEngine:
         # v10.0: Auto-optimization + monitoring
         self._param_optimizer = ParamOptimizer(self._params)
         self._perf_tracker = PerformanceTracker()
+        # v15.0: Multi-strategy selector (display-only suggestions)
+        self._strategy_selector = StrategySelector()
+        if not self._strategy_selector.load_from_db():
+            try:
+                self._strategy_selector.fit()
+            except Exception as e:
+                logger.error("Discovery: strategy selector fit error: %s", e)
+
         # v14.0: Build Neural Graph
         try:
             if not self._sizer.neural_graph.load_from_db():
@@ -101,7 +110,8 @@ class DiscoveryEngine:
             self._param_optimizer, self._perf_tracker, self._params,
             adaptive_params=self._adaptive_params,
             knowledge_graph=self._sizer.knowledge_graph,
-            neural_graph=self._sizer.neural_graph)
+            neural_graph=self._sizer.neural_graph,
+            strategy_selector=self._strategy_selector)
 
         # v2 fallback scorer (only used when kernel disabled)
         self._legacy_scorer = None
@@ -133,6 +143,10 @@ class DiscoveryEngine:
     @property
     def _current_strategy(self):
         return self._scorer._current_strategy
+
+    @property
+    def _multi_strategy(self):
+        return getattr(self, '_multi_strategy_info', {})
 
     # === Public API ===
 
@@ -375,7 +389,29 @@ class DiscoveryEngine:
                                    stage=f'Scored: {len(picks)} picks',
                                    l2=len(picks))
 
-        # 13. Deactivate old + save new
+        # 13. v15.0: Multi-strategy suggestions (display-only)
+        try:
+            strat_name, condition = self._strategy_selector.select(vix, macro.get('pct_above_20d_ma', 50))
+            all_strat_picks = self._strategy_selector.get_all_picks(candidates, macro)
+            self._strategy_selector.save_picks(scan_date, all_strat_picks)
+            self._multi_strategy_info = {
+                'condition': condition,
+                'selected': strat_name,
+                'picks': {name: [{'symbol': p.get('symbol',''), 'sector': p.get('sector',''),
+                                  'mom_5d': round(p.get('mom_5d', p.get('momentum_5d', 0)) or 0, 1),
+                                  'beta': round((p.get('beta') or 1), 2),
+                                  'pe': p.get('pe_forward')}
+                                 for p in picks_list[:5]]
+                          for name, picks_list in all_strat_picks.items()},
+            }
+            logger.info("Discovery v15.0: condition=%s selected=%s | %s",
+                        condition, strat_name,
+                        {k: [p['symbol'] for p in v[:3]] for k, v in all_strat_picks.items() if v})
+        except Exception as e:
+            logger.error("Discovery: multi-strategy error: %s", e)
+            self._multi_strategy_info = {}
+
+        # 14. Deactivate old + save new
         self._expire_old_picks(scan_date)
         self._deactivate_previous_picks(scan_date)
         self._save_picks(picks, scan_date)

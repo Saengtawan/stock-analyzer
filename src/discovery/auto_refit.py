@@ -20,7 +20,7 @@ class AutoRefitOrchestrator:
 
     def __init__(self, regime_brain, stock_brain, param_optimizer,
                  performance_tracker, param_manager, adaptive_params=None,
-                 knowledge_graph=None, neural_graph=None):
+                 knowledge_graph=None, neural_graph=None, strategy_selector=None):
         self._regime_brain = regime_brain
         self._stock_brain = stock_brain
         self._param_optimizer = param_optimizer
@@ -29,6 +29,7 @@ class AutoRefitOrchestrator:
         self._adaptive = adaptive_params
         self._knowledge_graph = knowledge_graph
         self._neural_graph = neural_graph
+        self._strategy_selector = strategy_selector
         self._last_run = 0.0
         self._last_results = {}
 
@@ -130,7 +131,18 @@ class AutoRefitOrchestrator:
                 logger.error("AutoRefit: NeuralGraph error: %s", e)
                 results['neural_graph'] = {'error': str(e)}
 
-        # 8. Health check
+        # 8. Refit StrategySelector (multi-strategy)
+        if self._strategy_selector:
+            try:
+                if self._strategy_selector.needs_refit(30):
+                    self._strategy_selector.fit()
+                    results['strategy_selector'] = True
+                    logger.info("AutoRefit: StrategySelector refitted (%s)",
+                                self._strategy_selector.get_stats().get('best_by_condition'))
+            except Exception as e:
+                logger.error("AutoRefit: StrategySelector error: %s", e)
+
+        # 9. Health check
         try:
             drift_status = results.get('drift', {}).get('drift', 'UNKNOWN')
             if drift_status == 'MODEL_FAILING':
