@@ -12,8 +12,9 @@ Pipeline order:
   7. Momentum filter (fake dip detection)
   8. Beta filter (v13.1: beta > 1.5 → skip, worst trades have beta 1.37 avg)
   9. PE filter (v13.1: PE > 35 → skip, worst trades have PE 36.6 avg)
-  10. BTC leading signal (v14.0: BTC 3d momentum < threshold → skip)
-  11. Context skip (high-risk stocks via KnowledgeGraph)
+  10. BTC leading signal (v14.0: BTC 3d momentum < threshold → informational)
+  11. Weekend risk filter (v15.1: Friday only — skip if gap down risk)
+  12. Context skip (high-risk stocks via KnowledgeGraph)
 """
 import logging
 import numpy as np
@@ -43,7 +44,8 @@ class UnifiedFilter:
 
     def apply(self, scored, macro, regime, strategy_mode, config,
               unified_brain=None, sensors=None, temporal_features=None,
-              scan_date=None, context_scorer=None, regime_decision=None):
+              scan_date=None, context_scorer=None, regime_decision=None,
+              weekend_risk=None):
         """Apply all filters in order.
 
         Args:
@@ -84,11 +86,21 @@ class UnifiedFilter:
                 filtered, unified_brain, sensors, macro,
                 temporal_features, scan_date, regime_decision)
 
-        # Phase 5-11: Per-stock filters
-        # Phase 10: BTC leading (informational — used by NeuralGraph for sizing)
+        # Phase 5-12: Per-stock filters
+        # Phase 10: BTC leading (informational)
         btc_3d = macro.get('btc_momentum_3d')
         if btc_3d is not None and btc_3d < -3.0:
             logger.info("Filter: BTC 3d=%+.1f%% DANGER signal (informational)", btc_3d)
+
+        # Phase 11: Weekend risk (Friday only)
+        is_friday = datetime.now(ZoneInfo('America/New_York')).weekday() == 4
+        weekend_skip = False
+        if is_friday and weekend_risk:
+            action = weekend_risk.get('weekend_action', 'NEUTRAL')
+            wscore = weekend_risk.get('weekend_score', 0)
+            if action == 'GAP_DOWN_RISK':
+                logger.info("Filter: WEEKEND GAP DOWN RISK (score=%+.2f) — filtering picks", wscore)
+                weekend_skip = True
 
         result = []
         for er, c in filtered:
@@ -104,6 +116,8 @@ class UnifiedFilter:
                 continue
             if not self._passes_pe(c):
                 continue
+            if weekend_skip:
+                continue  # Friday + gap down risk → skip all picks
             if context_scorer:
                 try:
                     skip, reason = context_scorer.should_skip(c['symbol'], macro)

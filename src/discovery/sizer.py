@@ -347,7 +347,20 @@ class UnifiedSizer:
             'context': ctx_result,
             'sensors': sensor_signals,
             'graph_risk': graph_risk,
+            'weekend_risk': self._get_weekend_risk(macro),
         })
+
+    def _get_weekend_risk(self, macro):
+        """Get weekend risk if Friday."""
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        is_friday = datetime.now(ZoneInfo('America/New_York')).weekday() == 4
+        if not is_friday:
+            return None
+        try:
+            return self._neural_graph.compute_weekend_risk(macro)
+        except Exception:
+            return None
 
         return council
 

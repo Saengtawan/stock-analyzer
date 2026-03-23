@@ -3435,6 +3435,20 @@ function loadDiscoveryPicks() {
                     : p.status === 'hit_sl' ? '<i class="fas fa-times-circle text-danger ms-1" title="Hit SL"></i>' : '';
                 const earningsWarn = p.earnings_warning ? `<span class="badge ms-1" style="background:#e74c3c;font-size:0.5rem;" title="Earnings in ${p.days_to_earnings}d">ER ${p.days_to_earnings}d</span>` : '';
                 const shortBadge = p.short_pct_float && p.short_pct_float > 5 ? `<span style="font-size:0.6rem;color:#e67e22;font-weight:600;" title="High short interest">SI${p.short_pct_float}%</span>` : '';
+                // Weekend risk badge (Friday only)
+                let weekendBadge = '';
+                if (p.council && p.council.weekend_risk) {
+                    const wr = p.council.weekend_risk;
+                    const wAction = wr.weekend_action || 'NEUTRAL';
+                    const wScore = wr.weekend_score || 0;
+                    if (wAction === 'GAP_UP_LIKELY') {
+                        weekendBadge = `<span class="badge ms-1" style="background:rgba(46,204,113,0.2);color:#2ecc71;font-size:0.5rem;" title="${(wr.weekend_factors||[]).join(', ')}">🟢 WKD +${wScore.toFixed(1)}</span>`;
+                    } else if (wAction === 'GAP_DOWN_RISK') {
+                        weekendBadge = `<span class="badge ms-1" style="background:rgba(231,76,60,0.2);color:#e74c3c;font-size:0.5rem;" title="${(wr.weekend_factors||[]).join(', ')}">🔴 WKD ${wScore.toFixed(1)}</span>`;
+                    } else {
+                        weekendBadge = `<span class="badge ms-1" style="background:rgba(255,255,255,0.05);color:#888;font-size:0.5rem;">⚪ WKD</span>`;
+                    }
+                }
                 // Gap validation badge — v5.2: show gap boost
                 let gapBadge = '';
                 if (p.validation_status === 'confirmed') {
@@ -3469,7 +3483,7 @@ function loadDiscoveryPicks() {
                             <strong style="color:#2ecc71;">${p.symbol}</strong>${statusIcon}
                             <span class="badge ms-1" style="background:${erBg};color:${erColor};font-size:0.6rem;" title="Kernel E[R]">E[R] ${er > 0 ? '+' : ''}${er.toFixed(1)}%</span>
                             <span style="font-size:0.55rem;color:${sectorColor};font-weight:500;">${sectorShort}</span>
-                            ${gapBadge}${intraBadge}${limitBadge}${earningsWarn}${shortBadge}
+                            ${gapBadge}${intraBadge}${limitBadge}${earningsWarn}${shortBadge}${weekendBadge}
                         </div>
                         <div class="text-end">
                             <div class="small"><strong>$${p.current_price}</strong> <span class="${pctClass}" style="font-size:0.7rem;">${pctSign}${pctChange.toFixed(1)}%</span></div>

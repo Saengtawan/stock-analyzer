@@ -154,6 +154,97 @@ class NeuralGraph:
             'size_mult': size_mult,
         }
 
+    # === Weekend Risk ===
+
+    def compute_weekend_risk(self, macro):
+        """Predict Monday gap risk from Friday signals.
+
+        Uses VVIX, BTC 5d, Breadth 5d, Copper 5d, 52w Lows, VIX term structure.
+        All available ณ วันศุกร์ ก่อน weekend.
+
+        Returns:
+            score: -1 (gap down risk) to +1 (gap up likely)
+            factors: list of contributing signals
+            action: 'GAP_UP_LIKELY' / 'NEUTRAL' / 'GAP_DOWN_RISK'
+        """
+        score = 0.0
+        factors = []
+
+        # 1. VVIX: calm = safe, extreme = danger (strongest signal)
+        vvix = macro.get('vvix_close')
+        if vvix is not None:
+            if vvix < 80:
+                score += 0.30
+                factors.append(f'VVIX={vvix:.0f} calm → safe weekend')
+            elif vvix < 100:
+                score += 0.05
+            elif vvix > 120:
+                score -= 0.25
+                factors.append(f'VVIX={vvix:.0f} extreme → risky weekend')
+            elif vvix > 100:
+                score -= 0.10
+
+        # 2. BTC 3d momentum (leads risk-off)
+        btc_3d = macro.get('btc_momentum_3d')
+        if btc_3d is not None:
+            if btc_3d > 3:
+                score += 0.15
+                factors.append(f'BTC 3d={btc_3d:+.1f}% strong')
+            elif btc_3d < -3:
+                score -= 0.20
+                factors.append(f'BTC 3d={btc_3d:+.1f}% weak → risk-off')
+
+        # 3. Breadth trend (5d)
+        breadth_5d = macro.get('breadth_delta_5d', 0)
+        if breadth_5d > 5:
+            score += 0.15
+            factors.append(f'Breadth 5d={breadth_5d:+.0f} improving')
+        elif breadth_5d < -5:
+            score -= 0.15
+            factors.append(f'Breadth 5d={breadth_5d:+.0f} falling')
+
+        # 4. VIX term structure
+        vix = macro.get('vix_close', 20)
+        vix3m = macro.get('vix3m_close', 22)
+        if vix and vix3m:
+            spread = vix - vix3m
+            if spread > 2:  # backwardation = panic
+                score -= 0.20
+                factors.append(f'VIX backwardation {spread:+.1f} → panic')
+            elif spread < -2:  # deep contango = calm
+                score += 0.10
+
+        # 5. 52w Lows (many = danger)
+        breadth = macro.get('pct_above_20d_ma', 50)
+        if breadth < 25:
+            score -= 0.15
+            factors.append(f'Breadth={breadth:.0f}% very low')
+        elif breadth > 60:
+            score += 0.10
+
+        # 6. VIX level
+        if vix > 30:
+            score -= 0.15
+            factors.append(f'VIX={vix:.0f} high')
+        elif vix < 16:
+            score += 0.10
+
+        # Clamp
+        score = max(-1.0, min(1.0, round(score, 2)))
+
+        if score > 0.15:
+            action = 'GAP_UP_LIKELY'
+        elif score < -0.30:
+            action = 'GAP_DOWN_RISK'
+        else:
+            action = 'NEUTRAL'
+
+        return {
+            'weekend_score': score,
+            'weekend_factors': factors,
+            'weekend_action': action,
+        }
+
     # === Layer 1: Thematic Clusters ===
 
     def _build_thematic_clusters(self):

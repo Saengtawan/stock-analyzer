@@ -466,6 +466,20 @@ class DiscoveryEngine:
         if not scored:
             return []
 
+        # Weekend risk (Friday only)
+        weekend_risk = None
+        is_friday = datetime.now(ZoneInfo('America/New_York')).weekday() == 4
+        if is_friday:
+            try:
+                weekend_risk = self._sizer.neural_graph.compute_weekend_risk(macro)
+                self._weekend_risk = weekend_risk
+                logger.info("Discovery: weekend risk=%+.2f action=%s factors=%s",
+                            weekend_risk['weekend_score'],
+                            weekend_risk['weekend_action'],
+                            weekend_risk['weekend_factors'])
+            except Exception as e:
+                logger.error("Discovery: weekend risk error: %s", e)
+
         # Filter
         strategy_mode = scan_info['strategy'].get('strategy', 'SELECTIVE')
         filtered = self._filter.apply(
@@ -475,7 +489,8 @@ class DiscoveryEngine:
             temporal_features=scan_info.get('temporal_features', {}),
             scan_date=scan_date,
             context_scorer=self._sizer.context_scorer,
-            regime_decision=scan_info.get('regime_decision', {}))
+            regime_decision=scan_info.get('regime_decision', {}),
+            weekend_risk=weekend_risk)
 
         # v15.0: no fallback — multi-strategy suggestions cover gaps
         if not filtered:
