@@ -3314,7 +3314,7 @@ function loadDiscoveryPicks() {
                         const sel = stData.selected || 'DIP';
                         const stratColors = {DIP:'#e74c3c', OVERSOLD:'#e67e22', MOMENTUM:'#2ecc71', VALUE:'#3498db', CONTRARIAN:'#9b59b6'};
 
-                        // Flatten all strategy picks into one list, render like primary
+                        // Flatten all strategy picks, sort by best profit potential
                         let allPicks = [];
                         const stratOrder = ['OVERSOLD','VALUE','MOMENTUM','CONTRARIAN'];
                         for (const sName of stratOrder) {
@@ -3326,6 +3326,16 @@ function loadDiscoveryPicks() {
                                 allPicks.push(p);
                             }
                         }
+                        // Sort by: tp_timeline actual_wr (desc) → actual_er (desc) → layer2_score (desc)
+                        allPicks.sort((a, b) => {
+                            const aWR = (a.tp_timeline && a.tp_timeline.actual_wr) || 0;
+                            const bWR = (b.tp_timeline && b.tp_timeline.actual_wr) || 0;
+                            if (bWR !== aWR) return bWR - aWR;
+                            const aER = (a.tp_timeline && a.tp_timeline.actual_er) || 0;
+                            const bER = (b.tp_timeline && b.tp_timeline.actual_er) || 0;
+                            if (bER !== aER) return bER - aER;
+                            return (b.layer2_score || 0) - (a.layer2_score || 0);
+                        });
 
                         if (allPicks.length === 0) {
                             container.innerHTML = '<div class="text-center text-muted py-3 small">No strategy picks available</div>';
