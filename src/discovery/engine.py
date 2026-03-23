@@ -389,24 +389,59 @@ class DiscoveryEngine:
                                    stage=f'Scored: {len(picks)} picks',
                                    l2=len(picks))
 
-        # 13. v15.0: Multi-strategy suggestions (display-only)
+        # 13. v15.0: Multi-strategy — full pipeline (same data as primary picks)
         try:
-            strat_name, condition = self._strategy_selector.select(vix, macro.get('pct_above_20d_ma', 50))
+            strat_name, condition = self._strategy_selector.select(
+                vix, macro.get('pct_above_20d_ma', 50))
             all_strat_picks = self._strategy_selector.get_all_picks(candidates, macro)
-            self._strategy_selector.save_picks(scan_date, all_strat_picks)
+
+            # Run each strategy's picks through scorer + sizer (refit=False)
+            scored_all, regime_s, macro_er_s = self._scorer.score_batch(
+                candidates, macro, scan_date, refit=False)
+            if not scored_all:
+                regime_s = scan_info.get('regime_decision', {}).get('regime', 'STRESS')
+                macro_er_s = 0.0
+            scored_map = {c.get('symbol'): (sc, c) for sc, c in (scored_all or [])}
+
+            strategy_full_picks = {}
+            for s_name, s_candidates in all_strat_picks.items():
+                if not s_candidates:
+                    continue
+                s_picks = []
+                for cand in s_candidates[:3]:  # top 3 per strategy
+                    sym = cand.get('symbol', '')
+                    # Get scored version if available, else use raw
+                    if sym in scored_map:
+                        score, scored_cand = scored_map[sym]
+                    else:
+                        score = 0.0
+                        scored_cand = cand
+
+                    strat_info = {
+                        'strategy': s_name,
+                        'regime': scan_info.get('strategy', {}).get('regime', 'NORMAL'),
+                        'sizing': scan_info.get('strategy', {}).get('sizing', 0.25),
+                    }
+                    pick = self._sizer.create_pick(
+                        scored_cand, score, macro, regime_s, macro_er_s,
+                        strat_info,
+                        scan_info.get('regime_decision', {}),
+                        scan_date, s_picks, self._scorer)
+                    if pick:
+                        s_picks.append(pick)
+                strategy_full_picks[s_name] = s_picks
+
+            # Store as full DiscoveryPick dicts for API
             self._multi_strategy_info = {
                 'condition': condition,
                 'selected': strat_name,
-                'picks': {name: [{'symbol': p.get('symbol',''), 'sector': p.get('sector',''),
-                                  'mom_5d': round(p.get('mom_5d', p.get('momentum_5d', 0)) or 0, 1),
-                                  'beta': round((p.get('beta') or 1), 2),
-                                  'pe': p.get('pe_forward')}
-                                 for p in picks_list[:5]]
-                          for name, picks_list in all_strat_picks.items()},
+                'picks': {name: [p.to_dict() for p in pick_list]
+                          for name, pick_list in strategy_full_picks.items()},
             }
+
             logger.info("Discovery v15.0: condition=%s selected=%s | %s",
                         condition, strat_name,
-                        {k: [p['symbol'] for p in v[:3]] for k, v in all_strat_picks.items() if v})
+                        {k: len(v) for k, v in strategy_full_picks.items()})
         except Exception as e:
             logger.error("Discovery: multi-strategy error: %s", e)
             self._multi_strategy_info = {}

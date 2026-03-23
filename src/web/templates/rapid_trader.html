@@ -3306,51 +3306,76 @@ function loadDiscoveryPicks() {
             if (badge) badge.textContent = picks.length;
 
             if (picks.length === 0) {
-                // v15.0: Show multi-strategy suggestions as cards (same style as picks)
+                // v15.0: Show multi-strategy picks with FULL data (same as primary picks)
                 fetch('/api/discovery/strategies')
                     .then(r => r.json())
                     .then(stData => {
-                        const cond = stData.condition || '?';
-                        const sel = stData.selected || 'DIP';
                         const stPicks = stData.picks || {};
-                        const condColors = {BULL:'#2ecc71', NORMAL:'#f39c12', STRESS:'#e74c3c'};
+                        const sel = stData.selected || 'DIP';
                         const stratColors = {DIP:'#e74c3c', OVERSOLD:'#e67e22', MOMENTUM:'#2ecc71', VALUE:'#3498db', CONTRARIAN:'#9b59b6'};
 
-                        let html = '';
+                        // Flatten all strategy picks into one list, render like primary
+                        let allPicks = [];
                         const stratOrder = ['OVERSOLD','VALUE','MOMENTUM','CONTRARIAN'];
                         for (const sName of stratOrder) {
                             const sp = stPicks[sName];
                             if (!sp || sp.length === 0) continue;
-                            const isBest = sName === sel;
-                            const sColor = stratColors[sName] || '#888';
-                            const borderColor = isBest ? 'rgba(46,204,113,0.4)' : 'rgba(255,255,255,0.08)';
-
                             for (const p of sp.slice(0, 2)) {
-                                const momVal = p.mom_5d || p.score || 0;
-                                const sector = (p.sector || '').replace('Consumer ', 'C.').replace('Communication ', 'Comm.').replace('Financial ', 'Fin.').replace('Services', 'Svc');
-                                const pe = p.pe ? 'PE=' + Math.round(p.pe) : '';
-                                const momColor = momVal > 0 ? '#2ecc71' : '#e74c3c';
-                                const beta = p.beta || 1;
-
-                                html += '<div class="border rounded p-2 mb-2" style="background:rgba(255,255,255,0.02);border-color:' + borderColor + ' !important;">';
-                                html += '<div class="d-flex justify-content-between align-items-start">';
-                                html += '<div>';
-                                html += '<strong style="color:' + sColor + ';">' + (p.symbol||'') + '</strong>';
-                                html += ' <span class="badge ms-1" style="background:rgba(255,255,255,0.06);color:' + sColor + ';font-size:0.55rem;">' + sName + '</span>';
-                                if (isBest) html += ' <span class="badge ms-1" style="background:rgba(46,204,113,0.2);color:#2ecc71;font-size:0.5rem;">BEST</span>';
-                                html += ' <span style="font-size:0.55rem;color:#888;">' + sector + '</span>';
-                                html += '</div>';
-                                html += '<div class="text-end">';
-                                html += '<span style="font-size:0.7rem;color:' + momColor + ';font-weight:600;">Mom ' + (momVal > 0 ? '+' : '') + momVal.toFixed(0) + '%</span>';
-                                html += '</div></div>';
-                                html += '<div class="d-flex justify-content-between mt-1" style="font-size:0.6rem;color:#888;">';
-                                html += '<span>Beta ' + beta.toFixed(2) + '</span>';
-                                if (pe) html += '<span>' + pe + '</span>';
-                                html += '<span style="color:' + (condColors[cond]||'#888') + ';">' + cond + '</span>';
-                                html += '</div></div>';
+                                p._strategy = sName;
+                                p._isBest = sName === sel;
+                                allPicks.push(p);
                             }
                         }
-                        if (!html) html = '<div class="text-center text-muted py-3 small">No strategy picks available</div>';
+
+                        if (allPicks.length === 0) {
+                            container.innerHTML = '<div class="text-center text-muted py-3 small">No strategy picks available</div>';
+                            return;
+                        }
+
+                        let html = '';
+                        allPicks.forEach(p => {
+                            const sName = p._strategy;
+                            const sColor = stratColors[sName] || '#888';
+                            const isBest = p._isBest;
+                            const er = p.layer2_score || 0;
+                            const erColor = er >= 2.0 ? '#2ecc71' : er >= 1.0 ? '#27ae60' : er >= 0.5 ? '#f39c12' : '#e74c3c';
+                            const erBg = er >= 2.0 ? 'rgba(46,204,113,0.25)' : er >= 1.0 ? 'rgba(39,174,96,0.2)' : er >= 0.5 ? 'rgba(243,156,18,0.15)' : 'rgba(231,76,60,0.15)';
+                            const borderColor = isBest ? 'rgba(46,204,113,0.4)' : 'rgba(255,255,255,0.08)';
+                            const sectorShort = (p.sector || '').replace('Consumer ','C.').replace('Communication ','Comm.').replace('Financial ','Fin.').replace('Services','Svc');
+
+                            html += '<div class="border rounded p-2 mb-2" style="background:rgba(46,204,113,0.03);border-color:' + borderColor + ' !important;">';
+                            // Row 1: Symbol + strategy badge + E[R] + sector
+                            html += '<div class="d-flex justify-content-between align-items-start">';
+                            html += '<div>';
+                            html += '<strong style="color:' + sColor + ';">' + p.symbol + '</strong>';
+                            html += ' <span class="badge ms-1" style="background:rgba(255,255,255,0.06);color:' + sColor + ';font-size:0.55rem;">' + sName + '</span>';
+                            html += ' <span class="badge ms-1" style="background:' + erBg + ';color:' + erColor + ';font-size:0.6rem;">E[R] ' + (er>0?'+':'') + er.toFixed(1) + '%</span>';
+                            html += ' <span style="font-size:0.55rem;color:#888;">' + sectorShort + '</span>';
+                            if (isBest) html += ' <span class="badge ms-1" style="background:rgba(46,204,113,0.2);color:#2ecc71;font-size:0.5rem;">BEST</span>';
+                            html += '</div>';
+                            html += '<div class="text-end"><div class="small"><strong>$' + (p.current_price||p.scan_price||0) + '</strong></div></div>';
+                            html += '</div>';
+                            // Row 2: SL / Entry / TP
+                            if (p.sl_price && p.tp1_price) {
+                                html += '<div class="d-flex justify-content-between mt-1" style="font-size:0.65rem;">';
+                                html += '<span class="text-danger">SL $' + p.sl_price + ' (-' + p.sl_pct + '%)</span>';
+                                html += '<span style="color:#aaa;">Scan $' + p.scan_price + '</span>';
+                                html += '<span class="text-success">TP $' + p.tp1_price + ' (+' + p.tp1_pct + '%)</span>';
+                                html += '</div>';
+                            }
+                            // Row 3: Technicals
+                            html += '<div class="d-flex justify-content-between mt-1" style="font-size:0.6rem;color:#888;">';
+                            html += '<span>ATR ' + (p.atr_pct||0).toFixed(1) + '%</span>';
+                            html += '<span>Vol ' + (p.volume_ratio||0).toFixed(1) + 'x</span>';
+                            html += '<span>Mom ' + (p.momentum_5d>0?'+':'') + (p.momentum_5d||0).toFixed(1) + '%</span>';
+                            html += '<span>D20H ' + (p.distance_from_20d_high||0).toFixed(1) + '%</span>';
+                            html += '</div>';
+                            // Row 4: Timeline (if available)
+                            if (p.tp_timeline) html += renderTimeline(p.tp_timeline);
+                            // Row 5: Council (if available)
+                            if (p.council) html += renderCouncil(p.council);
+                            html += '</div>';
+                        });
                         container.innerHTML = html;
                     })
                     .catch(() => {

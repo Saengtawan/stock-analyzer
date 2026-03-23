@@ -3070,68 +3070,7 @@ def api_discovery_strategies():
         engine = get_discovery_engine()
         ms = engine._multi_strategy
         if not ms:
-            # Load from DB
-            import sqlite3
-            from pathlib import Path
-            db = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
-            conn = sqlite3.connect(str(db))
-            conn.row_factory = sqlite3.Row
-
-            # Get latest scan's strategy picks
-            rows = conn.execute("""
-                SELECT strategy_name, rank, symbol, score, rationale
-                FROM discovery_strategy_picks
-                WHERE scan_date = (SELECT MAX(scan_date) FROM discovery_strategy_picks)
-                ORDER BY strategy_name, rank
-            """).fetchall()
-
-            # Get selected strategy
-            sel = conn.execute("SELECT condition, strategy_name FROM strategy_selection").fetchall()
-            condition = sel[0]['condition'] if sel else 'UNKNOWN'
-            selected = {r['condition']: r['strategy_name'] for r in sel}
-
-            # Get current macro for condition detection
-            macro = conn.execute("""
-                SELECT vix_close, pct_above_20d_ma FROM macro_snapshots m
-                LEFT JOIN market_breadth mb ON m.date = mb.date
-                ORDER BY m.date DESC LIMIT 1
-            """).fetchone()
-            conn.close()
-
-            vix = macro['vix_close'] if macro else 20
-            breadth = macro['pct_above_20d_ma'] if macro else 50
-            if vix > 25 and breadth < 35:
-                cur_cond = 'STRESS'
-            elif vix < 18 and breadth > 55:
-                cur_cond = 'BULL'
-            else:
-                cur_cond = 'NORMAL'
-
-            picks_by_strat = {}
-            for r in rows:
-                name = r['strategy_name']
-                if name not in picks_by_strat:
-                    picks_by_strat[name] = []
-                # Parse JSON rationale if available
-                try:
-                    rat = json.loads(r['rationale']) if r['rationale'] and r['rationale'].startswith('{') else {}
-                except Exception:
-                    rat = {}
-                picks_by_strat[name].append({
-                    'rank': r['rank'], 'symbol': r['symbol'],
-                    'score': r['score'],
-                    'sector': rat.get('sector', ''),
-                    'mom_5d': rat.get('mom_5d', r['score'] or 0),
-                    'beta': rat.get('beta', 1),
-                    'pe': rat.get('pe'),
-                })
-
-            ms = {
-                'condition': cur_cond,
-                'selected': selected.get(cur_cond, 'DIP'),
-                'picks': picks_by_strat,
-            }
-
+            ms = {'condition': 'UNKNOWN', 'selected': 'DIP', 'picks': {}}
         return jsonify(ms)
     except Exception as e:
         logger.error(f"Discovery strategies error: {e}")
