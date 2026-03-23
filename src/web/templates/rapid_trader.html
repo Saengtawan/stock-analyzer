@@ -3306,7 +3306,7 @@ function loadDiscoveryPicks() {
             if (badge) badge.textContent = picks.length;
 
             if (picks.length === 0) {
-                // v15.0: Show multi-strategy suggestions when primary has 0 picks
+                // v15.0: Show multi-strategy suggestions as cards (same style as picks)
                 fetch('/api/discovery/strategies')
                     .then(r => r.json())
                     .then(stData => {
@@ -3314,45 +3314,47 @@ function loadDiscoveryPicks() {
                         const sel = stData.selected || 'DIP';
                         const stPicks = stData.picks || {};
                         const condColors = {BULL:'#2ecc71', NORMAL:'#f39c12', STRESS:'#e74c3c'};
-                        const stratIcons = {DIP:'📉', OVERSOLD:'💥', MOMENTUM:'🚀', VALUE:'💎', CONTRARIAN:'🔄'};
-                        const stratDescs = {DIP:'Buy quality dips', OVERSOLD:'Buy extreme oversold', MOMENTUM:'Ride strong uptrend', VALUE:'Buy cheap quality', CONTRARIAN:'Buy worst sector bounce'};
+                        const stratColors = {DIP:'#e74c3c', OVERSOLD:'#e67e22', MOMENTUM:'#2ecc71', VALUE:'#3498db', CONTRARIAN:'#9b59b6'};
 
-                        let html = '<div style="padding:8px;">';
-                        html += '<div style="text-align:center;margin-bottom:8px;">';
-                        html += '<span style="color:' + (condColors[cond]||'#888') + ';font-weight:700;">' + cond + '</span>';
-                        html += ' <span style="color:#888;font-size:0.8em;">DIP filter: 0 passed</span>';
-                        html += '</div>';
-
+                        let html = '';
                         const stratOrder = ['OVERSOLD','VALUE','MOMENTUM','CONTRARIAN'];
                         for (const sName of stratOrder) {
                             const sp = stPicks[sName];
                             if (!sp || sp.length === 0) continue;
-                            const icon = stratIcons[sName] || '📊';
-                            const desc = stratDescs[sName] || sName;
                             const isBest = sName === sel;
+                            const sColor = stratColors[sName] || '#888';
+                            const borderColor = isBest ? 'rgba(46,204,113,0.4)' : 'rgba(255,255,255,0.08)';
 
-                            html += '<div style="margin-bottom:6px;padding:6px;border-radius:4px;background:' + (isBest ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.03)') + ';border:1px solid ' + (isBest ? 'rgba(46,204,113,0.3)' : 'rgba(255,255,255,0.05)') + ';">';
-                            html += '<div style="font-size:0.75em;font-weight:700;color:' + (isBest ? '#2ecc71' : '#aaa') + ';margin-bottom:3px;">' + icon + ' ' + sName + (isBest ? ' ◄ BEST' : '') + ' <span style="font-weight:400;color:#666;">' + desc + '</span></div>';
-
-                            for (const p of sp.slice(0, 3)) {
+                            for (const p of sp.slice(0, 2)) {
                                 const momVal = p.mom_5d || p.score || 0;
-                                const sector = p.sector || '';
+                                const sector = (p.sector || '').replace('Consumer ', 'C.').replace('Communication ', 'Comm.').replace('Financial ', 'Fin.').replace('Services', 'Svc');
                                 const pe = p.pe ? 'PE=' + Math.round(p.pe) : '';
                                 const momColor = momVal > 0 ? '#2ecc71' : '#e74c3c';
-                                html += '<div style="display:flex;align-items:center;font-size:0.75em;padding:2px 0;gap:4px;">';
-                                html += '<span style="font-weight:600;color:#ddd;min-width:42px;">' + (p.symbol||'') + '</span>';
-                                html += '<span style="color:#666;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.9em;">' + sector.substring(0,14) + '</span>';
-                                html += '<span style="color:' + momColor + ';min-width:38px;text-align:right;font-weight:600;">' + (momVal > 0 ? '+' : '') + momVal.toFixed(0) + '%</span>';
-                                if (pe) html += '<span style="color:#888;font-size:0.85em;min-width:35px;text-align:right;">' + pe + '</span>';
+                                const beta = p.beta || 1;
+
+                                html += '<div class="border rounded p-2 mb-2" style="background:rgba(255,255,255,0.02);border-color:' + borderColor + ' !important;">';
+                                html += '<div class="d-flex justify-content-between align-items-start">';
+                                html += '<div>';
+                                html += '<strong style="color:' + sColor + ';">' + (p.symbol||'') + '</strong>';
+                                html += ' <span class="badge ms-1" style="background:rgba(255,255,255,0.06);color:' + sColor + ';font-size:0.55rem;">' + sName + '</span>';
+                                if (isBest) html += ' <span class="badge ms-1" style="background:rgba(46,204,113,0.2);color:#2ecc71;font-size:0.5rem;">BEST</span>';
+                                html += ' <span style="font-size:0.55rem;color:#888;">' + sector + '</span>';
                                 html += '</div>';
+                                html += '<div class="text-end">';
+                                html += '<span style="font-size:0.7rem;color:' + momColor + ';font-weight:600;">Mom ' + (momVal > 0 ? '+' : '') + momVal.toFixed(0) + '%</span>';
+                                html += '</div></div>';
+                                html += '<div class="d-flex justify-content-between mt-1" style="font-size:0.6rem;color:#888;">';
+                                html += '<span>Beta ' + beta.toFixed(2) + '</span>';
+                                if (pe) html += '<span>' + pe + '</span>';
+                                html += '<span style="color:' + (condColors[cond]||'#888') + ';">' + cond + '</span>';
+                                html += '</div></div>';
                             }
-                            html += '</div>';
                         }
-                        html += '</div>';
+                        if (!html) html = '<div class="text-center text-muted py-3 small">No strategy picks available</div>';
                         container.innerHTML = html;
                     })
                     .catch(() => {
-                        container.innerHTML = '<div class="text-center text-muted py-3"><p class="small mb-0">No picks. Multi-strategy loading...</p></div>';
+                        container.innerHTML = '<div class="text-center text-muted py-3 small">Loading strategies...</div>';
                     });
                 _discoveryLoaded = true;
                 return;
