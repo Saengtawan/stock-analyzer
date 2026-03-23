@@ -28,8 +28,8 @@ SECTORS = [
 REGIMES = ['BULL', 'STRESS', 'CRISIS']
 
 PARAM_GRID = {
-    'tp_ratio':     [0.5, 0.75, 1.0, 1.25, 1.5],  # capped at 1.5 (P50=0.9×ATR, >1.5 hit <30%)
-    'sl_mult':      [0.5, 0.75, 1.0, 1.5, 2.0, 2.5],
+    'sl_pct':       [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0],  # absolute SL %
+    'tp_pct':       [2.0, 3.0, 4.0, 5.0, 6.0, 8.0],         # absolute TP %
     'atr_max':      [2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 7.0, 8.0],
     'mom_cut':      [-3, -2, -1, 0, 1, 2, 3, 4, 5],
     'd0_close_min': [0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40],
@@ -37,8 +37,8 @@ PARAM_GRID = {
 }
 
 DEFAULTS = {
-    'tp_ratio': 1.0,
-    'sl_mult': 1.5,
+    'sl_pct': 3.0,
+    'tp_pct': 6.0,
     'atr_max': 5.0,
     'mom_cut': 3.0,
     'd0_close_min': 0.30,
@@ -183,10 +183,10 @@ class AdaptiveParameterLearner:
         """Learn all parameters for one (sector, regime) group."""
         params = {}
 
-        # 1. tp_ratio + sl_mult — joint grid search (best Sharpe)
-        tp_r, sl_m = self._learn_tp_sl(sigs)
-        params['tp_ratio'] = tp_r
-        params['sl_mult'] = sl_m
+        # 1. sl_pct + tp_pct — absolute % grid search (best Sharpe)
+        sl_pct, tp_pct = self._learn_sl_tp_absolute(sigs)
+        params['sl_pct'] = sl_pct
+        params['tp_pct'] = tp_pct
 
         # 2. atr_max — WR sweep
         params['atr_max'] = self._learn_threshold(
@@ -204,41 +204,58 @@ class AdaptiveParameterLearner:
         params['elite_sigma'] = self._learn_elite_sigma(sigs)
 
         logger.debug(
-            "AdaptiveParams [%s]: tp=%.2f sl=%.2f atr≤%.1f mom≤%.0f d0≥%.2f σ=%.1f (n=%d)",
-            key, tp_r, sl_m, params['atr_max'], params['mom_cut'],
+            "AdaptiveParams [%s]: SL=%.1f%% TP=%.1f%% atr≤%.1f mom≤%.0f d0≥%.2f σ=%.1f (n=%d)",
+            key, sl_pct, tp_pct, params['atr_max'], params['mom_cut'],
             params['d0_close_min'], params['elite_sigma'], len(sigs))
 
         return params
 
-    def _learn_tp_sl(self, sigs):
-        """Joint grid search for best (tp_ratio, sl_mult) by Sharpe."""
-        # Only use signals with OHLC data
-        ohlc_sigs = [s for s in sigs if s.get('d1o')]
+    def _learn_sl_tp_absolute(self, sigs):
+        """Grid search absolute SL% × TP% → best Sharpe.
+
+        v15.1: uses absolute % instead of ATR multiples.
+        Walks D1-D5 highs/lows for accurate TP/SL simulation.
+        """
+        ohlc_sigs = [s for s in sigs if s.get('d1o') and s.get('day_hl')]
         if len(ohlc_sigs) < 50:
-            return DEFAULTS['tp_ratio'], DEFAULTS['sl_mult']
+            return DEFAULTS['sl_pct'], DEFAULTS['tp_pct']
 
         best_sharpe = -999
-        best_tp, best_sl = DEFAULTS['tp_ratio'], DEFAULTS['sl_mult']
+        best_sl, best_tp = DEFAULTS['sl_pct'], DEFAULTS['tp_pct']
 
-        for tp_r in PARAM_GRID['tp_ratio']:
-            for sl_m in PARAM_GRID['sl_mult']:
+        for sl in PARAM_GRID['sl_pct']:
+            for tp in PARAM_GRID['tp_pct']:
+                if tp <= sl:
+                    continue  # enforce RR > 1.0
                 pnls = []
                 for s in ohlc_sigs:
-                    pnl = _sim_trade(
-                        s['d1o'], s['d1h'], s['d1l'],
-                        s['d3h'], s['d3l'], s['d3c'],
-                        s['atr'], tp_r, sl_m)
-                    pnls.append(pnl)
+                    d1o = s['d1o']
+                    if d1o <= 0:
+                        continue
+                    hit = False
+                    for h, l in s['day_hl']:
+                        if (l / d1o - 1) * 100 <= -sl:
+                            pnls.append(-sl)
+                            hit = True
+                            break
+                        if (h / d1o - 1) * 100 >= tp:
+                            pnls.append(tp)
+                            hit = True
+                            break
+                    if not hit:
+                        d5c = s.get('d5c', d1o)
+                        pnls.append((d5c / d1o - 1) * 100)
+
                 p = np.array(pnls)
                 if len(p) < 30:
                     continue
                 sharpe = p.mean() / max(p.std(), 0.01)
                 if sharpe > best_sharpe:
                     best_sharpe = sharpe
-                    best_tp = tp_r
-                    best_sl = sl_m
+                    best_sl = sl
+                    best_tp = tp
 
-        return best_tp, best_sl
+        return best_sl, best_tp
 
     def _learn_threshold(self, sigs, feature, grid, mode='upper'):
         """Sweep threshold to find best WR.
@@ -325,7 +342,7 @@ class AdaptiveParameterLearner:
     # === Data loading ===
 
     def _load_data(self, max_date=None):
-        """Load historical signals with OHLC for SL/TP simulation."""
+        """Load historical signals with D1-D5 OHLC for SL/TP simulation."""
         conn = sqlite3.connect(str(DB_PATH))
         try:
             date_filter = f"AND b.scan_date <= '{max_date}'" if max_date else ""
@@ -336,21 +353,20 @@ class AdaptiveParameterLearner:
                        COALESCE(m.vix_close, 20) as vix,
                        COALESCE(mb.pct_above_20d_ma, 50) as breadth,
                        d0.high as d0h, d0.low as d0l, d0.close as d0c,
-                       d0.open as d0o,
                        d1.open as d1o, d1.high as d1h, d1.low as d1l,
-                       d3.high as d3h, d3.low as d3l, d3.close as d3c
+                       d2.high as d2h, d2.low as d2l,
+                       d3.high as d3h, d3.low as d3l, d3.close as d3c,
+                       d4.high as d4h, d4.low as d4l,
+                       d5.high as d5h, d5.low as d5l, d5.close as d5c
                 FROM backfill_signal_outcomes b
                 LEFT JOIN macro_snapshots m ON b.scan_date = m.date
                 LEFT JOIN market_breadth mb ON b.scan_date = mb.date
-                LEFT JOIN signal_daily_bars d0
-                    ON b.scan_date=d0.scan_date AND b.symbol=d0.symbol
-                    AND d0.day_offset=0
-                LEFT JOIN signal_daily_bars d1
-                    ON b.scan_date=d1.scan_date AND b.symbol=d1.symbol
-                    AND d1.day_offset=1
-                LEFT JOIN signal_daily_bars d3
-                    ON b.scan_date=d3.scan_date AND b.symbol=d3.symbol
-                    AND d3.day_offset=3
+                LEFT JOIN signal_daily_bars d0 ON b.scan_date=d0.scan_date AND b.symbol=d0.symbol AND d0.day_offset=0
+                LEFT JOIN signal_daily_bars d1 ON b.scan_date=d1.scan_date AND b.symbol=d1.symbol AND d1.day_offset=1
+                LEFT JOIN signal_daily_bars d2 ON b.scan_date=d2.scan_date AND b.symbol=d2.symbol AND d2.day_offset=2
+                LEFT JOIN signal_daily_bars d3 ON b.scan_date=d3.scan_date AND b.symbol=d3.symbol AND d3.day_offset=3
+                LEFT JOIN signal_daily_bars d4 ON b.scan_date=d4.scan_date AND b.symbol=d4.symbol AND d4.day_offset=4
+                LEFT JOIN signal_daily_bars d5 ON b.scan_date=d5.scan_date AND b.symbol=d5.symbol AND d5.day_offset=5
                 WHERE b.outcome_5d IS NOT NULL AND b.atr_pct > 0
                 AND b.sector IS NOT NULL
                 AND m.vix_close IS NOT NULL AND mb.pct_above_20d_ma IS NOT NULL
@@ -379,12 +395,24 @@ class AdaptiveParameterLearner:
                 'd0_pos': d0_pos,
             }
 
-            # OHLC for SL/TP sim (may be None if bars missing)
-            if r[15] and r[15] > 0:
-                entry.update({
-                    'd1o': r[15], 'd1h': r[16], 'd1l': r[17],
-                    'd3h': r[18], 'd3l': r[19], 'd3c': r[20],
-                })
+            # D1-D5 OHLC for absolute SL/TP simulation
+            if r[14] and r[14] > 0:
+                entry['d1o'] = r[14]
+                entry['d1h'] = r[15]
+                entry['d1l'] = r[16]
+                entry['d3h'] = r[19]
+                entry['d3l'] = r[20]
+                entry['d3c'] = r[21]
+                entry['d5c'] = r[26] or r[21]  # fallback to D3 close
+
+                # D1-D5 high/low pairs for walking TP/SL
+                day_hl = []
+                for hi, lo in [(r[15], r[16]), (r[17], r[18]),
+                                (r[19], r[20]), (r[22], r[23]),
+                                (r[24], r[25])]:
+                    if hi and lo and hi > 0 and lo > 0:
+                        day_hl.append((hi, lo))
+                entry['day_hl'] = day_hl
 
             data.append(entry)
 
@@ -516,9 +544,9 @@ class AdaptiveParameterLearner:
 
     def print_summary(self):
         """Print human-readable parameter table."""
-        print(f"\n{'Sector':<25s} {'Regime':<8s} {'TP':>5s} {'SL':>5s} "
+        print(f"\n{'Sector':<25s} {'Regime':<8s} {'SL%':>5s} {'TP%':>5s} {'RR':>4s} "
               f"{'ATR≤':>5s} {'Mom≤':>5s} {'D0≥':>5s} {'σ':>4s} {'N':>5s}")
-        print("-" * 75)
+        print("-" * 80)
         for sector in SECTORS:
             for regime in REGIMES:
                 key = (sector, regime)
@@ -527,9 +555,13 @@ class AdaptiveParameterLearner:
                 n = stats.get('n', 0)
                 src = stats.get('source', '?')
                 marker = '' if src == 'learned' else ' (D)'
+                sl = p.get('sl_pct', 3.0)
+                tp = p.get('tp_pct', 6.0)
+                rr = tp / sl if sl > 0 else 0
                 print(f"{sector:<25s} {regime:<8s} "
-                      f"{p.get('tp_ratio', 1.0):>4.1f}x "
-                      f"{p.get('sl_mult', 1.5):>4.1f}x "
+                      f"{sl:>4.1f}% "
+                      f"{tp:>4.1f}% "
+                      f"{rr:>3.1f} "
                       f"{p.get('atr_max', 5.0):>4.1f} "
                       f"{p.get('mom_cut', 3):>+4.0f} "
                       f"{p.get('d0_close_min', 0.3):>4.2f} "

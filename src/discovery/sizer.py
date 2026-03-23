@@ -81,44 +81,28 @@ class UnifiedSizer:
         lb_max_atr = lb_cfg.get('max_atr_pct', 3.5)
         lb_sl_pct = lb_cfg.get('sl_pct', 2.5)
 
-        # Get TP/SL ratios — adaptive or config
+        # v15.1 Hybrid: SL from ATR (stock-specific) + TP from adaptive (sector×regime)
+        # SL = 1.0×ATR, capped [1.5%, 3.5%] — adapts to stock volatility
+        pick_sl_pct = round(max(1.5, min(3.5, 1.0 * atr)), 1)
+
+        # TP = adaptive absolute % per sector×regime (learned from data)
         if self._adaptive:
-            tp_ratio = self._adaptive.get(sector, regime, 'tp_ratio')
-            sl_mult = self._adaptive.get(sector, regime, 'sl_mult')
+            pick_tp_pct = self._adaptive.get(sector, regime, 'tp_pct')
         else:
-            v3_cfg = config.get('v3', {})
-            stp_cfg = v3_cfg.get('smart_tp', {})
-            tp_ratios = stp_cfg.get('tp_regime_ratios',
-                                    {'BULL': 1.0, 'STRESS': 0.75, 'CRISIS': 0.5})
-            tp_ratio = tp_ratios.get(regime, 0.75)
-            dsl_cfg = config.get('dynamic_sl', {})
-            sl_mult = {
-                'BULL': dsl_cfg.get('bull_mult', 2.0),
-                'STRESS': dsl_cfg.get('stress_mult', 1.5),
-                'CRISIS': dsl_cfg.get('crisis_mult', 1.0),
-            }.get(regime, 1.5)
+            pick_tp_pct = 6.0
+        pick_tp_pct = round(max(2.0, min(10.0, pick_tp_pct)), 1)
 
-        # Compute SL
-        if lb_enabled and atr < lb_max_atr:
-            pick_sl_pct = round(max(lb_sl_pct, atr), 1)
-            pick_limit_pct = round(lb_pullback_mult * atr, 2)
-        else:
-            if atr > 0:
-                pick_sl_pct = max(dsl_floor, min(dsl_cap, sl_mult * atr))
-                pick_sl_pct = round(pick_sl_pct, 1)
-            else:
-                pick_sl_pct = config.get('v3', {}).get('sl_pct', 3.0)
-            pick_limit_pct = None
-
-        # Compute TP
-        pick_tp_pct = round(max(0.5, tp_ratio * atr), 1)
-
-        # Ensure TP > SL (minimum RR ratio 1.0)
+        # Enforce TP > SL (minimum RR 1.5)
         if pick_tp_pct <= pick_sl_pct:
-            pick_tp_pct = round(pick_sl_pct * 1.5, 1)
+            pick_tp_pct = round(pick_sl_pct * 2.0, 1)
 
-        # TP2 = TP1 × 2.0 (extended target)
-        pick_tp2_pct = round(pick_tp_pct * 2.0, 1)
+        # Limit-buy override (if applicable)
+        pick_limit_pct = None
+        if lb_enabled and atr < lb_max_atr:
+            pick_limit_pct = round(lb_pullback_mult * atr, 2)
+
+        # TP2 = TP1 × 1.5 (extended target)
+        pick_tp2_pct = round(pick_tp_pct * 1.5, 1)
 
         sl_price = price * (1 - pick_sl_pct / 100)
         tp1_price = price * (1 + pick_tp_pct / 100)
