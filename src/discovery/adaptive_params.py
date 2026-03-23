@@ -29,7 +29,7 @@ REGIMES = ['BULL', 'STRESS', 'CRISIS']
 
 PARAM_GRID = {
     'sl_pct':       [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0],  # absolute SL %
-    'tp_pct':       [2.0, 3.0, 4.0, 5.0, 6.0, 8.0],         # absolute TP %
+    'tp_pct':       [2.0, 3.0, 4.0, 5.0],                     # absolute TP %, max 5% (realistic D1-D5)
     'atr_max':      [2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 7.0, 8.0],
     'mom_cut':      [-3, -2, -1, 0, 1, 2, 3, 4, 5],
     'd0_close_min': [0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40],

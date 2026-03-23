@@ -90,7 +90,7 @@ class UnifiedSizer:
             pick_tp_pct = self._adaptive.get(sector, regime, 'tp_pct')
         else:
             pick_tp_pct = 6.0
-        pick_tp_pct = round(max(2.0, min(10.0, pick_tp_pct)), 1)
+        pick_tp_pct = round(max(2.0, min(5.0, pick_tp_pct)), 1)
 
         # Enforce TP > SL (minimum RR 1.5)
         if pick_tp_pct <= pick_sl_pct:
