@@ -442,10 +442,9 @@ class DiscoveryEngine:
             context_scorer=self._sizer.context_scorer,
             regime_decision=scan_info.get('regime_decision', {}))
 
-        # Fallback: if filter removed everything, keep top 1 from scored
-        if not filtered and scored:
-            filtered = scored[:1]
-            logger.info("Filter: 0 picks — fallback to top 1 scored")
+        # v15.0: no fallback — multi-strategy suggestions cover gaps
+        if not filtered:
+            logger.info("Filter: 0 picks passed — see multi-strategy suggestions")
 
         # Size — create picks
         picks = []
