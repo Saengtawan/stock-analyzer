@@ -214,8 +214,8 @@ class NeuralGraph:
             elif spread < -2:  # deep contango = calm
                 score += 0.10
 
-        # 5. 52w Lows (many = danger)
-        breadth = macro.get('pct_above_20d_ma', 50)
+        # 5. Breadth level
+        breadth = macro.get('pct_above_20d_ma') or 50
         if breadth < 25:
             score -= 0.15
             factors.append(f'Breadth={breadth:.0f}% very low')
