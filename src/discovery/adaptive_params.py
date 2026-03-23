@@ -4,7 +4,7 @@ Part of Discovery v13.1.
 
 Replaces 7 hardcoded values with 231 learned values (7 params × 33 groups).
 Each (sector, regime) group learns its own optimal:
-  tp_ratio, sl_mult, atr_max, mom_cut, d0_close_min, elite_sigma
+  sl_pct, tp_pct, atr_max, mom_cut, d0_close_min, elite_sigma
 
 Walk-forward safe: fit(max_date) only uses data up to max_date.
 Auto-refits every 30 days via AutoRefitOrchestrator.
@@ -57,16 +57,14 @@ def _classify_regime(vix, breadth):
     return 'STRESS'
 
 
-def _sim_trade(d1o, d1h, d1l, d3h, d3l, d3c, atr, tp_ratio, sl_mult):
-    """Simulate trade: entry D1 open, exit on TP/SL hit or D3 close."""
-    sl = max(1.5, min(5.0, sl_mult * atr))
-    tp = max(0.5, tp_ratio * atr)
-    for h, l in [(d1h, d1l), (d3h, d3l)]:
-        if (l / d1o - 1) * 100 <= -sl:
-            return -sl
-        if (h / d1o - 1) * 100 >= tp:
-            return tp
-    return (d3c / d1o - 1) * 100
+def _sim_trade_absolute(d1o, day_hl, d5c, sl_pct, tp_pct):
+    """v15.1: Simulate trade with absolute SL/TP %. Walk D1-D5."""
+    for h, l in day_hl:
+        if (l / d1o - 1) * 100 <= -sl_pct:
+            return -sl_pct
+        if (h / d1o - 1) * 100 >= tp_pct:
+            return tp_pct
+    return (d5c / d1o - 1) * 100 if d5c and d5c > 0 else 0
 
 
 class AdaptiveParameterLearner:

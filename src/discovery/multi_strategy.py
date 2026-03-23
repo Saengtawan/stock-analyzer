@@ -94,13 +94,13 @@ STRATEGIES = {
     'CONTRARIAN': {'fn': strategy_contrarian, 'desc': 'Buy best in worst sector'},
 }
 
-# Per-strategy SL/TP defaults (used when adaptive params not available)
+# Per-strategy SL/TP defaults (v15.1: absolute %)
 STRATEGY_SLTP = {
-    'DIP':        {'tp_ratio': 2.0, 'sl_mult': 1.0},
-    'OVERSOLD':   {'tp_ratio': 2.5, 'sl_mult': 1.5},
-    'MOMENTUM':   {'tp_ratio': 1.5, 'sl_mult': 1.0},
-    'VALUE':      {'tp_ratio': 2.0, 'sl_mult': 1.0},
-    'CONTRARIAN': {'tp_ratio': 2.0, 'sl_mult': 1.5},
+    'DIP':        {'sl_pct': 3.0, 'tp_pct': 5.0},
+    'OVERSOLD':   {'sl_pct': 3.5, 'tp_pct': 5.0},
+    'MOMENTUM':   {'sl_pct': 3.0, 'tp_pct': 4.0},
+    'VALUE':      {'sl_pct': 3.0, 'tp_pct': 5.0},
+    'CONTRARIAN': {'sl_pct': 3.5, 'tp_pct': 5.0},
 }
 
 
