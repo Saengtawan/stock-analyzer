@@ -85,12 +85,13 @@ class UnifiedSizer:
         # SL = 1.0×ATR, capped [1.5%, 3.5%] — adapts to stock volatility
         pick_sl_pct = round(max(1.5, min(3.5, 1.0 * atr)), 1)
 
-        # TP = adaptive absolute % per sector×regime (learned from data)
+        # TP = max(adaptive learned, 1.0×ATR) — per stock volatility + per sector learned
         if self._adaptive:
-            pick_tp_pct = self._adaptive.get(sector, regime, 'tp_pct')
+            adaptive_tp = self._adaptive.get(sector, regime, 'tp_pct')
         else:
-            pick_tp_pct = 6.0
-        pick_tp_pct = round(max(2.0, min(5.0, pick_tp_pct)), 1)
+            adaptive_tp = 5.0
+        atr_tp = 1.0 * atr  # ATR-based TP floor
+        pick_tp_pct = round(max(2.0, min(5.0, max(adaptive_tp, atr_tp))), 1)
 
         # Enforce TP > SL (minimum RR 1.5)
         if pick_tp_pct <= pick_sl_pct:
