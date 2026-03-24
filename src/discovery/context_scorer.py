@@ -46,8 +46,8 @@ class ContextScorer:
 
         # 2. Macro sensitivity mismatch
         if macro:
-            crude = macro.get('crude_close', 75)
-            vix = macro.get('vix_close', 20)
+            crude = macro.get('crude_close') or 75
+            vix = macro.get('vix_close') or 20
 
             # Crude: penalize stocks that DROP when crude is HIGH
             # threshold -0.10 (only ~5 stocks: TLT, CLX, KMB etc.)

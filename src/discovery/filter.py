@@ -4,7 +4,7 @@ Part of Discovery v13.1 Clean Architecture.
 
 Pipeline order:
   1. Regime bonus gate (STRESS/CRISIS entry requirements)
-  2. Negative E[R] skip
+  2. v16 Smart boost (insider buy + analyst target — replaces negative E[R] skip)
   3. Elite filter (statistical outlier: mean + k*σ)
   4. UnifiedBrain re-rank (drop <40%)
   5. D0 close position (weak candle filter)
@@ -71,11 +71,9 @@ class UnifiedFilter:
         if len(filtered) < n_input:
             logger.info("Filter: %d→%d after regime gate [%s]", n_input, len(filtered), regime)
 
-        # Phase 2: Negative E[R] skip
-        pre = len(filtered)
-        filtered = [(er, c) for er, c in filtered if er >= 0]
-        if len(filtered) < pre:
-            logger.info("Filter: %d→%d after negative E[R] skip", pre, len(filtered))
+        # Phase 2: v16 smart boost (replaces negative E[R] skip — IC=0 proven)
+        # Insider buying + analyst target upgrades boost score instead of filtering
+        filtered = self._apply_smart_boost(filtered, scan_date)
 
         # Phase 3: Elite filter (statistical outlier)
         filtered = self._elite_filter(filtered, regime, config)
@@ -132,6 +130,82 @@ class UnifiedFilter:
         return result
 
     # --- Filter stages ---
+
+    def _apply_smart_boost(self, scored, scan_date):
+        """v16: Boost stocks with insider buying or analyst target upgrades.
+        Replaces negative E[R] skip (which killed good stocks — IC=0 proven).
+        Insider+dip WR=61.5%, analyst target up >5% WR=55.4%."""
+        if not scan_date:
+            return scored
+        try:
+            import sqlite3
+            from pathlib import Path
+            db = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
+            conn = sqlite3.connect(str(db), timeout=5)
+            conn.execute('PRAGMA busy_timeout=5000')
+
+            # Insider open-market purchases in last 90 days (value > $10K)
+            insider_syms = set()
+            try:
+                for r in conn.execute("""
+                    SELECT DISTINCT symbol FROM insider_transactions_history
+                    WHERE trade_date >= date(?, '-90 days') AND trade_date <= ?
+                    AND (transaction_type LIKE '%Purchase%'
+                         OR transaction_type LIKE '%Buy%')
+                    AND value > 10000
+                """, (scan_date, scan_date)):
+                    insider_syms.add(r[0])
+            except Exception:
+                pass  # table may not exist yet
+
+            # Analyst target changes in last 90 days
+            analyst_up = set()
+            analyst_down = set()
+            try:
+                for r in conn.execute("""
+                    SELECT symbol,
+                           AVG((price_target / prior_price_target - 1) * 100) as chg
+                    FROM analyst_ratings_history
+                    WHERE date >= date(?, '-90 days') AND date <= ?
+                    AND price_target > 0 AND prior_price_target > 0
+                    GROUP BY symbol
+                """, (scan_date, scan_date)):
+                    if r[1] and r[1] > 5:
+                        analyst_up.add(r[0])
+                    elif r[1] and r[1] < -5:
+                        analyst_down.add(r[0])
+            except Exception:
+                pass  # table may not exist yet
+
+            conn.close()
+
+            boosted = []
+            n_insider = 0
+            n_analyst = 0
+            for er, c in scored:
+                sym = c.get('symbol', '')
+                boost = 0
+                if sym in insider_syms:
+                    boost += 0.5
+                    c['insider_bought'] = True
+                    n_insider += 1
+                if sym in analyst_up:
+                    boost += 0.3
+                    c['analyst_upgrade'] = True
+                    n_analyst += 1
+                if sym in analyst_down:
+                    boost -= 0.3
+                boosted.append((er + boost, c))
+
+            if n_insider or n_analyst:
+                logger.info("Filter v16: smart boost — %d insider, %d analyst_up",
+                            n_insider, n_analyst)
+
+            return boosted
+
+        except Exception as e:
+            logger.debug("Filter v16: smart boost error: %s", e)
+            return scored
 
     def _regime_gate(self, scored, regime, strategy_mode, macro):
         """STRESS/CRISIS bonus gate — require defensive characteristics."""

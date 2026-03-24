@@ -81,17 +81,11 @@ class UnifiedSizer:
         lb_max_atr = lb_cfg.get('max_atr_pct', 3.5)
         lb_sl_pct = lb_cfg.get('sl_pct', 2.5)
 
-        # v15.1 Hybrid: SL from ATR (stock-specific) + TP from adaptive (sector×regime)
-        # SL = 1.0×ATR, capped [1.5%, 3.5%] — adapts to stock volatility
-        pick_sl_pct = round(max(1.5, min(3.5, 1.0 * atr)), 1)
-
-        # TP = max(adaptive learned, 1.0×ATR) — per stock volatility + per sector learned
-        if self._adaptive:
-            adaptive_tp = self._adaptive.get(sector, regime, 'tp_pct')
-        else:
-            adaptive_tp = 5.0
-        atr_tp = 1.0 * atr  # ATR-based TP floor
-        pick_tp_pct = round(max(2.0, min(5.0, max(adaptive_tp, atr_tp))), 1)
+        # v15.3: SL=0.8×ATR (cap 3.5%), TP=dynamic per day (ATR-based)
+        # Data-validated: 30% hit rate per day = sweet spot
+        pick_sl_pct = round(max(1.5, min(3.5, 0.8 * atr)), 1)
+        # TP at D3 level (highest) for SL/TP price display
+        pick_tp_pct = round(max(1.5, 1.09 * atr), 1)
 
         # Enforce TP > SL (minimum RR 1.5)
         if pick_tp_pct <= pick_sl_pct:
@@ -147,6 +141,21 @@ class UnifiedSizer:
 
         # 1. Compute SL/TP
         sl_tp = self.compute_sl_tp(c, regime, config)
+
+        # v15.3: Dynamic TP per day, max hold D3 close
+        # Data-validated (30% hit rate each day, mcap≥30B):
+        #   D0: 0.55×ATR, D1: 0.55×ATR, D2: 0.85×ATR, D3: 1.09×ATR → exit close
+        tp_d0 = round(max(1.0, 0.55 * atr), 1)
+        tp_d1 = round(max(1.0, 0.55 * atr), 1)
+        tp_d2 = round(max(1.5, 0.85 * atr), 1)
+        tp_d3 = round(max(1.5, 1.09 * atr), 1)
+        _sl = sl_tp['sl_pct']
+        exit_rule = {
+            'max_hold_days': 3, 'exit_at': 'D3_CLOSE',
+            'tp_schedule': {'D0': tp_d0, 'D1': tp_d1, 'D2': tp_d2, 'D3': tp_d3},
+            'sl_pct': _sl,
+            'rationale': f'D0:{tp_d0}% D1:{tp_d1}% D2:{tp_d2}% D3:{tp_d3}% SL:{_sl}%',
+        }
 
         # 2. Divergence boost — stock UP while market weak
         breadth = macro.get('pct_above_20d_ma') or 50
@@ -231,6 +240,7 @@ class UnifiedSizer:
             council = self._build_council(
                 c, pick, macro, regime_decision, strategy_info,
                 scan_date, existing_picks, scorer)
+            council['exit_rules'] = exit_rule
             pick.council = council
         except Exception as e:
             logger.error("Sizer: council error for %s: %s", c['symbol'], e)
@@ -238,6 +248,7 @@ class UnifiedSizer:
                 'decision': 'TRADE', 'tier': 'LEAN', 'confidence': 0,
                 'position_size': 0.25, 'reasons': ['fallback'],
                 'brains': {}, 'strategy': strategy_info,
+                'exit_rules': exit_rule,
                 'stock_signals': {}, 'stock_profile': {},
                 'context': {}, 'sensors': {},
             }
@@ -338,11 +349,6 @@ class UnifiedSizer:
                 'wr': profile_wr,
                 'er': stock_profile.get('er', 0) if stock_profile else 0,
             },
-            'exit_rules': {
-                'gap_cut': 'If D1 gap < -0.5% → CUT immediately (WR=44% if hold)',
-                'green_sell': 'If D1 close > entry → SELL at D1 close (WR=70%)',
-                'hold_d5': 'If D1 red → HOLD to D5 (recovery time)',
-            },
             'hammer': c.get('d0_hammer', False),
             'hammer_shadow': c.get('d0_lower_shadow', 0),
             'context': ctx_result,
@@ -350,6 +356,8 @@ class UnifiedSizer:
             'graph_risk': graph_risk,
             'weekend_risk': self._get_weekend_risk(macro),
         })
+
+        return council
 
     def _get_weekend_risk(self, macro):
         """Get weekend risk if Friday."""

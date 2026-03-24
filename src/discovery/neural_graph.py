@@ -87,9 +87,9 @@ class NeuralGraph:
         # Data: VVIX>120 avg=+0.91% WR=58%, VIX>30 avg=+1.68% WR=65%
         # = CRISIS bounce opportunity, NOT danger
         # VIX 25-30 avg=-0.26% WR=50% = dead zone (penalty)
-        vix = macro.get('vix_close', 20)
-        vix_delta = macro.get('vix_delta_5d', 0)
-        crude_delta = macro.get('crude_delta_5d_pct', 0)
+        vix = macro.get('vix_close') or 20
+        vix_delta = macro.get('vix_delta_5d') or 0
+        crude_delta = macro.get('crude_delta_5d_pct') or 0
         vvix = macro.get('vvix_close')
 
         # VVIX signal (flipped: high = opportunity)

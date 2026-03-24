@@ -146,7 +146,11 @@ class DiscoveryEngine:
 
     @property
     def _multi_strategy(self):
-        return getattr(self, '_multi_strategy_info', {})
+        info = getattr(self, '_multi_strategy_info', {})
+        if not info:
+            info = self._load_multi_strategy()
+            self._multi_strategy_info = info
+        return info
 
     # === Public API ===
 
@@ -300,6 +304,59 @@ class DiscoveryEngine:
             'benchmark': benchmark,
         }
 
+    # === Regime detection (v16) ===
+
+    def _detect_market_regime(self, macro: dict) -> tuple[str, str]:
+        """Detect market regime from TREND × VOLATILITY.
+
+        TREND: SPY vs 50MA + 20d return slope
+        VOL: VIX level buckets
+
+        Returns (trend, vol_regime) e.g. ('STRONG_UP', 'NORMAL_VOL')
+        """
+        vix = macro.get('vix_close') or 20
+
+        # VOL regime from VIX
+        if vix > 30:
+            vol_regime = 'HIGH_VOL'
+        elif vix > 22:
+            vol_regime = 'ELEVATED'
+        elif vix < 15:
+            vol_regime = 'LOW_VOL'
+        else:
+            vol_regime = 'NORMAL_VOL'
+
+        # TREND from SPY vs 50MA + 20d slope
+        trend = 'CHOPPY'
+        try:
+            conn = sqlite3.connect(str(DB_PATH))
+            rows = conn.execute(
+                "SELECT close FROM stock_daily_ohlc "
+                "WHERE symbol='SPY' ORDER BY date DESC LIMIT 50"
+            ).fetchall()
+            conn.close()
+
+            if len(rows) >= 50:
+                spy_now = rows[0][0]
+                ma50 = sum(r[0] for r in rows) / len(rows)
+                spy_20d_ago = rows[min(20, len(rows) - 1)][0]
+                spy_20d_ret = ((spy_now / spy_20d_ago) - 1) * 100 if spy_20d_ago > 0 else 0
+
+                if spy_now > ma50 and spy_20d_ret > 2:
+                    trend = 'STRONG_UP'
+                elif spy_now > ma50 and spy_20d_ret > 0:
+                    trend = 'MILD_UP'
+                elif spy_now < ma50 and spy_20d_ret < -2:
+                    trend = 'STRONG_DOWN'
+                elif spy_now < ma50 and spy_20d_ret < 0:
+                    trend = 'MILD_DOWN'
+                else:
+                    trend = 'CHOPPY'
+        except Exception as e:
+            logger.debug("Regime detection SPY error: %s", e)
+
+        return trend, vol_regime
+
     # === Main scan pipeline ===
 
     def run_scan(self) -> list[DiscoveryPick]:
@@ -376,6 +433,17 @@ class DiscoveryEngine:
             picks = self._run_v3_pipeline(candidates, macro, scan_date, scan_info)
         else:
             picks = self._score_v2(candidates, macro, scan_date)
+            # v2 fallback: attach strategy info so picks have council
+            strategy_info = scan_info.get('strategy', {})
+            for p in picks:
+                if not getattr(p, 'council', None):
+                    p.council = {
+                        'decision': 'TRADE', 'tier': 'LEAN', 'confidence': 0,
+                        'position_size': 0.25, 'reasons': ['v2_fallback'],
+                        'brains': {}, 'strategy': strategy_info,
+                        'stock_signals': {}, 'stock_profile': {},
+                        'context': {}, 'sensors': {},
+                    }
 
         # 12. Log sector distribution
         pick_sectors: dict[str, int] = {}
@@ -389,13 +457,26 @@ class DiscoveryEngine:
                                    stage=f'Scored: {len(picks)} picks',
                                    l2=len(picks))
 
-        # 13. v15.0: Multi-strategy — full pipeline (same data as primary picks)
+        # 13. v16: Regime-adaptive multi-strategy
         try:
+            market_regime = self._detect_market_regime(macro)
+            logger.info("Discovery v16: regime=%s×%s", market_regime[0], market_regime[1])
+
             strat_name, condition = self._strategy_selector.select(
-                vix, macro.get('pct_above_20d_ma', 50))
+                vix or 20, macro.get('pct_above_20d_ma') or 50)
+
+            # Get ranked picks — regime-aware (preferred strategy boosted)
+            ranked = self._strategy_selector.get_ranked_picks(
+                candidates, macro, market_regime=market_regime)
             all_strat_picks = self._strategy_selector.get_all_picks(candidates, macro)
 
-            # Run each strategy's picks through scorer + sizer (refit=False)
+            logger.info("Discovery v15.2: %d ranked picks from %d candidates",
+                        len(ranked), len(candidates))
+            for sn, sp in all_strat_picks.items():
+                logger.info("Discovery v15.2: %s=%d picks%s", sn, len(sp),
+                            f" [{', '.join(p.get('symbol','?') for p in sp[:3])}]" if sp else "")
+
+            # Score + size each ranked pick
             scored_all, regime_s, macro_er_s = self._scorer.score_batch(
                 candidates, macro, scan_date, refit=False)
             if not scored_all:
@@ -403,33 +484,28 @@ class DiscoveryEngine:
                 macro_er_s = 0.0
             scored_map = {c.get('symbol'): (sc, c) for sc, c in (scored_all or [])}
 
-            strategy_full_picks = {}
-            for s_name, s_candidates in all_strat_picks.items():
-                if not s_candidates:
-                    continue
-                s_picks = []
-                for cand in s_candidates[:3]:  # top 3 per strategy
-                    sym = cand.get('symbol', '')
-                    # Get scored version if available, else use raw
-                    if sym in scored_map:
-                        score, scored_cand = scored_map[sym]
-                    else:
-                        score = 0.0
-                        scored_cand = cand
+            from collections import defaultdict
+            strategy_full_picks = defaultdict(list)
+            for s_name, cand in ranked:
+                sym = cand.get('symbol', '')
+                if sym in scored_map:
+                    score, scored_cand = scored_map[sym]
+                else:
+                    score = 0.0
+                    scored_cand = cand
 
-                    strat_info = {
-                        'strategy': s_name,
-                        'regime': scan_info.get('strategy', {}).get('regime', 'NORMAL'),
-                        'sizing': scan_info.get('strategy', {}).get('sizing', 0.25),
-                    }
-                    pick = self._sizer.create_pick(
-                        scored_cand, score, macro, regime_s, macro_er_s,
-                        strat_info,
-                        scan_info.get('regime_decision', {}),
-                        scan_date, s_picks, self._scorer)
-                    if pick:
-                        s_picks.append(pick)
-                strategy_full_picks[s_name] = s_picks
+                strat_info = {
+                    'strategy': s_name,
+                    'regime': scan_info.get('strategy', {}).get('regime', 'NORMAL'),
+                    'sizing': scan_info.get('strategy', {}).get('sizing', 0.25),
+                }
+                pick = self._sizer.create_pick(
+                    scored_cand, score, macro, regime_s, macro_er_s,
+                    strat_info,
+                    scan_info.get('regime_decision', {}),
+                    scan_date, list(strategy_full_picks.get(s_name, [])), self._scorer)
+                if pick:
+                    strategy_full_picks[s_name].append(pick)
 
             # Store as full DiscoveryPick dicts for API
             self._multi_strategy_info = {
@@ -439,14 +515,20 @@ class DiscoveryEngine:
                           for name, pick_list in strategy_full_picks.items()},
             }
 
-            logger.info("Discovery v15.0: condition=%s selected=%s | %s",
+            logger.info("Discovery v15.2: condition=%s selected=%s | %s",
                         condition, strat_name,
                         {k: len(v) for k, v in strategy_full_picks.items()})
         except Exception as e:
-            logger.error("Discovery: multi-strategy error: %s", e)
+            import traceback
+            tb = traceback.format_exc().replace('\n', ' | ')
+            logger.error("Discovery: multi-strategy error: %s TB: %s", e, tb)
             self._multi_strategy_info = {}
 
-        # 14. Deactivate old + save new
+        # 14. Persist multi-strategy info to DB (survives process restart)
+        if self._multi_strategy_info:
+            self._save_multi_strategy(scan_date, self._multi_strategy_info)
+
+        # 15. Deactivate old + save new
         self._expire_old_picks(scan_date)
         self._deactivate_previous_picks(scan_date)
         self._save_picks(picks, scan_date)
@@ -1001,6 +1083,12 @@ class DiscoveryEngine:
         if self._picks:
             self._last_scan = self._picks[0].scan_date
             logger.info(f"Discovery: loaded {len(self._picks)} active picks from {self._last_scan}")
+            # Restore strategy from council of first pick (survives restart)
+            for p in self._picks:
+                council = getattr(p, 'council', None)
+                if council and isinstance(council, dict) and council.get('strategy'):
+                    self._scorer._current_strategy = council['strategy']
+                    break
 
     def _save_picks(self, picks, scan_date):
         conn = sqlite3.connect(str(DB_PATH))
@@ -1041,6 +1129,37 @@ class DiscoveryEngine:
         conn.commit()
         conn.close()
         logger.info(f"Discovery: saved {len(picks)} picks for {scan_date}")
+
+    def _save_multi_strategy(self, scan_date, info):
+        """Persist multi-strategy info to DB so webapp can read it after scan exits."""
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS discovery_multi_strategy (
+                scan_date TEXT PRIMARY KEY,
+                info_json TEXT,
+                updated_at TEXT DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute(
+            "INSERT OR REPLACE INTO discovery_multi_strategy (scan_date, info_json) VALUES (?, ?)",
+            (scan_date, json.dumps(info, default=str)))
+        conn.commit()
+        conn.close()
+        logger.info("Discovery: saved multi-strategy info for %s", scan_date)
+
+    def _load_multi_strategy(self):
+        """Load most recent multi-strategy info from DB."""
+        try:
+            conn = sqlite3.connect(str(DB_PATH))
+            row = conn.execute(
+                "SELECT info_json FROM discovery_multi_strategy ORDER BY scan_date DESC LIMIT 1"
+            ).fetchone()
+            conn.close()
+            if row and row[0]:
+                return json.loads(row[0])
+        except Exception:
+            pass
+        return {}
 
     def _deactivate_previous_picks(self, new_scan_date):
         conn = sqlite3.connect(str(DB_PATH))
@@ -1278,7 +1397,7 @@ class DiscoveryEngine:
         vix = macro.get('vix_close', 20) or 20
         try:
             strat_name, condition = self._strategy_selector.select(
-                vix, macro.get('pct_above_20d_ma', 50))
+                vix or 20, macro.get('pct_above_20d_ma') or 50)
             all_strat_picks = self._strategy_selector.get_all_picks(candidates, macro)
 
             scored_all, regime_s, macro_er_s = self._scorer.score_batch(

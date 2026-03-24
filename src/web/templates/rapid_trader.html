@@ -3111,7 +3111,8 @@ function renderWeekend(w) {
         + '</div>';
 }
 
-function renderCouncil(c) {
+function renderCouncil(c, pick) {
+    pick = pick || {};
     if (!c || !c.decision) return '';
     var tier = c.tier || c.decision;
     var tierColors = {TRADE: '#2ecc71', CAUTIOUS: '#f39c12', LEAN: '#e67e22', BLOCKED: '#e74c3c', VETO: '#e74c3c'};
@@ -3133,8 +3134,8 @@ function renderCouncil(c) {
     if (stock.probability) parts.push('<span title="Stock Brain">S:' + (stock.probability * 100).toFixed(0) + '%</span>');
     if (risk.action && risk.action !== 'ALLOW') parts.push('<span style="color:#e74c3c;">' + (risk.action === 'REDUCE_SIZE' ? 'Risk:↓' : 'Risk:X') + '</span>');
 
-    var row1 = '<div class="d-flex align-items-center gap-1 mt-1" style="font-size:0.55rem;background:' + (tierBg[tier] || 'transparent') + ';padding:2px 4px;border-radius:3px 3px 0 0;">'
-        + parts.join('<span style="color:#555;margin:0 1px;">|</span>') + '</div>';
+    var row1 = '<div class="d-flex align-items-center gap-1 mt-1" style="font-size:0.65rem;background:' + (tierBg[tier] || 'transparent') + ';padding:3px 5px;border-radius:3px 3px 0 0;">'
+        + parts.join('<span style="color:#555;margin:0 2px;">|</span>') + '</div>';
 
     // Row 2: Per-stock signals (only if non-empty)
     var sigParts = [];
@@ -3160,9 +3161,20 @@ function renderCouncil(c) {
     if (c.hammer) {
         sigParts.push('<span style="color:#2ecc71;font-weight:600;" title="Hammer candle (lower shadow >50%) — bounce signal WR+6%">🔨 Hammer</span>');
     }
-    // Exit rules hint
-    if (c.exit_rules) {
-        sigParts.push('<span style="color:#888;" title="D1 gap<-0.5%→CUT | D1 green→SELL | D1 red→HOLD D5">Exit: gap/green/D5</span>');
+    // v15.3: Dynamic TP — compact inline
+    var er = c.exit_rules || {};
+    var tpSched = er.tp_schedule || {};
+    var ep = pick.entry_price || pick.scan_price || pick.current_price || 0;
+    if ((tpSched.D0 || tpSched.D1) && ep > 0) {
+        var parts2 = [];
+        var days = ['D0','D1','D2','D3'];
+        var dc = ['#e74c3c','#2ecc71','#3498db','#f39c12'];
+        for (var di=0; di<4; di++) {
+            var tp = tpSched[days[di]] || 0;
+            var tpP = (ep * (1 + tp/100)).toFixed(2);
+            parts2.push('<span style="color:' + dc[di] + ';">' + days[di] + ' $' + tpP + '</span>');
+        }
+        sigParts.push('<span style="color:#666;">TP ' + parts2.join(' → ') + '</span>');
     }
 
     // Sensor summary (compact)
@@ -3180,8 +3192,8 @@ function renderCouncil(c) {
     }
 
     if (sigParts.length === 0) return row1;
-    var row2 = '<div class="d-flex flex-wrap gap-1" style="font-size:0.5rem;background:' + (tierBg[tier] || 'transparent') + ';padding:1px 4px;border-radius:0 0 3px 3px;opacity:0.9;">'
-        + sigParts.join('<span style="color:#555;margin:0 1px;">|</span>') + '</div>';
+    var row2 = '<div class="d-flex flex-wrap gap-1" style="font-size:0.6rem;background:' + (tierBg[tier] || 'transparent') + ';padding:2px 5px;border-radius:0 0 3px 3px;">'
+        + sigParts.join('<span style="color:#555;margin:0 2px;">|</span>') + '</div>';
     return row1 + row2;
 }
 
@@ -3299,213 +3311,166 @@ function loadDiscoveryPicks() {
             }
 
             const picks = data.picks || [];
-            // v6.0: rank by AI ensemble score (falls back to E[R] if no ensemble)
-            // v8.0: rank by council confidence (unified)
-            const rankScore = (p) => (p.council && p.council.confidence) ? p.council.confidence : (p.layer2_score || 0);
-            picks.sort((a, b) => rankScore(b) - rankScore(a));
-            if (badge) badge.textContent = picks.length;
+            picks.sort((a, b) => (b.layer2_score || 0) - (a.layer2_score || 0));
 
-            if (picks.length === 0) {
-                // v15.0: Show multi-strategy picks with FULL data (same as primary picks)
-                fetch('/api/discovery/strategies')
-                    .then(r => r.json())
-                    .then(stData => {
-                        const stPicks = stData.picks || {};
-                        const sel = stData.selected || 'DIP';
-                        const stratColors = {DIP:'#e74c3c', OVERSOLD:'#e67e22', MOMENTUM:'#2ecc71', VALUE:'#3498db', CONTRARIAN:'#9b59b6'};
+            // v15.2: Unified view — merge primary picks + multi-strategy into one list
+            fetch('/api/discovery/strategies')
+                .then(r => r.json())
+                .then(stData => {
+                    const stPicks = stData.picks || {};
+                    const stratColors = {DIP:'#e74c3c', OVERSOLD:'#e67e22', MOMENTUM:'#2ecc71', VALUE:'#3498db', CONTRARIAN:'#9b59b6', VOL_U:'#1abc9c', RS:'#e91e63', SELECTIVE:'#f39c12'};
 
-                        // Flatten all strategy picks, sort by best profit potential
-                        let allPicks = [];
-                        const stratOrder = ['OVERSOLD','VALUE','MOMENTUM','CONTRARIAN'];
-                        for (const sName of stratOrder) {
-                            const sp = stPicks[sName];
-                            if (!sp || sp.length === 0) continue;
-                            for (const p of sp.slice(0, 2)) {
+                    // Merge: primary picks first (tagged with their strategy), then multi-strategy
+                    const seen = new Set();
+                    let allPicks = [];
+
+                    // Add primary picks (have richer data: timeline, outcomes)
+                    picks.forEach(p => {
+                        const c = p.council || {};
+                        const s = c.strategy || {};
+                        p._strategy = s.strategy || 'SELECTIVE';
+                        p._isPrimary = true;
+                        allPicks.push(p);
+                        seen.add(p.symbol);
+                    });
+
+                    // Add multi-strategy picks (dedupe)
+                    for (const sName of ['DIP','OVERSOLD','VALUE','CONTRARIAN','VOL_U','RS']) {
+                        const sp = stPicks[sName];
+                        if (!sp) continue;
+                        sp.forEach(p => {
+                            if (!seen.has(p.symbol)) {
+                                seen.add(p.symbol);
                                 p._strategy = sName;
-                                p._isBest = sName === sel;
+                                p._isPrimary = false;
                                 allPicks.push(p);
                             }
-                        }
-                        // Sort by: tp_timeline actual_wr (desc) → actual_er (desc) → layer2_score (desc)
-                        allPicks.sort((a, b) => {
-                            const aWR = (a.tp_timeline && a.tp_timeline.actual_wr) || 0;
-                            const bWR = (b.tp_timeline && b.tp_timeline.actual_wr) || 0;
-                            if (bWR !== aWR) return bWR - aWR;
-                            const aER = (a.tp_timeline && a.tp_timeline.actual_er) || 0;
-                            const bER = (b.tp_timeline && b.tp_timeline.actual_er) || 0;
-                            if (bER !== aER) return bER - aER;
-                            return (b.layer2_score || 0) - (a.layer2_score || 0);
                         });
+                    }
 
-                        if (allPicks.length === 0) {
-                            container.innerHTML = '<div class="text-center text-muted py-3 small">No strategy picks available</div>';
-                            return;
-                        }
+                    // Sort all by E[R] descending
+                    allPicks.sort((a, b) => (b.layer2_score || 0) - (a.layer2_score || 0));
+                    if (badge) badge.textContent = allPicks.length;
 
-                        let html = '';
-                        allPicks.forEach(p => {
-                            const sName = p._strategy;
-                            const sColor = stratColors[sName] || '#888';
-                            const isBest = p._isBest;
-                            const er = p.layer2_score || 0;
-                            const erColor = er >= 2.0 ? '#2ecc71' : er >= 1.0 ? '#27ae60' : er >= 0.5 ? '#f39c12' : '#e74c3c';
-                            const erBg = er >= 2.0 ? 'rgba(46,204,113,0.25)' : er >= 1.0 ? 'rgba(39,174,96,0.2)' : er >= 0.5 ? 'rgba(243,156,18,0.15)' : 'rgba(231,76,60,0.15)';
-                            const borderColor = isBest ? 'rgba(46,204,113,0.4)' : 'rgba(255,255,255,0.08)';
-                            const sectorShort = (p.sector || '').replace('Consumer ','C.').replace('Communication ','Comm.').replace('Financial ','Fin.').replace('Services','Svc');
+                    if (allPicks.length === 0) {
+                        container.innerHTML = '<div class="text-center text-muted py-3 small">No picks available</div>';
+                        _discoveryLoaded = true;
+                        return;
+                    }
 
-                            html += '<div class="border rounded p-2 mb-2" style="background:rgba(46,204,113,0.03);border-color:' + borderColor + ' !important;">';
-                            // Row 1: Symbol + strategy badge + E[R] + sector
-                            html += '<div class="d-flex justify-content-between align-items-start">';
-                            html += '<div>';
-                            html += '<strong style="color:' + sColor + ';">' + p.symbol + '</strong>';
-                            html += ' <span class="badge ms-1" style="background:rgba(255,255,255,0.06);color:' + sColor + ';font-size:0.55rem;">' + sName + '</span>';
-                            html += ' <span class="badge ms-1" style="background:' + erBg + ';color:' + erColor + ';font-size:0.6rem;">E[R] ' + (er>0?'+':'') + er.toFixed(1) + '%</span>';
-                            html += ' <span style="font-size:0.55rem;color:#888;">' + sectorShort + '</span>';
-                            if (isBest) html += ' <span class="badge ms-1" style="background:rgba(46,204,113,0.2);color:#2ecc71;font-size:0.5rem;">BEST</span>';
-                            html += '</div>';
-                            html += '<div class="text-end"><div class="small"><strong>$' + (p.current_price||p.scan_price||0) + '</strong></div></div>';
-                            html += '</div>';
-                            // Row 2: SL / Entry / TP
-                            if (p.sl_price && p.tp1_price) {
-                                html += '<div class="d-flex justify-content-between mt-1" style="font-size:0.65rem;">';
-                                html += '<span class="text-danger">SL $' + p.sl_price + ' (-' + p.sl_pct + '%)</span>';
-                                html += '<span style="color:#aaa;">Scan $' + p.scan_price + '</span>';
-                                html += '<span class="text-success">TP $' + p.tp1_price + ' (+' + p.tp1_pct + '%)</span>';
-                                html += '</div>';
-                            }
-                            // Row 3: Technicals
-                            html += '<div class="d-flex justify-content-between mt-1" style="font-size:0.6rem;color:#888;">';
-                            html += '<span>ATR ' + (p.atr_pct||0).toFixed(1) + '%</span>';
-                            html += '<span>Vol ' + (p.volume_ratio||0).toFixed(1) + 'x</span>';
-                            html += '<span>Mom ' + (p.momentum_5d>0?'+':'') + (p.momentum_5d||0).toFixed(1) + '%</span>';
-                            html += '<span>D20H ' + (p.distance_from_20d_high||0).toFixed(1) + '%</span>';
-                            html += '</div>';
-                            // Row 4: Timeline (if available)
-                            if (p.tp_timeline) html += renderTimeline(p.tp_timeline);
-                            // Row 5: Council (if available)
-                            if (p.council) html += renderCouncil(p.council);
-                            html += '</div>';
-                        });
-                        container.innerHTML = html;
-                    })
-                    .catch(() => {
-                        container.innerHTML = '<div class="text-center text-muted py-3 small">Loading strategies...</div>';
-                    });
-                _discoveryLoaded = true;
-                return;
-            }
+                    let html = '';
 
-            // Build sector distribution bar
-            const sectorCounts = {};
-            picks.forEach(p => { const s = p.sector || 'Unknown'; sectorCounts[s] = (sectorCounts[s] || 0) + 1; });
-            const sectorBar = document.getElementById('discoverySectorBar');
-            if (sectorBar) {
-                sectorBar.innerHTML = Object.entries(sectorCounts)
-                    .sort((a,b) => b[1] - a[1])
-                    .map(([s, n]) => `<div style="flex:${n};background:${_sectorColors[s] || '#555'}" title="${s}: ${n}"></div>`)
-                    .join('');
-            }
-
-            // v9.0: Market-level signals (sector rotation, SPY drawdown, VIX spike)
-            var ms = data.market_signals || [];
-            if (ms.length > 0) {
-                var msHtml = '<div class="mb-2" style="font-size:0.6rem;">';
-                ms.forEach(function(s) {
-                    var typeColors = {SECTOR_CONTRARIAN:'#3498db', SPY_DRAWDOWN:'#e67e22', VIX_SPIKE:'#e74c3c'};
-                    var c = typeColors[s.type] || '#888';
-                    msHtml += '<div class="d-flex align-items-center gap-2 mb-1" style="background:rgba(52,152,219,0.08);padding:3px 6px;border-radius:4px;">'
-                        + '<span style="font-weight:700;color:' + c + ';">' + s.type.replace('_',' ') + '</span>'
+                    // v9.0: Market-level signals
+                    var ms = data.market_signals || [];
+                    if (ms.length > 0) {
+                        html += '<div class="mb-2" style="font-size:0.6rem;">';
+                        ms.forEach(function(s) {
+                            var typeColors = {SECTOR_CONTRARIAN:'#3498db', SPY_DRAWDOWN:'#e67e22', VIX_SPIKE:'#e74c3c'};
+                            var c = typeColors[s.type] || '#888';
+                            html += '<div class="d-flex align-items-center gap-2 mb-1" style="background:rgba(52,152,219,0.08);padding:3px 6px;border-radius:4px;">'
+                                + '<span style="font-weight:700;color:' + c + ';">' + s.type.replace('_',' ') + '</span>'
                         + '<span>' + s.symbol + '</span>'
                         + '<span style="color:#2ecc71;font-weight:600;">WR ' + s.wr + '%</span>'
                         + '<span>Hold ' + s.hold_days + 'd</span>'
                         + '<span>Size ' + (s.sizing * 100).toFixed(0) + '%</span>'
                         + '<span style="color:#888;" title="' + (s.rationale || '') + '">ℹ️ ' + (s.rationale || '').substring(0, 50) + '</span>'
                         + '</div>';
-                });
-                msHtml += '</div>';
-                container.insertAdjacentHTML('beforeend', msHtml);
-            }
-
-            let html = '';
-            picks.forEach(p => {
-                const pctChange = p.pct_change || 0;
-                const pctClass = pctChange >= 0 ? 'text-success' : 'text-danger';
-                const pctSign = pctChange >= 0 ? '+' : '';
-                const statusIcon = p.status === 'hit_tp1' ? '<i class="fas fa-trophy text-warning ms-1" title="Hit TP"></i>'
-                    : p.status === 'hit_sl' ? '<i class="fas fa-times-circle text-danger ms-1" title="Hit SL"></i>' : '';
-                const earningsWarn = p.earnings_warning ? `<span class="badge ms-1" style="background:#e74c3c;font-size:0.5rem;" title="Earnings in ${p.days_to_earnings}d">ER ${p.days_to_earnings}d</span>` : '';
-                const shortBadge = p.short_pct_float && p.short_pct_float > 5 ? `<span style="font-size:0.6rem;color:#e67e22;font-weight:600;" title="High short interest">SI${p.short_pct_float}%</span>` : '';
-                // Weekend risk badge (Friday only)
-                let weekendBadge = '';
-                if (p.council && p.council.weekend_risk) {
-                    const wr = p.council.weekend_risk;
-                    const wAction = wr.weekend_action || 'NEUTRAL';
-                    const wScore = wr.weekend_score || 0;
-                    if (wAction === 'GAP_UP_LIKELY') {
-                        weekendBadge = `<span class="badge ms-1" style="background:rgba(46,204,113,0.2);color:#2ecc71;font-size:0.5rem;" title="${(wr.weekend_factors||[]).join(', ')}">🟢 WKD +${wScore.toFixed(1)}</span>`;
-                    } else if (wAction === 'GAP_DOWN_RISK') {
-                        weekendBadge = `<span class="badge ms-1" style="background:rgba(231,76,60,0.2);color:#e74c3c;font-size:0.5rem;" title="${(wr.weekend_factors||[]).join(', ')}">🔴 WKD ${wScore.toFixed(1)}</span>`;
-                    } else {
-                        weekendBadge = `<span class="badge ms-1" style="background:rgba(255,255,255,0.05);color:#888;font-size:0.5rem;">⚪ WKD</span>`;
+                        });
+                        html += '</div>';
                     }
-                }
-                // Gap validation badge — v5.2: show gap boost
-                let gapBadge = '';
-                if (p.validation_status === 'confirmed') {
-                    const boostTag = (p.gap_pct || 0) >= 0.5 ? ' BOOST' : '';
-                    gapBadge = `<span class="badge ms-1" style="background:rgba(46,204,113,0.2);color:#2ecc71;font-size:0.5rem;" title="Gap confirmed${boostTag ? ' — TP widened ×1.3' : ''}"><i class="fas fa-check"></i> +${(p.gap_pct||0).toFixed(1)}%${boostTag}</span>`;
-                } else if (p.validation_status === 'unconfirmed') {
-                    gapBadge = `<span class="badge ms-1" style="background:rgba(231,76,60,0.2);color:#e74c3c;font-size:0.5rem;" title="Pre-market gap negative"><i class="fas fa-times"></i> ${(p.gap_pct||0).toFixed(1)}%</span>`;
-                }
-                const intraBadge = p.scan_type === 'intraday' ? `<span class="badge ms-1" style="background:rgba(52,152,219,0.2);color:#3498db;font-size:0.5rem;">INTRA</span>` : '';
-                // Limit-buy badge
-                let limitBadge = '';
-                if (p.entry_status === 'filled') {
-                    limitBadge = `<span class="badge ms-1" style="background:rgba(46,204,113,0.2);color:#2ecc71;font-size:0.5rem;" title="Limit filled at $${p.entry_price}"><i class="fas fa-check-circle"></i> FILLED</span>`;
-                } else if (p.entry_status === 'pending' && p.limit_entry_price) {
-                    limitBadge = `<span class="badge ms-1" style="background:rgba(52,152,219,0.2);color:#3498db;font-size:0.5rem;" title="Limit buy at $${p.limit_entry_price} (-${p.limit_pct}%)"><i class="fas fa-clock"></i> LIMIT $${p.limit_entry_price}</span>`;
-                } else if (p.entry_status === 'missed') {
-                    limitBadge = `<span class="badge ms-1" style="background:rgba(231,76,60,0.1);color:#e74c3c;font-size:0.5rem;"><i class="fas fa-times"></i> MISSED</span>`;
-                }
-                const sectorShort = (p.sector || '').replace('Consumer ', 'C.').replace('Communication ', 'Comm.').replace('Financial ', 'Fin.').replace('Services', 'Svc');
-                const sectorColor = _sectorColors[p.sector] || '#888';
 
-                // v5.2: E[R] badge replaces score tier
-                const er = p.layer2_score || 0;
-                const erColor = er >= 2.0 ? '#2ecc71' : er >= 1.0 ? '#27ae60' : er >= 0.5 ? '#f39c12' : '#e74c3c';
-                const erBg = er >= 2.0 ? 'rgba(46,204,113,0.25)' : er >= 1.0 ? 'rgba(39,174,96,0.2)' : er >= 0.5 ? 'rgba(243,156,18,0.15)' : 'rgba(231,76,60,0.15)';
-                const borderColor = er >= 2.0 ? 'rgba(46,204,113,0.4)' : er >= 1.0 ? 'rgba(39,174,96,0.3)' : er >= 0.5 ? 'rgba(243,156,18,0.25)' : 'rgba(231,76,60,0.2)';
+                    // v15.2: Unified pick card renderer
+                    const _stColors = {CALM_PULLBACK:'#2ecc71', CALM_TREND:'#3498db', SELECTIVE:'#f39c12', DIP_BOUNCE:'#e74c3c', WASHOUT:'#8e44ad', DIP:'#e74c3c', OVERSOLD:'#e67e22', MOMENTUM:'#2ecc71', VALUE:'#3498db', CONTRARIAN:'#9b59b6', VOL_U:'#1abc9c', RS:'#e91e63'};
+                    function renderPickCard(p) {
+                        const sName = p._strategy || 'SELECTIVE';
+                        const sc = _stColors[sName] || '#888';
+                        const er = p.layer2_score || 0;
+                        const erColor = er >= 2.0 ? '#2ecc71' : er >= 1.0 ? '#27ae60' : er >= 0.5 ? '#f39c12' : '#e74c3c';
+                        const erBg = er >= 2.0 ? 'rgba(46,204,113,0.25)' : er >= 1.0 ? 'rgba(39,174,96,0.2)' : er >= 0.5 ? 'rgba(243,156,18,0.15)' : 'rgba(231,76,60,0.15)';
+                        const borderColor = er >= 2.0 ? 'rgba(46,204,113,0.4)' : er >= 1.0 ? 'rgba(39,174,96,0.3)' : er >= 0.5 ? 'rgba(243,156,18,0.25)' : 'rgba(231,76,60,0.2)';
+                        const sectorShort = (p.sector || '').replace('Consumer ', 'C.').replace('Communication ', 'Comm.').replace('Financial ', 'Fin.').replace('Services', 'Svc');
+                        const sectorColor = _sectorColors[p.sector] || '#888';
+                        const price = p.current_price || p.scan_price || 0;
+                        const pctChange = p.pct_change || 0;
+                        const pctClass = pctChange >= 0 ? 'text-success' : 'text-danger';
+                        const pctSign = pctChange >= 0 ? '+' : '';
+                        const mom = p.momentum_5d || 0;
+                        const d20h = p.distance_from_20d_high || p.distance_from_high || 0;
+                        const atr = p.atr_pct || 0;
+                        const vol = p.volume_ratio || 0;
 
-                html += `
-                <div class="border rounded p-2 mb-2" style="background: rgba(46,204,113,0.03); border-color: ${borderColor} !important;">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <strong style="color:#2ecc71;">${p.symbol}</strong>${statusIcon}
-                            <span class="badge ms-1" style="background:${erBg};color:${erColor};font-size:0.6rem;" title="Kernel E[R]">E[R] ${er > 0 ? '+' : ''}${er.toFixed(1)}%</span>
-                            <span style="font-size:0.55rem;color:${sectorColor};font-weight:500;">${sectorShort}</span>
-                            ${gapBadge}${intraBadge}${limitBadge}${earningsWarn}${shortBadge}${weekendBadge}
-                        </div>
-                        <div class="text-end">
-                            <div class="small"><strong>$${p.current_price}</strong> <span class="${pctClass}" style="font-size:0.7rem;">${pctSign}${pctChange.toFixed(1)}%</span></div>
-                        </div>
-                    </div>
-                    <div class="d-flex justify-content-between mt-1" style="font-size:0.65rem;">
-                        <span class="text-danger">SL $${p.sl_price} <span style="opacity:0.7">(-${p.sl_pct}%)</span></span>
-                        <span style="color:${p.entry_status === 'filled' ? '#2ecc71' : p.limit_entry_price ? '#3498db' : '#aaa'};">${p.entry_status === 'filled' ? 'Entry' : p.limit_entry_price ? 'Limit' : 'Scan'} $${p.entry_price || p.limit_entry_price || p.scan_price}</span>
-                        <span class="text-success">TP $${p.tp1_price} <span style="opacity:0.7">(+${p.tp1_pct}%)</span></span>
-                    </div>
-                    <div class="d-flex justify-content-between mt-1" style="font-size:0.6rem; color:#888;">
-                        <span title="ATR% (daily volatility)">ATR ${p.atr_pct}%</span>
-                        <span title="Volume ratio">Vol ${(p.volume_ratio || 0).toFixed(1)}x</span>
-                        <span title="5-day momentum">Mom ${p.momentum_5d > 0 ? '+' : ''}${p.momentum_5d}%</span>
-                        <span title="Distance from 20-day high">D20H ${(p.distance_from_20d_high || p.distance_from_high || 0).toFixed(1)}%</span>
-                    </div>
-                    ${p.tp_timeline ? renderTimeline(p.tp_timeline) : ''}
-                    ${p.weekend_play && p.weekend_play.advice !== 'risky' ? renderWeekend(p.weekend_play) : ''}
-                    ${p.council ? renderCouncil(p.council) : ''}
-                </div>`;
-            });
-            container.innerHTML = html;
+                        // Badges
+                        const statusIcon = p.status === 'hit_tp1' ? '<i class="fas fa-trophy text-warning ms-1"></i>' : p.status === 'hit_sl' ? '<i class="fas fa-times-circle text-danger ms-1"></i>' : '';
+                        const earningsWarn = p.earnings_warning ? `<span class="badge ms-1" style="background:#e74c3c;font-size:0.6rem;">ER ${p.days_to_earnings}d</span>` : '';
+                        const shortBadge = p.short_pct_float && p.short_pct_float > 5 ? `<span style="font-size:0.65rem;color:#e67e22;">SI${p.short_pct_float}%</span>` : '';
+                        let limitBadge = '';
+                        if (p.entry_status === 'filled') limitBadge = `<span class="badge ms-1" style="background:rgba(46,204,113,0.2);color:#2ecc71;font-size:0.6rem;">FILLED</span>`;
+                        else if (p.entry_status === 'pending' && p.limit_entry_price) limitBadge = `<span class="badge ms-1" style="background:rgba(52,152,219,0.2);color:#3498db;font-size:0.6rem;">LIMIT $${p.limit_entry_price}</span>`;
+                        const intraBadge = p.scan_type === 'intraday' ? `<span class="badge ms-1" style="background:rgba(52,152,219,0.2);color:#3498db;font-size:0.6rem;">INTRA</span>` : '';
+
+                        // Get TP schedule from council
+                        const council = p.council || {};
+                        const exitRules = council.exit_rules || {};
+                        const tpSched = exitRules.tp_schedule || {};
+                        const ep = p.entry_price || p.scan_price || price;
+
+                        let card = `<div class="border rounded p-2 mb-2" style="background:rgba(46,204,113,0.03);border-color:${borderColor} !important;">`;
+
+                        // Row 1: Symbol + Strategy badge + E[R] + Sector | Price
+                        card += `<div class="d-flex justify-content-between align-items-center">`;
+                        card += `<div>`;
+                        card += `<strong style="color:${sc};font-size:1rem;">${p.symbol}</strong>${statusIcon}`;
+                        card += ` <span class="badge" style="background:rgba(255,255,255,0.08);color:${sc};font-size:0.65rem;">${sName.replace('_',' ')}</span>`;
+                        card += ` <span class="badge" style="background:${erBg};color:${erColor};font-size:0.65rem;">E[R] ${er>0?'+':''}${er.toFixed(1)}%</span>`;
+                        card += ` <span style="font-size:0.65rem;color:${sectorColor};">${sectorShort}</span>`;
+                        card += `${limitBadge}${earningsWarn}${shortBadge}`;
+                        card += `</div>`;
+                        card += `<div><strong style="font-size:1rem;">$${typeof price==='number'?price.toFixed(2):price}</strong>`;
+                        if (pctChange !== 0) card += `<span class="${pctClass}" style="font-size:0.75rem;margin-left:4px;">${pctSign}${pctChange.toFixed(1)}%</span>`;
+                        card += `</div></div>`;
+
+                        // Row 2: SL | Entry | TP (D3 max)
+                        if (p.sl_price) {
+                            const entryPrice = p.entry_price || p.limit_entry_price || p.scan_price;
+                            card += `<div class="d-flex justify-content-between mt-1" style="font-size:0.75rem;">`;
+                            card += `<span class="text-danger">SL $${p.sl_price} (-${p.sl_pct}%)</span>`;
+                            card += `<span style="color:#aaa;">Entry $${entryPrice}</span>`;
+                            card += `<span class="text-success">TP $${p.tp1_price} (+${p.tp1_pct}%)</span>`;
+                            card += `</div>`;
+                        }
+
+                        // Row 3: ATR | Vol | Mom | D20H
+                        card += `<div class="d-flex justify-content-between mt-1" style="font-size:0.7rem;color:#999;">`;
+                        card += `<span>ATR ${atr.toFixed?atr.toFixed(1):atr}%</span>`;
+                        card += `<span>Vol ${vol.toFixed(1)}x</span>`;
+                        card += `<span>Mom ${mom>0?'+':''}${mom.toFixed?mom.toFixed(1):mom}%</span>`;
+                        card += `<span>D20H ${d20h.toFixed?d20h.toFixed(1):d20h}%</span>`;
+                        card += `</div>`;
+
+                        // Row 4: Dynamic TP timeline D0→D3 (prices)
+                        if (tpSched.D0 && ep > 0) {
+                            const dc = ['#e74c3c','#2ecc71','#3498db','#f39c12'];
+                            card += `<div class="d-flex align-items-center gap-1 mt-1" style="font-size:0.65rem;">`;
+                            card += `<span style="color:#666;">TP</span>`;
+                            ['D0','D1','D2','D3'].forEach((d,i) => {
+                                const tp = tpSched[d] || 0;
+                                const tpP = (ep * (1+tp/100)).toFixed(2);
+                                const arrow = i < 3 ? '<span style="color:#555;margin:0 1px;">→</span>' : '';
+                                const suffix = i === 3 ? '↩' : '';
+                                card += `<span style="color:${dc[i]};">${d} $${tpP} (${tp.toFixed(1)}%)${suffix}</span>${arrow}`;
+                            });
+                            card += `</div>`;
+                        }
+
+                        card += `</div>`;
+                        return card;
+                    }
+
+                    // Render all picks with unified card
+                    allPicks.forEach(p => { html += renderPickCard(p); });
+                    container.innerHTML = html;
+                })
+                .catch(() => { container.innerHTML = '<div class="text-center text-muted py-3 small">Discovery unavailable</div>'; });
             _discoveryLoaded = true;
         })
         .catch(err => {
