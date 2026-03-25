@@ -45,28 +45,16 @@ class ContextScorer:
                 penalties.append(f'SPECULATIVE({",".join(flags)}) {spec_score:+.1f}')
 
         # 2. Macro sensitivity mismatch
+        # v17: crude>85 penalty REMOVED — SectorScorer handles sector blocking adaptively
         if macro:
-            crude = macro.get('crude_close') or 75
             vix = macro.get('vix_close') or 20
 
-            # Crude: penalize stocks that DROP when crude is HIGH
-            # threshold -0.10 (only ~5 stocks: TLT, CLX, KMB etc.)
-            crude_sens = ctx['flags'].get('CRUDE_SENSITIVE', {})
-            if crude_sens and crude > 85:
-                corr = crude_sens.get('score', 0)
-                if corr < -0.10:
-                    penalty = round(corr * 2, 2)  # scale: corr=-0.15 → -0.30
-                    total_penalty += penalty
-                    penalties.append(f'CRUDE_HIGH+NEG_CORR({corr:+.2f}) {penalty:+.2f}')
-
             # VIX: penalize only HIGHLY sensitive stocks (corr < -0.50)
-            # Before fix: threshold -0.15 triggered on 96% of stocks
-            # After fix: threshold -0.50 triggers on ~10% (QQQ, SOXX, GS, etc.)
             vix_sens = ctx['flags'].get('VIX_SENSITIVE', {})
             if vix_sens and vix > 25:
                 corr = vix_sens.get('score', 0)
-                if corr < -0.50:  # only extreme VIX sensitivity
-                    penalty = round((corr + 0.50) * 0.5, 2)  # scale: -0.70 → -0.10
+                if corr < -0.50:
+                    penalty = round((corr + 0.50) * 0.5, 2)
                     total_penalty += penalty
                     penalties.append(f'VIX_HIGH+EXTREME_SENS({corr:+.2f}) {penalty:+.2f}')
 

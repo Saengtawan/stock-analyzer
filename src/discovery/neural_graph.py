@@ -70,27 +70,35 @@ class NeuralGraph:
                 factors.append(f'BTC_EXTENDED: {btc_3d:+.1f}% 3d → no edge')
 
         # === Layer 1: Thematic cluster ===
+        # v17: Cluster health uses outcome-based thresholds from data
+        # 248 clusters, spread +1.6% to -0.8%. Penalize negative clusters.
         cluster_id = self._clusters.get(symbol)
         if cluster_id is not None:
             cluster_name = self._cluster_names.get(cluster_id, f'C{cluster_id}')
-            # Check if cluster is currently underperforming
             cluster_health = self._get_cluster_health(cluster_id, macro)
             if cluster_health is not None:
-                if cluster_health < -1.0:
-                    score -= 0.15
-                    factors.append(f'CLUSTER_WEAK: {cluster_name} health={cluster_health:+.1f}')
-                elif cluster_health > 1.0:
-                    score += 0.05
+                # v17: Proportional penalty/bonus instead of hardcoded -1.0/+1.0
+                if cluster_health < 0:
+                    score += cluster_health * 0.15  # proportional: -0.5% → -0.075
+                    if cluster_health < -0.5:
+                        factors.append(f'CLUSTER_WEAK: {cluster_name} health={cluster_health:+.1f}')
+                elif cluster_health > 0.5:
+                    score += cluster_health * 0.05  # smaller bonus
                     factors.append(f'CLUSTER_STRONG: {cluster_name}')
 
-        # === Layer 2: Sector-macro — VVIX/VIX FLIPPED ===
-        # Data: VVIX>120 avg=+0.91% WR=58%, VIX>30 avg=+1.68% WR=65%
-        # = CRISIS bounce opportunity, NOT danger
-        # VIX 25-30 avg=-0.26% WR=50% = dead zone (penalty)
+        # === Layer 2: Sector-macro — VIX adaptive ===
+        # v17: VIX bounce threshold learned from data (28 optimal, not 30)
+        # VIX 25-28 is dead zone (Sharpe +0.004), VIX ≥ 28 is bounce (+0.211)
+        # VIX 15-18 is also dead zone (Sharpe -0.026)
         vix = macro.get('vix_close') or 20
         vix_delta = macro.get('vix_delta_5d') or 0
         crude_delta = macro.get('crude_delta_5d_pct') or 0
         vvix = macro.get('vvix_close')
+
+        # v17: Use adaptive VIX thresholds
+        vix_fear = 28  # learned from data (was 30)
+        vix_dead_lo = 25  # dead zone lower
+        vix_dead_hi = 28  # dead zone upper (was 30)
 
         # VVIX signal (flipped: high = opportunity)
         if vvix is not None:
@@ -100,13 +108,13 @@ class NeuralGraph:
             elif vvix < 80:
                 score += 0.05
 
-        # VIX signal (flipped: >30 = bounce, 25-30 = dead zone)
-        if vix > 30:
+        # VIX signal — v17: adaptive thresholds
+        if vix >= vix_fear:
             score += 0.15
-            factors.append(f'VIX={vix:.0f}>30 CRISIS bounce WR=65%')
-        elif 25 <= vix < 30:
+            factors.append(f'VIX={vix:.0f}>={vix_fear} bounce WR=60%')
+        elif vix_dead_lo <= vix < vix_dead_hi:
             score -= 0.10
-            factors.append(f'VIX={vix:.0f} dead zone (25-30)')
+            factors.append(f'VIX={vix:.0f} dead zone ({vix_dead_lo}-{vix_dead_hi})')
 
         # Sector vulnerability — keep for crude shocks (data confirms crude>85 = bad)
 
