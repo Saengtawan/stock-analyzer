@@ -39,7 +39,8 @@ from discovery.unified_scorer import UnifiedScorer
 from discovery.filter import UnifiedFilter
 from discovery.sizer import UnifiedSizer
 from discovery.adaptive_params import AdaptiveParameterLearner
-from discovery.multi_strategy import StrategySelector, detect_condition, STRATEGIES
+from discovery.multi_strategy import (StrategySelector, detect_condition, classify_regime,
+                                      classify_strategy, STRATEGIES, PC_BULLISH, PC_BEARISH)
 from discovery.outcome_tracker import OutcomeTracker
 from discovery.market_signals import MarketSignalEngine
 from discovery.param_manager import ParamManager
@@ -814,28 +815,12 @@ class DiscoveryEngine:
 
     @staticmethod
     def _infer_strategy_label(candidate):
-        """Infer best-matching strategy label from stock features.
-
-        Used when a stock passes filter via sector/kernel boost
-        but wasn't directly matched by any strategy function.
-        """
-        mom5 = candidate.get('momentum_5d') or 0
-        d20h = candidate.get('distance_from_20d_high') or 0
-        vol = candidate.get('volume_ratio') or 1
-        pe = candidate.get('pe_forward')
-
-        # Check in priority order (most specific first)
-        if mom5 < -5 and d20h < -10:
-            return 'OVERSOLD'
-        if -20 < mom5 < -1:
-            return 'DIP'
-        if mom5 > 0 and d20h > -10:
-            return 'RS'
-        if vol < 0.5 or vol > 2.0:
-            return 'VOL_U'
-        if pe is not None and 3 < pe < 15:
-            return 'VALUE'
-        return 'CONTRARIAN'
+        """Infer strategy label from stock features. Uses shared classify_strategy()."""
+        return classify_strategy(
+            candidate.get('momentum_5d'),
+            candidate.get('distance_from_20d_high'),
+            candidate.get('volume_ratio'),
+            candidate.get('pe_forward'))
 
     def _build_multi_strategy(self, candidates, scored_all, regime, macro_er,
                               macro, scan_info, scan_date):
@@ -1230,9 +1215,9 @@ class DiscoveryEngine:
                 AND pc_volume_ratio > 0
             """, (ref_date,)):
                 pc = r['pc_volume_ratio']
-                if pc < 0.7:
+                if pc < PC_BULLISH:
                     options_bullish_syms.add(r['symbol'])
-                elif pc > 1.3:
+                elif pc > PC_BEARISH:
                     options_bearish_syms.add(r['symbol'])
         except Exception:
             pass  # table may not exist yet
@@ -1894,9 +1879,9 @@ class DiscoveryEngine:
                 AND pc_volume_ratio > 0
             """, (ref_date,)):
                 pc = r['pc_volume_ratio']
-                if pc < 0.7:
+                if pc < PC_BULLISH:
                     options_bullish_syms.add(r['symbol'])
-                elif pc > 1.3:
+                elif pc > PC_BEARISH:
                     options_bearish_syms.add(r['symbol'])
         except Exception:
             pass

@@ -94,12 +94,7 @@ MIN_GROUP_SIZE = 100
 MAX_CHANGE_PCT = 30  # safety: max ±30% change per refit cycle
 
 
-def _classify_regime(vix, breadth):
-    if vix < 20 and breadth > 50:
-        return 'BULL'
-    if vix > 28 or breadth < 25:
-        return 'CRISIS'
-    return 'STRESS'
+from discovery.multi_strategy import classify_regime as _classify_regime, classify_strategy as _classify_strategy
 
 
 def _sim_trade_absolute(d1o, day_hl, d5c, sl_pct, tp_pct):
@@ -582,16 +577,12 @@ class AdaptiveParameterLearner:
         strat_rets = dd(list)
         sect_rets = dd(list)
         for s in sigs:
-            regime = 'BULL' if s['vix'] < 20 else ('CRISIS' if s['vix'] > 28 else 'STRESS')
+            regime = _classify_regime(s['vix'], s.get('breadth', 50))
             # Classify strategy
             mom = s.get('mom', 0)
             d20h = s.get('d20h', 0)
             vol = s.get('vol', 1)
-            if mom < -5 and d20h < -10: strat = 'OVERSOLD'
-            elif -20 < mom < -1: strat = 'DIP'
-            elif mom > 0 and d20h > -10: strat = 'RS'
-            elif vol < 0.5 or vol > 2.0: strat = 'VOL_U'
-            else: strat = 'CONTRARIAN'
+            strat = _classify_strategy(mom, d20h, vol)
             strat_rets[(regime, strat)].append(s['o5d'])
             sect_rets[(regime, s['sector'])].append(s['o5d'])
 
@@ -612,15 +603,11 @@ class AdaptiveParameterLearner:
                 for dt, day_sigs in by_date.items():
                     if len(day_sigs) < 5: continue
                     def score_fn(s):
-                        regime = 'BULL' if s['vix'] < 20 else ('CRISIS' if s['vix'] > 28 else 'STRESS')
+                        regime = _classify_regime(s['vix'], s.get('breadth', 50))
                         mom = s.get('mom', 0)
                         d20h = s.get('d20h', 0)
                         vol = s.get('vol', 1)
-                        if mom < -5 and d20h < -10: st = 'OVERSOLD'
-                        elif -20 < mom < -1: st = 'DIP'
-                        elif mom > 0 and d20h > -10: st = 'RS'
-                        elif vol < 0.5 or vol > 2.0: st = 'VOL_U'
-                        else: st = 'CONTRARIAN'
+                        st = _classify_strategy(mom, d20h, vol)
                         return max(0, strat_sh.get((regime, st), 0)) * ws + max(0, sect_sh.get((regime, s['sector']), 0)) * wse
                     ranked = sorted(day_sigs, key=score_fn, reverse=True)
                     for s in ranked[:3]:

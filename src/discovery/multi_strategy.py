@@ -219,6 +219,44 @@ def detect_condition(vix, breadth):
     return 'NORMAL'
 
 
+def classify_regime(vix, breadth=50):
+    """Classify regime from VIX + breadth. Shared by all components.
+    Single source of truth — do not duplicate this logic elsewhere.
+    """
+    vix = vix or 20
+    breadth = breadth or 50
+    if vix < 20 and breadth > 50:
+        return 'BULL'
+    if vix > 28 or breadth < 25:
+        return 'CRISIS'
+    return 'STRESS'
+
+
+def classify_strategy(mom5, d20h, vol=1, pe=None):
+    """Infer strategy label from stock features. Shared by all components.
+    Single source of truth — do not duplicate this logic elsewhere.
+    """
+    mom5 = mom5 or 0
+    d20h = d20h or 0
+    vol = vol or 1
+    if mom5 < -5 and d20h < -10:
+        return 'OVERSOLD'
+    if -20 < mom5 < -1:
+        return 'DIP'
+    if mom5 > 0 and d20h > -10:
+        return 'RS'
+    if vol < 0.5 or vol > 2.0:
+        return 'VOL_U'
+    if pe is not None and 3 < pe < 15:
+        return 'VALUE'
+    return 'CONTRARIAN'
+
+
+# P/C thresholds (single source)
+PC_BULLISH = 0.7
+PC_BEARISH = 1.3
+
+
 class StrategySelector:
     """Learn which strategy works best per condition + optimal thresholds."""
 

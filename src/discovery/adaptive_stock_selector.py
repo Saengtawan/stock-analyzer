@@ -19,6 +19,7 @@ import sqlite3
 import time
 import pickle
 import json
+from discovery.multi_strategy import classify_regime, classify_strategy, PC_BULLISH, PC_BEARISH
 import numpy as np
 from pathlib import Path
 
@@ -305,15 +306,8 @@ class AdaptiveStockSelector:
                 vol_r = stock_rows[i][5] / stock_rows[0][9] if stock_rows[0][9] > 0 else 1
                 vix_val = stock_rows[i][11] or 20
                 br_val = stock_rows[i][13] or 50
-                # Classify
-                if mom5 < -5 and d20h_val < -10: st = 'OVERSOLD'
-                elif -20 < mom5 < -1: st = 'DIP'
-                elif mom5 > 0 and d20h_val > -10: st = 'RS'
-                elif vol_r < 0.5 or vol_r > 2.0: st = 'VOL_U'
-                else: st = 'CONTRARIAN'
-                if vix_val < 20 and br_val > 50: rg = 'BULL'
-                elif vix_val > 28 or br_val < 25: rg = 'CRISIS'
-                else: rg = 'STRESS'
+                st = classify_strategy(mom5, d20h_val, vol_r)
+                rg = classify_regime(vix_val, br_val)
                 _strat_rets[(rg, st)].append(fwd_ret)
                 _sect_rets[(rg, sector)].append(fwd_ret)
 
@@ -399,15 +393,8 @@ class AdaptiveStockSelector:
                 # E[R] proxy: mean-reversion signal
                 er_base = -mom5 * 0.3 + abs(d20h) * 0.2
                 # Strategy classification
-                if mom5 < -5 and d20h < -10: strat = 'OVERSOLD'
-                elif -20 < mom5 < -1: strat = 'DIP'
-                elif mom5 > 0 and d20h > -10: strat = 'RS'
-                elif vol_ratio < 0.5 or vol_ratio > 2.0: strat = 'VOL_U'
-                else: strat = 'CONTRARIAN'
-                # Regime
-                if vix < 20 and breadth > 50: rgm = 'BULL'
-                elif vix > 28 or breadth < 25: rgm = 'CRISIS'
-                else: rgm = 'STRESS'
+                strat = classify_strategy(mom5, d20h, vol_ratio)
+                rgm = classify_regime(vix, breadth)
                 # Context Sharpes (from pre-computed if available)
                 strat_sharpe = strat_sharpe_map.get((rgm, strat), 0)
                 sect_sharpe = sect_sharpe_map.get((rgm, sector), 0)
