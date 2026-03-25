@@ -664,9 +664,78 @@ class DiscoveryEngine:
                 if sym not in strat_map:
                     strat_map[sym] = strat_name
 
-        # Build context map for each candidate
+        # Build context map — all raw features for 25-feature ML model
         context_map = {}
-        scored_map = {c.get('symbol'): er for er, c in scored}
+
+        # Pre-compute market-level features (same for all stocks)
+        vix = macro.get('vix_close') or 20
+        vix3m = macro.get('vix3m_close') or (vix * 1.05)
+        vix_spread = vix - vix3m
+        breadth_d5 = macro.get('breadth_delta_5d') or 0
+        spy_5d = 0
+        try:
+            conn_tmp = sqlite3.connect(str(DB_PATH))
+            spy_rows = conn_tmp.execute("SELECT spy_close FROM macro_snapshots WHERE spy_close IS NOT NULL ORDER BY date DESC LIMIT 6").fetchall()
+            if len(spy_rows) >= 6:
+                spy_5d = (spy_rows[0][0] / spy_rows[5][0] - 1) * 100 if spy_rows[5][0] > 0 else 0
+            # N sectors up yesterday
+            n_up_row = conn_tmp.execute("""
+                SELECT SUM(CASE WHEN pct_change > 0 THEN 1 ELSE 0 END)
+                FROM sector_etf_daily_returns
+                WHERE date = (SELECT MAX(date) FROM sector_etf_daily_returns)
+                AND sector NOT IN ('S&P 500','US Dollar','Treasury Long','Gold') AND sector IS NOT NULL
+            """).fetchone()
+            n_sectors_up = n_up_row[0] or 5 if n_up_row else 5
+            # Sector mom 1d + news + analyst
+            sector_mom_1d = {}
+            for r in conn_tmp.execute("""
+                SELECT sector, pct_change FROM sector_etf_daily_returns
+                WHERE date = (SELECT MAX(date) FROM sector_etf_daily_returns)
+                AND sector IS NOT NULL
+            """).fetchall():
+                sector_mom_1d[r[0]] = r[1] or 0
+            sector_news = {}
+            try:
+                for r in conn_tmp.execute("""
+                    SELECT sf.sector, AVG(ne.sentiment_score)
+                    FROM news_events ne JOIN stock_fundamentals sf ON ne.symbol = sf.symbol
+                    WHERE ne.published_at >= date('now', '-7 days') AND ne.sentiment_score IS NOT NULL
+                    GROUP BY sf.sector
+                """).fetchall():
+                    sector_news[r[0]] = r[1] or 0
+            except: pass
+            sector_analyst = {}
+            try:
+                for r in conn_tmp.execute("""
+                    SELECT sf.sector,
+                        SUM(CASE WHEN arh.price_target > arh.prior_price_target*1.05 AND arh.prior_price_target>0 THEN 1 ELSE 0 END) -
+                        SUM(CASE WHEN arh.price_target < arh.prior_price_target*0.95 AND arh.prior_price_target>0 THEN 1 ELSE 0 END)
+                    FROM analyst_ratings_history arh JOIN stock_fundamentals sf ON arh.symbol = sf.symbol
+                    WHERE arh.date >= date('now', '-7 days') AND arh.price_target > 0
+                    GROUP BY sf.sector
+                """).fetchall():
+                    sector_analyst[r[0]] = r[1] or 0
+            except: pass
+            # Stock context (crude/VIX sensitivity)
+            crude_sens = {}; vix_sens = {}
+            for r in conn_tmp.execute("SELECT symbol, context_type, score FROM stock_context WHERE context_type IN ('CRUDE_SENSITIVE','VIX_SENSITIVE')").fetchall():
+                if r[1] == 'CRUDE_SENSITIVE': crude_sens[r[0]] = r[2] or 0
+                else: vix_sens[r[0]] = r[2] or 0
+            # Stock news sentiment
+            stock_news = {}
+            try:
+                for r in conn_tmp.execute("""
+                    SELECT symbol, AVG(sentiment_score) FROM news_events
+                    WHERE published_at >= date('now', '-7 days') AND symbol IS NOT NULL AND sentiment_score IS NOT NULL
+                    GROUP BY symbol
+                """).fetchall():
+                    stock_news[r[0]] = r[1] or 0
+            except: pass
+            conn_tmp.close()
+        except Exception as e:
+            logger.error("ML context error: %s", e)
+            n_sectors_up = 5; sector_mom_1d = {}; sector_news = {}; sector_analyst = {}
+            crude_sens = {}; vix_sens = {}; stock_news = {}
 
         for er, c in scored:
             sym = c.get('symbol', '')
@@ -674,15 +743,22 @@ class DiscoveryEngine:
             strat = strat_map.get(sym) or self._infer_strategy_label(c)
             c['_matched_strategy'] = strat
 
-            # v17: Context features only — ML learns from raw momentum + context
-            # smart_er removed: -mom×0.3 hardcoded DIP bias (DIP always ranked #1)
             strat_sharpe = self._strategy_selector._fit_stats.get(
                 (condition, strat), {}).get('sharpe', 0)
-            sect_sharpe_val = sector_scores.get(sector, 0)
 
             context_map[sym] = {
+                'stock_news_sent': stock_news.get(sym, 0),
+                'crude_sensitivity': crude_sens.get(sym, 0),
+                'vix_sensitivity': vix_sens.get(sym, 0),
+                'sector_mom_1d': sector_mom_1d.get(sector, 0),
+                'sector_news_sent': sector_news.get(sector, 0),
+                'sector_analyst_net': sector_analyst.get(sector, 0),
+                'vix_spread': vix_spread,
+                'breadth_delta_5d': breadth_d5,
+                'spy_5d_ret': spy_5d,
+                'n_sectors_up': n_sectors_up,
                 'strat_sharpe': strat_sharpe,
-                'sect_sharpe': sect_sharpe_val,
+                'cluster_health': sector_scores.get(sector, 0),
             }
 
         # Get ML probabilities

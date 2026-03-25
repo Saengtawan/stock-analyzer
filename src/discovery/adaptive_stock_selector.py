@@ -27,13 +27,18 @@ logger = logging.getLogger(__name__)
 DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 FEATURES = [
+    # Stock-level (9)
     'momentum_5d', 'momentum_20d', 'volume_ratio', 'beta', 'atr_pct',
-    'rsi', 'd20h', 'pe_forward', 'mcap_log', 'sector_score',
+    'rsi', 'd20h', 'pe_forward', 'mcap_log',
+    # Stock context (3) — raw sensitivities, ML decides if good/bad
+    'stock_news_sent', 'crude_sensitivity', 'vix_sensitivity',
+    # Sector (3) — raw, no contrarian manipulation
+    'sector_mom_1d', 'sector_news_sent', 'sector_analyst_net',
+    # Market (7) — broad market state
     'vix', 'breadth', 'crude_delta_5d',
-    'strat_sharpe', 'sect_sharpe',
-    # gap_pct NOT included in training — it's future data at evening scan time
-    # For intraday: gap_pct passed at prediction time via candidate dict
-    # ML model trained WITHOUT gap, gap used as post-filter/boost for intraday only
+    'vix_spread', 'breadth_delta_5d', 'spy_5d_ret', 'n_sectors_up',
+    # Context (2) — learned
+    'strat_sharpe', 'cluster_health',
 ]
 
 MAX_TRAIN_ROWS = 200_000  # cap to keep fit time <5s
@@ -387,17 +392,96 @@ class AdaptiveStockSelector:
                 ORDER BY s.symbol, s.date
             """).fetchall()
 
-            # Also load sector scores if available
-            sector_score_map = {}
-            if sector_scorer and sector_scorer._fitted:
-                try:
-                    s_rows = conn.execute(
-                        "SELECT date, sector, score FROM sector_scores"
-                    ).fetchall()
-                    for dt, sect, sc in s_rows:
-                        sector_score_map[(dt, sect)] = sc
-                except Exception:
-                    pass
+            # v17: Load additional raw features for 25-feature model
+            # Sector ETF daily returns (sector_mom_1d)
+            sector_mom_map = {}
+            try:
+                for r in conn.execute("""
+                    SELECT date, sector, pct_change FROM sector_etf_daily_returns
+                    WHERE sector IS NOT NULL AND sector NOT IN ('S&P 500','US Dollar','Treasury Long','Gold')
+                """).fetchall():
+                    sector_mom_map[(r[0], r[1])] = r[2] or 0
+            except Exception: pass
+
+            # News sentiment per sector (7d rolling avg)
+            sector_news_map = {}
+            try:
+                for r in conn.execute("""
+                    SELECT sf.sector, ne.scan_date_et,
+                           AVG(ne.sentiment_score) as avg_sent
+                    FROM news_events ne
+                    JOIN stock_fundamentals sf ON ne.symbol = sf.symbol
+                    WHERE ne.sentiment_score IS NOT NULL AND ne.scan_date_et IS NOT NULL
+                    GROUP BY sf.sector, ne.scan_date_et
+                """).fetchall():
+                    sector_news_map[(r[1], r[0])] = r[2] or 0
+            except Exception: pass
+
+            # Analyst net per sector per date
+            sector_analyst_map = {}
+            try:
+                for r in conn.execute("""
+                    SELECT sf.sector, arh.date,
+                        SUM(CASE WHEN arh.price_target > arh.prior_price_target*1.05 AND arh.prior_price_target>0 THEN 1 ELSE 0 END) -
+                        SUM(CASE WHEN arh.price_target < arh.prior_price_target*0.95 AND arh.prior_price_target>0 THEN 1 ELSE 0 END) as net
+                    FROM analyst_ratings_history arh
+                    JOIN stock_fundamentals sf ON arh.symbol = sf.symbol
+                    WHERE arh.price_target > 0
+                    GROUP BY sf.sector, arh.date
+                """).fetchall():
+                    sector_analyst_map[(r[1], r[0])] = r[2] or 0
+            except Exception: pass
+
+            # Stock context (crude/VIX sensitivity)
+            crude_sens_map = {}
+            vix_sens_map = {}
+            try:
+                for r in conn.execute("SELECT symbol, context_type, score FROM stock_context WHERE context_type IN ('CRUDE_SENSITIVE','VIX_SENSITIVE')").fetchall():
+                    if r[1] == 'CRUDE_SENSITIVE': crude_sens_map[r[0]] = r[2] or 0
+                    else: vix_sens_map[r[0]] = r[2] or 0
+            except Exception: pass
+
+            # N sectors up per date
+            n_sectors_up_map = {}
+            try:
+                for r in conn.execute("""
+                    SELECT date, SUM(CASE WHEN pct_change > 0 THEN 1 ELSE 0 END) as n_up
+                    FROM sector_etf_daily_returns
+                    WHERE sector NOT IN ('S&P 500','US Dollar','Treasury Long','Gold') AND sector IS NOT NULL
+                    GROUP BY date
+                """).fetchall():
+                    n_sectors_up_map[r[0]] = r[1] or 0
+            except Exception: pass
+
+            # SPY 5d return + breadth delta + VIX spread per date
+            macro_extra_map = {}
+            try:
+                mrows = conn.execute("""
+                    SELECT m.date, m.vix_close, m.vix3m_close, m.spy_close,
+                           mb.pct_above_20d_ma
+                    FROM macro_snapshots m
+                    LEFT JOIN market_breadth mb ON m.date = mb.date
+                    WHERE m.vix_close IS NOT NULL
+                    ORDER BY m.date
+                """).fetchall()
+                for idx, r in enumerate(mrows):
+                    vix_spread = (r[1] - r[2]) if r[1] and r[2] else 0
+                    spy_5d = ((r[3] / mrows[idx-5][3]) - 1) * 100 if idx >= 5 and mrows[idx-5][3] and r[3] else 0
+                    breadth_d5 = (r[4] - mrows[idx-5][4]) if idx >= 5 and r[4] and mrows[idx-5][4] else 0
+                    macro_extra_map[r[0]] = {'vix_spread': vix_spread, 'spy_5d': spy_5d, 'breadth_d5': breadth_d5}
+            except Exception: pass
+
+            # News sentiment per stock (7d)
+            stock_news_map = {}
+            try:
+                for r in conn.execute("""
+                    SELECT ne.symbol, ne.scan_date_et, AVG(ne.sentiment_score) as avg_sent
+                    FROM news_events ne
+                    WHERE ne.symbol IS NOT NULL AND ne.symbol != '' AND ne.sentiment_score IS NOT NULL
+                    GROUP BY ne.symbol, ne.scan_date_et
+                """).fetchall():
+                    stock_news_map[(r[1], r[0])] = r[1] and r[2] or 0
+            except Exception: pass
 
         finally:
             conn.close()
@@ -508,21 +592,38 @@ class AdaptiveStockSelector:
                 else:
                     crude_delta = 0
 
-                # Sector score
-                sect_score = sector_score_map.get((dt, sector), 0)
-
-                # v17: Context features — ML learns optimal combination
-                # No smart_er formula (removed DIP bias: -mom×0.3 always favored DIP)
+                # v17: 25 raw features — ML decides everything
                 strat = classify_strategy(mom5, d20h, vol_ratio)
                 rgm = classify_regime(vix, breadth)
                 strat_sharpe = strat_sharpe_map.get((rgm, strat), 0)
-                sect_sharpe = sect_sharpe_map.get((rgm, sector), 0)
+
+                # New raw context features
+                stock_news = stock_news_map.get((dt, sym), 0) or 0
+                crude_sens = crude_sens_map.get(sym, 0)
+                vix_sens = vix_sens_map.get(sym, 0)
+                sect_mom_1d = sector_mom_map.get((dt, sector), 0)
+                sect_news = sector_news_map.get((dt, sector), 0) or 0
+                sect_analyst = sector_analyst_map.get((dt, sector), 0)
+                me = macro_extra_map.get(dt, {})
+                vix_spread = me.get('vix_spread', 0)
+                breadth_d5 = me.get('breadth_d5', 0)
+                spy_5d = me.get('spy_5d', 0)
+                n_up = n_sectors_up_map.get(dt, 5)
+                cluster_h = sect_sharpe_map.get((rgm, sector), 0)  # proxy for cluster health
 
                 feature_row = [
+                    # Stock (9)
                     mom5, mom20, vol_ratio, beta or 1, atr_pct,
-                    rsi, d20h, pe or np.nan, mcap_log, sect_score,
+                    rsi, d20h, pe or np.nan, mcap_log,
+                    # Stock context (3)
+                    stock_news, crude_sens, vix_sens,
+                    # Sector (3)
+                    sect_mom_1d, sect_news, sect_analyst,
+                    # Market (7)
                     vix, breadth, crude_delta,
-                    strat_sharpe, sect_sharpe,
+                    vix_spread, breadth_d5, spy_5d, n_up,
+                    # Context (2)
+                    strat_sharpe, cluster_h,
                 ]
                 X_rows.append(feature_row)
                 y_rows.append(target)
@@ -551,8 +652,8 @@ class AdaptiveStockSelector:
         c = candidate
         ctx = context or {}
         try:
-            sector = c.get('sector', '')
             row = [
+                # Stock (9)
                 c.get('momentum_5d') or 0,
                 c.get('momentum_20d') or 0,
                 c.get('volume_ratio') or 1,
@@ -562,12 +663,25 @@ class AdaptiveStockSelector:
                 c.get('distance_from_20d_high') or -5,
                 c.get('pe_forward'),  # may be None → NaN
                 np.log10((c.get('market_cap') or 1e9) + 1),
-                sector_scores.get(sector, 0),
+                # Stock context (3)
+                ctx.get('stock_news_sent', 0),
+                ctx.get('crude_sensitivity', 0),
+                ctx.get('vix_sensitivity', 0),
+                # Sector (3)
+                ctx.get('sector_mom_1d', 0),
+                ctx.get('sector_news_sent', 0),
+                ctx.get('sector_analyst_net', 0),
+                # Market (7)
                 c.get('vix_close') or c.get('vix_at_signal') or 20,
                 c.get('pct_above_20d_ma') or 50,
                 c.get('crude_delta_5d_pct') or 0,
+                ctx.get('vix_spread', 0),
+                ctx.get('breadth_delta_5d', 0),
+                ctx.get('spy_5d_ret', 0),
+                ctx.get('n_sectors_up', 5),
+                # Context (2)
                 ctx.get('strat_sharpe', 0),
-                ctx.get('sect_sharpe', 0),
+                ctx.get('cluster_health', 0),
             ]
             return [float(v) if v is not None else np.nan for v in row]
         except Exception:
