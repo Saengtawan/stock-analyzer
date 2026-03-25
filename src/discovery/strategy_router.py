@@ -24,13 +24,16 @@ DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 
 class StrategyRouter:
-    """Route to the best strategy based on current VIX regime."""
+    """Route to the best strategy based on current VIX regime.
+    v17: VIX thresholds learned per sector×regime via AdaptiveParams.
+    """
 
-    # Regime thresholds (validated on 1096 trading days)
+    # Defaults (overridden by adaptive_params when available)
     CALM_VIX = 18.0
     FEAR_VIX = 25.0
 
-    def __init__(self):
+    def __init__(self, adaptive_params=None):
+        self._adaptive = adaptive_params
         self._last_regime = None
         self._last_strategy = None
 
@@ -47,25 +50,33 @@ class StrategyRouter:
         breadth = macro.get('pct_above_20d_ma') or 50
         spy = macro.get('spy_close') or 500
 
+        # v17: Use learned VIX thresholds if available
+        if self._adaptive:
+            calm_vix = self._adaptive.get('', 'BULL', 'vix_calm')
+            fear_vix = self._adaptive.get('', 'BULL', 'vix_fear')
+        else:
+            calm_vix = self.CALM_VIX
+            fear_vix = self.FEAR_VIX
+
         # Check SPY pullback (2+ red days)
         spy_pullback = self._check_spy_pullback()
 
-        if vix < self.CALM_VIX:
+        if vix < calm_vix:
             regime = 'CALM'
             if spy_pullback:
                 strategy = 'CALM_PULLBACK'
                 sizing = 1.0
-                rationale = f'VIX={vix:.0f}<18 + SPY pullback → buy dip (WR=66%)'
+                rationale = f'VIX={vix:.0f}<{calm_vix} + SPY pullback → buy dip (WR=66%)'
             else:
                 strategy = 'CALM_TREND'
                 sizing = 0.5
-                rationale = f'VIX={vix:.0f}<18, market calm → trend follow (WR=60%)'
+                rationale = f'VIX={vix:.0f}<{calm_vix}, market calm → trend follow (WR=60%)'
 
-        elif vix < self.FEAR_VIX:
+        elif vix < fear_vix:
             regime = 'NORMAL'
             strategy = 'SELECTIVE'
             sizing = 0.25
-            rationale = f'VIX={vix:.0f} (18-25) → no clear edge, minimal exposure'
+            rationale = f'VIX={vix:.0f} ({calm_vix}-{fear_vix}) → no clear edge, minimal exposure'
 
         else:
             regime = 'FEAR'

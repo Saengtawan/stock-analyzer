@@ -222,7 +222,8 @@ def detect_condition(vix, breadth):
 class StrategySelector:
     """Learn which strategy works best per condition + optimal thresholds."""
 
-    def __init__(self):
+    def __init__(self, adaptive_params=None):
+        self._adaptive = adaptive_params  # v17: for learned quality thresholds
         self._best_by_condition = {}  # condition → strategy name
         self._learned_params = {}     # v17: {strategy_name: {param: value}}
         self._fit_stats = {}
@@ -416,14 +417,23 @@ class StrategySelector:
         spec = STRATEGIES.get(strategy_name)
         if not spec:
             return []
-        params = self._learned_params.get(strategy_name)
+        params = self._get_params(strategy_name)
         return spec['fn'](stocks, macro, params=params)
+
+    def _get_params(self, strategy_name):
+        """Get merged params: learned strategy thresholds + adaptive quality filters."""
+        params = dict(self._learned_params.get(strategy_name) or {})
+        # v17: Merge quality thresholds from AdaptiveParams
+        if self._adaptive:
+            params.setdefault('max_vol', self._adaptive.get('', 'BULL', 'max_vol_ratio'))
+            params.setdefault('min_mcap_b', self._adaptive.get('', 'BULL', 'min_mcap_b'))
+        return params or None
 
     def get_all_picks(self, stocks, macro=None):
         """Run ALL strategies with learned thresholds, rank by volume."""
         result = {}
         for name, spec in STRATEGIES.items():
-            params = self._learned_params.get(name)
+            params = self._get_params(name)
             picks = spec['fn'](stocks, macro, params=params)
             picks.sort(key=lambda x: -_vol(x))
             result[name] = picks[:MAX_PER_STRATEGY]
@@ -439,7 +449,7 @@ class StrategySelector:
         """
         all_picks = []
         for name, spec in STRATEGIES.items():
-            params = self._learned_params.get(name)
+            params = self._get_params(name)
             picks = spec['fn'](stocks, macro, params=params)
             for p in picks:
                 p['_strategy'] = name

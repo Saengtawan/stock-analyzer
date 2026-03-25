@@ -54,7 +54,8 @@ N_BLOCKED = 3    # bottom 3 blocked
 class SectorScorer:
     """Score sectors adaptively — replaces hardcoded sector rules."""
 
-    def __init__(self):
+    def __init__(self, adaptive_params=None):
+        self._adaptive = adaptive_params  # v17: for learned N_BLOCKED
         self._weights = {}          # {feature: weight}
         self._sector_etf_map = {}   # {sector: etf}
         self._fitted = False
@@ -183,14 +184,19 @@ class SectorScorer:
         if not scores:
             return set(SECTORS), set()
 
+        # v17: Use learned N_BLOCKED if available
+        n_blocked = N_BLOCKED
+        if self._adaptive:
+            n_blocked = int(self._adaptive.get('', 'BULL', 'n_blocked'))
+
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        allowed = {s for s, _ in ranked[:N_ALLOWED]}
-        blocked = {s for s, _ in ranked[-N_BLOCKED:]} if len(ranked) > N_BLOCKED else set()
+        allowed = {s for s, _ in ranked[:len(ranked) - n_blocked]}
+        blocked = {s for s, _ in ranked[-n_blocked:]} if len(ranked) > n_blocked else set()
 
         # Don't block if scores are very close (within 0.01)
-        if ranked and len(ranked) > N_BLOCKED:
+        if ranked and len(ranked) > n_blocked:
             top_score = ranked[0][1]
-            bottom_score = ranked[-N_BLOCKED][1]
+            bottom_score = ranked[-n_blocked][1]
             if abs(top_score - bottom_score) < 0.01:
                 blocked = set()
                 allowed = set(SECTORS)

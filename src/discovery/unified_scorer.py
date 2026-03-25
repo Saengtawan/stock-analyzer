@@ -57,7 +57,7 @@ class UnifiedScorer:
         self._temporal = TemporalFeatureBuilder()
         self._sequence_matcher = SequencePatternMatcher()
         self._leading_indicators = LeadingIndicatorEngine()
-        self._strategy_router = StrategyRouter()
+        self._strategy_router = StrategyRouter()  # adaptive_params wired in engine.__init__
 
         # Fitting state
         self._council_fitted = False

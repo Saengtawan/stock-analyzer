@@ -41,6 +41,14 @@ PARAM_GRID = {
     'tp_d0_mult':   [0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
     'tp_d2_mult':   [0.7, 0.85, 1.0, 1.2],
     'tp_d3_mult':   [0.85, 1.0, 1.09, 1.2, 1.5],
+    # v17: VIX regime boundaries (used by strategy_router)
+    'vix_calm':     [15, 16, 17, 18, 19, 20],
+    'vix_fear':     [22, 24, 25, 26, 28, 30],
+    # v17: quality filters (used by multi_strategy._filter_quality)
+    'min_mcap_b':   [5, 10, 20, 30, 50],
+    'max_vol_ratio':[1.5, 2.0, 2.5, 3.0, 4.0],
+    # v17: N sectors to block (used by sector_scorer)
+    'n_blocked':    [1, 2, 3, 4],
 }
 
 DEFAULTS = {
@@ -55,6 +63,11 @@ DEFAULTS = {
     'tp_d0_mult': 0.55,
     'tp_d2_mult': 0.85,
     'tp_d3_mult': 1.09,
+    'vix_calm': 18,
+    'vix_fear': 25,
+    'min_mcap_b': 30,
+    'max_vol_ratio': 3.0,
+    'n_blocked': 3,
 }
 
 MIN_GROUP_SIZE = 100
@@ -235,13 +248,28 @@ class AdaptiveParameterLearner:
         params['tp_d2_mult'] = tp_d2
         params['tp_d3_mult'] = tp_d3
 
+        # 9. v17: VIX regime boundaries — grid search CALM/FEAR cutoffs (best overall Sharpe)
+        params['vix_calm'], params['vix_fear'] = self._learn_vix_boundaries(sigs)
+
+        # 10. v17: Quality filters — mcap + volume ratio
+        params['min_mcap_b'] = self._learn_threshold(
+            sigs, 'mcap_b', PARAM_GRID['min_mcap_b'], mode='lower')
+        params['max_vol_ratio'] = self._learn_threshold(
+            sigs, 'vol', PARAM_GRID['max_vol_ratio'], mode='upper')
+
+        # 11. v17: N sectors to block
+        params['n_blocked'] = self._learn_n_blocked(sigs)
+
         logger.debug(
             "AdaptiveParams [%s]: SL=%.1f%% TP=%.1f%% atr≤%.1f mom≤%.0f d0≥%.2f σ=%.1f "
-            "beta≤%.1f pe≤%.0f tp=%.1f/%.1f/%.1f (n=%d)",
+            "beta≤%.1f pe≤%.0f tp=%.1f/%.1f/%.1f vix=%d/%d mcap≥%dB vol≤%.1f nblk=%d (n=%d)",
             key, sl_pct, tp_pct, params['atr_max'], params['mom_cut'],
             params['d0_close_min'], params['elite_sigma'],
             params['beta_max'], params['pe_max'],
-            tp_d0, tp_d2, tp_d3, len(sigs))
+            tp_d0, tp_d2, tp_d3,
+            params['vix_calm'], params['vix_fear'],
+            params['min_mcap_b'], params['max_vol_ratio'],
+            params['n_blocked'], len(sigs))
 
         return params
 
@@ -358,6 +386,82 @@ class AdaptiveParameterLearner:
 
         return best_sigma
 
+    def _learn_vix_boundaries(self, sigs):
+        """v17: Grid search optimal VIX CALM/FEAR thresholds (best avg Sharpe).
+
+        Splits signals into 3 regimes by VIX level, finds boundaries
+        that maximize average Sharpe across all 3 regimes.
+        """
+        vix_sigs = [s for s in sigs if s.get('vix') and s.get('o5d') is not None]
+        if len(vix_sigs) < 200:
+            return DEFAULTS['vix_calm'], DEFAULTS['vix_fear']
+
+        best_sharpe = -999
+        best_calm, best_fear = DEFAULTS['vix_calm'], DEFAULTS['vix_fear']
+
+        for calm_cut in PARAM_GRID['vix_calm']:
+            for fear_cut in PARAM_GRID['vix_fear']:
+                if fear_cut <= calm_cut + 2:
+                    continue
+                calm = [s['o5d'] for s in vix_sigs if s['vix'] < calm_cut]
+                normal = [s['o5d'] for s in vix_sigs if calm_cut <= s['vix'] < fear_cut]
+                fear = [s['o5d'] for s in vix_sigs if s['vix'] >= fear_cut]
+
+                if len(calm) < 50 or len(normal) < 50 or len(fear) < 50:
+                    continue
+
+                # Average Sharpe across 3 regimes
+                avg_sh = np.mean([
+                    np.mean(r) / max(np.std(r), 0.01)
+                    for r in [calm, normal, fear]
+                ])
+                if avg_sh > best_sharpe:
+                    best_sharpe = avg_sh
+                    best_calm, best_fear = calm_cut, fear_cut
+
+        return best_calm, best_fear
+
+    def _learn_n_blocked(self, sigs):
+        """v17: Learn optimal N sectors to block (walk-forward Sharpe)."""
+        # This is a global param, not per-sector — use all sigs
+        if len(sigs) < 200:
+            return DEFAULTS['n_blocked']
+
+        # Group by sector momentum → simulate blocking bottom N
+        by_sector = {}
+        for s in sigs:
+            sect = s.get('sector', '')
+            if not sect:
+                continue
+            if sect not in by_sector:
+                by_sector[sect] = []
+            by_sector[sect].append(s['o5d'])
+
+        if len(by_sector) < 6:
+            return DEFAULTS['n_blocked']
+
+        # Rank sectors by avg outcome
+        sector_avg = {s: np.mean(rets) for s, rets in by_sector.items() if len(rets) >= 20}
+        if len(sector_avg) < 6:
+            return DEFAULTS['n_blocked']
+
+        ranked_sectors = sorted(sector_avg.keys(), key=lambda s: sector_avg[s])
+
+        best_sharpe = -999
+        best_n = DEFAULTS['n_blocked']
+        for n in PARAM_GRID['n_blocked']:
+            blocked = set(ranked_sectors[:n])
+            allowed_rets = [s['o5d'] for s in sigs
+                            if s.get('sector', '') not in blocked and s.get('o5d') is not None]
+            if len(allowed_rets) < 100:
+                continue
+            sh = np.mean(allowed_rets) / max(np.std(allowed_rets), 0.01)
+            if sh > best_sharpe:
+                best_sharpe = sh
+                best_n = n
+
+        return best_n
+
     def _learn_tp_multipliers(self, sigs):
         """v17: Grid search optimal TP D0/D2/D3 ATR multipliers (best Sharpe).
 
@@ -448,7 +552,7 @@ class AdaptiveParameterLearner:
                        d3.high as d3h, d3.low as d3l, d3.close as d3c,
                        d4.high as d4h, d4.low as d4l,
                        d5.high as d5h, d5.low as d5l, d5.close as d5c,
-                       sf.beta, sf.pe_forward
+                       sf.beta, sf.pe_forward, sf.market_cap
                 FROM backfill_signal_outcomes b
                 LEFT JOIN stock_fundamentals sf ON b.symbol = sf.symbol
                 LEFT JOIN macro_snapshots m ON b.scan_date = m.date
@@ -485,7 +589,8 @@ class AdaptiveParameterLearner:
                 'd20h': r[5] or -5, 'vol': r[6] or 1,
                 'o5d': r[7], 'vix': r[9], 'breadth': r[10],
                 'd0_pos': d0_pos,
-                'beta': r[27], 'pe': r[28],  # v17: from stock_fundamentals
+                'beta': r[27], 'pe': r[28],
+                'mcap_b': (r[29] / 1e9) if r[29] else None,
             }
 
             # D1-D5 OHLC for absolute SL/TP simulation

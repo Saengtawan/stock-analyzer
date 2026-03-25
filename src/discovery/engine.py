@@ -86,6 +86,8 @@ class DiscoveryEngine:
 
         # v13.0: Three core modules replace 16 scattered components
         self._scorer = UnifiedScorer(self._config, self._params)
+        # v17: Wire adaptive params into strategy_router for learned VIX thresholds
+        self._scorer._strategy_router._adaptive = self._adaptive_params
         self._filter = UnifiedFilter(adaptive_params=self._adaptive_params)
         self._sizer = UnifiedSizer(self._config, self._params,
                                     adaptive_params=self._adaptive_params)
@@ -94,7 +96,7 @@ class DiscoveryEngine:
         self._param_optimizer = ParamOptimizer(self._params)
         self._perf_tracker = PerformanceTracker()
         # v15.0: Multi-strategy selector (display-only suggestions)
-        self._strategy_selector = StrategySelector()
+        self._strategy_selector = StrategySelector(adaptive_params=self._adaptive_params)
         if not self._strategy_selector.load_from_db():
             try:
                 self._strategy_selector.fit()
@@ -110,7 +112,7 @@ class DiscoveryEngine:
 
         # v17: Full Adaptive layers
         self._v17_enabled = self._config.get('v17', {}).get('enabled', False)
-        self._sector_scorer = SectorScorer()
+        self._sector_scorer = SectorScorer(adaptive_params=self._adaptive_params)
         self._stock_selector = AdaptiveStockSelector()
         self._signal_tracker = SignalTracker()
 
