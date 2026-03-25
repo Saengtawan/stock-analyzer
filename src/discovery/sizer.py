@@ -360,6 +360,7 @@ class UnifiedSizer:
             },
             'hammer': c.get('d0_hammer', False),
             'hammer_shadow': c.get('d0_lower_shadow', 0),
+            'ubrain_prob': c.get('ubrain_prob'),  # v17: logged for adaptive cutoff
             'context': ctx_result,
             'sensors': sensor_signals,
             'graph_risk': graph_risk,

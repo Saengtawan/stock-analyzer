@@ -264,7 +264,9 @@ class UnifiedFilter:
 
     def _ubrain_rerank(self, scored, unified_brain, sensors, macro,
                         temporal_features, scan_date, regime_decision):
-        """Drop picks where UnifiedBrain says <40%, re-rank by blend."""
+        """Drop picks where UnifiedBrain says <cutoff%, re-rank by blend.
+        v17: Logs ubrain_prob on candidate for future adaptive cutoff learning.
+        """
         re_ranked = []
         for er, c in scored:
             sensor_sigs = sensors.compute_all(
@@ -272,6 +274,9 @@ class UnifiedFilter:
             rp = (regime_decision or {}).get('probability', 0.5)
             ub_result = unified_brain.predict(c, sensor_sigs, rp)
             ub_prob = ub_result.get('probability', 0.5)
+
+            # v17: Log prob for future adaptive cutoff learning
+            c['ubrain_prob'] = round(ub_prob, 4)
 
             if ub_prob < 0.40:
                 logger.debug("Filter: DROP %s — UnifiedBrain=%.0f%%",
