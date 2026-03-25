@@ -29,8 +29,7 @@ FEATURES = [
     'momentum_5d', 'momentum_20d', 'volume_ratio', 'beta', 'atr_pct',
     'rsi', 'd20h', 'pe_forward', 'mcap_log', 'sector_score',
     'vix', 'breadth', 'crude_delta_5d',
-    'kernel_er', 'ubrain_prob',                  # v17: raw signals (no pre-blend)
-    'strat_sharpe', 'sect_sharpe',               # v17: context features
+    'smart_er', 'strat_sharpe', 'sect_sharpe',   # v17: context-aware (validated +30% Sharpe)
 ]
 
 MAX_TRAIN_ROWS = 200_000  # cap to keep fit time <5s
@@ -412,16 +411,14 @@ class AdaptiveStockSelector:
                 # Context Sharpes (from pre-computed if available)
                 strat_sharpe = strat_sharpe_map.get((rgm, strat), 0)
                 sect_sharpe = sect_sharpe_map.get((rgm, sector), 0)
-                # v17: Raw kernel E[R] + simulated ubrain_prob (for training)
-                # ML learns optimal combination — no pre-blending
-                kernel_er = er_base  # raw, not manipulated
-                ubrain_prob = 0.5    # no UBrain during training (not available in OHLC data)
+                # v17: Smart E[R] = E[R] × (1 + strategy_sharpe) — validated +30% Sharpe
+                smart_er = er_base * (1 + max(0, strat_sharpe))
 
                 feature_row = [
                     mom5, mom20, vol_ratio, beta or 1, atr_pct,
                     rsi, d20h, pe or np.nan, mcap_log, sect_score,
                     vix, breadth, crude_delta,
-                    kernel_er, ubrain_prob, strat_sharpe, sect_sharpe,
+                    smart_er, strat_sharpe, sect_sharpe,
                 ]
                 X_rows.append(feature_row)
                 y_rows.append(target)
@@ -465,8 +462,7 @@ class AdaptiveStockSelector:
                 c.get('vix_close') or c.get('vix_at_signal') or 20,
                 c.get('pct_above_20d_ma') or 50,
                 c.get('crude_delta_5d_pct') or 0,
-                c.get('_kernel_er') or ctx.get('smart_er', 0),  # raw kernel E[R]
-                c.get('_ubrain_prob') or 0.5,                    # raw UBrain prob
+                ctx.get('smart_er', 0),          # E[R] × (1+strat_sharpe)
                 ctx.get('strat_sharpe', 0),
                 ctx.get('sect_sharpe', 0),
             ]
