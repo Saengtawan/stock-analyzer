@@ -30,9 +30,10 @@ FEATURES = [
     'momentum_5d', 'momentum_20d', 'volume_ratio', 'beta', 'atr_pct',
     'rsi', 'd20h', 'pe_forward', 'mcap_log', 'sector_score',
     'vix', 'breadth', 'crude_delta_5d',
-    'strat_sharpe', 'sect_sharpe',   # v17: context (ML learns optimal combination)
-    # NOTE: smart_er removed — it hardcoded -mom=good which biased DIP always #1
-    # ML now sees raw momentum + d20h + context → decides itself per regime
+    'strat_sharpe', 'sect_sharpe',
+    # gap_pct NOT included in training — it's future data at evening scan time
+    # For intraday: gap_pct passed at prediction time via candidate dict
+    # ML model trained WITHOUT gap, gap used as post-filter/boost for intraday only
 ]
 
 MAX_TRAIN_ROWS = 200_000  # cap to keep fit time <5s

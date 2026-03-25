@@ -580,7 +580,11 @@ class DiscoveryEngine:
         else:
             scored = self._rank_by_context_sharpe(scored, candidates, macro, scan_info, regime)
 
-        # 3. v17: Hard-block bad sectors
+        # 3. v17: Gap boost for intraday (gap_pct available after market open)
+        # IC=+0.259 — strongest single feature but only available intraday
+        scored = self._apply_gap_boost(scored)
+
+        # 4. v17: Sector scores as soft signal
         scored = self._apply_sector_boost(scored, scan_info)
 
         # 4. Weekend risk (Friday only)
@@ -779,6 +783,27 @@ class DiscoveryEngine:
                         condition, top3)
 
         return re_scored
+
+    def _apply_gap_boost(self, scored):
+        """v17: Boost/penalize by gap (today open vs yesterday close).
+
+        IC=+0.259 (strongest single feature). Only available during intraday
+        scan (after market open). Evening scan: gap_pct=0 → no effect.
+
+        Data: gap top 20% → WR 64% avg +1.9%, bottom 20% → WR 40% avg -1.4%
+        """
+        boosted = []
+        for er, c in scored:
+            gap = c.get('gap_pct', 0)
+            if gap != 0:
+                # Proportional boost: gap × 0.5 (scaled to ~±1.0 range)
+                boost = gap * 0.5
+                boosted.append((er + boost, c))
+            else:
+                boosted.append((er, c))
+
+        boosted.sort(key=lambda x: x[0], reverse=True)
+        return boosted
 
     def _apply_sector_boost(self, scored, scan_info):
         """v17: Sector score as SOFT signal — no hard-blocking.
@@ -985,9 +1010,14 @@ class DiscoveryEngine:
             d0_high = float(high[-1])
             d0_low = float(low[-1])
 
+            # Gap: today's open vs yesterday's close (IC=+0.259)
+            gap_pct = 0
+            if len(close) >= 2 and d0_open > 0 and close[-2] > 0:
+                gap_pct = (d0_open / float(close[-2]) - 1) * 100
+
             return {
                 'symbol': symbol,
-                'close': current, 'open': d0_open,
+                'close': current, 'open': d0_open, 'gap_pct': gap_pct,
                 'day_high': d0_high, 'day_low': d0_low,
                 'atr_pct': atr_pct, 'rsi': rsi,
                 'momentum_5d': momentum_5d, 'momentum_20d': momentum_20d,
