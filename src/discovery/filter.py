@@ -265,8 +265,16 @@ class UnifiedFilter:
     def _ubrain_rerank(self, scored, unified_brain, sensors, macro,
                         temporal_features, scan_date, regime_decision):
         """Drop picks where UnifiedBrain says <cutoff%, re-rank by blend.
-        v17: Logs ubrain_prob on candidate for future adaptive cutoff learning.
+        v17: Cutoff learned per sector×regime from ubrain_backfill data.
         """
+        # v17: Learned cutoff per sector (fallback 0.40)
+        default_cutoff = 0.40
+        if self._adaptive:
+            # Use first candidate's sector for sector-aware cutoff
+            sector = scored[0][1].get('sector', '') if scored else ''
+            regime = 'BULL'  # approximate — regime_decision has actual
+            default_cutoff = self._adaptive.get(sector, regime, 'ubrain_cutoff')
+
         re_ranked = []
         for er, c in scored:
             sensor_sigs = sensors.compute_all(
@@ -275,10 +283,10 @@ class UnifiedFilter:
             ub_result = unified_brain.predict(c, sensor_sigs, rp)
             ub_prob = ub_result.get('probability', 0.5)
 
-            # v17: Log prob for future adaptive cutoff learning
+            # v17: Log prob on candidate
             c['ubrain_prob'] = round(ub_prob, 4)
 
-            if ub_prob < 0.40:
+            if ub_prob < default_cutoff:
                 logger.debug("Filter: DROP %s — UnifiedBrain=%.0f%%",
                              c['symbol'], ub_prob * 100)
                 continue

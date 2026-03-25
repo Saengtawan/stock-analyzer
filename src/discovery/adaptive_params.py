@@ -49,6 +49,8 @@ PARAM_GRID = {
     'max_vol_ratio':[1.5, 2.0, 2.5, 3.0, 4.0],
     # v17: N sectors to block (used by sector_scorer)
     'n_blocked':    [1, 2, 3, 4],
+    # v17: UBrain cutoff (used by filter._ubrain_rerank)
+    'ubrain_cutoff': [0.30, 0.35, 0.40, 0.45, 0.50],
 }
 
 DEFAULTS = {
@@ -68,6 +70,7 @@ DEFAULTS = {
     'min_mcap_b': 30,
     'max_vol_ratio': 3.0,
     'n_blocked': 3,
+    'ubrain_cutoff': 0.40,
 }
 
 MIN_GROUP_SIZE = 100
@@ -259,6 +262,9 @@ class AdaptiveParameterLearner:
 
         # 11. v17: N sectors to block
         params['n_blocked'] = self._learn_n_blocked(sigs)
+
+        # 12. v17: UBrain cutoff — learn from ubrain_backfill if available
+        params['ubrain_cutoff'] = self._learn_ubrain_cutoff(sigs)
 
         logger.debug(
             "AdaptiveParams [%s]: SL=%.1f%% TP=%.1f%% atr≤%.1f mom≤%.0f d0≥%.2f σ=%.1f "
@@ -461,6 +467,48 @@ class AdaptiveParameterLearner:
                 best_n = n
 
         return best_n
+
+    def _learn_ubrain_cutoff(self, sigs):
+        """v17: Learn optimal UBrain probability cutoff from backfill data.
+
+        Uses ubrain_backfill table (75K signals with pre-computed probabilities).
+        Finds cutoff that maximizes Sharpe while keeping enough candidates.
+        """
+        try:
+            conn = sqlite3.connect(str(DB_PATH))
+            # Get UBrain probs for signals in this group's sector
+            sector = sigs[0].get('sector', '') if sigs else ''
+            if sector:
+                rows = conn.execute("""
+                    SELECT u.ubrain_prob, u.outcome_5d
+                    FROM ubrain_backfill u
+                    JOIN backfill_signal_outcomes b ON u.scan_date = b.scan_date AND u.symbol = b.symbol
+                    WHERE b.sector = ? AND u.ubrain_prob IS NOT NULL AND u.outcome_5d IS NOT NULL
+                """, (sector,)).fetchall()
+            else:
+                rows = conn.execute("""
+                    SELECT ubrain_prob, outcome_5d FROM ubrain_backfill
+                    WHERE ubrain_prob IS NOT NULL AND outcome_5d IS NOT NULL
+                """).fetchall()
+            conn.close()
+        except Exception:
+            return DEFAULTS['ubrain_cutoff']
+
+        if len(rows) < 200:
+            return DEFAULTS['ubrain_cutoff']
+
+        best_sharpe = -999
+        best_cut = DEFAULTS['ubrain_cutoff']
+        for cut in PARAM_GRID['ubrain_cutoff']:
+            kept = [r[1] for r in rows if r[0] >= cut]
+            if len(kept) < 20:
+                continue
+            sh = np.mean(kept) / max(np.std(kept), 0.01)
+            if sh > best_sharpe:
+                best_sharpe = sh
+                best_cut = cut
+
+        return best_cut
 
     def _learn_tp_multipliers(self, sigs):
         """v17: Grid search optimal TP D0/D2/D3 ATR multipliers (best Sharpe).
