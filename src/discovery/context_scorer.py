@@ -47,19 +47,11 @@ class ContextScorer:
             if flags:
                 penalties.append(f'SPECULATIVE({",".join(flags)}) {spec_score:+.1f}')
 
-        # 2. Macro sensitivity mismatch
-        # v17: crude>85 penalty REMOVED — SectorScorer handles sector blocking adaptively
-        if macro:
-            vix = macro.get('vix_close') or 20
-
-            # VIX: penalize only HIGHLY sensitive stocks (corr < -0.50)
-            vix_sens = ctx['flags'].get('VIX_SENSITIVE', {})
-            if vix_sens and vix > 25:
-                corr = vix_sens.get('score', 0)
-                if corr < -0.50:
-                    penalty = round((corr + 0.50) * 0.5, 2)
-                    total_penalty += penalty
-                    penalties.append(f'VIX_HIGH+EXTREME_SENS({corr:+.2f}) {penalty:+.2f}')
+        # 2. Macro sensitivity — REMOVED (v17)
+        # crude>85: removed — SectorScorer handles sector blocking adaptively
+        # VIX corr<-0.50: removed — data shows VIX-sensitive stocks OUTPERFORM
+        #   when VIX>25 (WR 58.3% vs 56.3% normal). Penalty was counterproductive.
+        #   NeuralGraph Layer 3 still handles VIX dead zone (25-28) separately.
 
         # 3. Supply chain risk (informational only, no penalty)
         if ctx['upstream']:
