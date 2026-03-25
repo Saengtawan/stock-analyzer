@@ -170,7 +170,7 @@ def main():
     # Check _run_v3_pipeline has ML ranking
     src = inspect.getsource(DiscoveryEngine._run_v3_pipeline)
     ok('ML ranking in pipeline', '_rank_by_ml_probability' in src)
-    ok('Gap boost in pipeline', '_apply_gap_boost' in src)
+    ok('Gap boost in pipeline', '_apply_gap_filter' in src)
     ok('Max per strategy', 'max_per_strategy' in src or 'strat_counts' in src)
     ok('refit parameter', 'refit=' in src, 'intraday uses refit=False')
 
