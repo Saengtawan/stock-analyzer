@@ -55,19 +55,9 @@ class NeuralGraph:
         factors = []
         score = 0.0
 
-        # === Layer 0: BTC leading signal (FLIPPED for DIP strategy) ===
-        # Data: BTC<-5% avg=+0.46% WR=55% (contrarian bounce opportunity)
-        #       BTC>+5% avg=0.00% WR=50% (no edge)
-        btc_3d = macro.get('btc_momentum_3d')
-        if btc_3d is not None:
-            if btc_3d < -5:
-                score += 0.15
-                factors.append(f'BTC_DIP: {btc_3d:+.1f}% 3d → bounce opportunity')
-            elif btc_3d < -3:
-                score += 0.05
-            elif btc_3d > 5:
-                score -= 0.05
-                factors.append(f'BTC_EXTENDED: {btc_3d:+.1f}% 3d → no edge')
+        # === Layer 0: BTC leading signal — REMOVED (v17) ===
+        # IC = +0.004 = noise. No predictive power for stock 5d returns.
+        # BTC data still collected via cron for future analysis.
 
         # === Layer 1: Thematic cluster ===
         # v17: Cluster health uses outcome-based thresholds from data
@@ -91,8 +81,6 @@ class NeuralGraph:
         # VIX 25-28 is dead zone (Sharpe +0.004), VIX ≥ 28 is bounce (+0.211)
         # VIX 15-18 is also dead zone (Sharpe -0.026)
         vix = macro.get('vix_close') or 20
-        vix_delta = macro.get('vix_delta_5d') or 0
-        crude_delta = macro.get('crude_delta_5d_pct') or 0
         vvix = macro.get('vvix_close')
 
         # v17: Use adaptive VIX thresholds
@@ -116,15 +104,9 @@ class NeuralGraph:
             score -= 0.10
             factors.append(f'VIX={vix:.0f} dead zone ({vix_dead_lo}-{vix_dead_hi})')
 
-        # Sector vulnerability — keep for crude shocks (data confirms crude>85 = bad)
-
-        if crude_delta and abs(crude_delta) > 3:
-            vuln = self._sector_vuln.get((sector, 'CRUDE_SHOCK'))
-            if vuln:
-                rank = vuln.get('rank', 6)
-                if rank <= 3:
-                    score -= 0.10
-                    factors.append(f'CRUDE_VULNERABLE: {sector} rank={rank}')
+        # Sector vulnerability — REMOVED (v17)
+        # SectorScorer handles sector-macro correlation dynamically.
+        # Static crude_shock rank table is redundant and less current.
 
         # === Layer 3: Stock risk profile (from KG) ===
         try:
