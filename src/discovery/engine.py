@@ -812,12 +812,17 @@ class DiscoveryEngine:
         if not (self._v17_enabled and self._stock_selector._gap_model is not None):
             return scored
 
+        # v17: gap filter threshold learned per sector×regime
+        gap_threshold = 0.5
+        if self._adaptive_params:
+            gap_threshold = self._adaptive_params.get('', 'BULL', 'gap_filter_prob')
+
         filtered = []
         n_removed = 0
         for er, c in scored:
             gap_prob = self._stock_selector.predict_gap(c)
             c['_gap_prob'] = round(gap_prob, 3)
-            if gap_prob >= 0.5:
+            if gap_prob >= gap_threshold:
                 filtered.append((er, c))
             else:
                 n_removed += 1

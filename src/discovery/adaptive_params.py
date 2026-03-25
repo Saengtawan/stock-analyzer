@@ -76,6 +76,8 @@ PARAM_GRID = {
     # v17: score_batch regime boundaries
     'score_bull_er': [0.3, 0.5, 0.7, 1.0],
     'score_crisis_er': [-1.0, -0.5, -0.3, 0.0],
+    # v17: gap filter threshold (used by engine._apply_gap_filter)
+    'gap_filter_prob': [0.40, 0.45, 0.50, 0.55, 0.60],
     # v17: divergence boost breadth threshold (used by sizer)
     'div_breadth': [20, 25, 30, 35, 40],
     # v17: VVIX crisis threshold (used by neural_graph)
@@ -121,6 +123,7 @@ DEFAULTS = {
     'cond_breadth_stress': 35,
     'score_bull_er': 0.5,
     'score_crisis_er': -0.5,
+    'gap_filter_prob': 0.50,
     'div_breadth': 30,
     'vvix_crisis': 120,
     'washout_breadth': 20,
