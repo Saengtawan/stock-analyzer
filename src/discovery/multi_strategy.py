@@ -620,6 +620,24 @@ class StrategySelector:
             """, (condition, strat_name,
                   stats.get('sharpe'), stats.get('avg'),
                   stats.get('wr'), stats.get('n')))
+        # v17: Save ALL fit_stats (every condition×strategy Sharpe)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS strategy_fit_stats (
+                condition TEXT NOT NULL,
+                strategy_name TEXT NOT NULL,
+                sharpe REAL, avg_return REAL, win_rate REAL, n INTEGER,
+                fit_date TEXT DEFAULT (date('now')),
+                UNIQUE(condition, strategy_name)
+            )
+        """)
+        for (condition, strat_name), stats in self._fit_stats.items():
+            conn.execute("""
+                INSERT OR REPLACE INTO strategy_fit_stats
+                (condition, strategy_name, sharpe, avg_return, win_rate, n)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (condition, strat_name,
+                  stats.get('sharpe'), stats.get('avg'),
+                  stats.get('wr'), stats.get('n')))
         # v17: Save learned strategy thresholds
         if self._learned_params:
             conn.execute("""
@@ -654,6 +672,17 @@ class StrategySelector:
             self._learned_params = {r[0]: _json.loads(r[1]) for r in param_rows}
         except Exception:
             self._learned_params = {}
+        # v17: Load ALL fit_stats (condition×strategy Sharpe for ML ranking)
+        try:
+            stat_rows = conn.execute(
+                "SELECT condition, strategy_name, sharpe, avg_return, win_rate, n "
+                "FROM strategy_fit_stats"
+            ).fetchall()
+            for r in stat_rows:
+                self._fit_stats[(r[0], r[1])] = {
+                    'sharpe': r[2], 'avg': r[3], 'wr': r[4], 'n': r[5]}
+        except Exception:
+            pass  # table may not exist yet
         conn.close()
         self._fitted = True
         self._fit_time = time.time()
