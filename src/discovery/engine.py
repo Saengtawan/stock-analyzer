@@ -555,7 +555,7 @@ class DiscoveryEngine:
                                'l1': len(candidates), 'l2': len(picks)}
         return picks
 
-    def _run_v3_pipeline(self, candidates, macro, scan_date, scan_info):
+    def _run_v3_pipeline(self, candidates, macro, scan_date, scan_info, refit=True):
         """v17 adaptive pipeline: Strategy ranking → Sector filter → Signal boost → Filter → Size.
 
         1. Kernel scoring for regime detection (macro E[R])
@@ -570,7 +570,7 @@ class DiscoveryEngine:
         """
         # 1. Kernel scoring — regime detection only (E[R] NOT used for ranking)
         scored, regime, macro_er = self._scorer.score_batch(
-            candidates, macro, scan_date)
+            candidates, macro, scan_date, refit=refit)
         if not scored:
             return [], [], 'STRESS', 0.0
 
@@ -1722,13 +1722,15 @@ class DiscoveryEngine:
         # Lite enrichment
         self._enrich_candidates_lite(candidates, scan_date)
 
-        # Score with refit=False (returns scored for multi-strategy reuse)
+        # v17: Use same pipeline as main scan (ML ranking + adaptive filters)
+        # Only difference: refit=False (reuse evening kernels)
         scan_info['market_regime'] = self._detect_market_regime(macro)
         scan_info['condition'] = detect_condition(
             macro.get('vix_close') or 20, macro.get('pct_above_20d_ma') or 50)
+        scan_info['sector_scores'] = self._sector_scorer.score(macro, scan_date) if self._sector_scorer._fitted else {}
 
         picks, scored_all, regime_s, macro_er_s = \
-            self._run_v3_pipeline_intraday(candidates, macro, scan_date, scan_info)
+            self._run_v3_pipeline(candidates, macro, scan_date, scan_info, refit=False)
         try:
             self._multi_strategy_info = self._build_multi_strategy(
                 candidates, scored_all, regime_s, macro_er_s,
@@ -1762,33 +1764,7 @@ class DiscoveryEngine:
         logger.info("Discovery intraday: re-ranked %d, added %d new", re_ranked, len(new_intraday))
         return new_intraday
 
-    def _run_v3_pipeline_intraday(self, candidates, macro, scan_date, scan_info):
-        """Intraday pipeline — same as _run_v3_pipeline but with refit=False.
-
-        Returns (picks, scored_all, regime, macro_er) for reuse by multi-strategy.
-        """
-        scored, regime, macro_er = self._scorer.score_batch(
-            candidates, macro, scan_date, refit=False)
-        if not scored:
-            return [], [], 'STRESS', 0.0
-        strategy_mode = scan_info['strategy'].get('strategy', 'SELECTIVE')
-        filtered = self._filter.apply(
-            scored, macro, regime, strategy_mode, self._config,
-            unified_brain=self._scorer.unified_brain,
-            sensors=self._scorer._sensors,
-            temporal_features=scan_info.get('temporal_features', {}),
-            scan_date=scan_date,
-            context_scorer=self._sizer.context_scorer,
-            regime_decision=scan_info.get('regime_decision', {}))
-        picks = []
-        for score, candidate in filtered:
-            pick = self._sizer.create_pick(
-                candidate, score, macro, regime, macro_er,
-                scan_info['strategy'], scan_info.get('regime_decision', {}),
-                scan_date, picks, self._scorer)
-            if pick:
-                picks.append(pick)
-        return picks, scored, regime, macro_er
+    # _run_v3_pipeline_intraday REMOVED — intraday now uses _run_v3_pipeline(refit=False)
 
     def _enrich_candidates_lite(self, candidates, scan_date: str = None):
         if not candidates:
