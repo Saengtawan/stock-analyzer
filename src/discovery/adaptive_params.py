@@ -53,6 +53,12 @@ PARAM_GRID = {
     'ubrain_cutoff': [0.30, 0.35, 0.40, 0.45, 0.50],
     # v17: speculative skip threshold (used by context_scorer.should_skip)
     'spec_skip': [-0.9, -0.7, -0.5, -0.3],
+    # v17: divergence boost breadth threshold (used by sizer)
+    'div_breadth': [20, 25, 30, 35, 40],
+    # v17: VVIX crisis threshold (used by neural_graph)
+    'vvix_crisis': [100, 110, 120, 130, 140],
+    # v17: washout breadth threshold (used by strategy_router)
+    'washout_breadth': [10, 15, 20, 25, 30],
 }
 
 DEFAULTS = {
@@ -74,6 +80,9 @@ DEFAULTS = {
     'n_blocked': 3,
     'ubrain_cutoff': 0.40,
     'spec_skip': -0.7,
+    'div_breadth': 30,
+    'vvix_crisis': 120,
+    'washout_breadth': 20,
 }
 
 MIN_GROUP_SIZE = 100
@@ -271,6 +280,45 @@ class AdaptiveParameterLearner:
 
         # 13. v17: speculative skip threshold — learn from stock_context outcomes
         params['spec_skip'] = self._learn_spec_skip(sigs)
+
+        # 14. v17: divergence boost breadth — when is divergence signal useful?
+        breadth_sigs = [s for s in sigs if s.get('breadth') is not None]
+        if len(breadth_sigs) >= 100:
+            # Find breadth threshold where divergence (mom up + breadth low) works best
+            best_sh, best_b = -999, DEFAULTS['div_breadth']
+            for b_cut in PARAM_GRID['div_breadth']:
+                sub = [s['o5d'] for s in breadth_sigs if s['breadth'] < b_cut and s.get('mom', 0) > 0]
+                if len(sub) < 30: continue
+                sh = np.mean(sub) / max(np.std(sub), 0.01)
+                if sh > best_sh: best_sh, best_b = sh, b_cut
+            params['div_breadth'] = best_b
+        else:
+            params['div_breadth'] = DEFAULTS['div_breadth']
+
+        # 15. v17: VVIX crisis threshold — where does bounce start?
+        vvix_sigs = [s for s in sigs if s.get('vvix')]
+        if len(vvix_sigs) >= 100:
+            best_sh, best_v = -999, DEFAULTS['vvix_crisis']
+            for v_cut in PARAM_GRID['vvix_crisis']:
+                sub = [s['o5d'] for s in vvix_sigs if s['vvix'] >= v_cut]
+                if len(sub) < 20: continue
+                sh = np.mean(sub) / max(np.std(sub), 0.01)
+                if sh > best_sh: best_sh, best_v = sh, v_cut
+            params['vvix_crisis'] = best_v
+        else:
+            params['vvix_crisis'] = DEFAULTS['vvix_crisis']
+
+        # 16. v17: washout breadth — when does washout bounce work?
+        if len(breadth_sigs) >= 100:
+            best_sh, best_b = -999, DEFAULTS['washout_breadth']
+            for b_cut in PARAM_GRID['washout_breadth']:
+                sub = [s['o5d'] for s in breadth_sigs if s['breadth'] < b_cut]
+                if len(sub) < 30: continue
+                sh = np.mean(sub) / max(np.std(sub), 0.01)
+                if sh > best_sh: best_sh, best_b = sh, b_cut
+            params['washout_breadth'] = best_b
+        else:
+            params['washout_breadth'] = DEFAULTS['washout_breadth']
 
         logger.debug(
             "AdaptiveParams [%s]: SL=%.1f%% TP=%.1f%% atr≤%.1f mom≤%.0f d0≥%.2f σ=%.1f "
@@ -642,7 +690,8 @@ class AdaptiveParameterLearner:
                        d3.high as d3h, d3.low as d3l, d3.close as d3c,
                        d4.high as d4h, d4.low as d4l,
                        d5.high as d5h, d5.low as d5l, d5.close as d5c,
-                       sf.beta, sf.pe_forward, sf.market_cap
+                       sf.beta, sf.pe_forward, sf.market_cap,
+                       m.vvix_close
                 FROM backfill_signal_outcomes b
                 LEFT JOIN stock_fundamentals sf ON b.symbol = sf.symbol
                 LEFT JOIN macro_snapshots m ON b.scan_date = m.date
@@ -681,6 +730,7 @@ class AdaptiveParameterLearner:
                 'd0_pos': d0_pos,
                 'beta': r[27], 'pe': r[28],
                 'mcap_b': (r[29] / 1e9) if r[29] else None,
+                'vvix': r[30],
             }
 
             # D1-D5 OHLC for absolute SL/TP simulation

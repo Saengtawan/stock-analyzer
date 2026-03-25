@@ -24,8 +24,9 @@ DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 class NeuralGraph:
     """Connects all data layers into unified risk assessment."""
 
-    def __init__(self, knowledge_graph):
+    def __init__(self, knowledge_graph, adaptive_params=None):
         self._kg = knowledge_graph
+        self._adaptive = adaptive_params
         self._clusters = {}          # symbol → cluster_id
         self._cluster_names = {}     # cluster_id → name
         self._sector_vuln = {}       # (sector, event) → vulnerability
@@ -88,11 +89,14 @@ class NeuralGraph:
         vix_dead_lo = 25  # dead zone lower
         vix_dead_hi = 28  # dead zone upper (was 30)
 
-        # VVIX signal (flipped: high = opportunity)
+        # VVIX signal — v17: adaptive crisis threshold
+        vvix_crisis = 120
+        if self._adaptive:
+            vvix_crisis = self._adaptive.get(sector, 'BULL', 'vvix_crisis')
         if vvix is not None:
-            if vvix > 120:
+            if vvix > vvix_crisis:
                 score += 0.15
-                factors.append(f'VVIX={vvix:.0f} CRISIS bounce opportunity')
+                factors.append(f'VVIX={vvix:.0f}>{vvix_crisis} CRISIS bounce opportunity')
             elif vvix < 80:
                 score += 0.05
 
@@ -138,17 +142,16 @@ class NeuralGraph:
         # Clamp and compute size multiplier
         score = max(-1.0, min(1.0, round(score, 2)))
 
+        # v17: Linear size mapping instead of step function
+        # score -1.0 → size 0.5, score 0.0 → size 1.0 (proportional)
+        size_mult = max(0.5, min(1.0, 1.0 + score * 0.5))
         if score < -0.4:
-            size_mult = 0.5
             level = 'HIGH'
         elif score < -0.2:
-            size_mult = 0.75
             level = 'MODERATE'
         elif score < 0:
-            size_mult = 0.9
             level = 'LOW'
         else:
-            size_mult = 1.0
             level = 'SAFE'
 
         return {
@@ -174,7 +177,10 @@ class NeuralGraph:
         score = 0.0
         factors = []
 
-        # 1. VVIX: calm = safe, extreme = danger (strongest signal)
+        # 1. VVIX: calm = safe, extreme = danger — v17: adaptive threshold
+        vvix_crisis = 120
+        if self._adaptive:
+            vvix_crisis = self._adaptive.get('', 'BULL', 'vvix_crisis')
         vvix = macro.get('vvix_close')
         if vvix is not None:
             if vvix < 80:
@@ -182,9 +188,9 @@ class NeuralGraph:
                 factors.append(f'VVIX={vvix:.0f} calm → safe weekend')
             elif vvix < 100:
                 score += 0.05
-            elif vvix > 120:
+            elif vvix > vvix_crisis:
                 score -= 0.25
-                factors.append(f'VVIX={vvix:.0f} extreme → risky weekend')
+                factors.append(f'VVIX={vvix:.0f}>{vvix_crisis} extreme → risky weekend')
             elif vvix > 100:
                 score -= 0.10
 

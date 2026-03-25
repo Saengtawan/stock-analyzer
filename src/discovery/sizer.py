@@ -37,7 +37,8 @@ class UnifiedSizer:
         self._risk_brain = RiskBrain()
         self._arbiter = DecisionArbiter(param_manager=param_manager)
         self._calibrator = Calibrator()
-        self._neural_graph = NeuralGraph(self._knowledge_graph)
+        self._neural_graph = NeuralGraph(self._knowledge_graph,
+                                         adaptive_params=adaptive_params)
 
     @property
     def knowledge_graph(self):
@@ -168,9 +169,13 @@ class UnifiedSizer:
         }
 
         # 2. Divergence boost — stock UP while market weak
+        # v17: breadth threshold learned per sector×regime
         breadth = macro.get('pct_above_20d_ma') or 50
         d0_ret = ((price / c.get('open', price)) - 1) * 100 if c.get('open') else 0
-        if d0_ret > 0.5 and breadth < 30:
+        div_breadth = 30
+        if self._adaptive:
+            div_breadth = self._adaptive.get(sector, regime, 'div_breadth')
+        if d0_ret > 0.5 and breadth < div_breadth:
             score += 0.5
             c['divergence_boost'] = True
 

@@ -80,10 +80,14 @@ class StrategyRouter:
 
         else:
             regime = 'FEAR'
-            if breadth < 20:
+            # v17: washout breadth threshold learned
+            washout_b = 20
+            if self._adaptive:
+                washout_b = self._adaptive.get('', 'CRISIS', 'washout_breadth')
+            if breadth < washout_b:
                 strategy = 'WASHOUT'
                 sizing = 1.0
-                rationale = f'VIX={vix:.0f}>25 + breadth={breadth:.0f}<20 → washout bounce (WR=69%)'
+                rationale = f'VIX={vix:.0f}>{fear_vix} + breadth={breadth:.0f}<{washout_b} → washout bounce (WR=69%)'
             else:
                 strategy = 'DIP_BOUNCE'
                 sizing = 0.75
