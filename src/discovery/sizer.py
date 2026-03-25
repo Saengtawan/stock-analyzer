@@ -32,7 +32,8 @@ class UnifiedSizer:
         self._adaptive = adaptive_params
 
         self._knowledge_graph = KnowledgeGraph()
-        self._context_scorer = ContextScorer(self._knowledge_graph)
+        self._context_scorer = ContextScorer(self._knowledge_graph,
+                                                adaptive_params=adaptive_params)
         self._risk_brain = RiskBrain()
         self._arbiter = DecisionArbiter(param_manager=param_manager)
         self._calibrator = Calibrator()

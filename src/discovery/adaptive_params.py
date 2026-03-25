@@ -51,6 +51,8 @@ PARAM_GRID = {
     'n_blocked':    [1, 2, 3, 4],
     # v17: UBrain cutoff (used by filter._ubrain_rerank)
     'ubrain_cutoff': [0.30, 0.35, 0.40, 0.45, 0.50],
+    # v17: speculative skip threshold (used by context_scorer.should_skip)
+    'spec_skip': [-0.9, -0.7, -0.5, -0.3],
 }
 
 DEFAULTS = {
@@ -71,6 +73,7 @@ DEFAULTS = {
     'max_vol_ratio': 3.0,
     'n_blocked': 3,
     'ubrain_cutoff': 0.40,
+    'spec_skip': -0.7,
 }
 
 MIN_GROUP_SIZE = 100
@@ -265,6 +268,9 @@ class AdaptiveParameterLearner:
 
         # 12. v17: UBrain cutoff — learn from ubrain_backfill if available
         params['ubrain_cutoff'] = self._learn_ubrain_cutoff(sigs)
+
+        # 13. v17: speculative skip threshold — learn from stock_context outcomes
+        params['spec_skip'] = self._learn_spec_skip(sigs)
 
         logger.debug(
             "AdaptiveParams [%s]: SL=%.1f%% TP=%.1f%% atr≤%.1f mom≤%.0f d0≥%.2f σ=%.1f "
@@ -509,6 +515,42 @@ class AdaptiveParameterLearner:
                 best_cut = cut
 
         return best_cut
+
+    def _learn_spec_skip(self, sigs):
+        """v17: Learn optimal speculative skip threshold from outcome data."""
+        try:
+            conn = sqlite3.connect(str(DB_PATH))
+            spec_scores = {}
+            for r in conn.execute(
+                "SELECT symbol, score FROM stock_context WHERE context_type='SPECULATIVE_FLAG'"
+            ).fetchall():
+                spec_scores[r[0]] = r[1]
+            conn.close()
+        except Exception:
+            return DEFAULTS['spec_skip']
+
+        if not spec_scores:
+            return DEFAULTS['spec_skip']
+
+        # Match signals with speculative scores
+        spec_sigs = [(spec_scores.get(s['symbol'], 0), s['o5d'])
+                     for s in sigs if s['symbol'] in spec_scores and s.get('o5d') is not None]
+
+        if len(spec_sigs) < 50:
+            return DEFAULTS['spec_skip']
+
+        best_sharpe = -999
+        best_thresh = DEFAULTS['spec_skip']
+        for thresh in PARAM_GRID['spec_skip']:
+            kept = [o5d for sc, o5d in spec_sigs if sc >= thresh]
+            if len(kept) < 20:
+                continue
+            sh = np.mean(kept) / max(np.std(kept), 0.01)
+            if sh > best_sharpe:
+                best_sharpe = sh
+                best_thresh = thresh
+
+        return best_thresh
 
     def _learn_tp_multipliers(self, sigs):
         """v17: Grid search optimal TP D0/D2/D3 ATR multipliers (best Sharpe).
