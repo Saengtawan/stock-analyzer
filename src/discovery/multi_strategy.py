@@ -439,6 +439,45 @@ class StrategySelector:
         learned['RS'] = best_p
         logger.info("StrategySelector v17: RS learned %s (sharpe=%.3f)", best_p, best_sharpe)
 
+        # VALUE: learn pe_min, pe_max, mom_min, max_beta
+        best_sharpe = -999
+        best_p = STRATEGY_DEFAULTS.get('VALUE', {}).copy()
+        for pe_max in [10, 15, 20, 25]:
+            for mom_min in [-15, -10, -5]:
+                for max_beta in [1.2, 1.5, 2.0]:
+                    p = {'pe_min': 3, 'pe_max': pe_max, 'mom_min': mom_min,
+                         'max_beta': max_beta, 'min_mcap': 5e9}
+                    rets = [s.get('fwd_5d', 0) for s in all_stocks
+                            if s.get('pe_forward') is not None and 3 < s['pe_forward'] < pe_max
+                            and _mom5(s) > mom_min
+                            and _beta(s) < max_beta
+                            and _mcap(s) >= 30]
+                    if len(rets) < 100: continue
+                    sharpe = np.mean(rets) / max(np.std(rets), 0.01)
+                    if sharpe > best_sharpe:
+                        best_sharpe = sharpe
+                        best_p = p
+        learned['VALUE'] = best_p
+        logger.info("StrategySelector v17: VALUE learned %s (sharpe=%.3f)", best_p, best_sharpe)
+
+        # CONTRARIAN: learn max_beta, mom_min, min_sector_stocks
+        best_sharpe = -999
+        best_p = STRATEGY_DEFAULTS.get('CONTRARIAN', {}).copy()
+        for max_beta in [1.2, 1.5, 2.0]:
+            for mom_min in [-20, -15, -10, -5]:
+                p = {'max_beta': max_beta, 'mom_min': mom_min, 'min_sector_stocks': 5}
+                rets = [s.get('fwd_5d', 0) for s in all_stocks
+                        if _beta(s) < max_beta
+                        and _mom5(s) > mom_min
+                        and _mcap(s) >= 30]
+                if len(rets) < 100: continue
+                sharpe = np.mean(rets) / max(np.std(rets), 0.01)
+                if sharpe > best_sharpe:
+                    best_sharpe = sharpe
+                    best_p = p
+        learned['CONTRARIAN'] = best_p
+        logger.info("StrategySelector v17: CONTRARIAN learned %s (sharpe=%.3f)", best_p, best_sharpe)
+
         return learned
 
     def select(self, vix, breadth):
