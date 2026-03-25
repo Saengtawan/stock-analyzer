@@ -20,7 +20,8 @@ class AutoRefitOrchestrator:
 
     def __init__(self, regime_brain, stock_brain, param_optimizer,
                  performance_tracker, param_manager, adaptive_params=None,
-                 knowledge_graph=None, neural_graph=None, strategy_selector=None):
+                 knowledge_graph=None, neural_graph=None, strategy_selector=None,
+                 sector_scorer=None, stock_selector=None, signal_tracker=None):
         self._regime_brain = regime_brain
         self._stock_brain = stock_brain
         self._param_optimizer = param_optimizer
@@ -30,6 +31,10 @@ class AutoRefitOrchestrator:
         self._knowledge_graph = knowledge_graph
         self._neural_graph = neural_graph
         self._strategy_selector = strategy_selector
+        # v17: Full Adaptive layers
+        self._sector_scorer = sector_scorer
+        self._stock_selector = stock_selector
+        self._signal_tracker = signal_tracker
         self._last_run = 0.0
         self._last_results = {}
 
@@ -142,7 +147,26 @@ class AutoRefitOrchestrator:
             except Exception as e:
                 logger.error("AutoRefit: StrategySelector error: %s", e)
 
-        # 9. Health check
+        # 9. Refit v17 adaptive layers
+        for name, component in [
+            ('SectorScorer', self._sector_scorer),
+            ('StockSelector', self._stock_selector),
+            ('SignalTracker', self._signal_tracker),
+        ]:
+            if component:
+                try:
+                    if component.needs_refit(30):
+                        component.fit()
+                        results[f'v17_{name}'] = True
+                        logger.info("AutoRefit: v17 %s refitted (%s)",
+                                    name, component.get_stats())
+                    else:
+                        results[f'v17_{name}'] = False
+                except Exception as e:
+                    logger.error("AutoRefit: v17 %s error: %s", name, e)
+                    results[f'v17_{name}'] = {'error': str(e)}
+
+        # 10. Health check
         try:
             drift_status = results.get('drift', {}).get('drift', 'UNKNOWN')
             if drift_status == 'MODEL_FAILING':

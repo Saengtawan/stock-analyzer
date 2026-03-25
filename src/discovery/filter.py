@@ -39,8 +39,10 @@ CRUDE_SENSITIVE = frozenset({
 class UnifiedFilter:
     """Single filter pipeline for Discovery picks."""
 
-    def __init__(self, adaptive_params=None):
+    def __init__(self, adaptive_params=None, signal_tracker=None, sector_scorer=None):
         self._adaptive = adaptive_params
+        self._signal_tracker = signal_tracker  # v17: learned boost weights
+        self._sector_scorer = sector_scorer    # v17: learned sector scoring
 
     def apply(self, scored, macro, regime, strategy_mode, config,
               unified_brain=None, sensors=None, temporal_features=None,
@@ -132,86 +134,70 @@ class UnifiedFilter:
     # --- Filter stages ---
 
     def _apply_smart_boost(self, scored, scan_date):
-        """v16: Boost stocks with insider buying or analyst target upgrades.
-        Replaces negative E[R] skip (which killed good stocks — IC=0 proven).
-        Insider+dip WR=61.5%, analyst target up >5% WR=55.4%."""
-        if not scan_date:
-            return scored
-        try:
-            import sqlite3
-            from pathlib import Path
-            db = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
-            conn = sqlite3.connect(str(db), timeout=5)
-            conn.execute('PRAGMA busy_timeout=5000')
+        """Boost stocks with insider buying or analyst target upgrades.
 
-            # Insider open-market purchases in last 90 days (value > $10K)
-            insider_syms = set()
-            try:
-                for r in conn.execute("""
-                    SELECT DISTINCT symbol FROM insider_transactions_history
-                    WHERE trade_date >= date(?, '-90 days') AND trade_date <= ?
-                    AND (transaction_type LIKE '%Purchase%'
-                         OR transaction_type LIKE '%Buy%')
-                    AND value > 10000
-                """, (scan_date, scan_date)):
-                    insider_syms.add(r[0])
-            except Exception:
-                pass  # table may not exist yet
+        v17: Uses SignalTracker learned IC-based weights when available.
+        Fallback: hardcoded +0.5 insider, +0.3 analyst (v16 behavior).
 
-            # Analyst target changes in last 90 days
-            analyst_up = set()
-            analyst_down = set()
-            try:
-                for r in conn.execute("""
-                    SELECT symbol,
-                           AVG((price_target / prior_price_target - 1) * 100) as chg
-                    FROM analyst_ratings_history
-                    WHERE date >= date(?, '-90 days') AND date <= ?
-                    AND price_target > 0 AND prior_price_target > 0
-                    GROUP BY symbol
-                """, (scan_date, scan_date)):
-                    if r[1] and r[1] > 5:
-                        analyst_up.add(r[0])
-                    elif r[1] and r[1] < -5:
-                        analyst_down.add(r[0])
-            except Exception:
-                pass  # table may not exist yet
-
-            conn.close()
-
-            boosted = []
-            n_insider = 0
-            n_analyst = 0
-            for er, c in scored:
-                sym = c.get('symbol', '')
+        Reads pre-enriched fields from candidates (set by engine._enrich_candidates).
+        """
+        use_tracker = (self._signal_tracker is not None
+                       and self._signal_tracker._fitted)
+        boosted = []
+        n_insider = 0
+        n_analyst = 0
+        for er, c in scored:
+            if use_tracker:
+                boost = self._signal_tracker.boost(c, scan_date)
+            else:
+                # v16 fallback: hardcoded weights
                 boost = 0
-                if sym in insider_syms:
+                if c.get('insider_bought'):
                     boost += 0.5
-                    c['insider_bought'] = True
-                    n_insider += 1
-                if sym in analyst_up:
+                if c.get('analyst_upgrade'):
                     boost += 0.3
-                    c['analyst_upgrade'] = True
-                    n_analyst += 1
-                if sym in analyst_down:
+                if c.get('analyst_downgrade'):
                     boost -= 0.3
-                boosted.append((er + boost, c))
 
-            if n_insider or n_analyst:
-                logger.info("Filter v16: smart boost — %d insider, %d analyst_up",
-                            n_insider, n_analyst)
+            if c.get('insider_bought'):
+                n_insider += 1
+            if c.get('analyst_upgrade'):
+                n_analyst += 1
+            boosted.append((er + boost, c))
 
-            return boosted
+        if n_insider or n_analyst:
+            mode = "v17 learned" if use_tracker else "v16 hardcoded"
+            logger.info("Filter: smart boost (%s) — %d insider, %d analyst_up",
+                        mode, n_insider, n_analyst)
 
-        except Exception as e:
-            logger.debug("Filter v16: smart boost error: %s", e)
-            return scored
+        return boosted
 
     def _regime_gate(self, scored, regime, strategy_mode, macro):
-        """STRESS/CRISIS bonus gate — require defensive characteristics."""
+        """STRESS/CRISIS bonus gate — require defensive characteristics.
+
+        v17: Uses SectorScorer learned allowed/blocked sectors when available.
+        Fallback: hardcoded get_crisis_sectors()/get_stress_sectors().
+        """
         if strategy_mode.startswith('CALM') or strategy_mode == 'SELECTIVE':
             return scored
 
+        # v17: Use learned sector scoring
+        if self._sector_scorer and self._sector_scorer._fitted:
+            allowed_sectors, blocked_sectors = self._sector_scorer.get_allowed_sectors(macro)
+            result = []
+            n_blocked = 0
+            for er, c in scored:
+                sector = c.get('sector') or ''
+                if sector in blocked_sectors and (regime in ('STRESS', 'CRISIS')):
+                    n_blocked += 1
+                    continue
+                result.append((er, c))
+            if n_blocked:
+                logger.info("Filter v17: regime_gate blocked %d picks from sectors %s",
+                            n_blocked, sorted(blocked_sectors))
+            return result
+
+        # v16 fallback: hardcoded sector rules
         crisis_sectors = get_crisis_sectors(macro)
         stress_sectors = get_stress_sectors(macro)
 

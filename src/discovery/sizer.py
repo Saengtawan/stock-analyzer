@@ -83,6 +83,9 @@ class UnifiedSizer:
 
         # v15.3: SL=0.8×ATR (cap 3.5%), TP=dynamic per day (ATR-based)
         # Data-validated: 30% hit rate per day = sweet spot
+        # NOTE: adaptive_params learns sl_pct/tp_pct per sector×regime but they are
+        # intentionally NOT used here — v15.3 ATR formula was validated in sim with
+        # better results. Adaptive sl_pct/tp_pct remain for future experimentation.
         pick_sl_pct = round(max(1.5, min(3.5, 0.8 * atr)), 1)
         # TP at D3 level (highest) for SL/TP price display
         pick_tp_pct = round(max(1.5, 1.09 * atr), 1)

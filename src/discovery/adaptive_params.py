@@ -28,6 +28,9 @@ SECTORS = [
 REGIMES = ['BULL', 'STRESS', 'CRISIS']
 
 PARAM_GRID = {
+    # NOTE: sl_pct/tp_pct are learned here but NOT used by sizer.compute_sl_tp()
+    # which uses v15.3 ATR formula instead (0.8×ATR cap 3.5%). These remain for
+    # future experimentation. Filter stages (atr_max, mom_cut, etc.) ARE used.
     'sl_pct':       [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0],  # absolute SL %
     'tp_pct':       [2.0, 3.0, 4.0, 5.0],                     # absolute TP %, max 5% (realistic D1-D5)
     'atr_max':      [2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 7.0, 8.0],

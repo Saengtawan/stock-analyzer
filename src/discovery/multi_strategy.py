@@ -1,6 +1,16 @@
 """
 Multi-Strategy Discovery v15.2 — 4 strategies ranked by volume.
 
+v17 DEPRECATION NOTE:
+  When v17.enabled=true in discovery.yaml, the hardcoded strategy functions below
+  (strategy_dip, strategy_oversold, etc.) and REGIME_STRATEGY_MAP are bypassed.
+  AdaptiveStockSelector (adaptive_stock_selector.py) replaces all strategy functions
+  with a single learned model. SectorScorer (sector_scorer.py) replaces
+  REGIME_STRATEGY_MAP sector preferences. This file remains for:
+  - v16 fallback when v17.enabled=false
+  - StrategySelector walk-forward learning (display-only)
+  - detect_condition() still used by engine.py for scan_info
+
 Strategies (validated on 75K signals, Sharpe=1.50):
   DIP:        Buy quality dips (-3% to -15%) — $/trade=+$0.26
   OVERSOLD:   Buy extreme oversold (< -5%) — $/trade=+$0.61
@@ -49,88 +59,102 @@ def _vol(s):
 def _beta(s):
     return _safe(s.get('beta'), 1)
 
-# v15.3: quality filters (sim validated: Sharpe 1.82→2.10, Win 23→25/33)
-MAX_VOLUME_RATIO = 3.0   # vol > 3x = panic sell (WR 42.9%, avg -2.44%)
-MIN_MCAP_B = 30           # mcap < $30B = small cap don't bounce (worst $48B vs best $73B)
+# v17: All thresholds below are DEFAULTS — overridden by learned params when available.
+# StrategySelector.fit() learns optimal thresholds per condition via grid search.
+STRATEGY_DEFAULTS = {
+    'quality': {'max_vol': 3.0, 'min_mcap_b': 30},
+    'DIP':     {'mom_min': -15, 'mom_max': -3, 'max_beta': 1.5, 'min_vol': 0.3},
+    'OVERSOLD':{'mom_max': -5, 'max_d20h': -10, 'max_beta': 2.0},
+    'VALUE':   {'pe_min': 3, 'pe_max': 15, 'mom_min': -10, 'max_beta': 1.5, 'min_mcap': 5e9},
+    'CONTRARIAN': {'max_beta': 1.5, 'mom_min': -15, 'min_sector_stocks': 5},
+    'VOL_U':   {'vol_low': 0.5, 'vol_high': 2.0, 'max_beta': 1.5},
+    'RS':      {'min_mom5': 0, 'min_d20h': -5, 'max_beta': 1.5},
+}
 
 
 def _mcap(s):
     return _safe(s.get('market_cap'), 1e9) / 1e9
 
 
-def _filter_quality(stocks):
-    """Pre-filter: remove panic-sell + small cap stocks."""
-    return [s for s in stocks if _vol(s) <= MAX_VOLUME_RATIO and _mcap(s) >= MIN_MCAP_B]
+def _filter_quality(stocks, params=None):
+    """Pre-filter: remove panic-sell + small cap stocks. v17: learned thresholds."""
+    p = params or STRATEGY_DEFAULTS['quality']
+    max_v = p.get('max_vol', 3.0)
+    min_m = p.get('min_mcap_b', 30)
+    return [s for s in stocks if _vol(s) <= max_v and _mcap(s) >= min_m]
 
 
-def strategy_dip(stocks, macro=None):
-    """DIP BOUNCE: หุ้นลง -3% to -15%, beta < 1.5, volume OK."""
-    picks = [s for s in _filter_quality(stocks)
-             if -15 < _mom5(s) < -3
-             and _beta(s) < 1.5
-             and _vol(s) > 0.3]
+def strategy_dip(stocks, macro=None, params=None):
+    """DIP BOUNCE: หุ้นลง, beta ต่ำ, volume OK. v17: thresholds learned."""
+    p = params or STRATEGY_DEFAULTS['DIP']
+    picks = [s for s in _filter_quality(stocks, params)
+             if p.get('mom_min', -15) < _mom5(s) < p.get('mom_max', -3)
+             and _beta(s) < p.get('max_beta', 1.5)
+             and _vol(s) > p.get('min_vol', 0.3)]
     return sorted(picks, key=lambda x: _d20h(x))[:5]
 
 
-def strategy_oversold(stocks, macro=None):
-    """OVERSOLD EXTREME: หุ้นลงหนักมาก > -5%, far from 20d high."""
-    picks = [s for s in _filter_quality(stocks)
-             if _mom5(s) < -5
-             and _d20h(s) < -10
-             and _beta(s) < 2.0]
+def strategy_oversold(stocks, macro=None, params=None):
+    """OVERSOLD EXTREME: หุ้นลงหนักมาก, far from 20d high. v17: thresholds learned."""
+    p = params or STRATEGY_DEFAULTS['OVERSOLD']
+    picks = [s for s in _filter_quality(stocks, params)
+             if _mom5(s) < p.get('mom_max', -5)
+             and _d20h(s) < p.get('max_d20h', -10)
+             and _beta(s) < p.get('max_beta', 2.0)]
     return sorted(picks, key=lambda x: _mom5(x))[:5]
 
 
-def strategy_value(stocks, macro=None):
-    """VALUE: PE ต่ำ, ไม่ลงเยอะ, quality."""
-    picks = [s for s in _filter_quality(stocks)
-             if s.get('pe_forward') is not None and 3 < s['pe_forward'] < 15
-             and _mom5(s) > -10
-             and _beta(s) < 1.5
-             and _safe(s.get('market_cap'), 0) > 5e9]
+def strategy_value(stocks, macro=None, params=None):
+    """VALUE: PE ต่ำ, ไม่ลงเยอะ, quality. v17: thresholds learned."""
+    p = params or STRATEGY_DEFAULTS['VALUE']
+    picks = [s for s in _filter_quality(stocks, params)
+             if s.get('pe_forward') is not None
+             and p.get('pe_min', 3) < s['pe_forward'] < p.get('pe_max', 15)
+             and _mom5(s) > p.get('mom_min', -10)
+             and _beta(s) < p.get('max_beta', 1.5)
+             and _safe(s.get('market_cap'), 0) > p.get('min_mcap', 5e9)]
     return sorted(picks, key=lambda x: _safe(x.get('pe_forward'), 99))[:5]
 
 
-def strategy_contrarian(stocks, macro=None):
-    """SECTOR CONTRARIAN: ซื้อหุ้นดีที่สุดใน worst sector."""
+def strategy_contrarian(stocks, macro=None, params=None):
+    """SECTOR CONTRARIAN: ซื้อหุ้นดีที่สุดใน worst sector. v17: thresholds learned."""
+    p = params or STRATEGY_DEFAULTS['CONTRARIAN']
     sector_rets = defaultdict(list)
     for s in stocks:
         sector_rets[s.get('sector', '')].append(_mom5(s))
     sector_avg = {sect: np.mean(rets) for sect, rets in sector_rets.items()
-                  if len(rets) > 5 and sect}
+                  if len(rets) > p.get('min_sector_stocks', 5) and sect}
     if not sector_avg:
         return []
     worst_sector = min(sector_avg, key=sector_avg.get)
-    picks = [s for s in _filter_quality(stocks)
+    picks = [s for s in _filter_quality(stocks, params)
              if s.get('sector') == worst_sector
-             and _beta(s) < 1.5
-             and _mom5(s) > -15]
+             and _beta(s) < p.get('max_beta', 1.5)
+             and _mom5(s) > p.get('mom_min', -15)]
     return sorted(picks, key=lambda x: _mom5(x))[:5]
 
 
-def strategy_vol_u(stocks, macro=None):
-    """VOL U-SHAPE: หุ้น volume ต่ำมาก (<0.5x) หรือสูงมาก (>2x) = bounce signal.
-    v16: validated WR 60-69% in NORMAL/ELEVATED regime (sim 2026-03-24).
-    low vol dip = fake selling → bounce. extreme vol = capitulation → mean revert."""
-    picks = [s for s in _filter_quality(stocks)
-             if (_vol(s) < 0.5 or _vol(s) > 2.0)
-             and _beta(s) < 1.5]
+def strategy_vol_u(stocks, macro=None, params=None):
+    """VOL U-SHAPE: volume ต่ำมากหรือสูงมาก = bounce signal. v17: thresholds learned."""
+    p = params or STRATEGY_DEFAULTS['VOL_U']
+    picks = [s for s in _filter_quality(stocks, params)
+             if (_vol(s) < p.get('vol_low', 0.5) or _vol(s) > p.get('vol_high', 2.0))
+             and _beta(s) < p.get('max_beta', 1.5)]
     return sorted(picks, key=lambda x: abs(_vol(x) - 1.0), reverse=True)[:5]
 
 
-def strategy_relative_strength(stocks, macro=None):
-    """RELATIVE STRENGTH: หุ้นที่ยังขึ้นในตลาดที่ลง (momentum > 0).
-    v16: validated WR 54% in MILD_DOWN (vs DIP 42%), 56% in MILD_UP (vs DIP 51%).
-    Logic: stocks going UP while market drifts down = institutional accumulation,
-    relative strength = quality that holds up. NOT mean-reversion."""
-    picks = [s for s in _filter_quality(stocks)
-             if _mom5(s) > 0           # positive 5d momentum (going up)
-             and _d20h(s) > -5         # near 20d high (strong)
-             and _beta(s) < 1.5]
-    # Rank by momentum desc (strongest relative strength first)
+def strategy_relative_strength(stocks, macro=None, params=None):
+    """RELATIVE STRENGTH: หุ้นที่ยังขึ้นในตลาดที่ลง. v17: thresholds learned."""
+    p = params or STRATEGY_DEFAULTS['RS']
+    picks = [s for s in _filter_quality(stocks, params)
+             if _mom5(s) > p.get('min_mom5', 0)
+             and _d20h(s) > p.get('min_d20h', -5)
+             and _beta(s) < p.get('max_beta', 1.5)]
     return sorted(picks, key=lambda x: -_mom5(x))[:5]
 
 
+# v17 DEPRECATED: Replaced by AdaptiveStockSelector when v17.enabled=true.
+# Kept for v16 fallback and StrategySelector walk-forward learning.
 STRATEGIES = {
     'DIP':        {'fn': strategy_dip, 'desc': 'Buy quality dips (-3% to -15%)'},
     'OVERSOLD':   {'fn': strategy_oversold, 'desc': 'Buy extreme oversold (< -5%)'},
@@ -151,6 +175,7 @@ STRATEGY_SLTP = {
 }
 
 # v16.1: Regime → preferred strategy map
+# v17 DEPRECATED: Replaced by SectorScorer learned sector ranking.
 # Updated from backtest 2026-03-24:
 #   STRONG_DOWN: DIP/OVERSOLD work (61% WR — post-crash bounce) — keep
 #   MILD_DOWN: DIP fails (42%) → RS wins (54%) — SWITCH
@@ -195,10 +220,11 @@ def detect_condition(vix, breadth):
 
 
 class StrategySelector:
-    """Learn which strategy works best per condition, auto-select."""
+    """Learn which strategy works best per condition + optimal thresholds."""
 
     def __init__(self):
         self._best_by_condition = {}  # condition → strategy name
+        self._learned_params = {}     # v17: {strategy_name: {param: value}}
         self._fit_stats = {}
         self._fitted = False
         self._fit_time = 0.0
@@ -260,14 +286,121 @@ class StrategySelector:
             logger.info("StrategySelector: %s → %s (sharpe=%.3f)",
                         condition, best_name, best_sharpe)
 
+        # v17: Learn optimal thresholds per strategy via grid search
+        self._learned_params = self._learn_strategy_thresholds(by_date)
+
         self._fitted = True
         self._fit_time = time.time()
         self.save_to_db()
 
         elapsed = time.time() - t0
-        logger.info("StrategySelector: fitted in %.1fs — %s", elapsed,
-                     self._best_by_condition)
+        logger.info("StrategySelector: fitted in %.1fs — %s params=%s", elapsed,
+                     self._best_by_condition,
+                     {k: len(v) for k, v in self._learned_params.items()})
         return True
+
+    def _learn_strategy_thresholds(self, by_date):
+        """v17: Grid search optimal thresholds for each strategy.
+
+        For each strategy, vary key thresholds and find the combo with best Sharpe.
+        Returns {strategy_name: {param: best_value}}.
+        """
+        all_stocks = []
+        for dt, stocks in by_date.items():
+            for s in stocks:
+                all_stocks.append(s)
+        if len(all_stocks) < 5000:
+            return {}
+
+        learned = {}
+
+        # DIP: learn mom_min, mom_max, max_beta
+        best_sharpe = -999
+        best_p = STRATEGY_DEFAULTS['DIP'].copy()
+        for mom_min in [-20, -15, -12, -10]:
+            for mom_max in [-5, -3, -2, -1]:
+                if mom_max <= mom_min:
+                    continue
+                for max_beta in [1.2, 1.5, 2.0]:
+                    p = {'mom_min': mom_min, 'mom_max': mom_max,
+                         'max_beta': max_beta, 'min_vol': 0.3}
+                    rets = [s.get('fwd_5d', 0) for s in all_stocks
+                            if mom_min < _mom5(s) < mom_max
+                            and _beta(s) < max_beta
+                            and _vol(s) > 0.3
+                            and _mcap(s) >= 30]
+                    if len(rets) < 100:
+                        continue
+                    sharpe = np.mean(rets) / max(np.std(rets), 0.01)
+                    if sharpe > best_sharpe:
+                        best_sharpe = sharpe
+                        best_p = p
+        learned['DIP'] = best_p
+        logger.info("StrategySelector v17: DIP learned %s (sharpe=%.3f)", best_p, best_sharpe)
+
+        # OVERSOLD: learn mom_max, max_d20h, max_beta
+        best_sharpe = -999
+        best_p = STRATEGY_DEFAULTS['OVERSOLD'].copy()
+        for mom_max in [-8, -5, -3]:
+            for max_d20h in [-15, -10, -7, -5]:
+                for max_beta in [1.5, 2.0, 2.5]:
+                    p = {'mom_max': mom_max, 'max_d20h': max_d20h, 'max_beta': max_beta}
+                    rets = [s.get('fwd_5d', 0) for s in all_stocks
+                            if _mom5(s) < mom_max
+                            and _d20h(s) < max_d20h
+                            and _beta(s) < max_beta
+                            and _mcap(s) >= 30]
+                    if len(rets) < 100:
+                        continue
+                    sharpe = np.mean(rets) / max(np.std(rets), 0.01)
+                    if sharpe > best_sharpe:
+                        best_sharpe = sharpe
+                        best_p = p
+        learned['OVERSOLD'] = best_p
+        logger.info("StrategySelector v17: OVERSOLD learned %s (sharpe=%.3f)", best_p, best_sharpe)
+
+        # VOL_U: learn vol_low, vol_high, max_beta
+        best_sharpe = -999
+        best_p = STRATEGY_DEFAULTS['VOL_U'].copy()
+        for vol_low in [0.3, 0.5, 0.7]:
+            for vol_high in [1.5, 2.0, 2.5, 3.0]:
+                for max_beta in [1.2, 1.5, 2.0]:
+                    p = {'vol_low': vol_low, 'vol_high': vol_high, 'max_beta': max_beta}
+                    rets = [s.get('fwd_5d', 0) for s in all_stocks
+                            if (_vol(s) < vol_low or _vol(s) > vol_high)
+                            and _beta(s) < max_beta
+                            and _mcap(s) >= 30]
+                    if len(rets) < 100:
+                        continue
+                    sharpe = np.mean(rets) / max(np.std(rets), 0.01)
+                    if sharpe > best_sharpe:
+                        best_sharpe = sharpe
+                        best_p = p
+        learned['VOL_U'] = best_p
+        logger.info("StrategySelector v17: VOL_U learned %s (sharpe=%.3f)", best_p, best_sharpe)
+
+        # RS: learn min_mom5, min_d20h, max_beta
+        best_sharpe = -999
+        best_p = STRATEGY_DEFAULTS['RS'].copy()
+        for min_mom5 in [-2, 0, 1, 2]:
+            for min_d20h in [-10, -5, -3, 0]:
+                for max_beta in [1.2, 1.5, 2.0]:
+                    p = {'min_mom5': min_mom5, 'min_d20h': min_d20h, 'max_beta': max_beta}
+                    rets = [s.get('fwd_5d', 0) for s in all_stocks
+                            if _mom5(s) > min_mom5
+                            and _d20h(s) > min_d20h
+                            and _beta(s) < max_beta
+                            and _mcap(s) >= 30]
+                    if len(rets) < 100:
+                        continue
+                    sharpe = np.mean(rets) / max(np.std(rets), 0.01)
+                    if sharpe > best_sharpe:
+                        best_sharpe = sharpe
+                        best_p = p
+        learned['RS'] = best_p
+        logger.info("StrategySelector v17: RS learned %s (sharpe=%.3f)", best_p, best_sharpe)
+
+        return learned
 
     def select(self, vix, breadth):
         """Select best strategy for current conditions.
@@ -279,18 +412,19 @@ class StrategySelector:
         return name, condition
 
     def get_picks(self, strategy_name, stocks, macro=None):
-        """Run selected strategy on stock pool."""
+        """Run selected strategy on stock pool with learned params."""
         spec = STRATEGIES.get(strategy_name)
         if not spec:
             return []
-        return spec['fn'](stocks, macro)
+        params = self._learned_params.get(strategy_name)
+        return spec['fn'](stocks, macro, params=params)
 
     def get_all_picks(self, stocks, macro=None):
-        """Run ALL strategies, rank by volume, enforce max per strategy."""
+        """Run ALL strategies with learned thresholds, rank by volume."""
         result = {}
         for name, spec in STRATEGIES.items():
-            picks = spec['fn'](stocks, macro)
-            # Sort each strategy's picks by volume_ratio desc
+            params = self._learned_params.get(name)
+            picks = spec['fn'](stocks, macro, params=params)
             picks.sort(key=lambda x: -_vol(x))
             result[name] = picks[:MAX_PER_STRATEGY]
         return result
@@ -300,12 +434,13 @@ class StrategySelector:
         Returns list of (strategy_name, pick_dict) sorted by volume_ratio desc.
         Deduped by symbol, max 2 per strategy, max 8 total.
 
-        v16: market_regime=(trend, vol_regime) boosts the preferred strategy
-        for current regime to the top of the ranking.
+        v17: Each strategy uses learned thresholds.
+        v16: market_regime=(trend, vol_regime) boosts the preferred strategy.
         """
         all_picks = []
         for name, spec in STRATEGIES.items():
-            picks = spec['fn'](stocks, macro)
+            params = self._learned_params.get(name)
+            picks = spec['fn'](stocks, macro, params=params)
             for p in picks:
                 p['_strategy'] = name
                 all_picks.append((name, p))
@@ -426,6 +561,7 @@ class StrategySelector:
         conn.close()
 
     def save_to_db(self):
+        import json as _json
         conn = sqlite3.connect(str(DB_PATH))
         for condition, strat_name in self._best_by_condition.items():
             stats = self._fit_stats.get((condition, strat_name), {})
@@ -436,21 +572,46 @@ class StrategySelector:
             """, (condition, strat_name,
                   stats.get('sharpe'), stats.get('avg'),
                   stats.get('wr'), stats.get('n')))
+        # v17: Save learned strategy thresholds
+        if self._learned_params:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS strategy_learned_params (
+                    strategy_name TEXT NOT NULL PRIMARY KEY,
+                    params_json TEXT NOT NULL,
+                    fit_date TEXT DEFAULT (date('now'))
+                )
+            """)
+            for strat, params in self._learned_params.items():
+                conn.execute("""
+                    INSERT OR REPLACE INTO strategy_learned_params
+                    (strategy_name, params_json) VALUES (?, ?)
+                """, (strat, _json.dumps(params)))
         conn.commit()
         conn.close()
 
     def load_from_db(self):
+        import json as _json
         conn = sqlite3.connect(str(DB_PATH))
         rows = conn.execute(
             "SELECT condition, strategy_name FROM strategy_selection").fetchall()
-        conn.close()
         if not rows:
+            conn.close()
             return False
         self._best_by_condition = {r[0]: r[1] for r in rows}
+        # v17: Load learned thresholds
+        try:
+            param_rows = conn.execute(
+                "SELECT strategy_name, params_json FROM strategy_learned_params"
+            ).fetchall()
+            self._learned_params = {r[0]: _json.loads(r[1]) for r in param_rows}
+        except Exception:
+            self._learned_params = {}
+        conn.close()
         self._fitted = True
         self._fit_time = time.time()
-        logger.info("StrategySelector: loaded from DB — %s",
-                     self._best_by_condition)
+        logger.info("StrategySelector: loaded from DB — %s learned_params=%s",
+                     self._best_by_condition,
+                     {k: len(v) for k, v in self._learned_params.items()})
         return True
 
     def save_picks(self, scan_date, all_picks):

@@ -1,4 +1,16 @@
 discovery:
+  # ===== v17: Full Adaptive Architecture =====
+  # When enabled, replaces hardcoded strategies with 3 learned layers:
+  #   Layer 1: SectorScorer — learned sector ranking
+  #   Layer 2: AdaptiveStockSelector — learned stock selection (replaces DIP/RS/etc.)
+  #   Layer 3: SignalTracker — learned signal boost weights (replaces +0.5/+0.3)
+  # Set to false to use existing v15.3 pipeline as fallback.
+  v17:
+    enabled: true
+    max_picks: 8           # max picks from AdaptiveStockSelector
+    min_probability: 0.52  # minimum model probability to consider
+    sector_block_count: 3  # bottom N sectors blocked
+
   # ===== v5.2: Elite Filter — Statistical Outlier Selection =====
   # Two kernels: MacroKernel (8 feat, bw=0.4) → regime detection
   #              StockKernel (13 feat, bw=1.0) → per-stock E[R] ranker

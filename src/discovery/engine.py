@@ -46,6 +46,9 @@ from discovery.param_manager import ParamManager
 from discovery.param_optimizer import ParamOptimizer
 from discovery.performance_tracker import PerformanceTracker
 from discovery.auto_refit import AutoRefitOrchestrator
+from discovery.sector_scorer import SectorScorer
+from discovery.adaptive_stock_selector import AdaptiveStockSelector
+from discovery.signal_tracker import SignalTracker
 
 logger = logging.getLogger(__name__)
 
@@ -105,13 +108,40 @@ class DiscoveryEngine:
         except Exception as e:
             logger.error("Discovery: neural graph init error: %s", e)
 
+        # v17: Full Adaptive layers
+        self._v17_enabled = self._config.get('v17', {}).get('enabled', False)
+        self._sector_scorer = SectorScorer()
+        self._stock_selector = AdaptiveStockSelector()
+        self._signal_tracker = SignalTracker()
+
+        if self._v17_enabled:
+            for name, component in [
+                ('SectorScorer', self._sector_scorer),
+                ('StockSelector', self._stock_selector),
+                ('SignalTracker', self._signal_tracker),
+            ]:
+                if not component.load_from_db():
+                    try:
+                        component.fit()
+                    except Exception as e:
+                        logger.error("Discovery v17: %s fit error: %s", name, e)
+            # Wire v17 components into filter for learned weights/sectors
+            self._filter._signal_tracker = self._signal_tracker
+            self._filter._sector_scorer = self._sector_scorer
+            logger.info("Discovery v17: enabled — SectorScorer=%s StockSelector=%s SignalTracker=%s",
+                        self._sector_scorer._fitted, self._stock_selector._fitted,
+                        self._signal_tracker._fitted)
+
         self._orchestrator = AutoRefitOrchestrator(
             self._scorer.regime_brain, self._scorer.stock_brain,
             self._param_optimizer, self._perf_tracker, self._params,
             adaptive_params=self._adaptive_params,
             knowledge_graph=self._sizer.knowledge_graph,
             neural_graph=self._sizer.neural_graph,
-            strategy_selector=self._strategy_selector)
+            strategy_selector=self._strategy_selector,
+            sector_scorer=self._sector_scorer,
+            stock_selector=self._stock_selector,
+            signal_tracker=self._signal_tracker)
 
         # v2 fallback scorer (only used when kernel disabled)
         self._legacy_scorer = None
@@ -147,9 +177,12 @@ class DiscoveryEngine:
     @property
     def _multi_strategy(self):
         info = getattr(self, '_multi_strategy_info', {})
-        if not info:
+        loaded_at = getattr(self, '_multi_strategy_loaded_at', 0)
+        # Refresh from DB if empty or stale (>5 min since last load)
+        if not info or (time.monotonic() - loaded_at) > 300:
             info = self._load_multi_strategy()
             self._multi_strategy_info = info
+            self._multi_strategy_loaded_at = time.monotonic()
         return info
 
     # === Public API ===
@@ -405,6 +438,33 @@ class DiscoveryEngine:
         # 5. Scorer scan setup (temporal, leading, regime, strategy)
         scan_info = self._scorer.scan_setup(scan_date, macro)
 
+        # 5b. Consolidate all regime info into scan_info (computed once, shared)
+        scan_info['market_regime'] = self._detect_market_regime(macro)
+        scan_info['condition'] = detect_condition(vix or 20, macro.get('pct_above_20d_ma') or 50)
+        logger.info("Discovery: regime consolidated — router=%s market=%s×%s condition=%s",
+                     scan_info.get('strategy', {}).get('regime', '?'),
+                     scan_info['market_regime'][0], scan_info['market_regime'][1],
+                     scan_info['condition'])
+
+        # 5c. v17: Compute sector scores
+        sector_scores = {}
+        allowed_sectors = None
+        blocked_sectors = set()
+        if self._v17_enabled and self._sector_scorer._fitted:
+            try:
+                sector_scores = self._sector_scorer.score(macro, scan_date)
+                allowed_sectors, blocked_sectors = self._sector_scorer.get_allowed_sectors(
+                    macro, scan_date)
+                scan_info['sector_scores'] = sector_scores
+                scan_info['allowed_sectors'] = allowed_sectors
+                scan_info['blocked_sectors'] = blocked_sectors
+                logger.info("Discovery v17: sector scores=%s",
+                            {s: f"{v:+.3f}" for s, v in sorted(sector_scores.items(), key=lambda x: -x[1])})
+                logger.info("Discovery v17: allowed=%s blocked=%s",
+                            sorted(allowed_sectors), sorted(blocked_sectors))
+            except Exception as e:
+                logger.error("Discovery v17: SectorScorer error: %s — fallback to all sectors", e)
+
         # 6. Market-level signals (separate pipeline)
         try:
             self._market_signal_picks = self._market_signals.compute_signals(scan_date)
@@ -423,14 +483,21 @@ class DiscoveryEngine:
                                    stage=f'L1 passed: {len(candidates)}',
                                    l1=len(candidates))
 
-        # 8. Enrich candidates
-        self._enrich_candidates(candidates)
+        # 8. Enrich candidates (includes smart boost data for filter)
+        self._enrich_candidates(candidates, scan_date)
         self._scan_progress.update(pct=92,
                                    stage=f'Scoring {len(candidates)} candidates...')
 
-        # 9-11. Score → Filter → Size (v13.0 clean pipeline)
+        # 9-11. Score → Filter → Size
+        # v17: SectorScorer + SignalTracker integrated into existing pipeline
+        # (strategies remain DIP/OVERSOLD/etc. but with learned thresholds)
+        scored_all = []
+        regime_from_score = 'STRESS'
+        macro_er_from_score = 0.0
+
         if self._scorer.is_ready:
-            picks = self._run_v3_pipeline(candidates, macro, scan_date, scan_info)
+            picks, scored_all, regime_from_score, macro_er_from_score = \
+                self._run_v3_pipeline(candidates, macro, scan_date, scan_info)
         else:
             picks = self._score_v2(candidates, macro, scan_date)
             # v2 fallback: attach strategy info so picks have council
@@ -457,67 +524,12 @@ class DiscoveryEngine:
                                    stage=f'Scored: {len(picks)} picks',
                                    l2=len(picks))
 
-        # 13. v16: Regime-adaptive multi-strategy
+        # 13. v16: Regime-adaptive multi-strategy (shared method)
         try:
-            market_regime = self._detect_market_regime(macro)
-            logger.info("Discovery v16: regime=%s×%s", market_regime[0], market_regime[1])
-
-            strat_name, condition = self._strategy_selector.select(
-                vix or 20, macro.get('pct_above_20d_ma') or 50)
-
-            # Get ranked picks — regime-aware (preferred strategy boosted)
-            ranked = self._strategy_selector.get_ranked_picks(
-                candidates, macro, market_regime=market_regime)
-            all_strat_picks = self._strategy_selector.get_all_picks(candidates, macro)
-
-            logger.info("Discovery v15.2: %d ranked picks from %d candidates",
-                        len(ranked), len(candidates))
-            for sn, sp in all_strat_picks.items():
-                logger.info("Discovery v15.2: %s=%d picks%s", sn, len(sp),
-                            f" [{', '.join(p.get('symbol','?') for p in sp[:3])}]" if sp else "")
-
-            # Score + size each ranked pick
-            scored_all, regime_s, macro_er_s = self._scorer.score_batch(
-                candidates, macro, scan_date, refit=False)
-            if not scored_all:
-                regime_s = scan_info.get('regime_decision', {}).get('regime', 'STRESS')
-                macro_er_s = 0.0
-            scored_map = {c.get('symbol'): (sc, c) for sc, c in (scored_all or [])}
-
-            from collections import defaultdict
-            strategy_full_picks = defaultdict(list)
-            for s_name, cand in ranked:
-                sym = cand.get('symbol', '')
-                if sym in scored_map:
-                    score, scored_cand = scored_map[sym]
-                else:
-                    score = 0.0
-                    scored_cand = cand
-
-                strat_info = {
-                    'strategy': s_name,
-                    'regime': scan_info.get('strategy', {}).get('regime', 'NORMAL'),
-                    'sizing': scan_info.get('strategy', {}).get('sizing', 0.25),
-                }
-                pick = self._sizer.create_pick(
-                    scored_cand, score, macro, regime_s, macro_er_s,
-                    strat_info,
-                    scan_info.get('regime_decision', {}),
-                    scan_date, list(strategy_full_picks.get(s_name, [])), self._scorer)
-                if pick:
-                    strategy_full_picks[s_name].append(pick)
-
-            # Store as full DiscoveryPick dicts for API
-            self._multi_strategy_info = {
-                'condition': condition,
-                'selected': strat_name,
-                'picks': {name: [p.to_dict() for p in pick_list]
-                          for name, pick_list in strategy_full_picks.items()},
-            }
-
-            logger.info("Discovery v15.2: condition=%s selected=%s | %s",
-                        condition, strat_name,
-                        {k: len(v) for k, v in strategy_full_picks.items()})
+            self._multi_strategy_info = self._build_multi_strategy(
+                candidates, scored_all, regime_from_score, macro_er_from_score,
+                macro, scan_info, scan_date)
+            self._multi_strategy_loaded_at = time.monotonic()
         except Exception as e:
             import traceback
             tb = traceback.format_exc().replace('\n', ' | ')
@@ -541,14 +553,31 @@ class DiscoveryEngine:
         return picks
 
     def _run_v3_pipeline(self, candidates, macro, scan_date, scan_info):
-        """v13.0 clean pipeline: Score → Filter → Size."""
-        # Score
+        """v17 adaptive pipeline: Strategy ranking → Sector filter → Signal boost → Filter → Size.
+
+        1. Kernel scoring for regime detection + base E[R]
+        2. Strategy-ranked picks (learned thresholds) boost scores
+        3. SectorScorer boosts/penalizes by sector quality
+        4. SignalTracker applies learned signal boosts
+        5. Existing filter pipeline (ATR, beta, PE, etc.) for safety
+        6. Sizer creates picks with SL/TP + council
+
+        Returns (picks, scored_all, regime, macro_er).
+        """
+        # 1. Kernel scoring — regime detection + per-stock base E[R]
         scored, regime, macro_er = self._scorer.score_batch(
             candidates, macro, scan_date)
         if not scored:
-            return []
+            return [], [], 'STRESS', 0.0
 
-        # Weekend risk (Friday only)
+        # 2. v17: Boost scores using learned strategy ranking
+        #    Stocks picked by learned strategies get a bonus
+        scored = self._apply_strategy_boost(scored, candidates, macro, scan_info)
+
+        # 3. v17: Boost/penalize by SectorScorer
+        scored = self._apply_sector_boost(scored, scan_info)
+
+        # 4. Weekend risk (Friday only)
         weekend_risk = None
         is_friday = datetime.now(ZoneInfo('America/New_York')).weekday() == 4
         if is_friday:
@@ -562,7 +591,7 @@ class DiscoveryEngine:
             except Exception as e:
                 logger.error("Discovery: weekend risk error: %s", e)
 
-        # Filter
+        # 5. Filter (includes smart boost via SignalTracker)
         strategy_mode = scan_info['strategy'].get('strategy', 'SELECTIVE')
         filtered = self._filter.apply(
             scored, macro, regime, strategy_mode, self._config,
@@ -574,25 +603,212 @@ class DiscoveryEngine:
             regime_decision=scan_info.get('regime_decision', {}),
             weekend_risk=weekend_risk)
 
-        # v15.0: no fallback — multi-strategy suggestions cover gaps
         if not filtered:
             logger.info("Filter: 0 picks passed — see multi-strategy suggestions")
 
-        # Size — create picks
+        # 6. Size — create picks (max 2 per strategy, best E[R] first)
+        max_per_strategy = self._config.get('v17', {}).get('max_per_strategy', 2)
         picks = []
+        strat_counts = {}
         for score, candidate in filtered:
+            strat_name = candidate.get('_matched_strategy')
+            if not strat_name:
+                strat_name = self._infer_strategy_label(candidate)
+            # Enforce max per strategy
+            if strat_counts.get(strat_name, 0) >= max_per_strategy:
+                continue
+            strat_info = dict(scan_info.get('strategy', {}))
+            strat_info['strategy'] = strat_name
             pick = self._sizer.create_pick(
                 candidate, score, macro, regime, macro_er,
-                scan_info['strategy'],
+                strat_info,
                 scan_info.get('regime_decision', {}),
                 scan_date, picks, self._scorer)
             if pick:
                 picks.append(pick)
+                strat_counts[strat_name] = strat_counts.get(strat_name, 0) + 1
 
         logger.info(
-            "Discovery v13.1: %d picks [%s/%s] (macro E[R]=%+.2f%%, from %d candidates)",
+            "Discovery v17: %d picks [%s/%s] (macro E[R]=%+.2f%%, from %d candidates)",
             len(picks), regime, strategy_mode, macro_er, len(candidates))
-        return picks
+        return picks, scored, regime, macro_er
+
+    def _apply_strategy_boost(self, scored, candidates, macro, scan_info):
+        """v17: Boost stocks that match learned strategies.
+
+        Stocks selected by learned strategy functions get a score bonus.
+        Higher-ranked strategy picks get bigger boost.
+        """
+        if not self._strategy_selector._fitted:
+            return scored
+
+        # Get ranked picks from all strategies (uses learned thresholds)
+        market_regime = scan_info.get('market_regime')
+        ranked = self._strategy_selector.get_ranked_picks(
+            candidates, macro, market_regime=market_regime)
+
+        # Build boost map: {symbol: (boost, strategy_name)}
+        boost_map = {}
+        for rank_idx, (strat_name, pick) in enumerate(ranked):
+            sym = pick.get('symbol', '')
+            # Higher rank = bigger boost (rank 0 = +1.0, rank 7 = +0.3)
+            boost = max(0.3, 1.0 - rank_idx * 0.1)
+            if sym not in boost_map:
+                boost_map[sym] = (boost, strat_name)
+
+        if not boost_map:
+            return scored
+
+        # Apply boosts to scored list
+        boosted = []
+        n_boosted = 0
+        for er, c in scored:
+            sym = c.get('symbol', '')
+            if sym in boost_map:
+                boost, strat_name = boost_map[sym]
+                er += boost
+                c['_matched_strategy'] = strat_name
+                n_boosted += 1
+            boosted.append((er, c))
+
+        # Re-sort by boosted score
+        boosted.sort(key=lambda x: x[0], reverse=True)
+
+        if n_boosted:
+            logger.info("Discovery v17: strategy boost applied to %d/%d candidates "
+                        "(strategies: %s)",
+                        n_boosted, len(scored),
+                        {s: sum(1 for _, sn in boost_map.values() if sn == s)
+                         for s in set(sn for _, sn in boost_map.values())})
+
+        return boosted
+
+    def _apply_sector_boost(self, scored, scan_info):
+        """v17: Boost/penalize stocks by SectorScorer.
+
+        Top sectors get bonus, blocked sectors are REMOVED (hard block).
+        """
+        sector_scores = scan_info.get('sector_scores', {})
+        blocked = scan_info.get('blocked_sectors', set())
+        if not sector_scores:
+            return scored
+
+        boosted = []
+        n_blocked = 0
+        for er, c in scored:
+            sector = c.get('sector', '')
+            # Hard block — remove entirely
+            if sector in blocked:
+                n_blocked += 1
+                continue
+            sect_score = sector_scores.get(sector, 0)
+            # Normalize sector score to boost range [-0.3, +0.3]
+            boost = max(-0.3, min(0.3, sect_score * 0.3))
+            boosted.append((er + boost, c))
+
+        if n_blocked:
+            logger.info("Discovery v17: sector_boost removed %d stocks from blocked sectors %s",
+                        n_blocked, sorted(blocked))
+
+        boosted.sort(key=lambda x: x[0], reverse=True)
+        return boosted
+
+    @staticmethod
+    def _infer_strategy_label(candidate):
+        """Infer best-matching strategy label from stock features.
+
+        Used when a stock passes filter via sector/kernel boost
+        but wasn't directly matched by any strategy function.
+        """
+        mom5 = candidate.get('momentum_5d') or 0
+        d20h = candidate.get('distance_from_20d_high') or 0
+        vol = candidate.get('volume_ratio') or 1
+        pe = candidate.get('pe_forward')
+
+        # Check in priority order (most specific first)
+        if mom5 < -5 and d20h < -10:
+            return 'OVERSOLD'
+        if -20 < mom5 < -1:
+            return 'DIP'
+        if mom5 > 0 and d20h > -10:
+            return 'RS'
+        if vol < 0.5 or vol > 2.0:
+            return 'VOL_U'
+        if pe is not None and 3 < pe < 15:
+            return 'VALUE'
+        return 'CONTRARIAN'
+
+    def _build_multi_strategy(self, candidates, scored_all, regime, macro_er,
+                              macro, scan_info, scan_date):
+        """Build multi-strategy picks for display.
+
+        v17: SectorScorer filters blocked sectors from strategy picks.
+        Strategies (DIP/OVERSOLD/etc.) use learned thresholds via StrategySelector.
+        Shared by run_scan() and run_intraday_scan().
+        """
+        from collections import defaultdict
+        market_regime = scan_info.get('market_regime') or self._detect_market_regime(macro)
+        condition = scan_info.get('condition') or detect_condition(
+            macro.get('vix_close') or 20, macro.get('pct_above_20d_ma') or 50)
+
+        strat_name, _ = self._strategy_selector.select(
+            macro.get('vix_close') or 20, macro.get('pct_above_20d_ma') or 50)
+
+        # v17: Filter blocked sectors from candidates before strategy functions
+        blocked_sectors = scan_info.get('blocked_sectors', set())
+        if blocked_sectors and self._sector_scorer._fitted:
+            filtered_candidates = [c for c in candidates
+                                   if c.get('sector', '') not in blocked_sectors]
+            logger.info("Discovery multi-strategy: %d→%d after sector filter (blocked=%s)",
+                        len(candidates), len(filtered_candidates), sorted(blocked_sectors))
+        else:
+            filtered_candidates = candidates
+
+        ranked = self._strategy_selector.get_ranked_picks(
+            filtered_candidates, macro, market_regime=market_regime)
+        all_strat_picks = self._strategy_selector.get_all_picks(filtered_candidates, macro)
+
+        logger.info("Discovery v15.2: %d ranked picks from %d candidates",
+                    len(ranked), len(filtered_candidates))
+        for sn, sp in all_strat_picks.items():
+            logger.info("Discovery v15.2: %s=%d picks%s", sn, len(sp),
+                        f" [{', '.join(p.get('symbol','?') for p in sp[:3])}]" if sp else "")
+
+        scored_map = {c.get('symbol'): (sc, c) for sc, c in scored_all}
+
+        strategy_full_picks = defaultdict(list)
+        for s_name, cand in ranked:
+            sym = cand.get('symbol', '')
+            if sym in scored_map:
+                score, scored_cand = scored_map[sym]
+            else:
+                score = 0.0
+                scored_cand = cand
+
+            strat_info = {
+                'strategy': s_name,
+                'regime': scan_info.get('strategy', {}).get('regime', 'NORMAL'),
+                'sizing': scan_info.get('strategy', {}).get('sizing', 0.25),
+            }
+            pick = self._sizer.create_pick(
+                scored_cand, score, macro, regime, macro_er,
+                strat_info,
+                scan_info.get('regime_decision', {}),
+                scan_date, list(strategy_full_picks.get(s_name, [])), self._scorer)
+            if pick:
+                strategy_full_picks[s_name].append(pick)
+
+        info = {
+            'condition': condition,
+            'selected': strat_name,
+            'picks': {name: [p.to_dict() for p in pick_list]
+                      for name, pick_list in strategy_full_picks.items()},
+        }
+
+        logger.info("Discovery v15.2: condition=%s selected=%s | %s",
+                    condition, strat_name,
+                    {k: len(v) for k, v in strategy_full_picks.items()})
+        return info
 
     # === Data loading ===
 
@@ -843,8 +1059,8 @@ class DiscoveryEngine:
 
         return result
 
-    def _enrich_candidates(self, candidates: list):
-        """Add analyst/news/options data from DB to candidates."""
+    def _enrich_candidates(self, candidates: list, scan_date: str = None):
+        """Add analyst/news/options/insider data from DB to candidates."""
         if not candidates:
             return
 
@@ -872,6 +1088,56 @@ class DiscoveryEngine:
         sector_returns_by_name = {r['sector']: r['pct_change'] for r in sector_rows if r['sector']}
         spy_return = next((r['pct_change'] for r in sector_rows if r['etf'] == 'SPY'), 0)
 
+        # v16 smart boost: insider purchases + analyst target changes (90 days)
+        # Queried here once instead of separately in filter._apply_smart_boost()
+        insider_syms = set()
+        analyst_up_syms = set()
+        analyst_down_syms = set()
+        ref_date = scan_date or today_str
+        try:
+            for r in conn.execute("""
+                SELECT DISTINCT symbol FROM insider_transactions_history
+                WHERE trade_date >= date(?, '-90 days') AND trade_date <= ?
+                AND (transaction_type LIKE '%Purchase%'
+                     OR transaction_type LIKE '%Buy%')
+                AND value > 10000
+            """, (ref_date, ref_date)):
+                insider_syms.add(r['symbol'])
+        except Exception:
+            pass  # table may not exist yet
+        try:
+            for r in conn.execute("""
+                SELECT symbol,
+                       AVG((price_target / prior_price_target - 1) * 100) as chg
+                FROM analyst_ratings_history
+                WHERE date >= date(?, '-90 days') AND date <= ?
+                AND price_target > 0 AND prior_price_target > 0
+                GROUP BY symbol
+            """, (ref_date, ref_date)):
+                if r['chg'] and r['chg'] > 5:
+                    analyst_up_syms.add(r['symbol'])
+                elif r['chg'] and r['chg'] < -5:
+                    analyst_down_syms.add(r['symbol'])
+        except Exception:
+            pass  # table may not exist yet
+
+        # v17: Options bullish/bearish signals (from options_daily_summary)
+        options_bullish_syms = set()
+        options_bearish_syms = set()
+        try:
+            for r in conn.execute("""
+                SELECT symbol, pc_volume_ratio FROM options_daily_summary
+                WHERE collected_date >= date(?, '-3 days')
+                AND pc_volume_ratio > 0
+            """, (ref_date,)):
+                pc = r['pc_volume_ratio']
+                if pc < 0.7:
+                    options_bullish_syms.add(r['symbol'])
+                elif pc > 1.3:
+                    options_bearish_syms.add(r['symbol'])
+        except Exception:
+            pass  # table may not exist yet
+
         conn.close()
 
         for c in candidates:
@@ -893,6 +1159,12 @@ class DiscoveryEngine:
                 c['days_to_earnings'] = earnings[sym]
             if sym in short_data:
                 c['short_pct_float'] = short_data[sym]
+            # Smart boost fields (used by filter._apply_smart_boost / SignalTracker)
+            c['insider_bought'] = sym in insider_syms
+            c['analyst_upgrade'] = sym in analyst_up_syms
+            c['analyst_downgrade'] = sym in analyst_down_syms
+            c['options_bullish'] = sym in options_bullish_syms
+            c['options_bearish'] = sym in options_bearish_syms
 
     # === v2 fallback (when kernel disabled) ===
 
@@ -1152,11 +1424,15 @@ class DiscoveryEngine:
         try:
             conn = sqlite3.connect(str(DB_PATH))
             row = conn.execute(
-                "SELECT info_json FROM discovery_multi_strategy ORDER BY scan_date DESC LIMIT 1"
+                "SELECT scan_date, info_json, updated_at "
+                "FROM discovery_multi_strategy ORDER BY scan_date DESC LIMIT 1"
             ).fetchone()
             conn.close()
-            if row and row[0]:
-                return json.loads(row[0])
+            if row and row[1]:
+                info = json.loads(row[1])
+                info['_scan_date'] = row[0]
+                info['_updated_at'] = row[2]
+                return info
         except Exception:
             pass
         return {}
@@ -1388,55 +1664,20 @@ class DiscoveryEngine:
                 time.sleep(1)
 
         # Lite enrichment
-        self._enrich_candidates_lite(candidates)
+        self._enrich_candidates_lite(candidates, scan_date)
 
-        # Score with refit=False
-        picks = self._run_v3_pipeline_intraday(candidates, macro, scan_date, scan_info)
+        # Score with refit=False (returns scored for multi-strategy reuse)
+        scan_info['market_regime'] = self._detect_market_regime(macro)
+        scan_info['condition'] = detect_condition(
+            macro.get('vix_close') or 20, macro.get('pct_above_20d_ma') or 50)
 
-        # v15.0: Multi-strategy suggestions (intraday refresh)
-        vix = macro.get('vix_close', 20) or 20
+        picks, scored_all, regime_s, macro_er_s = \
+            self._run_v3_pipeline_intraday(candidates, macro, scan_date, scan_info)
         try:
-            strat_name, condition = self._strategy_selector.select(
-                vix or 20, macro.get('pct_above_20d_ma') or 50)
-            all_strat_picks = self._strategy_selector.get_all_picks(candidates, macro)
-
-            scored_all, regime_s, macro_er_s = self._scorer.score_batch(
-                candidates, macro, scan_date, refit=False)
-            scored_map = {c.get('symbol'): (sc, c) for sc, c in (scored_all or [])}
-
-            strategy_full_picks = {}
-            for s_name, s_candidates in all_strat_picks.items():
-                if not s_candidates:
-                    continue
-                s_picks = []
-                for cand in s_candidates[:3]:
-                    sym = cand.get('symbol', '')
-                    if sym in scored_map:
-                        score, scored_cand = scored_map[sym]
-                    else:
-                        score, scored_cand = 0.0, cand
-                    strat_info = {
-                        'strategy': s_name,
-                        'regime': scan_info.get('strategy', {}).get('regime', 'NORMAL'),
-                        'sizing': scan_info.get('strategy', {}).get('sizing', 0.25),
-                    }
-                    pick = self._sizer.create_pick(
-                        scored_cand, score, macro, regime_s or 'STRESS', macro_er_s or 0,
-                        strat_info, scan_info.get('regime_decision', {}),
-                        scan_date, s_picks, self._scorer)
-                    if pick:
-                        s_picks.append(pick)
-                strategy_full_picks[s_name] = s_picks
-
-            self._multi_strategy_info = {
-                'condition': condition,
-                'selected': strat_name,
-                'picks': {name: [p.to_dict() for p in pl]
-                          for name, pl in strategy_full_picks.items()},
-            }
-            logger.info("Discovery intraday v15.0: condition=%s selected=%s | %s",
-                        condition, strat_name,
-                        {k: len(v) for k, v in strategy_full_picks.items()})
+            self._multi_strategy_info = self._build_multi_strategy(
+                candidates, scored_all, regime_s, macro_er_s,
+                macro, scan_info, scan_date)
+            self._multi_strategy_loaded_at = time.monotonic()
         except Exception as e:
             logger.error("Discovery intraday: multi-strategy error: %s", e)
 
@@ -1466,11 +1707,14 @@ class DiscoveryEngine:
         return new_intraday
 
     def _run_v3_pipeline_intraday(self, candidates, macro, scan_date, scan_info):
-        """Intraday pipeline — same as _run_v3_pipeline but with refit=False."""
+        """Intraday pipeline — same as _run_v3_pipeline but with refit=False.
+
+        Returns (picks, scored_all, regime, macro_er) for reuse by multi-strategy.
+        """
         scored, regime, macro_er = self._scorer.score_batch(
             candidates, macro, scan_date, refit=False)
         if not scored:
-            return []
+            return [], [], 'STRESS', 0.0
         strategy_mode = scan_info['strategy'].get('strategy', 'SELECTIVE')
         filtered = self._filter.apply(
             scored, macro, regime, strategy_mode, self._config,
@@ -1488,9 +1732,9 @@ class DiscoveryEngine:
                 scan_date, picks, self._scorer)
             if pick:
                 picks.append(pick)
-        return picks
+        return picks, scored, regime, macro_er
 
-    def _enrich_candidates_lite(self, candidates):
+    def _enrich_candidates_lite(self, candidates, scan_date: str = None):
         if not candidates:
             return
         symbols = [c['symbol'] for c in candidates]
@@ -1498,6 +1742,7 @@ class DiscoveryEngine:
         conn = sqlite3.connect(str(DB_PATH))
         conn.row_factory = sqlite3.Row
         today_str = date.today().isoformat()
+        ref_date = scan_date or today_str
         earnings = {}
         for r in conn.execute(f"SELECT symbol, MIN(report_date) as next_date FROM earnings_history WHERE symbol IN ({placeholders}) AND report_date >= ? GROUP BY symbol", symbols + [today_str]).fetchall():
             try:
@@ -1508,11 +1753,66 @@ class DiscoveryEngine:
         sector_rows = conn.execute("SELECT etf, sector, pct_change FROM sector_etf_daily_returns WHERE date = (SELECT MAX(date) FROM sector_etf_daily_returns)").fetchall()
         sector_returns_by_name = {r['sector']: r['pct_change'] for r in sector_rows if r['sector']}
         spy_return = next((r['pct_change'] for r in sector_rows if r['etf'] == 'SPY'), 0)
+
+        # Smart boost: insider purchases + analyst target changes (same as _enrich_candidates)
+        insider_syms = set()
+        analyst_up_syms = set()
+        analyst_down_syms = set()
+        try:
+            for r in conn.execute("""
+                SELECT DISTINCT symbol FROM insider_transactions_history
+                WHERE trade_date >= date(?, '-90 days') AND trade_date <= ?
+                AND (transaction_type LIKE '%Purchase%'
+                     OR transaction_type LIKE '%Buy%')
+                AND value > 10000
+            """, (ref_date, ref_date)):
+                insider_syms.add(r['symbol'])
+        except Exception:
+            pass
+        try:
+            for r in conn.execute("""
+                SELECT symbol,
+                       AVG((price_target / prior_price_target - 1) * 100) as chg
+                FROM analyst_ratings_history
+                WHERE date >= date(?, '-90 days') AND date <= ?
+                AND price_target > 0 AND prior_price_target > 0
+                GROUP BY symbol
+            """, (ref_date, ref_date)):
+                if r['chg'] and r['chg'] > 5:
+                    analyst_up_syms.add(r['symbol'])
+                elif r['chg'] and r['chg'] < -5:
+                    analyst_down_syms.add(r['symbol'])
+        except Exception:
+            pass
+
+        # v17: Options bullish/bearish signals
+        options_bullish_syms = set()
+        options_bearish_syms = set()
+        try:
+            for r in conn.execute("""
+                SELECT symbol, pc_volume_ratio FROM options_daily_summary
+                WHERE collected_date >= date(?, '-3 days')
+                AND pc_volume_ratio > 0
+            """, (ref_date,)):
+                pc = r['pc_volume_ratio']
+                if pc < 0.7:
+                    options_bullish_syms.add(r['symbol'])
+                elif pc > 1.3:
+                    options_bearish_syms.add(r['symbol'])
+        except Exception:
+            pass
+
         conn.close()
         for c in candidates:
+            sym = c['symbol']
             c['sector_1d_change'] = sector_returns_by_name.get(c.get('sector', ''), spy_return)
-            if c['symbol'] in earnings:
-                c['days_to_earnings'] = earnings[c['symbol']]
+            if sym in earnings:
+                c['days_to_earnings'] = earnings[sym]
+            c['insider_bought'] = sym in insider_syms
+            c['analyst_upgrade'] = sym in analyst_up_syms
+            c['analyst_downgrade'] = sym in analyst_down_syms
+            c['options_bullish'] = sym in options_bullish_syms
+            c['options_bearish'] = sym in options_bearish_syms
 
 
 # Singleton
