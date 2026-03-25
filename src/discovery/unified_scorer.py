@@ -37,6 +37,7 @@ class UnifiedScorer:
     def __init__(self, config, param_manager):
         self._config = config
         self._params = param_manager
+        self._adaptive_params = None  # v17: wired from engine.__init__
 
         v3_cfg = config.get('v3', {})
         self._kernel_config_enabled = v3_cfg.get('enabled', False)
@@ -287,10 +288,14 @@ class UnifiedScorer:
                            n_eff, MIN_N_EFF)
             return [], 'STRESS', 0.0
 
-        # Determine regime
-        regime_cfg = v3_cfg.get('regimes', {})
-        bull_threshold = regime_cfg.get('bull_er', 0.5)
-        stress_threshold = regime_cfg.get('stress_er', -0.5)
+        # Determine regime — v17: boundaries from adaptive_params when available
+        if self._adaptive_params:
+            bull_threshold = self._adaptive_params.get('', 'BULL', 'score_bull_er')
+            stress_threshold = self._adaptive_params.get('', 'CRISIS', 'score_crisis_er')
+        else:
+            regime_cfg = v3_cfg.get('regimes', {})
+            bull_threshold = regime_cfg.get('bull_er', 0.5)
+            stress_threshold = regime_cfg.get('stress_er', -0.5)
 
         if macro_er > bull_threshold:
             regime = 'BULL'

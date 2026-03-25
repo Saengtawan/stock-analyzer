@@ -87,7 +87,8 @@ class DiscoveryEngine:
 
         # v13.0: Three core modules replace 16 scattered components
         self._scorer = UnifiedScorer(self._config, self._params)
-        # v17: Wire adaptive params into strategy_router for learned VIX thresholds
+        # v17: Wire adaptive params into scorer + strategy_router
+        self._scorer._adaptive_params = self._adaptive_params
         self._scorer._strategy_router._adaptive = self._adaptive_params
         self._filter = UnifiedFilter(adaptive_params=self._adaptive_params)
         self._sizer = UnifiedSizer(self._config, self._params,
@@ -443,7 +444,7 @@ class DiscoveryEngine:
 
         # 5b. Consolidate all regime info into scan_info (computed once, shared)
         scan_info['market_regime'] = self._detect_market_regime(macro)
-        scan_info['condition'] = detect_condition(vix or 20, macro.get('pct_above_20d_ma') or 50)
+        scan_info['condition'] = detect_condition(vix or 20, macro.get('pct_above_20d_ma') or 50, adaptive=self._adaptive_params)
         logger.info("Discovery: regime consolidated — router=%s market=%s×%s condition=%s",
                      scan_info.get('strategy', {}).get('regime', '?'),
                      scan_info['market_regime'][0], scan_info['market_regime'][1],
@@ -819,14 +820,14 @@ class DiscoveryEngine:
         # Sector scores are already in ML features via context_map
         return scored
 
-    @staticmethod
-    def _infer_strategy_label(candidate):
+    def _infer_strategy_label(self, candidate):
         """Infer strategy label from stock features. Uses shared classify_strategy()."""
         return classify_strategy(
             candidate.get('momentum_5d'),
             candidate.get('distance_from_20d_high'),
             candidate.get('volume_ratio'),
-            candidate.get('pe_forward'))
+            candidate.get('pe_forward'),
+            adaptive=self._adaptive_params)
 
     def _build_multi_strategy(self, candidates, scored_all, regime, macro_er,
                               macro, scan_info, scan_date):
@@ -839,7 +840,8 @@ class DiscoveryEngine:
         from collections import defaultdict
         market_regime = scan_info.get('market_regime') or self._detect_market_regime(macro)
         condition = scan_info.get('condition') or detect_condition(
-            macro.get('vix_close') or 20, macro.get('pct_above_20d_ma') or 50)
+            macro.get('vix_close') or 20, macro.get('pct_above_20d_ma') or 50,
+            adaptive=self._adaptive_params)
 
         strat_name, _ = self._strategy_selector.select(
             macro.get('vix_close') or 20, macro.get('pct_above_20d_ma') or 50)
@@ -1756,7 +1758,8 @@ class DiscoveryEngine:
         # Only difference: refit=False (reuse evening kernels)
         scan_info['market_regime'] = self._detect_market_regime(macro)
         scan_info['condition'] = detect_condition(
-            macro.get('vix_close') or 20, macro.get('pct_above_20d_ma') or 50)
+            macro.get('vix_close') or 20, macro.get('pct_above_20d_ma') or 50,
+            adaptive=self._adaptive_params)
         scan_info['sector_scores'] = self._sector_scorer.score(macro, scan_date) if self._sector_scorer._fitted else {}
 
         picks, scored_all, regime_s, macro_er_s = \

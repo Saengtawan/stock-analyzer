@@ -208,46 +208,74 @@ MAX_PER_STRATEGY = 2
 MAX_TOTAL_PICKS = 8
 
 
-def detect_condition(vix, breadth):
-    """Classify market condition from VIX + breadth."""
+def detect_condition(vix, breadth, adaptive=None):
+    """Classify market condition from VIX + breadth.
+    v17: Boundaries learned from adaptive_params when available.
+    """
     vix = vix or 20
     breadth = breadth or 50
-    if vix > 25 and breadth < 35:
+    if adaptive:
+        vix_stress = adaptive.get('', 'STRESS', 'cond_vix_stress')
+        breadth_stress = adaptive.get('', 'STRESS', 'cond_breadth_stress')
+        vix_bull = adaptive.get('', 'BULL', 'cond_vix_bull')
+        breadth_bull = adaptive.get('', 'BULL', 'cond_breadth_bull')
+    else:
+        vix_stress, breadth_stress = 25, 35
+        vix_bull, breadth_bull = 18, 55
+    if vix > vix_stress and breadth < breadth_stress:
         return 'STRESS'
-    if vix < 18 and breadth > 55:
+    if vix < vix_bull and breadth > breadth_bull:
         return 'BULL'
     return 'NORMAL'
 
 
-def classify_regime(vix, breadth=50):
+def classify_regime(vix, breadth=50, adaptive=None):
     """Classify regime from VIX + breadth. Shared by all components.
-    Single source of truth — do not duplicate this logic elsewhere.
+    v17: Boundaries learned from adaptive_params when available.
     """
     vix = vix or 20
     breadth = breadth or 50
-    if vix < 20 and breadth > 50:
+    if adaptive:
+        vix_bull = adaptive.get('', 'BULL', 'regime_vix_bull')
+        vix_crisis = adaptive.get('', 'CRISIS', 'regime_vix_crisis')
+        breadth_bull = adaptive.get('', 'BULL', 'regime_breadth_bull')
+        breadth_crisis = adaptive.get('', 'CRISIS', 'regime_breadth_crisis')
+    else:
+        vix_bull, vix_crisis = 20, 28
+        breadth_bull, breadth_crisis = 50, 25
+    if vix < vix_bull and breadth > breadth_bull:
         return 'BULL'
-    if vix > 28 or breadth < 25:
+    if vix > vix_crisis or breadth < breadth_crisis:
         return 'CRISIS'
     return 'STRESS'
 
 
-def classify_strategy(mom5, d20h, vol=1, pe=None):
+def classify_strategy(mom5, d20h, vol=1, pe=None, adaptive=None):
     """Infer strategy label from stock features. Shared by all components.
-    Single source of truth — do not duplicate this logic elsewhere.
+    v17: Boundaries learned from adaptive_params when available.
     """
     mom5 = mom5 or 0
     d20h = d20h or 0
     vol = vol or 1
-    if mom5 < -5 and d20h < -10:
+    if adaptive:
+        mom_os = adaptive.get('', 'BULL', 'strat_mom_oversold')
+        d20h_os = adaptive.get('', 'BULL', 'strat_d20h_oversold')
+        mom_dip_max = adaptive.get('', 'BULL', 'strat_mom_dip_max')
+        vol_low = adaptive.get('', 'BULL', 'strat_vol_low')
+        vol_high = adaptive.get('', 'BULL', 'strat_vol_high')
+        pe_val = adaptive.get('', 'BULL', 'strat_pe_value')
+    else:
+        mom_os, d20h_os, mom_dip_max = -5, -10, -1
+        vol_low, vol_high, pe_val = 0.5, 2.0, 15
+    if mom5 < mom_os and d20h < d20h_os:
         return 'OVERSOLD'
-    if -20 < mom5 < -1:
+    if -20 < mom5 < mom_dip_max:
         return 'DIP'
-    if mom5 > 0 and d20h > -10:
+    if mom5 > 0 and d20h > d20h_os:
         return 'RS'
-    if vol < 0.5 or vol > 2.0:
+    if vol < vol_low or vol > vol_high:
         return 'VOL_U'
-    if pe is not None and 3 < pe < 15:
+    if pe is not None and 3 < pe < pe_val:
         return 'VALUE'
     return 'CONTRARIAN'
 
