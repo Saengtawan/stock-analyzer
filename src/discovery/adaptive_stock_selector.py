@@ -29,6 +29,7 @@ FEATURES = [
     'momentum_5d', 'momentum_20d', 'volume_ratio', 'beta', 'atr_pct',
     'rsi', 'd20h', 'pe_forward', 'mcap_log', 'sector_score',
     'vix', 'breadth', 'crude_delta_5d',
+    'smart_er', 'strat_sharpe', 'sect_sharpe',  # v17: context-aware features
 ]
 
 MAX_TRAIN_ROWS = 200_000  # cap to keep fit time <5s
@@ -134,12 +135,13 @@ class AdaptiveStockSelector:
                      sorted(self._feature_importance.items(), key=lambda x: -x[1])[:5])
         return True
 
-    def predict(self, candidates, sector_scores=None):
+    def predict(self, candidates, sector_scores=None, context_map=None):
         """Score each candidate by learned model.
 
         Args:
-            candidates: list of candidate dicts (from engine._fetch_candidates)
+            candidates: list of candidate dicts
             sector_scores: {sector: score} from SectorScorer
+            context_map: {symbol: {smart_er, strat_sharpe, sect_sharpe}}
 
         Returns:
             list of (probability, candidate) sorted by probability desc.
@@ -148,12 +150,14 @@ class AdaptiveStockSelector:
             return []
 
         sector_scores = sector_scores or {}
+        context_map = context_map or {}
 
         # Build feature matrix
         X = []
         valid_candidates = []
         for c in candidates:
-            row = self._extract_features(c, sector_scores)
+            ctx = context_map.get(c.get('symbol', ''), {})
+            row = self._extract_features(c, sector_scores, context=ctx)
             if row is not None:
                 X.append(row)
                 valid_candidates.append(c)
@@ -284,6 +288,42 @@ class AdaptiveStockSelector:
         for r in rows:
             by_symbol[r[0]].append(r)
 
+        # v17: Pre-compute strategy×regime and sector×regime Sharpes for context
+        # First pass: collect outcomes by strategy×regime and sector×regime
+        _strat_rets = defaultdict(list)
+        _sect_rets = defaultdict(list)
+        for sym, stock_rows in by_symbol.items():
+            if len(stock_rows) < 25:
+                continue
+            closes = [rr[2] for rr in stock_rows]
+            sector = stock_rows[0][10]
+            for i in range(20, len(stock_rows) - 5):
+                close = closes[i]
+                fwd_ret = (closes[i+5] / close - 1) * 100
+                mom5 = (close / closes[i-5] - 1) * 100 if closes[i-5] > 0 else 0
+                d20h_val = (close / max(closes[max(0,i-19):i+1]) - 1) * 100 if closes else 0
+                vol_r = stock_rows[i][5] / stock_rows[0][9] if stock_rows[0][9] > 0 else 1
+                vix_val = stock_rows[i][11] or 20
+                br_val = stock_rows[i][13] or 50
+                # Classify
+                if mom5 < -5 and d20h_val < -10: st = 'OVERSOLD'
+                elif -20 < mom5 < -1: st = 'DIP'
+                elif mom5 > 0 and d20h_val > -10: st = 'RS'
+                elif vol_r < 0.5 or vol_r > 2.0: st = 'VOL_U'
+                else: st = 'CONTRARIAN'
+                if vix_val < 20 and br_val > 50: rg = 'BULL'
+                elif vix_val > 28 or br_val < 25: rg = 'CRISIS'
+                else: rg = 'STRESS'
+                _strat_rets[(rg, st)].append(fwd_ret)
+                _sect_rets[(rg, sector)].append(fwd_ret)
+
+        strat_sharpe_map = {k: np.mean(v)/max(np.std(v),0.01)
+                            for k,v in _strat_rets.items() if len(v) >= 30}
+        sect_sharpe_map = {k: np.mean(v)/max(np.std(v),0.01)
+                           for k,v in _sect_rets.items() if len(v) >= 30}
+        logger.info("AdaptiveStockSelector: pre-computed %d strat×regime, %d sect×regime Sharpes",
+                     len(strat_sharpe_map), len(sect_sharpe_map))
+
         # Compute features per stock-day
         X_rows = []
         y_rows = []
@@ -355,10 +395,30 @@ class AdaptiveStockSelector:
                 # Sector score
                 sect_score = sector_score_map.get((dt, sector), 0)
 
+                # v17: Smart E[R] + context features
+                # E[R] proxy: mean-reversion signal
+                er_base = -mom5 * 0.3 + abs(d20h) * 0.2
+                # Strategy classification
+                if mom5 < -5 and d20h < -10: strat = 'OVERSOLD'
+                elif -20 < mom5 < -1: strat = 'DIP'
+                elif mom5 > 0 and d20h > -10: strat = 'RS'
+                elif vol_ratio < 0.5 or vol_ratio > 2.0: strat = 'VOL_U'
+                else: strat = 'CONTRARIAN'
+                # Regime
+                if vix < 20 and breadth > 50: rgm = 'BULL'
+                elif vix > 28 or breadth < 25: rgm = 'CRISIS'
+                else: rgm = 'STRESS'
+                # Context Sharpes (from pre-computed if available)
+                strat_sharpe = strat_sharpe_map.get((rgm, strat), 0)
+                sect_sharpe = sect_sharpe_map.get((rgm, sector), 0)
+                # Smart E[R] = base × (1 + strategy context)
+                smart_er = er_base * (1 + max(0, strat_sharpe))
+
                 feature_row = [
                     mom5, mom20, vol_ratio, beta or 1, atr_pct,
                     rsi, d20h, pe or np.nan, mcap_log, sect_score,
                     vix, breadth, crude_delta,
+                    smart_er, strat_sharpe, sect_sharpe,
                 ]
                 X_rows.append(feature_row)
                 y_rows.append(target)
@@ -379,9 +439,13 @@ class AdaptiveStockSelector:
                      len(X), y.mean() * 100)
         return X, y, FEATURES
 
-    def _extract_features(self, candidate, sector_scores):
-        """Extract feature vector from a candidate dict for prediction."""
+    def _extract_features(self, candidate, sector_scores, context=None):
+        """Extract feature vector from a candidate dict for prediction.
+
+        context: dict with 'smart_er', 'strat_sharpe', 'sect_sharpe' if available.
+        """
         c = candidate
+        ctx = context or {}
         try:
             sector = c.get('sector', '')
             row = [
@@ -398,6 +462,9 @@ class AdaptiveStockSelector:
                 c.get('vix_close') or c.get('vix_at_signal') or 20,
                 c.get('pct_above_20d_ma') or 50,
                 c.get('crude_delta_5d_pct') or 0,
+                ctx.get('smart_er', 0),
+                ctx.get('strat_sharpe', 0),
+                ctx.get('sect_sharpe', 0),
             ]
             return [float(v) if v is not None else np.nan for v in row]
         except Exception:

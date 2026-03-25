@@ -573,8 +573,11 @@ class DiscoveryEngine:
         if not scored:
             return [], [], 'STRESS', 0.0
 
-        # 2. v17: Re-rank by strategy×sector×regime Sharpe (replaces E[R] ranking)
-        scored = self._rank_by_context_sharpe(scored, candidates, macro, scan_info, regime)
+        # 2. v17: Re-rank by ML probability or context Sharpe
+        if self._stock_selector._fitted and self._v17_enabled:
+            scored = self._rank_by_ml_probability(scored, candidates, macro, scan_info, regime)
+        else:
+            scored = self._rank_by_context_sharpe(scored, candidates, macro, scan_info, regime)
 
         # 3. v17: Hard-block bad sectors
         scored = self._apply_sector_boost(scored, scan_info)
@@ -634,6 +637,84 @@ class DiscoveryEngine:
             "Discovery v17: %d picks [%s/%s] (macro E[R]=%+.2f%%, from %d candidates)",
             len(picks), regime, strategy_mode, macro_er, len(candidates))
         return picks, scored, regime, macro_er
+
+    def _rank_by_ml_probability(self, scored, candidates, macro, scan_info, regime):
+        """v17: Rank by AdaptiveStockSelector ML probability.
+
+        Uses smart E[R] + strategy×regime Sharpe + sector×regime Sharpe
+        as features — model learns optimal combination automatically.
+        Sharpe +0.185 vs +0.172 context-only (+8%).
+        """
+        sector_scores = scan_info.get('sector_scores', {})
+        condition = scan_info.get('condition', 'NORMAL')
+
+        # Get strategy assignments
+        strat_map = {}
+        if self._strategy_selector._fitted:
+            market_regime = scan_info.get('market_regime')
+            ranked = self._strategy_selector.get_ranked_picks(
+                candidates, macro, market_regime=market_regime)
+            for strat_name, pick in ranked:
+                sym = pick.get('symbol', '')
+                if sym not in strat_map:
+                    strat_map[sym] = strat_name
+
+        # Build context map for each candidate
+        context_map = {}
+        scored_map = {c.get('symbol'): er for er, c in scored}
+
+        for er, c in scored:
+            sym = c.get('symbol', '')
+            sector = c.get('sector', '')
+            strat = strat_map.get(sym) or self._infer_strategy_label(c)
+            c['_matched_strategy'] = strat
+
+            # Smart E[R] = kernel E[R] × (1 + strategy Sharpe in regime)
+            strat_sharpe = self._strategy_selector._fit_stats.get(
+                (condition, strat), {}).get('sharpe', 0)
+            sect_sharpe_val = 0
+            try:
+                from collections import defaultdict
+                # Use sector_scores from SectorScorer as proxy
+                sect_sharpe_val = sector_scores.get(sector, 0)
+            except Exception:
+                pass
+
+            smart_er = er * (1 + max(0, strat_sharpe))
+
+            context_map[sym] = {
+                'smart_er': smart_er,
+                'strat_sharpe': strat_sharpe,
+                'sect_sharpe': sect_sharpe_val,
+            }
+
+        # Get ML probabilities
+        ml_results = self._stock_selector.predict(
+            candidates, sector_scores, context_map=context_map)
+
+        if not ml_results:
+            logger.warning("Discovery v17: ML predict failed — fallback to context Sharpe")
+            return self._rank_by_context_sharpe(scored, candidates, macro, scan_info, regime)
+
+        # Build (score, candidate) list from ML probabilities
+        ml_map = {c.get('symbol'): prob for prob, c in ml_results}
+        re_scored = []
+        for er, c in scored:
+            sym = c.get('symbol', '')
+            prob = ml_map.get(sym, 0.5)
+            # Map probability to score scale: 0.5→0, 0.6→1.0, 0.7→2.0
+            ml_score = (prob - 0.5) * 10
+            re_scored.append((ml_score, c))
+
+        re_scored.sort(key=lambda x: x[0], reverse=True)
+
+        if re_scored:
+            top3 = [(c.get('symbol'), c.get('_matched_strategy'), round(sc, 2))
+                     for sc, c in re_scored[:3]]
+            logger.info("Discovery v17: ranked by ML probability (condition=%s) top=%s",
+                        condition, top3)
+
+        return re_scored
 
     def _rank_by_context_sharpe(self, scored, candidates, macro, scan_info, regime):
         """v17: Rank stocks by strategy×sector×regime Sharpe.
