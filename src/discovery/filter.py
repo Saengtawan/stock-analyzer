@@ -112,9 +112,9 @@ class UnifiedFilter:
                 continue
             if not self._passes_momentum(c, strategy_mode, regime):
                 continue
-            if not self._passes_beta(c):
+            if not self._passes_beta(c, regime):
                 continue
-            if not self._passes_pe(c):
+            if not self._passes_pe(c, regime):
                 continue
             if weekend_skip:
                 continue  # Friday + gap down risk → skip all picks
@@ -393,25 +393,33 @@ class UnifiedFilter:
             return False
         return True
 
-    def _passes_beta(self, c):
-        """v13.1 Beta filter — high-beta stocks are overrepresented in worst trades.
+    def _passes_beta(self, c, regime='BULL'):
+        """Beta filter — v17: adaptive per sector×regime, fallback 1.5.
         Data: worst 5% avg beta=1.37 vs best 20% avg beta=1.16.
-        Walk-forward: worst month -$1,594 → -$1,195 with beta≤1.5.
         """
         beta = c.get('beta')
         if beta is None:
-            return True  # no data = allow
-        return beta <= 1.5
+            return True
+        if self._adaptive:
+            sector = c.get('sector', '')
+            beta_max = self._adaptive.get(sector, regime, 'beta_max')
+        else:
+            beta_max = 1.5
+        return beta <= beta_max
 
-    def _passes_pe(self, c):
-        """v13.1 PE filter — overvalued stocks are overrepresented in worst trades.
+    def _passes_pe(self, c, regime='BULL'):
+        """PE filter — v17: adaptive per sector×regime, fallback 35.
         Data: worst 5% avg PE=36.6 vs best 20% avg PE=22.0.
-        Walk-forward: worst month -$1,195 → -$1,039 with PE≤35.
         """
         pe = c.get('pe_forward')
         if pe is None or pe <= 0:
-            return True  # no data or negative PE (profitable) = allow
-        return pe <= 35
+            return True
+        if self._adaptive:
+            sector = c.get('sector', '')
+            pe_max = self._adaptive.get(sector, regime, 'pe_max')
+        else:
+            pe_max = 35
+        return pe <= pe_max
 
 
 # --- Module-level sector selection functions ---

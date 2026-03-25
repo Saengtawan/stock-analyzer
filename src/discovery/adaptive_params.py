@@ -28,15 +28,19 @@ SECTORS = [
 REGIMES = ['BULL', 'STRESS', 'CRISIS']
 
 PARAM_GRID = {
-    # NOTE: sl_pct/tp_pct are learned here but NOT used by sizer.compute_sl_tp()
-    # which uses v15.3 ATR formula instead (0.8×ATR cap 3.5%). These remain for
-    # future experimentation. Filter stages (atr_max, mom_cut, etc.) ARE used.
-    'sl_pct':       [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0],  # absolute SL %
-    'tp_pct':       [2.0, 3.0, 4.0, 5.0],                     # absolute TP %, max 5% (realistic D1-D5)
+    'sl_pct':       [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0],
+    'tp_pct':       [2.0, 3.0, 4.0, 5.0],
     'atr_max':      [2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 7.0, 8.0],
     'mom_cut':      [-3, -2, -1, 0, 1, 2, 3, 4, 5],
     'd0_close_min': [0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40],
     'elite_sigma':  [0.3, 0.5, 0.8, 1.0, 1.2, 1.5, 2.0],
+    # v17: beta/PE per sector×regime (used by filter._passes_beta/pe)
+    'beta_max':     [0.8, 1.0, 1.2, 1.5, 2.0, 2.5],
+    'pe_max':       [15, 20, 25, 30, 35, 50],
+    # v17: TP multipliers per sector×regime (used by sizer D0-D3 schedule)
+    'tp_d0_mult':   [0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+    'tp_d2_mult':   [0.7, 0.85, 1.0, 1.2],
+    'tp_d3_mult':   [0.85, 1.0, 1.09, 1.2, 1.5],
 }
 
 DEFAULTS = {
@@ -46,6 +50,11 @@ DEFAULTS = {
     'mom_cut': 3.0,
     'd0_close_min': 0.30,
     'elite_sigma': 0.8,
+    'beta_max': 1.5,
+    'pe_max': 35,
+    'tp_d0_mult': 0.55,
+    'tp_d2_mult': 0.85,
+    'tp_d3_mult': 1.09,
 }
 
 MIN_GROUP_SIZE = 100
@@ -204,10 +213,35 @@ class AdaptiveParameterLearner:
         # 5. elite_sigma — best E[R] per pick
         params['elite_sigma'] = self._learn_elite_sigma(sigs)
 
+        # 6. v17: beta_max — WR sweep (per sector: Tech=1.5, RE=0.8 etc.)
+        beta_sigs = [s for s in sigs if s.get('beta')]
+        if len(beta_sigs) >= 50:
+            params['beta_max'] = self._learn_threshold(
+                beta_sigs, 'beta', PARAM_GRID['beta_max'], mode='upper')
+        else:
+            params['beta_max'] = DEFAULTS['beta_max']
+
+        # 7. v17: pe_max — WR sweep (per sector: Tech PE=50 ok, Util PE=20 max)
+        pe_sigs = [s for s in sigs if s.get('pe') is not None and s['pe'] > 0]
+        if len(pe_sigs) >= 50:
+            params['pe_max'] = self._learn_threshold(
+                pe_sigs, 'pe', PARAM_GRID['pe_max'], mode='upper')
+        else:
+            params['pe_max'] = DEFAULTS['pe_max']
+
+        # 8. v17: TP multipliers — grid search best D0/D2/D3 ATR mults (Sharpe)
+        tp_d0, tp_d2, tp_d3 = self._learn_tp_multipliers(sigs)
+        params['tp_d0_mult'] = tp_d0
+        params['tp_d2_mult'] = tp_d2
+        params['tp_d3_mult'] = tp_d3
+
         logger.debug(
-            "AdaptiveParams [%s]: SL=%.1f%% TP=%.1f%% atr≤%.1f mom≤%.0f d0≥%.2f σ=%.1f (n=%d)",
+            "AdaptiveParams [%s]: SL=%.1f%% TP=%.1f%% atr≤%.1f mom≤%.0f d0≥%.2f σ=%.1f "
+            "beta≤%.1f pe≤%.0f tp=%.1f/%.1f/%.1f (n=%d)",
             key, sl_pct, tp_pct, params['atr_max'], params['mom_cut'],
-            params['d0_close_min'], params['elite_sigma'], len(sigs))
+            params['d0_close_min'], params['elite_sigma'],
+            params['beta_max'], params['pe_max'],
+            tp_d0, tp_d2, tp_d3, len(sigs))
 
         return params
 
@@ -324,6 +358,61 @@ class AdaptiveParameterLearner:
 
         return best_sigma
 
+    def _learn_tp_multipliers(self, sigs):
+        """v17: Grid search optimal TP D0/D2/D3 ATR multipliers (best Sharpe).
+
+        Walks D1-D3 highs/lows with each TP schedule, picks best Sharpe.
+        D1 mult = D0 mult (same early TP target).
+        """
+        ohlc_sigs = [s for s in sigs if s.get('d1o') and s.get('day_hl')]
+        if len(ohlc_sigs) < 100:
+            return DEFAULTS['tp_d0_mult'], DEFAULTS['tp_d2_mult'], DEFAULTS['tp_d3_mult']
+
+        best_sharpe = -999
+        best_d0 = DEFAULTS['tp_d0_mult']
+        best_d2 = DEFAULTS['tp_d2_mult']
+        best_d3 = DEFAULTS['tp_d3_mult']
+
+        for d0 in PARAM_GRID['tp_d0_mult']:
+            for d2 in PARAM_GRID['tp_d2_mult']:
+                for d3 in PARAM_GRID['tp_d3_mult']:
+                    if d3 < d2:
+                        continue  # D3 TP should be >= D2
+                    pnls = []
+                    for s in ohlc_sigs:
+                        atr = s['atr']
+                        d1o = s['d1o']
+                        if d1o <= 0 or atr <= 0:
+                            continue
+                        sl_pct = max(1.5, min(3.5, 0.8 * atr))
+                        tp_by_day = [max(1.0, d0 * atr), max(1.0, d0 * atr),
+                                     max(1.0, d2 * atr), max(1.0, d3 * atr)]
+                        hit = False
+                        for day_idx, (h, l) in enumerate(s['day_hl'][:3]):
+                            tp_pct = tp_by_day[min(day_idx + 1, 3)]
+                            if (l / d1o - 1) * 100 <= -sl_pct:
+                                pnls.append(-sl_pct)
+                                hit = True
+                                break
+                            if (h / d1o - 1) * 100 >= tp_pct:
+                                pnls.append(tp_pct)
+                                hit = True
+                                break
+                        if not hit:
+                            d3c = s.get('d3c', d1o)
+                            if d3c and d3c > 0:
+                                pnls.append((d3c / d1o - 1) * 100)
+
+                    if len(pnls) < 50:
+                        continue
+                    p = np.array(pnls)
+                    sharpe = p.mean() / max(p.std(), 0.01)
+                    if sharpe > best_sharpe:
+                        best_sharpe = sharpe
+                        best_d0, best_d2, best_d3 = d0, d2, d3
+
+        return best_d0, best_d2, best_d3
+
     def _apply_guard(self, new_params, old_params):
         """Cap parameter changes at ±MAX_CHANGE_PCT per cycle."""
         guarded = {}
@@ -358,8 +447,10 @@ class AdaptiveParameterLearner:
                        d2.high as d2h, d2.low as d2l,
                        d3.high as d3h, d3.low as d3l, d3.close as d3c,
                        d4.high as d4h, d4.low as d4l,
-                       d5.high as d5h, d5.low as d5l, d5.close as d5c
+                       d5.high as d5h, d5.low as d5l, d5.close as d5c,
+                       sf.beta, sf.pe_forward
                 FROM backfill_signal_outcomes b
+                LEFT JOIN stock_fundamentals sf ON b.symbol = sf.symbol
                 LEFT JOIN macro_snapshots m ON b.scan_date = m.date
                 LEFT JOIN market_breadth mb ON b.scan_date = mb.date
                 LEFT JOIN signal_daily_bars d0 ON b.scan_date=d0.scan_date AND b.symbol=d0.symbol AND d0.day_offset=0
@@ -394,6 +485,7 @@ class AdaptiveParameterLearner:
                 'd20h': r[5] or -5, 'vol': r[6] or 1,
                 'o5d': r[7], 'vix': r[9], 'breadth': r[10],
                 'd0_pos': d0_pos,
+                'beta': r[27], 'pe': r[28],  # v17: from stock_fundamentals
             }
 
             # D1-D5 OHLC for absolute SL/TP simulation

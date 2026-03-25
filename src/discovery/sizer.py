@@ -145,13 +145,19 @@ class UnifiedSizer:
         # 1. Compute SL/TP
         sl_tp = self.compute_sl_tp(c, regime, config)
 
-        # v15.3: Dynamic TP per day, max hold D3 close
-        # Data-validated (30% hit rate each day, mcap≥30B):
-        #   D0: 0.55×ATR, D1: 0.55×ATR, D2: 0.85×ATR, D3: 1.09×ATR → exit close
-        tp_d0 = round(max(1.0, 0.55 * atr), 1)
-        tp_d1 = round(max(1.0, 0.55 * atr), 1)
-        tp_d2 = round(max(1.5, 0.85 * atr), 1)
-        tp_d3 = round(max(1.5, 1.09 * atr), 1)
+        # v17: Adaptive TP per day — learned multipliers per sector×regime
+        # Fallback: D0=0.55, D2=0.85, D3=1.09 (v15.3 defaults)
+        if self._adaptive:
+            sector = c.get('sector', '')
+            tp_d0_m = self._adaptive.get(sector, regime, 'tp_d0_mult')
+            tp_d2_m = self._adaptive.get(sector, regime, 'tp_d2_mult')
+            tp_d3_m = self._adaptive.get(sector, regime, 'tp_d3_mult')
+        else:
+            tp_d0_m, tp_d2_m, tp_d3_m = 0.55, 0.85, 1.09
+        tp_d0 = round(max(1.0, tp_d0_m * atr), 1)
+        tp_d1 = round(max(1.0, tp_d0_m * atr), 1)  # D1 = D0
+        tp_d2 = round(max(1.5, tp_d2_m * atr), 1)
+        tp_d3 = round(max(1.5, tp_d3_m * atr), 1)
         _sl = sl_tp['sl_pct']
         exit_rule = {
             'max_hold_days': 3, 'exit_at': 'D3_CLOSE',
