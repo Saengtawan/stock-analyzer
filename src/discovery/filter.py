@@ -291,9 +291,10 @@ class UnifiedFilter:
                              c['symbol'], ub_prob * 100)
                 continue
 
-            # Re-rank: kernel E[R] (70%) + UnifiedBrain (30%)
-            blended = er * 0.7 + (ub_prob - 0.5) * 10 * 0.3
-            re_ranked.append((blended, c))
+            # v17: Keep original score — don't re-blend
+            # ML ranking already handles optimal combination
+            # (removed hardcode 70/30 blend that was duplicating score_batch 60/40)
+            re_ranked.append((er, c))
 
         if re_ranked:
             re_ranked.sort(key=lambda x: x[0], reverse=True)

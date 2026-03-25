@@ -669,21 +669,17 @@ class DiscoveryEngine:
             strat = strat_map.get(sym) or self._infer_strategy_label(c)
             c['_matched_strategy'] = strat
 
-            # Smart E[R] = kernel E[R] × (1 + strategy Sharpe in regime)
+            # v17: Pass RAW values to ML — no pre-blending
+            # ML model decides optimal combination of kernel_er + ubrain + context
             strat_sharpe = self._strategy_selector._fit_stats.get(
                 (condition, strat), {}).get('sharpe', 0)
-            sect_sharpe_val = 0
-            try:
-                from collections import defaultdict
-                # Use sector_scores from SectorScorer as proxy
-                sect_sharpe_val = sector_scores.get(sector, 0)
-            except Exception:
-                pass
+            sect_sharpe_val = sector_scores.get(sector, 0)
 
-            smart_er = er * (1 + max(0, strat_sharpe))
+            # Use raw kernel_er (stored by score_batch), not blended er
+            raw_er = c.get('_kernel_er', er)
 
             context_map[sym] = {
-                'smart_er': smart_er,
+                'smart_er': raw_er,          # raw kernel E[R] (not blended)
                 'strat_sharpe': strat_sharpe,
                 'sect_sharpe': sect_sharpe_val,
             }

@@ -335,7 +335,8 @@ class UnifiedScorer:
 
             scored.append((stock_er, c))
 
-        # Blend with UnifiedBrain
+        # Blend with UnifiedBrain (for filter pipeline compatibility)
+        # v17: Also store RAW values on candidate for ML model (no double-blend)
         if self._unified_brain._fitted:
             blended_scored = []
             for er, c in scored:
@@ -343,10 +344,18 @@ class UnifiedScorer:
                     c['symbol'], scan_date, macro, c, self._temporal_features)
                 rp = self._regime_decision.get('probability', 0.5)
                 ub = self._unified_brain.predict(c, sens, rp)
-                ub_contrib = (ub.get('probability', 0.5) - 0.5) * 5
+                ub_prob = ub.get('probability', 0.5)
+                ub_contrib = (ub_prob - 0.5) * 5
                 blended = er * 0.6 + ub_contrib * 0.4
+                # v17: Store raw values — ML reads these instead of blended
+                c['_kernel_er'] = round(er, 4)
+                c['_ubrain_prob'] = round(ub_prob, 4)
                 blended_scored.append((blended, c))
             scored = blended_scored
+        else:
+            for er, c in scored:
+                c['_kernel_er'] = round(er, 4)
+                c['_ubrain_prob'] = 0.5
 
         scored.sort(key=lambda x: x[0], reverse=True)
         return scored, regime, macro_er
