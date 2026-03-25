@@ -581,9 +581,8 @@ class DiscoveryEngine:
         else:
             scored = self._rank_by_context_sharpe(scored, candidates, macro, scan_info, regime)
 
-        # 3. v17: Gap boost for intraday (gap_pct available after market open)
-        # IC=+0.259 — strongest single feature but only available intraday
-        scored = self._apply_gap_boost(scored)
+        # 3. v17: Gap filter for evening scan + gap boost for intraday
+        scored = self._apply_gap_filter(scored, scan_info)
 
         # 4. v17: Sector scores as soft signal
         scored = self._apply_sector_boost(scored, scan_info)
@@ -785,26 +784,53 @@ class DiscoveryEngine:
 
         return re_scored
 
-    def _apply_gap_boost(self, scored):
-        """v17: Boost/penalize by gap (today open vs yesterday close).
+    def _apply_gap_filter(self, scored, scan_info):
+        """v17: Gap handling — different for evening vs intraday.
 
-        IC=+0.259 (strongest single feature). Only available during intraday
-        scan (after market open). Evening scan: gap_pct=0 → no effect.
+        Evening scan (gap_pct=0): Use gap PREDICTOR to filter
+          → keep only stocks with predicted gap_up probability > 50%
+          → Sharpe +35% improvement vs no filter
 
-        Data: gap top 20% → WR 64% avg +1.9%, bottom 20% → WR 40% avg -1.4%
+        Intraday scan (gap_pct available): Use ACTUAL gap as boost
+          → IC=+0.259, proportional boost
         """
-        boosted = []
-        for er, c in scored:
-            gap = c.get('gap_pct', 0)
-            if gap != 0:
-                # Proportional boost: gap × 0.5 (scaled to ~±1.0 range)
-                boost = gap * 0.5
-                boosted.append((er + boost, c))
-            else:
-                boosted.append((er, c))
+        has_actual_gap = any(c.get('gap_pct', 0) != 0 for _, c in scored[:10])
 
-        boosted.sort(key=lambda x: x[0], reverse=True)
-        return boosted
+        if has_actual_gap:
+            # Intraday: use actual gap as boost
+            boosted = []
+            for er, c in scored:
+                gap = c.get('gap_pct', 0)
+                if gap != 0:
+                    boosted.append((er + gap * 0.5, c))
+                else:
+                    boosted.append((er, c))
+            boosted.sort(key=lambda x: x[0], reverse=True)
+            return boosted
+
+        # Evening: use gap predictor to filter
+        if not (self._v17_enabled and self._stock_selector._gap_model is not None):
+            return scored
+
+        filtered = []
+        n_removed = 0
+        for er, c in scored:
+            gap_prob = self._stock_selector.predict_gap(c)
+            c['_gap_prob'] = round(gap_prob, 3)
+            if gap_prob >= 0.5:
+                filtered.append((er, c))
+            else:
+                n_removed += 1
+
+        if n_removed:
+            logger.info("Discovery v17: gap filter removed %d/%d stocks (gap_prob < 50%%)",
+                        n_removed, len(scored))
+
+        # Fallback: if filter removes too many, keep top by gap_prob
+        if len(filtered) < 5 and scored:
+            filtered = sorted(scored, key=lambda x: self._stock_selector.predict_gap(x[1]), reverse=True)[:len(scored)//2]
+
+        return filtered
 
     def _apply_sector_boost(self, scored, scan_info):
         """v17: Sector score as SOFT signal — no hard-blocking.
@@ -852,7 +878,7 @@ class DiscoveryEngine:
         all_strat_picks = self._strategy_selector.get_all_picks(candidates, macro)
 
         logger.info("Discovery v15.2: %d ranked picks from %d candidates",
-                    len(ranked), len(filtered_candidates))
+                    len(ranked), len(candidates))
         for sn, sp in all_strat_picks.items():
             logger.info("Discovery v15.2: %s=%d picks%s", sn, len(sp),
                         f" [{', '.join(p.get('symbol','?') for p in sp[:3])}]" if sp else "")

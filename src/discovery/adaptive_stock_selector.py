@@ -42,16 +42,28 @@ MIN_AUC = 0.52            # minimum acceptable AUC
 AUC_GUARD = 0.02          # new model must be within this of old AUC
 
 
+GAP_FEATURES = [
+    'momentum_5d', 'd20h', 'volume_ratio', 'atr_pct', 'beta',
+    'vix', 'breadth', 'vix_spread',
+    'd0_ret', 'close_pos', 'vol_vs_avg', 'lower_shadow', 'body_size',
+]
+
+
 class AdaptiveStockSelector:
     """Learned stock selection — replaces hardcoded strategies."""
 
     def __init__(self):
         self._model = None
         self._feature_names = FEATURES
-        self._feature_means = None     # for imputation
-        self._feature_stds = None      # for normalization
+        self._feature_means = None
+        self._feature_stds = None
         self._auc = 0.0
         self._n_train = 0
+        # v17: Gap predictor (evening scan → filter gap-up stocks)
+        self._gap_model = None
+        self._gap_means = None
+        self._gap_stds = None
+        self._gap_auc = 0.0
         self._feature_importance = {}
         self._fitted = False
         self._fit_time = 0.0
@@ -129,15 +141,122 @@ class AdaptiveStockSelector:
         except Exception:
             pass
 
+        # v17: Train gap predictor (evening features → next day gap up?)
+        self._fit_gap_model(X, y, feature_names)
+
         self._fitted = True
         self._fit_time = time.time()
         self.save_to_db()
 
         elapsed = time.time() - t0
-        logger.info("AdaptiveStockSelector: fitted in %.1fs — AUC=%.4f n=%d top_features=%s",
-                     elapsed, auc, self._n_train,
-                     sorted(self._feature_importance.items(), key=lambda x: -x[1])[:5])
+        logger.info("AdaptiveStockSelector: fitted in %.1fs — AUC=%.4f gap_AUC=%.4f n=%d",
+                     elapsed, auc, self._gap_auc, self._n_train)
         return True
+
+    def _fit_gap_model(self, X_outcome, y_outcome, feature_names):
+        """Train gap predictor from same training data.
+        Uses D0 candle features to predict gap_up (next day open > today close).
+        """
+        try:
+            from sklearn.linear_model import LogisticRegression as LR
+            from sklearn.preprocessing import StandardScaler as SS
+            from sklearn.metrics import roc_auc_score as auc_score
+
+            conn = sqlite3.connect(str(DB_PATH), timeout=10)
+            rows = conn.execute('''
+                SELECT b.momentum_5d, b.distance_from_20d_high, b.volume_ratio, b.atr_pct,
+                       d0.open, d0.high, d0.low, d0.close, d0.volume,
+                       d1.open as d1o,
+                       COALESCE(m.vix_close, 20), COALESCE(m.vix3m_close, 22),
+                       COALESCE(mb.pct_above_20d_ma, 50),
+                       COALESCE(sf.beta, 1), COALESCE(sf.avg_volume, 1)
+                FROM backfill_signal_outcomes b
+                JOIN signal_daily_bars d0 ON b.scan_date=d0.scan_date AND b.symbol=d0.symbol AND d0.day_offset=0
+                JOIN signal_daily_bars d1 ON b.scan_date=d1.scan_date AND b.symbol=d1.symbol AND d1.day_offset=1
+                LEFT JOIN macro_snapshots m ON b.scan_date = m.date
+                LEFT JOIN market_breadth mb ON b.scan_date = mb.date
+                LEFT JOIN stock_fundamentals sf ON b.symbol = sf.symbol
+                WHERE d0.close > 0 AND d1.open > 0 AND d0.open > 0 AND d0.high > d0.low
+                AND sf.avg_volume > 0 AND m.vix_close IS NOT NULL
+                ORDER BY b.scan_date
+            ''').fetchall()
+            conn.close()
+
+            if len(rows) < 5000:
+                logger.warning("Gap model: not enough data (%d)", len(rows))
+                return
+
+            X_gap = []; y_gap = []
+            for r in rows:
+                mom5,d20h,vol,atr,d0o,d0h,d0l,d0c,d0v,d1o,vix,vix3m,breadth,beta,avg_vol = r
+                d0_range = d0h - d0l
+                X_gap.append([
+                    mom5 or 0, d20h or 0, vol or 1, atr, beta,
+                    vix, breadth, vix - vix3m,
+                    (d0c/d0o - 1)*100,              # d0_ret
+                    (d0c - d0l)/d0_range,            # close_pos
+                    d0v/avg_vol,                     # vol_vs_avg
+                    (min(d0o,d0c)-d0l)/d0_range,     # lower_shadow
+                    abs(d0c-d0o)/d0o*100,            # body_size
+                ])
+                y_gap.append(1 if d1o/d0c > 1.0 else 0)  # gap up = open > close
+
+            X_g = np.array(X_gap); y_g = np.array(y_gap)
+            split = int(len(X_g) * 0.8)
+            self._gap_means = np.nanmean(X_g[:split], axis=0)
+            self._gap_stds = np.nanstd(X_g[:split], axis=0)
+            self._gap_stds[self._gap_stds < 1e-10] = 1.0
+
+            X_gn = (X_g - self._gap_means) / self._gap_stds
+            mdl = LR(max_iter=200).fit(X_gn[:split], y_g[:split])
+            probs = mdl.predict_proba(X_gn[split:])[:,1]
+            self._gap_auc = round(auc_score(y_g[split:], probs), 4)
+            self._gap_model = mdl
+
+            logger.info("Gap model: AUC=%.4f on %d signals", self._gap_auc, len(rows))
+        except Exception as e:
+            logger.error("Gap model fit error: %s", e)
+            self._gap_auc = 0.0
+
+    def predict_gap(self, candidate):
+        """Predict gap-up probability for a single candidate.
+        Uses D0 candle features available at evening scan.
+        Returns float probability 0-1, or 0.5 if model not fitted.
+        """
+        if not self._gap_model or self._gap_means is None:
+            return 0.5
+        try:
+            c = candidate
+            d0o = c.get('open', c['close'])
+            d0h = c.get('day_high', c['close'])
+            d0l = c.get('day_low', c['close'])
+            d0c = c['close']
+            d0v = c.get('volume', 0) or 0
+            avg_vol = c.get('avg_volume', 1) or 1
+            d0_range = d0h - d0l
+            if d0_range <= 0 or d0o <= 0: return 0.5
+
+            vix = c.get('vix_close') or c.get('vix_at_signal') or 20
+            vix3m = c.get('vix3m_close') or (vix * 1.05)
+            breadth = c.get('pct_above_20d_ma') or 50
+
+            feat = np.array([[
+                c.get('momentum_5d') or 0,
+                c.get('distance_from_20d_high') or 0,
+                c.get('volume_ratio') or 1,
+                c.get('atr_pct') or 3,
+                c.get('beta') or 1,
+                vix, breadth, vix - vix3m,
+                (d0c/d0o - 1)*100,
+                (d0c - d0l)/d0_range,
+                d0v/avg_vol if avg_vol > 0 else 1,
+                (min(d0o,d0c) - d0l)/d0_range,
+                abs(d0c - d0o)/d0o*100,
+            ]])
+            feat = (feat - self._gap_means) / self._gap_stds
+            return float(self._gap_model.predict_proba(feat)[0, 1])
+        except Exception:
+            return 0.5
 
     def predict(self, candidates, sector_scores=None, context_map=None):
         """Score each candidate by learned model.
