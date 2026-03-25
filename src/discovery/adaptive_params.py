@@ -53,6 +53,9 @@ PARAM_GRID = {
     'ubrain_cutoff': [0.30, 0.35, 0.40, 0.45, 0.50],
     # v17: speculative skip threshold (used by context_scorer.should_skip)
     'spec_skip': [-0.9, -0.7, -0.5, -0.3],
+    # v17: ranking weights (used by engine._rank_by_context_sharpe)
+    'rank_w_strat': [1, 2, 3, 5, 7, 10],
+    'rank_w_sect': [0, 1, 2, 3, 5, 7],
     # v17: divergence boost breadth threshold (used by sizer)
     'div_breadth': [20, 25, 30, 35, 40],
     # v17: VVIX crisis threshold (used by neural_graph)
@@ -80,6 +83,8 @@ DEFAULTS = {
     'n_blocked': 3,
     'ubrain_cutoff': 0.40,
     'spec_skip': -0.7,
+    'rank_w_strat': 5,
+    'rank_w_sect': 3,
     'div_breadth': 30,
     'vvix_crisis': 120,
     'washout_breadth': 20,
@@ -281,7 +286,10 @@ class AdaptiveParameterLearner:
         # 13. v17: speculative skip threshold — learn from stock_context outcomes
         params['spec_skip'] = self._learn_spec_skip(sigs)
 
-        # 14. v17: divergence boost breadth — when is divergence signal useful?
+        # 14. v17: ranking weights — optimal strategy vs sector weight
+        params['rank_w_strat'], params['rank_w_sect'] = self._learn_ranking_weights(sigs)
+
+        # 15. v17: divergence boost breadth — when is divergence signal useful?
         breadth_sigs = [s for s in sigs if s.get('breadth') is not None]
         if len(breadth_sigs) >= 100:
             # Find breadth threshold where divergence (mom up + breadth low) works best
@@ -563,6 +571,68 @@ class AdaptiveParameterLearner:
                 best_cut = cut
 
         return best_cut
+
+    def _learn_ranking_weights(self, sigs):
+        """v17: Grid search optimal ranking weights for strategy vs sector Sharpe."""
+        if len(sigs) < 500:
+            return DEFAULTS['rank_w_strat'], DEFAULTS['rank_w_sect']
+
+        # Pre-compute strategy×regime and sector×regime Sharpes from this group
+        from collections import defaultdict as dd
+        strat_rets = dd(list)
+        sect_rets = dd(list)
+        for s in sigs:
+            regime = 'BULL' if s['vix'] < 20 else ('CRISIS' if s['vix'] > 28 else 'STRESS')
+            # Classify strategy
+            mom = s.get('mom', 0)
+            d20h = s.get('d20h', 0)
+            vol = s.get('vol', 1)
+            if mom < -5 and d20h < -10: strat = 'OVERSOLD'
+            elif -20 < mom < -1: strat = 'DIP'
+            elif mom > 0 and d20h > -10: strat = 'RS'
+            elif vol < 0.5 or vol > 2.0: strat = 'VOL_U'
+            else: strat = 'CONTRARIAN'
+            strat_rets[(regime, strat)].append(s['o5d'])
+            sect_rets[(regime, s['sector'])].append(s['o5d'])
+
+        strat_sh = {k: np.mean(v)/max(np.std(v),0.01) for k,v in strat_rets.items() if len(v)>=20}
+        sect_sh = {k: np.mean(v)/max(np.std(v),0.01) for k,v in sect_rets.items() if len(v)>=20}
+
+        # Group signals by date for top-N simulation
+        by_date = dd(list)
+        for s in sigs:
+            by_date[s['scan_date']].append(s)
+
+        best_sharpe = -999
+        best_ws, best_wse = DEFAULTS['rank_w_strat'], DEFAULTS['rank_w_sect']
+        for ws in PARAM_GRID['rank_w_strat']:
+            for wse in PARAM_GRID['rank_w_sect']:
+                if ws == 0 and wse == 0: continue
+                outcomes = []
+                for dt, day_sigs in by_date.items():
+                    if len(day_sigs) < 5: continue
+                    def score_fn(s):
+                        regime = 'BULL' if s['vix'] < 20 else ('CRISIS' if s['vix'] > 28 else 'STRESS')
+                        mom = s.get('mom', 0)
+                        d20h = s.get('d20h', 0)
+                        vol = s.get('vol', 1)
+                        if mom < -5 and d20h < -10: st = 'OVERSOLD'
+                        elif -20 < mom < -1: st = 'DIP'
+                        elif mom > 0 and d20h > -10: st = 'RS'
+                        elif vol < 0.5 or vol > 2.0: st = 'VOL_U'
+                        else: st = 'CONTRARIAN'
+                        return max(0, strat_sh.get((regime, st), 0)) * ws + max(0, sect_sh.get((regime, s['sector']), 0)) * wse
+                    ranked = sorted(day_sigs, key=score_fn, reverse=True)
+                    for s in ranked[:3]:
+                        outcomes.append(s['o5d'])
+                if len(outcomes) < 100: continue
+                o = np.array(outcomes)
+                sh = o.mean() / max(o.std(), 0.01)
+                if sh > best_sharpe:
+                    best_sharpe = sh
+                    best_ws, best_wse = ws, wse
+
+        return best_ws, best_wse
 
     def _learn_spec_skip(self, sigs):
         """v17: Learn optimal speculative skip threshold from outcome data."""

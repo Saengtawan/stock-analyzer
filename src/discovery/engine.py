@@ -685,7 +685,13 @@ class DiscoveryEngine:
             strat_sh = strat_sharpes.get((condition, strat), 0)
             sect_sc = sector_scores.get(sector, 0)
 
-            context_score = max(0, strat_sh) * 5 + max(0, sect_sc) * 3
+            # v17: Learned ranking weights (default 5/3, learned per sector×regime)
+            w_strat = 5
+            w_sect = 3
+            if self._adaptive_params:
+                w_strat = self._adaptive_params.get(sector, regime, 'rank_w_strat')
+                w_sect = self._adaptive_params.get(sector, regime, 'rank_w_sect')
+            context_score = max(0, strat_sh) * w_strat + max(0, sect_sc) * w_sect
 
             re_scored.append((context_score, c))
 
