@@ -670,16 +670,13 @@ class DiscoveryEngine:
             strat = strat_map.get(sym) or self._infer_strategy_label(c)
             c['_matched_strategy'] = strat
 
-            # v17: Smart E[R] = kernel E[R] × (1 + strategy Sharpe)
-            # Validated: Sharpe +0.065 vs raw E[R] +0.054 — blended is better
+            # v17: Context features only — ML learns from raw momentum + context
+            # smart_er removed: -mom×0.3 hardcoded DIP bias (DIP always ranked #1)
             strat_sharpe = self._strategy_selector._fit_stats.get(
                 (condition, strat), {}).get('sharpe', 0)
             sect_sharpe_val = sector_scores.get(sector, 0)
 
-            smart_er = er * (1 + max(0, strat_sharpe))
-
             context_map[sym] = {
-                'smart_er': smart_er,
                 'strat_sharpe': strat_sharpe,
                 'sect_sharpe': sect_sharpe_val,
             }

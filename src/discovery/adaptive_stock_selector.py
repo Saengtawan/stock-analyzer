@@ -30,7 +30,9 @@ FEATURES = [
     'momentum_5d', 'momentum_20d', 'volume_ratio', 'beta', 'atr_pct',
     'rsi', 'd20h', 'pe_forward', 'mcap_log', 'sector_score',
     'vix', 'breadth', 'crude_delta_5d',
-    'smart_er', 'strat_sharpe', 'sect_sharpe',   # v17: context-aware (validated +30% Sharpe)
+    'strat_sharpe', 'sect_sharpe',   # v17: context (ML learns optimal combination)
+    # NOTE: smart_er removed — it hardcoded -mom=good which biased DIP always #1
+    # ML now sees raw momentum + d20h + context → decides itself per regime
 ]
 
 MAX_TRAIN_ROWS = 200_000  # cap to keep fit time <5s
@@ -389,23 +391,18 @@ class AdaptiveStockSelector:
                 # Sector score
                 sect_score = sector_score_map.get((dt, sector), 0)
 
-                # v17: Smart E[R] + context features
-                # E[R] proxy: mean-reversion signal
-                er_base = -mom5 * 0.3 + abs(d20h) * 0.2
-                # Strategy classification
+                # v17: Context features — ML learns optimal combination
+                # No smart_er formula (removed DIP bias: -mom×0.3 always favored DIP)
                 strat = classify_strategy(mom5, d20h, vol_ratio)
                 rgm = classify_regime(vix, breadth)
-                # Context Sharpes (from pre-computed if available)
                 strat_sharpe = strat_sharpe_map.get((rgm, strat), 0)
                 sect_sharpe = sect_sharpe_map.get((rgm, sector), 0)
-                # v17: Smart E[R] = E[R] × (1 + strategy_sharpe) — validated +30% Sharpe
-                smart_er = er_base * (1 + max(0, strat_sharpe))
 
                 feature_row = [
                     mom5, mom20, vol_ratio, beta or 1, atr_pct,
                     rsi, d20h, pe or np.nan, mcap_log, sect_score,
                     vix, breadth, crude_delta,
-                    smart_er, strat_sharpe, sect_sharpe,
+                    strat_sharpe, sect_sharpe,
                 ]
                 X_rows.append(feature_row)
                 y_rows.append(target)
@@ -449,7 +446,6 @@ class AdaptiveStockSelector:
                 c.get('vix_close') or c.get('vix_at_signal') or 20,
                 c.get('pct_above_20d_ma') or 50,
                 c.get('crude_delta_5d_pct') or 0,
-                ctx.get('smart_er', 0),          # E[R] × (1+strat_sharpe)
                 ctx.get('strat_sharpe', 0),
                 ctx.get('sect_sharpe', 0),
             ]

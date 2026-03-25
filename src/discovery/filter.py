@@ -212,8 +212,7 @@ class UnifiedFilter:
                     bonus += 2
                 elif atr < 4.0:
                     bonus += 1
-                if mom5 < 0:
-                    bonus += 1
+                # v17: removed mom5<0 bonus (DIP bias — RS stocks also valid in STRESS)
                 if sector in stress_sectors:
                     bonus += 2
                 if bonus < 2:
@@ -224,11 +223,9 @@ class UnifiedFilter:
                 mom5 = c.get('momentum_5d') or 0
                 vol = c.get('volume_ratio') or 0
                 sector = c.get('sector') or ''
-                if mom5 >= 0:
-                    continue
+                # v17: removed mom5>=0 block and mom5<-5 bonus (DIP bias)
+                # In CRISIS, RS stocks that hold up can also be good picks
                 bonus = 0
-                if mom5 < -5:
-                    bonus += 2
                 if vol > 1.0:
                     bonus += 1
                 if atr < 3.0:
