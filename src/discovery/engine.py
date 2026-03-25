@@ -781,34 +781,18 @@ class DiscoveryEngine:
         return re_scored
 
     def _apply_sector_boost(self, scored, scan_info):
-        """v17: Boost/penalize stocks by SectorScorer.
+        """v17: Sector score as SOFT signal — no hard-blocking.
 
-        Top sectors get bonus, blocked sectors are REMOVED (hard block).
+        ML model already has sect_sharpe as feature (importance 0.132).
+        Sector scores are passed through for ML to learn from,
+        NOT used to hard-block sectors.
+
+        Removed: hard-blocking (contrarian approach not validated from data)
+        Data: bottom momentum sectors avg +0.040% vs top +0.042% → no edge
         """
-        sector_scores = scan_info.get('sector_scores', {})
-        blocked = scan_info.get('blocked_sectors', set())
-        if not sector_scores:
-            return scored
-
-        boosted = []
-        n_blocked = 0
-        for er, c in scored:
-            sector = c.get('sector', '')
-            # Hard block — remove entirely
-            if sector in blocked:
-                n_blocked += 1
-                continue
-            sect_score = sector_scores.get(sector, 0)
-            # Normalize sector score to boost range [-0.3, +0.3]
-            boost = max(-0.3, min(0.3, sect_score * 0.3))
-            boosted.append((er + boost, c))
-
-        if n_blocked:
-            logger.info("Discovery v17: sector_boost removed %d stocks from blocked sectors %s",
-                        n_blocked, sorted(blocked))
-
-        boosted.sort(key=lambda x: x[0], reverse=True)
-        return boosted
+        # No hard-blocking — ML decides via sect_sharpe feature
+        # Sector scores are already in ML features via context_map
+        return scored
 
     @staticmethod
     def _infer_strategy_label(candidate):
@@ -835,19 +819,10 @@ class DiscoveryEngine:
         strat_name, _ = self._strategy_selector.select(
             macro.get('vix_close') or 20, macro.get('pct_above_20d_ma') or 50)
 
-        # v17: Filter blocked sectors from candidates before strategy functions
-        blocked_sectors = scan_info.get('blocked_sectors', set())
-        if blocked_sectors and self._sector_scorer._fitted:
-            filtered_candidates = [c for c in candidates
-                                   if c.get('sector', '') not in blocked_sectors]
-            logger.info("Discovery multi-strategy: %d→%d after sector filter (blocked=%s)",
-                        len(candidates), len(filtered_candidates), sorted(blocked_sectors))
-        else:
-            filtered_candidates = candidates
-
+        # v17: No sector hard-blocking — ML decides via sect_sharpe feature
         ranked = self._strategy_selector.get_ranked_picks(
-            filtered_candidates, macro, market_regime=market_regime)
-        all_strat_picks = self._strategy_selector.get_all_picks(filtered_candidates, macro)
+            candidates, macro, market_regime=market_regime)
+        all_strat_picks = self._strategy_selector.get_all_picks(candidates, macro)
 
         logger.info("Discovery v15.2: %d ranked picks from %d candidates",
                     len(ranked), len(filtered_candidates))

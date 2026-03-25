@@ -182,22 +182,13 @@ class UnifiedFilter:
             return scored
 
         # v17: Use learned sector scoring
+        # v17: No sector hard-blocking — ML decides via sect_sharpe feature
+        # SectorScorer scores passed as ML feature, not used for blocking
+        # Data: contrarian sector blocking not validated (+0.040% vs +0.042%)
         if self._sector_scorer and self._sector_scorer._fitted:
-            allowed_sectors, blocked_sectors = self._sector_scorer.get_allowed_sectors(macro)
-            result = []
-            n_blocked = 0
-            for er, c in scored:
-                sector = c.get('sector') or ''
-                if sector in blocked_sectors and (regime in ('STRESS', 'CRISIS')):
-                    n_blocked += 1
-                    continue
-                result.append((er, c))
-            if n_blocked:
-                logger.info("Filter v17: regime_gate blocked %d picks from sectors %s",
-                            n_blocked, sorted(blocked_sectors))
-            return result
+            return scored
 
-        # v16 fallback: hardcoded sector rules
+        # v16 fallback: hardcoded sector rules (only when SectorScorer not fitted)
         crisis_sectors = get_crisis_sectors(macro)
         stress_sectors = get_stress_sectors(macro)
 
