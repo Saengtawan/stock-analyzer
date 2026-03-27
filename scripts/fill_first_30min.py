@@ -14,9 +14,12 @@ Supports --date YYYY-MM-DD for backfill of historical dates.
 Cron (TZ=America/New_York):
   5 10 * * 1-5  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_first_30min.py >> logs/fill_first_30min.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
 import sys
-import sqlite3
 import argparse
 from datetime import datetime, date, timedelta
 
@@ -24,7 +27,6 @@ import yfinance as yf
 import pandas as pd
 from zoneinfo import ZoneInfo
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 ET = ZoneInfo('America/New_York')
 
 
@@ -83,8 +85,7 @@ def main():
     today = args.date or date.today().strftime('%Y-%m-%d')
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] fill_first_30min date={today}")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     # Collect symbols needing fill from signal_outcomes
     so_rows = conn.execute("""
@@ -108,7 +109,6 @@ def main():
 
     if not all_symbols:
         print("  Nothing to fill today.")
-        conn.close()
         return
 
     print(f"  signal_outcomes: {len(so_rows)} rows | screener_rejections: {len(sr_rows)} rows")
@@ -143,9 +143,6 @@ def main():
                 (pct, row['id'])
             )
             sr_updated += 1
-
-    conn.commit()
-    conn.close()
 
     filled = sum(1 for v in cache.values() if v is not None)
     print(f"  Fetched {filled}/{len(all_symbols)} symbols with data")

@@ -313,7 +313,7 @@ def main():
     print(f"DB: {DB_PATH}")
     assert os.path.exists(DB_PATH), f"DB not found: {DB_PATH}"
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")
 

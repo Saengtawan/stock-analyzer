@@ -24,8 +24,11 @@ Why this matters for DIP strategy:
 Cron (TZ=America/New_York):
   0 17 * * 1-5  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_market_breadth.py >> logs/collect_market_breadth.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 import time
 import argparse
 from datetime import datetime, date, timedelta
@@ -35,14 +38,13 @@ import yfinance as yf
 import pandas as pd
 from zoneinfo import ZoneInfo
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 ET = ZoneInfo('America/New_York')
 
 BATCH_SIZE = 100    # symbols per yfinance batch download
 HISTORY_DAYS = 280  # enough for 52w high + 50d MA
 
 
-def _ensure_table(conn: sqlite3.Connection):
+def _ensure_table(conn: object):
     conn.execute("""
         CREATE TABLE IF NOT EXISTS market_breadth (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,7 +61,6 @@ def _ensure_table(conn: sqlite3.Connection):
             updated_at      TEXT DEFAULT (datetime('now'))
         )
     """)
-    conn.commit()
 
 
 def download_daily_batch(symbols: list[str], start_dt: str, end_dt: str) -> dict[str, pd.DataFrame]:
@@ -189,8 +190,7 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_market_breadth "
           f"date={target_date} days={args.days}")
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
     _ensure_table(conn)
 
     # Build list of dates to compute
@@ -211,7 +211,6 @@ def main():
 
     if not dates_to_compute:
         print("  All dates already in DB — done. Use --force to recompute.")
-        conn.close()
         return
 
     print(f"  Computing breadth for {len(dates_to_compute)} date(s): {dates_to_compute}")
@@ -275,14 +274,11 @@ def main():
               metrics['advance_count'], metrics['decline_count'], metrics['unchanged_count'],
               metrics['ad_ratio'], metrics['new_52w_highs'], metrics['new_52w_lows'],
               metrics['total_symbols']))
-        conn.commit()
 
         m = metrics
         print(f"  {d}: above20={m['pct_above_20d_ma']}% above50={m['pct_above_50d_ma']}% "
               f"A/D={m['advance_count']}/{m['decline_count']} "
               f"52wH/L={m['new_52w_highs']}/{m['new_52w_lows']} n={m['total_symbols']}")
-
-    conn.close()
     print("  Done.")
 
 

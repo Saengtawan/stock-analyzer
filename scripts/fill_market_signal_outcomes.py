@@ -175,7 +175,7 @@ def backfill_spy_drawdown(conn):
 
 
 def main():
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
     ensure_table(conn)
 
     # Check if already backfilled

@@ -21,7 +21,7 @@ DB_PATH = "/home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db
 
 def load_data():
     """Load and merge all data sources."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
 
     # 1. Backfill signal outcomes
     bso = pd.read_sql_query("""
@@ -478,7 +478,7 @@ def main():
     print("TEST 6: DATA COVERAGE CHECK")
     print("=" * 80)
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
 
     # 6a: backfill coverage
     bso_raw = pd.read_sql_query("""

@@ -30,7 +30,7 @@ def create_phase4_tables():
     print()
 
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = None  # via get_session()
         cursor = conn.cursor()
 
         # Enable WAL mode for better concurrency

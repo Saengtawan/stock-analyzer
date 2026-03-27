@@ -32,7 +32,7 @@ BLOCKED_SECTORS = {
 }
 
 def load_universe(top_n: int) -> list[str]:
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
     rows = conn.execute("""
         SELECT symbol, sector, dollar_vol FROM universe_stocks
         WHERE sector NOT IN ({})

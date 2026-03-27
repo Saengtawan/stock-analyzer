@@ -24,8 +24,11 @@ Cron (TZ=America/New_York):
   45 16 * * 1-5  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_analyst_ratings.py >> logs/collect_analyst_ratings.log 2>&1
   30 8 * * 0     cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_analyst_ratings.py --full >> logs/collect_analyst_ratings.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 import time
 import argparse
 from datetime import datetime, date, timedelta
@@ -34,7 +37,6 @@ import pandas as pd
 import yfinance as yf
 from zoneinfo import ZoneInfo
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 ET = ZoneInfo('America/New_York')
 
 DELAY_EVERY = 20
@@ -42,7 +44,7 @@ DELAY_SECS = 0.4
 UPGRADE_LOOKBACK_DAYS = 90  # store last 90 days of upgrades/downgrades
 
 
-def get_target_symbols(conn: sqlite3.Connection, today: str, full: bool) -> list[str]:
+def get_target_symbols(conn: object, today: str, full: bool) -> list[str]:
     """Get symbols to collect for."""
     if full:
         return [r[0] for r in conn.execute(
@@ -145,7 +147,7 @@ def _safe_float(v) -> float | None:
         return None
 
 
-def save_analyst_data(conn: sqlite3.Connection, sym: str, data: dict, today: str):
+def save_analyst_data(conn: object, sym: str, data: dict, today: str):
     """Persist analyst data to DB."""
     # --- analyst_ratings ---
     for r in data['ratings']:
@@ -216,8 +218,7 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_analyst_ratings "
           f"date={today} mode={mode}")
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     if args.symbol:
         symbols = [args.symbol.upper()]
@@ -236,15 +237,11 @@ def main():
             fail += 1
 
         if (i + 1) % 100 == 0:
-            conn.commit()
             pct = round((i + 1) / len(symbols) * 100)
             print(f"  [{i+1}/{len(symbols)} {pct}%] ok={ok} fail={fail}")
 
         if (i + 1) % DELAY_EVERY == 0:
             time.sleep(DELAY_SECS)
-
-    conn.commit()
-    conn.close()
     print(f"\n  Done. ok={ok} fail={fail}")
 
 

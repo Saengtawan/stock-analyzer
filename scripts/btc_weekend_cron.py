@@ -16,13 +16,15 @@ Cron (TZ=America/New_York):
 
 (6:00 PM ET Sunday — captures both Saturday and Sunday BTC close)
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 from datetime import datetime, date, timedelta
 
 import yfinance as yf
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 BTC = 'BTC-USD'
 
 
@@ -70,7 +72,7 @@ def main():
     if sunday:
         dates_to_fill.append(sunday)
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
+    # conn via get_session()
 
     for target in dates_to_fill:
         target_str = target.strftime('%Y-%m-%d')
@@ -100,10 +102,7 @@ def main():
                 "INSERT INTO macro_snapshots (date, btc_close, collected_at) VALUES (?, ?, datetime('now'))",
                 (target_str, btc)
             )
-        conn.commit()
         print(f"  {target_str} ({['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][target.weekday()]}): BTC={btc}")
-
-    conn.close()
     print("  Done.")
 
 

@@ -58,8 +58,8 @@ SL_BY_REGIME = {'BULL': 3.0, 'STRESS': 2.0, 'CRISIS': 2.0}
 # ════════════════════════════════════════════════════════════════
 def load_all_data():
     """Load combined dataset with all 13 stock kernel features."""
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session())
+    conn.row_factory = dict
 
     rows = conn.execute("""
         WITH crude_lag AS (

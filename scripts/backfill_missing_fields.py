@@ -34,8 +34,8 @@ def compute_dip_score(dist_from_high: float, atr_pct: float, mom_5d: float, rsi:
 
 def fill_signal_outcomes_yfinance():
     """Fill distance_from_20d_high and momentum_20d from yfinance daily bars."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session()
+    conn.row_factory = dict
 
     rows = conn.execute("""
         SELECT id, symbol, scan_date, scan_price
@@ -129,8 +129,8 @@ def fill_signal_outcomes_yfinance():
 
 def fill_signal_outcomes_new_score():
     """Compute new_score for signal_outcomes rows that have the required features."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session()
+    conn.row_factory = dict
 
     rows = conn.execute("""
         SELECT id, distance_from_20d_high, atr_pct, momentum_5d, entry_rsi
@@ -162,7 +162,7 @@ def fill_signal_outcomes_new_score():
 
 def fill_trades_from_signal_outcomes():
     """Backfill trades columns from signal_outcomes (new_score, momentum_20d, distance_from_high)."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
 
     # new_score
     r1 = conn.execute("""
@@ -203,7 +203,7 @@ def fill_trades_from_signal_outcomes():
 
 def fill_discovery_put_call():
     """Fill discovery_picks.put_call_ratio from options_flow table."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
     r = conn.execute("""
         UPDATE discovery_picks SET put_call_ratio = (
             SELECT of2.put_call_ratio FROM options_flow of2

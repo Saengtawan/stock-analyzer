@@ -25,8 +25,11 @@ Analysis enabled:
 Cron (TZ=America/New_York):
   50 16 * * 1-5  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_premarket_analysis.py >> logs/fill_premarket_analysis.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 import argparse
 from datetime import datetime, timedelta
 
@@ -34,11 +37,10 @@ import yfinance as yf
 import pandas as pd
 from zoneinfo import ZoneInfo
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 ET = ZoneInfo('America/New_York')
 
 
-def get_avg_daily_vol(conn: sqlite3.Connection, symbol: str, before_date: str) -> float | None:
+def get_avg_daily_vol(conn: object, symbol: str, before_date: str) -> float | None:
     """Estimate avg daily volume from signal_candidate_bars (last 20 regular-session days)."""
     rows = conn.execute("""
         SELECT date, SUM(volume) AS day_vol
@@ -54,7 +56,7 @@ def get_avg_daily_vol(conn: sqlite3.Connection, symbol: str, before_date: str) -
     return float(sum(vols) / len(vols)) if vols else None
 
 
-def compute_premarket(conn: sqlite3.Connection, symbol: str, target_date: str) -> dict | None:
+def compute_premarket(conn: object, symbol: str, target_date: str) -> dict | None:
     """Compute pre-market metrics for one symbol/date from signal_candidate_bars."""
     # Load all bars for this symbol/date
     bars = conn.execute("""
@@ -168,8 +170,7 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] fill_premarket_analysis "
           f"date={target_date} days={args.days}")
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     base_dt = datetime.strptime(target_date, '%Y-%m-%d')
     dates = [
@@ -223,10 +224,7 @@ def main():
                      first_30min_return, open_vs_pm_high_pct)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, rows_to_insert)
-            conn.commit()
             print(f"    Inserted {len(rows_to_insert)} rows")
-
-    conn.close()
     print(f"\n  Total: ok={total_ok} skipped={total_skip}")
     print("  Done.")
 

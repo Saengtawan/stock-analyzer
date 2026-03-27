@@ -24,9 +24,12 @@ Storage estimate:
 Cron (TZ=America/New_York):
   35 16 * * 1-5  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_candidate_bars.py >> logs/collect_candidate_bars.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
 import sys
-import sqlite3
 import time
 from datetime import datetime, date, timedelta
 import argparse
@@ -35,14 +38,13 @@ import yfinance as yf
 import pandas as pd
 from zoneinfo import ZoneInfo
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 ET = ZoneInfo('America/New_York')
 
 # Max symbols per yfinance batch (avoid throttling)
 BATCH_SIZE = 50
 
 
-def get_candidate_symbols(conn: sqlite3.Connection, target_date: str) -> list[str]:
+def get_candidate_symbols(conn: object, target_date: str) -> list[str]:
     """Get all unique symbols evaluated by screeners on target_date."""
     sr = conn.execute("""
         SELECT DISTINCT symbol FROM screener_rejections
@@ -149,7 +151,7 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_candidate_bars "
           f"date={target_date} days={args.days}")
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
+    # conn via get_session()
 
     base_dt = datetime.strptime(target_date, '%Y-%m-%d')
     dates_to_collect = [
@@ -198,7 +200,6 @@ def main():
                         (date, symbol, time_et, open, high, low, close, volume)
                     VALUES (?,?,?,?,?,?,?,?)
                 """, batch_db_rows)
-                conn.commit()
                 date_rows += len(batch_db_rows)
 
             batch_num = i // BATCH_SIZE + 1
@@ -211,8 +212,6 @@ def main():
 
         total_rows += date_rows
         print(f"    Saved {date_rows} bars for {fetched_syms}/{len(new_symbols)} symbols")
-
-    conn.close()
     print(f"\n  Total bars saved: {total_rows}")
     print(f"  Done.")
 

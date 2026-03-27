@@ -15,8 +15,11 @@ Answers: "Did we sell too early?"
 Cron (TZ=America/New_York):
   15 5 * * 2-6  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_sell_outcomes.py >> logs/fill_sell_outcomes.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 import time
 from datetime import datetime, date, timedelta
 from collections import defaultdict
@@ -24,12 +27,10 @@ from collections import defaultdict
 import yfinance as yf
 import pandas as pd
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 
 
 def fill():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     cutoff = (date.today() - timedelta(days=7)).isoformat()
 
@@ -44,7 +45,6 @@ def fill():
 
     if not rows:
         print(f"[{datetime.now():%Y-%m-%d %H:%M}] No sell_outcomes to fill.")
-        conn.close()
         return
 
     print(f"[{datetime.now():%Y-%m-%d %H:%M}] {len(rows)} sell_outcomes to fill")
@@ -64,12 +64,10 @@ def fill():
                            auto_adjust=True, progress=False, threads=False)
     except Exception as e:
         print(f"  Download error: {e}")
-        conn.close()
         return
 
     if data.empty:
         print("  No data downloaded")
-        conn.close()
         return
 
     for sym in symbols:
@@ -120,9 +118,6 @@ def fill():
         except Exception as e:
             print(f"  Error {sym}: {e}")
             continue
-
-    conn.commit()
-    conn.close()
     print(f"  Done. filled={filled}/{len(rows)}")
 
 

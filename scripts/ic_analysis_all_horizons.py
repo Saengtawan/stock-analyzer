@@ -14,7 +14,7 @@ DB_PATH = "data/trade_history.db"
 # ─────────────────────────────────────────────────────────────────────
 # Load data
 # ─────────────────────────────────────────────────────────────────────
-conn = sqlite3.connect(DB_PATH)
+conn = None  # via get_session()
 
 bso = pd.read_sql_query("""
     SELECT scan_date, symbol, sector, scan_price,

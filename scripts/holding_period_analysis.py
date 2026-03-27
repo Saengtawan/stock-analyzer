@@ -8,8 +8,8 @@ from collections import defaultdict
 DB = "data/trade_history.db"
 
 def load_data():
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session()
+    conn.row_factory = dict
     rows = conn.execute("SELECT * FROM backfill_signal_outcomes").fetchall()
     conn.close()
     data = []

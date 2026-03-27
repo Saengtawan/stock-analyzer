@@ -27,8 +27,8 @@ def cap_return(outcome_5d):
 
 def load_data():
     """Load all discovery picks with outcomes."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session()
+    conn.row_factory = dict
     cursor = conn.cursor()
     cursor.execute("""
         SELECT scan_date, symbol, sector, outcome_5d, outcome_max_gain_5d, outcome_max_dd_5d

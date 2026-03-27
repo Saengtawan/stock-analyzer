@@ -19,7 +19,7 @@ DB_PATH = Path(__file__).resolve().parents[1] / 'data' / 'trade_history.db'
 
 
 def main():
-    conn = sqlite3.connect(str(DB_PATH), timeout=60)
+    conn = None  # via get_session(), timeout=60)
 
     # Download full BTC history
     logger.info("Downloading BTC-USD full history...")

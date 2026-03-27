@@ -17,8 +17,11 @@ Data flow:
   sector_movers → analysis for Sector Catalyst Momentum strategy (future)
   Enables: "which sector stocks move most when ETF is up/down ≥ 1.5% at 10:00 ET?"
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 import time
 from datetime import datetime, date, timedelta
 
@@ -26,7 +29,6 @@ import yfinance as yf
 import pandas as pd
 from zoneinfo import ZoneInfo
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 LOG_DIR = os.path.join(os.path.dirname(__file__), '..', 'logs')
 os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -106,7 +108,7 @@ def _get_etf_pct_change(etf_symbols: list[str]) -> dict[str, dict]:
     return result
 
 
-def _get_sector_symbols(conn: sqlite3.Connection, sector_name: str,
+def _get_sector_symbols(conn: object, sector_name: str,
                         min_price: float = MIN_PRICE,
                         min_avg_vol: float = MIN_AVG_VOLUME) -> list[str]:
     """
@@ -218,8 +220,7 @@ def main():
 
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] sector_momentum_scan date={today} time_et={time_str}")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     etf_symbols = list(SECTOR_ETF_MAP.keys())
 
@@ -256,9 +257,7 @@ def main():
                  volume, avg_volume_20d, volume_ratio, rank_in_sector)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, rows_to_insert)
-        conn.commit()
         print(f"  No hot sectors today — saved {len(rows_to_insert)} ETF summary rows")
-        conn.close()
         return
 
     total_saved = 0
@@ -314,7 +313,6 @@ def main():
                  volume, avg_volume_20d, volume_ratio, rank_in_sector)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, rows_to_insert)
-        conn.commit()
         total_saved += len(rows_to_insert)
 
         # Show top 5
@@ -340,9 +338,6 @@ def main():
                  volume, avg_volume_20d, volume_ratio, rank_in_sector)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, cold_etf_rows)
-        conn.commit()
-
-    conn.close()
     print(f"  Done. Saved {total_saved} stock movers across {len(hot_sectors)} hot sectors")
 
 

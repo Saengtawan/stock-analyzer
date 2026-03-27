@@ -73,8 +73,8 @@ def test_sector_scorer():
     print(f"  Weights: {stats['weights']}")
 
     # Score sectors with latest macro
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session())
+    conn.row_factory = dict
     macro_row = conn.execute("""
         SELECT * FROM macro_snapshots ORDER BY date DESC LIMIT 1
     """).fetchone()
@@ -93,7 +93,7 @@ def test_sector_scorer():
             print(f"  {sect:<30s} {sc:>+8.4f} {status:>10s}")
 
     # Walk-forward test: do top sectors outperform bottom?
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
     rows = conn.execute("""
         SELECT s1.date, s1.sector, s1.pct_change as ret,
                (SELECT SUM(s2.pct_change)
@@ -200,8 +200,8 @@ def test_full_pipeline():
         return False
 
     # Score sectors
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session())
+    conn.row_factory = dict
     macro_row = conn.execute("SELECT * FROM macro_snapshots ORDER BY date DESC LIMIT 1").fetchone()
     conn.close()
     macro = dict(macro_row) if macro_row else {}
@@ -211,8 +211,8 @@ def test_full_pipeline():
     print(f"\n  Sectors: {len(allowed)} allowed, {len(blocked)} blocked")
 
     # Get some candidates (top universe stocks)
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session())
+    conn.row_factory = dict
     stocks = conn.execute("""
         SELECT symbol, beta, pe_forward, market_cap, sector, avg_volume
         FROM stock_fundamentals

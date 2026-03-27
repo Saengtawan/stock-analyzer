@@ -2,8 +2,9 @@
 """Daily update: download latest OHLC for all stocks in universe."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 
-import sqlite3
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -11,11 +12,10 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s')
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path(__file__).resolve().parent.parent / 'data' / 'trade_history.db'
 
 
 def main():
-    conn = sqlite3.connect(str(DB_PATH))
+    # conn via get_session())
 
     # Get all symbols
     symbols = [r[0] for r in conn.execute('SELECT DISTINCT symbol FROM stock_fundamentals').fetchall()]
@@ -62,15 +62,11 @@ def main():
                             inserted += 1
                 except Exception:
                     continue
-
-            conn.commit()
         except Exception as e:
             logger.error(f"Batch error: {e}")
 
         if i + batch_size < len(symbols):
             time.sleep(1)
-
-    conn.close()
     logger.info(f"Done: {inserted} new rows inserted")
 
 

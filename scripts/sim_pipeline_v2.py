@@ -28,7 +28,7 @@ MAX_VOL_RATIO = 3.0
 
 
 def load_all():
-    conn = sqlite3.connect(str(DB))
+    conn = None  # via get_session())
     signals = conn.execute("""
         SELECT b.scan_date, b.symbol, b.sector, b.scan_price,
                b.atr_pct, b.momentum_5d, b.momentum_20d,

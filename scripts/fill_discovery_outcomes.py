@@ -9,9 +9,12 @@ download price data and compute:
 
 Cron: 0 6 * * 2-6 (06:00 ET Tue-Sat, after market data settles)
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import sys
 import os
-import sqlite3
 import logging
 from datetime import datetime, timedelta
 
@@ -49,8 +52,7 @@ def fill_outcomes():
     import yfinance as yf
     import pandas as pd
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     # Find picks needing outcomes (outcome_5d IS NULL and scan_date old enough)
     today = datetime.now().date()
@@ -63,7 +65,6 @@ def fill_outcomes():
 
     if not rows:
         logger.info("No picks need outcome filling")
-        conn.close()
         return
 
     logger.info(f"Found {len(rows)} picks needing outcomes")
@@ -79,7 +80,6 @@ def fill_outcomes():
 
     if data.empty:
         logger.error("No data downloaded")
-        conn.close()
         return
 
     filled = 0
@@ -146,14 +146,10 @@ def fill_outcomes():
             filled += 1
 
             if filled % 10 == 0:
-                conn.commit()
 
         except Exception as e:
             logger.error(f"Error filling {sym} {scan_date}: {e}")
             continue
-
-    conn.commit()
-    conn.close()
     logger.info(f"Filled outcomes for {filled}/{len(rows)} picks")
 
 
@@ -162,8 +158,7 @@ def fill_benchmarks():
     import yfinance as yf
     import pandas as pd
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     # Ensure benchmark columns exist
     for col in ['benchmark_xlu_5d', 'benchmark_xle_5d', 'benchmark_spy_5d']:
@@ -180,7 +175,6 @@ def fill_benchmarks():
 
     if not dates:
         logger.info("No scan dates need benchmark filling")
-        conn.close()
         return
 
     scan_dates = [d['scan_date'] for d in dates]
@@ -191,7 +185,6 @@ def fill_benchmarks():
     data = yf.download('XLU XLE SPY', start=start, interval='1d',
                         auto_adjust=True, progress=False, threads=False)
     if data.empty:
-        conn.close()
         return
 
     filled = 0
@@ -210,9 +203,6 @@ def fill_benchmarks():
                 logger.debug(f"Benchmark {etf} for {sd}: {e}")
 
         filled += 1
-
-    conn.commit()
-    conn.close()
     logger.info(f"Filled benchmarks for {filled} scan dates")
 
 

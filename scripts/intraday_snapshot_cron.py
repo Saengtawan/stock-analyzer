@@ -18,16 +18,18 @@ Cron (TZ=America/New_York in crontab — auto-handles EDT/EST DST):
 
 (Script exits immediately if outside US market hours 9:28-16:02 ET)
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import sys
 import os
-import sqlite3
 from datetime import datetime, date, time, timedelta
 from zoneinfo import ZoneInfo
 
 import yfinance as yf
 import pandas as pd
 
-DB_PATH  = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 LOG_DIR  = os.path.join(os.path.dirname(__file__), '..', 'logs')
 os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -72,7 +74,7 @@ def is_market_open(now_et: datetime) -> bool:
     return time(9, 28) <= t <= time(16, 2)
 
 
-def get_sector_map(conn: sqlite3.Connection, symbols: list[str]) -> dict[str, str]:
+def get_sector_map(conn: object, symbols: list[str]) -> dict[str, str]:
     """Return {symbol: sector_lower} from sector_cache for given symbols."""
     if not symbols:
         return {}
@@ -84,7 +86,7 @@ def get_sector_map(conn: sqlite3.Connection, symbols: list[str]) -> dict[str, st
     return {r['symbol']: (r['sector'] or '').lower() for r in rows}
 
 
-def get_today_candidates(conn: sqlite3.Connection, today: str) -> list[dict]:
+def get_today_candidates(conn: object, today: str) -> list[dict]:
     """Fetch today's signal_outcomes rows (all action_taken types)."""
     rows = conn.execute("""
         SELECT symbol, signal_source, action_taken, scan_price
@@ -96,7 +98,7 @@ def get_today_candidates(conn: sqlite3.Connection, today: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def get_today_screener_rejections(conn: sqlite3.Connection, today: str) -> list[dict]:
+def get_today_screener_rejections(conn: object, today: str) -> list[dict]:
     """
     v7.6: Fetch today's screener_rejections — stocks rejected BEFORE engine.
     Returns deduplicated list (one row per symbol, first occurrence by scan_time).
@@ -195,7 +197,7 @@ def _compute_vwap(df: pd.DataFrame) -> float | None:
         return None
 
 
-def insert_snapshots(conn: sqlite3.Connection, rows: list[dict]):
+def insert_snapshots(conn: object, rows: list[dict]):
     """Bulk insert snapshot rows."""
     if not rows:
         return
@@ -217,7 +219,6 @@ def insert_snapshots(conn: sqlite3.Connection, rows: list[dict]):
          r.get('vs_spy_rs'), r.get('sector_etf_pct'))
         for r in rows
     ])
-    conn.commit()
 
 
 def main():
@@ -232,8 +233,7 @@ def main():
 
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] intraday_snapshot_cron ET={now_et.strftime('%H:%M')} date={today_et}")
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     # 1. Today's candidates from signal_outcomes + screener_rejections
     candidates  = get_today_candidates(conn, today_et)
@@ -255,7 +255,6 @@ def main():
 
     if not prices:
         print(f"  No price data returned — yfinance issue or pre-market?")
-        conn.close()
         return
 
     # 4. Build candidate lookup
@@ -354,7 +353,6 @@ def main():
         })
 
     insert_snapshots(conn, rows_to_insert)
-    conn.close()
 
     n_so = len([c for c in candidates if c.get('action_taken') != 'SCREENER_REJECT'])
     n_sr = len([c for c in candidates if c.get('action_taken') == 'SCREENER_REJECT'])

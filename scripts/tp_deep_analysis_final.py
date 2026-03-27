@@ -13,7 +13,7 @@ import numpy as np
 from pathlib import Path
 
 DB = Path("data/trade_history.db")
-conn = sqlite3.connect(DB)
+conn = None  # via get_session()
 
 signals = pd.read_sql("""
     SELECT s.*,

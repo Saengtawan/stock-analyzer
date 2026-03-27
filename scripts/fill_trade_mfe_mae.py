@@ -17,8 +17,11 @@ Uses signal_candidate_bars first (fast, in-DB), falls back to yfinance download.
 Cron (TZ=America/New_York):
   0 22 * * 1-5  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_trade_mfe_mae.py >> logs/fill_trade_mfe_mae.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 import time
 from datetime import datetime, timedelta
 import argparse
@@ -27,7 +30,6 @@ import yfinance as yf
 import pandas as pd
 from zoneinfo import ZoneInfo
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 ET = ZoneInfo('America/New_York')
 
 
@@ -44,7 +46,7 @@ def get_hold_dates(entry_date: str, exit_date: str | None) -> list[str]:
     return dates
 
 
-def get_hold_bars_from_db(conn: sqlite3.Connection, symbol: str,
+def get_hold_bars_from_db(conn: object, symbol: str,
                           dates: list[str]) -> tuple[float | None, float | None]:
     """Get max_high and min_low from signal_candidate_bars for hold period."""
     if not dates:
@@ -86,8 +88,7 @@ def main():
 
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] fill_trade_mfe_mae days={args.days}")
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     cutoff = (datetime.now(ET) - timedelta(days=args.days)).strftime('%Y-%m-%d')
 
@@ -110,7 +111,6 @@ def main():
 
     if not buys:
         print("  Nothing to fill.")
-        conn.close()
         return
 
     print(f"  {len(buys)} BUY trades to fill")
@@ -149,9 +149,6 @@ def main():
             (mfe, mae, trade['id'])
         )
         updated += 1
-
-    conn.commit()
-    conn.close()
     print(f"  Updated {updated}/{len(buys)} trades "
           f"(from DB: {db_hits}, from yfinance: {yf_hits})")
     print(f"  Done.")

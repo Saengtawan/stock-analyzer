@@ -20,7 +20,7 @@ from collections import defaultdict
 from pathlib import Path
 
 DB = Path(__file__).resolve().parents[1] / 'data' / 'trade_history.db'
-conn = sqlite3.connect(str(DB))
+conn = None  # via get_session())
 
 PASS = 0
 FAIL = 0

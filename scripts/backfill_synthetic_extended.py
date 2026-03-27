@@ -47,7 +47,7 @@ DIP_CRITERIA = {
 
 
 def get_universe():
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
     rows = conn.execute("""
         SELECT symbol, sector FROM stock_fundamentals
         WHERE sector IS NOT NULL AND sector != ''
@@ -57,7 +57,7 @@ def get_universe():
 
 
 def get_existing_pairs():
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
     rows = conn.execute("SELECT scan_date, symbol FROM backfill_signal_outcomes").fetchall()
     conn.close()
     return set((r[0], r[1]) for r in rows)
@@ -184,11 +184,11 @@ def compute_outcomes(df_close, symbol, date_idx):
 
 def ensure_columns():
     """Add outcome_1d/2d/3d columns if missing."""
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
     for col in ['outcome_1d', 'outcome_2d', 'outcome_3d']:
         try:
             conn.execute(f"ALTER TABLE backfill_signal_outcomes ADD COLUMN {col} REAL")
-        except sqlite3.OperationalError:
+        except Exception:
             pass
     conn.commit()
     conn.close()
@@ -253,7 +253,7 @@ def process_chunk(chunk_start, chunk_end, universe, existing, vix_history):
 
     print(f"  Scan dates: {len(trading_dates)}")
 
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
     inserted = 0
 
     for dt in trading_dates:
@@ -354,7 +354,7 @@ def main():
     ensure_columns()
 
     # Load VIX from macro_snapshots (already backfilled) — avoids yfinance rate limit
-    conn_vix = sqlite3.connect(str(DB_PATH))
+    conn_vix = None  # via get_session())
     vix_rows = conn_vix.execute(
         "SELECT date, vix_close FROM macro_snapshots WHERE vix_close IS NOT NULL"
     ).fetchall()
@@ -397,7 +397,7 @@ def main():
         chunk_start = chunk_end + timedelta(days=1)
 
     # Final summary
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
     total = conn.execute("SELECT COUNT(*) FROM backfill_signal_outcomes").fetchone()[0]
     date_range = conn.execute(
         "SELECT MIN(scan_date), MAX(scan_date) FROM backfill_signal_outcomes"

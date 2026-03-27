@@ -18,7 +18,7 @@ ET = ZoneInfo('America/New_York')
 
 
 def main():
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
 
     # Get existing dates
     existing = set(r[0] for r in conn.execute(

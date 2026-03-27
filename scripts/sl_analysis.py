@@ -15,7 +15,7 @@ SL_PCT = 3.0  # Current SL = 3%
 
 def load_data():
     """Load and union both tables, dedup on (scan_date, symbol)"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
 
     # backfill_signal_outcomes
     bso = pd.read_sql_query("""

@@ -12,21 +12,20 @@ Cron entry (TZ=America/New_York — auto-handles EDT/EST DST):
 """
 import sys
 import os
-import sqlite3
 from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 
 import yfinance as yf
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 
 
 def main():
     print(f"[{datetime.now().isoformat()}] fill_next_day_open.py starting")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     # Find OVN/PED sells from yesterday with no next_day_open_pct
     yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
@@ -39,7 +38,6 @@ def main():
 
     if not rows:
         print(f"No OVN/PED sells from {yesterday} to fill.")
-        conn.close()
         return
 
     symbols = list(set(r['symbol'] for r in rows))
@@ -70,9 +68,6 @@ def main():
             updated += 1
         except Exception as e:
             print(f"  {row['symbol']}: error — {e}")
-
-    conn.commit()
-    conn.close()
     print(f"Done. Updated {updated}/{len(rows)} rows.")
 
 

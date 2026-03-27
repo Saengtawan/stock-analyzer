@@ -133,7 +133,7 @@ def verify_migration(repo: OutcomeRepository):
     print("="*80)
 
     import sqlite3
-    conn = sqlite3.connect(repo.db_path)
+    conn = None  # via get_session()
 
     # Count records
     sell_count = conn.execute("SELECT COUNT(*) FROM sell_outcomes").fetchone()[0]

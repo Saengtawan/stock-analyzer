@@ -47,7 +47,7 @@ def migrate_positions():
             return 0
 
         # Connect to database
-        conn = sqlite3.connect(DB_PATH)
+        conn = None  # via get_session()
         cursor = conn.cursor()
 
         migrated = 0
@@ -150,7 +150,7 @@ def migrate_alerts():
             return 0
 
         # Connect to database
-        conn = sqlite3.connect(DB_PATH)
+        conn = None  # via get_session()
         cursor = conn.cursor()
 
         migrated = 0
@@ -206,7 +206,7 @@ def verify_migration():
     print()
 
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = None  # via get_session()
         cursor = conn.cursor()
 
         # Check positions

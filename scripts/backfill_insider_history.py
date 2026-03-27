@@ -180,7 +180,7 @@ def fetch_openinsider(conn, days_back=1825):
 
 
 def main():
-    conn = sqlite3.connect(str(DB))
+    conn = None  # via get_session())
     ensure_table(conn)
 
     # Check existing

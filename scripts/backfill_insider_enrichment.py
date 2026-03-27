@@ -211,7 +211,7 @@ def print_summary(conn):
 
 
 def main():
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
     try:
         # Backfill signal_outcomes
         so_total, so_matched = backfill_table(conn, "signal_outcomes")

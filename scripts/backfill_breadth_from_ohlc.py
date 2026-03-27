@@ -140,7 +140,7 @@ def compute_breadth(ohlc_data, target_date):
 
 
 def main():
-    conn = sqlite3.connect(str(DB_PATH), timeout=60)
+    conn = None  # via get_session(), timeout=60)
 
     # Get days to fill
     days_to_fill = get_trading_days_to_fill(conn)

@@ -10,8 +10,11 @@ download daily bars and compute outcomes relative to scan_price.
 Cron (TZ=America/New_York):
   10 5 * * 2-6  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_rejected_outcomes.py >> logs/fill_rejected_outcomes.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 import time
 from datetime import datetime, date, timedelta
 from collections import defaultdict
@@ -19,12 +22,10 @@ from collections import defaultdict
 import yfinance as yf
 import pandas as pd
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 
 
 def fill():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     # Cutoff: only fill rows where D+5 trading days have elapsed (~7 calendar days)
     cutoff = (date.today() - timedelta(days=7)).isoformat()
@@ -40,7 +41,6 @@ def fill():
 
     if not rows:
         print(f"[{datetime.now():%Y-%m-%d %H:%M}] No rows to fill.")
-        conn.close()
         return
 
     print(f"[{datetime.now():%Y-%m-%d %H:%M}] {len(rows)} rows to fill (scan_date <= {cutoff})")
@@ -122,14 +122,10 @@ def fill():
                 continue
 
         if filled % 50 == 0 and filled > 0:
-            conn.commit()
 
         # Rate limit
         if i + batch_size < len(symbols):
             time.sleep(1)
-
-    conn.commit()
-    conn.close()
     print(f"  Done. filled={filled} errors={errors}")
 
 

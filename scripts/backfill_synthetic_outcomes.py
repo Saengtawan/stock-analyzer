@@ -45,7 +45,7 @@ DIP_CRITERIA = {
 
 def get_universe():
     """Get universe stocks with sectors."""
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
     # From stock_fundamentals
     rows = conn.execute("""
         SELECT symbol, sector FROM stock_fundamentals
@@ -195,7 +195,7 @@ def compute_outcome(df_close, symbol, date_idx, horizon=5):
 
 def ensure_table():
     """Create backfill_signal_outcomes table."""
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
     conn.execute("""
         CREATE TABLE IF NOT EXISTS backfill_signal_outcomes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -292,7 +292,7 @@ def main():
     print(f"Scan dates to process: {len(trading_dates)}")
 
     ensure_table()
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
 
     # Check existing data
     existing = set()

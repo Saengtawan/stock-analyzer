@@ -215,7 +215,7 @@ def fix_hubb_volume_ratio(conn):
     # Try to compute from stocks.db
     computed = None
     if os.path.exists(STOCKS_DB):
-        sconn = sqlite3.connect(STOCKS_DB)
+        sconn = None  # via get_session()
         try:
             # Check if we have HUBB data near that date
             scur = sconn.execute(
@@ -270,7 +270,7 @@ def fix_null_momentum_20d(conn):
         print(f"  [SKIP] stocks.db not found at {STOCKS_DB}")
         return
 
-    sconn = sqlite3.connect(STOCKS_DB)
+    sconn = None  # via get_session()
     fixed_count = 0
 
     for symbol, scan_date in targets:
@@ -332,7 +332,7 @@ def spot_check_outcome_5d(conn):
         print(f"  [SKIP] stocks.db not found at {STOCKS_DB}")
         return
 
-    sconn = sqlite3.connect(STOCKS_DB)
+    sconn = None  # via get_session()
 
     # Get 10 random rows with non-NULL outcome_5d
     cur = conn.execute(
@@ -430,7 +430,7 @@ def main():
         print(f"ERROR: DB not found at {DB_PATH}")
         sys.exit(1)
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
     conn.execute("PRAGMA journal_mode=WAL")
 
     try:

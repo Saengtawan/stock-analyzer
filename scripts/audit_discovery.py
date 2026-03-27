@@ -42,8 +42,8 @@ def check(label, passed, detail=''):
 
 def main():
     start = time.time()
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session())
+    conn.row_factory = dict
     results = {'pass': 0, 'fail': 0, 'warn': 0}
 
     def ok(label, passed, detail=''):
@@ -243,7 +243,7 @@ def main():
         WHERE b.outcome_5d IS NOT NULL AND b.atr_pct > 0
         AND b.sector IS NOT NULL AND m.vix_close IS NOT NULL
     ''').fetchall()
-    conn.row_factory = sqlite3.Row
+    conn.row_factory = dict
 
     # r = tuple: (scan_date, symbol, sector, atr, mom5, d20h, vol, o5d, vix, breadth, beta, pe)
     sr = defaultdict(list); se = defaultdict(list)

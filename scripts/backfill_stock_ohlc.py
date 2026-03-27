@@ -104,7 +104,7 @@ def download_and_insert(conn, symbols, batch_num, total_batches):
 
 
 def main():
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
     create_table(conn)
 
     symbols = get_symbols(conn)

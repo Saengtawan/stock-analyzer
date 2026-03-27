@@ -39,7 +39,7 @@ DB_PATH = Path(__file__).resolve().parents[1] / 'data' / 'trade_history.db'
 
 def load_data():
     """Load backfill signals joined with macro + breadth data."""
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
 
     # Load backfill signals
     signals = pd.read_sql("""

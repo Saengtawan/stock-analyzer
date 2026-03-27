@@ -308,7 +308,7 @@ def main():
         print(f"ERROR: DB not found at {DB_PATH}")
         sys.exit(1)
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
 
     # Step 1: Add columns
     print("\n[1/3] Adding analyst columns to signal_outcomes...")

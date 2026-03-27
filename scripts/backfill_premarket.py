@@ -126,7 +126,7 @@ def main():
         print("ERROR: ALPACA_API_KEY not found in .env")
         return
 
-    conn = sqlite3.connect(str(DB), timeout=30)
+    conn = None  # via get_session(), timeout=30)
     conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('PRAGMA busy_timeout=30000')
     ensure_table(conn)
@@ -157,7 +157,7 @@ def main():
         print("All done!")
         return
 
-    conn = sqlite3.connect(str(DB), timeout=30)
+    conn = None  # via get_session(), timeout=30)
     conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('PRAGMA busy_timeout=30000')
     total = 0

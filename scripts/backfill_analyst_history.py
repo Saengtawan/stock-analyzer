@@ -78,7 +78,7 @@ def fetch_and_store(conn, symbol):
 
 
 def main():
-    conn = sqlite3.connect(str(DB))
+    conn = None  # via get_session())
     ensure_table(conn)
 
     # Get all universe symbols

@@ -64,8 +64,8 @@ SECT_THRESHOLDS = [None, -0.5, -1.0, -1.5]
 # ── 1. Load signals ────────────────────────────────────────────────────────────
 
 def load_signals():
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session()
+    conn.row_factory = dict
     rows = conn.execute("""
         SELECT symbol, scan_date, scan_price,
                outcome_5d, outcome_max_dd_5d,

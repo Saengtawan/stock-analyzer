@@ -28,9 +28,12 @@ Usage (manual):
 Cron (TZ=America/New_York):
   */5 9,10 * * 1-5  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/daytrade_screener.py >> logs/daytrade_screener.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
 import sys
-import sqlite3
 import argparse
 from datetime import datetime, time, timedelta
 
@@ -38,7 +41,6 @@ import yfinance as yf
 import pandas as pd
 from zoneinfo import ZoneInfo
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 ET = ZoneInfo('America/New_York')
 
 
@@ -52,7 +54,7 @@ def get_gate(now_et: datetime) -> int:
     return 6                          # too late for day trade
 
 
-def get_market_breadth_score(conn: sqlite3.Connection, today: str) -> tuple[float, dict]:
+def get_market_breadth_score(conn: object, today: str) -> tuple[float, dict]:
     """Score 0-20 based on today's market conditions."""
     row = conn.execute(
         "SELECT pct_above_20d_ma, ad_ratio, new_52w_highs, new_52w_lows, vix_close "
@@ -96,7 +98,7 @@ def get_market_breadth_score(conn: sqlite3.Connection, today: str) -> tuple[floa
     }
 
 
-def get_candidates(conn: sqlite3.Connection, today: str) -> list[dict]:
+def get_candidates(conn: object, today: str) -> list[dict]:
     """Get all candidate symbols from today's screener runs + recent signal_outcomes."""
     syms = set()
 
@@ -273,8 +275,7 @@ def main():
     print(f"  DAY TRADE SCREENER  {today}  {time_et} ET  [Gate {gate}]")
     print(f"{'═'*60}")
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     # Market breadth context
     market_score, market_ctx = get_market_breadth_score(conn, today)
@@ -284,14 +285,12 @@ def main():
 
     if market_score < 5 and not args.gate:
         print(f"  ⚠️  Market too weak (score={round(market_score)}) — no day trade today")
-        conn.close()
         return
 
     # Get candidates
     candidates = get_candidates(conn, today)
     if not candidates:
         print(f"  No candidates found for {today}")
-        conn.close()
         return
 
     candidate_syms = [c['symbol'] for c in candidates]
@@ -377,7 +376,6 @@ def main():
             print(f"     → Late entry — use tighter SL=1.5%  TP=3.0%")
 
     print(f"\n{'═'*60}\n")
-    conn.close()
 
 
 if __name__ == '__main__':

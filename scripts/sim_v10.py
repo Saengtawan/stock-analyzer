@@ -8,7 +8,7 @@ from collections import defaultdict
 from sklearn.ensemble import GradientBoostingClassifier
 
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'trade_history.db')
-conn = sqlite3.connect(DB)
+conn = None  # via get_session()
 
 rows = conn.execute('''
     SELECT b.scan_date, b.symbol, b.outcome_5d, b.atr_pct, b.momentum_5d,

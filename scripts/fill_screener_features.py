@@ -23,8 +23,11 @@ Also fills signal_outcomes and trades gaps (if run with --full):
 Cron (TZ=America/New_York):
   45 21 * * 1-5  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_screener_features.py >> logs/fill_screener_features.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 import time
 from datetime import datetime, date, timedelta
 import argparse
@@ -34,7 +37,6 @@ import yfinance as yf
 import pandas as pd
 from zoneinfo import ZoneInfo
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 ET = ZoneInfo('America/New_York')
 
 SCREENERS_TO_FILL = ('ovn', 'pem', 'gap', 'ped')  # DIP already has full features
@@ -139,8 +141,7 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] fill_screener_features "
           f"date={today} days={args.days}")
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     screener_list = ','.join(f"'{s}'" for s in SCREENERS_TO_FILL)
     if args.all_screeners:
@@ -160,7 +161,6 @@ def main():
           AND screener IN ({screener_list})
           AND scan_date >= ?
     """, (cutoff,)).rowcount
-    conn.commit()
     print(f"    sector filled: {sector_updated} rows")
 
     # ── Step 2: Fill vix_at_signal in signal_outcomes from macro_snapshots ────
@@ -172,7 +172,6 @@ def main():
         )
         WHERE vix_at_signal IS NULL
     """).rowcount
-    conn.commit()
     print(f"    vix_at_signal filled: {vix_updated} rows")
 
     # ── Step 3: Fill RSI/ATR/momentum/volume_ratio via yfinance daily bars ────
@@ -190,7 +189,6 @@ def main():
 
     if not rows:
         print("    Nothing to fill.")
-        conn.close()
         return
 
     sym_date_pairs = list(set((r['symbol'], r['scan_date']) for r in rows))
@@ -287,13 +285,9 @@ def main():
             failed += 1
 
         if (i + 1) % 50 == 0:
-            conn.commit()
             print(f"    [{i+1}/{len(sym_date_pairs)}] updated={updated} failed={failed}")
         if (i + 1) % 20 == 0:
             time.sleep(0.2)
-
-    conn.commit()
-    conn.close()
     print(f"  Final: sector={sector_updated} vix_signal={vix_updated} "
           f"features={updated} failed={failed}")
     print(f"  Done.")

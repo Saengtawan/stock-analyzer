@@ -33,7 +33,7 @@ TOTAL_IC = sum(abs_ic for _, _, abs_ic in FEATURES)  # 1.084
 
 # ── Load data ─────────────────────────────────────────────────────────────
 def load_data() -> pd.DataFrame:
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
     cols = ", ".join([f[0] for f in FEATURES] + ["score", "outcome_5d", "outcome_1d", "outcome_3d", "scan_date", "symbol"])
     df = pd.read_sql_query(f"""
         SELECT {cols}

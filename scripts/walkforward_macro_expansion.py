@@ -104,8 +104,8 @@ class GaussianKernel:
 
 
 def load_data():
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session())
+    conn.row_factory = dict
 
     # Load live signal_outcomes
     live_rows = conn.execute("""

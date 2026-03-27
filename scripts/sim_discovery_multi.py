@@ -35,7 +35,7 @@ HOLD_DAYS = 5
 
 
 def load_data():
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
 
     # Load signals with outcomes + macro
     signals = conn.execute("""

@@ -10,7 +10,7 @@ from pathlib import Path
 from collections import defaultdict
 
 DB = Path("data/trade_history.db")
-conn = sqlite3.connect(DB)
+conn = None  # via get_session()
 
 # ============================================================
 # LOAD DATA

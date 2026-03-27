@@ -17,8 +17,11 @@ Analysis enabled:
 Cron (TZ=America/New_York):
   10 17 * * 1-5  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_sector_etf_returns.py >> logs/collect_sector_etf_returns.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 import argparse
 from datetime import datetime, timedelta
 
@@ -26,7 +29,6 @@ import yfinance as yf
 import pandas as pd
 from zoneinfo import ZoneInfo
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 ET = ZoneInfo('America/New_York')
 
 SECTOR_ETFS = {
@@ -64,7 +66,7 @@ def fetch_etf_data(start_date: str, end_date: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def process_and_store(conn: sqlite3.Connection, df: pd.DataFrame):
+def process_and_store(conn: object, df: pd.DataFrame):
     """Extract per-ticker rows and insert into DB."""
     if df is None or df.empty:
         print("  No data returned")
@@ -146,7 +148,6 @@ def process_and_store(conn: sqlite3.Connection, df: pd.DataFrame):
                 (date, etf, sector, open, high, low, close, volume, pct_change, vs_spy)
             VALUES (?,?,?,?,?,?,?,?,?,?)
         """, rows)
-        conn.commit()
         print(f"  Inserted {len(rows)} rows")
 
     return len(rows)
@@ -163,8 +164,7 @@ def main():
     today = datetime.now(ET).date()
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_sector_etf_returns")
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     if args.backfill:
         days = args.backfill
@@ -186,8 +186,6 @@ def main():
     print(f"  Fetching {start_str} → {end_str} ({len(ALL_TICKERS)} tickers)")
     df = fetch_etf_data(start_str, end_str)
     inserted = process_and_store(conn, df)
-
-    conn.close()
     print(f"  Done. {inserted} rows inserted.")
 
 

@@ -26,8 +26,11 @@ Run modes:
 Cron (TZ=America/New_York):
   0 21 * * 1-5  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_earnings_calendar.py >> logs/collect_earnings_calendar.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 import time
 import argparse
 from datetime import datetime, date, timedelta
@@ -36,7 +39,6 @@ import yfinance as yf
 import pandas as pd
 from zoneinfo import ZoneInfo
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 ET = ZoneInfo('America/New_York')
 
 CREATE_TABLE = """
@@ -60,10 +62,9 @@ ON earnings_history(symbol, report_date)
 """
 
 
-def _ensure_table(conn: sqlite3.Connection):
+def _ensure_table(conn: object):
     conn.execute(CREATE_TABLE)
     conn.execute(CREATE_INDEX)
-    conn.commit()
 
 
 def fetch_earnings_for_symbol(sym: str) -> list[dict]:
@@ -114,7 +115,7 @@ def fetch_earnings_for_symbol(sym: str) -> list[dict]:
         return []
 
 
-def upsert_earnings(conn: sqlite3.Connection, sym: str,
+def upsert_earnings(conn: object, sym: str,
                     entries: list[dict], today: str) -> tuple[int, int]:
     """Insert/update earnings rows. Returns (inserted, updated)."""
     inserted = updated = 0
@@ -139,7 +140,7 @@ def upsert_earnings(conn: sqlite3.Connection, sym: str,
     return inserted, updated
 
 
-def get_stale_symbols(conn: sqlite3.Connection, all_symbols: list[str],
+def get_stale_symbols(conn: object, all_symbols: list[str],
                       max_age_days: int = 7) -> list[str]:
     """Return symbols not updated in last max_age_days or never fetched."""
     cutoff = (date.today() - timedelta(days=max_age_days)).strftime('%Y-%m-%d')
@@ -162,8 +163,7 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_earnings_calendar "
           f"date={today} backfill={args.backfill}")
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
     _ensure_table(conn)
 
     # Get all active universe symbols
@@ -184,7 +184,6 @@ def main():
 
     if not symbols:
         print("  All symbols up to date — nothing to fetch")
-        conn.close()
         return
 
     total_inserted = 0
@@ -199,7 +198,6 @@ def main():
             total_failed += 1
 
         if (i + 1) % 100 == 0:
-            conn.commit()
             pct = round((i + 1) / len(symbols) * 100)
             print(f"  [{i+1}/{len(symbols)} {pct}%] inserted={total_inserted} failed={total_failed}")
 
@@ -207,11 +205,8 @@ def main():
         if (i + 1) % 10 == 0:
             time.sleep(0.2)
 
-    conn.commit()
-    conn.close()
-
     # Summary
-    conn2 = sqlite3.connect(DB_PATH, timeout=30)
+    conn2 = None  # via get_session()
     total_rows = conn2.execute("SELECT COUNT(*) FROM earnings_history").fetchone()[0]
     total_syms = conn2.execute("SELECT COUNT(DISTINCT symbol) FROM earnings_history").fetchone()[0]
     date_range = conn2.execute(

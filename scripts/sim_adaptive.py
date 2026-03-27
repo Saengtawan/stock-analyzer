@@ -16,7 +16,7 @@ from discovery.adaptive_params import (
 )
 
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'trade_history.db')
-conn = sqlite3.connect(DB)
+conn = None  # via get_session()
 
 # Load all data
 rows = conn.execute('''

@@ -30,14 +30,16 @@ Data sources:
 Cron (TZ=America/New_York):
   15 17 * * 1-5  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_signal_enrichment.py >> logs/fill_signal_enrichment.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 import argparse
 from datetime import datetime, timedelta
 
 from zoneinfo import ZoneInfo
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 ET = ZoneInfo('America/New_York')
 
 # Sector name → ETF mapping (match sector_cache values)
@@ -71,7 +73,7 @@ def get_etf_for_sector(sector: str) -> str | None:
     return SECTOR_TO_ETF.get(sector.strip().lower())
 
 
-def fill_timing_and_eps(conn: sqlite3.Connection) -> int:
+def fill_timing_and_eps(conn: object) -> int:
     """Fill timing (BMO/AMC) and eps_surprise_pct from earnings_history."""
     rows = conn.execute("""
         SELECT id, symbol, scan_date
@@ -116,12 +118,10 @@ def fill_timing_and_eps(conn: sqlite3.Connection) -> int:
             WHERE id = ?
         """, (timing, eps_surprise, r['id']))
         updated += 1
-
-    conn.commit()
     return updated
 
 
-def fill_entry_time(conn: sqlite3.Connection) -> int:
+def fill_entry_time(conn: object) -> int:
     """Fill entry_time_et from trades table (BUY timestamp)."""
     rows = conn.execute("""
         SELECT so.id, so.trade_id, t.timestamp
@@ -151,12 +151,10 @@ def fill_entry_time(conn: sqlite3.Connection) -> int:
             UPDATE signal_outcomes SET entry_time_et = ? WHERE id = ?
         """, (entry_time, r['id']))
         updated += 1
-
-    conn.commit()
     return updated
 
 
-def get_daily_closes(conn: sqlite3.Connection, symbol: str,
+def get_daily_closes(conn: object, symbol: str,
                       before_date: str, n: int = 210) -> list[float]:
     """
     Get last N daily closing prices for symbol before before_date.
@@ -210,7 +208,7 @@ def compute_distance_from_200d_ma(closes: list[float], scan_price: float) -> flo
     return round((price / ma200 - 1) * 100, 2)
 
 
-def fill_consecutive_and_200d(conn: sqlite3.Connection, table: str,
+def fill_consecutive_and_200d(conn: object, table: str,
                                date_filter: str | None = None) -> int:
     """Fill consecutive_down_days and distance_from_200d_ma for a table.
     NOTE: Requires signal_candidate_bars to have ≥20 trading days of history.
@@ -267,12 +265,10 @@ def fill_consecutive_and_200d(conn: sqlite3.Connection, table: str,
                 WHERE id = ?
             """, (cdd, d200, r['id']))
             updated += 1
-
-    conn.commit()
     return updated
 
 
-def fill_sector_etf_1d(conn: sqlite3.Connection, table: str,
+def fill_sector_etf_1d(conn: object, table: str,
                         date_filter: str | None = None) -> int:
     """Fill sector_etf_1d_pct from sector_etf_daily_returns."""
     where = "WHERE sector_etf_1d_pct IS NULL AND sector IS NOT NULL"
@@ -345,12 +341,10 @@ def fill_sector_etf_1d(conn: sqlite3.Connection, table: str,
             conn.execute("""
                 UPDATE signal_outcomes SET sector_1d_change = ? WHERE id = ?
             """, (pct, r['id']))
-
-    conn.commit()
     return updated
 
 
-def fill_earnings_beat_streak(conn: sqlite3.Connection) -> int:
+def fill_earnings_beat_streak(conn: object) -> int:
     """Fill earnings_beat_streak = consecutive EPS beats before scan_date."""
     rows = conn.execute("""
         SELECT id, symbol, scan_date
@@ -388,8 +382,6 @@ def fill_earnings_beat_streak(conn: sqlite3.Connection) -> int:
             UPDATE signal_outcomes SET earnings_beat_streak = ? WHERE id = ?
         """, (streak, r['id']))
         updated += 1
-
-    conn.commit()
     return updated
 
 
@@ -418,8 +410,7 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] fill_signal_enrichment "
           f"date_filter={date_filter} step={args.step}")
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     # Step 1: timing + eps_surprise_pct
     if args.step in (None, 'timing'):
@@ -449,8 +440,6 @@ def main():
     if args.step in (None, 'beat_streak'):
         n = fill_earnings_beat_streak(conn)
         print(f"  Step 5 earnings_beat_streak: {n} updated")
-
-    conn.close()
     print("  Done.")
 
 

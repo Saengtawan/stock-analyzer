@@ -13,13 +13,15 @@ Cron (TZ=America/New_York — auto-handles EDT/EST DST):
 
 (5:10 AM ET Tue-Sat — runs after fill_outcomes_all.py at 05:00 ET, captures yesterday's close)
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 from datetime import datetime, date, timedelta
 
 import yfinance as yf
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 LOG_DIR = os.path.join(os.path.dirname(__file__), '..', 'logs')
 os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -67,7 +69,7 @@ def _get_last_close(symbol: str, as_of_date: date) -> float | None:
         return None
 
 
-def _ensure_table(conn: sqlite3.Connection):
+def _ensure_table(conn: object):
     conn.execute('''
         CREATE TABLE IF NOT EXISTS macro_snapshots (
             id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,7 +83,6 @@ def _ensure_table(conn: sqlite3.Connection):
             collected_at   TEXT
         )
     ''')
-    conn.commit()
     # Add new columns (safe if already exist)
     new_cols = [
         'gold_close', 'crude_close', 'hyg_close',
@@ -92,7 +93,7 @@ def _ensure_table(conn: sqlite3.Connection):
     for col in new_cols:
         try:
             conn.execute(f"ALTER TABLE macro_snapshots ADD COLUMN {col} REAL")
-        except sqlite3.OperationalError:
+        except Exception:
             pass
 
 
@@ -107,7 +108,7 @@ def main():
     target_str = target.strftime('%Y-%m-%d')
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] macro_snapshot date={target_str}")
 
-    conn = sqlite3.connect(DB_PATH)
+    # conn via get_session()
     _ensure_table(conn)
 
     # Skip if already collected
@@ -116,7 +117,6 @@ def main():
     ).fetchone()
     if existing:
         print(f"  Already collected for {target_str} — skip")
-        conn.close()
         return
 
     # Fetch all macro values
@@ -187,8 +187,6 @@ def main():
           gold, crude, hyg,
           btc, usdjpy, skew, vvix, copper, tlt, lqd, eem, ief,
           regime_label, spy_regime))
-    conn.commit()
-    conn.close()
 
     print(f"  ✅ Saved: VIX={vix}({regime_label}) SPY={spy} BTC={btc} JPY={usdjpy} SKEW={skew} VVIX={vvix} Copper={copper} TLT={tlt} LQD={lqd}")
 

@@ -12,9 +12,12 @@ Outcomes relative to scan_price (signal price at scan time):
 Run: daily at 05:00 ET Tuesday-Saturday (TZ=America/New_York in crontab — auto-handles DST)
   0 5 * * 2-6  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_outcomes_all.py >> logs/fill_outcomes_all.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import sys
 import os
-import sqlite3
 import time
 from datetime import datetime, date, timedelta
 from collections import defaultdict
@@ -22,7 +25,6 @@ from collections import defaultdict
 import yfinance as yf
 import pandas as pd
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 LOG_PREFIX = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]"
 
 
@@ -89,8 +91,7 @@ def compute_outcomes(daily_df: pd.DataFrame, scan_date: str, scan_price: float) 
 def main():
     print(f"{LOG_PREFIX} fill_outcomes_all.py starting")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     # Rows needing outcome fill — scan_date must be at least 1 day ago
     cutoff = (date.today() - timedelta(days=1)).strftime('%Y-%m-%d')
@@ -106,7 +107,6 @@ def main():
 
     if not rows:
         print(f"{LOG_PREFIX} Nothing to fill — all outcomes complete.")
-        conn.close()
         return
 
     print(f"{LOG_PREFIX} {len(rows)} rows to fill across {len(set(r['symbol'] for r in rows))} symbols")
@@ -169,11 +169,7 @@ def main():
             except Exception as e:
                 print(f"{LOG_PREFIX}   DB ERROR {symbol} id={entry['id']}: {e}")
                 errors += 1
-
-        conn.commit()
         time.sleep(0.05)  # rate limit
-
-    conn.close()
     print(f"{LOG_PREFIX} signal_outcomes done. filled={filled} skipped={skipped} errors={errors}")
 
     # ── Part 2: Fill screener_rejections outcomes ─────────────────────────
@@ -182,8 +178,7 @@ def main():
 
 def _fill_screener_rejections(cutoff: str):
     """Fill outcome_1d/5d for screener_rejections rows (Dimension 3)."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     rows = conn.execute("""
         SELECT id, symbol, scan_date, scan_price
@@ -196,7 +191,6 @@ def _fill_screener_rejections(cutoff: str):
 
     if not rows:
         print(f"{LOG_PREFIX} screener_rejections: nothing to fill")
-        conn.close()
         return
 
     print(f"{LOG_PREFIX} screener_rejections: {len(rows)} rows to fill")
@@ -248,11 +242,7 @@ def _fill_screener_rejections(cutoff: str):
                 filled += 1
             except Exception as e:
                 errors += 1
-
-        conn.commit()
         time.sleep(0.05)
-
-    conn.close()
     print(f"{LOG_PREFIX} screener_rejections done. filled={filled} skipped={skipped} errors={errors}")
 
     # ── Part 3: Fill pre_filter_rejections outcomes ────────────────────────
@@ -261,8 +251,7 @@ def _fill_screener_rejections(cutoff: str):
 
 def _fill_pre_filter_rejections(cutoff: str):
     """Fill outcome_1d/5d for pre_filter_rejections rows (Dimension 0 — full pipeline)."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     rows = conn.execute("""
         SELECT id, symbol, scan_date, close_price as scan_price
@@ -275,7 +264,6 @@ def _fill_pre_filter_rejections(cutoff: str):
 
     if not rows:
         print(f"{LOG_PREFIX} pre_filter_rejections: nothing to fill")
-        conn.close()
         return
 
     print(f"{LOG_PREFIX} pre_filter_rejections: {len(rows)} rows to fill")
@@ -327,11 +315,7 @@ def _fill_pre_filter_rejections(cutoff: str):
                 filled += 1
             except Exception:
                 errors += 1
-
-        conn.commit()
         time.sleep(0.05)
-
-    conn.close()
     print(f"{LOG_PREFIX} pre_filter_rejections done. filled={filled} skipped={skipped} errors={errors}")
 
 

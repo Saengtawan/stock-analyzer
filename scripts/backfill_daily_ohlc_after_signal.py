@@ -139,7 +139,7 @@ def backfill_symbol(conn, symbol, signals):
 
 
 def main():
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
     create_table(conn)
 
     # Get all signals needing bars

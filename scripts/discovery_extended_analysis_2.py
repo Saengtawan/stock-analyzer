@@ -40,7 +40,7 @@ def load_cache():
 
 
 def load_sectors():
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
     rows = conn.execute("SELECT symbol, sector FROM universe_stocks").fetchall()
     conn.close()
     return {r[0]: r[1] or 'Unknown' for r in rows}

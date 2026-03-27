@@ -17,13 +17,13 @@ DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.d
 
 
 def main():
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
 
     # Ensure columns exist
     for col in ['gold_close', 'crude_close', 'hyg_close']:
         try:
             conn.execute(f"ALTER TABLE macro_snapshots ADD COLUMN {col} REAL")
-        except sqlite3.OperationalError:
+        except Exception:
             pass
     conn.commit()
 

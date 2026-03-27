@@ -132,8 +132,8 @@ class GaussianKernel:
 # ──────────────────────────────────────────────────────────────
 def load_data():
     """Load combined backfill + live data, JOIN macro + breadth."""
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session())
+    conn.row_factory = dict
 
     # Live signal_outcomes (DIP)
     live_rows = conn.execute("""

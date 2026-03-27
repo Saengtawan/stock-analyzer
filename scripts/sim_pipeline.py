@@ -33,7 +33,7 @@ MAX_VOL_RATIO = 3.0
 
 def load_all():
     """Load signals + D0-D3 daily bars + macro + fundamentals."""
-    conn = sqlite3.connect(str(DB))
+    conn = None  # via get_session())
 
     signals = conn.execute("""
         SELECT b.scan_date, b.symbol, b.sector, b.scan_price,

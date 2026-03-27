@@ -32,7 +32,7 @@ def ensure_table(conn):
 
 
 def main():
-    conn = sqlite3.connect(str(DB))
+    conn = None  # via get_session())
     ensure_table(conn)
 
     today = date.today().isoformat()

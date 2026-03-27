@@ -13,7 +13,7 @@ from scipy import stats
 DB_PATH = "data/trade_history.db"
 
 def load_data():
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
     df = pd.read_sql_query("""
         SELECT
             symbol, scan_date, signal_source, action_taken,

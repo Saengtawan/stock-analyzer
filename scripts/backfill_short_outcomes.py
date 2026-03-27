@@ -42,7 +42,7 @@ def add_columns_if_missing(conn):
 
 def load_stocks_db_prices(symbol: str) -> pd.DataFrame:
     """Load all price data for a symbol from stocks.db. Returns DataFrame indexed by date."""
-    conn = sqlite3.connect(STOCKS_DB)
+    conn = None  # via get_session()
     df = pd.read_sql_query(
         "SELECT date, open, high, low, close FROM stock_prices WHERE symbol = ? ORDER BY date",
         conn, params=(symbol,)
@@ -146,8 +146,8 @@ def main():
     print(f"{LOG_PREFIX} Trade DB: {os.path.abspath(TRADE_DB)}")
     print(f"{LOG_PREFIX} Stocks DB: {os.path.abspath(STOCKS_DB)}")
 
-    conn = sqlite3.connect(TRADE_DB)
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session()
+    conn.row_factory = dict
 
     # Step 1: Add columns
     add_columns_if_missing(conn)

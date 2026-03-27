@@ -81,8 +81,8 @@ CRISIS_DEFENSIVE = frozenset({
 def load_data():
     """Load combined dataset: live signal_outcomes + backfill_signal_outcomes.
     JOINs with macro_snapshots + market_breadth for kernel macro features."""
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session())
+    conn.row_factory = dict
 
     # Live signal_outcomes (has new_score for v2 comparison)
     # JOIN macro + breadth for kernel features

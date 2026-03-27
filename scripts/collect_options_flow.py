@@ -21,8 +21,11 @@ Runs top 500 symbols by dollar volume (full 1000 takes too long for yfinance).
 Cron (TZ=America/New_York):
   30 17 * * 1-5  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_options_flow.py >> logs/collect_options_flow.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 import time
 import argparse
 from datetime import datetime, date, timedelta
@@ -30,7 +33,6 @@ from datetime import datetime, date, timedelta
 import yfinance as yf
 from zoneinfo import ZoneInfo
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 ET = ZoneInfo('America/New_York')
 
 # Process top N symbols by dollar volume (options data less relevant for illiquid stocks)
@@ -40,7 +42,7 @@ DELAY_EVERY = 20
 DELAY_SECS = 0.3
 
 
-def _ensure_table(conn: sqlite3.Connection):
+def _ensure_table(conn: object):
     conn.execute("""
         CREATE TABLE IF NOT EXISTS options_flow (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,7 +65,6 @@ def _ensure_table(conn: sqlite3.Connection):
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_options_flow_symbol ON options_flow(symbol, date)
     """)
-    conn.commit()
 
 
 def fetch_options_for_symbol(sym: str) -> dict | None:
@@ -151,8 +152,7 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_options_flow "
           f"date={target_date}")
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
     _ensure_table(conn)
 
     if args.symbol:
@@ -176,7 +176,6 @@ def main():
 
     if not symbols:
         print("  All symbols already collected — done.")
-        conn.close()
         return
 
     total_ok = 0
@@ -207,15 +206,11 @@ def main():
             total_fail += 1
 
         if (i + 1) % 50 == 0:
-            conn.commit()
             pct = round((i + 1) / len(symbols) * 100)
             print(f"  [{i+1}/{len(symbols)} {pct}%] ok={total_ok} fail={total_fail}")
 
         if (i + 1) % DELAY_EVERY == 0:
             time.sleep(DELAY_SECS)
-
-    conn.commit()
-    conn.close()
     print(f"\n  Done. ok={total_ok} fail={total_fail} date={target_date}")
 
 

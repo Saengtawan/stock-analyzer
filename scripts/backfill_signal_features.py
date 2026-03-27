@@ -200,8 +200,8 @@ def main():
     parser.add_argument('--date', help='Process only this scan_date (YYYY-MM-DD)')
     args = parser.parse_args()
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session()
+    conn.row_factory = dict
 
     # Ensure sector_1d_change column exists
     ensure_sector_1d_change_column(conn)

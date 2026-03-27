@@ -128,7 +128,7 @@ def compute_summary(options):
 
 
 def main():
-    conn = sqlite3.connect(str(DB), timeout=30)
+    conn = None  # via get_session(), timeout=30)
     conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('PRAGMA busy_timeout=30000')
     ensure_table(conn)

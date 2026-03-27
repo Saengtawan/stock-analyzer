@@ -77,8 +77,8 @@ SECTOR_MAP = {
 
 def load_data():
     """Load combined signal + backfill data with macro + breadth JOINs."""
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session())
+    conn.row_factory = dict
 
     # Main signal data
     rows = conn.execute("""

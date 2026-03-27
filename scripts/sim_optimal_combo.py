@@ -22,7 +22,7 @@ CRISIS_GOOD = {'Healthcare', 'Technology', 'Communication Services'}
 
 
 def load_data():
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
     signals = conn.execute("""
         SELECT scan_date, symbol, sector, scan_price, atr_pct, entry_rsi,
                distance_from_20d_high, momentum_5d, momentum_20d,

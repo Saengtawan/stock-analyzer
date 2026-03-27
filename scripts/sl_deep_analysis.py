@@ -17,7 +17,7 @@ SL_THRESHOLD = -3.0
 
 def load_data():
     """Load and merge backfill + signal_outcomes into one unified DataFrame."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
 
     # Load backfill
     bf = pd.read_sql_query("""
@@ -115,7 +115,7 @@ def analysis_1_sl_path(df):
     # For backfill we only have outcome_5d. Let's use what we can.
     # Use the magnitude of max_dd relative to outcome_5d as a proxy.
     # Actually, let's load day-by-day from signal_outcomes where available
-    conn = sqlite3.connect(DB_PATH)
+    conn = None  # via get_session()
     dayby = pd.read_sql_query("""
         SELECT scan_date, symbol, outcome_1d, outcome_2d, outcome_3d, outcome_4d, outcome_5d,
                outcome_max_dd_5d, outcome_max_gain_5d

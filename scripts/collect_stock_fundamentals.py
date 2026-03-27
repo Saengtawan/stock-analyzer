@@ -28,8 +28,11 @@ Weekly refresh (fundamentals don't change daily).
 Cron (TZ=America/New_York):
   0 8 * * 0  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_stock_fundamentals.py >> logs/collect_stock_fundamentals.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 import time
 import argparse
 from datetime import datetime
@@ -37,7 +40,6 @@ from datetime import datetime
 import yfinance as yf
 from zoneinfo import ZoneInfo
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 ET = ZoneInfo('America/New_York')
 
 DELAY_EVERY = 20
@@ -91,8 +93,7 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_stock_fundamentals "
           f"force={args.force}")
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     if args.symbol:
         symbols = [args.symbol.upper()]
@@ -118,7 +119,6 @@ def main():
 
     if not symbols:
         print("  All symbols fresh — done.")
-        conn.close()
         return
 
     ok = 0
@@ -151,15 +151,11 @@ def main():
             fail += 1
 
         if (i + 1) % 100 == 0:
-            conn.commit()
             pct = round((i + 1) / len(symbols) * 100)
             print(f"  [{i+1}/{len(symbols)} {pct}%] ok={ok} fail={fail}")
 
         if (i + 1) % DELAY_EVERY == 0:
             time.sleep(DELAY_SECS)
-
-    conn.commit()
-    conn.close()
     print(f"\n  Done. ok={ok} fail={fail}")
 
 

@@ -54,7 +54,7 @@ def main():
     start = datetime.strptime(args.start, '%Y-%m-%d').date()
     end = datetime.strptime(args.end, '%Y-%m-%d').date()
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn = None  # via get_session()
 
     # Get existing (date, etf) pairs to skip
     existing = set()

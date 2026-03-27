@@ -17,7 +17,7 @@ DB_PATH = Path(__file__).resolve().parent.parent / 'data' / 'trade_history.db'
 
 
 def load_all_data():
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
     # Per-signal data with macro
     signals = conn.execute("""
         SELECT b.scan_date, b.symbol, b.atr_pct, b.momentum_5d,

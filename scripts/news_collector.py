@@ -23,12 +23,15 @@ Usage:
   python3 scripts/news_collector.py --backfill 2026-02-01 # historical fill
   python3 scripts/news_collector.py --dry-run             # preview counts
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import argparse
 import hashlib
 import json
 import os
 import re
-import sqlite3
 import sys
 import time
 from datetime import datetime, date, timedelta
@@ -40,7 +43,6 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 _DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH  = os.path.join(_DIR, '..', 'data', 'trade_history.db')
 ENV_PATH = os.path.join(_DIR, '..', '.env')
 
 ET_ZONE  = ZoneInfo('America/New_York')
@@ -284,7 +286,7 @@ def _impact_score(source: str, category: str | None, event_type: str | None) -> 
     return round(min(1.0, base + cat_boost + etype_boost), 2)
 
 
-def _market_context(conn: sqlite3.Connection, published_at: str) -> tuple[float | None, float | None]:
+def _market_context(conn: object, published_at: str) -> tuple[float | None, float | None]:
     """Lookup nearest VIX + SPY price from intraday_snapshots."""
     try:
         pub_dt = _parse_utc(published_at)
@@ -318,7 +320,7 @@ def _market_context(conn: sqlite3.Connection, published_at: str) -> tuple[float 
         return None, None
 
 
-def _insert_news(conn: sqlite3.Connection, rows: list[dict], dry_run: bool = False) -> int:
+def _insert_news(conn: object, rows: list[dict], dry_run: bool = False) -> int:
     """Insert news rows, skipping duplicates. Returns count inserted."""
     if not rows or dry_run:
         return len(rows)
@@ -350,13 +352,12 @@ def _insert_news(conn: sqlite3.Connection, rows: list[dict], dry_run: bool = Fal
                 inserted += 1
         except Exception as e:
             pass
-    conn.commit()
     return inserted
 
 
 # ── Source 1: Alpaca News ─────────────────────────────────────────────────────
 
-def collect_alpaca(conn: sqlite3.Connection, symbols: list[str] | None = None,
+def collect_alpaca(conn: object, symbols: list[str] | None = None,
                    start: str = None, end: str = None,
                    dry_run: bool = False) -> int:
     """
@@ -481,7 +482,7 @@ def collect_alpaca(conn: sqlite3.Connection, symbols: list[str] | None = None,
 
 # ── Source 2: Federal Reserve RSS ─────────────────────────────────────────────
 
-def collect_fed_rss(conn: sqlite3.Connection, dry_run: bool = False) -> int:
+def collect_fed_rss(conn: object, dry_run: bool = False) -> int:
     """Collect Federal Reserve press releases from RSS feed."""
     collected_at = datetime.now(UTC_ZONE).isoformat()
     feed = feedparser.parse(FED_RSS_URL)
@@ -538,7 +539,7 @@ def collect_fed_rss(conn: sqlite3.Connection, dry_run: bool = False) -> int:
 
 # ── Source 3: SEC EDGAR 8-K ───────────────────────────────────────────────────
 
-def collect_sec_8k(conn: sqlite3.Connection, start: str = None, end: str = None,
+def collect_sec_8k(conn: object, start: str = None, end: str = None,
                    symbols: list[str] | None = None, dry_run: bool = False) -> int:
     """Collect SEC 8-K material event filings from EDGAR."""
     collected_at = datetime.now(UTC_ZONE).isoformat()
@@ -634,7 +635,7 @@ def collect_sec_8k(conn: sqlite3.Connection, start: str = None, end: str = None,
 
 # ── Symbol list helpers ────────────────────────────────────────────────────────
 
-def _get_active_symbols(conn: sqlite3.Connection, days: int = 7) -> list[str]:
+def _get_active_symbols(conn: object, days: int = 7) -> list[str]:
     """Symbols from signal_outcomes last N days + currently tracked universe."""
     cutoff = (date.today() - timedelta(days=days)).isoformat()
     rows = conn.execute("""
@@ -648,7 +649,7 @@ def _get_active_symbols(conn: sqlite3.Connection, days: int = 7) -> list[str]:
 
 # ── Backfill ──────────────────────────────────────────────────────────────────
 
-def backfill(conn: sqlite3.Connection, start_date: str, dry_run: bool = False):
+def backfill(conn: object, start_date: str, dry_run: bool = False):
     """Collect historical news from start_date to today."""
     end_date = date.today().isoformat()
     symbols  = _get_active_symbols(conn, days=60)
@@ -669,7 +670,7 @@ def backfill(conn: sqlite3.Connection, start_date: str, dry_run: bool = False):
 
 # ── Modes ─────────────────────────────────────────────────────────────────────
 
-def run_symbol_mode(conn: sqlite3.Connection, dry_run: bool = False):
+def run_symbol_mode(conn: object, dry_run: bool = False):
     """05:30 BKK — collect per-symbol news for last 2 days."""
     symbols = _get_active_symbols(conn, days=7)
     start = (date.today() - timedelta(days=2)).isoformat()
@@ -678,7 +679,7 @@ def run_symbol_mode(conn: sqlite3.Connection, dry_run: bool = False):
     print(f"  alpaca symbol news: {n} inserted")
 
 
-def run_macro_mode(conn: sqlite3.Connection, dry_run: bool = False):
+def run_macro_mode(conn: object, dry_run: bool = False):
     """Every 2h — collect macro/Fed/SEC news."""
     start = (date.today() - timedelta(days=1)).isoformat()
 
@@ -695,7 +696,7 @@ def run_macro_mode(conn: sqlite3.Connection, dry_run: bool = False):
     print(f"  alpaca general: {n} inserted")
 
 
-def run_pre_scan_mode(conn: sqlite3.Connection, dry_run: bool = False):
+def run_pre_scan_mode(conn: object, dry_run: bool = False):
     """21:00 BKK — collect everything before the 21:32 market scan."""
     symbols = _get_active_symbols(conn, days=3)
     start = (date.today() - timedelta(days=1)).isoformat()
@@ -724,8 +725,7 @@ def main():
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"[{ts}] news_collector.py starting — mode={args.mode}")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     try:
         if args.backfill:
@@ -740,8 +740,7 @@ def main():
             run_symbol_mode(conn, args.dry_run)
             run_macro_mode(conn, args.dry_run)
     finally:
-        conn.close()
-
+        pass
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"[{ts}] news_collector.py done")
 

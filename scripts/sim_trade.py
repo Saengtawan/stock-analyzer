@@ -103,8 +103,8 @@ def simulate(symbol: str, entry_date: str, entry_price: float,
             max_loss_pct: float,
         }
     """
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session()
+    conn.row_factory = dict
 
     sl_price = entry_price * (1 - sl_pct / 100)
     tp_price = entry_price * (1 + tp_pct / 100) if tp_pct else None
@@ -276,7 +276,7 @@ def main():
 
     # Look up from trades if requested
     if args.from_trades or entry_price is None:
-        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn = None  # via get_session()
         row = conn.execute("""
             SELECT price, date FROM trades
             WHERE symbol = ? AND action = 'BUY'

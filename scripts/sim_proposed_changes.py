@@ -39,7 +39,7 @@ CRISIS_GOOD_SECTORS = {'Healthcare', 'Technology', 'Communication Services'}
 
 def load_data():
     """Load all backfill signals + macro + breadth."""
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
 
     # Signals
     signals = conn.execute("""

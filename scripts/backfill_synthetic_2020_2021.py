@@ -197,14 +197,14 @@ def compute_outcomes(bars, day_idx):
 
 
 def main():
-    conn = sqlite3.connect(str(DB_PATH), timeout=60)
+    conn = None  # via get_session(), timeout=60)
     ohlc, vix, sectors, trading_days = load_data(conn)
 
     # Ensure outcome columns exist
     for col in ['outcome_1d', 'outcome_2d', 'outcome_3d', 'outcome_4d']:
         try:
             conn.execute(f"ALTER TABLE backfill_signal_outcomes ADD COLUMN {col} REAL")
-        except sqlite3.OperationalError:
+        except Exception:
             pass
     conn.commit()
 

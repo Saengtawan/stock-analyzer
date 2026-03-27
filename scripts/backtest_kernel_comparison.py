@@ -61,8 +61,8 @@ ORDER BY d.scan_date
 
 
 def load_data():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session()
+    conn.row_factory = dict
     rows = conn.execute(LOAD_SQL).fetchall()
     conn.close()
     data = []

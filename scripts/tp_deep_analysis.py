@@ -9,7 +9,7 @@ import numpy as np
 from pathlib import Path
 
 DB = Path("data/trade_history.db")
-conn = sqlite3.connect(DB)
+conn = None  # via get_session()
 
 # ============================================================
 # LOAD DATA: Join signals with daily bars

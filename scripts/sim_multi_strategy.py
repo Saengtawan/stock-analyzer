@@ -12,7 +12,7 @@ from discovery.multi_strategy import (
 from discovery.adaptive_params import AdaptiveParameterLearner, _classify_regime
 
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'trade_history.db')
-conn = sqlite3.connect(DB)
+conn = None  # via get_session()
 
 # Load signals with OHLC for SL/TP sim
 rows = conn.execute("""

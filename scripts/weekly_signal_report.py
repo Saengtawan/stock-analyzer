@@ -9,8 +9,11 @@ Usage:
   python3 scripts/weekly_signal_report.py           # last 8 weeks
   python3 scripts/weekly_signal_report.py --weeks 12
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import argparse
-import sqlite3
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -25,8 +28,7 @@ def monday_of(d: date) -> date:
 
 
 def report(weeks: int = 8):
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     today = date.today()
     start_monday = monday_of(today) - timedelta(weeks=weeks - 1)
@@ -113,7 +115,6 @@ def report(weeks: int = 8):
             print(f"    Pass rate (≥70): {passing}/{scored_total} = {passing/scored_total*100:.0f}%")
 
     print(f"{'='*62}\n")
-    conn.close()
 
 
 if __name__ == '__main__':

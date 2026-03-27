@@ -22,8 +22,8 @@ CAPITAL = 1250.0  # per slot (v7.0 per-slot sizing)
 
 
 def load_signals():
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
+    conn = None  # via get_session()
+    conn.row_factory = dict
     # De-dup by (symbol, scan_date) — take first row per pair
     rows = conn.execute("""
         SELECT symbol, scan_date, scan_price,

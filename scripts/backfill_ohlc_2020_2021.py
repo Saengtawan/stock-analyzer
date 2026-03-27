@@ -104,7 +104,7 @@ def insert_ohlc(conn, symbol, df):
 
 
 def main():
-    conn = sqlite3.connect(str(DB_PATH), timeout=60)
+    conn = None  # via get_session(), timeout=60)
 
     # Ensure table + indexes exist
     conn.execute('''

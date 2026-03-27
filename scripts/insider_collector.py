@@ -19,9 +19,12 @@ Usage:
   python3 scripts/insider_collector.py --date 2026-03-10  # specific date
   python3 scripts/insider_collector.py --dry-run    # preview only
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import argparse
 import os
-import sqlite3
 import sys
 import time
 import xml.etree.ElementTree as ET
@@ -29,7 +32,6 @@ from datetime import datetime, date, timedelta
 
 import requests
 
-DB_PATH    = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 LOG_DIR    = os.path.join(os.path.dirname(__file__), '..', 'logs')
 os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -46,7 +48,7 @@ HEADERS = {
 MIN_PURCHASE_VALUE = 10_000  # $10K — filter noise (options exercises, tiny grants)
 
 
-def _ensure_table(conn: sqlite3.Connection):
+def _ensure_table(conn: object):
     conn.execute('''
         CREATE TABLE IF NOT EXISTS insider_transactions (
             id                 INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,10 +69,9 @@ def _ensure_table(conn: sqlite3.Connection):
     ''')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_insider_symbol ON insider_transactions(symbol)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_insider_date ON insider_transactions(transaction_date)')
-    conn.commit()
 
 
-def _get_universe_symbols(conn: sqlite3.Connection) -> set:
+def _get_universe_symbols(conn: object) -> set:
     try:
         rows = conn.execute("SELECT symbol FROM universe_stocks").fetchall()
         return {r[0] for r in rows}
@@ -219,7 +220,7 @@ def _parse_form4_xml(cik: str, accession_number: str, xml_filename: str) -> list
 
 
 def collect(start_date: str, end_date: str, universe: set, dry_run: bool = False) -> int:
-    conn = sqlite3.connect(DB_PATH)
+    # conn via get_session()
     _ensure_table(conn)
 
     print(f"  Searching Form 4 filings {start_date} → {end_date}...")
@@ -279,8 +280,6 @@ def collect(start_date: str, end_date: str, universe: set, dry_run: bool = False
                 print(f"  DB error {sym}: {e}")
 
     if not dry_run:
-        conn.commit()
-    conn.close()
     print(f"  {'[DRY] ' if dry_run else ''}Saved {saved} purchases (skipped {skipped} already collected)")
     return saved
 
@@ -294,9 +293,8 @@ def main():
 
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] insider_collector")
 
-    conn = sqlite3.connect(DB_PATH)
+    # conn via get_session()
     universe = _get_universe_symbols(conn)
-    conn.close()
     print(f"  Universe: {len(universe)} symbols")
 
     if args.date:

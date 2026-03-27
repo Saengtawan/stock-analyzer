@@ -22,8 +22,11 @@ Analysis enabled:
 Cron (TZ=America/New_York):
   40 16 * * 1-5  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_stock_news.py >> logs/collect_stock_news.log 2>&1
 """
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
 import os
-import sqlite3
 import time
 import argparse
 from datetime import datetime, date, timedelta
@@ -37,7 +40,6 @@ try:
 except ImportError:
     VADER_AVAILABLE = False
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
 ET = ZoneInfo('America/New_York')
 
 LOOKBACK_DAYS = 5   # days of recent BOUGHT signals to include
@@ -55,7 +57,7 @@ def get_sentiment(text: str, analyzer) -> float | None:
         return None
 
 
-def get_target_symbols(conn: sqlite3.Connection, target_date: str) -> list[str]:
+def get_target_symbols(conn: object, target_date: str) -> list[str]:
     """Get symbols to collect news for: today's candidates + recent buys."""
     syms = set()
 
@@ -157,8 +159,7 @@ def main():
         from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
         analyzer = SentimentIntensityAnalyzer()
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
+    # conn via get_session()
 
     if args.symbol:
         symbols = [args.symbol.upper()]
@@ -196,14 +197,10 @@ def main():
             total_failed += 1
 
         if (i + 1) % 100 == 0:
-            conn.commit()
             print(f"  [{i+1}/{len(symbols)}] articles={total_inserted} no_news={total_failed}")
 
         if (i + 1) % DELAY_EVERY == 0:
             time.sleep(DELAY_SECS)
-
-    conn.commit()
-    conn.close()
     print(f"\n  Done. articles={total_inserted} no_news={total_failed} date={target_date}")
 
 

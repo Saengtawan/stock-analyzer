@@ -21,7 +21,7 @@ DB_PATH = Path(__file__).resolve().parent.parent / 'data' / 'trade_history.db'
 
 def load_signals_with_ohlc():
     """Load all signals with D0-D3 OHLC for TP/SL simulation."""
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = None  # via get_session())
     rows = conn.execute("""
         SELECT b.scan_date, b.symbol, b.atr_pct, b.volume_ratio, b.momentum_5d,
                b.distance_from_20d_high, b.vix_at_signal, b.sector,
