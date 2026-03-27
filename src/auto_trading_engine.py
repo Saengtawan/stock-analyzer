@@ -1101,7 +1101,7 @@ class AutoTradingEngine:
                     peak_price=pos.peak_price,
                     trough_price=getattr(pos, 'trough_price', 0.0),
                     trailing_stop=pos.trailing_active,
-                    day_held=pos.days_held,
+                    day_held=self.pdt_guard.get_days_held(pos.symbol) if self.pdt_guard else pos.days_held,
                     sl_pct=pos.sl_pct,
                     tp_pct=getattr(pos, 'tp_pct', 5.0),
                     entry_atr_pct=getattr(pos, 'atr_pct', 0.0),

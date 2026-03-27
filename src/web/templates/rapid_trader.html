@@ -699,10 +699,20 @@
             <div id="discoveryMarketContext" style="font-size:0.55rem;padding:1px 6px;background:rgba(52,152,219,0.05);display:flex;flex-wrap:wrap;gap:2px;"></div>
             <!-- Sector distribution bar -->
             <div id="discoverySectorBar" style="height:4px;display:flex;border-radius:0;"></div>
-            <div class="card-body p-2" id="discoveryContainer" style="max-height: 50vh; overflow-y: auto;">
+            <div class="card-body p-2" id="discoveryContainer" style="max-height: 35vh; overflow-y: auto;">
                 <div class="text-center text-muted py-3">
                     <i class="fas fa-search fa-2x mb-2 text-muted" style="opacity: 0.5;"></i>
                     <p class="small mb-0">Scanning for picks...</p>
+                </div>
+            </div>
+            <!-- Intraday Gap Signals -->
+            <div class="border-top" style="background:rgba(255,107,53,0.03);">
+                <div class="d-flex justify-content-between align-items-center px-2 py-1" style="font-size:0.7rem;">
+                    <span style="color:#ff6b35;font-weight:700;">Intraday Signals</span>
+                    <span class="badge" id="intradayBadge" style="background:#ff6b35;font-size:0.6rem;">0</span>
+                </div>
+                <div class="px-2 pb-2" id="intradaySignalsContainer" style="max-height: 15vh; overflow-y: auto;">
+                    <div class="text-center text-muted py-1" style="font-size:0.65rem;">Loading...</div>
                 </div>
             </div>
         </div>
@@ -3313,164 +3323,134 @@ function loadDiscoveryPicks() {
             const picks = data.picks || [];
             picks.sort((a, b) => (b.layer2_score || 0) - (a.layer2_score || 0));
 
-            // v15.2: Unified view — merge primary picks + multi-strategy into one list
-            fetch('/api/discovery/strategies')
-                .then(r => r.json())
-                .then(stData => {
-                    const stPicks = stData.picks || {};
-                    const stratColors = {DIP:'#e74c3c', OVERSOLD:'#e67e22', MOMENTUM:'#2ecc71', VALUE:'#3498db', CONTRARIAN:'#9b59b6', VOL_U:'#1abc9c', RS:'#e91e63', SELECTIVE:'#f39c12'};
+            // v17: Single source — ML-ranked primary picks already have strategy labels
+            const allPicks = picks.map(p => {
+                const c = p.council || {};
+                const s = c.strategy || {};
+                p._strategy = s.strategy || 'SELECTIVE';
+                p._isPrimary = true;
+                return p;
+            });
 
-                    // Merge: primary picks first (tagged with their strategy), then multi-strategy
-                    const seen = new Set();
-                    let allPicks = [];
+            if (badge) badge.textContent = allPicks.length;
 
-                    // Add primary picks (have richer data: timeline, outcomes)
-                    picks.forEach(p => {
-                        const c = p.council || {};
-                        const s = c.strategy || {};
-                        p._strategy = s.strategy || 'SELECTIVE';
-                        p._isPrimary = true;
-                        allPicks.push(p);
-                        seen.add(p.symbol);
-                    });
+            if (allPicks.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-3 small">No picks available</div>';
+                _discoveryLoaded = true;
+                return;
+            }
 
-                    // Add multi-strategy picks (dedupe)
-                    for (const sName of ['DIP','OVERSOLD','VALUE','CONTRARIAN','VOL_U','RS']) {
-                        const sp = stPicks[sName];
-                        if (!sp) continue;
-                        sp.forEach(p => {
-                            if (!seen.has(p.symbol)) {
-                                seen.add(p.symbol);
-                                p._strategy = sName;
-                                p._isPrimary = false;
-                                allPicks.push(p);
-                            }
-                        });
-                    }
+            let html = '';
 
-                    // Sort all by E[R] descending
-                    allPicks.sort((a, b) => (b.layer2_score || 0) - (a.layer2_score || 0));
-                    if (badge) badge.textContent = allPicks.length;
-
-                    if (allPicks.length === 0) {
-                        container.innerHTML = '<div class="text-center text-muted py-3 small">No picks available</div>';
-                        _discoveryLoaded = true;
-                        return;
-                    }
-
-                    let html = '';
-
-                    // v9.0: Market-level signals
-                    var ms = data.market_signals || [];
-                    if (ms.length > 0) {
-                        html += '<div class="mb-2" style="font-size:0.6rem;">';
-                        ms.forEach(function(s) {
-                            var typeColors = {SECTOR_CONTRARIAN:'#3498db', SPY_DRAWDOWN:'#e67e22', VIX_SPIKE:'#e74c3c'};
-                            var c = typeColors[s.type] || '#888';
-                            html += '<div class="d-flex align-items-center gap-2 mb-1" style="background:rgba(52,152,219,0.08);padding:3px 6px;border-radius:4px;">'
-                                + '<span style="font-weight:700;color:' + c + ';">' + s.type.replace('_',' ') + '</span>'
+            // v9.0: Market-level signals
+            var ms = data.market_signals || [];
+            if (ms.length > 0) {
+                html += '<div class="mb-2" style="font-size:0.6rem;">';
+                ms.forEach(function(s) {
+                    var typeColors = {SECTOR_CONTRARIAN:'#3498db', SPY_DRAWDOWN:'#e67e22', VIX_SPIKE:'#e74c3c'};
+                    var c = typeColors[s.type] || '#888';
+                    html += '<div class="d-flex align-items-center gap-2 mb-1" style="background:rgba(52,152,219,0.08);padding:3px 6px;border-radius:4px;">'
+                        + '<span style="font-weight:700;color:' + c + ';">' + s.type.replace('_',' ') + '</span>'
                         + '<span>' + s.symbol + '</span>'
                         + '<span style="color:#2ecc71;font-weight:600;">WR ' + s.wr + '%</span>'
                         + '<span>Hold ' + s.hold_days + 'd</span>'
                         + '<span>Size ' + (s.sizing * 100).toFixed(0) + '%</span>'
                         + '<span style="color:#888;" title="' + (s.rationale || '') + '">ℹ️ ' + (s.rationale || '').substring(0, 50) + '</span>'
                         + '</div>';
-                        });
-                        html += '</div>';
-                    }
+                });
+                html += '</div>';
+            }
 
-                    // v15.2: Unified pick card renderer
-                    const _stColors = {CALM_PULLBACK:'#2ecc71', CALM_TREND:'#3498db', SELECTIVE:'#f39c12', DIP_BOUNCE:'#e74c3c', WASHOUT:'#8e44ad', DIP:'#e74c3c', OVERSOLD:'#e67e22', MOMENTUM:'#2ecc71', VALUE:'#3498db', CONTRARIAN:'#9b59b6', VOL_U:'#1abc9c', RS:'#e91e63'};
-                    function renderPickCard(p) {
-                        const sName = p._strategy || 'SELECTIVE';
-                        const sc = _stColors[sName] || '#888';
-                        const er = p.layer2_score || 0;
-                        const erColor = er >= 2.0 ? '#2ecc71' : er >= 1.0 ? '#27ae60' : er >= 0.5 ? '#f39c12' : '#e74c3c';
-                        const erBg = er >= 2.0 ? 'rgba(46,204,113,0.25)' : er >= 1.0 ? 'rgba(39,174,96,0.2)' : er >= 0.5 ? 'rgba(243,156,18,0.15)' : 'rgba(231,76,60,0.15)';
-                        const borderColor = er >= 2.0 ? 'rgba(46,204,113,0.4)' : er >= 1.0 ? 'rgba(39,174,96,0.3)' : er >= 0.5 ? 'rgba(243,156,18,0.25)' : 'rgba(231,76,60,0.2)';
-                        const sectorShort = (p.sector || '').replace('Consumer ', 'C.').replace('Communication ', 'Comm.').replace('Financial ', 'Fin.').replace('Services', 'Svc');
-                        const sectorColor = _sectorColors[p.sector] || '#888';
-                        const price = p.current_price || p.scan_price || 0;
-                        const pctChange = p.pct_change || 0;
-                        const pctClass = pctChange >= 0 ? 'text-success' : 'text-danger';
-                        const pctSign = pctChange >= 0 ? '+' : '';
-                        const mom = p.momentum_5d || 0;
-                        const d20h = p.distance_from_20d_high || p.distance_from_high || 0;
-                        const atr = p.atr_pct || 0;
-                        const vol = p.volume_ratio || 0;
+            // v17: Unified pick card renderer
+            const _stColors = {CALM_PULLBACK:'#2ecc71', CALM_TREND:'#3498db', SELECTIVE:'#f39c12', DIP_BOUNCE:'#e74c3c', WASHOUT:'#8e44ad', DIP:'#e74c3c', OVERSOLD:'#e67e22', MOMENTUM:'#2ecc71', VALUE:'#3498db', CONTRARIAN:'#9b59b6', VOL_U:'#1abc9c', RS:'#e91e63', GAP:'#ff6b35'};
+            function renderPickCard(p) {
+                const sName = p._strategy || 'SELECTIVE';
+                const sc = _stColors[sName] || '#888';
+                const er = p.layer2_score || 0;
+                const erColor = er >= 2.0 ? '#2ecc71' : er >= 1.0 ? '#27ae60' : er >= 0.5 ? '#f39c12' : '#e74c3c';
+                const erBg = er >= 2.0 ? 'rgba(46,204,113,0.25)' : er >= 1.0 ? 'rgba(39,174,96,0.2)' : er >= 0.5 ? 'rgba(243,156,18,0.15)' : 'rgba(231,76,60,0.15)';
+                const borderColor = er >= 2.0 ? 'rgba(46,204,113,0.4)' : er >= 1.0 ? 'rgba(39,174,96,0.3)' : er >= 0.5 ? 'rgba(243,156,18,0.25)' : 'rgba(231,76,60,0.2)';
+                const sectorShort = (p.sector || '').replace('Consumer ', 'C.').replace('Communication ', 'Comm.').replace('Financial ', 'Fin.').replace('Services', 'Svc');
+                const sectorColor = _sectorColors[p.sector] || '#888';
+                const price = p.current_price || p.scan_price || 0;
+                const pctChange = p.pct_change || 0;
+                const pctClass = pctChange >= 0 ? 'text-success' : 'text-danger';
+                const pctSign = pctChange >= 0 ? '+' : '';
+                const mom = p.momentum_5d || 0;
+                const d20h = p.distance_from_20d_high || p.distance_from_high || 0;
+                const atr = p.atr_pct || 0;
+                const vol = p.volume_ratio || 0;
 
-                        // Badges
-                        const statusIcon = p.status === 'hit_tp1' ? '<i class="fas fa-trophy text-warning ms-1"></i>' : p.status === 'hit_sl' ? '<i class="fas fa-times-circle text-danger ms-1"></i>' : '';
-                        const earningsWarn = p.earnings_warning ? `<span class="badge ms-1" style="background:#e74c3c;font-size:0.6rem;">ER ${p.days_to_earnings}d</span>` : '';
-                        const shortBadge = p.short_pct_float && p.short_pct_float > 5 ? `<span style="font-size:0.65rem;color:#e67e22;">SI${p.short_pct_float}%</span>` : '';
-                        let limitBadge = '';
-                        if (p.entry_status === 'filled') limitBadge = `<span class="badge ms-1" style="background:rgba(46,204,113,0.2);color:#2ecc71;font-size:0.6rem;">FILLED</span>`;
-                        else if (p.entry_status === 'pending' && p.limit_entry_price) limitBadge = `<span class="badge ms-1" style="background:rgba(52,152,219,0.2);color:#3498db;font-size:0.6rem;">LIMIT $${p.limit_entry_price}</span>`;
-                        const intraBadge = p.scan_type === 'intraday' ? `<span class="badge ms-1" style="background:rgba(52,152,219,0.2);color:#3498db;font-size:0.6rem;">INTRA</span>` : '';
+                // Badges
+                const statusIcon = p.status === 'hit_tp1' ? '<i class="fas fa-trophy text-warning ms-1"></i>' : p.status === 'hit_sl' ? '<i class="fas fa-times-circle text-danger ms-1"></i>' : '';
+                const earningsWarn = p.earnings_warning ? `<span class="badge ms-1" style="background:#e74c3c;font-size:0.6rem;">ER ${p.days_to_earnings}d</span>` : '';
+                const shortBadge = p.short_pct_float && p.short_pct_float > 5 ? `<span style="font-size:0.65rem;color:#e67e22;">SI${p.short_pct_float}%</span>` : '';
+                let limitBadge = '';
+                if (p.entry_status === 'filled') limitBadge = `<span class="badge ms-1" style="background:rgba(46,204,113,0.2);color:#2ecc71;font-size:0.6rem;">FILLED</span>`;
+                else if (p.entry_status === 'pending' && p.limit_entry_price) limitBadge = `<span class="badge ms-1" style="background:rgba(52,152,219,0.2);color:#3498db;font-size:0.6rem;">LIMIT $${p.limit_entry_price}</span>`;
+                const intraBadge = p.scan_type === 'intraday' ? `<span class="badge ms-1" style="background:rgba(52,152,219,0.2);color:#3498db;font-size:0.6rem;">INTRA</span>` : '';
 
-                        // Get TP schedule from council
-                        const council = p.council || {};
-                        const exitRules = council.exit_rules || {};
-                        const tpSched = exitRules.tp_schedule || {};
-                        const ep = p.entry_price || p.scan_price || price;
+                // Get TP schedule from council
+                const council = p.council || {};
+                const exitRules = council.exit_rules || {};
+                const tpSched = exitRules.tp_schedule || {};
+                const ep = p.entry_price || p.scan_price || price;
 
-                        let card = `<div class="border rounded p-2 mb-2" style="background:rgba(46,204,113,0.03);border-color:${borderColor} !important;">`;
+                let card = `<div class="border rounded p-2 mb-2" style="background:rgba(46,204,113,0.03);border-color:${borderColor} !important;">`;
 
-                        // Row 1: Symbol + Strategy badge + E[R] + Sector | Price
-                        card += `<div class="d-flex justify-content-between align-items-center">`;
-                        card += `<div>`;
-                        card += `<strong style="color:${sc};font-size:1rem;">${p.symbol}</strong>${statusIcon}`;
-                        card += ` <span class="badge" style="background:rgba(255,255,255,0.08);color:${sc};font-size:0.65rem;">${sName.replace('_',' ')}</span>`;
-                        card += ` <span class="badge" style="background:${erBg};color:${erColor};font-size:0.65rem;">E[R] ${er>0?'+':''}${er.toFixed(1)}%</span>`;
-                        card += ` <span style="font-size:0.65rem;color:${sectorColor};">${sectorShort}</span>`;
-                        card += `${limitBadge}${earningsWarn}${shortBadge}`;
-                        card += `</div>`;
-                        card += `<div><strong style="font-size:1rem;">$${typeof price==='number'?price.toFixed(2):price}</strong>`;
-                        if (pctChange !== 0) card += `<span class="${pctClass}" style="font-size:0.75rem;margin-left:4px;">${pctSign}${pctChange.toFixed(1)}%</span>`;
-                        card += `</div></div>`;
+                // Row 1: Symbol + Strategy badge + E[R] + Sector | Price
+                card += `<div class="d-flex justify-content-between align-items-center">`;
+                card += `<div>`;
+                card += `<strong style="color:${sc};font-size:1rem;">${p.symbol}</strong>${statusIcon}`;
+                card += ` <span class="badge" style="background:rgba(255,255,255,0.08);color:${sc};font-size:0.65rem;">${sName.replace('_',' ')}</span>`;
+                card += ` <span class="badge" style="background:${erBg};color:${erColor};font-size:0.65rem;">E[R] ${er>0?'+':''}${er.toFixed(1)}%</span>`;
+                card += ` <span style="font-size:0.65rem;color:${sectorColor};">${sectorShort}</span>`;
+                card += `${limitBadge}${earningsWarn}${shortBadge}`;
+                card += `</div>`;
+                card += `<div><strong style="font-size:1rem;">$${typeof price==='number'?price.toFixed(2):price}</strong>`;
+                if (pctChange !== 0) card += `<span class="${pctClass}" style="font-size:0.75rem;margin-left:4px;">${pctSign}${pctChange.toFixed(1)}%</span>`;
+                card += `</div></div>`;
 
-                        // Row 2: SL | Entry | TP (D3 max)
-                        if (p.sl_price) {
-                            const entryPrice = p.entry_price || p.limit_entry_price || p.scan_price;
-                            card += `<div class="d-flex justify-content-between mt-1" style="font-size:0.75rem;">`;
-                            card += `<span class="text-danger">SL $${p.sl_price} (-${p.sl_pct}%)</span>`;
-                            card += `<span style="color:#aaa;">Entry $${entryPrice}</span>`;
-                            card += `<span class="text-success">TP $${p.tp1_price} (+${p.tp1_pct}%)</span>`;
-                            card += `</div>`;
-                        }
+                // Row 2: SL | Entry | TP (D3 max)
+                if (p.sl_price) {
+                    const entryPrice = p.entry_price || p.limit_entry_price || p.scan_price;
+                    card += `<div class="d-flex justify-content-between mt-1" style="font-size:0.75rem;">`;
+                    card += `<span class="text-danger">SL $${p.sl_price} (-${p.sl_pct}%)</span>`;
+                    card += `<span style="color:#aaa;">Entry $${entryPrice}</span>`;
+                    card += `<span class="text-success">TP $${p.tp1_price} (+${p.tp1_pct}%)</span>`;
+                    card += `</div>`;
+                }
 
-                        // Row 3: ATR | Vol | Mom | D20H
-                        card += `<div class="d-flex justify-content-between mt-1" style="font-size:0.7rem;color:#999;">`;
-                        card += `<span>ATR ${atr.toFixed?atr.toFixed(1):atr}%</span>`;
-                        card += `<span>Vol ${vol.toFixed(1)}x</span>`;
-                        card += `<span>Mom ${mom>0?'+':''}${mom.toFixed?mom.toFixed(1):mom}%</span>`;
-                        card += `<span>D20H ${d20h.toFixed?d20h.toFixed(1):d20h}%</span>`;
-                        card += `</div>`;
+                // Row 3: ATR | Vol | Mom | D20H
+                card += `<div class="d-flex justify-content-between mt-1" style="font-size:0.7rem;color:#999;">`;
+                card += `<span>ATR ${atr.toFixed?atr.toFixed(1):atr}%</span>`;
+                card += `<span>Vol ${vol.toFixed(1)}x</span>`;
+                card += `<span>Mom ${mom>0?'+':''}${mom.toFixed?mom.toFixed(1):mom}%</span>`;
+                card += `<span>D20H ${d20h.toFixed?d20h.toFixed(1):d20h}%</span>`;
+                card += `</div>`;
 
-                        // Row 4: Dynamic TP timeline D0→D3 (prices)
-                        if (tpSched.D0 && ep > 0) {
-                            const dc = ['#e74c3c','#2ecc71','#3498db','#f39c12'];
-                            card += `<div class="d-flex align-items-center gap-1 mt-1" style="font-size:0.65rem;">`;
-                            card += `<span style="color:#666;">TP</span>`;
-                            ['D0','D1','D2','D3'].forEach((d,i) => {
-                                const tp = tpSched[d] || 0;
-                                const tpP = (ep * (1+tp/100)).toFixed(2);
-                                const arrow = i < 3 ? '<span style="color:#555;margin:0 1px;">→</span>' : '';
-                                const suffix = i === 3 ? '↩' : '';
-                                card += `<span style="color:${dc[i]};">${d} $${tpP} (${tp.toFixed(1)}%)${suffix}</span>${arrow}`;
-                            });
-                            card += `</div>`;
-                        }
+                // Row 4: Dynamic TP timeline D0→D3 (prices)
+                if (tpSched.D0 && ep > 0) {
+                    const dc = ['#e74c3c','#2ecc71','#3498db','#f39c12'];
+                    card += `<div class="d-flex align-items-center gap-1 mt-1" style="font-size:0.65rem;">`;
+                    card += `<span style="color:#666;">TP</span>`;
+                    ['D0','D1','D2','D3'].forEach((d,i) => {
+                        const tp = tpSched[d] || 0;
+                        const tpP = (ep * (1+tp/100)).toFixed(2);
+                        const arrow = i < 3 ? '<span style="color:#555;margin:0 1px;">→</span>' : '';
+                        const suffix = i === 3 ? '↩' : '';
+                        card += `<span style="color:${dc[i]};">${d} $${tpP} (${tp.toFixed(1)}%)${suffix}</span>${arrow}`;
+                    });
+                    card += `</div>`;
+                }
 
-                        card += `</div>`;
-                        return card;
-                    }
+                card += `</div>`;
+                return card;
+            }
 
-                    // Render all picks with unified card
-                    allPicks.forEach(p => { html += renderPickCard(p); });
-                    container.innerHTML = html;
-                })
-                .catch(() => { container.innerHTML = '<div class="text-center text-muted py-3 small">Discovery unavailable</div>'; });
+            // Render all picks with unified card
+            allPicks.forEach(p => { html += renderPickCard(p); });
+            container.innerHTML = html;
             _discoveryLoaded = true;
         })
         .catch(err => {
@@ -3504,11 +3484,60 @@ function loadDiscoveryStats() {
         .catch(() => {});
 }
 
+// Intraday gap signals
+function loadIntradaySignals() {
+    fetch('/api/discovery/gap-intraday')
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('intradaySignalsContainer');
+            if (!container) return;
+            const signals = data.signals || [];
+            const badge = document.getElementById('intradayBadge');
+            if (badge) badge.textContent = signals.length;
+
+            if (signals.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-2" style="font-size:0.7rem;">No intraday signals</div>';
+                return;
+            }
+
+            let html = '';
+            const stratColors = {GAP_PULLBACK:'#2ecc71', MORNING_BREAKOUT:'#3498db', GAP_FADE:'#e74c3c'};
+            signals.forEach(s => {
+                const sc = stratColors[s.strategy] || '#888';
+                const emoji = s.action === 'SHORT' ? '🔴' : '🟢';
+                const gap = s.gap_pct || 0;
+                html += `<div class="border rounded p-2 mb-1" style="background:rgba(46,204,113,0.03);border-color:rgba(255,107,53,0.3) !important;">`;
+                html += `<div class="d-flex justify-content-between align-items-center">`;
+                html += `<div>`;
+                html += `${emoji} <strong style="color:${sc};">${s.symbol}</strong>`;
+                html += ` <span class="badge" style="background:rgba(255,255,255,0.08);color:${sc};font-size:0.6rem;">${s.strategy.replace('_',' ')}</span>`;
+                html += ` <span class="badge" style="background:rgba(255,107,53,0.2);color:#ff6b35;font-size:0.6rem;">${s.action}</span>`;
+                html += ` <span style="font-size:0.65rem;color:#888;">WR ${s.backtest_wr}%</span>`;
+                html += `</div>`;
+                html += `<div><strong>$${s.current_price}</strong> <span style="font-size:0.7rem;color:#888;">gap ${gap > 0 ? '+' : ''}${gap.toFixed(1)}%</span></div>`;
+                html += `</div>`;
+                html += `<div style="font-size:0.65rem;color:#aaa;margin-top:2px;">${s.reason}</div>`;
+                if (s.entry_price) {
+                    html += `<div class="d-flex justify-content-between mt-1" style="font-size:0.7rem;">`;
+                    html += `<span class="text-danger">SL $${s.sl_price}</span>`;
+                    html += `<span style="color:#aaa;">Entry $${s.entry_price}</span>`;
+                    html += `<span class="text-success">TP $${s.tp_price}</span>`;
+                    html += `</div>`;
+                }
+                html += `</div>`;
+            });
+            container.innerHTML = html;
+        })
+        .catch(() => {});
+}
+
 // Load on page load + refresh every 5 min
 loadDiscoveryPicks();
 loadDiscoveryStats();
+loadIntradaySignals();
 setInterval(loadDiscoveryPicks, 300000);
 setInterval(loadDiscoveryStats, 600000);
+setInterval(loadIntradaySignals, 180000); // refresh every 3 min
 
 function triggerDiscoveryScan() {
     const btn = document.getElementById('discoveryScanBtn');

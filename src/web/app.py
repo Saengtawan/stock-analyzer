@@ -3077,6 +3077,27 @@ def api_discovery_strategies():
         return jsonify({'condition': 'UNKNOWN', 'selected': 'DIP', 'picks': {}, 'error': str(e)})
 
 
+@app.route('/api/discovery/gap-intraday')
+def api_discovery_gap_intraday():
+    """Intraday gap signals — pullback, breakout, fade. Only during market hours."""
+    try:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        now_et = datetime.now(ZoneInfo('America/New_York'))
+
+        # Only scan during market hours (09:30-16:00 ET, Mon-Fri)
+        if now_et.weekday() >= 5 or now_et.hour < 9 or (now_et.hour == 9 and now_et.minute < 30) or now_et.hour >= 16:
+            return jsonify({'signals': [], 'count': 0, 'market': 'closed'})
+
+        from discovery.engine import get_discovery_engine
+        engine = get_discovery_engine()
+        signals = engine._gap_scanner.scan_intraday()
+        return jsonify({'signals': signals, 'count': len(signals), 'market': 'open'})
+    except Exception as e:
+        logger.error(f"Gap intraday error: {e}")
+        return jsonify({'signals': [], 'count': 0, 'error': str(e)})
+
+
 @app.route('/api/discovery/outcomes')
 def api_discovery_outcomes():
     """Get recent discovery outcomes for display."""

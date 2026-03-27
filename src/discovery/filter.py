@@ -110,8 +110,8 @@ class UnifiedFilter:
                                      sensors, macro, temporal_features,
                                      scan_date, regime_decision):
                 continue
-            if not self._passes_momentum(c, strategy_mode, regime):
-                continue
+            # v17: _passes_momentum removed — ML has momentum_5d as feature
+            # Data: CRISIS mom 0-2% WR=63% avg=+1.31% (best) but was rejected by mom_cut=-3
             if not self._passes_beta(c, regime):
                 continue
             if not self._passes_pe(c, regime):

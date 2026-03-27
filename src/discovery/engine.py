@@ -50,6 +50,7 @@ from discovery.auto_refit import AutoRefitOrchestrator
 from discovery.sector_scorer import SectorScorer
 from discovery.adaptive_stock_selector import AdaptiveStockSelector
 from discovery.signal_tracker import SignalTracker
+from discovery.gap_scanner import GapScanner
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +136,15 @@ class DiscoveryEngine:
             logger.info("Discovery v17: enabled — SectorScorer=%s StockSelector=%s SignalTracker=%s",
                         self._sector_scorer._fitted, self._stock_selector._fitted,
                         self._signal_tracker._fitted)
+
+        # v18: Gap Scanner — predict next-day gap-ups
+        self._gap_scanner = GapScanner()
+        if not self._gap_scanner.load_from_db():
+            try:
+                self._gap_scanner.fit()
+                self._gap_scanner.save_to_db()
+            except Exception as e:
+                logger.error("Discovery: gap scanner fit error: %s", e)
 
         self._orchestrator = AutoRefitOrchestrator(
             self._scorer.regime_brain, self._scorer.stock_brain,
@@ -528,33 +538,39 @@ class DiscoveryEngine:
                                    stage=f'Scored: {len(picks)} picks',
                                    l2=len(picks))
 
-        # 13. v16: Regime-adaptive multi-strategy (shared method)
+        # 13. v18: Gap Scanner — predict next-day gap-ups
+        gap_picks = []
         try:
-            self._multi_strategy_info = self._build_multi_strategy(
-                candidates, scored_all, regime_from_score, macro_er_from_score,
-                macro, scan_info, scan_date)
-            self._multi_strategy_loaded_at = time.monotonic()
+            gap_candidates = self._gap_scanner.scan(macro, scan_date)
+            existing_syms = {p.symbol for p in picks}
+            for gc in gap_candidates:
+                if gc['symbol'] in existing_syms:
+                    continue  # dedupe
+                gap_pick = self._create_gap_pick(gc, macro, scan_date, regime_from_score)
+                if gap_pick:
+                    gap_picks.append(gap_pick)
+                    existing_syms.add(gap_pick.symbol)
+            if gap_picks:
+                logger.info("Discovery v18: %d gap picks added [%s]",
+                            len(gap_picks),
+                            ', '.join(p.symbol for p in gap_picks))
         except Exception as e:
-            import traceback
-            tb = traceback.format_exc().replace('\n', ' | ')
-            logger.error("Discovery: multi-strategy error: %s TB: %s", e, tb)
-            self._multi_strategy_info = {}
+            logger.error("Discovery: gap scan error: %s", e)
 
-        # 14. Persist multi-strategy info to DB (survives process restart)
-        if self._multi_strategy_info:
-            self._save_multi_strategy(scan_date, self._multi_strategy_info)
+        # Concat: max 3 gap + max 7 discovery = max 10 total
+        all_picks = gap_picks[:3] + picks[:7]
 
-        # 15. Deactivate old + save new
+        # 14. Deactivate old + save new
         self._expire_old_picks(scan_date)
         self._deactivate_previous_picks(scan_date)
-        self._save_picks(picks, scan_date)
+        self._save_picks(all_picks, scan_date)
 
-        self._picks = picks
+        self._picks = all_picks
         self._last_scan = scan_date
         self._scan_progress = {'status': 'done', 'pct': 100,
-                               'stage': f'Done: {len(picks)} picks',
-                               'l1': len(candidates), 'l2': len(picks)}
-        return picks
+                               'stage': f'Done: {len(all_picks)} picks ({len(gap_picks)} gap)',
+                               'l1': len(candidates), 'l2': len(all_picks)}
+        return all_picks
 
     def _run_v3_pipeline(self, candidates, macro, scan_date, scan_info, refit=True):
         """v17 adaptive pipeline: Strategy ranking → Sector filter → Signal boost → Filter → Size.
@@ -935,6 +951,97 @@ class DiscoveryEngine:
             candidate.get('volume_ratio'),
             candidate.get('pe_forward'),
             adaptive=self._adaptive_params)
+
+    def _create_gap_pick(self, gc: dict, macro: dict, scan_date: str, regime: str) -> 'DiscoveryPick':
+        """Create a DiscoveryPick from a gap scanner candidate."""
+        try:
+            price = gc['close']
+            atr_pct = gc.get('atr_pct', 3.0) or 3.0
+            gap_type = gc.get('_gap_type', 'COMMON')
+            gap_score = gc.get('_gap_score', 0)
+            reasons = gc.get('_gap_reasons', [])
+
+            # SL/TP based on gap type
+            if gap_type == 'SECTOR_BOUNCE':
+                sl_pct = min(atr_pct * 1.5, 5.0)
+                tp_pct = atr_pct * 2.0
+            elif gap_type == 'BREAKAWAY':
+                sl_pct = min(atr_pct * 2.0, 5.0)
+                tp_pct = atr_pct * 3.0
+            else:
+                sl_pct = min(atr_pct * 1.5, 4.0)
+                tp_pct = atr_pct * 2.0
+
+            sl_price = round(price * (1 - sl_pct / 100), 2)
+            tp_price = round(price * (1 + tp_pct / 100), 2)
+
+            council = {
+                'decision': 'TRADE',
+                'tier': 'LEAN' if gap_score < 5 else 'FIRM',
+                'confidence': min(int(gap_score * 10), 100),
+                'position_size': 0.25,
+                'reasons': reasons,
+                'strategy': {
+                    'regime': regime or 'BULL',
+                    'strategy': 'GAP',
+                    'sizing': 0.25,
+                    'gap_type': gap_type,
+                    'gap_score': gap_score,
+                },
+                'stock_signals': {},
+                'stock_profile': {},
+                'context': {
+                    'gap_type': gap_type,
+                    'gap_score': gap_score,
+                    'reasons': reasons,
+                    'sector_ret': gc.get('_sect_ret', 0),
+                    'vix': gc.get('_vix', 20),
+                    'breadth': gc.get('_breadth', 50),
+                },
+                'sensors': {},
+                'exit_rules': {
+                    'sl_pct': round(sl_pct, 1),
+                    'tp_pct': round(tp_pct, 1),
+                    'tp_schedule': {
+                        'D0': round(tp_pct * 0.5, 1),
+                        'D1': round(tp_pct * 0.7, 1),
+                        'D2': round(tp_pct * 0.9, 1),
+                        'D3': round(tp_pct, 1),
+                    },
+                    'max_hold_days': 5,
+                },
+            }
+
+            pick = DiscoveryPick(
+                symbol=gc['symbol'],
+                scan_date=scan_date,
+                scan_price=price,
+                current_price=price,
+                layer2_score=round(gap_score, 2),
+                beta=gc.get('beta', 1.0) or 1.0,
+                atr_pct=round(atr_pct, 2),
+                distance_from_20d_high=gc.get('distance_from_20d_high', 0) or 0,
+                momentum_5d=gc.get('momentum_5d', 0) or 0,
+                momentum_20d=gc.get('momentum_20d', 0) or 0,
+                volume_ratio=gc.get('volume_ratio', 1) or 1,
+                sl_price=sl_price,
+                sl_pct=round(sl_pct, 1),
+                tp1_price=tp_price,
+                tp1_pct=round(tp_pct, 1),
+                expected_gain=round(tp_pct, 1),
+                rr_ratio=round(tp_pct / sl_pct, 2) if sl_pct > 0 else 1.0,
+                sector=gc.get('sector', ''),
+                market_cap=gc.get('market_cap', 0) or 0,
+                vix_close=macro.get('vix_close', 0) or 0,
+                pct_above_20d_ma=macro.get('pct_above_20d_ma', 0) or 0,
+                scan_type='evening',
+                status='active',
+            )
+            pick.council = council
+            return pick
+        except Exception as e:
+            logger.error("GapScanner: failed to create pick for %s: %s", gc.get('symbol'), e)
+            return None
 
     def _build_multi_strategy(self, candidates, scored_all, regime, macro_er,
                               macro, scan_info, scan_date):
@@ -1871,13 +1978,6 @@ class DiscoveryEngine:
 
         picks, scored_all, regime_s, macro_er_s = \
             self._run_v3_pipeline(candidates, macro, scan_date, scan_info, refit=False)
-        try:
-            self._multi_strategy_info = self._build_multi_strategy(
-                candidates, scored_all, regime_s, macro_er_s,
-                macro, scan_info, scan_date)
-            self._multi_strategy_loaded_at = time.monotonic()
-        except Exception as e:
-            logger.error("Discovery intraday: multi-strategy error: %s", e)
 
         # Merge with existing
         conn = sqlite3.connect(str(DB_PATH))
