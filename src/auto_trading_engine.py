@@ -1036,10 +1036,10 @@ class AutoTradingEngine:
                            strategy: str = '', reason: str = ''):
         """v6.68: Write BUY/SELL event to DB for real-time UI notification (≤2s latency)."""
         try:
-            import sqlite3
+            from database.orm.base import get_session; from sqlalchemy import text
             from pathlib import Path
-            db_path = str(Path(__file__).resolve().parent.parent / 'data' / 'trade_history.db')
-            with sqlite3.connect(db_path) as conn:
+            # DB path handled by ORM
+            with get_session() as conn:
                 conn.execute("""
                     CREATE TABLE IF NOT EXISTS trade_events (
                         id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2499,10 +2499,10 @@ class AutoTradingEngine:
         if hasattr(self, '_breadth_cache') and self._breadth_cache[0] == today:
             return self._breadth_cache[1], self._breadth_cache[2]
         try:
-            import sqlite3 as _sq
+            from database.orm.base import get_session; from sqlalchemy import text
             from pathlib import Path as _Path
-            _db = str(_Path(__file__).resolve().parent.parent / 'data' / 'trade_history.db')
-            conn = _sq.connect(_db)
+            # DB path handled by ORM
+            conn = get_session().__enter__()
             rows = conn.execute(
                 "SELECT pct_above_20d_ma FROM market_breadth ORDER BY date DESC LIMIT 6"
             ).fetchall()
@@ -2591,9 +2591,9 @@ class AutoTradingEngine:
             return self._insider_cache[cache_key]
         try:
             from pathlib import Path as _Path
-            _db = str(_Path(__file__).resolve().parent.parent / 'data' / 'trade_history.db')
+            # DB path handled by ORM
             cutoff = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-            with sqlite3.connect(_db) as _conn:
+            with get_session() as _conn:
                 row = _conn.execute("""
                     SELECT SUM(total_value),
                            MIN(CAST(julianday('now') - julianday(transaction_date) AS INTEGER))
@@ -2698,8 +2698,8 @@ class AutoTradingEngine:
         Non-blocking — any DB error returns (None, None).
         """
         try:
-            _db = str(Path(__file__).resolve().parent.parent / 'data' / 'trade_history.db')
-            conn = sqlite3.connect(_db)
+            # DB path handled by ORM
+            conn = get_session().__enter__()
             row = conn.execute("""
                 SELECT sentiment_label, impact_score
                 FROM news_events
@@ -5726,11 +5726,11 @@ class AutoTradingEngine:
             # v7.5: Backfill entry_vs_open_pct into signal_outcomes for the BOUGHT row
             if _entry_vs_open is not None:
                 try:
-                    import sqlite3 as _sq3
-                    _db = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'trade_history.db')
+                    from database.orm.base import get_session; from sqlalchemy import text
+                    # DB path handled by ORM
                     _sc = self._current_scan_id
                     if _sc:
-                        _c2 = _sq3.connect(_db)
+                        _c2 = get_session().__enter__()
                         _c2.execute(
                             "UPDATE signal_outcomes SET entry_vs_open_pct = ? WHERE scan_id = ? AND symbol = ?",
                             (_entry_vs_open, _sc, symbol)
@@ -5753,9 +5753,9 @@ class AutoTradingEngine:
                 _sc = self._current_scan_id
                 if _sc and (_entry_vs_vwap is not None or _bounce_from_lod is not None):
                     try:
-                        import sqlite3 as _sq3b
+                        from database.orm.base import get_session; from sqlalchemy import text
                         _db = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'trade_history.db')
-                        _c3 = _sq3b.connect(_db)
+                        _c3 = get_session().__enter__()
                         _c3.execute(
                             "UPDATE signal_outcomes SET entry_vs_vwap_pct = ?, bounce_pct_from_lod = ? WHERE scan_id = ? AND symbol = ?",
                             (_entry_vs_vwap, _bounce_from_lod, _sc, symbol)
@@ -6369,10 +6369,10 @@ class AutoTradingEngine:
                 # Check if this trade was already logged (within last 5 minutes)
                 already_logged = False
                 try:
-                    import sqlite3
-                    db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'trade_history.db')
+                    from database.orm.base import get_session; from sqlalchemy import text
+                    # DB path handled by ORM
                     if os.path.exists(db_path):
-                        conn = sqlite3.connect(db_path)
+                        conn = get_session().__enter__()
                         cursor = conn.cursor()
                         # Check for recent SELL of same symbol
                         five_min_ago = (datetime.now() - timedelta(minutes=5)).isoformat()

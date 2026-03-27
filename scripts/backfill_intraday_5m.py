@@ -15,7 +15,7 @@ Table: intraday_bars_5m
 """
 import argparse
 import os
-import sqlite3
+from database.orm.base import get_session; from sqlalchemy import text
 import requests
 import time
 from datetime import datetime, date, timedelta
@@ -145,7 +145,7 @@ def main():
     parser.add_argument('--min-mcap', type=float, default=1e9, help='Min market cap')
     args = parser.parse_args()
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_session().__enter__()
     ensure_table(conn)
 
     # Determine symbols

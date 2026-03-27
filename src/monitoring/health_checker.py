@@ -13,7 +13,7 @@ Checks:
 
 import os
 import psutil
-import sqlite3
+from database.orm.base import get_session; from sqlalchemy import text
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -178,7 +178,7 @@ class HealthChecker:
             size_mb = db_path.stat().st_size / (1024 * 1024)
 
             # Check integrity
-            conn = sqlite3.connect(db_path)
+            conn = get_session().__enter__()
             cursor = conn.cursor()
             cursor.execute("PRAGMA integrity_check")
             integrity_result = cursor.fetchone()[0]

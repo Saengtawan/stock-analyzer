@@ -13,7 +13,7 @@ Metrics:
 
 import os
 import time
-import sqlite3
+from database.orm.base import get_session; from sqlalchemy import text
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -346,7 +346,7 @@ class PerformanceMonitor:
 
             # Get table counts
             try:
-                conn = sqlite3.connect(trade_db)
+                conn = get_session().__enter__()
                 cursor = conn.cursor()
 
                 # Count positions

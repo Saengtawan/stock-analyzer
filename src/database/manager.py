@@ -67,7 +67,7 @@ class DatabaseManager:
     def execute(self, query: str, params: tuple = (), commit: bool = True) -> Any:
         """Execute a single SQL statement."""
         with get_session() as session:
-            result = session.execute(text(query), _positional_to_dict(query, params))
+            result = session.execute(text(_replace_positional(query)), _positional_to_dict(query, params))
             return result
 
     def execute_many(self, query: str, params_list: list, commit: bool = True) -> Any:
@@ -79,7 +79,7 @@ class DatabaseManager:
     def fetch_one(self, query: str, params: tuple = ()) -> Optional[dict]:
         """Fetch a single row as a dict (or None)."""
         with get_session() as session:
-            result = session.execute(text(query), _positional_to_dict(query, params))
+            result = session.execute(text(_replace_positional(query)), _positional_to_dict(query, params))
             row = result.fetchone()
             if row is None:
                 return None
@@ -88,7 +88,7 @@ class DatabaseManager:
     def fetch_all(self, query: str, params: tuple = ()) -> List[dict]:
         """Fetch all rows as a list of dicts."""
         with get_session() as session:
-            result = session.execute(text(query), _positional_to_dict(query, params))
+            result = session.execute(text(_replace_positional(query)), _positional_to_dict(query, params))
             return [_row_to_dict(r) for r in result.fetchall()]
 
     def close(self):
@@ -148,6 +148,19 @@ def _positional_to_dict(sql: str, params=None) -> dict:
     if isinstance(params, dict):
         return params
     return {f"p{i}": v for i, v in enumerate(params)}
+
+
+def _replace_positional(sql: str) -> str:
+    """Replace ? placeholders with :p0, :p1, ... for SQLAlchemy text()."""
+    i = 0
+    result = []
+    for char in sql:
+        if char == '?':
+            result.append(f':p{i}')
+            i += 1
+        else:
+            result.append(char)
+    return ''.join(result)
 
 
 def _row_to_dict(row) -> dict:
