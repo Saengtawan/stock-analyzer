@@ -8,14 +8,14 @@ Computes ~20 normalized features per stock combining:
   Stock sensors (8): speculative, sensitivities, supply chain, earnings, analyst, candle
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import json
 import numpy as np
 from pathlib import Path
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 # Sector-macro alignment rules
 SECTOR_MACRO_RULES = {
@@ -147,7 +147,7 @@ class SensorNetwork:
 
     def _stock_sensors(self, symbol: str, stock: dict, macro: dict) -> dict:
         """8 stock-level sensors."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             # Speculative flag
             r = conn.execute("""
@@ -195,7 +195,7 @@ class SensorNetwork:
             insider = min(1, (r[0] or 0) / 3)  # 3+ buys = max signal
 
         finally:
-            conn.close()
+            pass
 
         # D0 candle signal (from stock features)
         d0_lower = stock.get('d0_lower_shadow', 0)
@@ -218,7 +218,7 @@ class SensorNetwork:
 
     def _compute_sector_ranks(self, scan_date: str):
         """Rank sectors by 10d return."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             rows = conn.execute("""
                 SELECT sector, SUM(pct_change) as ret_10d
@@ -228,7 +228,7 @@ class SensorNetwork:
                 GROUP BY sector ORDER BY ret_10d DESC
             """, (scan_date, scan_date)).fetchall()
         finally:
-            conn.close()
+            pass
 
         self._sector_ranks = {r[0]: i + 1 for i, r in enumerate(rows)}
         self._sector_rank_date = scan_date

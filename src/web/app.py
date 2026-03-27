@@ -3102,23 +3102,23 @@ def api_discovery_gap_intraday():
 def api_discovery_outcomes():
     """Get recent discovery outcomes for display."""
     try:
-        import sqlite3
-        from pathlib import Path
-        db = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
-        conn = sqlite3.connect(str(db))
-        conn.row_factory = sqlite3.Row
+        from database.orm.base import get_session
+        from database.orm.models import DiscoveryOutcome
         limit = int(request.args.get('limit', 50))
-        rows = conn.execute("""
-            SELECT scan_date, symbol, predicted_er, actual_return_d3,
-                   actual_return_d5, max_gain, max_dd, tp_hit, sl_hit,
-                   regime, sector, atr_pct, vix_close
-            FROM discovery_outcomes
-            ORDER BY scan_date DESC, symbol
-            LIMIT ?
-        """, (limit,)).fetchall()
-        conn.close()
-
-        outcomes = [dict(r) for r in rows]
+        with get_session() as session:
+            rows = session.query(DiscoveryOutcome).order_by(
+                DiscoveryOutcome.scan_date.desc(), DiscoveryOutcome.symbol
+            ).limit(limit).all()
+            outcomes = []
+            for r in rows:
+                outcomes.append({
+                    'scan_date': r.scan_date, 'symbol': r.symbol,
+                    'predicted_er': r.predicted_er, 'actual_return_d3': r.actual_return_d3,
+                    'actual_return_d5': r.actual_return_d5, 'max_gain': r.max_gain,
+                    'max_dd': r.max_dd, 'tp_hit': r.tp_hit, 'sl_hit': r.sl_hit,
+                    'regime': r.regime, 'sector': r.sector, 'atr_pct': r.atr_pct,
+                    'vix_close': r.vix_close,
+                })
         return jsonify({'outcomes': outcomes, 'count': len(outcomes)})
     except Exception as e:
         logger.error(f"Discovery outcomes error: {e}")
@@ -5481,22 +5481,20 @@ def broadcast_update(event_type, data):
 def _get_pending_trade_events():
     """v6.68: Read unnotified trade events from DB and mark them as notified."""
     try:
-        import sqlite3
-        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data', 'trade_history.db')
-        db_path = os.path.normpath(db_path)
-        with sqlite3.connect(db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            rows = conn.execute(
-                "SELECT * FROM trade_events WHERE notified = 0 ORDER BY id"
-            ).fetchall()
-            if rows:
-                ids = [r['id'] for r in rows]
-                conn.execute(
-                    f"UPDATE trade_events SET notified = 1 WHERE id IN ({','.join('?' * len(ids))})",
-                    ids
-                )
-                conn.commit()
-            return [dict(r) for r in rows]
+        from database.orm.base import get_session
+        from database.orm.models import TradeEvent
+        with get_session() as session:
+            events = session.query(TradeEvent).filter(
+                TradeEvent.notified == 0
+            ).order_by(TradeEvent.id).all()
+            result = []
+            for ev in events:
+                result.append({
+                    c.name: getattr(ev, c.name) for c in ev.__table__.columns
+                })
+                ev.notified = 1
+            # session auto-commits on exit
+            return result
     except Exception:
         return []
 
@@ -5796,50 +5794,44 @@ def api_trade_logs():
     """
     Get today's trade logs and summary for UI display.
 
-    v6.81: Read directly from SQLite trades table (engine + webapp same DB).
+    v6.81: Read directly from trades table via ORM (engine + webapp same DB).
     Previously used in-memory TradeLogger which only saw webapp-process logs,
     missing all engine SKIPs (different process, different singleton).
     """
     try:
-        import sqlite3
         import pytz
+        from database.orm.base import get_session
+        from database.orm.models import Trade as TradeORM
         et_tz = pytz.timezone('America/New_York')
         today = datetime.now(et_tz).strftime('%Y-%m-%d')
 
-        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data', 'trade_history.db')
-        db_path = os.path.normpath(db_path)
+        with get_session() as session:
+            rows = session.query(TradeORM).filter(
+                TradeORM.date == today
+            ).order_by(TradeORM.timestamp.desc()).limit(100).all()
 
-        with sqlite3.connect(db_path, timeout=5) as conn:
-            conn.row_factory = sqlite3.Row
-            cur = conn.cursor()
-            cur.execute(
-                "SELECT * FROM trades WHERE date = ? ORDER BY timestamp DESC LIMIT 100",
-                (today,)
-            )
-            rows = cur.fetchall()
-
-        logs = []
-        for row in rows:
-            full = json.loads(row['full_data']) if row['full_data'] else {}
-            logs.append({
-                'id': row['id'],
-                'timestamp': row['timestamp'],
-                'action': row['action'],
-                'symbol': row['symbol'],
-                'qty': row['qty'],
-                'price': row['price'],
-                'reason': row['reason'],
-                'pnl_usd': row['pnl_usd'],
-                'pnl_pct': row['pnl_pct'],
-                'hold_duration': row['hold_duration'],
-                'mode': row['mode'],
-                'from_queue': bool(row['from_queue']),
-                'signal_score': row['signal_score'],
-                # Extra fields from full_data (not in columns)
-                'skip_reason': full.get('skip_reason'),
-                'entry_rsi': full.get('entry_rsi'),
-                'momentum_5d': full.get('momentum_5d'),
-            })
+            logs = []
+            for row in rows:
+                full = json.loads(row.full_data) if row.full_data else {}
+                logs.append({
+                    'id': row.id,
+                    'timestamp': row.timestamp,
+                    'action': row.action,
+                    'symbol': row.symbol,
+                    'qty': row.qty,
+                    'price': row.price,
+                    'reason': row.reason,
+                    'pnl_usd': row.pnl_usd,
+                    'pnl_pct': row.pnl_pct,
+                    'hold_duration': row.hold_duration,
+                    'mode': row.mode,
+                    'from_queue': bool(row.from_queue),
+                    'signal_score': row.signal_score,
+                    # Extra fields from full_data (not in columns)
+                    'skip_reason': full.get('skip_reason'),
+                    'entry_rsi': full.get('entry_rsi'),
+                    'momentum_5d': full.get('momentum_5d'),
+                })
 
         buys = [l for l in logs if l['action'] == 'BUY']
         sells = [l for l in logs if l['action'] == 'SELL']

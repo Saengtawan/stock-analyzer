@@ -5,12 +5,12 @@ Part of Discovery AI v7.0 Multi-Brain Council.
 Rule-based (not ML): sector limits, exposure caps, loss streaks.
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 from pathlib import Path
 from collections import Counter
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 
 class RiskBrain:
@@ -115,14 +115,13 @@ class RiskBrain:
     def _get_consecutive_losses(self) -> int:
         """Count consecutive losses from recent discovery outcomes."""
         try:
-            conn = sqlite3.connect(str(DB_PATH))
+            # conn via get_session()
             rows = conn.execute("""
                 SELECT actual_return_d3 FROM discovery_outcomes
                 WHERE actual_return_d3 IS NOT NULL
                 ORDER BY scan_date DESC, symbol DESC
                 LIMIT 20
             """).fetchall()
-            conn.close()
 
             count = 0
             for r in rows:

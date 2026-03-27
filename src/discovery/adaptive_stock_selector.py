@@ -15,7 +15,8 @@ Walk-forward: 60d rolling retrain.
 No strategy labels — just: "given these features in this context, probability = X%"
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import time
 import pickle
 import json
@@ -24,7 +25,6 @@ import numpy as np
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 FEATURES = [
     # Stock-level (9)
@@ -167,7 +167,7 @@ class AdaptiveStockSelector:
             from sklearn.preprocessing import StandardScaler as SS
             from sklearn.metrics import roc_auc_score as auc_score
 
-            conn = sqlite3.connect(str(DB_PATH), timeout=10)
+            # conn via get_session()
             rows = conn.execute('''
                 SELECT b.momentum_5d, b.distance_from_20d_high, b.volume_ratio, b.atr_pct,
                        d0.open, d0.high, d0.low, d0.close, d0.volume,
@@ -185,7 +185,6 @@ class AdaptiveStockSelector:
                 AND sf.avg_volume > 0 AND m.vix_close IS NOT NULL
                 ORDER BY b.scan_date
             ''').fetchall()
-            conn.close()
 
             if len(rows) < 5000:
                 logger.warning("Gap model: not enough data (%d)", len(rows))
@@ -367,7 +366,7 @@ class AdaptiveStockSelector:
 
         Returns (X: np.array, y: np.array, feature_names: list).
         """
-        conn = sqlite3.connect(str(DB_PATH), timeout=10)
+        # conn via get_session()
         conn.execute('PRAGMA busy_timeout=5000')
 
         try:
@@ -484,7 +483,7 @@ class AdaptiveStockSelector:
             except Exception: pass
 
         finally:
-            conn.close()
+            pass
 
         if len(rows) < MIN_TRAIN_ROWS:
             return None, None, None
@@ -690,7 +689,7 @@ class AdaptiveStockSelector:
     # === DB Persistence ===
 
     def _ensure_tables(self):
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         conn.execute("""
             CREATE TABLE IF NOT EXISTS stock_selector_model (
                 id INTEGER PRIMARY KEY,
@@ -716,13 +715,11 @@ class AdaptiveStockSelector:
                 UNIQUE(fit_date)
             )
         """)
-        conn.commit()
-        conn.close()
 
     def save_to_db(self):
         from datetime import date as date_cls
         fit_date = date_cls.today().isoformat()
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
 
         model_blob = pickle.dumps(self._model)
         feat_names = json.dumps(self._feature_names)
@@ -746,14 +743,11 @@ class AdaptiveStockSelector:
             (fit_date, n_train, auc, feature_importance)
             VALUES (?, ?, ?, ?)
         """, (fit_date, self._n_train, self._auc, feat_imp))
-
-        conn.commit()
-        conn.close()
         logger.info("AdaptiveStockSelector: saved model to DB (AUC=%.4f, %d bytes)",
                      self._auc, len(model_blob))
 
     def load_from_db(self) -> bool:
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             row = conn.execute("""
                 SELECT model_blob, feature_names, feature_means, feature_stds,
@@ -761,9 +755,7 @@ class AdaptiveStockSelector:
                 FROM stock_selector_model LIMIT 1
             """).fetchone()
         except Exception:
-            conn.close()
             return False
-        conn.close()
 
         if not row or not row[0]:
             return False

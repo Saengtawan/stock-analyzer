@@ -6,14 +6,14 @@ Runs every 30 days: walk-forward grid search → update best params.
 Safety: max ±20% change per cycle, min WR check, auto-revert.
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import time
 import numpy as np
 from pathlib import Path
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 # Search ranges for each parameter
 SEARCH_RANGES = {
@@ -101,7 +101,7 @@ class ParamOptimizer:
 
     def _optimize_market_signals(self) -> dict:
         """Optimize market signal thresholds from market_signal_outcomes."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             rows = conn.execute("""
                 SELECT signal_type, outcome_5d, params_json
@@ -109,14 +109,14 @@ class ParamOptimizer:
                 WHERE outcome_5d IS NOT NULL
             """).fetchall()
         finally:
-            conn.close()
+            pass
 
         if len(rows) < 100:
             logger.warning("Optimizer: insufficient market signal data (%d)", len(rows))
             return {}
 
         # Optimize sector lookback
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             sector_rows = conn.execute("""
                 SELECT date, sector, pct_change FROM sector_etf_daily_returns
@@ -124,7 +124,7 @@ class ParamOptimizer:
                 ORDER BY date
             """).fetchall()
         finally:
-            conn.close()
+            pass
 
         daily = defaultdict(dict)
         for r in sector_rows:
@@ -157,7 +157,7 @@ class ParamOptimizer:
 
     def _optimize_arbiter(self) -> dict:
         """Optimize arbiter thresholds from discovery_outcomes."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             rows = conn.execute("""
                 SELECT predicted_er, actual_return_d3
@@ -166,7 +166,7 @@ class ParamOptimizer:
                 ORDER BY scan_date
             """).fetchall()
         finally:
-            conn.close()
+            pass
 
         if len(rows) < 100:
             return {}
@@ -177,7 +177,7 @@ class ParamOptimizer:
 
     def _optimize_tp_sl(self) -> dict:
         """Optimize TP/SL ratios from signal_daily_bars."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             rows = conn.execute("""
                 SELECT b.atr_pct,
@@ -192,7 +192,7 @@ class ParamOptimizer:
                 LIMIT 40000
             """).fetchall()
         finally:
-            conn.close()
+            pass
 
         if len(rows) < 5000:
             return {}

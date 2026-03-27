@@ -10,12 +10,9 @@ v13.1 fix: VIX sensitivity threshold -0.15 → -0.50
 Penalty tiers scaled by correlation magnitude (not flat -0.2).
 """
 import logging
-import sqlite3
 import json
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 
 class ContextScorer:

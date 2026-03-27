@@ -1237,16 +1237,12 @@ class RapidRotationScreener:
         """v7.5: Get analyst target upside % from DB cache. Returns None if unavailable."""
         if not self._analyst_cache_loaded:
             try:
-                import sqlite3
-                db_path = os.path.join(
-                    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-                    'data', 'trade_history.db'
-                )
-                conn = sqlite3.connect(db_path)
-                rows = conn.execute(
-                    "SELECT symbol, upside_pct FROM analyst_consensus WHERE upside_pct IS NOT NULL"
-                ).fetchall()
-                conn.close()
+                from database.orm.base import get_session
+                from database.orm.models import AnalystConsensus
+                with get_session() as session:
+                    rows = session.query(
+                        AnalystConsensus.symbol, AnalystConsensus.upside_pct
+                    ).filter(AnalystConsensus.upside_pct.isnot(None)).all()
                 self._analyst_upside_cache = {r[0]: r[1] for r in rows}
                 logger.debug(f"Loaded analyst upside for {len(self._analyst_upside_cache)} symbols")
             except Exception as e:
@@ -1634,24 +1630,25 @@ class RapidRotationScreener:
 
                     # v7.5: Enrich rejection batch with insider activity (batch query)
                     try:
-                        import sqlite3 as _sqlite3
-                        from pathlib import Path as _Path
-                        _idb = str(_Path(__file__).resolve().parent.parent.parent / 'data' / 'trade_history.db')
+                        from database.orm.base import get_session as _get_session
+                        from sqlalchemy import text as _text
                         _cutoff = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
                         _unique_syms = list({r['symbol'] for r in _rej_batch if r.get('symbol')})
                         if _unique_syms:
-                            _placeholders = ','.join('?' * len(_unique_syms))
-                            with _sqlite3.connect(_idb) as _ic:
-                                _irows = _ic.execute(f"""
+                            _placeholders = ','.join(f':s{i}' for i in range(len(_unique_syms)))
+                            _params = {f's{i}': s for i, s in enumerate(_unique_syms)}
+                            _params['cutoff'] = _cutoff
+                            with _get_session() as _session:
+                                _irows = _session.execute(_text(f"""
                                     SELECT symbol,
                                            SUM(total_value) as total_val,
                                            MIN(CAST(julianday('now') - julianday(transaction_date) AS INTEGER)) as days_ago
                                     FROM insider_transactions
                                     WHERE symbol IN ({_placeholders})
-                                      AND transaction_date >= ?
+                                      AND transaction_date >= :cutoff
                                       AND transaction_type = 'purchase'
                                     GROUP BY symbol
-                                """, _unique_syms + [_cutoff]).fetchall()
+                                """), _params).fetchall()
                             _insider_map = {r[0]: (round(float(r[1]), 0), int(r[2]) if r[2] is not None else None)
                                             for r in _irows if r[1] is not None}
                             for _r in _rej_batch:

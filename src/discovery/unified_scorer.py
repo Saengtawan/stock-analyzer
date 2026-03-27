@@ -11,7 +11,8 @@ Provides: fit(), scan_setup(), score_batch(), predict_tp_timeline(),
 """
 import logging
 import math
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import time
 import numpy as np
 from pathlib import Path
@@ -28,7 +29,6 @@ from discovery.leading_indicators import LeadingIndicatorEngine
 from discovery.strategy_router import StrategyRouter
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 
 class UnifiedScorer:
@@ -507,7 +507,7 @@ class UnifiedScorer:
             logger.error("HoldKernel: fit failed: %s", e)
 
     def _fit_hold_kernel_inner(self):
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             rows = conn.execute("""
                 SELECT b.atr_pct, b.volume_ratio, b.momentum_5d, b.distance_from_20d_high,
@@ -523,7 +523,7 @@ class UnifiedScorer:
                 WHERE d0.open > 0 AND b.atr_pct > 0
             """).fetchall()
         finally:
-            conn.close()
+            pass
 
         if len(rows) < 500:
             logger.warning("HoldKernel: not enough data (%d rows)", len(rows))
@@ -595,7 +595,7 @@ class UnifiedScorer:
 
     def _fit_weekend_kernel(self):
         """Fit kernel for Friday buy → Monday outcome prediction."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             rows = conn.execute("""
                 SELECT b.atr_pct, b.volume_ratio, b.momentum_5d,
@@ -610,7 +610,7 @@ class UnifiedScorer:
                   AND strftime('%w', b.scan_date) = '5'
             """).fetchall()
         finally:
-            conn.close()
+            pass
 
         if len(rows) < 200:
             logger.warning("WeekendKernel: not enough Friday data (%d rows)", len(rows))

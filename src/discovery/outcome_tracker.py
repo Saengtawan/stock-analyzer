@@ -10,7 +10,8 @@ Runs as part of the scan cycle: before new scan, check expired picks for outcome
 Data stored in `discovery_outcomes` table.
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 from datetime import datetime, timedelta, date
 from pathlib import Path
 from typing import Optional
@@ -19,7 +20,6 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 
 class OutcomeTracker:
@@ -29,7 +29,7 @@ class OutcomeTracker:
         self._ensure_table()
 
     def _ensure_table(self):
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         conn.execute("""
             CREATE TABLE IF NOT EXISTS discovery_outcomes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,8 +53,6 @@ class OutcomeTracker:
                 UNIQUE(scan_date, symbol)
             )
         """)
-        conn.commit()
-        conn.close()
 
     def track_expired_picks(self) -> int:
         """Find picks that have expired/completed and record their outcomes.
@@ -65,8 +63,7 @@ class OutcomeTracker:
 
         Returns number of new outcomes tracked.
         """
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        # conn via get_session()
 
         # Find picks that completed (not active) and not yet tracked
         rows = conn.execute("""
@@ -81,7 +78,6 @@ class OutcomeTracker:
               AND p.scan_price > 0
             ORDER BY p.scan_date
         """).fetchall()
-        conn.close()
 
         if not rows:
             return 0
@@ -98,7 +94,7 @@ class OutcomeTracker:
 
         return tracked
 
-    def _compute_outcome(self, pick: sqlite3.Row) -> Optional[dict]:
+    def _compute_outcome(self, pick: dict) -> Optional[dict]:
         """Compute actual outcome for a pick using signal_daily_bars or yfinance fallback."""
         scan_date = pick['scan_date']
         symbol = pick['symbol']
@@ -107,14 +103,13 @@ class OutcomeTracker:
         tp_pct = pick['tp1_pct'] or 3.0
 
         # Try signal_daily_bars first (most accurate — intraday OHLC)
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         bars = conn.execute("""
             SELECT day_offset, open, high, low, close
             FROM signal_daily_bars
             WHERE scan_date = ? AND symbol = ?
             ORDER BY day_offset
         """, (scan_date, symbol)).fetchall()
-        conn.close()
 
         if bars and len(bars) >= 4:
             return self._outcome_from_bars(pick, bars)
@@ -122,7 +117,7 @@ class OutcomeTracker:
         # Fallback: use discovery_picks status + current_price
         return self._outcome_from_status(pick)
 
-    def _outcome_from_bars(self, pick: sqlite3.Row, bars: list) -> dict:
+    def _outcome_from_bars(self, pick: dict, bars: list) -> dict:
         """Compute precise outcome from daily OHLC bars."""
         scan_price = pick['scan_price']
         sl_pct = pick['sl_pct'] or 3.0
@@ -203,7 +198,7 @@ class OutcomeTracker:
             'exit_price': d3_close or pick['current_price'],
         }
 
-    def _outcome_from_status(self, pick: sqlite3.Row) -> dict:
+    def _outcome_from_status(self, pick: dict) -> dict:
         """Fallback: estimate outcome from pick status + current_price."""
         scan_price = pick['scan_price']
         current_price = pick['current_price'] or scan_price
@@ -244,7 +239,7 @@ class OutcomeTracker:
 
     def _save_outcome(self, outcome: dict):
         """Insert outcome into DB (UPSERT)."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             conn.execute("""
                 INSERT OR REPLACE INTO discovery_outcomes
@@ -263,9 +258,8 @@ class OutcomeTracker:
                 outcome['sector'], outcome['vix_close'],
                 outcome['scan_price'], outcome['exit_price'],
             ))
-            conn.commit()
         finally:
-            conn.close()
+            pass
 
     def backfill_from_historical(self) -> int:
         """Backfill outcomes from backfill_signal_outcomes for historical calibration.
@@ -276,13 +270,12 @@ class OutcomeTracker:
 
         Returns number of outcomes inserted.
         """
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
 
         # Check how many we already have
         existing = conn.execute("SELECT COUNT(*) FROM discovery_outcomes").fetchone()[0]
         if existing > 1000:
             logger.info("OutcomeTracker: already have %d outcomes, skip backfill", existing)
-            conn.close()
             return 0
 
         # Pull from backfill_signal_outcomes with kernel-style features
@@ -298,7 +291,6 @@ class OutcomeTracker:
         """).fetchall()
 
         if not rows:
-            conn.close()
             return 0
 
         inserted = 0
@@ -334,10 +326,7 @@ class OutcomeTracker:
                 """, (scan_date, symbol, o3d, o5d, mg, mdd,
                       tp_hit, sl_hit, regime, atr, sector, vix))
                 inserted += 1
-            except sqlite3.IntegrityError:
+            except Exception:
                 pass
-
-        conn.commit()
-        conn.close()
         logger.info("OutcomeTracker: backfilled %d historical outcomes", inserted)
         return inserted

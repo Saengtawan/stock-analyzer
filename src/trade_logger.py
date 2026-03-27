@@ -20,7 +20,6 @@ import glob
 import os
 import json
 import queue
-import sqlite3
 import tempfile
 import threading
 import time
@@ -34,6 +33,10 @@ import pytz
 
 from loguru import logger
 
+from sqlalchemy import text, func
+from database.orm.base import get_session
+from database.orm.models import Trade as TradeORM, TradeEvent
+
 
 def _sanitize_for_json(obj):
     """Replace NaN/Infinity with None for valid JSON (SQLite json_extract requires strict JSON)."""
@@ -45,7 +48,7 @@ def _sanitize_for_json(obj):
         return None
     return obj
 
-# Use database layer
+# Legacy imports kept for backward compat (use_db_layer path)
 from database import TradeRepository, Trade as TradeModel
 from database.manager import get_db_manager
 
@@ -294,10 +297,10 @@ class TradeLogger:
         """Backfill JSON log files that were not archived to DB (startup recovery)."""
         try:
             # Get all existing IDs in DB
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT id FROM trades")
-            existing_ids = {row[0] for row in cursor.fetchall()}
+            with get_session() as session:
+                existing_ids = {row[0] for row in session.execute(
+                    text("SELECT id FROM trades")
+                ).fetchall()}
 
             # Scan all trade_log_*.json files (current + archive)
             patterns = [
@@ -322,93 +325,56 @@ class TradeLogger:
                                 trade_date = dt.strftime('%Y-%m-%d')
                             except Exception:
                                 trade_date = ts[:10] if ts else ''
-                            cursor.execute('''
-                                INSERT OR REPLACE INTO trades (
-                                    id, timestamp, date, action, symbol, qty, price, reason,
-                                    entry_price, pnl_usd, pnl_pct, hold_duration,
-                                    pdt_used, pdt_remaining, day_held, mode,
-                                    regime, spy_price, signal_score, gap_pct, atr_pct,
-                                    from_queue, version, source, full_data,
-                                    volume_ratio, composite_score
-                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            ''', (
-                                tid, ts, trade_date,
-                                t.get('action'), t.get('symbol'), t.get('qty'),
-                                t.get('price') or t.get('fill_price'),
-                                t.get('reason'), t.get('entry_price'),
-                                t.get('pnl_usd'), t.get('pnl_pct'),
-                                t.get('hold_duration', str(t.get('day_held', 0)) + 'd'),
-                                1 if t.get('pdt_used') else 0,
-                                t.get('pdt_remaining'), t.get('day_held'), t.get('mode'),
-                                t.get('regime'), t.get('spy_price'), t.get('signal_score'),
-                                t.get('gap_pct'), t.get('atr_pct'),
-                                1 if t.get('from_queue') else 0,
-                                t.get('version') or t.get('config_version'),
-                                t.get('source'),
-                                json.dumps(t, default=str),
-                                t.get('volume_ratio'), t.get('composite_score')
-                            ))
+                            with get_session() as session:
+                                session.execute(text('''
+                                    INSERT OR REPLACE INTO trades (
+                                        id, timestamp, date, action, symbol, qty, price, reason,
+                                        entry_price, pnl_usd, pnl_pct, hold_duration,
+                                        pdt_used, pdt_remaining, day_held, mode,
+                                        regime, spy_price, signal_score, gap_pct, atr_pct,
+                                        from_queue, version, source, full_data,
+                                        volume_ratio, composite_score
+                                    ) VALUES (:id, :ts, :trade_date, :action, :symbol, :qty, :price, :reason,
+                                        :entry_price, :pnl_usd, :pnl_pct, :hold_duration,
+                                        :pdt_used, :pdt_remaining, :day_held, :mode,
+                                        :regime, :spy_price, :signal_score, :gap_pct, :atr_pct,
+                                        :from_queue, :version, :source, :full_data,
+                                        :volume_ratio, :composite_score)
+                                '''), {
+                                    'id': tid, 'ts': ts, 'trade_date': trade_date,
+                                    'action': t.get('action'), 'symbol': t.get('symbol'), 'qty': t.get('qty'),
+                                    'price': t.get('price') or t.get('fill_price'),
+                                    'reason': t.get('reason'), 'entry_price': t.get('entry_price'),
+                                    'pnl_usd': t.get('pnl_usd'), 'pnl_pct': t.get('pnl_pct'),
+                                    'hold_duration': t.get('hold_duration', str(t.get('day_held', 0)) + 'd'),
+                                    'pdt_used': 1 if t.get('pdt_used') else 0,
+                                    'pdt_remaining': t.get('pdt_remaining'), 'day_held': t.get('day_held'),
+                                    'mode': t.get('mode'),
+                                    'regime': t.get('regime'), 'spy_price': t.get('spy_price'),
+                                    'signal_score': t.get('signal_score'),
+                                    'gap_pct': t.get('gap_pct'), 'atr_pct': t.get('atr_pct'),
+                                    'from_queue': 1 if t.get('from_queue') else 0,
+                                    'version': t.get('version') or t.get('config_version'),
+                                    'source': t.get('source'),
+                                    'full_data': json.dumps(t, default=str),
+                                    'volume_ratio': t.get('volume_ratio'),
+                                    'composite_score': t.get('composite_score'),
+                                })
                             existing_ids.add(tid)
                             inserted += 1
                     except Exception as e:
                         logger.debug(f"Backfill skip {filepath}: {e}")
-            conn.commit()
-            conn.close()
             if inserted > 0:
-                logger.info(f"📦 Backfilled {inserted} missing trade records from JSON logs to DB")
+                logger.info(f"Backfilled {inserted} missing trade records from JSON logs to DB")
         except Exception as e:
             logger.warning(f"Backfill error: {e}")
 
     def _init_db(self):
-        """Initialize SQLite database"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
-        # v4.9: Enable WAL mode for crash safety and concurrent reads
-        cursor.execute('PRAGMA journal_mode=WAL')
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS trades (
-                id TEXT PRIMARY KEY,
-                timestamp TEXT,
-                date TEXT,
-                action TEXT,
-                symbol TEXT,
-                qty INTEGER,
-                price REAL,
-                reason TEXT,
-                entry_price REAL,
-                pnl_usd REAL,
-                pnl_pct REAL,
-                hold_duration TEXT,
-                pdt_used INTEGER,
-                pdt_remaining INTEGER,
-                day_held INTEGER,
-                mode TEXT,
-                regime TEXT,
-                spy_price REAL,
-                signal_score REAL,
-                gap_pct REAL,
-                atr_pct REAL,
-                from_queue INTEGER,
-                version TEXT,
-                source TEXT,
-                full_data TEXT,
-                volume_ratio REAL,
-                composite_score REAL,
-                new_score REAL,
-                momentum_20d REAL,
-                distance_from_high REAL
-            )
-        ''')
-
-        # Index for common queries
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_date ON trades(date)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_symbol ON trades(symbol)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_action ON trades(action)')
-
-        conn.commit()
-        conn.close()
+        """Initialize database — ORM handles schema via get_session()/engine.
+        Table creation is now managed by SQLAlchemy models.
+        WAL mode + pragmas are set by database.orm.base.get_engine().
+        """
+        pass
 
     def _get_today_file(self) -> str:
         """Get today's JSON log file path"""
@@ -905,15 +871,12 @@ class TradeLogger:
         """Check if a SELL trade was already logged for symbol in last N hours.
         Used to prevent double-logging when detecting offline SL fills on restart."""
         try:
-            conn = sqlite3.connect(self.db_path, timeout=5)
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT COUNT(*) FROM trades WHERE symbol=? AND action='SELL'
-                AND timestamp >= datetime('now', ?)
-            """, (symbol, f'-{since_hours} hours'))
-            count = cursor.fetchone()[0]
-            conn.close()
-            return count > 0
+            with get_session() as session:
+                count = session.execute(text("""
+                    SELECT COUNT(*) FROM trades WHERE symbol=:symbol AND action='SELL'
+                    AND timestamp >= datetime('now', :offset)
+                """), {'symbol': symbol, 'offset': f'-{since_hours} hours'}).scalar()
+                return count > 0
         except Exception:
             return False  # Fail-open: better to log duplicate than miss it
 
@@ -925,56 +888,13 @@ class TradeLogger:
             logger.error(f"Error flushing trade logger: {e}")
 
     def _archive_to_db(self, entry: TradeLogEntry):
-        """Archive entry to SQLite (uses TradeRepository if available)"""
+        """Archive entry to SQLite via ORM session."""
         try:
-            # Phase 3: Use TradeRepository if available
-            if self.use_db_layer and self.trade_repo:
-                # Convert TradeLogEntry to Trade model
-                dt = datetime.fromisoformat(entry.timestamp.replace('Z', '+00:00'))
-                trade_date = dt.strftime('%Y-%m-%d')
+            dt = datetime.fromisoformat(entry.timestamp.replace('Z', '+00:00'))
+            trade_date = dt.strftime('%Y-%m-%d')
 
-                trade = TradeModel(
-                    id=entry.id,
-                    timestamp=entry.timestamp,
-                    date=trade_date,
-                    action=entry.action,
-                    symbol=entry.symbol,
-                    qty=entry.qty,
-                    price=entry.price,
-                    reason=entry.reason,
-                    entry_price=entry.entry_price,
-                    pnl_usd=entry.pnl_usd,
-                    pnl_pct=entry.pnl_pct,
-                    hold_duration=entry.hold_duration,
-                    pdt_used=entry.pdt_used,
-                    pdt_remaining=entry.pdt_remaining,
-                    day_held=entry.day_held,
-                    mode=entry.mode,
-                    regime=entry.regime,
-                    spy_price=entry.spy_price,
-                    signal_score=entry.signal_score,
-                    gap_pct=entry.gap_pct,
-                    atr_pct=entry.atr_pct,
-                    from_queue=entry.from_queue,
-                    version=entry.version,
-                    source=entry.source,
-                    full_data=json.dumps(_sanitize_for_json(asdict(entry)), default=str)
-                )
-
-                # Use repository (handles INSERT OR REPLACE)
-                self.trade_repo.create(trade)
-                return
-
-            # Fallback: Direct SQLite access
-            conn = sqlite3.connect(self.db_path)
-            try:
-                cursor = conn.cursor()
-
-                # Extract date from timestamp
-                dt = datetime.fromisoformat(entry.timestamp.replace('Z', '+00:00'))
-                trade_date = dt.strftime('%Y-%m-%d')
-
-                cursor.execute('''
+            with get_session() as session:
+                session.execute(text('''
                     INSERT OR REPLACE INTO trades (
                         id, timestamp, date, action, symbol, qty, price, reason,
                         entry_price, pnl_usd, pnl_pct, hold_duration,
@@ -989,36 +909,64 @@ class TradeLogger:
                         mfe_timestamp,
                         sl_multiplier, sl_method,
                         trail_activation_pct, trail_lock_pct, tp_pct,
-                        fill_time_sec, slippage_pct
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    entry.id, entry.timestamp, trade_date, entry.action,
-                    entry.symbol, entry.qty, entry.price, entry.reason,
-                    entry.entry_price, entry.pnl_usd, entry.pnl_pct, entry.hold_duration,
-                    1 if entry.pdt_used else 0, entry.pdt_remaining, entry.day_held, entry.mode,
-                    entry.regime, entry.spy_price, entry.signal_score, entry.gap_pct, entry.atr_pct,
-                    1 if entry.from_queue else 0, entry.version, entry.source,
-                    json.dumps(_sanitize_for_json(asdict(entry)), default=str),
-                    entry.volume_ratio, entry.composite_score,
-                    entry.mfe_pct, entry.mae_pct, entry.hold_minutes,
-                    entry.exit_vs_vwap_pct, entry.pct_from_mfe_to_close, entry.next_day_open_pct,
-                    entry.signal_source, entry.entry_rsi,
-                    getattr(entry, 'entry_vix', None),
-                    entry.new_score,
-                    entry.momentum_20d, entry.distance_from_high,
-                    getattr(entry, 'mfe_timestamp', None),
-                    getattr(entry, 'sl_multiplier', None),
-                    getattr(entry, 'sl_method', None),
-                    getattr(entry, 'trail_activation_pct', None),
-                    getattr(entry, 'trail_lock_pct', None),
-                    getattr(entry, 'tp_pct', None),
-                    entry.fill_time_sec,
-                    entry.slippage_pct,
-                ))
-
-                conn.commit()
-            finally:
-                conn.close()
+                        fill_time_sec, slippage_pct, sector,
+                        bounce_pct_from_lod
+                    ) VALUES (:id, :timestamp, :trade_date, :action,
+                        :symbol, :qty, :price, :reason,
+                        :entry_price, :pnl_usd, :pnl_pct, :hold_duration,
+                        :pdt_used, :pdt_remaining, :day_held, :mode,
+                        :regime, :spy_price, :signal_score, :gap_pct, :atr_pct,
+                        :from_queue, :version, :source, :full_data,
+                        :volume_ratio, :composite_score,
+                        :mfe_pct, :mae_pct, :hold_minutes,
+                        :exit_vs_vwap_pct, :pct_from_mfe_to_close, :next_day_open_pct,
+                        :signal_source, :entry_rsi, :entry_vix,
+                        :new_score, :momentum_20d, :distance_from_high,
+                        :mfe_timestamp,
+                        :sl_multiplier, :sl_method,
+                        :trail_activation_pct, :trail_lock_pct, :tp_pct,
+                        :fill_time_sec, :slippage_pct, :sector,
+                        :bounce_pct_from_lod)
+                '''), {
+                    'id': entry.id, 'timestamp': entry.timestamp,
+                    'trade_date': trade_date, 'action': entry.action,
+                    'symbol': entry.symbol, 'qty': entry.qty,
+                    'price': entry.price, 'reason': entry.reason,
+                    'entry_price': entry.entry_price, 'pnl_usd': entry.pnl_usd,
+                    'pnl_pct': entry.pnl_pct, 'hold_duration': entry.hold_duration,
+                    'pdt_used': 1 if entry.pdt_used else 0,
+                    'pdt_remaining': entry.pdt_remaining,
+                    'day_held': entry.day_held, 'mode': entry.mode,
+                    'regime': entry.regime, 'spy_price': entry.spy_price,
+                    'signal_score': entry.signal_score, 'gap_pct': entry.gap_pct,
+                    'atr_pct': entry.atr_pct,
+                    'from_queue': 1 if entry.from_queue else 0,
+                    'version': entry.version, 'source': entry.source,
+                    'full_data': json.dumps(_sanitize_for_json(asdict(entry)), default=str),
+                    'volume_ratio': entry.volume_ratio,
+                    'composite_score': entry.composite_score,
+                    'mfe_pct': entry.mfe_pct, 'mae_pct': entry.mae_pct,
+                    'hold_minutes': entry.hold_minutes,
+                    'exit_vs_vwap_pct': entry.exit_vs_vwap_pct,
+                    'pct_from_mfe_to_close': entry.pct_from_mfe_to_close,
+                    'next_day_open_pct': entry.next_day_open_pct,
+                    'signal_source': entry.signal_source,
+                    'entry_rsi': entry.entry_rsi,
+                    'entry_vix': getattr(entry, 'entry_vix', None),
+                    'new_score': entry.new_score,
+                    'momentum_20d': entry.momentum_20d,
+                    'distance_from_high': entry.distance_from_high,
+                    'mfe_timestamp': getattr(entry, 'mfe_timestamp', None),
+                    'sl_multiplier': getattr(entry, 'sl_multiplier', None),
+                    'sl_method': getattr(entry, 'sl_method', None),
+                    'trail_activation_pct': getattr(entry, 'trail_activation_pct', None),
+                    'trail_lock_pct': getattr(entry, 'trail_lock_pct', None),
+                    'tp_pct': getattr(entry, 'tp_pct', None),
+                    'fill_time_sec': entry.fill_time_sec,
+                    'slippage_pct': entry.slippage_pct,
+                    'sector': entry.sector,
+                    'bounce_pct_from_lod': getattr(entry, 'bounce_pct_from_lod', None),
+                })
         except Exception as e:
             logger.error(f"Error archiving to DB: {e}")
 
@@ -1075,114 +1023,46 @@ class TradeLogger:
         action: str = None,
         limit: int = 100
     ) -> List[Dict]:
-        """Query historical trades from SQLite (uses TradeRepository if available)"""
+        """Query historical trades via ORM session."""
         try:
-            # Phase 3: Use TradeRepository if available
-            if self.use_db_layer and self.trade_repo:
-                # Build filters for repository
-                if symbol:
-                    trades = self.trade_repo.get_by_symbol(symbol, limit=limit)
-                elif start_date:
-                    start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
-                    days = (datetime.now().date() - start_dt).days
-                    trades = self.trade_repo.get_recent_trades(days=days, limit=limit)
-                else:
-                    trades = self.trade_repo.get_all(limit=limit)
-
-                # Apply additional filters in memory
-                filtered = trades
+            with get_session() as session:
+                q = session.query(TradeORM)
+                if start_date:
+                    q = q.filter(TradeORM.date >= start_date)
                 if end_date:
-                    end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
-                    filtered = [t for t in filtered if datetime.fromisoformat(t.date.replace('Z', '+00:00')).date() <= end_dt]
+                    q = q.filter(TradeORM.date <= end_date)
+                if symbol:
+                    q = q.filter(TradeORM.symbol == symbol)
                 if action:
-                    filtered = [t for t in filtered if t.action == action]
-
-                return [t.to_dict() for t in filtered[:limit]]
-
-            # Fallback: Direct SQLite access
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-
-            query = "SELECT * FROM trades WHERE 1=1"
-            params = []
-
-            if start_date:
-                query += " AND date >= ?"
-                params.append(start_date)
-            if end_date:
-                query += " AND date <= ?"
-                params.append(end_date)
-            if symbol:
-                query += " AND symbol = ?"
-                params.append(symbol)
-            if action:
-                query += " AND action = ?"
-                params.append(action)
-
-            query += " ORDER BY timestamp DESC LIMIT ?"
-            params.append(limit)
-
-            cursor.execute(query, params)
-            rows = cursor.fetchall()
-            conn.close()
-
-            return [dict(row) for row in rows]
+                    q = q.filter(TradeORM.action == action)
+                q = q.order_by(TradeORM.timestamp.desc()).limit(limit)
+                rows = q.all()
+                # Convert ORM objects to dicts
+                result = []
+                for r in rows:
+                    d = {c.name: getattr(r, c.name) for c in r.__table__.columns}
+                    result.append(d)
+                return result
         except Exception as e:
             logger.error(f"Error querying history: {e}")
             return []
 
     def get_performance_stats(self, days: int = 30) -> Dict:
-        """Get performance statistics for the last N days (uses TradeRepository if available)"""
+        """Get performance statistics for the last N days via ORM."""
         try:
-            # Phase 3: Use TradeRepository if available
-            if self.use_db_layer and self.trade_repo:
-                stats = self.trade_repo.get_statistics(days=days)
-                return {
-                    'period_days': days,
-                    'total_sells': stats.get('total_trades', 0),
-                    'winners': stats.get('winning_trades', 0),
-                    'losers': stats.get('losing_trades', 0),
-                    'win_rate': stats.get('win_rate', 0),
-                    'total_pnl': stats.get('total_pnl', 0),
-                    'avg_pnl': stats.get('avg_pnl', 0)
-                }
-
-            # Fallback: Direct SQLite access
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-
             start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
-
-            # Total trades
-            cursor.execute(
-                "SELECT COUNT(*) FROM trades WHERE date >= ? AND action = 'SELL'",
-                (start_date,)
-            )
-            total_sells = cursor.fetchone()[0]
-
-            # Winners/Losers
-            cursor.execute(
-                "SELECT COUNT(*) FROM trades WHERE date >= ? AND action = 'SELL' AND pnl_usd > 0",
-                (start_date,)
-            )
-            winners = cursor.fetchone()[0]
-
-            # Total P&L
-            cursor.execute(
-                "SELECT SUM(pnl_usd) FROM trades WHERE date >= ? AND action = 'SELL'",
-                (start_date,)
-            )
-            total_pnl = cursor.fetchone()[0] or 0
-
-            # Average P&L
-            cursor.execute(
-                "SELECT AVG(pnl_usd) FROM trades WHERE date >= ? AND action = 'SELL'",
-                (start_date,)
-            )
-            avg_pnl = cursor.fetchone()[0] or 0
-
-            conn.close()
+            with get_session() as session:
+                base = session.query(TradeORM).filter(
+                    TradeORM.date >= start_date, TradeORM.action == 'SELL'
+                )
+                total_sells = base.count()
+                winners = base.filter(TradeORM.pnl_usd > 0).count()
+                total_pnl = session.query(func.sum(TradeORM.pnl_usd)).filter(
+                    TradeORM.date >= start_date, TradeORM.action == 'SELL'
+                ).scalar() or 0
+                avg_pnl = session.query(func.avg(TradeORM.pnl_usd)).filter(
+                    TradeORM.date >= start_date, TradeORM.action == 'SELL'
+                ).scalar() or 0
 
             return {
                 'period_days': days,
@@ -1214,32 +1094,27 @@ class TradeLogger:
         - recent_trades: last 50 trades for history table
         """
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-
             if days == 0:
                 start_date = '2020-01-01'  # All time
             else:
                 start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
 
-            result = {
-                'summary': self._get_summary(cursor, start_date),
-                'by_score': self._get_by_score(cursor, start_date),
-                'by_sector': self._get_by_sector(cursor, start_date),
-                'by_hold_days': self._get_by_hold_days(cursor, start_date),
-                'by_signal_source': self._get_by_signal_source(cursor, start_date),  # v4.9.9
-                'by_mode': self._get_by_mode(cursor, start_date),  # v4.9.9
-                'by_regime': self._get_by_regime(cursor, start_date),  # v4.9.9
-                'by_rsi': self._get_by_rsi(cursor, start_date),  # v4.9.9
-                'by_exit_reason': self._get_by_exit_reason(cursor, start_date),  # v4.9.9
-                'equity_curve': self._get_equity_curve(cursor, start_date),
-                'recent_trades': self._get_recent_trades(cursor, start_date, limit=50),
-                'period_days': days,
-                'start_date': start_date,
-            }
-
-            conn.close()
+            with get_session() as session:
+                result = {
+                    'summary': self._get_summary(session, start_date),
+                    'by_score': self._get_by_score(session, start_date),
+                    'by_sector': self._get_by_sector(session, start_date),
+                    'by_hold_days': self._get_by_hold_days(session, start_date),
+                    'by_signal_source': self._get_by_signal_source(session, start_date),
+                    'by_mode': self._get_by_mode(session, start_date),
+                    'by_regime': self._get_by_regime(session, start_date),
+                    'by_rsi': self._get_by_rsi(session, start_date),
+                    'by_exit_reason': self._get_by_exit_reason(session, start_date),
+                    'equity_curve': self._get_equity_curve(session, start_date),
+                    'recent_trades': self._get_recent_trades(session, start_date, limit=50),
+                    'period_days': days,
+                    'start_date': start_date,
+                }
             return result
 
         except Exception as e:
@@ -1260,9 +1135,9 @@ class TradeLogger:
                 'error': str(e)
             }
 
-    def _get_summary(self, cursor, start_date: str) -> Dict:
+    def _get_summary(self, session, start_date: str) -> Dict:
         """Overall summary stats"""
-        cursor.execute("""
+        row = session.execute(text("""
             SELECT
                 COUNT(*) as total_trades,
                 SUM(CASE WHEN action = 'BUY' THEN 1 ELSE 0 END) as buys,
@@ -1275,10 +1150,9 @@ class TradeLogger:
                 AVG(CASE WHEN action = 'SELL' THEN pnl_pct END) as avg_pnl_pct,
                 MAX(CASE WHEN action = 'SELL' THEN pnl_usd END) as best_trade,
                 MIN(CASE WHEN action = 'SELL' THEN pnl_usd END) as worst_trade
-            FROM trades WHERE date >= ?
-        """, (start_date,))
+            FROM trades WHERE date >= :start_date
+        """), {'start_date': start_date}).mappings().fetchone()
 
-        row = cursor.fetchone()
         if not row or row['total_trades'] == 0:
             return {'total_trades': 0, 'sells': 0, 'win_rate': 0, 'total_pnl': 0}
 
@@ -1299,9 +1173,9 @@ class TradeLogger:
             'worst_trade': round(row['worst_trade'] or 0, 2),
         }
 
-    def _get_by_score(self, cursor, start_date: str) -> list:
+    def _get_by_score(self, session, start_date: str) -> list:
         """Win rate by score range"""
-        cursor.execute("""
+        rows = session.execute(text("""
             SELECT
                 CASE
                     WHEN signal_score >= 98 THEN '98-100'
@@ -1315,13 +1189,13 @@ class TradeLogger:
                 ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
                 ROUND(SUM(pnl_usd), 2) as total_pnl
             FROM trades
-            WHERE date >= ? AND action = 'SELL' AND signal_score IS NOT NULL
+            WHERE date >= :start_date AND action = 'SELL' AND signal_score IS NOT NULL
             GROUP BY score_range
             ORDER BY score_range DESC
-        """, (start_date,))
+        """), {'start_date': start_date}).mappings().fetchall()
 
         results = []
-        for row in cursor.fetchall():
+        for row in rows:
             total = row['total']
             winners = row['winners'] or 0
             results.append({
@@ -1335,9 +1209,9 @@ class TradeLogger:
             })
         return results
 
-    def _get_by_sector(self, cursor, start_date: str) -> list:
+    def _get_by_sector(self, session, start_date: str) -> list:
         """Win rate by sector (extracted from full_data JSON)"""
-        cursor.execute("""
+        rows = session.execute(text("""
             SELECT
                 json_extract(full_data, '$.sector') as sector,
                 COUNT(*) as total,
@@ -1345,15 +1219,15 @@ class TradeLogger:
                 ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
                 ROUND(SUM(pnl_usd), 2) as total_pnl
             FROM trades
-            WHERE date >= ? AND action = 'SELL'
+            WHERE date >= :start_date AND action = 'SELL'
                 AND json_extract(full_data, '$.sector') IS NOT NULL
                 AND json_extract(full_data, '$.sector') != ''
             GROUP BY sector
             ORDER BY total DESC
-        """, (start_date,))
+        """), {'start_date': start_date}).mappings().fetchall()
 
         results = []
-        for row in cursor.fetchall():
+        for row in rows:
             total = row['total']
             winners = row['winners'] or 0
             results.append({
@@ -1367,9 +1241,9 @@ class TradeLogger:
             })
         return results
 
-    def _get_by_hold_days(self, cursor, start_date: str) -> list:
+    def _get_by_hold_days(self, session, start_date: str) -> list:
         """Win rate by holding period"""
-        cursor.execute("""
+        rows = session.execute(text("""
             SELECT
                 CASE
                     WHEN day_held = 0 THEN 'Day 0'
@@ -1385,13 +1259,13 @@ class TradeLogger:
                 ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
                 ROUND(SUM(pnl_usd), 2) as total_pnl
             FROM trades
-            WHERE date >= ? AND action = 'SELL' AND day_held IS NOT NULL
+            WHERE date >= :start_date AND action = 'SELL' AND day_held IS NOT NULL
             GROUP BY hold_group
             ORDER BY MIN(day_held)
-        """, (start_date,))
+        """), {'start_date': start_date}).mappings().fetchall()
 
         results = []
-        for row in cursor.fetchall():
+        for row in rows:
             total = row['total']
             winners = row['winners'] or 0
             results.append({
@@ -1405,9 +1279,9 @@ class TradeLogger:
             })
         return results
 
-    def _get_by_signal_source(self, cursor, start_date: str) -> list:
+    def _get_by_signal_source(self, session, start_date: str) -> list:
         """Win rate by signal source type (v4.9.9)"""
-        cursor.execute("""
+        rows = session.execute(text("""
             SELECT
                 COALESCE(json_extract(full_data, '$.signal_source'), 'unknown') as signal_source,
                 COUNT(*) as total,
@@ -1415,15 +1289,15 @@ class TradeLogger:
                 ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
                 ROUND(SUM(pnl_usd), 2) as total_pnl
             FROM trades
-            WHERE date >= ? AND action = 'SELL'
+            WHERE date >= :start_date AND action = 'SELL'
                 AND json_extract(full_data, '$.signal_source') IS NOT NULL
             GROUP BY signal_source
             ORDER BY total DESC
-        """, (start_date,))
+        """), {'start_date': start_date}).mappings().fetchall()
 
         labels = {'dip_bounce': 'Bounce', 'overnight_gap': 'O/N Gap', 'breakout': 'Breakout'}
         results = []
-        for row in cursor.fetchall():
+        for row in rows:
             total = row['total']
             winners = row['winners'] or 0
             results.append({
@@ -1437,9 +1311,9 @@ class TradeLogger:
             })
         return results
 
-    def _get_by_mode(self, cursor, start_date: str) -> list:
+    def _get_by_mode(self, session, start_date: str) -> list:
         """Win rate by trading mode (v4.9.9)"""
-        cursor.execute("""
+        rows = session.execute(text("""
             SELECT
                 COALESCE(mode, 'UNKNOWN') as trade_mode,
                 COUNT(*) as total,
@@ -1447,13 +1321,13 @@ class TradeLogger:
                 ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
                 ROUND(SUM(pnl_usd), 2) as total_pnl
             FROM trades
-            WHERE date >= ? AND action = 'SELL' AND mode IS NOT NULL
+            WHERE date >= :start_date AND action = 'SELL' AND mode IS NOT NULL
             GROUP BY trade_mode
             ORDER BY total DESC
-        """, (start_date,))
+        """), {'start_date': start_date}).mappings().fetchall()
 
         results = []
-        for row in cursor.fetchall():
+        for row in rows:
             total = row['total']
             winners = row['winners'] or 0
             results.append({
@@ -1467,9 +1341,9 @@ class TradeLogger:
             })
         return results
 
-    def _get_by_regime(self, cursor, start_date: str) -> list:
+    def _get_by_regime(self, session, start_date: str) -> list:
         """Win rate by market regime at entry (v4.9.9)"""
-        cursor.execute("""
+        rows = session.execute(text("""
             SELECT
                 COALESCE(regime, 'UNKNOWN') as trade_regime,
                 COUNT(*) as total,
@@ -1477,13 +1351,13 @@ class TradeLogger:
                 ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
                 ROUND(SUM(pnl_usd), 2) as total_pnl
             FROM trades
-            WHERE date >= ? AND action = 'SELL' AND regime IS NOT NULL
+            WHERE date >= :start_date AND action = 'SELL' AND regime IS NOT NULL
             GROUP BY trade_regime
             ORDER BY total DESC
-        """, (start_date,))
+        """), {'start_date': start_date}).mappings().fetchall()
 
         results = []
-        for row in cursor.fetchall():
+        for row in rows:
             total = row['total']
             winners = row['winners'] or 0
             results.append({
@@ -1497,10 +1371,10 @@ class TradeLogger:
             })
         return results
 
-    def _get_by_rsi(self, cursor, start_date: str) -> list:
+    def _get_by_rsi(self, session, start_date: str) -> list:
         """Win rate by RSI range at entry (v4.9.9, v5.1 P3-23: entry_rsi compat)"""
         # COALESCE handles both old ($.rsi) and new ($.entry_rsi) JSON field names
-        cursor.execute("""
+        rows = session.execute(text("""
             SELECT
                 CASE
                     WHEN COALESCE(json_extract(full_data, '$.entry_rsi'), json_extract(full_data, '$.rsi')) < 30 THEN 'RSI <30'
@@ -1514,15 +1388,15 @@ class TradeLogger:
                 ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
                 ROUND(SUM(pnl_usd), 2) as total_pnl
             FROM trades
-            WHERE date >= ? AND action = 'SELL'
+            WHERE date >= :start_date AND action = 'SELL'
                 AND COALESCE(json_extract(full_data, '$.entry_rsi'), json_extract(full_data, '$.rsi')) IS NOT NULL
                 AND COALESCE(json_extract(full_data, '$.entry_rsi'), json_extract(full_data, '$.rsi')) > 0
             GROUP BY rsi_range
             ORDER BY MIN(COALESCE(json_extract(full_data, '$.entry_rsi'), json_extract(full_data, '$.rsi')))
-        """, (start_date,))
+        """), {'start_date': start_date}).mappings().fetchall()
 
         results = []
-        for row in cursor.fetchall():
+        for row in rows:
             total = row['total']
             winners = row['winners'] or 0
             results.append({
@@ -1536,9 +1410,9 @@ class TradeLogger:
             })
         return results
 
-    def _get_by_exit_reason(self, cursor, start_date: str) -> list:
+    def _get_by_exit_reason(self, session, start_date: str) -> list:
         """Win rate by exit reason (v4.9.9)"""
-        cursor.execute("""
+        rows = session.execute(text("""
             SELECT
                 CASE
                     WHEN reason LIKE '%SL%' THEN 'Stop Loss'
@@ -1553,13 +1427,13 @@ class TradeLogger:
                 ROUND(AVG(pnl_pct), 2) as avg_pnl_pct,
                 ROUND(SUM(pnl_usd), 2) as total_pnl
             FROM trades
-            WHERE date >= ? AND action = 'SELL'
+            WHERE date >= :start_date AND action = 'SELL'
             GROUP BY exit_type
             ORDER BY total DESC
-        """, (start_date,))
+        """), {'start_date': start_date}).mappings().fetchall()
 
         results = []
-        for row in cursor.fetchall():
+        for row in rows:
             total = row['total']
             winners = row['winners'] or 0
             results.append({
@@ -1573,18 +1447,18 @@ class TradeLogger:
             })
         return results
 
-    def _get_equity_curve(self, cursor, start_date: str) -> list:
+    def _get_equity_curve(self, session, start_date: str) -> list:
         """Cumulative P&L over time (by trade, not by date)"""
-        cursor.execute("""
+        rows = session.execute(text("""
             SELECT timestamp, date, symbol, pnl_usd, pnl_pct
             FROM trades
-            WHERE date >= ? AND action = 'SELL'
+            WHERE date >= :start_date AND action = 'SELL'
             ORDER BY timestamp ASC
-        """, (start_date,))
+        """), {'start_date': start_date}).mappings().fetchall()
 
         curve = []
         cum_pnl = 0
-        for row in cursor.fetchall():
+        for row in rows:
             pnl = row['pnl_usd'] or 0
             cum_pnl += pnl
             curve.append({
@@ -1595,9 +1469,9 @@ class TradeLogger:
             })
         return curve
 
-    def _get_recent_trades(self, cursor, start_date: str, limit: int = 50) -> list:
+    def _get_recent_trades(self, session, start_date: str, limit: int = 50) -> list:
         """Recent trades for history table"""
-        cursor.execute("""
+        rows = session.execute(text("""
             SELECT
                 timestamp, date, action, symbol, qty, price, reason,
                 entry_price, pnl_usd, pnl_pct, day_held, signal_score,
@@ -1605,13 +1479,13 @@ class TradeLogger:
                 json_extract(full_data, '$.sector') as sector,
                 json_extract(full_data, '$.signal_source') as signal_source
             FROM trades
-            WHERE date >= ?
+            WHERE date >= :start_date
             ORDER BY timestamp DESC
-            LIMIT ?
-        """, (start_date, limit))
+            LIMIT :limit
+        """), {'start_date': start_date, 'limit': limit}).mappings().fetchall()
 
         results = []
-        for row in cursor.fetchall():
+        for row in rows:
             results.append({
                 'timestamp': row['timestamp'],
                 'date': row['date'],

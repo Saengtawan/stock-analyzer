@@ -3,14 +3,14 @@ Performance Tracker — records daily P&L and detects model drift.
 Part of Discovery v10.0 Full Autonomous System.
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import json
 import numpy as np
 from pathlib import Path
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 
 class PerformanceTracker:
@@ -20,7 +20,7 @@ class PerformanceTracker:
         self._ensure_table()
 
     def _ensure_table(self):
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         conn.execute("""
             CREATE TABLE IF NOT EXISTS discovery_performance (
                 date TEXT PRIMARY KEY,
@@ -34,13 +34,10 @@ class PerformanceTracker:
                 created_at TEXT DEFAULT (datetime('now'))
             )
         """)
-        conn.commit()
-        conn.close()
 
     def track_daily(self, scan_date: str = None) -> dict:
         """Record P&L for picks that expired (scan_date + 5 days)."""
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        # conn via get_session()
         try:
             # Find dates with outcomes but no performance record
             dates = conn.execute("""
@@ -87,17 +84,15 @@ class PerformanceTracker:
                 """, (dt, n, n_wins, round(wr, 1), round(total_pnl, 4),
                       round(avg_pnl, 4), json.dumps(regime_map)))
                 recorded += 1
-
-            conn.commit()
             if recorded:
                 logger.info("PerformanceTracker: recorded %d days", recorded)
             return {'recorded': recorded}
         finally:
-            conn.close()
+            pass
 
     def detect_drift(self) -> dict:
         """Compare recent accuracy vs historical."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             # Last 30 days
             r30 = conn.execute("""
@@ -116,7 +111,7 @@ class PerformanceTracker:
                 SELECT AVG(wr), AVG(avg_pnl), COUNT(*) FROM discovery_performance
             """).fetchone()
         finally:
-            conn.close()
+            pass
 
         wr_30 = r30[0] or 50
         wr_90 = r90[0] or 50
@@ -147,7 +142,7 @@ class PerformanceTracker:
 
     def get_summary(self, days: int = 30) -> dict:
         """Get performance summary for UI."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             rows = conn.execute("""
                 SELECT date, n_picks, n_wins, wr, total_pnl, avg_pnl
@@ -156,7 +151,7 @@ class PerformanceTracker:
                 ORDER BY date DESC
             """, (f'-{days}',)).fetchall()
         finally:
-            conn.close()
+            pass
 
         if not rows:
             return {'days': days, 'n_days': 0, 'wr': 0, 'pnl': 0}

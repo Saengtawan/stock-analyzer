@@ -8,26 +8,21 @@ Handles CRUD operations for loss counters and risk management:
 - Auto-reset and cooldown management
 """
 
-import sqlite3
 from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Tuple
-from pathlib import Path
+from typing import Dict, List, Optional
+
+from sqlalchemy import text, func
+
+from database.orm.base import get_session
+from database.orm.models import LossTracking, SectorLossTracking
 
 
 class LossTrackingRepository:
     """Repository for loss tracking and risk management data"""
 
     def __init__(self, db_path: str = None):
-        if db_path is None:
-            project_root = Path(__file__).parent.parent.parent.parent
-            db_path = str(project_root / 'data' / 'trade_history.db')
-        self.db_path = db_path
-
-    def _get_connection(self) -> sqlite3.Connection:
-        """Get database connection with row factory"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+        # db_path kept for API compatibility; ignored (session handles connection)
+        pass
 
     # ========================================================================
     # Main Loss Tracking Operations
@@ -41,29 +36,26 @@ class LossTrackingRepository:
             Dict with: consecutive_losses, weekly_realized_pnl, cooldown_until,
                       weekly_reset_date, updated_at
         """
-        conn = self._get_connection()
-        try:
-            row = conn.execute("""
-                SELECT consecutive_losses, weekly_realized_pnl, cooldown_until,
-                       weekly_reset_date, updated_at, saved_at
-                FROM loss_tracking
-                WHERE id = 1
-            """).fetchone()
-
+        with get_session() as session:
+            row = session.query(LossTracking).filter(LossTracking.id == 1).first()
             if row:
-                return dict(row)
+                return {
+                    'consecutive_losses': row.consecutive_losses,
+                    'weekly_realized_pnl': row.weekly_realized_pnl,
+                    'cooldown_until': row.cooldown_until,
+                    'weekly_reset_date': row.weekly_reset_date,
+                    'updated_at': row.updated_at,
+                    'saved_at': row.saved_at,
+                }
             else:
-                # Should never happen (default row inserted), but handle gracefully
                 return {
                     'consecutive_losses': 0,
                     'weekly_realized_pnl': 0.0,
                     'cooldown_until': None,
                     'weekly_reset_date': None,
                     'updated_at': None,
-                    'saved_at': None
+                    'saved_at': None,
                 }
-        finally:
-            conn.close()
 
     def increment_losses(self) -> int:
         """
@@ -72,23 +64,13 @@ class LossTrackingRepository:
         Returns:
             New consecutive_losses count
         """
-        conn = self._get_connection()
-        try:
-            conn.execute("""
-                UPDATE loss_tracking
-                SET consecutive_losses = consecutive_losses + 1
-                WHERE id = 1
-            """)
-            conn.commit()
-
-            # Get new count
-            row = conn.execute("""
-                SELECT consecutive_losses FROM loss_tracking WHERE id = 1
-            """).fetchone()
-
-            return row['consecutive_losses'] if row else 0
-        finally:
-            conn.close()
+        with get_session() as session:
+            row = session.query(LossTracking).filter(LossTracking.id == 1).first()
+            if row:
+                row.consecutive_losses += 1
+                session.flush()
+                return row.consecutive_losses
+            return 0
 
     def reset_losses(self) -> bool:
         """
@@ -97,17 +79,11 @@ class LossTrackingRepository:
         Returns:
             True if successful
         """
-        conn = self._get_connection()
-        try:
-            conn.execute("""
-                UPDATE loss_tracking
-                SET consecutive_losses = 0
-                WHERE id = 1
-            """)
-            conn.commit()
+        with get_session() as session:
+            row = session.query(LossTracking).filter(LossTracking.id == 1).first()
+            if row:
+                row.consecutive_losses = 0
             return True
-        finally:
-            conn.close()
 
     def update_weekly_pnl(self, pnl_change: float) -> float:
         """
@@ -119,23 +95,13 @@ class LossTrackingRepository:
         Returns:
             New weekly_realized_pnl total
         """
-        conn = self._get_connection()
-        try:
-            conn.execute("""
-                UPDATE loss_tracking
-                SET weekly_realized_pnl = weekly_realized_pnl + ?
-                WHERE id = 1
-            """, (pnl_change,))
-            conn.commit()
-
-            # Get new total
-            row = conn.execute("""
-                SELECT weekly_realized_pnl FROM loss_tracking WHERE id = 1
-            """).fetchone()
-
-            return row['weekly_realized_pnl'] if row else 0.0
-        finally:
-            conn.close()
+        with get_session() as session:
+            row = session.query(LossTracking).filter(LossTracking.id == 1).first()
+            if row:
+                row.weekly_realized_pnl += pnl_change
+                session.flush()
+                return row.weekly_realized_pnl
+            return 0.0
 
     def set_cooldown(self, cooldown_until: str) -> bool:
         """
@@ -147,17 +113,11 @@ class LossTrackingRepository:
         Returns:
             True if successful
         """
-        conn = self._get_connection()
-        try:
-            conn.execute("""
-                UPDATE loss_tracking
-                SET cooldown_until = ?
-                WHERE id = 1
-            """, (cooldown_until,))
-            conn.commit()
+        with get_session() as session:
+            row = session.query(LossTracking).filter(LossTracking.id == 1).first()
+            if row:
+                row.cooldown_until = cooldown_until
             return True
-        finally:
-            conn.close()
 
     def is_in_cooldown(self) -> bool:
         """
@@ -166,19 +126,12 @@ class LossTrackingRepository:
         Returns:
             True if cooldown_until > today
         """
-        conn = self._get_connection()
-        try:
-            row = conn.execute("""
-                SELECT cooldown_until FROM loss_tracking WHERE id = 1
-            """).fetchone()
-
-            if not row or not row['cooldown_until']:
+        with get_session() as session:
+            row = session.query(LossTracking).filter(LossTracking.id == 1).first()
+            if not row or not row.cooldown_until:
                 return False
-
             today = date.today().isoformat()
-            return row['cooldown_until'] > today
-        finally:
-            conn.close()
+            return row.cooldown_until > today
 
     def reset_weekly(self, new_reset_date: str = None) -> bool:
         """
@@ -193,18 +146,12 @@ class LossTrackingRepository:
         if new_reset_date is None:
             new_reset_date = (date.today() + timedelta(days=7)).isoformat()
 
-        conn = self._get_connection()
-        try:
-            conn.execute("""
-                UPDATE loss_tracking
-                SET weekly_realized_pnl = 0.0,
-                    weekly_reset_date = ?
-                WHERE id = 1
-            """, (new_reset_date,))
-            conn.commit()
+        with get_session() as session:
+            row = session.query(LossTracking).filter(LossTracking.id == 1).first()
+            if row:
+                row.weekly_realized_pnl = 0.0
+                row.weekly_reset_date = new_reset_date
             return True
-        finally:
-            conn.close()
 
     # ========================================================================
     # Sector Loss Tracking Operations
@@ -220,16 +167,11 @@ class LossTrackingRepository:
         Returns:
             Number of consecutive losses (0 if no record)
         """
-        conn = self._get_connection()
-        try:
-            row = conn.execute("""
-                SELECT losses FROM sector_loss_tracking
-                WHERE LOWER(sector) = LOWER(?)
-            """, (sector,)).fetchone()
-
-            return row['losses'] if row else 0
-        finally:
-            conn.close()
+        with get_session() as session:
+            row = session.query(SectorLossTracking).filter(
+                func.lower(SectorLossTracking.sector) == sector.lower()
+            ).first()
+            return row.losses if row else 0
 
     def increment_sector_loss(self, sector: str) -> int:
         """
@@ -241,26 +183,23 @@ class LossTrackingRepository:
         Returns:
             New loss count for this sector
         """
-        conn = self._get_connection()
-        try:
-            # Upsert
-            conn.execute("""
-                INSERT INTO sector_loss_tracking (sector, losses)
-                VALUES (LOWER(?), 1)
-                ON CONFLICT(sector) DO UPDATE
-                SET losses = losses + 1
-            """, (sector,))
-            conn.commit()
-
-            # Get new count
-            row = conn.execute("""
-                SELECT losses FROM sector_loss_tracking
-                WHERE LOWER(sector) = LOWER(?)
-            """, (sector,)).fetchone()
-
-            return row['losses'] if row else 0
-        finally:
-            conn.close()
+        with get_session() as session:
+            row = session.query(SectorLossTracking).filter(
+                func.lower(SectorLossTracking.sector) == sector.lower()
+            ).first()
+            if row:
+                row.losses += 1
+                session.flush()
+                return row.losses
+            else:
+                new_row = SectorLossTracking(
+                    sector=sector.lower(),
+                    losses=1,
+                    updated_at=datetime.now().isoformat(),
+                )
+                session.add(new_row)
+                session.flush()
+                return 1
 
     def reset_sector_losses(self, sector: str) -> bool:
         """
@@ -272,17 +211,13 @@ class LossTrackingRepository:
         Returns:
             True if successful
         """
-        conn = self._get_connection()
-        try:
-            conn.execute("""
-                UPDATE sector_loss_tracking
-                SET losses = 0
-                WHERE LOWER(sector) = LOWER(?)
-            """, (sector,))
-            conn.commit()
+        with get_session() as session:
+            row = session.query(SectorLossTracking).filter(
+                func.lower(SectorLossTracking.sector) == sector.lower()
+            ).first()
+            if row:
+                row.losses = 0
             return True
-        finally:
-            conn.close()
 
     def set_sector_cooldown(self, sector: str, cooldown_until: str) -> bool:
         """
@@ -295,24 +230,19 @@ class LossTrackingRepository:
         Returns:
             True if successful
         """
-        conn = self._get_connection()
-        try:
-            # Ensure sector exists
-            conn.execute("""
-                INSERT OR IGNORE INTO sector_loss_tracking (sector, losses)
-                VALUES (LOWER(?), 0)
-            """, (sector,))
-
-            # Update cooldown
-            conn.execute("""
-                UPDATE sector_loss_tracking
-                SET cooldown_until = ?
-                WHERE LOWER(sector) = LOWER(?)
-            """, (cooldown_until, sector))
-            conn.commit()
+        with get_session() as session:
+            row = session.query(SectorLossTracking).filter(
+                func.lower(SectorLossTracking.sector) == sector.lower()
+            ).first()
+            if not row:
+                row = SectorLossTracking(
+                    sector=sector.lower(),
+                    losses=0,
+                    updated_at=datetime.now().isoformat(),
+                )
+                session.add(row)
+            row.cooldown_until = cooldown_until
             return True
-        finally:
-            conn.close()
 
     def is_sector_in_cooldown(self, sector: str) -> bool:
         """
@@ -324,20 +254,14 @@ class LossTrackingRepository:
         Returns:
             True if cooldown_until > today
         """
-        conn = self._get_connection()
-        try:
-            row = conn.execute("""
-                SELECT cooldown_until FROM sector_loss_tracking
-                WHERE LOWER(sector) = LOWER(?)
-            """, (sector,)).fetchone()
-
-            if not row or not row['cooldown_until']:
+        with get_session() as session:
+            row = session.query(SectorLossTracking).filter(
+                func.lower(SectorLossTracking.sector) == sector.lower()
+            ).first()
+            if not row or not row.cooldown_until:
                 return False
-
             today = date.today().isoformat()
-            return row['cooldown_until'] > today
-        finally:
-            conn.close()
+            return row.cooldown_until > today
 
     def get_all_sector_losses(self) -> Dict[str, Dict]:
         """
@@ -347,23 +271,17 @@ class LossTrackingRepository:
             Dict mapping "strategy:sector" -> {losses, cooldown_until}
             v7.3: includes strategy column for per-strategy isolation
         """
-        conn = self._get_connection()
-        try:
-            rows = conn.execute("""
-                SELECT strategy, sector, losses, cooldown_until
-                FROM sector_loss_tracking
-                ORDER BY strategy, sector
-            """).fetchall()
-
+        with get_session() as session:
+            rows = session.query(SectorLossTracking).order_by(
+                SectorLossTracking.strategy, SectorLossTracking.sector
+            ).all()
             return {
-                f"{row['strategy']}:{row['sector']}": {
-                    'losses': row['losses'],
-                    'cooldown_until': row['cooldown_until']
+                f"{row.strategy}:{row.sector}": {
+                    'losses': row.losses,
+                    'cooldown_until': row.cooldown_until,
                 }
                 for row in rows
             }
-        finally:
-            conn.close()
 
     # ========================================================================
     # Analytics & Monitoring
@@ -376,12 +294,10 @@ class LossTrackingRepository:
         Returns:
             Dict with: consecutive_losses, weekly_pnl, risk_level, cooldown_days_remaining
         """
-        conn = self._get_connection()
-        try:
-            row = conn.execute("SELECT * FROM v_risk_status").fetchone()
-            return dict(row) if row else {}
-        finally:
-            conn.close()
+        with get_session() as session:
+            result = session.execute(text("SELECT * FROM v_risk_status"))
+            row = result.fetchone()
+            return dict(row._mapping) if row else {}
 
     def get_active_cooldowns(self) -> List[Dict]:
         """
@@ -390,14 +306,9 @@ class LossTrackingRepository:
         Returns:
             List of {sector, losses, cooldown_until, days_remaining}
         """
-        conn = self._get_connection()
-        try:
-            rows = conn.execute("""
-                SELECT * FROM v_active_sector_cooldowns
-            """).fetchall()
-            return [dict(row) for row in rows]
-        finally:
-            conn.close()
+        with get_session() as session:
+            result = session.execute(text("SELECT * FROM v_active_sector_cooldowns"))
+            return [dict(row._mapping) for row in result.fetchall()]
 
     def get_high_risk_sectors(self) -> List[Dict]:
         """
@@ -406,14 +317,9 @@ class LossTrackingRepository:
         Returns:
             List of {sector, losses, risk_level}
         """
-        conn = self._get_connection()
-        try:
-            rows = conn.execute("""
-                SELECT * FROM v_high_risk_sectors
-            """).fetchall()
-            return [dict(row) for row in rows]
-        finally:
-            conn.close()
+        with get_session() as session:
+            result = session.execute(text("SELECT * FROM v_high_risk_sectors"))
+            return [dict(row._mapping) for row in result.fetchall()]
 
     # ========================================================================
     # Migration Support
@@ -434,47 +340,37 @@ class LossTrackingRepository:
         Returns:
             True if successful
         """
-        conn = self._get_connection()
         try:
-            # Import main tracking
-            conn.execute("""
-                UPDATE loss_tracking
-                SET consecutive_losses = ?,
-                    weekly_realized_pnl = ?,
-                    cooldown_until = ?,
-                    weekly_reset_date = ?,
-                    saved_at = ?
-                WHERE id = 1
-            """, (
-                json_data.get('consecutive_losses', 0),
-                json_data.get('weekly_realized_pnl', 0.0),
-                json_data.get('cooldown_until'),
-                json_data.get('weekly_reset_date'),
-                json_data.get('saved_at')
-            ))
+            with get_session() as session:
+                # Import main tracking
+                row = session.query(LossTracking).filter(LossTracking.id == 1).first()
+                if row:
+                    row.consecutive_losses = json_data.get('consecutive_losses', 0)
+                    row.weekly_realized_pnl = json_data.get('weekly_realized_pnl', 0.0)
+                    row.cooldown_until = json_data.get('cooldown_until')
+                    row.weekly_reset_date = json_data.get('weekly_reset_date')
+                    row.saved_at = json_data.get('saved_at')
 
-            # Import sector tracking
-            sector_tracker = json_data.get('sector_loss_tracker', {})
-            for sector, data in sector_tracker.items():
-                conn.execute("""
-                    INSERT INTO sector_loss_tracking (sector, losses, cooldown_until)
-                    VALUES (LOWER(?), ?, ?)
-                    ON CONFLICT(sector) DO UPDATE
-                    SET losses = excluded.losses,
-                        cooldown_until = excluded.cooldown_until
-                """, (
-                    sector,
-                    data.get('losses', 0),
-                    data.get('cooldown_until')
-                ))
-
-            conn.commit()
+                # Import sector tracking
+                sector_tracker = json_data.get('sector_loss_tracker', {})
+                for sector, data in sector_tracker.items():
+                    existing = session.query(SectorLossTracking).filter(
+                        func.lower(SectorLossTracking.sector) == sector.lower()
+                    ).first()
+                    if existing:
+                        existing.losses = data.get('losses', 0)
+                        existing.cooldown_until = data.get('cooldown_until')
+                    else:
+                        session.add(SectorLossTracking(
+                            sector=sector.lower(),
+                            losses=data.get('losses', 0),
+                            cooldown_until=data.get('cooldown_until'),
+                            updated_at=datetime.now().isoformat(),
+                        ))
             return True
         except Exception as e:
             print(f"Error importing from JSON: {e}")
             return False
-        finally:
-            conn.close()
 
     def export_to_json(self) -> Dict:
         """

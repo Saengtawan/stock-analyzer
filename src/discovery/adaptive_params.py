@@ -10,14 +10,14 @@ Walk-forward safe: fit(max_date) only uses data up to max_date.
 Auto-refits every 30 days via AutoRefitOrchestrator.
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import time
 import numpy as np
 from pathlib import Path
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 SECTORS = [
     'Technology', 'Healthcare', 'Financial Services',
@@ -571,7 +571,7 @@ class AdaptiveParameterLearner:
         Finds cutoff that maximizes Sharpe while keeping enough candidates.
         """
         try:
-            conn = sqlite3.connect(str(DB_PATH))
+            # conn via get_session()
             # Get UBrain probs for signals in this group's sector
             sector = sigs[0].get('sector', '') if sigs else ''
             if sector:
@@ -586,7 +586,6 @@ class AdaptiveParameterLearner:
                     SELECT ubrain_prob, outcome_5d FROM ubrain_backfill
                     WHERE ubrain_prob IS NOT NULL AND outcome_5d IS NOT NULL
                 """).fetchall()
-            conn.close()
         except Exception:
             return DEFAULTS['ubrain_cutoff']
 
@@ -663,13 +662,12 @@ class AdaptiveParameterLearner:
     def _learn_spec_skip(self, sigs):
         """v17: Learn optimal speculative skip threshold from outcome data."""
         try:
-            conn = sqlite3.connect(str(DB_PATH))
+            # conn via get_session()
             spec_scores = {}
             for r in conn.execute(
                 "SELECT symbol, score FROM stock_context WHERE context_type='SPECULATIVE_FLAG'"
             ).fetchall():
                 spec_scores[r[0]] = r[1]
-            conn.close()
         except Exception:
             return DEFAULTS['spec_skip']
 
@@ -771,7 +769,7 @@ class AdaptiveParameterLearner:
 
     def _load_data(self, max_date=None):
         """Load historical signals with D1-D5 OHLC for SL/TP simulation."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             date_filter = f"AND b.scan_date <= '{max_date}'" if max_date else ""
             rows = conn.execute(f"""
@@ -805,7 +803,7 @@ class AdaptiveParameterLearner:
                 ORDER BY b.scan_date
             """).fetchall()
         finally:
-            conn.close()
+            pass
 
         if not rows:
             return []
@@ -857,7 +855,7 @@ class AdaptiveParameterLearner:
     # === DB persistence ===
 
     def _ensure_tables(self):
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         conn.execute("""
             CREATE TABLE IF NOT EXISTS adaptive_parameters (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -885,12 +883,10 @@ class AdaptiveParameterLearner:
                 changed_at TEXT DEFAULT (datetime('now'))
             )
         """)
-        conn.commit()
-        conn.close()
 
     def save_to_db(self):
         """Persist learned parameters to DB."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             for (sector, regime), params in self._params.items():
                 stats = self._fit_stats.get((sector, regime), {})
@@ -920,23 +916,21 @@ class AdaptiveParameterLearner:
                              n_signals, reason)
                             VALUES (?, ?, ?, ?, ?, ?, 'auto-refit')
                         """, (sector, regime, name, old_val, value, n_sigs))
-
-            conn.commit()
             logger.info("AdaptiveParams: saved %d groups to DB",
                         len(self._params))
         finally:
-            conn.close()
+            pass
 
     def load_from_db(self) -> bool:
         """Load previously learned parameters from DB."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             rows = conn.execute("""
                 SELECT sector, regime, param_name, param_value, n_signals
                 FROM adaptive_parameters
             """).fetchall()
         finally:
-            conn.close()
+            pass
 
         if not rows:
             return False

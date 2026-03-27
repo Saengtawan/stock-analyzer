@@ -13,16 +13,14 @@ This is NOT parameter tuning. It's a diagnostic that tells us:
 - Has something drifted (new market condition the kernel hasn't seen)?
 """
 import logging
-import sqlite3
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Optional
 
+from database.orm.base import get_session
+from sqlalchemy import text
 import numpy as np
 
 logger = logging.getLogger(__name__)
-
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 
 class Calibrator:
@@ -55,37 +53,33 @@ class Calibrator:
         return result
 
     def _compute_inner(self, window_days: int) -> dict:
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        with get_session() as session:
+            # Get recent outcomes
+            cutoff = (datetime.now() - timedelta(days=window_days)).strftime('%Y-%m-%d')
+            rows = session.execute(text("""
+                SELECT scan_date, symbol, predicted_er, actual_return_d3,
+                       actual_return_d5, max_gain, max_dd, tp_hit, sl_hit,
+                       regime, atr_pct, sector, vix_close
+                FROM discovery_outcomes
+                WHERE scan_date >= :cutoff
+                AND (predicted_er IS NULL OR predicted_er < 10)
+                ORDER BY scan_date DESC
+            """), {"cutoff": cutoff}).mappings().fetchall()
 
-        # Get recent outcomes
-        cutoff = (datetime.now() - timedelta(days=window_days)).strftime('%Y-%m-%d')
-        rows = conn.execute("""
-            SELECT scan_date, symbol, predicted_er, actual_return_d3,
-                   actual_return_d5, max_gain, max_dd, tp_hit, sl_hit,
-                   regime, atr_pct, sector, vix_close
-            FROM discovery_outcomes
-            WHERE scan_date >= ?
-            AND (predicted_er IS NULL OR predicted_er < 10)
-            ORDER BY scan_date DESC
-        """, (cutoff,)).fetchall()
+            # Also get rolling windows (7d, 14d)
+            cutoff_7d = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+            cutoff_14d = (datetime.now() - timedelta(days=14)).strftime('%Y-%m-%d')
 
-        # Also get rolling windows (7d, 14d)
-        cutoff_7d = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-        cutoff_14d = (datetime.now() - timedelta(days=14)).strftime('%Y-%m-%d')
+            rows_7d = [r for r in rows if r['scan_date'] >= cutoff_7d]
+            rows_14d = [r for r in rows if r['scan_date'] >= cutoff_14d]
 
-        rows_7d = [r for r in rows if r['scan_date'] >= cutoff_7d]
-        rows_14d = [r for r in rows if r['scan_date'] >= cutoff_14d]
-
-        # All-time stats for context
-        all_rows = conn.execute("""
-            SELECT COUNT(*) as n,
-                   AVG(CASE WHEN tp_hit = 1 THEN 1.0 ELSE 0.0 END) as tp_rate,
-                   AVG(actual_return_d3) as avg_ret
-            FROM discovery_outcomes
-        """).fetchone()
-
-        conn.close()
+            # All-time stats for context
+            all_rows = session.execute(text("""
+                SELECT COUNT(*) as n,
+                       AVG(CASE WHEN tp_hit = 1 THEN 1.0 ELSE 0.0 END) as tp_rate,
+                       AVG(actual_return_d3) as avg_ret
+                FROM discovery_outcomes
+            """)).mappings().fetchone()
 
         if not rows:
             return {

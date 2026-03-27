@@ -1,204 +1,166 @@
 """
 Database Manager
 ================
-Unified database connection manager with connection pooling,
-WAL mode, and proper error handling.
+Unified database access manager wrapping SQLAlchemy ORM sessions.
+
+Preserves the same public API as the original sqlite3-based manager so that
+callers (UniverseRepository, etc.) continue to work without changes.
 """
 
-import os
-import sqlite3
 import threading
 from contextlib import contextmanager
-from pathlib import Path
-from typing import Optional, Generator
+from typing import Optional, Generator, Any, List
 
 from loguru import logger
+from sqlalchemy import text
+
+from database.orm.base import get_session, get_engine
 
 
 class DatabaseManager:
     """
-    Centralized database connection manager.
-    
-    Features:
-    - Connection pooling (thread-local connections)
-    - WAL mode for concurrent reads
-    - Foreign key enforcement
-    - Automatic error handling and rollback
-    - Context manager support
+    Centralized database access manager backed by SQLAlchemy.
+
+    Provides a compatibility layer that exposes the same public API
+    (get_connection, execute, fetch_one, fetch_all, etc.) used by
+    existing repository code, while delegating to the ORM session.
     """
-    
-    def __init__(self, db_path: str, read_only: bool = False):
+
+    def __init__(self, db_path: str = None, read_only: bool = False):
         """
         Initialize database manager.
-        
+
         Args:
-            db_path: Path to SQLite database file
-            read_only: If True, open in read-only mode
+            db_path: Ignored (kept for API compatibility). Connection is
+                     handled by the ORM engine configured in orm/base.py.
+            read_only: If True, sessions will not commit.
         """
-        self.db_path = str(Path(db_path).resolve())
         self.read_only = read_only
-        self._local = threading.local()
-        
-        # Ensure database file exists (unless read-only)
-        if not read_only:
-            os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
-            
-        # Initialize database with WAL mode
-        if not read_only and os.path.exists(self.db_path):
-            self._init_wal_mode()
-    
-    def _init_wal_mode(self):
-        """Initialize WAL mode for better concurrent access."""
-        try:
-            with sqlite3.connect(self.db_path, timeout=30.0) as conn:
-                conn.execute("PRAGMA journal_mode = WAL")
-                conn.execute("PRAGMA synchronous = NORMAL")
-                conn.execute("PRAGMA temp_store = MEMORY")
-                conn.execute("PRAGMA mmap_size = 268435456")  # 256MB
-                conn.commit()
-        except Exception as e:
-            logger.warning(f"Failed to set WAL mode: {e}")
-    
-    def _get_connection(self) -> sqlite3.Connection:
-        """
-        Get thread-local connection (connection pooling).
-        
-        Returns:
-            Thread-local SQLite connection
-        """
-        if not hasattr(self._local, 'connection') or self._local.connection is None:
-            # Create new connection for this thread
-            conn = sqlite3.connect(
-                self.db_path,
-                timeout=30.0,
-                check_same_thread=False
-            )
-            
-            # Enable optimizations
-            conn.execute("PRAGMA foreign_keys = ON")
-            conn.execute("PRAGMA cache_size = -32000")  # 32MB cache
-            
-            # Row factory for dict-like access
-            conn.row_factory = sqlite3.Row
-            
-            self._local.connection = conn
-            
-        return self._local.connection
-    
+        # Engine is already initialised as a singleton in orm/base.py
+        self._engine = get_engine()
+
+    # ------------------------------------------------------------------
+    # Context-managed session (dict-row compatible)
+    # ------------------------------------------------------------------
+
     @contextmanager
-    def get_connection(self, read_only: bool = False) -> Generator[sqlite3.Connection, None, None]:
+    def get_connection(self, read_only: bool = False) -> Generator:
         """
-        Context manager for database connections.
-        
+        Context manager that yields a *connection-like* wrapper.
+
+        The yielded object supports ``execute(sql, params)`` and
+        ``executemany(sql, params_list)`` so that existing callers
+        (e.g. UniverseRepository.save_bulk) keep working.
+
         Usage:
             with db_manager.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT * FROM trades")
-                
-        Args:
-            read_only: If True, don't commit changes
-            
-        Yields:
-            SQLite connection
+                conn.execute("DELETE FROM universe_stocks")
+                conn.executemany("INSERT ...", rows)
         """
-        conn = self._get_connection()
-        
-        try:
-            yield conn
-            
-            # Commit if not read-only
-            if not read_only and not self.read_only:
-                conn.commit()
-                
-        except Exception as e:
-            # Rollback on error
-            if not read_only and not self.read_only:
-                conn.rollback()
-            logger.error(f"Database error: {e}")
-            raise
-    
-    def execute(self, query: str, params: tuple = (), commit: bool = True) -> sqlite3.Cursor:
-        """
-        Execute a single query.
-        
-        Args:
-            query: SQL query
-            params: Query parameters
-            commit: Whether to commit after execution
-            
-        Returns:
-            Cursor with results
-        """
-        with self.get_connection(read_only=not commit) as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, params)
-            return cursor
-    
-    def execute_many(self, query: str, params_list: list, commit: bool = True) -> sqlite3.Cursor:
-        """
-        Execute query with multiple parameter sets.
-        
-        Args:
-            query: SQL query
-            params_list: List of parameter tuples
-            commit: Whether to commit after execution
-            
-        Returns:
-            Cursor with results
-        """
-        with self.get_connection(read_only=not commit) as conn:
-            cursor = conn.cursor()
-            cursor.executemany(query, params_list)
-            return cursor
-    
-    def fetch_one(self, query: str, params: tuple = ()) -> Optional[sqlite3.Row]:
-        """
-        Fetch single row.
-        
-        Args:
-            query: SQL query
-            params: Query parameters
-            
-        Returns:
-            Single row or None
-        """
-        with self.get_connection(read_only=True) as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, params)
-            return cursor.fetchone()
-    
-    def fetch_all(self, query: str, params: tuple = ()) -> list:
-        """
-        Fetch all rows.
-        
-        Args:
-            query: SQL query
-            params: Query parameters
-            
-        Returns:
-            List of rows
-        """
-        with self.get_connection(read_only=True) as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, params)
-            return cursor.fetchall()
-    
+        with get_session() as session:
+            yield _SessionConnectionAdapter(session)
+
+    # ------------------------------------------------------------------
+    # Convenience helpers
+    # ------------------------------------------------------------------
+
+    def execute(self, query: str, params: tuple = (), commit: bool = True) -> Any:
+        """Execute a single SQL statement."""
+        with get_session() as session:
+            result = session.execute(text(query), _positional_to_dict(query, params))
+            return result
+
+    def execute_many(self, query: str, params_list: list, commit: bool = True) -> Any:
+        """Execute a statement with multiple parameter sets."""
+        with get_session() as session:
+            for params in params_list:
+                session.execute(text(query), _positional_to_dict(query, params))
+
+    def fetch_one(self, query: str, params: tuple = ()) -> Optional[dict]:
+        """Fetch a single row as a dict (or None)."""
+        with get_session() as session:
+            result = session.execute(text(query), _positional_to_dict(query, params))
+            row = result.fetchone()
+            if row is None:
+                return None
+            return _row_to_dict(row)
+
+    def fetch_all(self, query: str, params: tuple = ()) -> List[dict]:
+        """Fetch all rows as a list of dicts."""
+        with get_session() as session:
+            result = session.execute(text(query), _positional_to_dict(query, params))
+            return [_row_to_dict(r) for r in result.fetchall()]
+
     def close(self):
-        """Close thread-local connection."""
-        if hasattr(self._local, 'connection') and self._local.connection:
-            try:
-                self._local.connection.close()
-            except Exception as e:
-                logger.warning(f"Error closing connection: {e}")
-            finally:
-                self._local.connection = None
-    
+        """No-op. Sessions are closed automatically by context managers."""
+        pass
+
     def __del__(self):
-        """Cleanup on deletion."""
-        self.close()
+        """No-op cleanup."""
+        pass
 
 
-# Global database managers (lazy initialization)
+# ======================================================================
+# Internal helpers
+# ======================================================================
+
+
+class _SessionConnectionAdapter:
+    """
+    Thin wrapper around a SQLAlchemy Session that exposes execute() and
+    executemany() accepting raw SQL strings with ``?`` positional params
+    (SQLite style).  This lets old repository code using
+    ``conn.execute(sql, (val,))`` work transparently.
+    """
+
+    def __init__(self, session):
+        self._session = session
+
+    def execute(self, sql: str, params=None):
+        converted_sql = _convert_qmarks(sql)
+        bound = _positional_to_dict(sql, params) if params else {}
+        return self._session.execute(text(converted_sql), bound)
+
+    def executemany(self, sql: str, params_list):
+        converted_sql = _convert_qmarks(sql)
+        for params in params_list:
+            bound = _positional_to_dict(sql, params)
+            self._session.execute(text(converted_sql), bound)
+
+
+def _convert_qmarks(sql: str) -> str:
+    """Replace positional ``?`` placeholders with ``:p0``, ``:p1``, ... for
+    SQLAlchemy ``text()``."""
+    parts = sql.split("?")
+    if len(parts) == 1:
+        return sql
+    out = [parts[0]]
+    for i, part in enumerate(parts[1:]):
+        out.append(f":p{i}")
+        out.append(part)
+    return "".join(out)
+
+
+def _positional_to_dict(sql: str, params=None) -> dict:
+    """Convert a positional param tuple into ``{p0: v, p1: v, ...}``."""
+    if not params:
+        return {}
+    if isinstance(params, dict):
+        return params
+    return {f"p{i}": v for i, v in enumerate(params)}
+
+
+def _row_to_dict(row) -> dict:
+    """Convert a SQLAlchemy Row/RowProxy to a plain dict with column-key access."""
+    try:
+        return dict(row._mapping)
+    except AttributeError:
+        return dict(row)
+
+
+# ======================================================================
+# Global database managers (lazy initialization) — same API as before
+# ======================================================================
 _db_managers = {}
 _db_lock = threading.Lock()
 
@@ -216,15 +178,7 @@ def get_db_manager(db_name: str = 'trade_history') -> DatabaseManager:
     if db_name not in _db_managers:
         with _db_lock:
             if db_name not in _db_managers:
-                # Determine database path
-                if db_name == 'trade_history':
-                    db_path = 'data/trade_history.db'
-                elif db_name == 'stocks':
-                    db_path = 'data/database/stocks.db'
-                else:
-                    raise ValueError(f"Unknown database: {db_name}")
-
-                _db_managers[db_name] = DatabaseManager(db_path)
+                _db_managers[db_name] = DatabaseManager()
 
     return _db_managers[db_name]
 
@@ -233,8 +187,8 @@ def close_all_connections():
     """
     Close all database connections (for graceful shutdown).
 
-    This should be called during application shutdown to ensure
-    all database connections are properly closed.
+    With SQLAlchemy, connections are managed by the engine pool,
+    so this is mostly a no-op for compatibility.
     """
     with _db_lock:
         for db_name, manager in _db_managers.items():

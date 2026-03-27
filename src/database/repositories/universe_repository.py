@@ -9,29 +9,22 @@ import time
 from datetime import datetime
 from typing import Dict, List
 
-from ..manager import get_db_manager
 from loguru import logger
+
+from database.orm.base import get_session
+from database.orm.models import UniverseStock
 
 
 class UniverseRepository:
     """Repository for full stock universe (replaces full_universe_cache.json)."""
 
     def __init__(self, db_name: str = 'trade_history', _db=None):
-        self.db = _db if _db is not None else get_db_manager(db_name)
-        self._ensure_table()
+        # db_name and _db kept for API compatibility; ignored (session handles connection)
+        pass
 
     def _ensure_table(self):
-        """Create universe_stocks table if it doesn't exist."""
-        self.db.execute("""
-            CREATE TABLE IF NOT EXISTS universe_stocks (
-                symbol TEXT PRIMARY KEY,
-                sector TEXT,
-                status TEXT DEFAULT 'active',
-                ts REAL,
-                dollar_vol REAL,
-                updated_at TEXT NOT NULL
-            )
-        """)
+        """No-op. Table is created by ORM model definition."""
+        pass
 
     def get_all(self) -> Dict[str, dict]:
         """
@@ -41,18 +34,17 @@ class UniverseRepository:
             {symbol: {sector, ts, status, dollar_vol}}
         """
         try:
-            rows = self.db.fetch_all(
-                "SELECT symbol, sector, ts, status, dollar_vol FROM universe_stocks"
-            )
-            return {
-                row['symbol']: {
-                    'sector': row['sector'],
-                    'ts': row['ts'],
-                    'status': row['status'],
-                    'dollar_vol': row['dollar_vol'],
+            with get_session() as session:
+                rows = session.query(UniverseStock).all()
+                return {
+                    row.symbol: {
+                        'sector': row.sector,
+                        'ts': row.ts,
+                        'status': row.status,
+                        'dollar_vol': row.dollar_vol,
+                    }
+                    for row in rows
                 }
-                for row in rows
-            }
         except Exception as e:
             logger.error(f"UniverseRepository.get_all failed: {e}")
             return {}
@@ -61,36 +53,38 @@ class UniverseRepository:
         """
         Replace universe_stocks with all entries from universe dict.
 
-        Runs DELETE + bulk INSERT in a single connection context (atomic).
+        Runs DELETE + bulk INSERT in a single session (atomic).
 
         Args:
             universe: {symbol: {sector, ts, status, dollar_vol}}
         """
         try:
             now_str = datetime.now().isoformat()
-            params_list = []
-            for symbol, data in universe.items():
-                if isinstance(data, dict):
-                    sector = data.get('sector')
-                    ts = data.get('ts', time.time())
-                    status = data.get('status', 'active')
-                    dollar_vol = data.get('dollar_vol')
-                else:
-                    sector = None
-                    ts = time.time()
-                    status = 'active'
-                    dollar_vol = None
-                params_list.append((symbol, sector, status, ts, dollar_vol, now_str))
+            with get_session() as session:
+                session.query(UniverseStock).delete()
+                objects = []
+                for symbol, data in universe.items():
+                    if isinstance(data, dict):
+                        sector = data.get('sector')
+                        ts = data.get('ts', time.time())
+                        status = data.get('status', 'active')
+                        dollar_vol = data.get('dollar_vol')
+                    else:
+                        sector = None
+                        ts = time.time()
+                        status = 'active'
+                        dollar_vol = None
+                    objects.append(UniverseStock(
+                        symbol=symbol,
+                        sector=sector,
+                        status=status,
+                        ts=ts,
+                        dollar_vol=dollar_vol,
+                        updated_at=now_str,
+                    ))
+                session.add_all(objects)
 
-            with self.db.get_connection() as conn:
-                conn.execute("DELETE FROM universe_stocks")
-                conn.executemany("""
-                    INSERT INTO universe_stocks
-                        (symbol, sector, status, ts, dollar_vol, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, params_list)
-
-            logger.info(f"UniverseRepository: saved {len(params_list)} stocks to DB")
+            logger.info(f"UniverseRepository: saved {len(objects)} stocks to DB")
         except Exception as e:
             logger.error(f"UniverseRepository.save_bulk failed: {e}")
 
@@ -102,10 +96,11 @@ class UniverseRepository:
             Sorted list of symbols
         """
         try:
-            rows = self.db.fetch_all(
-                "SELECT symbol FROM universe_stocks ORDER BY symbol"
-            )
-            return [row['symbol'] for row in rows]
+            with get_session() as session:
+                rows = session.query(UniverseStock.symbol).order_by(
+                    UniverseStock.symbol
+                ).all()
+                return [row[0] for row in rows]
         except Exception as e:
             logger.error(f"UniverseRepository.get_symbols failed: {e}")
             return []

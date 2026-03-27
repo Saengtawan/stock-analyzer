@@ -3,13 +3,13 @@ Leading Indicator Engine — detects signals that PRECEDE market moves.
 Computes probability-based signals from historical patterns.
 Part of Discovery AI v6.0.
 """
-import sqlite3
 import logging
 import numpy as np
-from pathlib import Path
+
+from database.orm.base import get_session
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 
 class LeadingIndicatorEngine:
@@ -22,23 +22,20 @@ class LeadingIndicatorEngine:
 
     def fit(self) -> bool:
         """Precompute historical patterns for all indicators."""
-        conn = sqlite3.connect(str(DB_PATH))
-        try:
-            macro = conn.execute("""
+        with get_session() as session:
+            macro = session.execute(text("""
                 SELECT date, vix_close, vix3m_close, spy_close, crude_close
                 FROM macro_snapshots
                 WHERE vix_close IS NOT NULL AND spy_close IS NOT NULL
                 ORDER BY date
-            """).fetchall()
+            """)).fetchall()
 
-            breadth = conn.execute("""
+            breadth = session.execute(text("""
                 SELECT date, pct_above_20d_ma
                 FROM market_breadth
                 WHERE pct_above_20d_ma IS NOT NULL
                 ORDER BY date
-            """).fetchall()
-        finally:
-            conn.close()
+            """)).fetchall()
 
         if len(macro) < 100:
             return False
@@ -170,13 +167,12 @@ class LeadingIndicatorEngine:
 
         # 5. Put/call extreme — contrarian bounce signal
         try:
-            conn = sqlite3.connect(str(DB_PATH))
-            pc_rows = conn.execute("""
-                SELECT AVG(put_call_ratio) FROM options_flow
-                WHERE date <= ? AND date >= date(?, '-5 days')
-                AND put_call_ratio IS NOT NULL
-            """, (scan_date, scan_date)).fetchone()
-            conn.close()
+            with get_session() as session:
+                pc_rows = session.execute(text("""
+                    SELECT AVG(put_call_ratio) FROM options_flow
+                    WHERE date <= :scan_date AND date >= date(:scan_date, '-5 days')
+                    AND put_call_ratio IS NOT NULL
+                """), {"scan_date": scan_date}).fetchone()
             avg_pc = pc_rows[0] if pc_rows and pc_rows[0] else None
             if avg_pc and avg_pc > 1.5:
                 signals['put_call_extreme'] = {
@@ -195,13 +191,12 @@ class LeadingIndicatorEngine:
 
         # 6. Insider surge — 3+ insider buys this week = bullish
         try:
-            conn = sqlite3.connect(str(DB_PATH))
-            insider_rows = conn.execute("""
-                SELECT COUNT(*) FROM insider_transactions
-                WHERE transaction_type = 'purchase' AND transaction_date >= date(?, '-7 days')
-                AND transaction_date <= ?
-            """, (scan_date, scan_date)).fetchone()
-            conn.close()
+            with get_session() as session:
+                insider_rows = session.execute(text("""
+                    SELECT COUNT(*) FROM insider_transactions
+                    WHERE transaction_type = 'purchase' AND transaction_date >= date(:scan_date, '-7 days')
+                    AND transaction_date <= :scan_date
+                """), {"scan_date": scan_date}).fetchone()
             n_buys = insider_rows[0] if insider_rows else 0
             signals['insider_surge'] = {
                 'active': n_buys >= 3,
@@ -214,13 +209,12 @@ class LeadingIndicatorEngine:
 
         # 7. Earnings cluster — count of stocks with earnings soon (volatility warning)
         try:
-            conn = sqlite3.connect(str(DB_PATH))
-            # Use discovery_picks if they have days_to_earnings
-            ear_rows = conn.execute("""
-                SELECT COUNT(*) FROM discovery_picks
-                WHERE scan_date = ? AND days_to_earnings IS NOT NULL AND days_to_earnings BETWEEN 0 AND 5
-            """, (scan_date,)).fetchone()
-            conn.close()
+            with get_session() as session:
+                # Use discovery_picks if they have days_to_earnings
+                ear_rows = session.execute(text("""
+                    SELECT COUNT(*) FROM discovery_picks
+                    WHERE scan_date = :scan_date AND days_to_earnings IS NOT NULL AND days_to_earnings BETWEEN 0 AND 5
+                """), {"scan_date": scan_date}).fetchone()
             n_earnings = ear_rows[0] if ear_rows else 0
             signals['earnings_cluster'] = {
                 'active': n_earnings >= 3,
@@ -275,15 +269,15 @@ class LeadingIndicatorEngine:
         score = 50.0  # neutral baseline
         details = {}
 
-        conn = sqlite3.connect(str(DB_PATH))
         try:
+          with get_session() as session:
             # 1. Options flow: stock's P/C ratio vs normal
-            row = conn.execute("""
+            row = session.execute(text("""
                 SELECT put_call_ratio, unusual_call, unusual_put
                 FROM options_flow
-                WHERE symbol = ? AND date <= ?
+                WHERE symbol = :symbol AND date <= :scan_date
                 ORDER BY date DESC LIMIT 1
-            """, (symbol, scan_date)).fetchone()
+            """), {"symbol": symbol, "scan_date": scan_date}).fetchone()
             if row and row[0] is not None:
                 pc = row[0]
                 unusual_call = row[1] or 0

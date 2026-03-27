@@ -3,14 +3,14 @@ Sequence Pattern Matcher — finds similar historical market sequences
 and similar stock profiles, predicts what happens next based on past outcomes.
 Part of Discovery AI v6.0.
 """
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import logging
 import numpy as np
 from pathlib import Path
 from discovery.temporal import TemporalFeatureBuilder
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 # Features for per-stock profile matching (from backfill_signal_outcomes)
 STOCK_PROFILE_FEATURES = ['atr_pct', 'momentum_5d', 'volume_ratio', 'distance_from_20d_high']
@@ -39,7 +39,7 @@ class SequencePatternMatcher:
 
     def fit(self, lookback_days: int = 730) -> bool:
         """Load historical sequences from DB and precompute feature vectors."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             # Get all dates with SPY data
             rows = conn.execute("""
@@ -48,7 +48,7 @@ class SequencePatternMatcher:
                 ORDER BY date
             """).fetchall()
         finally:
-            conn.close()
+            pass
 
         if len(rows) < 100:
             logger.warning("SequenceMatcher: insufficient data (%d rows)", len(rows))
@@ -246,7 +246,7 @@ class SequencePatternMatcher:
         self._stock_profiles_fitted = True
         self._stock_profiles = None
 
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             rows = conn.execute("""
                 SELECT atr_pct, momentum_5d, volume_ratio, distance_from_20d_high,
@@ -256,7 +256,7 @@ class SequencePatternMatcher:
                   AND distance_from_20d_high IS NOT NULL
             """).fetchall()
         finally:
-            conn.close()
+            pass
 
         if len(rows) < 500:
             logger.warning("StockProfile: insufficient data (%d)", len(rows))

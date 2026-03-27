@@ -11,12 +11,12 @@ Combines:
 Weights are initially fixed but auto-optimize from recent outcomes (Step 5).
 """
 import logging
-import sqlite3
 import numpy as np
-from pathlib import Path
+
+from database.orm.base import get_session
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 # Default weights — validated starting point
 DEFAULT_WEIGHTS = {
@@ -182,18 +182,15 @@ class EnsembleBrain:
 
         Returns dict with old_weights, new_weights, correlations.
         """
-        conn = sqlite3.connect(str(DB_PATH))
-        try:
-            rows = conn.execute("""
+        with get_session() as session:
+            rows = session.execute(text("""
                 SELECT predicted_er, actual_return_d3, regime, atr_pct,
                        vix_close, scan_date
                 FROM discovery_outcomes
                 WHERE actual_return_d3 IS NOT NULL
                 ORDER BY scan_date DESC
-                LIMIT ?
-            """, (outcomes_days * 10,)).fetchall()  # ~10 picks/day
-        finally:
-            conn.close()
+                LIMIT :lim
+            """), {"lim": outcomes_days * 10}).fetchall()  # ~10 picks/day
 
         if len(rows) < 30:
             logger.warning("Ensemble optimize: insufficient outcomes (%d)", len(rows))

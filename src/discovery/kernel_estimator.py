@@ -19,14 +19,13 @@ v5.0 feature expansion (walk-forward validated on 52K signals, 2026-03-19):
 """
 import logging
 import math
-import sqlite3
-from pathlib import Path
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
+from database.orm.base import get_session
+from sqlalchemy import text
 
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
+logger = logging.getLogger(__name__)
 
 # All features are macro/breadth — kernel learns market regime
 # v5.0: 6→8 features (+crude_close IC=-0.155, +vix_term_spread IC=+0.101)
@@ -207,71 +206,69 @@ class KernelEstimator:
                           pct_above_20d_ma, new_52w_highs, yield_10y, spy_close,
                           crude_close, vix_term_spread)
         """
-        conn = sqlite3.connect(str(DB_PATH))
         try:
-            rows = conn.execute("""
-                WITH crude_lag AS (
-                    SELECT date, crude_close,
-                           LAG(crude_close, 5) OVER (ORDER BY date) as crude_5d_ago
-                    FROM macro_snapshots
-                    WHERE crude_close IS NOT NULL
-                ),
-                combined AS (
-                    SELECT scan_date, symbol, outcome_5d,
-                           1 as priority
-                    FROM signal_outcomes
-                    WHERE outcome_5d IS NOT NULL
+            with get_session() as session:
+                rows = session.execute(text("""
+                    WITH crude_lag AS (
+                        SELECT date, crude_close,
+                               LAG(crude_close, 5) OVER (ORDER BY date) as crude_5d_ago
+                        FROM macro_snapshots
+                        WHERE crude_close IS NOT NULL
+                    ),
+                    combined AS (
+                        SELECT scan_date, symbol, outcome_5d,
+                               1 as priority
+                        FROM signal_outcomes
+                        WHERE outcome_5d IS NOT NULL
 
-                    UNION ALL
+                        UNION ALL
 
-                    SELECT scan_date, symbol, outcome_5d,
-                           2 as priority
-                    FROM backfill_signal_outcomes
-                    WHERE outcome_5d IS NOT NULL
-                ),
-                deduped AS (
-                    SELECT scan_date, symbol, outcome_5d,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY scan_date, symbol
-                               ORDER BY priority ASC
-                           ) as rn
-                    FROM combined
-                ),
-                trading_date AS (
-                    SELECT d.scan_date, d.outcome_5d,
-                           CASE
-                               WHEN strftime('%w', d.scan_date) = '6'
-                                   THEN date(d.scan_date, '-1 day')
-                               WHEN strftime('%w', d.scan_date) = '0'
-                                   THEN date(d.scan_date, '-2 days')
-                               ELSE d.scan_date
-                           END as macro_date
-                    FROM deduped d
-                    WHERE d.rn = 1
-                )
-                SELECT t.scan_date, t.outcome_5d,
-                       b.new_52w_lows,
-                       CASE WHEN cl.crude_5d_ago > 0
-                            THEN (cl.crude_close / cl.crude_5d_ago - 1) * 100
-                            ELSE NULL END as crude_change_5d,
-                       b.pct_above_20d_ma,
-                       b.new_52w_highs,
-                       m.yield_10y,
-                       m.spy_close,
-                       m.crude_close,
-                       m.vix_close - m.vix3m_close as vix_term_spread
-                FROM trading_date t
-                LEFT JOIN macro_snapshots m ON m.date = t.macro_date
-                LEFT JOIN market_breadth b ON b.date = t.macro_date
-                LEFT JOIN crude_lag cl ON cl.date = t.macro_date
-                ORDER BY t.scan_date
-            """).fetchall()
-            return rows
+                        SELECT scan_date, symbol, outcome_5d,
+                               2 as priority
+                        FROM backfill_signal_outcomes
+                        WHERE outcome_5d IS NOT NULL
+                    ),
+                    deduped AS (
+                        SELECT scan_date, symbol, outcome_5d,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY scan_date, symbol
+                                   ORDER BY priority ASC
+                               ) as rn
+                        FROM combined
+                    ),
+                    trading_date AS (
+                        SELECT d.scan_date, d.outcome_5d,
+                               CASE
+                                   WHEN strftime('%w', d.scan_date) = '6'
+                                       THEN date(d.scan_date, '-1 day')
+                                   WHEN strftime('%w', d.scan_date) = '0'
+                                       THEN date(d.scan_date, '-2 days')
+                                   ELSE d.scan_date
+                               END as macro_date
+                        FROM deduped d
+                        WHERE d.rn = 1
+                    )
+                    SELECT t.scan_date, t.outcome_5d,
+                           b.new_52w_lows,
+                           CASE WHEN cl.crude_5d_ago > 0
+                                THEN (cl.crude_close / cl.crude_5d_ago - 1) * 100
+                                ELSE NULL END as crude_change_5d,
+                           b.pct_above_20d_ma,
+                           b.new_52w_highs,
+                           m.yield_10y,
+                           m.spy_close,
+                           m.crude_close,
+                           m.vix_close - m.vix3m_close as vix_term_spread
+                    FROM trading_date t
+                    LEFT JOIN macro_snapshots m ON m.date = t.macro_date
+                    LEFT JOIN market_breadth b ON b.date = t.macro_date
+                    LEFT JOIN crude_lag cl ON cl.date = t.macro_date
+                    ORDER BY t.scan_date
+                """)).fetchall()
+                return rows
         except Exception as e:
             logger.error(f"KernelEstimator: DB error loading training data: {e}")
             return []
-        finally:
-            conn.close()
 
 
 class StockKernelEstimator:
@@ -376,74 +373,72 @@ class StockKernelEstimator:
         v5.0: 8 macro (6 original + crude_close + vix_term_spread) + 5 stock = 13 features.
         sector_1d_change JOINed from sector_etf_daily_returns.
         """
-        conn = sqlite3.connect(str(DB_PATH))
         try:
-            return conn.execute("""
-                WITH crude_lag AS (
-                    SELECT date, crude_close,
-                           LAG(crude_close, 5) OVER (ORDER BY date) as crude_5d_ago
-                    FROM macro_snapshots
-                    WHERE crude_close IS NOT NULL
-                ),
-                combined AS (
-                    SELECT scan_date, symbol, outcome_5d, sector,
-                           atr_pct, momentum_5d, volume_ratio,
-                           distance_from_20d_high,
-                           1 as priority
-                    FROM signal_outcomes
-                    WHERE outcome_5d IS NOT NULL AND atr_pct IS NOT NULL
+            with get_session() as session:
+                return session.execute(text("""
+                    WITH crude_lag AS (
+                        SELECT date, crude_close,
+                               LAG(crude_close, 5) OVER (ORDER BY date) as crude_5d_ago
+                        FROM macro_snapshots
+                        WHERE crude_close IS NOT NULL
+                    ),
+                    combined AS (
+                        SELECT scan_date, symbol, outcome_5d, sector,
+                               atr_pct, momentum_5d, volume_ratio,
+                               distance_from_20d_high,
+                               1 as priority
+                        FROM signal_outcomes
+                        WHERE outcome_5d IS NOT NULL AND atr_pct IS NOT NULL
 
-                    UNION ALL
+                        UNION ALL
 
-                    SELECT scan_date, symbol, outcome_5d, sector,
-                           atr_pct, momentum_5d, volume_ratio,
-                           distance_from_20d_high,
-                           2 as priority
-                    FROM backfill_signal_outcomes
-                    WHERE outcome_5d IS NOT NULL AND atr_pct IS NOT NULL
-                ),
-                deduped AS (
-                    SELECT scan_date, symbol, outcome_5d, sector,
-                           atr_pct, momentum_5d, volume_ratio,
-                           distance_from_20d_high,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY scan_date, symbol ORDER BY priority
-                           ) as rn
-                    FROM combined
-                ),
-                trading_date AS (
-                    SELECT d.*,
-                           CASE
-                               WHEN strftime('%w', d.scan_date) = '6'
-                                   THEN date(d.scan_date, '-1 day')
-                               WHEN strftime('%w', d.scan_date) = '0'
-                                   THEN date(d.scan_date, '-2 days')
-                               ELSE d.scan_date
-                           END as macro_date
-                    FROM deduped d WHERE d.rn = 1
-                )
-                SELECT t.scan_date, t.outcome_5d,
-                       b.new_52w_lows,
-                       CASE WHEN cl.crude_5d_ago > 0
-                            THEN (cl.crude_close / cl.crude_5d_ago - 1) * 100
-                            ELSE NULL END as crude_change_5d,
-                       b.pct_above_20d_ma,
-                       b.new_52w_highs, m.yield_10y, m.spy_close,
-                       m.crude_close,
-                       m.vix_close - m.vix3m_close as vix_term_spread,
-                       t.atr_pct, t.momentum_5d, t.volume_ratio,
-                       t.distance_from_20d_high,
-                       ser.pct_change as sector_1d_change
-                FROM trading_date t
-                LEFT JOIN macro_snapshots m ON m.date = t.macro_date
-                LEFT JOIN market_breadth b ON b.date = t.macro_date
-                LEFT JOIN crude_lag cl ON cl.date = t.macro_date
-                LEFT JOIN sector_etf_daily_returns ser
-                    ON ser.sector = t.sector AND ser.date = t.macro_date
-                ORDER BY t.scan_date
-            """).fetchall()
+                        SELECT scan_date, symbol, outcome_5d, sector,
+                               atr_pct, momentum_5d, volume_ratio,
+                               distance_from_20d_high,
+                               2 as priority
+                        FROM backfill_signal_outcomes
+                        WHERE outcome_5d IS NOT NULL AND atr_pct IS NOT NULL
+                    ),
+                    deduped AS (
+                        SELECT scan_date, symbol, outcome_5d, sector,
+                               atr_pct, momentum_5d, volume_ratio,
+                               distance_from_20d_high,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY scan_date, symbol ORDER BY priority
+                               ) as rn
+                        FROM combined
+                    ),
+                    trading_date AS (
+                        SELECT d.*,
+                               CASE
+                                   WHEN strftime('%w', d.scan_date) = '6'
+                                       THEN date(d.scan_date, '-1 day')
+                                   WHEN strftime('%w', d.scan_date) = '0'
+                                       THEN date(d.scan_date, '-2 days')
+                                   ELSE d.scan_date
+                               END as macro_date
+                        FROM deduped d WHERE d.rn = 1
+                    )
+                    SELECT t.scan_date, t.outcome_5d,
+                           b.new_52w_lows,
+                           CASE WHEN cl.crude_5d_ago > 0
+                                THEN (cl.crude_close / cl.crude_5d_ago - 1) * 100
+                                ELSE NULL END as crude_change_5d,
+                           b.pct_above_20d_ma,
+                           b.new_52w_highs, m.yield_10y, m.spy_close,
+                           m.crude_close,
+                           m.vix_close - m.vix3m_close as vix_term_spread,
+                           t.atr_pct, t.momentum_5d, t.volume_ratio,
+                           t.distance_from_20d_high,
+                           ser.pct_change as sector_1d_change
+                    FROM trading_date t
+                    LEFT JOIN macro_snapshots m ON m.date = t.macro_date
+                    LEFT JOIN market_breadth b ON b.date = t.macro_date
+                    LEFT JOIN crude_lag cl ON cl.date = t.macro_date
+                    LEFT JOIN sector_etf_daily_returns ser
+                        ON ser.sector = t.sector AND ser.date = t.macro_date
+                    ORDER BY t.scan_date
+                """)).fetchall()
         except Exception as e:
             logger.error(f"StockKernel: DB error: {e}")
             return []
-        finally:
-            conn.close()

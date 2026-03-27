@@ -8,26 +8,21 @@ Handles CRUD operations for PDT compliance tracking:
 - Track PDT violations
 """
 
-import sqlite3
 from datetime import datetime, date
 from typing import List, Dict, Optional
-from pathlib import Path
+
+from sqlalchemy import text
+
+from database.orm.base import get_session
+from database.orm.models import PDTTracking
 
 
 class PDTRepository:
     """Repository for PDT tracking data"""
 
     def __init__(self, db_path: str = None):
-        if db_path is None:
-            project_root = Path(__file__).parent.parent.parent.parent
-            db_path = str(project_root / 'data' / 'trade_history.db')
-        self.db_path = db_path
-
-    def _get_connection(self) -> sqlite3.Connection:
-        """Get database connection with row factory"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+        # db_path kept for API compatibility; ignored (session handles connection)
+        pass
 
     # ========================================================================
     # Core Operations
@@ -48,32 +43,33 @@ class PDTRepository:
         Note:
             Uses UPSERT - if symbol already exists, updates entry_date
         """
-        conn = self._get_connection()
         try:
             if entry_date is None:
                 entry_date = date.today().isoformat()
             if entry_time is None:
                 entry_time = datetime.now().isoformat()
 
-            # Upsert: INSERT or UPDATE if symbol exists
-            conn.execute("""
-                INSERT INTO pdt_tracking (symbol, entry_date, entry_time)
-                VALUES (?, ?, ?)
-                ON CONFLICT(symbol) DO UPDATE SET
-                    entry_date = excluded.entry_date,
-                    entry_time = excluded.entry_time,
-                    exit_date = NULL,
-                    exit_time = NULL,
-                    same_day_exit = 0
-            """, (symbol, entry_date, entry_time))
-
-            conn.commit()
+            with get_session() as session:
+                existing = session.query(PDTTracking).filter(
+                    PDTTracking.symbol == symbol
+                ).first()
+                if existing:
+                    existing.entry_date = entry_date
+                    existing.entry_time = entry_time
+                    existing.exit_date = None
+                    existing.exit_time = None
+                    existing.same_day_exit = 0
+                else:
+                    session.add(PDTTracking(
+                        symbol=symbol,
+                        entry_date=entry_date,
+                        entry_time=entry_time,
+                        created_at=datetime.now().isoformat(),
+                    ))
             return True
         except Exception as e:
             print(f"Error adding PDT entry for {symbol}: {e}")
             return False
-        finally:
-            conn.close()
 
     def can_sell_today(self, symbol: str) -> bool:
         """
@@ -84,36 +80,21 @@ class PDTRepository:
 
         Returns:
             True if can sell (entry_date != today OR not in tracking)
-            False if cannot sell (entry_date == today → PDT violation)
+            False if cannot sell (entry_date == today -> PDT violation)
         """
-        conn = self._get_connection()
-        try:
+        with get_session() as session:
             today = date.today().isoformat()
-
-            row = conn.execute("""
-                SELECT entry_date, exit_date
-                FROM pdt_tracking
-                WHERE symbol = ?
-            """, (symbol,)).fetchone()
+            row = session.query(PDTTracking).filter(
+                PDTTracking.symbol == symbol
+            ).first()
 
             if row is None:
-                # Not in tracking = can sell (no entry recorded)
                 return True
-
-            if row['exit_date'] is not None:
-                # Already exited = can sell
+            if row.exit_date is not None:
                 return True
-
-            # Check if entry_date is today
-            if row['entry_date'] == today:
-                # Entered today = CANNOT sell (PDT violation)
+            if row.entry_date == today:
                 return False
-
-            # Entered before today = can sell
             return True
-
-        finally:
-            conn.close()
 
     def record_exit(self, symbol: str, exit_date: str = None, exit_time: str = None) -> bool:
         """
@@ -130,32 +111,24 @@ class PDTRepository:
         Note:
             Automatically sets same_day_exit flag if entry_date == exit_date
         """
-        conn = self._get_connection()
         try:
             if exit_date is None:
                 exit_date = date.today().isoformat()
             if exit_time is None:
                 exit_time = datetime.now().isoformat()
 
-            # Update exit info
-            conn.execute("""
-                UPDATE pdt_tracking
-                SET exit_date = ?,
-                    exit_time = ?,
-                    same_day_exit = CASE
-                        WHEN entry_date = ? THEN 1
-                        ELSE 0
-                    END
-                WHERE symbol = ?
-            """, (exit_date, exit_time, exit_date, symbol))
-
-            conn.commit()
+            with get_session() as session:
+                row = session.query(PDTTracking).filter(
+                    PDTTracking.symbol == symbol
+                ).first()
+                if row:
+                    row.exit_date = exit_date
+                    row.exit_time = exit_time
+                    row.same_day_exit = 1 if row.entry_date == exit_date else 0
             return True
         except Exception as e:
             print(f"Error recording PDT exit for {symbol}: {e}")
             return False
-        finally:
-            conn.close()
 
     def remove_entry(self, symbol: str) -> bool:
         """
@@ -167,16 +140,15 @@ class PDTRepository:
         Returns:
             True if successful
         """
-        conn = self._get_connection()
         try:
-            conn.execute("DELETE FROM pdt_tracking WHERE symbol = ?", (symbol,))
-            conn.commit()
+            with get_session() as session:
+                session.query(PDTTracking).filter(
+                    PDTTracking.symbol == symbol
+                ).delete()
             return True
         except Exception as e:
             print(f"Error removing PDT entry for {symbol}: {e}")
             return False
-        finally:
-            conn.close()
 
     # ========================================================================
     # Query Operations
@@ -189,15 +161,9 @@ class PDTRepository:
         Returns:
             List of symbols that cannot be sold today
         """
-        conn = self._get_connection()
-        try:
-            rows = conn.execute("""
-                SELECT symbol FROM v_active_pdt_restrictions
-            """).fetchall()
-
-            return [row['symbol'] for row in rows]
-        finally:
-            conn.close()
+        with get_session() as session:
+            result = session.execute(text("SELECT symbol FROM v_active_pdt_restrictions"))
+            return [row[0] for row in result.fetchall()]
 
     def get_all_entries(self) -> Dict[str, str]:
         """
@@ -206,18 +172,11 @@ class PDTRepository:
         Returns:
             Dict mapping symbol -> entry_date (compatible with old JSON format)
         """
-        conn = self._get_connection()
-        try:
-            rows = conn.execute("""
-                SELECT symbol, entry_date
-                FROM pdt_tracking
-                WHERE exit_date IS NULL
-                ORDER BY entry_date DESC
-            """).fetchall()
-
-            return {row['symbol']: row['entry_date'] for row in rows}
-        finally:
-            conn.close()
+        with get_session() as session:
+            rows = session.query(PDTTracking).filter(
+                PDTTracking.exit_date.is_(None)
+            ).order_by(PDTTracking.entry_date.desc()).all()
+            return {row.symbol: row.entry_date for row in rows}
 
     def get_violations(self, days: int = 30) -> List[Dict]:
         """
@@ -229,17 +188,14 @@ class PDTRepository:
         Returns:
             List of violation records
         """
-        conn = self._get_connection()
-        try:
-            rows = conn.execute("""
-                SELECT * FROM v_pdt_violations
-                WHERE exit_date >= date('now', '-' || ? || ' days')
-                ORDER BY exit_date DESC
-            """, (days,)).fetchall()
-
-            return [dict(row) for row in rows]
-        finally:
-            conn.close()
+        with get_session() as session:
+            result = session.execute(
+                text("SELECT * FROM v_pdt_violations "
+                     "WHERE exit_date >= date('now', '-' || :days || ' days') "
+                     "ORDER BY exit_date DESC"),
+                {'days': days}
+            )
+            return [dict(row._mapping) for row in result.fetchall()]
 
     # ========================================================================
     # Maintenance
@@ -255,19 +211,14 @@ class PDTRepository:
         Returns:
             Number of entries deleted
         """
-        conn = self._get_connection()
-        try:
-            cursor = conn.execute("""
-                DELETE FROM pdt_tracking
-                WHERE exit_date IS NOT NULL
-                  AND exit_date < date('now', '-' || ? || ' days')
-            """, (days,))
-
-            deleted = cursor.rowcount
-            conn.commit()
-            return deleted
-        finally:
-            conn.close()
+        with get_session() as session:
+            result = session.execute(
+                text("DELETE FROM pdt_tracking "
+                     "WHERE exit_date IS NOT NULL "
+                     "AND exit_date < date('now', '-' || :days || ' days')"),
+                {'days': days}
+            )
+            return result.rowcount
 
     # ========================================================================
     # Migration Support

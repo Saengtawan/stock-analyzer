@@ -18,13 +18,13 @@ If IC < 0.02 or n < 50: weight = 0 (auto-disabled)
 Walk-forward safe: fit(max_date) only uses data up to max_date.
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import time
 import numpy as np
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 SIGNALS = ['insider_bought', 'analyst_upgrade', 'analyst_downgrade',
            'options_bullish', 'options_bearish']
@@ -52,7 +52,7 @@ class SignalTracker:
         t0 = time.time()
         old_weights = dict(self._weights)
 
-        conn = sqlite3.connect(str(DB_PATH), timeout=10)
+        # conn via get_session()
         conn.execute('PRAGMA busy_timeout=5000')
 
         try:
@@ -61,7 +61,6 @@ class SignalTracker:
             fwd_returns = self._load_forward_returns(conn, date_filter)
             if len(fwd_returns) < 500:
                 logger.warning("SignalTracker: insufficient data (%d rows)", len(fwd_returns))
-                conn.close()
                 return False
 
             # Compute IC for each signal
@@ -98,7 +97,7 @@ class SignalTracker:
                             avg_present, avg_absent)
 
         finally:
-            conn.close()
+            pass
 
         self._fitted = True
         self._fit_time = time.time()
@@ -322,7 +321,7 @@ class SignalTracker:
     # === DB Persistence ===
 
     def _ensure_tables(self):
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         conn.execute("""
             CREATE TABLE IF NOT EXISTS signal_ic_tracker (
                 signal_name TEXT NOT NULL,
@@ -344,13 +343,11 @@ class SignalTracker:
                 updated_at TEXT DEFAULT (datetime('now'))
             )
         """)
-        conn.commit()
-        conn.close()
 
     def save_to_db(self):
         from datetime import date as date_cls
         fit_date = date_cls.today().isoformat()
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         for name in SIGNALS:
             ic = self._ic_values.get(name, 0)
             weight = self._weights.get(name, 0)
@@ -367,22 +364,17 @@ class SignalTracker:
                 (signal_name, ic_90d, weight, n_observations)
                 VALUES (?, ?, ?, ?)
             """, (name, ic, weight, n_obs))
-
-        conn.commit()
-        conn.close()
         logger.info("SignalTracker: saved %d signal weights to DB", len(SIGNALS))
 
     def load_from_db(self) -> bool:
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             rows = conn.execute(
                 "SELECT signal_name, ic_90d, weight, n_observations "
                 "FROM signal_tracker_current"
             ).fetchall()
         except Exception:
-            conn.close()
             return False
-        conn.close()
 
         if not rows:
             return False

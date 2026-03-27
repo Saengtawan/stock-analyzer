@@ -451,21 +451,15 @@ class OvernightGapScanner:
         OVN holds overnight, so earnings D=0 = uncontrolled gap risk.
         """
         try:
-            import sqlite3
-            from pathlib import Path
+            from database.orm.base import get_session
+            from database.orm.models import EarningsCalendar
             from datetime import date
-            db_path = str(Path(__file__).resolve().parent.parent.parent / 'data' / 'trade_history.db')
-            conn = sqlite3.connect(db_path)
-            conn.row_factory = sqlite3.Row
-            try:
-                row = conn.execute(
-                    "SELECT next_earnings_date FROM earnings_calendar WHERE symbol = ?",
-                    (symbol,)
-                ).fetchone()
-                if row and row['next_earnings_date'] == date.today().isoformat():
+            with get_session() as session:
+                ec = session.query(EarningsCalendar).filter(
+                    EarningsCalendar.symbol == symbol
+                ).first()
+                if ec and ec.next_earnings_date == date.today().isoformat():
                     return True
-            finally:
-                conn.close()
         except Exception:
             pass  # Fail-open: if DB unavailable, don't block
         return False

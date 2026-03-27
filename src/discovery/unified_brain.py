@@ -7,14 +7,14 @@ Part of Discovery v12.0.
 Target: outcome_5d > 0
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import time
 import numpy as np
 from pathlib import Path
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 SENSOR_FEATURES = [
     'sensor_vix', 'sensor_crude', 'sensor_breadth', 'sensor_yield', 'sensor_spy',
@@ -124,7 +124,7 @@ class UnifiedBrain:
 
     def _load_training_data(self, sensor_network, max_date: str = None):
         """Load historical data with sensor signals computed."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             date_filter = f"AND b.scan_date <= '{max_date}'" if max_date else ""
             rows = conn.execute(f"""
@@ -163,7 +163,7 @@ class UnifiedBrain:
                 GROUP BY date, sector
             """).fetchall()
         finally:
-            conn.close()
+            pass
 
         # Build sector rank lookup
         sector_by_date = defaultdict(dict)

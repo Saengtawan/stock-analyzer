@@ -10,7 +10,8 @@ Periodically (weekly or on-demand):
 This is the "genuine learning" component — it finds patterns humans missed.
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -19,7 +20,6 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 # Features we can compute IC for (available in backfill_signal_outcomes + macro)
 TRACKABLE_FEATURES = [
@@ -58,7 +58,7 @@ class PatternLearner:
 
         Returns dict with per-feature IC, p-value, and drift flag.
         """
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
 
         cutoff = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
 
@@ -86,8 +86,6 @@ class PatternLearner:
             FROM backfill_signal_outcomes
             WHERE scan_date >= ? AND scan_date < ? AND outcome_3d IS NOT NULL
         """, (hist_cutoff, cutoff)).fetchall()
-
-        conn.close()
 
         if len(recent) < 30:
             logger.warning("PatternLearner: insufficient recent data (%d rows)", len(recent))
@@ -172,7 +170,7 @@ class PatternLearner:
         Tests pairwise interactions (product, ratio) of top features.
         If interaction IC > max(individual ICs) + 0.05, flag as candidate.
         """
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         cutoff = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
 
         rows = conn.execute("""
@@ -183,7 +181,6 @@ class PatternLearner:
               AND atr_pct IS NOT NULL AND distance_from_20d_high IS NOT NULL
               AND momentum_5d IS NOT NULL AND volume_ratio IS NOT NULL
         """, (cutoff,)).fetchall()
-        conn.close()
 
         if len(rows) < 100:
             return []
@@ -265,7 +262,7 @@ class PatternLearner:
         Critical for discovery: a feature might be great in BULL but useless in CRISIS.
         This helps the kernel know when to trust which features more.
         """
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
 
         rows = conn.execute("""
             SELECT b.atr_pct, b.distance_from_20d_high, b.momentum_5d,
@@ -276,7 +273,6 @@ class PatternLearner:
             ORDER BY b.scan_date DESC
             LIMIT 10000
         """).fetchall()
-        conn.close()
 
         if len(rows) < 200:
             return {}

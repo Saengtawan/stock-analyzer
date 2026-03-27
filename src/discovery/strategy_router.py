@@ -14,13 +14,13 @@ Data validation (51K signals + 1096 trading days):
   FEAR:   Deep dip VIX>25 + d20h<-15 → WR=61%
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 from pathlib import Path
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 
 class StrategyRouter:
@@ -170,13 +170,12 @@ class StrategyRouter:
     def _check_spy_pullback(self) -> bool:
         """Check if SPY had 2+ consecutive red days recently."""
         try:
-            conn = sqlite3.connect(str(DB_PATH))
+            # conn via get_session()
             rows = conn.execute("""
                 SELECT spy_close FROM macro_snapshots
                 WHERE spy_close IS NOT NULL
                 ORDER BY date DESC LIMIT 3
             """).fetchall()
-            conn.close()
 
             if len(rows) >= 3:
                 # rows[0]=today, rows[1]=yesterday, rows[2]=day before

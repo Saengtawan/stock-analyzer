@@ -7,7 +7,8 @@ Walk-forward: trains on past data only, never uses future.
 Target: outcome_5d > 0 (binary: will stock go up in 5 days?)
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import pickle
 import time
 from pathlib import Path
@@ -16,7 +17,6 @@ from typing import Optional
 import numpy as np
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 # v9.0: Stock-only features + interaction terms (no macro — RegimeBrain handles macro)
 # Redesigned after testing: macro features dominated (50% importance), stock-only
@@ -191,7 +191,7 @@ class StockBrain:
 
     def _load_training_data(self, max_date: str = None) -> tuple:
         """Load stock features + compute interactions for training."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             date_filter = f"AND b.scan_date <= '{max_date}'" if max_date else ""
             rows = conn.execute(f"""
@@ -204,7 +204,7 @@ class StockBrain:
                 ORDER BY b.scan_date
             """).fetchall()
         finally:
-            conn.close()
+            pass
 
         if not rows:
             return np.array([]), np.array([]), np.array([])

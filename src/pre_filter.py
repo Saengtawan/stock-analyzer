@@ -584,19 +584,22 @@ class PreFilterRunner:
             # v7.5: Bulk-insert rejection log to DB (non-fatal)
             if rejection_batch:
                 try:
-                    import sqlite3 as _sqlite3
-                    from pathlib import Path as _Path
-                    _db = str(_Path(__file__).resolve().parent.parent / 'data' / 'trade_history.db')
-                    _conn = _sqlite3.connect(_db)
-                    _conn.executemany("""
-                        INSERT INTO pre_filter_rejections
-                            (scan_date, symbol, sector, reject_reason,
-                             close_price, atr_pct, rsi, return_5d, dollar_volume, created_at)
-                        VALUES (?,?,?,?,?,?,?,?,?, datetime('now'))
-                    """, rejection_batch)
-                    _conn.commit()
-                    _conn.close()
-                    logger.info(f"📝 pre_filter_rejections: {len(rejection_batch)} rows logged")
+                    from sqlalchemy import text as _text
+                    from database.orm.base import get_session as _get_session
+                    with _get_session() as _session:
+                        for _rb in rejection_batch:
+                            _session.execute(_text("""
+                                INSERT INTO pre_filter_rejections
+                                    (scan_date, symbol, sector, reject_reason,
+                                     close_price, atr_pct, rsi, return_5d, dollar_volume, created_at)
+                                VALUES (:scan_date, :symbol, :sector, :reason,
+                                    :close_price, :atr_pct, :rsi, :return_5d, :dollar_volume, datetime('now'))
+                            """), {
+                                'scan_date': _rb[0], 'symbol': _rb[1], 'sector': _rb[2],
+                                'reason': _rb[3], 'close_price': _rb[4], 'atr_pct': _rb[5],
+                                'rsi': _rb[6], 'return_5d': _rb[7], 'dollar_volume': _rb[8],
+                            })
+                    logger.info(f"pre_filter_rejections: {len(rejection_batch)} rows logged")
                 except Exception as _e:
                     logger.warning(f"pre_filter rejection log failed (non-fatal): {_e}")
 

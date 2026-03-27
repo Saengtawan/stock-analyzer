@@ -8,14 +8,14 @@ Data-validated signals:
   3. VIX Spike: buy SPY when VIX spikes >30 → WR=76%
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 from pathlib import Path
 from collections import defaultdict
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 
 class MarketSignalEngine:
@@ -61,7 +61,7 @@ class MarketSignalEngine:
         """Buy the worst-performing sector over last 20 days.
         WR=58-60%, E[R]=+0.40% (daily frequency).
         """
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             rows = conn.execute("""
                 SELECT sector, pct_change, date FROM sector_etf_daily_returns
@@ -69,7 +69,7 @@ class MarketSignalEngine:
                 ORDER BY date DESC LIMIT 300
             """, (scan_date,)).fetchall()
         finally:
-            conn.close()
+            pass
 
         if len(rows) < 100:
             return []
@@ -124,7 +124,7 @@ class MarketSignalEngine:
         """Buy SPY when drawdown from 20d high exceeds threshold.
         DD>7%: WR=64%, DD>10%: WR=69%.
         """
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             rows = conn.execute("""
                 SELECT spy_close FROM macro_snapshots
@@ -132,7 +132,7 @@ class MarketSignalEngine:
                 ORDER BY date DESC LIMIT 25
             """, (scan_date,)).fetchall()
         finally:
-            conn.close()
+            pass
 
         if len(rows) < 20:
             return []
@@ -180,7 +180,7 @@ class MarketSignalEngine:
         """Buy SPY when VIX spikes above 30.
         VIX>30: WR=76%, VIX>35: WR=83%.
         """
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             rows = conn.execute("""
                 SELECT vix_close FROM macro_snapshots
@@ -188,7 +188,7 @@ class MarketSignalEngine:
                 ORDER BY date DESC LIMIT 10
             """, (scan_date,)).fetchall()
         finally:
-            conn.close()
+            pass
 
         if len(rows) < 6:
             return []
@@ -236,7 +236,7 @@ class MarketSignalEngine:
         Crude rising >3%/5d: WR=67%, E[R]=+0.88%.
         Crude rising >5%/5d: WR=69%, E[R]=+1.31%.
         """
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             rows = conn.execute("""
                 SELECT crude_close FROM macro_snapshots
@@ -244,7 +244,7 @@ class MarketSignalEngine:
                 ORDER BY date DESC LIMIT 10
             """, (scan_date,)).fetchall()
         finally:
-            conn.close()
+            pass
 
         if len(rows) < 6:
             return []

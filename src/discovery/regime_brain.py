@@ -8,15 +8,14 @@ than individual stock outcomes. Features are all macro-level.
 Walk-forward validated: WR 62-64% on selected days vs 52% baseline.
 """
 import logging
-import sqlite3
 import time
-from pathlib import Path
 from typing import Optional
 
+from database.orm.base import get_session
+from sqlalchemy import text
 import numpy as np
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 # v8.0: 8 snapshot + 6 trajectory features from TemporalFeatureBuilder
 FEATURES = [
@@ -189,11 +188,10 @@ class RegimeBrain:
 
     def _load_training_data(self, max_date: str = None):
         """Load daily aggregated data: 8 snapshot + 6 trajectory features → daily WR."""
-        conn = sqlite3.connect(str(DB_PATH))
-        try:
+        with get_session() as session:
             date_filter = f"AND b.scan_date <= '{max_date}'" if max_date else ""
             # Get raw daily data with macro + breadth
-            rows = conn.execute(f"""
+            rows = session.execute(text(f"""
                 SELECT b.scan_date,
                        COALESCE(m.vix_close, 20) as vix,
                        COALESCE(m.vix3m_close, 22) as vix3m,
@@ -211,9 +209,7 @@ class RegimeBrain:
                 GROUP BY b.scan_date
                 HAVING n >= 5
                 ORDER BY b.scan_date
-            """).fetchall()
-        finally:
-            conn.close()
+            """)).fetchall()
 
         if not rows or len(rows) < 10:
             return np.array([]), np.array([]), [], np.array([])

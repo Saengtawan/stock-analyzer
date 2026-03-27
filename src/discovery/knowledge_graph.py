@@ -6,14 +6,14 @@ Maps: supply chains, sector dependencies, speculative flags, macro sensitivities
 Used by ContextScorer to penalize bad picks (PSNY mom=+13% shouldn't be selected).
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import json
 import numpy as np
 from pathlib import Path
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 # Known supply chains (major tiers)
 SUPPLY_CHAINS = {
@@ -84,7 +84,7 @@ class KnowledgeGraph:
 
     def _build_supply_chains(self):
         """Store supply chain relationships."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         inserted = 0
         for chain_name, tiers in SUPPLY_CHAINS.items():
             tier_names = list(tiers.keys())
@@ -103,13 +103,11 @@ class KnowledgeGraph:
                             inserted += 1
                         except Exception:
                             pass
-        conn.commit()
-        conn.close()
         logger.info("KnowledgeGraph: %d supply chain relationships", inserted)
 
     def _build_sector_correlations(self):
         """Compute sector-sector correlations from ETF returns."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         rows = conn.execute("""
             SELECT date, sector, pct_change FROM sector_etf_daily_returns
             WHERE sector NOT IN ('S&P 500', 'US Dollar', 'Treasury Long', 'Gold')
@@ -137,9 +135,6 @@ class KnowledgeGraph:
                         VALUES (?, ?, 'SECTOR_CORRELATION', ?, ?)
                     """, (s1, s2, round(corr, 3),
                           json.dumps({'type': 'sector_pair', 'correlation': round(corr, 3)})))
-
-        conn.commit()
-        conn.close()
         logger.info("KnowledgeGraph: sector correlations computed")
 
     def _build_macro_sensitivities(self):
@@ -148,7 +143,7 @@ class KnowledgeGraph:
         v13.1 fix: correlate crude/VIX daily CHANGE with stock daily RETURN.
         Loads macro changes separately to avoid SQL LAG cross-symbol bug.
         """
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
 
         # Load macro daily changes (computed in Python, not SQL LAG)
         macro_rows = conn.execute("""
@@ -219,14 +214,11 @@ class KnowledgeGraph:
                     VALUES (?, 'VIX_SENSITIVE', ?, ?)
                 """, (sym, f'corr={vix_corr:.3f}', round(vix_corr, 3)))
                 inserted += 1
-
-        conn.commit()
-        conn.close()
         logger.info("KnowledgeGraph: %d macro sensitivities computed", inserted)
 
     def _build_speculative_flags(self):
         """Flag speculative/risky stocks."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
 
         # Get fundamentals
         stocks = conn.execute("""
@@ -277,14 +269,11 @@ class KnowledgeGraph:
                     VALUES (?, 'SPECULATIVE_FLAG', ?, ?)
                 """, (sym, json.dumps(flags), round(risk_score, 2)))
                 inserted += 1
-
-        conn.commit()
-        conn.close()
         logger.info("KnowledgeGraph: %d speculative flags set", inserted)
 
     def _build_macro_impact_chains(self):
         """Store macro impact chains (clear old + insert fresh)."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         conn.execute("DELETE FROM macro_impact_chains")
         for chain in MACRO_CHAINS:
             conn.execute("""
@@ -294,13 +283,11 @@ class KnowledgeGraph:
             """, (chain['trigger'],
                   json.dumps({'positive': chain['positive'], 'negative': chain['negative']}),
                   chain['magnitude'], chain['evidence']))
-        conn.commit()
-        conn.close()
         logger.info("KnowledgeGraph: %d macro impact chains stored", len(MACRO_CHAINS))
 
     def get_context(self, symbol: str) -> dict:
         """Get all context for a stock."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             # Context flags
             flags = conn.execute("""
@@ -325,7 +312,7 @@ class KnowledgeGraph:
                 'downstream': [{'symbol': r[0], 'meta': json.loads(r[1]) if r[1] else {}} for r in downstream],
             }
         finally:
-            conn.close()
+            pass
 
     def get_risk_score(self, symbol: str) -> float:
         """Get aggregate risk score for a stock. Negative = risky."""
@@ -336,11 +323,11 @@ class KnowledgeGraph:
         return round(score, 2)
 
     def get_stats(self) -> dict:
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             n_rel = conn.execute('SELECT COUNT(*) FROM stock_relationships').fetchone()[0]
             n_ctx = conn.execute('SELECT COUNT(*) FROM stock_context').fetchone()[0]
             n_chains = conn.execute('SELECT COUNT(*) FROM macro_impact_chains').fetchone()[0]
             return {'relationships': n_rel, 'contexts': n_ctx, 'impact_chains': n_chains, 'built': self._built}
         finally:
-            conn.close()
+            pass

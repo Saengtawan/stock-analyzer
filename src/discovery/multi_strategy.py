@@ -26,14 +26,14 @@ Walk-forward learns which strategy works best per condition (BULL/NORMAL/STRESS)
 Auto-refit every 30 days.
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import time
 import numpy as np
 from pathlib import Path
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 
 # === Strategy Functions ===
@@ -600,7 +600,7 @@ class StrategySelector:
 
     def _load_data(self, max_date=None):
         """Load stock data with forward returns for strategy backtesting."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         date_filter = f"AND s.date <= '{max_date}'" if max_date else ""
         rows = conn.execute(f"""
             SELECT s.symbol, s.date, s.close, sf.sector, sf.beta,
@@ -619,7 +619,6 @@ class StrategySelector:
             {date_filter}
             ORDER BY s.symbol, s.date
         """).fetchall()
-        conn.close()
 
         data = []
         for r in rows:
@@ -648,7 +647,7 @@ class StrategySelector:
     # === DB Persistence ===
 
     def _ensure_tables(self):
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         conn.execute("""
             CREATE TABLE IF NOT EXISTS strategy_selection (
                 condition TEXT NOT NULL,
@@ -672,12 +671,10 @@ class StrategySelector:
                 UNIQUE(scan_date, strategy_name, symbol)
             )
         """)
-        conn.commit()
-        conn.close()
 
     def save_to_db(self):
         import json as _json
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         for condition, strat_name in self._best_by_condition.items():
             stats = self._fit_stats.get((condition, strat_name), {})
             conn.execute("""
@@ -719,16 +716,13 @@ class StrategySelector:
                     INSERT OR REPLACE INTO strategy_learned_params
                     (strategy_name, params_json) VALUES (?, ?)
                 """, (strat, _json.dumps(params)))
-        conn.commit()
-        conn.close()
 
     def load_from_db(self):
         import json as _json
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         rows = conn.execute(
             "SELECT condition, strategy_name FROM strategy_selection").fetchall()
         if not rows:
-            conn.close()
             return False
         self._best_by_condition = {r[0]: r[1] for r in rows}
         # v17: Load learned thresholds
@@ -750,7 +744,6 @@ class StrategySelector:
                     'sharpe': r[2], 'avg': r[3], 'wr': r[4], 'n': r[5]}
         except Exception:
             pass  # table may not exist yet
-        conn.close()
         self._fitted = True
         self._fit_time = time.time()
         logger.info("StrategySelector: loaded from DB — %s learned_params=%s",
@@ -761,7 +754,7 @@ class StrategySelector:
     def save_picks(self, scan_date, all_picks):
         """Save all strategies' picks for UI display."""
         import json
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         conn.execute(
             "DELETE FROM discovery_strategy_picks WHERE scan_date=?",
             (scan_date,))
@@ -781,8 +774,6 @@ class StrategySelector:
                     VALUES (?, ?, ?, ?, ?, ?)
                 """, (scan_date, strat_name, rank, p.get('symbol', ''),
                       round(mom, 1), rationale))
-        conn.commit()
-        conn.close()
 
     def get_stats(self):
         return {

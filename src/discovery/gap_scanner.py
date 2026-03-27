@@ -26,7 +26,8 @@ Data sources (all existing):
   - market_breadth (1.4K) — breadth %
   - stock_fundamentals — sector, beta, market_cap
 """
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import json
 import logging
 import math
@@ -42,7 +43,6 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 # Feature names used by the ML model (order matters for training/prediction)
 # v3: Redesigned from backtest findings — removed noise, added non-linear features
@@ -97,8 +97,7 @@ class GapScanner:
         only return stocks where PM price confirms gap ≥1%.
         Backtest: PM confirm → WR 85% vs evening only → WR 25%.
         """
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        # conn via get_session()
 
         try:
             # L1: Find candidates with overnight signals
@@ -169,7 +168,7 @@ class GapScanner:
             return picks
 
         finally:
-            conn.close()
+            pass
 
     def _apply_premarket_filter(self, candidates: list) -> list:
         """Pre-market scan: find ALL stocks gapping up from full universe.
@@ -197,9 +196,8 @@ class GapScanner:
             # Try loading from DB (survives restart)
             try:
                 today = now_et.strftime('%Y-%m-%d')
-                conn = sqlite3.connect(str(DB_PATH))
+                # conn via get_session()
                 row = conn.execute("SELECT data_json FROM gap_pm_cache WHERE date=?", (today,)).fetchone()
-                conn.close()
                 if row:
                     self._pm_cache = json.loads(row[0])
                     logger.info("GapScanner PM: loaded cached PM from DB (%d picks)", len(self._pm_cache))
@@ -224,14 +222,13 @@ class GapScanner:
         }
 
         # Get full universe
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         all_syms = [r[0] for r in conn.execute(
             "SELECT symbol FROM stock_fundamentals WHERE avg_volume > 300000 AND market_cap > 5e8"
         ).fetchall()]
         fund_map = {}
         for r in conn.execute("SELECT symbol, sector, beta, market_cap FROM stock_fundamentals").fetchall():
             fund_map[r[0]] = {'sector': r[1], 'beta': r[2], 'market_cap': r[3]}
-        conn.close()
 
         logger.info("GapScanner PM: scanning %d stocks (%02d:%02d ET)",
                      len(all_syms), now_et.hour, now_et.minute)
@@ -322,13 +319,11 @@ class GapScanner:
         # Also persist to DB so it survives restart
         if result:
             try:
-                conn = sqlite3.connect(str(DB_PATH))
+                # conn via get_session()
                 today = now_et.strftime('%Y-%m-%d')
                 conn.execute("CREATE TABLE IF NOT EXISTS gap_pm_cache (date TEXT PRIMARY KEY, data_json TEXT)")
                 conn.execute("INSERT OR REPLACE INTO gap_pm_cache (date, data_json) VALUES (?, ?)",
                              (today, json.dumps(result)))
-                conn.commit()
-                conn.close()
             except Exception:
                 pass
 
@@ -360,8 +355,7 @@ class GapScanner:
             now_et = datetime.now(ZoneInfo('America/New_York'))
             scan_time_et = now_et.strftime('%H:%M')
 
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        # conn via get_session()
 
         try:
             today = scan_date or datetime.now(ZoneInfo('America/New_York')).strftime('%Y-%m-%d')
@@ -563,12 +557,11 @@ class GapScanner:
             return signals
 
         finally:
-            conn.close()
+            pass
 
     def fit(self, max_date: str = None):
         """Learn event impacts, peer correlations, and train ML model from historical data."""
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        # conn via get_session()
 
         try:
             max_date = max_date or date.today().isoformat()
@@ -587,7 +580,7 @@ class GapScanner:
         except Exception as e:
             logger.error("GapScanner fit error: %s", e, exc_info=True)
         finally:
-            conn.close()
+            pass
 
     def _fit_ml_model(self, conn, max_date: str):
         """Train LogisticRegression on historical data with walk-forward split."""
@@ -1274,12 +1267,11 @@ class GapScanner:
     def load_from_db(self) -> bool:
         """Load fitted model from DB (both legacy JSON and ML pickle)."""
         try:
-            conn = sqlite3.connect(str(DB_PATH))
+            # conn via get_session()
             row = conn.execute(
                 "SELECT data_json, fit_date, model_pickle FROM gap_scanner_model "
                 "ORDER BY id DESC LIMIT 1"
             ).fetchone()
-            conn.close()
             if row:
                 data = json.loads(row[0])
                 self._event_impact = data.get('event_impact', {})
@@ -1308,7 +1300,7 @@ class GapScanner:
 
     def save_to_db(self):
         """Save fitted model to DB (legacy JSON + ML pickle)."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
 
         # Ensure table has model_pickle column
         conn.execute('''CREATE TABLE IF NOT EXISTS gap_scanner_model (
@@ -1320,7 +1312,7 @@ class GapScanner:
         # Add model_pickle column if it doesn't exist (upgrade path)
         try:
             conn.execute("ALTER TABLE gap_scanner_model ADD COLUMN model_pickle BLOB")
-        except sqlite3.OperationalError:
+        except Exception:
             pass  # Column already exists
 
         data = {
@@ -1343,8 +1335,6 @@ class GapScanner:
             "INSERT INTO gap_scanner_model (fit_date, data_json, model_pickle) VALUES (?, ?, ?)",
             (self._fit_date, json.dumps(data), model_blob),
         )
-        conn.commit()
-        conn.close()
         logger.info("GapScanner: saved to DB (fit_date=%s, ml=%s, pickle_size=%s)",
                      self._fit_date, self._ml_fitted,
                      f"{len(model_blob)}B" if model_blob else "none")

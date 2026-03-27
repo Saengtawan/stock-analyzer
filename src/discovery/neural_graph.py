@@ -12,13 +12,13 @@ Output: risk_score -1.0 (very risky) to +1.0 (very safe)
 Used by sizer.py to adjust position size.
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import numpy as np
 from pathlib import Path
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 
 class NeuralGraph:
@@ -259,7 +259,7 @@ class NeuralGraph:
 
     def _build_thematic_clusters(self):
         """Auto-detect stock clusters from return correlations."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
 
         # Load 6-month daily returns for universe stocks
         rows = conn.execute("""
@@ -279,7 +279,6 @@ class NeuralGraph:
         valid_syms = [s for s in stock_rets if len(stock_rets[s]) >= 80]
         if len(valid_syms) < 50:
             logger.warning("NeuralGraph: not enough stocks for clustering (%d)", len(valid_syms))
-            conn.close()
             return
 
         # Build aligned return matrix
@@ -371,8 +370,6 @@ class NeuralGraph:
                 (symbol, cluster_id, cluster_name, n_members, fit_date)
                 VALUES (?, ?, ?, ?, date('now'))
             """, (sym, cid, self._cluster_names.get(cid, f'C{cid}'), n_members))
-        conn.commit()
-        conn.close()
 
         n_clusters = len(set(labels))
         big_clusters = sum(1 for members in cluster_members.values() if len(members) >= 5)
@@ -385,7 +382,7 @@ class NeuralGraph:
         if not members:
             return None
 
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         placeholders = ','.join('?' * len(members))
         rows = conn.execute(f"""
             SELECT AVG((s1.close / s2.close - 1) * 100)
@@ -395,7 +392,6 @@ class NeuralGraph:
             AND s1.date = (SELECT MAX(date) FROM stock_daily_ohlc)
             AND s2.date = (SELECT MAX(date) FROM stock_daily_ohlc WHERE date < (SELECT MAX(date) FROM stock_daily_ohlc WHERE date < (SELECT MAX(date) FROM stock_daily_ohlc WHERE date < (SELECT MAX(date) FROM stock_daily_ohlc WHERE date < (SELECT MAX(date) FROM stock_daily_ohlc)))))
         """, members).fetchone()
-        conn.close()
 
         return rows[0] if rows and rows[0] is not None else None
 
@@ -403,7 +399,7 @@ class NeuralGraph:
 
     def _build_sector_vulnerability(self):
         """Compute per-sector vulnerability to macro shocks."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
 
         # VIX spike events (VIX change > 2pts in 1 day)
         macro_rows = conn.execute("""
@@ -472,16 +468,13 @@ class NeuralGraph:
                 """, (sect, event_type, round(avg_ret, 4), round(std_ret, 4),
                       n_events, rank))
 
-        conn.commit()
-        conn.close()
-
         logger.info("NeuralGraph: sector vulnerability — VIX:%d CRUDE:%d sectors",
                      len(vix_spike_rets), len(crude_shock_rets))
 
     # === DB ===
 
     def _ensure_tables(self):
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         conn.execute("""
             CREATE TABLE IF NOT EXISTS stock_clusters (
                 symbol TEXT NOT NULL,
@@ -505,12 +498,10 @@ class NeuralGraph:
                 UNIQUE(sector, event_type)
             )
         """)
-        conn.commit()
-        conn.close()
 
     def load_from_db(self):
         """Load clusters + vulnerability from DB."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
 
         # Clusters
         rows = conn.execute("""
@@ -529,8 +520,6 @@ class NeuralGraph:
             (r[0], r[1]): {'avg_return': r[2], 'rank': r[3], 'n_events': r[4]}
             for r in rows
         }
-
-        conn.close()
         self._built = bool(self._clusters or self._sector_vuln)
         if self._built:
             logger.info("NeuralGraph: loaded %d clusters, %d vulnerability entries",

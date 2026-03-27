@@ -3,13 +3,13 @@ Trailing Stop Simulator — simulates entry/exit with trailing stops.
 Part of Discovery v9.0 True Multi-Strategy System.
 """
 import logging
-import sqlite3
 import numpy as np
-from pathlib import Path
 from discovery.strategies import StrategySpec, classify_stock, ALL_STRATEGIES
 
+from database.orm.base import get_session
+from sqlalchemy import text
+
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 
 def simulate_trade(entry_price: float, daily_bars: list, strategy: StrategySpec) -> dict:
@@ -109,10 +109,9 @@ def backtest_strategy(strategy: StrategySpec, max_date: str = None) -> dict:
 
     Uses backfill_signal_outcomes + signal_daily_bars.
     """
-    conn = sqlite3.connect(str(DB_PATH))
-    try:
+    with get_session() as session:
         date_filter = f"AND b.scan_date <= '{max_date}'" if max_date else ""
-        rows = conn.execute(f"""
+        rows = session.execute(text(f"""
             SELECT b.scan_date, b.symbol, b.momentum_5d, b.distance_from_20d_high,
                    b.volume_ratio, b.atr_pct, b.vix_at_signal,
                    d1.open as d1o, d1.high as d1h, d1.low as d1l, d1.close as d1c,
@@ -128,9 +127,7 @@ def backtest_strategy(strategy: StrategySpec, max_date: str = None) -> dict:
             JOIN signal_daily_bars d5 ON b.scan_date=d5.scan_date AND b.symbol=d5.symbol AND d5.day_offset=5
             WHERE b.outcome_5d IS NOT NULL AND b.atr_pct > 0 AND d1.open > 0
             {date_filter}
-        """).fetchall()
-    finally:
-        conn.close()
+        """)).fetchall()
 
     trades = []
     for r in rows:

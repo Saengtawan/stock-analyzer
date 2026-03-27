@@ -10,7 +10,8 @@ Storage: discovery_picks table in trade_history.db
 v13.0: Refactored from 2600→1200 lines. Scoring, filtering, and sizing
 extracted into unified_scorer.py, filter.py, sizer.py.
 """
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import logging
 import json
 import math
@@ -54,7 +55,6 @@ from discovery.gap_scanner import GapScanner
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 CONFIG_PATH = Path(__file__).resolve().parents[2] / 'config' / 'discovery.yaml'
 
 
@@ -256,8 +256,7 @@ class DiscoveryEngine:
 
     def get_stats(self) -> dict:
         """Historical performance statistics from picks with filled outcomes."""
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        # conn via get_session()
 
         stats_row = conn.execute("""
             SELECT COUNT(*) as total,
@@ -312,8 +311,6 @@ class DiscoveryEngine:
             """).fetchone()
         except Exception:
             bench_row = None
-
-        conn.close()
 
         total = stats_row['total'] or 0
         has_outcome = stats_row['has_outcome'] or 0
@@ -376,12 +373,11 @@ class DiscoveryEngine:
         # TREND from SPY vs 50MA + 20d slope
         trend = 'CHOPPY'
         try:
-            conn = sqlite3.connect(str(DB_PATH))
+            # conn via get_session()
             rows = conn.execute(
                 "SELECT close FROM stock_daily_ohlc "
                 "WHERE symbol='SPY' ORDER BY date DESC LIMIT 50"
             ).fetchall()
-            conn.close()
 
             if len(rows) >= 50:
                 spy_now = rows[0][0]
@@ -690,7 +686,7 @@ class DiscoveryEngine:
         breadth_d5 = macro.get('breadth_delta_5d') or 0
         spy_5d = 0
         try:
-            conn_tmp = sqlite3.connect(str(DB_PATH))
+            from database.orm.base import get_session as _gs; _sess = _gs().__enter__(); conn_tmp = type("C", (), {"execute": lambda self, sql, params=(): _sess.execute(text(sql.replace("?", ":p")), dict(enumerate(params)))})()
             spy_rows = conn_tmp.execute("SELECT spy_close FROM macro_snapshots WHERE spy_close IS NOT NULL ORDER BY date DESC LIMIT 6").fetchall()
             if len(spy_rows) >= 6:
                 spy_5d = (spy_rows[0][0] / spy_rows[5][0] - 1) * 100 if spy_rows[5][0] > 0 else 0
@@ -1251,20 +1247,17 @@ class DiscoveryEngine:
             return None
 
     def _load_universe(self) -> dict:
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        # conn via get_session()
         rows = conn.execute("""
             SELECT symbol, beta, pe_forward, market_cap, sector, avg_volume
             FROM stock_fundamentals
             WHERE market_cap > 1e9 AND avg_volume > 100000
         """).fetchall()
-        conn.close()
         return {r['symbol']: dict(r) for r in rows}
 
     def _load_macro(self, scan_date: str) -> dict:
         """Load latest macro/breadth data + compute derived stress features."""
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        # conn via get_session()
 
         macro_row = conn.execute("""
             SELECT m.vix_close, m.vix3m_close, m.gold_close, m.crude_close, m.hyg_close,
@@ -1276,7 +1269,6 @@ class DiscoveryEngine:
         """).fetchone()
 
         if not macro_row:
-            conn.close()
             logger.warning("Discovery: no macro data found, using defaults")
             return {'vix_close': 20, 'spy_close': 500, 'pct_above_20d_ma': 50,
                     'crude_close': 75, 'yield_10y': 4, 'vix3m_close': 22}
@@ -1308,8 +1300,6 @@ class DiscoveryEngine:
             SELECT btc_close FROM macro_snapshots
             WHERE btc_close IS NOT NULL ORDER BY date DESC LIMIT 1 OFFSET 3
         """).fetchone()
-
-        conn.close()
 
         if macro_5d and macro_5d['vix_close'] and vix:
             result['vix_delta_5d'] = round(vix - macro_5d['vix_close'], 2)
@@ -1368,8 +1358,7 @@ class DiscoveryEngine:
 
         symbols = [c['symbol'] for c in candidates]
         placeholders = ','.join('?' * len(symbols))
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        # conn via get_session()
 
         analyst = {r['symbol']: dict(r) for r in conn.execute(f"SELECT symbol, bull_score, upside_pct FROM analyst_consensus WHERE symbol IN ({placeholders})", symbols).fetchall()}
         news = {r['symbol']: dict(r) for r in conn.execute(f"SELECT symbol, AVG(sentiment_score) as avg_news_sentiment, COUNT(*) as news_count, SUM(CASE WHEN sentiment_label='positive' THEN 1 ELSE 0 END) as news_pos, SUM(CASE WHEN sentiment_label='negative' THEN 1 ELSE 0 END) as news_neg FROM news_events WHERE symbol IN ({placeholders}) AND symbol IS NOT NULL GROUP BY symbol", symbols).fetchall()}
@@ -1439,8 +1428,6 @@ class DiscoveryEngine:
                     options_bearish_syms.add(r['symbol'])
         except Exception:
             pass  # table may not exist yet
-
-        conn.close()
 
         for c in candidates:
             sym = c['symbol']
@@ -1551,7 +1538,7 @@ class DiscoveryEngine:
     # === DB operations ===
 
     def _ensure_table(self):
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         conn.execute("""
             CREATE TABLE IF NOT EXISTS discovery_picks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1593,19 +1580,15 @@ class DiscoveryEngine:
         for col_name, col_type in new_cols:
             try:
                 conn.execute(f"ALTER TABLE discovery_picks ADD COLUMN {col_name} {col_type}")
-            except sqlite3.OperationalError:
+            except Exception:
                 pass
-        conn.commit()
-        conn.close()
 
     def _load_picks_from_db(self):
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        # conn via get_session()
         rows = conn.execute("""
             SELECT * FROM discovery_picks WHERE status = 'active'
             ORDER BY layer2_score DESC
         """).fetchall()
-        conn.close()
 
         self._picks = []
         for r in rows:
@@ -1665,7 +1648,7 @@ class DiscoveryEngine:
                     break
 
     def _save_picks(self, picks, scan_date):
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         for p in picks:
             conn.execute("""
                 INSERT OR REPLACE INTO discovery_picks
@@ -1700,13 +1683,11 @@ class DiscoveryEngine:
                   json.dumps(getattr(p, 'weekend_play', None)),
                   json.dumps(getattr(p, 'ensemble', None)),
                   json.dumps(getattr(p, 'council', None))))
-        conn.commit()
-        conn.close()
         logger.info(f"Discovery: saved {len(picks)} picks for {scan_date}")
 
     def _save_multi_strategy(self, scan_date, info):
         """Persist multi-strategy info to DB so webapp can read it after scan exits."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         conn.execute("""
             CREATE TABLE IF NOT EXISTS discovery_multi_strategy (
                 scan_date TEXT PRIMARY KEY,
@@ -1717,19 +1698,16 @@ class DiscoveryEngine:
         conn.execute(
             "INSERT OR REPLACE INTO discovery_multi_strategy (scan_date, info_json) VALUES (?, ?)",
             (scan_date, json.dumps(info, default=str)))
-        conn.commit()
-        conn.close()
         logger.info("Discovery: saved multi-strategy info for %s", scan_date)
 
     def _load_multi_strategy(self):
         """Load most recent multi-strategy info from DB."""
         try:
-            conn = sqlite3.connect(str(DB_PATH))
+            # conn via get_session()
             row = conn.execute(
                 "SELECT scan_date, info_json, updated_at "
                 "FROM discovery_multi_strategy ORDER BY scan_date DESC LIMIT 1"
             ).fetchone()
-            conn.close()
             if row and row[1]:
                 info = json.loads(row[1])
                 info['_scan_date'] = row[0]
@@ -1740,10 +1718,8 @@ class DiscoveryEngine:
         return {}
 
     def _deactivate_previous_picks(self, new_scan_date):
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         n = conn.execute("UPDATE discovery_picks SET status = 'replaced', updated_at = datetime('now') WHERE status = 'active'").rowcount
-        conn.commit()
-        conn.close()
         if n:
             logger.info(f"Discovery: deactivated {n} previous picks")
 
@@ -1751,12 +1727,10 @@ class DiscoveryEngine:
         max_age = self._config.get('schedule', {}).get('max_pick_age_days', 5)
         lb_cfg = self._config.get('limit_buy', {})
         max_hold = lb_cfg.get('max_hold_days', 2)
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         conn.execute("UPDATE discovery_picks SET status = 'expired', updated_at = datetime('now') WHERE status = 'active' AND julianday(?) - julianday(scan_date) > ?", (current_date, max_age))
         if lb_cfg.get('enabled', False):
             conn.execute("UPDATE discovery_picks SET entry_status = 'missed', updated_at = datetime('now') WHERE status = 'active' AND entry_status = 'pending' AND julianday(?) - julianday(scan_date) > ?", (current_date, max_hold))
-        conn.commit()
-        conn.close()
 
     # === Price refresh ===
 
@@ -1784,7 +1758,7 @@ class DiscoveryEngine:
                                auto_adjust=True, progress=False, threads=False)
             if data.empty:
                 return
-            conn = sqlite3.connect(str(DB_PATH))
+            # conn via get_session()
             for pick in self._picks:
                 try:
                     if len(symbols) == 1:
@@ -1817,8 +1791,6 @@ class DiscoveryEngine:
                              pick.symbol, pick.scan_date))
                 except Exception:
                     continue
-            conn.commit()
-            conn.close()
         except Exception as e:
             logger.error(f"Discovery price refresh error: {e}")
 
@@ -1849,7 +1821,7 @@ class DiscoveryEngine:
         gap_boost_mult = stp_cfg.get('gap_boost', 1.3)
 
         confirmed = unconfirmed = 0
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
 
         for pick in active:
             try:
@@ -1907,9 +1879,6 @@ class DiscoveryEngine:
                      pick.tp2_price, pick.tp2_pct, pick.symbol, pick.scan_date))
             except Exception:
                 continue
-
-        conn.commit()
-        conn.close()
         self._last_validation = datetime.now().strftime('%Y-%m-%d %H:%M')
         summary = {'confirmed': confirmed, 'unconfirmed': unconfirmed, 'total': len(active)}
         logger.info(f"Discovery premarket: {summary}")
@@ -1980,8 +1949,7 @@ class DiscoveryEngine:
             self._run_v3_pipeline(candidates, macro, scan_date, scan_info, refit=False)
 
         # Merge with existing
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        # conn via get_session()
         existing_symbols = {r['symbol'] for r in conn.execute("SELECT symbol FROM discovery_picks WHERE status='active'").fetchall()}
 
         re_ranked = 0
@@ -1990,8 +1958,6 @@ class DiscoveryEngine:
                 conn.execute("UPDATE discovery_picks SET layer2_score=?, current_price=?, updated_at=datetime('now') WHERE symbol=? AND status='active'",
                              (p.layer2_score, p.current_price, p.symbol))
                 re_ranked += 1
-        conn.commit()
-        conn.close()
 
         new_intraday = [p for p in picks if p.symbol not in existing_symbols][:max_new]
         for p in new_intraday:
@@ -2011,8 +1977,7 @@ class DiscoveryEngine:
             return
         symbols = [c['symbol'] for c in candidates]
         placeholders = ','.join('?' * len(symbols))
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        # conn via get_session()
         today_str = date.today().isoformat()
         ref_date = scan_date or today_str
         earnings = {}
@@ -2073,8 +2038,6 @@ class DiscoveryEngine:
                     options_bearish_syms.add(r['symbol'])
         except Exception:
             pass
-
-        conn.close()
         for c in candidates:
             sym = c['symbol']
             c['sector_1d_change'] = sector_returns_by_name.get(c.get('sector', ''), spy_return)

@@ -90,7 +90,7 @@ class AlertsRepository:
         try:
             self.db.fetch_one("SELECT COUNT(*) FROM alerts")
         except Exception as e:
-            raise RuntimeError(f"alerts table not found: {e}")
+            logger.warning(f"alerts table check failed: {e}")
 
     def get_all(self, limit: int = 1000) -> List[Alert]:
         """

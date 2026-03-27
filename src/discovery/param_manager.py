@@ -4,13 +4,13 @@ Replaces hardcoded values with auto-optimizable parameters.
 Part of Discovery v10.0 Full Autonomous System.
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import json
 from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 DEFAULTS = {
     'market_signals': {
@@ -73,7 +73,7 @@ class ParamManager:
         key = f'{group}.{name}'
         old_value = self._cache.get(key)
 
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             conn.execute("""
                 INSERT INTO system_parameters (param_group, param_name, param_value, updated_by)
@@ -87,10 +87,8 @@ class ParamManager:
                 (param_group, param_name, old_value, new_value, reason)
                 VALUES (?, ?, ?, ?, ?)
             """, (group, name, old_value, value, reason))
-
-            conn.commit()
         finally:
-            conn.close()
+            pass
 
         self._cache[key] = value
         logger.info("Param updated: %s.%s = %.4f (was %.4f) reason=%s",
@@ -99,8 +97,7 @@ class ParamManager:
 
     def get_history(self, group: str = None, name: str = None, limit: int = 20) -> list:
         """Get parameter change history."""
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        # conn via get_session()
         try:
             if group and name:
                 rows = conn.execute("""
@@ -115,7 +112,7 @@ class ParamManager:
                 """, (limit,)).fetchall()
             return [dict(r) for r in rows]
         finally:
-            conn.close()
+            pass
 
     def get_all(self) -> dict:
         """Get all parameters as nested dict."""
@@ -128,7 +125,7 @@ class ParamManager:
         return result
 
     def _ensure_tables(self):
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         conn.execute("""
             CREATE TABLE IF NOT EXISTS system_parameters (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -153,15 +150,12 @@ class ParamManager:
                 changed_at TEXT DEFAULT (datetime('now'))
             )
         """)
-        conn.commit()
-        conn.close()
 
     def _seed_defaults(self):
         """Seed default params if table is empty."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         n = conn.execute('SELECT COUNT(*) FROM system_parameters').fetchone()[0]
         if n > 0:
-            conn.close()
             return
 
         for group, params in DEFAULTS.items():
@@ -171,15 +165,12 @@ class ParamManager:
                     (param_group, param_name, param_value, updated_by)
                     VALUES (?, ?, ?, 'seed')
                 """, (group, name, value))
-        conn.commit()
-        conn.close()
         logger.info("ParamManager: seeded %d default parameters",
                      sum(len(v) for v in DEFAULTS.values()))
 
     def _load_all(self):
         """Load all params from DB into cache."""
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         rows = conn.execute('SELECT param_group, param_name, param_value FROM system_parameters').fetchall()
-        conn.close()
         self._cache = {f'{r[0]}.{r[1]}': r[2] for r in rows}
         logger.debug("ParamManager: loaded %d parameters", len(self._cache))

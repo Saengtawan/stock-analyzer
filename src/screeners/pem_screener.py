@@ -303,41 +303,32 @@ class PEMScreener:
         # Step 5: Score (higher gap + higher volume = higher conviction)
         score = min(100, int(50 + gap_pct * 2 + volume_early_ratio * 10))
 
-        # Step 6: Determine BMO/AMC timing from EarningsCalendarRepository (non-blocking)
+        # Step 6: Determine BMO/AMC timing from EarningsCalendar ORM (non-blocking)
         timing = None
         try:
-            from database.repositories.earnings_calendar_repository import EarningsCalendarRepository
-            import sqlite3 as _sqlite3
-            from pathlib import Path as _Path
-            _db_path = str(_Path(__file__).resolve().parent.parent.parent / 'data' / 'trade_history.db')
-            _conn = _sqlite3.connect(_db_path)
-            _conn.row_factory = _sqlite3.Row
-            _row = _conn.execute(
-                "SELECT next_earnings_date FROM earnings_calendar WHERE symbol = ?",
-                (symbol,)
-            ).fetchone()
-            _conn.close()
-            if _row and _row['next_earnings_date']:
-                import datetime as _dt
-                _today = _dt.date.today().isoformat()
-                if _row['next_earnings_date'] == _today:
-                    # Today is earnings day — check yfinance for BMO vs AMC
-                    try:
-                        import yfinance as _yf
-                        _tk = _yf.Ticker(symbol)
-                        _cal = _tk.earnings_dates
-                        if _cal is not None and not _cal.empty:
-                            import pytz as _pytz
-                            _et = _pytz.timezone('US/Eastern')
-                            # Find today's row (within last 2 entries)
-                            for _idx in _cal.index[:4]:
-                                _idx_et = _idx.astimezone(_et) if _idx.tzinfo else _idx
-                                if _idx_et.strftime('%Y-%m-%d') == _today:
-                                    _hour = _idx_et.hour
-                                    timing = 'BMO' if _hour < 12 else 'AMC'
-                                    break
-                    except Exception:
-                        timing = None
+            from database.orm.base import get_session as _get_session
+            from database.orm.models import EarningsCalendar as _EC
+            import datetime as _dt
+            _today = _dt.date.today().isoformat()
+            with _get_session() as _session:
+                _ec = _session.query(_EC).filter(_EC.symbol == symbol).first()
+            if _ec and _ec.next_earnings_date == _today:
+                # Today is earnings day — check yfinance for BMO vs AMC
+                try:
+                    import yfinance as _yf
+                    _tk = _yf.Ticker(symbol)
+                    _cal = _tk.earnings_dates
+                    if _cal is not None and not _cal.empty:
+                        import pytz as _pytz
+                        _et = _pytz.timezone('US/Eastern')
+                        for _idx in _cal.index[:4]:
+                            _idx_et = _idx.astimezone(_et) if _idx.tzinfo else _idx
+                            if _idx_et.strftime('%Y-%m-%d') == _today:
+                                _hour = _idx_et.hour
+                                timing = 'BMO' if _hour < 12 else 'AMC'
+                                break
+                except Exception:
+                    timing = None
         except Exception:
             timing = None
 

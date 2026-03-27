@@ -16,14 +16,14 @@ Replaces: CRUDE_SENSITIVE frozenset, get_crisis_sectors(), get_stress_sectors(),
 Walk-forward safe: fit(max_date) only uses data up to max_date.
 """
 import logging
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import time
 import numpy as np
 from pathlib import Path
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
-DB_PATH = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 SECTORS = [
     'Technology', 'Healthcare', 'Financial Services', 'Consumer Cyclical',
@@ -68,7 +68,7 @@ class SectorScorer:
         t0 = time.time()
         old_weights = dict(self._weights)
 
-        conn = sqlite3.connect(str(DB_PATH), timeout=10)
+        # conn via get_session()
         conn.execute('PRAGMA busy_timeout=5000')
 
         try:
@@ -76,7 +76,6 @@ class SectorScorer:
             self._sector_etf_map = self._load_sector_etf_map(conn)
             if not self._sector_etf_map:
                 logger.warning("SectorScorer: no sector ETF mapping found")
-                conn.close()
                 return False
 
             date_filter = f"AND date <= '{max_date}'" if max_date else ""
@@ -88,7 +87,7 @@ class SectorScorer:
             options_data = self._load_options_data(conn, date_filter)
 
         finally:
-            conn.close()
+            pass
 
         if len(sector_returns) < 100:
             logger.warning("SectorScorer: insufficient sector data (%d)", len(sector_returns))
@@ -155,7 +154,7 @@ class SectorScorer:
         if not self._fitted:
             return {s: 0.0 for s in SECTORS}
 
-        conn = sqlite3.connect(str(DB_PATH), timeout=5)
+        # conn via get_session()
         conn.execute('PRAGMA busy_timeout=3000')
 
         try:
@@ -169,7 +168,7 @@ class SectorScorer:
                 )
                 scores[sector] = round(score, 4)
         finally:
-            conn.close()
+            pass
 
         return scores
 
@@ -494,7 +493,7 @@ class SectorScorer:
     # === DB Persistence ===
 
     def _ensure_tables(self):
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         conn.execute("""
             CREATE TABLE IF NOT EXISTS sector_scores (
                 date TEXT NOT NULL,
@@ -519,13 +518,11 @@ class SectorScorer:
                 UNIQUE(feature)
             )
         """)
-        conn.commit()
-        conn.close()
 
     def save_to_db(self):
         from datetime import date as date_cls
         fit_date = date_cls.today().isoformat()
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         for feat, weight in self._weights.items():
             ic = self._fit_stats.get(feat, {}).get('ic', 0)
             n = self._fit_stats.get(feat, {}).get('n', 0)
@@ -534,21 +531,17 @@ class SectorScorer:
                 (feature, weight, ic, n_observations, fit_date)
                 VALUES (?, ?, ?, ?, ?)
             """, (feat, weight, ic, n, fit_date))
-        conn.commit()
-        conn.close()
         logger.info("SectorScorer: saved weights to DB — %s", self._weights)
 
     def load_from_db(self) -> bool:
-        conn = sqlite3.connect(str(DB_PATH))
+        # conn via get_session()
         try:
             rows = conn.execute(
                 "SELECT feature, weight, ic FROM sector_scorer_weights"
             ).fetchall()
             etf_map = self._load_sector_etf_map(conn)
         except Exception:
-            conn.close()
             return False
-        conn.close()
 
         if not rows:
             return False
