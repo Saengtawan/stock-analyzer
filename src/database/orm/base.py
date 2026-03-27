@@ -72,6 +72,9 @@ def get_engine(url: str | None = None):
                 cursor.execute("PRAGMA busy_timeout=5000")
                 cursor.close()
 
+        # Create any missing tables defined in models
+        import database.orm.models; Base.metadata.create_all(_engine)
+
     return _engine
 
 

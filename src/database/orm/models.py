@@ -1207,3 +1207,34 @@ class EarningsCalendar(Base):
 
     def __repr__(self):
         return f"<EarningsCalendar {self.symbol} next={self.next_earnings_date}>"
+
+
+
+class SignalQueue(Base):
+    __tablename__ = "signal_queue"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    symbol = Column(Text)
+    scan_date = Column(Text)
+    signal_type = Column(Text)
+    score = Column(Float)
+    data_json = Column(Text)
+    status = Column(Text, default='pending')
+    queued_at = Column(Text)
+    attempts = Column(Integer, default=0)
+    last_attempt_at = Column(Text)
+    processed_at = Column(Text)
+    error = Column(Text)
+
+
+class ScanSession(Base):
+    __tablename__ = "scan_sessions"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_type = Column(Text)
+    scan_time = Column(Text)
+    scan_time_et = Column(Text)
+    status = Column(Text)
+    n_candidates = Column(Integer)
+    n_signals = Column(Integer)
+    duration_ms = Column(Integer)
+    metadata_json = Column("metadata", Text)
+    created_at = Column(Text)
