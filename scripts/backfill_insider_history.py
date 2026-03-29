@@ -74,10 +74,10 @@ def fetch_yfinance(conn, symbols):
                 try:
                     conn.execute("""
                         INSERT OR IGNORE INTO insider_transactions_history
-                        (symbol, trade_date, insider_name, insider_title,
+                        (symbol, filing_date, trade_date, insider_name, insider_title,
                          transaction_type, shares, value, source)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, 'yfinance')
-                    """, (sym, trade_date, insider, position, txn_type,
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'yfinance')
+                    """, (sym, trade_date, trade_date, insider, position, txn_type,
                           int(shares) if shares else 0,
                           float(value) if value else 0))
                     total += 1

@@ -58,34 +58,33 @@ class PatternLearner:
 
         Returns dict with per-feature IC, p-value, and drift flag.
         """
-        # conn via get_session()
-
         cutoff = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
-
-        # Recent period
-        recent = conn.execute("""
-            SELECT scan_date, symbol, atr_pct, distance_from_20d_high,
-                   momentum_5d, momentum_20d, volume_ratio, vix_at_signal,
-                   outcome_3d
-            FROM backfill_signal_outcomes
-            WHERE scan_date >= ? AND outcome_3d IS NOT NULL
-            UNION ALL
-            SELECT scan_date, symbol, atr_pct, distance_from_20d_high,
-                   momentum_5d, momentum_20d, volume_ratio, vix_at_signal,
-                   outcome_3d
-            FROM signal_outcomes
-            WHERE scan_date >= ? AND outcome_3d IS NOT NULL
-        """, (cutoff, cutoff)).fetchall()
-
-        # Historical period (before cutoff, for drift comparison)
         hist_cutoff = (datetime.now() - timedelta(days=lookback_days + 180)).strftime('%Y-%m-%d')
-        historical = conn.execute("""
-            SELECT atr_pct, distance_from_20d_high,
-                   momentum_5d, momentum_20d, volume_ratio, vix_at_signal,
-                   outcome_3d
-            FROM backfill_signal_outcomes
-            WHERE scan_date >= ? AND scan_date < ? AND outcome_3d IS NOT NULL
-        """, (hist_cutoff, cutoff)).fetchall()
+
+        with get_session() as session:
+            # Recent period
+            recent = session.execute(text("""
+                SELECT scan_date, symbol, atr_pct, distance_from_20d_high,
+                       momentum_5d, momentum_20d, volume_ratio, vix_at_signal,
+                       outcome_3d
+                FROM backfill_signal_outcomes
+                WHERE scan_date >= :p0 AND outcome_3d IS NOT NULL
+                UNION ALL
+                SELECT scan_date, symbol, atr_pct, distance_from_20d_high,
+                       momentum_5d, momentum_20d, volume_ratio, vix_at_signal,
+                       outcome_3d
+                FROM signal_outcomes
+                WHERE scan_date >= :p1 AND outcome_3d IS NOT NULL
+            """), {"p0": cutoff, "p1": cutoff}).fetchall()
+
+            # Historical period (before cutoff, for drift comparison)
+            historical = session.execute(text("""
+                SELECT atr_pct, distance_from_20d_high,
+                       momentum_5d, momentum_20d, volume_ratio, vix_at_signal,
+                       outcome_3d
+                FROM backfill_signal_outcomes
+                WHERE scan_date >= :p0 AND scan_date < :p1 AND outcome_3d IS NOT NULL
+            """), {"p0": hist_cutoff, "p1": cutoff}).fetchall()
 
         if len(recent) < 30:
             logger.warning("PatternLearner: insufficient recent data (%d rows)", len(recent))
@@ -170,17 +169,17 @@ class PatternLearner:
         Tests pairwise interactions (product, ratio) of top features.
         If interaction IC > max(individual ICs) + 0.05, flag as candidate.
         """
-        # conn via get_session()
         cutoff = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
 
-        rows = conn.execute("""
-            SELECT atr_pct, distance_from_20d_high, momentum_5d,
-                   volume_ratio, vix_at_signal, outcome_3d
-            FROM backfill_signal_outcomes
-            WHERE scan_date >= ? AND outcome_3d IS NOT NULL
-              AND atr_pct IS NOT NULL AND distance_from_20d_high IS NOT NULL
-              AND momentum_5d IS NOT NULL AND volume_ratio IS NOT NULL
-        """, (cutoff,)).fetchall()
+        with get_session() as session:
+            rows = session.execute(text("""
+                SELECT atr_pct, distance_from_20d_high, momentum_5d,
+                       volume_ratio, vix_at_signal, outcome_3d
+                FROM backfill_signal_outcomes
+                WHERE scan_date >= :p0 AND outcome_3d IS NOT NULL
+                  AND atr_pct IS NOT NULL AND distance_from_20d_high IS NOT NULL
+                  AND momentum_5d IS NOT NULL AND volume_ratio IS NOT NULL
+            """), {"p0": cutoff}).fetchall()
 
         if len(rows) < 100:
             return []
@@ -262,17 +261,16 @@ class PatternLearner:
         Critical for discovery: a feature might be great in BULL but useless in CRISIS.
         This helps the kernel know when to trust which features more.
         """
-        # conn via get_session()
-
-        rows = conn.execute("""
-            SELECT b.atr_pct, b.distance_from_20d_high, b.momentum_5d,
-                   b.volume_ratio, b.vix_at_signal, b.outcome_3d
-            FROM backfill_signal_outcomes b
-            WHERE b.outcome_3d IS NOT NULL
-              AND b.atr_pct IS NOT NULL
-            ORDER BY b.scan_date DESC
-            LIMIT 10000
-        """).fetchall()
+        with get_session() as session:
+            rows = session.execute(text("""
+                SELECT b.atr_pct, b.distance_from_20d_high, b.momentum_5d,
+                       b.volume_ratio, b.vix_at_signal, b.outcome_3d
+                FROM backfill_signal_outcomes b
+                WHERE b.outcome_3d IS NOT NULL
+                  AND b.atr_pct IS NOT NULL
+                ORDER BY b.scan_date DESC
+                LIMIT 10000
+            """)).fetchall()
 
         if len(rows) < 200:
             return {}

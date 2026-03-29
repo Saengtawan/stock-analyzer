@@ -167,24 +167,24 @@ class AdaptiveStockSelector:
             from sklearn.preprocessing import StandardScaler as SS
             from sklearn.metrics import roc_auc_score as auc_score
 
-            # conn via get_session()
-            rows = conn.execute('''
-                SELECT b.momentum_5d, b.distance_from_20d_high, b.volume_ratio, b.atr_pct,
-                       d0.open, d0.high, d0.low, d0.close, d0.volume,
-                       d1.open as d1o,
-                       COALESCE(m.vix_close, 20), COALESCE(m.vix3m_close, 22),
-                       COALESCE(mb.pct_above_20d_ma, 50),
-                       COALESCE(sf.beta, 1), COALESCE(sf.avg_volume, 1)
-                FROM backfill_signal_outcomes b
-                JOIN signal_daily_bars d0 ON b.scan_date=d0.scan_date AND b.symbol=d0.symbol AND d0.day_offset=0
-                JOIN signal_daily_bars d1 ON b.scan_date=d1.scan_date AND b.symbol=d1.symbol AND d1.day_offset=1
-                LEFT JOIN macro_snapshots m ON b.scan_date = m.date
-                LEFT JOIN market_breadth mb ON b.scan_date = mb.date
-                LEFT JOIN stock_fundamentals sf ON b.symbol = sf.symbol
-                WHERE d0.close > 0 AND d1.open > 0 AND d0.open > 0 AND d0.high > d0.low
-                AND sf.avg_volume > 0 AND m.vix_close IS NOT NULL
-                ORDER BY b.scan_date
-            ''').fetchall()
+            with get_session() as session:
+                rows = session.execute(text('''
+                    SELECT b.momentum_5d, b.distance_from_20d_high, b.volume_ratio, b.atr_pct,
+                           d0.open, d0.high, d0.low, d0.close, d0.volume,
+                           d1.open as d1o,
+                           COALESCE(m.vix_close, 20), COALESCE(m.vix3m_close, 22),
+                           COALESCE(mb.pct_above_20d_ma, 50),
+                           COALESCE(sf.beta, 1), COALESCE(sf.avg_volume, 1)
+                    FROM backfill_signal_outcomes b
+                    JOIN signal_daily_bars d0 ON b.scan_date=d0.scan_date AND b.symbol=d0.symbol AND d0.day_offset=0
+                    JOIN signal_daily_bars d1 ON b.scan_date=d1.scan_date AND b.symbol=d1.symbol AND d1.day_offset=1
+                    LEFT JOIN macro_snapshots m ON b.scan_date = m.date
+                    LEFT JOIN market_breadth mb ON b.scan_date = mb.date
+                    LEFT JOIN stock_fundamentals sf ON b.symbol = sf.symbol
+                    WHERE d0.close > 0 AND d1.open > 0 AND d0.open > 0 AND d0.high > d0.low
+                    AND sf.avg_volume > 0 AND m.vix_close IS NOT NULL
+                    ORDER BY b.scan_date
+                ''')).fetchall()
 
             if len(rows) < 5000:
                 logger.warning("Gap model: not enough data (%d)", len(rows))
@@ -366,14 +366,13 @@ class AdaptiveStockSelector:
 
         Returns (X: np.array, y: np.array, feature_names: list).
         """
-        # conn via get_session()
-        conn.execute('PRAGMA busy_timeout=5000')
+        with get_session() as session:
+            session.execute(text('PRAGMA busy_timeout=5000'))
 
-        try:
             date_filter = f"AND s.date <= '{max_date}'" if max_date else ""
 
             # Load OHLCV + fundamentals + macro in one query
-            rows = conn.execute(f"""
+            rows = session.execute(text(f"""
                 SELECT s.symbol, s.date, s.close, s.high, s.low, s.volume,
                        sf.beta, sf.pe_forward, sf.market_cap, sf.avg_volume, sf.sector,
                        m.vix_close, m.crude_close,
@@ -389,37 +388,37 @@ class AdaptiveStockSelector:
                   {date_filter}
                   AND m.vix_close IS NOT NULL
                 ORDER BY s.symbol, s.date
-            """).fetchall()
+            """)).fetchall()
 
             # v17: Load additional raw features for 25-feature model
             # Sector ETF daily returns (sector_mom_1d)
             sector_mom_map = {}
             try:
-                for r in conn.execute("""
+                for r in session.execute(text("""
                     SELECT date, sector, pct_change FROM sector_etf_daily_returns
                     WHERE sector IS NOT NULL AND sector NOT IN ('S&P 500','US Dollar','Treasury Long','Gold')
-                """).fetchall():
+                """)).fetchall():
                     sector_mom_map[(r[0], r[1])] = r[2] or 0
             except Exception: pass
 
             # News sentiment per sector (7d rolling avg)
             sector_news_map = {}
             try:
-                for r in conn.execute("""
+                for r in session.execute(text("""
                     SELECT sf.sector, ne.scan_date_et,
                            AVG(ne.sentiment_score) as avg_sent
                     FROM news_events ne
                     JOIN stock_fundamentals sf ON ne.symbol = sf.symbol
                     WHERE ne.sentiment_score IS NOT NULL AND ne.scan_date_et IS NOT NULL
                     GROUP BY sf.sector, ne.scan_date_et
-                """).fetchall():
+                """)).fetchall():
                     sector_news_map[(r[1], r[0])] = r[2] or 0
             except Exception: pass
 
             # Analyst net per sector per date
             sector_analyst_map = {}
             try:
-                for r in conn.execute("""
+                for r in session.execute(text("""
                     SELECT sf.sector, arh.date,
                         SUM(CASE WHEN arh.price_target > arh.prior_price_target*1.05 AND arh.prior_price_target>0 THEN 1 ELSE 0 END) -
                         SUM(CASE WHEN arh.price_target < arh.prior_price_target*0.95 AND arh.prior_price_target>0 THEN 1 ELSE 0 END) as net
@@ -427,7 +426,7 @@ class AdaptiveStockSelector:
                     JOIN stock_fundamentals sf ON arh.symbol = sf.symbol
                     WHERE arh.price_target > 0
                     GROUP BY sf.sector, arh.date
-                """).fetchall():
+                """)).fetchall():
                     sector_analyst_map[(r[1], r[0])] = r[2] or 0
             except Exception: pass
 
@@ -435,7 +434,7 @@ class AdaptiveStockSelector:
             crude_sens_map = {}
             vix_sens_map = {}
             try:
-                for r in conn.execute("SELECT symbol, context_type, score FROM stock_context WHERE context_type IN ('CRUDE_SENSITIVE','VIX_SENSITIVE')").fetchall():
+                for r in session.execute(text("SELECT symbol, context_type, score FROM stock_context WHERE context_type IN ('CRUDE_SENSITIVE','VIX_SENSITIVE')")).fetchall():
                     if r[1] == 'CRUDE_SENSITIVE': crude_sens_map[r[0]] = r[2] or 0
                     else: vix_sens_map[r[0]] = r[2] or 0
             except Exception: pass
@@ -443,26 +442,26 @@ class AdaptiveStockSelector:
             # N sectors up per date
             n_sectors_up_map = {}
             try:
-                for r in conn.execute("""
+                for r in session.execute(text("""
                     SELECT date, SUM(CASE WHEN pct_change > 0 THEN 1 ELSE 0 END) as n_up
                     FROM sector_etf_daily_returns
                     WHERE sector NOT IN ('S&P 500','US Dollar','Treasury Long','Gold') AND sector IS NOT NULL
                     GROUP BY date
-                """).fetchall():
+                """)).fetchall():
                     n_sectors_up_map[r[0]] = r[1] or 0
             except Exception: pass
 
             # SPY 5d return + breadth delta + VIX spread per date
             macro_extra_map = {}
             try:
-                mrows = conn.execute("""
+                mrows = session.execute(text("""
                     SELECT m.date, m.vix_close, m.vix3m_close, m.spy_close,
                            mb.pct_above_20d_ma
                     FROM macro_snapshots m
                     LEFT JOIN market_breadth mb ON m.date = mb.date
                     WHERE m.vix_close IS NOT NULL
                     ORDER BY m.date
-                """).fetchall()
+                """)).fetchall()
                 for idx, r in enumerate(mrows):
                     vix_spread = (r[1] - r[2]) if r[1] and r[2] else 0
                     spy_5d = ((r[3] / mrows[idx-5][3]) - 1) * 100 if idx >= 5 and mrows[idx-5][3] and r[3] else 0
@@ -473,17 +472,14 @@ class AdaptiveStockSelector:
             # News sentiment per stock (7d)
             stock_news_map = {}
             try:
-                for r in conn.execute("""
+                for r in session.execute(text("""
                     SELECT ne.symbol, ne.scan_date_et, AVG(ne.sentiment_score) as avg_sent
                     FROM news_events ne
                     WHERE ne.symbol IS NOT NULL AND ne.symbol != '' AND ne.sentiment_score IS NOT NULL
                     GROUP BY ne.symbol, ne.scan_date_et
-                """).fetchall():
+                """)).fetchall():
                     stock_news_map[(r[1], r[0])] = r[1] and r[2] or 0
             except Exception: pass
-
-        finally:
-            pass
 
         if len(rows) < MIN_TRAIN_ROWS:
             return None, None, None
@@ -689,37 +685,36 @@ class AdaptiveStockSelector:
     # === DB Persistence ===
 
     def _ensure_tables(self):
-        # conn via get_session()
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS stock_selector_model (
-                id INTEGER PRIMARY KEY,
-                model_blob BLOB NOT NULL,
-                feature_names TEXT NOT NULL,
-                feature_means TEXT,
-                feature_stds TEXT,
-                fit_date TEXT NOT NULL,
-                n_train INTEGER,
-                auc REAL,
-                feature_importance TEXT,
-                updated_at TEXT DEFAULT (datetime('now'))
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS stock_selector_history (
-                fit_date TEXT NOT NULL,
-                n_train INTEGER,
-                auc REAL,
-                wr_top_decile REAL,
-                avg_return_top_decile REAL,
-                feature_importance TEXT,
-                UNIQUE(fit_date)
-            )
-        """)
+        with get_session() as session:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS stock_selector_model (
+                    id INTEGER PRIMARY KEY,
+                    model_blob BLOB NOT NULL,
+                    feature_names TEXT NOT NULL,
+                    feature_means TEXT,
+                    feature_stds TEXT,
+                    fit_date TEXT NOT NULL,
+                    n_train INTEGER,
+                    auc REAL,
+                    feature_importance TEXT,
+                    updated_at TEXT DEFAULT (datetime('now'))
+                )
+            """))
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS stock_selector_history (
+                    fit_date TEXT NOT NULL,
+                    n_train INTEGER,
+                    auc REAL,
+                    wr_top_decile REAL,
+                    avg_return_top_decile REAL,
+                    feature_importance TEXT,
+                    UNIQUE(fit_date)
+                )
+            """))
 
     def save_to_db(self):
         from datetime import date as date_cls
         fit_date = date_cls.today().isoformat()
-        # conn via get_session()
 
         model_blob = pickle.dumps(self._model)
         feat_names = json.dumps(self._feature_names)
@@ -727,33 +722,34 @@ class AdaptiveStockSelector:
         feat_stds = json.dumps(self._feature_stds.tolist()) if self._feature_stds is not None else None
         feat_imp = json.dumps(self._feature_importance)
 
-        # Save current model (single row, replace)
-        conn.execute("DELETE FROM stock_selector_model")
-        conn.execute("""
-            INSERT INTO stock_selector_model
-            (model_blob, feature_names, feature_means, feature_stds,
-             fit_date, n_train, auc, feature_importance)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (model_blob, feat_names, feat_means, feat_stds,
-              fit_date, self._n_train, self._auc, feat_imp))
+        with get_session() as session:
+            # Save current model (single row, replace)
+            session.execute(text("DELETE FROM stock_selector_model"))
+            session.execute(text("""
+                INSERT INTO stock_selector_model
+                (model_blob, feature_names, feature_means, feature_stds,
+                 fit_date, n_train, auc, feature_importance)
+                VALUES (:p0, :p1, :p2, :p3, :p4, :p5, :p6, :p7)
+            """), {'p0': model_blob, 'p1': feat_names, 'p2': feat_means, 'p3': feat_stds,
+                   'p4': fit_date, 'p5': self._n_train, 'p6': self._auc, 'p7': feat_imp})
 
-        # Save to history
-        conn.execute("""
-            INSERT OR REPLACE INTO stock_selector_history
-            (fit_date, n_train, auc, feature_importance)
-            VALUES (?, ?, ?, ?)
-        """, (fit_date, self._n_train, self._auc, feat_imp))
+            # Save to history
+            session.execute(text("""
+                INSERT OR REPLACE INTO stock_selector_history
+                (fit_date, n_train, auc, feature_importance)
+                VALUES (:p0, :p1, :p2, :p3)
+            """), {'p0': fit_date, 'p1': self._n_train, 'p2': self._auc, 'p3': feat_imp})
         logger.info("AdaptiveStockSelector: saved model to DB (AUC=%.4f, %d bytes)",
                      self._auc, len(model_blob))
 
     def load_from_db(self) -> bool:
-        # conn via get_session()
         try:
-            row = conn.execute("""
-                SELECT model_blob, feature_names, feature_means, feature_stds,
-                       n_train, auc, feature_importance
-                FROM stock_selector_model LIMIT 1
-            """).fetchone()
+            with get_session() as session:
+                row = session.execute(text("""
+                    SELECT model_blob, feature_names, feature_means, feature_stds,
+                           n_train, auc, feature_importance
+                    FROM stock_selector_model LIMIT 1
+                """)).fetchone()
         except Exception:
             return False
 

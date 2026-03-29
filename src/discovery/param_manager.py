@@ -73,22 +73,19 @@ class ParamManager:
         key = f'{group}.{name}'
         old_value = self._cache.get(key)
 
-        # conn via get_session()
-        try:
-            conn.execute("""
+        with get_session() as session:
+            session.execute(text("""
                 INSERT INTO system_parameters (param_group, param_name, param_value, updated_by)
-                VALUES (?, ?, ?, ?)
+                VALUES (:p0, :p1, :p2, :p3)
                 ON CONFLICT(param_group, param_name)
-                DO UPDATE SET param_value=?, updated_at=datetime('now'), updated_by=?
-            """, (group, name, value, reason, value, reason))
+                DO UPDATE SET param_value=:p4, updated_at=datetime('now'), updated_by=:p5
+            """), {'p0': group, 'p1': name, 'p2': value, 'p3': reason, 'p4': value, 'p5': reason})
 
-            conn.execute("""
+            session.execute(text("""
                 INSERT INTO parameter_history
                 (param_group, param_name, old_value, new_value, reason)
-                VALUES (?, ?, ?, ?, ?)
-            """, (group, name, old_value, value, reason))
-        finally:
-            pass
+                VALUES (:p0, :p1, :p2, :p3, :p4)
+            """), {'p0': group, 'p1': name, 'p2': old_value, 'p3': value, 'p4': reason})
 
         self._cache[key] = value
         logger.info("Param updated: %s.%s = %.4f (was %.4f) reason=%s",
@@ -97,22 +94,19 @@ class ParamManager:
 
     def get_history(self, group: str = None, name: str = None, limit: int = 20) -> list:
         """Get parameter change history."""
-        # conn via get_session()
-        try:
+        with get_session() as session:
             if group and name:
-                rows = conn.execute("""
+                rows = session.execute(text("""
                     SELECT * FROM parameter_history
-                    WHERE param_group=? AND param_name=?
-                    ORDER BY changed_at DESC LIMIT ?
-                """, (group, name, limit)).fetchall()
+                    WHERE param_group=:p0 AND param_name=:p1
+                    ORDER BY changed_at DESC LIMIT :p2
+                """), {'p0': group, 'p1': name, 'p2': limit}).fetchall()
             else:
-                rows = conn.execute("""
+                rows = session.execute(text("""
                     SELECT * FROM parameter_history
-                    ORDER BY changed_at DESC LIMIT ?
-                """, (limit,)).fetchall()
-            return [dict(r) for r in rows]
-        finally:
-            pass
+                    ORDER BY changed_at DESC LIMIT :p0
+                """), {'p0': limit}).fetchall()
+            return [dict(r._mapping) for r in rows]
 
     def get_all(self) -> dict:
         """Get all parameters as nested dict."""
@@ -125,52 +119,52 @@ class ParamManager:
         return result
 
     def _ensure_tables(self):
-        # conn via get_session()
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS system_parameters (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                param_group TEXT NOT NULL,
-                param_name TEXT NOT NULL,
-                param_value REAL NOT NULL,
-                updated_at TEXT DEFAULT (datetime('now')),
-                updated_by TEXT DEFAULT 'manual',
-                UNIQUE(param_group, param_name)
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS parameter_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                param_group TEXT NOT NULL,
-                param_name TEXT NOT NULL,
-                old_value REAL,
-                new_value REAL,
-                reason TEXT,
-                sharpe_before REAL,
-                sharpe_after REAL,
-                changed_at TEXT DEFAULT (datetime('now'))
-            )
-        """)
+        with get_session() as session:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS system_parameters (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    param_group TEXT NOT NULL,
+                    param_name TEXT NOT NULL,
+                    param_value REAL NOT NULL,
+                    updated_at TEXT DEFAULT (datetime('now')),
+                    updated_by TEXT DEFAULT 'manual',
+                    UNIQUE(param_group, param_name)
+                )
+            """))
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS parameter_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    param_group TEXT NOT NULL,
+                    param_name TEXT NOT NULL,
+                    old_value REAL,
+                    new_value REAL,
+                    reason TEXT,
+                    sharpe_before REAL,
+                    sharpe_after REAL,
+                    changed_at TEXT DEFAULT (datetime('now'))
+                )
+            """))
 
     def _seed_defaults(self):
         """Seed default params if table is empty."""
-        # conn via get_session()
-        n = conn.execute('SELECT COUNT(*) FROM system_parameters').fetchone()[0]
-        if n > 0:
-            return
+        with get_session() as session:
+            n = session.execute(text('SELECT COUNT(*) FROM system_parameters')).fetchone()[0]
+            if n > 0:
+                return
 
-        for group, params in DEFAULTS.items():
-            for name, value in params.items():
-                conn.execute("""
-                    INSERT OR IGNORE INTO system_parameters
-                    (param_group, param_name, param_value, updated_by)
-                    VALUES (?, ?, ?, 'seed')
-                """, (group, name, value))
-        logger.info("ParamManager: seeded %d default parameters",
-                     sum(len(v) for v in DEFAULTS.values()))
+            for group, params in DEFAULTS.items():
+                for name, value in params.items():
+                    session.execute(text("""
+                        INSERT OR IGNORE INTO system_parameters
+                        (param_group, param_name, param_value, updated_by)
+                        VALUES (:p0, :p1, :p2, 'seed')
+                    """), {'p0': group, 'p1': name, 'p2': value})
+            logger.info("ParamManager: seeded %d default parameters",
+                         sum(len(v) for v in DEFAULTS.values()))
 
     def _load_all(self):
         """Load all params from DB into cache."""
-        # conn via get_session()
-        rows = conn.execute('SELECT param_group, param_name, param_value FROM system_parameters').fetchall()
-        self._cache = {f'{r[0]}.{r[1]}': r[2] for r in rows}
-        logger.debug("ParamManager: loaded %d parameters", len(self._cache))
+        with get_session() as session:
+            rows = session.execute(text('SELECT param_group, param_name, param_value FROM system_parameters')).fetchall()
+            self._cache = {f'{r[0]}.{r[1]}': r[2] for r in rows}
+            logger.debug("ParamManager: loaded %d parameters", len(self._cache))

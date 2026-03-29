@@ -302,12 +302,12 @@ class LeadingIndicatorEngine:
                 details['options'] = {'signal': 'neutral', 'pc_ratio': 0, 'desc': 'No data'}
 
             # 2. Insider transactions: recent buys for this stock
-            ins_row = conn.execute("""
+            ins_row = session.execute(text("""
                 SELECT COUNT(*) as n_buys, COALESCE(SUM(total_value), 0) as total_val
                 FROM insider_transactions
-                WHERE symbol = ? AND transaction_type = 'purchase'
-                AND transaction_date >= date(?, '-30 days') AND transaction_date <= ?
-            """, (symbol, scan_date, scan_date)).fetchone()
+                WHERE symbol = :p0 AND transaction_type = 'purchase'
+                AND transaction_date >= date(:p1, '-30 days') AND transaction_date <= :p2
+            """), {'p0': symbol, 'p1': scan_date, 'p2': scan_date}).fetchone()
             n_buys = ins_row[0] if ins_row else 0
             buy_val = ins_row[1] if ins_row else 0
             if n_buys >= 2 or buy_val > 500000:
@@ -322,12 +322,12 @@ class LeadingIndicatorEngine:
                 details['insider'] = {'signal': 'neutral', 'buys_30d': 0, 'desc': 'No recent'}
 
             # 3. Short interest: squeeze potential
-            si_row = conn.execute("""
+            si_row = session.execute(text("""
                 SELECT short_pct_float, short_ratio, short_change_pct
                 FROM short_interest
-                WHERE symbol = ? AND date <= ?
+                WHERE symbol = :p0 AND date <= :p1
                 ORDER BY date DESC LIMIT 1
-            """, (symbol, scan_date)).fetchone()
+            """), {'p0': symbol, 'p1': scan_date}).fetchone()
             if si_row and si_row[0] is not None:
                 si_pct = si_row[0]
                 si_ratio = si_row[1] or 0
@@ -351,12 +351,12 @@ class LeadingIndicatorEngine:
                 details['short'] = {'signal': 'neutral', 'si_pct': 0, 'desc': 'No data'}
 
             # 4. Analyst consensus: upside vs market
-            ana_row = conn.execute("""
+            ana_row = session.execute(text("""
                 SELECT upside_pct, bull_score, total_analysts
                 FROM analyst_consensus
-                WHERE symbol = ?
+                WHERE symbol = :p0
                 ORDER BY updated_at DESC LIMIT 1
-            """, (symbol,)).fetchone()
+            """), {'p0': symbol}).fetchone()
             if ana_row and ana_row[0] is not None:
                 upside = ana_row[0]
                 bull = ana_row[1] or 0  # 0-2 scale (avg 0.70)
@@ -385,8 +385,6 @@ class LeadingIndicatorEngine:
 
         except Exception as e:
             logger.error("LeadingIndicators stock signals error for %s: %s", symbol, e)
-        finally:
-            conn.close()
 
         score = max(0, min(100, score))
         result = {'score': round(score, 1), 'details': details}

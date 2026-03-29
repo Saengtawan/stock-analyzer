@@ -2972,41 +2972,38 @@ def api_discovery_system():
     try:
         from discovery.engine import get_discovery_engine
         engine = get_discovery_engine()
+        def _safe_stats(obj, method='get_stats'):
+            try: return getattr(obj, method)()
+            except: return {'error': 'unavailable'}
+
+        scorer = getattr(engine, '_scorer', None)
+        components = {}
+        if scorer:
+            k = getattr(scorer, 'kernel', None)
+            sk = getattr(scorer, 'stock_kernel', None)
+            components['kernel'] = {
+                'macro': {'fitted': k is not None and getattr(k, 'n_rows', 0) > 0,
+                          'n_rows': getattr(k, 'n_rows', 0)},
+                'stock': {'fitted': sk is not None and getattr(sk, '_fitted', False),
+                          'n_rows': getattr(sk, 'n_rows', 0)},
+                'hold': {'fitted': getattr(scorer, '_hold_data', None) is not None},
+                'weekend': {'fitted': getattr(scorer, '_weekend_data', None) is not None},
+            }
+        for attr in ['_regime_brain','_stock_brain','_risk_brain','_strategy_router',
+                      '_market_signals','_knowledge_graph','_unified_brain','_param_optimizer']:
+            obj = getattr(engine, attr, None)
+            if obj: components[attr.lstrip('_')] = _safe_stats(obj)
+        perf = getattr(engine, '_perf_tracker', None)
+        if perf: components['performance'] = _safe_stats(perf, 'get_summary')
+        orch = getattr(engine, '_orchestrator', None)
+        if orch: components['auto_refit'] = _safe_stats(orch)
+
         return jsonify({
-            'version': '10.0',
-            'components': {
-                'kernel': {
-                    'macro': {'fitted': engine.kernel is not None and engine.kernel.n_rows > 0,
-                              'n_rows': getattr(engine.kernel, 'n_rows', 0) if engine.kernel else 0},
-                    'stock': {'fitted': engine.stock_kernel is not None and getattr(engine.stock_kernel, '_fitted', False),
-                              'n_rows': getattr(engine.stock_kernel, 'n_rows', 0) if engine.stock_kernel else 0},
-                    'hold': {'fitted': engine._hold_data is not None},
-                    'weekend': {'fitted': engine._weekend_data is not None},
-                },
-                'temporal': {'fitted': bool(engine._temporal_features),
-                             'n_features': len(engine._temporal_features)},
-                'sequence': {'fitted': engine._sequence_matcher._fitted,
-                             'n_sequences': len(engine._sequence_matcher._historical or [])},
-                'leading': {'fitted': engine._leading_indicators._historical_patterns is not None},
-                'calibrator': {'cached': engine._calibrator._cache is not None},
-                'outcome_tracker': {'available': True},
-                'regime_brain': engine._regime_brain.get_stats(),
-                'stock_brain': engine._stock_brain.get_stats(),
-                'risk_brain': engine._risk_brain.get_stats(),
-                'strategy_router': engine._strategy_router.get_stats(),
-                'market_signals': engine._market_signals.get_stats(),
-                'knowledge_graph': engine._knowledge_graph.get_stats(),
-                'unified_brain': engine._unified_brain.get_stats(),
-                'param_optimizer': engine._param_optimizer.get_stats(),
-                'performance': engine._perf_tracker.get_summary(30),
-                'auto_refit': engine._orchestrator.get_stats(),
-            },
+            'version': '17.0',
+            'components': components,
             'regime': engine.get_current_regime(),
             'last_scan': engine.get_last_scan(),
-            'n_picks': len(engine._picks),
-            'temporal_snapshot': engine._temporal_features or {},
-            'sequence_prediction': engine._sequence_prediction or {},
-            'leading_signals': engine._leading_signals or {},
+            'n_picks': len(getattr(engine, '_picks', [])),
         })
     except Exception as e:
         logger.error(f"Discovery system status error: {e}")

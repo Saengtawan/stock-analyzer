@@ -4,39 +4,40 @@ Collect CBOE delayed options data for universe stocks.
 Computes and stores: P/C volume ratio, IV skew, unusual activity flags.
 Run daily via cron. No authentication needed.
 """
-import sqlite3
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
 import time
 import requests
-from pathlib import Path
 from datetime import date
+from database.orm.base import get_session
+from sqlalchemy import text
 
-DB = Path(__file__).resolve().parents[1] / 'data' / 'trade_history.db'
 
-
-def ensure_table(conn):
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS options_daily_summary (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            symbol TEXT NOT NULL,
-            collected_date TEXT NOT NULL,
-            total_call_volume INTEGER,
-            total_put_volume INTEGER,
-            pc_volume_ratio REAL,
-            total_call_oi INTEGER,
-            total_put_oi INTEGER,
-            pc_oi_ratio REAL,
-            avg_call_iv REAL,
-            avg_put_iv REAL,
-            iv_skew REAL,
-            unusual_call_count INTEGER,
-            unusual_put_count INTEGER,
-            max_call_volume INTEGER,
-            max_put_volume INTEGER,
-            n_contracts INTEGER,
-            UNIQUE(symbol, collected_date)
-        )
-    """)
-    conn.commit()
+def ensure_table():
+    with get_session() as session:
+        session.execute(text("""
+            CREATE TABLE IF NOT EXISTS options_daily_summary (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol TEXT NOT NULL,
+                collected_date TEXT NOT NULL,
+                total_call_volume INTEGER,
+                total_put_volume INTEGER,
+                pc_volume_ratio REAL,
+                total_call_oi INTEGER,
+                total_put_oi INTEGER,
+                pc_oi_ratio REAL,
+                avg_call_iv REAL,
+                avg_put_iv REAL,
+                iv_skew REAL,
+                unusual_call_count INTEGER,
+                unusual_put_count INTEGER,
+                max_call_volume INTEGER,
+                max_put_volume INTEGER,
+                n_contracts INTEGER,
+                UNIQUE(symbol, collected_date)
+            )
+        """))
 
 
 def fetch_cboe_options(symbol):
@@ -73,12 +74,10 @@ def compute_summary(options):
         is_call = 'C' in otype.upper() or opt.get('option_type', '').upper() == 'CALL'
         is_put = 'P' in otype.upper() or opt.get('option_type', '').upper() == 'PUT'
 
-        # Detect from option symbol: last char before digits is C or P
         if not is_call and not is_put:
             parts = otype.split()
             if parts:
                 sym_part = parts[0] if len(parts) == 1 else otype
-                # CBOE format: SYMBOL YYMMDDCSTRIKE or SYMBOL YYMMDDPSTRIKE
                 for ch in reversed(sym_part):
                     if ch == 'C':
                         is_call = True; break
@@ -114,7 +113,7 @@ def compute_summary(options):
     pc_oi = put_oi / call_oi if call_oi > 0 else 999
     avg_call_iv = sum(call_ivs) / len(call_ivs) if call_ivs else 0
     avg_put_iv = sum(put_ivs) / len(put_ivs) if put_ivs else 0
-    iv_skew = avg_put_iv - avg_call_iv  # positive = put premium = fear
+    iv_skew = avg_put_iv - avg_call_iv
 
     return {
         'call_vol': call_vol, 'put_vol': put_vol, 'pc_vol': round(pc_vol, 3),
@@ -128,30 +127,25 @@ def compute_summary(options):
 
 
 def main():
-    conn = None  # via get_session(), timeout=30)
-    conn.execute('PRAGMA journal_mode=WAL')
-    conn.execute('PRAGMA busy_timeout=30000')
-    ensure_table(conn)
-
+    ensure_table()
     today = date.today().isoformat()
 
-    # Check existing
-    existing = conn.execute(
-        "SELECT COUNT(*) FROM options_daily_summary WHERE collected_date = ?", (today,)
-    ).fetchone()[0]
-    if existing > 50:
-        print(f"Already collected {existing} stocks today.")
-        conn.close()
-        return
+    with get_session() as session:
+        existing = session.execute(
+            text("SELECT COUNT(*) FROM options_daily_summary WHERE collected_date = :d"), {'d': today}
+        ).scalar()
+        if existing > 50:
+            print(f"Already collected {existing} stocks today.")
+            return
 
-    # Get top stocks by market cap (options liquidity is better for large caps)
-    symbols = [r[0] for r in conn.execute(
-        "SELECT symbol FROM stock_fundamentals WHERE market_cap >= 30e9 ORDER BY market_cap DESC"
-    )]
+        symbols = [r[0] for r in session.execute(
+            text("SELECT symbol FROM stock_fundamentals WHERE market_cap >= 30e9 ORDER BY market_cap DESC")
+        ).fetchall()]
 
     print(f"Collecting CBOE options for {len(symbols)} stocks (mcap>=30B)...")
     total = 0
     errors = 0
+    batch = []
 
     for i, sym in enumerate(symbols):
         options = fetch_cboe_options(sym)
@@ -160,40 +154,54 @@ def main():
         else:
             summary = compute_summary(options)
             if summary:
-                conn.execute("""
+                batch.append((sym, today, summary['call_vol'], summary['put_vol'],
+                              summary['pc_vol'], summary['call_oi'], summary['put_oi'],
+                              summary['pc_oi'], summary['avg_call_iv'], summary['avg_put_iv'],
+                              summary['iv_skew'], summary['unusual_calls'], summary['unusual_puts'],
+                              summary['max_call_vol'], summary['max_put_vol'], summary['n_contracts']))
+                total += 1
+
+        if (i + 1) % 50 == 0:
+            if batch:
+                with get_session() as session:
+                    for row in batch:
+                        session.execute(text("""
+                            INSERT OR REPLACE INTO options_daily_summary
+                            (symbol, collected_date, total_call_volume, total_put_volume,
+                             pc_volume_ratio, total_call_oi, total_put_oi, pc_oi_ratio,
+                             avg_call_iv, avg_put_iv, iv_skew,
+                             unusual_call_count, unusual_put_count,
+                             max_call_volume, max_put_volume, n_contracts)
+                            VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6,:p7,:p8,:p9,:p10,:p11,:p12,:p13,:p14,:p15)
+                        """), {f'p{j}': v for j, v in enumerate(row)})
+                batch = []
+            print(f"  [{i+1}/{len(symbols)}] +{total:,} collected, {errors} errors")
+
+        time.sleep(0.5)
+
+    if batch:
+        with get_session() as session:
+            for row in batch:
+                session.execute(text("""
                     INSERT OR REPLACE INTO options_daily_summary
                     (symbol, collected_date, total_call_volume, total_put_volume,
                      pc_volume_ratio, total_call_oi, total_put_oi, pc_oi_ratio,
                      avg_call_iv, avg_put_iv, iv_skew,
                      unusual_call_count, unusual_put_count,
                      max_call_volume, max_put_volume, n_contracts)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (sym, today, summary['call_vol'], summary['put_vol'],
-                      summary['pc_vol'], summary['call_oi'], summary['put_oi'],
-                      summary['pc_oi'], summary['avg_call_iv'], summary['avg_put_iv'],
-                      summary['iv_skew'], summary['unusual_calls'], summary['unusual_puts'],
-                      summary['max_call_vol'], summary['max_put_vol'], summary['n_contracts']))
-                total += 1
+                    VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6,:p7,:p8,:p9,:p10,:p11,:p12,:p13,:p14,:p15)
+                """), {f'p{j}': v for j, v in enumerate(row)})
 
-        if (i + 1) % 50 == 0:
-            conn.commit()
-            print(f"  [{i+1}/{len(symbols)}] +{total:,} collected, {errors} errors")
-
-        time.sleep(0.5)  # polite rate limiting
-
-    conn.commit()
     print(f"\nDone: {total:,} stocks collected, {errors} errors")
 
-    # Show sample
-    print("\nSample P/C ratios:")
-    for r in conn.execute("""
-        SELECT symbol, pc_volume_ratio, iv_skew, unusual_call_count, unusual_put_count
-        FROM options_daily_summary WHERE collected_date = ?
-        ORDER BY pc_volume_ratio DESC LIMIT 10
-    """, (today,)):
-        print(f"  {r[0]}: P/C={r[1]:.2f}, IV_skew={r[2]:+.4f}, unusual_C={r[3]}, unusual_P={r[4]}")
-
-    conn.close()
+    with get_session() as session:
+        print("\nSample P/C ratios:")
+        for r in session.execute(text("""
+            SELECT symbol, pc_volume_ratio, iv_skew, unusual_call_count, unusual_put_count
+            FROM options_daily_summary WHERE collected_date = :d
+            ORDER BY pc_volume_ratio DESC LIMIT 10
+        """), {'d': today}).fetchall():
+            print(f"  {r[0]}: P/C={r[1]:.2f}, IV_skew={r[2]:+.4f}, unusual_C={r[3]}, unusual_P={r[4]}")
 
 
 if __name__ == '__main__':

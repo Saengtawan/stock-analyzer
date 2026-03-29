@@ -39,16 +39,12 @@ class SequencePatternMatcher:
 
     def fit(self, lookback_days: int = 730) -> bool:
         """Load historical sequences from DB and precompute feature vectors."""
-        # conn via get_session()
-        try:
-            # Get all dates with SPY data
-            rows = conn.execute("""
+        with get_session() as session:
+            rows = session.execute(text("""
                 SELECT date, spy_close FROM macro_snapshots
                 WHERE spy_close IS NOT NULL
                 ORDER BY date
-            """).fetchall()
-        finally:
-            pass
+            """)).fetchall()
 
         if len(rows) < 100:
             logger.warning("SequenceMatcher: insufficient data (%d rows)", len(rows))
@@ -246,17 +242,14 @@ class SequencePatternMatcher:
         self._stock_profiles_fitted = True
         self._stock_profiles = None
 
-        # conn via get_session()
-        try:
-            rows = conn.execute("""
+        with get_session() as session:
+            rows = session.execute(text("""
                 SELECT atr_pct, momentum_5d, volume_ratio, distance_from_20d_high,
                        sector, outcome_5d
                 FROM backfill_signal_outcomes
                 WHERE outcome_5d IS NOT NULL AND atr_pct > 0
                   AND distance_from_20d_high IS NOT NULL
-            """).fetchall()
-        finally:
-            pass
+            """)).fetchall()
 
         if len(rows) < 500:
             logger.warning("StockProfile: insufficient data (%d)", len(rows))

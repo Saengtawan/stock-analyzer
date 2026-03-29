@@ -85,24 +85,19 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_short_interest "
           f"date={target_date}")
 
-    # conn via get_session()
+    with get_session() as session:
+        if args.symbol:
+            symbols = [args.symbol.upper()]
+        else:
+            symbols = [r[0] for r in session.execute(text(
+                "SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC LIMIT :n"
+            ), {'n': args.top}).fetchall()]
 
-    if args.symbol:
-        symbols = [args.symbol.upper()]
-    else:
-        symbols = [r[0] for r in conn.execute("""
-            SELECT symbol FROM universe_stocks
-            WHERE status='active'
-            ORDER BY dollar_vol DESC
-            LIMIT ?
-        """, (args.top,)).fetchall()]
+        existing = set(r[0] for r in session.execute(text(
+            "SELECT symbol FROM short_interest WHERE date = :d"
+        ), {'d': target_date}).fetchall())
 
-    # Skip symbols already collected today
-    existing = set(r[0] for r in conn.execute(
-        "SELECT symbol FROM short_interest WHERE date = ?", (target_date,)
-    ).fetchall())
     symbols = [s for s in symbols if s not in existing]
-
     print(f"  {len(symbols)} symbols (skipping {len(existing)} already in DB)")
 
     if not symbols:
@@ -115,22 +110,22 @@ def main():
     for i, sym in enumerate(symbols):
         data = fetch_short_interest(sym)
         if data:
-            conn.execute("""
-                INSERT INTO short_interest
-                    (symbol, date, short_pct_float, short_ratio,
-                     shares_short, shares_short_prior, short_change_pct)
-                VALUES (?,?,?,?,?,?,?)
-                ON CONFLICT(symbol, date) DO UPDATE SET
-                    short_pct_float    = excluded.short_pct_float,
-                    short_ratio        = excluded.short_ratio,
-                    shares_short       = excluded.shares_short,
-                    shares_short_prior = excluded.shares_short_prior,
-                    short_change_pct   = excluded.short_change_pct,
-                    updated_at         = datetime('now')
-            """, (sym, target_date,
-                  data['short_pct_float'], data['short_ratio'],
-                  data['shares_short'], data['shares_short_prior'],
-                  data['short_change_pct']))
+            with get_session() as session:
+                session.execute(text("""
+                    INSERT INTO short_interest
+                        (symbol, date, short_pct_float, short_ratio,
+                         shares_short, shares_short_prior, short_change_pct)
+                    VALUES (:s,:d,:pf,:sr,:ss,:sp,:sc)
+                    ON CONFLICT(symbol, date) DO UPDATE SET
+                        short_pct_float    = excluded.short_pct_float,
+                        short_ratio        = excluded.short_ratio,
+                        shares_short       = excluded.shares_short,
+                        shares_short_prior = excluded.shares_short_prior,
+                        short_change_pct   = excluded.short_change_pct
+                """), {'s': sym, 'd': target_date,
+                       'pf': data['short_pct_float'], 'sr': data['short_ratio'],
+                       'ss': data['shares_short'], 'sp': data['shares_short_prior'],
+                       'sc': data['short_change_pct']})
             ok += 1
         else:
             fail += 1

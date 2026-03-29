@@ -6,9 +6,6 @@ import logging
 from database.orm.base import get_session
 from sqlalchemy import text
 import json
-import numpy as np
-from pathlib import Path
-from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -20,98 +17,89 @@ class PerformanceTracker:
         self._ensure_table()
 
     def _ensure_table(self):
-        # conn via get_session()
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS discovery_performance (
-                date TEXT PRIMARY KEY,
-                n_picks INTEGER,
-                n_wins INTEGER,
-                wr REAL,
-                total_pnl REAL,
-                avg_pnl REAL,
-                strategy_breakdown TEXT,
-                params_snapshot TEXT,
-                created_at TEXT DEFAULT (datetime('now'))
-            )
-        """)
+        with get_session() as session:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS discovery_performance (
+                    date TEXT PRIMARY KEY,
+                    n_picks INTEGER,
+                    n_wins INTEGER,
+                    wr REAL,
+                    total_pnl REAL,
+                    avg_pnl REAL,
+                    strategy_breakdown TEXT,
+                    params_snapshot TEXT,
+                    created_at TEXT DEFAULT (datetime('now'))
+                )
+            """))
 
     def track_daily(self, scan_date: str = None) -> dict:
         """Record P&L for picks that expired (scan_date + 5 days)."""
-        # conn via get_session()
-        try:
-            # Find dates with outcomes but no performance record
-            dates = conn.execute("""
+        recorded = 0
+        with get_session() as session:
+            dates = session.execute(text("""
                 SELECT DISTINCT scan_date FROM discovery_outcomes
                 WHERE actual_return_d3 IS NOT NULL
                 AND scan_date NOT IN (SELECT date FROM discovery_performance)
                 ORDER BY scan_date
-            """).fetchall()
+            """)).fetchall()
 
-            recorded = 0
             for dt_row in dates:
-                dt = dt_row['scan_date']
-                outcomes = conn.execute("""
+                dt = dt_row[0]
+                outcomes = session.execute(text("""
                     SELECT actual_return_d3, regime, predicted_er
                     FROM discovery_outcomes
-                    WHERE scan_date = ? AND actual_return_d3 IS NOT NULL
-                """, (dt,)).fetchall()
+                    WHERE scan_date = :sd AND actual_return_d3 IS NOT NULL
+                """), {'sd': dt}).fetchall()
 
                 if not outcomes:
                     continue
 
-                rets = [r['actual_return_d3'] for r in outcomes]
+                rets = [r[0] for r in outcomes]
                 n = len(rets)
                 n_wins = sum(1 for r in rets if r > 0)
                 wr = n_wins / n * 100 if n > 0 else 0
                 total_pnl = sum(rets)
                 avg_pnl = total_pnl / n if n > 0 else 0
 
-                # Strategy breakdown by regime
                 regime_map = {}
                 for r in outcomes:
-                    regime = r['regime'] or 'UNKNOWN'
+                    regime = r[1] or 'UNKNOWN'
                     if regime not in regime_map:
                         regime_map[regime] = {'n': 0, 'wins': 0, 'pnl': 0}
                     regime_map[regime]['n'] += 1
-                    if r['actual_return_d3'] > 0:
+                    if r[0] > 0:
                         regime_map[regime]['wins'] += 1
-                    regime_map[regime]['pnl'] += r['actual_return_d3']
+                    regime_map[regime]['pnl'] += r[0]
 
-                conn.execute("""
+                session.execute(text("""
                     INSERT OR IGNORE INTO discovery_performance
                     (date, n_picks, n_wins, wr, total_pnl, avg_pnl, strategy_breakdown)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (dt, n, n_wins, round(wr, 1), round(total_pnl, 4),
-                      round(avg_pnl, 4), json.dumps(regime_map)))
+                    VALUES (:dt, :n, :nw, :wr, :tp, :ap, :sb)
+                """), {'dt': dt, 'n': n, 'nw': n_wins, 'wr': round(wr, 1),
+                       'tp': round(total_pnl, 4), 'ap': round(avg_pnl, 4),
+                       'sb': json.dumps(regime_map)})
                 recorded += 1
-            if recorded:
-                logger.info("PerformanceTracker: recorded %d days", recorded)
-            return {'recorded': recorded}
-        finally:
-            pass
+
+        if recorded:
+            logger.info("PerformanceTracker: recorded %d days", recorded)
+        return {'recorded': recorded}
 
     def detect_drift(self) -> dict:
         """Compare recent accuracy vs historical."""
-        # conn via get_session()
-        try:
-            # Last 30 days
-            r30 = conn.execute("""
+        with get_session() as session:
+            r30 = session.execute(text("""
                 SELECT AVG(wr), AVG(avg_pnl), COUNT(*) FROM discovery_performance
                 WHERE date >= date('now', '-30 days')
-            """).fetchone()
+            """)).fetchone()
 
-            # Last 90 days
-            r90 = conn.execute("""
+            r90 = session.execute(text("""
                 SELECT AVG(wr), AVG(avg_pnl), COUNT(*) FROM discovery_performance
                 WHERE date >= date('now', '-90 days')
-            """).fetchone()
+            """)).fetchone()
 
-            # All time
-            r_all = conn.execute("""
+            r_all = session.execute(text("""
                 SELECT AVG(wr), AVG(avg_pnl), COUNT(*) FROM discovery_performance
-            """).fetchone()
-        finally:
-            pass
+            """)).fetchone()
 
         wr_30 = r30[0] or 50
         wr_90 = r90[0] or 50
@@ -142,16 +130,13 @@ class PerformanceTracker:
 
     def get_summary(self, days: int = 30) -> dict:
         """Get performance summary for UI."""
-        # conn via get_session()
-        try:
-            rows = conn.execute("""
+        with get_session() as session:
+            rows = session.execute(text("""
                 SELECT date, n_picks, n_wins, wr, total_pnl, avg_pnl
                 FROM discovery_performance
-                WHERE date >= date('now', ? || ' days')
+                WHERE date >= date('now', :d || ' days')
                 ORDER BY date DESC
-            """, (f'-{days}',)).fetchall()
-        finally:
-            pass
+            """), {'d': f'-{days}'}).fetchall()
 
         if not rows:
             return {'days': days, 'n_days': 0, 'wr': 0, 'pnl': 0}

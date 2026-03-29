@@ -170,12 +170,12 @@ class StrategyRouter:
     def _check_spy_pullback(self) -> bool:
         """Check if SPY had 2+ consecutive red days recently."""
         try:
-            # conn via get_session()
-            rows = conn.execute("""
-                SELECT spy_close FROM macro_snapshots
-                WHERE spy_close IS NOT NULL
-                ORDER BY date DESC LIMIT 3
-            """).fetchall()
+            with get_session() as session:
+                rows = session.execute(text("""
+                    SELECT spy_close FROM macro_snapshots
+                    WHERE spy_close IS NOT NULL
+                    ORDER BY date DESC LIMIT 3
+                """)).fetchall()
 
             if len(rows) >= 3:
                 # rows[0]=today, rows[1]=yesterday, rows[2]=day before

@@ -29,30 +29,30 @@ class OutcomeTracker:
         self._ensure_table()
 
     def _ensure_table(self):
-        # conn via get_session()
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS discovery_outcomes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                scan_date TEXT NOT NULL,
-                symbol TEXT NOT NULL,
-                predicted_er REAL,
-                predicted_wr REAL,
-                actual_return_d3 REAL,
-                actual_return_d5 REAL,
-                max_gain REAL,
-                max_dd REAL,
-                tp_hit INTEGER,
-                sl_hit INTEGER,
-                regime TEXT,
-                atr_pct REAL,
-                sector TEXT,
-                vix_close REAL,
-                scan_price REAL,
-                exit_price REAL,
-                created_at TEXT DEFAULT (datetime('now')),
-                UNIQUE(scan_date, symbol)
-            )
-        """)
+        with get_session() as session:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS discovery_outcomes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    scan_date TEXT NOT NULL,
+                    symbol TEXT NOT NULL,
+                    predicted_er REAL,
+                    predicted_wr REAL,
+                    actual_return_d3 REAL,
+                    actual_return_d5 REAL,
+                    max_gain REAL,
+                    max_dd REAL,
+                    tp_hit INTEGER,
+                    sl_hit INTEGER,
+                    regime TEXT,
+                    atr_pct REAL,
+                    sector TEXT,
+                    vix_close REAL,
+                    scan_price REAL,
+                    exit_price REAL,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    UNIQUE(scan_date, symbol)
+                )
+            """))
 
     def track_expired_picks(self) -> int:
         """Find picks that have expired/completed and record their outcomes.
@@ -63,21 +63,20 @@ class OutcomeTracker:
 
         Returns number of new outcomes tracked.
         """
-        # conn via get_session()
-
-        # Find picks that completed (not active) and not yet tracked
-        rows = conn.execute("""
-            SELECT p.scan_date, p.symbol, p.layer2_score, p.scan_price,
-                   p.current_price, p.sl_pct, p.tp1_pct, p.sl_price, p.tp1_price,
-                   p.status, p.sector, p.vix_close, p.atr_pct,
-                   p.expected_gain
-            FROM discovery_picks p
-            LEFT JOIN discovery_outcomes o ON p.scan_date = o.scan_date AND p.symbol = o.symbol
-            WHERE p.status IN ('replaced', 'expired', 'hit_tp1', 'hit_sl')
-              AND o.id IS NULL
-              AND p.scan_price > 0
-            ORDER BY p.scan_date
-        """).fetchall()
+        with get_session() as session:
+            # Find picks that completed (not active) and not yet tracked
+            rows = session.execute(text("""
+                SELECT p.scan_date, p.symbol, p.layer2_score, p.scan_price,
+                       p.current_price, p.sl_pct, p.tp1_pct, p.sl_price, p.tp1_price,
+                       p.status, p.sector, p.vix_close, p.atr_pct,
+                       p.expected_gain
+                FROM discovery_picks p
+                LEFT JOIN discovery_outcomes o ON p.scan_date = o.scan_date AND p.symbol = o.symbol
+                WHERE p.status IN ('replaced', 'expired', 'hit_tp1', 'hit_sl')
+                  AND o.id IS NULL
+                  AND p.scan_price > 0
+                ORDER BY p.scan_date
+            """)).mappings().fetchall()
 
         if not rows:
             return 0
@@ -103,13 +102,13 @@ class OutcomeTracker:
         tp_pct = pick['tp1_pct'] or 3.0
 
         # Try signal_daily_bars first (most accurate — intraday OHLC)
-        # conn via get_session()
-        bars = conn.execute("""
-            SELECT day_offset, open, high, low, close
-            FROM signal_daily_bars
-            WHERE scan_date = ? AND symbol = ?
-            ORDER BY day_offset
-        """, (scan_date, symbol)).fetchall()
+        with get_session() as session:
+            bars = session.execute(text("""
+                SELECT day_offset, open, high, low, close
+                FROM signal_daily_bars
+                WHERE scan_date = :p0 AND symbol = :p1
+                ORDER BY day_offset
+            """), {'p0': scan_date, 'p1': symbol}).fetchall()
 
         if bars and len(bars) >= 4:
             return self._outcome_from_bars(pick, bars)
@@ -239,27 +238,24 @@ class OutcomeTracker:
 
     def _save_outcome(self, outcome: dict):
         """Insert outcome into DB (UPSERT)."""
-        # conn via get_session()
-        try:
-            conn.execute("""
+        with get_session() as session:
+            session.execute(text("""
                 INSERT OR REPLACE INTO discovery_outcomes
                 (scan_date, symbol, predicted_er, predicted_wr,
                  actual_return_d3, actual_return_d5, max_gain, max_dd,
                  tp_hit, sl_hit, regime, atr_pct, sector, vix_close,
                  scan_price, exit_price)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                outcome['scan_date'], outcome['symbol'],
-                outcome['predicted_er'], outcome['predicted_wr'],
-                outcome['actual_return_d3'], outcome['actual_return_d5'],
-                outcome['max_gain'], outcome['max_dd'],
-                outcome['tp_hit'], outcome['sl_hit'],
-                outcome['regime'], outcome['atr_pct'],
-                outcome['sector'], outcome['vix_close'],
-                outcome['scan_price'], outcome['exit_price'],
-            ))
-        finally:
-            pass
+                VALUES (:p0, :p1, :p2, :p3, :p4, :p5, :p6, :p7, :p8, :p9, :p10, :p11, :p12, :p13, :p14, :p15)
+            """), {
+                'p0': outcome['scan_date'], 'p1': outcome['symbol'],
+                'p2': outcome['predicted_er'], 'p3': outcome['predicted_wr'],
+                'p4': outcome['actual_return_d3'], 'p5': outcome['actual_return_d5'],
+                'p6': outcome['max_gain'], 'p7': outcome['max_dd'],
+                'p8': outcome['tp_hit'], 'p9': outcome['sl_hit'],
+                'p10': outcome['regime'], 'p11': outcome['atr_pct'],
+                'p12': outcome['sector'], 'p13': outcome['vix_close'],
+                'p14': outcome['scan_price'], 'p15': outcome['exit_price'],
+            })
 
     def backfill_from_historical(self) -> int:
         """Backfill outcomes from backfill_signal_outcomes for historical calibration.
@@ -270,25 +266,24 @@ class OutcomeTracker:
 
         Returns number of outcomes inserted.
         """
-        # conn via get_session()
+        with get_session() as session:
+            # Check how many we already have
+            existing = session.execute(text("SELECT COUNT(*) FROM discovery_outcomes")).fetchone()[0]
+            if existing > 1000:
+                logger.info("OutcomeTracker: already have %d outcomes, skip backfill", existing)
+                return 0
 
-        # Check how many we already have
-        existing = conn.execute("SELECT COUNT(*) FROM discovery_outcomes").fetchone()[0]
-        if existing > 1000:
-            logger.info("OutcomeTracker: already have %d outcomes, skip backfill", existing)
-            return 0
-
-        # Pull from backfill_signal_outcomes with kernel-style features
-        # We don't have predicted_er for historical, but we can reconstruct regime from VIX
-        rows = conn.execute("""
-            SELECT scan_date, symbol, outcome_3d, outcome_5d,
-                   outcome_max_gain_5d, outcome_max_dd_5d,
-                   atr_pct, vix_at_signal, sector
-            FROM backfill_signal_outcomes
-            WHERE outcome_3d IS NOT NULL
-            ORDER BY scan_date DESC
-            LIMIT 5000
-        """).fetchall()
+            # Pull from backfill_signal_outcomes with kernel-style features
+            # We don't have predicted_er for historical, but we can reconstruct regime from VIX
+            rows = session.execute(text("""
+                SELECT scan_date, symbol, outcome_3d, outcome_5d,
+                       outcome_max_gain_5d, outcome_max_dd_5d,
+                       atr_pct, vix_at_signal, sector
+                FROM backfill_signal_outcomes
+                WHERE outcome_3d IS NOT NULL
+                ORDER BY scan_date DESC
+                LIMIT 5000
+            """)).fetchall()
 
         if not rows:
             return 0
@@ -316,15 +311,15 @@ class OutcomeTracker:
             sl_hit = 1 if (mdd or 0) <= -sl_pct else 0
 
             try:
-                conn.execute("""
+                session.execute(text("""
                     INSERT OR IGNORE INTO discovery_outcomes
                     (scan_date, symbol, predicted_er, predicted_wr,
                      actual_return_d3, actual_return_d5, max_gain, max_dd,
                      tp_hit, sl_hit, regime, atr_pct, sector, vix_close,
                      scan_price, exit_price)
-                    VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)
-                """, (scan_date, symbol, o3d, o5d, mg, mdd,
-                      tp_hit, sl_hit, regime, atr, sector, vix))
+                    VALUES (:p0, :p1, NULL, NULL, :p2, :p3, :p4, :p5, :p6, :p7, :p8, :p9, :p10, :p11, NULL, NULL)
+                """), {'p0': scan_date, 'p1': symbol, 'p2': o3d, 'p3': o5d, 'p4': mg, 'p5': mdd,
+                       'p6': tp_hit, 'p7': sl_hit, 'p8': regime, 'p9': atr, 'p10': sector, 'p11': vix})
                 inserted += 1
             except Exception:
                 pass

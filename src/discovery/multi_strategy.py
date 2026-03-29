@@ -1,5 +1,5 @@
 """
-Multi-Strategy Discovery v15.2 — 4 strategies ranked by volume.
+Multi-Strategy Discovery v15.2 -- 4 strategies ranked by volume.
 
 v17 DEPRECATION NOTE:
   When v17.enabled=true in discovery.yaml, the hardcoded strategy functions below
@@ -12,15 +12,15 @@ v17 DEPRECATION NOTE:
   - detect_condition() still used by engine.py for scan_info
 
 Strategies (validated on 75K signals, Sharpe=1.50):
-  DIP:        Buy quality dips (-3% to -15%) — $/trade=+$0.26
-  OVERSOLD:   Buy extreme oversold (< -5%) — $/trade=+$0.61
-  VALUE:      Buy cheap quality (PE < 15) — $/trade=+$0.49
-  CONTRARIAN: Buy best in worst sector — $/trade=+$0.91 (best)
+  DIP:        Buy quality dips (-3% to -15%) -- $/trade=+$0.26
+  OVERSOLD:   Buy extreme oversold (< -5%) -- $/trade=+$0.61
+  VALUE:      Buy cheap quality (PE < 15) -- $/trade=+$0.49
+  CONTRARIAN: Buy best in worst sector -- $/trade=+$0.91 (best)
 
-Ranking: volume_ratio desc (confirmed via sim: Sharpe 1.13 vs 0.56 ATR×depth)
+Ranking: volume_ratio desc (confirmed via sim: Sharpe 1.13 vs 0.56 ATR*depth)
 Max 2 per strategy, 8 total picks.
-SL = 0.8×ATR (floor 1.5%, cap 3.5%)
-TP = 2×ATR (floor 2%, cap 5%)
+SL = 0.8*ATR (floor 1.5%, cap 3.5%)
+TP = 2*ATR (floor 2%, cap 5%)
 
 Walk-forward learns which strategy works best per condition (BULL/NORMAL/STRESS).
 Auto-refit every 30 days.
@@ -59,7 +59,7 @@ def _vol(s):
 def _beta(s):
     return _safe(s.get('beta'), 1)
 
-# v17: All thresholds below are DEFAULTS — overridden by learned params when available.
+# v17: All thresholds below are DEFAULTS -- overridden by learned params when available.
 # StrategySelector.fit() learns optimal thresholds per condition via grid search.
 STRATEGY_DEFAULTS = {
     'quality': {'max_vol': 3.0, 'min_mcap_b': 30},
@@ -85,7 +85,7 @@ def _filter_quality(stocks, params=None):
 
 
 def strategy_dip(stocks, macro=None, params=None):
-    """DIP BOUNCE: หุ้นลง, beta ต่ำ, volume OK. v17: thresholds learned."""
+    """DIP BOUNCE: buy dips, low beta, volume OK. v17: thresholds learned."""
     p = params or STRATEGY_DEFAULTS['DIP']
     picks = [s for s in _filter_quality(stocks, params)
              if p.get('mom_min', -15) < _mom5(s) < p.get('mom_max', -3)
@@ -95,7 +95,7 @@ def strategy_dip(stocks, macro=None, params=None):
 
 
 def strategy_oversold(stocks, macro=None, params=None):
-    """OVERSOLD EXTREME: หุ้นลงหนักมาก, far from 20d high. v17: thresholds learned."""
+    """OVERSOLD EXTREME: very heavy drops, far from 20d high. v17: thresholds learned."""
     p = params or STRATEGY_DEFAULTS['OVERSOLD']
     picks = [s for s in _filter_quality(stocks, params)
              if _mom5(s) < p.get('mom_max', -5)
@@ -105,7 +105,7 @@ def strategy_oversold(stocks, macro=None, params=None):
 
 
 def strategy_value(stocks, macro=None, params=None):
-    """VALUE: PE ต่ำ, ไม่ลงเยอะ, quality. v17: thresholds learned."""
+    """VALUE: low PE, not dropping much, quality. v17: thresholds learned."""
     p = params or STRATEGY_DEFAULTS['VALUE']
     picks = [s for s in _filter_quality(stocks, params)
              if s.get('pe_forward') is not None
@@ -117,7 +117,7 @@ def strategy_value(stocks, macro=None, params=None):
 
 
 def strategy_contrarian(stocks, macro=None, params=None):
-    """SECTOR CONTRARIAN: ซื้อหุ้นดีที่สุดใน worst sector. v17: thresholds learned."""
+    """SECTOR CONTRARIAN: buy best stock in worst sector. v17: thresholds learned."""
     p = params or STRATEGY_DEFAULTS['CONTRARIAN']
     sector_rets = defaultdict(list)
     for s in stocks:
@@ -135,7 +135,7 @@ def strategy_contrarian(stocks, macro=None, params=None):
 
 
 def strategy_vol_u(stocks, macro=None, params=None):
-    """VOL U-SHAPE: volume ต่ำมากหรือสูงมาก = bounce signal. v17: thresholds learned."""
+    """VOL U-SHAPE: very low or very high volume = bounce signal. v17: thresholds learned."""
     p = params or STRATEGY_DEFAULTS['VOL_U']
     picks = [s for s in _filter_quality(stocks, params)
              if (_vol(s) < p.get('vol_low', 0.5) or _vol(s) > p.get('vol_high', 2.0))
@@ -144,7 +144,7 @@ def strategy_vol_u(stocks, macro=None, params=None):
 
 
 def strategy_relative_strength(stocks, macro=None, params=None):
-    """RELATIVE STRENGTH: หุ้นที่ยังขึ้นในตลาดที่ลง. v17: thresholds learned."""
+    """RELATIVE STRENGTH: stocks still going up in down market. v17: thresholds learned."""
     p = params or STRATEGY_DEFAULTS['RS']
     picks = [s for s in _filter_quality(stocks, params)
              if _mom5(s) > p.get('min_mom5', 0)
@@ -164,7 +164,7 @@ STRATEGIES = {
     'RS':         {'fn': strategy_relative_strength, 'desc': 'Relative strength (up in down market)'},
 }
 
-# v15.2: SL/TP from ATR (sim validated: SL=0.8×ATR cap 3.5%, TP=2×ATR cap 5%)
+# v15.2: SL/TP from ATR (sim validated: SL=0.8*ATR cap 3.5%, TP=2*ATR cap 5%)
 STRATEGY_SLTP = {
     'DIP':        {'sl_pct': 3.5, 'tp_pct': 5.0},
     'OVERSOLD':   {'sl_pct': 3.5, 'tp_pct': 5.0},
@@ -174,13 +174,13 @@ STRATEGY_SLTP = {
     'RS':         {'sl_pct': 3.5, 'tp_pct': 5.0},
 }
 
-# v16.1: Regime → preferred strategy map
+# v16.1: Regime -> preferred strategy map
 # v17 DEPRECATED: Replaced by SectorScorer learned sector ranking.
 # Updated from backtest 2026-03-24:
-#   STRONG_DOWN: DIP/OVERSOLD work (61% WR — post-crash bounce) — keep
-#   MILD_DOWN: DIP fails (42%) → RS wins (54%) — SWITCH
-#   MILD_UP: DIP weak (51%) → RS better (56%) — SWITCH
-#   STRONG_UP/CHOPPY: DIP/VOL_U work — keep
+#   STRONG_DOWN: DIP/OVERSOLD work (61% WR -- post-crash bounce) -- keep
+#   MILD_DOWN: DIP fails (42%) -> RS wins (54%) -- SWITCH
+#   MILD_UP: DIP weak (51%) -> RS better (56%) -- SWITCH
+#   STRONG_UP/CHOPPY: DIP/VOL_U work -- keep
 REGIME_STRATEGY_MAP = {
     ('STRONG_UP', 'HIGH_VOL'):     'DIP',
     ('STRONG_UP', 'ELEVATED'):     'VOL_U',
@@ -198,9 +198,9 @@ REGIME_STRATEGY_MAP = {
     ('MILD_DOWN', 'ELEVATED'):     'RS',        # v16.1: RS beats DIP in mild down
     ('MILD_DOWN', 'NORMAL_VOL'):   'RS',        # v16.1: RS 54% vs DIP 42%
     ('MILD_DOWN', 'LOW_VOL'):      'RS',        # v16.1: don't catch falling knives
-    ('STRONG_DOWN', 'HIGH_VOL'):   'DIP',       # v16.1: keep — post-crash bounce 61%
-    ('STRONG_DOWN', 'ELEVATED'):   'DIP',       # v16.1: keep — oversold bounce works
-    ('STRONG_DOWN', 'NORMAL_VOL'): 'OVERSOLD',  # keep — deep oversold bounce
+    ('STRONG_DOWN', 'HIGH_VOL'):   'DIP',       # v16.1: keep -- post-crash bounce 61%
+    ('STRONG_DOWN', 'ELEVATED'):   'DIP',       # v16.1: keep -- oversold bounce works
+    ('STRONG_DOWN', 'NORMAL_VOL'): 'OVERSOLD',  # keep -- deep oversold bounce
     ('STRONG_DOWN', 'LOW_VOL'):    'OVERSOLD',
 }
 
@@ -290,7 +290,7 @@ class StrategySelector:
 
     def __init__(self, adaptive_params=None):
         self._adaptive = adaptive_params  # v17: for learned quality thresholds
-        self._best_by_condition = {}  # condition → strategy name
+        self._best_by_condition = {}  # condition -> strategy name
         self._learned_params = {}     # v17: {strategy_name: {param: value}}
         self._fit_stats = {}
         self._fitted = False
@@ -350,7 +350,7 @@ class StrategySelector:
                     best_name = strat_name
 
             self._best_by_condition[condition] = best_name
-            logger.info("StrategySelector: %s → %s (sharpe=%.3f)",
+            logger.info("StrategySelector: %s -> %s (sharpe=%.3f)",
                         condition, best_name, best_sharpe)
 
         # v17: Learn optimal thresholds per strategy via grid search
@@ -361,7 +361,7 @@ class StrategySelector:
         self.save_to_db()
 
         elapsed = time.time() - t0
-        logger.info("StrategySelector: fitted in %.1fs — %s params=%s", elapsed,
+        logger.info("StrategySelector: fitted in %.1fs -- %s params=%s", elapsed,
                      self._best_by_condition,
                      {k: len(v) for k, v in self._learned_params.items()})
         return True
@@ -560,7 +560,7 @@ class StrategySelector:
                 p['_strategy'] = name
                 all_picks.append((name, p))
 
-        # v16: regime-adaptive sorting — preferred strategy first, then volume desc
+        # v16: regime-adaptive sorting -- preferred strategy first, then volume desc
         if market_regime:
             preferred = REGIME_STRATEGY_MAP.get(market_regime, 'DIP')
             all_picks.sort(key=lambda x: (
@@ -600,25 +600,25 @@ class StrategySelector:
 
     def _load_data(self, max_date=None):
         """Load stock data with forward returns for strategy backtesting."""
-        # conn via get_session()
-        date_filter = f"AND s.date <= '{max_date}'" if max_date else ""
-        rows = conn.execute(f"""
-            SELECT s.symbol, s.date, s.close, sf.sector, sf.beta,
-                   sf.pe_forward, sf.market_cap, sf.avg_volume,
-                   LAG(s.close, 5) OVER (PARTITION BY s.symbol ORDER BY s.date) as c5a,
-                   LAG(s.close, 20) OVER (PARTITION BY s.symbol ORDER BY s.date) as c20a,
-                   LEAD(s.close, 5) OVER (PARTITION BY s.symbol ORDER BY s.date) as c5f,
-                   s.high, s.low, s.volume,
-                   m.vix_close, mb.pct_above_20d_ma
-            FROM stock_daily_ohlc s
-            JOIN stock_fundamentals sf ON s.symbol = sf.symbol
-            LEFT JOIN macro_snapshots m ON s.date = m.date
-            LEFT JOIN market_breadth mb ON s.date = mb.date
-            WHERE s.close > 0 AND sf.market_cap > 3e9 AND sf.avg_volume > 100000
-            AND m.vix_close IS NOT NULL AND s.date >= date('now', '-15 months')
-            {date_filter}
-            ORDER BY s.symbol, s.date
-        """).fetchall()
+        with get_session() as session:
+            date_filter = f"AND s.date <= '{max_date}'" if max_date else ""
+            rows = session.execute(text(f"""
+                SELECT s.symbol, s.date, s.close, sf.sector, sf.beta,
+                       sf.pe_forward, sf.market_cap, sf.avg_volume,
+                       LAG(s.close, 5) OVER (PARTITION BY s.symbol ORDER BY s.date) as c5a,
+                       LAG(s.close, 20) OVER (PARTITION BY s.symbol ORDER BY s.date) as c20a,
+                       LEAD(s.close, 5) OVER (PARTITION BY s.symbol ORDER BY s.date) as c5f,
+                       s.high, s.low, s.volume,
+                       m.vix_close, mb.pct_above_20d_ma
+                FROM stock_daily_ohlc s
+                JOIN stock_fundamentals sf ON s.symbol = sf.symbol
+                LEFT JOIN macro_snapshots m ON s.date = m.date
+                LEFT JOIN market_breadth mb ON s.date = mb.date
+                WHERE s.close > 0 AND sf.market_cap > 3e9 AND sf.avg_volume > 100000
+                AND m.vix_close IS NOT NULL AND s.date >= date('now', '-15 months')
+                {date_filter}
+                ORDER BY s.symbol, s.date
+            """)).fetchall()
 
         data = []
         for r in rows:
@@ -647,106 +647,106 @@ class StrategySelector:
     # === DB Persistence ===
 
     def _ensure_tables(self):
-        # conn via get_session()
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS strategy_selection (
-                condition TEXT NOT NULL,
-                strategy_name TEXT NOT NULL,
-                sharpe REAL,
-                avg_return REAL,
-                win_rate REAL,
-                n_days INTEGER,
-                fit_date TEXT DEFAULT (date('now')),
-                UNIQUE(condition)
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS discovery_strategy_picks (
-                scan_date TEXT NOT NULL,
-                strategy_name TEXT NOT NULL,
-                rank INTEGER,
-                symbol TEXT NOT NULL,
-                score REAL,
-                rationale TEXT,
-                UNIQUE(scan_date, strategy_name, symbol)
-            )
-        """)
+        with get_session() as session:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS strategy_selection (
+                    condition TEXT NOT NULL,
+                    strategy_name TEXT NOT NULL,
+                    sharpe REAL,
+                    avg_return REAL,
+                    win_rate REAL,
+                    n_days INTEGER,
+                    fit_date TEXT DEFAULT (date('now')),
+                    UNIQUE(condition)
+                )
+            """))
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS discovery_strategy_picks (
+                    scan_date TEXT NOT NULL,
+                    strategy_name TEXT NOT NULL,
+                    rank INTEGER,
+                    symbol TEXT NOT NULL,
+                    score REAL,
+                    rationale TEXT,
+                    UNIQUE(scan_date, strategy_name, symbol)
+                )
+            """))
 
     def save_to_db(self):
         import json as _json
-        # conn via get_session()
-        for condition, strat_name in self._best_by_condition.items():
-            stats = self._fit_stats.get((condition, strat_name), {})
-            conn.execute("""
-                INSERT OR REPLACE INTO strategy_selection
-                (condition, strategy_name, sharpe, avg_return, win_rate, n_days)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (condition, strat_name,
-                  stats.get('sharpe'), stats.get('avg'),
-                  stats.get('wr'), stats.get('n')))
-        # v17: Save ALL fit_stats (every condition×strategy Sharpe)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS strategy_fit_stats (
-                condition TEXT NOT NULL,
-                strategy_name TEXT NOT NULL,
-                sharpe REAL, avg_return REAL, win_rate REAL, n INTEGER,
-                fit_date TEXT DEFAULT (date('now')),
-                UNIQUE(condition, strategy_name)
-            )
-        """)
-        for (condition, strat_name), stats in self._fit_stats.items():
-            conn.execute("""
-                INSERT OR REPLACE INTO strategy_fit_stats
-                (condition, strategy_name, sharpe, avg_return, win_rate, n)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (condition, strat_name,
-                  stats.get('sharpe'), stats.get('avg'),
-                  stats.get('wr'), stats.get('n')))
-        # v17: Save learned strategy thresholds
-        if self._learned_params:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS strategy_learned_params (
-                    strategy_name TEXT NOT NULL PRIMARY KEY,
-                    params_json TEXT NOT NULL,
-                    fit_date TEXT DEFAULT (date('now'))
+        with get_session() as session:
+            for condition, strat_name in self._best_by_condition.items():
+                stats = self._fit_stats.get((condition, strat_name), {})
+                session.execute(text("""
+                    INSERT OR REPLACE INTO strategy_selection
+                    (condition, strategy_name, sharpe, avg_return, win_rate, n_days)
+                    VALUES (:p0, :p1, :p2, :p3, :p4, :p5)
+                """), {'p0': condition, 'p1': strat_name,
+                       'p2': stats.get('sharpe'), 'p3': stats.get('avg'),
+                       'p4': stats.get('wr'), 'p5': stats.get('n')})
+            # v17: Save ALL fit_stats (every condition*strategy Sharpe)
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS strategy_fit_stats (
+                    condition TEXT NOT NULL,
+                    strategy_name TEXT NOT NULL,
+                    sharpe REAL, avg_return REAL, win_rate REAL, n INTEGER,
+                    fit_date TEXT DEFAULT (date('now')),
+                    UNIQUE(condition, strategy_name)
                 )
-            """)
-            for strat, params in self._learned_params.items():
-                conn.execute("""
-                    INSERT OR REPLACE INTO strategy_learned_params
-                    (strategy_name, params_json) VALUES (?, ?)
-                """, (strat, _json.dumps(params)))
+            """))
+            for (condition, strat_name), stats in self._fit_stats.items():
+                session.execute(text("""
+                    INSERT OR REPLACE INTO strategy_fit_stats
+                    (condition, strategy_name, sharpe, avg_return, win_rate, n)
+                    VALUES (:p0, :p1, :p2, :p3, :p4, :p5)
+                """), {'p0': condition, 'p1': strat_name,
+                       'p2': stats.get('sharpe'), 'p3': stats.get('avg'),
+                       'p4': stats.get('wr'), 'p5': stats.get('n')})
+            # v17: Save learned strategy thresholds
+            if self._learned_params:
+                session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS strategy_learned_params (
+                        strategy_name TEXT NOT NULL PRIMARY KEY,
+                        params_json TEXT NOT NULL,
+                        fit_date TEXT DEFAULT (date('now'))
+                    )
+                """))
+                for strat, params in self._learned_params.items():
+                    session.execute(text("""
+                        INSERT OR REPLACE INTO strategy_learned_params
+                        (strategy_name, params_json) VALUES (:p0, :p1)
+                    """), {'p0': strat, 'p1': _json.dumps(params)})
 
     def load_from_db(self):
         import json as _json
-        # conn via get_session()
-        rows = conn.execute(
-            "SELECT condition, strategy_name FROM strategy_selection").fetchall()
-        if not rows:
-            return False
-        self._best_by_condition = {r[0]: r[1] for r in rows}
-        # v17: Load learned thresholds
-        try:
-            param_rows = conn.execute(
-                "SELECT strategy_name, params_json FROM strategy_learned_params"
-            ).fetchall()
-            self._learned_params = {r[0]: _json.loads(r[1]) for r in param_rows}
-        except Exception:
-            self._learned_params = {}
-        # v17: Load ALL fit_stats (condition×strategy Sharpe for ML ranking)
-        try:
-            stat_rows = conn.execute(
-                "SELECT condition, strategy_name, sharpe, avg_return, win_rate, n "
-                "FROM strategy_fit_stats"
-            ).fetchall()
-            for r in stat_rows:
-                self._fit_stats[(r[0], r[1])] = {
-                    'sharpe': r[2], 'avg': r[3], 'wr': r[4], 'n': r[5]}
-        except Exception:
-            pass  # table may not exist yet
+        with get_session() as session:
+            rows = session.execute(text(
+                "SELECT condition, strategy_name FROM strategy_selection")).fetchall()
+            if not rows:
+                return False
+            self._best_by_condition = {r[0]: r[1] for r in rows}
+            # v17: Load learned thresholds
+            try:
+                param_rows = session.execute(text(
+                    "SELECT strategy_name, params_json FROM strategy_learned_params"
+                )).fetchall()
+                self._learned_params = {r[0]: _json.loads(r[1]) for r in param_rows}
+            except Exception:
+                self._learned_params = {}
+            # v17: Load ALL fit_stats (condition*strategy Sharpe for ML ranking)
+            try:
+                stat_rows = session.execute(text(
+                    "SELECT condition, strategy_name, sharpe, avg_return, win_rate, n "
+                    "FROM strategy_fit_stats"
+                )).fetchall()
+                for r in stat_rows:
+                    self._fit_stats[(r[0], r[1])] = {
+                        'sharpe': r[2], 'avg': r[3], 'wr': r[4], 'n': r[5]}
+            except Exception:
+                pass  # table may not exist yet
         self._fitted = True
         self._fit_time = time.time()
-        logger.info("StrategySelector: loaded from DB — %s learned_params=%s",
+        logger.info("StrategySelector: loaded from DB -- %s learned_params=%s",
                      self._best_by_condition,
                      {k: len(v) for k, v in self._learned_params.items()})
         return True
@@ -754,26 +754,27 @@ class StrategySelector:
     def save_picks(self, scan_date, all_picks):
         """Save all strategies' picks for UI display."""
         import json
-        # conn via get_session()
-        conn.execute(
-            "DELETE FROM discovery_strategy_picks WHERE scan_date=?",
-            (scan_date,))
-        for strat_name, picks in all_picks.items():
-            for rank, p in enumerate(picks, 1):
-                mom = _safe(p.get('mom_5d', p.get('momentum_5d')), 0)
-                sector = p.get('sector', '')
-                beta = _safe(p.get('beta'), 1)
-                pe = p.get('pe_forward')
-                rationale = json.dumps({
-                    'sector': sector, 'mom_5d': round(mom, 1),
-                    'beta': round(beta, 2), 'pe': round(pe, 0) if pe else None,
-                })
-                conn.execute("""
-                    INSERT OR REPLACE INTO discovery_strategy_picks
-                    (scan_date, strategy_name, rank, symbol, score, rationale)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (scan_date, strat_name, rank, p.get('symbol', ''),
-                      round(mom, 1), rationale))
+        with get_session() as session:
+            session.execute(text(
+                "DELETE FROM discovery_strategy_picks WHERE scan_date=:p0"),
+                {'p0': scan_date})
+            for strat_name, picks in all_picks.items():
+                for rank, p in enumerate(picks, 1):
+                    mom = _safe(p.get('mom_5d', p.get('momentum_5d')), 0)
+                    sector = p.get('sector', '')
+                    beta = _safe(p.get('beta'), 1)
+                    pe = p.get('pe_forward')
+                    rationale = json.dumps({
+                        'sector': sector, 'mom_5d': round(mom, 1),
+                        'beta': round(beta, 2), 'pe': round(pe, 0) if pe else None,
+                    })
+                    session.execute(text("""
+                        INSERT OR REPLACE INTO discovery_strategy_picks
+                        (scan_date, strategy_name, rank, symbol, score, rationale)
+                        VALUES (:p0, :p1, :p2, :p3, :p4, :p5)
+                    """), {'p0': scan_date, 'p1': strat_name, 'p2': rank,
+                           'p3': p.get('symbol', ''), 'p4': round(mom, 1),
+                           'p5': rationale})
 
     def get_stats(self):
         return {

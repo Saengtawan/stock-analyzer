@@ -256,61 +256,62 @@ class DiscoveryEngine:
 
     def get_stats(self) -> dict:
         """Historical performance statistics from picks with filled outcomes."""
-        # conn via get_session()
-
-        stats_row = conn.execute("""
-            SELECT COUNT(*) as total,
-                   SUM(CASE WHEN outcome_5d > 0 THEN 1 ELSE 0 END) as wins_5d,
-                   SUM(CASE WHEN outcome_5d IS NOT NULL THEN 1 ELSE 0 END) as has_outcome,
-                   AVG(outcome_1d) as avg_1d, AVG(outcome_5d) as avg_5d,
-                   AVG(outcome_max_gain_5d) as avg_max_gain,
-                   AVG(outcome_max_dd_5d) as avg_max_dd,
-                   SUM(CASE WHEN status='hit_tp1' THEN 1 ELSE 0 END) as tp1_hits,
-                   SUM(CASE WHEN status='hit_sl' THEN 1 ELSE 0 END) as sl_hits
-            FROM discovery_picks
-        """).fetchone()
-
-        sector_rows = conn.execute("""
-            SELECT sector, COUNT(*) as n,
-                   SUM(CASE WHEN outcome_5d > 0 THEN 1 ELSE 0 END) as wins,
-                   AVG(outcome_5d) as avg_5d
-            FROM discovery_picks WHERE outcome_5d IS NOT NULL
-            GROUP BY sector ORDER BY n DESC
-        """).fetchall()
-
-        tier_rows = conn.execute("""
-            SELECT CASE
-                WHEN layer2_score < 10 THEN
-                    CASE WHEN layer2_score >= 2.0 THEN 'A+'
-                         WHEN layer2_score >= 1.0 THEN 'A'
-                         WHEN layer2_score >= 0.5 THEN 'B' ELSE 'C' END
-                ELSE
-                    CASE WHEN layer2_score >= 80 THEN 'A+'
-                         WHEN layer2_score >= 70 THEN 'A'
-                         WHEN layer2_score >= 60 THEN 'B' ELSE 'C' END
-                END as tier, COUNT(*) as n,
-                SUM(CASE WHEN outcome_5d > 0 THEN 1 ELSE 0 END) as wins,
-                AVG(outcome_5d) as avg_5d
-            FROM discovery_picks WHERE outcome_5d IS NOT NULL
-            GROUP BY tier ORDER BY tier
-        """).fetchall()
-
-        active_sectors = conn.execute("""
-            SELECT sector, COUNT(*) as n FROM discovery_picks
-            WHERE status = 'active' GROUP BY sector ORDER BY n DESC
-        """).fetchall()
-
-        try:
-            bench_row = conn.execute("""
-                SELECT AVG(outcome_5d) as picks_avg,
-                       AVG(benchmark_xlu_5d) as xlu_avg,
-                       AVG(benchmark_xle_5d) as xle_avg,
-                       AVG(benchmark_spy_5d) as spy_avg, COUNT(*) as n
+        with get_session() as session:
+            stats_row = session.execute(text("""
+                SELECT COUNT(*) as total,
+                       SUM(CASE WHEN outcome_5d > 0 THEN 1 ELSE 0 END) as wins_5d,
+                       SUM(CASE WHEN outcome_5d IS NOT NULL THEN 1 ELSE 0 END) as has_outcome,
+                       AVG(outcome_1d) as avg_1d, AVG(outcome_5d) as avg_5d,
+                       AVG(outcome_max_gain_5d) as avg_max_gain,
+                       AVG(outcome_max_dd_5d) as avg_max_dd,
+                       SUM(CASE WHEN status='hit_tp1' THEN 1 ELSE 0 END) as tp1_hits,
+                       SUM(CASE WHEN status='hit_sl' THEN 1 ELSE 0 END) as sl_hits
                 FROM discovery_picks
-                WHERE outcome_5d IS NOT NULL AND benchmark_spy_5d IS NOT NULL
-            """).fetchone()
-        except Exception:
-            bench_row = None
+            """)).fetchone()
+            stats_row = dict(stats_row._mapping) if stats_row else {}
+
+            sector_rows = session.execute(text("""
+                SELECT sector, COUNT(*) as n,
+                       SUM(CASE WHEN outcome_5d > 0 THEN 1 ELSE 0 END) as wins,
+                       AVG(outcome_5d) as avg_5d
+                FROM discovery_picks WHERE outcome_5d IS NOT NULL
+                GROUP BY sector ORDER BY n DESC
+            """)).mappings().fetchall()
+
+            tier_rows = session.execute(text("""
+                SELECT CASE
+                    WHEN layer2_score < 10 THEN
+                        CASE WHEN layer2_score >= 2.0 THEN 'A+'
+                             WHEN layer2_score >= 1.0 THEN 'A'
+                             WHEN layer2_score >= 0.5 THEN 'B' ELSE 'C' END
+                    ELSE
+                        CASE WHEN layer2_score >= 80 THEN 'A+'
+                             WHEN layer2_score >= 70 THEN 'A'
+                             WHEN layer2_score >= 60 THEN 'B' ELSE 'C' END
+                    END as tier, COUNT(*) as n,
+                    SUM(CASE WHEN outcome_5d > 0 THEN 1 ELSE 0 END) as wins,
+                    AVG(outcome_5d) as avg_5d
+                FROM discovery_picks WHERE outcome_5d IS NOT NULL
+                GROUP BY tier ORDER BY tier
+            """)).mappings().fetchall()
+
+            active_sectors = session.execute(text("""
+                SELECT sector, COUNT(*) as n FROM discovery_picks
+                WHERE status = 'active' GROUP BY sector ORDER BY n DESC
+            """)).mappings().fetchall()
+
+            try:
+                bench_row = session.execute(text("""
+                    SELECT AVG(outcome_5d) as picks_avg,
+                           AVG(benchmark_xlu_5d) as xlu_avg,
+                           AVG(benchmark_xle_5d) as xle_avg,
+                           AVG(benchmark_spy_5d) as spy_avg, COUNT(*) as n
+                    FROM discovery_picks
+                    WHERE outcome_5d IS NOT NULL AND benchmark_spy_5d IS NOT NULL
+                """)).fetchone()
+                bench_row = dict(bench_row._mapping) if bench_row else None
+            except Exception:
+                bench_row = None
 
         total = stats_row['total'] or 0
         has_outcome = stats_row['has_outcome'] or 0
@@ -373,11 +374,11 @@ class DiscoveryEngine:
         # TREND from SPY vs 50MA + 20d slope
         trend = 'CHOPPY'
         try:
-            # conn via get_session()
-            rows = conn.execute(
-                "SELECT close FROM stock_daily_ohlc "
-                "WHERE symbol='SPY' ORDER BY date DESC LIMIT 50"
-            ).fetchall()
+            with get_session() as session:
+                rows = session.execute(text(
+                    "SELECT close FROM stock_daily_ohlc "
+                    "WHERE symbol='SPY' ORDER BY date DESC LIMIT 50"
+                )).fetchall()
 
             if len(rows) >= 50:
                 spy_now = rows[0][0]
@@ -1247,59 +1248,58 @@ class DiscoveryEngine:
             return None
 
     def _load_universe(self) -> dict:
-        # conn via get_session()
-        rows = conn.execute("""
-            SELECT symbol, beta, pe_forward, market_cap, sector, avg_volume
-            FROM stock_fundamentals
-            WHERE market_cap > 1e9 AND avg_volume > 100000
-        """).fetchall()
-        return {r['symbol']: dict(r) for r in rows}
+        with get_session() as session:
+            rows = session.execute(text("""
+                SELECT symbol, beta, pe_forward, market_cap, sector, avg_volume
+                FROM stock_fundamentals
+                WHERE market_cap > 1e9 AND avg_volume > 100000
+            """)).mappings().fetchall()
+            return {r['symbol']: dict(r) for r in rows}
 
     def _load_macro(self, scan_date: str) -> dict:
         """Load latest macro/breadth data + compute derived stress features."""
-        # conn via get_session()
+        with get_session() as session:
+            macro_row = session.execute(text("""
+                SELECT m.vix_close, m.vix3m_close, m.gold_close, m.crude_close, m.hyg_close,
+                       m.dxy_close, m.yield_spread, m.yield_10y, m.spy_close,
+                       b.pct_above_20d_ma, b.new_52w_highs, b.new_52w_lows, b.ad_ratio
+                FROM macro_snapshots m
+                LEFT JOIN market_breadth b ON m.date = b.date
+                ORDER BY m.date DESC LIMIT 1
+            """)).mappings().fetchone()
 
-        macro_row = conn.execute("""
-            SELECT m.vix_close, m.vix3m_close, m.gold_close, m.crude_close, m.hyg_close,
-                   m.dxy_close, m.yield_spread, m.yield_10y, m.spy_close,
-                   b.pct_above_20d_ma, b.new_52w_highs, b.new_52w_lows, b.ad_ratio
-            FROM macro_snapshots m
-            LEFT JOIN market_breadth b ON m.date = b.date
-            ORDER BY m.date DESC LIMIT 1
-        """).fetchone()
+            if not macro_row:
+                logger.warning("Discovery: no macro data found, using defaults")
+                return {'vix_close': 20, 'spy_close': 500, 'pct_above_20d_ma': 50,
+                        'crude_close': 75, 'yield_10y': 4, 'vix3m_close': 22}
 
-        if not macro_row:
-            logger.warning("Discovery: no macro data found, using defaults")
-            return {'vix_close': 20, 'spy_close': 500, 'pct_above_20d_ma': 50,
-                    'crude_close': 75, 'yield_10y': 4, 'vix3m_close': 22}
+            result = dict(macro_row)
 
-        result = dict(macro_row)
+            vix = result.get('vix_close', 20)
+            vix3m = result.get('vix3m_close', 20)
+            result['vix_term_structure'] = vix3m / vix if vix and vix > 0 else 1.0
+            result['vix_term_spread'] = round(vix - vix3m, 4) if vix and vix3m else 0.0
 
-        vix = result.get('vix_close', 20)
-        vix3m = result.get('vix3m_close', 20)
-        result['vix_term_structure'] = vix3m / vix if vix and vix > 0 else 1.0
-        result['vix_term_spread'] = round(vix - vix3m, 4) if vix and vix3m else 0.0
+            highs = result.get('new_52w_highs', 100)
+            lows = result.get('new_52w_lows', 100)
+            result['highs_lows_ratio'] = highs / max(lows, 1) if highs is not None and lows is not None else 1.0
 
-        highs = result.get('new_52w_highs', 100)
-        lows = result.get('new_52w_lows', 100)
-        result['highs_lows_ratio'] = highs / max(lows, 1) if highs is not None and lows is not None else 1.0
+            # 5-day deltas
+            macro_5d = session.execute(text("""
+                SELECT vix_close, dxy_close, crude_close FROM macro_snapshots
+                ORDER BY date DESC LIMIT 1 OFFSET 5
+            """)).mappings().fetchone()
 
-        # 5-day deltas
-        macro_5d = conn.execute("""
-            SELECT vix_close, dxy_close, crude_close FROM macro_snapshots
-            ORDER BY date DESC LIMIT 1 OFFSET 5
-        """).fetchone()
+            breadth_5d = session.execute(text("""
+                SELECT pct_above_20d_ma FROM market_breadth
+                ORDER BY date DESC LIMIT 1 OFFSET 5
+            """)).mappings().fetchone()
 
-        breadth_5d = conn.execute("""
-            SELECT pct_above_20d_ma FROM market_breadth
-            ORDER BY date DESC LIMIT 1 OFFSET 5
-        """).fetchone()
-
-        # v14.0: BTC 3-day ago for leading signal
-        btc_3d_row = conn.execute("""
-            SELECT btc_close FROM macro_snapshots
-            WHERE btc_close IS NOT NULL ORDER BY date DESC LIMIT 1 OFFSET 3
-        """).fetchone()
+            # v14.0: BTC 3-day ago for leading signal
+            btc_3d_row = session.execute(text("""
+                SELECT btc_close FROM macro_snapshots
+                WHERE btc_close IS NOT NULL ORDER BY date DESC LIMIT 1 OFFSET 3
+            """)).fetchone()
 
         if macro_5d and macro_5d['vix_close'] and vix:
             result['vix_delta_5d'] = round(vix - macro_5d['vix_close'], 2)
@@ -1357,77 +1357,79 @@ class DiscoveryEngine:
             return
 
         symbols = [c['symbol'] for c in candidates]
-        placeholders = ','.join('?' * len(symbols))
-        # conn via get_session()
+        sym_params = {f's{i}': s for i, s in enumerate(symbols)}
+        sym_placeholders = ','.join(f':s{i}' for i in range(len(symbols)))
 
-        analyst = {r['symbol']: dict(r) for r in conn.execute(f"SELECT symbol, bull_score, upside_pct FROM analyst_consensus WHERE symbol IN ({placeholders})", symbols).fetchall()}
-        news = {r['symbol']: dict(r) for r in conn.execute(f"SELECT symbol, AVG(sentiment_score) as avg_news_sentiment, COUNT(*) as news_count, SUM(CASE WHEN sentiment_label='positive' THEN 1 ELSE 0 END) as news_pos, SUM(CASE WHEN sentiment_label='negative' THEN 1 ELSE 0 END) as news_neg FROM news_events WHERE symbol IN ({placeholders}) AND symbol IS NOT NULL GROUP BY symbol", symbols).fetchall()}
-        options = {r['symbol']: dict(r) for r in conn.execute(f"SELECT symbol, put_call_ratio FROM options_flow WHERE symbol IN ({placeholders}) GROUP BY symbol HAVING MAX(date)", symbols).fetchall()}
+        with get_session() as session:
+            analyst = {r['symbol']: dict(r) for r in session.execute(text(f"SELECT symbol, bull_score, upside_pct FROM analyst_consensus WHERE symbol IN ({sym_placeholders})"), sym_params).mappings().fetchall()}
+            news = {r['symbol']: dict(r) for r in session.execute(text(f"SELECT symbol, AVG(sentiment_score) as avg_news_sentiment, COUNT(*) as news_count, SUM(CASE WHEN sentiment_label='positive' THEN 1 ELSE 0 END) as news_pos, SUM(CASE WHEN sentiment_label='negative' THEN 1 ELSE 0 END) as news_neg FROM news_events WHERE symbol IN ({sym_placeholders}) AND symbol IS NOT NULL GROUP BY symbol"), sym_params).mappings().fetchall()}
+            options = {r['symbol']: dict(r) for r in session.execute(text(f"SELECT symbol, put_call_ratio FROM options_flow WHERE symbol IN ({sym_placeholders}) GROUP BY symbol HAVING MAX(date)"), sym_params).mappings().fetchall()}
 
-        today_str = date.today().isoformat()
-        earnings = {}
-        for r in conn.execute(f"SELECT symbol, MIN(report_date) as next_date FROM earnings_history WHERE symbol IN ({placeholders}) AND report_date >= ? GROUP BY symbol", symbols + [today_str]).fetchall():
+            today_str = date.today().isoformat()
+            earnings = {}
+            earn_params = {**sym_params, 'today': today_str}
+            for r in session.execute(text(f"SELECT symbol, MIN(report_date) as next_date FROM earnings_history WHERE symbol IN ({sym_placeholders}) AND report_date >= :today GROUP BY symbol"), earn_params).mappings().fetchall():
+                try:
+                    ed = datetime.strptime(r['next_date'][:10], '%Y-%m-%d').date()
+                    earnings[r['symbol']] = (ed - date.today()).days
+                except Exception:
+                    pass
+
+            short_data = {r['symbol']: r['short_pct_float'] for r in session.execute(text(f"SELECT symbol, short_pct_float FROM short_interest WHERE symbol IN ({sym_placeholders})"), sym_params).mappings().fetchall()}
+
+            sector_rows = session.execute(text("SELECT etf, sector, pct_change FROM sector_etf_daily_returns WHERE date = (SELECT MAX(date) FROM sector_etf_daily_returns)")).mappings().fetchall()
+            sector_returns_by_name = {r['sector']: r['pct_change'] for r in sector_rows if r['sector']}
+            spy_return = next((r['pct_change'] for r in sector_rows if r['etf'] == 'SPY'), 0)
+
+            # v16 smart boost: insider purchases + analyst target changes (90 days)
+            # Queried here once instead of separately in filter._apply_smart_boost()
+            insider_syms = set()
+            analyst_up_syms = set()
+            analyst_down_syms = set()
+            ref_date = scan_date or today_str
             try:
-                ed = datetime.strptime(r['next_date'][:10], '%Y-%m-%d').date()
-                earnings[r['symbol']] = (ed - date.today()).days
+                for r in session.execute(text("""
+                    SELECT DISTINCT symbol FROM insider_transactions_history
+                    WHERE trade_date >= date(:p0, '-90 days') AND trade_date <= :p1
+                    AND (transaction_type LIKE '%Purchase%'
+                         OR transaction_type LIKE '%Buy%')
+                    AND value > 10000
+                """), {'p0': ref_date, 'p1': ref_date}).mappings():
+                    insider_syms.add(r['symbol'])
             except Exception:
-                pass
+                pass  # table may not exist yet
+            try:
+                for r in session.execute(text("""
+                    SELECT symbol,
+                           AVG((price_target / prior_price_target - 1) * 100) as chg
+                    FROM analyst_ratings_history
+                    WHERE date >= date(:p0, '-90 days') AND date <= :p1
+                    AND price_target > 0 AND prior_price_target > 0
+                    GROUP BY symbol
+                """), {'p0': ref_date, 'p1': ref_date}).mappings():
+                    if r['chg'] and r['chg'] > 5:
+                        analyst_up_syms.add(r['symbol'])
+                    elif r['chg'] and r['chg'] < -5:
+                        analyst_down_syms.add(r['symbol'])
+            except Exception:
+                pass  # table may not exist yet
 
-        short_data = {r['symbol']: r['short_pct_float'] for r in conn.execute(f"SELECT symbol, short_pct_float FROM short_interest WHERE symbol IN ({placeholders})", symbols).fetchall()}
-
-        sector_rows = conn.execute("SELECT etf, sector, pct_change FROM sector_etf_daily_returns WHERE date = (SELECT MAX(date) FROM sector_etf_daily_returns)").fetchall()
-        sector_returns_by_name = {r['sector']: r['pct_change'] for r in sector_rows if r['sector']}
-        spy_return = next((r['pct_change'] for r in sector_rows if r['etf'] == 'SPY'), 0)
-
-        # v16 smart boost: insider purchases + analyst target changes (90 days)
-        # Queried here once instead of separately in filter._apply_smart_boost()
-        insider_syms = set()
-        analyst_up_syms = set()
-        analyst_down_syms = set()
-        ref_date = scan_date or today_str
-        try:
-            for r in conn.execute("""
-                SELECT DISTINCT symbol FROM insider_transactions_history
-                WHERE trade_date >= date(?, '-90 days') AND trade_date <= ?
-                AND (transaction_type LIKE '%Purchase%'
-                     OR transaction_type LIKE '%Buy%')
-                AND value > 10000
-            """, (ref_date, ref_date)):
-                insider_syms.add(r['symbol'])
-        except Exception:
-            pass  # table may not exist yet
-        try:
-            for r in conn.execute("""
-                SELECT symbol,
-                       AVG((price_target / prior_price_target - 1) * 100) as chg
-                FROM analyst_ratings_history
-                WHERE date >= date(?, '-90 days') AND date <= ?
-                AND price_target > 0 AND prior_price_target > 0
-                GROUP BY symbol
-            """, (ref_date, ref_date)):
-                if r['chg'] and r['chg'] > 5:
-                    analyst_up_syms.add(r['symbol'])
-                elif r['chg'] and r['chg'] < -5:
-                    analyst_down_syms.add(r['symbol'])
-        except Exception:
-            pass  # table may not exist yet
-
-        # v17: Options bullish/bearish signals (from options_daily_summary)
-        options_bullish_syms = set()
-        options_bearish_syms = set()
-        try:
-            for r in conn.execute("""
-                SELECT symbol, pc_volume_ratio FROM options_daily_summary
-                WHERE collected_date >= date(?, '-3 days')
-                AND pc_volume_ratio > 0
-            """, (ref_date,)):
-                pc = r['pc_volume_ratio']
-                if pc < PC_BULLISH:
-                    options_bullish_syms.add(r['symbol'])
-                elif pc > PC_BEARISH:
-                    options_bearish_syms.add(r['symbol'])
-        except Exception:
-            pass  # table may not exist yet
+            # v17: Options bullish/bearish signals (from options_daily_summary)
+            options_bullish_syms = set()
+            options_bearish_syms = set()
+            try:
+                for r in session.execute(text("""
+                    SELECT symbol, pc_volume_ratio FROM options_daily_summary
+                    WHERE collected_date >= date(:p0, '-3 days')
+                    AND pc_volume_ratio > 0
+                """), {'p0': ref_date}).mappings():
+                    pc = r['pc_volume_ratio']
+                    if pc < PC_BULLISH:
+                        options_bullish_syms.add(r['symbol'])
+                    elif pc > PC_BEARISH:
+                        options_bearish_syms.add(r['symbol'])
+            except Exception:
+                pass  # table may not exist yet
 
         for c in candidates:
             sym = c['symbol']
@@ -1538,57 +1540,57 @@ class DiscoveryEngine:
     # === DB operations ===
 
     def _ensure_table(self):
-        # conn via get_session()
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS discovery_picks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                scan_date TEXT NOT NULL, symbol TEXT NOT NULL,
-                scan_price REAL NOT NULL, current_price REAL,
-                layer2_score REAL, beta REAL, atr_pct REAL,
-                distance_from_high REAL, rsi REAL, momentum_5d REAL,
-                momentum_20d REAL, volume_ratio REAL,
-                sl_price REAL, sl_pct REAL, tp1_price REAL, tp1_pct REAL,
-                tp2_price REAL, tp2_pct REAL, sector TEXT, market_cap REAL,
-                vix_close REAL, pct_above_20d_ma REAL,
-                status TEXT DEFAULT 'active',
-                created_at TEXT DEFAULT (datetime('now')),
-                updated_at TEXT DEFAULT (datetime('now')),
-                UNIQUE(scan_date, symbol)
-            )
-        """)
-        new_cols = [
-            ('distance_from_20d_high', 'REAL'),
-            ('vix_term_structure', 'REAL'), ('new_52w_highs', 'REAL'),
-            ('bull_score', 'REAL'), ('news_count', 'REAL'), ('news_pos_ratio', 'REAL'),
-            ('highs_lows_ratio', 'REAL'), ('ad_ratio', 'REAL'), ('mcap_log', 'REAL'),
-            ('sector_1d_change', 'REAL'), ('vix3m_close', 'REAL'), ('upside_pct', 'REAL'),
-            ('outcome_1d', 'REAL'), ('outcome_2d', 'REAL'), ('outcome_3d', 'REAL'),
-            ('outcome_5d', 'REAL'), ('outcome_max_gain_5d', 'REAL'), ('outcome_max_dd_5d', 'REAL'),
-            ('days_to_earnings', 'INTEGER'), ('put_call_ratio', 'REAL'), ('short_pct_float', 'REAL'),
-            ('benchmark_xlu_5d', 'REAL'), ('benchmark_xle_5d', 'REAL'), ('benchmark_spy_5d', 'REAL'),
-            ('breadth_delta_5d', 'REAL'), ('vix_delta_5d', 'REAL'),
-            ('crude_close', 'REAL'), ('gold_close', 'REAL'), ('hyg_close', 'REAL'),
-            ('dxy_delta_5d', 'REAL'), ('stress_score', 'REAL'),
-            ('expected_gain', 'REAL'), ('rr_ratio', 'REAL'),
-            ('premarket_price', 'REAL'), ('gap_pct', 'REAL'),
-            ('scan_type', "TEXT DEFAULT 'evening'"),
-            ('limit_entry_price', 'REAL'), ('limit_pct', 'REAL'),
-            ('entry_price', 'REAL'), ('entry_status', "TEXT DEFAULT 'pending'"),
-            ('entry_filled_at', 'TEXT'),
-            ('ensemble_json', 'TEXT'), ('council_json', 'TEXT'),
-        ]
-        for col_name, col_type in new_cols:
-            try:
-                conn.execute(f"ALTER TABLE discovery_picks ADD COLUMN {col_name} {col_type}")
-            except Exception:
-                pass
+        with get_session() as session:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS discovery_picks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    scan_date TEXT NOT NULL, symbol TEXT NOT NULL,
+                    scan_price REAL NOT NULL, current_price REAL,
+                    layer2_score REAL, beta REAL, atr_pct REAL,
+                    distance_from_high REAL, rsi REAL, momentum_5d REAL,
+                    momentum_20d REAL, volume_ratio REAL,
+                    sl_price REAL, sl_pct REAL, tp1_price REAL, tp1_pct REAL,
+                    tp2_price REAL, tp2_pct REAL, sector TEXT, market_cap REAL,
+                    vix_close REAL, pct_above_20d_ma REAL,
+                    status TEXT DEFAULT 'active',
+                    created_at TEXT DEFAULT (datetime('now')),
+                    updated_at TEXT DEFAULT (datetime('now')),
+                    UNIQUE(scan_date, symbol)
+                )
+            """))
+            new_cols = [
+                ('distance_from_20d_high', 'REAL'),
+                ('vix_term_structure', 'REAL'), ('new_52w_highs', 'REAL'),
+                ('bull_score', 'REAL'), ('news_count', 'REAL'), ('news_pos_ratio', 'REAL'),
+                ('highs_lows_ratio', 'REAL'), ('ad_ratio', 'REAL'), ('mcap_log', 'REAL'),
+                ('sector_1d_change', 'REAL'), ('vix3m_close', 'REAL'), ('upside_pct', 'REAL'),
+                ('outcome_1d', 'REAL'), ('outcome_2d', 'REAL'), ('outcome_3d', 'REAL'),
+                ('outcome_5d', 'REAL'), ('outcome_max_gain_5d', 'REAL'), ('outcome_max_dd_5d', 'REAL'),
+                ('days_to_earnings', 'INTEGER'), ('put_call_ratio', 'REAL'), ('short_pct_float', 'REAL'),
+                ('benchmark_xlu_5d', 'REAL'), ('benchmark_xle_5d', 'REAL'), ('benchmark_spy_5d', 'REAL'),
+                ('breadth_delta_5d', 'REAL'), ('vix_delta_5d', 'REAL'),
+                ('crude_close', 'REAL'), ('gold_close', 'REAL'), ('hyg_close', 'REAL'),
+                ('dxy_delta_5d', 'REAL'), ('stress_score', 'REAL'),
+                ('expected_gain', 'REAL'), ('rr_ratio', 'REAL'),
+                ('premarket_price', 'REAL'), ('gap_pct', 'REAL'),
+                ('scan_type', "TEXT DEFAULT 'evening'"),
+                ('limit_entry_price', 'REAL'), ('limit_pct', 'REAL'),
+                ('entry_price', 'REAL'), ('entry_status', "TEXT DEFAULT 'pending'"),
+                ('entry_filled_at', 'TEXT'),
+                ('ensemble_json', 'TEXT'), ('council_json', 'TEXT'),
+            ]
+            for col_name, col_type in new_cols:
+                try:
+                    session.execute(text(f"ALTER TABLE discovery_picks ADD COLUMN {col_name} {col_type}"))
+                except Exception:
+                    pass
 
     def _load_picks_from_db(self):
-        # conn via get_session()
-        rows = conn.execute("""
-            SELECT * FROM discovery_picks WHERE status = 'active'
-            ORDER BY layer2_score DESC
-        """).fetchall()
+        with get_session() as session:
+            rows = session.execute(text("""
+                SELECT * FROM discovery_picks WHERE status = 'active'
+                ORDER BY layer2_score DESC
+            """)).mappings().fetchall()
 
         self._picks = []
         for r in rows:
@@ -1648,66 +1650,66 @@ class DiscoveryEngine:
                     break
 
     def _save_picks(self, picks, scan_date):
-        # conn via get_session()
-        for p in picks:
-            conn.execute("""
-                INSERT OR REPLACE INTO discovery_picks
-                (scan_date, symbol, scan_price, current_price, layer2_score,
-                 beta, atr_pct, distance_from_high, distance_from_20d_high, rsi, momentum_5d, momentum_20d, volume_ratio,
-                 sl_price, sl_pct, tp1_price, tp1_pct, tp2_price, tp2_pct,
-                 expected_gain, rr_ratio,
-                 sector, market_cap, vix_close, pct_above_20d_ma, status,
-                 vix_term_structure, new_52w_highs, bull_score, news_count, news_pos_ratio,
-                 highs_lows_ratio, ad_ratio, mcap_log, sector_1d_change, vix3m_close, upside_pct,
-                 days_to_earnings, put_call_ratio, short_pct_float,
-                 breadth_delta_5d, vix_delta_5d, crude_close, gold_close, dxy_delta_5d, stress_score,
-                 premarket_price, gap_pct, scan_type,
-                 limit_entry_price, limit_pct, entry_price, entry_status, entry_filled_at,
-                 tp_timeline_json, weekend_play_json, ensemble_json, council_json)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """, (p.scan_date, p.symbol, p.scan_price, p.current_price, p.layer2_score,
-                  p.beta, p.atr_pct, p.distance_from_high, p.distance_from_20d_high, p.rsi, p.momentum_5d,
-                  p.momentum_20d, p.volume_ratio,
-                  p.sl_price, p.sl_pct, p.tp1_price, p.tp1_pct, p.tp2_price, p.tp2_pct,
-                  p.expected_gain, p.rr_ratio,
-                  p.sector, p.market_cap, p.vix_close, p.pct_above_20d_ma, p.status,
-                  p.vix_term_structure, p.new_52w_highs, p.bull_score, p.news_count,
-                  p.news_pos_ratio, p.highs_lows_ratio, p.ad_ratio, p.mcap_log,
-                  p.sector_1d_change, p.vix3m_close, p.upside_pct,
-                  p.days_to_earnings, p.put_call_ratio, p.short_pct_float,
-                  p.breadth_delta_5d, p.vix_delta_5d, p.crude_close, p.gold_close,
-                  p.dxy_delta_5d, p.stress_score,
-                  p.premarket_price, p.gap_pct, p.scan_type,
-                  p.limit_entry_price, p.limit_pct, p.entry_price, p.entry_status, p.entry_filled_at,
-                  json.dumps(getattr(p, 'tp_timeline', None)),
-                  json.dumps(getattr(p, 'weekend_play', None)),
-                  json.dumps(getattr(p, 'ensemble', None)),
-                  json.dumps(getattr(p, 'council', None))))
+        with get_session() as session:
+            for p in picks:
+                session.execute(text("""
+                    INSERT OR REPLACE INTO discovery_picks
+                    (scan_date, symbol, scan_price, current_price, layer2_score,
+                     beta, atr_pct, distance_from_high, distance_from_20d_high, rsi, momentum_5d, momentum_20d, volume_ratio,
+                     sl_price, sl_pct, tp1_price, tp1_pct, tp2_price, tp2_pct,
+                     expected_gain, rr_ratio,
+                     sector, market_cap, vix_close, pct_above_20d_ma, status,
+                     vix_term_structure, new_52w_highs, bull_score, news_count, news_pos_ratio,
+                     highs_lows_ratio, ad_ratio, mcap_log, sector_1d_change, vix3m_close, upside_pct,
+                     days_to_earnings, put_call_ratio, short_pct_float,
+                     breadth_delta_5d, vix_delta_5d, crude_close, gold_close, dxy_delta_5d, stress_score,
+                     premarket_price, gap_pct, scan_type,
+                     limit_entry_price, limit_pct, entry_price, entry_status, entry_filled_at,
+                     tp_timeline_json, weekend_play_json, ensemble_json, council_json)
+                    VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6,:p7,:p8,:p9,:p10,:p11,:p12,:p13,:p14,:p15,:p16,:p17,:p18,:p19,:p20,:p21,:p22,:p23,:p24,:p25,:p26,:p27,:p28,:p29,:p30,:p31,:p32,:p33,:p34,:p35,:p36,:p37,:p38,:p39,:p40,:p41,:p42,:p43,:p44,:p45,:p46,:p47,:p48,:p49,:p50,:p51,:p52,:p53,:p54,:p55,:p56,:p57)
+                """), {'p0': p.scan_date, 'p1': p.symbol, 'p2': p.scan_price, 'p3': p.current_price, 'p4': p.layer2_score,
+                      'p5': p.beta, 'p6': p.atr_pct, 'p7': p.distance_from_high, 'p8': p.distance_from_20d_high, 'p9': p.rsi, 'p10': p.momentum_5d,
+                      'p11': p.momentum_20d, 'p12': p.volume_ratio,
+                      'p13': p.sl_price, 'p14': p.sl_pct, 'p15': p.tp1_price, 'p16': p.tp1_pct, 'p17': p.tp2_price, 'p18': p.tp2_pct,
+                      'p19': p.expected_gain, 'p20': p.rr_ratio,
+                      'p21': p.sector, 'p22': p.market_cap, 'p23': p.vix_close, 'p24': p.pct_above_20d_ma, 'p25': p.status,
+                      'p26': p.vix_term_structure, 'p27': p.new_52w_highs, 'p28': p.bull_score, 'p29': p.news_count,
+                      'p30': p.news_pos_ratio, 'p31': p.highs_lows_ratio, 'p32': p.ad_ratio, 'p33': p.mcap_log,
+                      'p34': p.sector_1d_change, 'p35': p.vix3m_close, 'p36': p.upside_pct,
+                      'p37': p.days_to_earnings, 'p38': p.put_call_ratio, 'p39': p.short_pct_float,
+                      'p40': p.breadth_delta_5d, 'p41': p.vix_delta_5d, 'p42': p.crude_close, 'p43': p.gold_close,
+                      'p44': p.dxy_delta_5d, 'p45': p.stress_score,
+                      'p46': p.premarket_price, 'p47': p.gap_pct, 'p48': p.scan_type,
+                      'p49': p.limit_entry_price, 'p50': p.limit_pct, 'p51': p.entry_price, 'p52': p.entry_status, 'p53': p.entry_filled_at,
+                      'p54': json.dumps(getattr(p, 'tp_timeline', None)),
+                      'p55': json.dumps(getattr(p, 'weekend_play', None)),
+                      'p56': json.dumps(getattr(p, 'ensemble', None)),
+                      'p57': json.dumps(getattr(p, 'council', None))})
         logger.info(f"Discovery: saved {len(picks)} picks for {scan_date}")
 
     def _save_multi_strategy(self, scan_date, info):
         """Persist multi-strategy info to DB so webapp can read it after scan exits."""
-        # conn via get_session()
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS discovery_multi_strategy (
-                scan_date TEXT PRIMARY KEY,
-                info_json TEXT,
-                updated_at TEXT DEFAULT (datetime('now'))
-            )
-        """)
-        conn.execute(
-            "INSERT OR REPLACE INTO discovery_multi_strategy (scan_date, info_json) VALUES (?, ?)",
-            (scan_date, json.dumps(info, default=str)))
+        with get_session() as session:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS discovery_multi_strategy (
+                    scan_date TEXT PRIMARY KEY,
+                    info_json TEXT,
+                    updated_at TEXT DEFAULT (datetime('now'))
+                )
+            """))
+            session.execute(
+                text("INSERT OR REPLACE INTO discovery_multi_strategy (scan_date, info_json) VALUES (:p0, :p1)"),
+                {'p0': scan_date, 'p1': json.dumps(info, default=str)})
         logger.info("Discovery: saved multi-strategy info for %s", scan_date)
 
     def _load_multi_strategy(self):
         """Load most recent multi-strategy info from DB."""
         try:
-            # conn via get_session()
-            row = conn.execute(
-                "SELECT scan_date, info_json, updated_at "
-                "FROM discovery_multi_strategy ORDER BY scan_date DESC LIMIT 1"
-            ).fetchone()
+            with get_session() as session:
+                row = session.execute(text(
+                    "SELECT scan_date, info_json, updated_at "
+                    "FROM discovery_multi_strategy ORDER BY scan_date DESC LIMIT 1"
+                )).fetchone()
             if row and row[1]:
                 info = json.loads(row[1])
                 info['_scan_date'] = row[0]
@@ -1718,8 +1720,8 @@ class DiscoveryEngine:
         return {}
 
     def _deactivate_previous_picks(self, new_scan_date):
-        # conn via get_session()
-        n = conn.execute("UPDATE discovery_picks SET status = 'replaced', updated_at = datetime('now') WHERE status = 'active'").rowcount
+        with get_session() as session:
+            n = session.execute(text("UPDATE discovery_picks SET status = 'replaced', updated_at = datetime('now') WHERE status = 'active'")).rowcount
         if n:
             logger.info(f"Discovery: deactivated {n} previous picks")
 
@@ -1727,10 +1729,10 @@ class DiscoveryEngine:
         max_age = self._config.get('schedule', {}).get('max_pick_age_days', 5)
         lb_cfg = self._config.get('limit_buy', {})
         max_hold = lb_cfg.get('max_hold_days', 2)
-        # conn via get_session()
-        conn.execute("UPDATE discovery_picks SET status = 'expired', updated_at = datetime('now') WHERE status = 'active' AND julianday(?) - julianday(scan_date) > ?", (current_date, max_age))
-        if lb_cfg.get('enabled', False):
-            conn.execute("UPDATE discovery_picks SET entry_status = 'missed', updated_at = datetime('now') WHERE status = 'active' AND entry_status = 'pending' AND julianday(?) - julianday(scan_date) > ?", (current_date, max_hold))
+        with get_session() as session:
+            session.execute(text("UPDATE discovery_picks SET status = 'expired', updated_at = datetime('now') WHERE status = 'active' AND julianday(:p0) - julianday(scan_date) > :p1"), {'p0': current_date, 'p1': max_age})
+            if lb_cfg.get('enabled', False):
+                session.execute(text("UPDATE discovery_picks SET entry_status = 'missed', updated_at = datetime('now') WHERE status = 'active' AND entry_status = 'pending' AND julianday(:p0) - julianday(scan_date) > :p1"), {'p0': current_date, 'p1': max_hold})
 
     # === Price refresh ===
 
@@ -1758,39 +1760,39 @@ class DiscoveryEngine:
                                auto_adjust=True, progress=False, threads=False)
             if data.empty:
                 return
-            # conn via get_session()
-            for pick in self._picks:
-                try:
-                    if len(symbols) == 1:
-                        close_col = data['Close']
-                    else:
-                        if pick.symbol not in data.columns.get_level_values(1):
-                            continue
-                        close_col = data['Close'][pick.symbol]
-                    latest = close_col.dropna().iloc[-1] if not close_col.dropna().empty else None
-                    if latest and latest > 0:
-                        pick.current_price = float(latest)
-                        if (pick.entry_status == 'pending'
-                                and pick.limit_entry_price is not None
-                                and pick.current_price <= pick.limit_entry_price
-                                and pick.status == 'active'):
-                            pick.entry_status = 'filled'
-                            pick.entry_price = pick.limit_entry_price
-                            pick.entry_filled_at = datetime.now().strftime('%Y-%m-%d %H:%M')
-                        if pick.status == 'active' and pick.entry_status == 'filled':
-                            if pick.current_price <= pick.sl_price:
-                                pick.status = 'hit_sl'
-                            elif pick.current_price >= pick.tp1_price:
-                                pick.status = 'hit_tp1'
-                        conn.execute(
-                            "UPDATE discovery_picks SET current_price=?, status=?, "
-                            "entry_status=?, entry_price=?, entry_filled_at=?, "
-                            "updated_at=datetime('now') WHERE symbol=? AND scan_date=?",
-                            (pick.current_price, pick.status,
-                             pick.entry_status, pick.entry_price, pick.entry_filled_at,
-                             pick.symbol, pick.scan_date))
-                except Exception:
-                    continue
+            with get_session() as session:
+                for pick in self._picks:
+                    try:
+                        if len(symbols) == 1:
+                            close_col = data['Close']
+                        else:
+                            if pick.symbol not in data.columns.get_level_values(1):
+                                continue
+                            close_col = data['Close'][pick.symbol]
+                        latest = close_col.dropna().iloc[-1] if not close_col.dropna().empty else None
+                        if latest and latest > 0:
+                            pick.current_price = float(latest)
+                            if (pick.entry_status == 'pending'
+                                    and pick.limit_entry_price is not None
+                                    and pick.current_price <= pick.limit_entry_price
+                                    and pick.status == 'active'):
+                                pick.entry_status = 'filled'
+                                pick.entry_price = pick.limit_entry_price
+                                pick.entry_filled_at = datetime.now().strftime('%Y-%m-%d %H:%M')
+                            if pick.status == 'active' and pick.entry_status == 'filled':
+                                if pick.current_price <= pick.sl_price:
+                                    pick.status = 'hit_sl'
+                                elif pick.current_price >= pick.tp1_price:
+                                    pick.status = 'hit_tp1'
+                            session.execute(
+                                text("UPDATE discovery_picks SET current_price=:p0, status=:p1, "
+                                     "entry_status=:p2, entry_price=:p3, entry_filled_at=:p4, "
+                                     "updated_at=datetime('now') WHERE symbol=:p5 AND scan_date=:p6"),
+                                {'p0': pick.current_price, 'p1': pick.status,
+                                 'p2': pick.entry_status, 'p3': pick.entry_price, 'p4': pick.entry_filled_at,
+                                 'p5': pick.symbol, 'p6': pick.scan_date})
+                    except Exception:
+                        continue
         except Exception as e:
             logger.error(f"Discovery price refresh error: {e}")
 
@@ -1821,64 +1823,64 @@ class DiscoveryEngine:
         gap_boost_mult = stp_cfg.get('gap_boost', 1.3)
 
         confirmed = unconfirmed = 0
-        # conn via get_session()
 
-        for pick in active:
-            try:
-                if len(symbols) == 1:
-                    sym_data = data
-                else:
-                    if pick.symbol not in data.columns.get_level_values(1):
+        with get_session() as session:
+            for pick in active:
+                try:
+                    if len(symbols) == 1:
+                        sym_data = data
+                    else:
+                        if pick.symbol not in data.columns.get_level_values(1):
+                            continue
+                        sym_data = data.xs(pick.symbol, axis=1, level=1)
+
+                    close_col = sym_data['Close'].dropna()
+                    if close_col.empty:
                         continue
-                    sym_data = data.xs(pick.symbol, axis=1, level=1)
 
-                close_col = sym_data['Close'].dropna()
-                if close_col.empty:
-                    continue
+                    premarket_bars = close_col[
+                        (close_col.index.date == today) & (close_col.index.time < dtime(9, 30))]
+                    pm_price = float(premarket_bars.iloc[-1]) if not premarket_bars.empty else float(close_col.iloc[-1])
 
-                premarket_bars = close_col[
-                    (close_col.index.date == today) & (close_col.index.time < dtime(9, 30))]
-                pm_price = float(premarket_bars.iloc[-1]) if not premarket_bars.empty else float(close_col.iloc[-1])
+                    gap = (pm_price / pick.scan_price - 1) * 100 if pick.scan_price > 0 else 0.0
+                    pick.premarket_price = pm_price
+                    pick.gap_pct = round(gap, 2)
 
-                gap = (pm_price / pick.scan_price - 1) * 100 if pick.scan_price > 0 else 0.0
-                pick.premarket_price = pm_price
-                pick.gap_pct = round(gap, 2)
+                    if gap >= threshold:
+                        confirmed += 1
+                    else:
+                        unconfirmed += 1
 
-                if gap >= threshold:
-                    confirmed += 1
-                else:
-                    unconfirmed += 1
+                    old_tp = pick.tp1_pct
+                    if gap >= gap_thresh and old_tp > 0:
+                        new_tp = round(old_tp * gap_boost_mult, 1)
+                        pick.tp1_pct = new_tp
+                        pick.tp2_pct = new_tp
+                        entry_ref = pick.limit_entry_price or pick.scan_price
+                        if entry_ref and entry_ref > 0:
+                            pick.tp1_price = round(entry_ref * (1 + new_tp / 100), 2)
+                            pick.tp2_price = pick.tp1_price
 
-                old_tp = pick.tp1_pct
-                if gap >= gap_thresh and old_tp > 0:
-                    new_tp = round(old_tp * gap_boost_mult, 1)
-                    pick.tp1_pct = new_tp
-                    pick.tp2_pct = new_tp
-                    entry_ref = pick.limit_entry_price or pick.scan_price
-                    if entry_ref and entry_ref > 0:
-                        pick.tp1_price = round(entry_ref * (1 + new_tp / 100), 2)
+                    lb_cfg = self._config.get('limit_buy', {})
+                    if lb_cfg.get('enabled', False) and pick.limit_pct is not None:
+                        limit_price = round(pm_price * (1 - pick.limit_pct / 100), 2)
+                        pick.limit_entry_price = limit_price
+                        lb_sl = lb_cfg.get('sl_pct', 2.5)
+                        pick.sl_price = round(limit_price * (1 - lb_sl / 100), 2)
+                        pick.sl_pct = round(lb_sl, 1)
+                        pick.tp1_price = round(limit_price * (1 + pick.tp1_pct / 100), 2)
                         pick.tp2_price = pick.tp1_price
 
-                lb_cfg = self._config.get('limit_buy', {})
-                if lb_cfg.get('enabled', False) and pick.limit_pct is not None:
-                    limit_price = round(pm_price * (1 - pick.limit_pct / 100), 2)
-                    pick.limit_entry_price = limit_price
-                    lb_sl = lb_cfg.get('sl_pct', 2.5)
-                    pick.sl_price = round(limit_price * (1 - lb_sl / 100), 2)
-                    pick.sl_pct = round(lb_sl, 1)
-                    pick.tp1_price = round(limit_price * (1 + pick.tp1_pct / 100), 2)
-                    pick.tp2_price = pick.tp1_price
-
-                conn.execute(
-                    "UPDATE discovery_picks SET premarket_price=?, gap_pct=?, "
-                    "limit_entry_price=?, sl_price=?, sl_pct=?, tp1_price=?, tp1_pct=?, "
-                    "tp2_price=?, tp2_pct=?, updated_at=datetime('now') "
-                    "WHERE symbol=? AND scan_date=? AND status='active'",
-                    (pm_price, pick.gap_pct, getattr(pick, 'limit_entry_price', None),
-                     pick.sl_price, pick.sl_pct, pick.tp1_price, pick.tp1_pct,
-                     pick.tp2_price, pick.tp2_pct, pick.symbol, pick.scan_date))
-            except Exception:
-                continue
+                    session.execute(
+                        text("UPDATE discovery_picks SET premarket_price=:p0, gap_pct=:p1, "
+                             "limit_entry_price=:p2, sl_price=:p3, sl_pct=:p4, tp1_price=:p5, tp1_pct=:p6, "
+                             "tp2_price=:p7, tp2_pct=:p8, updated_at=datetime('now') "
+                             "WHERE symbol=:p9 AND scan_date=:p10 AND status='active'"),
+                        {'p0': pm_price, 'p1': pick.gap_pct, 'p2': getattr(pick, 'limit_entry_price', None),
+                         'p3': pick.sl_price, 'p4': pick.sl_pct, 'p5': pick.tp1_price, 'p6': pick.tp1_pct,
+                         'p7': pick.tp2_price, 'p8': pick.tp2_pct, 'p9': pick.symbol, 'p10': pick.scan_date})
+                except Exception:
+                    continue
         self._last_validation = datetime.now().strftime('%Y-%m-%d %H:%M')
         summary = {'confirmed': confirmed, 'unconfirmed': unconfirmed, 'total': len(active)}
         logger.info(f"Discovery premarket: {summary}")
@@ -1949,14 +1951,14 @@ class DiscoveryEngine:
             self._run_v3_pipeline(candidates, macro, scan_date, scan_info, refit=False)
 
         # Merge with existing
-        # conn via get_session()
-        existing_symbols = {r['symbol'] for r in conn.execute("SELECT symbol FROM discovery_picks WHERE status='active'").fetchall()}
+        with get_session() as session:
+            existing_symbols = {r['symbol'] for r in session.execute(text("SELECT symbol FROM discovery_picks WHERE status='active'")).mappings().fetchall()}
 
-        re_ranked = 0
-        for p in picks:
-            if p.symbol in existing_symbols:
-                conn.execute("UPDATE discovery_picks SET layer2_score=?, current_price=?, updated_at=datetime('now') WHERE symbol=? AND status='active'",
-                             (p.layer2_score, p.current_price, p.symbol))
+            re_ranked = 0
+            for p in picks:
+                if p.symbol in existing_symbols:
+                    session.execute(text("UPDATE discovery_picks SET layer2_score=:p0, current_price=:p1, updated_at=datetime('now') WHERE symbol=:p2 AND status='active'"),
+                                 {'p0': p.layer2_score, 'p1': p.current_price, 'p2': p.symbol})
                 re_ranked += 1
 
         new_intraday = [p for p in picks if p.symbol not in existing_symbols][:max_new]
@@ -1976,68 +1978,71 @@ class DiscoveryEngine:
         if not candidates:
             return
         symbols = [c['symbol'] for c in candidates]
-        placeholders = ','.join('?' * len(symbols))
-        # conn via get_session()
+        sym_params = {f's{i}': s for i, s in enumerate(symbols)}
+        sym_placeholders = ','.join(f':s{i}' for i in range(len(symbols)))
         today_str = date.today().isoformat()
         ref_date = scan_date or today_str
-        earnings = {}
-        for r in conn.execute(f"SELECT symbol, MIN(report_date) as next_date FROM earnings_history WHERE symbol IN ({placeholders}) AND report_date >= ? GROUP BY symbol", symbols + [today_str]).fetchall():
+
+        with get_session() as session:
+            earnings = {}
+            earn_params = {**sym_params, 'today': today_str}
+            for r in session.execute(text(f"SELECT symbol, MIN(report_date) as next_date FROM earnings_history WHERE symbol IN ({sym_placeholders}) AND report_date >= :today GROUP BY symbol"), earn_params).mappings().fetchall():
+                try:
+                    ed = datetime.strptime(r['next_date'][:10], '%Y-%m-%d').date()
+                    earnings[r['symbol']] = (ed - date.today()).days
+                except Exception:
+                    pass
+            sector_rows = session.execute(text("SELECT etf, sector, pct_change FROM sector_etf_daily_returns WHERE date = (SELECT MAX(date) FROM sector_etf_daily_returns)")).mappings().fetchall()
+            sector_returns_by_name = {r['sector']: r['pct_change'] for r in sector_rows if r['sector']}
+            spy_return = next((r['pct_change'] for r in sector_rows if r['etf'] == 'SPY'), 0)
+
+            # Smart boost: insider purchases + analyst target changes (same as _enrich_candidates)
+            insider_syms = set()
+            analyst_up_syms = set()
+            analyst_down_syms = set()
             try:
-                ed = datetime.strptime(r['next_date'][:10], '%Y-%m-%d').date()
-                earnings[r['symbol']] = (ed - date.today()).days
+                for r in session.execute(text("""
+                    SELECT DISTINCT symbol FROM insider_transactions_history
+                    WHERE trade_date >= date(:p0, '-90 days') AND trade_date <= :p1
+                    AND (transaction_type LIKE '%Purchase%'
+                         OR transaction_type LIKE '%Buy%')
+                    AND value > 10000
+                """), {'p0': ref_date, 'p1': ref_date}).mappings():
+                    insider_syms.add(r['symbol'])
             except Exception:
                 pass
-        sector_rows = conn.execute("SELECT etf, sector, pct_change FROM sector_etf_daily_returns WHERE date = (SELECT MAX(date) FROM sector_etf_daily_returns)").fetchall()
-        sector_returns_by_name = {r['sector']: r['pct_change'] for r in sector_rows if r['sector']}
-        spy_return = next((r['pct_change'] for r in sector_rows if r['etf'] == 'SPY'), 0)
+            try:
+                for r in session.execute(text("""
+                    SELECT symbol,
+                           AVG((price_target / prior_price_target - 1) * 100) as chg
+                    FROM analyst_ratings_history
+                    WHERE date >= date(:p0, '-90 days') AND date <= :p1
+                    AND price_target > 0 AND prior_price_target > 0
+                    GROUP BY symbol
+                """), {'p0': ref_date, 'p1': ref_date}).mappings():
+                    if r['chg'] and r['chg'] > 5:
+                        analyst_up_syms.add(r['symbol'])
+                    elif r['chg'] and r['chg'] < -5:
+                        analyst_down_syms.add(r['symbol'])
+            except Exception:
+                pass
 
-        # Smart boost: insider purchases + analyst target changes (same as _enrich_candidates)
-        insider_syms = set()
-        analyst_up_syms = set()
-        analyst_down_syms = set()
-        try:
-            for r in conn.execute("""
-                SELECT DISTINCT symbol FROM insider_transactions_history
-                WHERE trade_date >= date(?, '-90 days') AND trade_date <= ?
-                AND (transaction_type LIKE '%Purchase%'
-                     OR transaction_type LIKE '%Buy%')
-                AND value > 10000
-            """, (ref_date, ref_date)):
-                insider_syms.add(r['symbol'])
-        except Exception:
-            pass
-        try:
-            for r in conn.execute("""
-                SELECT symbol,
-                       AVG((price_target / prior_price_target - 1) * 100) as chg
-                FROM analyst_ratings_history
-                WHERE date >= date(?, '-90 days') AND date <= ?
-                AND price_target > 0 AND prior_price_target > 0
-                GROUP BY symbol
-            """, (ref_date, ref_date)):
-                if r['chg'] and r['chg'] > 5:
-                    analyst_up_syms.add(r['symbol'])
-                elif r['chg'] and r['chg'] < -5:
-                    analyst_down_syms.add(r['symbol'])
-        except Exception:
-            pass
-
-        # v17: Options bullish/bearish signals
-        options_bullish_syms = set()
-        options_bearish_syms = set()
-        try:
-            for r in conn.execute("""
-                SELECT symbol, pc_volume_ratio FROM options_daily_summary
-                WHERE collected_date >= date(?, '-3 days')
-                AND pc_volume_ratio > 0
-            """, (ref_date,)):
-                pc = r['pc_volume_ratio']
-                if pc < PC_BULLISH:
-                    options_bullish_syms.add(r['symbol'])
-                elif pc > PC_BEARISH:
-                    options_bearish_syms.add(r['symbol'])
-        except Exception:
-            pass
+            # v17: Options bullish/bearish signals
+            options_bullish_syms = set()
+            options_bearish_syms = set()
+            try:
+                for r in session.execute(text("""
+                    SELECT symbol, pc_volume_ratio FROM options_daily_summary
+                    WHERE collected_date >= date(:p0, '-3 days')
+                    AND pc_volume_ratio > 0
+                """), {'p0': ref_date}).mappings():
+                    pc = r['pc_volume_ratio']
+                    if pc < PC_BULLISH:
+                        options_bullish_syms.add(r['symbol'])
+                    elif pc > PC_BEARISH:
+                        options_bearish_syms.add(r['symbol'])
+            except Exception:
+                pass
         for c in candidates:
             sym = c['symbol']
             c['sector_1d_change'] = sector_returns_by_name.get(c.get('sector', ''), spy_return)

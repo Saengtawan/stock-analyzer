@@ -797,6 +797,22 @@ class GapScannerModel(Base):
         return f"<GapScannerModel {self.id} {self.fit_date}>"
 
 
+class IntradayMLModel(Base):
+    __tablename__ = "intraday_ml_model"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    fit_date = Column(Text)
+    lr_pickle = Column(LargeBinary)
+    gb_pickle = Column(LargeBinary)
+    lgbm_pickle = Column(LargeBinary)
+    scaler_pickle = Column(LargeBinary)
+    metrics_json = Column(Text)
+    created_at = Column(Text)
+
+    def __repr__(self):
+        return f"<IntradayMLModel {self.id} {self.fit_date}>"
+
+
 class GapPMCache(Base):
     __tablename__ = "gap_pm_cache"
 
@@ -1224,6 +1240,22 @@ class SignalQueue(Base):
     last_attempt_at = Column(Text)
     processed_at = Column(Text)
     error = Column(Text)
+    signal_price = Column(Float)
+    stop_loss = Column(Float)
+    take_profit = Column(Float)
+    sl_pct = Column(Float)
+    tp_pct = Column(Float)
+    atr_pct = Column(Float)
+    reasons = Column(Text)
+    signal_id = Column(Integer)
+    source = Column(Text)
+    rsi = Column(Float)
+    sector = Column(Text)
+    momentum_5d = Column(Float)
+    momentum_20d = Column(Float)
+    distance_from_high = Column(Float)
+    new_score = Column(Float)
+    volume_ratio = Column(Float)
 
 
 class ScanSession(Base):
@@ -1232,9 +1264,24 @@ class ScanSession(Base):
     session_type = Column(Text)
     scan_time = Column(Text)
     scan_time_et = Column(Text)
+    mode = Column(Text)
+    is_market_open = Column(Integer)
+    market_regime = Column(Text)
+    signal_count = Column(Integer)
+    waiting_count = Column(Integer)
+    pool_size = Column(Integer)
+    scan_duration_seconds = Column(Float)
+    positions_current = Column(Integer)
+    positions_max = Column(Integer)
+    positions_full = Column(Integer)
+    next_scan_et = Column(Text)
+    next_scan_timestamp = Column(Text)
+    next_open = Column(Text)
+    next_close = Column(Text)
     status = Column(Text)
+    metadata_json = Column("metadata", Text)
+    scan_id = Column(Text)
     n_candidates = Column(Integer)
     n_signals = Column(Integer)
     duration_ms = Column(Integer)
-    metadata_json = Column("metadata", Text)
     created_at = Column(Text)

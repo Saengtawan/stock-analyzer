@@ -101,30 +101,24 @@ class ParamOptimizer:
 
     def _optimize_market_signals(self) -> dict:
         """Optimize market signal thresholds from market_signal_outcomes."""
-        # conn via get_session()
-        try:
-            rows = conn.execute("""
+        with get_session() as session:
+            rows = session.execute(text("""
                 SELECT signal_type, outcome_5d, params_json
                 FROM market_signal_outcomes
                 WHERE outcome_5d IS NOT NULL
-            """).fetchall()
-        finally:
-            pass
+            """)).fetchall()
 
         if len(rows) < 100:
             logger.warning("Optimizer: insufficient market signal data (%d)", len(rows))
             return {}
 
         # Optimize sector lookback
-        # conn via get_session()
-        try:
-            sector_rows = conn.execute("""
+        with get_session() as session:
+            sector_rows = session.execute(text("""
                 SELECT date, sector, pct_change FROM sector_etf_daily_returns
                 WHERE sector NOT IN ('S&P 500','US Dollar','Treasury Long','Gold')
                 ORDER BY date
-            """).fetchall()
-        finally:
-            pass
+            """)).fetchall()
 
         daily = defaultdict(dict)
         for r in sector_rows:
@@ -157,16 +151,13 @@ class ParamOptimizer:
 
     def _optimize_arbiter(self) -> dict:
         """Optimize arbiter thresholds from discovery_outcomes."""
-        # conn via get_session()
-        try:
-            rows = conn.execute("""
+        with get_session() as session:
+            rows = session.execute(text("""
                 SELECT predicted_er, actual_return_d3
                 FROM discovery_outcomes
                 WHERE actual_return_d3 IS NOT NULL AND predicted_er IS NOT NULL AND predicted_er < 10
                 ORDER BY scan_date
-            """).fetchall()
-        finally:
-            pass
+            """)).fetchall()
 
         if len(rows) < 100:
             return {}
@@ -177,9 +168,8 @@ class ParamOptimizer:
 
     def _optimize_tp_sl(self) -> dict:
         """Optimize TP/SL ratios from signal_daily_bars."""
-        # conn via get_session()
-        try:
-            rows = conn.execute("""
+        with get_session() as session:
+            rows = session.execute(text("""
                 SELECT b.atr_pct,
                        d1.open, d1.high, d1.low,
                        d2.high, d2.low,
@@ -190,9 +180,7 @@ class ParamOptimizer:
                 JOIN signal_daily_bars d3 ON b.scan_date=d3.scan_date AND b.symbol=d3.symbol AND d3.day_offset=3
                 WHERE b.outcome_5d IS NOT NULL AND d1.open > 0 AND b.atr_pct > 0
                 LIMIT 40000
-            """).fetchall()
-        finally:
-            pass
+            """)).fetchall()
 
         if len(rows) < 5000:
             return {}

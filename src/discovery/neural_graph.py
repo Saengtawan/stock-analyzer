@@ -27,9 +27,9 @@ class NeuralGraph:
     def __init__(self, knowledge_graph, adaptive_params=None):
         self._kg = knowledge_graph
         self._adaptive = adaptive_params
-        self._clusters = {}          # symbol → cluster_id
-        self._cluster_names = {}     # cluster_id → name
-        self._sector_vuln = {}       # (sector, event) → vulnerability
+        self._clusters = {}          # symbol -> cluster_id
+        self._cluster_names = {}     # cluster_id -> name
+        self._sector_vuln = {}       # (sector, event) -> vulnerability
         self._built = False
         self._ensure_tables()
 
@@ -56,7 +56,7 @@ class NeuralGraph:
         factors = []
         score = 0.0
 
-        # === Layer 0: BTC leading signal — REMOVED (v17) ===
+        # === Layer 0: BTC leading signal -- REMOVED (v17) ===
         # IC = +0.004 = noise. No predictive power for stock 5d returns.
         # BTC data still collected via cron for future analysis.
 
@@ -70,16 +70,16 @@ class NeuralGraph:
             if cluster_health is not None:
                 # v17: Proportional penalty/bonus instead of hardcoded -1.0/+1.0
                 if cluster_health < 0:
-                    score += cluster_health * 0.15  # proportional: -0.5% → -0.075
+                    score += cluster_health * 0.15  # proportional: -0.5% -> -0.075
                     if cluster_health < -0.5:
                         factors.append(f'CLUSTER_WEAK: {cluster_name} health={cluster_health:+.1f}')
                 elif cluster_health > 0.5:
                     score += cluster_health * 0.05  # smaller bonus
                     factors.append(f'CLUSTER_STRONG: {cluster_name}')
 
-        # === Layer 2: Sector-macro — VIX adaptive ===
+        # === Layer 2: Sector-macro -- VIX adaptive ===
         # v17: VIX bounce threshold learned from data (28 optimal, not 30)
-        # VIX 25-28 is dead zone (Sharpe +0.004), VIX ≥ 28 is bounce (+0.211)
+        # VIX 25-28 is dead zone (Sharpe +0.004), VIX >= 28 is bounce (+0.211)
         # VIX 15-18 is also dead zone (Sharpe -0.026)
         vix = macro.get('vix_close') or 20
         vvix = macro.get('vvix_close')
@@ -89,7 +89,7 @@ class NeuralGraph:
         vix_dead_lo = 25  # dead zone lower
         vix_dead_hi = 28  # dead zone upper (was 30)
 
-        # VVIX signal — v17: adaptive crisis threshold
+        # VVIX signal -- v17: adaptive crisis threshold
         vvix_crisis = 120
         if self._adaptive:
             vvix_crisis = self._adaptive.get(sector, 'BULL', 'vvix_crisis')
@@ -100,7 +100,7 @@ class NeuralGraph:
             elif vvix < 80:
                 score += 0.05
 
-        # VIX signal — v17: adaptive thresholds
+        # VIX signal -- v17: adaptive thresholds
         if vix >= vix_fear:
             score += 0.15
             factors.append(f'VIX={vix:.0f}>={vix_fear} bounce WR=60%')
@@ -108,7 +108,7 @@ class NeuralGraph:
             score -= 0.10
             factors.append(f'VIX={vix:.0f} dead zone ({vix_dead_lo}-{vix_dead_hi})')
 
-        # Sector vulnerability — REMOVED (v17)
+        # Sector vulnerability -- REMOVED (v17)
         # SectorScorer handles sector-macro correlation dynamically.
         # Static crude_shock rank table is redundant and less current.
 
@@ -125,8 +125,8 @@ class NeuralGraph:
                     score -= 0.08
                     factors.append(f'RISKY: {spec_score:+.1f}')
 
-            # VIX sensitivity — flipped for DIP strategy
-            # High VIX-sensitive stocks DROP more → but also BOUNCE more
+            # VIX sensitivity -- flipped for DIP strategy
+            # High VIX-sensitive stocks DROP more -> but also BOUNCE more
             # Only penalize in dead zone (VIX 25-30), boost in CRISIS (>30)
             vix_sens = ctx['flags'].get('VIX_SENSITIVE', {})
             if vix_sens:
@@ -143,7 +143,7 @@ class NeuralGraph:
         score = max(-1.0, min(1.0, round(score, 2)))
 
         # v17: Linear size mapping instead of step function
-        # score -1.0 → size 0.5, score 0.0 → size 1.0 (proportional)
+        # score -1.0 -> size 0.5, score 0.0 -> size 1.0 (proportional)
         size_mult = max(0.5, min(1.0, 1.0 + score * 0.5))
         if score < -0.4:
             level = 'HIGH'
@@ -167,7 +167,7 @@ class NeuralGraph:
         """Predict Monday gap risk from Friday signals.
 
         Uses VVIX, BTC 5d, Breadth 5d, Copper 5d, 52w Lows, VIX term structure.
-        All available ณ วันศุกร์ ก่อน weekend.
+        All available on Friday before weekend.
 
         Returns:
             score: -1 (gap down risk) to +1 (gap up likely)
@@ -177,7 +177,7 @@ class NeuralGraph:
         score = 0.0
         factors = []
 
-        # 1. VVIX: calm = safe, extreme = danger — v17: adaptive threshold
+        # 1. VVIX: calm = safe, extreme = danger -- v17: adaptive threshold
         vvix_crisis = 120
         if self._adaptive:
             vvix_crisis = self._adaptive.get('', 'BULL', 'vvix_crisis')
@@ -185,12 +185,12 @@ class NeuralGraph:
         if vvix is not None:
             if vvix < 80:
                 score += 0.30
-                factors.append(f'VVIX={vvix:.0f} calm → safe weekend')
+                factors.append(f'VVIX={vvix:.0f} calm -> safe weekend')
             elif vvix < 100:
                 score += 0.05
             elif vvix > vvix_crisis:
                 score -= 0.25
-                factors.append(f'VVIX={vvix:.0f}>{vvix_crisis} extreme → risky weekend')
+                factors.append(f'VVIX={vvix:.0f}>{vvix_crisis} extreme -> risky weekend')
             elif vvix > 100:
                 score -= 0.10
 
@@ -202,7 +202,7 @@ class NeuralGraph:
                 factors.append(f'BTC 3d={btc_3d:+.1f}% strong')
             elif btc_3d < -3:
                 score -= 0.20
-                factors.append(f'BTC 3d={btc_3d:+.1f}% weak → risk-off')
+                factors.append(f'BTC 3d={btc_3d:+.1f}% weak -> risk-off')
 
         # 3. Breadth trend (5d)
         breadth_5d = macro.get('breadth_delta_5d', 0)
@@ -220,7 +220,7 @@ class NeuralGraph:
             spread = vix - vix3m
             if spread > 2:  # backwardation = panic
                 score -= 0.20
-                factors.append(f'VIX backwardation {spread:+.1f} → panic')
+                factors.append(f'VIX backwardation {spread:+.1f} -> panic')
             elif spread < -2:  # deep contango = calm
                 score += 0.10
 
@@ -259,122 +259,121 @@ class NeuralGraph:
 
     def _build_thematic_clusters(self):
         """Auto-detect stock clusters from return correlations."""
-        # conn via get_session()
+        with get_session() as session:
+            # Load 6-month daily returns for universe stocks
+            rows = session.execute(text("""
+                SELECT symbol, date, close,
+                       LAG(close) OVER (PARTITION BY symbol ORDER BY date) as prev
+                FROM stock_daily_ohlc
+                WHERE close > 0 AND date >= date('now', '-180 days')
+                ORDER BY symbol, date
+            """)).fetchall()
 
-        # Load 6-month daily returns for universe stocks
-        rows = conn.execute("""
-            SELECT symbol, date, close,
-                   LAG(close) OVER (PARTITION BY symbol ORDER BY date) as prev
-            FROM stock_daily_ohlc
-            WHERE close > 0 AND date >= date('now', '-180 days')
-            ORDER BY symbol, date
-        """).fetchall()
+            stock_rets = defaultdict(dict)
+            for sym, dt, close, prev in rows:
+                if prev and prev > 0:
+                    stock_rets[sym][dt] = (close / prev - 1) * 100
 
-        stock_rets = defaultdict(dict)
-        for sym, dt, close, prev in rows:
-            if prev and prev > 0:
-                stock_rets[sym][dt] = (close / prev - 1) * 100
+            # Filter to stocks with enough data
+            valid_syms = [s for s in stock_rets if len(stock_rets[s]) >= 80]
+            if len(valid_syms) < 50:
+                logger.warning("NeuralGraph: not enough stocks for clustering (%d)", len(valid_syms))
+                return
 
-        # Filter to stocks with enough data
-        valid_syms = [s for s in stock_rets if len(stock_rets[s]) >= 80]
-        if len(valid_syms) < 50:
-            logger.warning("NeuralGraph: not enough stocks for clustering (%d)", len(valid_syms))
-            return
+            # Build aligned return matrix
+            all_dates = sorted(set(d for s in valid_syms for d in stock_rets[s]))
+            sym_to_idx = {s: i for i, s in enumerate(valid_syms)}
+            ret_matrix = np.full((len(valid_syms), len(all_dates)), np.nan)
 
-        # Build aligned return matrix
-        all_dates = sorted(set(d for s in valid_syms for d in stock_rets[s]))
-        sym_to_idx = {s: i for i, s in enumerate(valid_syms)}
-        ret_matrix = np.full((len(valid_syms), len(all_dates)), np.nan)
+            for i, sym in enumerate(valid_syms):
+                for j, dt in enumerate(all_dates):
+                    if dt in stock_rets[sym]:
+                        ret_matrix[i, j] = stock_rets[sym][dt]
 
-        for i, sym in enumerate(valid_syms):
-            for j, dt in enumerate(all_dates):
-                if dt in stock_rets[sym]:
-                    ret_matrix[i, j] = stock_rets[sym][dt]
-
-        # Compute correlation matrix (handle NaN)
-        n = len(valid_syms)
-        corr_matrix = np.zeros((n, n))
-        for i in range(n):
-            for j in range(i, n):
-                mask = ~np.isnan(ret_matrix[i]) & ~np.isnan(ret_matrix[j])
-                if mask.sum() >= 50:
-                    corr = np.corrcoef(ret_matrix[i, mask], ret_matrix[j, mask])[0, 1]
-                    if not np.isnan(corr):
-                        corr_matrix[i, j] = corr
-                        corr_matrix[j, i] = corr
+            # Compute correlation matrix (handle NaN)
+            n = len(valid_syms)
+            corr_matrix = np.zeros((n, n))
+            for i in range(n):
+                for j in range(i, n):
+                    mask = ~np.isnan(ret_matrix[i]) & ~np.isnan(ret_matrix[j])
+                    if mask.sum() >= 50:
+                        corr = np.corrcoef(ret_matrix[i, mask], ret_matrix[j, mask])[0, 1]
+                        if not np.isnan(corr):
+                            corr_matrix[i, j] = corr
+                            corr_matrix[j, i] = corr
+                        else:
+                            corr_matrix[i, j] = corr_matrix[j, i] = 0
                     else:
                         corr_matrix[i, j] = corr_matrix[j, i] = 0
-                else:
-                    corr_matrix[i, j] = corr_matrix[j, i] = 0
-            corr_matrix[i, i] = 1.0
+                corr_matrix[i, i] = 1.0
 
-        # Simple clustering: group stocks with avg pairwise corr > 0.5
-        # Use agglomerative approach
-        dist_matrix = 1 - corr_matrix
-        np.fill_diagonal(dist_matrix, 0)
+            # Simple clustering: group stocks with avg pairwise corr > 0.5
+            # Use agglomerative approach
+            dist_matrix = 1 - corr_matrix
+            np.fill_diagonal(dist_matrix, 0)
 
-        try:
-            from scipy.cluster.hierarchy import fcluster, linkage
-            from scipy.spatial.distance import squareform
+            try:
+                from scipy.cluster.hierarchy import fcluster, linkage
+                from scipy.spatial.distance import squareform
 
-            # Convert to condensed form
-            condensed = squareform(np.clip(dist_matrix, 0, 2))
-            Z = linkage(condensed, method='average')
-            labels = fcluster(Z, t=0.6, criterion='distance')  # corr > 0.4
-        except ImportError:
-            # Fallback: simple threshold clustering
-            labels = np.arange(n)  # each stock its own cluster
-            visited = set()
-            cluster_id = 0
-            for i in range(n):
-                if i in visited:
+                # Convert to condensed form
+                condensed = squareform(np.clip(dist_matrix, 0, 2))
+                Z = linkage(condensed, method='average')
+                labels = fcluster(Z, t=0.6, criterion='distance')  # corr > 0.4
+            except ImportError:
+                # Fallback: simple threshold clustering
+                labels = np.arange(n)  # each stock its own cluster
+                visited = set()
+                cluster_id = 0
+                for i in range(n):
+                    if i in visited:
+                        continue
+                    group = [i]
+                    for j in range(i + 1, n):
+                        if j not in visited and corr_matrix[i, j] > 0.5:
+                            group.append(j)
+                    for idx in group:
+                        labels[idx] = cluster_id
+                        visited.add(idx)
+                    cluster_id += 1
+
+            # Store clusters
+            self._clusters = {}
+            self._cluster_names = {}
+            cluster_members = defaultdict(list)
+
+            for i, sym in enumerate(valid_syms):
+                cid = int(labels[i])
+                self._clusters[sym] = cid
+                cluster_members[cid].append(sym)
+
+            # Name clusters by most common sector
+            sectors_map = dict(session.execute(text(
+                "SELECT symbol, sector FROM stock_fundamentals")).fetchall())
+
+            for cid, members in cluster_members.items():
+                if len(members) < 3:
                     continue
-                group = [i]
-                for j in range(i + 1, n):
-                    if j not in visited and corr_matrix[i, j] > 0.5:
-                        group.append(j)
-                for idx in group:
-                    labels[idx] = cluster_id
-                    visited.add(idx)
-                cluster_id += 1
+                sector_counts = defaultdict(int)
+                for m in members:
+                    sector_counts[sectors_map.get(m, 'Unknown')] += 1
+                top_sector = max(sector_counts, key=sector_counts.get)
+                self._cluster_names[cid] = f'{top_sector}_{cid}({len(members)})'
 
-        # Store clusters
-        self._clusters = {}
-        self._cluster_names = {}
-        cluster_members = defaultdict(list)
+            # Save to DB
+            session.execute(text("DELETE FROM stock_clusters WHERE fit_date = date('now')"))
+            for sym, cid in self._clusters.items():
+                n_members = len(cluster_members.get(cid, []))
+                session.execute(text("""
+                    INSERT OR REPLACE INTO stock_clusters
+                    (symbol, cluster_id, cluster_name, n_members, fit_date)
+                    VALUES (:p0, :p1, :p2, :p3, date('now'))
+                """), {'p0': sym, 'p1': cid, 'p2': self._cluster_names.get(cid, f'C{cid}'), 'p3': n_members})
 
-        for i, sym in enumerate(valid_syms):
-            cid = int(labels[i])
-            self._clusters[sym] = cid
-            cluster_members[cid].append(sym)
-
-        # Name clusters by most common sector
-        sectors_map = dict(conn.execute(
-            "SELECT symbol, sector FROM stock_fundamentals").fetchall())
-
-        for cid, members in cluster_members.items():
-            if len(members) < 3:
-                continue
-            sector_counts = defaultdict(int)
-            for m in members:
-                sector_counts[sectors_map.get(m, 'Unknown')] += 1
-            top_sector = max(sector_counts, key=sector_counts.get)
-            self._cluster_names[cid] = f'{top_sector}_{cid}({len(members)})'
-
-        # Save to DB
-        conn.execute("DELETE FROM stock_clusters WHERE fit_date = date('now')")
-        for sym, cid in self._clusters.items():
-            n_members = len(cluster_members.get(cid, []))
-            conn.execute("""
-                INSERT OR REPLACE INTO stock_clusters
-                (symbol, cluster_id, cluster_name, n_members, fit_date)
-                VALUES (?, ?, ?, ?, date('now'))
-            """, (sym, cid, self._cluster_names.get(cid, f'C{cid}'), n_members))
-
-        n_clusters = len(set(labels))
-        big_clusters = sum(1 for members in cluster_members.values() if len(members) >= 5)
-        logger.info("NeuralGraph: %d clusters (%d with 5+ members) from %d stocks",
-                     n_clusters, big_clusters, len(valid_syms))
+            n_clusters = len(set(labels))
+            big_clusters = sum(1 for members in cluster_members.values() if len(members) >= 5)
+            logger.info("NeuralGraph: %d clusters (%d with 5+ members) from %d stocks",
+                         n_clusters, big_clusters, len(valid_syms))
 
     def _get_cluster_health(self, cluster_id, macro):
         """Get recent health of a cluster (avg 5d return of members)."""
@@ -382,16 +381,17 @@ class NeuralGraph:
         if not members:
             return None
 
-        # conn via get_session()
-        placeholders = ','.join('?' * len(members))
-        rows = conn.execute(f"""
-            SELECT AVG((s1.close / s2.close - 1) * 100)
-            FROM stock_daily_ohlc s1
-            JOIN stock_daily_ohlc s2 ON s1.symbol = s2.symbol
-            WHERE s1.symbol IN ({placeholders})
-            AND s1.date = (SELECT MAX(date) FROM stock_daily_ohlc)
-            AND s2.date = (SELECT MAX(date) FROM stock_daily_ohlc WHERE date < (SELECT MAX(date) FROM stock_daily_ohlc WHERE date < (SELECT MAX(date) FROM stock_daily_ohlc WHERE date < (SELECT MAX(date) FROM stock_daily_ohlc WHERE date < (SELECT MAX(date) FROM stock_daily_ohlc)))))
-        """, members).fetchone()
+        with get_session() as session:
+            placeholders = ','.join(f':p{i}' for i in range(len(members)))
+            params = {f'p{i}': m for i, m in enumerate(members)}
+            rows = session.execute(text(f"""
+                SELECT AVG((s1.close / s2.close - 1) * 100)
+                FROM stock_daily_ohlc s1
+                JOIN stock_daily_ohlc s2 ON s1.symbol = s2.symbol
+                WHERE s1.symbol IN ({placeholders})
+                AND s1.date = (SELECT MAX(date) FROM stock_daily_ohlc)
+                AND s2.date = (SELECT MAX(date) FROM stock_daily_ohlc WHERE date < (SELECT MAX(date) FROM stock_daily_ohlc WHERE date < (SELECT MAX(date) FROM stock_daily_ohlc WHERE date < (SELECT MAX(date) FROM stock_daily_ohlc WHERE date < (SELECT MAX(date) FROM stock_daily_ohlc)))))
+            """), params).fetchone()
 
         return rows[0] if rows and rows[0] is not None else None
 
@@ -399,127 +399,125 @@ class NeuralGraph:
 
     def _build_sector_vulnerability(self):
         """Compute per-sector vulnerability to macro shocks."""
-        # conn via get_session()
+        with get_session() as session:
+            # VIX spike events (VIX change > 2pts in 1 day)
+            macro_rows = session.execute(text("""
+                SELECT date, vix_close, crude_close FROM macro_snapshots
+                WHERE vix_close IS NOT NULL ORDER BY date
+            """)).fetchall()
 
-        # VIX spike events (VIX change > 2pts in 1 day)
-        macro_rows = conn.execute("""
-            SELECT date, vix_close, crude_close FROM macro_snapshots
-            WHERE vix_close IS NOT NULL ORDER BY date
-        """).fetchall()
+            sector_rows = session.execute(text("""
+                SELECT date, sector, pct_change FROM sector_etf_daily_returns
+                WHERE sector NOT IN ('S&P 500','US Dollar','Treasury Long','Gold')
+                ORDER BY date
+            """)).fetchall()
 
-        sector_rows = conn.execute("""
-            SELECT date, sector, pct_change FROM sector_etf_daily_returns
-            WHERE sector NOT IN ('S&P 500','US Dollar','Treasury Long','Gold')
-            ORDER BY date
-        """).fetchall()
+            sector_by_date = defaultdict(dict)
+            for dt, sect, ret in sector_rows:
+                sector_by_date[dt][sect] = ret or 0
 
-        sector_by_date = defaultdict(dict)
-        for dt, sect, ret in sector_rows:
-            sector_by_date[dt][sect] = ret or 0
-
-        # VIX spike: compute avg sector return on spike day
-        vix_spike_rets = defaultdict(list)
-        for i in range(1, len(macro_rows)):
-            vix_chg = macro_rows[i][1] - macro_rows[i-1][1]
-            if vix_chg > 2:  # VIX spike
-                dt = macro_rows[i][0]
-                for sect, ret in sector_by_date.get(dt, {}).items():
-                    vix_spike_rets[sect].append(ret)
-
-        # Crude shock: |crude change| > 3%
-        crude_shock_rets = defaultdict(list)
-        for i in range(1, len(macro_rows)):
-            if macro_rows[i-1][2] and macro_rows[i-1][2] > 0:
-                crude_chg = (macro_rows[i][2] / macro_rows[i-1][2] - 1) * 100
-                if abs(crude_chg) > 3:
+            # VIX spike: compute avg sector return on spike day
+            vix_spike_rets = defaultdict(list)
+            for i in range(1, len(macro_rows)):
+                vix_chg = macro_rows[i][1] - macro_rows[i-1][1]
+                if vix_chg > 2:  # VIX spike
                     dt = macro_rows[i][0]
                     for sect, ret in sector_by_date.get(dt, {}).items():
-                        crude_shock_rets[sect].append(ret)
+                        vix_spike_rets[sect].append(ret)
 
-        # Store vulnerability
-        conn.execute("DELETE FROM sector_macro_vulnerability")
+            # Crude shock: |crude change| > 3%
+            crude_shock_rets = defaultdict(list)
+            for i in range(1, len(macro_rows)):
+                if macro_rows[i-1][2] and macro_rows[i-1][2] > 0:
+                    crude_chg = (macro_rows[i][2] / macro_rows[i-1][2] - 1) * 100
+                    if abs(crude_chg) > 3:
+                        dt = macro_rows[i][0]
+                        for sect, ret in sector_by_date.get(dt, {}).items():
+                            crude_shock_rets[sect].append(ret)
 
-        self._sector_vuln = {}
-        for event_type, rets_by_sector in [
-            ('VIX_SPIKE', vix_spike_rets),
-            ('CRUDE_SHOCK', crude_shock_rets),
-        ]:
-            if not rets_by_sector:
-                continue
-            # Rank sectors by vulnerability (most negative avg return = most vulnerable)
-            sector_avgs = {s: np.mean(r) for s, r in rets_by_sector.items() if len(r) >= 5}
-            ranked = sorted(sector_avgs.items(), key=lambda x: x[1])
+            # Store vulnerability
+            session.execute(text("DELETE FROM sector_macro_vulnerability"))
 
-            for rank, (sect, avg_ret) in enumerate(ranked, 1):
-                n_events = len(rets_by_sector[sect])
-                std_ret = float(np.std(rets_by_sector[sect]))
+            self._sector_vuln = {}
+            for event_type, rets_by_sector in [
+                ('VIX_SPIKE', vix_spike_rets),
+                ('CRUDE_SHOCK', crude_shock_rets),
+            ]:
+                if not rets_by_sector:
+                    continue
+                # Rank sectors by vulnerability (most negative avg return = most vulnerable)
+                sector_avgs = {s: np.mean(r) for s, r in rets_by_sector.items() if len(r) >= 5}
+                ranked = sorted(sector_avgs.items(), key=lambda x: x[1])
 
-                self._sector_vuln[(sect, event_type)] = {
-                    'avg_return': round(avg_ret, 4),
-                    'rank': rank,
-                    'n_events': n_events,
-                }
+                for rank, (sect, avg_ret) in enumerate(ranked, 1):
+                    n_events = len(rets_by_sector[sect])
+                    std_ret = float(np.std(rets_by_sector[sect]))
 
-                conn.execute("""
-                    INSERT INTO sector_macro_vulnerability
-                    (sector, event_type, avg_return, std_return, n_events,
-                     vulnerability_rank, fit_date)
-                    VALUES (?, ?, ?, ?, ?, ?, date('now'))
-                """, (sect, event_type, round(avg_ret, 4), round(std_ret, 4),
-                      n_events, rank))
+                    self._sector_vuln[(sect, event_type)] = {
+                        'avg_return': round(avg_ret, 4),
+                        'rank': rank,
+                        'n_events': n_events,
+                    }
 
-        logger.info("NeuralGraph: sector vulnerability — VIX:%d CRUDE:%d sectors",
-                     len(vix_spike_rets), len(crude_shock_rets))
+                    session.execute(text("""
+                        INSERT INTO sector_macro_vulnerability
+                        (sector, event_type, avg_return, std_return, n_events,
+                         vulnerability_rank, fit_date)
+                        VALUES (:p0, :p1, :p2, :p3, :p4, :p5, date('now'))
+                    """), {'p0': sect, 'p1': event_type, 'p2': round(avg_ret, 4),
+                           'p3': round(std_ret, 4), 'p4': n_events, 'p5': rank})
+
+            logger.info("NeuralGraph: sector vulnerability -- VIX:%d CRUDE:%d sectors",
+                         len(vix_spike_rets), len(crude_shock_rets))
 
     # === DB ===
 
     def _ensure_tables(self):
-        # conn via get_session()
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS stock_clusters (
-                symbol TEXT NOT NULL,
-                cluster_id INTEGER NOT NULL,
-                cluster_name TEXT,
-                corr_to_centroid REAL,
-                n_members INTEGER,
-                fit_date TEXT,
-                UNIQUE(symbol, fit_date)
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS sector_macro_vulnerability (
-                sector TEXT NOT NULL,
-                event_type TEXT NOT NULL,
-                avg_return REAL,
-                std_return REAL,
-                n_events INTEGER,
-                vulnerability_rank INTEGER,
-                fit_date TEXT,
-                UNIQUE(sector, event_type)
-            )
-        """)
+        with get_session() as session:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS stock_clusters (
+                    symbol TEXT NOT NULL,
+                    cluster_id INTEGER NOT NULL,
+                    cluster_name TEXT,
+                    corr_to_centroid REAL,
+                    n_members INTEGER,
+                    fit_date TEXT,
+                    UNIQUE(symbol, fit_date)
+                )
+            """))
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS sector_macro_vulnerability (
+                    sector TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    avg_return REAL,
+                    std_return REAL,
+                    n_events INTEGER,
+                    vulnerability_rank INTEGER,
+                    fit_date TEXT,
+                    UNIQUE(sector, event_type)
+                )
+            """))
 
     def load_from_db(self):
         """Load clusters + vulnerability from DB."""
-        # conn via get_session()
+        with get_session() as session:
+            # Clusters
+            rows = session.execute(text("""
+                SELECT symbol, cluster_id, cluster_name FROM stock_clusters
+                WHERE fit_date = (SELECT MAX(fit_date) FROM stock_clusters)
+            """)).fetchall()
+            self._clusters = {r[0]: r[1] for r in rows}
+            self._cluster_names = {r[1]: r[2] for r in rows if r[2]}
 
-        # Clusters
-        rows = conn.execute("""
-            SELECT symbol, cluster_id, cluster_name FROM stock_clusters
-            WHERE fit_date = (SELECT MAX(fit_date) FROM stock_clusters)
-        """).fetchall()
-        self._clusters = {r[0]: r[1] for r in rows}
-        self._cluster_names = {r[1]: r[2] for r in rows if r[2]}
-
-        # Vulnerability
-        rows = conn.execute("""
-            SELECT sector, event_type, avg_return, vulnerability_rank, n_events
-            FROM sector_macro_vulnerability
-        """).fetchall()
-        self._sector_vuln = {
-            (r[0], r[1]): {'avg_return': r[2], 'rank': r[3], 'n_events': r[4]}
-            for r in rows
-        }
+            # Vulnerability
+            rows = session.execute(text("""
+                SELECT sector, event_type, avg_return, vulnerability_rank, n_events
+                FROM sector_macro_vulnerability
+            """)).fetchall()
+            self._sector_vuln = {
+                (r[0], r[1]): {'avg_return': r[2], 'rank': r[3], 'n_events': r[4]}
+                for r in rows
+            }
         self._built = bool(self._clusters or self._sector_vuln)
         if self._built:
             logger.info("NeuralGraph: loaded %d clusters, %d vulnerability entries",

@@ -84,57 +84,57 @@ class KnowledgeGraph:
 
     def _build_supply_chains(self):
         """Store supply chain relationships."""
-        # conn via get_session()
         inserted = 0
-        for chain_name, tiers in SUPPLY_CHAINS.items():
-            tier_names = list(tiers.keys())
-            for i in range(len(tier_names) - 1):
-                upstream_tier = tier_names[i]
-                downstream_tier = tier_names[i + 1]
-                for sym_up in tiers[upstream_tier]:
-                    for sym_down in tiers[downstream_tier]:
-                        try:
-                            conn.execute("""
-                                INSERT OR REPLACE INTO stock_relationships
-                                (symbol_from, symbol_to, relationship_type, strength, tier, metadata_json)
-                                VALUES (?, ?, 'SUPPLY_CHAIN', 1.0, ?, ?)
-                            """, (sym_up, sym_down, i,
-                                  json.dumps({'chain': chain_name, 'from_tier': upstream_tier, 'to_tier': downstream_tier})))
-                            inserted += 1
-                        except Exception:
-                            pass
+        with get_session() as session:
+            for chain_name, tiers in SUPPLY_CHAINS.items():
+                tier_names = list(tiers.keys())
+                for i in range(len(tier_names) - 1):
+                    upstream_tier = tier_names[i]
+                    downstream_tier = tier_names[i + 1]
+                    for sym_up in tiers[upstream_tier]:
+                        for sym_down in tiers[downstream_tier]:
+                            try:
+                                session.execute(text("""
+                                    INSERT OR REPLACE INTO stock_relationships
+                                    (symbol_from, symbol_to, relationship_type, strength, tier, metadata_json)
+                                    VALUES (:p0, :p1, 'SUPPLY_CHAIN', 1.0, :p2, :p3)
+                                """), {'p0': sym_up, 'p1': sym_down, 'p2': i,
+                                       'p3': json.dumps({'chain': chain_name, 'from_tier': upstream_tier, 'to_tier': downstream_tier})})
+                                inserted += 1
+                            except Exception:
+                                pass
         logger.info("KnowledgeGraph: %d supply chain relationships", inserted)
 
     def _build_sector_correlations(self):
         """Compute sector-sector correlations from ETF returns."""
-        # conn via get_session()
-        rows = conn.execute("""
-            SELECT date, sector, pct_change FROM sector_etf_daily_returns
-            WHERE sector NOT IN ('S&P 500', 'US Dollar', 'Treasury Long', 'Gold')
-            ORDER BY date
-        """).fetchall()
+        with get_session() as session:
+            rows = session.execute(text("""
+                SELECT date, sector, pct_change FROM sector_etf_daily_returns
+                WHERE sector NOT IN ('S&P 500', 'US Dollar', 'Treasury Long', 'Gold')
+                ORDER BY date
+            """)).fetchall()
 
-        daily = defaultdict(dict)
-        for r in rows:
-            daily[r[0]][r[1]] = r[2] or 0
-        dates = sorted(daily.keys())
-        sectors = sorted(set(r[1] for r in rows))
+            daily = defaultdict(dict)
+            for r in rows:
+                daily[r[0]][r[1]] = r[2] or 0
+            dates = sorted(daily.keys())
+            sectors = sorted(set(r[1] for r in rows))
 
-        # Build return matrix
-        for i, s1 in enumerate(sectors):
-            for j, s2 in enumerate(sectors):
-                if i >= j:
-                    continue
-                r1 = [daily[d].get(s1, 0) for d in dates]
-                r2 = [daily[d].get(s2, 0) for d in dates]
-                corr = float(np.corrcoef(r1, r2)[0, 1])
-                if abs(corr) > 0.3:
-                    conn.execute("""
-                        INSERT OR REPLACE INTO stock_relationships
-                        (symbol_from, symbol_to, relationship_type, strength, metadata_json)
-                        VALUES (?, ?, 'SECTOR_CORRELATION', ?, ?)
-                    """, (s1, s2, round(corr, 3),
-                          json.dumps({'type': 'sector_pair', 'correlation': round(corr, 3)})))
+            # Build return matrix
+            for i, s1 in enumerate(sectors):
+                for j, s2 in enumerate(sectors):
+                    if i >= j:
+                        continue
+                    r1 = [daily[d].get(s1, 0) for d in dates]
+                    r2 = [daily[d].get(s2, 0) for d in dates]
+                    corr = float(np.corrcoef(r1, r2)[0, 1])
+                    if abs(corr) > 0.3:
+                        session.execute(text("""
+                            INSERT OR REPLACE INTO stock_relationships
+                            (symbol_from, symbol_to, relationship_type, strength, metadata_json)
+                            VALUES (:p0, :p1, 'SECTOR_CORRELATION', :p2, :p3)
+                        """), {'p0': s1, 'p1': s2, 'p2': round(corr, 3),
+                               'p3': json.dumps({'type': 'sector_pair', 'correlation': round(corr, 3)})})
         logger.info("KnowledgeGraph: sector correlations computed")
 
     def _build_macro_sensitivities(self):
@@ -143,33 +143,32 @@ class KnowledgeGraph:
         v13.1 fix: correlate crude/VIX daily CHANGE with stock daily RETURN.
         Loads macro changes separately to avoid SQL LAG cross-symbol bug.
         """
-        # conn via get_session()
+        with get_session() as session:
+            # Load macro daily changes (computed in Python, not SQL LAG)
+            macro_rows = session.execute(text("""
+                SELECT date, crude_close, vix_close FROM macro_snapshots
+                WHERE crude_close > 0 AND vix_close > 0
+                ORDER BY date
+            """)).fetchall()
 
-        # Load macro daily changes (computed in Python, not SQL LAG)
-        macro_rows = conn.execute("""
-            SELECT date, crude_close, vix_close FROM macro_snapshots
-            WHERE crude_close > 0 AND vix_close > 0
-            ORDER BY date
-        """).fetchall()
+            macro_chg = {}  # date -> (crude_chg%, vix_chg_pts)
+            for i in range(1, len(macro_rows)):
+                dt = macro_rows[i][0]
+                prev_crude = macro_rows[i-1][1]
+                prev_vix = macro_rows[i-1][2]
+                if prev_crude > 0:
+                    crude_chg = (macro_rows[i][1] / prev_crude - 1) * 100
+                    vix_chg = macro_rows[i][2] - prev_vix
+                    macro_chg[dt] = (crude_chg, vix_chg)
 
-        macro_chg = {}  # date → (crude_chg%, vix_chg_pts)
-        for i in range(1, len(macro_rows)):
-            dt = macro_rows[i][0]
-            prev_crude = macro_rows[i-1][1]
-            prev_vix = macro_rows[i-1][2]
-            if prev_crude > 0:
-                crude_chg = (macro_rows[i][1] / prev_crude - 1) * 100
-                vix_chg = macro_rows[i][2] - prev_vix
-                macro_chg[dt] = (crude_chg, vix_chg)
-
-        # Load stock daily returns
-        stock_rows = conn.execute("""
-            SELECT symbol, date, close,
-                   LAG(close) OVER (PARTITION BY symbol ORDER BY date) as prev_close
-            FROM stock_daily_ohlc
-            WHERE close > 0
-            ORDER BY symbol, date
-        """).fetchall()
+            # Load stock daily returns
+            stock_rows = session.execute(text("""
+                SELECT symbol, date, close,
+                       LAG(close) OVER (PARTITION BY symbol ORDER BY date) as prev_close
+                FROM stock_daily_ohlc
+                WHERE close > 0
+                ORDER BY symbol, date
+            """)).fetchall()
 
         stock_rets = defaultdict(list)
         crude_chg_by_sym = defaultdict(list)
@@ -188,131 +187,130 @@ class KnowledgeGraph:
             vix_chg_by_sym[sym].append(v_chg)
 
         inserted = 0
-        for sym in stock_rets:
-            if len(stock_rets[sym]) < 100:
-                continue
-            rets = np.array(stock_rets[sym])
-            crude_arr = np.array(crude_chg_by_sym[sym])
-            vix_arr = np.array(vix_chg_by_sym[sym])
+        with get_session() as session:
+            for sym in stock_rets:
+                if len(stock_rets[sym]) < 100:
+                    continue
+                rets = np.array(stock_rets[sym])
+                crude_arr = np.array(crude_chg_by_sym[sym])
+                vix_arr = np.array(vix_chg_by_sym[sym])
 
-            # Crude sensitivity: corr(crude daily change, stock daily return)
-            crude_corr = float(np.corrcoef(crude_arr, rets)[0, 1])
-            if not np.isnan(crude_corr) and abs(crude_corr) > 0.05:
-                conn.execute("""
-                    INSERT OR REPLACE INTO stock_context
-                    (symbol, context_type, context_value, score)
-                    VALUES (?, 'CRUDE_SENSITIVE', ?, ?)
-                """, (sym, f'corr={crude_corr:.3f}', round(crude_corr, 3)))
-                inserted += 1
+                # Crude sensitivity: corr(crude daily change, stock daily return)
+                crude_corr = float(np.corrcoef(crude_arr, rets)[0, 1])
+                if not np.isnan(crude_corr) and abs(crude_corr) > 0.05:
+                    session.execute(text("""
+                        INSERT OR REPLACE INTO stock_context
+                        (symbol, context_type, context_value, score)
+                        VALUES (:p0, 'CRUDE_SENSITIVE', :p1, :p2)
+                    """), {'p0': sym, 'p1': f'corr={crude_corr:.3f}', 'p2': round(crude_corr, 3)})
+                    inserted += 1
 
-            # VIX sensitivity: corr(VIX daily change, stock daily return)
-            vix_corr = float(np.corrcoef(vix_arr, rets)[0, 1])
-            if not np.isnan(vix_corr) and abs(vix_corr) > 0.05:
-                conn.execute("""
-                    INSERT OR REPLACE INTO stock_context
-                    (symbol, context_type, context_value, score)
-                    VALUES (?, 'VIX_SENSITIVE', ?, ?)
-                """, (sym, f'corr={vix_corr:.3f}', round(vix_corr, 3)))
-                inserted += 1
+                # VIX sensitivity: corr(VIX daily change, stock daily return)
+                vix_corr = float(np.corrcoef(vix_arr, rets)[0, 1])
+                if not np.isnan(vix_corr) and abs(vix_corr) > 0.05:
+                    session.execute(text("""
+                        INSERT OR REPLACE INTO stock_context
+                        (symbol, context_type, context_value, score)
+                        VALUES (:p0, 'VIX_SENSITIVE', :p1, :p2)
+                    """), {'p0': sym, 'p1': f'corr={vix_corr:.3f}', 'p2': round(vix_corr, 3)})
+                    inserted += 1
         logger.info("KnowledgeGraph: %d macro sensitivities computed", inserted)
 
     def _build_speculative_flags(self):
         """Flag speculative/risky stocks."""
-        # conn via get_session()
+        with get_session() as session:
+            # Get fundamentals
+            stocks = session.execute(text("""
+                SELECT symbol, market_cap, beta, sector FROM stock_fundamentals
+            """)).fetchall()
 
-        # Get fundamentals
-        stocks = conn.execute("""
-            SELECT symbol, market_cap, beta, sector FROM stock_fundamentals
-        """).fetchall()
+            # Get price + volatility from OHLC
+            vol_data = session.execute(text("""
+                SELECT symbol, AVG(close) as avg_price,
+                       AVG((high-low)/NULLIF(close,0)*100) as avg_range_pct,
+                       COUNT(*) as n_days
+                FROM stock_daily_ohlc
+                WHERE close > 0 AND date >= date('now', '-180 days')
+                GROUP BY symbol
+            """)).fetchall()
 
-        # Get price + volatility from OHLC
-        vol_data = conn.execute("""
-            SELECT symbol, AVG(close) as avg_price,
-                   AVG((high-low)/NULLIF(close,0)*100) as avg_range_pct,
-                   COUNT(*) as n_days
-            FROM stock_daily_ohlc
-            WHERE close > 0 AND date >= date('now', '-180 days')
-            GROUP BY symbol
-        """).fetchall()
         vol_map = {r[0]: {'price': r[1], 'range': r[2] or 3, 'days': r[3]} for r in vol_data}
 
         inserted = 0
-        for sym, mcap, beta, sector in stocks:
-            v = vol_map.get(sym, {'price': 50, 'range': 3, 'days': 0})
-            flags = []
-            risk_score = 0
+        with get_session() as session:
+            for sym, mcap, beta, sector in stocks:
+                v = vol_map.get(sym, {'price': 50, 'range': 3, 'days': 0})
+                flags = []
+                risk_score = 0
 
-            if v['price'] and v['price'] < 10:
-                flags.append('LOW_PRICE')
-                risk_score -= 0.3
+                if v['price'] and v['price'] < 10:
+                    flags.append('LOW_PRICE')
+                    risk_score -= 0.3
 
-            if mcap and mcap < 1e9:
-                flags.append('SMALL_CAP')
-                risk_score -= 0.2
+                if mcap and mcap < 1e9:
+                    flags.append('SMALL_CAP')
+                    risk_score -= 0.2
 
-            if beta and beta > 2.0:
-                flags.append('HIGH_BETA')
-                risk_score -= 0.2
+                if beta and beta > 2.0:
+                    flags.append('HIGH_BETA')
+                    risk_score -= 0.2
 
-            if v['range'] > 5:
-                flags.append('HIGH_VOLATILITY')
-                risk_score -= 0.3
+                if v['range'] > 5:
+                    flags.append('HIGH_VOLATILITY')
+                    risk_score -= 0.3
 
-            if v['days'] < 100:
-                flags.append('LOW_HISTORY')
-                risk_score -= 0.1
+                if v['days'] < 100:
+                    flags.append('LOW_HISTORY')
+                    risk_score -= 0.1
 
-            if flags:
-                conn.execute("""
-                    INSERT OR REPLACE INTO stock_context
-                    (symbol, context_type, context_value, score)
-                    VALUES (?, 'SPECULATIVE_FLAG', ?, ?)
-                """, (sym, json.dumps(flags), round(risk_score, 2)))
-                inserted += 1
+                if flags:
+                    session.execute(text("""
+                        INSERT OR REPLACE INTO stock_context
+                        (symbol, context_type, context_value, score)
+                        VALUES (:p0, 'SPECULATIVE_FLAG', :p1, :p2)
+                    """), {'p0': sym, 'p1': json.dumps(flags), 'p2': round(risk_score, 2)})
+                    inserted += 1
         logger.info("KnowledgeGraph: %d speculative flags set", inserted)
 
     def _build_macro_impact_chains(self):
         """Store macro impact chains (clear old + insert fresh)."""
-        # conn via get_session()
-        conn.execute("DELETE FROM macro_impact_chains")
-        for chain in MACRO_CHAINS:
-            conn.execute("""
-                INSERT INTO macro_impact_chains
-                (trigger_type, affected_sectors, direction, magnitude, historical_evidence, confidence)
-                VALUES (?, ?, 'MIXED', ?, ?, 0.7)
-            """, (chain['trigger'],
-                  json.dumps({'positive': chain['positive'], 'negative': chain['negative']}),
-                  chain['magnitude'], chain['evidence']))
+        with get_session() as session:
+            session.execute(text("DELETE FROM macro_impact_chains"))
+            for chain in MACRO_CHAINS:
+                session.execute(text("""
+                    INSERT INTO macro_impact_chains
+                    (trigger_type, affected_sectors, direction, magnitude, historical_evidence, confidence)
+                    VALUES (:p0, :p1, 'MIXED', :p2, :p3, 0.7)
+                """), {'p0': chain['trigger'],
+                       'p1': json.dumps({'positive': chain['positive'], 'negative': chain['negative']}),
+                       'p2': chain['magnitude'], 'p3': chain['evidence']})
         logger.info("KnowledgeGraph: %d macro impact chains stored", len(MACRO_CHAINS))
 
     def get_context(self, symbol: str) -> dict:
         """Get all context for a stock."""
-        # conn via get_session()
-        try:
+        with get_session() as session:
             # Context flags
-            flags = conn.execute("""
+            flags = session.execute(text("""
                 SELECT context_type, context_value, score
-                FROM stock_context WHERE symbol = ?
-            """, (symbol,)).fetchall()
+                FROM stock_context WHERE symbol = :p0
+            """), {'p0': symbol}).fetchall()
 
             # Supply chain
-            upstream = conn.execute("""
+            upstream = session.execute(text("""
                 SELECT symbol_from, metadata_json FROM stock_relationships
-                WHERE symbol_to = ? AND relationship_type = 'SUPPLY_CHAIN'
-            """, (symbol,)).fetchall()
+                WHERE symbol_to = :p0 AND relationship_type = 'SUPPLY_CHAIN'
+            """), {'p0': symbol}).fetchall()
 
-            downstream = conn.execute("""
+            downstream = session.execute(text("""
                 SELECT symbol_to, metadata_json FROM stock_relationships
-                WHERE symbol_from = ? AND relationship_type = 'SUPPLY_CHAIN'
-            """, (symbol,)).fetchall()
+                WHERE symbol_from = :p0 AND relationship_type = 'SUPPLY_CHAIN'
+            """), {'p0': symbol}).fetchall()
 
             return {
                 'flags': {r[0]: {'value': r[1], 'score': r[2]} for r in flags},
                 'upstream': [{'symbol': r[0], 'meta': json.loads(r[1]) if r[1] else {}} for r in upstream],
                 'downstream': [{'symbol': r[0], 'meta': json.loads(r[1]) if r[1] else {}} for r in downstream],
             }
-        finally:
-            pass
 
     def get_risk_score(self, symbol: str) -> float:
         """Get aggregate risk score for a stock. Negative = risky."""
@@ -323,11 +321,8 @@ class KnowledgeGraph:
         return round(score, 2)
 
     def get_stats(self) -> dict:
-        # conn via get_session()
-        try:
-            n_rel = conn.execute('SELECT COUNT(*) FROM stock_relationships').fetchone()[0]
-            n_ctx = conn.execute('SELECT COUNT(*) FROM stock_context').fetchone()[0]
-            n_chains = conn.execute('SELECT COUNT(*) FROM macro_impact_chains').fetchone()[0]
+        with get_session() as session:
+            n_rel = session.execute(text('SELECT COUNT(*) FROM stock_relationships')).fetchone()[0]
+            n_ctx = session.execute(text('SELECT COUNT(*) FROM stock_context')).fetchone()[0]
+            n_chains = session.execute(text('SELECT COUNT(*) FROM macro_impact_chains')).fetchone()[0]
             return {'relationships': n_rel, 'contexts': n_ctx, 'impact_chains': n_chains, 'built': self._built}
-        finally:
-            pass

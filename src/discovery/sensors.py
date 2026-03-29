@@ -147,55 +147,51 @@ class SensorNetwork:
 
     def _stock_sensors(self, symbol: str, stock: dict, macro: dict) -> dict:
         """8 stock-level sensors."""
-        # conn via get_session()
-        try:
+        with get_session() as session:
             # Speculative flag
-            r = conn.execute("""
+            r = session.execute(text("""
                 SELECT score FROM stock_context
-                WHERE symbol=? AND context_type='SPECULATIVE_FLAG'
-            """, (symbol,)).fetchone()
+                WHERE symbol=:p0 AND context_type='SPECULATIVE_FLAG'
+            """), {"p0": symbol}).fetchone()
             spec_score = r[0] if r else 0
 
             # Crude sensitivity
-            r = conn.execute("""
+            r = session.execute(text("""
                 SELECT score FROM stock_context
-                WHERE symbol=? AND context_type='CRUDE_SENSITIVE'
-            """, (symbol,)).fetchone()
+                WHERE symbol=:p0 AND context_type='CRUDE_SENSITIVE'
+            """), {"p0": symbol}).fetchone()
             crude_sens = r[0] if r else 0
 
             # VIX sensitivity
-            r = conn.execute("""
+            r = session.execute(text("""
                 SELECT score FROM stock_context
-                WHERE symbol=? AND context_type='VIX_SENSITIVE'
-            """, (symbol,)).fetchone()
+                WHERE symbol=:p0 AND context_type='VIX_SENSITIVE'
+            """), {"p0": symbol}).fetchone()
             vix_sens = r[0] if r else 0
 
             # Supply chain risk
-            n_upstream = conn.execute("""
+            n_upstream = session.execute(text("""
                 SELECT COUNT(*) FROM stock_relationships
-                WHERE symbol_to=? AND relationship_type='SUPPLY_CHAIN'
-            """, (symbol,)).fetchone()[0]
+                WHERE symbol_to=:p0 AND relationship_type='SUPPLY_CHAIN'
+            """), {"p0": symbol}).fetchone()[0]
             supply_risk = min(1, n_upstream / 5)  # normalize
 
             # Analyst signal
-            r = conn.execute("""
-                SELECT upside_pct, bull_score FROM analyst_consensus WHERE symbol=?
-            """, (symbol,)).fetchone()
+            r = session.execute(text("""
+                SELECT upside_pct, bull_score FROM analyst_consensus WHERE symbol=:p0
+            """), {"p0": symbol}).fetchone()
             if r and r[0] is not None:
                 analyst = min(1, max(-1, r[0] / 30))  # normalize upside to -1..+1
             else:
                 analyst = 0
 
             # Insider signal
-            r = conn.execute("""
+            r = session.execute(text("""
                 SELECT COUNT(*) FROM insider_transactions
-                WHERE symbol=? AND transaction_type='purchase'
+                WHERE symbol=:p0 AND transaction_type='purchase'
                 AND transaction_date >= date('now', '-30 days')
-            """, (symbol,)).fetchone()
+            """), {"p0": symbol}).fetchone()
             insider = min(1, (r[0] or 0) / 3)  # 3+ buys = max signal
-
-        finally:
-            pass
 
         # D0 candle signal (from stock features)
         d0_lower = stock.get('d0_lower_shadow', 0)
@@ -218,17 +214,14 @@ class SensorNetwork:
 
     def _compute_sector_ranks(self, scan_date: str):
         """Rank sectors by 10d return."""
-        # conn via get_session()
-        try:
-            rows = conn.execute("""
+        with get_session() as session:
+            rows = session.execute(text("""
                 SELECT sector, SUM(pct_change) as ret_10d
                 FROM sector_etf_daily_returns
-                WHERE date <= ? AND date >= date(?, '-14 days')
+                WHERE date <= :p0 AND date >= date(:p1, '-14 days')
                 AND sector NOT IN ('S&P 500','US Dollar','Treasury Long','Gold')
                 GROUP BY sector ORDER BY ret_10d DESC
-            """, (scan_date, scan_date)).fetchall()
-        finally:
-            pass
+            """), {"p0": scan_date, "p1": scan_date}).fetchall()
 
         self._sector_ranks = {r[0]: i + 1 for i, r in enumerate(rows)}
         self._sector_rank_date = scan_date

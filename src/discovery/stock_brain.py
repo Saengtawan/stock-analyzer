@@ -191,10 +191,10 @@ class StockBrain:
 
     def _load_training_data(self, max_date: str = None) -> tuple:
         """Load stock features + compute interactions for training."""
-        # conn via get_session()
-        try:
-            date_filter = f"AND b.scan_date <= '{max_date}'" if max_date else ""
-            rows = conn.execute(f"""
+        with get_session() as session:
+            date_filter = "AND b.scan_date <= :p0" if max_date else ""
+            params = {"p0": max_date} if max_date else {}
+            rows = session.execute(text(f"""
                 SELECT b.atr_pct, b.momentum_5d, b.distance_from_20d_high,
                        b.volume_ratio,
                        b.outcome_5d
@@ -202,9 +202,7 @@ class StockBrain:
                 WHERE b.outcome_5d IS NOT NULL AND b.atr_pct > 0
                 {date_filter}
                 ORDER BY b.scan_date
-            """).fetchall()
-        finally:
-            pass
+            """), params).fetchall()
 
         if not rows:
             return np.array([]), np.array([]), np.array([])

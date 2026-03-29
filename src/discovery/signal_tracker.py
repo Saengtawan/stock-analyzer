@@ -12,7 +12,7 @@ Signals tracked:
   options_bearish:    IC of P/C > 1.3 (when data available)
 
 IC computed as correlation(signal_present, 5d_forward_return) on rolling 90d.
-If IC > 0.02 and n ≥ 50: weight = IC × 10 (scaled ~0.2-0.5)
+If IC > 0.02 and n >= 50: weight = IC * 10 (scaled ~0.2-0.5)
 If IC < 0.02 or n < 50: weight = 0 (auto-disabled)
 
 Walk-forward safe: fit(max_date) only uses data up to max_date.
@@ -29,11 +29,11 @@ logger = logging.getLogger(__name__)
 SIGNALS = ['insider_bought', 'analyst_upgrade', 'analyst_downgrade',
            'options_bullish', 'options_bearish']
 
-MIN_IC = 0.02       # below this → weight = 0 (noise)
+MIN_IC = 0.02       # below this -> weight = 0 (noise)
 MIN_OBS = 50        # minimum observations to compute IC
-IC_SCALE = 10.0     # weight = IC × scale (maps IC 0.05 → weight 0.5)
+IC_SCALE = 10.0     # weight = IC * scale (maps IC 0.05 -> weight 0.5)
 MAX_WEIGHT = 1.0    # cap weight
-MAX_CHANGE_PCT = 30  # safety: max ±30% weight change per refit
+MAX_CHANGE_PCT = 30  # safety: max +/-30% weight change per refit
 
 
 class SignalTracker:
@@ -52,20 +52,19 @@ class SignalTracker:
         t0 = time.time()
         old_weights = dict(self._weights)
 
-        # conn via get_session()
-        conn.execute('PRAGMA busy_timeout=5000')
+        with get_session() as session:
+            session.execute(text('PRAGMA busy_timeout=5000'))
 
-        try:
             # Load stock forward returns
             date_filter = f"AND s.date <= '{max_date}'" if max_date else ""
-            fwd_returns = self._load_forward_returns(conn, date_filter)
+            fwd_returns = self._load_forward_returns(session, date_filter)
             if len(fwd_returns) < 500:
                 logger.warning("SignalTracker: insufficient data (%d rows)", len(fwd_returns))
                 return False
 
             # Compute IC for each signal
             for signal_name in SIGNALS:
-                signal_data = self._load_signal(conn, signal_name, date_filter)
+                signal_data = self._load_signal(session, signal_name, date_filter)
                 ic, n_obs, avg_present, avg_absent = self._compute_ic(
                     fwd_returns, signal_data)
 
@@ -96,15 +95,12 @@ class SignalTracker:
                             signal_name, ic, n_obs, self._weights[signal_name],
                             avg_present, avg_absent)
 
-        finally:
-            pass
-
         self._fitted = True
         self._fit_time = time.time()
         self.save_to_db()
 
         elapsed = time.time() - t0
-        logger.info("SignalTracker: fitted in %.1fs — weights=%s", elapsed, self._weights)
+        logger.info("SignalTracker: fitted in %.1fs -- weights=%s", elapsed, self._weights)
         return True
 
     def boost(self, candidate: dict, scan_date: str = None) -> float:
@@ -136,9 +132,9 @@ class SignalTracker:
 
     # === Data Loading ===
 
-    def _load_forward_returns(self, conn, date_filter):
+    def _load_forward_returns(self, session, date_filter):
         """Load (symbol, date, fwd_5d_return) from stock_daily_ohlc."""
-        rows = conn.execute(f"""
+        rows = session.execute(text(f"""
             SELECT s.symbol, s.date, s.close,
                    LEAD(s.close, 5) OVER (PARTITION BY s.symbol ORDER BY s.date) as c5
             FROM stock_daily_ohlc s
@@ -147,7 +143,7 @@ class SignalTracker:
             AND s.date >= date('now', '-15 months')
             {date_filter}
             ORDER BY s.symbol, s.date
-        """).fetchall()
+        """)).fetchall()
 
         result = {}  # {(symbol, date): fwd_return}
         for sym, dt, close, c5 in rows:
@@ -155,14 +151,14 @@ class SignalTracker:
                 result[(sym, dt)] = (c5 / close - 1) * 100
         return result
 
-    def _load_signal(self, conn, signal_name, date_filter):
+    def _load_signal(self, session, signal_name, date_filter):
         """Load signal presence as {(symbol, date): True} for a given signal."""
         signals = {}
 
         if signal_name == 'insider_bought':
-            # Insider purchases >$10K — mark stock-date as having signal
+            # Insider purchases >$10K -- mark stock-date as having signal
             # if any purchase in [date-90d, date]
-            rows = conn.execute(f"""
+            rows = session.execute(text(f"""
                 SELECT symbol, trade_date FROM insider_transactions_history
                 WHERE (transaction_type LIKE '%Purchase%'
                        OR transaction_type LIKE '%Buy%')
@@ -170,20 +166,20 @@ class SignalTracker:
                 AND trade_date >= date('now', '-18 months')
                 {date_filter.replace('s.date', 'trade_date')}
                 ORDER BY symbol, trade_date
-            """).fetchall()
+            """)).fetchall()
 
-            # Build {symbol: [dates]} for efficient 90d window lookup
+            # Build {{symbol: [dates]}} for efficient 90d window lookup
             from collections import defaultdict
             sym_dates = defaultdict(list)
             for sym, dt in rows:
                 sym_dates[sym].append(dt)
 
             # For each stock in universe, check if any purchase in 90d window
-            all_dates = conn.execute("""
+            all_dates = session.execute(text("""
                 SELECT DISTINCT date FROM stock_daily_ohlc
                 WHERE date >= date('now', '-15 months')
                 ORDER BY date
-            """).fetchall()
+            """)).fetchall()
 
             for sym, purchase_dates in sym_dates.items():
                 pd_set = set(purchase_dates)
@@ -197,14 +193,14 @@ class SignalTracker:
                             break
 
         elif signal_name == 'analyst_upgrade':
-            rows = conn.execute(f"""
+            rows = session.execute(text(f"""
                 SELECT arh.symbol, arh.date
                 FROM analyst_ratings_history arh
                 WHERE arh.price_target > arh.prior_price_target * 1.05
                 AND arh.price_target > 0 AND arh.prior_price_target > 0
                 AND arh.date >= date('now', '-18 months')
                 {date_filter.replace('s.date', 'arh.date')}
-            """).fetchall()
+            """)).fetchall()
 
             from collections import defaultdict
             sym_dates = defaultdict(set)
@@ -212,11 +208,11 @@ class SignalTracker:
                 sym_dates[sym].add(dt)
 
             # Mark stock-dates within 90d of upgrade
-            all_dates_rows = conn.execute("""
+            all_dates_rows = session.execute(text("""
                 SELECT DISTINCT date FROM stock_daily_ohlc
                 WHERE date >= date('now', '-15 months')
                 ORDER BY date
-            """).fetchall()
+            """)).fetchall()
 
             for sym, upgrade_dates in sym_dates.items():
                 for (dt,) in all_dates_rows:
@@ -226,25 +222,25 @@ class SignalTracker:
                             break
 
         elif signal_name == 'analyst_downgrade':
-            rows = conn.execute(f"""
+            rows = session.execute(text(f"""
                 SELECT arh.symbol, arh.date
                 FROM analyst_ratings_history arh
                 WHERE arh.price_target < arh.prior_price_target * 0.95
                 AND arh.price_target > 0 AND arh.prior_price_target > 0
                 AND arh.date >= date('now', '-18 months')
                 {date_filter.replace('s.date', 'arh.date')}
-            """).fetchall()
+            """)).fetchall()
 
             from collections import defaultdict
             sym_dates = defaultdict(set)
             for sym, dt in rows:
                 sym_dates[sym].add(dt)
 
-            all_dates_rows = conn.execute("""
+            all_dates_rows = session.execute(text("""
                 SELECT DISTINCT date FROM stock_daily_ohlc
                 WHERE date >= date('now', '-15 months')
                 ORDER BY date
-            """).fetchall()
+            """)).fetchall()
 
             for sym, downgrade_dates in sym_dates.items():
                 for (dt,) in all_dates_rows:
@@ -255,11 +251,11 @@ class SignalTracker:
 
         elif signal_name == 'options_bullish':
             try:
-                rows = conn.execute("""
+                rows = session.execute(text("""
                     SELECT symbol, collected_date, pc_volume_ratio
                     FROM options_daily_summary
                     WHERE pc_volume_ratio < 0.7 AND pc_volume_ratio > 0
-                """).fetchall()
+                """)).fetchall()
                 for sym, dt, pc in rows:
                     signals[(sym, dt)] = True
             except Exception:
@@ -267,11 +263,11 @@ class SignalTracker:
 
         elif signal_name == 'options_bearish':
             try:
-                rows = conn.execute("""
+                rows = session.execute(text("""
                     SELECT symbol, collected_date, pc_volume_ratio
                     FROM options_daily_summary
                     WHERE pc_volume_ratio > 1.3
-                """).fetchall()
+                """)).fetchall()
                 for sym, dt, pc in rows:
                     signals[(sym, dt)] = True
             except Exception:
@@ -321,60 +317,60 @@ class SignalTracker:
     # === DB Persistence ===
 
     def _ensure_tables(self):
-        # conn via get_session()
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS signal_ic_tracker (
-                signal_name TEXT NOT NULL,
-                fit_date TEXT NOT NULL,
-                ic_90d REAL,
-                weight REAL,
-                n_observations INTEGER,
-                avg_return_present REAL,
-                avg_return_absent REAL,
-                UNIQUE(signal_name, fit_date)
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS signal_tracker_current (
-                signal_name TEXT NOT NULL PRIMARY KEY,
-                ic_90d REAL,
-                weight REAL,
-                n_observations INTEGER,
-                updated_at TEXT DEFAULT (datetime('now'))
-            )
-        """)
+        with get_session() as session:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS signal_ic_tracker (
+                    signal_name TEXT NOT NULL,
+                    fit_date TEXT NOT NULL,
+                    ic_90d REAL,
+                    weight REAL,
+                    n_observations INTEGER,
+                    avg_return_present REAL,
+                    avg_return_absent REAL,
+                    UNIQUE(signal_name, fit_date)
+                )
+            """))
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS signal_tracker_current (
+                    signal_name TEXT NOT NULL PRIMARY KEY,
+                    ic_90d REAL,
+                    weight REAL,
+                    n_observations INTEGER,
+                    updated_at TEXT DEFAULT (datetime('now'))
+                )
+            """))
 
     def save_to_db(self):
         from datetime import date as date_cls
         fit_date = date_cls.today().isoformat()
-        # conn via get_session()
-        for name in SIGNALS:
-            ic = self._ic_values.get(name, 0)
-            weight = self._weights.get(name, 0)
-            n_obs = self._obs_counts.get(name, 0)
+        with get_session() as session:
+            for name in SIGNALS:
+                ic = self._ic_values.get(name, 0)
+                weight = self._weights.get(name, 0)
+                n_obs = self._obs_counts.get(name, 0)
 
-            conn.execute("""
-                INSERT OR REPLACE INTO signal_ic_tracker
-                (signal_name, fit_date, ic_90d, weight, n_observations)
-                VALUES (?, ?, ?, ?, ?)
-            """, (name, fit_date, ic, weight, n_obs))
+                session.execute(text("""
+                    INSERT OR REPLACE INTO signal_ic_tracker
+                    (signal_name, fit_date, ic_90d, weight, n_observations)
+                    VALUES (:p0, :p1, :p2, :p3, :p4)
+                """), {'p0': name, 'p1': fit_date, 'p2': ic, 'p3': weight, 'p4': n_obs})
 
-            conn.execute("""
-                INSERT OR REPLACE INTO signal_tracker_current
-                (signal_name, ic_90d, weight, n_observations)
-                VALUES (?, ?, ?, ?)
-            """, (name, ic, weight, n_obs))
-        logger.info("SignalTracker: saved %d signal weights to DB", len(SIGNALS))
+                session.execute(text("""
+                    INSERT OR REPLACE INTO signal_tracker_current
+                    (signal_name, ic_90d, weight, n_observations)
+                    VALUES (:p0, :p1, :p2, :p3)
+                """), {'p0': name, 'p1': ic, 'p2': weight, 'p3': n_obs})
+            logger.info("SignalTracker: saved %d signal weights to DB", len(SIGNALS))
 
     def load_from_db(self) -> bool:
-        # conn via get_session()
-        try:
-            rows = conn.execute(
-                "SELECT signal_name, ic_90d, weight, n_observations "
-                "FROM signal_tracker_current"
-            ).fetchall()
-        except Exception:
-            return False
+        with get_session() as session:
+            try:
+                rows = session.execute(text(
+                    "SELECT signal_name, ic_90d, weight, n_observations "
+                    "FROM signal_tracker_current"
+                )).fetchall()
+            except Exception:
+                return False
 
         if not rows:
             return False
@@ -386,7 +382,7 @@ class SignalTracker:
 
         self._fitted = True
         self._fit_time = time.time()
-        logger.info("SignalTracker: loaded from DB — weights=%s", self._weights)
+        logger.info("SignalTracker: loaded from DB -- weights=%s", self._weights)
         return True
 
     def get_stats(self) -> dict:

@@ -115,13 +115,13 @@ class RiskBrain:
     def _get_consecutive_losses(self) -> int:
         """Count consecutive losses from recent discovery outcomes."""
         try:
-            # conn via get_session()
-            rows = conn.execute("""
-                SELECT actual_return_d3 FROM discovery_outcomes
-                WHERE actual_return_d3 IS NOT NULL
-                ORDER BY scan_date DESC, symbol DESC
-                LIMIT 20
-            """).fetchall()
+            with get_session() as session:
+                rows = session.execute(text("""
+                    SELECT actual_return_d3 FROM discovery_outcomes
+                    WHERE actual_return_d3 IS NOT NULL
+                    ORDER BY scan_date DESC, symbol DESC
+                    LIMIT 20
+                """)).fetchall()
 
             count = 0
             for r in rows:

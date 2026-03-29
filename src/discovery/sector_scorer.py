@@ -1,5 +1,5 @@
 """
-Sector Scorer — v17 Layer 1.
+Sector Scorer -- v17 Layer 1.
 
 Scores each sector from 4 learned features:
   1. momentum_5d:       sector ETF 5d return
@@ -52,7 +52,7 @@ N_BLOCKED = 3    # bottom 3 blocked
 
 
 class SectorScorer:
-    """Score sectors adaptively — replaces hardcoded sector rules."""
+    """Score sectors adaptively -- replaces hardcoded sector rules."""
 
     def __init__(self, adaptive_params=None):
         self._adaptive = adaptive_params  # v17: for learned N_BLOCKED
@@ -68,12 +68,11 @@ class SectorScorer:
         t0 = time.time()
         old_weights = dict(self._weights)
 
-        # conn via get_session()
-        conn.execute('PRAGMA busy_timeout=5000')
+        with get_session() as session:
+            session.execute(text('PRAGMA busy_timeout=5000'))
 
-        try:
             # Build sector ETF mapping
-            self._sector_etf_map = self._load_sector_etf_map(conn)
+            self._sector_etf_map = self._load_sector_etf_map(session)
             if not self._sector_etf_map:
                 logger.warning("SectorScorer: no sector ETF mapping found")
                 return False
@@ -81,13 +80,10 @@ class SectorScorer:
             date_filter = f"AND date <= '{max_date}'" if max_date else ""
 
             # Load raw data
-            sector_returns = self._load_sector_returns(conn, date_filter)
-            macro_data = self._load_macro_data(conn, date_filter)
-            analyst_data = self._load_analyst_data(conn, date_filter)
-            options_data = self._load_options_data(conn, date_filter)
-
-        finally:
-            pass
+            sector_returns = self._load_sector_returns(session, date_filter)
+            macro_data = self._load_macro_data(session, date_filter)
+            analyst_data = self._load_analyst_data(session, date_filter)
+            options_data = self._load_options_data(session, date_filter)
 
         if len(sector_returns) < 100:
             logger.warning("SectorScorer: insufficient sector data (%d)", len(sector_returns))
@@ -143,7 +139,7 @@ class SectorScorer:
         self.save_to_db()
 
         elapsed = time.time() - t0
-        logger.info("SectorScorer: fitted in %.1fs — weights=%s", elapsed, self._weights)
+        logger.info("SectorScorer: fitted in %.1fs -- weights=%s", elapsed, self._weights)
         return True
 
     def score(self, macro: dict, date: str = None) -> dict:
@@ -154,21 +150,18 @@ class SectorScorer:
         if not self._fitted:
             return {s: 0.0 for s in SECTORS}
 
-        # conn via get_session()
-        conn.execute('PRAGMA busy_timeout=3000')
+        with get_session() as session:
+            session.execute(text('PRAGMA busy_timeout=3000'))
 
-        try:
             scores = {}
             for sector in SECTORS:
                 features = self._compute_sector_features_live(
-                    conn, sector, macro, date)
+                    session, sector, macro, date)
                 score = sum(
                     features.get(f, 0) * self._weights.get(f, 0)
                     for f in FEATURES
                 )
                 scores[sector] = round(score, 4)
-        finally:
-            pass
 
         return scores
 
@@ -268,7 +261,7 @@ class SectorScorer:
     def _compute_macro_corr_signals(self, sector_returns, macro_data):
         """Compute rolling 30d correlation between macro instruments and sectors.
 
-        For each sector-date: sum(corr_i × instrument_5d_change_i) for instruments
+        For each sector-date: sum(corr_i * instrument_5d_change_i) for instruments
         where |corr_i| > 0.3 (meaningful correlation).
         """
         # Build daily macro dict {date: {instrument: value}}
@@ -337,34 +330,34 @@ class SectorScorer:
 
         return macro_corr
 
-    def _compute_sector_features_live(self, conn, sector, macro, date):
+    def _compute_sector_features_live(self, session, sector, macro, date):
         """Compute features for a single sector using latest data."""
         features = {}
 
-        # 1. Momentum 5d — from sector_etf_daily_returns
+        # 1. Momentum 5d -- from sector_etf_daily_returns
         etf = self._sector_etf_map.get(sector)
         if etf:
-            rows = conn.execute("""
+            rows = session.execute(text("""
                 SELECT pct_change FROM sector_etf_daily_returns
-                WHERE sector = ? ORDER BY date DESC LIMIT 5
-            """, (sector,)).fetchall()
+                WHERE sector = :p0 ORDER BY date DESC LIMIT 5
+            """), {'p0': sector}).fetchall()
             features['momentum_5d'] = sum(r[0] or 0 for r in rows) if rows else 0
 
-        # 2. Macro correlation signal — use current macro state
+        # 2. Macro correlation signal -- use current macro state
         # Simplified live version: use known strong correlations
         features['macro_corr_signal'] = 0
         try:
-            rows = conn.execute("""
+            rows = session.execute(text("""
                 SELECT date, crude_close, gold_close, vix_close, yield_10y,
                        dxy_close, btc_close, copper_close
                 FROM macro_snapshots ORDER BY date DESC LIMIT 30
-            """).fetchall()
+            """)).fetchall()
             if len(rows) >= 6:
                 # Compute sector-macro correlation from recent 30d
-                sect_rows = conn.execute("""
+                sect_rows = session.execute(text("""
                     SELECT date, pct_change FROM sector_etf_daily_returns
-                    WHERE sector = ? ORDER BY date DESC LIMIT 30
-                """, (sector,)).fetchall()
+                    WHERE sector = :p0 ORDER BY date DESC LIMIT 30
+                """), {'p0': sector}).fetchall()
 
                 if len(sect_rows) >= 20:
                     s_rets = np.array([r[1] or 0 for r in sect_rows[::-1]])
@@ -389,7 +382,7 @@ class SectorScorer:
 
         # 3. Analyst net 7d
         try:
-            row = conn.execute("""
+            row = session.execute(text("""
                 SELECT
                     SUM(CASE WHEN arh.price_target > arh.prior_price_target * 1.05
                          AND arh.prior_price_target > 0 THEN 1 ELSE 0 END) as ups,
@@ -397,10 +390,10 @@ class SectorScorer:
                          AND arh.prior_price_target > 0 THEN 1 ELSE 0 END) as downs
                 FROM analyst_ratings_history arh
                 JOIN stock_fundamentals sf ON arh.symbol = sf.symbol
-                WHERE sf.sector = ?
+                WHERE sf.sector = :p0
                 AND arh.date >= date('now', '-7 days')
                 AND arh.price_target > 0
-            """, (sector,)).fetchone()
+            """), {'p0': sector}).fetchone()
             if row:
                 features['analyst_net_7d'] = (row[0] or 0) - (row[1] or 0)
             else:
@@ -410,14 +403,14 @@ class SectorScorer:
 
         # 4. Options P/C
         try:
-            row = conn.execute("""
+            row = session.execute(text("""
                 SELECT AVG(o.pc_volume_ratio)
                 FROM options_daily_summary o
                 JOIN stock_fundamentals sf ON o.symbol = sf.symbol
-                WHERE sf.sector = ?
+                WHERE sf.sector = :p0
                 AND o.collected_date >= date('now', '-3 days')
                 AND o.pc_volume_ratio > 0
-            """, (sector,)).fetchone()
+            """), {'p0': sector}).fetchone()
             if row and row[0]:
                 features['options_pc'] = round(1.0 - row[0], 4)
             else:
@@ -429,38 +422,38 @@ class SectorScorer:
 
     # === Data Loading ===
 
-    def _load_sector_etf_map(self, conn):
-        rows = conn.execute("""
+    def _load_sector_etf_map(self, session):
+        rows = session.execute(text("""
             SELECT DISTINCT sector, etf FROM sector_etf_daily_returns
             WHERE sector IS NOT NULL AND sector != ''
             AND sector NOT IN ('S&P 500', 'US Dollar', 'Treasury Long', 'Gold')
-        """).fetchall()
+        """)).fetchall()
         return {r[0]: r[1] for r in rows}
 
-    def _load_sector_returns(self, conn, date_filter):
-        rows = conn.execute(f"""
+    def _load_sector_returns(self, session, date_filter):
+        rows = session.execute(text(f"""
             SELECT date, sector, pct_change FROM sector_etf_daily_returns
             WHERE sector IS NOT NULL AND sector != ''
             AND sector NOT IN ('S&P 500', 'US Dollar', 'Treasury Long', 'Gold')
             AND date >= date('now', '-15 months')
             {date_filter}
             ORDER BY sector, date
-        """).fetchall()
+        """)).fetchall()
         return rows
 
-    def _load_macro_data(self, conn, date_filter):
+    def _load_macro_data(self, session, date_filter):
         cols = ', '.join(inst[0] for inst in MACRO_INSTRUMENTS)
-        rows = conn.execute(f"""
+        rows = session.execute(text(f"""
             SELECT date, {cols} FROM macro_snapshots
             WHERE date >= date('now', '-15 months')
             {date_filter}
             ORDER BY date
-        """).fetchall()
+        """)).fetchall()
         return rows
 
-    def _load_analyst_data(self, conn, date_filter):
+    def _load_analyst_data(self, session, date_filter):
         """Load analyst upgrade/downgrade counts per sector per date."""
-        rows = conn.execute(f"""
+        rows = session.execute(text(f"""
             SELECT arh.date, sf.sector,
                 SUM(CASE WHEN arh.price_target > arh.prior_price_target * 1.05
                      AND arh.prior_price_target > 0 THEN 1 ELSE 0 END) as ups,
@@ -472,20 +465,20 @@ class SectorScorer:
             AND arh.date >= date('now', '-15 months')
             {date_filter.replace('date', 'arh.date')}
             GROUP BY arh.date, sf.sector
-        """).fetchall()
+        """)).fetchall()
         return rows
 
-    def _load_options_data(self, conn, date_filter):
+    def _load_options_data(self, session, date_filter):
         """Load average P/C ratio per sector per date."""
         try:
-            rows = conn.execute(f"""
+            rows = session.execute(text(f"""
                 SELECT o.collected_date, sf.sector, AVG(o.pc_volume_ratio)
                 FROM options_daily_summary o
                 JOIN stock_fundamentals sf ON o.symbol = sf.symbol
                 WHERE o.pc_volume_ratio > 0
                 {date_filter.replace('date', 'o.collected_date')}
                 GROUP BY o.collected_date, sf.sector
-            """).fetchall()
+            """)).fetchall()
             return rows
         except Exception:
             return []  # table may not exist
@@ -493,55 +486,55 @@ class SectorScorer:
     # === DB Persistence ===
 
     def _ensure_tables(self):
-        # conn via get_session()
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS sector_scores (
-                date TEXT NOT NULL,
-                sector TEXT NOT NULL,
-                score REAL NOT NULL,
-                rank INTEGER,
-                allowed INTEGER DEFAULT 1,
-                momentum_5d REAL,
-                macro_corr_signal REAL,
-                analyst_net REAL,
-                options_signal REAL,
-                UNIQUE(date, sector)
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS sector_scorer_weights (
-                feature TEXT NOT NULL,
-                weight REAL NOT NULL,
-                ic REAL,
-                n_observations INTEGER,
-                fit_date TEXT NOT NULL,
-                UNIQUE(feature)
-            )
-        """)
+        with get_session() as session:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS sector_scores (
+                    date TEXT NOT NULL,
+                    sector TEXT NOT NULL,
+                    score REAL NOT NULL,
+                    rank INTEGER,
+                    allowed INTEGER DEFAULT 1,
+                    momentum_5d REAL,
+                    macro_corr_signal REAL,
+                    analyst_net REAL,
+                    options_signal REAL,
+                    UNIQUE(date, sector)
+                )
+            """))
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS sector_scorer_weights (
+                    feature TEXT NOT NULL,
+                    weight REAL NOT NULL,
+                    ic REAL,
+                    n_observations INTEGER,
+                    fit_date TEXT NOT NULL,
+                    UNIQUE(feature)
+                )
+            """))
 
     def save_to_db(self):
         from datetime import date as date_cls
         fit_date = date_cls.today().isoformat()
-        # conn via get_session()
-        for feat, weight in self._weights.items():
-            ic = self._fit_stats.get(feat, {}).get('ic', 0)
-            n = self._fit_stats.get(feat, {}).get('n', 0)
-            conn.execute("""
-                INSERT OR REPLACE INTO sector_scorer_weights
-                (feature, weight, ic, n_observations, fit_date)
-                VALUES (?, ?, ?, ?, ?)
-            """, (feat, weight, ic, n, fit_date))
-        logger.info("SectorScorer: saved weights to DB — %s", self._weights)
+        with get_session() as session:
+            for feat, weight in self._weights.items():
+                ic = self._fit_stats.get(feat, {}).get('ic', 0)
+                n = self._fit_stats.get(feat, {}).get('n', 0)
+                session.execute(text("""
+                    INSERT OR REPLACE INTO sector_scorer_weights
+                    (feature, weight, ic, n_observations, fit_date)
+                    VALUES (:p0, :p1, :p2, :p3, :p4)
+                """), {'p0': feat, 'p1': weight, 'p2': ic, 'p3': n, 'p4': fit_date})
+            logger.info("SectorScorer: saved weights to DB -- %s", self._weights)
 
     def load_from_db(self) -> bool:
-        # conn via get_session()
-        try:
-            rows = conn.execute(
-                "SELECT feature, weight, ic FROM sector_scorer_weights"
-            ).fetchall()
-            etf_map = self._load_sector_etf_map(conn)
-        except Exception:
-            return False
+        with get_session() as session:
+            try:
+                rows = session.execute(text(
+                    "SELECT feature, weight, ic FROM sector_scorer_weights"
+                )).fetchall()
+                etf_map = self._load_sector_etf_map(session)
+            except Exception:
+                return False
 
         if not rows:
             return False
@@ -550,7 +543,7 @@ class SectorScorer:
         self._sector_etf_map = etf_map
         self._fitted = True
         self._fit_time = time.time()
-        logger.info("SectorScorer: loaded from DB — weights=%s", self._weights)
+        logger.info("SectorScorer: loaded from DB -- weights=%s", self._weights)
         return True
 
     def get_stats(self) -> dict:

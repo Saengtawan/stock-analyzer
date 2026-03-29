@@ -571,21 +571,21 @@ class AdaptiveParameterLearner:
         Finds cutoff that maximizes Sharpe while keeping enough candidates.
         """
         try:
-            # conn via get_session()
-            # Get UBrain probs for signals in this group's sector
-            sector = sigs[0].get('sector', '') if sigs else ''
-            if sector:
-                rows = conn.execute("""
-                    SELECT u.ubrain_prob, u.outcome_5d
-                    FROM ubrain_backfill u
-                    JOIN backfill_signal_outcomes b ON u.scan_date = b.scan_date AND u.symbol = b.symbol
-                    WHERE b.sector = ? AND u.ubrain_prob IS NOT NULL AND u.outcome_5d IS NOT NULL
-                """, (sector,)).fetchall()
-            else:
-                rows = conn.execute("""
-                    SELECT ubrain_prob, outcome_5d FROM ubrain_backfill
-                    WHERE ubrain_prob IS NOT NULL AND outcome_5d IS NOT NULL
-                """).fetchall()
+            with get_session() as session:
+                # Get UBrain probs for signals in this group's sector
+                sector = sigs[0].get('sector', '') if sigs else ''
+                if sector:
+                    rows = session.execute(text("""
+                        SELECT u.ubrain_prob, u.outcome_5d
+                        FROM ubrain_backfill u
+                        JOIN backfill_signal_outcomes b ON u.scan_date = b.scan_date AND u.symbol = b.symbol
+                        WHERE b.sector = :p0 AND u.ubrain_prob IS NOT NULL AND u.outcome_5d IS NOT NULL
+                    """), {'p0': sector}).fetchall()
+                else:
+                    rows = session.execute(text("""
+                        SELECT ubrain_prob, outcome_5d FROM ubrain_backfill
+                        WHERE ubrain_prob IS NOT NULL AND outcome_5d IS NOT NULL
+                    """)).fetchall()
         except Exception:
             return DEFAULTS['ubrain_cutoff']
 
@@ -662,12 +662,12 @@ class AdaptiveParameterLearner:
     def _learn_spec_skip(self, sigs):
         """v17: Learn optimal speculative skip threshold from outcome data."""
         try:
-            # conn via get_session()
-            spec_scores = {}
-            for r in conn.execute(
-                "SELECT symbol, score FROM stock_context WHERE context_type='SPECULATIVE_FLAG'"
-            ).fetchall():
-                spec_scores[r[0]] = r[1]
+            with get_session() as session:
+                spec_scores = {}
+                for r in session.execute(
+                    text("SELECT symbol, score FROM stock_context WHERE context_type='SPECULATIVE_FLAG'")
+                ).fetchall():
+                    spec_scores[r[0]] = r[1]
         except Exception:
             return DEFAULTS['spec_skip']
 
@@ -769,10 +769,9 @@ class AdaptiveParameterLearner:
 
     def _load_data(self, max_date=None):
         """Load historical signals with D1-D5 OHLC for SL/TP simulation."""
-        # conn via get_session()
-        try:
+        with get_session() as session:
             date_filter = f"AND b.scan_date <= '{max_date}'" if max_date else ""
-            rows = conn.execute(f"""
+            rows = session.execute(text(f"""
                 SELECT b.scan_date, b.symbol, b.sector,
                        b.atr_pct, b.momentum_5d, b.distance_from_20d_high,
                        b.volume_ratio, b.outcome_5d, b.vix_at_signal,
@@ -801,9 +800,7 @@ class AdaptiveParameterLearner:
                 AND m.vix_close IS NOT NULL AND mb.pct_above_20d_ma IS NOT NULL
                 {date_filter}
                 ORDER BY b.scan_date
-            """).fetchall()
-        finally:
-            pass
+            """)).fetchall()
 
         if not rows:
             return []
@@ -855,82 +852,75 @@ class AdaptiveParameterLearner:
     # === DB persistence ===
 
     def _ensure_tables(self):
-        # conn via get_session()
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS adaptive_parameters (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                sector TEXT NOT NULL,
-                regime TEXT NOT NULL,
-                param_name TEXT NOT NULL,
-                param_value REAL NOT NULL,
-                n_signals INTEGER,
-                metric_value REAL,
-                fit_date TEXT,
-                created_at TEXT DEFAULT (datetime('now')),
-                UNIQUE(sector, regime, param_name)
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS adaptive_parameter_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                sector TEXT NOT NULL,
-                regime TEXT NOT NULL,
-                param_name TEXT NOT NULL,
-                old_value REAL,
-                new_value REAL,
-                n_signals INTEGER,
-                reason TEXT,
-                changed_at TEXT DEFAULT (datetime('now'))
-            )
-        """)
+        with get_session() as session:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS adaptive_parameters (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    sector TEXT NOT NULL,
+                    regime TEXT NOT NULL,
+                    param_name TEXT NOT NULL,
+                    param_value REAL NOT NULL,
+                    n_signals INTEGER,
+                    metric_value REAL,
+                    fit_date TEXT,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    UNIQUE(sector, regime, param_name)
+                )
+            """))
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS adaptive_parameter_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    sector TEXT NOT NULL,
+                    regime TEXT NOT NULL,
+                    param_name TEXT NOT NULL,
+                    old_value REAL,
+                    new_value REAL,
+                    n_signals INTEGER,
+                    reason TEXT,
+                    changed_at TEXT DEFAULT (datetime('now'))
+                )
+            """))
 
     def save_to_db(self):
         """Persist learned parameters to DB."""
-        # conn via get_session()
-        try:
+        with get_session() as session:
             for (sector, regime), params in self._params.items():
                 stats = self._fit_stats.get((sector, regime), {})
                 n_sigs = stats.get('n', 0)
                 for name, value in params.items():
                     # Check old value for history
-                    old = conn.execute("""
+                    old = session.execute(text("""
                         SELECT param_value FROM adaptive_parameters
-                        WHERE sector=? AND regime=? AND param_name=?
-                    """, (sector, regime, name)).fetchone()
+                        WHERE sector=:p0 AND regime=:p1 AND param_name=:p2
+                    """), {'p0': sector, 'p1': regime, 'p2': name}).fetchone()
                     old_val = old[0] if old else None
 
-                    conn.execute("""
+                    session.execute(text("""
                         INSERT INTO adaptive_parameters
                         (sector, regime, param_name, param_value, n_signals, fit_date)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        VALUES (:p0, :p1, :p2, :p3, :p4, :p5)
                         ON CONFLICT(sector, regime, param_name)
-                        DO UPDATE SET param_value=?, n_signals=?,
-                                      fit_date=?, created_at=datetime('now')
-                    """, (sector, regime, name, value, n_sigs, self._fit_date,
-                          value, n_sigs, self._fit_date))
+                        DO UPDATE SET param_value=:p3, n_signals=:p4,
+                                      fit_date=:p5, created_at=datetime('now')
+                    """), {'p0': sector, 'p1': regime, 'p2': name, 'p3': value, 'p4': n_sigs, 'p5': self._fit_date})
 
                     if old_val is not None and abs(old_val - value) > 0.001:
-                        conn.execute("""
+                        session.execute(text("""
                             INSERT INTO adaptive_parameter_history
                             (sector, regime, param_name, old_value, new_value,
                              n_signals, reason)
-                            VALUES (?, ?, ?, ?, ?, ?, 'auto-refit')
-                        """, (sector, regime, name, old_val, value, n_sigs))
+                            VALUES (:p0, :p1, :p2, :p3, :p4, :p5, 'auto-refit')
+                        """), {'p0': sector, 'p1': regime, 'p2': name, 'p3': old_val, 'p4': value, 'p5': n_sigs})
             logger.info("AdaptiveParams: saved %d groups to DB",
                         len(self._params))
-        finally:
-            pass
 
     def load_from_db(self) -> bool:
         """Load previously learned parameters from DB."""
-        # conn via get_session()
-        try:
-            rows = conn.execute("""
+        with get_session() as session:
+            rows = session.execute(text("""
                 SELECT sector, regime, param_name, param_value, n_signals
                 FROM adaptive_parameters
-            """).fetchall()
-        finally:
-            pass
+            """)).fetchall()
 
         if not rows:
             return False

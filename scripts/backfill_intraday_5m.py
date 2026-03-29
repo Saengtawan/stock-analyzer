@@ -2,63 +2,52 @@
 """
 backfill_intraday_5m.py — Backfill 5-minute intraday bars from Alpaca API.
 
-Fetches 5-min OHLCV + VWAP for universe stocks from 2023-06-01 to today.
-Alpaca free tier: 200 req/min, unlimited history.
-
 Usage:
   python3 scripts/backfill_intraday_5m.py              # full backfill
   python3 scripts/backfill_intraday_5m.py --recent 7    # last 7 days only
   python3 scripts/backfill_intraday_5m.py --symbol NVDA  # single symbol
-
-Table: intraday_bars_5m
-  symbol, timestamp, date, time_et, open, high, low, close, volume, vwap, n_trades
 """
-import argparse
-import os
-from database.orm.base import get_session; from sqlalchemy import text
-import requests
-import time
+import argparse, os, sys, time, requests
 from datetime import datetime, date, timedelta
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+from database.orm.base import get_session
+from sqlalchemy import text
+
+# Load Alpaca keys from .env
 _DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(_DIR, '..', 'data', 'trade_history.db')
+_env = {}
+try:
+    for line in open(os.path.join(_DIR, '..', '.env')):
+        line = line.strip()
+        if '=' in line and not line.startswith('#'):
+            k, v = line.split('=', 1)
+            _env[k.strip()] = v.strip()
+except:
+    pass
 
-# Load Alpaca keys
-def _load_env():
-    env = {}
-    try:
-        for line in open(os.path.join(_DIR, '..', '.env')):
-            line = line.strip()
-            if '=' in line and not line.startswith('#'):
-                k, v = line.split('=', 1)
-                env[k.strip()] = v.strip()
-    except:
-        pass
-    return env
-
-ENV = _load_env()
 HEADERS = {
-    'APCA-API-KEY-ID': ENV.get('ALPACA_API_KEY', ''),
-    'APCA-API-SECRET-KEY': ENV.get('ALPACA_SECRET_KEY', ''),
+    'APCA-API-KEY-ID': _env.get('ALPACA_API_KEY', ''),
+    'APCA-API-SECRET-KEY': _env.get('ALPACA_SECRET_KEY', ''),
 }
 BARS_URL = 'https://data.alpaca.markets/v2/stocks/{}/bars'
 
 
-def ensure_table(conn):
-    conn.execute('''CREATE TABLE IF NOT EXISTS intraday_bars_5m (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        symbol TEXT NOT NULL,
-        timestamp TEXT NOT NULL,
-        date TEXT NOT NULL,
-        time_et TEXT NOT NULL,
-        open REAL, high REAL, low REAL, close REAL,
-        volume INTEGER, vwap REAL, n_trades INTEGER,
-        created_at TEXT DEFAULT (datetime('now')),
-        UNIQUE(symbol, timestamp)
-    )''')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_intraday_5m_sym_date ON intraday_bars_5m(symbol, date)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_intraday_5m_date ON intraday_bars_5m(date)')
-    conn.commit()
+def ensure_table():
+    with get_session() as session:
+        session.execute(text('''CREATE TABLE IF NOT EXISTS intraday_bars_5m (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            symbol TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            date TEXT NOT NULL,
+            time_et TEXT NOT NULL,
+            open REAL, high REAL, low REAL, close REAL,
+            volume INTEGER, vwap REAL, n_trades INTEGER,
+            created_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(symbol, timestamp)
+        )'''))
+        session.execute(text('CREATE INDEX IF NOT EXISTS idx_intraday_5m_sym_date ON intraday_bars_5m(symbol, date)'))
+        session.execute(text('CREATE INDEX IF NOT EXISTS idx_intraday_5m_date ON intraday_bars_5m(date)'))
 
 
 def fetch_bars(symbol, start_date, end_date):
@@ -101,7 +90,7 @@ def fetch_bars(symbol, start_date, end_date):
             if not page_token:
                 break
 
-            time.sleep(0.15)  # ~6 req/sec
+            time.sleep(0.15)
             retries = 0
 
         except Exception as e:
@@ -114,23 +103,23 @@ def fetch_bars(symbol, start_date, end_date):
     return all_bars
 
 
-def insert_bars(conn, symbol, bars):
+def insert_bars(session, symbol, bars):
     """Insert bars into DB, skip duplicates."""
     n = 0
     for bar in bars:
         ts = bar['t']
         dt = datetime.fromisoformat(ts.replace('Z', '+00:00'))
-        et = dt - timedelta(hours=4)  # Approximate ET
+        et = dt - timedelta(hours=4)
         date_str = et.strftime('%Y-%m-%d')
         time_str = et.strftime('%H:%M')
 
         try:
-            conn.execute('''INSERT OR IGNORE INTO intraday_bars_5m
+            session.execute(text('''INSERT OR IGNORE INTO intraday_bars_5m
                 (symbol, timestamp, date, time_et, open, high, low, close, volume, vwap, n_trades)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?)''',
-                (symbol, ts, date_str, time_str,
-                 bar['o'], bar['h'], bar['l'], bar['c'],
-                 bar['v'], bar.get('vw'), bar.get('n')))
+                VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6,:p7,:p8,:p9,:p10)'''),
+                {'p0': symbol, 'p1': ts, 'p2': date_str, 'p3': time_str,
+                 'p4': bar['o'], 'p5': bar['h'], 'p6': bar['l'], 'p7': bar['c'],
+                 'p8': bar['v'], 'p9': bar.get('vw'), 'p10': bar.get('n')})
             n += 1
         except:
             pass
@@ -145,18 +134,16 @@ def main():
     parser.add_argument('--min-mcap', type=float, default=1e9, help='Min market cap')
     args = parser.parse_args()
 
-    conn = get_session().__enter__()
-    ensure_table(conn)
+    ensure_table()
 
     # Determine symbols
-    if args.symbol:
-        symbols = [args.symbol.upper()]
-    else:
-        symbols = [r[0] for r in conn.execute('''
-            SELECT symbol FROM stock_fundamentals
-            WHERE avg_volume > ? AND market_cap > ?
-            ORDER BY avg_volume DESC
-        ''', (args.min_volume, args.min_mcap)).fetchall()]
+    with get_session() as session:
+        if args.symbol:
+            symbols = [args.symbol.upper()]
+        else:
+            symbols = [r[0] for r in session.execute(text(
+                'SELECT symbol FROM stock_fundamentals WHERE avg_volume > :v AND market_cap > :m ORDER BY avg_volume DESC'
+            ), {'v': args.min_volume, 'm': args.min_mcap}).fetchall()]
 
     # Determine date range
     if args.recent > 0:
@@ -171,17 +158,17 @@ def main():
     total_new = 0
 
     for si, sym in enumerate(symbols):
-        # Check existing data for this symbol
-        existing = conn.execute(
-            'SELECT MAX(date) FROM intraday_bars_5m WHERE symbol=?', (sym,)
-        ).fetchone()[0]
+        # Check existing data
+        with get_session() as session:
+            existing = session.execute(text(
+                'SELECT MAX(date) FROM intraday_bars_5m WHERE symbol=:s'
+            ), {'s': sym}).fetchone()[0]
 
-        # If already have recent data, skip or start from last date
         sym_start = start
         if existing and not args.recent:
             if existing >= (date.today() - timedelta(days=3)).isoformat():
-                continue  # Already up to date
-            sym_start = existing  # Resume from last date
+                continue
+            sym_start = existing
 
         # Fetch month by month
         current = datetime.strptime(sym_start, '%Y-%m-%d').date()
@@ -192,31 +179,31 @@ def main():
             month_end = min(current + timedelta(days=30), end_dt)
             bars = fetch_bars(sym, current.isoformat(), month_end.isoformat())
             if bars:
-                n = insert_bars(conn, sym, bars)
-                sym_bars += n
+                with get_session() as session:
+                    n = insert_bars(session, sym, bars)
+                    sym_bars += n
             current = month_end
 
         if sym_bars > 0:
-            conn.commit()
             total_bars += sym_bars
             total_new += 1
 
         if (si + 1) % 20 == 0 or si == len(symbols) - 1:
-            db_total = conn.execute('SELECT COUNT(*) FROM intraday_bars_5m').fetchone()[0]
+            with get_session() as session:
+                db_total = session.execute(text('SELECT COUNT(*) FROM intraday_bars_5m')).fetchone()[0]
             print(f'  [{si+1}/{len(symbols)}] {sym:6s} +{sym_bars:>6,} bars | '
                   f'Total: {db_total:>10,} bars, {total_new} new symbols')
 
     # Final stats
-    final = conn.execute('''
-        SELECT COUNT(*), COUNT(DISTINCT symbol), MIN(date), MAX(date)
-        FROM intraday_bars_5m
-    ''').fetchone()
+    with get_session() as session:
+        final = session.execute(text('''
+            SELECT COUNT(*), COUNT(DISTINCT symbol), MIN(date), MAX(date)
+            FROM intraday_bars_5m
+        ''')).fetchone()
     print(f'\n=== BACKFILL COMPLETE ===')
     print(f'Total bars: {final[0]:,}')
     print(f'Symbols: {final[1]}')
     print(f'Date range: {final[2]} to {final[3]}')
-
-    conn.close()
 
 
 if __name__ == '__main__':

@@ -507,9 +507,8 @@ class UnifiedScorer:
             logger.error("HoldKernel: fit failed: %s", e)
 
     def _fit_hold_kernel_inner(self):
-        # conn via get_session()
-        try:
-            rows = conn.execute("""
+        with get_session() as session:
+            rows = session.execute(text("""
                 SELECT b.atr_pct, b.volume_ratio, b.momentum_5d, b.distance_from_20d_high,
                        d0.open as d0o, d0.high as d0h, d0.low as d0l,
                        d1.high as h1, d1.low as l1,
@@ -521,9 +520,7 @@ class UnifiedScorer:
                 JOIN signal_daily_bars d2 ON b.scan_date=d2.scan_date AND b.symbol=d2.symbol AND d2.day_offset=2
                 JOIN signal_daily_bars d3 ON b.scan_date=d3.scan_date AND b.symbol=d3.symbol AND d3.day_offset=3
                 WHERE d0.open > 0 AND b.atr_pct > 0
-            """).fetchall()
-        finally:
-            pass
+            """)).fetchall()
 
         if len(rows) < 500:
             logger.warning("HoldKernel: not enough data (%d rows)", len(rows))
@@ -595,9 +592,8 @@ class UnifiedScorer:
 
     def _fit_weekend_kernel(self):
         """Fit kernel for Friday buy → Monday outcome prediction."""
-        # conn via get_session()
-        try:
-            rows = conn.execute("""
+        with get_session() as session:
+            rows = session.execute(text("""
                 SELECT b.atr_pct, b.volume_ratio, b.momentum_5d,
                        b.distance_from_20d_high, b.vix_at_signal,
                        d0.close as fri_close,
@@ -608,9 +604,7 @@ class UnifiedScorer:
                 JOIN signal_daily_bars d1 ON b.scan_date=d1.scan_date AND b.symbol=d1.symbol AND d1.day_offset=1
                 WHERE d0.close > 0 AND d1.open > 0 AND b.atr_pct > 0
                   AND strftime('%w', b.scan_date) = '5'
-            """).fetchall()
-        finally:
-            pass
+            """)).fetchall()
 
         if len(rows) < 200:
             logger.warning("WeekendKernel: not enough Friday data (%d rows)", len(rows))

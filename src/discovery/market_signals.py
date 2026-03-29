@@ -61,15 +61,12 @@ class MarketSignalEngine:
         """Buy the worst-performing sector over last 20 days.
         WR=58-60%, E[R]=+0.40% (daily frequency).
         """
-        # conn via get_session()
-        try:
-            rows = conn.execute("""
+        with get_session() as session:
+            rows = session.execute(text("""
                 SELECT sector, pct_change, date FROM sector_etf_daily_returns
-                WHERE date <= ? AND sector NOT IN ('S&P 500','US Dollar','Treasury Long','Gold')
+                WHERE date <= :p0 AND sector NOT IN ('S&P 500','US Dollar','Treasury Long','Gold')
                 ORDER BY date DESC LIMIT 300
-            """, (scan_date,)).fetchall()
-        finally:
-            pass
+            """), {"p0": scan_date}).fetchall()
 
         if len(rows) < 100:
             return []
@@ -124,15 +121,12 @@ class MarketSignalEngine:
         """Buy SPY when drawdown from 20d high exceeds threshold.
         DD>7%: WR=64%, DD>10%: WR=69%.
         """
-        # conn via get_session()
-        try:
-            rows = conn.execute("""
+        with get_session() as session:
+            rows = session.execute(text("""
                 SELECT spy_close FROM macro_snapshots
-                WHERE date <= ? AND spy_close IS NOT NULL
+                WHERE date <= :p0 AND spy_close IS NOT NULL
                 ORDER BY date DESC LIMIT 25
-            """, (scan_date,)).fetchall()
-        finally:
-            pass
+            """), {"p0": scan_date}).fetchall()
 
         if len(rows) < 20:
             return []
@@ -180,15 +174,12 @@ class MarketSignalEngine:
         """Buy SPY when VIX spikes above 30.
         VIX>30: WR=76%, VIX>35: WR=83%.
         """
-        # conn via get_session()
-        try:
-            rows = conn.execute("""
+        with get_session() as session:
+            rows = session.execute(text("""
                 SELECT vix_close FROM macro_snapshots
-                WHERE date <= ? AND vix_close IS NOT NULL
+                WHERE date <= :p0 AND vix_close IS NOT NULL
                 ORDER BY date DESC LIMIT 10
-            """, (scan_date,)).fetchall()
-        finally:
-            pass
+            """), {"p0": scan_date}).fetchall()
 
         if len(rows) < 6:
             return []
@@ -236,15 +227,12 @@ class MarketSignalEngine:
         Crude rising >3%/5d: WR=67%, E[R]=+0.88%.
         Crude rising >5%/5d: WR=69%, E[R]=+1.31%.
         """
-        # conn via get_session()
-        try:
-            rows = conn.execute("""
+        with get_session() as session:
+            rows = session.execute(text("""
                 SELECT crude_close FROM macro_snapshots
-                WHERE date <= ? AND crude_close IS NOT NULL
+                WHERE date <= :p0 AND crude_close IS NOT NULL
                 ORDER BY date DESC LIMIT 10
-            """, (scan_date,)).fetchall()
-        finally:
-            pass
+            """), {"p0": scan_date}).fetchall()
 
         if len(rows) < 6:
             return []

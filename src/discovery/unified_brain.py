@@ -124,10 +124,10 @@ class UnifiedBrain:
 
     def _load_training_data(self, sensor_network, max_date: str = None):
         """Load historical data with sensor signals computed."""
-        # conn via get_session()
-        try:
-            date_filter = f"AND b.scan_date <= '{max_date}'" if max_date else ""
-            rows = conn.execute(f"""
+        with get_session() as session:
+            date_filter = "AND b.scan_date <= :p0" if max_date else ""
+            params = {"p0": max_date} if max_date else {}
+            rows = session.execute(text(f"""
                 SELECT b.scan_date, b.symbol, b.atr_pct, b.momentum_5d,
                        b.distance_from_20d_high, b.volume_ratio, b.sector,
                        b.outcome_5d,
@@ -140,30 +140,28 @@ class UnifiedBrain:
                 AND m.vix_close IS NOT NULL
                 {date_filter}
                 ORDER BY b.scan_date
-            """).fetchall()
+            """), params).fetchall()
 
             # Load context data
             spec_flags = {}
             crude_sens = {}
             analyst_data = {}
-            for r in conn.execute("SELECT symbol, context_type, score FROM stock_context").fetchall():
+            for r in session.execute(text("SELECT symbol, context_type, score FROM stock_context")).fetchall():
                 if r[1] == 'SPECULATIVE_FLAG':
                     spec_flags[r[0]] = r[2]
                 elif r[1] == 'CRUDE_SENSITIVE':
                     crude_sens[r[0]] = r[2]
-            for r in conn.execute("SELECT symbol, upside_pct FROM analyst_consensus").fetchall():
+            for r in session.execute(text("SELECT symbol, upside_pct FROM analyst_consensus")).fetchall():
                 if r[1] is not None:
                     analyst_data[r[0]] = min(1, max(-1, r[1] / 30))
 
             # Sector ranks per date
-            sector_rows = conn.execute("""
+            sector_rows = session.execute(text("""
                 SELECT date, sector, SUM(pct_change) as ret
                 FROM sector_etf_daily_returns
                 WHERE sector NOT IN ('S&P 500','US Dollar','Treasury Long','Gold')
                 GROUP BY date, sector
-            """).fetchall()
-        finally:
-            pass
+            """)).fetchall()
 
         # Build sector rank lookup
         sector_by_date = defaultdict(dict)
