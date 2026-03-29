@@ -470,8 +470,9 @@ class IntradayMLFilter:
             gap_pct = (r['open'] / prev_close - 1) * 100
             volume_ratio = r['volume'] / r['avg_vol_20d'] if r['avg_vol_20d'] > 0 else 1.0
 
-            mom_5d = ((r['close'] / r['close_5d'] - 1) * 100) if r['close_5d'] and r['close_5d'] > 0 else 0.0
-            mom_20d = ((r['close'] / r['close_20d'] - 1) * 100) if r['close_20d'] and r['close_20d'] > 0 else 0.0
+            # Use prev_close (yesterday) for momentum — today's close leaks into label (close > open)
+            mom_5d = ((prev_close / r['close_5d'] - 1) * 100) if r['close_5d'] and r['close_5d'] > 0 else 0.0
+            mom_20d = ((prev_close / r['close_20d'] - 1) * 100) if r['close_20d'] and r['close_20d'] > 0 else 0.0
 
             atr_pct = r['atr_pct_5d'] or 2.0
 
@@ -479,7 +480,8 @@ class IntradayMLFilter:
             # True RSI needs 14-period sequential calc; use momentum-based proxy
             rsi_14 = self._approx_rsi_from_momentum(mom_5d, mom_20d)
 
-            dist_20d_high = ((r['close'] / r['high_20d'] - 1) * 100) if r['high_20d'] and r['high_20d'] > 0 else 0.0
+            # Use prev_close — today's close leaks into label
+            dist_20d_high = ((prev_close / r['high_20d'] - 1) * 100) if r['high_20d'] and r['high_20d'] > 0 else 0.0
 
             mcap_log = math.log10(r['market_cap']) if r['market_cap'] and r['market_cap'] > 0 else 10.0
             beta = r['beta'] or 1.0
@@ -537,6 +539,7 @@ class IntradayMLFilter:
                         row = conn.execute(text("""
                             WITH bars AS (
                                 SELECT close, high, low, volume,
+                                       LAG(close) OVER (ORDER BY date) as prev_close,
                                        LAG(close, 5) OVER (ORDER BY date) as close_5d,
                                        LAG(close, 20) OVER (ORDER BY date) as close_20d,
                                        AVG(volume) OVER (ORDER BY date
@@ -549,18 +552,19 @@ class IntradayMLFilter:
                                 WHERE symbol = :sym AND close > 0
                                 ORDER BY date DESC LIMIT 25
                             )
-                            SELECT close, close_5d, close_20d, avg_vol, high_20d, atr_pct
+                            SELECT close, close_5d, close_20d, avg_vol, high_20d, atr_pct, volume, prev_close
                             FROM bars
                             LIMIT 1
                         """), {'sym': sym}).fetchone()
 
                         if row and row[0]:
-                            close = row[0]
+                            # Use prev_close for momentum/dist to match honest training features
+                            prev_close = row[7] if row[7] and row[7] > 0 else row[0]
                             db_features[sym] = {
-                                'momentum_5d': round((close / row[1] - 1) * 100, 2) if row[1] and row[1] > 0 else 0.0,
-                                'momentum_20d': round((close / row[2] - 1) * 100, 2) if row[2] and row[2] > 0 else 0.0,
-                                'volume_ratio': round(row[3] / row[3], 2) if row[3] and row[3] > 0 else 1.0,  # placeholder
-                                'distance_from_20d_high': round((close / row[4] - 1) * 100, 2) if row[4] and row[4] > 0 else 0.0,
+                                'momentum_5d': round((prev_close / row[1] - 1) * 100, 2) if row[1] and row[1] > 0 else 0.0,
+                                'momentum_20d': round((prev_close / row[2] - 1) * 100, 2) if row[2] and row[2] > 0 else 0.0,
+                                'volume_ratio': round(row[6] / row[3], 2) if row[3] and row[3] > 0 and row[6] else 1.0,
+                                'distance_from_20d_high': round((prev_close / row[4] - 1) * 100, 2) if row[4] and row[4] > 0 else 0.0,
                                 'atr_pct': row[5] or 2.0,
                             }
 

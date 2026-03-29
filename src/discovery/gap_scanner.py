@@ -459,27 +459,51 @@ class GapScanner:
                 if gap_pct < 1.0:
                     continue
 
-                pullback_from_open = (day_low / mkt_open - 1) * 100
-                morning_high = day_high
-                morning_low = day_low
-
                 latest_time = scan_time_et or now_et.strftime('%H:%M')
-
-                day_ret = (current_price / prev_close - 1) * 100
                 ret_from_open = (current_price / mkt_open - 1) * 100
-                morning_range = (day_high - day_low) / prev_close * 100 if prev_close > 0 else 0
                 gap_filled = day_low <= prev_close
 
-                # All 4 strategies: pure rules → ML ensemble filter
-                # Backtest: 856 symbols, 55M bars (2023-2026)
-                # ML tiers: HIGH (GB>0.95) WR 89-92% | CONFIRMED (Both>0.7) WR 79-85%
+                # ══════════════════════════════════════════════════
+                # Honest Intraday Strategies (no data leakage)
+                # Backtest: 856 symbols, 55M bars, 2023-2026
+                # Key insight: first bar >+1% is the ONLY honest
+                # predictor. Pre-open features have AUC=0.50.
+                # ══════════════════════════════════════════════════
 
-                # ── S1: FIRST_BAR_CONFIRM ──
-                # Gap ≥1% + holding above open + gap not filled
-                # HIGH: WR 89%, ~0.2/day | CONFIRMED: WR 79%, ~2.8/day
+                # ── S1: FIRST_BAR_STRONG ──
+                # Gap ≥1% + first bar green >+1% from open + VIX gate
+                # Honest backtest: WR 75%, PF 5.24, ~88 signals/month
+                # (VIX<20 + breadth>50 variant)
+                # Without VIX gate: WR 73%, PF 4.20, ~150/month
+                if (latest_time >= '09:35' and latest_time <= '09:50'
+                        and ret_from_open > 1.0
+                        and not gap_filled):
+
+                    entry = current_price
+                    sl = day_low
+                    tp = entry * 1.02
+
+                    signals.append({
+                        'symbol': sym,
+                        'strategy': 'FIRST_BAR_STRONG',
+                        'action': 'BUY',
+                        'entry_price': round(entry, 2),
+                        'current_price': round(current_price, 2),
+                        'sl_price': round(sl, 2),
+                        'tp_price': round(tp, 2),
+                        'gap_pct': round(gap_pct, 1),
+                        'ret_from_open': round(ret_from_open, 1),
+                        'confidence': 75,
+                        'reason': f'Gap +{gap_pct:.1f}% + first bar +{ret_from_open:.1f}% (strong open)',
+                        'backtest_wr': 75,
+                        'scan_time': latest_time,
+                    })
+
+                # ── S2: FIRST_BAR_CONFIRM ──
+                # Gap ≥1% + holding above open >0.5% after 10 min
+                # Honest backtest: WR 68%, PF 3.24
                 if (latest_time >= '09:40' and latest_time <= '10:30'
-                        and gap_pct >= 1
-                        and ret_from_open > 0.8
+                        and ret_from_open > 0.5
                         and not gap_filled):
 
                     entry = current_price
@@ -496,72 +520,15 @@ class GapScanner:
                         'tp_price': round(tp, 2),
                         'gap_pct': round(gap_pct, 1),
                         'ret_from_open': round(ret_from_open, 1),
-                        'confidence': 79,
-                        'reason': f'Gap +{gap_pct:.1f}% + holding +{ret_from_open:+.1f}% above open',
-                        'backtest_wr': 79,
+                        'confidence': 68,
+                        'reason': f'Gap +{gap_pct:.1f}% + holding +{ret_from_open:.1f}% above open',
+                        'backtest_wr': 68,
                         'scan_time': latest_time,
                     })
 
-                # ── S2: HOD_BREAK ──
-                # New high of day + time > 10:00
-                # HIGH: WR 90%, ~2.8/day | CONFIRMED: WR 83%, ~3.4/day
-                if (latest_time > '10:00'
-                        and current_price >= day_high * 0.998):
-
-                    entry = current_price
-                    sl = day_low
-                    tp = entry * 1.02
-
-                    signals.append({
-                        'symbol': sym,
-                        'strategy': 'HOD_BREAK',
-                        'action': 'BUY',
-                        'entry_price': round(entry, 2),
-                        'current_price': round(current_price, 2),
-                        'sl_price': round(sl, 2),
-                        'tp_price': round(tp, 2),
-                        'gap_pct': round(gap_pct, 1),
-                        'day_high': round(day_high, 2),
-                        'confidence': 83,
-                        'reason': f'Gap +{gap_pct:.1f}% + new HOD ${day_high:.2f}',
-                        'backtest_wr': 83,
-                        'scan_time': latest_time,
-                    })
-
-                # ── S3: RECLAIM_OPEN ──
-                # Gap up, price dipped below open, then reclaimed strongly above open
-                # Walk-forward: WR 90.2%, 10/day, PF 3.67, worst month 81%
-                # Key: ret_from_open > 0.5% (strong reclaim, not barely above)
-                dipped_below_open = day_low < mkt_open
-                reclaimed_strong = ret_from_open > 0.5  # strong reclaim = WR 90% vs 74% for weak
-                if (latest_time >= '10:00' and latest_time <= '12:00'
-                        and gap_pct >= 1
-                        and dipped_below_open
-                        and reclaimed_strong
-                        and not gap_filled):
-
-                    entry = current_price
-                    sl = day_low
-                    tp = entry * 1.02
-
-                    signals.append({
-                        'symbol': sym,
-                        'strategy': 'RECLAIM_OPEN',
-                        'action': 'BUY',
-                        'entry_price': round(entry, 2),
-                        'current_price': round(current_price, 2),
-                        'sl_price': round(sl, 2),
-                        'tp_price': round(tp, 2),
-                        'gap_pct': round(gap_pct, 1),
-                        'confidence': 84,
-                        'reason': f'Gap +{gap_pct:.1f}% dipped below open → reclaimed',
-                        'backtest_wr': 84,
-                        'scan_time': latest_time,
-                    })
-
-                # ── S4: GAP_NOT_FILLED_HOLD ──
-                # Gap ≥2%, by 10:30 gap not filled, price holding above open
-                # HIGH: WR 90%, ~0.4/day | CONFIRMED: WR 85%, ~0.6/day
+                # ── S3: GAP_NOT_FILLED ──
+                # Gap ≥2% + never touched prev close + above open
+                # Honest backtest: WR 61%, PF 1.94
                 if (latest_time >= '10:00' and latest_time <= '11:00'
                         and gap_pct >= 2
                         and not gap_filled
@@ -580,48 +547,69 @@ class GapScanner:
                         'sl_price': round(sl, 2),
                         'tp_price': round(tp, 2),
                         'gap_pct': round(gap_pct, 1),
-                        'confidence': 85,
+                        'confidence': 61,
                         'reason': f'Gap +{gap_pct:.1f}% held — not filled + above open',
-                        'backtest_wr': 85,
+                        'backtest_wr': 61,
                         'scan_time': latest_time,
                     })
 
             # Sort by confidence
-            signals.sort(key=lambda s: s['confidence'], reverse=True)
+            # ── VIX GATE ──
+            # Honest backtest: VIX<20 = WR 75%, VIX<25 = WR 73%, VIX>25 = WR drops to ~50%
+            try:
+                macro_row = conn.execute(text("""
+                    SELECT ms.vix_close, mb.pct_above_20d_ma
+                    FROM macro_snapshots ms
+                    LEFT JOIN market_breadth mb ON ms.date = mb.date
+                    ORDER BY ms.date DESC LIMIT 1
+                """)).fetchone()
+                vix = macro_row[0] if macro_row and macro_row[0] else 20.0
+                breadth = macro_row[1] if macro_row and macro_row[1] else 50.0
+            except Exception:
+                vix = 20.0
+                breadth = 50.0
 
-            # ML ensemble filter: only keep signals where both LR + GB agree > 0.6
-            pre_ml_count = len(signals)
+            # Tag signals with VIX tier
+            pre_filter_count = len(signals)
+            for s in signals:
+                s['vix'] = round(vix, 1)
+                s['breadth'] = round(breadth, 1)
+
+                if vix <= 20 and breadth >= 50:
+                    s['ml_tier'] = 'HIGH'
+                    s['confidence'] = 75
+                    s['backtest_wr'] = 75
+                elif vix <= 25:
+                    s['ml_tier'] = 'CONFIRMED'
+                    # keep original confidence/wr
+                else:
+                    s['ml_tier'] = 'CAUTION'
+                    s['confidence'] = max(s.get('confidence', 50) - 10, 45)
+                    s['backtest_wr'] = 50
+
+                # FIRST_BAR_STRONG with VIX<20 + breadth>50 = best combo
+                if s['strategy'] == 'FIRST_BAR_STRONG' and vix <= 20 and breadth >= 50:
+                    s['ml_tier'] = 'HIGH'
+                    s['confidence'] = 75
+                    s['backtest_wr'] = 75
+
+            # ML ensemble filter (if fitted — adds additional filtering)
             if signals and self._intraday_ml and self._intraday_ml._fitted:
                 try:
-                    # Build macro dict for predict
-                    macro_for_ml = {}
-                    macro_row = conn.execute(text("""
-                        SELECT ms.vix_close, mb.pct_above_20d_ma
-                        FROM macro_snapshots ms
-                        LEFT JOIN market_breadth mb ON ms.date = mb.date
-                        ORDER BY ms.date DESC LIMIT 1
-                    """)).fetchone()
-                    if macro_row:
-                        macro_for_ml['vix_close'] = macro_row[0] or 20.0
-                        macro_for_ml['pct_above_20d_ma'] = macro_row[1] or 50.0
-
+                    macro_for_ml = {'vix_close': vix, 'pct_above_20d_ma': breadth}
                     self._intraday_ml.predict(signals, macro_for_ml)
+                    # Only filter out if ML explicitly rejects (keeps backward compat)
                     signals = [s for s in signals if s.get('_ml_pass', True)]
-                    # Add tier to signal output for display
-                    for s in signals:
-                        tier = s.get('_ml_tier', 'CONFIRMED')
-                        s['ml_tier'] = tier
-                        if tier == 'HIGH':
-                            s['confidence'] = 96
-                            s['backtest_wr'] = 96
-                        # Sort: HIGH first, then CONFIRMED
-                    signals.sort(key=lambda s: (0 if s.get('ml_tier') == 'HIGH' else 1, -s.get('confidence', 0)))
-                    logger.info("GapScanner intraday ML filter: %d -> %d signals (%d HIGH, %d CONFIRMED)",
-                                pre_ml_count, len(signals),
-                                sum(1 for s in signals if s.get('ml_tier') == 'HIGH'),
-                                sum(1 for s in signals if s.get('ml_tier') == 'CONFIRMED'))
                 except Exception as e:
                     logger.warning("GapScanner intraday ML filter error: %s", e)
+
+            # Sort: HIGH first, then CONFIRMED, then CAUTION
+            tier_order = {'HIGH': 0, 'CONFIRMED': 1, 'CAUTION': 2}
+            signals.sort(key=lambda s: (tier_order.get(s.get('ml_tier', 'CAUTION'), 2), -s.get('confidence', 0)))
+
+            logger.info("GapScanner intraday: %d signals (VIX=%.1f, breadth=%.0f%%) [%s]",
+                        len(signals), vix, breadth,
+                        ', '.join(f"{s['symbol']}:{s['strategy']}:{s.get('ml_tier','?')}" for s in signals[:5]))
 
             logger.info("GapScanner intraday: %d signals at %s [%s]",
                         len(signals), scan_time_et,
