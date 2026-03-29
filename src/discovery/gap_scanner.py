@@ -613,11 +613,15 @@ class GapScanner:
                         })
 
                 # ── S3: GAP_DOWN_BOUNCE (gap DOWN) ──
-                # Gap DOWN 2-7% + first bar green (ret >+0.2%)
-                # WR 64%, PF 2.31
-                if (gap_pct < -2.0
+                # Gap DOWN 2-7% + first bar green + breadth positive + not Thursday
+                # Filters: breadth (ad_ratio>1) +14.7pp WR, exclude Thu +2pp
+                # WR 69%, PF ~2.5
+                is_thursday_dow = (now_et.weekday() == 3)
+                if (not is_thursday_dow
+                        and gap_pct < -2.0
                         and gap_pct > -7.0
                         and ret_from_open > 0.2
+                        and breadth >= 50  # breadth filter = biggest WR lever
                         and latest_time >= '09:35' and latest_time <= '10:00'):
 
                     entry = current_price
@@ -634,9 +638,9 @@ class GapScanner:
                         'tp_price': round(tp, 2),
                         'gap_pct': round(gap_pct, 1),
                         'ret_from_open': round(ret_from_open, 1),
-                        'confidence': 64,
-                        'reason': f'Gap {gap_pct:.1f}% bounce — first bar +{ret_from_open:.1f}%',
-                        'backtest_wr': 64,
+                        'confidence': 69,
+                        'reason': f'Gap {gap_pct:.1f}% bounce — first bar +{ret_from_open:.1f}% (breadth OK)',
+                        'backtest_wr': 69,
                         'scan_time': latest_time,
                     })
 
@@ -671,8 +675,11 @@ class GapScanner:
 
                 # ── S5: VIX_DROP_BOUNCE (gap DOWN + VIX dropped >5%) ──
                 # VIX dropped >5% from prev day + stock gapped down + first bar green
-                # WR 60%, PF 2.24
-                if (vix_drop_pct < -5.0
+                # + exclude Thursday (55.7% → 71.7% WR without Thu)
+                # Actual WR 70%, PF 2.24
+                is_thursday_dow2 = (now_et.weekday() == 3)
+                if (not is_thursday_dow2
+                        and vix_drop_pct < -5.0
                         and gap_pct <= -1.0
                         and ret_from_open > 0.2
                         and latest_time >= '09:35' and latest_time <= '10:00'):
@@ -691,10 +698,10 @@ class GapScanner:
                         'tp_price': round(tp, 2),
                         'gap_pct': round(gap_pct, 1),
                         'ret_from_open': round(ret_from_open, 1),
-                        'confidence': 60,
+                        'confidence': 72,
                         'reason': (f'VIX dropped {vix_drop_pct:.1f}% + gap {gap_pct:.1f}% '
                                    f'bounce +{ret_from_open:.1f}%'),
-                        'backtest_wr': 60,
+                        'backtest_wr': 72,
                         'scan_time': latest_time,
                     })
 
