@@ -6,11 +6,18 @@ Stores failed operations with full retry/resolution metadata.
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 from typing import List
 
 from ..manager import get_db_manager
 from loguru import logger
+
+
+def _json_serial(obj):
+    """JSON serializer for objects not serializable by default json code."""
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError(f"Type {type(obj)} not serializable")
 
 
 class DLQRepository:
@@ -59,9 +66,9 @@ class DLQRepository:
             """, (
                 item.id,
                 item.operation_type,
-                json.dumps(item.operation_data),
+                json.dumps(item.operation_data, default=_json_serial),
                 item.error,
-                json.dumps(item.context) if item.context else None,
+                json.dumps(item.context, default=_json_serial) if item.context else None,
                 item.status,
                 item.created_at,
                 item.retry_count,
@@ -101,9 +108,9 @@ class DLQRepository:
                 WHERE id = ?
             """, (
                 item.operation_type,
-                json.dumps(item.operation_data),
+                json.dumps(item.operation_data, default=_json_serial),
                 item.error,
-                json.dumps(item.context) if item.context else None,
+                json.dumps(item.context, default=_json_serial) if item.context else None,
                 item.status,
                 item.retry_count,
                 item.last_retry_at,

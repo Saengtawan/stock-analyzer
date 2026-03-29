@@ -122,6 +122,7 @@ def fill():
                 continue
 
         if filled % 50 == 0 and filled > 0:
+            print(f'  Filled {filled}...')
 
         # Rate limit
         if i + batch_size < len(symbols):

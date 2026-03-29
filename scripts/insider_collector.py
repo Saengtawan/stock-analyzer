@@ -280,6 +280,7 @@ def collect(start_date: str, end_date: str, universe: set, dry_run: bool = False
                 print(f"  DB error {sym}: {e}")
 
     if not dry_run:
+        pass  # commit handled by get_session() context manager
     print(f"  {'[DRY] ' if dry_run else ''}Saved {saved} purchases (skipped {skipped} already collected)")
     return saved
 

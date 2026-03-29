@@ -146,6 +146,7 @@ def fill_outcomes():
             filled += 1
 
             if filled % 10 == 0:
+                print(f'  Filled {filled}...')
 
         except Exception as e:
             logger.error(f"Error filling {sym} {scan_date}: {e}")
