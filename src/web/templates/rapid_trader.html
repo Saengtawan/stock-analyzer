@@ -3501,26 +3501,40 @@ function loadIntradaySignals() {
             }
 
             let html = '';
-            const stratColors = {GAP_PULLBACK:'#2ecc71', MORNING_BREAKOUT:'#3498db', GAP_FADE:'#e74c3c'};
+            const stratColors = {
+                MON_BOUNCE:'#f39c12', D4_SELLOFF:'#e74c3c', MC3_SELLOFF:'#e67e22',
+                V_SHAPE:'#9b59b6', VIX_DROP_BOUNCE:'#3498db',
+                FIRST_BAR_STRONG:'#2ecc71', FIRST_BAR_CONFIRM:'#27ae60',
+                GAP_DOWN_BOUNCE:'#1abc9c'
+            };
+            const tierBadge = {
+                HIGH: '<span class="badge" style="background:#f39c12;color:#000;font-size:0.55rem;">🔥 HIGH</span>',
+                CONFIRMED: '<span class="badge" style="background:#2ecc71;color:#fff;font-size:0.55rem;">✅ CONF</span>',
+                CAUTION: '<span class="badge" style="background:#e74c3c;color:#fff;font-size:0.55rem;">⚠️ CAUT</span>'
+            };
             signals.forEach(s => {
                 const sc = stratColors[s.strategy] || '#888';
                 const emoji = s.action === 'SHORT' ? '🔴' : '🟢';
                 const gap = s.gap_pct || 0;
-                html += `<div class="border rounded p-2 mb-1" style="background:rgba(46,204,113,0.03);border-color:rgba(255,107,53,0.3) !important;">`;
+                const tier = s.ml_tier || '';
+                const tBadge = tierBadge[tier] || '';
+                const exitType = s.exit_type === 'TP_SL' ? '⏱TP/SL' : '📊EOD';
+                const score = s.bounce_score ? ` Score ${s.bounce_score}/5` : '';
+                html += `<div class="border rounded p-2 mb-1" style="background:rgba(46,204,113,0.03);border-color:${sc}33 !important;">`;
                 html += `<div class="d-flex justify-content-between align-items-center">`;
                 html += `<div>`;
                 html += `${emoji} <strong style="color:${sc};">${s.symbol}</strong>`;
-                html += ` <span class="badge" style="background:rgba(255,255,255,0.08);color:${sc};font-size:0.6rem;">${s.strategy.replace('_',' ')}</span>`;
-                html += ` <span class="badge" style="background:rgba(255,107,53,0.2);color:#ff6b35;font-size:0.6rem;">${s.action}</span>`;
-                html += ` <span style="font-size:0.65rem;color:#888;">WR ${s.backtest_wr}%</span>`;
+                html += ` <span class="badge" style="background:${sc}22;color:${sc};font-size:0.55rem;">${s.strategy.replace(/_/g,' ')}</span>`;
+                html += ` ${tBadge}`;
+                html += ` <span style="font-size:0.6rem;color:#888;">WR ${s.backtest_wr}%${score}</span>`;
                 html += `</div>`;
-                html += `<div><strong>$${s.current_price}</strong> <span style="font-size:0.7rem;color:#888;">gap ${gap > 0 ? '+' : ''}${gap.toFixed(1)}%</span></div>`;
+                html += `<div><strong>$${s.current_price}</strong> <span style="font-size:0.65rem;color:#888;">gap ${gap > 0 ? '+' : ''}${gap.toFixed(1)}%</span></div>`;
                 html += `</div>`;
-                html += `<div style="font-size:0.65rem;color:#aaa;margin-top:2px;">${s.reason}</div>`;
+                html += `<div style="font-size:0.6rem;color:#aaa;margin-top:2px;">${s.reason}</div>`;
                 if (s.entry_price) {
-                    html += `<div class="d-flex justify-content-between mt-1" style="font-size:0.7rem;">`;
+                    html += `<div class="d-flex justify-content-between mt-1" style="font-size:0.65rem;">`;
                     html += `<span class="text-danger">SL $${s.sl_price}</span>`;
-                    html += `<span style="color:#aaa;">Entry $${s.entry_price}</span>`;
+                    html += `<span style="color:#aaa;">Entry $${s.entry_price} <span style="color:#666;">${exitType}</span></span>`;
                     html += `<span class="text-success">TP $${s.tp_price}</span>`;
                     html += `</div>`;
                 }
