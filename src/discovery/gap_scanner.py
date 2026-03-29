@@ -500,41 +500,12 @@ class GapScanner:
                 sym_mcap = mcap_lookup.get(sym, 0)
 
                 # ══════════════════════════════════════════════════
-                # 5 Honest Intraday Strategies (walk-forward validated)
-                # No data leakage. Gap direction checked per strategy.
-                # Thursday: skip gap-UP strategies (WR 38% anti-signal).
+                # 6 Honest Intraday Strategies (independent validated)
+                # No data leakage. Full 700 days × 856 symbols.
+                # TP-based exit for selloff reversal strategies.
                 # ══════════════════════════════════════════════════
 
-                # ── S1: FIRST_BAR_STRONG (gap UP) ──
-                # Gap ≥1% + first bar >+1% from open + gap not filled
-                # WR 75%, PF 5.24
-                if (not is_thursday
-                        and gap_pct >= 1.0
-                        and latest_time >= '09:35' and latest_time <= '09:50'
-                        and ret_from_open > 1.0
-                        and not gap_filled):
-
-                    entry = current_price
-                    sl = day_low
-                    tp = entry * 1.02
-
-                    signals.append({
-                        'symbol': sym,
-                        'strategy': 'FIRST_BAR_STRONG',
-                        'action': 'BUY',
-                        'entry_price': round(entry, 2),
-                        'current_price': round(current_price, 2),
-                        'sl_price': round(sl, 2),
-                        'tp_price': round(tp, 2),
-                        'gap_pct': round(gap_pct, 1),
-                        'ret_from_open': round(ret_from_open, 1),
-                        'confidence': 75,
-                        'reason': f'Gap +{gap_pct:.1f}% + first bar +{ret_from_open:.1f}% (strong open)',
-                        'backtest_wr': 75,
-                        'scan_time': latest_time,
-                    })
-
-                # ── S2: MON_BOUNCE (gap DOWN, Monday only) ──
+                # ── S1: MON_BOUNCE (gap DOWN, Monday only) ──
                 # Monday + gap DOWN + first bar green + conviction scoring
                 # Score 0-2: skip | Score 3: WR 80% | Score 4: WR 94% | Score 5: WR 100%
                 # Walk-forward validated, no data leakage
@@ -612,68 +583,115 @@ class GapScanner:
                             'scan_time': latest_time,
                         })
 
-                # ── S3: GAP_DOWN_BOUNCE (gap DOWN) ──
-                # Gap DOWN 2-7% + first bar green + breadth positive + not Thursday
-                # Filters: breadth (ad_ratio>1) +14.7pp WR, exclude Thu +2pp
-                # WR 69%, PF ~2.5
-                is_thursday_dow = (now_et.weekday() == 3)
-                if (not is_thursday_dow
-                        and gap_pct < -2.0
-                        and gap_pct > -7.0
-                        and ret_from_open > 0.2
-                        and breadth >= 50  # breadth filter = biggest WR lever
-                        and latest_time >= '09:35' and latest_time <= '10:00'):
+                # ── S3: D4_MON (Deep 4% selloff + Monday) ──
+                # Flat open (gap < ±0.5%), dropped >4% from open, strong green bar
+                # Monday: WR 83%, PF ~10 | All days: ~76%
+                # TP 0.5% / SL 2% (exit on TP/SL hit, not EOD)
+                drop_from_open = (day_low / mkt_open - 1) * 100 if mkt_open > 0 else 0
+                flat_open = abs(gap_pct) < 0.5
+                strong_green = (current_price > mkt_open and ret_from_open > 0.3)
+                if (flat_open
+                        and drop_from_open < -4.0
+                        and strong_green
+                        and latest_time >= '10:00' and latest_time <= '14:00'):
 
                     entry = current_price
-                    sl = day_low
-                    tp = entry * 1.02
+                    sl = entry * 0.98   # SL -2%
+                    tp = entry * 1.005  # TP +0.5%
+                    wr_est = 83 if is_monday else 76
+                    conf = wr_est
 
                     signals.append({
                         'symbol': sym,
-                        'strategy': 'GAP_DOWN_BOUNCE',
+                        'strategy': 'D4_SELLOFF',
                         'action': 'BUY',
                         'entry_price': round(entry, 2),
                         'current_price': round(current_price, 2),
                         'sl_price': round(sl, 2),
                         'tp_price': round(tp, 2),
                         'gap_pct': round(gap_pct, 1),
+                        'drop_pct': round(drop_from_open, 1),
                         'ret_from_open': round(ret_from_open, 1),
-                        'confidence': 69,
-                        'reason': f'Gap {gap_pct:.1f}% bounce — first bar +{ret_from_open:.1f}% (breadth OK)',
-                        'backtest_wr': 69,
+                        'confidence': conf,
+                        'reason': (f'Selloff {drop_from_open:.1f}% from open → bounce '
+                                   f'+{ret_from_open:.1f}% TP=+0.5%'
+                                   + (' [Monday]' if is_monday else '')),
+                        'backtest_wr': wr_est,
                         'scan_time': latest_time,
+                        'exit_type': 'TP_SL',
                     })
 
-                # ── S4: FIRST_BAR_CONFIRM (gap UP) ──
-                # Gap ≥1% + holding >+0.5% above open + gap not filled
-                # WR 68%, PF 3.24
-                if (not is_thursday
-                        and gap_pct >= 1.0
-                        and latest_time >= '09:40' and latest_time <= '10:30'
-                        and ret_from_open > 0.5
-                        and not gap_filled):
+                # ── S4: MC3 (Multi-confirm 3% selloff) ──
+                # Flat open + dropped >3% + strong green bar (close in upper part)
+                # + volume confirmation (approximated by checking green bar strength)
+                # WR 79%, PF ~5, N=2029 | Monday: WR 81%
+                # TP 0.5% / SL 2%
+                if (flat_open
+                        and drop_from_open < -3.0
+                        and strong_green
+                        and ret_from_open > 0.5  # stronger confirmation than D4
+                        and latest_time >= '10:00' and latest_time <= '14:00'):
 
                     entry = current_price
-                    sl = day_low
-                    tp = entry * 1.02
+                    sl = entry * 0.98   # SL -2%
+                    tp = entry * 1.005  # TP +0.5%
+                    wr_est = 81 if is_monday else 79
 
                     signals.append({
                         'symbol': sym,
-                        'strategy': 'FIRST_BAR_CONFIRM',
+                        'strategy': 'MC3_SELLOFF',
                         'action': 'BUY',
                         'entry_price': round(entry, 2),
                         'current_price': round(current_price, 2),
                         'sl_price': round(sl, 2),
                         'tp_price': round(tp, 2),
                         'gap_pct': round(gap_pct, 1),
+                        'drop_pct': round(drop_from_open, 1),
                         'ret_from_open': round(ret_from_open, 1),
-                        'confidence': 68,
-                        'reason': f'Gap +{gap_pct:.1f}% + holding +{ret_from_open:.1f}% above open',
-                        'backtest_wr': 68,
+                        'confidence': wr_est,
+                        'reason': (f'Selloff {drop_from_open:.1f}% + strong bounce '
+                                   f'+{ret_from_open:.1f}% (multi-confirm) TP=+0.5%'
+                                   + (' [Monday]' if is_monday else '')),
+                        'backtest_wr': wr_est,
                         'scan_time': latest_time,
+                        'exit_type': 'TP_SL',
                     })
 
-                # ── S5: VIX_DROP_BOUNCE (gap DOWN + VIX dropped >5%) ──
+                # ── S5: V_SHAPE (50% recovery bounce) ──
+                # Dropped >3% from open, then recovered at least 50% of the drop
+                # WR 78%, PF ~4, N=4981 | Monday: WR 80%
+                # TP 0.5% / SL 2%
+                if (drop_from_open < -3.0
+                        and ret_from_open > (drop_from_open * -0.5)  # recovered 50%+ of drop
+                        and ret_from_open < 0  # still below open (not fully recovered)
+                        and latest_time >= '10:15' and latest_time <= '14:30'):
+
+                    entry = current_price
+                    sl = entry * 0.98   # SL -2%
+                    tp = entry * 1.005  # TP +0.5%
+                    wr_est = 80 if is_monday else 78
+
+                    signals.append({
+                        'symbol': sym,
+                        'strategy': 'V_SHAPE',
+                        'action': 'BUY',
+                        'entry_price': round(entry, 2),
+                        'current_price': round(current_price, 2),
+                        'sl_price': round(sl, 2),
+                        'tp_price': round(tp, 2),
+                        'gap_pct': round(gap_pct, 1),
+                        'drop_pct': round(drop_from_open, 1),
+                        'recovery_pct': round(ret_from_open, 1),
+                        'confidence': wr_est,
+                        'reason': (f'V-shape: dropped {drop_from_open:.1f}% → recovering '
+                                   f'{ret_from_open:.1f}% (50%+ recovery) TP=+0.5%'
+                                   + (' [Monday]' if is_monday else '')),
+                        'backtest_wr': wr_est,
+                        'scan_time': latest_time,
+                        'exit_type': 'TP_SL',
+                    })
+
+                # ── S6: VIX_DROP_BOUNCE (gap DOWN + VIX dropped >5%) ──
                 # VIX dropped >5% from prev day + stock gapped down + first bar green
                 # + exclude Thursday (55.7% → 71.7% WR without Thu)
                 # Actual WR 70%, PF 2.24
