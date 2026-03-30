@@ -93,6 +93,15 @@ class GapScanner:
         except Exception as e:
             logger.warning("GapScanner: failed to load IntradayMLFilter: %s", e)
 
+        # Soft ML signal ranker (sorts + highlights top 3, never filters)
+        self._signal_ranker = None
+        try:
+            from discovery.signal_ranker import SignalRanker
+            self._signal_ranker = SignalRanker()
+            self._signal_ranker.load_from_db()
+        except Exception as e:
+            logger.warning("GapScanner: failed to load SignalRanker: %s", e)
+
     # === Public API ===
 
     def scan(self, macro: dict, scan_date: str, premarket_confirm: bool = True) -> list[dict]:
@@ -689,6 +698,16 @@ class GapScanner:
             logger.info("GapScanner intraday: %d signals (VIX=%.1f, breadth=%.0f%%, vix_drop=%.1f%%) [%s]",
                         len(signals), vix, breadth, vix_drop_pct,
                         ', '.join(f"{s['symbol']}:{s['strategy']}:{s.get('ml_tier','?')}" for s in signals[:5]))
+
+            # Soft ML ranking (sort + highlight top 3, don't filter)
+            if self._signal_ranker is not None and self._signal_ranker._fitted:
+                try:
+                    macro_for_rank = {'vix': vix, 'breadth': breadth}
+                    self._signal_ranker.rank(signals, macro_for_rank)
+                    # Sort by ML predicted return (highest first)
+                    signals.sort(key=lambda s: s.get('_ml_predicted_return', 0), reverse=True)
+                except Exception as e:
+                    logger.warning("SignalRanker error: %s", e)
 
             return signals
 

@@ -3524,7 +3524,10 @@ function loadIntradaySignals() {
                 html += `${emoji} <strong style="color:${sc};">${s.symbol}</strong>`;
                 html += ` <span class="badge" style="background:${sc}22;color:${sc};font-size:0.55rem;">${s.strategy.replace(/_/g,' ')}</span>`;
                 html += ` ${tBadge}`;
-                html += ` <span style="font-size:0.6rem;color:#888;">WR ${s.backtest_wr}%${score}</span>`;
+                const top3Badge = s._ml_top3 ? '<span class="badge" style="background:#ffd700;color:#000;font-size:0.55rem;">TOP 3</span>' : '';
+                const predRet = s._ml_predicted_return != null ? ` pred:${s._ml_predicted_return > 0 ? '+' : ''}${s._ml_predicted_return.toFixed(1)}%` : '';
+                html += ` ${top3Badge}`;
+                html += ` <span style="font-size:0.6rem;color:#888;">WR ${s.backtest_wr}%${score}${predRet}</span>`;
                 html += `</div>`;
                 html += `<div><strong>$${s.current_price}</strong> <span style="font-size:0.65rem;color:#888;">gap ${gap > 0 ? '+' : ''}${gap.toFixed(1)}%</span></div>`;
                 html += `</div>`;
