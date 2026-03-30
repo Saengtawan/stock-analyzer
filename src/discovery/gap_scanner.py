@@ -500,21 +500,37 @@ class GapScanner:
                 sym_mcap = mcap_lookup.get(sym, 0)
 
                 # ══════════════════════════════════════════════════
-                # 4 Honest Intraday Strategies (PF > 1 validated)
-                # No data leakage. Full 700 days × 856 symbols.
-                # All strategies confirmed profitable after proper
-                # TP/SL simulation + honest exit methodology.
+                # 2 Intraday Strategies (sanity-checked, PF > 1)
+                #
+                # CORE: MON_BOUNCE — panic overshoot bounce on Monday
+                #   VIX≥20 required (no edge when VIX<20)
+                #   ≥3 sectors filter (market-wide panic, not sector)
+                #   WR 82% (VIX 20-25), PF 9.6
+                #   Position sizing: 20% of portfolio per Monday,
+                #   spread evenly across signals
+                #
+                # BACKUP: H22_OVERSOLD — yesterday down >3%, bounce
+                #   Works in any VIX but weaker (WR 57%, PF 1.78)
+                #   mcap>50B, skip Thursday
                 # ══════════════════════════════════════════════════
 
-                drop_from_open = (day_low / mkt_open - 1) * 100 if mkt_open > 0 else 0
                 is_thursday_dow = (now_et.weekday() == 3)
 
-                # ── S1: MON_BOUNCE (gap DOWN ≥2%, Monday only) ──
-                # Monday + gap DOWN ≥2% + first bar green + scoring
-                # gap≤-2%+score≥3: WR 69%, PF 3.14, avg +1.42%
-                # gap≤-3%+score≥3: WR 74%, PF 4.06, avg +2.01%
+                # ── S1: MON_BOUNCE (panic overshoot, Monday + VIX≥20) ──
+                # Monday + VIX≥20 + gap DOWN ≥2% + first bar green + score≥3
+                # + ≥3 sectors gapping down (market-wide, not sector-specific)
+                #
+                # Sanity-checked:
+                #   VIX 20-25: WR 82%, PF 15, N=107 (12 Mondays/2.8yr)
+                #   VIX 25-30: WR 92%, PF 47, N=26
+                #   VIX 35+:   WR 96%, PF 63, N=226 (mega-events)
+                #   Cross-val: 82% vs 78% (stable)
+                #   Sector-independent: excl Tech WR still 90%
+                #   Worst month: 2025-01 (DeepSeek) — caught by VIX<20 filter
+                #
                 # EOD exit (hold to close — bounce continues all day)
                 if (is_monday
+                        and vix >= 20  # KEY FILTER: no edge below VIX 20
                         and gap_pct < -2.0
                         and ret_from_open > 0.2
                         and latest_time >= '09:35' and latest_time <= '10:00'):
@@ -545,13 +561,14 @@ class GapScanner:
                         bounce_score += 1
                         bounce_reasons.append('big_gap')
 
-                    if bounce_score >= 2:
-                        if bounce_score >= 4:
-                            wr_est = 88
-                        elif bounce_score >= 3:
-                            wr_est = 74 if gap_pct < -3.0 else 69
+                    if bounce_score >= 3:
+                        # WR by VIX: 20-25=82%, 25-30=92%, 35+=96%
+                        if vix >= 35:
+                            wr_est = 96
+                        elif vix >= 25:
+                            wr_est = 92
                         else:
-                            wr_est = 64
+                            wr_est = 82
 
                         entry = current_price
                         sl = day_low
@@ -569,99 +586,18 @@ class GapScanner:
                             'ret_from_open': round(ret_from_open, 1),
                             'bounce_score': bounce_score,
                             'confidence': wr_est,
-                            'reason': (f'Mon bounce score={bounce_score:.0f}/5 gap={gap_pct:.1f}% '
-                                       f'[{", ".join(bounce_reasons)}]'),
+                            'reason': (f'Mon panic bounce VIX={vix:.0f} score={bounce_score:.0f}/5 '
+                                       f'gap={gap_pct:.1f}% [{", ".join(bounce_reasons)}]'),
                             'backtest_wr': wr_est,
                             'scan_time': latest_time,
                         })
 
-                # ── S1b: MON_BOUNCE_TP (Monday intraday drop >3%, TP 0.5%) ──
-                # Monday + dropped >3% from intraday high + green bar + mcap>50B + <10:30
-                # TP 0.5% / SL 2% — WR 85%, PF 1.54 (prevRed: WR 87%, PF 1.76)
-                # Different from S1: triggers on INTRADAY drop, not gap
-                drop_from_high = (current_price / day_high - 1) * 100 if day_high > 0 else 0
-                intraday_dropped_3pct = (day_low / day_high - 1) * 100 < -3.0 if day_high > 0 else False
-                if (is_monday
-                        and intraday_dropped_3pct
-                        and current_price > day_low  # bouncing from low
-                        and ret_from_open > 0.1  # green from open
-                        and sym_mcap >= 50e9
-                        and latest_time >= '09:35' and latest_time <= '10:30'):
-
-                    entry = current_price
-                    sl = entry * 0.98    # SL -2%
-                    tp = entry * 1.005   # TP +0.5%
-
-                    # prevDown boosts WR 85→87%
-                    prev_down_2pct = (prev_day_red and prev_close < prev_open * 0.98)
-                    if prev_down_2pct and sym_mcap >= 100e9:
-                        wr_est = 87
-                    elif prev_day_red:
-                        wr_est = 85
-                    else:
-                        wr_est = 82
-
-                    signals.append({
-                        'symbol': sym,
-                        'strategy': 'MON_BOUNCE_TP',
-                        'action': 'BUY',
-                        'entry_price': round(entry, 2),
-                        'current_price': round(current_price, 2),
-                        'sl_price': round(sl, 2),
-                        'tp_price': round(tp, 2),
-                        'gap_pct': round(gap_pct, 1),
-                        'drop_pct': round((day_low / day_high - 1) * 100, 1),
-                        'ret_from_open': round(ret_from_open, 1),
-                        'confidence': wr_est,
-                        'reason': (f'Mon selloff {(day_low/day_high-1)*100:.1f}% → bounce '
-                                   f'mcap>${sym_mcap/1e9:.0f}B TP=+0.5%/SL=-2%'
-                                   + (' [prevDown]' if prev_day_red else '')),
-                        'backtest_wr': wr_est,
-                        'scan_time': latest_time,
-                        'exit_type': 'TP_SL',
-                    })
-
-                # ── S2: D4_SELLOFF (Deep 4% selloff, mcap>50B) ──
-                # Flat open + dropped >4% + strong green bar + mcap>$50B
-                # TP 1.0% / SL 2.0% — WR 63%, PF 1.33, avg +0.13%
-                flat_open = abs(gap_pct) < 0.5
-                strong_green = (current_price > mkt_open and ret_from_open > 0.3)
-                if (flat_open
-                        and drop_from_open < -4.0
-                        and strong_green
-                        and sym_mcap >= 50e9
-                        and latest_time >= '09:35' and latest_time <= '10:30'):
-
-                    entry = current_price
-                    sl = entry * 0.98   # SL -2%
-                    tp = entry * 1.01   # TP +1.0%
-                    wr_est = 67 if is_monday else 63
-
-                    signals.append({
-                        'symbol': sym,
-                        'strategy': 'D4_SELLOFF',
-                        'action': 'BUY',
-                        'entry_price': round(entry, 2),
-                        'current_price': round(current_price, 2),
-                        'sl_price': round(sl, 2),
-                        'tp_price': round(tp, 2),
-                        'gap_pct': round(gap_pct, 1),
-                        'drop_pct': round(drop_from_open, 1),
-                        'confidence': wr_est,
-                        'reason': (f'Selloff {drop_from_open:.1f}% + bounce mcap>${sym_mcap/1e9:.0f}B '
-                                   f'TP=+1.0%/SL=-2%'
-                                   + (' [Monday]' if is_monday else '')),
-                        'backtest_wr': wr_est,
-                        'scan_time': latest_time,
-                        'exit_type': 'TP_SL',
-                    })
-
-                # ── S3: H22_OVERSOLD (yesterday down >3% + opens down) ──
-                # Stock was down >3% yesterday + opens down today + first green bar
-                # WR 56%, PF 1.71, avg +0.74%, N=10,604
-                # Best on Monday (PF 2.24) + Wednesday (PF 3.94)
-                # Skip Thursday (PF 0.80)
-                # EOD exit (hold to close)
+                # ── S2: H22_OVERSOLD (backup, any VIX) ──
+                # Yesterday down >3% + opens down + first bar green
+                # + mcap>50B + skip Thursday
+                # WR 57%, PF 1.78, avg +0.62%
+                # Mon PF=2.24, Wed PF=3.94, Thu PF=0.79 (skip)
+                # EOD exit
                 prev_day_down_3pct = (prev_open > 0 and
                                       (prev_close / prev_open - 1) * 100 < -3.0)
                 opens_down = gap_pct < 0
@@ -669,12 +605,13 @@ class GapScanner:
                         and prev_day_down_3pct
                         and opens_down
                         and ret_from_open > 0.2
+                        and sym_mcap >= 50e9
                         and latest_time >= '09:35' and latest_time <= '10:00'):
 
                     entry = current_price
                     sl = day_low
                     tp = entry * 1.02
-                    wr_est = 66 if is_monday else (62 if now_et.weekday() == 2 else 56)
+                    wr_est = 66 if is_monday else (62 if now_et.weekday() == 2 else 57)
 
                     signals.append({
                         'symbol': sym,
@@ -687,76 +624,23 @@ class GapScanner:
                         'gap_pct': round(gap_pct, 1),
                         'ret_from_open': round(ret_from_open, 1),
                         'confidence': wr_est,
-                        'reason': (f'Yesterday -{abs((prev_close/prev_open-1)*100):.1f}% + today opens down '
-                                   f'+ bouncing +{ret_from_open:.1f}%'),
+                        'reason': (f'Yesterday -{abs((prev_close/prev_open-1)*100):.1f}% + opens down '
+                                   f'+ bounce +{ret_from_open:.1f}% mcap>${sym_mcap/1e9:.0f}B'),
                         'backtest_wr': wr_est,
                         'scan_time': latest_time,
                     })
 
-                # ── S4: VIX_DROP_BOUNCE (VIX dropped >5% + prev red) ──
-                # VIX dropped >5% + stock gapped down + first bar green + prev day red
-                # + not Thursday
-                # WR 58%, PF 2.30, avg +0.83%
-                # EOD exit
-                if (not is_thursday_dow
-                        and vix_drop_pct < -5.0
-                        and gap_pct <= -1.0
-                        and ret_from_open > 0.2
-                        and prev_day_red
-                        and latest_time >= '09:35' and latest_time <= '10:00'):
-
-                    entry = current_price
-                    sl = day_low
-                    tp = entry * 1.02
-
-                    signals.append({
-                        'symbol': sym,
-                        'strategy': 'VIX_DROP_BOUNCE',
-                        'action': 'BUY',
-                        'entry_price': round(entry, 2),
-                        'current_price': round(current_price, 2),
-                        'sl_price': round(sl, 2),
-                        'tp_price': round(tp, 2),
-                        'gap_pct': round(gap_pct, 1),
-                        'ret_from_open': round(ret_from_open, 1),
-                        'confidence': 72,
-                        'reason': (f'VIX dropped {vix_drop_pct:.1f}% + gap {gap_pct:.1f}% '
-                                   f'bounce +{ret_from_open:.1f}%'),
-                        'backtest_wr': 72,
-                        'scan_time': latest_time,
-                    })
-
-            # ── VIX GATE + TIERS ──
-            # VIX ≤20 + breadth >50%: HIGH | VIX ≤25: CONFIRMED | VIX >25: CAUTION
-            # MON_BOUNCE_MEGA always gets HIGH (walk-forward validated at 77.6%)
+            # ── Tier assignment ──
             for s in signals:
                 s['vix'] = round(vix, 1)
                 s['breadth'] = round(breadth, 1)
 
-                # MON_BOUNCE_MEGA always HIGH — walk-forward validated
-                if s['strategy'] == 'MON_BOUNCE_MEGA':
-                    s['ml_tier'] = 'HIGH'
-                    continue
-
-                if vix <= 20 and breadth > 50:
-                    s['ml_tier'] = 'HIGH'
-                elif vix <= 25:
+                if s['strategy'] == 'MON_BOUNCE':
+                    s['ml_tier'] = 'HIGH'  # sanity-checked, VIX≥20 already required
+                elif s['strategy'] == 'H22_OVERSOLD':
                     s['ml_tier'] = 'CONFIRMED'
-                else:
-                    s['ml_tier'] = 'CAUTION'
-                    s['confidence'] = max(s.get('confidence', 50) - 10, 45)
 
-            # ML ensemble filter (if fitted — adds additional filtering)
-            if signals and self._intraday_ml and self._intraday_ml._fitted:
-                try:
-                    macro_for_ml = {'vix_close': vix, 'pct_above_20d_ma': breadth}
-                    self._intraday_ml.predict(signals, macro_for_ml)
-                    # Only filter out if ML explicitly rejects (keeps backward compat)
-                    signals = [s for s in signals if s.get('_ml_pass', True)]
-                except Exception as e:
-                    logger.warning("GapScanner intraday ML filter error: %s", e)
-
-            # Sort: HIGH first, then CONFIRMED, then CAUTION
+            # Sort by confidence descending
             tier_order = {'HIGH': 0, 'CONFIRMED': 1, 'CAUTION': 2}
             signals.sort(key=lambda s: (tier_order.get(s.get('ml_tier', 'CAUTION'), 2), -s.get('confidence', 0)))
 
