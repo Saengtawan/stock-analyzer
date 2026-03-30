@@ -3518,19 +3518,23 @@ function loadIntradaySignals() {
                 const tBadge = tierBadge[tier] || '';
                 const exitType = s.exit_type === 'TP_SL' ? '⏱TP/SL' : '📊EOD';
                 const score = s.bounce_score ? ` Score ${s.bounce_score}/5` : '';
-                html += `<div class="border rounded p-2 mb-1" style="background:rgba(46,204,113,0.03);border-color:${sc}33 !important;">`;
+                const dblGreen = s.double_green ? '<span class="badge" style="background:#2ecc71;color:#fff;font-size:0.5rem;">⭐⭐ DOUBLE GREEN</span>' : '';
+                const warn10am = s.warning_10am ? `<div style="background:rgba(231,76,60,0.15);color:#e74c3c;font-size:0.6rem;padding:2px 6px;border-radius:3px;margin-top:3px;">${s.warning_msg || '⚠️ Below entry at 10:00'}</div>` : '';
+                const bgColor = s.warning_10am ? 'rgba(231,76,60,0.05)' : 'rgba(46,204,113,0.03)';
+                html += `<div class="border rounded p-2 mb-1" style="background:${bgColor};border-color:${sc}33 !important;">`;
                 html += `<div class="d-flex justify-content-between align-items-center">`;
                 html += `<div>`;
                 html += `${emoji} <strong style="color:${sc};">${s.symbol}</strong>`;
                 html += ` <span class="badge" style="background:${sc}22;color:${sc};font-size:0.55rem;">${s.strategy.replace(/_/g,' ')}</span>`;
-                html += ` ${tBadge}`;
-                const top3Badge = s._ml_top3 ? '<span class="badge" style="background:#ffd700;color:#000;font-size:0.55rem;">TOP 3</span>' : '';
+                html += ` ${tBadge} ${dblGreen}`;
+                const top3Badge = s._ml_top3 ? '<span class="badge" style="background:#ffd700;color:#000;font-size:0.55rem;">⭐ TOP 3</span>' : '';
                 const predRet = s._ml_predicted_return != null ? ` pred:${s._ml_predicted_return > 0 ? '+' : ''}${s._ml_predicted_return.toFixed(1)}%` : '';
                 html += ` ${top3Badge}`;
                 html += ` <span style="font-size:0.6rem;color:#888;">WR ${s.backtest_wr}%${score}${predRet}</span>`;
                 html += `</div>`;
                 html += `<div><strong>$${s.current_price}</strong> <span style="font-size:0.65rem;color:#888;">gap ${gap > 0 ? '+' : ''}${gap.toFixed(1)}%</span></div>`;
                 html += `</div>`;
+                html += warn10am;
                 html += `<div style="font-size:0.6rem;color:#aaa;margin-top:2px;">${s.reason}</div>`;
                 if (s.entry_price) {
                     html += `<div class="d-flex justify-content-between mt-1" style="font-size:0.65rem;">`;
