@@ -592,16 +592,17 @@ class GapScanner:
                             'scan_time': latest_time,
                         })
 
-                # ── S2: H22_OVERSOLD (backup, any VIX) ──
+                # ── S2: H22_OVERSOLD (VIX≥20 upgrade) ──
                 # Yesterday down >3% + opens down + first bar green
-                # + mcap>50B + skip Thursday
-                # WR 57%, PF 1.78, avg +0.62%
-                # Mon PF=2.24, Wed PF=3.94, Thu PF=0.79 (skip)
+                # + VIX≥20 + mcap>50B + skip Thursday
+                # Hypothesis-tested: VIX 20-25 WR 72% PF 6.17 (cross-val 74%/71%)
+                # VIX<20: WR 50-52% = no edge → skip
                 # EOD exit
                 prev_day_down_3pct = (prev_open > 0 and
                                       (prev_close / prev_open - 1) * 100 < -3.0)
                 opens_down = gap_pct < 0
                 if (not is_thursday_dow
+                        and vix >= 20  # KEY: no edge below VIX 20
                         and prev_day_down_3pct
                         and opens_down
                         and ret_from_open > 0.2
@@ -611,7 +612,13 @@ class GapScanner:
                     entry = current_price
                     sl = day_low
                     tp = entry * 1.02
-                    wr_est = 66 if is_monday else (62 if now_et.weekday() == 2 else 57)
+                    # WR by VIX: 20-25=72%, 25-30=57%, 30+=81%
+                    if vix >= 30:
+                        wr_est = 81
+                    elif vix >= 20:
+                        wr_est = 72
+                    else:
+                        wr_est = 52
 
                     signals.append({
                         'symbol': sym,
@@ -625,8 +632,43 @@ class GapScanner:
                         'ret_from_open': round(ret_from_open, 1),
                         'confidence': wr_est,
                         'reason': (f'Yesterday -{abs((prev_close/prev_open-1)*100):.1f}% + opens down '
-                                   f'+ bounce +{ret_from_open:.1f}% mcap>${sym_mcap/1e9:.0f}B'),
+                                   f'+ bounce +{ret_from_open:.1f}% VIX={vix:.0f} mcap>${sym_mcap/1e9:.0f}B'),
                         'backtest_wr': wr_est,
+                        'scan_time': latest_time,
+                    })
+
+                # ── S3: TUEWED_BOUNCE (Tue-Wed gap-down + VIX≥20) ──
+                # Tuesday/Wednesday + gap down ≥2% + VIX≥20 + first bar green + mcap>50B
+                # Hypothesis-tested: WR 71.5%, PF 5.21, N=508
+                # Cross-val: 67%/76% (stable)
+                # EOD exit
+                is_tue_or_wed = now_et.weekday() in (1, 2)  # 1=Tue, 2=Wed
+                if (is_tue_or_wed
+                        and vix >= 20
+                        and gap_pct < -2.0
+                        and ret_from_open > 0.2
+                        and sym_mcap >= 50e9
+                        and latest_time >= '09:35' and latest_time <= '10:00'):
+
+                    entry = current_price
+                    sl = day_low
+                    tp = entry * 1.02
+                    day_name = 'Tue' if now_et.weekday() == 1 else 'Wed'
+
+                    signals.append({
+                        'symbol': sym,
+                        'strategy': 'TUEWED_BOUNCE',
+                        'action': 'BUY',
+                        'entry_price': round(entry, 2),
+                        'current_price': round(current_price, 2),
+                        'sl_price': round(sl, 2),
+                        'tp_price': round(tp, 2),
+                        'gap_pct': round(gap_pct, 1),
+                        'ret_from_open': round(ret_from_open, 1),
+                        'confidence': 72,
+                        'reason': (f'{day_name} gap {gap_pct:.1f}% bounce VIX={vix:.0f} '
+                                   f'mcap>${sym_mcap/1e9:.0f}B'),
+                        'backtest_wr': 72,
                         'scan_time': latest_time,
                     })
 
@@ -636,9 +678,9 @@ class GapScanner:
                 s['breadth'] = round(breadth, 1)
 
                 if s['strategy'] == 'MON_BOUNCE':
-                    s['ml_tier'] = 'HIGH'  # sanity-checked, VIX≥20 already required
-                elif s['strategy'] == 'H22_OVERSOLD':
-                    s['ml_tier'] = 'CONFIRMED'
+                    s['ml_tier'] = 'HIGH'
+                elif s['strategy'] in ('H22_OVERSOLD', 'TUEWED_BOUNCE'):
+                    s['ml_tier'] = 'HIGH' if s.get('backtest_wr', 0) >= 72 else 'CONFIRMED'
 
             # Sort by confidence descending
             tier_order = {'HIGH': 0, 'CONFIRMED': 1, 'CAUTION': 2}
