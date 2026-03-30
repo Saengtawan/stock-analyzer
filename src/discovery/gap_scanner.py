@@ -575,6 +575,52 @@ class GapScanner:
                             'scan_time': latest_time,
                         })
 
+                # ── S1b: MON_BOUNCE_TP (Monday intraday drop >3%, TP 0.5%) ──
+                # Monday + dropped >3% from intraday high + green bar + mcap>50B + <10:30
+                # TP 0.5% / SL 2% — WR 85%, PF 1.54 (prevRed: WR 87%, PF 1.76)
+                # Different from S1: triggers on INTRADAY drop, not gap
+                drop_from_high = (current_price / day_high - 1) * 100 if day_high > 0 else 0
+                intraday_dropped_3pct = (day_low / day_high - 1) * 100 < -3.0 if day_high > 0 else False
+                if (is_monday
+                        and intraday_dropped_3pct
+                        and current_price > day_low  # bouncing from low
+                        and ret_from_open > 0.1  # green from open
+                        and sym_mcap >= 50e9
+                        and latest_time >= '09:35' and latest_time <= '10:30'):
+
+                    entry = current_price
+                    sl = entry * 0.98    # SL -2%
+                    tp = entry * 1.005   # TP +0.5%
+
+                    # prevDown boosts WR 85→87%
+                    prev_down_2pct = (prev_day_red and prev_close < prev_open * 0.98)
+                    if prev_down_2pct and sym_mcap >= 100e9:
+                        wr_est = 87
+                    elif prev_day_red:
+                        wr_est = 85
+                    else:
+                        wr_est = 82
+
+                    signals.append({
+                        'symbol': sym,
+                        'strategy': 'MON_BOUNCE_TP',
+                        'action': 'BUY',
+                        'entry_price': round(entry, 2),
+                        'current_price': round(current_price, 2),
+                        'sl_price': round(sl, 2),
+                        'tp_price': round(tp, 2),
+                        'gap_pct': round(gap_pct, 1),
+                        'drop_pct': round((day_low / day_high - 1) * 100, 1),
+                        'ret_from_open': round(ret_from_open, 1),
+                        'confidence': wr_est,
+                        'reason': (f'Mon selloff {(day_low/day_high-1)*100:.1f}% → bounce '
+                                   f'mcap>${sym_mcap/1e9:.0f}B TP=+0.5%/SL=-2%'
+                                   + (' [prevDown]' if prev_day_red else '')),
+                        'backtest_wr': wr_est,
+                        'scan_time': latest_time,
+                        'exit_type': 'TP_SL',
+                    })
+
                 # ── S2: D4_SELLOFF (Deep 4% selloff, mcap>50B) ──
                 # Flat open + dropped >4% + strong green bar + mcap>$50B
                 # TP 1.0% / SL 2.0% — WR 63%, PF 1.33, avg +0.13%
