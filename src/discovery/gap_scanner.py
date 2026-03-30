@@ -93,6 +93,9 @@ class GapScanner:
         except Exception as e:
             logger.warning("GapScanner: failed to load IntradayMLFilter: %s", e)
 
+        # Ensure drift-detection table exists
+        self._ensure_performance_table()
+
         # Soft ML signal ranker (sorts + highlights top 3, never filters)
         self._signal_ranker = None
         try:
@@ -101,6 +104,49 @@ class GapScanner:
             self._signal_ranker.load_from_db()
         except Exception as e:
             logger.warning("GapScanner: failed to load SignalRanker: %s", e)
+
+    def _ensure_performance_table(self):
+        """Create intraday_strategy_performance table if not exists."""
+        try:
+            with get_session() as session:
+                session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS intraday_strategy_performance (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        strategy TEXT NOT NULL,
+                        date TEXT NOT NULL,
+                        n_signals INTEGER,
+                        n_wins INTEGER,
+                        avg_return REAL,
+                        pf_rolling_90d REAL,
+                        updated_at TEXT DEFAULT (datetime('now')),
+                        UNIQUE(strategy, date)
+                    )
+                """))
+                session.commit()
+        except Exception as e:
+            logger.warning("GapScanner: failed to create intraday_strategy_performance table: %s", e)
+
+    def _should_pause_strategy(self, strategy_name: str) -> bool:
+        """Check if a strategy should be paused due to performance decay.
+
+        Rule: if rolling 90-day PF < 1.2, pause the strategy.
+        Returns False if no data exists (new strategy = always run).
+        """
+        try:
+            with get_session() as session:
+                row = session.execute(text("""
+                    SELECT pf_rolling_90d FROM intraday_strategy_performance
+                    WHERE strategy = :s
+                    ORDER BY date DESC LIMIT 1
+                """), {'s': strategy_name}).fetchone()
+                if row and row[0] is not None and row[0] < 1.2:
+                    logger.warning("GapScanner: strategy %s PAUSED (rolling 90d PF=%.2f < 1.2)",
+                                   strategy_name, row[0])
+                    return True
+        except Exception as e:
+            # Table might not exist yet — don't crash, just skip check
+            logger.debug("GapScanner: _should_pause_strategy error (non-fatal): %s", e)
+        return False
 
     # === Public API ===
 
@@ -474,6 +520,11 @@ class GapScanner:
             logger.info("GapScanner intraday: %d snapshots from Alpaca (thu=%s, mon=%s, vix_drop=%.1f%%)",
                         len(snap_data), is_thursday, is_monday, vix_drop_pct)
 
+            # ── Drift detection: check if strategies should be paused ──
+            h22_paused = self._should_pause_strategy('H22_OVERSOLD')
+            tuewed_paused = self._should_pause_strategy('TUEWED_BOUNCE')
+            mon_paused = self._should_pause_strategy('MON_BOUNCE')
+
             for sym in all_syms:
                 snap = snap_data.get(sym)
                 if not snap:
@@ -538,7 +589,8 @@ class GapScanner:
                 #   Worst month: 2025-01 (DeepSeek) — caught by VIX<20 filter
                 #
                 # EOD exit (hold to close — bounce continues all day)
-                if (is_monday
+                if (not mon_paused
+                        and is_monday
                         and vix >= 20  # KEY FILTER: no edge below VIX 20
                         and gap_pct < -2.0
                         and ret_from_open > 0.2
@@ -610,7 +662,8 @@ class GapScanner:
                 prev_day_down_3pct = (prev_open > 0 and
                                       (prev_close / prev_open - 1) * 100 < -3.0)
                 opens_down = gap_pct < 0
-                if (not is_thursday_dow
+                if (not h22_paused
+                        and not is_thursday_dow
                         and vix >= 20  # KEY: no edge below VIX 20
                         and prev_day_down_3pct
                         and opens_down
@@ -652,7 +705,8 @@ class GapScanner:
                 # Cross-val: 67%/76% (stable)
                 # EOD exit
                 is_tue_or_wed = now_et.weekday() in (1, 2)  # 1=Tue, 2=Wed
-                if (is_tue_or_wed
+                if (not tuewed_paused
+                        and is_tue_or_wed
                         and vix >= 20
                         and gap_pct < -2.0
                         and ret_from_open > 0.2

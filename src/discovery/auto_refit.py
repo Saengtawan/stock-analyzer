@@ -180,6 +180,51 @@ class AutoRefitOrchestrator:
         except Exception as e:
             logger.error("AutoRefit: health check error: %s", e)
 
+        # 11. Refit intraday signal ranker (monthly)
+        try:
+            from discovery.signal_ranker import SignalRanker
+            from datetime import date, timedelta
+            ranker = SignalRanker()
+            if ranker.load_from_db():
+                if ranker._fit_date:
+                    last_fit = date.fromisoformat(ranker._fit_date)
+                    if (date.today() - last_fit).days >= 30:
+                        ranker.fit()
+                        results['signal_ranker_refit'] = True
+                        logger.info("AutoRefit: SignalRanker refitted")
+                    else:
+                        results['signal_ranker_refit'] = False
+                else:
+                    ranker.fit()
+                    results['signal_ranker_refit'] = True
+            else:
+                ranker.fit()
+                results['signal_ranker_refit'] = True
+        except Exception as e:
+            logger.error("AutoRefit: SignalRanker refit error: %s", e)
+            results['signal_ranker_refit'] = False
+
+        # 12. Refit intraday ML filter (monthly)
+        try:
+            from discovery.intraday_ml_filter import IntradayMLFilter
+            from datetime import date
+            ml = IntradayMLFilter()
+            if ml.load_from_db() and ml._fit_date:
+                last = date.fromisoformat(ml._fit_date)
+                if (date.today() - last).days >= 30:
+                    ml.fit()
+                    results['intraday_ml_refit'] = True
+                    logger.info("AutoRefit: IntradayMLFilter refitted")
+                else:
+                    results['intraday_ml_refit'] = False
+            else:
+                ml.fit()
+                results['intraday_ml_refit'] = True
+                logger.info("AutoRefit: IntradayMLFilter fitted (first time)")
+        except Exception as e:
+            logger.error("AutoRefit: IntradayMLFilter refit error: %s", e)
+            results['intraday_ml_refit'] = False
+
         self._last_run = time.time()
         self._last_results = results
 
