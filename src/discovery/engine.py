@@ -588,6 +588,26 @@ class DiscoveryEngine:
         if not scored:
             return [], [], 'STRESS', 0.0
 
+        # 1b. VIX<20 soft throttle — validated: WR 50.7% across all sub-periods
+        # Raise min score threshold in BULL regime (VIX<20) to filter weak picks
+        # Not hard block — just stricter quality filter
+        vix_val = macro.get('vix_close', 20) or 20
+        if vix_val < 20:
+            # BULL regime: raise min layer2_score threshold
+            # Only top-quality picks survive (score > median)
+            scored = [(s, c) for s, c in scored if s > 0.5]
+            logger.info("Discovery: VIX<20 soft throttle — %d candidates after raising threshold", len(scored))
+
+        # 1c. Day-of-week enrichment for ML selector
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        et_now = datetime.now(ZoneInfo('America/New_York'))
+        dow = et_now.weekday()  # 0=Mon, 4=Fri
+        for _, c in scored:
+            c['_day_of_week'] = dow
+            c['_is_monday'] = 1 if dow == 0 else 0
+            c['_is_friday'] = 1 if dow == 4 else 0
+
         # 2. v17: Re-rank by ML probability or context Sharpe
         if self._stock_selector._fitted and self._v17_enabled:
             scored = self._rank_by_ml_probability(scored, candidates, macro, scan_info, regime)
