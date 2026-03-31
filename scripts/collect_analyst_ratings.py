@@ -44,29 +44,31 @@ DELAY_SECS = 0.4
 UPGRADE_LOOKBACK_DAYS = 90  # store last 90 days of upgrades/downgrades
 
 
-def get_target_symbols(conn: object, today: str, full: bool) -> list[str]:
+def get_target_symbols(session: object, today: str, full: bool) -> list[str]:
     """Get symbols to collect for."""
     if full:
-        return [r[0] for r in conn.execute(
-            "SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC LIMIT 500"
+        return [r[0] for r in session.execute(
+            text("SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC LIMIT 500")
         ).fetchall()]
 
     syms = set()
     # Today's signal_outcomes
-    rows = conn.execute(
-        "SELECT DISTINCT symbol FROM signal_outcomes WHERE scan_date = ?", (today,)
+    rows = session.execute(
+        text("SELECT DISTINCT symbol FROM signal_outcomes WHERE scan_date = :p0"),
+        {"p0": today}
     ).fetchall()
     syms.update(r[0] for r in rows)
     # Today's screener_rejections
-    rows = conn.execute(
-        "SELECT DISTINCT symbol FROM screener_rejections WHERE scan_date = ?", (today,)
+    rows = session.execute(
+        text("SELECT DISTINCT symbol FROM screener_rejections WHERE scan_date = :p0"),
+        {"p0": today}
     ).fetchall()
     syms.update(r[0] for r in rows)
     # Last 10 days BOUGHT (for open position context)
     cutoff = (datetime.strptime(today, '%Y-%m-%d') - timedelta(days=10)).strftime('%Y-%m-%d')
-    rows = conn.execute(
-        "SELECT DISTINCT symbol FROM signal_outcomes WHERE scan_date >= ? AND action_taken='BOUGHT'",
-        (cutoff,)
+    rows = session.execute(
+        text("SELECT DISTINCT symbol FROM signal_outcomes WHERE scan_date >= :p0 AND action_taken='BOUGHT'"),
+        {"p0": cutoff}
     ).fetchall()
     syms.update(r[0] for r in rows)
     return sorted(syms)
@@ -147,18 +149,18 @@ def _safe_float(v) -> float | None:
         return None
 
 
-def save_analyst_data(conn: object, sym: str, data: dict, today: str):
+def save_analyst_data(session: object, sym: str, data: dict, today: str):
     """Persist analyst data to DB."""
     # --- analyst_ratings ---
     for r in data['ratings']:
         try:
-            conn.execute("""
+            session.execute(text("""
                 INSERT OR IGNORE INTO analyst_ratings
                     (symbol, date, firm, to_grade, from_grade, action, price_target, prior_target)
-                VALUES (?,?,?,?,?,?,?,?)
-            """, (sym, r['date'], r['firm'][:100], r['to_grade'][:50],
-                  r['from_grade'][:50], r['action'][:20],
-                  r['price_target'], r['prior_target']))
+                VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6,:p7)
+            """), {"p0": sym, "p1": r['date'], "p2": r['firm'][:100], "p3": r['to_grade'][:50],
+                   "p4": r['from_grade'][:50], "p5": r['action'][:20],
+                   "p6": r['price_target'], "p7": r['prior_target']})
         except Exception:
             pass
 
@@ -170,12 +172,12 @@ def save_analyst_data(conn: object, sym: str, data: dict, today: str):
         if targets and targets.get('mean') and data.get('last_price') and data['last_price'] > 0:
             upside_pct = round((targets['mean'] / data['last_price'] - 1) * 100, 2)
 
-        conn.execute("""
+        session.execute(text("""
             INSERT INTO analyst_consensus
                 (symbol, updated_at,
                  strong_buy, buy, hold, sell, strong_sell, total_analysts, bull_score,
                  target_mean, target_high, target_low, target_median, upside_pct)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6,:p7,:p8,:p9,:p10,:p11,:p12,:p13)
             ON CONFLICT(symbol) DO UPDATE SET
                 updated_at     = excluded.updated_at,
                 strong_buy     = COALESCE(excluded.strong_buy, strong_buy),
@@ -190,19 +192,19 @@ def save_analyst_data(conn: object, sym: str, data: dict, today: str):
                 target_low     = COALESCE(excluded.target_low, target_low),
                 target_median  = COALESCE(excluded.target_median, target_median),
                 upside_pct     = COALESCE(excluded.upside_pct, upside_pct)
-        """, (sym, today,
-              cons.get('strong_buy') if cons else None,
-              cons.get('buy') if cons else None,
-              cons.get('hold') if cons else None,
-              cons.get('sell') if cons else None,
-              cons.get('strong_sell') if cons else None,
-              cons.get('total_analysts') if cons else None,
-              cons.get('bull_score') if cons else None,
-              targets.get('mean') if targets else None,
-              targets.get('high') if targets else None,
-              targets.get('low') if targets else None,
-              targets.get('median') if targets else None,
-              upside_pct))
+        """), {"p0": sym, "p1": today,
+               "p2": cons.get('strong_buy') if cons else None,
+               "p3": cons.get('buy') if cons else None,
+               "p4": cons.get('hold') if cons else None,
+               "p5": cons.get('sell') if cons else None,
+               "p6": cons.get('strong_sell') if cons else None,
+               "p7": cons.get('total_analysts') if cons else None,
+               "p8": cons.get('bull_score') if cons else None,
+               "p9": targets.get('mean') if targets else None,
+               "p10": targets.get('high') if targets else None,
+               "p11": targets.get('low') if targets else None,
+               "p12": targets.get('median') if targets else None,
+               "p13": upside_pct})
 
 
 def main():
@@ -218,30 +220,29 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_analyst_ratings "
           f"date={today} mode={mode}")
 
-    # conn via get_session()
-
-    if args.symbol:
-        symbols = [args.symbol.upper()]
-    else:
-        symbols = get_target_symbols(conn, today, args.full)
-
-    print(f"  {len(symbols)} symbols")
-
-    ok = fail = 0
-    for i, sym in enumerate(symbols):
-        data = fetch_analyst_data(sym)
-        if data['ratings'] or data['consensus'] or data['targets']:
-            save_analyst_data(conn, sym, data, today)
-            ok += 1
+    with get_session() as session:
+        if args.symbol:
+            symbols = [args.symbol.upper()]
         else:
-            fail += 1
+            symbols = get_target_symbols(session, today, args.full)
 
-        if (i + 1) % 100 == 0:
-            pct = round((i + 1) / len(symbols) * 100)
-            print(f"  [{i+1}/{len(symbols)} {pct}%] ok={ok} fail={fail}")
+        print(f"  {len(symbols)} symbols")
 
-        if (i + 1) % DELAY_EVERY == 0:
-            time.sleep(DELAY_SECS)
+        ok = fail = 0
+        for i, sym in enumerate(symbols):
+            data = fetch_analyst_data(sym)
+            if data['ratings'] or data['consensus'] or data['targets']:
+                save_analyst_data(session, sym, data, today)
+                ok += 1
+            else:
+                fail += 1
+
+            if (i + 1) % 100 == 0:
+                pct = round((i + 1) / len(symbols) * 100)
+                print(f"  [{i+1}/{len(symbols)} {pct}%] ok={ok} fail={fail}")
+
+            if (i + 1) % DELAY_EVERY == 0:
+                time.sleep(DELAY_SECS)
     print(f"\n  Done. ok={ok} fail={fail}")
 
 

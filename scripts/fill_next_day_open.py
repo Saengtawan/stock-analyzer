@@ -25,50 +25,50 @@ import yfinance as yf
 def main():
     print(f"[{datetime.now().isoformat()}] fill_next_day_open.py starting")
 
-    # conn via get_session()
+    with get_session() as session:
 
-    # Find OVN/PED sells from yesterday with no next_day_open_pct
-    yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-    rows = conn.execute("""
-        SELECT id, symbol, price as sell_price
-        FROM trades
-        WHERE action = 'SELL' AND signal_source IN ('overnight_gap', 'ped')
-          AND date = ? AND next_day_open_pct IS NULL
-    """, (yesterday,)).fetchall()
+        # Find OVN/PED sells from yesterday with no next_day_open_pct
+        yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        rows = session.execute(text("""
+            SELECT id, symbol, price as sell_price
+            FROM trades
+            WHERE action = 'SELL' AND signal_source IN ('overnight_gap', 'ped')
+              AND date = :p0 AND next_day_open_pct IS NULL
+        """), {'p0': yesterday}).fetchall()
 
-    if not rows:
-        print(f"No OVN/PED sells from {yesterday} to fill.")
-        return
+        if not rows:
+            print(f"No OVN/PED sells from {yesterday} to fill.")
+            return
 
-    symbols = list(set(r['symbol'] for r in rows))
-    print(f"Filling next_day_open_pct for {len(rows)} OVN trades: {symbols}")
+        symbols = list(set(r[1] for r in rows))
+        print(f"Filling next_day_open_pct for {len(rows)} OVN trades: {symbols}")
 
-    updated = 0
-    for row in rows:
-        try:
-            df = yf.download(row['symbol'], period='2d', interval='1d',
-                             progress=False, auto_adjust=True)
-            if df is None or len(df) < 1:
-                print(f"  {row['symbol']}: no yfinance data")
-                continue
-            today_open = float(df['Open'].iloc[-1])
-            if today_open <= 0:
-                print(f"  {row['symbol']}: open={today_open} invalid")
-                continue
-            sell_price = float(row['sell_price'])
-            if sell_price <= 0:
-                print(f"  {row['symbol']}: sell_price={sell_price} invalid")
-                continue
-            pct = round((today_open / sell_price - 1) * 100, 3)
-            conn.execute(
-                "UPDATE trades SET next_day_open_pct = ? WHERE id = ?",
-                (pct, row['id'])
-            )
-            print(f"  {row['symbol']}: sell=${sell_price:.2f} → open=${today_open:.2f} = {pct:+.3f}%")
-            updated += 1
-        except Exception as e:
-            print(f"  {row['symbol']}: error — {e}")
-    print(f"Done. Updated {updated}/{len(rows)} rows.")
+        updated = 0
+        for row in rows:
+            try:
+                df = yf.download(row[1], period='2d', interval='1d',
+                                 progress=False, auto_adjust=True)
+                if df is None or len(df) < 1:
+                    print(f"  {row[1]}: no yfinance data")
+                    continue
+                today_open = float(df['Open'].iloc[-1])
+                if today_open <= 0:
+                    print(f"  {row[1]}: open={today_open} invalid")
+                    continue
+                sell_price = float(row[2])
+                if sell_price <= 0:
+                    print(f"  {row[1]}: sell_price={sell_price} invalid")
+                    continue
+                pct = round((today_open / sell_price - 1) * 100, 3)
+                session.execute(
+                    text("UPDATE trades SET next_day_open_pct = :p0 WHERE id = :p1"),
+                    {'p0': pct, 'p1': row[0]}
+                )
+                print(f"  {row[1]}: sell=${sell_price:.2f} -> open=${today_open:.2f} = {pct:+.3f}%")
+                updated += 1
+            except Exception as e:
+                print(f"  {row[1]}: error — {e}")
+        print(f"Done. Updated {updated}/{len(rows)} rows.")
 
 
 if __name__ == '__main__':

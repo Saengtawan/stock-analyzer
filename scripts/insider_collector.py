@@ -24,8 +24,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 from database.orm.base import get_session
 from sqlalchemy import text
 import argparse
-import os
-import sys
 import time
 import xml.etree.ElementTree as ET
 from datetime import datetime, date, timedelta
@@ -48,8 +46,8 @@ HEADERS = {
 MIN_PURCHASE_VALUE = 10_000  # $10K — filter noise (options exercises, tiny grants)
 
 
-def _ensure_table(conn: object):
-    conn.execute('''
+def _ensure_table(session):
+    session.execute(text('''
         CREATE TABLE IF NOT EXISTS insider_transactions (
             id                 INTEGER PRIMARY KEY AUTOINCREMENT,
             filing_date        TEXT NOT NULL,
@@ -66,14 +64,14 @@ def _ensure_table(conn: object):
             accession_number   TEXT UNIQUE,
             collected_at       TEXT
         )
-    ''')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_insider_symbol ON insider_transactions(symbol)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_insider_date ON insider_transactions(transaction_date)')
+    '''))
+    session.execute(text('CREATE INDEX IF NOT EXISTS idx_insider_symbol ON insider_transactions(symbol)'))
+    session.execute(text('CREATE INDEX IF NOT EXISTS idx_insider_date ON insider_transactions(transaction_date)'))
 
 
-def _get_universe_symbols(conn: object) -> set:
+def _get_universe_symbols(session) -> set:
     try:
-        rows = conn.execute("SELECT symbol FROM universe_stocks").fetchall()
+        rows = session.execute(text("SELECT symbol FROM universe_stocks")).fetchall()
         return {r[0] for r in rows}
     except Exception:
         return set()
@@ -219,11 +217,10 @@ def _parse_form4_xml(cik: str, accession_number: str, xml_filename: str) -> list
     return transactions
 
 
-def collect(start_date: str, end_date: str, universe: set, dry_run: bool = False) -> int:
-    # conn via get_session()
-    _ensure_table(conn)
+def collect(session, start_date: str, end_date: str, universe: set, dry_run: bool = False) -> int:
+    _ensure_table(session)
 
-    print(f"  Searching Form 4 filings {start_date} → {end_date}...")
+    print(f"  Searching Form 4 filings {start_date} -> {end_date}...")
     filings = _search_form4(start_date, end_date)
     print(f"  Found {len(filings)} Form 4 filings total")
 
@@ -238,8 +235,8 @@ def collect(start_date: str, end_date: str, universe: set, dry_run: bool = False
             continue
 
         # Skip if already collected
-        exists = conn.execute(
-            "SELECT id FROM insider_transactions WHERE accession_number = ?", (acc,)
+        exists = session.execute(
+            text("SELECT id FROM insider_transactions WHERE accession_number = :p0"), {'p0': acc}
         ).fetchone()
         if exists:
             skipped += 1
@@ -263,24 +260,22 @@ def collect(start_date: str, end_date: str, universe: set, dry_run: bool = False
                 continue
 
             try:
-                conn.execute('''
+                session.execute(text('''
                     INSERT OR IGNORE INTO insider_transactions
                         (filing_date, transaction_date, symbol, cik, insider_name, insider_title,
                          transaction_type, shares, price_per_share, total_value,
                          shares_owned_after, accession_number, collected_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-                ''', (
-                    filing['filing_date'], txn['transaction_date'], sym, cik,
-                    txn['insider_name'], txn['insider_title'], txn['transaction_type'],
-                    txn['shares'], txn['price_per_share'], txn['total_value'],
-                    txn['shares_owned_after'], acc,
-                ))
+                    VALUES (:p0, :p1, :p2, :p3, :p4, :p5, :p6, :p7, :p8, :p9, :p10, :p11, datetime('now'))
+                '''), {
+                    'p0': filing['filing_date'], 'p1': txn['transaction_date'], 'p2': sym, 'p3': cik,
+                    'p4': txn['insider_name'], 'p5': txn['insider_title'], 'p6': txn['transaction_type'],
+                    'p7': txn['shares'], 'p8': txn['price_per_share'], 'p9': txn['total_value'],
+                    'p10': txn['shares_owned_after'], 'p11': acc,
+                })
                 saved += 1
             except Exception as e:
                 print(f"  DB error {sym}: {e}")
 
-    if not dry_run:
-        pass  # commit handled by get_session() context manager
     print(f"  {'[DRY] ' if dry_run else ''}Saved {saved} purchases (skipped {skipped} already collected)")
     return saved
 
@@ -294,18 +289,18 @@ def main():
 
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] insider_collector")
 
-    # conn via get_session()
-    universe = _get_universe_symbols(conn)
-    print(f"  Universe: {len(universe)} symbols")
+    with get_session() as session:
+        universe = _get_universe_symbols(session)
+        print(f"  Universe: {len(universe)} symbols")
 
-    if args.date:
-        start_date = end_date = args.date
-    else:
-        today = date.today()
-        end_date   = today.strftime('%Y-%m-%d')
-        start_date = (today - timedelta(days=args.days)).strftime('%Y-%m-%d')
+        if args.date:
+            start_date = end_date = args.date
+        else:
+            today = date.today()
+            end_date   = today.strftime('%Y-%m-%d')
+            start_date = (today - timedelta(days=args.days)).strftime('%Y-%m-%d')
 
-    collect(start_date, end_date, universe, dry_run=args.dry_run)
+        collect(session, start_date, end_date, universe, dry_run=args.dry_run)
 
 
 if __name__ == '__main__':

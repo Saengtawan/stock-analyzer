@@ -16,8 +16,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 from database.orm.base import get_session
 from sqlalchemy import text
-import os
-from datetime import datetime, date
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 ET = ZoneInfo('America/New_York')
@@ -27,38 +26,36 @@ def main():
     today = datetime.now(ET).date().strftime('%Y-%m-%d')
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] save_universe_snapshot date={today}")
 
-    # conn via get_session()
+    with get_session() as session:
 
-    # Check if already saved today
-    existing = conn.execute(
-        "SELECT COUNT(*) FROM universe_daily_snapshot WHERE date = ?", (today,)
-    ).fetchone()[0]
-    if existing > 0:
-        print(f"  Already saved {existing} rows for {today} — skipping")
-        return
+        # Check if already saved today
+        existing = session.execute(
+            text("SELECT COUNT(*) FROM universe_daily_snapshot WHERE date = :p0"), {'p0': today}
+        ).fetchone()[0]
+        if existing > 0:
+            print(f"  Already saved {existing} rows for {today} — skipping")
+            return
 
-    # Load current universe_stocks (ranked by dollar_vol descending)
-    stocks = conn.execute("""
-        SELECT symbol, dollar_vol, sector,
-               ROW_NUMBER() OVER (ORDER BY dollar_vol DESC) as rank
-        FROM universe_stocks
-        WHERE status = 'active'
-    """).fetchall()
+        # Load current universe_stocks (ranked by dollar_vol descending)
+        stocks = session.execute(text("""
+            SELECT symbol, dollar_vol, sector,
+                   ROW_NUMBER() OVER (ORDER BY dollar_vol DESC) as rank
+            FROM universe_stocks
+            WHERE status = 'active'
+        """)).fetchall()
 
-    if not stocks:
-        print("  universe_stocks empty — nothing to snapshot")
-        return
+        if not stocks:
+            print("  universe_stocks empty — nothing to snapshot")
+            return
 
-    rows = [(today, r['symbol'], r['dollar_vol'], r['sector'], r['rank'])
-            for r in stocks]
+        for r in stocks:
+            session.execute(text("""
+                INSERT OR IGNORE INTO universe_daily_snapshot (date, symbol, dollar_vol, sector, rank)
+                VALUES (:p0,:p1,:p2,:p3,:p4)
+            """), {'p0': today, 'p1': r[0], 'p2': r[1], 'p3': r[2], 'p4': r[3]})
 
-    conn.executemany("""
-        INSERT OR IGNORE INTO universe_daily_snapshot (date, symbol, dollar_vol, sector, rank)
-        VALUES (?,?,?,?,?)
-    """, rows)
-
-    print(f"  Saved {len(rows)} stocks for {today}")
-    print(f"  Done.")
+        print(f"  Saved {len(stocks)} stocks for {today}")
+        print(f"  Done.")
 
 
 if __name__ == '__main__':

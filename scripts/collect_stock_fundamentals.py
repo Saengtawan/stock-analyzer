@@ -93,69 +93,69 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_stock_fundamentals "
           f"force={args.force}")
 
-    # conn via get_session()
-
-    if args.symbol:
-        symbols = [args.symbol.upper()]
-    else:
-        symbols = [r[0] for r in conn.execute(
-            "SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC"
-        ).fetchall()]
-
-    if not args.force:
-        # Skip symbols refreshed in last 7 days
-        fresh = set(r[0] for r in conn.execute("""
-            SELECT symbol FROM stock_fundamentals
-            WHERE updated_at >= datetime('now', '-7 days')
-        """).fetchall())
-        symbols = [s for s in symbols if s not in fresh]
-        print(f"  {len(symbols)} stale symbols (skipping {len(fresh)} fresh)")
-    else:
-        print(f"  Force mode: {len(symbols)} symbols")
-
-    if args.limit > 0:
-        symbols = symbols[:args.limit]
-        print(f"  (limited to {args.limit})")
-
-    if not symbols:
-        print("  All symbols fresh — done.")
-        return
-
-    ok = 0
-    fail = 0
-
-    for i, sym in enumerate(symbols):
-        data = fetch_fundamentals(sym)
-        if data:
-            conn.execute("""
-                INSERT INTO stock_fundamentals
-                    (symbol, pe_trailing, pe_forward, beta, float_shares,
-                     shares_out, market_cap, avg_volume, sector, industry)
-                VALUES (?,?,?,?,?,?,?,?,?,?)
-                ON CONFLICT(symbol) DO UPDATE SET
-                    pe_trailing  = excluded.pe_trailing,
-                    pe_forward   = excluded.pe_forward,
-                    beta         = excluded.beta,
-                    float_shares = excluded.float_shares,
-                    shares_out   = excluded.shares_out,
-                    market_cap   = excluded.market_cap,
-                    avg_volume   = excluded.avg_volume,
-                    sector       = COALESCE(excluded.sector, sector),
-                    industry     = COALESCE(excluded.industry, industry),
-                    updated_at   = datetime('now')
-            """, (sym, data['pe_trailing'], data['pe_forward'], data['beta'],
-                  data['float_shares'], data['shares_out'], data['market_cap'],
-                  data['avg_volume'], data['sector'], data['industry']))
-            ok += 1
+    with get_session() as session:
+        if args.symbol:
+            symbols = [args.symbol.upper()]
         else:
-            fail += 1
+            symbols = [r[0] for r in session.execute(
+                text("SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC")
+            ).fetchall()]
 
-        if (i + 1) % 100 == 0:
-            pct = round((i + 1) / len(symbols) * 100)
-            print(f"  [{i+1}/{len(symbols)} {pct}%] ok={ok} fail={fail}")
+        if not args.force:
+            # Skip symbols refreshed in last 7 days
+            fresh = set(r[0] for r in session.execute(text("""
+                SELECT symbol FROM stock_fundamentals
+                WHERE updated_at >= datetime('now', '-7 days')
+            """)).fetchall())
+            symbols = [s for s in symbols if s not in fresh]
+            print(f"  {len(symbols)} stale symbols (skipping {len(fresh)} fresh)")
+        else:
+            print(f"  Force mode: {len(symbols)} symbols")
 
-        if (i + 1) % DELAY_EVERY == 0:
-            time.sleep(DELAY_SECS)
+        if args.limit > 0:
+            symbols = symbols[:args.limit]
+            print(f"  (limited to {args.limit})")
+
+        if not symbols:
+            print("  All symbols fresh — done.")
+            return
+
+        ok = 0
+        fail = 0
+
+        for i, sym in enumerate(symbols):
+            data = fetch_fundamentals(sym)
+            if data:
+                session.execute(text("""
+                    INSERT INTO stock_fundamentals
+                        (symbol, pe_trailing, pe_forward, beta, float_shares,
+                         shares_out, market_cap, avg_volume, sector, industry)
+                    VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6,:p7,:p8,:p9)
+                    ON CONFLICT(symbol) DO UPDATE SET
+                        pe_trailing  = excluded.pe_trailing,
+                        pe_forward   = excluded.pe_forward,
+                        beta         = excluded.beta,
+                        float_shares = excluded.float_shares,
+                        shares_out   = excluded.shares_out,
+                        market_cap   = excluded.market_cap,
+                        avg_volume   = excluded.avg_volume,
+                        sector       = COALESCE(excluded.sector, sector),
+                        industry     = COALESCE(excluded.industry, industry),
+                        updated_at   = datetime('now')
+                """), {"p0": sym, "p1": data['pe_trailing'], "p2": data['pe_forward'],
+                       "p3": data['beta'], "p4": data['float_shares'], "p5": data['shares_out'],
+                       "p6": data['market_cap'], "p7": data['avg_volume'],
+                       "p8": data['sector'], "p9": data['industry']})
+                ok += 1
+            else:
+                fail += 1
+
+            if (i + 1) % 100 == 0:
+                pct = round((i + 1) / len(symbols) * 100)
+                print(f"  [{i+1}/{len(symbols)} {pct}%] ok={ok} fail={fail}")
+
+            if (i + 1) % DELAY_EVERY == 0:
+                time.sleep(DELAY_SECS)
     print(f"\n  Done. ok={ok} fail={fail}")
 
 

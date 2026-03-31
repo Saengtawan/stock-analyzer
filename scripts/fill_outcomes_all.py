@@ -16,8 +16,6 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 from database.orm.base import get_session
 from sqlalchemy import text
-import sys
-import os
 import time
 from datetime import datetime, date, timedelta
 from collections import defaultdict
@@ -91,103 +89,102 @@ def compute_outcomes(daily_df: pd.DataFrame, scan_date: str, scan_price: float) 
 def main():
     print(f"{LOG_PREFIX} fill_outcomes_all.py starting")
 
-    # conn via get_session()
+    with get_session() as session:
 
-    # Rows needing outcome fill — scan_date must be at least 1 day ago
-    cutoff = (date.today() - timedelta(days=1)).strftime('%Y-%m-%d')
-    rows = conn.execute("""
-        SELECT id, symbol, scan_date, scan_price, action_taken, signal_source
-        FROM signal_outcomes
-        WHERE action_taken IN ('QUEUE_FULL', 'SKIPPED_FILTER', 'BOUGHT', 'QUEUED')
-          AND outcome_1d IS NULL
-          AND scan_price > 0
-          AND scan_date <= ?
-        ORDER BY scan_date DESC, symbol
-    """, (cutoff,)).fetchall()
+        # Rows needing outcome fill — scan_date must be at least 1 day ago
+        cutoff = (date.today() - timedelta(days=1)).strftime('%Y-%m-%d')
+        rows = session.execute(text("""
+            SELECT id, symbol, scan_date, scan_price, action_taken, signal_source
+            FROM signal_outcomes
+            WHERE action_taken IN ('QUEUE_FULL', 'SKIPPED_FILTER', 'BOUGHT', 'QUEUED')
+              AND outcome_1d IS NULL
+              AND scan_price > 0
+              AND scan_date <= :p0
+            ORDER BY scan_date DESC, symbol
+        """), {'p0': cutoff}).fetchall()
 
-    if not rows:
-        print(f"{LOG_PREFIX} Nothing to fill — all outcomes complete.")
-        return
+        if not rows:
+            print(f"{LOG_PREFIX} Nothing to fill — all outcomes complete.")
+            return
 
-    print(f"{LOG_PREFIX} {len(rows)} rows to fill across {len(set(r['symbol'] for r in rows))} symbols")
+        print(f"{LOG_PREFIX} {len(rows)} rows to fill across {len(set(r[1] for r in rows))} symbols")
 
-    # Group by symbol for batch yfinance download
-    by_symbol: dict[str, list] = defaultdict(list)
-    for r in rows:
-        by_symbol[r['symbol']].append(dict(r))
+        # Group by symbol for batch yfinance download
+        by_symbol: dict[str, list] = defaultdict(list)
+        for r in rows:
+            by_symbol[r[1]].append({'id': r[0], 'symbol': r[1], 'scan_date': r[2], 'scan_price': r[3], 'action_taken': r[4], 'signal_source': r[5]})
 
-    filled = 0
-    skipped = 0
-    errors = 0
+        filled = 0
+        skipped = 0
+        errors = 0
 
-    for i, (symbol, entries) in enumerate(by_symbol.items()):
-        if i % 20 == 0 and i > 0:
-            print(f"{LOG_PREFIX}   [{i}/{len(by_symbol)}] processed so far: filled={filled} skipped={skipped}")
+        for i, (symbol, entries) in enumerate(by_symbol.items()):
+            if i % 20 == 0 and i > 0:
+                print(f"{LOG_PREFIX}   [{i}/{len(by_symbol)}] processed so far: filled={filled} skipped={skipped}")
 
-        # Find earliest scan_date for this symbol to set download range
-        dates = [e['scan_date'] for e in entries]
-        earliest = min(dates)
-        start_dt = (pd.Timestamp(earliest) - timedelta(days=1)).strftime('%Y-%m-%d')
-
-        try:
-            df = yf.download(symbol, start=start_dt, interval='1d',
-                             auto_adjust=True, progress=False)
-            if df.empty:
-                skipped += len(entries)
-                continue
-            df.index = pd.to_datetime(df.index).tz_localize(None)
-        except Exception as e:
-            print(f"{LOG_PREFIX}   ERROR fetching {symbol}: {e}")
-            errors += len(entries)
-            continue
-
-        for entry in entries:
-            outcomes = compute_outcomes(df, entry['scan_date'], entry['scan_price'])
-            if not outcomes or outcomes.get('outcome_1d') is None:
-                skipped += 1
-                continue
+            # Find earliest scan_date for this symbol to set download range
+            dates = [e['scan_date'] for e in entries]
+            earliest = min(dates)
+            start_dt = (pd.Timestamp(earliest) - timedelta(days=1)).strftime('%Y-%m-%d')
 
             try:
-                conn.execute("""
-                    UPDATE signal_outcomes SET
-                        outcome_1d = ?, outcome_2d = ?, outcome_3d = ?,
-                        outcome_4d = ?, outcome_5d = ?,
-                        outcome_max_gain_5d = ?, outcome_max_dd_5d = ?,
-                        updated_at = datetime('now')
-                    WHERE id = ?
-                """, (
-                    outcomes.get('outcome_1d'),
-                    outcomes.get('outcome_2d'),
-                    outcomes.get('outcome_3d'),
-                    outcomes.get('outcome_4d'),
-                    outcomes.get('outcome_5d'),
-                    outcomes.get('outcome_max_gain_5d'),
-                    outcomes.get('outcome_max_dd_5d'),
-                    entry['id'],
-                ))
-                filled += 1
+                df = yf.download(symbol, start=start_dt, interval='1d',
+                                 auto_adjust=True, progress=False)
+                if df.empty:
+                    skipped += len(entries)
+                    continue
+                df.index = pd.to_datetime(df.index).tz_localize(None)
             except Exception as e:
-                print(f"{LOG_PREFIX}   DB ERROR {symbol} id={entry['id']}: {e}")
-                errors += 1
-        time.sleep(0.05)  # rate limit
-    print(f"{LOG_PREFIX} signal_outcomes done. filled={filled} skipped={skipped} errors={errors}")
+                print(f"{LOG_PREFIX}   ERROR fetching {symbol}: {e}")
+                errors += len(entries)
+                continue
 
-    # ── Part 2: Fill screener_rejections outcomes ─────────────────────────
-    _fill_screener_rejections(cutoff)
+            for entry in entries:
+                outcomes = compute_outcomes(df, entry['scan_date'], entry['scan_price'])
+                if not outcomes or outcomes.get('outcome_1d') is None:
+                    skipped += 1
+                    continue
+
+                try:
+                    session.execute(text("""
+                        UPDATE signal_outcomes SET
+                            outcome_1d = :p0, outcome_2d = :p1, outcome_3d = :p2,
+                            outcome_4d = :p3, outcome_5d = :p4,
+                            outcome_max_gain_5d = :p5, outcome_max_dd_5d = :p6,
+                            updated_at = datetime('now')
+                        WHERE id = :p7
+                    """), {
+                        'p0': outcomes.get('outcome_1d'),
+                        'p1': outcomes.get('outcome_2d'),
+                        'p2': outcomes.get('outcome_3d'),
+                        'p3': outcomes.get('outcome_4d'),
+                        'p4': outcomes.get('outcome_5d'),
+                        'p5': outcomes.get('outcome_max_gain_5d'),
+                        'p6': outcomes.get('outcome_max_dd_5d'),
+                        'p7': entry['id'],
+                    })
+                    filled += 1
+                except Exception as e:
+                    print(f"{LOG_PREFIX}   DB ERROR {symbol} id={entry['id']}: {e}")
+                    errors += 1
+            time.sleep(0.05)  # rate limit
+        print(f"{LOG_PREFIX} signal_outcomes done. filled={filled} skipped={skipped} errors={errors}")
+
+        # -- Part 2: Fill screener_rejections outcomes --
+        _fill_screener_rejections(session, cutoff)
 
 
-def _fill_screener_rejections(cutoff: str):
+def _fill_screener_rejections(session, cutoff: str):
     """Fill outcome_1d/5d for screener_rejections rows (Dimension 3)."""
-    # conn via get_session()
 
-    rows = conn.execute("""
+    rows = session.execute(text("""
         SELECT id, symbol, scan_date, scan_price
         FROM screener_rejections
         WHERE outcome_1d IS NULL
           AND scan_price IS NOT NULL AND scan_price > 0
-          AND scan_date <= ?
+          AND scan_date <= :p0
         ORDER BY scan_date DESC, symbol
-    """, (cutoff,)).fetchall()
+    """), {'p0': cutoff}).fetchall()
 
     if not rows:
         print(f"{LOG_PREFIX} screener_rejections: nothing to fill")
@@ -197,7 +194,7 @@ def _fill_screener_rejections(cutoff: str):
 
     by_symbol: dict[str, list] = defaultdict(list)
     for r in rows:
-        by_symbol[r['symbol']].append(dict(r))
+        by_symbol[r[1]].append({'id': r[0], 'symbol': r[1], 'scan_date': r[2], 'scan_price': r[3]})
 
     filled = skipped = errors = 0
 
@@ -223,44 +220,43 @@ def _fill_screener_rejections(cutoff: str):
                 skipped += 1
                 continue
             try:
-                conn.execute("""
+                session.execute(text("""
                     UPDATE screener_rejections SET
-                        outcome_1d = ?, outcome_2d = ?, outcome_3d = ?,
-                        outcome_4d = ?, outcome_5d = ?,
-                        outcome_max_gain_5d = ?, outcome_max_dd_5d = ?
-                    WHERE id = ?
-                """, (
-                    outcomes.get('outcome_1d'),
-                    outcomes.get('outcome_2d'),
-                    outcomes.get('outcome_3d'),
-                    outcomes.get('outcome_4d'),
-                    outcomes.get('outcome_5d'),
-                    outcomes.get('outcome_max_gain_5d'),
-                    outcomes.get('outcome_max_dd_5d'),
-                    entry['id'],
-                ))
+                        outcome_1d = :p0, outcome_2d = :p1, outcome_3d = :p2,
+                        outcome_4d = :p3, outcome_5d = :p4,
+                        outcome_max_gain_5d = :p5, outcome_max_dd_5d = :p6
+                    WHERE id = :p7
+                """), {
+                    'p0': outcomes.get('outcome_1d'),
+                    'p1': outcomes.get('outcome_2d'),
+                    'p2': outcomes.get('outcome_3d'),
+                    'p3': outcomes.get('outcome_4d'),
+                    'p4': outcomes.get('outcome_5d'),
+                    'p5': outcomes.get('outcome_max_gain_5d'),
+                    'p6': outcomes.get('outcome_max_dd_5d'),
+                    'p7': entry['id'],
+                })
                 filled += 1
             except Exception as e:
                 errors += 1
         time.sleep(0.05)
     print(f"{LOG_PREFIX} screener_rejections done. filled={filled} skipped={skipped} errors={errors}")
 
-    # ── Part 3: Fill pre_filter_rejections outcomes ────────────────────────
-    _fill_pre_filter_rejections(cutoff)
+    # -- Part 3: Fill pre_filter_rejections outcomes --
+    _fill_pre_filter_rejections(session, cutoff)
 
 
-def _fill_pre_filter_rejections(cutoff: str):
+def _fill_pre_filter_rejections(session, cutoff: str):
     """Fill outcome_1d/5d for pre_filter_rejections rows (Dimension 0 — full pipeline)."""
-    # conn via get_session()
 
-    rows = conn.execute("""
+    rows = session.execute(text("""
         SELECT id, symbol, scan_date, close_price as scan_price
         FROM pre_filter_rejections
         WHERE outcome_1d IS NULL
           AND close_price IS NOT NULL AND close_price > 0
-          AND scan_date <= ?
+          AND scan_date <= :p0
         ORDER BY scan_date DESC, symbol
-    """, (cutoff,)).fetchall()
+    """), {'p0': cutoff}).fetchall()
 
     if not rows:
         print(f"{LOG_PREFIX} pre_filter_rejections: nothing to fill")
@@ -270,7 +266,7 @@ def _fill_pre_filter_rejections(cutoff: str):
 
     by_symbol: dict[str, list] = defaultdict(list)
     for r in rows:
-        by_symbol[r['symbol']].append(dict(r))
+        by_symbol[r[1]].append({'id': r[0], 'symbol': r[1], 'scan_date': r[2], 'scan_price': r[3]})
 
     filled = skipped = errors = 0
 
@@ -296,22 +292,22 @@ def _fill_pre_filter_rejections(cutoff: str):
                 skipped += 1
                 continue
             try:
-                conn.execute("""
+                session.execute(text("""
                     UPDATE pre_filter_rejections SET
-                        outcome_1d = ?, outcome_2d = ?, outcome_3d = ?,
-                        outcome_4d = ?, outcome_5d = ?,
-                        outcome_max_gain_5d = ?, outcome_max_dd_5d = ?
-                    WHERE id = ?
-                """, (
-                    outcomes.get('outcome_1d'),
-                    outcomes.get('outcome_2d'),
-                    outcomes.get('outcome_3d'),
-                    outcomes.get('outcome_4d'),
-                    outcomes.get('outcome_5d'),
-                    outcomes.get('outcome_max_gain_5d'),
-                    outcomes.get('outcome_max_dd_5d'),
-                    entry['id'],
-                ))
+                        outcome_1d = :p0, outcome_2d = :p1, outcome_3d = :p2,
+                        outcome_4d = :p3, outcome_5d = :p4,
+                        outcome_max_gain_5d = :p5, outcome_max_dd_5d = :p6
+                    WHERE id = :p7
+                """), {
+                    'p0': outcomes.get('outcome_1d'),
+                    'p1': outcomes.get('outcome_2d'),
+                    'p2': outcomes.get('outcome_3d'),
+                    'p3': outcomes.get('outcome_4d'),
+                    'p4': outcomes.get('outcome_5d'),
+                    'p5': outcomes.get('outcome_max_gain_5d'),
+                    'p6': outcomes.get('outcome_max_dd_5d'),
+                    'p7': entry['id'],
+                })
                 filled += 1
             except Exception:
                 errors += 1

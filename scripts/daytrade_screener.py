@@ -54,17 +54,19 @@ def get_gate(now_et: datetime) -> int:
     return 6                          # too late for day trade
 
 
-def get_market_breadth_score(conn: object, today: str) -> tuple[float, dict]:
+def get_market_breadth_score(session: object, today: str) -> tuple[float, dict]:
     """Score 0-20 based on today's market conditions."""
-    row = conn.execute(
-        "SELECT pct_above_20d_ma, ad_ratio, new_52w_highs, new_52w_lows, vix_close "
-        "FROM v_market_regime WHERE date = ?", (today,)
+    row = session.execute(
+        text("SELECT pct_above_20d_ma, ad_ratio, new_52w_highs, new_52w_lows, vix_close "
+             "FROM v_market_regime WHERE date = :p0"),
+        {"p0": today}
     ).fetchone()
 
     if not row:
         # Use macro_snapshots as fallback
-        ms = conn.execute(
-            "SELECT vix_close FROM macro_snapshots WHERE date = ?", (today,)
+        ms = session.execute(
+            text("SELECT vix_close FROM macro_snapshots WHERE date = :p0"),
+            {"p0": today}
         ).fetchone()
         vix = ms['vix_close'] if ms else 20
         score = 10 if vix < 20 else (5 if vix < 24 else 0)
@@ -98,17 +100,19 @@ def get_market_breadth_score(conn: object, today: str) -> tuple[float, dict]:
     }
 
 
-def get_candidates(conn: object, today: str) -> list[dict]:
+def get_candidates(session: object, today: str) -> list[dict]:
     """Get all candidate symbols from today's screener runs + recent signal_outcomes."""
     syms = set()
 
-    rows = conn.execute(
-        "SELECT DISTINCT symbol FROM screener_rejections WHERE scan_date = ?", (today,)
+    rows = session.execute(
+        text("SELECT DISTINCT symbol FROM screener_rejections WHERE scan_date = :p0"),
+        {"p0": today}
     ).fetchall()
     syms.update(r[0] for r in rows)
 
-    rows = conn.execute(
-        "SELECT DISTINCT symbol FROM signal_outcomes WHERE scan_date = ?", (today,)
+    rows = session.execute(
+        text("SELECT DISTINCT symbol FROM signal_outcomes WHERE scan_date = :p0"),
+        {"p0": today}
     ).fetchall()
     syms.update(r[0] for r in rows)
 
@@ -169,7 +173,7 @@ def score_candidate(sym: str, px: dict, spy_px: dict,
     if not price or not open_:
         return {'symbol': sym, 'score': 0, 'skip': 'no_price'}
 
-    # ── Premarket score (0-25) ────────────────────────────────────────
+    # -- Premarket score (0-25) --
     pm_score = 0
     gap_pct = 0
     if pm:
@@ -191,7 +195,7 @@ def score_candidate(sym: str, px: dict, spy_px: dict,
     score += max(0, min(pm_score, 25))
     breakdown['premarket'] = max(0, min(pm_score, 25))
 
-    # ── ORB quality score (0-25) — gate 2+ only ───────────────────────
+    # -- ORB quality score (0-25) — gate 2+ only --
     orb_score = 0
     if gate >= 2:
         stock_pct = (price / open_ - 1) * 100 if open_ > 0 else 0
@@ -217,7 +221,7 @@ def score_candidate(sym: str, px: dict, spy_px: dict,
     score += max(0, min(orb_score, 25))
     breakdown['orb_rs'] = max(0, min(orb_score, 25))
 
-    # ── Fundamental / analyst score (0-15) ────────────────────────────
+    # -- Fundamental / analyst score (0-15) --
     fund_score = 0
     if ac:
         bull = ac.get('bull_score') or 0
@@ -240,7 +244,7 @@ def score_candidate(sym: str, px: dict, spy_px: dict,
     score += max(0, min(fund_score, 15))
     breakdown['fundamental'] = max(0, min(fund_score, 15))
 
-    # ── Gate penalty — later gate = must be higher ─────────────────────
+    # -- Gate penalty — later gate = must be higher --
     gate_threshold = {1: 30, 2: 40, 3: 50, 4: 55, 5: 65, 6: 999}
     min_score = gate_threshold.get(gate, 999)
 
@@ -271,68 +275,75 @@ def main():
         print(f"[{time_et}] Too late for day trade entry (gate={gate}) — exiting")
         sys.exit(0)
 
-    print(f"\n{'═'*60}")
+    print(f"\n{'='*60}")
     print(f"  DAY TRADE SCREENER  {today}  {time_et} ET  [Gate {gate}]")
-    print(f"{'═'*60}")
+    print(f"{'='*60}")
 
-    # conn via get_session()
+    with get_session() as session:
+        # Market breadth context
+        market_score, market_ctx = get_market_breadth_score(session, today)
+        print(f"  Market: pct_above_20MA={market_ctx.get('pct_above_20ma','?')}% "
+              f"A/D={market_ctx.get('ad_ratio','?')} VIX={market_ctx.get('vix','?')} "
+              f"-> score={round(market_score)}/20")
 
-    # Market breadth context
-    market_score, market_ctx = get_market_breadth_score(conn, today)
-    print(f"  Market: pct_above_20MA={market_ctx.get('pct_above_20ma','?')}% "
-          f"A/D={market_ctx.get('ad_ratio','?')} VIX={market_ctx.get('vix','?')} "
-          f"→ score={round(market_score)}/20")
+        if market_score < 5 and not args.gate:
+            print(f"  Market too weak (score={round(market_score)}) — no day trade today")
+            return
 
-    if market_score < 5 and not args.gate:
-        print(f"  ⚠️  Market too weak (score={round(market_score)}) — no day trade today")
-        return
+        # Get candidates
+        candidates = get_candidates(session, today)
+        if not candidates:
+            print(f"  No candidates found for {today}")
+            return
 
-    # Get candidates
-    candidates = get_candidates(conn, today)
-    if not candidates:
-        print(f"  No candidates found for {today}")
-        return
+        candidate_syms = [c['symbol'] for c in candidates]
+        print(f"  {len(candidate_syms)} candidates to screen")
 
-    candidate_syms = [c['symbol'] for c in candidates]
-    print(f"  {len(candidate_syms)} candidates to screen")
+        # Fetch live prices
+        prices = fetch_live_prices(candidate_syms[:200])  # limit to top 200
+        spy_px = prices.get('SPY', {})
 
-    # Fetch live prices
-    prices = fetch_live_prices(candidate_syms[:200])  # limit to top 200
-    spy_px = prices.get('SPY', {})
+        # Load context data
+        def get_pm(sym):
+            r = session.execute(
+                text("SELECT * FROM premarket_analysis WHERE symbol=:p0 AND date=:p1"),
+                {"p0": sym, "p1": today}
+            ).fetchone()
+            return dict(r._mapping) if r else None
 
-    # Load context data
-    def get_pm(sym):
-        r = conn.execute(
-            "SELECT * FROM premarket_analysis WHERE symbol=? AND date=?", (sym, today)
-        ).fetchone()
-        return dict(r) if r else None
+        def get_ac(sym):
+            r = session.execute(
+                text("SELECT * FROM analyst_consensus WHERE symbol=:p0"),
+                {"p0": sym}
+            ).fetchone()
+            return dict(r._mapping) if r else None
 
-    def get_ac(sym):
-        r = conn.execute("SELECT * FROM analyst_consensus WHERE symbol=?", (sym,)).fetchone()
-        return dict(r) if r else None
+        def get_mhs(sym):
+            r = session.execute(
+                text("SELECT * FROM major_holders_summary WHERE symbol=:p0"),
+                {"p0": sym}
+            ).fetchone()
+            return dict(r._mapping) if r else None
 
-    def get_mhs(sym):
-        r = conn.execute("SELECT * FROM major_holders_summary WHERE symbol=?", (sym,)).fetchone()
-        return dict(r) if r else None
+        def get_si(sym):
+            r = session.execute(
+                text("SELECT * FROM short_interest WHERE symbol=:p0 ORDER BY date DESC LIMIT 1"),
+                {"p0": sym}
+            ).fetchone()
+            return dict(r._mapping) if r else None
 
-    def get_si(sym):
-        r = conn.execute(
-            "SELECT * FROM short_interest WHERE symbol=? ORDER BY date DESC LIMIT 1", (sym,)
-        ).fetchone()
-        return dict(r) if r else None
-
-    # Score all candidates
-    scored = []
-    for sym in candidate_syms[:200]:
-        px = prices.get(sym, {})
-        if not px:
-            continue
-        result = score_candidate(
-            sym, px, spy_px,
-            get_pm(sym), get_ac(sym), get_mhs(sym), get_si(sym),
-            market_score, gate
-        )
-        scored.append(result)
+        # Score all candidates
+        scored = []
+        for sym in candidate_syms[:200]:
+            px = prices.get(sym, {})
+            if not px:
+                continue
+            result = score_candidate(
+                sym, px, spy_px,
+                get_pm(sym), get_ac(sym), get_mhs(sym), get_si(sym),
+                market_score, gate
+            )
+            scored.append(result)
 
     # Filter and sort
     passing = [s for s in scored if s.get('passes')]
@@ -344,18 +355,18 @@ def main():
         # Show top 3 even if none pass threshold
         all_scored = sorted([s for s in scored if not s.get('skip')],
                             key=lambda x: x['score'], reverse=True)
-        print(f"\n  ⚠️  No strong setups at gate {gate}. Best available:")
+        print(f"\n  No strong setups at gate {gate}. Best available:")
         passing = all_scored[:3]
 
     top = passing[:args.top]
 
-    print(f"\n{'─'*60}")
+    print(f"\n{'-'*60}")
     print(f"  TOP {len(top)} SETUPS:")
-    print(f"{'─'*60}")
+    print(f"{'-'*60}")
 
     for i, c in enumerate(top, 1):
         bd = c.get('breakdown', {})
-        flag = '🟢' if c.get('passes') else '🟡'
+        flag = '[OK]' if c.get('passes') else '[??]'
         print(f"\n  {i}. {flag} {c['symbol']:6s}  score={c['score']}/100  "
               f"price=${c['price']}  gap={c['gap_pct']:+.1f}%")
         print(f"     breakdown: market={bd.get('market',0)} "
@@ -365,17 +376,17 @@ def main():
 
     if top:
         best = top[0]
-        print(f"\n  ★ BEST SETUP: {best['symbol']} (score={best['score']}/100)")
+        print(f"\n  BEST SETUP: {best['symbol']} (score={best['score']}/100)")
         if gate <= 2:
-            print(f"     → Watch for ORB breakout above ${best['price']*1.005:.2f}")
-            print(f"     → Entry confirmation: re-check at Gate {gate+1}")
+            print(f"     -> Watch for ORB breakout above ${best['price']*1.005:.2f}")
+            print(f"     -> Entry confirmation: re-check at Gate {gate+1}")
         elif gate <= 4:
-            print(f"     → Enter near current price ${best['price']}")
-            print(f"     → SL = ${best['price']*0.98:.2f} (-2%)  TP = ${best['price']*1.04:.2f} (+4%)")
+            print(f"     -> Enter near current price ${best['price']}")
+            print(f"     -> SL = ${best['price']*0.98:.2f} (-2%)  TP = ${best['price']*1.04:.2f} (+4%)")
         else:
-            print(f"     → Late entry — use tighter SL=1.5%  TP=3.0%")
+            print(f"     -> Late entry — use tighter SL=1.5%  TP=3.0%")
 
-    print(f"\n{'═'*60}\n")
+    print(f"\n{'='*60}\n")
 
 
 if __name__ == '__main__':

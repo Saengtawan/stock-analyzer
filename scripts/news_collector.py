@@ -30,9 +30,7 @@ from sqlalchemy import text
 import argparse
 import hashlib
 import json
-import os
 import re
-import sys
 import time
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
@@ -41,14 +39,14 @@ import feedparser
 import requests
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
+# -- Paths --
 _DIR = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(_DIR, '..', '.env')
 
 ET_ZONE  = ZoneInfo('America/New_York')
 UTC_ZONE = ZoneInfo('UTC')
 
-# ── Load env ──────────────────────────────────────────────────────────────────
+# -- Load env --
 def _load_env() -> dict:
     env = {}
     try:
@@ -65,7 +63,7 @@ ENV = _load_env()
 ALPACA_KEY    = ENV.get('ALPACA_API_KEY', '')
 ALPACA_SECRET = ENV.get('ALPACA_SECRET_KEY', '')
 
-# ── Constants ─────────────────────────────────────────────────────────────────
+# -- Constants --
 ALPACA_NEWS_URL = 'https://data.alpaca.markets/v1beta1/news'
 FED_RSS_URL     = 'https://www.federalreserve.gov/feeds/press_all.xml'
 SEC_EDGAR_URL   = 'https://efts.sec.gov/LATEST/search-index'
@@ -73,7 +71,7 @@ SEC_USER_AGENT  = 'StockAnalyzer/1.0 research@localhost'
 
 VADER = SentimentIntensityAnalyzer()
 
-# ── Classification tables ──────────────────────────────────────────────────────
+# -- Classification tables --
 SECTOR_KEYWORDS: dict[str, list[str]] = {
     'Technology':       ['tech', 'software', 'cloud', 'ai ', 'artificial intelligence',
                          'saas', 'cybersecurity', 'data center'],
@@ -186,14 +184,14 @@ CATEGORY_MAP: dict[str, list[str]] = {
 }
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# -- Helpers --
 
 def _content_hash(headline: str, published_at: str) -> str:
     return hashlib.md5(f"{headline}|{published_at}".encode()).hexdigest()
 
 
 def _parse_utc(dt_str: str) -> datetime | None:
-    """Parse ISO8601 or RFC2822 string → aware UTC datetime."""
+    """Parse ISO8601 or RFC2822 string -> aware UTC datetime."""
     if not dt_str:
         return None
     for fmt in ('%Y-%m-%dT%H:%M:%SZ', '%Y-%m-%dT%H:%M:%S%z',
@@ -211,7 +209,7 @@ def _parse_utc(dt_str: str) -> datetime | None:
 def _scan_date_et(published_utc: datetime) -> str:
     """
     Return the ET trading date that would first 'see' this news.
-    News after 16:00 ET → next business day.
+    News after 16:00 ET -> next business day.
     """
     et = published_utc.astimezone(ET_ZONE)
     d = et.date()
@@ -236,8 +234,8 @@ def _market_session(published_utc: datetime) -> str:
         return 'overnight'
 
 
-def _classify_event_type(text: str, category: str | None = None) -> str | None:
-    lower = text.lower()
+def _classify_event_type(txt: str, category: str | None = None) -> str | None:
+    lower = txt.lower()
     for etype, keywords in EVENT_TYPE_RULES.items():
         if any(kw in lower for kw in keywords):
             return etype
@@ -252,25 +250,25 @@ def _classify_event_type(text: str, category: str | None = None) -> str | None:
     return _fallback.get(category or '', None)
 
 
-def _classify_category(text: str, symbol: str | None) -> str:
-    lower = text.lower()
+def _classify_category(txt: str, symbol: str | None) -> str:
+    lower = txt.lower()
     for cat, keywords in CATEGORY_MAP.items():
         if keywords and any(kw in lower for kw in keywords):
             return cat
     return 'company' if symbol else 'sector'
 
 
-def _extract_sectors(text: str) -> str | None:
-    lower = text.lower()
+def _extract_sectors(txt: str) -> str | None:
+    lower = txt.lower()
     found = [s for s, kws in SECTOR_KEYWORDS.items() if any(kw in lower for kw in kws)]
     return json.dumps(found) if found else None
 
 
 def _sentiment(headline: str, summary: str | None = None) -> tuple[float, str]:
-    text = headline
+    txt = headline
     if summary:
-        text = headline + ' ' + summary[:200]
-    scores = VADER.polarity_scores(text)
+        txt = headline + ' ' + summary[:200]
+    scores = VADER.polarity_scores(txt)
     c = scores['compound']
     label = 'positive' if c >= 0.05 else ('negative' if c <= -0.05 else 'neutral')
     return round(c, 3), label
@@ -286,7 +284,7 @@ def _impact_score(source: str, category: str | None, event_type: str | None) -> 
     return round(min(1.0, base + cat_boost + etype_boost), 2)
 
 
-def _market_context(conn: object, published_at: str) -> tuple[float | None, float | None]:
+def _market_context(session, published_at: str) -> tuple[float | None, float | None]:
     """Lookup nearest VIX + SPY price from intraday_snapshots."""
     try:
         pub_dt = _parse_utc(published_at)
@@ -295,24 +293,23 @@ def _market_context(conn: object, published_at: str) -> tuple[float | None, floa
         # Convert to ET for date + time_et matching
         et = pub_dt.astimezone(ET_ZONE)
         date_str = et.strftime('%Y-%m-%d')
-        time_str = et.strftime('%H:%M')
 
-        row = conn.execute("""
+        row = session.execute(text("""
             SELECT price FROM intraday_snapshots
-            WHERE symbol = '^VIX' AND date = ?
+            WHERE symbol = '^VIX' AND date = :p0
             ORDER BY ABS(CAST(SUBSTR(time_et,1,2) AS INT)*60 + CAST(SUBSTR(time_et,4,2) AS INT)
-                       - ?) ASC
+                       - :p1) ASC
             LIMIT 1
-        """, (date_str, int(et.hour)*60 + int(et.minute))).fetchone()
+        """), {'p0': date_str, 'p1': int(et.hour)*60 + int(et.minute)}).fetchone()
         vix = float(row[0]) if row else None
 
-        row = conn.execute("""
+        row = session.execute(text("""
             SELECT price FROM intraday_snapshots
-            WHERE symbol = 'SPY' AND date = ?
+            WHERE symbol = 'SPY' AND date = :p0
             ORDER BY ABS(CAST(SUBSTR(time_et,1,2) AS INT)*60 + CAST(SUBSTR(time_et,4,2) AS INT)
-                       - ?) ASC
+                       - :p1) ASC
             LIMIT 1
-        """, (date_str, int(et.hour)*60 + int(et.minute))).fetchone()
+        """), {'p0': date_str, 'p1': int(et.hour)*60 + int(et.minute)}).fetchone()
         spy = float(row[0]) if row else None
 
         return vix, spy
@@ -320,14 +317,14 @@ def _market_context(conn: object, published_at: str) -> tuple[float | None, floa
         return None, None
 
 
-def _insert_news(conn: object, rows: list[dict], dry_run: bool = False) -> int:
+def _insert_news(session, rows: list[dict], dry_run: bool = False) -> int:
     """Insert news rows, skipping duplicates. Returns count inserted."""
     if not rows or dry_run:
         return len(rows)
     inserted = 0
     for row in rows:
         try:
-            conn.execute("""
+            session.execute(text("""
                 INSERT OR IGNORE INTO news_events
                     (published_at, collected_at, market_session, scan_date_et,
                      source, source_id, url,
@@ -336,32 +333,34 @@ def _insert_news(conn: object, rows: list[dict], dry_run: bool = False) -> int:
                      sentiment_score, sentiment_label, impact_score,
                      vix_at_time, spy_price_at_time,
                      raw_json, content_hash)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """, (
-                row.get('published_at'), row.get('collected_at'), row.get('market_session'),
-                row.get('scan_date_et'),
-                row.get('source'), row.get('source_id'), row.get('url'),
-                row.get('symbol'), row.get('symbols_mentioned'),
-                row.get('headline'), row.get('summary'),
-                row.get('category'), row.get('event_type'), row.get('sectors_affected'),
-                row.get('sentiment_score'), row.get('sentiment_label'), row.get('impact_score'),
-                row.get('vix_at_time'), row.get('spy_price_at_time'),
-                row.get('raw_json'), row.get('content_hash'),
-            ))
-            if conn.execute('SELECT changes()').fetchone()[0]:
+                VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6,:p7,:p8,:p9,:p10,:p11,:p12,:p13,:p14,:p15,:p16,:p17,:p18,:p19,:p20)
+            """), {
+                'p0': row.get('published_at'), 'p1': row.get('collected_at'), 'p2': row.get('market_session'),
+                'p3': row.get('scan_date_et'),
+                'p4': row.get('source'), 'p5': row.get('source_id'), 'p6': row.get('url'),
+                'p7': row.get('symbol'), 'p8': row.get('symbols_mentioned'),
+                'p9': row.get('headline'), 'p10': row.get('summary'),
+                'p11': row.get('category'), 'p12': row.get('event_type'), 'p13': row.get('sectors_affected'),
+                'p14': row.get('sentiment_score'), 'p15': row.get('sentiment_label'), 'p16': row.get('impact_score'),
+                'p17': row.get('vix_at_time'), 'p18': row.get('spy_price_at_time'),
+                'p19': row.get('raw_json'), 'p20': row.get('content_hash'),
+            })
+            # Check if row was actually inserted (changes() for SQLite)
+            chg = session.execute(text('SELECT changes()')).fetchone()[0]
+            if chg:
                 inserted += 1
         except Exception as e:
             pass
     return inserted
 
 
-# ── Source 1: Alpaca News ─────────────────────────────────────────────────────
+# -- Source 1: Alpaca News --
 
-def collect_alpaca(conn: object, symbols: list[str] | None = None,
+def collect_alpaca(session, symbols: list[str] | None = None,
                    start: str = None, end: str = None,
                    dry_run: bool = False) -> int:
     """
-    Collect Alpaca news. If symbols=None → general market news.
+    Collect Alpaca news. If symbols=None -> general market news.
     start/end: YYYY-MM-DD ET dates.
     """
     if not ALPACA_KEY:
@@ -411,7 +410,7 @@ def collect_alpaca(conn: object, symbols: list[str] | None = None,
             if not news_list:
                 break
 
-            rows = []
+            news_rows = []
             for n in news_list:
                 headline = n.get('headline', '').strip()
                 if not headline:
@@ -421,16 +420,11 @@ def collect_alpaca(conn: object, symbols: list[str] | None = None,
                 if not pub_dt:
                     continue
 
-                # symbol assignment:
-                # - symbol batch: use batch symbol (most relevant) or first mentioned
-                # - general batch (batch=None): use first symbol if exactly 1 mentioned
                 syms_mentioned = n.get('symbols', [])
                 if batch:
-                    # batch is a list of symbols; pick the one from this batch that appears
                     batch_sym = next((s for s in batch if s in syms_mentioned), None)
                     sym = batch_sym or (syms_mentioned[0] if syms_mentioned else None)
                 elif len(syms_mentioned) == 1:
-                    # general news but only 1 company mentioned → safe to assign
                     sym = syms_mentioned[0]
                 else:
                     sym = None
@@ -440,9 +434,9 @@ def collect_alpaca(conn: object, symbols: list[str] | None = None,
                 category  = _classify_category(headline + ' ' + summary, sym)
                 event_type = _classify_event_type(headline + ' ' + summary, category)
                 sectors    = _extract_sectors(headline + ' ' + (summary or ''))
-                vix, spy   = _market_context(conn, pub_str)
+                vix, spy   = _market_context(session, pub_str)
 
-                rows.append({
+                news_rows.append({
                     'published_at':    pub_dt.strftime('%Y-%m-%dT%H:%M:%SZ'),
                     'collected_at':    collected_at,
                     'market_session':  _market_session(pub_dt),
@@ -466,23 +460,23 @@ def collect_alpaca(conn: object, symbols: list[str] | None = None,
                     'content_hash':    _content_hash(headline, pub_str),
                 })
 
-            n_ins = _insert_news(conn, rows, dry_run)
+            n_ins = _insert_news(session, news_rows, dry_run)
             total += n_ins
 
             page_token = data.get('next_page_token')
             if not page_token:
                 break
             pages += 1
-            time.sleep(0.3)  # 200 req/min → ~3 req/s safe
+            time.sleep(0.3)  # 200 req/min -> ~3 req/s safe
 
         time.sleep(0.2)  # between batches
 
     return total
 
 
-# ── Source 2: Federal Reserve RSS ─────────────────────────────────────────────
+# -- Source 2: Federal Reserve RSS --
 
-def collect_fed_rss(conn: object, dry_run: bool = False) -> int:
+def collect_fed_rss(session, dry_run: bool = False) -> int:
     """Collect Federal Reserve press releases from RSS feed."""
     collected_at = datetime.now(UTC_ZONE).isoformat()
     feed = feedparser.parse(FED_RSS_URL)
@@ -491,7 +485,7 @@ def collect_fed_rss(conn: object, dry_run: bool = False) -> int:
         print("  [fed_rss] No entries")
         return 0
 
-    rows = []
+    news_rows = []
     for entry in feed.entries:
         headline = entry.get('title', '').strip()
         if not headline:
@@ -507,9 +501,9 @@ def collect_fed_rss(conn: object, dry_run: bool = False) -> int:
         event_type = _classify_event_type(headline + ' ' + summary, 'fed')
         if event_type is None:
             event_type = 'fed_announcement'
-        vix, spy = _market_context(conn, pub_dt.isoformat())
+        vix, spy = _market_context(session, pub_dt.isoformat())
 
-        rows.append({
+        news_rows.append({
             'published_at':    pub_dt.strftime('%Y-%m-%dT%H:%M:%SZ'),
             'collected_at':    collected_at,
             'market_session':  _market_session(pub_dt),
@@ -533,31 +527,19 @@ def collect_fed_rss(conn: object, dry_run: bool = False) -> int:
             'content_hash':    _content_hash(headline, pub_dt.strftime('%Y-%m-%dT%H:%M:%SZ')),
         })
 
-    n_ins = _insert_news(conn, rows, dry_run)
+    n_ins = _insert_news(session, news_rows, dry_run)
     return n_ins
 
 
-# ── Source 3: SEC EDGAR 8-K ───────────────────────────────────────────────────
+# -- Source 3: SEC EDGAR 8-K --
 
-def collect_sec_8k(conn: object, start: str = None, end: str = None,
+def collect_sec_8k(session, start: str = None, end: str = None,
                    symbols: list[str] | None = None, dry_run: bool = False) -> int:
     """Collect SEC 8-K material event filings from EDGAR."""
     collected_at = datetime.now(UTC_ZONE).isoformat()
     today = date.today().isoformat()
     start = start or (date.today() - timedelta(days=2)).isoformat()
     end   = end or today
-
-    params = {
-        'forms': '8-K',
-        'dateRange': 'custom',
-        'startdt': start,
-        'enddt': end,
-        '_source': 'full-text',
-        'hits.hits.total.value': 1,
-    }
-    if symbols:
-        # EDGAR doesn't filter by ticker directly — we filter post-fetch
-        pass
 
     try:
         r = requests.get(
@@ -578,7 +560,7 @@ def collect_sec_8k(conn: object, start: str = None, end: str = None,
     if not hits:
         return 0
 
-    rows = []
+    news_rows = []
     for hit in hits:
         src = hit.get('_source', {})
         display_names = src.get('display_names', [])
@@ -603,9 +585,9 @@ def collect_sec_8k(conn: object, start: str = None, end: str = None,
 
         url = f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={src.get('entity_id','')}&type=8-K&dateb=&owner=include&count=5"
         sent_score, sent_label = _sentiment(headline)
-        vix, spy = _market_context(conn, pub_str)
+        vix, spy = _market_context(session, pub_str)
 
-        rows.append({
+        news_rows.append({
             'published_at':    pub_dt.strftime('%Y-%m-%dT%H:%M:%SZ'),
             'collected_at':    collected_at,
             'market_session':  'post',
@@ -629,88 +611,88 @@ def collect_sec_8k(conn: object, start: str = None, end: str = None,
             'content_hash':    _content_hash(headline, pub_str),
         })
 
-    n_ins = _insert_news(conn, rows, dry_run)
+    n_ins = _insert_news(session, news_rows, dry_run)
     return n_ins
 
 
-# ── Symbol list helpers ────────────────────────────────────────────────────────
+# -- Symbol list helpers --
 
-def _get_active_symbols(conn: object, days: int = 7) -> list[str]:
+def _get_active_symbols(session, days: int = 7) -> list[str]:
     """Symbols from signal_outcomes last N days + currently tracked universe."""
     cutoff = (date.today() - timedelta(days=days)).isoformat()
-    rows = conn.execute("""
+    rows = session.execute(text("""
         SELECT DISTINCT symbol FROM signal_outcomes
-        WHERE scan_date >= ?
+        WHERE scan_date >= :p0
         UNION
         SELECT symbol FROM active_positions
-    """, (cutoff,)).fetchall()
+    """), {'p0': cutoff}).fetchall()
     return [r[0] for r in rows if r[0]]
 
 
-# ── Backfill ──────────────────────────────────────────────────────────────────
+# -- Backfill --
 
-def backfill(conn: object, start_date: str, dry_run: bool = False):
+def backfill(session, start_date: str, dry_run: bool = False):
     """Collect historical news from start_date to today."""
     end_date = date.today().isoformat()
-    symbols  = _get_active_symbols(conn, days=60)
-    print(f"Backfill {start_date} → {end_date} | {len(symbols)} symbols")
+    symbols  = _get_active_symbols(session, days=60)
+    print(f"Backfill {start_date} -> {end_date} | {len(symbols)} symbols")
 
     print("\n[1/3] Alpaca per-symbol news...")
-    n = collect_alpaca(conn, symbols=symbols, start=start_date, end=end_date, dry_run=dry_run)
+    n = collect_alpaca(session, symbols=symbols, start=start_date, end=end_date, dry_run=dry_run)
     print(f"  inserted: {n}")
 
     print("\n[2/3] Alpaca general market news...")
-    n = collect_alpaca(conn, symbols=None, start=start_date, end=end_date, dry_run=dry_run)
+    n = collect_alpaca(session, symbols=None, start=start_date, end=end_date, dry_run=dry_run)
     print(f"  inserted: {n}")
 
     print("\n[3/3] Fed RSS...")
-    n = collect_fed_rss(conn, dry_run=dry_run)
+    n = collect_fed_rss(session, dry_run=dry_run)
     print(f"  inserted: {n}")
 
 
-# ── Modes ─────────────────────────────────────────────────────────────────────
+# -- Modes --
 
-def run_symbol_mode(conn: object, dry_run: bool = False):
+def run_symbol_mode(session, dry_run: bool = False):
     """05:30 BKK — collect per-symbol news for last 2 days."""
-    symbols = _get_active_symbols(conn, days=7)
+    symbols = _get_active_symbols(session, days=7)
     start = (date.today() - timedelta(days=2)).isoformat()
     print(f"[symbol] {len(symbols)} symbols from {start}")
-    n = collect_alpaca(conn, symbols=symbols, start=start, dry_run=dry_run)
+    n = collect_alpaca(session, symbols=symbols, start=start, dry_run=dry_run)
     print(f"  alpaca symbol news: {n} inserted")
 
 
-def run_macro_mode(conn: object, dry_run: bool = False):
+def run_macro_mode(session, dry_run: bool = False):
     """Every 2h — collect macro/Fed/SEC news."""
     start = (date.today() - timedelta(days=1)).isoformat()
 
     print("[macro] Fed RSS...")
-    n = collect_fed_rss(conn, dry_run=dry_run)
+    n = collect_fed_rss(session, dry_run=dry_run)
     print(f"  fed_rss: {n} inserted")
 
     print("[macro] SEC 8-K...")
-    n = collect_sec_8k(conn, start=start, dry_run=dry_run)
+    n = collect_sec_8k(session, start=start, dry_run=dry_run)
     print(f"  sec_edgar: {n} inserted")
 
     print("[macro] Alpaca general news...")
-    n = collect_alpaca(conn, symbols=None, start=start, dry_run=dry_run)
+    n = collect_alpaca(session, symbols=None, start=start, dry_run=dry_run)
     print(f"  alpaca general: {n} inserted")
 
 
-def run_pre_scan_mode(conn: object, dry_run: bool = False):
+def run_pre_scan_mode(session, dry_run: bool = False):
     """21:00 BKK — collect everything before the 21:32 market scan."""
-    symbols = _get_active_symbols(conn, days=3)
+    symbols = _get_active_symbols(session, days=3)
     start = (date.today() - timedelta(days=1)).isoformat()
     print(f"[pre_scan] Collecting fresh news before scan | {len(symbols)} symbols")
 
-    n = collect_alpaca(conn, symbols=symbols, start=start, dry_run=dry_run)
+    n = collect_alpaca(session, symbols=symbols, start=start, dry_run=dry_run)
     print(f"  alpaca symbol: {n} inserted")
-    n = collect_alpaca(conn, symbols=None, start=start, dry_run=dry_run)
+    n = collect_alpaca(session, symbols=None, start=start, dry_run=dry_run)
     print(f"  alpaca general: {n} inserted")
-    n = collect_fed_rss(conn, dry_run=dry_run)
+    n = collect_fed_rss(session, dry_run=dry_run)
     print(f"  fed_rss: {n} inserted")
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# -- Main --
 
 def main():
     parser = argparse.ArgumentParser(description='News collector v1.0')
@@ -725,22 +707,19 @@ def main():
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"[{ts}] news_collector.py starting — mode={args.mode}")
 
-    # conn via get_session()
-
-    try:
+    with get_session() as session:
         if args.backfill:
-            backfill(conn, args.backfill, args.dry_run)
+            backfill(session, args.backfill, args.dry_run)
         elif args.mode == 'symbol':
-            run_symbol_mode(conn, args.dry_run)
+            run_symbol_mode(session, args.dry_run)
         elif args.mode == 'macro':
-            run_macro_mode(conn, args.dry_run)
+            run_macro_mode(session, args.dry_run)
         elif args.mode == 'pre_scan':
-            run_pre_scan_mode(conn, args.dry_run)
+            run_pre_scan_mode(session, args.dry_run)
         else:  # all
-            run_symbol_mode(conn, args.dry_run)
-            run_macro_mode(conn, args.dry_run)
-    finally:
-        pass
+            run_symbol_mode(session, args.dry_run)
+            run_macro_mode(session, args.dry_run)
+
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"[{ts}] news_collector.py done")
 

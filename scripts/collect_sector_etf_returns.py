@@ -66,7 +66,7 @@ def fetch_etf_data(start_date: str, end_date: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def process_and_store(conn: object, df: pd.DataFrame):
+def process_and_store(session: object, df: pd.DataFrame):
     """Extract per-ticker rows and insert into DB."""
     if df is None or df.empty:
         print("  No data returned")
@@ -143,11 +143,14 @@ def process_and_store(conn: object, df: pd.DataFrame):
             continue
 
     if rows:
-        conn.executemany("""
-            INSERT OR IGNORE INTO sector_etf_daily_returns
-                (date, etf, sector, open, high, low, close, volume, pct_change, vs_spy)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
-        """, rows)
+        for row in rows:
+            session.execute(text("""
+                INSERT OR IGNORE INTO sector_etf_daily_returns
+                    (date, etf, sector, open, high, low, close, volume, pct_change, vs_spy)
+                VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6,:p7,:p8,:p9)
+            """), {"p0": row[0], "p1": row[1], "p2": row[2], "p3": row[3],
+                   "p4": row[4], "p5": row[5], "p6": row[6], "p7": row[7],
+                   "p8": row[8], "p9": row[9]})
         print(f"  Inserted {len(rows)} rows")
 
     return len(rows)
@@ -164,28 +167,27 @@ def main():
     today = datetime.now(ET).date()
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_sector_etf_returns")
 
-    # conn via get_session()
+    with get_session() as session:
+        if args.backfill:
+            days = args.backfill
+        else:
+            days = args.days
 
-    if args.backfill:
-        days = args.backfill
-    else:
-        days = args.days
+        if args.date:
+            base = datetime.strptime(args.date, '%Y-%m-%d').date()
+        else:
+            base = today
 
-    if args.date:
-        base = datetime.strptime(args.date, '%Y-%m-%d').date()
-    else:
-        base = today
+        # yfinance end date is exclusive, so +1 day
+        end_dt   = base + timedelta(days=1)
+        start_dt = base - timedelta(days=days + 5)  # buffer for weekends
 
-    # yfinance end date is exclusive, so +1 day
-    end_dt   = base + timedelta(days=1)
-    start_dt = base - timedelta(days=days + 5)  # buffer for weekends
+        start_str = start_dt.strftime('%Y-%m-%d')
+        end_str   = end_dt.strftime('%Y-%m-%d')
 
-    start_str = start_dt.strftime('%Y-%m-%d')
-    end_str   = end_dt.strftime('%Y-%m-%d')
-
-    print(f"  Fetching {start_str} → {end_str} ({len(ALL_TICKERS)} tickers)")
-    df = fetch_etf_data(start_str, end_str)
-    inserted = process_and_store(conn, df)
+        print(f"  Fetching {start_str} → {end_str} ({len(ALL_TICKERS)} tickers)")
+        df = fetch_etf_data(start_str, end_str)
+        inserted = process_and_store(session, df)
     print(f"  Done. {inserted} rows inserted.")
 
 

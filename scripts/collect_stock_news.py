@@ -25,7 +25,7 @@ Cron (TZ=America/New_York):
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 from database.orm.base import get_session
-from sqlalchemy import text
+from sqlalchemy import text as sa_text
 import os
 import time
 import argparse
@@ -47,41 +47,41 @@ DELAY_EVERY = 30
 DELAY_SECS = 0.5
 
 
-def get_sentiment(text: str, analyzer) -> float | None:
+def get_sentiment(text_str: str, analyzer) -> float | None:
     """VADER sentiment compound score, or None if unavailable."""
-    if not analyzer or not text:
+    if not analyzer or not text_str:
         return None
     try:
-        return round(analyzer.polarity_scores(text)['compound'], 4)
+        return round(analyzer.polarity_scores(text_str)['compound'], 4)
     except Exception:
         return None
 
 
-def get_target_symbols(conn: object, target_date: str) -> list[str]:
+def get_target_symbols(session: object, target_date: str) -> list[str]:
     """Get symbols to collect news for: today's candidates + recent buys."""
     syms = set()
 
     # Today's signal_outcomes
-    rows = conn.execute("""
+    rows = session.execute(sa_text("""
         SELECT DISTINCT symbol FROM signal_outcomes
-        WHERE scan_date = ? AND symbol IS NOT NULL
-    """, (target_date,)).fetchall()
+        WHERE scan_date = :p0 AND symbol IS NOT NULL
+    """), {"p0": target_date}).fetchall()
     syms.update(r[0] for r in rows)
 
     # Today's screener_rejections
-    rows = conn.execute("""
+    rows = session.execute(sa_text("""
         SELECT DISTINCT symbol FROM screener_rejections
-        WHERE scan_date = ? AND symbol IS NOT NULL
-    """, (target_date,)).fetchall()
+        WHERE scan_date = :p0 AND symbol IS NOT NULL
+    """), {"p0": target_date}).fetchall()
     syms.update(r[0] for r in rows)
 
     # Recent BOUGHT signals (last N days) — context for open positions
     cutoff = (datetime.strptime(target_date, '%Y-%m-%d') - timedelta(days=LOOKBACK_DAYS)).strftime('%Y-%m-%d')
-    rows = conn.execute("""
+    rows = session.execute(sa_text("""
         SELECT DISTINCT symbol FROM signal_outcomes
-        WHERE scan_date >= ? AND action_taken = 'BOUGHT'
+        WHERE scan_date >= :p0 AND action_taken = 'BOUGHT'
         AND symbol IS NOT NULL
-    """, (cutoff,)).fetchall()
+    """), {"p0": cutoff}).fetchall()
     syms.update(r[0] for r in rows)
 
     return sorted(syms)
@@ -159,48 +159,47 @@ def main():
         from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
         analyzer = SentimentIntensityAnalyzer()
 
-    # conn via get_session()
-
-    if args.symbol:
-        symbols = [args.symbol.upper()]
-    else:
-        symbols = get_target_symbols(conn, target_date)
-
-    print(f"  {len(symbols)} symbols to collect news for")
-
-    total_inserted = 0
-    total_failed = 0
-
-    for i, sym in enumerate(symbols):
-        articles = fetch_news(sym)
-        inserted = 0
-
-        for article in articles:
-            row = parse_article(sym, article, analyzer)
-            if not row or not row.get('published_at'):
-                continue
-            try:
-                conn.execute("""
-                    INSERT OR IGNORE INTO stock_news
-                        (symbol, date, headline, source, url, sentiment, published_at)
-                    VALUES (?,?,?,?,?,?,?)
-                """, (row['symbol'], row['date'], row['headline'],
-                      row['source'], row['url'], row['sentiment'],
-                      row['published_at']))
-                inserted += 1
-            except Exception:
-                pass
-
-        if inserted > 0:
-            total_inserted += inserted
+    with get_session() as session:
+        if args.symbol:
+            symbols = [args.symbol.upper()]
         else:
-            total_failed += 1
+            symbols = get_target_symbols(session, target_date)
 
-        if (i + 1) % 100 == 0:
-            print(f"  [{i+1}/{len(symbols)}] articles={total_inserted} no_news={total_failed}")
+        print(f"  {len(symbols)} symbols to collect news for")
 
-        if (i + 1) % DELAY_EVERY == 0:
-            time.sleep(DELAY_SECS)
+        total_inserted = 0
+        total_failed = 0
+
+        for i, sym in enumerate(symbols):
+            articles = fetch_news(sym)
+            inserted = 0
+
+            for article in articles:
+                row = parse_article(sym, article, analyzer)
+                if not row or not row.get('published_at'):
+                    continue
+                try:
+                    session.execute(sa_text("""
+                        INSERT OR IGNORE INTO stock_news
+                            (symbol, date, headline, source, url, sentiment, published_at)
+                        VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6)
+                    """), {"p0": row['symbol'], "p1": row['date'], "p2": row['headline'],
+                           "p3": row['source'], "p4": row['url'], "p5": row['sentiment'],
+                           "p6": row['published_at']})
+                    inserted += 1
+                except Exception:
+                    pass
+
+            if inserted > 0:
+                total_inserted += inserted
+            else:
+                total_failed += 1
+
+            if (i + 1) % 100 == 0:
+                print(f"  [{i+1}/{len(symbols)}] articles={total_inserted} no_news={total_failed}")
+
+            if (i + 1) % DELAY_EVERY == 0:
+                time.sleep(DELAY_SECS)
     print(f"\n  Done. articles={total_inserted} no_news={total_failed} date={target_date}")
 
 

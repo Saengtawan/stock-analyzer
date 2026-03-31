@@ -42,8 +42,8 @@ DELAY_EVERY = 20
 DELAY_SECS = 0.3
 
 
-def _ensure_table(conn: object):
-    conn.execute("""
+def _ensure_table(session: object):
+    session.execute(text("""
         CREATE TABLE IF NOT EXISTS options_flow (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             symbol      TEXT NOT NULL,
@@ -58,13 +58,13 @@ def _ensure_table(conn: object):
             updated_at  TEXT DEFAULT (datetime('now')),
             UNIQUE(symbol, date)
         )
-    """)
-    conn.execute("""
+    """))
+    session.execute(text("""
         CREATE INDEX IF NOT EXISTS idx_options_flow_date ON options_flow(date)
-    """)
-    conn.execute("""
+    """))
+    session.execute(text("""
         CREATE INDEX IF NOT EXISTS idx_options_flow_symbol ON options_flow(symbol, date)
-    """)
+    """))
 
 
 def fetch_options_for_symbol(sym: str) -> dict | None:
@@ -152,65 +152,68 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_options_flow "
           f"date={target_date}")
 
-    # conn via get_session()
-    _ensure_table(conn)
+    with get_session() as session:
+        _ensure_table(session)
 
-    if args.symbol:
-        symbols = [args.symbol.upper()]
-    else:
-        # Get top N by dollar volume
-        symbols = [r[0] for r in conn.execute("""
-            SELECT symbol FROM universe_stocks
-            WHERE status='active'
-            ORDER BY dollar_vol DESC
-            LIMIT ?
-        """, (args.top,)).fetchall()]
-
-    # Skip symbols already fetched today
-    existing = set(r[0] for r in conn.execute(
-        "SELECT symbol FROM options_flow WHERE date = ?", (target_date,)
-    ).fetchall())
-    symbols = [s for s in symbols if s not in existing]
-
-    print(f"  {len(symbols)} symbols to fetch (skipping {len(existing)} already in DB)")
-
-    if not symbols:
-        print("  All symbols already collected — done.")
-        return
-
-    total_ok = 0
-    total_fail = 0
-
-    for i, sym in enumerate(symbols):
-        data = fetch_options_for_symbol(sym)
-        if data:
-            conn.execute("""
-                INSERT INTO options_flow
-                    (symbol, date, call_volume, put_volume, put_call_ratio,
-                     call_oi, put_oi, unusual_call, unusual_put)
-                VALUES (?,?,?,?,?,?,?,?,?)
-                ON CONFLICT(symbol, date) DO UPDATE SET
-                    call_volume    = excluded.call_volume,
-                    put_volume     = excluded.put_volume,
-                    put_call_ratio = excluded.put_call_ratio,
-                    call_oi        = excluded.call_oi,
-                    put_oi         = excluded.put_oi,
-                    unusual_call   = excluded.unusual_call,
-                    unusual_put    = excluded.unusual_put,
-                    updated_at     = datetime('now')
-            """, (sym, target_date,
-                  data['call_volume'], data['put_volume'], data['put_call_ratio'],
-                  data['call_oi'], data['put_oi'], data['unusual_call'], data['unusual_put']))
-            total_ok += 1
+        if args.symbol:
+            symbols = [args.symbol.upper()]
         else:
-            total_fail += 1
+            # Get top N by dollar volume
+            symbols = [r[0] for r in session.execute(text("""
+                SELECT symbol FROM universe_stocks
+                WHERE status='active'
+                ORDER BY dollar_vol DESC
+                LIMIT :p0
+            """), {"p0": args.top}).fetchall()]
 
-        if (i + 1) % 50 == 0:
-            pct = round((i + 1) / len(symbols) * 100)
-            print(f"  [{i+1}/{len(symbols)} {pct}%] ok={total_ok} fail={total_fail}")
+        # Skip symbols already fetched today
+        existing = set(r[0] for r in session.execute(
+            text("SELECT symbol FROM options_flow WHERE date = :p0"),
+            {"p0": target_date}
+        ).fetchall())
+        symbols = [s for s in symbols if s not in existing]
 
-        if (i + 1) % DELAY_EVERY == 0:
-            time.sleep(DELAY_SECS)
+        print(f"  {len(symbols)} symbols to fetch (skipping {len(existing)} already in DB)")
+
+        if not symbols:
+            print("  All symbols already collected — done.")
+            return
+
+        total_ok = 0
+        total_fail = 0
+
+        for i, sym in enumerate(symbols):
+            data = fetch_options_for_symbol(sym)
+            if data:
+                session.execute(text("""
+                    INSERT INTO options_flow
+                        (symbol, date, call_volume, put_volume, put_call_ratio,
+                         call_oi, put_oi, unusual_call, unusual_put)
+                    VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6,:p7,:p8)
+                    ON CONFLICT(symbol, date) DO UPDATE SET
+                        call_volume    = excluded.call_volume,
+                        put_volume     = excluded.put_volume,
+                        put_call_ratio = excluded.put_call_ratio,
+                        call_oi        = excluded.call_oi,
+                        put_oi         = excluded.put_oi,
+                        unusual_call   = excluded.unusual_call,
+                        unusual_put    = excluded.unusual_put,
+                        updated_at     = datetime('now')
+                """), {"p0": sym, "p1": target_date,
+                       "p2": data['call_volume'], "p3": data['put_volume'],
+                       "p4": data['put_call_ratio'], "p5": data['call_oi'],
+                       "p6": data['put_oi'], "p7": data['unusual_call'],
+                       "p8": data['unusual_put']})
+                total_ok += 1
+            else:
+                total_fail += 1
+
+            if (i + 1) % 50 == 0:
+                pct = round((i + 1) / len(symbols) * 100)
+                print(f"  [{i+1}/{len(symbols)} {pct}%] ok={total_ok} fail={total_fail}")
+
+            if (i + 1) % DELAY_EVERY == 0:
+                time.sleep(DELAY_SECS)
     print(f"\n  Done. ok={total_ok} fail={total_fail} date={target_date}")
 
 

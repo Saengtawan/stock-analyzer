@@ -17,7 +17,6 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 from database.orm.base import get_session
 from sqlalchemy import text
-import os
 from datetime import datetime, date, timedelta
 
 import yfinance as yf
@@ -61,7 +60,7 @@ def _get_last_close(symbol: str, as_of_date: date) -> float | None:
         if df.empty:
             return None
         val = float(df['Close'].iloc[-1].iloc[0] if hasattr(df['Close'].iloc[-1], 'iloc') else df['Close'].iloc[-1])
-        # TNX/IRX are quoted as yield × 10 in some feeds, check magnitude
+        # TNX/IRX are quoted as yield x 10 in some feeds, check magnitude
         # yfinance returns them as actual % (e.g., 4.23 for 4.23%)
         return round(val, 4)
     except Exception as e:
@@ -69,8 +68,8 @@ def _get_last_close(symbol: str, as_of_date: date) -> float | None:
         return None
 
 
-def _ensure_table(conn: object):
-    conn.execute('''
+def _ensure_table(session):
+    session.execute(text('''
         CREATE TABLE IF NOT EXISTS macro_snapshots (
             id             INTEGER PRIMARY KEY AUTOINCREMENT,
             date           TEXT NOT NULL UNIQUE,
@@ -82,7 +81,7 @@ def _ensure_table(conn: object):
             dxy_close      REAL,
             collected_at   TEXT
         )
-    ''')
+    '''))
     # Add new columns (safe if already exist)
     new_cols = [
         'gold_close', 'crude_close', 'hyg_close',
@@ -92,7 +91,7 @@ def _ensure_table(conn: object):
     ]
     for col in new_cols:
         try:
-            conn.execute(f"ALTER TABLE macro_snapshots ADD COLUMN {col} REAL")
+            session.execute(text(f"ALTER TABLE macro_snapshots ADD COLUMN {col} REAL"))
         except Exception:
             pass
 
@@ -108,87 +107,91 @@ def main():
     target_str = target.strftime('%Y-%m-%d')
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] macro_snapshot date={target_str}")
 
-    # conn via get_session()
-    _ensure_table(conn)
+    with get_session() as session:
+        _ensure_table(session)
 
-    # Skip if already collected
-    existing = conn.execute(
-        "SELECT id FROM macro_snapshots WHERE date = ?", (target_str,)
-    ).fetchone()
-    if existing:
-        print(f"  Already collected for {target_str} — skip")
-        return
-
-    # Fetch all macro values
-    y10   = _get_last_close(YIELD_10Y, target)
-    y3m   = _get_last_close(YIELD_3M, target)
-    vix   = _get_last_close(VIX, target)
-    vix3m = _get_last_close(VIX3M, target)
-    spy   = _get_last_close(SPY, target)
-    dxy   = _get_last_close(DXY, target)
-    gold  = _get_last_close(GOLD, target)
-    crude = _get_last_close(CRUDE, target)
-    hyg   = _get_last_close(HYG, target)
-
-    # v13.1: New signals
-    btc    = _get_last_close(BTC, target)
-    usdjpy = _get_last_close(USDJPY, target)
-    skew   = _get_last_close(SKEW, target)
-    vvix   = _get_last_close(VVIX, target)
-    copper = _get_last_close(COPPER, target)
-    tlt    = _get_last_close(TLT, target)
-    lqd    = _get_last_close(LQD, target)
-    eem    = _get_last_close(EEM, target)
-    ief    = _get_last_close(IEF, target)
-
-    spread = round(y10 - y3m, 4) if y10 is not None and y3m is not None else None
-
-    # Compute dxy_change_pct from previous day's recorded dxy_close
-    dxy_change_pct = None
-    if dxy is not None:
-        prev_row = conn.execute(
-            "SELECT dxy_close, spy_close FROM macro_snapshots ORDER BY date DESC LIMIT 1"
+        # Skip if already collected
+        existing = session.execute(
+            text("SELECT id FROM macro_snapshots WHERE date = :p0"), {'p0': target_str}
         ).fetchone()
-        if prev_row and prev_row[0] and prev_row[0] > 0:
-            dxy_change_pct = round((dxy / prev_row[0] - 1) * 100, 4)
-        prev_spy = prev_row[1] if prev_row else None
-    else:
-        prev_row = conn.execute(
-            "SELECT spy_close FROM macro_snapshots ORDER BY date DESC LIMIT 1"
-        ).fetchone()
-        prev_spy = prev_row[0] if prev_row else None
+        if existing:
+            print(f"  Already collected for {target_str} — skip")
+            return
 
-    # Compute regime labels
-    regime_label = None
-    if vix is not None:
-        if vix < 20:
-            regime_label = 'NORMAL'
-        elif vix < 24:
-            regime_label = 'SKIP'
-        elif vix < 38:
-            regime_label = 'HIGH'
+        # Fetch all macro values
+        y10   = _get_last_close(YIELD_10Y, target)
+        y3m   = _get_last_close(YIELD_3M, target)
+        vix   = _get_last_close(VIX, target)
+        vix3m = _get_last_close(VIX3M, target)
+        spy   = _get_last_close(SPY, target)
+        dxy   = _get_last_close(DXY, target)
+        gold  = _get_last_close(GOLD, target)
+        crude = _get_last_close(CRUDE, target)
+        hyg   = _get_last_close(HYG, target)
+
+        # v13.1: New signals
+        btc    = _get_last_close(BTC, target)
+        usdjpy = _get_last_close(USDJPY, target)
+        skew   = _get_last_close(SKEW, target)
+        vvix   = _get_last_close(VVIX, target)
+        copper = _get_last_close(COPPER, target)
+        tlt    = _get_last_close(TLT, target)
+        lqd    = _get_last_close(LQD, target)
+        eem    = _get_last_close(EEM, target)
+        ief    = _get_last_close(IEF, target)
+
+        spread = round(y10 - y3m, 4) if y10 is not None and y3m is not None else None
+
+        # Compute dxy_change_pct from previous day's recorded dxy_close
+        dxy_change_pct = None
+        if dxy is not None:
+            prev_row = session.execute(
+                text("SELECT dxy_close, spy_close FROM macro_snapshots ORDER BY date DESC LIMIT 1")
+            ).fetchone()
+            if prev_row and prev_row[0] and prev_row[0] > 0:
+                dxy_change_pct = round((dxy / prev_row[0] - 1) * 100, 4)
+            prev_spy = prev_row[1] if prev_row else None
         else:
-            regime_label = 'EXTREME'
+            prev_row = session.execute(
+                text("SELECT spy_close FROM macro_snapshots ORDER BY date DESC LIMIT 1")
+            ).fetchone()
+            prev_spy = prev_row[0] if prev_row else None
 
-    spy_regime = None
-    if spy is not None and prev_spy is not None and prev_spy > 0:
-        spy_regime = 'BULL' if spy > prev_spy else 'BEAR'
+        # Compute regime labels
+        regime_label = None
+        if vix is not None:
+            if vix < 20:
+                regime_label = 'NORMAL'
+            elif vix < 24:
+                regime_label = 'SKIP'
+            elif vix < 38:
+                regime_label = 'HIGH'
+            else:
+                regime_label = 'EXTREME'
 
-    conn.execute('''
-        INSERT OR IGNORE INTO macro_snapshots
-            (date, yield_10y, yield_3m, yield_spread, vix_close, vix3m_close,
-             spy_close, dxy_close, dxy_change_pct,
-             gold_close, crude_close, hyg_close,
-             btc_close, usdjpy_close, skew_close, vvix_close,
-             copper_close, tlt_close, lqd_close, eem_close, ief_close,
-             regime_label, spy_regime, collected_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    ''', (target_str, y10, y3m, spread, vix, vix3m, spy, dxy, dxy_change_pct,
-          gold, crude, hyg,
-          btc, usdjpy, skew, vvix, copper, tlt, lqd, eem, ief,
-          regime_label, spy_regime))
+        spy_regime = None
+        if spy is not None and prev_spy is not None and prev_spy > 0:
+            spy_regime = 'BULL' if spy > prev_spy else 'BEAR'
 
-    print(f"  ✅ Saved: VIX={vix}({regime_label}) SPY={spy} BTC={btc} JPY={usdjpy} SKEW={skew} VVIX={vvix} Copper={copper} TLT={tlt} LQD={lqd}")
+        session.execute(text('''
+            INSERT OR IGNORE INTO macro_snapshots
+                (date, yield_10y, yield_3m, yield_spread, vix_close, vix3m_close,
+                 spy_close, dxy_close, dxy_change_pct,
+                 gold_close, crude_close, hyg_close,
+                 btc_close, usdjpy_close, skew_close, vvix_close,
+                 copper_close, tlt_close, lqd_close, eem_close, ief_close,
+                 regime_label, spy_regime, collected_at)
+            VALUES (:p0, :p1, :p2, :p3, :p4, :p5, :p6, :p7, :p8, :p9, :p10, :p11, :p12, :p13, :p14, :p15, :p16, :p17, :p18, :p19, :p20, :p21, :p22, datetime('now'))
+        '''), {
+            'p0': target_str, 'p1': y10, 'p2': y3m, 'p3': spread, 'p4': vix, 'p5': vix3m,
+            'p6': spy, 'p7': dxy, 'p8': dxy_change_pct,
+            'p9': gold, 'p10': crude, 'p11': hyg,
+            'p12': btc, 'p13': usdjpy, 'p14': skew, 'p15': vvix,
+            'p16': copper, 'p17': tlt, 'p18': lqd, 'p19': eem, 'p20': ief,
+            'p21': regime_label, 'p22': spy_regime,
+        })
+
+        print(f"  Saved: VIX={vix}({regime_label}) SPY={spy} BTC={btc} JPY={usdjpy} SKEW={skew} VVIX={vvix} Copper={copper} TLT={tlt} LQD={lqd}")
 
 
 if __name__ == '__main__':

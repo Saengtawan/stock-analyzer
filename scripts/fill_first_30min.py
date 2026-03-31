@@ -4,7 +4,7 @@ fill_first_30min.py — v7.6
 ===========================
 Fill first_30min_return for signal_outcomes + screener_rejections.
 
-first_30min_return = (price_at_10:00 ET / price_at_open_9:30 ET - 1) × 100
+first_30min_return = (price_at_10:00 ET / price_at_open_9:30 ET - 1) x 100
 
 Runs at 10:05 AM ET — just after 10:00 so 30min bar is available.
 Uses yfinance 2-min bars to find closest price to 9:30 and 10:00.
@@ -85,64 +85,63 @@ def main():
     today = args.date or date.today().strftime('%Y-%m-%d')
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] fill_first_30min date={today}")
 
-    # conn via get_session()
+    with get_session() as session:
+        # Collect symbols needing fill from signal_outcomes
+        so_rows = session.execute(text("""
+            SELECT id, symbol FROM signal_outcomes
+            WHERE scan_date = :p0 AND first_30min_return IS NULL
+              AND scan_price > 0
+        """), {"p0": today}).fetchall()
 
-    # Collect symbols needing fill from signal_outcomes
-    so_rows = conn.execute("""
-        SELECT id, symbol FROM signal_outcomes
-        WHERE scan_date = ? AND first_30min_return IS NULL
-          AND scan_price > 0
-    """, (today,)).fetchall()
+        # Collect symbols needing fill from screener_rejections
+        sr_rows = session.execute(text("""
+            SELECT id, symbol FROM screener_rejections
+            WHERE scan_date = :p0 AND first_30min_return IS NULL
+              AND scan_price > 0
+        """), {"p0": today}).fetchall()
+        target_date = today
 
-    # Collect symbols needing fill from screener_rejections
-    sr_rows = conn.execute("""
-        SELECT id, symbol FROM screener_rejections
-        WHERE scan_date = ? AND first_30min_return IS NULL
-          AND scan_price > 0
-    """, (today,)).fetchall()
-    target_date = today
+        all_symbols = list(set(
+            [r[1] for r in so_rows] +
+            [r[1] for r in sr_rows]
+        ))
 
-    all_symbols = list(set(
-        [r['symbol'] for r in so_rows] +
-        [r['symbol'] for r in sr_rows]
-    ))
+        if not all_symbols:
+            print("  Nothing to fill today.")
+            return
 
-    if not all_symbols:
-        print("  Nothing to fill today.")
-        return
+        print(f"  signal_outcomes: {len(so_rows)} rows | screener_rejections: {len(sr_rows)} rows")
+        print(f"  Unique symbols: {len(all_symbols)}")
 
-    print(f"  signal_outcomes: {len(so_rows)} rows | screener_rejections: {len(sr_rows)} rows")
-    print(f"  Unique symbols: {len(all_symbols)}")
+        # Fetch 30min return per symbol (deduplicated)
+        cache: dict[str, float | None] = {}
+        for i, sym in enumerate(all_symbols):
+            pct = _calc_30min(sym, target_date)
+            cache[sym] = pct
+            if i % 20 == 0 and i > 0:
+                print(f"  [{i}/{len(all_symbols)}] fetched so far...")
 
-    # Fetch 30min return per symbol (deduplicated)
-    cache: dict[str, float | None] = {}
-    for i, sym in enumerate(all_symbols):
-        pct = _calc_30min(sym, target_date)
-        cache[sym] = pct
-        if i % 20 == 0 and i > 0:
-            print(f"  [{i}/{len(all_symbols)}] fetched so far...")
+        # Update signal_outcomes
+        so_updated = 0
+        for row in so_rows:
+            pct = cache.get(row[1])
+            if pct is not None:
+                session.execute(
+                    text("UPDATE signal_outcomes SET first_30min_return = :p0 WHERE id = :p1"),
+                    {"p0": pct, "p1": row[0]}
+                )
+                so_updated += 1
 
-    # Update signal_outcomes
-    so_updated = 0
-    for row in so_rows:
-        pct = cache.get(row['symbol'])
-        if pct is not None:
-            conn.execute(
-                "UPDATE signal_outcomes SET first_30min_return = ? WHERE id = ?",
-                (pct, row['id'])
-            )
-            so_updated += 1
-
-    # Update screener_rejections
-    sr_updated = 0
-    for row in sr_rows:
-        pct = cache.get(row['symbol'])
-        if pct is not None:
-            conn.execute(
-                "UPDATE screener_rejections SET first_30min_return = ? WHERE id = ?",
-                (pct, row['id'])
-            )
-            sr_updated += 1
+        # Update screener_rejections
+        sr_updated = 0
+        for row in sr_rows:
+            pct = cache.get(row[1])
+            if pct is not None:
+                session.execute(
+                    text("UPDATE screener_rejections SET first_30min_return = :p0 WHERE id = :p1"),
+                    {"p0": pct, "p1": row[0]}
+                )
+                sr_updated += 1
 
     filled = sum(1 for v in cache.values() if v is not None)
     print(f"  Fetched {filled}/{len(all_symbols)} symbols with data")

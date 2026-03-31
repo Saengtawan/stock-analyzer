@@ -72,37 +72,37 @@ def main():
     if sunday:
         dates_to_fill.append(sunday)
 
-    # conn via get_session()
+    with get_session() as session:
+        for target in dates_to_fill:
+            target_str = target.strftime('%Y-%m-%d')
 
-    for target in dates_to_fill:
-        target_str = target.strftime('%Y-%m-%d')
+            # Check if already exists
+            existing = session.execute(
+                text("SELECT btc_close FROM macro_snapshots WHERE date = :p0"),
+                {"p0": target_str}
+            ).fetchone()
+            if existing and existing[0] is not None:
+                print(f"  {target_str}: already has BTC={existing[0]} — skip")
+                continue
 
-        # Check if already exists
-        existing = conn.execute(
-            "SELECT btc_close FROM macro_snapshots WHERE date = ?", (target_str,)
-        ).fetchone()
-        if existing and existing[0] is not None:
-            print(f"  {target_str}: already has BTC={existing[0]} — skip")
-            continue
+            btc = _get_btc_close(target)
+            if btc is None:
+                print(f"  {target_str}: no BTC data available")
+                continue
 
-        btc = _get_btc_close(target)
-        if btc is None:
-            print(f"  {target_str}: no BTC data available")
-            continue
-
-        if existing:
-            # Row exists but btc_close is NULL — update
-            conn.execute(
-                "UPDATE macro_snapshots SET btc_close = ?, collected_at = datetime('now') WHERE date = ?",
-                (btc, target_str)
-            )
-        else:
-            # Insert new weekend row (only btc_close populated)
-            conn.execute(
-                "INSERT INTO macro_snapshots (date, btc_close, collected_at) VALUES (?, ?, datetime('now'))",
-                (target_str, btc)
-            )
-        print(f"  {target_str} ({['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][target.weekday()]}): BTC={btc}")
+            if existing:
+                # Row exists but btc_close is NULL — update
+                session.execute(
+                    text("UPDATE macro_snapshots SET btc_close = :p0, collected_at = datetime('now') WHERE date = :p1"),
+                    {"p0": btc, "p1": target_str}
+                )
+            else:
+                # Insert new weekend row (only btc_close populated)
+                session.execute(
+                    text("INSERT INTO macro_snapshots (date, btc_close, collected_at) VALUES (:p0, :p1, datetime('now'))"),
+                    {"p0": target_str, "p1": btc}
+                )
+            print(f"  {target_str} ({['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][target.weekday()]}): BTC={btc}")
     print("  Done.")
 
 

@@ -16,9 +16,9 @@ Fills from yfinance daily bars (280-day history per symbol):
   - sector (from sector_cache table — no API call needed)
 
 Also fills signal_outcomes and trades gaps (if run with --full):
-  - signal_outcomes.vix_at_signal  ← JOIN macro_snapshots
-  - signal_outcomes.spy_pct_above_sma ← yfinance SPY historical
-  - trades.mfe_pct, mae_pct  ← yfinance 1m bars over hold period
+  - signal_outcomes.vix_at_signal  <- JOIN macro_snapshots
+  - signal_outcomes.spy_pct_above_sma <- yfinance SPY historical
+  - trades.mfe_pct, mae_pct  <- yfinance 1m bars over hold period
 
 Cron (TZ=America/New_York):
   45 21 * * 1-5  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_screener_features.py >> logs/fill_screener_features.log 2>&1
@@ -27,7 +27,6 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 from database.orm.base import get_session
 from sqlalchemy import text
-import os
 import time
 from datetime import datetime, date, timedelta
 import argparse
@@ -42,7 +41,7 @@ ET = ZoneInfo('America/New_York')
 SCREENERS_TO_FILL = ('ovn', 'pem', 'gap', 'ped')  # DIP already has full features
 
 
-# ── Feature computation helpers ───────────────────────────────────────────────
+# -- Feature computation helpers --
 
 def _rsi(close: np.ndarray, period: int = 14) -> float | None:
     if len(close) < period + 1:
@@ -117,7 +116,7 @@ def compute_features(df: pd.DataFrame, scan_date: str) -> dict:
         if avg_20d_vol > 0 and scan_day_vol > 0:
             result['volume_ratio'] = round(scan_day_vol / avg_20d_vol, 3)
 
-    # distance_from_20d_ma: (close - 20d MA) / 20d MA × 100
+    # distance_from_20d_ma: (close - 20d MA) / 20d MA x 100
     # positive = above MA, negative = below MA
     if len(close) >= 20:
         ma20 = float(np.mean(close[-20:]))
@@ -127,7 +126,7 @@ def compute_features(df: pd.DataFrame, scan_date: str) -> dict:
     return result
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# -- Main --
 
 def main():
     parser = argparse.ArgumentParser(description='Fill screener features for OVN/PEM/GAP/PED')
@@ -141,156 +140,150 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] fill_screener_features "
           f"date={today} days={args.days}")
 
-    # conn via get_session()
+    with get_session() as session:
 
-    screener_list = ','.join(f"'{s}'" for s in SCREENERS_TO_FILL)
-    if args.all_screeners:
-        screener_list = "'dip_bounce'," + screener_list
+        screener_list = ','.join(f"'{s}'" for s in SCREENERS_TO_FILL)
+        if args.all_screeners:
+            screener_list = "'dip_bounce'," + screener_list
 
-    base_dt = datetime.strptime(today, '%Y-%m-%d')
-    cutoff = (base_dt - timedelta(days=args.days)).strftime('%Y-%m-%d')
+        base_dt = datetime.strptime(today, '%Y-%m-%d')
+        cutoff = (base_dt - timedelta(days=args.days)).strftime('%Y-%m-%d')
 
-    # ── Step 1: Fill sector from sector_cache (no API call needed) ────────────
-    print("  Step 1: Fill missing sector from sector_cache...")
-    sector_updated = conn.execute(f"""
-        UPDATE screener_rejections
-        SET sector = (
-            SELECT sc.sector FROM sector_cache sc WHERE sc.symbol = screener_rejections.symbol LIMIT 1
-        )
-        WHERE sector IS NULL
-          AND screener IN ({screener_list})
-          AND scan_date >= ?
-    """, (cutoff,)).rowcount
-    print(f"    sector filled: {sector_updated} rows")
+        # -- Step 1: Fill sector from sector_cache (no API call needed) --
+        print("  Step 1: Fill missing sector from sector_cache...")
+        sector_updated = session.execute(text(f"""
+            UPDATE screener_rejections
+            SET sector = (
+                SELECT sc.sector FROM sector_cache sc WHERE sc.symbol = screener_rejections.symbol LIMIT 1
+            )
+            WHERE sector IS NULL
+              AND screener IN ({screener_list})
+              AND scan_date >= :p0
+        """), {'p0': cutoff}).rowcount
+        print(f"    sector filled: {sector_updated} rows")
 
-    # ── Step 2: Fill vix_at_signal in signal_outcomes from macro_snapshots ────
-    print("  Step 2: Fill vix_at_signal in signal_outcomes from macro_snapshots...")
-    vix_updated = conn.execute("""
-        UPDATE signal_outcomes
-        SET vix_at_signal = (
-            SELECT m.vix_close FROM macro_snapshots m WHERE m.date = signal_outcomes.scan_date LIMIT 1
-        )
-        WHERE vix_at_signal IS NULL
-    """).rowcount
-    print(f"    vix_at_signal filled: {vix_updated} rows")
+        # -- Step 2: Fill vix_at_signal in signal_outcomes from macro_snapshots --
+        print("  Step 2: Fill vix_at_signal in signal_outcomes from macro_snapshots...")
+        vix_updated = session.execute(text("""
+            UPDATE signal_outcomes
+            SET vix_at_signal = (
+                SELECT m.vix_close FROM macro_snapshots m WHERE m.date = signal_outcomes.scan_date LIMIT 1
+            )
+            WHERE vix_at_signal IS NULL
+        """)).rowcount
+        print(f"    vix_at_signal filled: {vix_updated} rows")
 
-    # ── Step 3: Fill RSI/ATR/momentum/volume_ratio via yfinance daily bars ────
-    print(f"  Step 3: Fill RSI/ATR/momentum/volume_ratio from yfinance (cutoff={cutoff})...")
+        # -- Step 3: Fill RSI/ATR/momentum/volume_ratio via yfinance daily bars --
+        print(f"  Step 3: Fill RSI/ATR/momentum/volume_ratio from yfinance (cutoff={cutoff})...")
 
-    rows = conn.execute(f"""
-        SELECT id, symbol, scan_date, screener
-        FROM screener_rejections
-        WHERE screener IN ({screener_list})
-          AND scan_date >= ?
-          AND (rsi IS NULL OR volume_ratio IS NULL)
-          AND scan_price IS NOT NULL AND scan_price > 0
-        ORDER BY scan_date DESC, symbol
-    """, (cutoff,)).fetchall()
+        rows = session.execute(text(f"""
+            SELECT id, symbol, scan_date, screener
+            FROM screener_rejections
+            WHERE screener IN ({screener_list})
+              AND scan_date >= :p0
+              AND (rsi IS NULL OR volume_ratio IS NULL)
+              AND scan_price IS NOT NULL AND scan_price > 0
+            ORDER BY scan_date DESC, symbol
+        """), {'p0': cutoff}).fetchall()
 
-    if not rows:
-        print("    Nothing to fill.")
-        return
+        if not rows:
+            print("    Nothing to fill.")
+            return
 
-    sym_date_pairs = list(set((r['symbol'], r['scan_date']) for r in rows))
-    print(f"    {len(rows)} rows → {len(sym_date_pairs)} unique symbol-date pairs")
+        sym_date_pairs = list(set((r[1], r[2]) for r in rows))
+        print(f"    {len(rows)} rows -> {len(sym_date_pairs)} unique symbol-date pairs")
 
-    id_map: dict[tuple, list[int]] = {}
-    for r in rows:
-        key = (r['symbol'], r['scan_date'])
-        id_map.setdefault(key, []).append(r['id'])
+        id_map: dict[tuple, list[int]] = {}
+        for r in rows:
+            key = (r[1], r[2])
+            id_map.setdefault(key, []).append(r[0])
 
-    # ── Step 4: Compute first_15min_volume_ratio from signal_candidate_bars ─────
-    # first_15min_volume_ratio = sum(volume 09:30-09:44) / (avg_daily_vol × 15/390)
-    # Only available for stocks that have signal_candidate_bars data
-    print("  Step 4: Compute first_15min_volume_ratio from signal_candidate_bars...")
-    first15_map: dict[tuple, float | None] = {}
-    pairs_needing_15min = [
-        (sym, sd) for sym, sd in sym_date_pairs
-        # Only fetch if at least one row is missing first_15min_volume_ratio
-        if any(
-            conn.execute(
-                "SELECT 1 FROM screener_rejections WHERE id=? AND first_15min_volume_ratio IS NULL",
-                (rid,)
-            ).fetchone()
-            for rid in id_map.get((sym, sd), [])
-        )
-    ]
-    # Batch-query signal_candidate_bars for 09:30-09:44
-    for sym, sd in pairs_needing_15min:
-        try:
-            bar_rows = conn.execute("""
-                SELECT time_et, volume FROM signal_candidate_bars
-                WHERE symbol = ? AND date = ? AND time_et >= '09:30' AND time_et <= '09:44'
-            """, (sym, sd)).fetchall()
-            if bar_rows:
-                vol_15min = sum(r[1] for r in bar_rows if r[1])
-                # Avg daily volume from screener_rejections (use volume_ratio × avg if available,
-                # else look up from daily download cache — skip for now, use None)
-                # We compute avg from daily bars in the same sym_date_pairs loop below
-                first15_map[(sym, sd)] = vol_15min  # raw; divide by avg later
-        except Exception:
-            pass
+        # -- Step 4: Compute first_15min_volume_ratio from signal_candidate_bars --
+        print("  Step 4: Compute first_15min_volume_ratio from signal_candidate_bars...")
+        first15_map: dict[tuple, float | None] = {}
+        pairs_needing_15min = [
+            (sym, sd) for sym, sd in sym_date_pairs
+            if any(
+                session.execute(
+                    text("SELECT 1 FROM screener_rejections WHERE id=:p0 AND first_15min_volume_ratio IS NULL"),
+                    {'p0': rid}
+                ).fetchone()
+                for rid in id_map.get((sym, sd), [])
+            )
+        ]
+        # Batch-query signal_candidate_bars for 09:30-09:44
+        for sym, sd in pairs_needing_15min:
+            try:
+                bar_rows = session.execute(text("""
+                    SELECT time_et, volume FROM signal_candidate_bars
+                    WHERE symbol = :p0 AND date = :p1 AND time_et >= '09:30' AND time_et <= '09:44'
+                """), {'p0': sym, 'p1': sd}).fetchall()
+                if bar_rows:
+                    vol_15min = sum(r[1] for r in bar_rows if r[1])
+                    first15_map[(sym, sd)] = vol_15min  # raw; divide by avg later
+            except Exception:
+                pass
 
-    updated = 0
-    failed = 0
-    for i, (sym, scan_date) in enumerate(sym_date_pairs):
-        try:
-            end_dt = (datetime.strptime(scan_date, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
-            start_dt = (datetime.strptime(scan_date, '%Y-%m-%d') - timedelta(days=280)).strftime('%Y-%m-%d')
+        updated = 0
+        failed = 0
+        for i, (sym, scan_date) in enumerate(sym_date_pairs):
+            try:
+                end_dt = (datetime.strptime(scan_date, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
+                start_dt = (datetime.strptime(scan_date, '%Y-%m-%d') - timedelta(days=280)).strftime('%Y-%m-%d')
 
-            df = yf.download(sym, start=start_dt, end=end_dt,
-                             interval='1d', auto_adjust=True, progress=False)
-            if df is None or df.empty:
+                df = yf.download(sym, start=start_dt, end=end_dt,
+                                 interval='1d', auto_adjust=True, progress=False)
+                if df is None or df.empty:
+                    failed += 1
+                    continue
+
+                feat = compute_features(df, scan_date)
+
+                # Compute first_15min_volume_ratio if we have the raw 15min volume
+                first15_ratio = None
+                raw_15min_vol = first15_map.get((sym, scan_date))
+                if raw_15min_vol is not None and raw_15min_vol > 0:
+                    try:
+                        if isinstance(df.columns, pd.MultiIndex):
+                            df.columns = df.columns.get_level_values(0)
+                        df.index = pd.to_datetime(df.index)
+                        df_hist = df[df.index.date < datetime.strptime(scan_date, '%Y-%m-%d').date()]
+                        if len(df_hist) >= 20:
+                            avg_daily_vol = float(df_hist['Volume'].tail(20).mean())
+                            expected_15min_vol = avg_daily_vol * (15 / 390)
+                            if expected_15min_vol > 0:
+                                first15_ratio = round(raw_15min_vol / expected_15min_vol, 3)
+                    except Exception:
+                        pass
+
+                for row_id in id_map[(sym, scan_date)]:
+                    session.execute(text("""
+                        UPDATE screener_rejections SET
+                            rsi                     = COALESCE(rsi, :p0),
+                            atr_pct                 = COALESCE(atr_pct, :p1),
+                            momentum_5d             = COALESCE(momentum_5d, :p2),
+                            momentum_20d            = COALESCE(momentum_20d, :p3),
+                            distance_from_high      = COALESCE(distance_from_high, :p4),
+                            volume_ratio            = COALESCE(volume_ratio, :p5),
+                            distance_from_20d_ma    = COALESCE(distance_from_20d_ma, :p6),
+                            first_15min_volume_ratio = COALESCE(first_15min_volume_ratio, :p7)
+                        WHERE id = :p8
+                    """), {'p0': feat['rsi'], 'p1': feat['atr_pct'], 'p2': feat['momentum_5d'],
+                           'p3': feat['momentum_20d'], 'p4': feat['distance_from_high'],
+                           'p5': feat['volume_ratio'], 'p6': feat['distance_from_20d_ma'],
+                           'p7': first15_ratio, 'p8': row_id})
+                updated += len(id_map[(sym, scan_date)])
+
+            except Exception:
                 failed += 1
-                continue
 
-            feat = compute_features(df, scan_date)
-
-            # Compute first_15min_volume_ratio if we have the raw 15min volume
-            first15_ratio = None
-            raw_15min_vol = first15_map.get((sym, scan_date))
-            if raw_15min_vol is not None and raw_15min_vol > 0:
-                try:
-                    if isinstance(df.columns, pd.MultiIndex):
-                        df.columns = df.columns.get_level_values(0)
-                    df.index = pd.to_datetime(df.index)
-                    df_hist = df[df.index.date < datetime.strptime(scan_date, '%Y-%m-%d').date()]
-                    if len(df_hist) >= 20:
-                        avg_daily_vol = float(df_hist['Volume'].tail(20).mean())
-                        expected_15min_vol = avg_daily_vol * (15 / 390)
-                        if expected_15min_vol > 0:
-                            first15_ratio = round(raw_15min_vol / expected_15min_vol, 3)
-                except Exception:
-                    pass
-
-            for row_id in id_map[(sym, scan_date)]:
-                conn.execute("""
-                    UPDATE screener_rejections SET
-                        rsi                     = COALESCE(rsi, ?),
-                        atr_pct                 = COALESCE(atr_pct, ?),
-                        momentum_5d             = COALESCE(momentum_5d, ?),
-                        momentum_20d            = COALESCE(momentum_20d, ?),
-                        distance_from_high      = COALESCE(distance_from_high, ?),
-                        volume_ratio            = COALESCE(volume_ratio, ?),
-                        distance_from_20d_ma    = COALESCE(distance_from_20d_ma, ?),
-                        first_15min_volume_ratio = COALESCE(first_15min_volume_ratio, ?)
-                    WHERE id = ?
-                """, (feat['rsi'], feat['atr_pct'], feat['momentum_5d'],
-                      feat['momentum_20d'], feat['distance_from_high'],
-                      feat['volume_ratio'], feat['distance_from_20d_ma'],
-                      first15_ratio, row_id))
-            updated += len(id_map[(sym, scan_date)])
-
-        except Exception:
-            failed += 1
-
-        if (i + 1) % 50 == 0:
-            print(f"    [{i+1}/{len(sym_date_pairs)}] updated={updated} failed={failed}")
-        if (i + 1) % 20 == 0:
-            time.sleep(0.2)
-    print(f"  Final: sector={sector_updated} vix_signal={vix_updated} "
-          f"features={updated} failed={failed}")
-    print(f"  Done.")
+            if (i + 1) % 50 == 0:
+                print(f"    [{i+1}/{len(sym_date_pairs)}] updated={updated} failed={failed}")
+            if (i + 1) % 20 == 0:
+                time.sleep(0.2)
+        print(f"  Final: sector={sector_updated} vix_signal={vix_updated} "
+              f"features={updated} failed={failed}")
+        print(f"  Done.")
 
 
 if __name__ == '__main__':

@@ -44,8 +44,8 @@ BATCH_SIZE = 100    # symbols per yfinance batch download
 HISTORY_DAYS = 280  # enough for 52w high + 50d MA
 
 
-def _ensure_table(conn: object):
-    conn.execute("""
+def _ensure_table(session: object):
+    session.execute(text("""
         CREATE TABLE IF NOT EXISTS market_breadth (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             date            TEXT NOT NULL UNIQUE,
@@ -60,7 +60,7 @@ def _ensure_table(conn: object):
             total_symbols   INTEGER,
             updated_at      TEXT DEFAULT (datetime('now'))
         )
-    """)
+    """))
 
 
 def download_daily_batch(symbols: list[str], start_dt: str, end_dt: str) -> dict[str, pd.DataFrame]:
@@ -190,95 +190,96 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_market_breadth "
           f"date={target_date} days={args.days}")
 
-    # conn via get_session()
-    _ensure_table(conn)
+    with get_session() as session:
+        _ensure_table(session)
 
-    # Build list of dates to compute
-    base_dt = datetime.strptime(target_date, '%Y-%m-%d')
-    dates_to_compute = [
-        (base_dt - timedelta(days=i)).strftime('%Y-%m-%d')
-        for i in range(args.days)
-        if (base_dt - timedelta(days=i)).weekday() < 5
-    ]
+        # Build list of dates to compute
+        base_dt = datetime.strptime(target_date, '%Y-%m-%d')
+        dates_to_compute = [
+            (base_dt - timedelta(days=i)).strftime('%Y-%m-%d')
+            for i in range(args.days)
+            if (base_dt - timedelta(days=i)).weekday() < 5
+        ]
 
-    # Skip dates already in DB (unless --force)
-    if not args.force:
-        existing = set(r[0] for r in conn.execute(
-            "SELECT date FROM market_breadth WHERE date >= ?",
-            (dates_to_compute[-1],)
-        ).fetchall())
-        dates_to_compute = [d for d in dates_to_compute if d not in existing]
+        # Skip dates already in DB (unless --force)
+        if not args.force:
+            existing = set(r[0] for r in session.execute(
+                text("SELECT date FROM market_breadth WHERE date >= :p0"),
+                {"p0": dates_to_compute[-1]}
+            ).fetchall())
+            dates_to_compute = [d for d in dates_to_compute if d not in existing]
 
-    if not dates_to_compute:
-        print("  All dates already in DB — done. Use --force to recompute.")
-        return
+        if not dates_to_compute:
+            print("  All dates already in DB — done. Use --force to recompute.")
+            return
 
-    print(f"  Computing breadth for {len(dates_to_compute)} date(s): {dates_to_compute}")
+        print(f"  Computing breadth for {len(dates_to_compute)} date(s): {dates_to_compute}")
 
-    # Get all active universe symbols
-    symbols = [r[0] for r in conn.execute(
-        "SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC"
-    ).fetchall()]
+        # Get all active universe symbols
+        symbols = [r[0] for r in session.execute(
+            text("SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC")
+        ).fetchall()]
 
-    print(f"  {len(symbols)} universe symbols")
+        print(f"  {len(symbols)} universe symbols")
 
-    # Download history (need enough for 52w MA)
-    earliest_date = min(dates_to_compute)
-    start_dt = (datetime.strptime(earliest_date, '%Y-%m-%d') - timedelta(days=HISTORY_DAYS)).strftime('%Y-%m-%d')
-    end_dt = (base_dt + timedelta(days=1)).strftime('%Y-%m-%d')
+        # Download history (need enough for 52w MA)
+        earliest_date = min(dates_to_compute)
+        start_dt = (datetime.strptime(earliest_date, '%Y-%m-%d') - timedelta(days=HISTORY_DAYS)).strftime('%Y-%m-%d')
+        end_dt = (base_dt + timedelta(days=1)).strftime('%Y-%m-%d')
 
-    print(f"  Downloading {start_dt} to {end_dt} in batches of {BATCH_SIZE}...")
+        print(f"  Downloading {start_dt} to {end_dt} in batches of {BATCH_SIZE}...")
 
-    # Collect all bars
-    bars_map: dict[str, pd.DataFrame] = {}
-    total_batches = (len(symbols) + BATCH_SIZE - 1) // BATCH_SIZE
+        # Collect all bars
+        bars_map: dict[str, pd.DataFrame] = {}
+        total_batches = (len(symbols) + BATCH_SIZE - 1) // BATCH_SIZE
 
-    for i in range(0, len(symbols), BATCH_SIZE):
-        batch = symbols[i:i+BATCH_SIZE]
-        batch_bars = download_daily_batch(batch, start_dt, end_dt)
-        bars_map.update(batch_bars)
+        for i in range(0, len(symbols), BATCH_SIZE):
+            batch = symbols[i:i+BATCH_SIZE]
+            batch_bars = download_daily_batch(batch, start_dt, end_dt)
+            bars_map.update(batch_bars)
 
-        bn = i // BATCH_SIZE + 1
-        print(f"  [{bn}/{total_batches}] {len(bars_map)} symbols downloaded so far")
+            bn = i // BATCH_SIZE + 1
+            print(f"  [{bn}/{total_batches}] {len(bars_map)} symbols downloaded so far")
 
-        if i + BATCH_SIZE < len(symbols):
-            time.sleep(0.3)
+            if i + BATCH_SIZE < len(symbols):
+                time.sleep(0.3)
 
-    print(f"  Downloaded {len(bars_map)} / {len(symbols)} symbols")
+        print(f"  Downloaded {len(bars_map)} / {len(symbols)} symbols")
 
-    # Compute breadth for each target date
-    for d in dates_to_compute:
-        metrics = compute_breadth_for_date(bars_map, d)
-        if metrics is None:
-            print(f"  {d}: no data — skipping")
-            continue
+        # Compute breadth for each target date
+        for d in dates_to_compute:
+            metrics = compute_breadth_for_date(bars_map, d)
+            if metrics is None:
+                print(f"  {d}: no data — skipping")
+                continue
 
-        conn.execute("""
-            INSERT INTO market_breadth
-                (date, pct_above_20d_ma, pct_above_50d_ma,
-                 advance_count, decline_count, unchanged_count,
-                 ad_ratio, new_52w_highs, new_52w_lows, total_symbols)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(date) DO UPDATE SET
-                pct_above_20d_ma = excluded.pct_above_20d_ma,
-                pct_above_50d_ma = excluded.pct_above_50d_ma,
-                advance_count    = excluded.advance_count,
-                decline_count    = excluded.decline_count,
-                unchanged_count  = excluded.unchanged_count,
-                ad_ratio         = excluded.ad_ratio,
-                new_52w_highs    = excluded.new_52w_highs,
-                new_52w_lows     = excluded.new_52w_lows,
-                total_symbols    = excluded.total_symbols,
-                updated_at       = datetime('now')
-        """, (d, metrics['pct_above_20d_ma'], metrics['pct_above_50d_ma'],
-              metrics['advance_count'], metrics['decline_count'], metrics['unchanged_count'],
-              metrics['ad_ratio'], metrics['new_52w_highs'], metrics['new_52w_lows'],
-              metrics['total_symbols']))
+            session.execute(text("""
+                INSERT INTO market_breadth
+                    (date, pct_above_20d_ma, pct_above_50d_ma,
+                     advance_count, decline_count, unchanged_count,
+                     ad_ratio, new_52w_highs, new_52w_lows, total_symbols)
+                VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6,:p7,:p8,:p9)
+                ON CONFLICT(date) DO UPDATE SET
+                    pct_above_20d_ma = excluded.pct_above_20d_ma,
+                    pct_above_50d_ma = excluded.pct_above_50d_ma,
+                    advance_count    = excluded.advance_count,
+                    decline_count    = excluded.decline_count,
+                    unchanged_count  = excluded.unchanged_count,
+                    ad_ratio         = excluded.ad_ratio,
+                    new_52w_highs    = excluded.new_52w_highs,
+                    new_52w_lows     = excluded.new_52w_lows,
+                    total_symbols    = excluded.total_symbols,
+                    updated_at       = datetime('now')
+            """), {"p0": d, "p1": metrics['pct_above_20d_ma'], "p2": metrics['pct_above_50d_ma'],
+                   "p3": metrics['advance_count'], "p4": metrics['decline_count'],
+                   "p5": metrics['unchanged_count'], "p6": metrics['ad_ratio'],
+                   "p7": metrics['new_52w_highs'], "p8": metrics['new_52w_lows'],
+                   "p9": metrics['total_symbols']})
 
-        m = metrics
-        print(f"  {d}: above20={m['pct_above_20d_ma']}% above50={m['pct_above_50d_ma']}% "
-              f"A/D={m['advance_count']}/{m['decline_count']} "
-              f"52wH/L={m['new_52w_highs']}/{m['new_52w_lows']} n={m['total_symbols']}")
+            m = metrics
+            print(f"  {d}: above20={m['pct_above_20d_ma']}% above50={m['pct_above_50d_ma']}% "
+                  f"A/D={m['advance_count']}/{m['decline_count']} "
+                  f"52wH/L={m['new_52w_highs']}/{m['new_52w_lows']} n={m['total_symbols']}")
     print("  Done.")
 
 

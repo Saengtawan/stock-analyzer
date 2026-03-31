@@ -14,7 +14,6 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 from database.orm.base import get_session
 from sqlalchemy import text
-import os
 import time
 from datetime import datetime, date, timedelta
 from collections import defaultdict
@@ -25,109 +24,110 @@ import pandas as pd
 
 
 def fill():
-    # conn via get_session()
+    with get_session() as session:
 
-    # Cutoff: only fill rows where D+5 trading days have elapsed (~7 calendar days)
-    cutoff = (date.today() - timedelta(days=7)).isoformat()
+        # Cutoff: only fill rows where D+5 trading days have elapsed (~7 calendar days)
+        cutoff = (date.today() - timedelta(days=7)).isoformat()
 
-    rows = conn.execute("""
-        SELECT id, symbol, scan_date, scan_price
-        FROM rejected_outcomes
-        WHERE outcome_5d IS NULL
-          AND scan_price IS NOT NULL AND scan_price > 0
-          AND scan_date <= ?
-        ORDER BY scan_date
-    """, (cutoff,)).fetchall()
+        rows = session.execute(text("""
+            SELECT id, symbol, scan_date, scan_price
+            FROM rejected_outcomes
+            WHERE outcome_5d IS NULL
+              AND scan_price IS NOT NULL AND scan_price > 0
+              AND scan_date <= :p0
+            ORDER BY scan_date
+        """), {'p0': cutoff}).fetchall()
 
-    if not rows:
-        print(f"[{datetime.now():%Y-%m-%d %H:%M}] No rows to fill.")
-        return
+        if not rows:
+            print(f"[{datetime.now():%Y-%m-%d %H:%M}] No rows to fill.")
+            return
 
-    print(f"[{datetime.now():%Y-%m-%d %H:%M}] {len(rows)} rows to fill (scan_date <= {cutoff})")
+        print(f"[{datetime.now():%Y-%m-%d %H:%M}] {len(rows)} rows to fill (scan_date <= {cutoff})")
 
-    # Group by symbol
-    by_symbol = defaultdict(list)
-    for r in rows:
-        by_symbol[r['symbol']].append(dict(r))
+        # Group by symbol
+        by_symbol = defaultdict(list)
+        for r in rows:
+            by_symbol[r[1]].append({'id': r[0], 'symbol': r[1], 'scan_date': r[2], 'scan_price': r[3]})
 
-    symbols = list(by_symbol.keys())
-    min_date = min(r['scan_date'] for r in rows)
-    start = (datetime.strptime(min_date, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+        symbols = list(by_symbol.keys())
+        min_date = min(r[2] for r in rows)
+        start = (datetime.strptime(min_date, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
 
-    filled = 0
-    errors = 0
-    batch_size = 50
+        filled = 0
+        errors = 0
+        batch_size = 50
 
-    for i in range(0, len(symbols), batch_size):
-        batch = symbols[i:i+batch_size]
-        batch_str = ' '.join(batch)
-        batch_num = i // batch_size + 1
-        total_batches = (len(symbols) + batch_size - 1) // batch_size
-        print(f"  Batch {batch_num}/{total_batches}: {len(batch)} symbols")
+        for i in range(0, len(symbols), batch_size):
+            batch = symbols[i:i+batch_size]
+            batch_str = ' '.join(batch)
+            batch_num = i // batch_size + 1
+            total_batches = (len(symbols) + batch_size - 1) // batch_size
+            print(f"  Batch {batch_num}/{total_batches}: {len(batch)} symbols")
 
-        try:
-            data = yf.download(batch_str, start=start, interval='1d',
-                               auto_adjust=True, progress=False, threads=False)
-        except Exception as e:
-            print(f"  Download error: {e}")
-            errors += len(batch)
-            continue
-
-        if data.empty:
-            continue
-
-        for sym in batch:
             try:
-                if len(batch) == 1:
-                    df = data
-                else:
-                    if sym not in data.columns.get_level_values(1):
-                        continue
-                    df = data.xs(sym, axis=1, level=1)
-
-                if df is None or df.empty:
-                    continue
-
-                for row in by_symbol.get(sym, []):
-                    scan_dt = pd.Timestamp(row['scan_date'])
-                    future = df[df.index > scan_dt]
-
-                    if len(future) < 5:
-                        continue  # Not enough trading days
-
-                    scan_price = row['scan_price']
-                    outcomes = {}
-
-                    for day_n in [1, 2, 3, 4, 5]:
-                        if len(future) >= day_n:
-                            close_n = float(future['Close'].iloc[day_n - 1])
-                            outcomes[f'outcome_{day_n}d'] = round((close_n / scan_price - 1) * 100, 2)
-
-                    if len(future) >= 1:
-                        n = min(5, len(future))
-                        sl = future.iloc[:n]
-                        max_high = float(sl['High'].max())
-                        min_low = float(sl['Low'].min())
-                        outcomes['outcome_max_gain_5d'] = round((max_high / scan_price - 1) * 100, 2)
-                        outcomes['outcome_max_dd_5d'] = round((min_low / scan_price - 1) * 100, 2)
-
-                    if outcomes and 'outcome_5d' in outcomes:
-                        set_parts = ', '.join(f"{k}=?" for k in outcomes)
-                        vals = list(outcomes.values()) + [row['id']]
-                        conn.execute(f"UPDATE rejected_outcomes SET {set_parts}, updated_at=datetime('now') WHERE id=?", vals)
-                        filled += 1
-
+                data = yf.download(batch_str, start=start, interval='1d',
+                                   auto_adjust=True, progress=False, threads=False)
             except Exception as e:
-                errors += 1
+                print(f"  Download error: {e}")
+                errors += len(batch)
                 continue
 
-        if filled % 50 == 0 and filled > 0:
-            print(f'  Filled {filled}...')
+            if data.empty:
+                continue
 
-        # Rate limit
-        if i + batch_size < len(symbols):
-            time.sleep(1)
-    print(f"  Done. filled={filled} errors={errors}")
+            for sym in batch:
+                try:
+                    if len(batch) == 1:
+                        df = data
+                    else:
+                        if sym not in data.columns.get_level_values(1):
+                            continue
+                        df = data.xs(sym, axis=1, level=1)
+
+                    if df is None or df.empty:
+                        continue
+
+                    for row in by_symbol.get(sym, []):
+                        scan_dt = pd.Timestamp(row['scan_date'])
+                        future = df[df.index > scan_dt]
+
+                        if len(future) < 5:
+                            continue  # Not enough trading days
+
+                        scan_price = row['scan_price']
+                        outcomes = {}
+
+                        for day_n in [1, 2, 3, 4, 5]:
+                            if len(future) >= day_n:
+                                close_n = float(future['Close'].iloc[day_n - 1])
+                                outcomes[f'outcome_{day_n}d'] = round((close_n / scan_price - 1) * 100, 2)
+
+                        if len(future) >= 1:
+                            n = min(5, len(future))
+                            sl = future.iloc[:n]
+                            max_high = float(sl['High'].max())
+                            min_low = float(sl['Low'].min())
+                            outcomes['outcome_max_gain_5d'] = round((max_high / scan_price - 1) * 100, 2)
+                            outcomes['outcome_max_dd_5d'] = round((min_low / scan_price - 1) * 100, 2)
+
+                        if outcomes and 'outcome_5d' in outcomes:
+                            set_parts = ', '.join(f"{k}=:{k}" for k in outcomes)
+                            params = dict(outcomes)
+                            params['row_id'] = row['id']
+                            session.execute(text(f"UPDATE rejected_outcomes SET {set_parts}, updated_at=datetime('now') WHERE id=:row_id"), params)
+                            filled += 1
+
+                except Exception as e:
+                    errors += 1
+                    continue
+
+            if filled % 50 == 0 and filled > 0:
+                print(f'  Filled {filled}...')
+
+            # Rate limit
+            if i + batch_size < len(symbols):
+                time.sleep(1)
+        print(f"  Done. filled={filled} errors={errors}")
 
 
 if __name__ == '__main__':

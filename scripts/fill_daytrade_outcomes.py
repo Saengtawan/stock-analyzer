@@ -11,7 +11,7 @@ Strategy simulated:
 
 4 SL/TP scenarios computed per symbol per day (1:2 RR each):
   A: SL=1.5%  TP=3.0%
-  B: SL=2.0%  TP=4.0%   ← baseline
+  B: SL=2.0%  TP=4.0%   <- baseline
   C: SL=2.5%  TP=5.0%
   D: SL=3.0%  TP=6.0%
 
@@ -21,10 +21,10 @@ Also computed:
   - MFE/MAE: best and worst price from entry to EOD
   - EOD P&L: outcome if held all day (exits 15:55)
 
-After 1 month (22 trading days × ~1000 symbols = ~22,000 rows):
-  → Correlate premarket_gap, first_5min_return, market_breadth with WR
-  → Optimize SL/TP per market regime
-  → Find the feature combination with highest expected value
+After 1 month (22 trading days x ~1000 symbols = ~22,000 rows):
+  -> Correlate premarket_gap, first_5min_return, market_breadth with WR
+  -> Optimize SL/TP per market regime
+  -> Find the feature combination with highest expected value
 
 Cron (TZ=America/New_York):
   55 16 * * 1-5  cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_daytrade_outcomes.py >> logs/fill_daytrade_outcomes.log 2>&1
@@ -117,20 +117,20 @@ def _time_to_min(t: str) -> int:
     return h * 60 + m
 
 
-def process_symbol_date(conn: object, symbol: str, date: str) -> dict | None:
+def process_symbol_date(session: object, symbol: str, date: str) -> dict | None:
     """Compute all day trade metrics for one symbol/date."""
-    bars = conn.execute("""
+    bars = session.execute(text("""
         SELECT time_et, open, high, low, close, volume
         FROM signal_candidate_bars
-        WHERE symbol = ? AND date = ?
+        WHERE symbol = :p0 AND date = :p1
           AND time_et >= '09:30' AND time_et <= '16:00'
         ORDER BY time_et
-    """, (symbol, date)).fetchall()
+    """), {"p0": symbol, "p1": date}).fetchall()
 
     if not bars:
         return None
 
-    # ── ORB: 9:30-9:34 ────────────────────────────────────────────────────
+    # -- ORB: 9:30-9:34 --
     orb_bars = [b for b in bars if ORB_START <= b[0] <= ORB_END]
     if not orb_bars:
         return None
@@ -153,7 +153,7 @@ def process_symbol_date(conn: object, symbol: str, date: str) -> dict | None:
     else:
         orb_direction = 'DOJI'
 
-    # ── Entry at 9:35 ─────────────────────────────────────────────────────
+    # -- Entry at 9:35 --
     entry_bars = [b for b in bars if b[0] == ENTRY_TIME]
     if not entry_bars:
         # Use first bar after 09:34
@@ -174,21 +174,21 @@ def process_symbol_date(conn: object, symbol: str, date: str) -> dict | None:
     entry_vs_orb  = 'ABOVE' if entry_price > orb_high else ('BELOW' if entry_price < orb_low else 'INSIDE')
     entry_vs_vwap = 'ABOVE' if (vwap_at_entry and entry_price > vwap_at_entry) else 'BELOW'
 
-    # ── Bars after entry ───────────────────────────────────────────────────
+    # -- Bars after entry --
     bars_after = [b for b in bars if b[0] > entry_bar[0]]
 
-    # ── Simulate 4 scenarios ──────────────────────────────────────────────
+    # -- Simulate 4 scenarios --
     results = {}
     for name, sl, tp in SCENARIOS:
         exit_r, pnl, mins = simulate_scenario(bars_after, entry_price, sl, tp)
         results[name] = (exit_r, pnl, mins)
 
-    # ── EOD price (15:55 or last bar) ─────────────────────────────────────
+    # -- EOD price (15:55 or last bar) --
     eod_bars = [b for b in bars if b[0] >= EOD_EXIT]
     eod_price = float(eod_bars[0][4]) if eod_bars else float(bars[-1][4])
     eod_pnl   = round((eod_price / entry_price - 1) * 100, 3)
 
-    # ── MFE / MAE from entry ───────────────────────────────────────────────
+    # -- MFE / MAE from entry --
     mfe = 0.0; mfe_time = None
     mae = 0.0; mae_time = None
     for b in bars_after:
@@ -199,12 +199,12 @@ def process_symbol_date(conn: object, symbol: str, date: str) -> dict | None:
         if low_pct < mae:
             mae = low_pct; mae_time = b[0]
 
-    # ── Premarket context (from premarket_analysis) ────────────────────────
-    pm = conn.execute("""
+    # -- Premarket context (from premarket_analysis) --
+    pm = session.execute(text("""
         SELECT premarket_gap_pct, first_5min_return,
                first_30min_return, premarket_vol_ratio
-        FROM premarket_analysis WHERE symbol=? AND date=?
-    """, (symbol, date)).fetchone()
+        FROM premarket_analysis WHERE symbol=:p0 AND date=:p1
+    """), {"p0": symbol, "p1": date}).fetchone()
 
     return {
         'orb_open':    round(orb_open, 4),
@@ -247,77 +247,87 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] fill_daytrade_outcomes "
           f"date={target_date} days={args.days}")
 
-    # conn via get_session()
+    with get_session() as session:
+        base_dt = datetime.strptime(target_date, '%Y-%m-%d')
+        dates = [
+            (base_dt - timedelta(days=i)).strftime('%Y-%m-%d')
+            for i in range(args.days)
+            if (base_dt - timedelta(days=i)).weekday() < 5
+        ]
 
-    base_dt = datetime.strptime(target_date, '%Y-%m-%d')
-    dates = [
-        (base_dt - timedelta(days=i)).strftime('%Y-%m-%d')
-        for i in range(args.days)
-        if (base_dt - timedelta(days=i)).weekday() < 5
-    ]
+        total_ok = total_skip = 0
 
-    total_ok = total_skip = 0
-
-    for d in dates:
-        if args.symbol:
-            symbols = [args.symbol.upper()]
-        else:
-            # All symbols with bars on this date
-            rows = conn.execute(
-                "SELECT DISTINCT symbol FROM signal_candidate_bars WHERE date = ?", (d,)
-            ).fetchall()
-            symbols = [r[0] for r in rows]
-
-            if not args.force:
-                existing = set(r[0] for r in conn.execute(
-                    "SELECT symbol FROM daytrade_outcomes WHERE date = ?", (d,)
-                ).fetchall())
-                symbols = [s for s in symbols if s not in existing]
-
-        print(f"\n  --- {d} --- {len(symbols)} symbols")
-
-        rows_to_insert = []
-        for sym in symbols:
-            data = process_symbol_date(conn, sym, d)
-            if data:
-                rows_to_insert.append((
-                    sym, d,
-                    data['orb_open'], data['orb_high'], data['orb_low'],
-                    data['orb_close'], data['orb_range_pct'], data['orb_direction'],
-                    data['orb_vol'], data['entry_price'],
-                    data['entry_vs_orb'], data['entry_vs_vwap'], data['vwap_at_entry'],
-                    data['exit_a'], data['pnl_a'], data['min_a'],
-                    data['exit_b'], data['pnl_b'], data['min_b'],
-                    data['exit_c'], data['pnl_c'], data['min_c'],
-                    data['exit_d'], data['pnl_d'], data['min_d'],
-                    data['eod_price'], data['eod_pnl_pct'],
-                    data['mfe_pct'], data['mae_pct'],
-                    data['mfe_time'], data['mae_time'],
-                    data['premarket_gap_pct'], data['first_5min_return'],
-                    data['first_30min_return'], data['premarket_vol_ratio'],
-                ))
-                total_ok += 1
+        for d in dates:
+            if args.symbol:
+                symbols = [args.symbol.upper()]
             else:
-                total_skip += 1
+                # All symbols with bars on this date
+                rows = session.execute(
+                    text("SELECT DISTINCT symbol FROM signal_candidate_bars WHERE date = :p0"),
+                    {"p0": d}
+                ).fetchall()
+                symbols = [r[0] for r in rows]
 
-        if rows_to_insert:
-            conn.executemany("""
-                INSERT OR IGNORE INTO daytrade_outcomes
-                    (symbol, date,
-                     orb_open, orb_high, orb_low, orb_close,
-                     orb_range_pct, orb_direction, orb_vol,
-                     entry_price, entry_vs_orb, entry_vs_vwap, vwap_at_entry,
-                     exit_a, pnl_a, min_a,
-                     exit_b, pnl_b, min_b,
-                     exit_c, pnl_c, min_c,
-                     exit_d, pnl_d, min_d,
-                     eod_price, eod_pnl_pct,
-                     mfe_pct, mae_pct, mfe_time, mae_time,
-                     premarket_gap_pct, first_5min_return,
-                     first_30min_return, premarket_vol_ratio)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """, rows_to_insert)
-            print(f"    Inserted {len(rows_to_insert)} rows")
+                if not args.force:
+                    existing = set(r[0] for r in session.execute(
+                        text("SELECT symbol FROM daytrade_outcomes WHERE date = :p0"),
+                        {"p0": d}
+                    ).fetchall())
+                    symbols = [s for s in symbols if s not in existing]
+
+            print(f"\n  --- {d} --- {len(symbols)} symbols")
+
+            rows_to_insert = []
+            for sym in symbols:
+                data = process_symbol_date(session, sym, d)
+                if data:
+                    rows_to_insert.append((
+                        sym, d,
+                        data['orb_open'], data['orb_high'], data['orb_low'],
+                        data['orb_close'], data['orb_range_pct'], data['orb_direction'],
+                        data['orb_vol'], data['entry_price'],
+                        data['entry_vs_orb'], data['entry_vs_vwap'], data['vwap_at_entry'],
+                        data['exit_a'], data['pnl_a'], data['min_a'],
+                        data['exit_b'], data['pnl_b'], data['min_b'],
+                        data['exit_c'], data['pnl_c'], data['min_c'],
+                        data['exit_d'], data['pnl_d'], data['min_d'],
+                        data['eod_price'], data['eod_pnl_pct'],
+                        data['mfe_pct'], data['mae_pct'],
+                        data['mfe_time'], data['mae_time'],
+                        data['premarket_gap_pct'], data['first_5min_return'],
+                        data['first_30min_return'], data['premarket_vol_ratio'],
+                    ))
+                    total_ok += 1
+                else:
+                    total_skip += 1
+
+            if rows_to_insert:
+                for row in rows_to_insert:
+                    session.execute(text("""
+                        INSERT OR IGNORE INTO daytrade_outcomes
+                            (symbol, date,
+                             orb_open, orb_high, orb_low, orb_close,
+                             orb_range_pct, orb_direction, orb_vol,
+                             entry_price, entry_vs_orb, entry_vs_vwap, vwap_at_entry,
+                             exit_a, pnl_a, min_a,
+                             exit_b, pnl_b, min_b,
+                             exit_c, pnl_c, min_c,
+                             exit_d, pnl_d, min_d,
+                             eod_price, eod_pnl_pct,
+                             mfe_pct, mae_pct, mfe_time, mae_time,
+                             premarket_gap_pct, first_5min_return,
+                             first_30min_return, premarket_vol_ratio)
+                        VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6,:p7,:p8,:p9,:p10,:p11,:p12,:p13,:p14,:p15,:p16,:p17,:p18,:p19,:p20,:p21,:p22,:p23,:p24,:p25,:p26,:p27,:p28,:p29,:p30,:p31,:p32,:p33,:p34)
+                    """), {"p0": row[0], "p1": row[1], "p2": row[2], "p3": row[3],
+                           "p4": row[4], "p5": row[5], "p6": row[6], "p7": row[7],
+                           "p8": row[8], "p9": row[9], "p10": row[10], "p11": row[11],
+                           "p12": row[12], "p13": row[13], "p14": row[14], "p15": row[15],
+                           "p16": row[16], "p17": row[17], "p18": row[18], "p19": row[19],
+                           "p20": row[20], "p21": row[21], "p22": row[22], "p23": row[23],
+                           "p24": row[24], "p25": row[25], "p26": row[26], "p27": row[27],
+                           "p28": row[28], "p29": row[29], "p30": row[30], "p31": row[31],
+                           "p32": row[32], "p33": row[33], "p34": row[34]})
+                print(f"    Inserted {len(rows_to_insert)} rows")
     print(f"\n  Total: ok={total_ok} skipped={total_skip}")
     print("  Done.")
 

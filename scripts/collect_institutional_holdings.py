@@ -131,7 +131,7 @@ def _safe_int(v) -> int | None:
         return None
 
 
-def save_holdings(conn: object, sym: str, data: dict):
+def save_holdings(session: object, sym: str, data: dict):
     """Persist holdings to DB."""
     # --- institutional_holdings ---
     for h in data['holders']:
@@ -140,32 +140,33 @@ def save_holdings(conn: object, sym: str, data: dict):
         # Use today as fallback if report_date missing
         report_date = h['report_date'] or datetime.now().strftime('%Y-%m-%d')
         try:
-            conn.execute("""
+            session.execute(text("""
                 INSERT OR IGNORE INTO institutional_holdings
                     (symbol, report_date, institution, pct_held, shares, value, pct_change)
-                VALUES (?,?,?,?,?,?,?)
-            """, (sym, report_date, h['institution'],
-                  h['pct_held'], h['shares'], h['value'], h['pct_change']))
+                VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6)
+            """), {"p0": sym, "p1": report_date, "p2": h['institution'],
+                   "p3": h['pct_held'], "p4": h['shares'], "p5": h['value'],
+                   "p6": h['pct_change']})
         except Exception:
             pass
 
     # --- major_holders_summary ---
     major = data.get('major')
     if major:
-        conn.execute("""
+        session.execute(text("""
             INSERT INTO major_holders_summary
                 (symbol, insider_pct, institution_pct,
                  float_institution_pct, institution_count)
-            VALUES (?,?,?,?,?)
+            VALUES (:p0,:p1,:p2,:p3,:p4)
             ON CONFLICT(symbol) DO UPDATE SET
                 insider_pct           = COALESCE(excluded.insider_pct, insider_pct),
                 institution_pct       = COALESCE(excluded.institution_pct, institution_pct),
                 float_institution_pct = COALESCE(excluded.float_institution_pct, float_institution_pct),
                 institution_count     = COALESCE(excluded.institution_count, institution_count),
                 updated_at            = datetime('now')
-        """, (sym,
-              major.get('insider_pct'), major.get('institution_pct'),
-              major.get('float_institution_pct'), major.get('institution_count')))
+        """), {"p0": sym,
+               "p1": major.get('insider_pct'), "p2": major.get('institution_pct'),
+               "p3": major.get('float_institution_pct'), "p4": major.get('institution_count')})
 
 
 def main():
@@ -180,45 +181,44 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_institutional_holdings "
           f"top={args.top} force={args.force}")
 
-    # conn via get_session()
-
-    if args.symbol:
-        symbols = [args.symbol.upper()]
-    else:
-        symbols = [r[0] for r in conn.execute(
-            "SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC LIMIT ?",
-            (args.top,)
-        ).fetchall()]
-
-        if not args.force:
-            fresh = set(r[0] for r in conn.execute("""
-                SELECT symbol FROM major_holders_summary
-                WHERE updated_at >= datetime('now', '-7 days')
-            """).fetchall())
-            symbols = [s for s in symbols if s not in fresh]
-            print(f"  {len(symbols)} stale symbols (skipping {len(fresh)} fresh)")
+    with get_session() as session:
+        if args.symbol:
+            symbols = [args.symbol.upper()]
         else:
-            print(f"  {len(symbols)} symbols (force mode)")
+            symbols = [r[0] for r in session.execute(
+                text("SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC LIMIT :p0"),
+                {"p0": args.top}
+            ).fetchall()]
 
-    if not symbols:
-        print("  All fresh — done.")
-        return
+            if not args.force:
+                fresh = set(r[0] for r in session.execute(text("""
+                    SELECT symbol FROM major_holders_summary
+                    WHERE updated_at >= datetime('now', '-7 days')
+                """)).fetchall())
+                symbols = [s for s in symbols if s not in fresh]
+                print(f"  {len(symbols)} stale symbols (skipping {len(fresh)} fresh)")
+            else:
+                print(f"  {len(symbols)} symbols (force mode)")
 
-    ok = fail = 0
-    for i, sym in enumerate(symbols):
-        data = fetch_holdings(sym)
-        if data['holders'] or data['major']:
-            save_holdings(conn, sym, data)
-            ok += 1
-        else:
-            fail += 1
+        if not symbols:
+            print("  All fresh — done.")
+            return
 
-        if (i + 1) % 100 == 0:
-            pct = round((i + 1) / len(symbols) * 100)
-            print(f"  [{i+1}/{len(symbols)} {pct}%] ok={ok} fail={fail}")
+        ok = fail = 0
+        for i, sym in enumerate(symbols):
+            data = fetch_holdings(sym)
+            if data['holders'] or data['major']:
+                save_holdings(session, sym, data)
+                ok += 1
+            else:
+                fail += 1
 
-        if (i + 1) % DELAY_EVERY == 0:
-            time.sleep(DELAY_SECS)
+            if (i + 1) % 100 == 0:
+                pct = round((i + 1) / len(symbols) * 100)
+                print(f"  [{i+1}/{len(symbols)} {pct}%] ok={ok} fail={fail}")
+
+            if (i + 1) % DELAY_EVERY == 0:
+                time.sleep(DELAY_SECS)
     print(f"\n  Done. ok={ok} fail={fail}")
 
 

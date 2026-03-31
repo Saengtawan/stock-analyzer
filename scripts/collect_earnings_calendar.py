@@ -62,9 +62,9 @@ ON earnings_history(symbol, report_date)
 """
 
 
-def _ensure_table(conn: object):
-    conn.execute(CREATE_TABLE)
-    conn.execute(CREATE_INDEX)
+def _ensure_table(session: object):
+    session.execute(text(CREATE_TABLE))
+    session.execute(text(CREATE_INDEX))
 
 
 def fetch_earnings_for_symbol(sym: str) -> list[dict]:
@@ -115,39 +115,39 @@ def fetch_earnings_for_symbol(sym: str) -> list[dict]:
         return []
 
 
-def upsert_earnings(conn: object, sym: str,
+def upsert_earnings(session: object, sym: str,
                     entries: list[dict], today: str) -> tuple[int, int]:
     """Insert/update earnings rows. Returns (inserted, updated)."""
     inserted = updated = 0
     for e in entries:
         try:
-            # Try insert first
-            conn.execute("""
+            session.execute(text("""
                 INSERT INTO earnings_history
                     (symbol, report_date, timing, eps_estimate, eps_actual, surprise_pct, updated_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (:p0, :p1, :p2, :p3, :p4, :p5, :p6)
                 ON CONFLICT(symbol, report_date) DO UPDATE SET
                     timing       = COALESCE(excluded.timing, timing),
                     eps_estimate = COALESCE(excluded.eps_estimate, eps_estimate),
                     eps_actual   = COALESCE(excluded.eps_actual, eps_actual),
                     surprise_pct = COALESCE(excluded.surprise_pct, surprise_pct),
                     updated_date = excluded.updated_date
-            """, (sym, e['report_date'], e['timing'],
-                  e['eps_estimate'], e['eps_actual'], e['surprise_pct'], today))
+            """), {"p0": sym, "p1": e['report_date'], "p2": e['timing'],
+                   "p3": e['eps_estimate'], "p4": e['eps_actual'],
+                   "p5": e['surprise_pct'], "p6": today})
             inserted += 1
         except Exception:
             pass
     return inserted, updated
 
 
-def get_stale_symbols(conn: object, all_symbols: list[str],
+def get_stale_symbols(session: object, all_symbols: list[str],
                       max_age_days: int = 7) -> list[str]:
     """Return symbols not updated in last max_age_days or never fetched."""
     cutoff = (date.today() - timedelta(days=max_age_days)).strftime('%Y-%m-%d')
-    fresh = set(r[0] for r in conn.execute("""
+    fresh = set(r[0] for r in session.execute(text("""
         SELECT DISTINCT symbol FROM earnings_history
-        WHERE updated_date >= ?
-    """, (cutoff,)).fetchall())
+        WHERE updated_date >= :p0
+    """), {"p0": cutoff}).fetchall())
     return [s for s in all_symbols if s not in fresh]
 
 
@@ -163,56 +163,55 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_earnings_calendar "
           f"date={today} backfill={args.backfill}")
 
-    # conn via get_session()
-    _ensure_table(conn)
+    with get_session() as session:
+        _ensure_table(session)
 
-    # Get all active universe symbols
-    all_symbols = [r[0] for r in conn.execute(
-        "SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC"
-    ).fetchall()]
+        # Get all active universe symbols
+        all_symbols = [r[0] for r in session.execute(
+            text("SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC")
+        ).fetchall()]
 
-    if args.backfill:
-        symbols = all_symbols
-        print(f"  Backfill mode: {len(symbols)} symbols")
-    else:
-        symbols = get_stale_symbols(conn, all_symbols, max_age_days=7)
-        print(f"  Incremental: {len(symbols)}/{len(all_symbols)} symbols need refresh")
-
-    if args.limit > 0:
-        symbols = symbols[:args.limit]
-        print(f"  (limited to {len(symbols)})")
-
-    if not symbols:
-        print("  All symbols up to date — nothing to fetch")
-        return
-
-    total_inserted = 0
-    total_failed = 0
-
-    for i, sym in enumerate(symbols):
-        entries = fetch_earnings_for_symbol(sym)
-        if entries:
-            ins, _ = upsert_earnings(conn, sym, entries, today)
-            total_inserted += ins
+        if args.backfill:
+            symbols = all_symbols
+            print(f"  Backfill mode: {len(symbols)} symbols")
         else:
-            total_failed += 1
+            symbols = get_stale_symbols(session, all_symbols, max_age_days=7)
+            print(f"  Incremental: {len(symbols)}/{len(all_symbols)} symbols need refresh")
 
-        if (i + 1) % 100 == 0:
-            pct = round((i + 1) / len(symbols) * 100)
-            print(f"  [{i+1}/{len(symbols)} {pct}%] inserted={total_inserted} failed={total_failed}")
+        if args.limit > 0:
+            symbols = symbols[:args.limit]
+            print(f"  (limited to {len(symbols)})")
 
-        # Rate limit: 10 symbols/sec
-        if (i + 1) % 10 == 0:
-            time.sleep(0.2)
+        if not symbols:
+            print("  All symbols up to date — nothing to fetch")
+            return
 
-    # Summary
-    conn2 = None  # via get_session()
-    total_rows = conn2.execute("SELECT COUNT(*) FROM earnings_history").fetchone()[0]
-    total_syms = conn2.execute("SELECT COUNT(DISTINCT symbol) FROM earnings_history").fetchone()[0]
-    date_range = conn2.execute(
-        "SELECT MIN(report_date), MAX(report_date) FROM earnings_history"
-    ).fetchone()
-    conn2.close()
+        total_inserted = 0
+        total_failed = 0
+
+        for i, sym in enumerate(symbols):
+            entries = fetch_earnings_for_symbol(sym)
+            if entries:
+                ins, _ = upsert_earnings(session, sym, entries, today)
+                total_inserted += ins
+            else:
+                total_failed += 1
+
+            if (i + 1) % 100 == 0:
+                pct = round((i + 1) / len(symbols) * 100)
+                print(f"  [{i+1}/{len(symbols)} {pct}%] inserted={total_inserted} failed={total_failed}")
+
+            # Rate limit: 10 symbols/sec
+            if (i + 1) % 10 == 0:
+                time.sleep(0.2)
+
+    # Summary (separate session)
+    with get_session() as session:
+        total_rows = session.execute(text("SELECT COUNT(*) FROM earnings_history")).fetchone()[0]
+        total_syms = session.execute(text("SELECT COUNT(DISTINCT symbol) FROM earnings_history")).fetchone()[0]
+        date_range = session.execute(
+            text("SELECT MIN(report_date), MAX(report_date) FROM earnings_history")
+        ).fetchone()
 
     print(f"\n  Done. inserted={total_inserted} failed={total_failed}")
     print(f"  DB: {total_rows} rows across {total_syms} symbols "

@@ -5,8 +5,8 @@ fill_entry_metrics.py — v7.6
 Nightly fill of at-entry quality metrics for BOUGHT signals.
 
 Fills (from yfinance 1m bars — reliable, not Alpaca snapshot which lags in paper):
-  - signal_outcomes.bounce_pct_from_lod  = (entry_price - day_low) / day_low × 100
-  - signal_outcomes.entry_vs_vwap_pct    = (entry_price - day_vwap) / day_vwap × 100
+  - signal_outcomes.bounce_pct_from_lod  = (entry_price - day_low) / day_low x 100
+  - signal_outcomes.entry_vs_vwap_pct    = (entry_price - day_vwap) / day_vwap x 100
   - trades.bounce_pct_from_lod           = same, in trades table (v7.6: new column)
 
 bounce_pct_from_lod answers: "how far above the day's LOW did we buy?"
@@ -96,112 +96,108 @@ def main():
     target_date = args.date or date.today().strftime('%Y-%m-%d')
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] fill_entry_metrics date={target_date} days={args.days}")
 
-    # conn via get_session()
+    with get_session() as session:
+        # Build date range
+        base_dt = datetime.strptime(target_date, '%Y-%m-%d')
+        dates_to_fill = [
+            (base_dt - timedelta(days=i)).strftime('%Y-%m-%d')
+            for i in range(args.days)
+        ]
 
-    # Build date range
-    base_dt = datetime.strptime(target_date, '%Y-%m-%d')
-    dates_to_fill = [
-        (base_dt - timedelta(days=i)).strftime('%Y-%m-%d')
-        for i in range(args.days)
-    ]
+        total_so = 0
+        total_tr = 0
 
-    total_so = 0
-    total_tr = 0
+        for fill_date in dates_to_fill:
+            print(f"\n  --- {fill_date} ---")
 
-    for fill_date in dates_to_fill:
-        print(f"\n  --- {fill_date} ---")
+            # === signal_outcomes: BOUGHT rows missing bounce_pct_from_lod ===
+            so_rows = session.execute(text("""
+                SELECT so.id, so.symbol, so.scan_date,
+                       t.price AS entry_price, t.date AS trade_date
+                FROM signal_outcomes so
+                LEFT JOIN trades t ON t.symbol = so.symbol
+                                   AND t.action = 'BUY'
+                                   AND t.date >= date(so.scan_date, '-3 days')
+                                   AND t.date <= so.scan_date
+                WHERE so.scan_date = :p0
+                  AND so.action_taken = 'BOUGHT'
+                  AND (so.bounce_pct_from_lod IS NULL OR so.entry_vs_vwap_pct IS NULL)
+                  AND so.scan_price > 0
+            """), {"p0": fill_date}).fetchall()
 
-        # === signal_outcomes: BOUGHT rows missing bounce_pct_from_lod ===
-        # OVN trades: BUY happens day before scan_date (overnight hold)
-        # DIP/PEM/GAP/PED: BUY same day as scan_date
-        # Use window: BUY within 2 trading days before/on scan_date
-        so_rows = conn.execute("""
-            SELECT so.id, so.symbol, so.scan_date,
-                   t.price AS entry_price, t.date AS trade_date
-            FROM signal_outcomes so
-            LEFT JOIN trades t ON t.symbol = so.symbol
-                               AND t.action = 'BUY'
-                               AND t.date >= date(so.scan_date, '-3 days')
-                               AND t.date <= so.scan_date
-            WHERE so.scan_date = ?
-              AND so.action_taken = 'BOUGHT'
-              AND (so.bounce_pct_from_lod IS NULL OR so.entry_vs_vwap_pct IS NULL)
-              AND so.scan_price > 0
-        """, (fill_date,)).fetchall()
+            # === trades: BUY rows missing bounce_pct_from_lod ===
+            tr_rows = session.execute(text("""
+                SELECT id, symbol, date, price AS entry_price
+                FROM trades
+                WHERE action = 'BUY'
+                  AND date = :p0
+                  AND bounce_pct_from_lod IS NULL
+                  AND price IS NOT NULL AND price > 0
+            """), {"p0": fill_date}).fetchall()
 
-        # === trades: BUY rows missing bounce_pct_from_lod ===
-        tr_rows = conn.execute("""
-            SELECT id, symbol, date, price AS entry_price
-            FROM trades
-            WHERE action = 'BUY'
-              AND date = ?
-              AND bounce_pct_from_lod IS NULL
-              AND price IS NOT NULL AND price > 0
-        """, (fill_date,)).fetchall()
-
-        if not so_rows and not tr_rows:
-            print(f"    Nothing to fill for {fill_date}")
-            continue
-
-        # Deduplicate (symbol, date) pairs — OVN entries use trade_date (day before scan_date)
-        sym_date_pairs = set()
-        for r in so_rows:
-            td = r['trade_date'] if r['trade_date'] else fill_date
-            sym_date_pairs.add((r['symbol'], td))
-        for r in tr_rows:
-            sym_date_pairs.add((r['symbol'], fill_date))
-
-        print(f"    signal_outcomes BOUGHT: {len(so_rows)} | trades BUY: {len(tr_rows)} | "
-              f"unique sym/date pairs: {len(sym_date_pairs)}")
-
-        # Fetch 1m bars keyed by (symbol, date)
-        bars_cache: dict[tuple, pd.DataFrame | None] = {}
-        for i, (sym, bar_date) in enumerate(sym_date_pairs):
-            bars_cache[(sym, bar_date)] = _get_1m_bars(sym, bar_date)
-            if (i + 1) % 10 == 0:
-                print(f"    [{i+1}/{len(sym_date_pairs)}] fetched...")
-
-        fetched = sum(1 for v in bars_cache.values() if v is not None)
-        print(f"    Fetched {fetched}/{len(sym_date_pairs)} sym/date pairs with 1m data")
-
-        # Update signal_outcomes
-        so_updated = 0
-        for row in so_rows:
-            sym = row['symbol']
-            trade_date = row['trade_date'] if row['trade_date'] else fill_date
-            df = bars_cache.get((sym, trade_date))
-            entry_price = row['entry_price']
-            if df is None or entry_price is None:
+            if not so_rows and not tr_rows:
+                print(f"    Nothing to fill for {fill_date}")
                 continue
-            metrics = _compute_metrics_from_bars(df, entry_price)
-            bounce = metrics['bounce_pct_from_lod']
-            vwap_pct = metrics['entry_vs_vwap_pct']
-            if bounce is not None or vwap_pct is not None:
-                conn.execute("""
-                    UPDATE signal_outcomes
-                    SET bounce_pct_from_lod = COALESCE(bounce_pct_from_lod, ?),
-                        entry_vs_vwap_pct   = COALESCE(entry_vs_vwap_pct, ?)
-                    WHERE id = ?
-                """, (bounce, vwap_pct, row['id']))
-                so_updated += 1
 
-        # Update trades
-        tr_updated = 0
-        for row in tr_rows:
-            df = bars_cache.get((row['symbol'], fill_date))
-            if df is None:
-                continue
-            metrics = _compute_metrics_from_bars(df, row['entry_price'])
-            bounce = metrics['bounce_pct_from_lod']
-            if bounce is not None:
-                conn.execute("""
-                    UPDATE trades SET bounce_pct_from_lod = ?
-                    WHERE id = ?
-                """, (bounce, row['id']))
-                tr_updated += 1
-        print(f"    Updated: signal_outcomes={so_updated} trades={tr_updated}")
-        total_so += so_updated
-        total_tr += tr_updated
+            # Deduplicate (symbol, date) pairs — OVN entries use trade_date (day before scan_date)
+            sym_date_pairs = set()
+            for r in so_rows:
+                td = r[4] if r[4] else fill_date
+                sym_date_pairs.add((r[1], td))
+            for r in tr_rows:
+                sym_date_pairs.add((r[1], fill_date))
+
+            print(f"    signal_outcomes BOUGHT: {len(so_rows)} | trades BUY: {len(tr_rows)} | "
+                  f"unique sym/date pairs: {len(sym_date_pairs)}")
+
+            # Fetch 1m bars keyed by (symbol, date)
+            bars_cache: dict[tuple, pd.DataFrame | None] = {}
+            for i, (sym, bar_date) in enumerate(sym_date_pairs):
+                bars_cache[(sym, bar_date)] = _get_1m_bars(sym, bar_date)
+                if (i + 1) % 10 == 0:
+                    print(f"    [{i+1}/{len(sym_date_pairs)}] fetched...")
+
+            fetched = sum(1 for v in bars_cache.values() if v is not None)
+            print(f"    Fetched {fetched}/{len(sym_date_pairs)} sym/date pairs with 1m data")
+
+            # Update signal_outcomes
+            so_updated = 0
+            for row in so_rows:
+                sym = row[1]
+                trade_date = row[4] if row[4] else fill_date
+                df = bars_cache.get((sym, trade_date))
+                entry_price = row[3]
+                if df is None or entry_price is None:
+                    continue
+                metrics = _compute_metrics_from_bars(df, entry_price)
+                bounce = metrics['bounce_pct_from_lod']
+                vwap_pct = metrics['entry_vs_vwap_pct']
+                if bounce is not None or vwap_pct is not None:
+                    session.execute(text("""
+                        UPDATE signal_outcomes
+                        SET bounce_pct_from_lod = COALESCE(bounce_pct_from_lod, :p0),
+                            entry_vs_vwap_pct   = COALESCE(entry_vs_vwap_pct, :p1)
+                        WHERE id = :p2
+                    """), {"p0": bounce, "p1": vwap_pct, "p2": row[0]})
+                    so_updated += 1
+
+            # Update trades
+            tr_updated = 0
+            for row in tr_rows:
+                df = bars_cache.get((row[1], fill_date))
+                if df is None:
+                    continue
+                metrics = _compute_metrics_from_bars(df, row[3])
+                bounce = metrics['bounce_pct_from_lod']
+                if bounce is not None:
+                    session.execute(text("""
+                        UPDATE trades SET bounce_pct_from_lod = :p0
+                        WHERE id = :p1
+                    """), {"p0": bounce, "p1": row[0]})
+                    tr_updated += 1
+            print(f"    Updated: signal_outcomes={so_updated} trades={tr_updated}")
+            total_so += so_updated
+            total_tr += tr_updated
     print(f"\n  Total updated: signal_outcomes={total_so} trades={total_tr}")
     print(f"  Done.")
 

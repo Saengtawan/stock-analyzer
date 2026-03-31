@@ -44,17 +44,17 @@ ET = ZoneInfo('America/New_York')
 BATCH_SIZE = 50
 
 
-def get_candidate_symbols(conn: object, target_date: str) -> list[str]:
+def get_candidate_symbols(session: object, target_date: str) -> list[str]:
     """Get all unique symbols evaluated by screeners on target_date."""
-    sr = conn.execute("""
+    sr = session.execute(text("""
         SELECT DISTINCT symbol FROM screener_rejections
-        WHERE scan_date = ? AND symbol IS NOT NULL
-    """, (target_date,)).fetchall()
+        WHERE scan_date = :p0 AND symbol IS NOT NULL
+    """), {"p0": target_date}).fetchall()
 
-    so = conn.execute("""
+    so = session.execute(text("""
         SELECT DISTINCT symbol FROM signal_outcomes
-        WHERE scan_date = ? AND symbol IS NOT NULL
-    """, (target_date,)).fetchall()
+        WHERE scan_date = :p0 AND symbol IS NOT NULL
+    """), {"p0": target_date}).fetchall()
 
     symbols = list(set([r[0] for r in sr] + [r[0] for r in so]))
     return symbols
@@ -151,67 +151,68 @@ def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] collect_candidate_bars "
           f"date={target_date} days={args.days}")
 
-    # conn via get_session()
+    with get_session() as session:
+        base_dt = datetime.strptime(target_date, '%Y-%m-%d')
+        dates_to_collect = [
+            (base_dt - timedelta(days=i)).strftime('%Y-%m-%d')
+            for i in range(args.days)
+            if (base_dt - timedelta(days=i)).weekday() < 5  # weekdays only
+        ]
 
-    base_dt = datetime.strptime(target_date, '%Y-%m-%d')
-    dates_to_collect = [
-        (base_dt - timedelta(days=i)).strftime('%Y-%m-%d')
-        for i in range(args.days)
-        if (base_dt - timedelta(days=i)).weekday() < 5  # weekdays only
-    ]
+        total_rows = 0
 
-    total_rows = 0
+        for fill_date in dates_to_collect:
+            print(f"\n  --- {fill_date} ---")
 
-    for fill_date in dates_to_collect:
-        print(f"\n  --- {fill_date} ---")
+            # Check how many symbols already have bars for this date
+            existing_syms = set(r[0] for r in session.execute(
+                text("SELECT DISTINCT symbol FROM signal_candidate_bars WHERE date = :p0"),
+                {"p0": fill_date}
+            ).fetchall())
 
-        # Check how many symbols already have bars for this date
-        existing_syms = set(r[0] for r in conn.execute(
-            "SELECT DISTINCT symbol FROM signal_candidate_bars WHERE date = ?",
-            (fill_date,)
-        ).fetchall())
+            symbols = get_candidate_symbols(session, fill_date)
+            new_symbols = [s for s in symbols if s not in existing_syms]
 
-        symbols = get_candidate_symbols(conn, fill_date)
-        new_symbols = [s for s in symbols if s not in existing_syms]
+            print(f"    Candidates: {len(symbols)} total, {len(new_symbols)} new (not yet in DB)")
 
-        print(f"    Candidates: {len(symbols)} total, {len(new_symbols)} new (not yet in DB)")
+            if not new_symbols:
+                print(f"    All symbols already have bars — skipping")
+                continue
 
-        if not new_symbols:
-            print(f"    All symbols already have bars — skipping")
-            continue
+            # Process in batches
+            date_rows = 0
+            fetched_syms = 0
+            for i in range(0, len(new_symbols), BATCH_SIZE):
+                batch = new_symbols[i:i+BATCH_SIZE]
+                bars_map = download_1m_bars_batch(batch, fill_date)
 
-        # Process in batches
-        date_rows = 0
-        fetched_syms = 0
-        for i in range(0, len(new_symbols), BATCH_SIZE):
-            batch = new_symbols[i:i+BATCH_SIZE]
-            bars_map = download_1m_bars_batch(batch, fill_date)
+                batch_db_rows = []
+                for sym, df in bars_map.items():
+                    rows = bars_to_rows(sym, fill_date, df)
+                    batch_db_rows.extend(rows)
+                    if rows:
+                        fetched_syms += 1
 
-            batch_db_rows = []
-            for sym, df in bars_map.items():
-                rows = bars_to_rows(sym, fill_date, df)
-                batch_db_rows.extend(rows)
-                if rows:
-                    fetched_syms += 1
+                if batch_db_rows:
+                    for row in batch_db_rows:
+                        session.execute(text("""
+                            INSERT OR IGNORE INTO signal_candidate_bars
+                                (date, symbol, time_et, open, high, low, close, volume)
+                            VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6,:p7)
+                        """), {"p0": row[0], "p1": row[1], "p2": row[2], "p3": row[3],
+                               "p4": row[4], "p5": row[5], "p6": row[6], "p7": row[7]})
+                    date_rows += len(batch_db_rows)
 
-            if batch_db_rows:
-                conn.executemany("""
-                    INSERT OR IGNORE INTO signal_candidate_bars
-                        (date, symbol, time_et, open, high, low, close, volume)
-                    VALUES (?,?,?,?,?,?,?,?)
-                """, batch_db_rows)
-                date_rows += len(batch_db_rows)
+                batch_num = i // BATCH_SIZE + 1
+                total_batches = (len(new_symbols) + BATCH_SIZE - 1) // BATCH_SIZE
+                print(f"    [{batch_num}/{total_batches}] fetched {fetched_syms} symbols so far, {date_rows} bars")
 
-            batch_num = i // BATCH_SIZE + 1
-            total_batches = (len(new_symbols) + BATCH_SIZE - 1) // BATCH_SIZE
-            print(f"    [{batch_num}/{total_batches}] fetched {fetched_syms} symbols so far, {date_rows} bars")
+                # Small delay to avoid rate limiting
+                if i + BATCH_SIZE < len(new_symbols):
+                    time.sleep(0.5)
 
-            # Small delay to avoid rate limiting
-            if i + BATCH_SIZE < len(new_symbols):
-                time.sleep(0.5)
-
-        total_rows += date_rows
-        print(f"    Saved {date_rows} bars for {fetched_syms}/{len(new_symbols)} symbols")
+            total_rows += date_rows
+            print(f"    Saved {date_rows} bars for {fetched_syms}/{len(new_symbols)} symbols")
     print(f"\n  Total bars saved: {total_rows}")
     print(f"  Done.")
 
