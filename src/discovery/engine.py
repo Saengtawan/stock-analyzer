@@ -52,6 +52,7 @@ from discovery.sector_scorer import SectorScorer
 from discovery.adaptive_stock_selector import AdaptiveStockSelector
 from discovery.signal_tracker import SignalTracker
 from discovery.gap_scanner import GapScanner
+from discovery.trailing_tp_tracker import TrailingTPTracker
 
 logger = logging.getLogger(__name__)
 
@@ -172,8 +173,75 @@ class DiscoveryEngine:
             from discovery.scorer import DiscoveryScorer
             self._legacy_scorer = DiscoveryScorer()
 
+        # v20: Trailing TP tracker
+        self._trailing_tp = TrailingTPTracker()
+
+        # v20: Quality filters — consecutive loss pause + dynamic blacklist
+        self._blacklist: set = set()
+        self._blacklist_loaded_at: float = 0
+        self._refresh_blacklist()
+
         self._ensure_table()
         self._load_picks_from_db()
+
+    # === v20: Quality filters ===
+
+    def _should_pause_discovery(self) -> bool:
+        """Check if Discovery should pause due to consecutive losses.
+        If last 2 complete days both had WR < 45% (with N>=5 picks), pause today.
+        """
+        try:
+            with get_session() as session:
+                rows = session.execute(text("""
+                    SELECT scan_date,
+                           AVG(CASE WHEN actual_return_d3 > 0 THEN 1.0 ELSE 0.0 END) * 100 as wr,
+                           COUNT(*) as n
+                    FROM discovery_outcomes
+                    WHERE actual_return_d3 IS NOT NULL
+                      AND scan_date >= date('now', '-7 days')
+                    GROUP BY scan_date
+                    ORDER BY scan_date DESC
+                    LIMIT 3
+                """)).fetchall()
+
+            if len(rows) < 2:
+                return False
+
+            # Check if last 2 days both WR < 45% with sufficient sample
+            consecutive_bad = all(r[1] < 45 and r[2] >= 5 for r in rows[:2])
+            if consecutive_bad:
+                logger.warning("Discovery: PAUSED — 2 consecutive days WR < 45%% (%s)",
+                               [(r[0], f"{r[1]:.0f}%", f"n={r[2]}") for r in rows[:2]])
+            return consecutive_bad
+        except Exception as e:
+            logger.error("Discovery: pause check error: %s", e)
+            return False
+
+    def _refresh_blacklist(self):
+        """Refresh dynamic blacklist: symbols with WR < 40% and N >= 10 outcomes."""
+        try:
+            with get_session() as session:
+                rows = session.execute(text("""
+                    SELECT symbol FROM discovery_outcomes
+                    WHERE actual_return_d3 IS NOT NULL
+                    GROUP BY symbol
+                    HAVING COUNT(*) >= 10
+                    AND AVG(CASE WHEN actual_return_d3 > 0 THEN 1.0 ELSE 0.0 END) < 0.40
+                """)).fetchall()
+            self._blacklist = {r[0] for r in rows}
+            self._blacklist_loaded_at = time.monotonic()
+            if self._blacklist:
+                logger.info("Discovery: blacklist refreshed — %d symbols: %s",
+                            len(self._blacklist), sorted(self._blacklist))
+        except Exception as e:
+            logger.error("Discovery: blacklist refresh error: %s", e)
+            self._blacklist = set()
+
+    def _get_blacklist(self) -> set:
+        """Get dynamic blacklist, refresh monthly (every 30 days)."""
+        if time.monotonic() - self._blacklist_loaded_at > 30 * 86400:
+            self._refresh_blacklist()
+        return self._blacklist
 
     # === Compatibility properties (webapp accesses these directly) ===
 
@@ -262,6 +330,14 @@ class DiscoveryEngine:
 
     def get_last_intraday_scan(self) -> Optional[str]:
         return self._last_intraday_scan
+
+    def get_trailing_tp_alerts(self) -> list[dict]:
+        """Return current trailing TP alerts for API."""
+        return self._trailing_tp.get_alerts()
+
+    def get_trailing_tp_state(self) -> dict:
+        """Return trailing state for all tracked symbols."""
+        return self._trailing_tp.get_trailing_state()
 
     def get_stats(self) -> dict:
         """Historical performance statistics from picks with filled outcomes."""
@@ -420,6 +496,13 @@ class DiscoveryEngine:
         logger.info(f"Discovery scan starting for {scan_date}")
         self._scan_progress = {'status': 'loading', 'pct': 0,
                                'stage': 'Loading universe...', 'l1': 0, 'l2': 0}
+
+        # v20: Consecutive loss pause — skip scan if last 2 days WR < 45%
+        if self._should_pause_discovery():
+            logger.info("Discovery: scan PAUSED due to consecutive losses — returning empty")
+            self._scan_progress = {'status': 'done', 'pct': 100,
+                                   'stage': 'PAUSED: consecutive loss days', 'l1': 0, 'l2': 0}
+            return []
 
         # 1. Auto-refit orchestrator (every 30 days)
         try:
@@ -630,6 +713,25 @@ class DiscoveryEngine:
             c['_day_of_week'] = dow
             c['_is_monday'] = 1 if dow == 0 else 0
             c['_is_friday'] = 1 if dow == 4 else 0
+
+        # 1d. v20: Earnings proximity skip — skip stocks with earnings within 3 days
+        pre_earnings_count = len(scored)
+        scored = [(s, c) for s, c in scored
+                  if not (c.get('days_to_earnings') is not None
+                          and abs(c.get('days_to_earnings', 999)) <= 3)]
+        if len(scored) < pre_earnings_count:
+            logger.info("Discovery v20: earnings proximity skip removed %d candidates (within 3 days)",
+                        pre_earnings_count - len(scored))
+
+        # 1e. v20: Dynamic blacklist — skip symbols with WR < 40% (N>=10)
+        blacklist = self._get_blacklist()
+        if blacklist:
+            pre_bl_count = len(scored)
+            bl_removed = [c.get('symbol') for _, c in scored if c.get('symbol', '') in blacklist]
+            scored = [(s, c) for s, c in scored if c.get('symbol', '') not in blacklist]
+            if bl_removed:
+                logger.info("Discovery v20: blacklist removed %d candidates: %s",
+                            len(bl_removed), bl_removed[:5])
 
         # 2. v17: Re-rank by ML probability or context Sharpe
         if self._stock_selector._fitted and self._v17_enabled:
@@ -1630,6 +1732,7 @@ class DiscoveryEngine:
                 ('entry_price', 'REAL'), ('entry_status', "TEXT DEFAULT 'pending'"),
                 ('entry_filled_at', 'TEXT'),
                 ('ensemble_json', 'TEXT'), ('council_json', 'TEXT'),
+                ('peak_price', 'REAL'),
             ]
             for col_name, col_type in new_cols:
                 try:
@@ -1681,6 +1784,7 @@ class DiscoveryEngine:
                 limit_entry_price=r['limit_entry_price'], limit_pct=r['limit_pct'],
                 entry_price=r['entry_price'], entry_status=r['entry_status'] or 'pending',
                 entry_filled_at=r['entry_filled_at'], status=r['status'] or 'active',
+                peak_price=r['peak_price'] if 'peak_price' in r.keys() else None,
             ))
             for attr, col in [('tp_timeline', 'tp_timeline_json'), ('weekend_play', 'weekend_play_json'),
                               ('ensemble', 'ensemble_json'), ('council', 'council_json')]:
@@ -1847,6 +1951,20 @@ class DiscoveryEngine:
                         continue
         except Exception as e:
             logger.error(f"Discovery price refresh error: {e}")
+
+        # v20: Trailing TP — update peak prices and check trailing stops
+        try:
+            active_picks = [p for p in self._picks if p.status == 'active']
+            current_prices = {p.symbol: p.current_price for p in active_picks
+                              if p.current_price and p.current_price > 0}
+            if active_picks and current_prices:
+                alerts = self._trailing_tp.update(active_picks, current_prices)
+                if alerts:
+                    logger.info("Discovery trailing TP: %d alerts — %s",
+                                len(alerts),
+                                ', '.join(f"{a.symbol} ({a.action})" for a in alerts))
+        except Exception as e:
+            logger.error("Discovery trailing TP error: %s", e)
 
     # === Pre-market validation ===
 

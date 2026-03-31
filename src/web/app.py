@@ -2913,6 +2913,9 @@ def api_discovery_picks():
             'strategy': engine._current_strategy or {},
             # v9.0: Market-level signals
             'market_signals': engine._market_signal_picks or [],
+            # v20: Trailing TP alerts
+            'trailing_tp_alerts': engine.get_trailing_tp_alerts(),
+            'trailing_tp_state': engine.get_trailing_tp_state(),
         })
     except Exception as e:
         logger.error(f"Discovery API error: {e}")
