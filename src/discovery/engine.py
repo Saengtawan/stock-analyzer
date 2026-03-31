@@ -764,6 +764,70 @@ class DiscoveryEngine:
                 logger.info("Discovery v20: blacklist removed %d candidates: %s",
                             len(bl_removed), bl_removed[:5])
 
+        # 1f. v22: Strategy Router — match strategy to regime
+        # Validated on 75K outcomes (unbiased per-strategy analysis):
+        #   BULL (VIX<20): PF=1.00 all strategies → heavy throttle
+        #   STRESS (VIX 20-25): MOMENTUM best (WR 56%, PF 1.35)
+        #   CRISIS (VIX 25+): DIP/OVERSOLD best (WR 59%, PF 1.23)
+        #   VALUE: best when SPY down + PE<10 + mcap>50B (WR 66%)
+        #   VOL_U: WR 28% → remove entirely
+        spy_ret_5d = macro.get('spy_5d_ret', 0) or 0
+        spy_down = spy_ret_5d < -1
+
+        pre_router_count = len(scored)
+        routed_scored = []
+        for s, c in scored:
+            strategy = c.get('_matched_strategy', '')
+            mom5d = c.get('momentum_5d', 0) or 0
+            dist20h = c.get('distance_from_20d_high', c.get('d20h', -10)) or -10
+            pe = c.get('pe_forward', 20) or 20
+            mcap = c.get('market_cap', 0) or 0
+            atr = c.get('atr_pct', 3) or 3
+
+            # Classify pick type by characteristics (when strategy tag not available)
+            is_momentum = mom5d > 3 and dist20h > -3
+            is_dip = mom5d < -3 and dist20h < -10
+            is_value = 0 < pe < 15 and dist20h < -15
+            is_oversold = mom5d < -8 and dist20h < -20
+
+            keep = True
+            boost = 0
+
+            # VOL_U removal (WR 28%, no fix)
+            if strategy == 'VOL_U':
+                keep = False
+
+            # BULL regime: only keep momentum with low ATR, or value with cheap PE
+            elif regime == 'BULL':
+                if is_momentum and atr < 3:
+                    boost = 0.1  # momentum OK in BULL if low vol
+                elif is_value and pe < 10 and mcap > 50e9:
+                    boost = 0.2  # value quality OK
+                elif is_dip or is_oversold:
+                    keep = s > 0.8  # dip in BULL needs high score to pass
+
+            # STRESS regime: prefer momentum (stocks holding up = leaders)
+            elif regime == 'STRESS':
+                if is_momentum:
+                    boost = 0.2  # STRESS + momentum = WR 56%
+                elif is_value and spy_down:
+                    boost = 0.3  # VALUE + SPY down = WR 66%
+
+            # CRISIS regime: prefer dip/oversold (extreme bounce)
+            elif regime == 'CRISIS':
+                if is_dip or is_oversold:
+                    boost = 0.2  # CRISIS + dip = WR 59%
+                elif is_momentum:
+                    boost = -0.1  # momentum in crisis = risky
+
+            if keep:
+                routed_scored.append((s + boost, c))
+
+        scored = routed_scored
+        if len(scored) < pre_router_count:
+            logger.info("Discovery v22: strategy router — %d → %d candidates (regime=%s, spy_5d=%+.1f%%)",
+                        pre_router_count, len(scored), regime, spy_ret_5d)
+
         # 2. v17: Re-rank by ML probability or context Sharpe
         if self._stock_selector._fitted and self._v17_enabled:
             scored = self._rank_by_ml_probability(scored, candidates, macro, scan_info, regime)
