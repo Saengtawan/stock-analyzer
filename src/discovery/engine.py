@@ -146,6 +146,15 @@ class DiscoveryEngine:
             except Exception as e:
                 logger.error("Discovery: gap scanner fit error: %s", e)
 
+        # v19: Discovery Ranker — ML ranking of picks by predicted d3 return
+        from discovery.discovery_ranker import DiscoveryRanker
+        self._discovery_ranker = DiscoveryRanker()
+        if not self._discovery_ranker.load_from_db():
+            try:
+                self._discovery_ranker.fit()
+            except Exception as e:
+                logger.error("Discovery: ranker fit error: %s", e)
+
         self._orchestrator = AutoRefitOrchestrator(
             self._scorer.regime_brain, self._scorer.stock_brain,
             self._param_optimizer, self._perf_tracker, self._params,
@@ -598,11 +607,25 @@ class DiscoveryEngine:
             scored = [(s, c) for s, c in scored if s > 0.5]
             logger.info("Discovery: VIX<20 soft throttle — %d candidates after raising threshold", len(scored))
 
-        # 1c. Day-of-week enrichment for ML selector
+        # 1b2. VIX term structure gate — deep panic filter
+        # VIX/VIX3M >= 1.1 = deep panic, WR 45.4% historically — raise threshold
+        vix3m = macro.get('vix3m_close', 20) or 20
+        if vix3m > 0 and vix_val / vix3m >= 1.1:
+            logger.info("Discovery: VIX term inverted (%.2f) — reducing picks", vix_val / vix3m)
+            scored = [(s, c) for s, c in scored if s > 1.0]
+
+        # 1b3. Worst day+regime combo exclusion
+        # Mon/Fri + VIX<20 + BULL = WR 48.6% (no edge) — raise threshold
         from datetime import datetime
         from zoneinfo import ZoneInfo
         et_now = datetime.now(ZoneInfo('America/New_York'))
         dow = et_now.weekday()  # 0=Mon, 4=Fri
+        is_mon_fri = dow in (0, 4)
+        if is_mon_fri and vix_val < 20 and regime == 'BULL':
+            scored = [(s, c) for s, c in scored if s > 0.8]
+            logger.info("Discovery: Mon/Fri+VIX<20+BULL throttle — %d candidates", len(scored))
+
+        # 1c. Day-of-week enrichment for ML selector
         for _, c in scored:
             c['_day_of_week'] = dow
             c['_is_monday'] = 1 if dow == 0 else 0
@@ -670,6 +693,15 @@ class DiscoveryEngine:
             if pick:
                 picks.append(pick)
                 strat_counts[strat_name] = strat_counts.get(strat_name, 0) + 1
+
+        # 7. v19: Discovery Ranker — soft re-rank by predicted d3 return
+        if self._discovery_ranker and self._discovery_ranker._fitted and picks:
+            try:
+                self._discovery_ranker.rank(picks, macro)
+                picks.sort(key=lambda p: getattr(p, '_rank_score', 0), reverse=True)
+                logger.info("Discovery: ranker re-sorted %d picks", len(picks))
+            except Exception as e:
+                logger.warning("Discovery: ranker error: %s", e)
 
         logger.info(
             "Discovery v17: %d picks [%s/%s] (macro E[R]=%+.2f%%, from %d candidates)",
