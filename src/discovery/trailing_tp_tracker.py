@@ -3,8 +3,8 @@ Trailing Take-Profit Tracker for Discovery picks.
 
 Monitors active picks and generates alerts when trailing TP triggers:
 1. Track peak price since scan_date for each active pick
-2. If peak >= scan_price * 1.02 (hit +2%), activate trailing stop
-3. Trailing stop = peak * 0.995 (0.5% below peak)
+2. If peak >= scan_price * 1.008 (hit +0.8%), activate trailing stop
+3. Trailing stop = peak * 0.997 (0.3% below peak)
 4. If current price drops below trailing stop -> alert TAKE_PROFIT
 
 Integrated into DiscoveryEngine.refresh_prices() cycle (every 5 min).
@@ -21,8 +21,8 @@ from sqlalchemy import text
 logger = logging.getLogger(__name__)
 
 # Trailing TP configuration
-TRAILING_ACTIVATION_PCT = 1.02   # Activate trailing after +2% from entry
-TRAILING_STOP_PCT = 0.995        # Trail 0.5% below peak
+TRAILING_ACTIVATION_PCT = 1.008  # Activate trailing after +0.8% from entry
+TRAILING_STOP_PCT = 0.997        # Trail 0.3% below peak
 
 
 @dataclass

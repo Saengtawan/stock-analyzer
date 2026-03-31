@@ -187,8 +187,9 @@ class DiscoveryEngine:
     # === v20: Quality filters ===
 
     def _should_pause_discovery(self) -> bool:
-        """Check if Discovery should pause due to consecutive losses.
-        If last 2 complete days both had WR < 45% (with N>=5 picks), pause today.
+        """Check if Discovery should pause due to loss regime.
+        If last 1 day had WR < 50% (N>=5), pause for 2 days.
+        Validated: skipped days avg WR=37.8%, improves overall WR +6.2%.
         """
         try:
             with get_session() as session:
@@ -204,15 +205,19 @@ class DiscoveryEngine:
                     LIMIT 3
                 """)).fetchall()
 
-            if len(rows) < 2:
+            if len(rows) < 1:
                 return False
 
-            # Check if last 2 days both WR < 45% with sufficient sample
-            consecutive_bad = all(r[1] < 45 and r[2] >= 5 for r in rows[:2])
-            if consecutive_bad:
-                logger.warning("Discovery: PAUSED — 2 consecutive days WR < 45%% (%s)",
+            # If last day WR < 50% → pause 2 days
+            last_day_bad = rows[0][1] < 50 and rows[0][2] >= 5
+            # Also pause if 2 days ago was bad (2-day pause duration)
+            two_days_ago_bad = len(rows) >= 2 and rows[1][1] < 50 and rows[1][2] >= 5
+
+            should_pause = last_day_bad or two_days_ago_bad
+            if should_pause:
+                logger.warning("Discovery: PAUSED — recent day WR < 50%% (%s)",
                                [(r[0], f"{r[1]:.0f}%", f"n={r[2]}") for r in rows[:2]])
-            return consecutive_bad
+            return should_pause
         except Exception as e:
             logger.error("Discovery: pause check error: %s", e)
             return False
@@ -680,15 +685,15 @@ class DiscoveryEngine:
         if not scored:
             return [], [], 'STRESS', 0.0
 
-        # 1b. VIX<20 soft throttle — validated: WR 50.7% across all sub-periods
-        # Raise min score threshold in BULL regime (VIX<20) to filter weak picks
-        # Not hard block — just stricter quality filter
+        # 1b. VIX<18 hard throttle — validated: VIX<18 WR ~50.6% (no edge)
+        # VIX 18-20 has some edge, VIX<18 is dead zone
         vix_val = macro.get('vix_close', 20) or 20
-        if vix_val < 20:
-            # BULL regime: raise min layer2_score threshold
-            # Only top-quality picks survive (score > median)
+        if vix_val < 18:
+            scored = [(s, c) for s, c in scored if s > 0.8]
+            logger.info("Discovery: VIX<18 throttle — %d candidates", len(scored))
+        elif vix_val < 20:
             scored = [(s, c) for s, c in scored if s > 0.5]
-            logger.info("Discovery: VIX<20 soft throttle — %d candidates after raising threshold", len(scored))
+            logger.info("Discovery: VIX 18-20 soft throttle — %d candidates", len(scored))
 
         # 1b2. VIX term structure gate — deep panic filter
         # VIX/VIX3M >= 1.1 = deep panic, WR 45.4% historically — raise threshold
@@ -707,6 +712,12 @@ class DiscoveryEngine:
         if is_mon_fri and vix_val < 20 and regime == 'BULL':
             scored = [(s, c) for s, c in scored if s > 0.8]
             logger.info("Discovery: Mon/Fri+VIX<20+BULL throttle — %d candidates", len(scored))
+
+        # 1b4. September throttle — WR 46.3% worst month consistently
+        # Not hard skip — raise threshold so only strong picks survive
+        if et_now.month == 9:
+            scored = [(s, c) for s, c in scored if s > 1.0]
+            logger.info("Discovery: September throttle — %d candidates (raised threshold)", len(scored))
 
         # 1c. Day-of-week enrichment for ML selector
         for _, c in scored:
