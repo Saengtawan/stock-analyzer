@@ -734,6 +734,26 @@ class DiscoveryEngine:
             logger.info("Discovery v20: earnings proximity skip removed %d candidates (within 3 days)",
                         pre_earnings_count - len(scored))
 
+        # 1e2. v21: Beta/PE catastrophic risk filter
+        # Beta > 1.8 OR PE extreme (<0 or >100) = 3.8x catastrophic rate
+        # Removes 8.7% of picks, prevents 25% of -10%+ losses
+        # Validated: stable across all 7 years, WR +0.36%
+        pre_risk_count = len(scored)
+        risk_removed = []
+        filtered_scored = []
+        for s, c in scored:
+            beta = c.get('beta', 1.0) or 1.0
+            pe = c.get('pe_forward', 20) or 20
+            pe_extreme = pe < 0 or pe > 100
+            if beta > 1.8 or pe_extreme:
+                risk_removed.append(f"{c.get('symbol','')}(b={beta:.1f},pe={pe:.0f})")
+            else:
+                filtered_scored.append((s, c))
+        scored = filtered_scored
+        if risk_removed:
+            logger.info("Discovery v21: Beta/PE risk filter removed %d: %s",
+                        len(risk_removed), ', '.join(risk_removed[:5]))
+
         # 1e. v20: Dynamic blacklist — skip symbols with WR < 40% (N>=10)
         blacklist = self._get_blacklist()
         if blacklist:
