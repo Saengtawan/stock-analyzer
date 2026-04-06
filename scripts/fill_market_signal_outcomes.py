@@ -3,7 +3,8 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
-import sqlite3
+from database.orm.base import get_session
+from sqlalchemy import text
 import logging
 import numpy as np
 from datetime import datetime
@@ -13,11 +14,9 @@ from collections import defaultdict
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s')
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path(__file__).resolve().parent.parent / 'data' / 'trade_history.db'
 
-
-def ensure_table(conn):
-    conn.execute("""
+def ensure_table(session):
+    session.execute(text("""
         CREATE TABLE IF NOT EXISTS market_signal_outcomes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             signal_date TEXT NOT NULL,
@@ -32,18 +31,18 @@ def ensure_table(conn):
             created_at TEXT DEFAULT (datetime('now')),
             UNIQUE(signal_date, signal_type, symbol)
         )
-    """)
-    conn.commit()
+    """))
+    session.commit()
 
 
-def backfill_sector_contrarian(conn):
+def backfill_sector_contrarian(session):
     """Backfill sector contrarian signals from historical data."""
-    rows = conn.execute("""
+    rows = session.execute(text("""
         SELECT s.date, s.sector, s.pct_change
         FROM sector_etf_daily_returns s
         WHERE s.sector NOT IN ('S&P 500','US Dollar','Treasury Long','Gold')
         ORDER BY s.date
-    """).fetchall()
+    """)).fetchall()
 
     daily = defaultdict(dict)
     for r in rows:
@@ -76,30 +75,30 @@ def backfill_sector_contrarian(conn):
         fwd = sum(daily[dates[j]].get(worst, 0) or 0 for j in range(i + 1, min(i + 6, len(dates))))
 
         try:
-            conn.execute("""
+            session.execute(text("""
                 INSERT OR IGNORE INTO market_signal_outcomes
                 (signal_date, signal_type, symbol, outcome_5d, wr_expected, sizing)
-                VALUES (?, 'SECTOR_CONTRARIAN', ?, ?, 58, 0.5)
-            """, (dt, etf, round(fwd, 4)))
+                VALUES (:p0, 'SECTOR_CONTRARIAN', :p1, :p2, 58, 0.5)
+            """), {'p0': dt, 'p1': etf, 'p2': round(fwd, 4)})
             inserted += 1
         except Exception:
             pass
 
-    conn.commit()
+    session.commit()
     logger.info(f"Sector contrarian backfill: {inserted} signals")
 
 
-def backfill_crude_momentum(conn):
+def backfill_crude_momentum(session):
     """Backfill crude momentum signals."""
-    rows = conn.execute("""
+    rows = session.execute(text("""
         SELECT date, crude_close FROM macro_snapshots
         WHERE crude_close IS NOT NULL ORDER BY date
-    """).fetchall()
+    """)).fetchall()
 
-    sector_rows = conn.execute("""
+    sector_rows = session.execute(text("""
         SELECT date, pct_change FROM sector_etf_daily_returns
         WHERE sector = 'Energy' ORDER BY date
-    """).fetchall()
+    """)).fetchall()
     energy = {r[0]: r[1] for r in sector_rows}
     dates_e = sorted(energy.keys())
 
@@ -124,25 +123,25 @@ def backfill_crude_momentum(conn):
 
         wr = 69 if chg >= 5 else 67
         try:
-            conn.execute("""
+            session.execute(text("""
                 INSERT OR IGNORE INTO market_signal_outcomes
                 (signal_date, signal_type, symbol, outcome_5d, wr_expected, sizing, params_json)
-                VALUES (?, 'CRUDE_MOMENTUM', 'XLE', ?, ?, 0.5, ?)
-            """, (dt, round(fwd, 4), wr, f'{{"crude_chg": {chg:.1f}}}'))
+                VALUES (:p0, 'CRUDE_MOMENTUM', 'XLE', :p1, :p2, 0.5, :p3)
+            """), {'p0': dt, 'p1': round(fwd, 4), 'p2': wr, 'p3': f'{{"crude_chg": {chg:.1f}}}'})
             inserted += 1
         except Exception:
             pass
 
-    conn.commit()
+    session.commit()
     logger.info(f"Crude momentum backfill: {inserted} signals")
 
 
-def backfill_spy_drawdown(conn):
+def backfill_spy_drawdown(session):
     """Backfill SPY drawdown signals."""
-    rows = conn.execute("""
+    rows = session.execute(text("""
         SELECT date, spy_close FROM macro_snapshots
         WHERE spy_close IS NOT NULL ORDER BY date
-    """).fetchall()
+    """)).fetchall()
 
     dates = [r[0] for r in rows]
     spy = {r[0]: r[1] for r in rows}
@@ -161,43 +160,41 @@ def backfill_spy_drawdown(conn):
         wr = 69 if dd <= -10 else 64
 
         try:
-            conn.execute("""
+            session.execute(text("""
                 INSERT OR IGNORE INTO market_signal_outcomes
                 (signal_date, signal_type, symbol, outcome_5d, wr_expected, sizing, params_json)
-                VALUES (?, 'SPY_DRAWDOWN', 'SPY', ?, ?, 0.75, ?)
-            """, (dt, round(fwd, 4), wr, f'{{"drawdown": {dd:.1f}}}'))
+                VALUES (:p0, 'SPY_DRAWDOWN', 'SPY', :p1, :p2, 0.75, :p3)
+            """), {'p0': dt, 'p1': round(fwd, 4), 'p2': wr, 'p3': f'{{"drawdown": {dd:.1f}}}'})
             inserted += 1
         except Exception:
             pass
 
-    conn.commit()
+    session.commit()
     logger.info(f"SPY drawdown backfill: {inserted} signals")
 
 
 def main():
-    conn = None  # via get_session())
-    ensure_table(conn)
+    with get_session() as session:
+        ensure_table(session)
 
-    # Check if already backfilled
-    n = conn.execute('SELECT COUNT(*) FROM market_signal_outcomes').fetchone()[0]
-    if n < 100:
-        logger.info("Backfilling market signal outcomes...")
-        backfill_sector_contrarian(conn)
-        backfill_crude_momentum(conn)
-        backfill_spy_drawdown(conn)
-    else:
-        logger.info(f"Already have {n} outcomes, skipping backfill")
+        # Check if already backfilled
+        n = session.execute(text('SELECT COUNT(*) FROM market_signal_outcomes')).fetchone()[0]
+        if n < 100:
+            logger.info("Backfilling market signal outcomes...")
+            backfill_sector_contrarian(session)
+            backfill_crude_momentum(session)
+            backfill_spy_drawdown(session)
+        else:
+            logger.info(f"Already have {n} outcomes, skipping backfill")
 
-    # Summary
-    for sig_type in ['SECTOR_CONTRARIAN', 'CRUDE_MOMENTUM', 'SPY_DRAWDOWN']:
-        r = conn.execute("""
-            SELECT COUNT(*), ROUND(AVG(CASE WHEN outcome_5d > 0 THEN 1.0 ELSE 0.0 END)*100, 1),
-                   ROUND(AVG(outcome_5d), 3)
-            FROM market_signal_outcomes WHERE signal_type = ?
-        """, (sig_type,)).fetchone()
-        logger.info(f"  {sig_type}: n={r[0]} WR={r[1]}% E[R]={r[2]:+.3f}%")
-
-    conn.close()
+        # Summary
+        for sig_type in ['SECTOR_CONTRARIAN', 'CRUDE_MOMENTUM', 'SPY_DRAWDOWN']:
+            r = session.execute(text("""
+                SELECT COUNT(*), ROUND(AVG(CASE WHEN outcome_5d > 0 THEN 1.0 ELSE 0.0 END)*100, 1),
+                       ROUND(AVG(outcome_5d), 3)
+                FROM market_signal_outcomes WHERE signal_type = :p0
+            """), {'p0': sig_type}).fetchone()
+            logger.info(f"  {sig_type}: n={r[0]} WR={r[1]}% E[R]={r[2]:+.3f}%")
 
 
 if __name__ == '__main__':

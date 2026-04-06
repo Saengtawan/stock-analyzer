@@ -79,6 +79,9 @@ class DiscoveryPick:
     entry_status: str = 'pending'                # pending / filled / missed
     entry_filled_at: Optional[str] = None        # timestamp when filled
 
+    # Trailing TP (v20)
+    peak_price: Optional[float] = None
+
     # Status
     status: str = 'active'  # active / expired / hit_tp1 / hit_sl
 
@@ -182,6 +185,8 @@ class DiscoveryPick:
             'entry_price': _r(self.entry_price),
             'entry_status': self.entry_status,
             'entry_filled_at': self.entry_filled_at,
+            # v20: Trailing TP
+            'peak_price': _r(self.peak_price),
             # v5.2: TP timeline + weekend play
             'tp_timeline': getattr(self, 'tp_timeline', None),
             'weekend_play': getattr(self, 'weekend_play', None),

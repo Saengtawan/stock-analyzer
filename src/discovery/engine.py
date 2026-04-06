@@ -53,6 +53,7 @@ from discovery.adaptive_stock_selector import AdaptiveStockSelector
 from discovery.signal_tracker import SignalTracker
 from discovery.gap_scanner import GapScanner
 from discovery.trailing_tp_tracker import TrailingTPTracker
+from discovery.macro_day_gate import MacroDayGate
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +157,15 @@ class DiscoveryEngine:
             except Exception as e:
                 logger.error("Discovery: ranker fit error: %s", e)
 
+        # v23: Macro Day Gate — ML day quality prediction (before orchestrator)
+        self._day_gate = MacroDayGate()
+        if not self._day_gate.load_from_db():
+            try:
+                self._day_gate.fit()
+                self._day_gate.save_to_db()
+            except Exception as e:
+                logger.error("Discovery: day gate fit error: %s", e)
+
         self._orchestrator = AutoRefitOrchestrator(
             self._scorer.regime_brain, self._scorer.stock_brain,
             self._param_optimizer, self._perf_tracker, self._params,
@@ -165,7 +175,8 @@ class DiscoveryEngine:
             strategy_selector=self._strategy_selector,
             sector_scorer=self._sector_scorer,
             stock_selector=self._stock_selector,
-            signal_tracker=self._signal_tracker)
+            signal_tracker=self._signal_tracker,
+            day_gate=self._day_gate)
 
         # v2 fallback scorer (only used when kernel disabled)
         self._legacy_scorer = None
@@ -685,33 +696,56 @@ class DiscoveryEngine:
         if not scored:
             return [], [], 'STRESS', 0.0
 
-        # 1b. VIX<18 hard throttle — validated: VIX<18 WR ~50.6% (no edge)
-        # VIX 18-20 has some edge, VIX<18 is dead zone
+        # 1b. Macro Day Gate — ML day quality prediction (16 features)
+        # Walk-forward AUC=0.60, Top 20% days WR=66.7%, Bot 20% WR=40.4%
+        # Controls pick QUANTITY by day quality (not stock selection)
         vix_val = macro.get('vix_close', 20) or 20
-        if vix_val < 18:
-            scored = [(s, c) for s, c in scored if s > 0.8]
-            logger.info("Discovery: VIX<18 throttle — %d candidates", len(scored))
-        elif vix_val < 20:
-            scored = [(s, c) for s, c in scored if s > 0.5]
-            logger.info("Discovery: VIX 18-20 soft throttle — %d candidates", len(scored))
-
-        # 1b2. VIX term structure gate — deep panic filter
-        # VIX/VIX3M >= 1.1 = deep panic, WR 45.4% historically — raise threshold
         vix3m = macro.get('vix3m_close', 20) or 20
-        if vix3m > 0 and vix_val / vix3m >= 1.1:
-            logger.info("Discovery: VIX term inverted (%.2f) — reducing picks", vix_val / vix3m)
-            scored = [(s, c) for s, c in scored if s > 1.0]
+        vix_term = (vix_val / vix3m) if vix3m and vix3m > 0 else 1.0
 
-        # 1b3. Worst day+regime combo exclusion
-        # Mon/Fri + VIX<20 + BULL = WR 48.6% (no edge) — raise threshold
-        from datetime import datetime
-        from zoneinfo import ZoneInfo
+        # Enrich macro with recent discovery WR for day gate
+        try:
+            with get_session() as session:
+                recent = session.execute(text("""
+                    SELECT AVG(CASE WHEN actual_return_d3 > 0 THEN 1.0 ELSE 0.0 END)
+                    FROM discovery_outcomes
+                    WHERE actual_return_d3 IS NOT NULL AND scan_date >= date('now', '-5 days')
+                """)).fetchone()
+            macro['recent_discovery_wr'] = recent[0] if recent and recent[0] else 0.5
+        except Exception:
+            macro['recent_discovery_wr'] = 0.5
+
+        if self._day_gate._fitted:
+            day_pred = self._day_gate.predict(macro)
+            day_quality = day_pred['day_quality']
+            day_prob = day_pred['day_prob']
+            pick_fraction = day_pred['pick_fraction']
+
+            logger.info("Discovery: Day Gate prob=%.3f quality=%s fraction=%.0f%%",
+                        day_prob, day_quality, pick_fraction * 100)
+
+            if day_quality == 'SKIP':
+                logger.warning("Discovery: Day Gate SKIP (prob=%.3f) — no picks today", day_prob)
+                return [], [], regime, 0.0
+
+            if pick_fraction < 1.0 and len(scored) > 2:
+                # Keep top fraction by score
+                keep_n = max(1, int(len(scored) * pick_fraction))
+                scored.sort(key=lambda x: x[0], reverse=True)
+                pre = len(scored)
+                scored = scored[:keep_n]
+                logger.info("Discovery: Day Gate LOW — %d→%d (top %.0f%%)",
+                            pre, len(scored), pick_fraction * 100)
+        else:
+            # Fallback: simple VIX_term deep panic check
+            if vix_term >= 1.15:
+                logger.warning("Discovery: DEEP PANIC VIX_term=%.2f — skipping", vix_term)
+                return [], [], regime, 0.0
+
+        # 1b3. Day-of-week — removed Mon/Fri throttle (bounce-biased analysis,
+        # Strategy Router already handles BULL regime per strategy type)
         et_now = datetime.now(ZoneInfo('America/New_York'))
         dow = et_now.weekday()  # 0=Mon, 4=Fri
-        is_mon_fri = dow in (0, 4)
-        if is_mon_fri and vix_val < 20 and regime == 'BULL':
-            scored = [(s, c) for s, c in scored if s > 0.8]
-            logger.info("Discovery: Mon/Fri+VIX<20+BULL throttle — %d candidates", len(scored))
 
         # 1b4. September throttle — WR 46.3% worst month consistently
         # Not hard skip — raise threshold so only strong picks survive
@@ -725,14 +759,9 @@ class DiscoveryEngine:
             c['_is_monday'] = 1 if dow == 0 else 0
             c['_is_friday'] = 1 if dow == 4 else 0
 
-        # 1d. v20: Earnings proximity skip — skip stocks with earnings within 3 days
-        pre_earnings_count = len(scored)
-        scored = [(s, c) for s, c in scored
-                  if not (c.get('days_to_earnings') is not None
-                          and abs(c.get('days_to_earnings', 999)) <= 3)]
-        if len(scored) < pre_earnings_count:
-            logger.info("Discovery v20: earnings proximity skip removed %d candidates (within 3 days)",
-                        pre_earnings_count - len(scored))
+        # 1d. Earnings proximity — removed skip (data: near-earnings avg +0.43% > far +0.16%)
+        # Was bounce-biased: assumed near-earnings = risky, but actual EV is positive
+        # Earnings proximity passed as feature to ML selector instead
 
         # 1e2. v21: Beta/PE catastrophic risk filter
         # Beta > 1.8 OR PE extreme (<0 or >100) = 3.8x catastrophic rate

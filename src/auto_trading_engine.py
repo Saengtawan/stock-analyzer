@@ -739,12 +739,20 @@ class AutoTradingEngine:
         self.MAX_POSITION_PCT = cfg.max_position_pct
         self.RISK_PARITY_ENABLED = cfg.risk_parity_enabled
         self.RISK_BUDGET_PCT = cfg.risk_budget_pct
-        self.SIMULATED_CAPITAL = cfg.simulated_capital
-        # v6.63: Per-strategy budget allocation
+        self.SIMULATED_CAPITAL = cfg.simulated_capital  # 0 = use Alpaca equity (dynamic)
+        # v7.9: Dynamic budget — % of equity (fallback to hardcoded $)
+        self._budget_pct_dip = getattr(cfg, 'budget_pct_dip', 50)
+        self._budget_pct_ovn = getattr(cfg, 'budget_pct_ovn', 30)
+        self._budget_pct_pem = getattr(cfg, 'budget_pct_pem', 10)
+        self._budget_pct_ped = getattr(cfg, 'budget_pct_ped', 10)
+        # Fallback hardcoded (used when equity unavailable)
         self.SIMULATED_CAPITAL_DIP = getattr(cfg, 'simulated_capital_dip', 2500)
         self.SIMULATED_CAPITAL_OVN = getattr(cfg, 'simulated_capital_ovn', 1500)
         self.SIMULATED_CAPITAL_PEM = getattr(cfg, 'simulated_capital_pem', 500)
         self.SIMULATED_CAPITAL_PED = getattr(cfg, 'simulated_capital_ped', 500)
+        # v7.9: Cache equity (refreshed every cycle)
+        self._cached_equity = 0.0
+        self._cached_equity_at = 0.0
         # v6.92: PED budget reallocation — freed when PED has no candidates or missed window
         self._ped_budget_freed: int = 0          # $0, $250, or $500
         self._ped_realloc_t1_done: Optional[date] = None
@@ -1040,7 +1048,7 @@ class AutoTradingEngine:
             from pathlib import Path
             # DB path handled by ORM
             with get_session() as conn:
-                conn.execute("""
+                conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS trade_events (
                         id       INTEGER PRIMARY KEY AUTOINCREMENT,
                         event_type TEXT NOT NULL,
@@ -1054,14 +1062,14 @@ class AutoTradingEngine:
                         created_at TEXT NOT NULL,
                         notified INTEGER DEFAULT 0
                     )
-                """)
-                conn.execute("""
+                """))
+                conn.execute(text("""
                     INSERT INTO trade_events
                         (event_type, symbol, price, qty, pnl_pct, pnl_usd, strategy, reason, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (event_type, symbol, float(price), int(qty),
-                      float(pnl_pct), float(pnl_usd), str(strategy), str(reason),
-                      datetime.now().isoformat()))
+                    VALUES (:p0, :p1, :p2, :p3, :p4, :p5, :p6, :p7, :p8)
+                """), {'p0': event_type, 'p1': symbol, 'p2': float(price), 'p3': int(qty),
+                      'p4': float(pnl_pct), 'p5': float(pnl_usd), 'p6': str(strategy), 'p7': str(reason),
+                      'p8': datetime.now().isoformat()})
                 conn.commit()
         except Exception as e:
             logger.debug(f"Trade event write failed (non-critical): {e}")
@@ -2502,11 +2510,10 @@ class AutoTradingEngine:
             from database.orm.base import get_session; from sqlalchemy import text
             from pathlib import Path as _Path
             # DB path handled by ORM
-            conn = get_session().__enter__()
-            rows = conn.execute(
-                "SELECT pct_above_20d_ma FROM market_breadth ORDER BY date DESC LIMIT 6"
-            ).fetchall()
-            conn.close()
+            with get_session() as conn:
+                rows = conn.execute(
+                    text("SELECT pct_above_20d_ma FROM market_breadth ORDER BY date DESC LIMIT 6")
+                ).fetchall()
             if not rows:
                 self._breadth_cache = (today, None, None)
                 return None, None
@@ -2591,16 +2598,17 @@ class AutoTradingEngine:
             return self._insider_cache[cache_key]
         try:
             from pathlib import Path as _Path
+            from database.orm.base import get_session; from sqlalchemy import text
             # DB path handled by ORM
             cutoff = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
             with get_session() as _conn:
-                row = _conn.execute("""
+                row = _conn.execute(text("""
                     SELECT SUM(total_value),
                            MIN(CAST(julianday('now') - julianday(transaction_date) AS INTEGER))
                     FROM insider_transactions
-                    WHERE symbol = ? AND transaction_date >= ?
+                    WHERE symbol = :p0 AND transaction_date >= :p1
                       AND transaction_type = 'purchase'
-                """, (symbol, cutoff)).fetchone()
+                """), {'p0': symbol, 'p1': cutoff}).fetchone()
             if row and row[0] is not None:
                 result = (round(float(row[0]), 0), int(row[1]) if row[1] is not None else None)
             else:
@@ -2699,15 +2707,15 @@ class AutoTradingEngine:
         """
         try:
             # DB path handled by ORM
-            conn = get_session().__enter__()
-            row = conn.execute("""
-                SELECT sentiment_label, impact_score
-                FROM news_events
-                WHERE symbol = ? AND scan_date_et = ?
-                ORDER BY impact_score DESC
-                LIMIT 1
-            """, (symbol, scan_date)).fetchone()
-            conn.close()
+            from database.orm.base import get_session; from sqlalchemy import text
+            with get_session() as conn:
+                row = conn.execute(text("""
+                    SELECT sentiment_label, impact_score
+                    FROM news_events
+                    WHERE symbol = :p0 AND scan_date_et = :p1
+                    ORDER BY impact_score DESC
+                    LIMIT 1
+                """), {'p0': symbol, 'p1': scan_date}).fetchone()
             if row:
                 return row[0], row[1]
         except Exception:
@@ -2920,23 +2928,63 @@ class AutoTradingEngine:
             logger.info(f"⛔ Weak sectors blocked: {sorted(blocked)}")
         return list(blocked)
 
+    def _get_equity(self) -> float:
+        """v7.9: Get current equity from Alpaca (cached 60s).
+        Used for dynamic budget calculation."""
+        import time as _t
+        if _t.time() - self._cached_equity_at < 60 and self._cached_equity > 0:
+            return self._cached_equity
+        try:
+            account = self.broker.get_account()
+            if isinstance(account, dict):
+                eq = float(account.get('equity', 0) or account.get('portfolio_value', 0))
+            else:
+                eq = float(getattr(account, 'equity', 0) or getattr(account, 'portfolio_value', 0))
+            if eq > 0:
+                self._cached_equity = eq
+                self._cached_equity_at = _t.time()
+                return eq
+        except Exception:
+            pass
+        return self._cached_equity if self._cached_equity > 0 else 5000.0  # last resort fallback
+
+    def _get_total_capital(self) -> float:
+        """v7.9: Get total capital — dynamic equity or simulated override."""
+        if self.SIMULATED_CAPITAL:
+            return float(self.SIMULATED_CAPITAL)
+        return self._get_equity()
+
+    def _get_strategy_budget(self, source: str) -> float:
+        """v7.9: Get budget for a strategy — dynamic % of equity."""
+        capital = self._get_total_capital()
+        pct_map = {
+            'dip': self._budget_pct_dip,
+            'overnight_gap': self._budget_pct_ovn,
+            'pem': self._budget_pct_pem,
+            'premarket_gap': self._budget_pct_pem,  # shares PEM pool
+            'ped': self._budget_pct_ped,
+        }
+        pct = pct_map.get(source, self._budget_pct_dip)
+        dynamic_budget = capital * pct / 100
+        # v6.92: PED reallocation
+        freed = self._ped_budget_freed
+        if source == 'ped':
+            dynamic_budget = max(0, dynamic_budget - freed)
+        elif source in ('overnight_gap',):
+            dynamic_budget += freed // 2
+        elif source in ('pem', 'premarket_gap'):
+            dynamic_budget += freed // 2
+        return dynamic_budget
+
     def _calculate_available_cash(self) -> float:
         """
         Calculate available cash for new positions.
-        v6.31: Added for overnight gap adaptive allocation.
+        v7.9: Uses dynamic equity instead of hardcoded simulated capital.
 
         Returns:
             Available cash in USD
         """
-        # Get account info
-        account = self.broker.get_account()
-        if isinstance(account, dict):
-            portfolio_value = float(account.get('portfolio_value', 0))
-        else:
-            portfolio_value = float(getattr(account, 'portfolio_value', 0))
-
-        # Use simulated capital if configured
-        total_capital = self.SIMULATED_CAPITAL if self.SIMULATED_CAPITAL else portfolio_value
+        total_capital = self._get_total_capital()
 
         # Calculate used capital from active positions
         used_capital = 0.0
@@ -3007,13 +3055,8 @@ class AutoTradingEngine:
         # v6.31: Check if this is an overnight gap signal
         sl_method = getattr(signal, 'sl_method', '')
         if 'overnight_gap' in sl_method:
-            # Use adaptive sizing for overnight gap — v6.63: use OVN budget
-            account = self.broker.get_account()
-            if isinstance(account, dict):
-                portfolio_value = float(account.get('portfolio_value', 0))
-            else:
-                portfolio_value = float(getattr(account, 'portfolio_value', 0))
-            total_capital = self.SIMULATED_CAPITAL_OVN if self.SIMULATED_CAPITAL else portfolio_value
+            # v7.9: Use dynamic OVN budget
+            total_capital = self._get_strategy_budget('overnight_gap')
 
             position_value = self._get_overnight_position_size(signal, total_capital)
             if position_value == 0:
@@ -3586,25 +3629,25 @@ class AutoTradingEngine:
         # Try database first
         if self._loss_repo:
             try:
+                from database.orm.base import get_session; from sqlalchemy import text
                 # Sync in-memory state to database
                 # Main tracking (single UPDATE)
-                conn = self._loss_repo._get_connection()
-                try:
-                    conn.execute("""
+                with get_session() as conn:
+                    conn.execute(text("""
                         UPDATE loss_tracking
-                        SET consecutive_losses = ?,
-                            weekly_realized_pnl = ?,
-                            cooldown_until = ?,
-                            weekly_reset_date = ?,
-                            saved_at = ?
+                        SET consecutive_losses = :p0,
+                            weekly_realized_pnl = :p1,
+                            cooldown_until = :p2,
+                            weekly_reset_date = :p3,
+                            saved_at = :p4
                         WHERE id = 1
-                    """, (
-                        self.consecutive_losses,
-                        self.weekly_realized_pnl,
-                        self.cooldown_until.isoformat() if self.cooldown_until else None,
-                        self.weekly_reset_date.isoformat() if self.weekly_reset_date else None,
-                        datetime.now().isoformat()
-                    ))
+                    """), {
+                        'p0': self.consecutive_losses,
+                        'p1': self.weekly_realized_pnl,
+                        'p2': self.cooldown_until.isoformat() if self.cooldown_until else None,
+                        'p3': self.weekly_reset_date.isoformat() if self.weekly_reset_date else None,
+                        'p4': datetime.now().isoformat()
+                    })
 
                     # Sector tracking (upsert all) — v7.3: key = "strategy:sector"
                     for key, data in self.sector_loss_tracker.items():
@@ -3612,23 +3655,21 @@ class AutoTradingEngine:
                             strategy_part, sector_part = key.split(':', 1)
                         else:
                             strategy_part, sector_part = 'dip_bounce', key  # legacy key compat
-                        conn.execute("""
+                        conn.execute(text("""
                             INSERT INTO sector_loss_tracking (strategy, sector, losses, cooldown_until)
-                            VALUES (?, LOWER(?), ?, ?)
+                            VALUES (:p0, LOWER(:p1), :p2, :p3)
                             ON CONFLICT(strategy, sector) DO UPDATE
                             SET losses = excluded.losses,
                                 cooldown_until = excluded.cooldown_until
-                        """, (
-                            strategy_part,
-                            sector_part,
-                            data['losses'],
-                            data['cooldown_until'].isoformat() if data.get('cooldown_until') else None
-                        ))
+                        """), {
+                            'p0': strategy_part,
+                            'p1': sector_part,
+                            'p2': data['losses'],
+                            'p3': data['cooldown_until'].isoformat() if data.get('cooldown_until') else None
+                        })
 
                     conn.commit()
                     return  # Success - no need for JSON
-                finally:
-                    conn.close()
 
             except Exception as e:
                 logger.warning(f"Loss counters DB save failed ({e}), falling back to JSON")
@@ -5191,21 +5232,19 @@ class AutoTradingEngine:
             real_buying_power = float(getattr(account, 'buying_power', 0))
             portfolio_value = getattr(account, 'portfolio_value', 0)
 
-        if self.SIMULATED_CAPITAL:
-            # v6.63: Per-strategy budget — each strategy draws only from its own slice.
-            # v6.85: GAP shares PEM budget (both are gap plays, rarely fire same day)
+        if True:  # v7.9: Always use per-strategy budget (dynamic or simulated)
+            # v7.9: Dynamic budget from equity % (falls back to hardcoded if SIMULATED_CAPITAL set)
             signal_source = self._derive_signal_source(signal)
             _DEDICATED = (SignalSource.OVERNIGHT_GAP, SignalSource.PEM, SignalSource.PED, SignalSource.PREMARKET_GAP)
-            _PEM_GAP_GROUP = (SignalSource.PEM, SignalSource.PREMARKET_GAP)  # shared $500 pool
-            # v6.92: Apply PED reallocation — freed $0/$250/$500 split to OVN + PEM/GAP
-            _freed = self._ped_budget_freed
-            _BUDGETS = {
-                SignalSource.OVERNIGHT_GAP: self.SIMULATED_CAPITAL_OVN + _freed // 2,
-                SignalSource.PEM: self.SIMULATED_CAPITAL_PEM + _freed // 2,
-                SignalSource.PED: max(0, self.SIMULATED_CAPITAL_PED - _freed),
-                SignalSource.PREMARKET_GAP: self.SIMULATED_CAPITAL_PEM + _freed // 2,  # share PEM pool
-            }
-            strategy_budget = _BUDGETS.get(signal_source, self.SIMULATED_CAPITAL_DIP)
+            _PEM_GAP_GROUP = (SignalSource.PEM, SignalSource.PREMARKET_GAP)  # shared pool
+            # v7.9: Get budget from dynamic equity % or hardcoded fallback
+            source_name = {
+                SignalSource.OVERNIGHT_GAP: 'overnight_gap',
+                SignalSource.PEM: 'pem',
+                SignalSource.PED: 'ped',
+                SignalSource.PREMARKET_GAP: 'premarket_gap',
+            }.get(signal_source, 'dip')
+            strategy_budget = self._get_strategy_budget(source_name)
             with self._positions_lock:
                 if signal_source in _DEDICATED:
                     # Dedicated slots: 1 position each — full budget per position

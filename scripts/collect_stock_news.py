@@ -58,7 +58,7 @@ def get_sentiment(text_str: str, analyzer) -> float | None:
 
 
 def get_target_symbols(session: object, target_date: str) -> list[str]:
-    """Get symbols to collect news for: today's candidates + recent buys."""
+    """Get symbols to collect news for: today's candidates + recent buys + top universe."""
     syms = set()
 
     # Today's signal_outcomes
@@ -68,10 +68,11 @@ def get_target_symbols(session: object, target_date: str) -> list[str]:
     """), {"p0": target_date}).fetchall()
     syms.update(r[0] for r in rows)
 
-    # Today's screener_rejections
+    # Today's screener_rejections — top 30 only (full universe = 1000+ too many)
     rows = session.execute(sa_text("""
         SELECT DISTINCT symbol FROM screener_rejections
         WHERE scan_date = :p0 AND symbol IS NOT NULL
+        ORDER BY symbol LIMIT 30
     """), {"p0": target_date}).fetchall()
     syms.update(r[0] for r in rows)
 
@@ -82,6 +83,27 @@ def get_target_symbols(session: object, target_date: str) -> list[str]:
         WHERE scan_date >= :p0 AND action_taken = 'BOUGHT'
         AND symbol IS NOT NULL
     """), {"p0": cutoff}).fetchall()
+    syms.update(r[0] for r in rows)
+
+    # v7.9: Always include top universe stocks (by dollar volume)
+    # So we always have fresh news even when no trades
+    rows = session.execute(sa_text("""
+        SELECT symbol FROM universe_stocks
+        ORDER BY dollar_vol DESC LIMIT 50
+    """)).fetchall()
+    syms.update(r[0] for r in rows)
+
+    # Active positions — always track news
+    rows = session.execute(sa_text("""
+        SELECT DISTINCT symbol FROM active_positions
+    """)).fetchall()
+    syms.update(r[0] for r in rows)
+
+    # Recent discovery picks
+    rows = session.execute(sa_text("""
+        SELECT DISTINCT symbol FROM discovery_picks
+        WHERE scan_date >= date(:p0, '-3 days') AND symbol IS NOT NULL
+    """), {"p0": target_date}).fetchall()
     syms.update(r[0] for r in rows)
 
     return sorted(syms)

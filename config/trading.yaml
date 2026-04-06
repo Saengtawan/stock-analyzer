@@ -147,12 +147,18 @@ rapid_rotation:
 # -- Position Management --
 max_positions: 2               # v6.31: 3→2 for $5k account (adaptive with overnight gap)
 position_size_pct: 30          # v6.31: 42→30 for $5k account (leaves room for overnight)
-simulated_capital: 5000        # v6.30: 4000→5000 (updated capital)
-# v6.63: Per-strategy budget allocation (sum = simulated_capital)
-simulated_capital_dip: 2500   # DIP pool (2 positions × up to $1,250)
-simulated_capital_ovn: 1500   # OVN dedicated slot
-simulated_capital_pem: 500    # PEM dedicated slot (rare, high-conviction)
-simulated_capital_ped: 500    # PED dedicated slot (pre-earnings)
+simulated_capital: 0           # v7.9: 0 = use Alpaca equity (dynamic). Non-zero = override.
+# v7.9: Per-strategy budget as % of equity (dynamic, replaces hardcoded $)
+# Sum = 100%. Adjusts automatically as equity changes.
+budget_pct_dip: 50            # DIP pool 50% (2 positions × 25% each)
+budget_pct_ovn: 30            # OVN dedicated slot 30%
+budget_pct_pem: 10            # PEM dedicated slot 10% (rare, high-conviction)
+budget_pct_ped: 10            # PED dedicated slot 10% (pre-earnings)
+# Legacy hardcoded (used as fallback if equity unavailable)
+simulated_capital_dip: 2500   # fallback DIP pool
+simulated_capital_ovn: 1500   # fallback OVN
+simulated_capital_pem: 500    # fallback PEM
+simulated_capital_ped: 500    # fallback PED
 
 # -- Risk-Parity Sizing (v4.9) -- Legacy feature-specific settings
 risk_parity_enabled: true      # Keep risk parity enabled for safety

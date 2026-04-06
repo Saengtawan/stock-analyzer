@@ -88,6 +88,30 @@ else:
     print("\n✅ No delisted stocks found")
 
 # ─────────────────────────────────────────────────────────────
+# 2b. Refresh dollar_vol for ALL existing stocks from OHLC data
+# ─────────────────────────────────────────────────────────────
+print(f"\n[Step 2b] Refreshing dollar_vol for {len(cache)} existing stocks from OHLC data...")
+import sqlite3
+_conn = sqlite3.connect(os.path.join(DATA_DIR, 'trade_history.db'))
+_dvol_rows = _conn.execute("""
+    SELECT symbol, AVG(close * volume) as avg_dvol
+    FROM stock_daily_ohlc
+    WHERE date >= date('now', '-30 days') AND volume > 0
+    GROUP BY symbol
+    HAVING COUNT(*) >= 5
+""").fetchall()
+_conn.close()
+
+_dvol_map = {row[0]: row[1] for row in _dvol_rows}
+_updated_count = 0
+for sym in cache:
+    if sym in _dvol_map:
+        cache[sym]['dollar_vol'] = round(_dvol_map[sym])
+        _updated_count += 1
+
+print(f"✅ Updated dollar_vol for {_updated_count}/{len(cache)} stocks (from stock_daily_ohlc 30d avg)")
+
+# ─────────────────────────────────────────────────────────────
 # 3. Find new candidates from Alpaca (tradable + easy_to_borrow)
 # ─────────────────────────────────────────────────────────────
 need = TARGET_SIZE - len(cache)
@@ -97,27 +121,26 @@ if need <= 0:
     print("Universe already at or above target, skipping candidate search")
 else:
     try:
-        from alpaca.trading.client import TradingClient
-        from alpaca.trading.requests import GetAssetsRequest
-        from alpaca.trading.enums import AssetClass, AssetStatus
+        import requests as _req
+        api_key = os.getenv('ALPACA_API_KEY', '')
+        secret_key = os.getenv('ALPACA_SECRET_KEY', '')
+        base_url = os.getenv('ALPACA_BASE_URL', 'https://paper-api.alpaca.markets')
+        headers = {'APCA-API-KEY-ID': api_key, 'APCA-API-SECRET-KEY': secret_key}
 
-        api_key = os.getenv('ALPACA_API_KEY')
-        secret_key = os.getenv('ALPACA_SECRET_KEY')
-        client = TradingClient(api_key, secret_key, paper=True)
-
-        req = GetAssetsRequest(asset_class=AssetClass.US_EQUITY, status=AssetStatus.ACTIVE)
-        assets = client.get_all_assets(req)
+        resp = _req.get(f'{base_url}/v2/assets', headers=headers,
+                        params={'status': 'active', 'asset_class': 'us_equity'}, timeout=30)
+        resp.raise_for_status()
+        assets = resp.json()
 
         # Filter: tradable + major exchange + easy_to_borrow (liquidity proxy)
-        # Exclude ARCA (mostly ETFs — SPY, QQQ, GLD, VOO, etc. trade on ARCA)
         candidates_raw = [
-            a.symbol for a in assets
-            if a.tradable
-            and a.easy_to_borrow
-            and a.exchange.value in ('NYSE', 'NASDAQ')  # exclude ARCA (ETFs)
-            and a.symbol not in current_symbols         # not already in universe
-            and '.' not in a.symbol                    # skip class shares (BRK.B etc)
-            and len(a.symbol) <= 5                     # skip long symbols
+            a['symbol'] for a in assets
+            if a.get('tradable')
+            and a.get('easy_to_borrow')
+            and a.get('exchange') in ('NYSE', 'NASDAQ')
+            and a['symbol'] not in current_symbols
+            and '.' not in a['symbol']
+            and len(a['symbol']) <= 5
         ]
         print(f"Alpaca candidates (tradable+ETB, not in universe): {len(candidates_raw)}")
 

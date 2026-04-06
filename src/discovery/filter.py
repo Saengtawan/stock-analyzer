@@ -73,18 +73,18 @@ class UnifiedFilter:
         if len(filtered) < n_input:
             logger.info("Filter: %d→%d after regime gate [%s]", n_input, len(filtered), regime)
 
-        # Phase 2: v16 smart boost (replaces negative E[R] skip — IC=0 proven)
-        # Insider buying + analyst target upgrades boost score instead of filtering
+        # Phase 2: Smart boost BEFORE elite filter — insider/analyst stocks
+        # must get score boost before statistical cutoff
         filtered = self._apply_smart_boost(filtered, scan_date)
 
-        # Phase 3: Elite filter (statistical outlier)
-        filtered = self._elite_filter(filtered, regime, config)
-
-        # Phase 4: UnifiedBrain re-rank
+        # Phase 3: UnifiedBrain re-rank (before elite — ubrain prob informs cutoff)
         if unified_brain and unified_brain._fitted and len(filtered) > 1:
             filtered = self._ubrain_rerank(
                 filtered, unified_brain, sensors, macro,
                 temporal_features, scan_date, regime_decision)
+
+        # Phase 4: Elite filter (statistical outlier) — AFTER boost + rerank
+        filtered = self._elite_filter(filtered, regime, config)
 
         # Phase 5-12: Per-stock filters
         # Phase 10: BTC leading (informational)
@@ -265,14 +265,15 @@ class UnifiedFilter:
 
         re_ranked = []
         for er, c in scored:
-            sensor_sigs = sensors.compute_all(
-                c['symbol'], scan_date, macro, c, temporal_features or {})
-            rp = (regime_decision or {}).get('probability', 0.5)
-            ub_result = unified_brain.predict(c, sensor_sigs, rp)
-            ub_prob = ub_result.get('probability', 0.5)
-
-            # v17: Log prob on candidate
-            c['ubrain_prob'] = round(ub_prob, 4)
+            # Use cached ubrain_prob from score_batch if available (avoid recompute)
+            ub_prob = c.get('ubrain_prob')
+            if ub_prob is None:
+                sensor_sigs = sensors.compute_all(
+                    c['symbol'], scan_date, macro, c, temporal_features or {})
+                rp = (regime_decision or {}).get('probability', 0.5)
+                ub_result = unified_brain.predict(c, sensor_sigs, rp)
+                ub_prob = ub_result.get('probability', 0.5)
+                c['ubrain_prob'] = round(ub_prob, 4)
 
             if ub_prob < default_cutoff:
                 logger.debug("Filter: DROP %s — UnifiedBrain=%.0f%%",

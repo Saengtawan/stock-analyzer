@@ -21,7 +21,8 @@ class AutoRefitOrchestrator:
     def __init__(self, regime_brain, stock_brain, param_optimizer,
                  performance_tracker, param_manager, adaptive_params=None,
                  knowledge_graph=None, neural_graph=None, strategy_selector=None,
-                 sector_scorer=None, stock_selector=None, signal_tracker=None):
+                 sector_scorer=None, stock_selector=None, signal_tracker=None,
+                 day_gate=None):
         self._regime_brain = regime_brain
         self._stock_brain = stock_brain
         self._param_optimizer = param_optimizer
@@ -35,6 +36,7 @@ class AutoRefitOrchestrator:
         self._sector_scorer = sector_scorer
         self._stock_selector = stock_selector
         self._signal_tracker = signal_tracker
+        self._day_gate = day_gate
         self._last_run = 0.0
         self._last_results = {}
 
@@ -166,7 +168,21 @@ class AutoRefitOrchestrator:
                     logger.error("AutoRefit: v17 %s error: %s", name, e)
                     results[f'v17_{name}'] = {'error': str(e)}
 
-        # 10. Health check
+        # 10. Refit Macro Day Gate
+        if self._day_gate:
+            try:
+                if self._day_gate.needs_refit(30):
+                    self._day_gate.fit()
+                    self._day_gate.save_to_db()
+                    results['day_gate'] = True
+                    logger.info("AutoRefit: MacroDayGate refitted (AUC=%.4f)", self._day_gate._auc)
+                else:
+                    results['day_gate'] = False
+            except Exception as e:
+                logger.error("AutoRefit: MacroDayGate error: %s", e)
+                results['day_gate'] = {'error': str(e)}
+
+        # 11. Health check
         try:
             drift_status = results.get('drift', {}).get('drift', 'UNKNOWN')
             if drift_status == 'MODEL_FAILING':
