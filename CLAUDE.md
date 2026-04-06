@@ -120,7 +120,12 @@ for sym in syms:
         except:
             pm = last_close; gap = 0
 
-        if last_close >= 5 and atr >= 2 and (last_ret >= 3 or gap >= 2 or mom5d >= 10):
+        # Filter: yest move needs vol 1.5x+ (82% of yest+3% with low vol = noise)
+        # gap and mom5d can pass without vol (PM gap = fresh, mom = trend)
+        yest_pass = last_ret >= 3 and last_vr >= 1.5
+        gap_pass = gap >= 2
+        mom_pass = mom5d >= 10
+        if last_close >= 5 and atr >= 2 and (yest_pass or gap_pass or mom_pass):
             results.append((sym, last_close, pm, gap, last_ret, mom5d, last_vr, cp, atr))
     except: pass
 

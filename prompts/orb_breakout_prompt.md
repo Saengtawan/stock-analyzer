@@ -126,7 +126,8 @@ ORB ใช้ตอนตลาดเปิดเท่านั้น (09:30-10
 
 ## Hard Skip
 
-✗ Volume < 1.5x → fake gap (10%)
+✗ Volume < 1.5x → fake move (82% of yest+3% with low vol = noise)
+✗ Yest +3%+ แต่ Vol < 1.5x → ไม่ใช่ signal จริง ห้ามเข้า
 ✗ Gap > 10% + no catalyst → pump & dump
 ✗ Price < $5 → spread กว้าง
 ✗ First bar เฉยๆ (<0.3%) → ไม่มี momentum
@@ -134,6 +135,7 @@ ORB ใช้ตอนตลาดเปิดเท่านั้น (09:30-10
 ✗ 10:30 หลุดต่ำกว่า open → ORB fail
 ✗ Sector = Utilities / Real Estate
 ✗ Gap 5%+ + Small cap → 44% early peak fade
+✗ **5d Mom > 20% + Vol < 2x → extreme profit-taking risk** (ขึ้นเร็วเกิน คนขายทำกำไรตอนเปิด)
 
 ## Output Format
 

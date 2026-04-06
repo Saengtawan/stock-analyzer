@@ -278,6 +278,8 @@ Intraday prompt เริ่มตั้งแต่ตลาดเปิด (09
 ## Hard Skip (ห้ามเทรด)
 
 ✗ Volume < 1.5x → fake move (ยกเว้น Gap Down Reversal ที่ vol ปกติ ดีกว่า)
+✗ Yest +3%+ แต่ Vol < 1.5x → noise 82% ไม่ใช่ signal จริง
+✗ 5d Mom > 20% + Vol < 2x → extreme profit-taking risk (peak เช้าแล้ว fade)
 ✗ Bounce play + Vol < 2x → avg close -0.98% ขาดทุน
 ✗ Gap Down + Vol 2x+ → selling continues ลงต่อ (ตรงข้ามกับ gap up!)
 ✗ Gap > 10% + ไม่มี catalyst → pump & dump
