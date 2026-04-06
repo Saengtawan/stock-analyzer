@@ -201,15 +201,20 @@ class DiscoveryEngine:
         """Check if Discovery should pause due to loss regime.
         If last 1 day had WR < 50% (N>=5), pause for 2 days.
         Validated: skipped days avg WR=37.8%, improves overall WR +6.2%.
+
+        v23: Use discovery_picks instead of discovery_outcomes to avoid
+        false 0% WR from replaced picks (d3=0.00 is not a real loss).
+        Also uses current_price vs scan_price for live accuracy.
         """
         try:
             with get_session() as session:
                 rows = session.execute(text("""
                     SELECT scan_date,
-                           AVG(CASE WHEN actual_return_d3 > 0 THEN 1.0 ELSE 0.0 END) * 100 as wr,
+                           AVG(CASE WHEN current_price > scan_price THEN 1.0 ELSE 0.0 END) * 100 as wr,
                            COUNT(*) as n
-                    FROM discovery_outcomes
-                    WHERE actual_return_d3 IS NOT NULL
+                    FROM discovery_picks
+                    WHERE scan_price > 0 AND current_price > 0
+                      AND status NOT IN ('replaced', 'pending')
                       AND scan_date >= date('now', '-7 days')
                     GROUP BY scan_date
                     ORDER BY scan_date DESC
