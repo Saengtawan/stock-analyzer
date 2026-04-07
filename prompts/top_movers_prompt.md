@@ -27,8 +27,8 @@
 **1. Down Bounce + Green Bar Fraction ≥50% (WR 57-69%)**
 - ลง 2%+ จาก open → **green bar fraction ≥50% ใน 30 นาทีล่าสุด** → ซื้อ
 - ⚠️ **Single green bar = FALSE signal (WR 37%)** — ต้องดู fraction หรือ 4+ consecutive
-- **SPY gate สำคัญสุด**: SPY green → WR 58-62% | SPY < -1% → WR **34%** (skip!)
-- Green bar fraction ≥50% = WR **69%** | <30% = WR **13%** (ข้ามเลย)
+- **SPY direction สำคัญ**: SPY green → WR 58-62% | SPY < -1% → WR **34%** (ต่ำกว่า random มาก)
+- Green bar fraction ≥50% = WR **69%** | <30% = WR **13%**
 - Drop depth ช่วย: 3-5% drop = WR 57% | 5%+ drop = WR 68%
 
 **2. Top Mover 5%+ Green ($1-5 penny = WR 62%)**
@@ -47,10 +47,10 @@
 ## 🟡 11:30-12:30 ET — Lunch Zone
 
 ### Strategy 1: Down Bounce + SPY Green + Green Fraction (WR 57-69%)
-1. **เช็ค SPY ก่อน**: SPY green → OK | SPY < -1% → SKIP bounce วันนี้
+1. **เช็ค SPY ก่อน**: SPY green → bounce WR 58-62% | SPY < -1% → WR 34%
 2. Scan หุ้น ที่ **ลง 2%+ จาก open**
 3. ดู **green bar fraction** (30 นาทีล่าสุด): ≥50% → entry | <30% → skip
-4. ⚠️ **อย่ารอแค่ 1 green bar** (WR 37% = worse than random!)
+4. Single green bar = WR 37% (ต่ำกว่า random)
 5. SL: day low | TP: +2%
 6. Time stop: 1 ชม.
 
@@ -71,7 +71,7 @@
 
 ### Best: Green Bar Fraction ≥50% (WR 60-69%)
 - ดู green bar fraction 30 นาทีล่าสุด ≥50% + volume
-- **Single green bar = noise (WR 37%)** — ต้องดู pattern ไม่ใช่ 1 bar
+- Single green bar = WR 37% | ดู fraction รวมดีกว่า
 
 ### Down Bounce ยังดี (WR 57%)
 - $5-20 ลง 2%+ green bounce: +2.6%
@@ -113,17 +113,19 @@
 
 ## Hard Skip
 
-✗ **SPY < -1% = SKIP bounce ทั้งวัน** (WR 34% — ลงต่อ)
-✗ **Green bar fraction <30% = WR 13%** (ยังไม่ bounce จริง)
-✗ **Single green bar after red streak = WR 37%** (dead cat bounce)
-✗ Top Mover 5%+ Green $50+ หลัง 13:00 = WR 51% (coin flip)
-✗ Top Mover 5%+ Red ทุกช่วง = WR 49-54% (ไม่คุ้ม)
-✗ Gap Down + Vol 2x = WR 42% (แย่กว่า random!)
-✗ Down Bounce Vol 5x+ = selling continues
-✗ Price < $1 = extreme manipulation
-✗ Red bar ที่ flat stock = no signal
-✗ หลัง 15:00 + WR < 55% = ไม่คุ้มเข้าใหม่
-✗ **Wednesday movers D+1 = WR 36%** (strong fade — ขายวันเดียวกัน)
+## Low WR Setups (ข้อมูลให้ AI พิจารณา)
+
+| Setup | WR | หมายเหตุ |
+|-------|----|---------|
+| SPY < -1% + bounce | 34% | ต่ำกว่า random มาก |
+| Green bar fraction <30% | 13% | แทบไม่ bounce จริง |
+| Single green bar after red | 37% | ต่ำกว่า random |
+| Top Mover 5%+ Green $50+ หลัง 13:00 | 51% | coin flip |
+| Top Mover 5%+ Red ทุกช่วง | 49-54% | ใกล้ random |
+| Gap Down + Vol 2x | 42% | ต่ำกว่า random |
+| Down Bounce Vol 5x+ | ต่ำ | selling conviction |
+| Wednesday movers D+1 | 36% | strong mean reversion |
+| หลัง 15:00 ทุก setup | <55% | edge หายเกือบหมด |
 
 ## วิเคราะห์ Candidate (AI ตัดสินเอง)
 
@@ -142,7 +144,7 @@
 - VIX level = amplitude ของ bounce
 - Insider/analyst signals?
 
-**AI weigh ทุกปัจจัยรวมกัน → ตัดสิน GO / WAIT / SKIP**
+**AI weigh ทุกปัจจัยรวมกัน → ตัดสินเอง**
 **ไม่มี fixed checklist — context วันนั้นสำคัญกว่ากฎตายตัว**
 
 ### Winner vs Loser Profile (จาก backtest — ให้ AI ใช้ judge)

@@ -29,13 +29,13 @@
 - **Morning (09:30-10:00) = WR 59.5%** ดีกว่าทุกช่วง
 - **Afternoon (14:00+) = WR 51%** (coin flip — ไม่คุ้ม)
 - WR vs open = แค่ 6-12% (หุ้นยังปิดลงจาก open) — edge อยู่ที่ vs entry เท่านั้น
-- **SPY direction = gate สำคัญ**: SPY green → WR 58-62% | SPY < -1% → WR **34%** (skip!)
+- **SPY direction สำคัญ**: SPY green → WR 58-62% | SPY < -1% → WR **34%** (ต่ำกว่า random มาก)
 - **สรุป: หา drop ลึก (5%+) ช่วงเช้า + SPY green = sweet spot**
 
 ### ❌ Gap Down + Vol 2x = WR 42% (แย่กว่า random!)
 - Gap Down ≥2% + Vol ≥2x → WR 42.4% (backtest 4,347 events)
 - Vol สูงบน gap down = selling conviction → ลงต่อ ไม่ใช่ reversal
-- **ห้ามสับสนกับ Down Bounce** — Down Bounce = หุ้นลงจาก open แล้ว bounce | Gap Down = gap จาก prev close
+- **ต่างจาก Down Bounce**: Down Bounce = หุ้นลงจาก open แล้ว bounce | Gap Down = gap จาก prev close
 
 ### ❌ Setups ที่ดูดีแต่ไม่ดี (WR < 55%)
 | Strategy | WR | ปัญหา |
@@ -118,17 +118,17 @@
 
 ---
 
-## Hard Skip
+## Low WR Setups (ข้อมูลให้ AI พิจารณา)
 
-✗ **Gap Down + Vol 2x = WR 42%** (แย่กว่า random — ห้ามเข้า!)
-✗ **SPY < -1% = bounce WR 34%** (skip Down Bounce วันนี้)
-✗ **Drop แค่ 2-3% = WR 53%** (edge น้อย — prefer 3%+ drop)
-✗ **Gap Up Vol 2x Green $20+ = WR 44%** (ต่ำกว่า random — ข้ามเลย!)
-✗ Top Mover 5%+ Green หลัง 11:00 = WR 40-47% (fade)
-✗ Red bar ที่ flat/down stock = no signal
-✗ Down Bounce ที่ Vol 5x+ = selling continues
-✗ Price < $1 = extreme manipulation
-✗ หลัง 11:30 → ใช้ Top Movers prompt แทน
+| Setup | WR | หมายเหตุ |
+|-------|----|---------|
+| Gap Down + Vol 2x | 42% | ต่ำกว่า random |
+| SPY < -1% + bounce | 34% | ต่ำกว่า random มาก |
+| Drop แค่ 2-3% | 53% | edge น้อย |
+| Gap Up Vol 2x Green $20+ | 44% | ต่ำกว่า random |
+| Top Mover 5%+ Green หลัง 11:00 | 40-47% | fade |
+| Down Bounce Vol 5x+ | ต่ำ | selling conviction |
+| Price < $1 | ต่ำ | extreme manipulation risk |
 
 ## วิเคราะห์ Candidate (AI ตัดสินเอง)
 
@@ -147,7 +147,7 @@
 - Earnings ใกล้ = uncertainty ระวัง
 - Unusual options = smart money
 
-**AI weigh ทุกปัจจัยรวมกัน → ตัดสิน BUY / SKIP**
+**AI weigh ทุกปัจจัยรวมกัน → ตัดสินเอง**
 
 ### Winner vs Loser Profile (จาก backtest — ให้ AI ใช้ judge)
 

@@ -16,7 +16,7 @@ ORB ใช้ก่อนตลาดเปิด (06:00-09:30 ET) — หลั
 | Gap 2-5% + Vol 2x+ | **54%** | **34%** |
 | Gap 5%+ + Vol 2x+ | 65% | 38% |
 | Gap 2%+ + Vol <1.5x | 10% | 4% |
-→ **Vol < 1.5x = SKIP** (โอกาสแค่ 10%)
+→ Vol < 1.5x = โอกาสแค่ 10%
 
 ### ⚠️ Honest Warning: Gap Up WR at Open
 Gap Up stats above = "hit +3% from open at any point during day" (max high)
@@ -28,7 +28,7 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 - Vol ยิ่งเยอะยิ่งแย่: Vol 3-5x = WR 37% | Vol 5x+ = WR 35%
 - **Volume บน gap down = selling conviction ไม่ใช่ buying opportunity**
 - เฉพาะ VIX ≥38 (panic) ถึงจะ reversal ได้นิดหน่อย (WR 53%)
-- **สรุป: Gap Down Reversal = SKIP** (ยกเว้น VIX extreme)
+- เฉพาะ VIX ≥38 (panic) ถึง WR พอ 53% — ปกติไม่คุ้ม
 
 ### Gap 2-5% ดีกว่า 5%+
 | เงื่อนไข | Early Peak (fade) | ปิด +3% |
@@ -46,7 +46,7 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 | **Technology** | HOLD (36% late peak) | **8.4%** |
 | Healthcare | **FADE** (42% early peak) | 6.0% |
 | Consumer Cyclical | **FADE** (36% early) | 6.9% |
-| Utilities | - | 2.1% (ข้าม) |
+| Utilities | - | 2.1% (ต่ำสุด) |
 
 ## ขั้นตอน ORB (09:30-10:30 ET)
 
@@ -66,7 +66,7 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 |-----------|---------|--------|
 | **ขึ้น 1%+** | **34%** | Momentum จริง → เตรียม entry |
 | ลง 1%+ | 29% | Bounce potential → รอ OR high break |
-| เฉยๆ (<0.3%) | 11% | **SKIP** ไม่มี momentum |
+| เฉยๆ (<0.3%) | 11% | ไม่มี momentum |
 
 ### Step 3: เลือก Mode — Momentum หรือ Bounce
 
@@ -76,7 +76,7 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 |--------|------|--------|------|
 | **≥ +5%** | **Momentum** | +3-5% | ถือได้ถึงบ่าย |
 | **< 0%** & Vol 2x+ | **Bounce** | **+1-2%** | **ขายก่อน 10:30** |
-| < 0% & Vol < 2x | **SKIP** | - | ❌ avg close -0.98% |
+| < 0% & Vol < 2x | avg close -0.98% | - | WR ต่ำ |
 
 **Momentum Mode** (5d mom +5%+):
 - Entry: OR high breakout + volume
@@ -141,7 +141,7 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 - VIX level? (สูง = volatile ทั้งขึ้นและลง)
 - Insider/analyst signals?
 
-**AI weigh ทุกปัจจัยรวมกัน → ตัดสิน GO / WAIT / SKIP**
+**AI weigh ทุกปัจจัยรวมกัน → ตัดสินเอง**
 
 ### Winner vs Loser Profile (จาก backtest — ให้ AI ใช้ judge)
 
@@ -165,17 +165,20 @@ LOSER signs (fade risk):
 
 ## Hard Skip
 
-✗ **Gap Down ≥2% + Vol ≥2x = WR 42%** (แย่กว่า random! Vol สูง = selling ต่อ)
-✗ Volume < 1.5x → fake move (82% of yest+3% with low vol = noise)
-✗ Yest +3%+ แต่ Vol < 1.5x → ไม่ใช่ signal จริง ห้ามเข้า
-✗ Gap > 10% + no catalyst → pump & dump
-✗ Price < $5 → spread กว้าง
-✗ First bar เฉยๆ (<0.3%) → ไม่มี momentum
-✗ ราคาหลุด VWAP ก่อน 10:00 → buyer หมดแรง
-✗ 10:30 หลุดต่ำกว่า open → ORB fail
-✗ Sector = Utilities / Real Estate
-✗ Gap 5%+ + Small cap → 44% early peak fade
-✗ **5d Mom > 20% + Vol < 2x → extreme profit-taking risk** (ขึ้นเร็วเกิน คนขายทำกำไรตอนเปิด)
+## Low WR Setups (ข้อมูลให้ AI พิจารณา)
+
+| Setup | WR | หมายเหตุ |
+|-------|----|---------|
+| Gap Down ≥2% + Vol ≥2x | 42% | ต่ำกว่า random, vol สูง = selling ต่อ |
+| Volume < 1.5x | 10% hit +3% | 82% of yest+3% with low vol = noise |
+| Yest +3% + Vol < 1.5x | ต่ำ | ไม่ใช่ signal จริง |
+| Gap > 10% + no catalyst | ต่ำ | pump & dump risk |
+| First bar เฉยๆ (<0.3%) | 11% | ไม่มี momentum |
+| หลุด VWAP ก่อน 10:00 | ต่ำ | buyer หมดแรง |
+| 10:30 หลุดต่ำกว่า open | 8% | ORB fail |
+| Utilities / Real Estate | 2-3% | ต่ำสุดทุก sector |
+| Gap 5%+ + Small cap | ต่ำ | 44% early peak fade |
+| 5d Mom > 20% + Vol < 2x | ต่ำ | profit-taking risk สูง |
 
 ## Output Format — เฉพาะ BUY เท่านั้น
 

@@ -169,7 +169,7 @@ try:
     spy_n = float(d['Close']['SPY'].dropna().iloc[-1])
     spy_chg = (spy_n/spy_o-1)*100
     print(f"📊 SPY {spy_chg:+.1f}% intraday {'🟢' if spy_chg > 0 else '🔴'}")
-    if spy_chg < -1: print("⚠️ SPY < -1% → bounce WR drops to 34% — skip Down Bounce")
+    if spy_chg < -1: print("⚠️ SPY < -1% → bounce WR drops to 34% (ต่ำกว่า random มาก)")
 except: spy_chg = 0
 
 up_results = []  # Stocks up (momentum)
@@ -262,7 +262,7 @@ try:
     spy_n = float(d['Close']['SPY'].dropna().iloc[-1])
     spy_chg = (spy_n/spy_o-1)*100
     print(f"📊 SPY {spy_chg:+.1f}% {'🟢 bounce OK' if spy_chg > 0 else '🔴 bounce RISKY'}")
-    if spy_chg < -1: print("⛔ SPY < -1% → bounce WR = 34% — SKIP DOWN BOUNCE today")
+    if spy_chg < -1: print("⚠️ SPY < -1% → bounce WR = 34% (ต่ำกว่า random มาก)")
 except: spy_chg = 0
 
 dn_results = []  # Down bounce (best setup IF SPY green)
@@ -310,7 +310,7 @@ for sym in syms:
 # Down bounce — need SPY green + green bar fraction 50%+
 dn_results.sort(key=lambda x: (-x[7], x[4]))  # green frac DESC, deeper drop
 print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (need SPY green + green bars ≥50%)")
-print(f"  GreenFrac 50%+ = WR 69% | GreenFrac <30% = WR 13% (skip!)")
+print(f"  GreenFrac 50%+ = WR 69% | GreenFrac <30% = WR 13%")
 print(f"{'':1s}{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'GF':>4s} {'LG':>2s}")
 for s,o,n,c,dr,bn,vr,gf,lg in dn_results[:10]:
     ok = '🔥' if gf >= 0.5 and spy_chg > 0 else ('✅' if gf >= 0.33 else '⚠️')
@@ -378,8 +378,8 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 หลักการ (จาก backtest 97K+ signals — validated):
 - **SPY direction = #1 gate**: SPY green → bounce WR 58-62% | SPY<-1% → WR 34% (skip bounce!)
 - **Drop depth = #1 predictor**: 2-3% drop = WR 53% | 3-5% = 57% | 5%+ = 68%
-- **Green bar fraction**: 50%+ green bars (last 30min) = WR 69% | <30% = WR 13% (skip!)
-- **Single green bar = FALSE signal**: 1 green then red = WR 37% → need 4+ consecutive (WR 61%)
+- **Green bar fraction**: 50%+ green bars (last 30min) = WR 69% | <30% = WR 13%
+- **Single green bar**: 1 green then red = WR 37% | 4+ consecutive = WR 61%
 - **Beta**: <1.5 = WR 54% (good) | >1.5 = WR 50% (bad) — from stock_fundamentals
 - **MCap**: >30B = WR 55% (best) | <10B = WR 51% (worse)
 - SI สูง = short squeeze → bounce แรงกว่า
@@ -387,8 +387,8 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 - Sector Tech/HC/Financial = bounce ดีกว่า Consumer Defensive/Real Estate
 - มี insider buy = executives เชื่อมั่น
 - Earnings ใกล้ = uncertainty สูง → อาจดีหรือแย่ ระวัง
-- **Gap Down + Vol 2x = WR 42% (WORSE than random — ห้ามเข้า!)**
-- **Wednesday movers D+1 = WR 36% (strong fade — ขายวันเดียวกัน)**
+- **Gap Down + Vol 2x** = WR 42% (ต่ำกว่า random)
+- **Wednesday movers D+1** = WR 36% (strong mean reversion)
 
 **AI ดู data ทั้งหมดแล้ว weigh เอง — แต่ละวันต่างกัน context ต่างกัน**
 **ไม่มี fixed score — AI judge จาก totality of evidence**
@@ -467,7 +467,7 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 1. **Fri-Mon ชนะ OVN เสมอวันศุกร์** — Fri-Mon baseline +0.37% ดีกว่า OVN +0.14% (Mon close > Tue open)
 2. **ถ้าหุ้นผ่าน Fri-Mon checklist 5/6+ → ใช้ Fri-Mon** (ซื้อศุกร์ ขาย Mon close)
 3. **ถ้าหุ้นผ่าน Fri-Mon แค่ 3/6 แต่ OVN 5/6+ → ใช้ OVN** (ซื้อศุกร์ ขาย Mon open)
-4. **ห้ามเข้าทั้ง 2 scan บนหุ้นเดียวกัน** — เลือกอันเดียว
+4. **ไม่ควรเข้าทั้ง 2 scan บนหุ้นเดียวกัน** — เลือกอันที่ดีกว่า
 
 
 ---
