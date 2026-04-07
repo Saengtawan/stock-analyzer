@@ -88,7 +88,7 @@ Baseline ทุกหุ้น: **Friday→Monday close = +0.37%**, ปิดข
 - **Catalyst weekend**: earnings Mon pre-market, FDA weekend, conference
 - **VIX**: สูง = gap ใหญ่ทั้ง 2 ทาง (risk สูง)
 
-## Checklist (ต้องผ่าน 4/6)
+## Checklist (ข้อมูลให้ AI พิจารณา — ยิ่งผ่านมาก WR ยิ่งสูง)
 
 ☐ ศุกร์ rally ≥ 3% หรือ สัปดาห์แย่ + ศุกร์ bounce ≥ 2%
 ☐ Close position > 0.5 (ปิดครึ่งบน)

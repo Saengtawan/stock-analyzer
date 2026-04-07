@@ -51,7 +51,7 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 
 ### Step 1: Pre-Market Watchlist (06:00-09:25)
 1. Scan gap ≥ 2% จาก prev close
-2. Volume pre-market ≥ 2x avg (**ต้องมี**)
+2. Volume pre-market: 2x+ = 54% hit +3% | <1.5x = 10% hit +3%
 3. หา catalyst: earnings beat / upgrade / FDA / contract
 4. **Prefer gap 2-5%** (ไม่ใช่ยิ่งเยอะยิ่งดี)
 5. 5d momentum > 5% = **66% ปิด +3%** (trend จริง)
