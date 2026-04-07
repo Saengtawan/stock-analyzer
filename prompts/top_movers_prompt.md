@@ -145,6 +145,34 @@
 **AI weigh ทุกปัจจัยรวมกัน → ตัดสินเอง**
 **ไม่มี fixed checklist — context วันนั้นสำคัญกว่ากฎตายตัว**
 
+### Return Data ให้ AI ตั้ง TP/SL (backtest 126K setups)
+
+**Avg Winner / Avg Loser ช่วงบ่าย:**
+
+| Drop | 11:30-14:00 Win/Loss | 14:00+ Win/Loss |
+|------|---------------------|-----------------|
+| 2-3% | +1.0% / -1.1% | +0.6% / -0.6% |
+| 3-5% | +1.3% / -1.3% | +0.7% / -0.7% |
+| 5%+ | +1.8% / -1.8% | +0.9% / -1.0% |
+
+**หลังถึง +2% จาก entry — วิ่งต่อหรือ retrace:**
+
+| เวลาที่ hit +2% | → ถึง +3% | → ถึง +5% | retrace กลับ <+1% |
+|----------------|----------|----------|-------------------|
+| 11:30-14:00 | 43% | 10% | 19% |
+| 14:00+ | 32% | 5% | 16% |
+
+**Bounce speed ช่วงบ่าย:**
+- 11:30-14:00: median 17-18 bars (85-90 min) ช้า มีเวลาวาง limit
+- 14:00+: median **6 bars (30 min)** เร็ว เพราะใกล้ปิดตลาด
+- Consolidation 10-30 นาทีก่อน bounce เกิดบ่อยช่วง lunch
+
+**Bounce characteristics ช่วงบ่าย:**
+- Bounce ช้ากว่าเช้า แต่ amplitude น้อยกว่า (winner +1.0-1.8%)
+- 14:00+ bounce เร็ว (6 bars) แต่ amplitude เล็ก (+0.6-0.9%)
+- Retrace risk ต่ำกว่าเช้า (19% vs 32%)
+- Consolidation pattern ชัดกว่าเช้า → limit entry เหมาะกว่า market entry
+
 ### Winner vs Loser Profile (จาก backtest — ให้ AI ใช้ judge)
 
 WINNER signs (bounce hold):

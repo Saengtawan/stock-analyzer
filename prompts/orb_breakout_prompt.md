@@ -142,6 +142,26 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 
 **AI weigh ทุกปัจจัยรวมกัน → ตัดสินเอง**
 
+### Return Data ให้ AI ตั้ง TP/SL (backtest 126K setups)
+
+**หลังถึง +2% จาก entry — วิ่งต่อหรือ retrace:**
+
+| เวลาที่ hit +2% | → ถึง +3% | → ถึง +5% | retrace กลับ <+1% |
+|----------------|----------|----------|-------------------|
+| 09:30-10:00 | 64% | 27% | 32% |
+| 10:00-10:30 | 53% | 19% | 30% |
+
+**Bounce speed:**
+- Gap up + momentum: fast (breakout = 1-5 bars)
+- Bounce mode (5d mom ลบ): ช้ากว่า (14-18 bars = 70-90 min)
+- 26-30% ของ setups peak ใน ≤3 bars → momentum แรงจริง
+- 70% ค่อยๆ ขึ้น → มีเวลาเข้า ไม่ต้องรีบ
+
+**ORB entry characteristics:**
+- Breakout OR high: move เร็ว ถ้ารอ limit อาจพลาด
+- Bounce mode OR low retest: ช้ากว่า มีเวลาวาง limit ที่ OR low
+- Gap 2-5% bounce ช้ากว่า gap 5%+ (fade risk ต่ำ = ค่อยๆ ขึ้น)
+
 ### Winner vs Loser Profile (จาก backtest — ให้ AI ใช้ judge)
 
 WINNER signs (momentum hold):

@@ -390,6 +390,20 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 - **Gap Down + Vol 2x** = WR 42% (ต่ำกว่า random)
 - **Wednesday movers D+1** = WR 36% (strong mean reversion)
 
+**TP/SL data (backtest 126K setups):**
+- เช้า avg winner +2.3-3.6% / avg loser -2.3-3.8% (amplitude สูง)
+- บ่าย avg winner +1.0-1.8% / avg loser -1.1-1.8% (amplitude ต่ำ)
+- 14:00+ avg winner +0.6-0.9% / avg loser -0.6-1.0%
+- หลัง hit +2%: เช้า 64% วิ่งต่อ +3% | บ่าย 43% | 14:00+ 32%
+- Retrace risk: เช้า 32% retrace <+1% | บ่าย 19%
+
+**Entry characteristics:**
+- Bounce เช้า: median 14-18 bars (70-90 min) ค่อยๆ ขึ้น มีเวลาเข้า
+- Bounce บ่าย: median 17-18 bars ช้า + consolidation ชัด เหมาะ limit
+- 14:00+: median 6 bars (30 min) เร็ว เพราะใกล้ปิด
+- เพียง 24-30% peak ใน ≤3 bars → ส่วนใหญ่ไม่ต้องรีบ
+- WR ≈ 50% สำหรับ green bar เดียว — edge มาจาก context (SPY, drop depth, sector, beta) ไม่ใช่ signal เดียว
+
 **AI ดู data ทั้งหมดแล้ว weigh เอง — แต่ละวันต่างกัน context ต่างกัน**
 **ไม่มี fixed score — AI judge จาก totality of evidence**
 
