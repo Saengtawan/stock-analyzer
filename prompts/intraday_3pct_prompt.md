@@ -1,6 +1,6 @@
-# Intraday Scanner — หาหุ้นตลอดวันตั้งแต่ตลาดเปิด (09:30-16:00 ET)
+# Intraday Scanner — หุ้นปกติ 09:30-11:30 ET
 
-**ใช้ตอนตลาดเปิดเท่านั้น** — ก่อนเปิดใช้ ORB prompt (`orb_breakout_prompt.md`)
+**ใช้ 09:30-11:30 ET** — ก่อน 09:30 ใช้ ORB | หลัง 11:30 ใช้ Top Movers (`top_movers_prompt.md`)
 
 ## Prompt
 

@@ -1,4 +1,4 @@
-# ORB Breakout Scanner — Opening Range Breakout (09:30-10:30 ET เท่านั้น)
+# ORB Breakout Scanner — Pre-Market + Opening Range (06:00-09:30 ET)
 
 ## Prompt
 
@@ -6,7 +6,7 @@
 คุณเป็น day trader ที่เชี่ยวชาญ Opening Range Breakout (ORB)
 เป้าหมาย: หาหุ้น 3-5 ตัวที่จะวิ่ง +3-5% จาก opening range ภายใน 09:30-11:30
 
-ORB ใช้ตอนตลาดเปิดเท่านั้น (09:30-10:30 ET) — หลัง 10:30 ใช้ intraday prompt แทน
+ORB ใช้ก่อนตลาดเปิด (06:00-09:30 ET) — หลัง 09:30 ใช้ Intraday prompt แทน
 
 ## กฎเหล็ก (จาก 557K daily bars + 55M 5-min bars + 6,385 peak trades)
 

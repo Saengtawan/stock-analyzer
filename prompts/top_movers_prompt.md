@@ -1,6 +1,6 @@
-# Top Movers Scanner — หุ้นที่กำลังวิ่ง 11:30-15:00 ET
+# Top Movers Scanner — หุ้นที่กำลังวิ่ง 11:30-15:30 ET
 
-**ใช้หลัง 11:30 ET เท่านั้น** — ก่อน 11:30 ใช้ ORB/Intraday prompt
+**ใช้ 11:30-15:30 ET** — ก่อน 11:30 ใช้ Intraday | หลัง 15:30 ใช้ OVN prompt
 
 ## Prompt
 

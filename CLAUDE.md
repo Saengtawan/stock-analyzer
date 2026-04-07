@@ -24,11 +24,13 @@ The terminal CAN render wide pipe-tables. Always use one table for all candidate
 
 | Scan | อ่านไฟล์ | เวลา ET |
 |------|---------|---------|
-| ORB / หาหุ้น / scan | `prompts/orb_breakout_prompt.md` | 06:00-10:30 |
+| ORB / หาหุ้น / scan | `prompts/orb_breakout_prompt.md` | 06:00-09:30 |
 | Intraday / 3%+ | `prompts/intraday_3pct_prompt.md` | 09:30-11:30 |
-| **Top Movers / หุ้นวิ่งแรง** | **`prompts/top_movers_prompt.md`** | **11:30-15:00** |
+| **Top Movers / หุ้นวิ่งแรง** | **`prompts/top_movers_prompt.md`** | **11:30-15:30** |
 | OVN / overnight | `prompts/ovn_gap_prompt.md` | 15:30-15:55 |
 | Friday / ศุกร์-จันทร์ | `prompts/friday_monday_prompt.md` | ศุกร์ 15:00 |
+
+**ไม่ overlap**: ORB→Intraday handoff ที่ 09:30 | Top Movers→OVN handoff ที่ 15:30
 
 **Prompt file มี rules + stats ครบ (Bounce Mode, Gap Down Reversal, Sector, HOLD vs FADE)**
 **CLAUDE.md มี scan code + output format — ใช้ร่วมกัน**
@@ -286,12 +288,14 @@ Earnings momentum day 2, CPos 0.99 = ปิดแทบ AT high → continuation
 | เวลา ET | Prompt | ทำอะไร |
 |---------|--------|--------|
 | **00:00-03:59** | **ORB** | ORB prep: ดู yesterday movers + PM gaps |
-| **04:00-09:25** | **ORB** | PM gaps vs prev close + vol + catalyst |
-| **09:30-10:30** | **ORB → Intraday** | Opening Bell: OR breakout + Vol Surge + Kill Zone |
+| **04:00-09:29** | **ORB** | PM gaps vs prev close + vol + catalyst |
+| **09:30-10:00** | **Intraday** | Opening Bell: First bar + OR breakout + Vol Surge |
+| **10:00-10:30** | **Intraday** | Kill Zone + 10:00 confirmation + Bounce/Gap Down Reversal |
 | **10:30-11:30** | **Intraday** | Late Morning: Consolidation breakout 47.6% / Noon vol surge |
-| **11:30-13:30** | **Top Movers** | Lunch: หุ้นขึ้น 5%+ pullback → second wave (+2-3%, 46-57%) |
-| **13:30-15:00** | **Top Movers** | Afternoon: Top movers ยังวิ่ง + AM high breakout (+1-2%) |
-| **15:00-15:30** | **Top Movers** | Power Hour: scalp + hold/exit confirm |
+| **11:30-12:30** | **Top Movers** | Lunch: Pullback + Green bar (+2-3%, 55%) |
+| **12:30-13:30** | **Top Movers** | Late Lunch: Pullback/Near high + Green (+2%, 46%) |
+| **13:30-15:00** | **Top Movers** | Afternoon: At High + Green bar (+1.5-2%, 45%) |
+| **15:00-15:30** | **Top Movers** | Power Hour: Pullback + Green only / hold-exit confirm |
 | **15:30-15:55** | **OVN** | 5d mom ≥5% + today green + vol ≥2x + close near high |
 | **ศุกร์ 15:00** | **Fri-Mon** | ศุกร์ rally 3%+ / bad week bounce / dump vol 2x |
 
