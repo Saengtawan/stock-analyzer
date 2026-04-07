@@ -123,12 +123,11 @@ for sym in syms:
         except:
             pm = last_close; gap = 0
 
-        # Filter: yest move needs vol 1.5x+ (82% of yest+3% with low vol = noise)
-        # gap and mom5d can pass without vol (PM gap = fresh, mom = trend)
-        yest_pass = last_ret >= 3 and last_vr >= 1.5
-        gap_pass = gap >= 2
-        mom_pass = mom5d >= 10
-        if last_close >= 5 and atr >= 2 and (yest_pass or gap_pass or mom_pass):
+        # Broad filter — let AI see everything that moved, AI judges quality
+        yest_move = abs(last_ret) >= 2
+        gap_move = abs(gap) >= 1.5
+        mom_move = abs(mom5d) >= 5
+        if last_close >= 3 and (yest_move or gap_move or mom_move):
             results.append((sym, last_close, pm, gap, last_ret, mom5d, last_vr, cp, atr))
     except: pass
 
@@ -208,18 +207,18 @@ for sym in syms:
             prev_ranges = [float(h.iloc[i])-float(lo.iloc[i]) for i in range(-6, -3)] if len(c) >= 7 else ranges
             consol = max(ranges) < max(prev_ranges) * 0.7 if max(prev_ranges) > 0 else False
 
-        if now < 5: continue
+        if now < 3: continue
 
-        # DOWN BOUNCE: dropped 2%+ from open
+        # DOWN BOUNCE: dropped 2%+ from open at any point
         if drop_from_open <= -2 and now > low:
             bounce_pct = (now/low-1)*100
             dn_results.append((sym, opn, now, chg, drop_from_open, bounce_pct, vr, green_frac, last_green, consol))
 
-        # UP MOVERS: up 1.5%+ with volume (includes momentum pullback candidates)
-        if chg > 1.5 and vr > 1.0:
+        # UP MOVERS: up 1.5%+ (no vol filter — AI judges vol quality)
+        if chg > 1.5:
             rng = hi - low
             nh = ((now-low)/rng*100) if rng > 0 else 50
-            pullback = (hi/now-1)*100 if now < hi else 0  # how much pulled back from high
+            pullback = (hi/now-1)*100 if now < hi else 0
             up_results.append((sym, opn, now, chg, (hi/opn-1)*100, fb, vr, nh, green_frac, consol, pullback))
     except: pass
 
@@ -306,8 +305,8 @@ for sym in syms:
             bounce_pct = (now/low-1)*100
             dn_results.append((sym, opn, now, chg, drop_from_open, bounce_pct, vr, green_frac, last_green))
 
-        # UP MOMENTUM: up 5%+ today (continuation WR 52-56%)
-        if chg >= 5 and vr > 1.0:
+        # UP MOMENTUM: up 3%+ (no vol filter — AI judges)
+        if chg >= 3:
             rng = hi - low
             nh = ((now-low)/rng*100) if rng > 0 else 50
             up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, nh, green_frac, last_green))
@@ -315,8 +314,8 @@ for sym in syms:
 
 # Down bounce — need SPY green + green bar fraction 50%+
 dn_results.sort(key=lambda x: (-x[7], x[4]))  # green frac DESC, deeper drop
-print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (need SPY green + green bars ≥50%)")
-print(f"  GreenFrac 50%+ = WR 69% | GreenFrac <30% = WR 13%")
+print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (dropped 2%+ from open)")
+print(f"  GreenFrac 50%+ = WR 69% | <30% = WR 13% | SPY green = WR 58-62%")
 print(f"{'':1s}{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'GF':>4s} {'LG':>2s}")
 for s,o,n,c,dr,bn,vr,gf,lg in dn_results[:10]:
     ok = '🔥' if gf >= 0.5 and spy_chg > 0 else ('✅' if gf >= 0.33 else '⚠️')
