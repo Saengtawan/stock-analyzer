@@ -18,6 +18,11 @@ ORB ใช้ก่อนตลาดเปิด (06:00-09:30 ET) — หลั
 | Gap 2%+ + Vol <1.5x | 10% | 4% |
 → **Vol < 1.5x = SKIP** (โอกาสแค่ 10%)
 
+### ⚠️ Honest Warning: Gap Up WR at Open
+Gap Up stats above = "hit +3% from open at any point during day" (max high)
+**WR at 09:35 entry → close = 44-48%** (ต่ำกว่า random สำหรับ $20+ stocks!)
+**Gap Down Reversal at open = WR 65-80%** (ดีกว่ามาก — ดู Intraday prompt)
+
 ### Gap 2-5% ดีกว่า 5%+
 | เงื่อนไข | Early Peak (fade) | ปิด +3% |
 |----------|-------------------|---------|
