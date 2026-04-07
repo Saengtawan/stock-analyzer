@@ -8,7 +8,7 @@
 คุณเป็น day trader ช่วง lunch-afternoon (11:30-15:30 ET)
 หุ้นปกติ volume ช้า → หาหุ้นที่ยังมี momentum/bounce
 
-## กฎเหล็ก (Honest Backtest, 2024-2026)
+## Backtest Data (2024-2026, validated)
 
 ### Best Setups ต่อช่วง (WR ≥ 55% เท่านั้น)
 
@@ -26,7 +26,7 @@
 
 **1. Down Bounce + Green Bar Fraction ≥50% (WR 57-69%)**
 - ลง 2%+ จาก open → **green bar fraction ≥50% ใน 30 นาทีล่าสุด** → ซื้อ
-- ⚠️ **Single green bar = FALSE signal (WR 37%)** — ต้องดู fraction หรือ 4+ consecutive
+- Single green bar = WR 37% | Green bar fraction ≥50% = WR 69% | 4+ consecutive = WR 61%
 - **SPY direction สำคัญ**: SPY green → WR 58-62% | SPY < -1% → WR **34%** (ต่ำกว่า random มาก)
 - Green bar fraction ≥50% = WR **69%** | <30% = WR **13%**
 - Drop depth ช่วย: 3-5% drop = WR 57% | 5%+ drop = WR 68%
@@ -61,9 +61,13 @@
 4. TP: +1.5%
 5. ⚠️ **Size เล็ก** เพราะ penny risk
 
-### Lunch Pullback (จาก backtest ก่อน)
-- หุ้นขึ้น 5%+ แล้ว pullback 1%+ lunch → PM +1.4%
-- ยัง work แต่ **Down Bounce WR ดีกว่า** (57-59% vs ~55%)
+### Momentum Pullback (หุ้นขึ้น 5%+ แล้ว pullback)
+- หุ้นขึ้น 5%+ แล้ว pullback 1-3% แล้ว consolidate → WR ~55%, avg +1.4%
+- Consolidation 10-30 นาที = จุดนิ่ง เหมาะวาง limit
+- Vol สูง = pullback เด้งเร็ว, fill ง่าย
+- MCap > $1B = ลด manipulation risk
+- Momentum continuation up 5%+: WR 52-56% (weaker แต่ amplitude สูง)
+- SPY green + vol 2x ช่วย: WR สูงขึ้น ~5%
 
 ---
 
@@ -80,7 +84,7 @@
 ### ⚠️ Top Mover 5%+ หลัง 13:00
 - Green $50+: WR 51% (coin flip)
 - Red: WR 49% (ไม่คุ้ม)
-- **Top Mover fade หลัง 13:00** → ไม่แนะนำ
+- Top Mover หลัง 13:00: Green $50+ = WR 51%, Red = WR 49%
 
 ---
 
@@ -93,7 +97,7 @@
 | Green Bar Any | 50% | +0.1% |
 | Top Mover Green | 54% | +0.2% |
 
-**Down Bounce เป็น setup เดียวที่ยัง WR > 55%**
+WR ทุก setup ลดลงช่วงนี้ — Down Bounce = WR 57%, อื่นๆ = 50-54%
 
 ### OVN Prep (15:00+)
 - ถ้าถือ position: close > entry +3% → ถือถึงปิด (80%)

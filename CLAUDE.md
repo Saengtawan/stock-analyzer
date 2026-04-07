@@ -376,7 +376,7 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 **ใช้ data จาก Step 3 + หลักการจาก prompt file ที่อ่าน → AI ตัดสินเอง:**
 
 หลักการ (จาก backtest 97K+ signals — validated):
-- **SPY direction = #1 gate**: SPY green → bounce WR 58-62% | SPY<-1% → WR 34% (skip bounce!)
+- **SPY direction**: SPY green → bounce WR 58-62% | SPY < -1% → WR 34% (ต่ำกว่า random มาก)
 - **Drop depth = #1 predictor**: 2-3% drop = WR 53% | 3-5% = 57% | 5%+ = 68%
 - **Green bar fraction**: 50%+ green bars (last 30min) = WR 69% | <30% = WR 13%
 - **Single green bar**: 1 green then red = WR 37% | 4+ consecutive = WR 61%

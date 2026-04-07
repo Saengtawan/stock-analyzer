@@ -8,7 +8,7 @@
 
 ORB ใช้ก่อนตลาดเปิด (06:00-09:30 ET) — หลัง 09:30 ใช้ Intraday prompt แทน
 
-## กฎเหล็ก (จาก 557K daily bars + 55M 5-min bars + 6,385 peak trades)
+## Backtest Data (557K daily bars + 55M 5-min bars + 6,385 peak trades)
 
 ### Volume คือตัวแบ่ง
 | Gap + Volume | Hit +3% from open | Hit +5% |
@@ -80,14 +80,14 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 **Momentum Mode** (5d mom +5%+):
 - Entry: OR high breakout + volume
 - SL: OR low หรือ VWAP
-- TP1: +3% (ขาย 50%) | TP2: +5% (ขายหมด)
+- TP1: +3% | TP2: +5% (hit +3% → 64% วิ่งต่อ +5% ถ้าเช้า)
 - 45% ปิด +3%
 
 **Bounce Mode** (5d mom ลบ + Vol 2x+):
 - Entry: OR high breakout + volume
 - SL: OR low (tight)
-- **TP: +2% ขายหมด** (ไม่รอ +3%)
-- **ขายก่อน 10:30 เด็ดขาด** (48% fade ปิดใกล้ low)
+- TP: +2% (avg close +1.5-2.3%, +3% rate = 35-40%)
+- 48% fade ปิดใกล้ low ถ้าถือหลัง 10:30
 - 35-40% ปิด +3% (ถ้า Vol 2x+)
 
 | Bounce + Vol | Avg High | Avg Close | +3% |
@@ -101,14 +101,14 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 |-------------|---------|---------|--------|
 | **ขึ้น 2%+ จาก open** | **61%** | **42%** | **ถือต่อ** |
 | ขึ้นเล็กน้อย | 23% | 12% | รอ 10:30 |
-| ลง 2%+ | 11% | 7% | **ออก** |
+| ลง 2%+ | 11% | 7% | WR ต่ำมาก |
 
 ### Step 5: 10:30 Final Check
 | สถานะ 10:30 | ปิด +3% | ทำอะไร |
 |-------------|---------|--------|
 | **Higher high จาก 09:30** | **47%** | **ถือ** |
 | ยืนเหนือ open | 26% | ถือ TP ลด |
-| **หลุดต่ำกว่า open** | **8%** | **ออกทันที** |
+| **หลุดต่ำกว่า open** | **8%** | WR ต่ำมาก |
 
 → **หลัง 10:30 ORB จบ** — ถ้ายังถือ ใช้ intraday confirm (12:00, 14:00)
 
@@ -121,10 +121,10 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 | **ก่อน 10:30** | **-0.4%** | **-5.4%** | **14%** |
 | หลัง 14:00 | +5.8% | -1.0% | 79% |
 
-**กฎ:**
-- พุ่ง +3% ก่อน 10:00 → **ขาย 50% ทันที** (83% จะ giveback)
-- 10:30 higher high → ถือต่อได้
-- 10:30 หลุด open → **ออก** (แค่ 8% ปิด +3%)
+**Data:**
+- พุ่ง +3% ก่อน 10:00 → 83% giveback บางส่วน
+- 10:30 higher high → 47% ปิด +3%
+- 10:30 หลุด open → 8% ปิด +3%
 
 ## วิเคราะห์ ORB Candidate (AI ตัดสินเอง)
 
