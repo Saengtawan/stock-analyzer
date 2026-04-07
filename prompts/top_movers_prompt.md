@@ -49,7 +49,7 @@
 ### Strategy 1: Down Bounce + SPY Green + Green Fraction (WR 57-69%)
 1. **เช็ค SPY ก่อน**: SPY green → bounce WR 58-62% | SPY < -1% → WR 34%
 2. Scan หุ้น ที่ **ลง 2%+ จาก open**
-3. ดู **green bar fraction** (30 นาทีล่าสุด): ≥50% → entry | <30% → skip
+3. ดู **green bar fraction** (30 นาทีล่าสุด): ≥50% = WR 69% | <30% = WR 13%
 4. Single green bar = WR 37% (ต่ำกว่า random)
 5. SL: day low | TP: +2%
 6. Time stop: 1 ชม.
@@ -110,8 +110,6 @@
 | **14:00-15:30** | Down Bounce $5-20 Green | **57%** | (others < 55%) | - |
 
 ---
-
-## Hard Skip
 
 ## Low WR Setups (ข้อมูลให้ AI พิจารณา)
 

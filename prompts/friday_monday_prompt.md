@@ -97,13 +97,15 @@ Baseline ทุกหุ้น: **Friday→Monday close = +0.37%**, ปิดข
 ☐ ไม่มี bad news ที่รอ weekend (earnings Mon BMO, legal, FDA risk)
 ☐ VIX < 30 (สูงเกิน = risk symmetric ทั้งขึ้นลง)
 
-## Hard Skip
+## Low WR Setups (ข้อมูลให้ AI พิจารณา)
 
-✗ ศุกร์ปกติ (ไม่มี setup) → baseline 24% ไม่คุ้ม risk 20%
-✗ Hot week 5d ↑10% แต่ศุกร์ flat → momentum หมดแล้ว (20% +3%)
-✗ Utilities / Real Estate / Consumer Defensive → +3% แค่ 15-17%
-✗ Earnings announce Monday BMO → gap จาก earnings ไม่ใช่จาก momentum
-✗ Long weekend (Monday holiday) → risk 3 วัน แทน 2 วัน
+| Setup | WR/หมายเหตุ |
+|-------|------------|
+| ศุกร์ปกติ (ไม่มี setup) | baseline 24% +3% |
+| Hot week 5d ↑10% แต่ศุกร์ flat | 20% +3% (momentum หมด) |
+| Utilities / Real Estate / Consumer Defensive | 15-17% +3% |
+| Earnings Monday BMO | gap จาก earnings ไม่ใช่ momentum |
+| Long weekend (Monday holiday) | risk 3 วัน แทน 2 วัน |
 
 ## ⚠️ Risk Warning
 

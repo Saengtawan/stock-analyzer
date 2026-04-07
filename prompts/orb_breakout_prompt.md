@@ -27,8 +27,7 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 - Backtest 4,347 events: Gap Down ≥2% + Vol ≥2x → **WR 42.4%** close > open
 - Vol ยิ่งเยอะยิ่งแย่: Vol 3-5x = WR 37% | Vol 5x+ = WR 35%
 - **Volume บน gap down = selling conviction ไม่ใช่ buying opportunity**
-- เฉพาะ VIX ≥38 (panic) ถึงจะ reversal ได้นิดหน่อย (WR 53%)
-- เฉพาะ VIX ≥38 (panic) ถึง WR พอ 53% — ปกติไม่คุ้ม
+- เฉพาะ VIX ≥38 (panic) ถึง WR 53% — ปกติไม่คุ้ม
 
 ### Gap 2-5% ดีกว่า 5%+
 | เงื่อนไข | Early Peak (fade) | ปิด +3% |
@@ -162,8 +161,6 @@ LOSER signs (fade risk):
 - No catalyst — pump & dump risk
 
 **ไม่ใช่กฎตายตัว — AI ดู pattern รวมแล้วตัดสิน**
-
-## Hard Skip
 
 ## Low WR Setups (ข้อมูลให้ AI พิจารณา)
 
