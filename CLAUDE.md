@@ -204,33 +204,60 @@ for s,o,n,c,hi,fb,vr,nh,rh,up in results[:15]:
 PYEOF
 ```
 
-### ขั้นตอน 3: เช็ค catalyst + SI + sector (สำหรับ top 5-8 ตัว)
+### ขั้นตอน 3: ดึง context data ให้ครบ (สำหรับ top 5-8 ตัว)
+
+**ดึง data ทั้งหมดนี้ แล้ว AI ตัดสินเอง — ไม่ hardcode score:**
 ```bash
+# แทน XXX,YYY,ZZZ ด้วย symbols จาก Step 2
 sqlite3 data/trade_history.db "
-SELECT n.symbol, substr(n.headline,1,60), n.published_at
+-- News: มีข่าวมั้ย ข่าวอะไร (มีข่าว = attention = ดี ไม่ว่า pos/neg)
+SELECT n.symbol, n.sentiment_label, substr(n.headline,1,60), n.published_at
 FROM news_events n
 WHERE n.symbol IN ('XXX','YYY','ZZZ') AND n.published_at >= date('now','-3 days')
-ORDER BY n.published_at DESC LIMIT 10;
-"
-sqlite3 data/trade_history.db "
+ORDER BY n.published_at DESC LIMIT 15;
+
+-- Short Interest: SI สูง = short squeeze potential ช่วย bounce
+-- SI ต่ำ = ไม่มีแรง squeeze → bounce อ่อนกว่า
 SELECT s.symbol, s.short_pct_float, s.short_change_pct, u.sector
 FROM short_interest s
 JOIN universe_stocks u ON s.symbol = u.symbol
 WHERE s.symbol IN ('XXX','YYY','ZZZ') AND s.date = (SELECT MAX(date) FROM short_interest);
-"
-sqlite3 data/trade_history.db "
+
+-- Analyst: consensus ดีมั้ย target เท่าไหร่
 SELECT symbol, target_mean, upside_pct, bull_score FROM analyst_consensus
 WHERE symbol IN ('XXX','YYY','ZZZ');
-"
-sqlite3 data/trade_history.db "
+
+-- Earnings: มี earnings ใกล้มั้ย (uncertainty สูง)
 SELECT symbol, next_earnings_date FROM earnings_calendar
-WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date >= date('now') AND next_earnings_date <= date('now','+1 day');
+WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') AND date('now','+3 days');
+
+-- Insider: มี insider buy ล่าสุดมั้ย (confidence signal)
+SELECT symbol, insider_name, total_value, transaction_date FROM insider_transactions
+WHERE symbol IN ('XXX','YYY','ZZZ') AND transaction_date >= date('now','-30 days')
+ORDER BY total_value DESC LIMIT 5;
+
+-- Options: put/call ratio สูงมั้ย (hedging = fear)
+SELECT symbol, pc_volume_ratio, unusual_call_count, unusual_put_count
+FROM options_daily_summary
+WHERE symbol IN ('XXX','YYY','ZZZ') AND collected_date = (SELECT MAX(collected_date) FROM options_daily_summary);
 "
 ```
 
-### ขั้นตอน 4: Score + Filter ตาม prompt file
+### ขั้นตอน 4: AI วิเคราะห์ + ตัดสิน
 
-ใช้ checklist, hard skip, play type (Momentum/Bounce/Gap Down Reversal) จาก prompt file ที่อ่านในขั้นตอนแรก
+**ใช้ data จาก Step 3 + หลักการจาก prompt file ที่อ่าน → AI ตัดสินเอง:**
+
+หลักการ (จาก backtest — ไม่ใช่กฎตายตัว):
+- SI สูง = short squeeze → bounce แรงกว่า
+- VIX สูง = volatility สูง → bounce amplitude ใหญ่กว่า
+- มีข่าว (ไม่ว่า pos/neg) = มี attention + volume → ดีกว่าไม่มีข่าว
+- Sector Tech/HC/Financial = bounce ดีกว่า Consumer Defensive/Real Estate
+- มี insider buy = executives เชื่อมั่น
+- Earnings ใกล้ = uncertainty สูง → อาจดีหรือแย่ ระวัง
+- Unusual options activity = smart money positioning
+
+**AI ดู data ทั้งหมดแล้ว weigh เอง — แต่ละวันต่างกัน context ต่างกัน**
+**ไม่มี fixed score — AI judge จาก totality of evidence**
 
 ### ขั้นตอน 5: แสดงผล
 

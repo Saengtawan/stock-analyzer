@@ -120,14 +120,21 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 - 10:30 higher high → ถือต่อได้
 - 10:30 หลุด open → **ออก** (แค่ 8% ปิด +3%)
 
-## ORB Checklist (ต้องผ่าน 4/6)
+## วิเคราะห์ ORB Candidate (AI ตัดสินเอง)
 
-☐ Gap ≥ 2% from prev close
-☐ Volume ≥ 2x average (**สำคัญสุด**)
-☐ มี catalyst (earnings/upgrade/FDA/contract)
-☐ First bar ขึ้น 1%+ (momentum จริง)
-☐ Sector = Tech / Energy / Communication / Materials / Consumer Cyclical
-☐ 5d momentum ≥ 5%
+**Technical (จาก scan):**
+- Gap size? Volume ratio? First bar momentum?
+- 5d momentum? Close position? ATR?
+- Momentum mode vs Bounce mode?
+
+**Context (จาก DB query):**
+- มี catalyst จริงมั้ย (earnings/upgrade/FDA — ไม่ใช่แค่ "stock up")
+- SI สูง = short squeeze potential
+- Sector ดี? (Energy/Tech hold, Healthcare fade)
+- VIX level? (สูง = volatile ทั้งขึ้นและลง)
+- Insider/analyst signals?
+
+**AI weigh ทุกปัจจัยรวมกัน → ตัดสิน GO / WAIT / SKIP**
 
 ## Hard Skip
 

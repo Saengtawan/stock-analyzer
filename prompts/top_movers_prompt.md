@@ -118,13 +118,25 @@
 ✗ Red bar ที่ flat stock = no signal
 ✗ หลัง 15:00 + WR < 55% = ไม่คุ้มเข้าใหม่
 
-## Checklist (ต้องผ่าน 3/5)
+## วิเคราะห์ Candidate (AI ตัดสินเอง)
 
-☐ **Green bar** ณ จุด entry (สำคัญสุด!)
-☐ Setup ตรงช่วงเวลา (lunch=down bounce/penny, afternoon=green bar any)
-☐ Price ตรง sweet spot ($5-20 bounce หรือ $1-5 penny mover)
-☐ ยังเหนือ VWAP หรือ day low
-☐ Volume ไม่ spike เกิน 5x
+ดู data ที่ CLAUDE.md Step 3 ดึงมา แล้วพิจารณา:
+
+**Technical (จาก scan):**
+- Green bar? (สำคัญสุดจาก backtest)
+- Position: pullback vs at high vs still falling?
+- Price range: $1-5 penny / $5-20 / $50+?
+- Volume ratio: ไม่ spike เกิน 5x?
+
+**Context (จาก DB query):**
+- SI สูง = short squeeze → bounce แรงกว่า
+- มีข่าว = มี attention (ดีกว่าไม่มี)
+- Sector ดี (Tech/HC) vs แย่ (Consumer Defensive)?
+- VIX level = amplitude ของ bounce
+- Insider/analyst signals?
+
+**AI weigh ทุกปัจจัยรวมกัน → ตัดสิน GO / WAIT / SKIP**
+**ไม่มี fixed checklist — context วันนั้นสำคัญกว่ากฎตายตัว**
 
 ## Output Format
 

@@ -119,13 +119,25 @@
 ✗ Price < $1 = extreme manipulation
 ✗ หลัง 11:30 → ใช้ Top Movers prompt แทน
 
-## Checklist (ต้องผ่าน 3/5)
+## วิเคราะห์ Candidate (AI ตัดสินเอง)
 
-☐ หุ้น **ลง 2%+ จาก open** (Down Bounce) หรือ **Vol Surge 3x** (No Gap)
-☐ **Green bar** ณ จุด entry
-☐ **Price $5-20** (sweet spot) หรือ **$50+** (safe)
-☐ ยังเหนือ day low (ไม่ทำ new low)
-☐ มี catalyst / sector theme
+ดู data ที่ CLAUDE.md Step 3 ดึงมา แล้วพิจารณา:
+
+**Technical (จาก scan):**
+- Setup type (Down Bounce / Vol Surge / Top Mover)
+- Green bar? Price range? Volume ratio?
+
+**Context (จาก DB query):**
+- SI สูง = short squeeze → bounce แรงกว่า
+- VIX สูง = volatility สูง → amplitude ใหญ่
+- มีข่าว = attention + volume (ไม่ว่า pos/neg ดีกว่าไม่มี)
+- Sector Tech/HC/Financial = bounce ดีกว่า
+- Insider buy ล่าสุด = confidence signal
+- Earnings ใกล้ = uncertainty ระวัง
+- Unusual options = smart money
+
+**AI weigh ทุกปัจจัยรวมกัน → ตัดสิน GO / WAIT / SKIP**
+**ไม่มี fixed checklist — แต่ละวัน context ต่างกัน**
 
 ## Output Format
 
