@@ -10,18 +10,24 @@
 
 ## กฎเหล็ก (Honest Backtest, 2024-2026)
 
-### Best Setups ต่อช่วง (WR ≥ 55% เท่านั้น)
+### Down Bounce WR ตาม Drop Depth × เวลา (backtest 97K signals, 2024-2026)
 
-| ช่วง | Strategy | Price | WR | Avg Ret | +2% | MaxDD |
-|------|----------|-------|----|---------|-----|-------|
-| **09:30** | Down 2%+ Green Bounce | **$5-20** | **80%** | +10.2% | 61% | -7.1% |
-| **09:30** | Down 2%+ Green Bounce | $50+ | **74%** | +19.2% | 51% | -16.7% |
-| **09:30** | Down 2%+ Red (still falling) | $5-20 | **66%** | +4.5% | 44% | -1.5% |
-| **10:00** | Down 2%+ Green Bounce | $5-20 | **65%** | +5.1% | 41% | -2.2% |
-| **10:00** | Vol Surge 3x No Gap | $50+ | **62%** | +1.0% | 24% | +2.7% |
-| **10:00** | Top Mover 5%+ Green | $50+ | **62%** | +0.7% | 34% | +7.2% |
-| **10:30** | Down 2%+ Green Bounce | $5-20 | **63%** | +5.0% | 37% | -2.3% |
-| **11:00** | Down 2%+ Green Bounce | $5-20 | **59%** | +3.5% | 32% | -0.8% |
+**Drop depth คือตัวแบ่ง #1 — ไม่ใช่ price range หรือ setup type**
+
+| ช่วง | Drop 2-3% | Drop 3-5% | Drop 5-8% | Drop 8%+ | N |
+|------|-----------|-----------|-----------|----------|---|
+| **09:30-10:00** | **57.5%** | **59.5%** | **69.2%** | **93%** (N น้อย) | 14,719 |
+| **10:00-10:30** | 52.3% | 54.5% | **71.6%** | N<30 | 12,710 |
+| **10:30-11:30** | 53.9% | 54.4% | **67.3%** | N<30 | 30,904 |
+
+Price range: $5-20 = WR 55% | $50+ = WR 54.8% (ไม่ต่างกันมาก — drop depth สำคัญกว่า)
+
+### Other Setups (จาก backtest ก่อน — N น้อยกว่า)
+
+| ช่วง | Strategy | WR | หมายเหตุ |
+|------|----------|-----|---------|
+| 10:00 | Vol Surge 3x No Gap $50+ | ~62% | N น้อย, ยังไม่ re-validate |
+| 10:00 | Top Mover 5%+ Green $50+ | ~62% | N น้อย, ยังไม่ re-validate |
 
 ### ⚠️ Honest Warning: Down Bounce — WR ขึ้นกับ Drop Depth
 - Backtest 97K signals: **Drop depth คือตัวแบ่ง #1**
@@ -49,18 +55,18 @@
 
 ## 🟢 09:30-10:00 ET — Opening Bell
 
-### Strategy 1: Down Bounce (BEST — WR 65-80%)
+### Strategy 1: Down Bounce (BEST — WR 57-69% ขึ้นกับ drop depth)
 **หาอะไร**: หุ้นที่ลง 2%+ จาก open แล้ว green bar bounce
-**Price sweet spot**: $5-20 (WR 80%) หรือ $50+ (WR 74%)
+**Sweet spot**: Drop 5%+ = WR 69% | Drop 3-5% = WR 60% | Drop 2-3% = WR 57%
 
 **วิธีหา:**
 1. Scan หุ้นที่ **ลง 2%+ จาก open** ภายใน 09:30-09:45
-2. รอ **Green bar** (bar close > bar open) = bounce signal
-3. Price $5-20 ดีสุด (WR 80%)
-4. **$50+ ก็ดี** (WR 74%) แต่ MaxDD -16.7% สูง
+2. ยิ่ง drop ลึก WR ยิ่งสูง (5%+ = 69%)
+3. รอ **Green bar** (bar close > bar open) = bounce signal
+4. Price range ไม่ค่อยสำคัญ ($5-20 = 55%, $50+ = 55% ใกล้กัน)
 
 **Entry:** Buy green bar close | SL: day low | TP: +3-5%
-**⚠️ Risk:** MaxDD -7% ถึง -17% → SL สำคัญมาก
+**Risk:** Drop ตื้น (2-3%) = edge น้อย WR แค่ 57%
 
 ### Strategy 2: Vol Surge 3x No Gap (WR 55-62%)
 **หาอะไร**: หุ้นที่ไม่ gap แต่ vol พุ่ง 3x + green bar
@@ -70,9 +76,9 @@
 
 ## 🟢 10:00-10:30 ET — Confirmation
 
-### Down Bounce ยังดี (WR 63-65%)
-- $5-20: WR 65%, +5.1%, MaxDD -2.2%
-- $50+: WR 58%, +6.6%, MaxDD -4.5%
+### Down Bounce (WR 52-72% ขึ้นกับ drop depth)
+- Drop 2-3%: WR 52% | Drop 3-5%: WR 55% | Drop 5%+: WR **72%**
+- Avg return vs entry: +0.19%
 
 ### Vol Surge + Top Mover (WR 58-62%)
 - Vol Surge 3x No Gap $50+: WR 62%, +1.0%
@@ -86,11 +92,12 @@
 
 ## 🟡 10:30-11:30 ET — Late Morning
 
-### Down Bounce $5-20 ยังดีที่สุด (WR 59-63%)
-| เวลา | WR | Avg Ret |
-|------|-----|---------|
-| 10:30 | **63%** | +5.0% |
-| 11:00 | **59%** | +3.5% |
+### Down Bounce ยังดีที่สุด (WR 54-67% ขึ้นกับ drop depth)
+| เวลา | Drop 2-3% | Drop 3-5% | Drop 5%+ |
+|------|-----------|-----------|----------|
+| 10:30-11:30 | 54% | 54% | **67%** |
+
+Avg return vs entry: +0.23%
 
 ### Penny Stock $1-5 มี Edge บาง Setup
 - Up 2-5% Green $1-5: **WR 59%** +0.8% (10:30)
@@ -102,19 +109,17 @@
 
 ---
 
-## สรุป: เรียงตาม WR
+## สรุป: เรียงตาม WR (จาก 97K signals)
 
-| Rank | Strategy | Price | Time | WR | Target |
-|------|----------|-------|------|----|--------|
-| 🥇 | **Down 2%+ Green Bounce** | **$5-20** | 09:30 | **80%** | +3-5% |
-| 🥈 | Down 2%+ Green Bounce | $50+ | 09:30 | **74%** | +3-5% |
-| 🥉 | Down 2%+ Red Falling | $5-20 | 09:30 | **66%** | +2-3% |
-| 4 | Down 2%+ Green Bounce | $5-20 | 10:00 | **65%** | +3% |
-| 5 | Down 2%+ Green Bounce | $5-20 | 10:30 | **63%** | +2-3% |
-| 6 | Vol Surge 3x No Gap | $50+ | 10:00 | **62%** | +1% |
-| 7 | Top Mover 5%+ Green | $50+ | 10:00 | **62%** | +1% |
-| 8 | Down 2%+ Green Bounce | $5-20 | 11:00 | **59%** | +2% |
-| 9 | Up 2-5% Green | $1-5 | 10:00-10:30 | **59%** | +1% |
+| Rank | Setup | เวลา | WR | TP | N |
+|------|-------|------|-----|-----|---|
+| 🥇 | **Down Bounce, drop 5%+** | 09:30 | **69%** | +3-5% | สูง |
+| 🥈 | **Down Bounce, drop 5%+** | 10:00-10:30 | **67-72%** | +2-3% | ปานกลาง |
+| 🥉 | Down Bounce, drop 3-5% | 09:30 | **60%** | +2-3% | สูง |
+| 4 | Down Bounce, drop 2-3% | 09:30 | **57%** | +2% | สูง |
+| 5 | Down Bounce, drop 3-5% | 10:00-11:30 | **54-55%** | +1-2% | สูง |
+| 6 | Vol Surge 3x No Gap $50+ | 10:00 | **~62%** | +1% | N น้อย |
+| 7 | Down Bounce, drop 2-3% | 10:00-11:30 | **52-54%** | +1% | สูง |
 
 ---
 
