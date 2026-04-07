@@ -138,6 +138,24 @@
 **AI weigh ทุกปัจจัยรวมกัน → ตัดสิน GO / WAIT / SKIP**
 **ไม่มี fixed checklist — context วันนั้นสำคัญกว่ากฎตายตัว**
 
+### Winner vs Loser Profile (จาก backtest — ให้ AI ใช้ judge)
+
+WINNER signs (bounce hold):
+- Beta ปานกลาง (~1.3) — volatile พอ bounce แต่ไม่เกิน
+- Drop ลึก (4%+) — oversold จริง → bounce แรง
+- Bar vol ปกติ (1-2x) — institutional buying ไม่ใช่ retail chase
+- Mom 5d flat/ลบ — dip จริง ไม่ใช่ pullback ระหว่าง rally
+- MCap ใหญ่กว่า — stable กว่า
+
+LOSER signs (bounce fail):
+- Beta สูง (>1.7) — volatile เกิน bounce ไม่ hold
+- Drop ตื้น (2-3%) — ยังไม่ oversold จริง จะลงต่อ
+- Bar vol spike (>2x) — retail chase ตอน bounce → fade กลับ
+- Mom 5d บวก — หุ้นไม่ได้ dip จริง แค่ pullback เล็กก่อนลงต่อ
+- VIX สูงมาก — ทุกอย่าง volatile bounce ไม่ hold
+
+**ไม่ใช่กฎตายตัว — AI ดู pattern รวมแล้วตัดสิน**
+
 ## Output Format — เฉพาะ BUY เท่านั้น
 
 **แสดงเฉพาะหุ้นที่ BUY ได้เลย — ไม่แสดง SKIP/HOLD/WAIT**

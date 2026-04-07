@@ -136,6 +136,26 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 
 **AI weigh ทุกปัจจัยรวมกัน → ตัดสิน GO / WAIT / SKIP**
 
+### Winner vs Loser Profile (จาก backtest — ให้ AI ใช้ judge)
+
+WINNER signs (momentum hold):
+- Gap 2-5% (พอดี) — ไม่เยอะจน fade
+- Vol 2x+ — institutional interest จริง
+- 5d momentum +5%+ — trend กำลังวิ่ง
+- First bar ขึ้น 1%+ — momentum จริงตั้งแต่เปิด
+- Sector Energy/Tech — HOLD ดีกว่า sector อื่น
+- Catalyst ชัด (earnings/upgrade/FDA) — ไม่ใช่แค่ "stock up"
+
+LOSER signs (fade risk):
+- Gap 5%+ + Small cap — 44% early peak fade
+- Vol < 1.5x — fake move (82% = noise)
+- 5d momentum > 20% — extreme profit-taking risk
+- First bar เฉยๆ (<0.3%) — ไม่มี momentum
+- Sector Healthcare/Consumer Cyclical — FADE ง่าย
+- No catalyst — pump & dump risk
+
+**ไม่ใช่กฎตายตัว — AI ดู pattern รวมแล้วตัดสิน**
+
 ## Hard Skip
 
 ✗ Volume < 1.5x → fake move (82% of yest+3% with low vol = noise)
