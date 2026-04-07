@@ -159,6 +159,15 @@ Avg return vs entry: +0.23%
 - Earnings ใกล้ = uncertainty ระวัง
 - Unusual options = smart money
 
+### Green Bar Fraction (ใช้ได้ทุกช่วง — data เดียวกับ Top Movers)
+
+| Green Fraction (30 min ล่าสุด) | WR | หมายเหตุ |
+|-------------------------------|-----|---------|
+| ≥50% | **69%** | bounce จริง |
+| 30-50% | 37% | ต่ำกว่า random |
+| <30% | 13% | แทบไม่ bounce |
+| 4+ consecutive green bars | 61% | ดีกว่า single green bar (37%) |
+
 **AI weigh ทุกปัจจัยรวมกัน → ตัดสินเอง**
 
 ### Return Data ให้ AI ตั้ง TP/SL (backtest 126K setups)

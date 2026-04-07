@@ -195,43 +195,49 @@ for sym in syms:
         mins = len(c)*5
         vr = (vol*390/max(mins,1))/avg_vol if avg_vol > 0 else 0
 
-        # Green bar count (last 3 bars) — need 2+ for real bounce signal
-        recent = min(3, len(c))
-        green_ct = sum(1 for i in range(-recent, 0) if float(c.iloc[i]) > float(o.iloc[i]))
+        # Green bar fraction (last 6 bars = 30 min) — 50%+ = WR 69%, <30% = WR 13%
+        recent = min(6, len(c))
+        green_frac = sum(1 for i in range(-recent, 0) if float(c.iloc[i]) > float(o.iloc[i])) / recent
         last_green = float(c.iloc[-1]) > float(o.iloc[-1])
         fb = (float(c.iloc[0])/opn-1)*100
 
+        # Consolidation detection (last 3 bars range shrinking = จุดนิ่ง)
+        consol = False
+        if len(c) >= 4:
+            ranges = [float(h.iloc[i])-float(lo.iloc[i]) for i in range(-3, 0)]
+            prev_ranges = [float(h.iloc[i])-float(lo.iloc[i]) for i in range(-6, -3)] if len(c) >= 7 else ranges
+            consol = max(ranges) < max(prev_ranges) * 0.7 if max(prev_ranges) > 0 else False
+
         if now < 5: continue
 
-        # DOWN BOUNCE: dropped 2%+ from open (BEST setup — deeper drop = higher WR)
-        # WR by drop: 2-3%=53%, 3-5%=57%, 5-8%=68%, 8%+=93%
+        # DOWN BOUNCE: dropped 2%+ from open
         if drop_from_open <= -2 and now > low:
             bounce_pct = (now/low-1)*100
-            dn_results.append((sym, opn, now, chg, drop_from_open, bounce_pct, vr, green_ct, last_green))
+            dn_results.append((sym, opn, now, chg, drop_from_open, bounce_pct, vr, green_frac, last_green, consol))
 
-        # UP MOVERS: up 1.5%+ with volume
+        # UP MOVERS: up 1.5%+ with volume (includes momentum pullback candidates)
         if chg > 1.5 and vr > 1.0:
             rng = hi - low
             nh = ((now-low)/rng*100) if rng > 0 else 50
-            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, fb, vr, nh, last_green))
+            pullback = (hi/now-1)*100 if now < hi else 0  # how much pulled back from high
+            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, fb, vr, nh, green_frac, consol, pullback))
     except: pass
 
-# Down Bounce candidates (BEST setup — deeper drop = higher WR)
-dn_results.sort(key=lambda x: x[4])  # deepest drop first (most oversold)
-print(f"\n🔻 {len(dn_results)} DOWN BOUNCE candidates (dropped 2%+ from open)")
-print(f"  Drop 5%+ = WR 68% | Drop 3-5% = WR 57% | Drop 2-3% = WR 53%")
-print(f"{'':1s}{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'Grn':>3s} {'LG':>2s}")
-for s,o,n,c,dr,bn,vr,gc,lg in dn_results[:10]:
-    f = '🔥' if dr <= -5 else ('✅' if dr <= -3 else '⚠️')
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {gc}/3 {'🟢' if lg else '🔴'}")
+# Down Bounce candidates
+dn_results.sort(key=lambda x: x[4])  # deepest drop first
+print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (dropped 2%+ from open)")
+print(f"{'':1s}{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'GF':>4s} {'Con':>3s}")
+for s,o,n,c,dr,bn,vr,gf,lg,con in dn_results[:10]:
+    f = '🔥' if gf >= 0.5 and dr <= -3 else ('✅' if dr <= -3 else '  ')
+    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {gf:>3.0%} {'📐' if con else '  '}")
 
-# Up movers (momentum continuation)
-up_results.sort(key=lambda x: x[3], reverse=True)
-print(f"\n🔺 {len(up_results)} UP movers (+1.5%+ from open)")
-print(f"{'':1s}{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'1st':>5s} {'Vol':>4s} {'NrH':>4s} {'LG':>2s}")
-for s,o,n,c,hi,fb,vr,nh,lg in up_results[:10]:
-    f = '🔥' if c > 3 and vr > 2 and nh > 80 else ('✅' if c > 2 else '  ')
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {fb:+4.1f}% {vr:>3.1f}x {nh:>3.0f}% {'🟢' if lg else '🔴'}")
+# Up movers + momentum pullback candidates
+up_results.sort(key=lambda x: (x[10], x[3]), reverse=True)  # pullback DESC, then chg
+print(f"\n🔺 {len(up_results)} UP movers (+1.5%+ | PB=pullback from high)")
+print(f"{'':1s}{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'GF':>4s} {'Con':>3s}")
+for s,o,n,c,hi,fb,vr,nh,gf,con,pb in up_results[:10]:
+    f = '📐' if con and pb >= 1.5 else ('🔥' if c > 3 and vr > 2 else ('✅' if c > 2 else '  '))
+    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {pb:>3.1f}% {vr:>3.1f}x {gf:>3.0%} {'📐' if con else '  '}")
 PYEOF
 ```
 
