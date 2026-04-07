@@ -22,12 +22,13 @@ The terminal CAN render wide pipe-tables. Always use one table for all candidate
 
 **⛔ ก่อนทำอะไร → อ่าน prompt file ที่ตรงกับ scan type:**
 
-| Scan | อ่านไฟล์ |
-|------|---------|
-| ORB / หาหุ้น / scan (ก่อนเปิด-10:30) | `prompts/orb_breakout_prompt.md` |
-| Intraday / 3%+ (ตลาดเปิด) | `prompts/intraday_3pct_prompt.md` |
-| OVN / overnight (15:30-15:55) | `prompts/ovn_gap_prompt.md` |
-| Friday / ศุกร์-จันทร์ (ศุกร์ 15:00) | `prompts/friday_monday_prompt.md` |
+| Scan | อ่านไฟล์ | เวลา ET |
+|------|---------|---------|
+| ORB / หาหุ้น / scan | `prompts/orb_breakout_prompt.md` | 06:00-10:30 |
+| Intraday / 3%+ | `prompts/intraday_3pct_prompt.md` | 09:30-11:30 |
+| **Top Movers / หุ้นวิ่งแรง** | **`prompts/top_movers_prompt.md`** | **11:30-15:00** |
+| OVN / overnight | `prompts/ovn_gap_prompt.md` | 15:30-15:55 |
+| Friday / ศุกร์-จันทร์ | `prompts/friday_monday_prompt.md` | ศุกร์ 15:00 |
 
 **Prompt file มี rules + stats ครบ (Bounce Mode, Gap Down Reversal, Sector, HOLD vs FADE)**
 **CLAUDE.md มี scan code + output format — ใช้ร่วมกัน**
@@ -284,16 +285,13 @@ Earnings momentum day 2, CPos 0.99 = ปิดแทบ AT high → continuation
 
 | เวลา ET | Prompt | ทำอะไร |
 |---------|--------|--------|
-| **00:00-03:59** | **ORB** | ORB prep: ดู yesterday movers + PM gaps forming + watchlist |
-| **04:00-09:25** | **ORB** | PM gaps vs prev close + vol building + catalyst |
-| **09:30-09:45** | **ORB** | First bar + OR high/low → breakout entry |
-| **09:45-10:00** | **ORB → Intraday** | OR breakout entry / 10:00 confirmation |
-| **10:00** | **Intraday** | ขึ้น 2%+ → 61% / **Vol Surge 3x no gap → 47%** |
-| **10:00-10:30** | **Intraday** | ⚠️ Kill Zone: ขาย 50% ถ้า +3% / 10:30 หลุด open → ออก |
-| **10:30-12:00** | **Intraday** | Consolidation breakout 47.6% / Noon vol surge 38.1% |
-| **12:00** | **Intraday** | ยืน +2% → 51% ถือ / ≤1% → ขาย |
-| **13:00-14:00** | **Intraday** | AM high breakout + vol 3x → 13.5% +1% |
-| **14:00** | **Intraday** | ยืน +3% → 80% ถือถึงปิด / ≤2% → ขาย |
+| **00:00-03:59** | **ORB** | ORB prep: ดู yesterday movers + PM gaps |
+| **04:00-09:25** | **ORB** | PM gaps vs prev close + vol + catalyst |
+| **09:30-10:30** | **ORB → Intraday** | Opening Bell: OR breakout + Vol Surge + Kill Zone |
+| **10:30-11:30** | **Intraday** | Late Morning: Consolidation breakout 47.6% / Noon vol surge |
+| **11:30-13:30** | **Top Movers** | Lunch: หุ้นขึ้น 5%+ pullback → second wave (+2-3%, 46-57%) |
+| **13:30-15:00** | **Top Movers** | Afternoon: Top movers ยังวิ่ง + AM high breakout (+1-2%) |
+| **15:00-15:30** | **Top Movers** | Power Hour: scalp + hold/exit confirm |
 | **15:30-15:55** | **OVN** | 5d mom ≥5% + today green + vol ≥2x + close near high |
 | **ศุกร์ 15:00** | **Fri-Mon** | ศุกร์ rally 3%+ / bad week bounce / dump vol 2x |
 
