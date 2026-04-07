@@ -8,11 +8,13 @@
 คุณเป็น day trader ที่หาหุ้นที่กำลังวิ่งแรงอยู่ช่วง lunch-afternoon
 ช่วง 11:30+ หุ้นปกติ volume ช้า sideways → หา Top Movers ที่ยังมี momentum แทน
 
-## กฎเหล็ก (จาก 19K top movers + 5.7K 5-min bar entries, 2024-2026)
+## กฎเหล็ก (จาก 19K top movers + 5.7K 5-min entries, 2024-2026)
 
-### Top Movers = หุ้นที่ขึ้น 5%+ จาก open แล้ว
+### Green Bar = ตัวแบ่งจริง (สำคัญกว่า pullback vs at high)
 
-เข้าตอนไหนก็ยังได้ — แต่ target ลดตามเวลา:
+ทุกช่วงเวลา ทุก position → **Green bar ดีกว่า Red bar เสมอ**
+
+### เข้าแต่ละเวลาได้เท่าไหร่ (หุ้นขึ้น 5%+ จาก open)
 
 | Entry | →Close | Max Gain | +2% Close |
 |-------|--------|----------|-----------|
@@ -24,10 +26,6 @@
 | **13:00** | **+2.8%** | **+4.2%** | **46%** |
 | 13:30 | +1.7% | +3.1% | 35% |
 | 14:00 | +1.2% | +2.6% | 25% |
-| 15:00 | +0.9% | +2.3% | 16% |
-
-→ **เข้า 12:00 avg +3.6% (ดีกว่าหุ้นปกติ 50x!)**
-→ **หลัง 14:00 เริ่มไม่คุ้ม** (+1.2%)
 
 ### Volume Rule: ตรงข้ามกับ ORB!
 
@@ -35,82 +33,110 @@
 |--------|-----------|
 | **Vol < 2x** | **80%** ← ดีสุด |
 | Vol 2-3x | 77% |
-| Vol 3-5x | 78% |
-| Vol 5x+ | **70%** ← แย่สุด |
-
-**⚠️ ORB ต้อง vol สูง แต่ Top Movers vol ต่ำดีกว่า!**
-- Vol ต่ำ = institutional ซื้อสม่ำเสมอ
-- Vol สูง = retail chase → fade
+| Vol 5x+ | **70%** ← แย่สุด (retail chase) |
 
 ### Top Movers ส่วนใหญ่ HOLD ไม่ Fade
 
-| ขนาด | Avg Close | Held 50%+ ของ gain |
-|------|-----------|-------------------|
+| ขนาด | Avg Close | Held 50%+ |
+|------|-----------|-----------|
 | +20%+ | +20.2% | **90%** |
 | +10-20% | +9.5% | 84% |
 | +5-10% | +4.2% | 76% |
 
-→ ยิ่งวิ่งแรง ยิ่ง hold (ไม่เหมือน bounce ที่ fade)
-
 ---
 
-## 🟡 11:30-13:30 ET — Lunch: Top Movers + Pullback
+## 🟡 11:30-12:30 ET — Lunch: Pullback Buy ดีสุด
 
-**หาอะไร**: หุ้นที่ขึ้น 5%+ แล้ว pullback ช่วง lunch → second wave บ่าย
-**Target**: +2-3%
+**ช่วงนี้**: หุ้นที่ขึ้นแรงเช้า พักตัวตอน lunch → ซื้อ dip
+**Best entry**: **Pullback + Green bar**
 
-### Lunch Pullback = Best Entry!
+### Data (11:30 ET)
 
-| Lunch Pattern (11:30-13:00) | PM Return | PM Max |
-|---------------------------|-----------|--------|
-| **Pullback ≥ 1%** จาก high | **+1.40%** | **+3.84%** |
-| Flat ลงนิด | +0.63% | +2.10% |
-| ขึ้นต่อ 1%+ | +0.50% | +2.17% |
-
-**Pullback ดีสุด!** ลง 1%+ ตอน lunch → bounce +1.4% บ่าย (max +3.8%)
-ขึ้นต่อตอน lunch กลับให้ return น้อยกว่า (already extended)
+| Position | Bar | →Close | +2% |
+|----------|-----|--------|-----|
+| **Pullback 3-5% + Green** | 🟢 | **+3.53%** | **55%** |
+| Pullback 5%+ + Green | 🟢 | +2.32% | 56% |
+| Near high + Green | 🟢 | +2.10% | 46% |
+| Near high + Red | 🔴 | +2.03% | 42% |
+| At high + Green | 🟢 | +1.67% | 36% |
+| At high + Red | 🔴 | +1.60% | 31% |
 
 ### วิธีหา
-1. Scan หุ้นที่ **ขึ้น 5%+ จาก open** ณ ตอนนี้
-2. **ลง 1-3% จาก intraday high** (lunch pullback) → best entry
-3. ยัง **เหนือ VWAP** (trend ยังดี แค่ pull back)
-4. **Volume < 5x avg** (ไม่ใช่ retail chase)
-5. **Price > $5, MCap > $500M**
+1. Scan หุ้นที่ **ขึ้น 5%+ จาก open**
+2. **ลง 1-5% จาก intraday high** (lunch pullback)
+3. รอ **Green bar** (bar close > bar open) → entry signal
+4. ยัง **เหนือ VWAP**
+5. Price > $5, MCap > $500M, Vol < 5x
 
 ### Entry
-- Buy เมื่อ higher low หลัง pullback + green bar
-- SL: lunch low หรือ VWAP (แล้วแต่ใกล้กว่า)
-- TP: +2% จาก entry (เข้า 12:00) หรือ +1.5% (เข้า 13:00)
+- Buy เมื่อ Green bar หลัง pullback
+- SL: lunch low หรือ VWAP
+- TP: +2-3% จาก entry
 - Time stop: ถ้าไม่วิ่งภายใน 1 ชม. → ออก
 
 ---
 
-## 🟠 13:30-15:00 ET — Afternoon: Top Movers ยังวิ่ง
+## 🟠 13:00-14:00 ET — Afternoon: Momentum Continue ดีสุด
 
-**หาอะไร**: Top Movers ที่ผ่าน lunch แล้วยังแข็ง
-**Target**: +1-2%
+**ช่วงนี้เปลี่ยน!** At High + Green ดีกว่า Pullback
 
-### Filter (เข้มขึ้น — ช่วงนี้ fade risk สูง)
-1. **ขึ้น 5%+ จาก open** ยังอยู่ (ไม่ fade กลับ)
-2. **Close position > 0.7** (ราคาใกล้ high of day)
-3. **Making new high หลัง 13:30** → strong trend
-4. **Volume steady** (ไม่ spike ไม่ตก)
+**Best entry**: **At/Near High + Green bar**
+
+### Data (13:00 ET)
+
+| Position | Bar | →Close | +2% |
+|----------|-----|--------|-----|
+| **At high + Green** | 🟢 | **+3.60%** | **45%** |
+| Pullback 5%+ + Green | 🟢 | +2.31% | 59% |
+| Near high + Green | 🟢 | +2.24% | 38% |
+| Pullback 3-5% + Green | 🟢 | +2.06% | 39% |
+| Near high + Red | 🔴 | +1.23% | 28% |
+| At high + Red | 🔴 | +0.93% | 18% |
+
+**⚠️ At high + Red = แค่ +0.93%! Green bar สำคัญมาก**
+
+### วิธีหา
+1. Scan หุ้นที่ **ขึ้น 5%+ จาก open ยังอยู่**
+2. **กำลังทำ new high of day** หรือ **ใกล้ high ภายใน 3%**
+3. **Current bar = Green** (buyer ยังคุม)
+4. Volume steady (ไม่ spike ไม่ตก)
 
 ### Entry
-- Buy breakout above lunch high + volume confirm
-- SL: lunch low | TP: +1.5%
+- Buy เมื่อ Green bar ที่ at/near high
+- SL: previous 15-min low
+- TP: +1.5-2%
 - Time stop: ถ้าไม่วิ่งภายใน 30 นาที → ออก
+
+### 13:30 ET — ยังได้แต่เริ่มลด
+
+| Position | Bar | →Close | +2% |
+|----------|-----|--------|-----|
+| Pullback 3-5% + Green | 🟢 | +3.31% | 45% |
+| **At high + Green** | 🟢 | **+2.07%** | **45%** |
+| Near high + Green | 🟢 | +1.90% | 43% |
+| Near high + Red | 🔴 | +1.00% | 22% |
 
 ---
 
-## 🔴 15:00-16:00 ET — Power Hour
+## 🔴 14:00-15:00 ET — Power Hour (เริ่มไม่คุ้ม)
 
-**Target**: +0.5-1% (scalp เท่านั้น)
+**ทุก entry style ลดลง** — avg +0.8-1.2%
 
-### สำหรับ Top Movers
-- ถ้า **close position > 0.8** ตอน 15:00 → **ถือถึงปิด** (strong all day)
-- ถ้า **close position < 0.5** → **ออก** (fading)
-- **ห้ามเข้าใหม่** หลัง 15:00 (avg +0.9% ไม่คุ้ม risk)
+| Position | Bar | →Close | +2% |
+|----------|-----|--------|-----|
+| Pullback 5%+ + Green | 🟢 | +2.41% | 50% |
+| Pullback 3-5% + Green | 🟢 | +1.25% | 35% |
+| At high + Red | 🔴 | +0.92% | 14% |
+| Near high + Red | 🔴 | +0.89% | 19% |
+
+**หลัง 14:00**: เข้าได้ถ้า **pullback + green เท่านั้น** (avg +1.25-2.41%)
+Red bar = ไม่คุ้ม (<1%)
+
+---
+
+## 15:00-16:00 ET — Close / OVN Prep
+
+**ห้ามเข้าใหม่** — ใช้ confirm hold/exit เท่านั้น
 
 ### OVN Play สำหรับ Top Movers
 
@@ -120,20 +146,20 @@
 | +10%+ strong | -0.73% | 36% |
 | +5-10% weak | +1.04% | 63% |
 
-**⚠️ ปิดอ่อน = gap up พรุ่งนี้ดี! (ตรงข้าม)** เพราะ mean reversion
-**ปิดแรง = gap down (profit taking overnight)**
+**ปิดอ่อน = gap up พรุ่งนี้ดี (mean reversion)**
 
 ---
 
-## สรุป 5 ช่วง
+## สรุป: Entry Style เปลี่ยนตามเวลา
 
-| เวลา ET | หาอะไร | Target | +2% |
-|---------|--------|--------|-----|
-| 09:30-10:00 | ORB (ใช้ ORB prompt) | +3-5% | 89% |
-| 10:00-11:30 | Intraday (ใช้ Intraday prompt) | +1-3% | 51-83% |
-| **11:30-13:30** | **Top Movers pullback** | **+2-3%** | **46-57%** |
-| **13:30-15:00** | **Top Movers afternoon** | **+1-2%** | **25-35%** |
-| 15:00-16:00 | Power Hour scalp / OVN prep | +0.5-1% | 16% |
+| ช่วง | Best Entry | Target | +2% |
+|------|-----------|--------|-----|
+| **11:30-12:30** | **Pullback + Green bar** | +2-3% | **51-57%** |
+| **13:00-14:00** | **At/Near High + Green bar** | +1.5-2% | **38-45%** |
+| **14:00+** | **Pullback + Green only** | +1-1.5% | 35% |
+
+**Green bar = ต้องมีทุกช่วง**
+**Pullback = ดีช่วง lunch** | **Momentum = ดีช่วงบ่าย**
 
 ---
 
@@ -141,36 +167,37 @@
 
 ✗ Price < $5 → manipulation
 ✗ MCap < $500M → pump & dump
-✗ Vol 5x+ → retail chase fade (70% vs 80%)
-✗ ลงจาก open แล้ว → ไม่ใช่ top mover
+✗ Vol 5x+ → retail chase (70% vs 80%)
+✗ ลงจาก open → ไม่ใช่ top mover
 ✗ ต่ำกว่า VWAP → trend หมด
-✗ หลัง 14:00 + ขึ้นแค่ 3% จาก open → ไม่คุ้ม
+✗ **Red bar ที่ at high หลัง 13:00** → avg +0.93% ไม่คุ้ม
+✗ หลัง 14:00 + Red bar → ทุก position ไม่คุ้ม (<1%)
 ✗ 5d Mom > 20% + Vol < 2x → extreme profit-taking risk
-✗ No catalyst + penny stock + vol spike → pump & dump
 
 ## Checklist (ต้องผ่าน 4/6)
 
 ☐ ขึ้น 5%+ จาก open แล้ว ณ ตอนนี้
-☐ Lunch pullback ≥ 1% จาก high (best entry)
+☐ **Current bar = Green** (สำคัญสุด!)
+☐ Position ตรงกับช่วงเวลา (lunch=pullback, afternoon=at high)
 ☐ ยังเหนือ VWAP
-☐ Volume < 5x avg (ไม่ใช่ retail chase)
 ☐ Price > $5 + MCap > $500M
-☐ มี catalyst (earnings/upgrade/sector theme)
+☐ Vol < 5x avg
 
 ## Output Format
 
-| # | Symbol | Now% | High% | Pullback | Vol | MCap | Catalyst | Score |
-|---|--------|------|-------|----------|-----|------|----------|-------|
-| 1 | XXX | +7.2% | +9.1% | -1.9% | 2.3x | $5B | earnings | 5/6 |
+| # | Symbol | Now% | High% | Position | Bar | Vol | Score |
+|---|--------|------|-------|----------|-----|-----|-------|
+| 1 | XXX | +7.2% | +9.1% | pullback -1.9% | 🟢 | 2.3x | 5/6 |
 
-+ **ทำไมตัวนี้**: catalyst + momentum reason
-+ **Entry**: pullback level $XX | SL: lunch low $XX | TP: +2%
++ **ทำไมตัวนี้**: catalyst + momentum
++ **Entry**: $XX | SL: $XX | TP: +2%
 + **Risk**: อะไรที่อาจ fade
 ```
 
 ## Data Sources
 - 19,347 top movers (5%+ intraday) 2024-2026
-- 5,777 5-min bar entry analysis per time slot
-- Key finding: Top Movers HOLD (76-90%) ไม่เหมือน bounce ที่ fade
-- Vol ต่ำ = ดีกว่า Vol สูง (ตรงข้ามกับ ORB)
-- Lunch pullback = best entry (PM +1.4% vs +0.5% ถ้าไม่ pullback)
+- 5,777 5-min bar entries per time slot
+- Key finding: **Green bar สำคัญกว่า position (pullback vs at high)**
+- Lunch (11:30-12:30): pullback + green = best (+3.53%)
+- Afternoon (13:00+): at high + green = best (+3.60%)
+- Red bar = always worse regardless of position
