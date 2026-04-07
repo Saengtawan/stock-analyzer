@@ -412,56 +412,64 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 **AI ดู data ทั้งหมดแล้ว weigh เอง — แต่ละวันต่างกัน context ต่างกัน**
 **ไม่มี fixed score — AI judge จาก totality of evidence**
 
-### ขั้นตอน 5: แสดงผล — เฉพาะ BUY เท่านั้น
+### ขั้นตอน 5: แสดงผล
 
-**แสดงเฉพาะหุ้นที่ AI ตัดสินว่า BUY ได้เลย**
-- ❌ ไม่แสดง SKIP / HOLD / WAIT — user ไม่ต้องกรองเอง
-- ❌ ไม่แสดง candidates ที่ไม่ผ่าน
-- ✅ แสดงเฉพาะ BUY + Entry/SL/TP พร้อมซื้อ
-- ถ้าไม่มีตัวที่ดีพอ → บอก "ไม่มี BUY signal วันนี้" (ดีกว่าฝืนแนะนำ)
+**แสดงเฉพาะ BUY + WATCH — ตัด process ออก (user เห็นแค่ผลลัพธ์)**
+- ไม่แสดง candidates ที่ไม่ผ่าน ไม่แสดงกระบวนการ scan
+- ถ้าไม่มีตัวที่ดีพอ → "ไม่มี BUY signal" (ดีกว่าฝืน)
+- WATCH = มีศักยภาพแต่รอเงื่อนไข (pullback, green bar, vol)
 
-**ตัวอย่าง output:**
+**ตัวอย่าง output — มี BUY:**
 
 ---
 
-## Scan — 10:15 ET | SPY $655 (+0.5%) | VIX 24.5
+## Scan — 10:15 ET Tue | SPY $655 (+0.5%) | VIX 24.5
 
 ### 🟢 BUY
 
-| # | Symbol | Setup | Entry | SL | TP | เหตุผล |
-|---|--------|-------|-------|-----|-----|--------|
-| 1 | CRWD | Down Bounce $18→$17 | $17.20 | $16.80 | $17.80 (+3.5%) | SI 18% squeeze + Tech sector + green bar |
+| # | Symbol | Entry | SL | TP | R:R | เหตุผล |
+|---|--------|-------|-----|-----|-----|--------|
+| 1 | CRWD | $17.20 | $16.80 (-2.3%) | $17.80 (+3.5%) | 1:1.5 | Drop -5% + SI 18% + Tech + GF 67% |
 
-**CRWD**: ลง -5% จาก open → green bar bounce ที่ $17.20
-- SI 18% (short squeeze potential สูง)
-- มีข่าว upgrade จาก Morgan Stanley เมื่อวาน
-- VIX 24.5 = bounce amplitude ดี
-- SL tight ที่ day low $16.80 (-2.3%)
+**CRWD**: Drop -5% green bounce + SI 18% squeeze + MS upgrade
+- Risk: VIX 24.5 amplitude สูง
 
 ---
 
-**(จบ — ไม่มี SKIP list, ไม่มี HOLD, ไม่มี candidates ที่ไม่ผ่าน)**
+**ตัวอย่าง output — ไม่มี BUY แต่มี WATCH:**
+
+---
+
+## Scan — 09:42 ET Tue | SPY $655 (-0.2%) 🔴 | VIX 24.2
+
+ไม่มี BUY — SPY แดง + candidates ขึ้นมาแล้ว/beta สูง
+
+### WATCH — รอ Pullback / Green Bar
+
+| # | Symbol | Now | รอที่ | Limit | SL | TP | R:R |
+|---|--------|-----|------|-------|-----|-----|-----|
+| 1 | LITE | $804 | PB -1.5% | $792 | $780 | $820 | 1:2.3 |
+| 2 | LLY | $899 | Green bar | GBar | $890 | $917 | 1:2 |
+
+**LITE**: Beta 1.41 + MCap $47B + SI 18% + Tech + Vol 3x + GF 100%
+→ winner profile ครบ รอ consolidation 📐
+
+**LLY**: Beta 0.43 + MCap $794B + Drop -2.8% + 51 unusual calls
+→ GF 0% ยังไม่ bounce — รอ green bar
+
+Re-check: 10:00 LITE pullback | 10:15 LLY green bar
+
+---
 
 ### Position Status (ถ้ามี)
 
-| หุ้น | Entry | Now | Total P&L | Today | NrHi | Action |
-|------|-------|-----|-----------|-------|------|--------|
-| AA 10 | $64.87 | $70.49 | +8.7% (+$56) | +4.3% | 95% | ถือ, trail SL $69 |
-
-### Action Plan
-
-```
-08:30 → re-check PM gap + vol สำหรับ SNX
-09:30 → first bar: ขึ้น 1%+ = GO / เฉยๆ = WAIT
-10:00 → ยังขึ้น 2%+ = 61% ปิด +3% → HOLD / ลง = EXIT
-10:30 → higher high = ถือ / หลุด open = ออก
-12:00 → ยืน +2% = ถือ / ≤1% = ขาย
-14:00 → ยืน +3% = ถือถึงปิด / ≤2% = ขาย
-```
+| หุ้น | Entry | Now | P&L | Action |
+|------|-------|-----|-----|--------|
+| AA 10 | $64.87 | $70.49 | +8.7% (+$56) | trail SL $69 |
 
 ---
 
-**(จบตัวอย่าง — ใช้ format นี้ทุกครั้ง ห้ามแสดงเป็น block แยกต่อตัว)**
+**(ใช้ format นี้ทุกครั้ง — กระชับ ตารางแคบ รายละเอียด 2 บรรทัดต่อตัว)**
 
 ---
 

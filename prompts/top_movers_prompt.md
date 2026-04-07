@@ -195,20 +195,25 @@ LOSER signs (bounce fail):
 
 **ไม่ใช่กฎตายตัว — AI ดู pattern รวมแล้วตัดสิน**
 
-## Output Format — เฉพาะ BUY เท่านั้น
+## Output Format
 
-**แสดงเฉพาะหุ้นที่ BUY ได้เลย — ไม่แสดง SKIP/HOLD/WAIT**
+**แสดง BUY + WATCH เท่านั้น — ตัดกระบวนการ scan ออก**
 
-### 🟢 BUY
+### 🟢 BUY (พร้อมซื้อ)
 
-| # | Symbol | Setup | Entry | SL | TP | เหตุผล |
-|---|--------|-------|-------|-----|-----|--------|
-| 1 | XXX | DownBounce | $XX | $XX | +2% | เหตุผลสั้น |
+| # | Symbol | Entry | SL | TP | R:R | เหตุผล |
+|---|--------|-------|-----|-----|-----|--------|
+| 1 | XXX | $XX | $XX (-X%) | $XX (+X%) | 1:X | สั้นๆ |
 
-**ต่อตัว:**
-- **ทำไม BUY**: data + reasoning
-- **Entry / SL / TP**: พร้อมซื้อ
-- **Risk**: อะไรที่อาจ fade
+**XXX**: เหตุผล 1 บรรทัด
+- Risk: 1 บรรทัด
+
+### WATCH (รอ pullback / consolidation / green bar)
+
+| # | Symbol | Now | รอที่ | Limit | SL | TP | R:R |
+|---|--------|-----|------|-------|-----|-----|-----|
+
+**ต่อตัว 2 บรรทัด** + Re-check 1 บรรทัด
 ```
 
 ## Data Sources
