@@ -23,11 +23,19 @@
 | **10:30** | Down 2%+ Green Bounce | $5-20 | **63%** | +5.0% | 37% | -2.3% |
 | **11:00** | Down 2%+ Green Bounce | $5-20 | **59%** | +3.5% | 32% | -0.8% |
 
-### ⚠️ Honest Warning: Down Bounce มี Tautology Bias
-- Avg ret +5-19% สูงเพราะ **ซื้อจุดต่ำ → close สูงกว่า low เกือบทุกครั้ง**
-- **WR vs open = แค่ 5-17%** (หุ้นยังปิดลงจาก open)
-- **WR vs entry = 59-80%** (กำไรจากจุดที่ซื้อ = real edge)
-- **Edge จริง: WR 59-80% vs random 51% = +8-29% edge**
+### ⚠️ Honest Warning: Down Bounce — WR ขึ้นกับ Drop Depth
+- Backtest 97K signals: **Drop depth คือตัวแบ่ง #1**
+- Drop 2-3% = WR **53%** (edge น้อย) | Drop 3-5% = WR **57%** | Drop 5-8% = WR **68%** | Drop 8%+ = WR **93%** (N น้อย)
+- **Morning (09:30-10:00) = WR 59.5%** ดีกว่าทุกช่วง
+- **Afternoon (14:00+) = WR 51%** (coin flip — ไม่คุ้ม)
+- WR vs open = แค่ 6-12% (หุ้นยังปิดลงจาก open) — edge อยู่ที่ vs entry เท่านั้น
+- **SPY direction = gate สำคัญ**: SPY green → WR 58-62% | SPY < -1% → WR **34%** (skip!)
+- **สรุป: หา drop ลึก (5%+) ช่วงเช้า + SPY green = sweet spot**
+
+### ❌ Gap Down + Vol 2x = WR 42% (แย่กว่า random!)
+- Gap Down ≥2% + Vol ≥2x → WR 42.4% (backtest 4,347 events)
+- Vol สูงบน gap down = selling conviction → ลงต่อ ไม่ใช่ reversal
+- **ห้ามสับสนกับ Down Bounce** — Down Bounce = หุ้นลงจาก open แล้ว bounce | Gap Down = gap จาก prev close
 
 ### ❌ Setups ที่ดูดีแต่ไม่ดี (WR < 55%)
 | Strategy | WR | ปัญหา |
@@ -112,6 +120,9 @@
 
 ## Hard Skip
 
+✗ **Gap Down + Vol 2x = WR 42%** (แย่กว่า random — ห้ามเข้า!)
+✗ **SPY < -1% = bounce WR 34%** (skip Down Bounce วันนี้)
+✗ **Drop แค่ 2-3% = WR 53%** (edge น้อย — prefer 3%+ drop)
 ✗ **Gap Up Vol 2x Green $20+ = WR 44%** (ต่ำกว่า random — ข้ามเลย!)
 ✗ Top Mover 5%+ Green หลัง 11:00 = WR 40-47% (fade)
 ✗ Red bar ที่ flat/down stock = no signal

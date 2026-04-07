@@ -32,7 +32,7 @@ The terminal CAN render wide pipe-tables. Always use one table for all candidate
 
 **ไม่ overlap**: ORB→Intraday handoff ที่ 09:30 | Top Movers→OVN handoff ที่ 15:30
 
-**Prompt file มี rules + stats ครบ (Bounce Mode, Gap Down Reversal, Sector, HOLD vs FADE)**
+**Prompt file มี rules + stats ครบ (Bounce Mode, Sector, HOLD vs FADE)**
 **CLAUDE.md มี scan code + output format — ใช้ร่วมกัน**
 
 จากนั้น **ทำ 5 ขั้นตอนนี้ทุกครั้ง ห้ามข้าม:**
@@ -142,15 +142,13 @@ for s,cl,pm,g,yr,m,vr,cp,atr in results[:20]:
 PYEOF
 ```
 
-**ถ้า MARKET OPEN → ใช้ intraday 5m data:**
+**ถ้า MARKET OPEN (09:30-11:30) → Intraday scan (UP movers + DOWN bounce):**
 ```bash
 python3 << 'PYEOF'
 import yfinance as yf, sqlite3
 
 conn = sqlite3.connect("data/trade_history.db")
-# Top 200 by dollar volume
 syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
-# Hot inject: yesterday's big movers NOT in top 200
 hot = [r[0] for r in conn.execute("""
     SELECT DISTINCT d.symbol FROM stock_daily_ohlc d
     JOIN universe_stocks u ON d.symbol = u.symbol
@@ -159,13 +157,24 @@ hot = [r[0] for r in conn.execute("""
     AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03
     AND d.volume * d.close >= 5000000
 """).fetchall()]
-if hot: print(f"🔥 Hot inject: {len(hot)} movers outside top 200: {', '.join(hot[:10])}")
+if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
 syms = list(set(syms + hot))
 conn.close()
 
-d = yf.download(syms, period="1d", interval="5m", progress=False)
+d = yf.download(syms + ['SPY'], period="1d", interval="5m", progress=False)
 
-results = []
+# SPY direction (CRITICAL gate — SPY red kills bounce WR to 34%)
+try:
+    spy_o = float(d['Open']['SPY'].dropna().iloc[0])
+    spy_n = float(d['Close']['SPY'].dropna().iloc[-1])
+    spy_chg = (spy_n/spy_o-1)*100
+    print(f"📊 SPY {spy_chg:+.1f}% intraday {'🟢' if spy_chg > 0 else '🔴'}")
+    if spy_chg < -1: print("⚠️ SPY < -1% → bounce WR drops to 34% — skip Down Bounce")
+except: spy_chg = 0
+
+up_results = []  # Stocks up (momentum)
+dn_results = []  # Stocks down (bounce candidates — BEST setup WR 54-68%)
+
 for sym in syms:
     try:
         c = d['Close'][sym].dropna()
@@ -178,6 +187,7 @@ for sym in syms:
         opn = float(o.iloc[0]); now = float(c.iloc[-1])
         hi = float(h.max()); low = float(lo.min())
         chg = (now/opn-1)*100
+        drop_from_open = (low/opn-1)*100  # max drop from open
         vol = int(v.sum())
 
         h20 = yf.Ticker(sym).history(period='20d')
@@ -185,22 +195,134 @@ for sym in syms:
         mins = len(c)*5
         vr = (vol*390/max(mins,1))/avg_vol if avg_vol > 0 else 0
 
-        rng = hi - low
-        nh = ((now-low)/rng*100) if rng > 0 else 50
-        recent_hi = float(h.iloc[-3:].max()) >= hi*0.998 if len(h) >= 3 else False
-        up = float(c.iloc[-1]) > float(c.iloc[-3]) if len(c) >= 3 else True
-        fb = (float(c.iloc[0])/opn-1)*100  # first 5min bar
+        # Green bar count (last 3 bars) — need 2+ for real bounce signal
+        recent = min(3, len(c))
+        green_ct = sum(1 for i in range(-recent, 0) if float(c.iloc[i]) > float(o.iloc[i]))
+        last_green = float(c.iloc[-1]) > float(o.iloc[-1])
+        fb = (float(c.iloc[0])/opn-1)*100
 
-        if now >= 5 and chg > 1.5 and vr > 1.0:
-            results.append((sym, opn, now, chg, (hi/opn-1)*100, fb, vr, nh, recent_hi, up))
+        if now < 5: continue
+
+        # DOWN BOUNCE: dropped 2%+ from open (BEST setup — deeper drop = higher WR)
+        # WR by drop: 2-3%=53%, 3-5%=57%, 5-8%=68%, 8%+=93%
+        if drop_from_open <= -2 and now > low:
+            bounce_pct = (now/low-1)*100
+            dn_results.append((sym, opn, now, chg, drop_from_open, bounce_pct, vr, green_ct, last_green))
+
+        # UP MOVERS: up 1.5%+ with volume
+        if chg > 1.5 and vr > 1.0:
+            rng = hi - low
+            nh = ((now-low)/rng*100) if rng > 0 else 50
+            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, fb, vr, nh, last_green))
     except: pass
 
-results.sort(key=lambda x: x[3], reverse=True)
-print(f"{len(results)} stocks up >1.5% + vol >1x")
-print(f"{'':1s}{'Sym':5s} {'O':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'1st':>5s} {'Vol':>4s} {'NrH':>4s} {'New':>3s} {'Up':>2s}")
-for s,o,n,c,hi,fb,vr,nh,rh,up in results[:15]:
+# Down Bounce candidates (BEST setup — deeper drop = higher WR)
+dn_results.sort(key=lambda x: x[4])  # deepest drop first (most oversold)
+print(f"\n🔻 {len(dn_results)} DOWN BOUNCE candidates (dropped 2%+ from open)")
+print(f"  Drop 5%+ = WR 68% | Drop 3-5% = WR 57% | Drop 2-3% = WR 53%")
+print(f"{'':1s}{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'Grn':>3s} {'LG':>2s}")
+for s,o,n,c,dr,bn,vr,gc,lg in dn_results[:10]:
+    f = '🔥' if dr <= -5 else ('✅' if dr <= -3 else '⚠️')
+    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {gc}/3 {'🟢' if lg else '🔴'}")
+
+# Up movers (momentum continuation)
+up_results.sort(key=lambda x: x[3], reverse=True)
+print(f"\n🔺 {len(up_results)} UP movers (+1.5%+ from open)")
+print(f"{'':1s}{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'1st':>5s} {'Vol':>4s} {'NrH':>4s} {'LG':>2s}")
+for s,o,n,c,hi,fb,vr,nh,lg in up_results[:10]:
     f = '🔥' if c > 3 and vr > 2 and nh > 80 else ('✅' if c > 2 else '  ')
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {fb:+4.1f}% {vr:>3.1f}x {nh:>3.0f}% {'Y' if rh else 'n'} {'↑' if up else '↓'}")
+    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {fb:+4.1f}% {vr:>3.1f}x {nh:>3.0f}% {'🟢' if lg else '🔴'}")
+PYEOF
+```
+
+**ถ้า MARKET OPEN (11:30-15:30) → Top Movers scan:**
+```bash
+python3 << 'PYEOF'
+import yfinance as yf, sqlite3
+
+conn = sqlite3.connect("data/trade_history.db")
+syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
+hot = [r[0] for r in conn.execute("""
+    SELECT DISTINCT d.symbol FROM stock_daily_ohlc d
+    JOIN universe_stocks u ON d.symbol = u.symbol
+    WHERE d.date = (SELECT MAX(date) FROM stock_daily_ohlc)
+    AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
+    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03
+    AND d.volume * d.close >= 5000000
+""").fetchall()]
+if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
+syms = list(set(syms + hot))
+conn.close()
+
+d = yf.download(syms + ['SPY'], period="1d", interval="5m", progress=False)
+
+# SPY gate (CRITICAL: SPY<-1% → bounce WR=34%, SPY>0% → bounce WR=58-62%)
+try:
+    spy_o = float(d['Open']['SPY'].dropna().iloc[0])
+    spy_n = float(d['Close']['SPY'].dropna().iloc[-1])
+    spy_chg = (spy_n/spy_o-1)*100
+    print(f"📊 SPY {spy_chg:+.1f}% {'🟢 bounce OK' if spy_chg > 0 else '🔴 bounce RISKY'}")
+    if spy_chg < -1: print("⛔ SPY < -1% → bounce WR = 34% — SKIP DOWN BOUNCE today")
+except: spy_chg = 0
+
+dn_results = []  # Down bounce (best setup IF SPY green)
+up_results = []  # Momentum continuation (up 5%+)
+
+for sym in syms:
+    try:
+        c = d['Close'][sym].dropna()
+        o = d['Open'][sym].dropna()
+        h = d['High'][sym].dropna()
+        lo = d['Low'][sym].dropna()
+        v = d['Volume'][sym].dropna()
+        if len(c) < 5: continue
+
+        opn = float(o.iloc[0]); now = float(c.iloc[-1])
+        hi = float(h.max()); low = float(lo.min())
+        chg = (now/opn-1)*100
+        drop_from_open = (low/opn-1)*100
+        vol = int(v.sum())
+
+        h20 = yf.Ticker(sym).history(period='20d')
+        avg_vol = int(h20['Volume'].mean()) if len(h20) > 0 else 1
+        mins = len(c)*5
+        vr = (vol*390/max(mins,1))/avg_vol if avg_vol > 0 else 0
+
+        # Green bar fraction (last 6 bars = 30 min) — 50%+ = WR 69%, <30% = WR 13%
+        recent = min(6, len(c))
+        green_frac = sum(1 for i in range(-recent, 0) if float(c.iloc[i]) > float(o.iloc[i])) / recent
+        last_green = float(c.iloc[-1]) > float(o.iloc[-1])
+
+        if now < 1: continue  # allow penny $1+
+
+        # DOWN BOUNCE: dropped 2%+ from open + recovering
+        if drop_from_open <= -2 and now > low:
+            bounce_pct = (now/low-1)*100
+            dn_results.append((sym, opn, now, chg, drop_from_open, bounce_pct, vr, green_frac, last_green))
+
+        # UP MOMENTUM: up 5%+ today (continuation WR 52-56%)
+        if chg >= 5 and vr > 1.0:
+            rng = hi - low
+            nh = ((now-low)/rng*100) if rng > 0 else 50
+            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, nh, green_frac, last_green))
+    except: pass
+
+# Down bounce — need SPY green + green bar fraction 50%+
+dn_results.sort(key=lambda x: (-x[7], x[4]))  # green frac DESC, deeper drop
+print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (need SPY green + green bars ≥50%)")
+print(f"  GreenFrac 50%+ = WR 69% | GreenFrac <30% = WR 13% (skip!)")
+print(f"{'':1s}{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'GF':>4s} {'LG':>2s}")
+for s,o,n,c,dr,bn,vr,gf,lg in dn_results[:10]:
+    ok = '🔥' if gf >= 0.5 and spy_chg > 0 else ('✅' if gf >= 0.33 else '⚠️')
+    print(f"{ok}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {gf:>3.0%} {'🟢' if lg else '🔴'}")
+
+# Momentum continuation (weaker — WR 52-56%)
+up_results.sort(key=lambda x: x[3], reverse=True)
+print(f"\n🔺 {len(up_results)} MOMENTUM continuation (up 5%+, WR 52-56%)")
+print(f"{'':1s}{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'Vol':>4s} {'NrH':>4s} {'GF':>4s} {'LG':>2s}")
+for s,o,n,c,hi,vr,nh,gf,lg in up_results[:10]:
+    f = '🔥' if c > 7 and vr > 2 else ('✅' if c > 5 else '  ')
+    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {vr:>3.1f}x {nh:>3.0f}% {gf:>3.0%} {'🟢' if lg else '🔴'}")
 PYEOF
 ```
 
@@ -240,6 +362,12 @@ ORDER BY total_value DESC LIMIT 5;
 SELECT symbol, pc_volume_ratio, unusual_call_count, unusual_put_count
 FROM options_daily_summary
 WHERE symbol IN ('XXX','YYY','ZZZ') AND collected_date = (SELECT MAX(collected_date) FROM options_daily_summary);
+
+-- Beta + MCap (for Winner/Loser profile判断)
+-- Beta>1.5 = WR 50% (bad) | Beta<1.0 = WR 54% (good) | MCap>30B = WR 55% (best)
+SELECT f.symbol, f.beta, f.market_cap, f.pe_forward, f.sector, f.industry
+FROM stock_fundamentals f
+WHERE f.symbol IN ('XXX','YYY','ZZZ');
 "
 ```
 
@@ -247,14 +375,20 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND collected_date = (SELECT MAX(collected_d
 
 **ใช้ data จาก Step 3 + หลักการจาก prompt file ที่อ่าน → AI ตัดสินเอง:**
 
-หลักการ (จาก backtest — ไม่ใช่กฎตายตัว):
+หลักการ (จาก backtest 97K+ signals — validated):
+- **SPY direction = #1 gate**: SPY green → bounce WR 58-62% | SPY<-1% → WR 34% (skip bounce!)
+- **Drop depth = #1 predictor**: 2-3% drop = WR 53% | 3-5% = 57% | 5%+ = 68%
+- **Green bar fraction**: 50%+ green bars (last 30min) = WR 69% | <30% = WR 13% (skip!)
+- **Single green bar = FALSE signal**: 1 green then red = WR 37% → need 4+ consecutive (WR 61%)
+- **Beta**: <1.5 = WR 54% (good) | >1.5 = WR 50% (bad) — from stock_fundamentals
+- **MCap**: >30B = WR 55% (best) | <10B = WR 51% (worse)
 - SI สูง = short squeeze → bounce แรงกว่า
-- VIX สูง = volatility สูง → bounce amplitude ใหญ่กว่า
 - มีข่าว (ไม่ว่า pos/neg) = มี attention + volume → ดีกว่าไม่มีข่าว
 - Sector Tech/HC/Financial = bounce ดีกว่า Consumer Defensive/Real Estate
 - มี insider buy = executives เชื่อมั่น
 - Earnings ใกล้ = uncertainty สูง → อาจดีหรือแย่ ระวัง
-- Unusual options activity = smart money positioning
+- **Gap Down + Vol 2x = WR 42% (WORSE than random — ห้ามเข้า!)**
+- **Wednesday movers D+1 = WR 36% (strong fade — ขายวันเดียวกัน)**
 
 **AI ดู data ทั้งหมดแล้ว weigh เอง — แต่ละวันต่างกัน context ต่างกัน**
 **ไม่มี fixed score — AI judge จาก totality of evidence**
@@ -319,12 +453,12 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND collected_date = (SELECT MAX(collected_d
 | **00:00-03:59** | **ORB** | ORB prep: ดู yesterday movers + PM gaps |
 | **04:00-09:29** | **ORB** | PM gaps vs prev close + vol + catalyst |
 | **09:30-10:00** | **Intraday** | Opening Bell: First bar + OR breakout + Vol Surge |
-| **10:00-10:30** | **Intraday** | Kill Zone + 10:00 confirmation + Bounce/Gap Down Reversal |
+| **10:00-10:30** | **Intraday** | Kill Zone + 10:00 confirmation + Down Bounce |
 | **10:30-11:30** | **Intraday** | Late Morning: Consolidation breakout 47.6% / Noon vol surge |
-| **11:30-12:30** | **Top Movers** | Lunch: Pullback + Green bar (+2-3%, 55%) |
-| **12:30-13:30** | **Top Movers** | Late Lunch: Pullback/Near high + Green (+2%, 46%) |
-| **13:30-15:00** | **Top Movers** | Afternoon: At High + Green bar (+1.5-2%, 45%) |
-| **15:00-15:30** | **Top Movers** | Power Hour: Pullback + Green only / hold-exit confirm |
+| **11:30-12:30** | **Top Movers** | Lunch: Down Bounce (SPY green + green bars 50%+) |
+| **12:30-13:30** | **Top Movers** | Late Lunch: Down Bounce / Green bar fraction 50%+ |
+| **13:30-15:00** | **Top Movers** | Afternoon: Down Bounce (SPY gate) / momentum 5%+ |
+| **15:00-15:30** | **Top Movers** | Power Hour: Down Bounce only / hold-exit confirm |
 | **15:30-15:55** | **OVN** | 5d mom ≥5% + today green + vol ≥2x + close near high |
 | **ศุกร์ 15:00** | **Fri-Mon** | ศุกร์ rally 3%+ / bad week bounce / dump vol 2x |
 

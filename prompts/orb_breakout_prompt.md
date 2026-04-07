@@ -21,7 +21,14 @@ ORB ใช้ก่อนตลาดเปิด (06:00-09:30 ET) — หลั
 ### ⚠️ Honest Warning: Gap Up WR at Open
 Gap Up stats above = "hit +3% from open at any point during day" (max high)
 **WR at 09:35 entry → close = 44-48%** (ต่ำกว่า random สำหรับ $20+ stocks!)
-**Gap Down Reversal at open = WR 65-80%** (ดีกว่ามาก — ดู Intraday prompt)
+**Gap Up + Vol 2x = WR 57%** (momentum continuation ดีกว่า reversal)
+
+### ❌ Gap Down + Vol 2x = WR 42% (แย่กว่า random!)
+- Backtest 4,347 events: Gap Down ≥2% + Vol ≥2x → **WR 42.4%** close > open
+- Vol ยิ่งเยอะยิ่งแย่: Vol 3-5x = WR 37% | Vol 5x+ = WR 35%
+- **Volume บน gap down = selling conviction ไม่ใช่ buying opportunity**
+- เฉพาะ VIX ≥38 (panic) ถึงจะ reversal ได้นิดหน่อย (WR 53%)
+- **สรุป: Gap Down Reversal = SKIP** (ยกเว้น VIX extreme)
 
 ### Gap 2-5% ดีกว่า 5%+
 | เงื่อนไข | Early Peak (fade) | ปิด +3% |
@@ -158,6 +165,7 @@ LOSER signs (fade risk):
 
 ## Hard Skip
 
+✗ **Gap Down ≥2% + Vol ≥2x = WR 42%** (แย่กว่า random! Vol สูง = selling ต่อ)
 ✗ Volume < 1.5x → fake move (82% of yest+3% with low vol = noise)
 ✗ Yest +3%+ แต่ Vol < 1.5x → ไม่ใช่ signal จริง ห้ามเข้า
 ✗ Gap > 10% + no catalyst → pump & dump

@@ -24,11 +24,12 @@
 
 ### 3 Strategies ที่ Work (sorted by reliability)
 
-**1. Down Bounce $5-20 + Green Bar (WR 57-59% ทุกช่วง)**
-- ลง 2%+ จาก open → green bar bounce → ซื้อ
-- Consistent ทุกเวลา 11:30-14:00
-- ⚠️ Tautology bias: ซื้อ low → close > low เกือบทุกครั้ง
-- **Real edge: WR 57-59% vs random 52% = +5-7%**
+**1. Down Bounce + Green Bar Fraction ≥50% (WR 57-69%)**
+- ลง 2%+ จาก open → **green bar fraction ≥50% ใน 30 นาทีล่าสุด** → ซื้อ
+- ⚠️ **Single green bar = FALSE signal (WR 37%)** — ต้องดู fraction หรือ 4+ consecutive
+- **SPY gate สำคัญสุด**: SPY green → WR 58-62% | SPY < -1% → WR **34%** (skip!)
+- Green bar fraction ≥50% = WR **69%** | <30% = WR **13%** (ข้ามเลย)
+- Drop depth ช่วย: 3-5% drop = WR 57% | 5%+ drop = WR 68%
 
 **2. Top Mover 5%+ Green ($1-5 penny = WR 62%)**
 - หุ้นขึ้น 5%+ ใน penny range → green bar
@@ -45,11 +46,13 @@
 
 ## 🟡 11:30-12:30 ET — Lunch Zone
 
-### Strategy 1: Down Bounce $5-20 (WR 57-59%)
-1. Scan หุ้น $5-20 ที่ **ลง 2%+ จาก open**
-2. รอ **Green bar** → entry
-3. SL: day low | TP: +2%
-4. Time stop: 1 ชม.
+### Strategy 1: Down Bounce + SPY Green + Green Fraction (WR 57-69%)
+1. **เช็ค SPY ก่อน**: SPY green → OK | SPY < -1% → SKIP bounce วันนี้
+2. Scan หุ้น ที่ **ลง 2%+ จาก open**
+3. ดู **green bar fraction** (30 นาทีล่าสุด): ≥50% → entry | <30% → skip
+4. ⚠️ **อย่ารอแค่ 1 green bar** (WR 37% = worse than random!)
+5. SL: day low | TP: +2%
+6. Time stop: 1 ชม.
 
 ### Strategy 2: Top Mover Penny $1-5 (WR 62%)
 1. Scan หุ้น $1-5 ที่ **ขึ้น 5%+ จาก open**
@@ -66,9 +69,9 @@
 
 ## 🟠 13:00-14:00 ET — Afternoon
 
-### Best: Green Bar Any (WR 60%, +1.3%)
-- ง่ายที่สุด: หา bar ที่ **green + volume มากกว่า avg**
-- ไม่ต้องเลือก setup ซับซ้อน
+### Best: Green Bar Fraction ≥50% (WR 60-69%)
+- ดู green bar fraction 30 นาทีล่าสุด ≥50% + volume
+- **Single green bar = noise (WR 37%)** — ต้องดู pattern ไม่ใช่ 1 bar
 
 ### Down Bounce ยังดี (WR 57%)
 - $5-20 ลง 2%+ green bounce: +2.6%
@@ -110,13 +113,17 @@
 
 ## Hard Skip
 
+✗ **SPY < -1% = SKIP bounce ทั้งวัน** (WR 34% — ลงต่อ)
+✗ **Green bar fraction <30% = WR 13%** (ยังไม่ bounce จริง)
+✗ **Single green bar after red streak = WR 37%** (dead cat bounce)
 ✗ Top Mover 5%+ Green $50+ หลัง 13:00 = WR 51% (coin flip)
 ✗ Top Mover 5%+ Red ทุกช่วง = WR 49-54% (ไม่คุ้ม)
-✗ Gap Up Vol 2x = WR 39-47% (แย่กว่า random!)
+✗ Gap Down + Vol 2x = WR 42% (แย่กว่า random!)
 ✗ Down Bounce Vol 5x+ = selling continues
 ✗ Price < $1 = extreme manipulation
 ✗ Red bar ที่ flat stock = no signal
 ✗ หลัง 15:00 + WR < 55% = ไม่คุ้มเข้าใหม่
+✗ **Wednesday movers D+1 = WR 36%** (strong fade — ขายวันเดียวกัน)
 
 ## วิเคราะห์ Candidate (AI ตัดสินเอง)
 
