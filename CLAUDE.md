@@ -259,33 +259,35 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND collected_date = (SELECT MAX(collected_d
 **AI ดู data ทั้งหมดแล้ว weigh เอง — แต่ละวันต่างกัน context ต่างกัน**
 **ไม่มี fixed score — AI judge จาก totality of evidence**
 
-### ขั้นตอน 5: แสดงผล
+### ขั้นตอน 5: แสดงผล — เฉพาะ BUY เท่านั้น
 
-**ตัวอย่าง output ที่ถูกต้อง:**
+**แสดงเฉพาะหุ้นที่ AI ตัดสินว่า BUY ได้เลย**
+- ❌ ไม่แสดง SKIP / HOLD / WAIT — user ไม่ต้องกรองเอง
+- ❌ ไม่แสดง candidates ที่ไม่ผ่าน
+- ✅ แสดงเฉพาะ BUY + Entry/SL/TP พร้อมซื้อ
+- ถ้าไม่มีตัวที่ดีพอ → บอก "ไม่มี BUY signal วันนี้" (ดีกว่าฝืนแนะนำ)
+
+**ตัวอย่าง output:**
 
 ---
 
-## ORB Scan — พฤหัสบดี 2 เม.ย. 03:12 ET (OVERNIGHT)
+## Scan — 10:15 ET | SPY $655 (+0.5%) | VIX 24.5
 
-**SPY** $655.24 (+0.8%) | **VIX** 24.5 | **ES** 6531 | **Gold** $4,627
+### 🟢 BUY
 
-### Top ORB Candidates
+| # | Symbol | Setup | Entry | SL | TP | เหตุผล |
+|---|--------|-------|-------|-----|-----|--------|
+| 1 | CRWD | Down Bounce $18→$17 | $17.20 | $16.80 | $17.80 (+3.5%) | SI 18% squeeze + Tech sector + green bar |
 
-| # | Symbol | Gap% | Yest% | Vol | 5d Mom | CPos | Sector | Catalyst | Score |
-|---|--------|------|-------|-----|--------|------|--------|----------|-------|
-| 1 | **SNX** | +0.9% | +10.4% | 1.7x | **+13.8%** | 0.99 | Tech | Earnings beat + upgrades | **5/6** ✅ |
-| 2 | WDC | +0.4% | +10.1% | 1.5x | +0.5% | 0.70 | Tech | — | 3/6 ⚠️ |
-| 3 | INTC | +0.3% | +8.8% | 1.5x | +1.8% | 0.80 | Tech | — | 3/6 ⚠️ |
-| 4 | KGC | +0.7% | +4.9% | 1.1x | +10.3% | 0.69 | Gold | Gold rally | 3/6 ⚠️ |
+**CRWD**: ลง -5% จาก open → green bar bounce ที่ $17.20
+- SI 18% (short squeeze potential สูง)
+- มีข่าว upgrade จาก Morgan Stanley เมื่อวาน
+- VIX 24.5 = bounce amplitude ดี
+- SL tight ที่ day low $16.80 (-2.3%)
 
-### SNX $188.00 | Entry $188 | SL $182 | TP1 $194 (+3%) | TP2 $197 (+5%)
+---
 
-☑ Gap +10.4% | ☑ Vol 1.7x | ☑ Catalyst: Q1 beat $4.73 vs $3.31 + guidance raise | ☐ 1stBar: รอ 09:30 | ☑ Sector: Tech | ☑ 5d Mom +13.8%
-
-Earnings momentum day 2, CPos 0.99 = ปิดแทบ AT high → continuation signal
-⚠️ Day-2 post-gap fade risk + VIX 24.5 HIGH → ลด size, ขาย 50% ถ้าพุ่ง 3%+ ก่อน 10:00
-
-**❌ SKIP:** STX, SNDK, LITE (Vol < 1.5x)
+**(จบ — ไม่มี SKIP list, ไม่มี HOLD, ไม่มี candidates ที่ไม่ผ่าน)**
 
 ### Position Status (ถ้ามี)
 

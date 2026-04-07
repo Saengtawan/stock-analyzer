@@ -139,15 +139,21 @@
 **AI weigh ทุกปัจจัยรวมกัน → ตัดสิน GO / WAIT / SKIP**
 **ไม่มี fixed checklist — แต่ละวัน context ต่างกัน**
 
-## Output Format
+## Output Format — เฉพาะ BUY เท่านั้น
 
-| # | Symbol | Setup | Price | Drop% | Bar | WR | Target | SL |
-|---|--------|-------|-------|-------|-----|-----|--------|----|
-| 1 | XXX | DownBounce | $12 | -3.2% | 🟢 | 80% | +3% | day low |
+**แสดงเฉพาะหุ้นที่ BUY ได้เลย — ไม่แสดง SKIP/HOLD/WAIT**
+**ถ้าไม่มีตัวดี → บอก "ไม่มี BUY signal" (ดีกว่าฝืน)**
 
-+ **ทำไมตัวนี้**: setup + catalyst
-+ **Risk**: MaxDD, อะไรที่อาจลงต่อ
-+ **Time stop**: ออกเมื่อไหร่ถ้าไม่ bounce
+### 🟢 BUY
+
+| # | Symbol | Setup | Entry | SL | TP | เหตุผล |
+|---|--------|-------|-------|-----|-----|--------|
+| 1 | XXX | DownBounce | $XX | $XX | +X% | SI + sector + news summary |
+
+**ต่อตัว:**
+- **ทำไม BUY**: 1-2 บรรทัด (data + reasoning)
+- **Entry / SL / TP**: พร้อมซื้อ
+- **Risk**: อะไรที่อาจผิด
 ```
 
 ## Data Sources

@@ -138,12 +138,20 @@
 **AI weigh ทุกปัจจัยรวมกัน → ตัดสิน GO / WAIT / SKIP**
 **ไม่มี fixed checklist — context วันนั้นสำคัญกว่ากฎตายตัว**
 
-## Output Format
+## Output Format — เฉพาะ BUY เท่านั้น
 
-| # | Symbol | Setup | Price | Status | Bar | WR | Target |
-|---|--------|-------|-------|--------|-----|-----|--------|
-| 1 | XXX | DownBounce | $12 | -2.5% from open | 🟢 | 59% | +2% |
-| 2 | YYY | PennyMover | $3 | +7% from open | 🟢 | 62% | +1.5% |
+**แสดงเฉพาะหุ้นที่ BUY ได้เลย — ไม่แสดง SKIP/HOLD/WAIT**
+
+### 🟢 BUY
+
+| # | Symbol | Setup | Entry | SL | TP | เหตุผล |
+|---|--------|-------|-------|-----|-----|--------|
+| 1 | XXX | DownBounce | $XX | $XX | +2% | เหตุผลสั้น |
+
+**ต่อตัว:**
+- **ทำไม BUY**: data + reasoning
+- **Entry / SL / TP**: พร้อมซื้อ
+- **Risk**: อะไรที่อาจ fade
 ```
 
 ## Data Sources

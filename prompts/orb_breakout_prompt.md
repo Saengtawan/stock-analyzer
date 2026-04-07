@@ -149,15 +149,20 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 ✗ Gap 5%+ + Small cap → 44% early peak fade
 ✗ **5d Mom > 20% + Vol < 2x → extreme profit-taking risk** (ขึ้นเร็วเกิน คนขายทำกำไรตอนเปิด)
 
-## Output Format
+## Output Format — เฉพาะ BUY เท่านั้น
 
-| # | Symbol | Gap% | Vol | 1st Bar | 5d Mom | Sector | Catalyst | Score |
-|---|--------|------|-----|---------|--------|--------|----------|-------|
-| 1 | XXX | +X% | X.Xx | +X% | +X% | ... | ... | X/6 |
+**แสดงเฉพาะหุ้นที่ BUY ได้เลย — ไม่แสดง SKIP/HOLD/WAIT**
 
-+ Entry: OR high breakout $XX | SL: OR low $XX | TP1: +3% $XX | TP2: +5% $XX
-+ Risk: อะไรที่อาจ fade
-+ Action plan: 10:00 check → 10:30 check → 12:00 confirm
+### 🟢 BUY
+
+| # | Symbol | Setup | Entry | SL | TP | เหตุผล |
+|---|--------|-------|-------|-----|-----|--------|
+| 1 | XXX | Gap+Momentum | $XX | $XX | +3% | catalyst + context |
+
+**ต่อตัว:**
+- **ทำไม BUY**: data + reasoning
+- **Entry / SL / TP**: พร้อมซื้อ
+- **Risk**: อะไรที่อาจ fade
 ```
 
 ## Statistics Summary
