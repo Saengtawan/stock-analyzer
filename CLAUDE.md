@@ -408,6 +408,7 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 - 14:00+: median 6 bars (30 min) เร็ว เพราะใกล้ปิด
 - เพียง 24-30% peak ใน ≤3 bars → ส่วนใหญ่ไม่ต้องรีบ
 - WR ≈ 50% สำหรับ green bar เดียว — edge มาจาก context (SPY, drop depth, sector, beta) ไม่ใช่ signal เดียว
+- Limit entry: ขอบล่างสุดของ pullback = fill ยาก (ราคาอาจไม่ถึง) | กลาง range (70-80%) = fill ง่ายกว่า ยัง entry ดี
 
 **AI ดู data ทั้งหมดแล้ว weigh เอง — แต่ละวันต่างกัน context ต่างกัน**
 **ไม่มี fixed score — AI judge จาก totality of evidence**
