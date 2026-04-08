@@ -162,14 +162,20 @@ conn.close()
 
 d = yf.download(syms + ['SPY'], period="1d", interval="5m", progress=False)
 
-# SPY direction (CRITICAL gate — SPY red kills bounce WR to 34%)
+# SPY direction — show BOTH daily (from prev close) and intraday (from today open)
 try:
     spy_o = float(d['Open']['SPY'].dropna().iloc[0])
     spy_n = float(d['Close']['SPY'].dropna().iloc[-1])
-    spy_chg = (spy_n/spy_o-1)*100
-    print(f"📊 SPY {spy_chg:+.1f}% intraday {'🟢' if spy_chg > 0 else '🔴'}")
-    if spy_chg < -1: print("⚠️ SPY < -1% → bounce WR drops to 34% (ต่ำกว่า random มาก)")
-except: spy_chg = 0
+    spy_intra = (spy_n/spy_o-1)*100
+    # Daily change from prev close (more important for bounce WR)
+    import sqlite3 as _s
+    _c = _s.connect("data/trade_history.db")
+    _prev = _c.execute("SELECT close FROM stock_daily_ohlc WHERE symbol='SPY' ORDER BY date DESC LIMIT 1").fetchone()
+    _c.close()
+    spy_daily = (spy_n/float(_prev[0])-1)*100 if _prev else spy_intra
+    print(f"📊 SPY daily {spy_daily:+.1f}% {'🟢' if spy_daily > 0 else '🔴'} | intraday {spy_intra:+.1f}%")
+    if spy_daily < -1: print("⚠️ SPY daily < -1% → bounce WR 34%")
+except: spy_daily = 0; spy_intra = 0
 
 up_results = []  # Stocks up (momentum)
 dn_results = []  # Stocks down (bounce candidates — BEST setup WR 54-68%)
@@ -261,14 +267,19 @@ conn.close()
 
 d = yf.download(syms + ['SPY'], period="1d", interval="5m", progress=False)
 
-# SPY gate (CRITICAL: SPY<-1% → bounce WR=34%, SPY>0% → bounce WR=58-62%)
+# SPY — show BOTH daily and intraday
 try:
     spy_o = float(d['Open']['SPY'].dropna().iloc[0])
     spy_n = float(d['Close']['SPY'].dropna().iloc[-1])
-    spy_chg = (spy_n/spy_o-1)*100
-    print(f"📊 SPY {spy_chg:+.1f}% {'🟢 bounce OK' if spy_chg > 0 else '🔴 bounce RISKY'}")
-    if spy_chg < -1: print("⚠️ SPY < -1% → bounce WR = 34% (ต่ำกว่า random มาก)")
-except: spy_chg = 0
+    spy_intra = (spy_n/spy_o-1)*100
+    import sqlite3 as _s
+    _c = _s.connect("data/trade_history.db")
+    _prev = _c.execute("SELECT close FROM stock_daily_ohlc WHERE symbol='SPY' ORDER BY date DESC LIMIT 1").fetchone()
+    _c.close()
+    spy_daily = (spy_n/float(_prev[0])-1)*100 if _prev else spy_intra
+    print(f"📊 SPY daily {spy_daily:+.1f}% {'🟢' if spy_daily > 0 else '🔴'} | intraday {spy_intra:+.1f}%")
+    if spy_daily < -1: print("⚠️ SPY daily < -1% → bounce WR 34%")
+except: spy_daily = 0; spy_intra = 0
 
 dn_results = []  # Down bounce (best setup IF SPY green)
 up_results = []  # Momentum continuation (up 5%+)
@@ -393,7 +404,7 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 - มี insider buy = executives เชื่อมั่น
 - Earnings ใกล้ = uncertainty สูง → อาจดีหรือแย่ ระวัง
 - **Gap Down + Vol 2x** = WR 42% (ต่ำกว่า random)
-- **Wednesday movers D+1** = WR 36% (strong mean reversion)
+- **Wednesday movers ถือข้ามคืน D+1** = WR 36% (mean reversion — เฉพาะ OVN hold ไม่ใช่ intraday วันนั้น)
 
 **TP/SL data (backtest 126K setups):**
 - เช้า avg winner +2.3-3.6% / avg loser -2.3-3.8% (amplitude สูง)
