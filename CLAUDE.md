@@ -426,11 +426,12 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 
 ### ขั้นตอน 5: แสดงผล
 
-**แสดง candidates ที่ผ่าน filter ทั้งหมด + AI เลือก 1-2 ตัวที่ดีสุด BUY NOW**
+**แสดง candidates ที่ผ่าน filter ทั้งหมด + AI เลือก 1-3 ตัวที่ดีสุด BUY NOW**
 - **ตารางรวม** = แสดงทุกตัวที่ผ่าน filter (user เห็นภาพรวม)
 - **BUY NOW** = AI เลือก 1-3 ตัวที่ดีที่สุด พร้อม Entry/SL/TP/R:R
 - ถ้าไม่มีตัวที่ดีพอ → "ไม่มี BUY NOW" + เวลา re-scan
-- ไม่ใส่ label ⚠️/❌/"ไม่แนะนำ" — ตัวที่ไม่ดีพอ **ไม่ต้องแสดงเลย** (ไม่ต้องบอกว่า "ไม่แนะนำ" แค่ไม่แสดง)
+- ไม่ใส่ label ⚠️/❌/"ไม่แนะนำ" ใน candidates — แค่แสดง data ให้ user ดูเอง
+- **ไม่อธิบายซ้ำทุกตัว** — ตารางมี data ครบแล้ว แค่สรุปสั้นว่าตัวไหนดีสุด + ทำไม
 
 **ตัวอย่าง output — SPY daily green + candidates ดี:**
 
@@ -459,6 +460,15 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 ไม่มี BUY NOW — SPY daily แดง
 
 ### WATCH — รอ SPY green / Pullback
+
+| # | Symbol | Now | รอที่ | Limit | SL | TP | R:R |
+|---|--------|-----|------|-------|-----|-----|-----|
+| 1 | LLY | $899 | Green bar | GBar | $890 | $917 | 1:2 |
+
+**LLY**: Beta 0.43 + MCap $794B + Drop -2.8% + 51 unusual calls
+→ GF 0% ยังไม่ bounce — รอ green bar
+
+Re-check: 10:00 LITE pullback | 10:15 LLY green bar
 
 | # | Symbol | Now | รอที่ | Limit | SL | TP | R:R |
 |---|--------|-----|------|-------|-----|-----|-----|
