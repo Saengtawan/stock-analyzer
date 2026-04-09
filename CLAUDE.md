@@ -423,6 +423,18 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 - SPY แดง ไม่ได้แปลว่าไม่มี BUY — หุ้น low beta + catalyst + SI สูง อาจ BUY NOW ได้แม้ SPY แดง (WR ลดลงแต่ไม่ใช่ 0%)
 - ถ้ารอ pullback แล้วราคาวิ่งขึ้นเรื่อยๆ → ถ้า profile แข็งพอตั้งแต่แรก ควร BUY NOW
 
+**Deep Backtest Findings (จาก PyOD + 8 agents, 56M bars):**
+- **Gap Up >3% จาก prev close: fade 56%** avg intraday -0.26% (N=2,584) — ระวัง chase gap up ใหญ่
+- **Gap Down >3%: bounce 52%** avg +0.47% (N=2,310) — Down Bounce confirmed
+- **Mega rally day (50+ stocks up): D+1 fade WR 12%** — วันที่ทุกอย่างขึ้นพร้อมกัน D+1 ลงเกือบหมด
+- **Range >3x ATR + close near high: D+1 WR 39%** — big range day ปิด high = retrace D+1
+- **First 30 min +2%: rest of day avg +0.65%** — morning momentum จริง
+- **Power Hour down → next gap up 56%** | Red close (GF<33%) → gap up 59% — OVN signal
+- **SPY -1% day → Tech bounces +0.93% D+1 (WR 70%)** — sector rotation after selloff
+- **Financial Services leads → Basic Materials follows D+1** (r=0.09, p=0.03)
+- **Lunch dip recovery = myth (WR 48.7%)** — ไม่มี edge
+- **10:00 bar direction = ไม่ predict next 2 hours** (WR 49%)
+
 **AI ดู data ทั้งหมดแล้ว weigh เอง — แต่ละวันต่างกัน context ต่างกัน**
 **ไม่มี fixed score — AI judge จาก totality of evidence**
 
