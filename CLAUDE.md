@@ -393,7 +393,9 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 - **Single green bar**: 1 green then red = WR 37% | 4+ consecutive = WR 61%
 - **Beta**: <1.5 = WR 54% (good) | >1.5 = WR 50% (bad) — from stock_fundamentals
 - **MCap**: >30B = WR 55% (best) | <10B = WR 51% (worse)
-- SI สูง = short squeeze → bounce แรงกว่า
+- **AD ratio (จาก market_breadth) สำคัญกว่า breadth%**: AD<1 = bounce WR 27% | AD 1-2 = 42% | AD≥3 = 56% (N=106K)
+- **VIX tier**: <18 = WR 52% (ดีสุด) | 18-22 = WR 48% (แย่สุด!) | 22-28 = 51% | 28-35 = 50% | 35+ = 46%
+- **SI × drop depth**: SI 20%+ drop 2-3% = WR 47% (ดี) | SI 20%+ drop 5%+ = WR 7% (ไม่ช่วย!) — SI ช่วยแค่ shallow drop
 - มีข่าว (ไม่ว่า pos/neg) = มี attention + volume → ดีกว่าไม่มีข่าว
 - Sector: ดู sector ที่แข็งแรงวันนั้น (rotation เปลี่ยนทุกวัน — บางวัน Energy นำ บางวัน Tech นำ)
 - **เลือก candidates จากหลาย sector ที่แข็ง** — ไม่เลือกแค่ sector เดียวแม้จะแข็งสุด (กระจาย risk + จับ rotation)
