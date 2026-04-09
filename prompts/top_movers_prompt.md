@@ -200,16 +200,12 @@ LOSER signs (bounce fail):
 
 **แสดง BUY + WATCH เท่านั้น — ตัดกระบวนการ scan ออก**
 
-### 🟢 BUY (พร้อมซื้อ)
+### 🟢 BUY NOW (winner profile แข็ง + SPY daily green → entry ราคาปัจจุบัน)
 
-| # | Symbol | Entry | SL | TP | R:R | เหตุผล |
-|---|--------|-------|-----|-----|-----|--------|
-| 1 | XXX | $XX | $XX (-X%) | $XX (+X%) | 1:X | สั้นๆ |
+| # | Symbol | Now | SL | TP | R:R | เหตุผล |
+|---|--------|-----|-----|-----|-----|--------|
 
-**XXX**: เหตุผล 1 บรรทัด
-- Risk: 1 บรรทัด
-
-### WATCH (รอ pullback / consolidation / green bar)
+### WATCH (SPY แดง / profile ปานกลาง → รอ pullback / consolidation)
 
 | # | Symbol | Now | รอที่ | Limit | SL | TP | R:R |
 |---|--------|-----|------|-------|-----|-----|-----|

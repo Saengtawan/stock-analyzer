@@ -417,57 +417,61 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 - Retrace risk: เช้า 32% retrace <+1% | บ่าย 19%
 
 **Entry characteristics:**
-- Bounce เช้า: median 14-18 bars (70-90 min) ค่อยๆ ขึ้น มีเวลาเข้า
-- Bounce บ่าย: median 17-18 bars ช้า + consolidation ชัด เหมาะ limit
-- 14:00+: median 6 bars (30 min) เร็ว เพราะใกล้ปิด
-- เพียง 24-30% peak ใน ≤3 bars → ส่วนใหญ่ไม่ต้องรีบ
-- WR ≈ 50% สำหรับ green bar เดียว — edge มาจาก context (SPY, drop depth, sector, beta) ไม่ใช่ signal เดียว
-- Limit entry: ขอบล่างสุดของ pullback = fill ยาก (ราคาอาจไม่ถึง) | กลาง range (70-80%) = fill ง่ายกว่า ยัง entry ดี
+- Bounce เช้า: median 14-18 bars (70-90 min) ค่อยๆ ขึ้น
+- Bounce บ่าย: median 17-18 bars ช้า + consolidation ชัด
+- 14:00+: median 6 bars (30 min) เร็ว
+- **26-30% ของ setups peak ใน ≤3 bars → บางตัววิ่งตรงขึ้นไม่ pullback เลย**
+- Limit fill ยาก: ขอบล่างสุดอาจไม่ถึง | กลาง range (70-80%) fill ง่ายกว่า
+
+**เมื่อไหร่ BUY NOW (market) vs WATCH (limit):**
+- Winner profile แข็งมาก (Beta<1.5 + MCap>30B + GF≥67% + Drop≥3% + SPY daily green) → **BUY NOW ได้เลย** ที่ราคาปัจจุบัน ไม่ต้องรอ pullback
+- Profile ปานกลาง หรือ SPY แดง → WATCH รอ pullback/consolidation
+- ถ้ารอ pullback แล้วราคาวิ่งขึ้นเรื่อยๆ → **ไม่ chase** แต่ถ้า profile แข็งพอตั้งแต่แรก ควร BUY NOW ไม่ใช่ WATCH
 
 **AI ดู data ทั้งหมดแล้ว weigh เอง — แต่ละวันต่างกัน context ต่างกัน**
 **ไม่มี fixed score — AI judge จาก totality of evidence**
 
 ### ขั้นตอน 5: แสดงผล
 
-**แสดงเฉพาะ BUY + WATCH — ตัด process ออก (user เห็นแค่ผลลัพธ์)**
-- ไม่แสดง candidates ที่ไม่ผ่าน ไม่แสดงกระบวนการ scan
-- ถ้าไม่มีตัวที่ดีพอ → "ไม่มี BUY signal" (ดีกว่าฝืน)
-- WATCH = มีศักยภาพแต่รอเงื่อนไข (pullback, green bar, vol)
+**แสดง BUY NOW + WATCH — ตัด process ออก (user เห็นแค่ผลลัพธ์)**
+- **BUY NOW** = winner profile แข็งพอ ซื้อที่ราคาปัจจุบันได้เลย
+- **WATCH** = profile ดีแต่ SPY แดง หรือ entry ยังไม่ ideal → รอเงื่อนไข
+- ถ้าไม่มีตัวที่ดีพอ → "ไม่มี signal" (ดีกว่าฝืน)
+- **ไม่ WATCH ทุกตัว** — ถ้า profile แข็งพอ + SPY daily green → BUY NOW
 
-**ตัวอย่าง output — มี BUY:**
-
----
-
-## Scan — 10:15 ET Tue | SPY $655 (+0.5%) | VIX 24.5
-
-### 🟢 BUY
-
-| # | Symbol | Entry | SL | TP | R:R | เหตุผล |
-|---|--------|-------|-----|-----|-----|--------|
-| 1 | CRWD | $17.20 | $16.80 (-2.3%) | $17.80 (+3.5%) | 1:1.5 | Drop -5% + SI 18% + Tech + GF 67% |
-
-**CRWD**: Drop -5% green bounce + SI 18% squeeze + MS upgrade
-- Risk: VIX 24.5 amplitude สูง
+**ตัวอย่าง output — SPY daily green + candidates ดี:**
 
 ---
 
-**ตัวอย่าง output — ไม่มี BUY แต่มี WATCH:**
+## Scan — 12:30 ET Wed | SPY daily +2.4% 🟢 | intraday -0.1% | VIX 21
+
+### 🟢 BUY NOW
+
+| # | Symbol | Now | SL | TP | R:R | เหตุผล |
+|---|--------|-----|-----|-----|-----|--------|
+| 1 | INTU | $405 | $392 (-3.2%) | $418 (+3.2%) | 1:1 | Drop -5% + Beta 1.21 + MCap $114B + GF 67% + SPY daily 🟢 |
+| 2 | NBIS | $125 | $119 (-4.8%) | $131 (+4.8%) | 1:1 | Drop -5.8% + Beta 1.06 + SI 19.6% + GF 83% |
+
+**INTU**: Winner profile ครบ + SPY daily +2.4% = entry now
+**NBIS**: SI 19.6% squeeze + low beta + deep drop
 
 ---
 
-## Scan — 09:42 ET Tue | SPY $655 (-0.2%) 🔴 | VIX 24.2
+**ตัวอย่าง output — SPY daily แดง:**
 
-ไม่มี BUY — SPY แดง + candidates ขึ้นมาแล้ว/beta สูง
+---
 
-### WATCH — รอ Pullback / Green Bar
+## Scan — 09:42 ET Tue | SPY daily -0.5% 🔴 | VIX 24.2
+
+ไม่มี BUY NOW — SPY daily แดง
+
+### WATCH — รอ SPY green / Pullback
 
 | # | Symbol | Now | รอที่ | Limit | SL | TP | R:R |
 |---|--------|-----|------|-------|-----|-----|-----|
-| 1 | LITE | $804 | PB -1.5% | $792 | $780 | $820 | 1:2.3 |
-| 2 | LLY | $899 | Green bar | GBar | $890 | $917 | 1:2 |
+| 1 | LLY | $899 | Green bar | GBar | $890 | $917 | 1:2 |
 
-**LITE**: Beta 1.41 + MCap $47B + SI 18% + Tech + Vol 3x + GF 100%
-→ winner profile ครบ รอ consolidation 📐
+**LLY**: Beta 0.43 + MCap $794B — SPY แดง → WATCH ไม่ BUY
 
 **LLY**: Beta 0.43 + MCap $794B + Drop -2.8% + 51 unusual calls
 → GF 0% ยังไม่ bounce — รอ green bar
