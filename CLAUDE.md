@@ -42,7 +42,8 @@ The terminal CAN render wide pipe-tables. Always use one table for all candidate
 ### ขั้นตอน 1: เช็คเวลา + ตลาด
 ```bash
 python3 << 'PYEOF'
-from datetime import datetime; import pytz
+from datetime import datetime; import pytz; import requests, os, sqlite3
+from dotenv import load_dotenv; load_dotenv()
 et = datetime.now(pytz.timezone('US/Eastern'))
 print(f'ET: {et.strftime("%Y-%m-%d %H:%M %A")}')
 h, m = et.hour, et.minute
@@ -50,102 +51,100 @@ if h < 4: print('OVERNIGHT')
 elif h < 9 or (h == 9 and m < 30): print(f'PRE-MARKET — {(9*60+30)-(h*60+m)}min to open')
 elif h < 16: print(f'MARKET OPEN — {(h-9)*60+m-30}min since open')
 else: print('CLOSED')
-import yfinance as yf
-spy = yf.Ticker('SPY').history(period='5d')
-vix = yf.Ticker('^VIX').history(period='5d')
-es = yf.Ticker('ES=F').history(period='5d')
-gc = yf.Ticker('GC=F').history(period='5d')
-prev = spy.iloc[-2]['Close']; now = spy.iloc[-1]['Close']
-print(f'SPY ${now:.2f} ({(now/prev-1)*100:+.1f}%) | VIX {vix.iloc[-1]["Close"]:.1f} | ES {es.iloc[-1]["Close"]:.0f} | Gold ${gc.iloc[-1]["Close"]:.0f}')
-# VIX zones: <20 NORMAL | 20-24 SKIP (ระวัง) | 24-38 HIGH | >38 EXTREME
+# Alpaca snapshot for SPY + macro from DB
+hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
+r = requests.get('https://data.alpaca.markets/v2/stocks/snapshots?symbols=SPY', headers=hdr)
+if r.status_code == 200:
+    s = r.json().get('SPY',{})
+    db, pb = s.get('dailyBar',{}), s.get('prevDailyBar',{})
+    spy_now = db.get('c',0); spy_prev = pb.get('c',1)
+    spy_daily = (spy_now/spy_prev-1)*100
+    spy_intra = (db.get('c',0)/db.get('o',1)-1)*100
+    print(f'SPY ${spy_now:.2f} daily {spy_daily:+.1f}% {"🟢" if spy_daily > 0 else "🔴"} | intraday {spy_intra:+.1f}%')
+conn = sqlite3.connect("data/trade_history.db")
+vix_r = conn.execute("SELECT vix_close FROM macro_snapshots ORDER BY date DESC LIMIT 1").fetchone()
+print(f'VIX {vix_r[0]:.1f}' if vix_r else 'VIX N/A')
+conn.close()
 PYEOF
 ```
 
 ### ขั้นตอน 2: Scan 200 + hot inject — ปรับตามเวลา
 
-**ถ้า OVERNIGHT / PRE-MARKET / CLOSED → ใช้ daily + PM quotes:**
+**ถ้า OVERNIGHT / PRE-MARKET / CLOSED → Alpaca snapshots + DB history:**
 ```bash
 python3 << 'PYEOF'
-import yfinance as yf, sqlite3, numpy as np
+import requests, os, sqlite3, numpy as np
+from dotenv import load_dotenv; load_dotenv()
 
+hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
 conn = sqlite3.connect("data/trade_history.db")
-# Top 200 by dollar volume
 syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
-# Hot inject: yesterday's big movers NOT in top 200 (catches mid-cap catalysts)
 hot = [r[0] for r in conn.execute("""
     SELECT DISTINCT d.symbol FROM stock_daily_ohlc d
     JOIN universe_stocks u ON d.symbol = u.symbol
     WHERE d.date = (SELECT MAX(date) FROM stock_daily_ohlc)
     AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
-    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03
-    AND d.volume * d.close >= 5000000
+    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03 AND d.volume * d.close >= 5000000
 """).fetchall()]
-if hot: print(f"🔥 Hot inject: {len(hot)} movers outside top 200: {', '.join(hot[:10])}")
+if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
 syms = list(set(syms + hot))
+
+# 5d history from DB
+hist = {}
+for r in conn.execute("""
+    SELECT symbol, date, open, high, low, close, volume FROM stock_daily_ohlc
+    WHERE date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-7 days')
+    ORDER BY symbol, date
+"""):
+    hist.setdefault(r[0], []).append(r[1:])
 conn.close()
 
-d5 = yf.download(syms, period="6d", progress=False, threads=True)
+# Alpaca snapshots (2 batches × 100, ~2 seconds total)
+snaps = {}
+for i in range(0, len(syms), 100):
+    batch = ','.join(syms[i:i+100])
+    r = requests.get(f'https://data.alpaca.markets/v2/stocks/snapshots?symbols={batch}', headers=hdr)
+    if r.status_code == 200: snaps.update(r.json())
+print(f"Loaded {len(snaps)} snapshots")
 
 results = []
 for sym in syms:
     try:
-        c = d5['Close'][sym].dropna()
-        v = d5['Volume'][sym].dropna()
-        h = d5['High'][sym].dropna()
-        lo = d5['Low'][sym].dropna()
-        if len(c) < 3: continue
+        snap = snaps.get(sym)
+        days = hist.get(sym, [])
+        if not snap or len(days) < 3: continue
+        db = snap.get('dailyBar',{}); pb = snap.get('prevDailyBar',{})
+        now = db.get('c',0); prev = pb.get('c',0)
+        if now < 3 or prev < 1: continue
 
-        last_close = float(c.iloc[-1])
-        prev_close = float(c.iloc[-2])
-        last_ret = (last_close/prev_close-1)*100
+        last_ret = (now/prev-1)*100
+        d0 = days[0]; mom5d = (now/d0[3]-1)*100 if len(days) >= 5 else last_ret
+        avg_vol = np.mean([d[5] for d in days[:-1]]) if len(days) > 1 else 1
+        vr = db.get('v',0)/avg_vol if avg_vol > 0 else 0
+        hi, lo = db.get('h',now), db.get('l',now)
+        rng = hi - lo; cp = (now-lo)/rng if rng > 0 else 0.5
+        trs = [max(d[2]-d[3], abs(d[2]-days[i-1][4]), abs(d[3]-days[i-1][4])) for i,d in enumerate(days[1:],1)]
+        atr = np.mean(trs[-4:])/now*100 if trs else 0
 
-        # 5d momentum (สำคัญมาก — mom5d>5% = 41.8% hit +3%)
-        mom5d = (float(c.iloc[-1])/float(c.iloc[0])-1)*100 if len(c) >= 5 else last_ret
-
-        # Volume ratio
-        avg_vol = float(v.iloc[:-1].mean()) if len(v) > 1 else 1
-        last_vr = float(v.iloc[-1])/avg_vol if avg_vol > 0 else 0
-
-        # Close position (0=low, 1=high)
-        hi_val = float(h.iloc[-1]); lo_val = float(lo.iloc[-1])
-        rng = hi_val - lo_val
-        cp = (last_close - lo_val)/rng if rng > 0 else 0.5
-
-        # ATR
-        trs = [max(float(h.iloc[i])-float(lo.iloc[i]), abs(float(h.iloc[i])-float(c.iloc[i-1])), abs(float(lo.iloc[i])-float(c.iloc[i-1]))) for i in range(1, min(len(c),5))]
-        atr = np.mean(trs)/last_close*100 if trs else 0
-
-        # Pre-market gap (ถ้ามี)
-        try:
-            hpm = yf.Ticker(sym).history(period="1d", interval="1m", prepost=True)
-            pm = float(hpm.iloc[-1]['Close']) if len(hpm) > 0 else last_close
-            gap = (pm/last_close-1)*100
-        except:
-            pm = last_close; gap = 0
-
-        # Broad filter — let AI see everything that moved, AI judges quality
-        yest_move = abs(last_ret) >= 2
-        gap_move = abs(gap) >= 1.5
-        mom_move = abs(mom5d) >= 5
-        if last_close >= 3 and (yest_move or gap_move or mom_move):
-            results.append((sym, last_close, pm, gap, last_ret, mom5d, last_vr, cp, atr))
+        if abs(last_ret) >= 2 or abs(mom5d) >= 5:
+            results.append((sym, now, last_ret, mom5d, vr, cp, atr))
     except: pass
 
-# Sort: PM gap first (today's setup), then yest_ret as tiebreaker
-results.sort(key=lambda x: (x[3], x[4]), reverse=True)  # gap DESC, yest DESC
-print(f"{len(results)} ORB candidates (sorted by PM gap)")
-print(f"{'':1s}{'Sym':5s} {'Close':>7s} {'PM':>7s} {'Gap':>5s} {'Yest':>5s} {'5dM':>6s} {'Vol':>4s} {'CPos':>5s} {'ATR':>4s}")
-for s,cl,pm,g,yr,m,vr,cp,atr in results[:20]:
-    mode = '⛽' if g >= 2 and m < 0 else ('🔥' if m >= 10 and yr >= 3 and vr >= 1.5 else '✅')
-    print(f"{mode}{s:5s} {cl:>7.2f} {pm:>7.2f} {g:+4.1f}% {yr:+4.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {atr:>3.1f}%")
+results.sort(key=lambda x: abs(x[2]), reverse=True)
+print(f"{len(results)} ORB candidates")
+print(f"{'Sym':5s} {'Price':>7s} {'Yest':>6s} {'5dM':>6s} {'Vol':>4s} {'CPos':>5s} {'ATR':>4s}")
+for s,p,yr,m,vr,cp,atr in results[:20]:
+    print(f"{s:5s} {p:>7.2f} {yr:+5.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {atr:>3.1f}%")
 PYEOF
 ```
 
-**ถ้า MARKET OPEN (09:30-11:30) → Intraday scan (UP movers + DOWN bounce):**
+**ถ้า MARKET OPEN (09:30-11:30) → Alpaca Intraday scan:**
 ```bash
 python3 << 'PYEOF'
-import yfinance as yf, sqlite3
+import requests, os, sqlite3
+from dotenv import load_dotenv; load_dotenv()
 
+hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
 conn = sqlite3.connect("data/trade_history.db")
 syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
 hot = [r[0] for r in conn.execute("""
@@ -153,104 +152,71 @@ hot = [r[0] for r in conn.execute("""
     JOIN universe_stocks u ON d.symbol = u.symbol
     WHERE d.date = (SELECT MAX(date) FROM stock_daily_ohlc)
     AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
-    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03
-    AND d.volume * d.close >= 5000000
+    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03 AND d.volume * d.close >= 5000000
 """).fetchall()]
 if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
 syms = list(set(syms + hot))
 conn.close()
 
-d = yf.download(syms + ['SPY'], period="1d", interval="5m", progress=False)
+# Alpaca snapshots — 2 seconds for 200 symbols
+snaps = {}
+for i in range(0, len(syms), 100):
+    batch = ','.join(syms[i:i+100])
+    r = requests.get(f'https://data.alpaca.markets/v2/stocks/snapshots?symbols={batch}', headers=hdr)
+    if r.status_code == 200: snaps.update(r.json())
 
-# SPY direction — show BOTH daily (from prev close) and intraday (from today open)
-try:
-    spy_o = float(d['Open']['SPY'].dropna().iloc[0])
-    spy_n = float(d['Close']['SPY'].dropna().iloc[-1])
-    spy_intra = (spy_n/spy_o-1)*100
-    # Daily change from prev close (more important for bounce WR)
-    import sqlite3 as _s
-    _c = _s.connect("data/trade_history.db")
-    _prev = _c.execute("SELECT close FROM stock_daily_ohlc WHERE symbol='SPY' ORDER BY date DESC LIMIT 1").fetchone()
-    _c.close()
-    spy_daily = (spy_n/float(_prev[0])-1)*100 if _prev else spy_intra
-    print(f"📊 SPY daily {spy_daily:+.1f}% {'🟢' if spy_daily > 0 else '🔴'} | intraday {spy_intra:+.1f}%")
-    if spy_daily < -1: print("⚠️ SPY daily < -1% → bounce WR 34%")
-except: spy_daily = 0; spy_intra = 0
+# SPY — BOTH daily and intraday
+spy = snaps.get('SPY',{})
+spy_db, spy_pb = spy.get('dailyBar',{}), spy.get('prevDailyBar',{})
+spy_daily = (spy_db.get('c',0)/spy_pb.get('c',1)-1)*100 if spy_pb.get('c') else 0
+spy_intra = (spy_db.get('c',0)/spy_db.get('o',1)-1)*100
+print(f"📊 SPY daily {spy_daily:+.1f}% {'🟢' if spy_daily > 0 else '🔴'} | intraday {spy_intra:+.1f}%")
 
-up_results = []  # Stocks up (momentum)
-dn_results = []  # Stocks down (bounce candidates — BEST setup WR 54-68%)
-
+up_results = []; dn_results = []
 for sym in syms:
     try:
-        c = d['Close'][sym].dropna()
-        o = d['Open'][sym].dropna()
-        h = d['High'][sym].dropna()
-        lo = d['Low'][sym].dropna()
-        v = d['Volume'][sym].dropna()
-        if len(c) < 5: continue
+        s = snaps.get(sym);
+        if not s: continue
+        db = s.get('dailyBar',{}); pb = s.get('prevDailyBar',{})
+        mb = s.get('minuteBar',{})
+        now = db.get('c',0); opn = db.get('o',0); hi = db.get('h',0); lo = db.get('l',0)
+        prev_c = pb.get('c',0); vol = db.get('v',0); prev_vol = pb.get('v',1)
+        if now < 3 or opn < 1 or prev_c < 1: continue
+        chg = (now/opn-1)*100; daily_chg = (now/prev_c-1)*100
+        drop = (lo/opn-1)*100; vr = vol/prev_vol if prev_vol > 0 else 0
+        rng = hi-lo; cp = (now-lo)/rng if rng > 0 else 0.5
+        last_green = mb.get('c',0) > mb.get('o',0) if mb else False
+        pullback = (hi/now-1)*100 if now < hi else 0
 
-        opn = float(o.iloc[0]); now = float(c.iloc[-1])
-        hi = float(h.max()); low = float(lo.min())
-        chg = (now/opn-1)*100
-        drop_from_open = (low/opn-1)*100  # max drop from open
-        vol = int(v.sum())
-
-        h20 = yf.Ticker(sym).history(period='20d')
-        avg_vol = int(h20['Volume'].mean()) if len(h20) > 0 else 1
-        mins = len(c)*5
-        vr = (vol*390/max(mins,1))/avg_vol if avg_vol > 0 else 0
-
-        # Green bar fraction (last 6 bars = 30 min) — 50%+ = WR 69%, <30% = WR 13%
-        recent = min(6, len(c))
-        green_frac = sum(1 for i in range(-recent, 0) if float(c.iloc[i]) > float(o.iloc[i])) / recent
-        last_green = float(c.iloc[-1]) > float(o.iloc[-1])
-        fb = (float(c.iloc[0])/opn-1)*100
-
-        # Consolidation detection (last 3 bars range shrinking = จุดนิ่ง)
-        consol = False
-        if len(c) >= 4:
-            ranges = [float(h.iloc[i])-float(lo.iloc[i]) for i in range(-3, 0)]
-            prev_ranges = [float(h.iloc[i])-float(lo.iloc[i]) for i in range(-6, -3)] if len(c) >= 7 else ranges
-            consol = max(ranges) < max(prev_ranges) * 0.7 if max(prev_ranges) > 0 else False
-
-        if now < 3: continue
-
-        # DOWN BOUNCE: dropped 2%+ from open at any point
-        if drop_from_open <= -2 and now > low:
-            bounce_pct = (now/low-1)*100
-            dn_results.append((sym, opn, now, chg, drop_from_open, bounce_pct, vr, green_frac, last_green, consol))
-
-        # UP MOVERS: up 1.5%+ (no vol filter — AI judges vol quality)
+        if drop <= -2 and now > lo:
+            dn_results.append((sym, opn, now, chg, drop, (now/lo-1)*100, vr, cp, last_green, daily_chg))
         if chg > 1.5:
-            rng = hi - low
-            nh = ((now-low)/rng*100) if rng > 0 else 50
-            pullback = (hi/now-1)*100 if now < hi else 0
-            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, fb, vr, nh, green_frac, consol, pullback))
+            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, cp, last_green, pullback, daily_chg))
     except: pass
 
-# Down Bounce candidates
-dn_results.sort(key=lambda x: x[4])  # deepest drop first
-print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (dropped 2%+ from open)")
-print(f"{'':1s}{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'GF':>4s} {'Con':>3s}")
-for s,o,n,c,dr,bn,vr,gf,lg,con in dn_results[:10]:
-    f = '🔥' if gf >= 0.5 and dr <= -3 else ('✅' if dr <= -3 else '  ')
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {gf:>3.0%} {'📐' if con else '  '}")
+dn_results.sort(key=lambda x: x[4])
+print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (drop 2%+ from open)")
+print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'CP':>4s} {'DChg':>5s}")
+for s,o,n,c,dr,bn,vr,cp,lg,dc in dn_results[:12]:
+    f = '🔥' if dr <= -5 else ('✅' if dr <= -3 else '  ')
+    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {cp:>3.2f} {dc:+4.1f}% {'🟢' if lg else '🔴'}")
 
-# Up movers + momentum pullback candidates
-up_results.sort(key=lambda x: (x[10], x[3]), reverse=True)  # pullback DESC, then chg
+up_results.sort(key=lambda x: (x[8], x[3]), reverse=True)
 print(f"\n🔺 {len(up_results)} UP movers (+1.5%+ | PB=pullback from high)")
-print(f"{'':1s}{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'GF':>4s} {'Con':>3s}")
-for s,o,n,c,hi,fb,vr,nh,gf,con,pb in up_results[:10]:
-    f = '📐' if con and pb >= 1.5 else ('🔥' if c > 3 and vr > 2 else ('✅' if c > 2 else '  '))
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {pb:>3.1f}% {vr:>3.1f}x {gf:>3.0%} {'📐' if con else '  '}")
+print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'CP':>4s} {'DChg':>5s}")
+for s,o,n,c,hi,vr,cp,lg,pb,dc in up_results[:12]:
+    f = '📐' if pb >= 1.5 else ('🔥' if c > 3 and vr > 2 else '✅')
+    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {pb:>3.1f}% {vr:>3.1f}x {cp:>3.2f} {dc:+4.1f}% {'🟢' if lg else '🔴'}")
 PYEOF
 ```
 
-**ถ้า MARKET OPEN (11:30-15:30) → Top Movers scan:**
+**ถ้า MARKET OPEN (11:30-15:30) → Alpaca Top Movers scan:**
 ```bash
 python3 << 'PYEOF'
-import yfinance as yf, sqlite3
+import requests, os, sqlite3
+from dotenv import load_dotenv; load_dotenv()
 
+hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
 conn = sqlite3.connect("data/trade_history.db")
 syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
 hot = [r[0] for r in conn.execute("""
@@ -258,87 +224,60 @@ hot = [r[0] for r in conn.execute("""
     JOIN universe_stocks u ON d.symbol = u.symbol
     WHERE d.date = (SELECT MAX(date) FROM stock_daily_ohlc)
     AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
-    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03
-    AND d.volume * d.close >= 5000000
+    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03 AND d.volume * d.close >= 5000000
 """).fetchall()]
 if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
 syms = list(set(syms + hot))
 conn.close()
 
-d = yf.download(syms + ['SPY'], period="1d", interval="5m", progress=False)
+# Alpaca snapshots — ~2 seconds
+snaps = {}
+for i in range(0, len(syms), 100):
+    batch = ','.join(syms[i:i+100])
+    r = requests.get(f'https://data.alpaca.markets/v2/stocks/snapshots?symbols={batch}', headers=hdr)
+    if r.status_code == 200: snaps.update(r.json())
 
-# SPY — show BOTH daily and intraday
-try:
-    spy_o = float(d['Open']['SPY'].dropna().iloc[0])
-    spy_n = float(d['Close']['SPY'].dropna().iloc[-1])
-    spy_intra = (spy_n/spy_o-1)*100
-    import sqlite3 as _s
-    _c = _s.connect("data/trade_history.db")
-    _prev = _c.execute("SELECT close FROM stock_daily_ohlc WHERE symbol='SPY' ORDER BY date DESC LIMIT 1").fetchone()
-    _c.close()
-    spy_daily = (spy_n/float(_prev[0])-1)*100 if _prev else spy_intra
-    print(f"📊 SPY daily {spy_daily:+.1f}% {'🟢' if spy_daily > 0 else '🔴'} | intraday {spy_intra:+.1f}%")
-    if spy_daily < -1: print("⚠️ SPY daily < -1% → bounce WR 34%")
-except: spy_daily = 0; spy_intra = 0
+# SPY — BOTH daily and intraday
+spy = snaps.get('SPY',{})
+spy_db, spy_pb = spy.get('dailyBar',{}), spy.get('prevDailyBar',{})
+spy_daily = (spy_db.get('c',0)/spy_pb.get('c',1)-1)*100 if spy_pb.get('c') else 0
+spy_intra = (spy_db.get('c',0)/spy_db.get('o',1)-1)*100
+print(f"📊 SPY daily {spy_daily:+.1f}% {'🟢' if spy_daily > 0 else '🔴'} | intraday {spy_intra:+.1f}%")
 
-dn_results = []  # Down bounce (best setup IF SPY green)
-up_results = []  # Momentum continuation (up 5%+)
-
+dn_results = []; up_results = []
 for sym in syms:
     try:
-        c = d['Close'][sym].dropna()
-        o = d['Open'][sym].dropna()
-        h = d['High'][sym].dropna()
-        lo = d['Low'][sym].dropna()
-        v = d['Volume'][sym].dropna()
-        if len(c) < 5: continue
+        s = snaps.get(sym)
+        if not s: continue
+        db = s.get('dailyBar',{}); pb = s.get('prevDailyBar',{}); mb = s.get('minuteBar',{})
+        now = db.get('c',0); opn = db.get('o',0); hi = db.get('h',0); lo = db.get('l',0)
+        prev_c = pb.get('c',0); vol = db.get('v',0); prev_vol = pb.get('v',1)
+        if now < 1 or opn < 1 or prev_c < 1: continue
+        chg = (now/opn-1)*100; daily_chg = (now/prev_c-1)*100
+        drop = (lo/opn-1)*100; vr = vol/prev_vol if prev_vol > 0 else 0
+        rng = hi-lo; cp = (now-lo)/rng if rng > 0 else 0.5
+        last_green = mb.get('c',0) > mb.get('o',0) if mb else False
+        pullback = (hi/now-1)*100 if now < hi else 0
 
-        opn = float(o.iloc[0]); now = float(c.iloc[-1])
-        hi = float(h.max()); low = float(lo.min())
-        chg = (now/opn-1)*100
-        drop_from_open = (low/opn-1)*100
-        vol = int(v.sum())
-
-        h20 = yf.Ticker(sym).history(period='20d')
-        avg_vol = int(h20['Volume'].mean()) if len(h20) > 0 else 1
-        mins = len(c)*5
-        vr = (vol*390/max(mins,1))/avg_vol if avg_vol > 0 else 0
-
-        # Green bar fraction (last 6 bars = 30 min) — 50%+ = WR 69%, <30% = WR 13%
-        recent = min(6, len(c))
-        green_frac = sum(1 for i in range(-recent, 0) if float(c.iloc[i]) > float(o.iloc[i])) / recent
-        last_green = float(c.iloc[-1]) > float(o.iloc[-1])
-
-        if now < 1: continue  # allow penny $1+
-
-        # DOWN BOUNCE: dropped 2%+ from open + recovering
-        if drop_from_open <= -2 and now > low:
-            bounce_pct = (now/low-1)*100
-            dn_results.append((sym, opn, now, chg, drop_from_open, bounce_pct, vr, green_frac, last_green))
-
-        # UP MOMENTUM: up 3%+ (no vol filter — AI judges)
+        if drop <= -2 and now > lo:
+            dn_results.append((sym, opn, now, chg, drop, (now/lo-1)*100, vr, cp, last_green, daily_chg))
         if chg >= 3:
-            rng = hi - low
-            nh = ((now-low)/rng*100) if rng > 0 else 50
-            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, nh, green_frac, last_green))
+            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, cp, last_green, pullback, daily_chg))
     except: pass
 
-# Down bounce — need SPY green + green bar fraction 50%+
-dn_results.sort(key=lambda x: (-x[7], x[4]))  # green frac DESC, deeper drop
-print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (dropped 2%+ from open)")
-print(f"  GreenFrac 50%+ = WR 69% | <30% = WR 13% | SPY green = WR 58-62%")
-print(f"{'':1s}{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'GF':>4s} {'LG':>2s}")
-for s,o,n,c,dr,bn,vr,gf,lg in dn_results[:10]:
-    ok = '🔥' if gf >= 0.5 and spy_chg > 0 else ('✅' if gf >= 0.33 else '⚠️')
-    print(f"{ok}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {gf:>3.0%} {'🟢' if lg else '🔴'}")
+dn_results.sort(key=lambda x: x[4])
+print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (drop 2%+ from open)")
+print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'CP':>4s} {'DChg':>5s}")
+for s,o,n,c,dr,bn,vr,cp,lg,dc in dn_results[:12]:
+    f = '🔥' if dr <= -5 else ('✅' if dr <= -3 else '  ')
+    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {cp:>3.2f} {dc:+4.1f}% {'🟢' if lg else '🔴'}")
 
-# Momentum continuation (weaker — WR 52-56%)
-up_results.sort(key=lambda x: x[3], reverse=True)
-print(f"\n🔺 {len(up_results)} MOMENTUM continuation (up 5%+, WR 52-56%)")
-print(f"{'':1s}{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'Vol':>4s} {'NrH':>4s} {'GF':>4s} {'LG':>2s}")
-for s,o,n,c,hi,vr,nh,gf,lg in up_results[:10]:
-    f = '🔥' if c > 7 and vr > 2 else ('✅' if c > 5 else '  ')
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {vr:>3.1f}x {nh:>3.0f}% {gf:>3.0%} {'🟢' if lg else '🔴'}")
+up_results.sort(key=lambda x: (x[8], x[3]), reverse=True)
+print(f"\n🔺 {len(up_results)} UP movers (+3%+ | PB=pullback from high)")
+print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'CP':>4s} {'DChg':>5s}")
+for s,o,n,c,hi,vr,cp,lg,pb,dc in up_results[:12]:
+    f = '📐' if pb >= 1.5 else ('🔥' if c > 5 and vr > 2 else '✅')
+    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {pb:>3.1f}% {vr:>3.1f}x {cp:>3.2f} {dc:+4.1f}% {'🟢' if lg else '🔴'}")
 PYEOF
 ```
 
