@@ -459,16 +459,24 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 
 ไม่มี BUY NOW — SPY daily แดง
 
-### WATCH — รอ SPY green / Pullback
+Re-check: 10:00 ดู SPY direction | 10:15 ดู green bar fraction
 
-| # | Symbol | Now | รอที่ | Limit | SL | TP | R:R |
-|---|--------|-----|------|-------|-----|-----|-----|
-| 1 | LLY | $899 | Green bar | GBar | $890 | $917 | 1:2 |
+---
 
-**LLY**: Beta 0.43 + MCap $794B + Drop -2.8% + 51 unusual calls
-→ GF 0% ยังไม่ bounce — รอ green bar
+**ตัวอย่าง output — ORB Pre-Market (ยังไม่มี PM data):**
 
-Re-check: 10:00 LITE pullback | 10:15 LLY green bar
+---
+
+## ORB Prep — 04:30 ET Thu | SPY daily +2.5% 🟢 | VIX 21
+
+| # | Symbol | Now | PMGap | Yest% | 5dM | Vol | Beta | MCap | Sector | Catalyst |
+|---|--------|-----|-------|-------|-----|-----|------|------|--------|----------|
+| 1 | NESR | $24 | +0.2% | +5.4% | +13% | 0.2x | 0.29 | $2.2B | Energy | tgt +20% |
+| 2 | UNFI | $47 | +0.1% | +5.0% | +6% | 0.0x | 0.83 | $2.7B | ConsDef | CP 0.97 |
+| 3 | CRDO | $110 | +0.1% | -3.3% | +17% | 0.0x | 2.72 | $20B | Tech | tgt +81% |
+
+สรุป: NESR (low beta + Energy) ดีสุด รอ PM Vol 2x+
+Re-check: 07:00 PM vol | 09:25 final
 
 | # | Symbol | Now | รอที่ | Limit | SL | TP | R:R |
 |---|--------|-----|------|-------|-----|-----|-----|
