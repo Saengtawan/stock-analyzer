@@ -16,33 +16,29 @@ ORB ใช้ก่อนตลาดเปิด (06:00-09:30 ET) — หลั
 | Gap 2-5% + Vol 2x+ | **51.1%** | **34%** |
 | Gap 5%+ + Vol 2x+ | 65% | 38% |
 | Gap 2%+ + Vol <1.5x | 10% | 4% |
-→ Vol < 1.5x = โอกาสแค่ 10%
 
-### ⚠️ Honest Warning: Gap Up WR at Open
+### Gap Up WR at Open
 Gap Up stats above = "hit +3% from open at any point during day" (max high)
-**WR at 09:35 entry → close = 44-48%** (ต่ำกว่า random สำหรับ $20+ stocks!)
-**Gap Up + Vol 2x = WR 57%** (momentum continuation ดีกว่า reversal)
+WR at 09:35 entry to close = 44-48% ($20+ stocks)
+Gap Up + Vol 2x = WR 57%
 
-### Gap Down + Vol 2x = WR 42% (ต่ำกว่า 50% baseline)
-- Backtest 4,347 events: Gap Down ≥2% + Vol ≥2x → **WR 42.4%** close > open
-- Vol ยิ่งเยอะยิ่งแย่: Vol 3-5x = WR 37% | Vol 5x+ = WR 35%
-- **Volume บน gap down = selling conviction ไม่ใช่ buying opportunity**
-- เฉพาะ VIX ≥38 (panic) ถึง WR 53% — ปกติไม่คุ้ม
+### Gap Down + Vol 2x = WR 42% (N=4,347)
+- Gap Down >=2% + Vol >=2x = WR 42.4%
+- Vol 3-5x = WR 37% | Vol 5x+ = WR 35%
+- VIX >=38: WR 53%
 
 ### Gap 2-5% ดีกว่า 5%+
-| เงื่อนไข | Early Peak (fade) | ปิด +3% |
-|----------|-------------------|---------|
-| **Gap 2-5% + Vol 2x+** | **22%** fade | **51.1%** |
-| Gap 5%+ + Vol 2x+ | 36% fade | 60% |
-| Gap 5%+ + Small cap | **44%** fade | 50% |
-→ **Gap พอดี (2-5%) = fade น้อย, hold ดี**
-→ Gap ใหญ่ + small cap = 44% early peak (fade บ่อยกว่า)
+| เงื่อนไข | Early Peak % | ปิด +3% |
+|----------|-------------|---------|
+| **Gap 2-5% + Vol 2x+** | **22%** | **51.1%** |
+| Gap 5%+ + Vol 2x+ | 36% | 60% |
+| Gap 5%+ + Small cap | **44%** | 50% |
 
 ### Sector Peak Timing (จาก backtest)
 | Sector | แนวโน้ม | 3%+ Rate |
 |--------|---------|----------|
-| **Energy** | **HOLD** (46% late peak) | - |
-| **Technology** | HOLD (36% late peak) | **8.4%** |
+| **Energy** | 46% late peak | - |
+| **Technology** | 36% late peak | **8.4%** |
 | Healthcare | 42% early peak | 6.0% |
 | Consumer Cyclical | 36% early peak | 6.9% |
 | Utilities | - | 2.1% (ต่ำสุด) |
@@ -55,7 +51,7 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 3. หา catalyst: earnings beat / upgrade / FDA / contract
 4. **Prefer gap 2-5%** (ไม่ใช่ยิ่งเยอะยิ่งดี)
 5. 5d momentum > 5% = **66% ปิด +3%** (trend จริง)
-6. Sector: Energy 46% late peak, Tech 36%, Healthcare 42% early peak (ดูตาราง sector)
+6. Sector peak timing: Energy 46% late, Tech 36% late, Healthcare 42% early (ดูตาราง)
 
 ### Step 2: Opening Range (09:30-09:45)
 1. รอ 15 นาที → จด OR high / OR low
@@ -87,7 +83,7 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 - Entry: OR high breakout + volume
 - SL: OR low (tight)
 - TP: +2% (avg close +1.5-2.3%, +3% rate = 35-40%)
-- 48% fade ปิดใกล้ low ถ้าถือหลัง 10:30
+- 48% early peak ปิดใกล้ low ถ้าถือหลัง 10:30
 - 35-40% ปิด +3% (ถ้า Vol 2x+)
 
 | Bounce + Vol | Avg High | Avg Close | +3% |
@@ -112,9 +108,9 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 
 → **หลัง 10:30 ORB จบ** — ถ้ายังถือ ใช้ intraday confirm (12:00, 14:00)
 
-## ⚠️ Kill Zone (10:00-10:30)
+## Kill Zone (10:00-10:30)
 
-**28% ของหุ้นทำ peak ช่วง 09:30-10:30** แล้ว fade ตลอดวัน
+**28% ของหุ้นทำ peak ช่วง 09:30-10:30**
 
 | Peak เมื่อไหร่ | Avg Close | Giveback | ปิด +3%? |
 |---------------|-----------|----------|----------|
@@ -136,7 +132,7 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 **Context (จาก DB query):**
 - มี catalyst จริงมั้ย (earnings/upgrade/FDA — ไม่ใช่แค่ "stock up")
 - SI สูง = short squeeze potential
-- Sector ดี? (Energy/Tech hold, Healthcare fade)
+- Sector peak timing? (Energy 46% late, Tech 36% late, Healthcare 42% early)
 - VIX level? (สูง = volatile ทั้งขึ้นและลง)
 - Insider/analyst signals?
 
@@ -160,42 +156,34 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 **ORB entry characteristics:**
 - Breakout OR high: move เร็ว ถ้ารอ limit อาจพลาด
 - Bounce mode OR low retest: ช้ากว่า มีเวลาวาง limit ที่ OR low
-- Gap 2-5% bounce ช้ากว่า gap 5%+ (fade risk ต่ำ = ค่อยๆ ขึ้น)
+- Gap 2-5% bounce ช้ากว่า gap 5%+ (early peak 22% vs 36%)
 
 ### Winner vs Loser Profile (จาก backtest — ให้ AI ใช้ judge)
 
 WINNER signs (momentum hold):
-- Gap 2-5% (พอดี) — ไม่เยอะจน fade
+- Gap 2-5% — early peak 22% (lowest)
 - Vol 2x+ — institutional interest จริง
 - 5d momentum +5%+ — trend กำลังวิ่ง
 - First bar ขึ้น 1%+ — momentum จริงตั้งแต่เปิด
-- Sector: Energy 46% late peak, Tech 36% late peak (ดูตาราง)
-- Catalyst ชัด (earnings/upgrade/FDA) — ไม่ใช่แค่ "stock up"
+- Sector: Energy 46% late peak, Tech 36% late peak
+- Catalyst ชัด (earnings/upgrade/FDA)
 
-LOSER signs (fade risk):
-- Gap 5%+ + Small cap — 44% early peak fade
-- Vol < 1.5x — fake move (82% = noise)
-- 5d momentum > 20% — extreme profit-taking risk
-- First bar เฉยๆ (<0.3%) — ไม่มี momentum
-- Sector Healthcare 42% early peak | Consumer Cyclical 36% early peak
-- No catalyst — pump & dump risk
-
-**ไม่ใช่กฎตายตัว — AI ดู pattern รวมแล้วตัดสิน**
+**AI ดู pattern รวมแล้วตัดสิน**
 
 ## Low WR Setups (ข้อมูลให้ AI พิจารณา)
 
 | Setup | WR | หมายเหตุ |
 |-------|----|---------|
-| Gap Down ≥2% + Vol ≥2x | 42% | ต่ำกว่า random, vol สูง = selling ต่อ |
-| Volume < 1.5x | 10% hit +3% | 82% of yest+3% with low vol = noise |
-| Yest +3% + Vol < 1.5x | ต่ำ | ไม่ใช่ signal จริง |
-| Gap > 10% + no catalyst | ต่ำ | pump & dump risk |
-| First bar เฉยๆ (<0.3%) | 11% | ไม่มี momentum |
-| หลุด VWAP ก่อน 10:00 | ต่ำ | buyer หมดแรง |
-| 10:30 หลุดต่ำกว่า open | 8% | ORB fail |
-| Utilities / Real Estate | 2-3% | ต่ำสุดทุก sector |
-| Gap 5%+ + Small cap | ต่ำ | 44% early peak fade |
-| 5d Mom > 20% + Vol < 2x | ต่ำ | profit-taking risk สูง |
+| Gap Down >=2% + Vol >=2x | 42% | N=4,347 |
+| Volume < 1.5x | 10% hit +3% | - |
+| Yest +3% + Vol < 1.5x | <50% | - |
+| Gap > 10% + no catalyst | <50% | - |
+| First bar <0.3% | 11% | - |
+| Below VWAP before 10:00 | <50% | - |
+| 10:30 below open | 8% | - |
+| Utilities / Real Estate | 2-3% | - |
+| Gap 5%+ + Small cap | <50% | 44% early peak |
+| 5d Mom > 20% + Vol < 2x | <50% | - |
 
 ## Output Format
 
@@ -221,8 +209,8 @@ LOSER signs (fade risk):
 ## Statistics Summary
 - 557K daily bars + 55M 5-min bars (2023-2026)
 - Volume 2x+ important (51.1% hit +3% vs 10% without vol)
-- Gap 2-5% > Gap 5%+ (less fade)
+- Gap 2-5%: early peak 22% | Gap 5%+: early peak 36%
 - First bar 1%+ = 34% hit +3%
 - 10:00 still +2% = 61% close +3%
-- Peak before 10:30 = giveback -5.4% → sell 50% early
+- Peak before 10:30: avg giveback -5.4%
 - ORB window: 09:30-10:30 only — after 10:30 use intraday prompt

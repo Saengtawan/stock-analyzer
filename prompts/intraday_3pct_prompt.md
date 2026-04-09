@@ -29,26 +29,21 @@ Price range: $5-20 = WR 55% | $50+ = WR 54.8% (ไม่ต่างกันม
 | 10:00 | Vol Surge 3x No Gap $50+ | ~62% | N น้อย, ยังไม่ re-validate |
 | 10:00 | Top Mover 5%+ Green $50+ | ~62% | N น้อย, ยังไม่ re-validate |
 
-### ⚠️ Honest Warning: Down Bounce — WR ขึ้นกับ Drop Depth
-- Backtest 97K signals: **Drop depth คือตัวแบ่ง #1**
-- Drop 2-3% = WR **53%** (edge น้อย) | Drop 3-5% = WR **57%** | Drop 5-8% = WR **68%** | Drop 8%+ = WR **93%** (N น้อย)
-- **Morning (09:30-10:00) = WR 59.5%** ดีกว่าทุกช่วง
-- **Afternoon (14:00+) = WR 51%** (coin flip — ไม่คุ้ม)
-- WR vs open = แค่ 6-12% (หุ้นยังปิดลงจาก open) — edge อยู่ที่ vs entry เท่านั้น
-- **SPY direction สำคัญ**: SPY green → WR 58-62% | SPY < -1% → WR **34%** (ต่ำกว่า random มาก)
-- Best combo จาก data: drop 5%+ ช่วงเช้า + SPY green
+### Down Bounce WR Summary (97K signals)
+- Drop 2-3% = WR 53% | Drop 3-5% = WR 57% | Drop 5-8% = WR 68% | Drop 8%+ = WR 93% (N น้อย)
+- Morning (09:30-10:00) = WR 59.5% | Afternoon (14:00+) = WR 51%
+- SPY green = WR 58-62% | SPY < -1% = WR 34%
 
-### Gap Down + Vol 2x = WR 42% (ต่ำกว่า 50% baseline)
-- Gap Down ≥2% + Vol ≥2x → WR 42.4% (backtest 4,347 events)
-- Vol สูงบน gap down = selling conviction → ลงต่อ ไม่ใช่ reversal
-- **ต่างจาก Down Bounce**: Down Bounce = หุ้นลงจาก open แล้ว bounce | Gap Down = gap จาก prev close
+### Gap Down + Vol 2x = WR 42% (N=4,347)
+- Gap Down >=2% + Vol >=2x = WR 42.4%
+- Down Bounce = ลงจาก open แล้ว bounce | Gap Down = gap จาก prev close
 
-### Setups ที่ WR < 55% (ข้อมูลให้ AI พิจารณา)
-| Strategy | WR | ปัญหา |
-|----------|----|-------|
-| Gap Up Vol 2x entry after +3% (chase) | **44%** | chase = ต่ำกว่า baseline |
-| Top Mover 5%+ Green ($5-20) 11:00+ | **47%** | WR ลดลงหลัง 11:00 |
-| Up 2-5% Green ($50+) | **48%** | ใกล้ coin flip |
+### Setups WR < 55% (ข้อมูลให้ AI พิจารณา)
+| Strategy | WR | N |
+|----------|-----|---|
+| Gap Up Vol 2x entry after +3% intraday | 44% | - |
+| Top Mover 5%+ Green ($5-20) 11:00+ | 47% | - |
+| Up 2-5% Green ($50+) | 48% | - |
 
 ---
 
@@ -65,7 +60,7 @@ Price range: $5-20 = WR 55% | $50+ = WR 54.8% (ไม่ต่างกันม
 4. Price range ไม่ค่อยสำคัญ ($5-20 = 55%, $50+ = 55% ใกล้กัน)
 
 **Entry:** Buy green bar close | SL: day low | TP: +3-5%
-**Risk:** Drop ตื้น (2-3%) = edge น้อย WR แค่ 57%
+**Note:** Drop 2-3% = WR 57% | Drop 5%+ = WR 69%
 
 ### Strategy 2: Vol Surge 3x No Gap (WR 55-62%)
 **หาอะไร**: หุ้นที่ไม่ gap แต่ vol พุ่ง 3x + green bar
@@ -74,8 +69,8 @@ Price range: $5-20 = WR 55% | $50+ = WR 54.8% (ไม่ต่างกันม
 ### Strategy 3: Momentum UP — Gap Up + Vol 2x (WR 57-58% at open)
 **หาอะไร**: หุ้นที่ gap up 2-8% จาก prev close + vol ≥2x ตั้งแต่เปิด
 - Entry at open with gap + vol = WR 57-58% (momentum continuation)
-- Entry after stock already ran +3% intraday = WR 44% (chase — different setup)
-- 5d trend strong + gap + vol = momentum continuation signal (ไม่ใช่ bounce)
+- Entry after +3% intraday = WR 44% (different setup)
+- 5d trend strong + gap + vol = momentum continuation signal
 
 **Context clues (momentum):**
 - 5d momentum +5%+ = trend confirmation → gap = continuation
@@ -84,7 +79,7 @@ Price range: $5-20 = WR 55% | $50+ = WR 54.8% (ไม่ต่างกันม
 - SI สูง + gap up = short squeeze acceleration
 
 **Entry:** Buy at/near open price | SL: prev close or gap fill | TP: +3-5%
-**Risk:** Entry after +3% intraday move = WR drops to 44% (chase)
+**Note:** Entry after +3% intraday = WR 44%
 
 ---
 
@@ -98,9 +93,9 @@ Price range: $5-20 = WR 55% | $50+ = WR 54.8% (ไม่ต่างกันม
 - Vol Surge 3x No Gap $50+: WR 62%, +1.0%
 - Top Mover 5%+ Green $50+: WR 62%, +0.7%
 
-### Kill Zone ยังเหมือนเดิม
-- Peak ก่อน 10:30 = giveback -5.4%
-- ถ้า +3% แล้ว → ขาย 50%
+### Kill Zone
+- Early peak before 10:30: avg giveback -5.4%
+- After +3%: 50% partial exit
 
 ---
 
@@ -137,13 +132,13 @@ Avg return vs entry: +0.23%
 
 | Setup | WR | หมายเหตุ |
 |-------|----|---------|
-| Gap Down + Vol 2x | 42% | ต่ำกว่า random |
-| SPY < -1% + bounce | 34% | ต่ำกว่า random มาก |
-| Drop แค่ 2-3% | 53% | edge น้อย |
-| Gap Up Vol 2x Green $20+ | 44% | ต่ำกว่า random |
-| Top Mover 5%+ Green หลัง 11:00 | 40-47% | fade |
-| Down Bounce Vol 5x+ | ต่ำ | selling conviction |
-| Price < $1 | ต่ำ | extreme manipulation risk |
+| Gap Down + Vol 2x | 42% | N=4,347 |
+| SPY < -1% + bounce | 34% | - |
+| Drop 2-3% | 53% | - |
+| Gap Up Vol 2x Green $20+ | 44% | - |
+| Top Mover 5%+ Green หลัง 11:00 | 40-47% | - |
+| Down Bounce Vol 5x+ | <50% | - |
+| Price < $1 | <50% | - |
 
 ## วิเคราะห์ Candidate (AI ตัดสินเอง)
 
@@ -159,21 +154,12 @@ Avg return vs entry: +0.23%
 - มีข่าว = attention + volume (ไม่ว่า pos/neg ดีกว่าไม่มี)
 - Sector: ดู sector ที่แข็งแรงวันนั้น (sector rotation เปลี่ยนทุกวัน — ไม่ยึด sector ตายตัว)
 - Insider buy ล่าสุด = confidence signal
-- Earnings ใกล้ = uncertainty ระวัง
+- Earnings ใกล้ = uncertainty สูง
 - Unusual options = smart money
 
-**Entry criteria — ต้องครบก่อน BUY:**
+**AI ดู data ทั้งหมดแล้ว weigh เอง — ยิ่งหลาย factors ตรง edge ยิ่งสูง**
 
-1. **Drop ≥3%** จาก open (ตัวแบ่งหลัก)
-2. **SPY daily green** หรือ AD ≥2
-3. **Bounce hold ≥3 bars above VWAP** (1 green bar = WR 50% no edge, ต้อง hold)
-4. **Vol spike on bounce bar** (institutional buying จริง)
-5. **Sector ไม่สวนทาง** (sector ลง -1%+ = headwind)
-6. **Beta <1.5** (high beta bounce ไม่ hold)
-
-**TEAM 2026-04-09 lesson:** bounce 1 bar 🟢 above VWAP → BUY → ลงต่อ 🔴 = bounce fail เพราะแค่ 1 bar + Tech -1.9% headwind
-
-**AI weigh ทุกปัจจัยรวมกัน → ตัดสินเอง**
+Data points: drop depth, SPY daily direction, AD ratio, VWAP position, bounce bar count + volume, sector direction, beta
 
 ### Return Data ให้ AI ตั้ง TP/SL (backtest 126K setups)
 
@@ -205,25 +191,18 @@ Avg return vs entry: +0.23%
 - เช้า: bounce ช้า (70-90 นาที median) แต่ amplitude สูง (winner +2.3-3.6%)
 - 5%+ drop bounce เร็วกว่า 2-3% drop
 - เพียง 24-30% ที่ peak ใน 15 นาที — ส่วนใหญ่ค่อยๆ ขึ้น มีเวลาเข้า
-- Green bar alone has no edge (WR ~50%) — edge มาจาก drop depth + SPY direction + context
+- Green bar alone: WR ~50% — edge มาจาก drop depth + SPY direction + context
 
 ### Winner vs Loser Profile (จาก backtest — ให้ AI ใช้ judge)
 
 WINNER signs (bounce hold):
 - Beta ปานกลาง (~1.3) — volatile พอ bounce แต่ไม่เกิน
 - Drop ลึก (4%+) — oversold จริง → bounce แรง
-- Bar vol ปกติ (1-2x) — institutional buying ไม่ใช่ retail chase
+- Bar vol ปกติ (1-2x) — institutional buying
 - Mom 5d flat/ลบ — dip จริง ไม่ใช่ pullback ระหว่าง rally
 - MCap ใหญ่กว่า — stable กว่า
 
-LOSER signs (bounce fail):
-- Beta สูง (>1.7) — volatile เกิน bounce ไม่ hold
-- Drop ตื้น (2-3%) — ยังไม่ oversold จริง จะลงต่อ
-- Bar vol spike (>2x) — retail chase ตอน bounce → fade กลับ
-- Mom 5d บวก — หุ้นไม่ได้ dip จริง แค่ pullback เล็กก่อนลงต่อ
-- VIX สูงมาก — ทุกอย่าง volatile bounce ไม่ hold
-
-**ไม่ใช่กฎตายตัว — AI ดู pattern รวมแล้วตัดสิน**
+**AI ดู pattern รวมแล้วตัดสิน**
 
 ## Output Format
 
@@ -244,5 +223,5 @@ LOSER signs (bounce fail):
 - 500K+ 5-min bar entries (2024-2026)
 - Honest: includes tautology warning for Down Bounce
 - WR vs entry (real) not vs open (misleading)
-- Penny stocks ($1-5) removed — actual WR 46-50% (no edge)
-- Gap Up Vol 2x at open = WR 57-58% (momentum) | Gap Up Vol 2x entry after +3% = WR 44% (chase)
+- Penny stocks ($1-5) removed — WR 46-50%
+- Gap Up Vol 2x at open = WR 57-58% | Gap Up Vol 2x entry after +3% = WR 44%

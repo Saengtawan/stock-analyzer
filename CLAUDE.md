@@ -32,7 +32,7 @@ The terminal CAN render wide pipe-tables. Always use one table for all candidate
 
 **ไม่ overlap**: ORB→Intraday handoff ที่ 09:30 | Top Movers→OVN handoff ที่ 15:30
 
-**Prompt file มี rules + stats ครบ (Bounce Mode, Sector, HOLD vs FADE)**
+**Prompt file มี rules + stats ครบ (Bounce Mode, Sector, peak timing)**
 **CLAUDE.md มี scan code + output format — ใช้ร่วมกัน**
 
 จากนั้น **ทำ 5 ขั้นตอนนี้ทุกครั้ง ห้ามข้าม:**
@@ -373,7 +373,7 @@ SELECT symbol, pc_volume_ratio, unusual_call_count, unusual_put_count
 FROM options_daily_summary
 WHERE symbol IN ('XXX','YYY','ZZZ') AND collected_date = (SELECT MAX(collected_date) FROM options_daily_summary);
 
--- Beta + MCap (for Winner/Loser profile判断)
+-- Beta + MCap
 -- Beta<1.5 = WR 52.3% | Beta>1.5 = WR 50.8% | MCap>30B = WR 52.6%
 SELECT f.symbol, f.beta, f.market_cap, f.pe_forward, f.sector, f.industry
 FROM stock_fundamentals f
@@ -403,15 +403,15 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 - **MCap**: >30B = WR 52.6% (N=34,596) | <10B = WR 51.5% (N=65,182)
 - **AD ratio (จาก market_breadth) สำคัญกว่า breadth%**: AD<1 = bounce WR 27% | AD 1-2 = 42% | AD≥3 = 56% (N=106K)
 - **VIX tier**: <18 = WR 52% (ดีสุด) | 18-22 = WR 48% (แย่สุด!) | 22-28 = 51% | 28-35 = 50% | 35+ = 46%
-- **SI × drop depth**: SI 20%+ drop 2-3% = WR 47% (ดี) | SI 20%+ drop 5%+ = WR 7% (ไม่ช่วย!) — SI ช่วยแค่ shallow drop
+- **SI x drop depth**: SI 20%+ drop 2-3% = WR 47% | SI 20%+ drop 5%+ = WR 7%
 - มีข่าว (ไม่ว่า pos/neg) = มี attention + volume → ดีกว่าไม่มีข่าว
 - Sector: ดู sector ที่แข็งแรงวันนั้น (rotation เปลี่ยนทุกวัน — บางวัน Energy นำ บางวัน Tech นำ)
 - **เลือก candidates จากหลาย sector ที่แข็ง** — ไม่เลือกแค่ sector เดียวแม้จะแข็งสุด (กระจาย risk + จับ rotation)
 - มี insider buy = executives เชื่อมั่น
 - Earnings ใกล้ = uncertainty สูง → อาจดีหรือแย่ ระวัง
-- **Gap Up 2-8% + Vol 2x at open** = WR 57-58% (momentum entry) | **entry after +3% intraday** = WR 44% (chase)
-- **Gap Down + Vol 2x** = WR 42% (ต่ำกว่า random)
-- **Wednesday movers ถือข้ามคืน D+1** = WR 36% (mean reversion — เฉพาะ OVN hold ไม่ใช่ intraday วันนั้น)
+- **Gap Up 2-8% + Vol 2x at open** = WR 57-58% | **entry after +3% intraday** = WR 44%
+- **Gap Down + Vol 2x** = WR 42%
+- **Wednesday movers ถือข้ามคืน D+1** = WR 36% (เฉพาะ OVN hold ไม่ใช่ intraday วันนั้น)
 - **Momentum UP context**: 5d trend +5%+ + gap + vol 2x = momentum continuation (not bounce)
 
 **TP/SL data (backtest 126K setups):**
@@ -421,27 +421,17 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 - หลัง hit +2%: เช้า 64% วิ่งต่อ +3% | บ่าย 43% | 14:00+ 32%
 - Retrace risk: เช้า 32% retrace <+1% | บ่าย 19%
 
-**Entry criteria — 2 strategies แยกกัน:**
+**Data points ให้ AI พิจารณา — 2 strategies:**
 
-**A. Down Bounce (หุ้นตก → รอ bounce):**
-1. Drop depth ≥3% จาก open
-2. SPY daily green หรือ AD ratio ≥2
-3. Bounce hold ≥3 bars above VWAP (1 bar = WR 50% no edge)
-4. Vol spike on bounce bar
-5. Sector ไม่สวนทาง (sector ลง -1%+ = headwind)
-6. Beta <1.5
+**A. Down Bounce:**
+- Drop depth, SPY daily direction, AD ratio, VWAP position, bounce bar volume, sector direction, beta
 
-**B. Momentum UP (หุ้นขึ้น + vol ยืนยัน):**
-1. Gap up 2-8% จาก prev close (daily_chg) + **Vol ≥2x** = WR 57-58%
-2. Above VWAP = bullish bias
-3. Entry ที่ open เท่านั้น — **chase above open+1% = WR 47% (ไม่ไล่ราคา!)**
-4. Vol 5x+ = WR 66% avg +3.63% (hold ทั้งวัน)
-5. Gap up ไม่มี vol (<1.5x) = WR 34-42% (FADE ไม่ซื้อ)
+**B. Momentum UP:**
+- Gap up 2-8% + Vol 2x = WR 57-58% | Vol 5x+ = WR 66% avg +3.63%
+- Gap up + Vol <1.5x = WR 34-42%
+- Entry after +3% intraday = WR 33% (N=42K) | Entry at open+1% = WR 47%
 
-**ต่างกัน:**
-- Down Bounce = ซื้อหุ้นตก รอ bounce confirm
-- Momentum UP = ซื้อหุ้นที่ gap up + vol ยืนยัน ตอนเปิดเลย
-- **Chase = ซื้อหุ้นที่ขึ้นไปแล้ว +3%+ จาก open (WR 33%) ← นี่คือ chase ไม่ใช่ momentum UP**
+**AI ดู data ทั้งหมดแล้ว weigh เอง — ยิ่งหลาย factors ตรง edge ยิ่งสูง**
 
 **เมื่อไหร่ BUY NOW (market) vs WATCH (limit):**
 - ถ้าหลาย factors winner profile ตรง (low beta, large mcap, deep drop, high green fraction, SPY green, sector แข็ง) → edge สูงขึ้น — AI weigh รวมแล้วตัดสิน BUY NOW
@@ -451,33 +441,32 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 **Limit fill ยาก:** ขอบล่างสุดอาจไม่ถึง | กลาง range (70-80%) fill ง่ายกว่า
 
 **Momentum UP data (full backtest 564K daily rows):**
-- **Gap up 2-8% + Vol 2x+ = WR 57-58%** avg +0.94% — Volume คือตัวแบ่ง
-- **Gap up + Vol 5x+ = WR 66% avg +3.63%** — hold ทั้งวัน ไม่ขายเช้า (WR 54% ที่ 10:00 → 66% ที่ EOD)
-- Gap up ไม่มี vol (<1.5x) = WR 34-42% — FADE
-- **Chase above open+1% = WR 47%** — ซื้อที่ open เท่านั้น ไม่ไล่ราคา
-- Chase +3-5% intraday = WR 33% (N=42K) — ซื้อยอดเขา
-- Strong day 5%+ → D+1 = WR 44-48% — mean reversion ไม่ hold overnight
+- **Gap up 2-8% + Vol 2x+ = WR 57-58%** avg +0.94%
+- **Gap up + Vol 5x+ = WR 66% avg +3.63%** (WR 54% at 10:00 → 66% at EOD)
+- Gap up + Vol <1.5x = WR 34-42%
+- Entry at open+1% = WR 47% | Entry after +3-5% intraday = WR 33% (N=42K)
+- Strong day 5%+ → D+1 = WR 44-48%
 
 **Time-slot specific data (full backtest 108K-133K signals):**
 - **Morning bounce (09:30-10:30)**: WR 58%, avg +0.66% — amplitude สูงสุด
 - **Midday bounce (11:00-13:00)**: WR 56%, avg +0.21% — amplitude ลด 3x
 - **Afternoon bounce (13:00-15:00)**: WR 55%, avg +0.10% — แทบไม่มี amplitude
 - **SPY green morning = WR 67%** vs SPY red morning = WR 47% — gap 20pp!
-- **AD<0.5 = WR 40-43% ทุกช่วง** — ไม่ bounce วัน bears dominate
-- **AD≥3 morning = WR 71%** | AD≥3 midday = WR 74% — best condition
-- **Strong Bull (SPY↑+VIX<22+AD>1) midday = WR 69%** — ดีกว่าเช้า!
-- **VIX 28+ morning = WR 49%** — ไม่เข้าตอนเปิด | VIX 28+ afternoon 15:00+ = WR 79% (N=299 short-covering)
+- **AD<0.5 = WR 40-43% ทุกช่วง**
+- **AD>=3 morning = WR 71%** | AD>=3 midday = WR 74%
+- **Strong Bull (SPY up+VIX<22+AD>1) midday = WR 69%**
+- **VIX 28+ morning = WR 49%** | VIX 28+ afternoon 15:00+ = WR 79% (N=299)
 
 **Deep Backtest Findings (จาก PyOD + 8 agents, 56M bars):**
-- **Gap Up >3% จาก prev close: fade 56%** avg intraday -0.26% (N=2,584) — ระวัง chase gap up ใหญ่
-- **Gap Down >3%: bounce 52%** avg +0.47% (N=2,310) — Down Bounce confirmed
-- **Mega rally day (50+ stocks up): D+1 fade WR 12%** — วันที่ทุกอย่างขึ้นพร้อมกัน D+1 ลงเกือบหมด
-- **Range >3x ATR + close near high: D+1 WR 39%** — big range day ปิด high = retrace D+1
+- **Gap Up >3% จาก prev close: early peak 56%** avg intraday -0.26% (N=2,584)
+- **Gap Down >3%: bounce 52%** avg +0.47% (N=2,310)
+- **Mega rally day (50+ stocks up): D+1 WR 12%**
+- **Range >3x ATR + close near high: D+1 WR 39%**
 - **First 30 min +2%: WR 50.5% (N=474K)** — no real edge, morning momentum is noise
 - **Power Hour down → next gap up 56%** | Red close (GF<33%) → gap up 59% — OVN signal
 - **SPY -1% day → Tech bounces +0.93% D+1 (WR 70%)** — sector rotation after selloff
 - **Financial Services leads → Basic Materials follows D+1** (r=0.09, p=0.03)
-- **Lunch dip recovery = myth (WR 48.7%)** — ไม่มี edge
+- **Lunch dip recovery: WR 48.7%**
 - **10:00 bar direction = ไม่ predict next 2 hours** (WR 49%)
 
 **AI ดู data ทั้งหมดแล้ว weigh เอง — แต่ละวันต่างกัน context ต่างกัน**
@@ -569,8 +558,8 @@ Re-check: 10:00 LITE pullback | 10:15 LLY green bar
 | **09:30-10:00** | **Intraday** | Opening Bell: First bar + OR breakout + Vol Surge |
 | **10:00-10:30** | **Intraday** | Kill Zone + 10:00 confirmation + Down Bounce |
 | **10:30-11:30** | **Intraday** | Late Morning: Consolidation breakout 47.6% / Noon vol surge |
-| **11:30-12:30** | **Top Movers** | Lunch: Down Bounce (SPY green + deep drop) |
-| **12:30-13:30** | **Top Movers** | Late Lunch: Down Bounce / drop depth + context |
+| **11:30-12:30** | **Top Movers** | Lunch: Down Bounce + deep drop |
+| **12:30-13:30** | **Top Movers** | Late Lunch: Down Bounce + context |
 | **13:30-15:00** | **Top Movers** | Afternoon: Down Bounce (SPY gate) / momentum 5%+ |
 | **15:00-15:30** | **Top Movers** | Power Hour: Down Bounce only / hold-exit confirm |
 | **15:30-15:55** | **OVN** | 5d mom ≥5% + today green + vol ≥2x + close near high |
