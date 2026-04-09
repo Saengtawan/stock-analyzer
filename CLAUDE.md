@@ -220,6 +220,9 @@ for sym in syms:
         last_green = mb.get('c',0) > mb.get('o',0) if mb else False
         pullback = (hi/now-1)*100 if now < hi else 0
         sec = sectors.get(sym,'')
+        # VWAP: price above = bullish, below = bearish
+        vwap = db.get('vw',0)
+        vs_vwap = (now/vwap-1)*100 if vwap > 0 else 0
 
         if drop <= -2 and now > lo:
             dn_results.append((sym, opn, now, chg, drop, (now/lo-1)*100, vr, cp, last_green, daily_chg, sec))
@@ -390,6 +393,7 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 **ใช้ data จาก Step 3 + หลักการจาก prompt file ที่อ่าน → AI ตัดสินเอง:**
 
 หลักการ (จาก backtest 97K+ signals — validated):
+- **VWAP**: ราคาเหนือ VWAP = bullish intraday bias | ใต้ VWAP = bearish (Alpaca snapshot dailyBar.vw)
 - **SPY direction = ดูจาก DAILY (prev close → now) ไม่ใช่ intraday (today open → now)**
   - SPY daily green → bounce WR 58-62% (แม้ intraday จะแดงเล็กน้อยจาก gap up)
   - SPY daily < -1% → WR 34%
