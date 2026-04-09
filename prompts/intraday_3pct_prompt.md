@@ -154,7 +154,7 @@ Avg return vs entry: +0.23%
 - SI สูง = short squeeze → bounce แรงกว่า
 - VIX สูง = volatility สูง → amplitude ใหญ่
 - มีข่าว = attention + volume (ไม่ว่า pos/neg ดีกว่าไม่มี)
-- Sector Tech/HC/Financial = bounce ดีกว่า
+- Sector: ดู sector ที่แข็งแรงวันนั้น (sector rotation เปลี่ยนทุกวัน — ไม่ยึด sector ตายตัว)
 - Insider buy ล่าสุด = confidence signal
 - Earnings ใกล้ = uncertainty ระวัง
 - Unusual options = smart money

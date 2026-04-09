@@ -141,7 +141,7 @@ PYEOF
 **ถ้า MARKET OPEN (09:30-11:30) → Alpaca Intraday scan:**
 ```bash
 python3 << 'PYEOF'
-import requests, os, sqlite3
+import requests, os, sqlite3, numpy as np
 from dotenv import load_dotenv; load_dotenv()
 
 hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
@@ -172,10 +172,28 @@ spy_daily = (spy_db.get('c',0)/spy_pb.get('c',1)-1)*100 if spy_pb.get('c') else 
 spy_intra = (spy_db.get('c',0)/spy_db.get('o',1)-1)*100
 print(f"📊 SPY daily {spy_daily:+.1f}% {'🟢' if spy_daily > 0 else '🔴'} | intraday {spy_intra:+.1f}%")
 
+# Sector momentum — ดู sector ที่แข็งแรงวันนี้
+conn2 = sqlite3.connect("data/trade_history.db")
+sectors = dict(conn2.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
+conn2.close()
+sector_chg = {}
+for sym in syms:
+    s = snaps.get(sym)
+    if not s: continue
+    db, pb = s.get('dailyBar',{}), s.get('prevDailyBar',{})
+    if pb.get('c',0) > 0:
+        sec = sectors.get(sym,'')
+        if sec:
+            sector_chg.setdefault(sec, []).append((db.get('c',0)/pb['c']-1)*100)
+sector_avg = {s: np.mean(v) for s,v in sector_chg.items() if len(v)>=5}
+print(f"\n📊 Sector momentum วันนี้:")
+for s,v in sorted(sector_avg.items(), key=lambda x: x[1], reverse=True):
+    print(f"  {v:+5.1f}% {s}")
+
 up_results = []; dn_results = []
 for sym in syms:
     try:
-        s = snaps.get(sym);
+        s = snaps.get(sym)
         if not s: continue
         db = s.get('dailyBar',{}); pb = s.get('prevDailyBar',{})
         mb = s.get('minuteBar',{})
@@ -187,26 +205,27 @@ for sym in syms:
         rng = hi-lo; cp = (now-lo)/rng if rng > 0 else 0.5
         last_green = mb.get('c',0) > mb.get('o',0) if mb else False
         pullback = (hi/now-1)*100 if now < hi else 0
+        sec = sectors.get(sym,'')
 
         if drop <= -2 and now > lo:
-            dn_results.append((sym, opn, now, chg, drop, (now/lo-1)*100, vr, cp, last_green, daily_chg))
+            dn_results.append((sym, opn, now, chg, drop, (now/lo-1)*100, vr, cp, last_green, daily_chg, sec))
         if chg > 1.5:
-            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, cp, last_green, pullback, daily_chg))
+            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, cp, last_green, pullback, daily_chg, sec))
     except: pass
 
 dn_results.sort(key=lambda x: x[4])
 print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (drop 2%+ from open)")
-print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'CP':>4s} {'DChg':>5s}")
-for s,o,n,c,dr,bn,vr,cp,lg,dc in dn_results[:12]:
+print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
+for s,o,n,c,dr,bn,vr,cp,lg,dc,sec in dn_results[:12]:
     f = '🔥' if dr <= -5 else ('✅' if dr <= -3 else '  ')
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {cp:>3.2f} {dc:+4.1f}% {'🟢' if lg else '🔴'}")
+    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
 
 up_results.sort(key=lambda x: (x[8], x[3]), reverse=True)
 print(f"\n🔺 {len(up_results)} UP movers (+1.5%+ | PB=pullback from high)")
-print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'CP':>4s} {'DChg':>5s}")
-for s,o,n,c,hi,vr,cp,lg,pb,dc in up_results[:12]:
+print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
+for s,o,n,c,hi,vr,cp,lg,pb,dc,sec in up_results[:12]:
     f = '📐' if pb >= 1.5 else ('🔥' if c > 3 and vr > 2 else '✅')
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {pb:>3.1f}% {vr:>3.1f}x {cp:>3.2f} {dc:+4.1f}% {'🟢' if lg else '🔴'}")
+    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {pb:>3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
 PYEOF
 ```
 
@@ -243,6 +262,24 @@ spy_db, spy_pb = spy.get('dailyBar',{}), spy.get('prevDailyBar',{})
 spy_daily = (spy_db.get('c',0)/spy_pb.get('c',1)-1)*100 if spy_pb.get('c') else 0
 spy_intra = (spy_db.get('c',0)/spy_db.get('o',1)-1)*100
 print(f"📊 SPY daily {spy_daily:+.1f}% {'🟢' if spy_daily > 0 else '🔴'} | intraday {spy_intra:+.1f}%")
+
+# Sector momentum — ดู sector ที่แข็งแรงวันนี้
+conn2 = sqlite3.connect("data/trade_history.db")
+sectors = dict(conn2.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
+conn2.close()
+sector_chg = {}
+for sym in syms:
+    s = snaps.get(sym)
+    if not s: continue
+    db, pb = s.get('dailyBar',{}), s.get('prevDailyBar',{})
+    if pb.get('c',0) > 0:
+        sec = sectors.get(sym,'')
+        if sec:
+            sector_chg.setdefault(sec, []).append((db.get('c',0)/pb['c']-1)*100)
+sector_avg = {s: np.mean(v) for s,v in sector_chg.items() if len(v)>=5}
+print(f"\n📊 Sector momentum วันนี้:")
+for s,v in sorted(sector_avg.items(), key=lambda x: x[1], reverse=True):
+    print(f"  {v:+5.1f}% {s}")
 
 dn_results = []; up_results = []
 for sym in syms:
@@ -342,7 +379,7 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 - **MCap**: >30B = WR 55% (best) | <10B = WR 51% (worse)
 - SI สูง = short squeeze → bounce แรงกว่า
 - มีข่าว (ไม่ว่า pos/neg) = มี attention + volume → ดีกว่าไม่มีข่าว
-- Sector Tech/HC/Financial = bounce ดีกว่า Consumer Defensive/Real Estate
+- Sector: ดู sector ที่แข็งแรงวันนั้น (rotation เปลี่ยนทุกวัน — บางวัน Energy นำ บางวัน Tech นำ)
 - มี insider buy = executives เชื่อมั่น
 - Earnings ใกล้ = uncertainty สูง → อาจดีหรือแย่ ระวัง
 - **Gap Down + Vol 2x** = WR 42% (ต่ำกว่า random)
