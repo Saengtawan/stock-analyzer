@@ -438,13 +438,22 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 **Limit fill ยาก:** ขอบล่างสุดอาจไม่ถึง | กลาง range (70-80%) fill ง่ายกว่า
 
 **Momentum UP data (full backtest 564K daily rows):**
-- **Gap up 2-8% + Vol 2x+ = WR 57-58% intraday** (close > open), avg +0.94% — EDGE จริง! Volume คือตัวแบ่ง
-- **Gap up ไม่มี vol (<1.5x) = WR 34-42%** — FADE! ไม่ซื้อ
-- **Chase +3-5% intraday = WR 33%** (N=42K) — ซื้อยอดเขา แพ้ 67%!
-- **Chase +5-8% intraday = WR 34%** — เหมือนกัน
-- **Intraday +8% + Vol 2x = WR 55%** — ตัวเดียวที่ chase ได้ถ้า vol ยืนยัน
-- **Strong day 5%+ → D+1 = WR 44-48%** — mean reversion D+1 ไม่ hold overnight
-- **Sector leader วันนี้ → D+1 = WR 49%** — leadership ไม่ carry ข้ามวัน
+- **Gap up 2-8% + Vol 2x+ = WR 57-58%** avg +0.94% — Volume คือตัวแบ่ง
+- **Gap up + Vol 5x+ = WR 66% avg +3.63%** — hold ทั้งวัน ไม่ขายเช้า (WR 54% ที่ 10:00 → 66% ที่ EOD)
+- Gap up ไม่มี vol (<1.5x) = WR 34-42% — FADE
+- **Chase above open+1% = WR 47%** — ซื้อที่ open เท่านั้น ไม่ไล่ราคา
+- Chase +3-5% intraday = WR 33% (N=42K) — ซื้อยอดเขา
+- Strong day 5%+ → D+1 = WR 44-48% — mean reversion ไม่ hold overnight
+
+**Time-slot specific data (full backtest 108K-133K signals):**
+- **Morning bounce (09:30-10:30)**: WR 58%, avg +0.66% — amplitude สูงสุด
+- **Midday bounce (11:00-13:00)**: WR 56%, avg +0.21% — amplitude ลด 3x
+- **Afternoon bounce (13:00-15:00)**: WR 55%, avg +0.10% — แทบไม่มี amplitude
+- **SPY green morning = WR 67%** vs SPY red morning = WR 47% — gap 20pp!
+- **AD<0.5 = WR 40-43% ทุกช่วง** — ไม่ bounce วัน bears dominate
+- **AD≥3 morning = WR 71%** | AD≥3 midday = WR 74% — best condition
+- **Strong Bull (SPY↑+VIX<22+AD>1) midday = WR 69%** — ดีกว่าเช้า!
+- **VIX 28+ morning = WR 49%** — ไม่เข้าตอนเปิด | VIX 28+ afternoon 15:00+ = WR 79% (N=299 short-covering)
 
 **Deep Backtest Findings (จาก PyOD + 8 agents, 56M bars):**
 - **Gap Up >3% จาก prev close: fade 56%** avg intraday -0.26% (N=2,584) — ระวัง chase gap up ใหญ่
