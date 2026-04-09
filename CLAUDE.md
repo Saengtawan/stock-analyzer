@@ -8,8 +8,8 @@ All scan results MUST use Markdown pipe-table format. The terminal CAN render ta
 | # | Symbol | Gap% | Yest% | Vol | 5d Mom | CPos | Sector | Catalyst | Score |
 |---|--------|------|-------|-----|--------|------|--------|----------|-------|
 | 1 | SNX | +0.9% | +10.4% | 1.7x | +13.8% | 0.99 | Tech | Q1 beat + upgrades | 5/6 ✅ |
-| 2 | WDC | +0.4% | +10.1% | 1.5x | +0.5% | 0.70 | Tech | — | 3/6 ⚠️ |
-| 3 | KGC | +0.7% | +4.9% | 1.1x | +10.3% | 0.69 | Gold | Gold rally | 3/6 ⚠️ |
+| 2 | WDC | +0.4% | +10.1% | 1.5x | +0.5% | 0.70 | Tech | — | 3/6 |
+| 3 | KGC | +0.7% | +4.9% | 1.1x | +10.3% | 0.69 | Gold | Gold rally | 3/6 |
 
 Then add details per stock below the table.
 
@@ -581,7 +581,7 @@ results.sort(key=lambda x: (-x[7], -x[3]))
 print(f"\n{len(results)} OVN candidates (Score ≥ 3/6)")
 print(f"{'':1s}{'Sym':5s} {'Close':>7s} {'Today':>6s} {'5dM':>6s} {'Vol':>4s} {'CP':>5s} {'Sec':>6s} {'Sc':>2s}")
 for s,cl,tr,m,vr,cp,sec,sc,ch in results[:12]:
-    f = '🔥' if sc >= 5 else ('✅' if sc >= 4 else '⚠️')
+    f = '🔥' if sc >= 5 else ('✅' if sc >= 4 else '  ')
     print(f"{f}{s:5s} {cl:>7.2f} {tr:+5.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {sec[:6]:>6s} {sc}/6")
     print(f"  {ch}")
 PYEOF
@@ -689,7 +689,7 @@ results.sort(key=lambda x: (-x[8], -abs(x[2])))
 print(f"\n{len(results)} Fri-Mon candidates (Score ≥ 3/6) | VIX {vix_now:.1f}")
 print(f"{'':1s}{'Sym':5s} {'Close':>7s} {'FriR':>6s} {'5dM':>6s} {'Vol':>4s} {'CP':>5s} {'Setup':>10s} {'Sc':>2s} {'SL':>7s}")
 for s,cl,fr,m,vr,cp,sec,su,sc,ch,slp,slpct in results[:12]:
-    f = '🔥' if sc >= 5 else ('✅' if sc >= 4 else '⚠️')
+    f = '🔥' if sc >= 5 else ('✅' if sc >= 4 else '  ')
     print(f"{f}{s:5s} {cl:>7.2f} {fr:+5.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {su:>10s} {sc}/6 SL${slp:.2f}({slpct:+.0f}%)")
     print(f"  {ch}")
 PYEOF
