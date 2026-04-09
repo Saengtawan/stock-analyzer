@@ -147,6 +147,17 @@ Avg return vs entry: +0.23%
 - Earnings ใกล้ = uncertainty ระวัง
 - Unusual options = smart money
 
+**Entry criteria — ต้องครบก่อน BUY:**
+
+1. **Drop ≥3%** จาก open (ตัวแบ่งหลัก)
+2. **SPY daily green** หรือ AD ≥2
+3. **Bounce hold ≥3 bars above VWAP** (1 green bar = WR 50% no edge, ต้อง hold)
+4. **Vol spike on bounce bar** (institutional buying จริง)
+5. **Sector ไม่สวนทาง** (sector ลง -1%+ = headwind)
+6. **Beta <1.5** (high beta bounce ไม่ hold)
+
+**TEAM 2026-04-09 lesson:** bounce 1 bar 🟢 above VWAP → BUY → ลงต่อ 🔴 = bounce fail เพราะแค่ 1 bar + Tech -1.9% headwind
+
 **AI weigh ทุกปัจจัยรวมกัน → ตัดสินเอง**
 
 ### Return Data ให้ AI ตั้ง TP/SL (backtest 126K setups)
