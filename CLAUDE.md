@@ -410,11 +410,11 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 
 ### ขั้นตอน 5: แสดงผล
 
-**แสดงเฉพาะ BUY NOW — ตัวที่ AI มั่นใจแล้วเท่านั้น**
-- **BUY NOW** = winner profile แข็ง + entry ได้เลย + AI มั่นใจ → แสดง 1-2 ตัวที่ดีที่สุด
-- ตัวที่ไม่ดีพอ / ยังไม่มั่นใจ → **ไม่แสดง** (ไม่แสดง WATCH, ⚠️, ❌, "ไม่แนะนำ")
-- ถ้าไม่มีตัวที่ดีพอ → "ไม่มี BUY NOW" + **เวลา re-scan ครั้งถัดไป**
-- ถ้ายังก่อนตลาดเปิด / ยังไม่มี data จริง → บอก re-scan เวลาไหน (ไม่ WATCH)
+**แสดง candidates ที่ผ่าน filter ทั้งหมด + AI เลือก 1-2 ตัวที่ดีสุด BUY NOW**
+- **ตารางรวม** = แสดงทุกตัวที่ผ่าน filter (user เห็นภาพรวม)
+- **BUY NOW** = AI เลือก 1-2 ตัวที่ดีที่สุด พร้อม Entry/SL/TP/R:R
+- ถ้าไม่มีตัวที่ดีพอ → "ไม่มี BUY NOW" + เวลา re-scan
+- ไม่ใส่ label ⚠️/❌/"ไม่แนะนำ" ใน candidates — แค่แสดง data ให้ user ดูเอง
 
 **ตัวอย่าง output — SPY daily green + candidates ดี:**
 
@@ -434,7 +434,7 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 
 ---
 
-**ตัวอย่าง output — ยังไม่มี BUY NOW:**
+**ตัวอย่าง output — SPY daily แดง:**
 
 ---
 
@@ -442,7 +442,15 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 
 ไม่มี BUY NOW — SPY daily แดง
 
-Re-check: 10:00 ดู SPY direction | 10:15 ดู green bar fraction
+### WATCH — รอ SPY green / Pullback
+
+| # | Symbol | Now | รอที่ | Limit | SL | TP | R:R |
+|---|--------|-----|------|-------|-----|-----|-----|
+| 1 | LLY | $899 | Green bar | GBar | $890 | $917 | 1:2 |
+
+**LLY**: Beta 0.43 + MCap $794B — SPY แดง → WATCH ไม่ BUY
+
+Re-check: 10:00 LITE pullback | 10:15 LLY green bar
 
 ---
 
