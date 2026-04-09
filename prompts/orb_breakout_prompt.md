@@ -36,15 +36,15 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 | Gap 5%+ + Vol 2x+ | 36% fade | 60% |
 | Gap 5%+ + Small cap | **44%** fade | 50% |
 → **Gap พอดี (2-5%) = fade น้อย, hold ดี**
-→ **Gap ใหญ่ + small cap = FADE risk สูง**
+→ Gap ใหญ่ + small cap = 44% early peak (fade บ่อยกว่า)
 
-### Sector ที่ HOLD ดี vs FADE ง่าย
+### Sector Peak Timing (จาก backtest)
 | Sector | แนวโน้ม | 3%+ Rate |
 |--------|---------|----------|
 | **Energy** | **HOLD** (46% late peak) | - |
 | **Technology** | HOLD (36% late peak) | **8.4%** |
-| Healthcare | **FADE** (42% early peak) | 6.0% |
-| Consumer Cyclical | **FADE** (36% early) | 6.9% |
+| Healthcare | 42% early peak | 6.0% |
+| Consumer Cyclical | 36% early peak | 6.9% |
 | Utilities | - | 2.1% (ต่ำสุด) |
 
 ## ขั้นตอน ORB (09:30-10:30 ET)
@@ -169,7 +169,7 @@ WINNER signs (momentum hold):
 - Vol 2x+ — institutional interest จริง
 - 5d momentum +5%+ — trend กำลังวิ่ง
 - First bar ขึ้น 1%+ — momentum จริงตั้งแต่เปิด
-- Sector Energy/Tech — HOLD ดีกว่า sector อื่น
+- Sector: Energy 46% late peak, Tech 36% late peak (ดูตาราง)
 - Catalyst ชัด (earnings/upgrade/FDA) — ไม่ใช่แค่ "stock up"
 
 LOSER signs (fade risk):
@@ -177,7 +177,7 @@ LOSER signs (fade risk):
 - Vol < 1.5x — fake move (82% = noise)
 - 5d momentum > 20% — extreme profit-taking risk
 - First bar เฉยๆ (<0.3%) — ไม่มี momentum
-- Sector Healthcare/Consumer Cyclical — FADE ง่าย
+- Sector Healthcare 42% early peak | Consumer Cyclical 36% early peak
 - No catalyst — pump & dump risk
 
 **ไม่ใช่กฎตายตัว — AI ดู pattern รวมแล้วตัดสิน**
