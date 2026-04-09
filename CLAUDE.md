@@ -134,15 +134,21 @@ for sym in syms:
         atr = np.mean(trs[-4:])/now*100 if trs else 0
         sec = sectors.get(sym, '') if 'sectors' in dir() else ''
 
+        # PM vol: ถ้า dailyBar vol > 0 + ราคาเปลี่ยนจาก prev close = มี PM activity
+        pm_vol = db.get('v',0)
+        has_pm = pm_vol > 0 and abs(pm_gap) > 0.1
+
         if abs(yest_ret) >= 2 or abs(pm_gap) >= 1.5 or abs(mom5d) >= 5:
-            results.append((sym, now, pm_gap, yest_ret, mom5d, vr, cp, atr, sec))
+            results.append((sym, now, pm_gap, yest_ret, mom5d, vr, cp, atr, sec, has_pm))
     except: pass
 
-results.sort(key=lambda x: (abs(x[2]), abs(x[3])), reverse=True)  # PM gap first, then yest
-print(f"{len(results)} ORB candidates")
-print(f"{'Sym':5s} {'Now':>7s} {'PMGap':>6s} {'Yest':>6s} {'5dM':>6s} {'Vol':>4s} {'CPos':>5s} {'ATR':>4s} {'Sec':>8s}")
-for s,p,pg,yr,m,vr,cp,atr,sec in results[:20]:
-    print(f"{s:5s} {p:>7.2f} {pg:+5.1f}% {yr:+5.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {atr:>3.1f}% {sec[:8]:>8s}")
+# Sort: PM active first, then by PM gap
+results.sort(key=lambda x: (x[9], abs(x[2])), reverse=True)
+pm_count = sum(1 for r in results if r[9])
+print(f"{len(results)} ORB candidates ({pm_count} มี PM activity)")
+print(f"{'Sym':5s} {'Now':>7s} {'PMGap':>6s} {'Yest':>6s} {'5dM':>6s} {'Vol':>4s} {'CPos':>5s} {'ATR':>4s} {'Sec':>8s} {'PM'}")
+for s,p,pg,yr,m,vr,cp,atr,sec,pm in results[:20]:
+    print(f"{s:5s} {p:>7.2f} {pg:+5.1f}% {yr:+5.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {atr:>3.1f}% {sec[:8]:>8s} {'✅' if pm else '—'}")
 PYEOF
 ```
 
