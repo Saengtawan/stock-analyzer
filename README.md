@@ -28,52 +28,57 @@ Automated trading system that combines multiple strategies with intelligent risk
 
 ---
 
-## 🚀 Quick Start
+## Quick Start (เครื่องใหม่)
 
-### Prerequisites
-
-```bash
-# Python 3.8+
-python --version
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your Alpaca API keys
-```
-
-### Installation
+### Setup จาก Google Drive backup
 
 ```bash
-# 1. Clone repository
-git clone https://gitlab.com/Saengtawan/stock-analyzer.git
+# 1. Clone
+git clone git@gitlab.com:Saengtawan/stock-analyzer.git
 cd stock-analyzer
 
 # 2. Install dependencies
-pip install -r requirements.txt
+./setup.sh
 
-# 3. Apply database migrations
-bash scripts/apply_migration_001.sh  # Signals tables
-bash scripts/apply_migration_002.sh  # Pre-filter tables
+# 3. Download จาก Google Drive แล้ววาง:
+#    - .env          → วางที่ root (มี Alpaca API keys)
+#    - trade_history.db.gz → วางใน data/
+gunzip data/trade_history.db.gz
 
-# 4. Configure settings
-cp config/trading.yaml.example config/trading.yaml
-# Edit trading.yaml with your preferences
+# 4. พร้อมใช้
 ```
 
-### Running the System
+### Setup จากศูนย์ (ไม่มี backup)
 
 ```bash
-# Start auto trading engine
-nohup python src/auto_trading_engine.py > nohup.out 2>&1 &
+# 1. Clone + install
+git clone git@gitlab.com:Saengtawan/stock-analyzer.git
+cd stock-analyzer
+./setup.sh
 
-# Start web dashboard
-nohup python src/run_app.py > nohup_web.out 2>&1 &
+# 2. สร้าง .env — สมัคร Alpaca ที่ https://app.alpaca.markets
+#    ใส่ ALPACA_API_KEY + ALPACA_SECRET_KEY
 
-# Check status
-ps aux | grep -E "auto_trading|run_app"
+# 3. สร้าง DB + backfill (2-3 วัน)
+PYTHONPATH=src python3 -c "from database.orm.base import get_engine; from database.orm.models import Base; Base.metadata.create_all(get_engine())"
+python3 scripts/maintain_universe_1000.py
+python3 scripts/update_stock_ohlc.py
+python3 scripts/collect_intraday_5m_daily.py
+python3 scripts/macro_snapshot_cron.py
+python3 scripts/collect_stock_fundamentals.py
+python3 scripts/collect_analyst_ratings.py
+python3 scripts/collect_stock_news.py
+```
+
+### Running
+
+```bash
+# Services (production)
+systemctl --user start auto-trading.service
+systemctl --user start stock-webapp.service
+
+# Scan หุ้น (ใช้ Claude Code)
+# พิมพ์ "scan หุ้น" ใน Claude Code → AI scan + วิเคราะห์ + BUY NOW
 
 # View logs
 tail -f nohup.out
