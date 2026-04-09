@@ -38,7 +38,7 @@ Price range: $5-20 = WR 55% | $50+ = WR 54.8% (ไม่ต่างกันม
 - **SPY direction สำคัญ**: SPY green → WR 58-62% | SPY < -1% → WR **34%** (ต่ำกว่า random มาก)
 - Best combo จาก data: drop 5%+ ช่วงเช้า + SPY green
 
-### Gap Down + Vol 2x = WR 42% (แย่กว่า random)
+### Gap Down + Vol 2x = WR 42% (ต่ำกว่า 50% baseline)
 - Gap Down ≥2% + Vol ≥2x → WR 42.4% (backtest 4,347 events)
 - Vol สูงบน gap down = selling conviction → ลงต่อ ไม่ใช่ reversal
 - **ต่างจาก Down Bounce**: Down Bounce = หุ้นลงจาก open แล้ว bounce | Gap Down = gap จาก prev close
@@ -46,16 +46,16 @@ Price range: $5-20 = WR 55% | $50+ = WR 54.8% (ไม่ต่างกันม
 ### Setups ที่ WR < 55% (ข้อมูลให้ AI พิจารณา)
 | Strategy | WR | ปัญหา |
 |----------|----|-------|
-| Gap Up Vol 2x Green ($50+) | **44%** | ต่ำกว่า random! |
-| Gap Up Vol 2x Green ($20-50) | **44%** | เหมือนกัน |
-| Top Mover 5%+ Green ($5-20) 11:00+ | **47%** | Fade หลัง 11:00 |
-| Up 2-5% Green ($50+) | **48%** | Momentum หมด |
+| Gap Up Vol 2x Green ($50+) | **44%** | ต่ำกว่า baseline |
+| Gap Up Vol 2x Green ($20-50) | **44%** | ต่ำกว่า baseline |
+| Top Mover 5%+ Green ($5-20) 11:00+ | **47%** | WR ลดลงหลัง 11:00 |
+| Up 2-5% Green ($50+) | **48%** | ใกล้ coin flip |
 
 ---
 
 ## 🟢 09:30-10:00 ET — Opening Bell
 
-### Strategy 1: Down Bounce (BEST — WR 57-69% ขึ้นกับ drop depth)
+### Strategy 1: Down Bounce (WR 57-69% ขึ้นกับ drop depth)
 **หาอะไร**: หุ้นที่ลง 2%+ จาก open แล้ว green bar bounce
 **Sweet spot**: Drop 5%+ = WR 69% | Drop 3-5% = WR 60% | Drop 2-3% = WR 57%
 
@@ -92,7 +92,7 @@ Price range: $5-20 = WR 55% | $50+ = WR 54.8% (ไม่ต่างกันม
 
 ## 🟡 10:30-11:30 ET — Late Morning
 
-### Down Bounce ยังดีที่สุด (WR 54-67% ขึ้นกับ drop depth)
+### Down Bounce (WR 54-67% ขึ้นกับ drop depth)
 | เวลา | Drop 2-3% | Drop 3-5% | Drop 5%+ |
 |------|-----------|-----------|----------|
 | 10:30-11:30 | 54% | 54% | **67%** |

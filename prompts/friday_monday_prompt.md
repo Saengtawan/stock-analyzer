@@ -84,7 +84,7 @@ Baseline ทุกหุ้น: **Friday→Monday close = +0.37%**, ปิดข
 4. → **33.8% ปิดจันทร์ +3%** แต่ risk -3% = 26%
 
 ### Filter
-- **Sector**: Tech, Energy, Basic Materials ดีสุด
+- **Sector**: ดูตาราง Mon +3% rate ต่อ sector (เปลี่ยนตาม rotation)
 - **Catalyst weekend**: earnings Mon pre-market, FDA weekend, conference
 - **VIX**: สูง = gap ใหญ่ทั้ง 2 ทาง (risk สูง)
 
@@ -93,7 +93,7 @@ Baseline ทุกหุ้น: **Friday→Monday close = +0.37%**, ปิดข
 ☐ ศุกร์ rally ≥ 3% หรือ สัปดาห์แย่ + ศุกร์ bounce ≥ 2%
 ☐ Close position > 0.5 (ปิดครึ่งบน)
 ☐ Volume ≥ 1.5x average
-☐ Sector = Tech / Energy / Basic Materials / Communication
+☐ Sector Mon +3% rate สูง (ดูตาราง — เปลี่ยนตาม rotation)
 ☐ ไม่มี bad news ที่รอ weekend (earnings Mon BMO, legal, FDA risk)
 ☐ VIX < 30 (สูงเกิน = risk symmetric ทั้งขึ้นลง)
 

@@ -217,14 +217,14 @@ dn_results.sort(key=lambda x: x[4])
 print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (drop 2%+ from open)")
 print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
 for s,o,n,c,dr,bn,vr,cp,lg,dc,sec in dn_results[:12]:
-    f = '🔥' if dr <= -5 else ('✅' if dr <= -3 else '  ')
+    f = '  '
     print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
 
 up_results.sort(key=lambda x: (x[8], x[3]), reverse=True)
 print(f"\n🔺 {len(up_results)} UP movers (+1.5%+ intraday OR +3%+ daily | PB=pullback from high)")
 print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
 for s,o,n,c,hi,vr,cp,lg,pb,dc,sec in up_results[:12]:
-    f = '📐' if pb >= 1.5 else ('🔥' if c > 3 and vr > 2 else '✅')
+    f = '  '
     print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {pb:>3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
 PYEOF
 ```
@@ -307,14 +307,14 @@ dn_results.sort(key=lambda x: x[4])
 print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (drop 2%+ from open)")
 print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
 for s,o,n,c,dr,bn,vr,cp,lg,dc,sec in dn_results[:12]:
-    f = '🔥' if dr <= -5 else ('✅' if dr <= -3 else '  ')
+    f = '  '
     print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
 
 up_results.sort(key=lambda x: (x[8], x[3]), reverse=True)
 print(f"\n🔺 {len(up_results)} UP movers (+3%+ | PB=pullback from high)")
 print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
 for s,o,n,c,hi,vr,cp,lg,pb,dc,sec in up_results[:12]:
-    f = '📐' if pb >= 1.5 else ('🔥' if c > 5 and vr > 2 else '✅')
+    f = '  '
     print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {pb:>3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
 PYEOF
 ```
@@ -361,6 +361,13 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND collected_date = (SELECT MAX(collected_d
 SELECT f.symbol, f.beta, f.market_cap, f.pe_forward, f.sector, f.industry
 FROM stock_fundamentals f
 WHERE f.symbol IN ('XXX','YYY','ZZZ');
+
+-- Market Breadth (ดูความแข็งแรงของตลาดรวม)
+SELECT date, pct_above_20d_ma, ad_ratio FROM market_breadth ORDER BY date DESC LIMIT 1;
+
+-- Earnings: มี earnings ใกล้มั้ย (uncertainty สูง)
+SELECT symbol, next_earnings_date FROM earnings_calendar
+WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') AND date('now','+3 days');
 "
 ```
 
@@ -401,9 +408,9 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 - Limit fill ยาก: ขอบล่างสุดอาจไม่ถึง | กลาง range (70-80%) fill ง่ายกว่า
 
 **เมื่อไหร่ BUY NOW (market) vs WATCH (limit):**
-- Winner profile แข็งมาก (Beta<1.5 + MCap>30B + GF≥67% + Drop≥3% + SPY daily green) → **BUY NOW ได้เลย** ที่ราคาปัจจุบัน ไม่ต้องรอ pullback
-- SPY แดง **ไม่ได้แปลว่าไม่มี BUY** — หุ้น low beta + catalyst + SI สูง อาจ BUY NOW ได้แม้ SPY แดง (WR ลดลงแต่ไม่ใช่ 0%)
-- ถ้ารอ pullback แล้วราคาวิ่งขึ้นเรื่อยๆ → **ไม่ chase** แต่ถ้า profile แข็งพอตั้งแต่แรก ควร BUY NOW ไม่ใช่ WATCH
+- ถ้าหลาย factors winner profile ตรง (low beta, large mcap, deep drop, high green fraction, SPY green, sector แข็ง) → edge สูงขึ้น — AI weigh รวมแล้วตัดสิน BUY NOW
+- SPY แดง ไม่ได้แปลว่าไม่มี BUY — หุ้น low beta + catalyst + SI สูง อาจ BUY NOW ได้แม้ SPY แดง (WR ลดลงแต่ไม่ใช่ 0%)
+- ถ้ารอ pullback แล้วราคาวิ่งขึ้นเรื่อยๆ → ถ้า profile แข็งพอตั้งแต่แรก ควร BUY NOW
 
 **AI ดู data ทั้งหมดแล้ว weigh เอง — แต่ละวันต่างกัน context ต่างกัน**
 **ไม่มี fixed score — AI judge จาก totality of evidence**
@@ -582,8 +589,8 @@ results.sort(key=lambda x: (-x[7], -x[3]))
 print(f"\n{len(results)} OVN candidates (Score ≥ 3/6)")
 print(f"{'':1s}{'Sym':5s} {'Close':>7s} {'Today':>6s} {'5dM':>6s} {'Vol':>4s} {'CP':>5s} {'Sec':>6s} {'Sc':>2s}")
 for s,cl,tr,m,vr,cp,sec,sc,ch in results[:12]:
-    f = '🔥' if sc >= 5 else ('✅' if sc >= 4 else '  ')
-    print(f"{f}{s:5s} {cl:>7.2f} {tr:+5.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {sec[:6]:>6s} {sc}/6")
+    f = '  '
+    print(f"{f}{s:5s} {cl:>7.2f} {tr:+5.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {sec[:6]:>6s} {sc}/5")
     print(f"  {ch}")
 PYEOF
 ```
@@ -690,8 +697,8 @@ results.sort(key=lambda x: (-x[8], -abs(x[2])))
 print(f"\n{len(results)} Fri-Mon candidates (Score ≥ 3/6) | VIX {vix_now:.1f}")
 print(f"{'':1s}{'Sym':5s} {'Close':>7s} {'FriR':>6s} {'5dM':>6s} {'Vol':>4s} {'CP':>5s} {'Setup':>10s} {'Sc':>2s} {'SL':>7s}")
 for s,cl,fr,m,vr,cp,sec,su,sc,ch,slp,slpct in results[:12]:
-    f = '🔥' if sc >= 5 else ('✅' if sc >= 4 else '  ')
-    print(f"{f}{s:5s} {cl:>7.2f} {fr:+5.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {su:>10s} {sc}/6 SL${slp:.2f}({slpct:+.0f}%)")
+    f = '  '
+    print(f"{f}{s:5s} {cl:>7.2f} {fr:+5.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {su:>10s} {sc}/5 SL${slp:.2f}({slpct:+.0f}%)")
     print(f"  {ch}")
 PYEOF
 ```

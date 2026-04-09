@@ -23,7 +23,7 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 **WR at 09:35 entry → close = 44-48%** (ต่ำกว่า random สำหรับ $20+ stocks!)
 **Gap Up + Vol 2x = WR 57%** (momentum continuation ดีกว่า reversal)
 
-### ❌ Gap Down + Vol 2x = WR 42% (แย่กว่า random!)
+### Gap Down + Vol 2x = WR 42% (ต่ำกว่า 50% baseline)
 - Backtest 4,347 events: Gap Down ≥2% + Vol ≥2x → **WR 42.4%** close > open
 - Vol ยิ่งเยอะยิ่งแย่: Vol 3-5x = WR 37% | Vol 5x+ = WR 35%
 - **Volume บน gap down = selling conviction ไม่ใช่ buying opportunity**
@@ -55,7 +55,7 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 3. หา catalyst: earnings beat / upgrade / FDA / contract
 4. **Prefer gap 2-5%** (ไม่ใช่ยิ่งเยอะยิ่งดี)
 5. 5d momentum > 5% = **66% ปิด +3%** (trend จริง)
-6. Sector: Energy/Tech = HOLD ดี | Healthcare = FADE ระวัง
+6. Sector: Energy 46% late peak, Tech 36%, Healthcare 42% early peak (ดูตาราง sector)
 
 ### Step 2: Opening Range (09:30-09:45)
 1. รอ 15 นาที → จด OR high / OR low
