@@ -388,6 +388,7 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 - SI สูง = short squeeze → bounce แรงกว่า
 - มีข่าว (ไม่ว่า pos/neg) = มี attention + volume → ดีกว่าไม่มีข่าว
 - Sector: ดู sector ที่แข็งแรงวันนั้น (rotation เปลี่ยนทุกวัน — บางวัน Energy นำ บางวัน Tech นำ)
+- **เลือก candidates จากหลาย sector ที่แข็ง** — ไม่เลือกแค่ sector เดียวแม้จะแข็งสุด (กระจาย risk + จับ rotation)
 - มี insider buy = executives เชื่อมั่น
 - Earnings ใกล้ = uncertainty สูง → อาจดีหรือแย่ ระวัง
 - **Gap Down + Vol 2x** = WR 42% (ต่ำกว่า random)
