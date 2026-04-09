@@ -295,26 +295,27 @@ for sym in syms:
         rng = hi-lo; cp = (now-lo)/rng if rng > 0 else 0.5
         last_green = mb.get('c',0) > mb.get('o',0) if mb else False
         pullback = (hi/now-1)*100 if now < hi else 0
+        sec = sectors.get(sym,'')
 
         if drop <= -2 and now > lo:
-            dn_results.append((sym, opn, now, chg, drop, (now/lo-1)*100, vr, cp, last_green, daily_chg))
+            dn_results.append((sym, opn, now, chg, drop, (now/lo-1)*100, vr, cp, last_green, daily_chg, sec))
         if chg >= 3:
-            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, cp, last_green, pullback, daily_chg))
+            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, cp, last_green, pullback, daily_chg, sec))
     except: pass
 
 dn_results.sort(key=lambda x: x[4])
 print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (drop 2%+ from open)")
-print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'CP':>4s} {'DChg':>5s}")
-for s,o,n,c,dr,bn,vr,cp,lg,dc in dn_results[:12]:
+print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
+for s,o,n,c,dr,bn,vr,cp,lg,dc,sec in dn_results[:12]:
     f = '🔥' if dr <= -5 else ('✅' if dr <= -3 else '  ')
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {cp:>3.2f} {dc:+4.1f}% {'🟢' if lg else '🔴'}")
+    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
 
 up_results.sort(key=lambda x: (x[8], x[3]), reverse=True)
 print(f"\n🔺 {len(up_results)} UP movers (+3%+ | PB=pullback from high)")
-print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'CP':>4s} {'DChg':>5s}")
-for s,o,n,c,hi,vr,cp,lg,pb,dc in up_results[:12]:
+print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
+for s,o,n,c,hi,vr,cp,lg,pb,dc,sec in up_results[:12]:
     f = '📐' if pb >= 1.5 else ('🔥' if c > 5 and vr > 2 else '✅')
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {pb:>3.1f}% {vr:>3.1f}x {cp:>3.2f} {dc:+4.1f}% {'🟢' if lg else '🔴'}")
+    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {pb:>3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
 PYEOF
 ```
 
@@ -498,15 +499,16 @@ Re-check: 10:00 LITE pullback | 10:15 LLY green bar
 **Checklist + stats → อ่านจาก `prompts/ovn_gap_prompt.md`**
 ```bash
 python3 << 'PYEOF'
-import yfinance as yf, sqlite3, numpy as np
+import requests, os, sqlite3, numpy as np
 from datetime import datetime
 import pytz
+from dotenv import load_dotenv; load_dotenv()
 
 et = datetime.now(pytz.timezone('US/Eastern'))
 day_name = et.strftime('%A')
 
+hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
 conn = sqlite3.connect("data/trade_history.db")
-# Top 200 + hot inject
 syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
 hot = [r[0] for r in conn.execute("""
     SELECT DISTINCT d.symbol FROM stock_daily_ohlc d
@@ -519,42 +521,46 @@ hot = [r[0] for r in conn.execute("""
 if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
 syms = list(set(syms + hot))
 
-# Sector map
-sectors = dict(conn.execute("SELECT symbol, sector FROM universe_stocks WHERE symbol IN ({})".format(','.join('?'*len(syms))), syms).fetchall())
-
-# Earnings tomorrow (Hard Skip)
+sectors = dict(conn.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
 earnings_tomorrow = set(r[0] for r in conn.execute("SELECT symbol FROM earnings_calendar WHERE next_earnings_date = date('now','+1 day')").fetchall())
+
+# 5d history from DB
+hist = {}
+for r in conn.execute("""
+    SELECT symbol, date, open, high, low, close, volume FROM stock_daily_ohlc
+    WHERE date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-7 days')
+    ORDER BY symbol, date
+"""):
+    hist.setdefault(r[0], []).append(r[1:])
 conn.close()
 
-d6 = yf.download(syms, period="6d", progress=False, threads=True)
+# Alpaca snapshots
+snaps = {}
+for i in range(0, len(syms), 100):
+    batch = ','.join(syms[i:i+100])
+    r = requests.get(f'https://data.alpaca.markets/v2/stocks/snapshots?symbols={batch}', headers=hdr)
+    if r.status_code == 200: snaps.update(r.json())
 
 results = []
 for sym in syms:
     try:
-        c = d6['Close'][sym].dropna()
-        v = d6['Volume'][sym].dropna()
-        h = d6['High'][sym].dropna()
-        lo = d6['Low'][sym].dropna()
-        if len(c) < 3: continue
+        snap = snaps.get(sym); days = hist.get(sym, [])
+        if not snap or len(days) < 3: continue
+        db = snap.get('dailyBar',{}); pb = snap.get('prevDailyBar',{})
+        last_close = db.get('c',0); prev_close = pb.get('c',0)
+        if last_close < 5 or prev_close < 1: continue
 
-        last_close = float(c.iloc[-1]); prev_close = float(c.iloc[-2])
-        today_ret = (last_close/prev_close - 1)*100
-        mom5d = (float(c.iloc[-1])/float(c.iloc[0]) - 1)*100 if len(c) >= 5 else today_ret
-
-        avg_vol = float(v.iloc[:-1].mean()) if len(v) > 1 else 1
-        vr = float(v.iloc[-1])/avg_vol if avg_vol > 0 else 0
-
-        hi_val = float(h.iloc[-1]); lo_val = float(lo.iloc[-1])
-        rng = hi_val - lo_val
-        cp = (last_close - lo_val)/rng if rng > 0 else 0.5
+        today_ret = (last_close/prev_close-1)*100
+        d0 = days[0]; mom5d = (last_close/d0[3]-1)*100 if len(days) >= 5 else today_ret
+        avg_vol = np.mean([d[5] for d in days[:-1]]) if len(days) > 1 else 1
+        vr = db.get('v',0)/avg_vol if avg_vol > 0 else 0
+        hi, lo = db.get('h',last_close), db.get('l',last_close)
+        rng = hi - lo; cp = (last_close-lo)/rng if rng > 0 else 0.5
 
         sector = sectors.get(sym, 'Unknown')
-        good_sector = sector in ('Technology','Consumer Cyclical','Communication Services','Communication','Basic Materials')
         good_day = day_name in ('Tuesday','Wednesday')
 
-        # Score 6 checklist
-        score = 0
-        checks = []
+        score = 0; checks = []
         if mom5d >= 5: score += 1; checks.append(f'☑5dM {mom5d:+.1f}%')
         else: checks.append(f'☐5dM {mom5d:+.1f}%')
         if today_ret >= 2: score += 1; checks.append(f'☑Ret {today_ret:+.1f}%')
@@ -563,15 +569,12 @@ for sym in syms:
         else: checks.append(f'☐Vol {vr:.1f}x')
         if cp > 0.5: score += 1; checks.append(f'☑CP {cp:.2f}')
         else: checks.append(f'☐CP {cp:.2f}')
-        if good_sector: score += 1; checks.append(f'☑{sector[:4]}')
-        else: checks.append(f'☐{sector[:4]}')
+        checks.append(f'☐{sector[:4]}')  # AI judges sector — no hardcode
         if good_day: score += 1; checks.append(f'☑{day_name[:3]}')
         else: checks.append(f'☐{day_name[:3]}')
 
-        # Hard skip
-        if sym in earnings_tomorrow: continue  # earnings BMO tomorrow
-        if vr >= 3 and mom5d < 0: continue  # spike + no momentum = 8.3% risk
-        if last_close < 5: continue
+        if sym in earnings_tomorrow: continue
+        if vr >= 3 and mom5d < 0: continue
         if score < 3: continue
 
         results.append((sym, last_close, today_ret, mom5d, vr, cp, sector, score, ' | '.join(checks)))
@@ -593,16 +596,17 @@ PYEOF
 **Stats + setups + checklist → อ่านจาก `prompts/friday_monday_prompt.md`**
 ```bash
 python3 << 'PYEOF'
-import yfinance as yf, sqlite3, numpy as np
+import requests, os, sqlite3, numpy as np
 from datetime import datetime
 import pytz
+from dotenv import load_dotenv; load_dotenv()
 
 et = datetime.now(pytz.timezone('US/Eastern'))
 if et.strftime('%A') != 'Friday':
     print(f"⚠️ วันนี้ {et.strftime('%A')} — Fri-Mon scan ใช้วันศุกร์เท่านั้น!")
 
+hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
 conn = sqlite3.connect("data/trade_history.db")
-# Top 200 + hot inject
 syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
 hot = [r[0] for r in conn.execute("""
     SELECT DISTINCT d.symbol FROM stock_daily_ohlc d
@@ -615,68 +619,69 @@ hot = [r[0] for r in conn.execute("""
 if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
 syms = list(set(syms + hot))
 
-sectors = dict(conn.execute("SELECT symbol, sector FROM universe_stocks WHERE symbol IN ({})".format(','.join('?'*len(syms))), syms).fetchall())
-# Earnings Monday BMO (Hard Skip)
+sectors = dict(conn.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
 earnings_mon = set(r[0] for r in conn.execute("SELECT symbol FROM earnings_calendar WHERE next_earnings_date BETWEEN date('now','+2 day') AND date('now','+3 day')").fetchall())
-# VIX
 vix_row = conn.execute("SELECT vix_close FROM macro_snapshots ORDER BY date DESC LIMIT 1").fetchone()
 vix_now = float(vix_row[0]) if vix_row else 20.0
+
+# 5d history from DB
+hist = {}
+for r in conn.execute("""
+    SELECT symbol, date, open, high, low, close, volume FROM stock_daily_ohlc
+    WHERE date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-7 days')
+    ORDER BY symbol, date
+"""):
+    hist.setdefault(r[0], []).append(r[1:])
 conn.close()
 
-d6 = yf.download(syms, period="6d", progress=False, threads=True)
+# Alpaca snapshots
+snaps = {}
+for i in range(0, len(syms), 100):
+    batch = ','.join(syms[i:i+100])
+    r = requests.get(f'https://data.alpaca.markets/v2/stocks/snapshots?symbols={batch}', headers=hdr)
+    if r.status_code == 200: snaps.update(r.json())
 
 results = []
 for sym in syms:
     try:
-        c = d6['Close'][sym].dropna()
-        v = d6['Volume'][sym].dropna()
-        h = d6['High'][sym].dropna()
-        lo = d6['Low'][sym].dropna()
-        o = d6['Open'][sym].dropna()
-        if len(c) < 5: continue
+        snap = snaps.get(sym); days = hist.get(sym, [])
+        if not snap or len(days) < 5: continue
+        db = snap.get('dailyBar',{})
+        last_close = db.get('c',0); last_open = db.get('o',0)
+        if last_close < 5 or last_open < 1: continue
 
-        last_close = float(c.iloc[-1]); last_open = float(o.iloc[-1])
         fri_ret = (last_close/last_open - 1)*100
-        mom5d = (float(c.iloc[-1])/float(c.iloc[0]) - 1)*100
-
-        avg_vol = float(v.iloc[:-1].mean()) if len(v) > 1 else 1
-        vr = float(v.iloc[-1])/avg_vol if avg_vol > 0 else 0
-
-        hi_val = float(h.iloc[-1]); lo_val = float(lo.iloc[-1])
-        rng = hi_val - lo_val
-        cp = (last_close - lo_val)/rng if rng > 0 else 0.5
+        d0 = days[0]; mom5d = (last_close/d0[3]-1)*100
+        avg_vol = np.mean([d[5] for d in days[:-1]]) if len(days) > 1 else 1
+        vr = db.get('v',0)/avg_vol if avg_vol > 0 else 0
+        hi, lo = db.get('h',last_close), db.get('l',last_close)
+        rng = hi - lo; cp = (last_close-lo)/rng if rng > 0 else 0.5
 
         sector = sectors.get(sym, 'Unknown')
-        good_sector = sector in ('Technology','Energy','Basic Materials','Communication Services','Communication')
 
-        # Detect setup type
         setup = ''
         if fri_ret >= 3: setup = 'FRI_RALLY'
         elif mom5d <= -5 and fri_ret >= 2: setup = 'BAD_WEEK_BOUNCE'
         elif fri_ret <= -3 and vr >= 2: setup = 'FRI_DUMP_VOL'
-        else: continue  # ศุกร์ปกติ = skip (baseline 24% ไม่คุ้ม)
+        else: continue
 
-        # Score 6 checklist
         score = 0; checks = []
         if setup: score += 1; checks.append(f'☑{setup}')
         if cp > 0.5: score += 1; checks.append(f'☑CP {cp:.2f}')
         else: checks.append(f'☐CP {cp:.2f}')
         if vr >= 1.5: score += 1; checks.append(f'☑Vol {vr:.1f}x')
         else: checks.append(f'☐Vol {vr:.1f}x')
-        if good_sector: score += 1; checks.append(f'☑{sector[:4]}')
-        else: checks.append(f'☐{sector[:4]}')
+        checks.append(f'☐{sector[:4]}')  # AI judges sector
         checks.append('☑NoNews' if sym not in earnings_mon else '☐EarnMon')
         if sym not in earnings_mon: score += 1
         if vix_now < 30: score += 1; checks.append(f'☑VIX {vix_now:.0f}')
         else: checks.append(f'☐VIX {vix_now:.0f}')
 
-        if last_close < 5: continue
-        if sym in earnings_mon: continue  # Hard skip earnings Monday BMO
+        if sym in earnings_mon: continue
         if score < 3: continue
 
-        # ATR for SL calc
-        trs = [max(float(h.iloc[i])-float(lo.iloc[i]), abs(float(h.iloc[i])-float(c.iloc[i-1])), abs(float(lo.iloc[i])-float(c.iloc[i-1]))) for i in range(1, min(len(c),5))]
-        atr = np.mean(trs) if trs else last_close * 0.03
+        trs = [max(d[2]-d[3], abs(d[2]-days[i-1][4]), abs(d[3]-days[i-1][4])) for i,d in enumerate(days[1:],1)]
+        atr = np.mean(trs[-4:]) if trs else last_close * 0.03
         sl_price = last_close - 2*atr
         sl_pct = (sl_price/last_close - 1)*100
 
