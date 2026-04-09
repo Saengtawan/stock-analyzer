@@ -402,7 +402,7 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 
 **เมื่อไหร่ BUY NOW (market) vs WATCH (limit):**
 - Winner profile แข็งมาก (Beta<1.5 + MCap>30B + GF≥67% + Drop≥3% + SPY daily green) → **BUY NOW ได้เลย** ที่ราคาปัจจุบัน ไม่ต้องรอ pullback
-- Profile ปานกลาง หรือ SPY แดง → WATCH รอ pullback/consolidation
+- SPY แดง **ไม่ได้แปลว่าไม่มี BUY** — หุ้น low beta + catalyst + SI สูง อาจ BUY NOW ได้แม้ SPY แดง (WR ลดลงแต่ไม่ใช่ 0%)
 - ถ้ารอ pullback แล้วราคาวิ่งขึ้นเรื่อยๆ → **ไม่ chase** แต่ถ้า profile แข็งพอตั้งแต่แรก ควร BUY NOW ไม่ใช่ WATCH
 
 **AI ดู data ทั้งหมดแล้ว weigh เอง — แต่ละวันต่างกัน context ต่างกัน**
@@ -448,7 +448,8 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 |---|--------|-----|------|-------|-----|-----|-----|
 | 1 | LLY | $899 | Green bar | GBar | $890 | $917 | 1:2 |
 
-**LLY**: Beta 0.43 + MCap $794B — SPY แดง → WATCH ไม่ BUY
+**LLY**: Beta 0.43 + MCap $794B + Drop -2.8% + 51 unusual calls
+→ GF 0% ยังไม่ bounce — รอ green bar
 
 Re-check: 10:00 LITE pullback | 10:15 LLY green bar
 
