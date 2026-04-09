@@ -437,6 +437,15 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 
 **Limit fill ยาก:** ขอบล่างสุดอาจไม่ถึง | กลาง range (70-80%) fill ง่ายกว่า
 
+**Momentum UP data (full backtest 564K daily rows):**
+- **Gap up 2-8% + Vol 2x+ = WR 57-58% intraday** (close > open), avg +0.94% — EDGE จริง! Volume คือตัวแบ่ง
+- **Gap up ไม่มี vol (<1.5x) = WR 34-42%** — FADE! ไม่ซื้อ
+- **Chase +3-5% intraday = WR 33%** (N=42K) — ซื้อยอดเขา แพ้ 67%!
+- **Chase +5-8% intraday = WR 34%** — เหมือนกัน
+- **Intraday +8% + Vol 2x = WR 55%** — ตัวเดียวที่ chase ได้ถ้า vol ยืนยัน
+- **Strong day 5%+ → D+1 = WR 44-48%** — mean reversion D+1 ไม่ hold overnight
+- **Sector leader วันนี้ → D+1 = WR 49%** — leadership ไม่ carry ข้ามวัน
+
 **Deep Backtest Findings (จาก PyOD + 8 agents, 56M bars):**
 - **Gap Up >3% จาก prev close: fade 56%** avg intraday -0.26% (N=2,584) — ระวัง chase gap up ใหญ่
 - **Gap Down >3%: bounce 52%** avg +0.47% (N=2,310) — Down Bounce confirmed
