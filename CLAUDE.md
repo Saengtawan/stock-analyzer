@@ -412,7 +412,7 @@ WHERE f.symbol IN ('XXX','YYY','ZZZ');
 
 **แสดง candidates ที่ผ่าน filter ทั้งหมด + AI เลือก 1-2 ตัวที่ดีสุด BUY NOW**
 - **ตารางรวม** = แสดงทุกตัวที่ผ่าน filter (user เห็นภาพรวม)
-- **BUY NOW** = AI เลือก 1-2 ตัวที่ดีที่สุด พร้อม Entry/SL/TP/R:R
+- **BUY NOW** = AI เลือก 1-3 ตัวที่ดีที่สุด พร้อม Entry/SL/TP/R:R
 - ถ้าไม่มีตัวที่ดีพอ → "ไม่มี BUY NOW" + เวลา re-scan
 - ไม่ใส่ label ⚠️/❌/"ไม่แนะนำ" ใน candidates — แค่แสดง data ให้ user ดูเอง
 
