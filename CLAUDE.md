@@ -238,7 +238,7 @@ for s,o,n,c,dr,bn,vr,cp,lg,dc,sec in dn_results[:12]:
     print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
 
 up_results.sort(key=lambda x: (x[8], x[3]), reverse=True)
-print(f"\n🔺 {len(up_results)} UP movers (+1.5%+ intraday OR +3%+ daily | PB=pullback from high)")
+print(f"\n🔺 {len(up_results)} UP movers (check: gap+vol 2x = WR 57% momentum entry | PB=pullback from high)")
 print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
 for s,o,n,c,hi,vr,cp,lg,pb,dc,sec in up_results[:12]:
     f = '  '
@@ -328,7 +328,7 @@ for s,o,n,c,dr,bn,vr,cp,lg,dc,sec in dn_results[:12]:
     print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
 
 up_results.sort(key=lambda x: (x[8], x[3]), reverse=True)
-print(f"\n🔺 {len(up_results)} UP movers (+3%+ | PB=pullback from high)")
+print(f"\n🔺 {len(up_results)} UP movers (check: gap+vol 2x = WR 57% momentum entry | PB=pullback from high)")
 print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
 for s,o,n,c,hi,vr,cp,lg,pb,dc,sec in up_results[:12]:
     f = '  '
@@ -409,8 +409,10 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 - **เลือก candidates จากหลาย sector ที่แข็ง** — ไม่เลือกแค่ sector เดียวแม้จะแข็งสุด (กระจาย risk + จับ rotation)
 - มี insider buy = executives เชื่อมั่น
 - Earnings ใกล้ = uncertainty สูง → อาจดีหรือแย่ ระวัง
+- **Gap Up 2-8% + Vol 2x at open** = WR 57-58% (momentum entry) | **entry after +3% intraday** = WR 44% (chase)
 - **Gap Down + Vol 2x** = WR 42% (ต่ำกว่า random)
 - **Wednesday movers ถือข้ามคืน D+1** = WR 36% (mean reversion — เฉพาะ OVN hold ไม่ใช่ intraday วันนั้น)
+- **Momentum UP context**: 5d trend +5%+ + gap + vol 2x = momentum continuation (not bounce)
 
 **TP/SL data (backtest 126K setups):**
 - เช้า avg winner +2.3-3.6% / avg loser -2.3-3.8% (amplitude สูง)

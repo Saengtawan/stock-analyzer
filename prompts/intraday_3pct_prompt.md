@@ -46,8 +46,7 @@ Price range: $5-20 = WR 55% | $50+ = WR 54.8% (ไม่ต่างกันม
 ### Setups ที่ WR < 55% (ข้อมูลให้ AI พิจารณา)
 | Strategy | WR | ปัญหา |
 |----------|----|-------|
-| Gap Up Vol 2x Green ($50+) | **44%** | ต่ำกว่า baseline |
-| Gap Up Vol 2x Green ($20-50) | **44%** | ต่ำกว่า baseline |
+| Gap Up Vol 2x entry after +3% (chase) | **44%** | chase = ต่ำกว่า baseline |
 | Top Mover 5%+ Green ($5-20) 11:00+ | **47%** | WR ลดลงหลัง 11:00 |
 | Up 2-5% Green ($50+) | **48%** | ใกล้ coin flip |
 
@@ -71,6 +70,21 @@ Price range: $5-20 = WR 55% | $50+ = WR 54.8% (ไม่ต่างกันม
 ### Strategy 2: Vol Surge 3x No Gap (WR 55-62%)
 **หาอะไร**: หุ้นที่ไม่ gap แต่ vol พุ่ง 3x + green bar
 **เหมือนเดิม** — ยังใช้ได้ดี โดยเฉพาะ $50+ (WR 62%)
+
+### Strategy 3: Momentum UP — Gap Up + Vol 2x (WR 57-58% at open)
+**หาอะไร**: หุ้นที่ gap up 2-8% จาก prev close + vol ≥2x ตั้งแต่เปิด
+- Entry at open with gap + vol = WR 57-58% (momentum continuation)
+- Entry after stock already ran +3% intraday = WR 44% (chase — different setup)
+- 5d trend strong + gap + vol = momentum continuation signal (ไม่ใช่ bounce)
+
+**Context clues (momentum):**
+- 5d momentum +5%+ = trend confirmation → gap = continuation
+- Vol ≥2x = institutional participation (ไม่ใช่แค่ retail)
+- Sector strong วันนั้น = tailwind
+- SI สูง + gap up = short squeeze acceleration
+
+**Entry:** Buy at/near open price | SL: prev close or gap fill | TP: +3-5%
+**Risk:** Entry after +3% intraday move = WR drops to 44% (chase)
 
 ---
 
@@ -115,6 +129,7 @@ Avg return vs entry: +0.23%
 | 5 | Down Bounce, drop 3-5% | 10:00-11:30 | **54-55%** | +1-2% | สูง |
 | 6 | Vol Surge 3x No Gap $50+ | 10:00 | **~62%** | +1% | N น้อย |
 | 7 | Down Bounce, drop 2-3% | 10:00-11:30 | **52-54%** | +1% | สูง |
+| 8 | **Momentum UP: Gap 2-8% + Vol 2x** | 09:30 | **57-58%** | +3-5% | ปานกลาง |
 
 ---
 
@@ -135,7 +150,7 @@ Avg return vs entry: +0.23%
 ดู data ที่ CLAUDE.md Step 3 ดึงมา แล้วพิจารณา:
 
 **Technical (จาก scan):**
-- Setup type (Down Bounce / Vol Surge / Top Mover)
+- Setup type (Down Bounce / Vol Surge / Momentum UP / Top Mover)
 - Green bar? Price range? Volume ratio?
 
 **Context (จาก DB query):**
@@ -230,4 +245,4 @@ LOSER signs (bounce fail):
 - Honest: includes tautology warning for Down Bounce
 - WR vs entry (real) not vs open (misleading)
 - Penny stocks ($1-5) removed — actual WR 46-50% (no edge)
-- Gap Up Vol 2x = WR 44% (WORSE than random — removed from recommendations)
+- Gap Up Vol 2x at open = WR 57-58% (momentum) | Gap Up Vol 2x entry after +3% = WR 44% (chase)
