@@ -209,7 +209,7 @@ for sym in syms:
 
         if drop <= -2 and now > lo:
             dn_results.append((sym, opn, now, chg, drop, (now/lo-1)*100, vr, cp, last_green, daily_chg, sec))
-        if chg > 1.5:
+        if chg > 1.5 or daily_chg > 3:  # intraday up OR daily gap up
             up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, cp, last_green, pullback, daily_chg, sec))
     except: pass
 
@@ -221,7 +221,7 @@ for s,o,n,c,dr,bn,vr,cp,lg,dc,sec in dn_results[:12]:
     print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
 
 up_results.sort(key=lambda x: (x[8], x[3]), reverse=True)
-print(f"\n🔺 {len(up_results)} UP movers (+1.5%+ | PB=pullback from high)")
+print(f"\n🔺 {len(up_results)} UP movers (+1.5%+ intraday OR +3%+ daily | PB=pullback from high)")
 print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
 for s,o,n,c,hi,vr,cp,lg,pb,dc,sec in up_results[:12]:
     f = '📐' if pb >= 1.5 else ('🔥' if c > 3 and vr > 2 else '✅')
@@ -299,7 +299,7 @@ for sym in syms:
 
         if drop <= -2 and now > lo:
             dn_results.append((sym, opn, now, chg, drop, (now/lo-1)*100, vr, cp, last_green, daily_chg, sec))
-        if chg >= 3:
+        if chg >= 3 or daily_chg >= 5:  # intraday up OR daily gap up
             up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, cp, last_green, pullback, daily_chg, sec))
     except: pass
 
