@@ -200,17 +200,14 @@ LOSER signs (bounce fail):
 
 **แสดง BUY + WATCH เท่านั้น — ตัดกระบวนการ scan ออก**
 
-### 🟢 BUY NOW (winner profile แข็ง + SPY daily green → entry ราคาปัจจุบัน)
+### 🟢 BUY NOW (1-2 ตัวที่ดีที่สุดเท่านั้น — AI มั่นใจแล้ว)
 
 | # | Symbol | Now | SL | TP | R:R | เหตุผล |
 |---|--------|-----|-----|-----|-----|--------|
 
-### WATCH (SPY แดง / profile ปานกลาง → รอ pullback / consolidation)
-
-| # | Symbol | Now | รอที่ | Limit | SL | TP | R:R |
-|---|--------|-----|------|-------|-----|-----|-----|
-
-**ต่อตัว 2 บรรทัด** + Re-check 1 บรรทัด
+**ต่อตัว 2 บรรทัด** (ทำไม BUY + Risk)
+ตัวที่ไม่ดีพอ → ไม่แสดง
+ถ้าไม่มี BUY NOW → "ไม่มี BUY NOW" + เวลา re-scan
 ```
 
 ## Data Sources
