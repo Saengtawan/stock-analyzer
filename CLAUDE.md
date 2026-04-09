@@ -115,28 +115,28 @@ for sym in syms:
         days = hist.get(sym, [])
         if not snap or len(days) < 3: continue
         db = snap.get('dailyBar',{}); pb = snap.get('prevDailyBar',{})
-        now = db.get('c',0); prev = pb.get('c',0)
-        if now < 3 or prev < 1: continue
+        # NOTE: ก่อนตลาดเปิด dailyBar = yesterday, prevDailyBar = day before yesterday
+        # yesterday close = dailyBar.c (ปิดเมื่อวาน)
+        yest_close = db.get('c',0)
+        if yest_close < 3: continue
 
-        # yesterday close from DB
-        yest_close = days[-1][4] if days else prev
-        # PM gap = current price vs yesterday close (includes PM movement)
-        pm_gap = (now/yest_close-1)*100 if yest_close > 0 else 0
         # yesterday intraday return
-        yest_ret = (yest_close/days[-1][1]-1)*100 if len(days) > 0 and days[-1][1] > 0 else 0
-        
-        d0 = days[0]; mom5d = (now/d0[3]-1)*100 if len(days) >= 5 else pm_gap
+        yest_ret = (db.get('c',0)/db.get('o',1)-1)*100
+
+        d0 = days[0]; mom5d = (yest_close/d0[3]-1)*100 if len(days) >= 5 else yest_ret
         avg_vol = np.mean([d[5] for d in days[:-1]]) if len(days) > 1 else 1
         vr = db.get('v',0)/avg_vol if avg_vol > 0 else 0
-        hi, lo = db.get('h',now), db.get('l',now)
-        rng = hi - lo; cp = (yest_close-days[-1][3])/(days[-1][2]-days[-1][3]) if len(days) > 0 and days[-1][2] > days[-1][3] else 0.5
+        hi, lo = db.get('h',yest_close), db.get('l',yest_close)
+        rng = hi - lo; cp = (yest_close-lo)/rng if rng > 0 else 0.5
         trs = [max(d[2]-d[3], abs(d[2]-days[i-1][4]), abs(d[3]-days[i-1][4])) for i,d in enumerate(days[1:],1)]
-        atr = np.mean(trs[-4:])/now*100 if trs else 0
+        atr = np.mean(trs[-4:])/yest_close*100 if trs else 0
         sec = sectors.get(sym, '') if 'sectors' in dir() else ''
 
-        # PM vol: ถ้า dailyBar vol > 0 + ราคาเปลี่ยนจาก prev close = มี PM activity
-        pm_vol = db.get('v',0)
-        has_pm = pm_vol > 0 and abs(pm_gap) > 0.1
+        # PM gap: ดูจาก latestTrade vs yesterday close (ถ้ามี)
+        # snapshot ตอน PM ยังไม่ update — ใช้ได้แค่ yesterday data
+        # AI ต้อง re-scan ที่ 09:25 เพื่อเห็น PM gap จริง
+        pm_gap = 0  # จะคำนวณได้จริงตอน market open
+        has_pm = False
 
         if abs(yest_ret) >= 2 or abs(pm_gap) >= 1.5 or abs(mom5d) >= 5:
             results.append((sym, now, pm_gap, yest_ret, mom5d, vr, cp, atr, sec, has_pm))
