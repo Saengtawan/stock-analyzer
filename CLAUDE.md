@@ -421,7 +421,7 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 - **ตารางรวม** = แสดงทุกตัวที่ผ่าน filter (user เห็นภาพรวม)
 - **BUY NOW** = AI เลือก 1-3 ตัวที่ดีที่สุด พร้อม Entry/SL/TP/R:R
 - ถ้าไม่มีตัวที่ดีพอ → "ไม่มี BUY NOW" + เวลา re-scan
-- ไม่ใส่ label ⚠️/❌/"ไม่แนะนำ" ใน candidates — แค่แสดง data ให้ user ดูเอง
+- ไม่ใส่ label ⚠️/❌/"ไม่แนะนำ" — ตัวที่ไม่ดีพอ **ไม่ต้องแสดงเลย** (ไม่ต้องบอกว่า "ไม่แนะนำ" แค่ไม่แสดง)
 
 **ตัวอย่าง output — SPY daily green + candidates ดี:**
 
