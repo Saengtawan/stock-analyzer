@@ -60,7 +60,7 @@ AI วิเคราะห์ data + prompt knowledge → BUY NOW 1-3 ตัว
 |---------|------|--------|
 | 06:00-09:30 | ORB | PM gap + vol + catalyst → watchlist |
 | 09:30-11:30 | Intraday | Down Bounce + Momentum + Vol Surge |
-| 11:30-15:30 | Top Movers | Sector momentum + Green fraction + Pullback |
+| 11:30-15:30 | Top Movers | Sector momentum + Down Bounce + Drop depth |
 | 15:30-15:55 | OVN | 5d mom + vol + close position → overnight gap |
 | Friday 15:00 | Fri-Mon | Friday rally/bounce → Monday close |
 

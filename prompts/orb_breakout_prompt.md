@@ -13,7 +13,7 @@ ORB ใช้ก่อนตลาดเปิด (06:00-09:30 ET) — หลั
 ### Volume คือตัวแบ่ง
 | Gap + Volume | Hit +3% from open | Hit +5% |
 |-------------|-------------------|---------|
-| Gap 2-5% + Vol 2x+ | **54%** | **34%** |
+| Gap 2-5% + Vol 2x+ | **51.1%** | **34%** |
 | Gap 5%+ + Vol 2x+ | 65% | 38% |
 | Gap 2%+ + Vol <1.5x | 10% | 4% |
 → Vol < 1.5x = โอกาสแค่ 10%
@@ -32,7 +32,7 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 ### Gap 2-5% ดีกว่า 5%+
 | เงื่อนไข | Early Peak (fade) | ปิด +3% |
 |----------|-------------------|---------|
-| **Gap 2-5% + Vol 2x+** | **22%** fade | **62%** |
+| **Gap 2-5% + Vol 2x+** | **22%** fade | **51.1%** |
 | Gap 5%+ + Vol 2x+ | 36% fade | 60% |
 | Gap 5%+ + Small cap | **44%** fade | 50% |
 → **Gap พอดี (2-5%) = fade น้อย, hold ดี**
@@ -51,7 +51,7 @@ Gap Up stats above = "hit +3% from open at any point during day" (max high)
 
 ### Step 1: Pre-Market Watchlist (06:00-09:25)
 1. Scan gap ≥ 2% จาก prev close
-2. Volume pre-market: 2x+ = 54% hit +3% | <1.5x = 10% hit +3%
+2. Volume pre-market: 2x+ = 51.1% hit +3% | <1.5x = 10% hit +3%
 3. หา catalyst: earnings beat / upgrade / FDA / contract
 4. **Prefer gap 2-5%** (ไม่ใช่ยิ่งเยอะยิ่งดี)
 5. 5d momentum > 5% = **66% ปิด +3%** (trend จริง)
@@ -220,7 +220,7 @@ LOSER signs (fade risk):
 
 ## Statistics Summary
 - 557K daily bars + 55M 5-min bars (2023-2026)
-- Volume 2x+ doubles success rate
+- Volume 2x+ important (51.1% hit +3% vs 10% without vol)
 - Gap 2-5% > Gap 5%+ (less fade)
 - First bar 1%+ = 34% hit +3%
 - 10:00 still +2% = 61% close +3%

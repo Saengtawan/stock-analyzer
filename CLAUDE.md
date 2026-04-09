@@ -365,7 +365,7 @@ FROM options_daily_summary
 WHERE symbol IN ('XXX','YYY','ZZZ') AND collected_date = (SELECT MAX(collected_date) FROM options_daily_summary);
 
 -- Beta + MCap (for Winner/Loser profile判断)
--- Beta>1.5 = WR 50% (bad) | Beta<1.0 = WR 54% (good) | MCap>30B = WR 55% (best)
+-- Beta<1.5 = WR 52.3% | Beta>1.5 = WR 50.8% | MCap>30B = WR 52.6%
 SELECT f.symbol, f.beta, f.market_cap, f.pe_forward, f.sector, f.industry
 FROM stock_fundamentals f
 WHERE f.symbol IN ('XXX','YYY','ZZZ');
@@ -389,10 +389,8 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
   - SPY daily < -1% → WR 34%
   - ตัวอย่าง: SPY +2.4% daily แต่ intraday -0.2% = **วันเขียว** ไม่ใช่วันแดง
 - **Drop depth = #1 predictor**: 2-3% drop = WR 53% | 3-5% = 57% | 5%+ = 68%
-- **Green bar fraction**: 50%+ green bars (last 30min) = WR 69% | <30% = WR 13%
-- **Single green bar**: 1 green then red = WR 37% | 4+ consecutive = WR 61%
-- **Beta**: <1.5 = WR 54% (good) | >1.5 = WR 50% (bad) — from stock_fundamentals
-- **MCap**: >30B = WR 55% (best) | <10B = WR 51% (worse)
+- **Beta**: <1.5 = WR 52.3% (N=94,668) | >1.5 = WR 50.8% (N=36,888) — from stock_fundamentals
+- **MCap**: >30B = WR 52.6% (N=34,596) | <10B = WR 51.5% (N=65,182)
 - **AD ratio (จาก market_breadth) สำคัญกว่า breadth%**: AD<1 = bounce WR 27% | AD 1-2 = 42% | AD≥3 = 56% (N=106K)
 - **VIX tier**: <18 = WR 52% (ดีสุด) | 18-22 = WR 48% (แย่สุด!) | 22-28 = 51% | 28-35 = 50% | 35+ = 46%
 - **SI × drop depth**: SI 20%+ drop 2-3% = WR 47% (ดี) | SI 20%+ drop 5%+ = WR 7% (ไม่ช่วย!) — SI ช่วยแค่ shallow drop
@@ -419,7 +417,7 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 - Limit fill ยาก: ขอบล่างสุดอาจไม่ถึง | กลาง range (70-80%) fill ง่ายกว่า
 
 **เมื่อไหร่ BUY NOW (market) vs WATCH (limit):**
-- ถ้าหลาย factors winner profile ตรง (low beta, large mcap, deep drop, high green fraction, SPY green, sector แข็ง) → edge สูงขึ้น — AI weigh รวมแล้วตัดสิน BUY NOW
+- ถ้าหลาย factors winner profile ตรง (low beta, large mcap, deep drop, SPY green, sector แข็ง, catalyst) → edge สูงขึ้น — AI weigh รวมแล้วตัดสิน BUY NOW
 - SPY แดง ไม่ได้แปลว่าไม่มี BUY — หุ้น low beta + catalyst + SI สูง อาจ BUY NOW ได้แม้ SPY แดง (WR ลดลงแต่ไม่ใช่ 0%)
 - ถ้ารอ pullback แล้วราคาวิ่งขึ้นเรื่อยๆ → ถ้า profile แข็งพอตั้งแต่แรก ควร BUY NOW
 
@@ -428,7 +426,7 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 - **Gap Down >3%: bounce 52%** avg +0.47% (N=2,310) — Down Bounce confirmed
 - **Mega rally day (50+ stocks up): D+1 fade WR 12%** — วันที่ทุกอย่างขึ้นพร้อมกัน D+1 ลงเกือบหมด
 - **Range >3x ATR + close near high: D+1 WR 39%** — big range day ปิด high = retrace D+1
-- **First 30 min +2%: rest of day avg +0.65%** — morning momentum จริง
+- **First 30 min +2%: WR 50.5% (N=474K)** — no real edge, morning momentum is noise
 - **Power Hour down → next gap up 56%** | Red close (GF<33%) → gap up 59% — OVN signal
 - **SPY -1% day → Tech bounces +0.93% D+1 (WR 70%)** — sector rotation after selloff
 - **Financial Services leads → Basic Materials follows D+1** (r=0.09, p=0.03)
@@ -457,8 +455,8 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 
 | # | Symbol | Now | SL | TP | R:R | เหตุผล |
 |---|--------|-----|-----|-----|-----|--------|
-| 1 | INTU | $405 | $392 (-3.2%) | $418 (+3.2%) | 1:1 | Drop -5% + Beta 1.21 + MCap $114B + GF 67% + SPY daily 🟢 |
-| 2 | NBIS | $125 | $119 (-4.8%) | $131 (+4.8%) | 1:1 | Drop -5.8% + Beta 1.06 + SI 19.6% + GF 83% |
+| 1 | INTU | $405 | $392 (-3.2%) | $418 (+3.2%) | 1:1 | Drop -5% + Beta 1.21 + MCap $114B + SPY daily 🟢 |
+| 2 | NBIS | $125 | $119 (-4.8%) | $131 (+4.8%) | 1:1 | Drop -5.8% + Beta 1.06 + SI 19.6% + deep drop |
 
 **INTU**: Winner profile ครบ + SPY daily +2.4% = entry now
 **NBIS**: SI 19.6% squeeze + low beta + deep drop
@@ -473,7 +471,7 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 
 ไม่มี BUY NOW — SPY daily แดง
 
-Re-check: 10:00 ดู SPY direction | 10:15 ดู green bar fraction
+Re-check: 10:00 ดู SPY direction | 10:15 ดู drop depth + bounce
 
 ---
 
@@ -497,7 +495,7 @@ Re-check: 07:00 PM vol | 09:25 final
 | 1 | LLY | $899 | Green bar | GBar | $890 | $917 | 1:2 |
 
 **LLY**: Beta 0.43 + MCap $794B + Drop -2.8% + 51 unusual calls
-→ GF 0% ยังไม่ bounce — รอ green bar
+→ ยังไม่ bounce — รอ green bar + volume confirm
 
 Re-check: 10:00 LITE pullback | 10:15 LLY green bar
 
@@ -524,8 +522,8 @@ Re-check: 10:00 LITE pullback | 10:15 LLY green bar
 | **09:30-10:00** | **Intraday** | Opening Bell: First bar + OR breakout + Vol Surge |
 | **10:00-10:30** | **Intraday** | Kill Zone + 10:00 confirmation + Down Bounce |
 | **10:30-11:30** | **Intraday** | Late Morning: Consolidation breakout 47.6% / Noon vol surge |
-| **11:30-12:30** | **Top Movers** | Lunch: Down Bounce (SPY green + green bars 50%+) |
-| **12:30-13:30** | **Top Movers** | Late Lunch: Down Bounce / Green bar fraction 50%+ |
+| **11:30-12:30** | **Top Movers** | Lunch: Down Bounce (SPY green + deep drop) |
+| **12:30-13:30** | **Top Movers** | Late Lunch: Down Bounce / drop depth + context |
 | **13:30-15:00** | **Top Movers** | Afternoon: Down Bounce (SPY gate) / momentum 5%+ |
 | **15:00-15:30** | **Top Movers** | Power Hour: Down Bounce only / hold-exit confirm |
 | **15:30-15:55** | **OVN** | 5d mom ≥5% + today green + vol ≥2x + close near high |

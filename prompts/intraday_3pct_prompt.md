@@ -99,18 +99,6 @@ Price range: $5-20 = WR 55% | $50+ = WR 54.8% (ไม่ต่างกันม
 
 Avg return vs entry: +0.23%
 
-### Penny Stock $1-5 มี Edge บาง Setup
-- Up 2-5% Green $1-5: **WR 59%** +0.8% (10:30)
-- Top Mover 5%+ Green $1-5: **WR 58%** +1.2% (11:00)
-- **N น้อย (50-150) → ระวัง**
-
-### Momentum Pullback (หุ้นขึ้น 5%+ แล้ว pullback)
-- หุ้นขึ้น 5%+ จาก open → pullback 1-3% → consolidate → continue
-- Consolidation 10-30 นาที (10:30-11:30 เกิดบ่อย)
-- Vol สูง + MCap > $1B = pullback เด้งเร็ว ไม่ดิ่ง
-- WR ~55%, avg continuation +1.4%
-- Momentum continuation (up 5%+ still running): WR 52-56%
-
 ### Consolidation Breakout
 - เช้า sideways → breakout 2%+: 47.6% ปิด +3% (จาก backtest ก่อน)
 
@@ -159,15 +147,6 @@ Avg return vs entry: +0.23%
 - Earnings ใกล้ = uncertainty ระวัง
 - Unusual options = smart money
 
-### Green Bar Fraction (ใช้ได้ทุกช่วง — data เดียวกับ Top Movers)
-
-| Green Fraction (30 min ล่าสุด) | WR | หมายเหตุ |
-|-------------------------------|-----|---------|
-| ≥50% | **69%** | bounce จริง |
-| 30-50% | 37% | ต่ำกว่า random |
-| <30% | 13% | แทบไม่ bounce |
-| 4+ consecutive green bars | 61% | ดีกว่า single green bar (37%) |
-
 **AI weigh ทุกปัจจัยรวมกัน → ตัดสินเอง**
 
 ### Return Data ให้ AI ตั้ง TP/SL (backtest 126K setups)
@@ -200,7 +179,7 @@ Avg return vs entry: +0.23%
 - เช้า: bounce ช้า (70-90 นาที median) แต่ amplitude สูง (winner +2.3-3.6%)
 - 5%+ drop bounce เร็วกว่า 2-3% drop
 - เพียง 24-30% ที่ peak ใน 15 นาที — ส่วนใหญ่ค่อยๆ ขึ้น มีเวลาเข้า
-- WR ≈ 50% สำหรับ green bar เดียว — edge มาจากการเลือก setup + context ที่ดี
+- Green bar alone has no edge (WR ~50%) — edge มาจาก drop depth + SPY direction + context
 
 ### Winner vs Loser Profile (จาก backtest — ให้ AI ใช้ judge)
 
@@ -239,5 +218,5 @@ LOSER signs (bounce fail):
 - 500K+ 5-min bar entries (2024-2026)
 - Honest: includes tautology warning for Down Bounce
 - WR vs entry (real) not vs open (misleading)
-- Includes penny stocks ($1-5) where edge exists
+- Penny stocks ($1-5) removed — actual WR 46-50% (no edge)
 - Gap Up Vol 2x = WR 44% (WORSE than random — removed from recommendations)
