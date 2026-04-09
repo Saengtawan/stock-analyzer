@@ -232,7 +232,7 @@ PYEOF
 **ถ้า MARKET OPEN (11:30-15:30) → Alpaca Top Movers scan:**
 ```bash
 python3 << 'PYEOF'
-import requests, os, sqlite3
+import requests, os, sqlite3, numpy as np
 from dotenv import load_dotenv; load_dotenv()
 
 hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
