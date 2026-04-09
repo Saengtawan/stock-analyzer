@@ -88,6 +88,7 @@ hot = [r[0] for r in conn.execute("""
 """).fetchall()]
 if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
 syms = list(set(syms + hot))
+sectors = dict(conn.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
 
 # 5d history from DB
 hist = {}
@@ -117,24 +118,31 @@ for sym in syms:
         now = db.get('c',0); prev = pb.get('c',0)
         if now < 3 or prev < 1: continue
 
-        last_ret = (now/prev-1)*100
-        d0 = days[0]; mom5d = (now/d0[3]-1)*100 if len(days) >= 5 else last_ret
+        # yesterday close from DB
+        yest_close = days[-1][4] if days else prev
+        # PM gap = current price vs yesterday close (includes PM movement)
+        pm_gap = (now/yest_close-1)*100 if yest_close > 0 else 0
+        # yesterday intraday return
+        yest_ret = (yest_close/days[-1][1]-1)*100 if len(days) > 0 and days[-1][1] > 0 else 0
+        
+        d0 = days[0]; mom5d = (now/d0[3]-1)*100 if len(days) >= 5 else pm_gap
         avg_vol = np.mean([d[5] for d in days[:-1]]) if len(days) > 1 else 1
         vr = db.get('v',0)/avg_vol if avg_vol > 0 else 0
         hi, lo = db.get('h',now), db.get('l',now)
-        rng = hi - lo; cp = (now-lo)/rng if rng > 0 else 0.5
+        rng = hi - lo; cp = (yest_close-days[-1][3])/(days[-1][2]-days[-1][3]) if len(days) > 0 and days[-1][2] > days[-1][3] else 0.5
         trs = [max(d[2]-d[3], abs(d[2]-days[i-1][4]), abs(d[3]-days[i-1][4])) for i,d in enumerate(days[1:],1)]
         atr = np.mean(trs[-4:])/now*100 if trs else 0
+        sec = sectors.get(sym, '') if 'sectors' in dir() else ''
 
-        if abs(last_ret) >= 2 or abs(mom5d) >= 5:
-            results.append((sym, now, last_ret, mom5d, vr, cp, atr))
+        if abs(yest_ret) >= 2 or abs(pm_gap) >= 1.5 or abs(mom5d) >= 5:
+            results.append((sym, now, pm_gap, yest_ret, mom5d, vr, cp, atr, sec))
     except: pass
 
-results.sort(key=lambda x: abs(x[2]), reverse=True)
+results.sort(key=lambda x: (abs(x[2]), abs(x[3])), reverse=True)  # PM gap first, then yest
 print(f"{len(results)} ORB candidates")
-print(f"{'Sym':5s} {'Price':>7s} {'Yest':>6s} {'5dM':>6s} {'Vol':>4s} {'CPos':>5s} {'ATR':>4s}")
-for s,p,yr,m,vr,cp,atr in results[:20]:
-    print(f"{s:5s} {p:>7.2f} {yr:+5.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {atr:>3.1f}%")
+print(f"{'Sym':5s} {'Now':>7s} {'PMGap':>6s} {'Yest':>6s} {'5dM':>6s} {'Vol':>4s} {'CPos':>5s} {'ATR':>4s} {'Sec':>8s}")
+for s,p,pg,yr,m,vr,cp,atr,sec in results[:20]:
+    print(f"{s:5s} {p:>7.2f} {pg:+5.1f}% {yr:+5.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {atr:>3.1f}% {sec[:8]:>8s}")
 PYEOF
 ```
 
