@@ -419,16 +419,27 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 - หลัง hit +2%: เช้า 64% วิ่งต่อ +3% | บ่าย 43% | 14:00+ 32%
 - Retrace risk: เช้า 32% retrace <+1% | บ่าย 19%
 
-**Entry criteria — ต้องครบก่อน BUY (จาก full-data backtest + TEAM lesson 2026-04-09):**
+**Entry criteria — 2 strategies แยกกัน:**
 
-1. **Drop depth ≥3%** จาก open (WR 57-68%) — ตัวแบ่งหลัก
-2. **SPY daily green** หรือ AD ratio ≥2 — market support
-3. **Bounce hold ≥3 bars** above VWAP — ไม่ใช่แค่ 1 green tick (TEAM bounce 1 bar แล้ว fail)
-4. **Vol spike on bounce** — bounce bar vol > avg = institutional buying จริง (ถ้า vol ต่ำ = weak bounce)
-5. **Sector ไม่สวนทาง** — ถ้า sector ลง -1%+ bounce ไม่ hold (TEAM: Tech -1.9% = headwind)
-6. **Beta <1.5** — high beta bounce ไม่ hold (WR 50.8% vs 52.3%)
+**A. Down Bounce (หุ้นตก → รอ bounce):**
+1. Drop depth ≥3% จาก open
+2. SPY daily green หรือ AD ratio ≥2
+3. Bounce hold ≥3 bars above VWAP (1 bar = WR 50% no edge)
+4. Vol spike on bounce bar
+5. Sector ไม่สวนทาง (sector ลง -1%+ = headwind)
+6. Beta <1.5
 
-**Green bar alone = WR ~50% (no edge)** — 🟢 bar 1 ตัวไม่พอ ต้องครบ criteria ข้างบน
+**B. Momentum UP (หุ้นขึ้น + vol ยืนยัน):**
+1. Gap up 2-8% จาก prev close (daily_chg) + **Vol ≥2x** = WR 57-58%
+2. Above VWAP = bullish bias
+3. Entry ที่ open เท่านั้น — **chase above open+1% = WR 47% (ไม่ไล่ราคา!)**
+4. Vol 5x+ = WR 66% avg +3.63% (hold ทั้งวัน)
+5. Gap up ไม่มี vol (<1.5x) = WR 34-42% (FADE ไม่ซื้อ)
+
+**ต่างกัน:**
+- Down Bounce = ซื้อหุ้นตก รอ bounce confirm
+- Momentum UP = ซื้อหุ้นที่ gap up + vol ยืนยัน ตอนเปิดเลย
+- **Chase = ซื้อหุ้นที่ขึ้นไปแล้ว +3%+ จาก open (WR 33%) ← นี่คือ chase ไม่ใช่ momentum UP**
 
 **เมื่อไหร่ BUY NOW (market) vs WATCH (limit):**
 - ถ้าหลาย factors winner profile ตรง (low beta, large mcap, deep drop, high green fraction, SPY green, sector แข็ง) → edge สูงขึ้น — AI weigh รวมแล้วตัดสิน BUY NOW
