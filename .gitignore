@@ -249,8 +249,8 @@ historical_data/
 test_reports/
 test_coverage/
 
-# Model files (if using ML)
-models/
+# Model files (if using ML) — extension-based, NOT directory
+# (avoid broad `models/` pattern — collides with src/database/models/)
 *.pkl
 *.joblib
 *.h5
