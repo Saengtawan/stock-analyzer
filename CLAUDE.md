@@ -224,25 +224,16 @@ for sym in syms:
         vwap = db.get('vw',0)
         vs_vwap = (now/vwap-1)*100 if vwap > 0 else 0
 
-        if drop <= -2 and now > lo:
-            dn_results.append((sym, opn, now, chg, drop, (now/lo-1)*100, vr, cp, last_green, daily_chg, sec))
-        if chg > 1.5 or daily_chg > 3:  # intraday up OR daily gap up
-            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, cp, last_green, pullback, daily_chg, sec))
+        if abs(chg) >= 1.5 or abs(daily_chg) >= 2 or drop <= -2:
+            results.append((sym, opn, now, chg, drop, vr, daily_chg, sec, last_green))
     except: pass
 
-dn_results.sort(key=lambda x: (x[6], x[4]))  # vol DESC, then drop depth
-print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (drop 2%+ from open)")
-print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
-for s,o,n,c,dr,bn,vr,cp,lg,dc,sec in dn_results[:12]:
-    f = '  '
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
-
-up_results.sort(key=lambda x: (x[8], x[3]), reverse=True)
-print(f"\n🔺 {len(up_results)} UP movers (check: gap+vol 2x = WR 57% momentum entry | PB=pullback from high)")
-print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
-for s,o,n,c,hi,vr,cp,lg,pb,dc,sec in up_results[:12]:
-    f = '  '
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {pb:>3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
+# รวม list เดียว sort by Vol → abs(daily change) — ไม่แยก UP/DOWN
+results.sort(key=lambda x: (x[5], abs(x[6])), reverse=True)  # vol DESC, abs(daily) DESC
+print(f"\n📊 {len(results)} movers (sorted by Vol → abs daily change)")
+print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
+for s,o,n,c,dr,vr,dc,sec,lg in results[:15]:
+    print(f"  {s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
 PYEOF
 ```
 
@@ -314,25 +305,16 @@ for sym in syms:
         pullback = (hi/now-1)*100 if now < hi else 0
         sec = sectors.get(sym,'')
 
-        if drop <= -2 and now > lo:
-            dn_results.append((sym, opn, now, chg, drop, (now/lo-1)*100, vr, cp, last_green, daily_chg, sec))
-        if chg >= 3 or daily_chg >= 5:  # intraday up OR daily gap up
-            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, cp, last_green, pullback, daily_chg, sec))
+        if abs(chg) >= 2 or abs(daily_chg) >= 3 or drop <= -2:
+            results.append((sym, opn, now, chg, drop, vr, daily_chg, sec, last_green))
     except: pass
 
-dn_results.sort(key=lambda x: (x[6], x[4]))  # vol DESC, then drop depth
-print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (drop 2%+ from open)")
-print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
-for s,o,n,c,dr,bn,vr,cp,lg,dc,sec in dn_results[:12]:
-    f = '  '
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
-
-up_results.sort(key=lambda x: (x[8], x[3]), reverse=True)
-print(f"\n🔺 {len(up_results)} UP movers (check: gap+vol 2x = WR 57% momentum entry | PB=pullback from high)")
-print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
-for s,o,n,c,hi,vr,cp,lg,pb,dc,sec in up_results[:12]:
-    f = '  '
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {pb:>3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
+# รวม list เดียว sort by Vol → abs(daily change)
+results.sort(key=lambda x: (x[5], abs(x[6])), reverse=True)
+print(f"\n📊 {len(results)} movers (sorted by Vol → abs daily change)")
+print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
+for s,o,n,c,dr,vr,dc,sec,lg in results[:15]:
+    print(f"  {s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
 PYEOF
 ```
 
