@@ -78,6 +78,15 @@ from dotenv import load_dotenv; load_dotenv()
 
 hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
 conn = sqlite3.connect("data/trade_history.db")
+
+# === HARD GATE: AD ratio < 1 → no edge, exit early ===
+br = conn.execute("SELECT date, ad_ratio, pct_above_20d_ma FROM market_breadth ORDER BY date DESC LIMIT 1").fetchone()
+ad_ratio = float(br[1]) if br else 1.0
+if ad_ratio < 1.0:
+    print(f"❌ AD ratio {ad_ratio:.2f} < 1 — no edge (WR 43%). Skip scan.")
+    print(f"Re-check market_breadth update next cron cycle.")
+    conn.close(); raise SystemExit
+
 syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
 hot = [r[0] for r in conn.execute("""
     SELECT DISTINCT d.symbol FROM stock_daily_ohlc d
@@ -87,10 +96,51 @@ hot = [r[0] for r in conn.execute("""
     AND ABS(d.close - d.open) * 1.0 / d.open >= 0.05 AND d.volume * d.close >= 20000000
 """).fetchall()]
 if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
-syms = list(set(syms + hot))
+
+# === Step 1.5: News inject — catch overnight catalysts before snapshot reflects them ===
+news_inject = [r[0] for r in conn.execute("""
+    SELECT DISTINCT n.symbol FROM news_events n
+    JOIN universe_stocks u ON n.symbol = u.symbol
+    WHERE n.published_at >= datetime('now','-12 hours')
+    AND n.sentiment_label IN ('positive','very_positive')
+    AND n.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
+""").fetchall()]
+if news_inject: print(f"📰 News inject: {len(news_inject)} positive 12h: {', '.join(news_inject[:10])}")
+
+syms = list(set(syms + hot + news_inject))
 sectors = dict(conn.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
+betas = dict(conn.execute("SELECT symbol, beta FROM stock_fundamentals WHERE beta IS NOT NULL").fetchall())
 earnings_today = set(r[0] for r in conn.execute("SELECT symbol FROM earnings_calendar WHERE next_earnings_date = date('now')").fetchall())
 earnings_tomorrow = set(r[0] for r in conn.execute("SELECT symbol FROM earnings_calendar WHERE next_earnings_date = date('now','+1 day')").fetchall())
+
+# Symbols with positive news (for catalyst score component)
+news_set = set(r[0] for r in conn.execute("""
+    SELECT DISTINCT symbol FROM news_events
+    WHERE published_at >= datetime('now','-24 hours')
+    AND sentiment_label IN ('positive','very_positive')
+""").fetchall())
+# Symbols with insider buys 30d
+insider_set = set(r[0] for r in conn.execute("""
+    SELECT DISTINCT symbol FROM insider_transactions
+    WHERE transaction_date >= date('now','-30 days') AND total_value >= 100000
+""").fetchall())
+# Symbols with high SI
+si_set = set(r[0] for r in conn.execute("""
+    SELECT symbol FROM short_interest
+    WHERE date = (SELECT MAX(date) FROM short_interest) AND short_pct_float >= 10
+""").fetchall())
+
+# === 3-day sector trend (vs single day = noise) ===
+sector_3d = {}
+for r in conn.execute("""
+    SELECT u.sector, AVG((d.close - d.open) / d.open * 100.0) as avg_chg
+    FROM stock_daily_ohlc d
+    JOIN universe_stocks u ON d.symbol = u.symbol
+    WHERE d.date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-3 days')
+    AND u.sector IS NOT NULL
+    GROUP BY u.sector
+"""):
+    sector_3d[r[0]] = r[1] or 0
 
 # 5d history from DB
 hist = {}
@@ -108,7 +158,15 @@ for i in range(0, len(syms), 100):
     batch = ','.join(syms[i:i+100])
     r = requests.get(f'https://data.alpaca.markets/v2/stocks/snapshots?symbols={batch}', headers=hdr)
     if r.status_code == 200: snaps.update(r.json())
-print(f"Loaded {len(snaps)} snapshots")
+print(f"Loaded {len(snaps)} snapshots | AD {ad_ratio:.2f} ✅")
+
+# SPY daily green check (for Score) — use macro_snapshots (snapshot stale during PM)
+conn2 = sqlite3.connect("data/trade_history.db")
+spy_rows = conn2.execute("SELECT spy_close FROM macro_snapshots ORDER BY date DESC LIMIT 2").fetchall()
+conn2.close()
+spy_daily = (spy_rows[0][0]/spy_rows[1][0]-1)*100 if len(spy_rows) >= 2 else 0
+spy_green = spy_daily > 0
+print(f"SPY daily {spy_daily:+.2f}% {'🟢 GREEN' if spy_green else '🔴 RED'} (from macro_snapshots)")
 
 results = []
 for sym in syms:
@@ -116,45 +174,75 @@ for sym in syms:
         snap = snaps.get(sym)
         days = hist.get(sym, [])
         if not snap or len(days) < 3: continue
+        if sym in earnings_today or sym in earnings_tomorrow: continue  # skip earnings
         db = snap.get('dailyBar',{}); pb = snap.get('prevDailyBar',{})
-        # NOTE: ก่อนตลาดเปิด dailyBar = yesterday, prevDailyBar = day before yesterday
-        # yesterday close = dailyBar.c (ปิดเมื่อวาน)
+        lt = snap.get('latestTrade', {})
         yest_close = db.get('c',0)
+        pm_price = lt.get('p', yest_close) if lt else yest_close
         if yest_close < 3: continue
 
-        # yesterday intraday return
-        yest_ret = (db.get('c',0)/db.get('o',1)-1)*100
-
+        yest_ret = (yest_close/db.get('o',1)-1)*100
+        pm_gap = (pm_price/yest_close - 1)*100 if pm_price != yest_close else 0
         d0 = days[0]; mom5d = (yest_close/d0[3]-1)*100 if len(days) >= 5 else yest_ret
         avg_vol = np.mean([d[5] for d in days[:-1]]) if len(days) > 1 else 1
         vr = db.get('v',0)/avg_vol if avg_vol > 0 else 0
-        hi, lo = db.get('h',yest_close), db.get('l',yest_close)
-        rng = hi - lo; cp = (yest_close-lo)/rng if rng > 0 else 0.5
-        trs = [max(d[2]-d[3], abs(d[2]-days[i-1][4]), abs(d[3]-days[i-1][4])) for i,d in enumerate(days[1:],1)]
-        atr = np.mean(trs[-4:])/yest_close*100 if trs else 0
-        sec = sectors.get(sym, '') if 'sectors' in dir() else ''
+        sec = sectors.get(sym, '')
+        sec_3d_avg = sector_3d.get(sec, 0)  # 3-day trend (less noisy)
+        beta = betas.get(sym, 1.5)  # default 1.5 if unknown
+        has_catalyst = sym in news_set or sym in insider_set or sym in si_set
 
-        # PM gap: ดูจาก latestTrade vs yesterday close (ถ้ามี)
-        # snapshot ตอน PM ยังไม่ update — ใช้ได้แค่ yesterday data
-        # AI ต้อง re-scan ที่ 09:25 เพื่อเห็น PM gap จริง
-        pm_gap = 0  # จะคำนวณได้จริงตอน market open
-        has_pm = False
+        # Mode (sector gate using 3d trend)
+        if pm_gap >= 2 and mom5d >= 0: mode = 'PM_MOM'
+        elif yest_ret >= 3 and mom5d >= 0: mode = 'MomUP'
+        elif mom5d <= -5 and sec_3d_avg >= 0: mode = 'Bounce'
+        elif mom5d <= -5: mode = 'KNIFE'  # falling knife — sector down trend
+        else: mode = 'Watch'
 
-        if sym in earnings_today or sym in earnings_tomorrow: continue  # skip earnings
-        if abs(yest_ret) >= 2 or abs(pm_gap) >= 1.5 or abs(mom5d) >= 5:
-            # Mode: Bounce (5d down + vol potential) vs Momentum (gap up + vol)
-            mode = 'Bounce' if mom5d <= -5 else ('MomUP' if yest_ret >= 3 and mom5d >= 0 else 'Watch')
-            results.append((sym, yest_close, pm_gap, yest_ret, mom5d, vr, cp, atr, sec, has_pm, mode))
+        # === SCORE /9 (computed in code, not in head) ===
+        score = 0; reasons = []
+        if spy_green: score += 2; reasons.append('SPY+')
+        if ad_ratio >= 2: score += 2; reasons.append(f'AD{ad_ratio:.1f}')
+        if abs(yest_ret) >= 3 or abs(pm_gap) >= 2: score += 1; reasons.append('Setup')
+        if beta < 1.5: score += 1; reasons.append(f'β{beta:.1f}')
+        if sec_3d_avg >= 0.5: score += 1; reasons.append(f'Sec+{sec_3d_avg:.1f}%')
+        if vr >= 2.0: score += 1; reasons.append(f'V{vr:.1f}x')
+        if has_catalyst: score += 1
+        if has_catalyst:
+            cat_tags = []
+            if sym in news_set: cat_tags.append('news')
+            if sym in insider_set: cat_tags.append('insider')
+            if sym in si_set: cat_tags.append('SI')
+            reasons.append('+'.join(cat_tags))
+
+        # Filter: skip Knife and skip score <4
+        if mode == 'KNIFE': continue
+        if score < 4: continue
+        if abs(yest_ret) < 2 and abs(mom5d) < 5 and abs(pm_gap) < 1.5: continue
+
+        results.append((sym, pm_price, pm_gap, yest_ret, mom5d, vr, sec, sec_3d_avg, beta, mode, score, ' '.join(reasons)))
     except: pass
 
-# Sort: abs(yest_ret) DESC (Vol = TBD when closed, not useful for sort)
-results.sort(key=lambda x: abs(x[3]), reverse=True)
-pm_count = sum(1 for r in results if r[9])
-print(f"{len(results)} ORB candidates ({pm_count} มี PM activity)")
-print(f"{'Sym':6s} {'Close':>7s} {'PMGap':>6s} {'Yest':>6s} {'5dM':>6s} {'Vol':>5s} {'CPos':>5s} {'ATR':>4s} {'Sec':>8s} {'Mode':>6s}")
-for s,p,pg,yr,m,vr,cp,atr,sec,pm,mode in results[:20]:
+# Sort by mode (PM_MOM > MomUP > Bounce > Watch), then score DESC
+mode_order = {'PM_MOM':0,'MomUP':1,'Bounce':2,'Watch':3}
+results.sort(key=lambda x: (mode_order.get(x[9],9), -x[10]))
+
+# === Diversification: max 2 per sector ===
+sec_counts = {}
+diversified = []
+for r in results:
+    sec = r[6]
+    if sec_counts.get(sec, 0) >= 2: continue
+    sec_counts[sec] = sec_counts.get(sec, 0) + 1
+    diversified.append(r)
+
+# Counts
+mom_n = sum(1 for r in results if r[9] in ('PM_MOM','MomUP'))
+bnc_n = sum(1 for r in results if r[9] == 'Bounce')
+print(f"\n{len(results)} candidates ({mom_n} momentum, {bnc_n} bounce). After diversify (max 2/sector): {len(diversified)}")
+print(f"{'Sym':6s} {'PM':>7s} {'PMGap':>6s} {'Yest':>6s} {'5dM':>6s} {'Vol':>5s} {'β':>4s} {'Sec':>10s} {'Sec3d':>6s} {'Mode':>7s} {'Sc':>3s} Reasons")
+for s,p,pg,yr,m,vr,sec,sa,b,mode,sc,rsn in diversified[:15]:
     vol_str = f'{vr:.1f}x' if vr >= 1.0 else 'TBD'
-    print(f"{s:6s} {p:>7.2f} {pg:+5.1f}% {yr:+5.1f}% {m:+5.1f}% {vol_str:>5s} {cp:>4.2f} {atr:>3.1f}% {sec[:8]:>8s} {mode:>6s}")
+    print(f"{s:6s} {p:>7.2f} {pg:+5.1f}% {yr:+5.1f}% {m:+5.1f}% {vol_str:>5s} {b:>4.1f} {sec[:10]:>10s} {sa:+5.1f}% {mode:>7s} {sc}/9  {rsn}")
 PYEOF
 ```
 
@@ -166,6 +254,14 @@ from dotenv import load_dotenv; load_dotenv()
 
 hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
 conn = sqlite3.connect("data/trade_history.db")
+
+# === HARD GATE: AD ratio < 1 → no edge ===
+br = conn.execute("SELECT ad_ratio FROM market_breadth ORDER BY date DESC LIMIT 1").fetchone()
+ad_ratio = float(br[0]) if br else 1.0
+if ad_ratio < 1.0:
+    print(f"❌ AD ratio {ad_ratio:.2f} < 1 — WR 43% no edge. Skip scan.")
+    conn.close(); raise SystemExit
+
 syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
 hot = [r[0] for r in conn.execute("""
     SELECT DISTINCT d.symbol FROM stock_daily_ohlc d
@@ -174,9 +270,33 @@ hot = [r[0] for r in conn.execute("""
     AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
     AND ABS(d.close - d.open) * 1.0 / d.open >= 0.05 AND d.volume * d.close >= 20000000
 """).fetchall()]
-if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
-syms = list(set(syms + hot))
+if hot: print(f"🔥 Hot inject: {len(hot)}")
+
+news_inject = [r[0] for r in conn.execute("""
+    SELECT DISTINCT n.symbol FROM news_events n
+    JOIN universe_stocks u ON n.symbol = u.symbol
+    WHERE n.published_at >= datetime('now','-12 hours')
+    AND n.sentiment_label IN ('positive','very_positive')
+    AND n.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
+""").fetchall()]
+if news_inject: print(f"📰 News inject: {len(news_inject)}")
+
+syms = list(set(syms + hot + news_inject))
+betas = dict(conn.execute("SELECT symbol, beta FROM stock_fundamentals WHERE beta IS NOT NULL").fetchall())
 earnings_today = set(r[0] for r in conn.execute("SELECT symbol FROM earnings_calendar WHERE next_earnings_date = date('now')").fetchall())
+news_set = set(r[0] for r in conn.execute("SELECT DISTINCT symbol FROM news_events WHERE published_at >= datetime('now','-24 hours') AND sentiment_label IN ('positive','very_positive')").fetchall())
+insider_set = set(r[0] for r in conn.execute("SELECT DISTINCT symbol FROM insider_transactions WHERE transaction_date >= date('now','-30 days') AND total_value >= 100000").fetchall())
+si_set = set(r[0] for r in conn.execute("SELECT symbol FROM short_interest WHERE date = (SELECT MAX(date) FROM short_interest) AND short_pct_float >= 10").fetchall())
+sector_3d = {}
+for r in conn.execute("""
+    SELECT u.sector, AVG((d.close - d.open) / d.open * 100.0)
+    FROM stock_daily_ohlc d JOIN universe_stocks u ON d.symbol = u.symbol
+    WHERE d.date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-3 days')
+    AND u.sector IS NOT NULL GROUP BY u.sector
+"""): sector_3d[r[0]] = r[1] or 0
+spy_rows = conn.execute("SELECT spy_close FROM macro_snapshots ORDER BY date DESC LIMIT 2").fetchall()
+spy_daily = (spy_rows[0][0]/spy_rows[1][0]-1)*100 if len(spy_rows) >= 2 else 0
+spy_green = spy_daily > 0
 conn.close()
 
 # Alpaca snapshots — 2 seconds for 200 symbols
@@ -214,34 +334,57 @@ for s,v in sorted(sector_avg.items(), key=lambda x: x[1], reverse=True):
 results = []
 for sym in syms:
     try:
-        if sym in earnings_today: continue  # skip earnings day
+        if sym in earnings_today: continue
         s = snaps.get(sym)
         if not s: continue
-        db = s.get('dailyBar',{}); pb = s.get('prevDailyBar',{})
-        mb = s.get('minuteBar',{})
+        db = s.get('dailyBar',{}); pb = s.get('prevDailyBar',{}); mb = s.get('minuteBar',{})
         now = db.get('c',0); opn = db.get('o',0); hi = db.get('h',0); lo = db.get('l',0)
         prev_c = pb.get('c',0); vol = db.get('v',0); prev_vol = pb.get('v',1)
         if now < 3 or opn < 1 or prev_c < 1: continue
         chg = (now/opn-1)*100; daily_chg = (now/prev_c-1)*100
         drop = (lo/opn-1)*100; vr = vol/prev_vol if prev_vol > 0 else 0
-        rng = hi-lo; cp = (now-lo)/rng if rng > 0 else 0.5
         last_green = mb.get('c',0) > mb.get('o',0) if mb else False
-        pullback = (hi/now-1)*100 if now < hi else 0
         sec = sectors.get(sym,'')
-        # VWAP: price above = bullish, below = bearish
-        vwap = db.get('vw',0)
-        vs_vwap = (now/vwap-1)*100 if vwap > 0 else 0
+        sec_3d_avg = sector_3d.get(sec, 0)
+        beta = betas.get(sym, 1.5)
+        has_catalyst = sym in news_set or sym in insider_set or sym in si_set
 
-        if abs(chg) >= 1.5 or abs(daily_chg) >= 2 or drop <= -2:
-            results.append((sym, opn, now, chg, drop, vr, daily_chg, sec, last_green))
+        # Mode (sector gate using 3d trend)
+        if chg >= 1.5 and daily_chg >= 0: mode = 'MomUP'
+        elif drop <= -3 and sec_3d_avg >= 0: mode = 'Bounce'
+        elif drop <= -3: mode = 'KNIFE'
+        else: mode = 'Watch'
+
+        # Score /9
+        score = 0
+        if spy_green: score += 2
+        if ad_ratio >= 2: score += 2
+        if abs(chg) >= 2 or drop <= -3: score += 1
+        if beta < 1.5: score += 1
+        if sec_3d_avg >= 0.5: score += 1
+        if vr >= 2.0: score += 1
+        if has_catalyst: score += 1
+
+        if mode == 'KNIFE': continue
+        if score < 4: continue
+        if abs(chg) < 1.5 and abs(daily_chg) < 2 and drop > -2: continue
+
+        results.append((sym, opn, now, chg, drop, vr, daily_chg, sec, sec_3d_avg, beta, last_green, mode, score))
     except: pass
 
-# รวม list เดียว sort by Vol → abs(daily change) — ไม่แยก UP/DOWN
-results.sort(key=lambda x: (x[5], abs(x[6])), reverse=True)  # vol DESC, abs(daily) DESC
-print(f"\n📊 {len(results)} movers (sorted by Vol → abs daily change)")
-print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
-for s,o,n,c,dr,vr,dc,sec,lg in results[:15]:
-    print(f"  {s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
+mode_order = {'MomUP':0,'Bounce':1,'Watch':2}
+results.sort(key=lambda x: (mode_order.get(x[11],9), -x[12]))
+sec_counts = {}; diversified = []
+for r in results:
+    if sec_counts.get(r[7], 0) >= 2: continue
+    sec_counts[r[7]] = sec_counts.get(r[7], 0) + 1
+    diversified.append(r)
+
+print(f"\n📊 {len(results)} candidates → {len(diversified)} after diversify (max 2/sector)")
+print(f"{'Sym':6s} {'Open':>7s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'Vol':>5s} {'DChg':>6s} {'β':>4s} {'Sec':>10s} {'Sec3d':>6s} {'Mode':>7s} {'Sc':>3s}")
+for s,o,n,c,dr,vr,dc,sec,sa,b,lg,mode,sc in diversified[:15]:
+    vol_str = f'{vr:.1f}x' if vr >= 1.0 else 'TBD'
+    print(f"{s:6s} {o:>7.2f} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {vol_str:>5s} {dc:+5.1f}% {b:>4.1f} {sec[:10]:>10s} {sa:+5.1f}% {mode:>7s} {sc}/9 {'🟢' if lg else '🔴'}")
 PYEOF
 ```
 
@@ -253,6 +396,14 @@ from dotenv import load_dotenv; load_dotenv()
 
 hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
 conn = sqlite3.connect("data/trade_history.db")
+
+# === HARD GATE: AD ratio < 1 ===
+br = conn.execute("SELECT ad_ratio FROM market_breadth ORDER BY date DESC LIMIT 1").fetchone()
+ad_ratio = float(br[0]) if br else 1.0
+if ad_ratio < 1.0:
+    print(f"❌ AD ratio {ad_ratio:.2f} < 1 — WR 43% no edge. Skip.")
+    conn.close(); raise SystemExit
+
 syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
 hot = [r[0] for r in conn.execute("""
     SELECT DISTINCT d.symbol FROM stock_daily_ohlc d
@@ -261,9 +412,33 @@ hot = [r[0] for r in conn.execute("""
     AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
     AND ABS(d.close - d.open) * 1.0 / d.open >= 0.05 AND d.volume * d.close >= 20000000
 """).fetchall()]
-if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
-syms = list(set(syms + hot))
+if hot: print(f"🔥 Hot inject: {len(hot)}")
+
+news_inject = [r[0] for r in conn.execute("""
+    SELECT DISTINCT n.symbol FROM news_events n
+    JOIN universe_stocks u ON n.symbol = u.symbol
+    WHERE n.published_at >= datetime('now','-12 hours')
+    AND n.sentiment_label IN ('positive','very_positive')
+    AND n.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
+""").fetchall()]
+if news_inject: print(f"📰 News inject: {len(news_inject)}")
+
+syms = list(set(syms + hot + news_inject))
+betas = dict(conn.execute("SELECT symbol, beta FROM stock_fundamentals WHERE beta IS NOT NULL").fetchall())
 earnings_today = set(r[0] for r in conn.execute("SELECT symbol FROM earnings_calendar WHERE next_earnings_date = date('now')").fetchall())
+news_set = set(r[0] for r in conn.execute("SELECT DISTINCT symbol FROM news_events WHERE published_at >= datetime('now','-24 hours') AND sentiment_label IN ('positive','very_positive')").fetchall())
+insider_set = set(r[0] for r in conn.execute("SELECT DISTINCT symbol FROM insider_transactions WHERE transaction_date >= date('now','-30 days') AND total_value >= 100000").fetchall())
+si_set = set(r[0] for r in conn.execute("SELECT symbol FROM short_interest WHERE date = (SELECT MAX(date) FROM short_interest) AND short_pct_float >= 10").fetchall())
+sector_3d = {}
+for r in conn.execute("""
+    SELECT u.sector, AVG((d.close - d.open) / d.open * 100.0)
+    FROM stock_daily_ohlc d JOIN universe_stocks u ON d.symbol = u.symbol
+    WHERE d.date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-3 days')
+    AND u.sector IS NOT NULL GROUP BY u.sector
+"""): sector_3d[r[0]] = r[1] or 0
+spy_rows = conn.execute("SELECT spy_close FROM macro_snapshots ORDER BY date DESC LIMIT 2").fetchall()
+spy_daily = (spy_rows[0][0]/spy_rows[1][0]-1)*100 if len(spy_rows) >= 2 else 0
+spy_green = spy_daily > 0
 conn.close()
 
 # Alpaca snapshots — ~2 seconds
@@ -301,7 +476,7 @@ for s,v in sorted(sector_avg.items(), key=lambda x: x[1], reverse=True):
 results = []
 for sym in syms:
     try:
-        if sym in earnings_today: continue  # skip earnings day
+        if sym in earnings_today: continue
         s = snaps.get(sym)
         if not s: continue
         db = s.get('dailyBar',{}); pb = s.get('prevDailyBar',{}); mb = s.get('minuteBar',{})
@@ -310,21 +485,46 @@ for sym in syms:
         if now < 1 or opn < 1 or prev_c < 1: continue
         chg = (now/opn-1)*100; daily_chg = (now/prev_c-1)*100
         drop = (lo/opn-1)*100; vr = vol/prev_vol if prev_vol > 0 else 0
-        rng = hi-lo; cp = (now-lo)/rng if rng > 0 else 0.5
         last_green = mb.get('c',0) > mb.get('o',0) if mb else False
-        pullback = (hi/now-1)*100 if now < hi else 0
         sec = sectors.get(sym,'')
+        sec_3d_avg = sector_3d.get(sec, 0)
+        beta = betas.get(sym, 1.5)
+        has_catalyst = sym in news_set or sym in insider_set or sym in si_set
 
-        if abs(chg) >= 2 or abs(daily_chg) >= 3 or drop <= -2:
-            results.append((sym, opn, now, chg, drop, vr, daily_chg, sec, last_green))
+        if daily_chg >= 3 and chg >= 0: mode = 'MomCont'  # afternoon momentum continuation
+        elif drop <= -3 and sec_3d_avg >= 0: mode = 'Bounce'
+        elif drop <= -3: mode = 'KNIFE'
+        else: mode = 'Watch'
+
+        score = 0
+        if spy_green: score += 2
+        if ad_ratio >= 2: score += 2
+        if abs(chg) >= 2 or drop <= -3 or abs(daily_chg) >= 3: score += 1
+        if beta < 1.5: score += 1
+        if sec_3d_avg >= 0.5: score += 1
+        if vr >= 2.0: score += 1
+        if has_catalyst: score += 1
+
+        if mode == 'KNIFE': continue
+        if score < 4: continue
+        if abs(chg) < 2 and abs(daily_chg) < 3 and drop > -2: continue
+
+        results.append((sym, opn, now, chg, drop, vr, daily_chg, sec, sec_3d_avg, beta, last_green, mode, score))
     except: pass
 
-# รวม list เดียว sort by Vol → abs(daily change)
-results.sort(key=lambda x: (x[5], abs(x[6])), reverse=True)
-print(f"\n📊 {len(results)} movers (sorted by Vol → abs daily change)")
-print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
-for s,o,n,c,dr,vr,dc,sec,lg in results[:15]:
-    print(f"  {s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
+mode_order = {'MomCont':0,'Bounce':1,'Watch':2}
+results.sort(key=lambda x: (mode_order.get(x[11],9), -x[12]))
+sec_counts = {}; diversified = []
+for r in results:
+    if sec_counts.get(r[7], 0) >= 2: continue
+    sec_counts[r[7]] = sec_counts.get(r[7], 0) + 1
+    diversified.append(r)
+
+print(f"\n📊 {len(results)} candidates → {len(diversified)} after diversify")
+print(f"{'Sym':6s} {'Open':>7s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'Vol':>5s} {'DChg':>6s} {'β':>4s} {'Sec':>10s} {'Sec3d':>6s} {'Mode':>7s} {'Sc':>3s}")
+for s,o,n,c,dr,vr,dc,sec,sa,b,lg,mode,sc in diversified[:15]:
+    vol_str = f'{vr:.1f}x' if vr >= 1.0 else 'TBD'
+    print(f"{s:6s} {o:>7.2f} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {vol_str:>5s} {dc:+5.1f}% {b:>4.1f} {sec[:10]:>10s} {sa:+5.1f}% {mode:>7s} {sc}/9 {'🟢' if lg else '🔴'}")
 PYEOF
 ```
 
