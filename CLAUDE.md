@@ -229,21 +229,20 @@ for sym in syms:
 
         # Filter: skip Knife and skip score <4
         if mode == 'KNIFE': continue
-        if score < 4: continue
         if abs(yest_ret) < 2 and abs(mom5d) < 5 and abs(pm_gap) < 1.5: continue
+        # No min score — always return top N. Score = confidence, not gate
 
         sl_price = pm_price * (1 + sl_pct/100)
         tp_price = pm_price * (1 + tp_pct/100)
         results.append((sym, pm_price, pm_gap, yest_ret, mom5d, vr, sec, sec_3d_avg, beta, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price, ' '.join(reasons)))
     except: pass
 
-# Sort by mode (PM_MOM > MomUP > Bounce > Watch), then score DESC
+# Sort by score DESC, then mode priority
 mode_order = {'PM_MOM':0,'MomUP':1,'Bounce':2,'Watch':3}
-results.sort(key=lambda x: (mode_order.get(x[9],9), -x[10]))
+results.sort(key=lambda x: (-x[10], mode_order.get(x[9],9)))
 
-# === Diversification: max 2/sector default, 4 if sector_3d >= 0.5% ===
-sec_counts = {}
-diversified = []
+# Diversify (max 2/sector, 4 if sec_3d >= 0.5%)
+sec_counts = {}; diversified = []
 for r in results:
     sec = r[6]; sec_3d = r[7]
     max_picks = 4 if sec_3d >= 0.5 else 2
@@ -251,13 +250,17 @@ for r in results:
     sec_counts[sec] = sec_counts.get(sec, 0) + 1
     diversified.append(r)
 
+# === ALWAYS return top 3 (user rule: scan must yield 1-3 picks) ===
+top_picks = diversified[:3]
+
 mom_n = sum(1 for r in results if r[9] in ('PM_MOM','MomUP'))
 bnc_n = sum(1 for r in results if r[9] == 'Bounce')
-print(f"\n{len(results)} candidates ({mom_n} momentum, {bnc_n} bounce). After diversify: {len(diversified)}")
-print(f"{'Sym':6s} {'Px':>7s} {'Yest':>6s} {'5dM':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Sec3d':>6s} {'Mode':>7s} {'Sc':>3s} {'SL':>9s} {'TP':>9s}")
-for s,p,pg,yr,m,vr,sec,sa,b,mode,sc,atr,slp,tpp,slpr,tppr,rsn in diversified[:15]:
-    print(f"{s:6s} {p:>7.2f} {yr:+5.1f}% {m:+5.1f}% {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {sa:+5.1f}% {mode:>7s} {sc}/9 ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
-    print(f"       {rsn}")
+print(f"\n{len(results)} candidates ({mom_n} mom, {bnc_n} bounce) → TOP 3")
+print(f"{'#':>2s} {'Sym':6s} {'Px':>7s} {'Yest':>6s} {'5dM':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Mode':>7s} {'Sc':>3s} {'Tier':>5s} {'SL':>9s} {'TP':>9s}")
+for i,(s,p,pg,yr,m,vr,sec,sa,b,mode,sc,atr,slp,tpp,slpr,tppr,rsn) in enumerate(top_picks, 1):
+    tier = 'HIGH' if sc >= 7 else ('MED' if sc >= 5 else 'LOW')
+    print(f"{i:>2d} {s:6s} {p:>7.2f} {yr:+5.1f}% {m:+5.1f}% {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {mode:>7s} {sc}/9 {tier:>5s} ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
+    print(f"   {rsn}")
 PYEOF
 ```
 
@@ -388,7 +391,7 @@ for sym in syms:
         if has_catalyst: score += 1
 
         if mode == 'KNIFE': continue
-        if score < 4: continue
+        # No min score gate — score = confidence, not filter
         if abs(chg) < 1.5 and abs(daily_chg) < 2 and drop > -2: continue
 
         sl_price = now * (1 + sl_pct/100); tp_price = now * (1 + tp_pct/100)
@@ -396,7 +399,7 @@ for sym in syms:
     except: pass
 
 mode_order = {'MomUP':0,'Bounce':1,'Watch':2}
-results.sort(key=lambda x: (mode_order.get(x[11],9), -x[12]))
+results.sort(key=lambda x: (-x[12], mode_order.get(x[11],9)))
 sec_counts = {}; diversified = []
 for r in results:
     sec = r[7]; sec_3d = r[8]
@@ -405,10 +408,12 @@ for r in results:
     sec_counts[sec] = sec_counts.get(sec, 0) + 1
     diversified.append(r)
 
-print(f"\n📊 {len(results)} candidates → {len(diversified)} after diversify")
-print(f"{'Sym':6s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'Vol':>5s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Mode':>7s} {'Sc':>3s} {'SL':>9s} {'TP':>9s}")
-for s,o,n,c,dr,vr,dc,sec,sa,b,lg,mode,sc,atr,slp,tpp,slpr,tppr in diversified[:15]:
-    print(f"{s:6s} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {vr:>4.1f}x {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {mode:>7s} {sc}/9 ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
+top_picks = diversified[:3]
+print(f"\n📊 {len(results)} candidates → TOP 3")
+print(f"{'#':>2s} {'Sym':6s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Mode':>7s} {'Sc':>3s} {'Tier':>5s} {'SL':>9s} {'TP':>9s}")
+for i,(s,o,n,c,dr,vr,dc,sec,sa,b,lg,mode,sc,atr,slp,tpp,slpr,tppr) in enumerate(top_picks, 1):
+    tier = 'HIGH' if sc >= 7 else ('MED' if sc >= 5 else 'LOW')
+    print(f"{i:>2d} {s:6s} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {mode:>7s} {sc}/9 {tier:>5s} ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
 PYEOF
 ```
 
@@ -539,7 +544,7 @@ for sym in syms:
         if has_catalyst: score += 1
 
         if mode == 'KNIFE': continue
-        if score < 4: continue
+        # No min score gate — score = confidence, not filter
         if abs(chg) < 2 and abs(daily_chg) < 3 and drop > -2: continue
 
         sl_price = now * (1 + sl_pct/100); tp_price = now * (1 + tp_pct/100)
@@ -547,7 +552,7 @@ for sym in syms:
     except: pass
 
 mode_order = {'MomCont':0,'Bounce':1,'Watch':2}
-results.sort(key=lambda x: (mode_order.get(x[11],9), -x[12]))
+results.sort(key=lambda x: (-x[12], mode_order.get(x[11],9)))
 sec_counts = {}; diversified = []
 for r in results:
     sec = r[7]; sec_3d = r[8]
@@ -556,10 +561,12 @@ for r in results:
     sec_counts[sec] = sec_counts.get(sec, 0) + 1
     diversified.append(r)
 
-print(f"\n📊 {len(results)} candidates → {len(diversified)} after diversify")
-print(f"{'Sym':6s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'Vol':>5s} {'DChg':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Mode':>7s} {'Sc':>3s} {'SL':>9s} {'TP':>9s}")
-for s,o,n,c,dr,vr,dc,sec,sa,b,lg,mode,sc,atr,slp,tpp,slpr,tppr in diversified[:15]:
-    print(f"{s:6s} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {vr:>4.1f}x {dc:+5.1f}% {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {mode:>7s} {sc}/9 ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
+top_picks = diversified[:3]
+print(f"\n📊 {len(results)} candidates → TOP 3")
+print(f"{'#':>2s} {'Sym':6s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'DChg':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Mode':>7s} {'Sc':>3s} {'Tier':>5s} {'SL':>9s} {'TP':>9s}")
+for i,(s,o,n,c,dr,vr,dc,sec,sa,b,lg,mode,sc,atr,slp,tpp,slpr,tppr) in enumerate(top_picks, 1):
+    tier = 'HIGH' if sc >= 7 else ('MED' if sc >= 5 else 'LOW')
+    print(f"{i:>2d} {s:6s} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {dc:+5.1f}% {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {mode:>7s} {sc}/9 {tier:>5s} ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
 PYEOF
 ```
 
@@ -880,7 +887,7 @@ for sym in syms:
         if vr >= 3 and mom5d < 0: continue
         if not (mom5d >= 5 or today_ret >= 2): continue
         if sec_3d_avg < 0: continue
-        if score < 5: continue
+        # No min score — return top 3 always
 
         # OVN SL/TP — wider since holding overnight (gap risk both ways)
         sl_pct = -max(2.0, 0.7 * atr_pct)  # wider for overnight
@@ -901,11 +908,13 @@ for r in results:
     sec_counts[sec] = sec_counts.get(sec, 0) + 1
     diversified.append(r)
 
-print(f"\n{len(results)} OVN candidates → {len(diversified)} diversified | {day_name}")
-print(f"{'Sym':6s} {'Close':>7s} {'Today':>6s} {'5dM':>6s} {'Vol':>5s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Sc':>3s} {'SL':>9s} {'TP':>9s}")
-for s,cl,tr,m,vr,cp,sec,sa,b,sc,atr,slp,tpp,slpr,tppr,rsn in diversified[:12]:
-    print(f"{s:6s} {cl:>7.2f} {tr:+5.1f}% {m:+5.1f}% {vr:>4.1f}x {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {sc}/9 ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
-    print(f"       {rsn}")
+top_picks = diversified[:3]
+print(f"\n{len(results)} OVN candidates → TOP 3 | {day_name}")
+print(f"{'#':>2s} {'Sym':6s} {'Close':>7s} {'Today':>6s} {'5dM':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Sc':>3s} {'Tier':>5s} {'SL':>9s} {'TP':>9s}")
+for i,(s,cl,tr,m,vr,cp,sec,sa,b,sc,atr,slp,tpp,slpr,tppr,rsn) in enumerate(top_picks, 1):
+    tier = 'HIGH' if sc >= 7 else ('MED' if sc >= 5 else 'LOW')
+    print(f"{i:>2d} {s:6s} {cl:>7.2f} {tr:+5.1f}% {m:+5.1f}% {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {sc}/9 {tier:>5s} ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
+    print(f"   {rsn}")
 PYEOF
 ```
 
@@ -1040,7 +1049,7 @@ for sym in syms:
 
         if cp < 0.5: continue
         if vix_now >= 30: continue
-        if score < 5: continue
+        # No min score — return top 3 always
 
         trs = [max(d[2]-d[3], abs(d[2]-days[i-1][4]), abs(d[3]-days[i-1][4])) for i,d in enumerate(days[1:],1)]
         atr_pct = np.mean(trs[-4:])/last_close*100 if trs else 3.0
@@ -1063,11 +1072,13 @@ for r in results:
     sec_counts[sec] = sec_counts.get(sec, 0) + 1
     diversified.append(r)
 
-print(f"\n{len(results)} Fri-Mon candidates → {len(diversified)} diversified | VIX {vix_now:.1f}")
-print(f"{'Sym':6s} {'Close':>7s} {'FriR':>6s} {'5dM':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Setup':>15s} {'Sc':>3s} {'SL':>9s} {'TP':>9s}")
-for s,cl,fr,m,vr,cp,sec,sa,b,su,sc,atr,slp,tpp,slpr,tppr,rsn in diversified[:12]:
-    print(f"{s:6s} {cl:>7.2f} {fr:+5.1f}% {m:+5.1f}% {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {su:>15s} {sc}/9 ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
-    print(f"       {rsn}")
+top_picks = diversified[:3]
+print(f"\n{len(results)} Fri-Mon candidates → TOP 3 | VIX {vix_now:.1f}")
+print(f"{'#':>2s} {'Sym':6s} {'Close':>7s} {'FriR':>6s} {'5dM':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Setup':>15s} {'Sc':>3s} {'Tier':>5s} {'SL':>9s} {'TP':>9s}")
+for i,(s,cl,fr,m,vr,cp,sec,sa,b,su,sc,atr,slp,tpp,slpr,tppr,rsn) in enumerate(top_picks, 1):
+    tier = 'HIGH' if sc >= 7 else ('MED' if sc >= 5 else 'LOW')
+    print(f"{i:>2d} {s:6s} {cl:>7.2f} {fr:+5.1f}% {m:+5.1f}% {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {su:>15s} {sc}/9 {tier:>5s} ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
+    print(f"   {rsn}")
 PYEOF
 ```
 
