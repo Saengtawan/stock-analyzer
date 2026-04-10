@@ -417,23 +417,30 @@ Score < 4 → ไม่แสดง
 - **Down Bounce**: Drop ≥3% จาก open → รอ bounce confirm → TP ตาม drop depth
 - **Momentum UP**: Gap up 2-8% + Vol ≥2x → entry at open → TP +3-5%
 
-**TP/SL data (backtest 126K setups):**
-- เช้า avg winner +2.3-3.6% / avg loser -2.3-3.8% (amplitude สูง)
-- บ่าย avg winner +1.0-1.8% / avg loser -1.1-1.8% (amplitude ต่ำ)
-- 14:00+ avg winner +0.6-0.9% / avg loser -0.6-1.0%
-- หลัง hit +2%: เช้า 64% วิ่งต่อ +3% | บ่าย 43% | 14:00+ 32%
-- Retrace risk: เช้า 32% retrace <+1% | บ่าย 19%
+**TP/SL — Best Combo ต่อช่วง (backtest 1.5M rows + 57M 5m bars):**
+
+| ช่วง | Type | TP | SL | Filter | WR | EV |
+|------|------|-----|-----|--------|-----|-----|
+| ORB | Long | +2% | **-0.5%** | SPY green + AD≥2 | 31% | +0.42% |
+| ORB | Short | -2% | +2% | SPY red + VIX≥22 + Gap dn + Vol 2x | **72%** | **+0.94%** |
+| 09:30-10:30 | Long | +1.5% | **-0.5%** | SPY green + AD≥2 | 44% | +0.43% |
+| 09:30-10:30 | Short | -1.5% | +2% | SPY red + VIX≥22 + Gap dn + Vol 2x | **75%** | +0.66% |
+| >10:30 | Long | +1.0% | -1.5% | SPY red + AD≥2 + Beta<1.5 | **65%** | +0.50% |
+| >10:30 | Short | -1.0% | +1.5% | SPY red + Gap dn + Vol 2x | **72%** | +0.29% |
+| Scalp | Long | +0.65% | -0.5% | 10:00-10:30 + Vol 2x | 48% | ~0% |
+
+**Key rules:**
+- **SL -0.5% ชนะทุก combo** — ตัดขาดทุนเร็ว = EV ดี
+- **AD ratio ≥2 = filter สำคัญสุด** (EV +0.04% → +0.42%)
+- **Short = edge สูงสุด** เมื่อ SPY red + Gap down + Vol 2x (WR 72%, แต่เกิดไม่บ่อย)
+- **Scalp +0.65% = edge น้อยมาก** ต้อง vol spike + 10:00-10:30 ถึงพอ
 
 **เมื่อไหร่ BUY NOW:**
-- **ORB 09:30: Score 6+ + PM gap 2-5% + Vol 2x → BUY at open ทันที** (WR 57-58%, ไม่ต้องรอ first bar/confirm)
-- **07:00-09:25 scan ใหม่ทั้งหมด** — ไม่ใช่แค่ดู watchlist เดิม ต้องหาตัวใหม่ที่ gap up ตอน PM (earnings BMO, overnight news, upgrade)
-- **Intraday: Score 6+ + data confirm → BUY NOW** ไม่ต้องรอ pullback ถ้า profile แข็ง
-- SPY แดง ไม่ได้แปลว่าไม่มี BUY — หุ้น low beta + catalyst อาจ BUY ได้ (WR ลดลงแต่ไม่ใช่ 0%)
-
-**TP/SL ตามเวลา:**
-- เช้า: TP +3-5% | SL -3% | avg winner +2.3-3.6%
-- บ่าย: TP +1-2% | SL -2% | avg winner +1.0-1.8%
-- 14:00+: TP +1% | SL -1% | avg winner +0.6-0.9%
+- **ORB 09:30: Score 6+ + PM gap 2-5% + Vol 2x → BUY at open ทันที** (WR 57-58%)
+- **07:00-09:25 scan ใหม่ทั้งหมด** — หาตัวใหม่ที่ gap up ตอน PM (earnings BMO, overnight news)
+- **Intraday: Score 6+ → BUY NOW** ไม่ต้องรอ pullback ถ้า profile แข็ง
+- **SPY red + AD≥2: Long ยังได้** (mean reversion WR 65% หลัง 10:30)
+- **SPY red + VIX≥22 + Gap down + Vol 2x: SHORT** (WR 72%)
 
 ### ขั้นตอน 5: แสดงผล
 
