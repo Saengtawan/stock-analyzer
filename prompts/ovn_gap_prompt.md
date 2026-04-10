@@ -139,6 +139,9 @@ Volume 3x+ = โอกาส gap เยอะขึ้น **แต่ risk ส�
 | Utilities / Real Estate | gap น้อยมาก (< 0.6%) |
 | Earnings BMO tomorrow | gap จาก earnings ไม่ใช่จาก momentum |
 
+## ⛔ Output Rule
+**Each scan = fresh recommendation. Never assume user holds positions.** ห้าม "ถ้าซื้อ X ไปแล้ว" / "trail SL" / "lock profit". Position status = command แยก.
+
 ## Output Format
 
 | # | Symbol | 5d Mom | Today Ret | Vol Ratio | Close Pos | Catalyst | Score |

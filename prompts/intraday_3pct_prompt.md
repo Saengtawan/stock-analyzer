@@ -100,6 +100,9 @@ SPY green short → WR 42% (negative)
 | Gap Up Vol 2x entry after +3% | 44% | — |
 | Down Bounce Vol 5x+ | <50% | — |
 
+## ⛔ Output Rule
+**Each scan = fresh recommendation. Never assume user holds positions.** ห้าม "ถ้าซื้อ X ไปแล้ว" / "trail SL" / "lock profit". Position status = command แยก.
+
 ## Output Format
 
 ### 🟢 BUY NOW (1-3 ตัว)

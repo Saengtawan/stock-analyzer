@@ -125,6 +125,9 @@ Baseline ทุกหุ้น: **Friday→Monday close = +0.37%**, ปิดข
 **Position size**: ไม่เกิน 3-5% ของ portfolio per trade
 **Max positions**: 3 ตัว (กระจาย sector)
 
+## ⛔ Output Rule
+**Each scan = fresh recommendation. Never assume user holds positions.** ห้าม "ถ้าซื้อ X ไปแล้ว" / "trail SL" / "lock profit". Position status = command แยก.
+
 ## Output Format
 
 | # | Symbol | Fri Pattern | Fri Ret | Vol | Close Pos | Sector | Score |

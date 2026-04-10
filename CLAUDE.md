@@ -365,11 +365,14 @@ for sym in syms:
         last_green = mb.get('c',0) > mb.get('o',0) if mb else False
         sec = sectors.get(sym,'')
         sec_3d_avg = sector_3d.get(sec, 0)
+        sec_today_avg = sector_avg.get(sec, 0) if 'sector_avg' in dir() else sec_3d_avg
+        # Effective sector = MIN of historical 3d and today (catches reversals)
+        sec_effective = min(sec_3d_avg, sec_today_avg)
         beta = betas.get(sym, 1.5)
         has_catalyst = sym in news_set or sym in insider_set or sym in si_set
 
         if chg >= 1.5 and daily_chg >= 0: mode = 'MomUP'
-        elif drop <= -3 and sec_3d_avg >= 0: mode = 'Bounce'
+        elif drop <= -3 and sec_today_avg >= 0: mode = 'Bounce'  # use TODAY for bounce gate
         elif drop <= -3: mode = 'KNIFE'
         else: mode = 'Watch'
 
@@ -386,16 +389,19 @@ for sym in syms:
         if ad_ratio >= 2: score += 2
         if abs(chg) >= 2 or drop <= -3: score += 1
         if beta < 1.5: score += 1
-        if sec_3d_avg >= 0.5: score += 1
+        if sec_effective >= 0.5: score += 1  # use min(historical, today) — catches reversals
         if vr >= 2.0: score += 1
         if has_catalyst: score += 1
+        # Penalty: if intraday sector reversed negative, penalize bounce trades
+        if mode in ('Bounce','Watch') and sec_today_avg < -0.3: score -= 2
 
         if mode == 'KNIFE': continue
-        # No min score gate — score = confidence, not filter
+        if sec_today_avg < -0.5 and chg < 0: continue  # falling stock in falling sector
+        if mode == 'Watch' and chg < 0: continue  # Watch mode + falling = uncertain, skip
         if abs(chg) < 1.5 and abs(daily_chg) < 2 and drop > -2: continue
 
         sl_price = now * (1 + sl_pct/100); tp_price = now * (1 + tp_pct/100)
-        results.append((sym, opn, now, chg, drop, vr, daily_chg, sec, sec_3d_avg, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price))
+        results.append((sym, opn, now, chg, drop, vr, daily_chg, sec, sec_effective, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price))
     except: pass
 
 mode_order = {'MomUP':0,'Bounce':1,'Watch':2}
@@ -690,8 +696,23 @@ Score 6+ → BUY NOW | 4-5 → พิจารณา | <4 → ไม่แสด
 
 ### ขั้นตอน 5: แสดงผล
 
-**เลือก 1-3 ตัวที่ดีที่สุด BUY NOW พร้อม Entry/SL/TP**
-- ถ้าไม่มีตัวดี → "ไม่มี BUY NOW" + เวลา re-scan
+**⛔ HARD RULE: scan output = fresh recommendation จากข้อมูลปัจจุบัน เท่านั้น**
+
+ห้าม assume ว่า user ถือ position ใดๆ จาก scan ก่อนหน้า:
+- ❌ "ถ้าซื้อ X ไปแล้ว..."
+- ❌ "trail SL ขึ้นมา..."
+- ❌ "lock profit ตอนนี้"
+- ❌ "exit ตอน..."
+- ❌ "Position update" / "P&L"
+
+✅ อนุญาต:
+- TOP 3 picks ปัจจุบัน + ราคา/SL/TP คำนวณจากตอน scan นี้
+- เปรียบเทียบกับ scan ก่อนเพื่อ persistence ranking ("NBIS อยู่ใน 5 scans ติด")
+- Sector trend / market state
+
+**Position management = command แยก** — ถ้า user อยากเช็ค P&L ต้องบอก "เช็ค X" / "position status" ไม่ใช่ส่วนของ "scan หุ้น"
+
+**เลือก 1-3 ตัวที่ดีที่สุด พร้อม Entry/SL/TP** (always 1-3 picks per scan, no "ไม่มี BUY NOW" except AD<1)
 
 **ตัวอย่าง output — มีตัวดี:**
 
@@ -725,7 +746,9 @@ Re-check: 10:00
 
 ---
 
-### Position Status (ถ้ามี)
+### Position Status (เฉพาะตอน user ขอ "position status" / "เช็ค X")
+
+ห้ามแสดงใน scan ปกติ — แยก command
 
 | หุ้น | Entry | Now | P&L | Action |
 |------|-------|-----|-----|--------|

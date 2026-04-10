@@ -99,6 +99,9 @@ Best combo: SPY green + AD≥3 + Drop 3%+ + sector OK = WR 65-68%
 | Wednesday movers ถือข้ามคืน D+1 | 36% |
 | หลัง 15:00 ทุก setup | <55% |
 
+## ⛔ Output Rule
+**Each scan = fresh recommendation. Never assume user holds positions.** ห้าม "ถ้าซื้อ X ไปแล้ว" / "trail SL" / "lock profit". Position status = command แยก.
+
 ## Output Format
 
 ### 🟢 BUY NOW (1-3 ตัว)

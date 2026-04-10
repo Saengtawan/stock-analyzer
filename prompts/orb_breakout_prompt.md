@@ -136,6 +136,9 @@ SPY green short → WR 42% (negative)
 | Gap 5%+ + Small cap | 44% early peak |
 | Gap > 10% + no catalyst | <50% |
 
+## ⛔ Output Rule
+**Each scan = fresh recommendation. Never assume user holds positions.** ห้าม "ถ้าซื้อ X ไปแล้ว" / "trail SL" / "lock profit". Position status = command แยก.
+
 ## Output Format
 
 ### 🟢 BUY (พร้อมซื้อ)
