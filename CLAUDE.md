@@ -474,40 +474,41 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 
 ### ขั้นตอน 5: แสดงผล
 
-**แสดง candidates ที่ผ่าน filter ทั้งหมด + AI เลือก 1-3 ตัวที่ดีสุด BUY NOW**
-- **ตารางรวม** = แสดงทุกตัวที่ผ่าน filter (user เห็นภาพรวม)
-- **BUY NOW** = AI เลือก 1-3 ตัวที่ดีที่สุด พร้อม Entry/SL/TP/R:R
-- ถ้าไม่มีตัวที่ดีพอ → "ไม่มี BUY NOW" + เวลา re-scan
-- ไม่ใส่ label ⚠️/❌/"ไม่แนะนำ" ใน candidates — แค่แสดง data ให้ user ดูเอง
-- **ไม่อธิบายซ้ำทุกตัว** — ตารางมี data ครบแล้ว แค่สรุปสั้นว่าตัวไหนดีสุด + ทำไม
+**เลือก 1-3 ตัวที่ดีที่สุด BUY NOW — ไม่ต้องจัดหมวดหมู่ ไม่ต้อง WATCH list**
+- AI เลือกตัวที่น่าซื้อที่สุดเลย พร้อม Entry/SL/TP
+- ไม่แยก "Momentum" vs "Bounce" — user สนแค่ว่าตัวไหนกำไร
+- ถ้าไม่มีตัวดี → "ไม่มี BUY NOW" + เวลา re-scan
+- **ไม่อธิบายทุกตัว** — สรุปสั้นว่าตัวไหนดีสุด + ทำไม
 
-**ตัวอย่าง output — SPY daily green + candidates ดี:**
+**ตัวอย่าง output — มีตัวดี:**
 
 ---
 
-## Scan — 12:30 ET Wed | SPY daily +2.4% 🟢 | intraday -0.1% | VIX 21
+## Scan — 12:30 ET Wed | SPY daily +2.4% 🟢 | VIX 21
 
 ### 🟢 BUY NOW
 
 | # | Symbol | Now | SL | TP | R:R | เหตุผล |
 |---|--------|-----|-----|-----|-----|--------|
 | 1 | INTU | $405 | $392 (-3.2%) | $418 (+3.2%) | 1:1 | Drop -5% + Beta 1.21 + MCap $114B + SPY daily 🟢 |
-| 2 | NBIS | $125 | $119 (-4.8%) | $131 (+4.8%) | 1:1 | Drop -5.8% + Beta 1.06 + SI 19.6% + deep drop |
+| 2 | NBIS | $125 | $119 (-4.8%) | $131 (+4.8%) | 1:1 | SI 19.6% + Beta 1.06 + Vol 2x + gap up |
 
-**INTU**: Winner profile ครบ + SPY daily +2.4% = entry now
-**NBIS**: SI 19.6% squeeze + low beta + deep drop
+**INTU**: deep drop + large cap + SPY green
+**NBIS**: SI squeeze + low beta + momentum
+
+Re-check: 13:00
 
 ---
 
-**ตัวอย่าง output — SPY daily แดง:**
+**ตัวอย่าง output — ไม่มีตัวดี:**
 
 ---
 
 ## Scan — 09:42 ET Tue | SPY daily -0.5% 🔴 | VIX 24.2
 
-ไม่มี BUY NOW — SPY daily แดง
+ไม่มี BUY NOW
 
-Re-check: 10:00 ดู SPY direction | 10:15 ดู drop depth + bounce
+Re-check: 10:00
 
 ---
 
