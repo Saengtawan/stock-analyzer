@@ -143,7 +143,7 @@ def upsert_earnings(session: object, sym: str,
 def get_stale_symbols(session: object, all_symbols: list[str],
                       max_age_days: int = 7) -> list[str]:
     """Return symbols not updated in last max_age_days or never fetched."""
-    cutoff = (date.today() - timedelta(days=max_age_days)).strftime('%Y-%m-%d')
+    cutoff = (datetime.now(ET).date() - timedelta(days=max_age_days)).strftime('%Y-%m-%d')
     fresh = set(r[0] for r in session.execute(text("""
         SELECT DISTINCT symbol FROM earnings_history
         WHERE updated_date >= :p0

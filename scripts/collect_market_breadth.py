@@ -201,6 +201,10 @@ def main():
             if (base_dt - timedelta(days=i)).weekday() < 5
         ]
 
+        if not dates_to_compute:
+            print("  No trading days to compute (holiday/weekend?) — done.")
+            return
+
         # Skip dates already in DB (unless --force)
         if not args.force:
             existing = set(r[0] for r in session.execute(

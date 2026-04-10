@@ -17,6 +17,9 @@ import sys
 import os
 import logging
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+ET = ZoneInfo('America/New_York')
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -54,7 +57,7 @@ def fill_outcomes():
 
     with get_session() as session:
         # Find picks needing outcomes (outcome_5d IS NULL and scan_date old enough)
-        today = datetime.now().date()
+        today = datetime.now(ET).date()
         rows = session.execute(text("""
             SELECT id, symbol, scan_date, scan_price
             FROM discovery_picks

@@ -79,12 +79,12 @@ def fetch_options_for_symbol(sym: str) -> dict | None:
             return None
 
         # Find first expiry 7-35 days out
-        today = date.today()
+        today_et = datetime.now(ET).date()
         target_expiry = None
         for exp in expirations:
             try:
                 exp_dt = datetime.strptime(exp, '%Y-%m-%d').date()
-                days_out = (exp_dt - today).days
+                days_out = (exp_dt - today_et).days
                 if 7 <= days_out <= 35:
                     target_expiry = exp
                     break
@@ -96,7 +96,7 @@ def fetch_options_for_symbol(sym: str) -> dict | None:
             for exp in expirations:
                 try:
                     exp_dt = datetime.strptime(exp, '%Y-%m-%d').date()
-                    if exp_dt >= today:
+                    if exp_dt >= today_et:
                         target_expiry = exp
                         break
                 except Exception:
@@ -181,6 +181,7 @@ def main():
 
         total_ok = 0
         total_fail = 0
+        BATCH_COMMIT = 50
 
         for i, sym in enumerate(symbols):
             data = fetch_options_for_symbol(sym)
@@ -208,12 +209,17 @@ def main():
             else:
                 total_fail += 1
 
-            if (i + 1) % 50 == 0:
+            # Commit in batches to reduce DB lock time
+            if (i + 1) % BATCH_COMMIT == 0:
+                session.commit()
                 pct = round((i + 1) / len(symbols) * 100)
                 print(f"  [{i+1}/{len(symbols)} {pct}%] ok={total_ok} fail={total_fail}")
 
             if (i + 1) % DELAY_EVERY == 0:
                 time.sleep(DELAY_SECS)
+
+        # Final commit for remaining rows
+        session.commit()
     print(f"\n  Done. ok={total_ok} fail={total_fail} date={target_date}")
 
 

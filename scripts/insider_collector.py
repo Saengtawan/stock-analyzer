@@ -25,8 +25,11 @@ from database.orm.base import get_session
 from sqlalchemy import text
 import argparse
 import time
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as XmlET
 from datetime import datetime, date, timedelta
+from zoneinfo import ZoneInfo
+
+ET_TZ = ZoneInfo('America/New_York')
 
 import requests
 
@@ -143,7 +146,7 @@ def _parse_form4_xml(cik: str, accession_number: str, xml_filename: str) -> list
         resp = requests.get(url, headers=HEADERS, timeout=15)
         if resp.status_code != 200:
             return []
-        root = ET.fromstring(resp.text)
+        root = XmlET.fromstring(resp.text)
     except Exception:
         return []
 
@@ -296,7 +299,7 @@ def main():
         if args.date:
             start_date = end_date = args.date
         else:
-            today = date.today()
+            today = datetime.now(ET_TZ).date()
             end_date   = today.strftime('%Y-%m-%d')
             start_date = (today - timedelta(days=args.days)).strftime('%Y-%m-%d')
 

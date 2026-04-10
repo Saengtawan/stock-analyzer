@@ -7,7 +7,10 @@ Stores snapshot in short_interest_history table.
 import sqlite3
 import time
 from pathlib import Path
-from datetime import date
+from datetime import datetime, date
+from zoneinfo import ZoneInfo
+
+ET = ZoneInfo('America/New_York')
 
 import yfinance as yf
 
@@ -35,7 +38,7 @@ def main():
     conn = None  # via get_session())
     ensure_table(conn)
 
-    today = date.today().isoformat()
+    today = datetime.now(ET).date().isoformat()
 
     # Check if already collected today
     existing = conn.execute(

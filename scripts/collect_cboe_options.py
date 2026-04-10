@@ -9,7 +9,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import time
 import requests
-from datetime import date
+from datetime import datetime, date
+from zoneinfo import ZoneInfo
+
+ET = ZoneInfo('America/New_York')
 from database.orm.base import get_session
 from sqlalchemy import text
 
@@ -128,7 +131,7 @@ def compute_summary(options):
 
 def main():
     ensure_table()
-    today = date.today().isoformat()
+    today = datetime.now(ET).date().isoformat()
 
     with get_session() as session:
         existing = session.execute(

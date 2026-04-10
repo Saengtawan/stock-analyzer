@@ -53,7 +53,7 @@ def _get_price_at(df: pd.DataFrame, target_hour: int, target_min: int) -> float 
 def _calc_30min(symbol: str, target_date: str | None = None) -> float | None:
     """Download 2-min bars for target_date (or today), return first_30min_return or None."""
     try:
-        if target_date and target_date != date.today().strftime('%Y-%m-%d'):
+        if target_date and target_date != datetime.now(ET).date().strftime('%Y-%m-%d'):
             # Historical date: use start/end
             end_dt = datetime.strptime(target_date, '%Y-%m-%d') + timedelta(days=1)
             df = yf.download(symbol, start=target_date, end=end_dt.strftime('%Y-%m-%d'),
@@ -82,7 +82,7 @@ def main():
                         help='Target date YYYY-MM-DD (default: today)')
     args = parser.parse_args()
 
-    today = args.date or date.today().strftime('%Y-%m-%d')
+    today = args.date or datetime.now(ET).date().strftime('%Y-%m-%d')
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] fill_first_30min date={today}")
 
     with get_session() as session:

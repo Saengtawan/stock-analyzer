@@ -18,6 +18,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 from database.orm.base import get_session
 from sqlalchemy import text
 from datetime import datetime, date, timedelta
+from zoneinfo import ZoneInfo
+
+ET = ZoneInfo('America/New_York')
 
 import yfinance as yf
 
@@ -97,7 +100,7 @@ def _ensure_table(session):
 
 
 def main():
-    today = date.today()
+    today = datetime.now(ET).date()
     # Capture yesterday's close (market already closed)
     target = today - timedelta(days=1)
     # Skip weekends

@@ -21,6 +21,9 @@ import numpy as np
 from pathlib import Path
 from collections import defaultdict, Counter
 from datetime import datetime
+from zoneinfo import ZoneInfo
+
+ET = ZoneInfo('America/New_York')
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 DB_PATH = Path(__file__).resolve().parents[1] / 'data' / 'trade_history.db'
@@ -59,7 +62,7 @@ def main():
     # =========================================================
     section('1. DATA FRESHNESS')
     # =========================================================
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = datetime.now(ET).strftime('%Y-%m-%d')
     for tbl, date_col, max_age_days, desc in [
         ('stock_daily_ohlc', 'date', 3, 'Stock OHLC'),
         ('sector_etf_daily_returns', 'date', 3, 'Sector ETF'),

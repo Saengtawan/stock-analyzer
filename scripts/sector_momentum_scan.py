@@ -66,7 +66,7 @@ def _get_etf_pct_change(etf_symbols: list[str]) -> dict[str, dict]:
         if df.empty:
             return result
 
-        today = date.today()
+        today = datetime.now(ET).date()
 
         for etf in etf_symbols:
             try:

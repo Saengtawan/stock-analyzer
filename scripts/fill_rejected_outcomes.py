@@ -16,6 +16,9 @@ from database.orm.base import get_session
 from sqlalchemy import text
 import time
 from datetime import datetime, date, timedelta
+from zoneinfo import ZoneInfo
+
+ET = ZoneInfo('America/New_York')
 from collections import defaultdict
 
 import yfinance as yf
@@ -27,7 +30,7 @@ def fill():
     with get_session() as session:
 
         # Cutoff: only fill rows where D+5 trading days have elapsed (~7 calendar days)
-        cutoff = (date.today() - timedelta(days=7)).isoformat()
+        cutoff = (datetime.now(ET).date() - timedelta(days=7)).isoformat()
 
         rows = session.execute(text("""
             SELECT id, symbol, scan_date, scan_price
