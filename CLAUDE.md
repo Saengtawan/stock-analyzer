@@ -392,27 +392,30 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 
 **ใช้ data จาก Step 3 + หลักการจาก prompt file ที่อ่าน → AI ตัดสินเอง:**
 
-หลักการ (จาก backtest 97K+ signals — validated):
-- **VWAP**: ราคาเหนือ VWAP = bullish intraday bias | ใต้ VWAP = bearish (Alpaca snapshot dailyBar.vw)
-- **SPY direction = ดูจาก DAILY (prev close → now) ไม่ใช่ intraday (today open → now)**
-  - SPY daily green → bounce WR 58-62% (แม้ intraday จะแดงเล็กน้อยจาก gap up)
-  - SPY daily < -1% → WR 34%
-  - ตัวอย่าง: SPY +2.4% daily แต่ intraday -0.2% = **วันเขียว** ไม่ใช่วันแดง
-- **Drop depth = #1 predictor**: 2-3% drop = WR 53% | 3-5% = 57% | 5%+ = 68%
-- **Beta**: <1.5 = WR 52.3% (N=94,668) | >1.5 = WR 50.8% (N=36,888) — from stock_fundamentals
-- **MCap**: >30B = WR 52.6% (N=34,596) | <10B = WR 51.5% (N=65,182)
-- **AD ratio (จาก market_breadth) สำคัญกว่า breadth%**: AD<1 = bounce WR 27% | AD 1-2 = 42% | AD≥3 = 56% (N=106K)
-- **VIX tier**: <18 = WR 52% (ดีสุด) | 18-22 = WR 48% (แย่สุด!) | 22-28 = 51% | 28-35 = 50% | 35+ = 46%
-- **SI x drop depth**: SI 20%+ drop 2-3% = WR 47% | SI 20%+ drop 5%+ = WR 7%
-- มีข่าว (ไม่ว่า pos/neg) = มี attention + volume → ดีกว่าไม่มีข่าว
-- Sector: ดู sector ที่แข็งแรงวันนั้น (rotation เปลี่ยนทุกวัน — บางวัน Energy นำ บางวัน Tech นำ)
-- **เลือก candidates จากหลาย sector ที่แข็ง** — ไม่เลือกแค่ sector เดียวแม้จะแข็งสุด (กระจาย risk + จับ rotation)
-- มี insider buy = executives เชื่อมั่น
-- Earnings ใกล้ = uncertainty สูง → อาจดีหรือแย่ ระวัง
-- **Gap Up 2-8% + Vol 2x at open** = WR 57-58% | **entry after +3% intraday** = WR 44%
-- **Gap Down + Vol 2x** = WR 42%
-- **Wednesday movers ถือข้ามคืน D+1** = WR 36% (เฉพาะ OVN hold ไม่ใช่ intraday วันนั้น)
-- **Momentum UP context**: 5d trend +5%+ + gap + vol 2x = momentum continuation (not bounce)
+**⚡ Score + Filter (ให้ AI ตัดสินเร็ว):**
+
+| Factor | เงื่อนไข | Score | WR Impact |
+|--------|---------|-------|-----------|
+| SPY daily | green | +2 | +20pp (47→67%) |
+| AD ratio | ≥2 | +2 | +15pp (42→56%) |
+| Setup | Drop ≥3% หรือ Gap+Vol 2x | +1 | มี edge |
+| Beta | <1.5 | +1 | +1.5pp |
+| Sector | แข็งวันนี้ (ดู ranking) | +1 | rotation |
+| Vol | ≥2x | +1 | +4pp |
+| Catalyst | news/upgrade/insider/SI สูง | +1 | attention+vol |
+
+```
+Score 6-9 → BUY NOW (มั่นใจ)
+Score 4-5 → พิจารณา (มี edge แต่ไม่แข็ง)
+Score < 4 → ไม่แสดง
+```
+
+**SPY direction = ดูจาก DAILY** (prev close → now) ไม่ใช่ intraday (today open → now)
+- SPY +2.4% daily แต่ intraday -0.2% = **วันเขียว**
+
+**2 Play Types:**
+- **Down Bounce**: Drop ≥3% จาก open → รอ bounce confirm → TP ตาม drop depth
+- **Momentum UP**: Gap up 2-8% + Vol ≥2x → entry at open → TP +3-5%
 
 **TP/SL data (backtest 126K setups):**
 - เช้า avg winner +2.3-3.6% / avg loser -2.3-3.8% (amplitude สูง)
@@ -421,56 +424,17 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 - หลัง hit +2%: เช้า 64% วิ่งต่อ +3% | บ่าย 43% | 14:00+ 32%
 - Retrace risk: เช้า 32% retrace <+1% | บ่าย 19%
 
-**Data points ให้ AI พิจารณา — 2 strategies:**
-
-**A. Down Bounce:**
-- Drop depth, SPY daily direction, AD ratio, VWAP position, bounce bar volume, sector direction, beta
-
-**B. Momentum UP:**
-- Gap up 2-8% + Vol 2x = WR 57-58% | Vol 5x+ = WR 66% avg +3.63%
-- Gap up + Vol <1.5x = WR 34-42%
-- Entry after +3% intraday = WR 33% (N=42K) | Entry at open+1% = WR 47%
-
-**AI ดู data ทั้งหมดแล้ว weigh เอง — ยิ่งหลาย factors ตรง edge ยิ่งสูง**
-
 **เมื่อไหร่ BUY NOW (market) vs WATCH (limit):**
 - ถ้าหลาย factors winner profile ตรง (low beta, large mcap, deep drop, high green fraction, SPY green, sector แข็ง) → edge สูงขึ้น — AI weigh รวมแล้วตัดสิน BUY NOW
 - SPY แดง ไม่ได้แปลว่าไม่มี BUY — หุ้น low beta + catalyst + SI สูง อาจ BUY NOW ได้แม้ SPY แดง (WR ลดลงแต่ไม่ใช่ 0%)
 - ถ้ารอ pullback แล้วราคาวิ่งขึ้นเรื่อยๆ → ถ้า profile แข็งพอตั้งแต่แรก ควร BUY NOW
 
-**Limit fill ยาก:** ขอบล่างสุดอาจไม่ถึง | กลาง range (70-80%) fill ง่ายกว่า
-
-**Momentum UP data (full backtest 564K daily rows):**
-- **Gap up 2-8% + Vol 2x+ = WR 57-58%** avg +0.94%
-- **Gap up + Vol 5x+ = WR 66% avg +3.63%** (WR 54% at 10:00 → 66% at EOD)
-- Gap up + Vol <1.5x = WR 34-42%
-- Entry at open+1% = WR 47% | Entry after +3-5% intraday = WR 33% (N=42K)
-- Strong day 5%+ → D+1 = WR 44-48%
-
-**Time-slot specific data (full backtest 108K-133K signals):**
-- **Morning bounce (09:30-10:30)**: WR 58%, avg +0.66% — amplitude สูงสุด
-- **Midday bounce (11:00-13:00)**: WR 56%, avg +0.21% — amplitude ลด 3x
-- **Afternoon bounce (13:00-15:00)**: WR 55%, avg +0.10% — แทบไม่มี amplitude
-- **SPY green morning = WR 67%** vs SPY red morning = WR 47% — gap 20pp!
-- **AD<0.5 = WR 40-43% ทุกช่วง**
-- **AD>=3 morning = WR 71%** | AD>=3 midday = WR 74%
-- **Strong Bull (SPY up+VIX<22+AD>1) midday = WR 69%**
-- **VIX 28+ morning = WR 49%** | VIX 28+ afternoon 15:00+ = WR 79% (N=299)
-
-**Deep Backtest Findings (จาก PyOD + 8 agents, 56M bars):**
-- **Gap Up >3% จาก prev close: early peak 56%** avg intraday -0.26% (N=2,584)
-- **Gap Down >3%: bounce 52%** avg +0.47% (N=2,310)
-- **Mega rally day (50+ stocks up): D+1 WR 12%**
-- **Range >3x ATR + close near high: D+1 WR 39%**
-- **First 30 min +2%: WR 50.5% (N=474K)** — no real edge, morning momentum is noise
-- **Power Hour down → next gap up 56%** | Red close (GF<33%) → gap up 59% — OVN signal
-- **SPY -1% day → Tech bounces +0.93% D+1 (WR 70%)** — sector rotation after selloff
-- **Financial Services leads → Basic Materials follows D+1** (r=0.09, p=0.03)
-- **Lunch dip recovery: WR 48.7%**
-- **10:00 bar direction = ไม่ predict next 2 hours** (WR 49%)
-
-**AI ดู data ทั้งหมดแล้ว weigh เอง — แต่ละวันต่างกัน context ต่างกัน**
-**ไม่มี fixed score — AI judge จาก totality of evidence**
+**Entry characteristics:**
+- Bounce เช้า: median 14-18 bars (70-90 min) ค่อยๆ ขึ้น มีเวลาเข้า
+- Bounce บ่าย: median 17-18 bars ช้า + consolidation ชัด เหมาะ limit
+- 14:00+: median 6 bars (30 min) เร็ว เพราะใกล้ปิด
+- **26-30% ของ setups peak ใน ≤3 bars → บางตัววิ่งตรงขึ้นไม่ pullback เลย**
+- Limit fill ยาก: ขอบล่างสุดอาจไม่ถึง | กลาง range (70-80%) fill ง่ายกว่า
 
 ### ขั้นตอน 5: แสดงผล
 
