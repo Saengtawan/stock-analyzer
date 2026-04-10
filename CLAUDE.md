@@ -425,7 +425,8 @@ Score < 4 → ไม่แสดง
 - Retrace risk: เช้า 32% retrace <+1% | บ่าย 19%
 
 **เมื่อไหร่ BUY NOW:**
-- **ORB 09:30: Score 6+ จาก watchlist + PM gap 2-5% + Vol 2x → BUY at open ทันที** (WR 57-58%, ไม่ต้องรอ first bar/confirm)
+- **ORB 09:30: Score 6+ + PM gap 2-5% + Vol 2x → BUY at open ทันที** (WR 57-58%, ไม่ต้องรอ first bar/confirm)
+- **07:00-09:25 scan ใหม่ทั้งหมด** — ไม่ใช่แค่ดู watchlist เดิม ต้องหาตัวใหม่ที่ gap up ตอน PM (earnings BMO, overnight news, upgrade)
 - **Intraday: Score 6+ + data confirm → BUY NOW** ไม่ต้องรอ pullback ถ้า profile แข็ง
 - SPY แดง ไม่ได้แปลว่าไม่มี BUY — หุ้น low beta + catalyst อาจ BUY ได้ (WR ลดลงแต่ไม่ใช่ 0%)
 
