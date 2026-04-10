@@ -92,7 +92,7 @@ Baseline ทุกหุ้น: **Friday→Monday close = +0.37%**, ปิดข
 - **Default = Setup 1 (Friday Rally)** — momentum carry. Setup 2/3 (bounce/dump) เป็นทางเลือกรอง
 - **Sector gate**: Setup 3 (Friday Dump) — ห้าม pick ใน sector ที่ลงทั้งสัปดาห์ (= falling knife weekend)
 - **RS**: stock แข็งกว่า sector + sector แข็งกว่า SPY = priority
-- **Diversify**: ห้าม pick >2 ตัวจาก sector เดียวกัน, ห้าม >50% จาก setup เดียว
+- **Diversify**: max 2/sector default, **max 4/sector ถ้า sector_3d ≥ +0.5%**, ห้าม >50% จาก setup เดียว
 
 ## Checklist (ข้อมูลให้ AI พิจารณา — ยิ่งผ่านมาก WR ยิ่งสูง)
 

@@ -36,7 +36,7 @@ Raw bounce (no AD filter) = WR 50% — no edge
 ---
 
 ## ⛔ MOMENTUM-FIRST + Sector Gate (mandatory)
-**Default = Momentum UP** (8%+ by 11:30 → WR 54% continuation). Bounce เป็นทางเลือกรอง. ห้าม pick bounce >50% หรือ >2 ตัวจาก sector เดียว.
+**Default = Momentum UP** (8%+ by 11:30 → WR 54% continuation). Bounce เป็นทางเลือกรอง. **Diversify rule**: max 2/sector default, **max 4/sector ถ้า sector_3d ≥ +0.5%** (strong tailwind).
 
 ## Strategy 1: Momentum Continuation UP (WR 54%) — DEFAULT
 หุ้นขึ้น 8%+ by 11:30 + Vol แข็ง + RS strong → ถือ EOD

@@ -38,7 +38,7 @@ Best combo: SPY green + AD≥2 + Drop 3%+ = WR 67% (N=7.6K)
 ---
 
 ## ⛔ MOMENTUM-FIRST + Sector Gate
-**Default = Momentum UP**. Bounce เฉพาะเมื่อ sector ของหุ้นไม่ลง + AD≥2. ห้าม pick bounce >50% ของ output. ห้าม >2 ตัวจาก sector เดียวกัน.
+**Default = Momentum UP**. Bounce เฉพาะเมื่อ sector ของหุ้นไม่ลง + AD≥2. ห้าม pick bounce >50% ของ output. **Diversify rule**: max 2/sector default, **max 4/sector ถ้า sector_3d ≥ +0.5%** (strong tailwind = ลด risk per stock).
 
 ## Strategy 1: Momentum UP — Gap + Vol 2x (WR 57-58%) — DEFAULT
 Gap up 2-8% + vol ≥2x → momentum continuation

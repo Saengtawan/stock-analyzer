@@ -17,7 +17,7 @@ ORB ใช้ก่อนตลาดเปิด (06:00-09:30 ET) — หลั
 ### Sector Gate Before Bounce
 - ❌ **ห้าม pick bounce** ในหุ้นที่ sector ของมันลงวันนั้น (= falling knife)
 - ❌ **ห้าม pick bounce >50%** ของ scan output (diversify setup type)
-- ❌ **ห้าม pick bounce >2 ตัว** จาก sector เดียวกัน
+- ❌ **Diversify**: max 2/sector default, **max 4/sector ถ้า sector_3d ≥ +0.5%** (strong tailwind ลด risk แต่ละตัว)
 - ✅ Bounce ได้เมื่อ: AD≥2 + SPY green + sector ของหุ้น **ไม่ลง** + catalyst เฉพาะตัว
 
 ### RS (Relative Strength)

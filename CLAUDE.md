@@ -226,12 +226,13 @@ for sym in syms:
 mode_order = {'PM_MOM':0,'MomUP':1,'Bounce':2,'Watch':3}
 results.sort(key=lambda x: (mode_order.get(x[9],9), -x[10]))
 
-# === Diversification: max 2 per sector ===
+# === Diversification: max 2/sector default, 4 if sector_3d >= 0.5% (strong tailwind) ===
 sec_counts = {}
 diversified = []
 for r in results:
-    sec = r[6]
-    if sec_counts.get(sec, 0) >= 2: continue
+    sec = r[6]; sec_3d = r[7]
+    max_picks = 4 if sec_3d >= 0.5 else 2
+    if sec_counts.get(sec, 0) >= max_picks: continue
     sec_counts[sec] = sec_counts.get(sec, 0) + 1
     diversified.append(r)
 
@@ -376,8 +377,10 @@ mode_order = {'MomUP':0,'Bounce':1,'Watch':2}
 results.sort(key=lambda x: (mode_order.get(x[11],9), -x[12]))
 sec_counts = {}; diversified = []
 for r in results:
-    if sec_counts.get(r[7], 0) >= 2: continue
-    sec_counts[r[7]] = sec_counts.get(r[7], 0) + 1
+    sec = r[7]; sec_3d = r[8]
+    max_picks = 4 if sec_3d >= 0.5 else 2
+    if sec_counts.get(sec, 0) >= max_picks: continue
+    sec_counts[sec] = sec_counts.get(sec, 0) + 1
     diversified.append(r)
 
 print(f"\n📊 {len(results)} candidates → {len(diversified)} after diversify (max 2/sector)")
@@ -516,8 +519,10 @@ mode_order = {'MomCont':0,'Bounce':1,'Watch':2}
 results.sort(key=lambda x: (mode_order.get(x[11],9), -x[12]))
 sec_counts = {}; diversified = []
 for r in results:
-    if sec_counts.get(r[7], 0) >= 2: continue
-    sec_counts[r[7]] = sec_counts.get(r[7], 0) + 1
+    sec = r[7]; sec_3d = r[8]
+    max_picks = 4 if sec_3d >= 0.5 else 2
+    if sec_counts.get(sec, 0) >= max_picks: continue
+    sec_counts[sec] = sec_counts.get(sec, 0) + 1
     diversified.append(r)
 
 print(f"\n📊 {len(results)} candidates → {len(diversified)} after diversify")

@@ -116,7 +116,7 @@ Volume 3x+ = โอกาส gap เยอะขึ้น **แต่ risk ส�
 - OVN เป็น **momentum carry play** อยู่แล้ว — ห้าม pick "dump 5%+" ใน sector ที่ลงทั้ง sector (= falling knife overnight)
 - **Sector gate**: ถ้า sector ของหุ้นลงวันนั้น → skip dump setup (Setup 3)
 - **RS**: stock ขึ้นแรงกว่า sector + sector แข็งกว่า SPY = highest priority
-- ห้าม pick >2 ตัวจาก sector เดียวกัน
+- **Diversify**: max 2/sector default, **max 4/sector ถ้า sector_3d ≥ +0.5%**
 
 ## Checklist (ข้อมูลให้ AI พิจารณา — ยิ่งผ่านมาก WR ยิ่งสูง)
 
