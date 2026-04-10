@@ -186,6 +186,9 @@ for sym in syms:
         d0 = days[0]; mom5d = (yest_close/d0[3]-1)*100 if len(days) >= 5 else yest_ret
         avg_vol = np.mean([d[5] for d in days[:-1]]) if len(days) > 1 else 1
         vr = db.get('v',0)/avg_vol if avg_vol > 0 else 0
+        # ATR % for adaptive SL
+        trs = [max(d[2]-d[3], abs(d[2]-days[i-1][4]), abs(d[3]-days[i-1][4])) for i,d in enumerate(days[1:],1)]
+        atr_pct = np.mean(trs[-4:])/yest_close*100 if trs else 3.0
         sec = sectors.get(sym, '')
         sec_3d_avg = sector_3d.get(sec, 0)  # 3-day trend (less noisy)
         beta = betas.get(sym, 1.5)  # default 1.5 if unknown
@@ -197,6 +200,16 @@ for sym in syms:
         elif mom5d <= -5 and sec_3d_avg >= 0: mode = 'Bounce'
         elif mom5d <= -5: mode = 'KNIFE'  # falling knife — sector down trend
         else: mode = 'Watch'
+
+        # Adaptive SL: ATR-based per mode (avoid noise stops)
+        if mode in ('MomUP','PM_MOM'):
+            sl_pct = -max(0.5, 0.2 * atr_pct)  # min -0.5%, 0.2×ATR for high-vol stocks
+            tp_pct = max(2.0, 0.5 * atr_pct)   # TP at least +2%, scale with vol
+        elif mode == 'Bounce':
+            sl_pct = -max(1.5, 0.5 * atr_pct)  # min -1.5%, wider for volatile bounces
+            tp_pct = max(3.0, 0.8 * atr_pct)   # bigger targets
+        else:
+            sl_pct = -max(1.0, 0.3 * atr_pct); tp_pct = max(1.5, 0.4 * atr_pct)
 
         # === SCORE /9 (computed in code, not in head) ===
         score = 0; reasons = []
@@ -219,14 +232,16 @@ for sym in syms:
         if score < 4: continue
         if abs(yest_ret) < 2 and abs(mom5d) < 5 and abs(pm_gap) < 1.5: continue
 
-        results.append((sym, pm_price, pm_gap, yest_ret, mom5d, vr, sec, sec_3d_avg, beta, mode, score, ' '.join(reasons)))
+        sl_price = pm_price * (1 + sl_pct/100)
+        tp_price = pm_price * (1 + tp_pct/100)
+        results.append((sym, pm_price, pm_gap, yest_ret, mom5d, vr, sec, sec_3d_avg, beta, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price, ' '.join(reasons)))
     except: pass
 
 # Sort by mode (PM_MOM > MomUP > Bounce > Watch), then score DESC
 mode_order = {'PM_MOM':0,'MomUP':1,'Bounce':2,'Watch':3}
 results.sort(key=lambda x: (mode_order.get(x[9],9), -x[10]))
 
-# === Diversification: max 2/sector default, 4 if sector_3d >= 0.5% (strong tailwind) ===
+# === Diversification: max 2/sector default, 4 if sector_3d >= 0.5% ===
 sec_counts = {}
 diversified = []
 for r in results:
@@ -236,14 +251,13 @@ for r in results:
     sec_counts[sec] = sec_counts.get(sec, 0) + 1
     diversified.append(r)
 
-# Counts
 mom_n = sum(1 for r in results if r[9] in ('PM_MOM','MomUP'))
 bnc_n = sum(1 for r in results if r[9] == 'Bounce')
-print(f"\n{len(results)} candidates ({mom_n} momentum, {bnc_n} bounce). After diversify (max 2/sector): {len(diversified)}")
-print(f"{'Sym':6s} {'PM':>7s} {'PMGap':>6s} {'Yest':>6s} {'5dM':>6s} {'Vol':>5s} {'β':>4s} {'Sec':>10s} {'Sec3d':>6s} {'Mode':>7s} {'Sc':>3s} Reasons")
-for s,p,pg,yr,m,vr,sec,sa,b,mode,sc,rsn in diversified[:15]:
-    vol_str = f'{vr:.1f}x' if vr >= 1.0 else 'TBD'
-    print(f"{s:6s} {p:>7.2f} {pg:+5.1f}% {yr:+5.1f}% {m:+5.1f}% {vol_str:>5s} {b:>4.1f} {sec[:10]:>10s} {sa:+5.1f}% {mode:>7s} {sc}/9  {rsn}")
+print(f"\n{len(results)} candidates ({mom_n} momentum, {bnc_n} bounce). After diversify: {len(diversified)}")
+print(f"{'Sym':6s} {'Px':>7s} {'Yest':>6s} {'5dM':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Sec3d':>6s} {'Mode':>7s} {'Sc':>3s} {'SL':>9s} {'TP':>9s}")
+for s,p,pg,yr,m,vr,sec,sa,b,mode,sc,atr,slp,tpp,slpr,tppr,rsn in diversified[:15]:
+    print(f"{s:6s} {p:>7.2f} {yr:+5.1f}% {m:+5.1f}% {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {sa:+5.1f}% {mode:>7s} {sc}/9 ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
+    print(f"       {rsn}")
 PYEOF
 ```
 
@@ -344,19 +358,26 @@ for sym in syms:
         if now < 3 or opn < 1 or prev_c < 1: continue
         chg = (now/opn-1)*100; daily_chg = (now/prev_c-1)*100
         drop = (lo/opn-1)*100; vr = vol/prev_vol if prev_vol > 0 else 0
+        atr_pct = (hi - lo) / now * 100 if now > 0 else 3.0  # intraday range as ATR
         last_green = mb.get('c',0) > mb.get('o',0) if mb else False
         sec = sectors.get(sym,'')
         sec_3d_avg = sector_3d.get(sec, 0)
         beta = betas.get(sym, 1.5)
         has_catalyst = sym in news_set or sym in insider_set or sym in si_set
 
-        # Mode (sector gate using 3d trend)
         if chg >= 1.5 and daily_chg >= 0: mode = 'MomUP'
         elif drop <= -3 and sec_3d_avg >= 0: mode = 'Bounce'
         elif drop <= -3: mode = 'KNIFE'
         else: mode = 'Watch'
 
-        # Score /9
+        # Adaptive SL/TP
+        if mode == 'MomUP':
+            sl_pct = -max(0.5, 0.2 * atr_pct); tp_pct = max(2.0, 0.5 * atr_pct)
+        elif mode == 'Bounce':
+            sl_pct = -max(1.5, 0.5 * atr_pct); tp_pct = max(3.0, 0.8 * atr_pct)
+        else:
+            sl_pct = -max(1.0, 0.3 * atr_pct); tp_pct = max(1.5, 0.4 * atr_pct)
+
         score = 0
         if spy_green: score += 2
         if ad_ratio >= 2: score += 2
@@ -370,7 +391,8 @@ for sym in syms:
         if score < 4: continue
         if abs(chg) < 1.5 and abs(daily_chg) < 2 and drop > -2: continue
 
-        results.append((sym, opn, now, chg, drop, vr, daily_chg, sec, sec_3d_avg, beta, last_green, mode, score))
+        sl_price = now * (1 + sl_pct/100); tp_price = now * (1 + tp_pct/100)
+        results.append((sym, opn, now, chg, drop, vr, daily_chg, sec, sec_3d_avg, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price))
     except: pass
 
 mode_order = {'MomUP':0,'Bounce':1,'Watch':2}
@@ -383,11 +405,10 @@ for r in results:
     sec_counts[sec] = sec_counts.get(sec, 0) + 1
     diversified.append(r)
 
-print(f"\n📊 {len(results)} candidates → {len(diversified)} after diversify (max 2/sector)")
-print(f"{'Sym':6s} {'Open':>7s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'Vol':>5s} {'DChg':>6s} {'β':>4s} {'Sec':>10s} {'Sec3d':>6s} {'Mode':>7s} {'Sc':>3s}")
-for s,o,n,c,dr,vr,dc,sec,sa,b,lg,mode,sc in diversified[:15]:
-    vol_str = f'{vr:.1f}x' if vr >= 1.0 else 'TBD'
-    print(f"{s:6s} {o:>7.2f} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {vol_str:>5s} {dc:+5.1f}% {b:>4.1f} {sec[:10]:>10s} {sa:+5.1f}% {mode:>7s} {sc}/9 {'🟢' if lg else '🔴'}")
+print(f"\n📊 {len(results)} candidates → {len(diversified)} after diversify")
+print(f"{'Sym':6s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'Vol':>5s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Mode':>7s} {'Sc':>3s} {'SL':>9s} {'TP':>9s}")
+for s,o,n,c,dr,vr,dc,sec,sa,b,lg,mode,sc,atr,slp,tpp,slpr,tppr in diversified[:15]:
+    print(f"{s:6s} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {vr:>4.1f}x {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {mode:>7s} {sc}/9 ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
 PYEOF
 ```
 
@@ -488,16 +509,25 @@ for sym in syms:
         if now < 1 or opn < 1 or prev_c < 1: continue
         chg = (now/opn-1)*100; daily_chg = (now/prev_c-1)*100
         drop = (lo/opn-1)*100; vr = vol/prev_vol if prev_vol > 0 else 0
+        atr_pct = (hi - lo) / now * 100 if now > 0 else 3.0
         last_green = mb.get('c',0) > mb.get('o',0) if mb else False
         sec = sectors.get(sym,'')
         sec_3d_avg = sector_3d.get(sec, 0)
         beta = betas.get(sym, 1.5)
         has_catalyst = sym in news_set or sym in insider_set or sym in si_set
 
-        if daily_chg >= 3 and chg >= 0: mode = 'MomCont'  # afternoon momentum continuation
+        if daily_chg >= 3 and chg >= 0: mode = 'MomCont'
         elif drop <= -3 and sec_3d_avg >= 0: mode = 'Bounce'
         elif drop <= -3: mode = 'KNIFE'
         else: mode = 'Watch'
+
+        # Adaptive SL/TP — afternoon uses EOD exit so wider TP
+        if mode == 'MomCont':
+            sl_pct = -max(0.5, 0.2 * atr_pct); tp_pct = max(2.5, 0.6 * atr_pct)
+        elif mode == 'Bounce':
+            sl_pct = -max(1.5, 0.5 * atr_pct); tp_pct = max(3.0, 0.8 * atr_pct)
+        else:
+            sl_pct = -max(1.0, 0.3 * atr_pct); tp_pct = max(1.5, 0.4 * atr_pct)
 
         score = 0
         if spy_green: score += 2
@@ -512,7 +542,8 @@ for sym in syms:
         if score < 4: continue
         if abs(chg) < 2 and abs(daily_chg) < 3 and drop > -2: continue
 
-        results.append((sym, opn, now, chg, drop, vr, daily_chg, sec, sec_3d_avg, beta, last_green, mode, score))
+        sl_price = now * (1 + sl_pct/100); tp_price = now * (1 + tp_pct/100)
+        results.append((sym, opn, now, chg, drop, vr, daily_chg, sec, sec_3d_avg, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price))
     except: pass
 
 mode_order = {'MomCont':0,'Bounce':1,'Watch':2}
@@ -526,10 +557,9 @@ for r in results:
     diversified.append(r)
 
 print(f"\n📊 {len(results)} candidates → {len(diversified)} after diversify")
-print(f"{'Sym':6s} {'Open':>7s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'Vol':>5s} {'DChg':>6s} {'β':>4s} {'Sec':>10s} {'Sec3d':>6s} {'Mode':>7s} {'Sc':>3s}")
-for s,o,n,c,dr,vr,dc,sec,sa,b,lg,mode,sc in diversified[:15]:
-    vol_str = f'{vr:.1f}x' if vr >= 1.0 else 'TBD'
-    print(f"{s:6s} {o:>7.2f} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {vol_str:>5s} {dc:+5.1f}% {b:>4.1f} {sec[:10]:>10s} {sa:+5.1f}% {mode:>7s} {sc}/9 {'🟢' if lg else '🔴'}")
+print(f"{'Sym':6s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'Vol':>5s} {'DChg':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Mode':>7s} {'Sc':>3s} {'SL':>9s} {'TP':>9s}")
+for s,o,n,c,dr,vr,dc,sec,sa,b,lg,mode,sc,atr,slp,tpp,slpr,tppr in diversified[:15]:
+    print(f"{s:6s} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {vr:>4.1f}x {dc:+5.1f}% {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {mode:>7s} {sc}/9 ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
 PYEOF
 ```
 
@@ -600,15 +630,44 @@ Score 6+ → BUY NOW | 4-5 → พิจารณา | <4 → ไม่แสด
 - **Bounce**: Drop ≥3% + AD≥2 + SPY green → WR 57-68%
 - **Momentum UP**: Gap 2-8% + Vol 2x at open → WR 57-58%
 
-**TP/SL ตามช่วง (full data verified):**
+**TP/SL — แยกตาม Setup Type (CRITICAL: ใช้ผิดประเภท = stop out จาก noise)**
 
-| ช่วง | Long TP | Long SL | EV | Short condition | Short WR |
-|------|---------|---------|-----|----------------|---------|
-| ORB 09:30 | +2% | -0.5% | +0.42% | SPY red+VIX≥22+Gap dn+Vol 2x | 72% |
-| 09:30-10:30 | +1.5% | -0.5% | +0.43% | SPY red+VIX≥22+Gap dn+Vol 2x | 75% |
-| 10:30-11:30 | +1.0% | -0.5% | +0.10% | same | — |
-| 11:30-15:00 | EOD exit | -0.5% | varies | SPY red+Drop 3%+ | 55% |
-| 15:00+ | +0.65% | -0.5% | ~0% | VIX 38+ | 65% |
+### Momentum Entries (Gap UP + Vol 2x, MomUP mode)
+ราคาเสถียร, volatility ต่ำ, ตาม backtest TP/SL
+
+| ช่วง | Long TP | Long SL | EV |
+|------|---------|---------|-----|
+| ORB 09:30 | +2% | -0.5% | +0.42% |
+| 09:30-10:30 | +1.5% | -0.5% | +0.43% |
+| 10:30-11:30 | +1.0% | -0.5% | +0.10% |
+| 11:30-15:00 | EOD exit | -1.0% | varies |
+| 15:00+ | +0.65% | -0.5% | ~0% |
+
+### Bounce Entries (5d down 5%+, Bounce mode) — **WIDER SL**
+หุ้นที่ลงมา 5%+ มี ATR สูง 4-9% — SL -0.5% = noise level จะ stop out ก่อน setup ทำงาน
+
+**Avg loser ตาม drop depth (N=126K)**:
+| Drop | Avg Winner | Avg Loser | → SL recommend |
+|------|-----------|-----------|----------------|
+| 2-3% | +2.3% | -2.3% | **-1.5%** |
+| 3-5% | +2.7% | -2.8% | **-2.0%** |
+| 5%+ | +3.6% | -3.8% | **-2.5%** หรือ ATR-based |
+
+**SL formula**: `SL = entry - max(1.5%, 0.5×ATR%)` — adaptive ตาม volatility ของหุ้น
+
+| ช่วง | Bounce TP | Bounce SL |
+|------|-----------|-----------|
+| ORB/Intraday | +3% หรือ EOD | -2% (drop 3-5%) / -2.5% (drop 5%+) |
+| 11:30-15:00 | EOD exit | ATR-based |
+| 15:00+ | +1% | -1.5% |
+
+### Short Entries
+| ช่วง | Condition | Short WR |
+|------|-----------|----------|
+| ORB 09:30 | SPY red+VIX≥22+Gap dn+Vol 2x | 72% |
+| 09:30-10:30 | same | 75% |
+| 11:30-15:00 | SPY red+Drop 3%+ | 55% |
+| 15:00+ | VIX 38+ | 65% |
 
 **11:30-15:00 specific (full data 236K signals):**
 - Raw bounce = WR 50% (no edge without filter)
@@ -790,6 +849,9 @@ for sym in syms:
         vr = db.get('v',0)/avg_vol if avg_vol > 0 else 0
         hi, lo = db.get('h',last_close), db.get('l',last_close)
         rng = hi - lo; cp = (last_close-lo)/rng if rng > 0 else 0.5
+        # 4-day ATR
+        trs = [max(d[2]-d[3], abs(d[2]-days[i-1][4]), abs(d[3]-days[i-1][4])) for i,d in enumerate(days[1:],1)]
+        atr_pct = np.mean(trs[-4:])/last_close*100 if trs else 3.0
 
         sec = sectors.get(sym, 'Unknown')
         sec_3d_avg = sector_3d.get(sec, 0)
@@ -797,10 +859,8 @@ for sym in syms:
         has_catalyst = sym in news_set or sym in insider_set or sym in si_set
         good_day = day_name in ('Tuesday','Wednesday')
 
-        # OVN setup: mom5d ≥5% + today green ≥2%
         ovn_setup = mom5d >= 5 and today_ret >= 2
 
-        # === Score /9 (universal + OVN-specific) ===
         score = 0; reasons = []
         if spy_green: score += 2; reasons.append('SPY+')
         if ad_ratio >= 2: score += 2; reasons.append(f'AD{ad_ratio:.1f}')
@@ -816,19 +876,23 @@ for sym in syms:
             if sym in si_set: cat.append('SI')
             reasons.append('+'.join(cat))
 
-        # OVN-specific filters
-        if cp < 0.5: continue  # ปิดไม่ใกล้ high → skip
-        if vr >= 3 and mom5d < 0: continue  # high vol but down trend
-        if not (mom5d >= 5 or today_ret >= 2): continue  # need OVN setup base
-        if sec_3d_avg < 0: continue  # sector falling = no overnight gap up
-        if score < 5: continue  # min for OVN (higher than ORB because OVN has fewer tradeable days)
+        if cp < 0.5: continue
+        if vr >= 3 and mom5d < 0: continue
+        if not (mom5d >= 5 or today_ret >= 2): continue
+        if sec_3d_avg < 0: continue
+        if score < 5: continue
 
-        results.append((sym, last_close, today_ret, mom5d, vr, cp, sec, sec_3d_avg, beta, score, ' '.join(reasons)))
+        # OVN SL/TP — wider since holding overnight (gap risk both ways)
+        sl_pct = -max(2.0, 0.7 * atr_pct)  # wider for overnight
+        tp_pct = max(3.0, 1.0 * atr_pct)
+        sl_price = last_close * (1 + sl_pct/100)
+        tp_price = last_close * (1 + tp_pct/100)
+
+        results.append((sym, last_close, today_ret, mom5d, vr, cp, sec, sec_3d_avg, beta, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price, ' '.join(reasons)))
     except: pass
 
 results.sort(key=lambda x: (-x[9], -x[3]))
 
-# Diversification: max 2/sector default, 4 if sector strong
 sec_counts = {}; diversified = []
 for r in results:
     sec = r[6]; sec_3d = r[7]
@@ -838,10 +902,9 @@ for r in results:
     diversified.append(r)
 
 print(f"\n{len(results)} OVN candidates → {len(diversified)} diversified | {day_name}")
-print(f"{'Sym':6s} {'Close':>7s} {'Today':>6s} {'5dM':>6s} {'Vol':>5s} {'CP':>5s} {'β':>4s} {'Sec':>10s} {'Sec3d':>6s} {'Sc':>3s}")
-for s,cl,tr,m,vr,cp,sec,sa,b,sc,rsn in diversified[:12]:
-    vol_str = f'{vr:.1f}x' if vr >= 1.0 else 'TBD'
-    print(f"{s:6s} {cl:>7.2f} {tr:+5.1f}% {m:+5.1f}% {vol_str:>5s} {cp:>4.2f} {b:>4.1f} {sec[:10]:>10s} {sa:+5.1f}% {sc}/9")
+print(f"{'Sym':6s} {'Close':>7s} {'Today':>6s} {'5dM':>6s} {'Vol':>5s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Sc':>3s} {'SL':>9s} {'TP':>9s}")
+for s,cl,tr,m,vr,cp,sec,sa,b,sc,atr,slp,tpp,slpr,tppr,rsn in diversified[:12]:
+    print(f"{s:6s} {cl:>7.2f} {tr:+5.1f}% {m:+5.1f}% {vr:>4.1f}x {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {sc}/9 ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
     print(f"       {rsn}")
 PYEOF
 ```
@@ -975,22 +1038,23 @@ for sym in syms:
             if sym in si_set: cat.append('SI')
             reasons.append('+'.join(cat))
 
-        # Filters
-        if cp < 0.5: continue  # not closing near high
-        if vix_now >= 30: continue  # too risky for weekend hold
-        if score < 5: continue  # min for weekend hold (higher than ORB)
+        if cp < 0.5: continue
+        if vix_now >= 30: continue
+        if score < 5: continue
 
         trs = [max(d[2]-d[3], abs(d[2]-days[i-1][4]), abs(d[3]-days[i-1][4])) for i,d in enumerate(days[1:],1)]
-        atr = np.mean(trs[-4:]) if trs else last_close * 0.03
-        sl_price = last_close - 2*atr
-        sl_pct = (sl_price/last_close - 1)*100
+        atr_pct = np.mean(trs[-4:])/last_close*100 if trs else 3.0
+        # Weekend hold = wider SL (gap risk both ways)
+        sl_pct = -max(2.5, 0.8 * atr_pct)  # widest of all scans
+        tp_pct = max(3.0, 1.0 * atr_pct)
+        sl_price = last_close * (1 + sl_pct/100)
+        tp_price = last_close * (1 + tp_pct/100)
 
-        results.append((sym, last_close, fri_ret, mom5d, vr, cp, sec, sec_3d_avg, beta, setup, score, sl_price, sl_pct, ' '.join(reasons)))
+        results.append((sym, last_close, fri_ret, mom5d, vr, cp, sec, sec_3d_avg, beta, setup, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price, ' '.join(reasons)))
     except: pass
 
 results.sort(key=lambda x: (-x[10], -abs(x[2])))
 
-# Diversification scaled
 sec_counts = {}; diversified = []
 for r in results:
     sec = r[6]; sec_3d = r[7]
@@ -1000,10 +1064,9 @@ for r in results:
     diversified.append(r)
 
 print(f"\n{len(results)} Fri-Mon candidates → {len(diversified)} diversified | VIX {vix_now:.1f}")
-print(f"{'Sym':6s} {'Close':>7s} {'FriR':>6s} {'5dM':>6s} {'Vol':>5s} {'CP':>5s} {'β':>4s} {'Sec':>10s} {'Sec3d':>6s} {'Setup':>15s} {'Sc':>3s} {'SL':>7s}")
-for s,cl,fr,m,vr,cp,sec,sa,b,su,sc,slp,slpct,rsn in diversified[:12]:
-    vol_str = f'{vr:.1f}x' if vr >= 1.0 else 'TBD'
-    print(f"{s:6s} {cl:>7.2f} {fr:+5.1f}% {m:+5.1f}% {vol_str:>5s} {cp:>4.2f} {b:>4.1f} {sec[:10]:>10s} {sa:+5.1f}% {su:>15s} {sc}/9 ${slp:.2f}({slpct:+.0f}%)")
+print(f"{'Sym':6s} {'Close':>7s} {'FriR':>6s} {'5dM':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Setup':>15s} {'Sc':>3s} {'SL':>9s} {'TP':>9s}")
+for s,cl,fr,m,vr,cp,sec,sa,b,su,sc,atr,slp,tpp,slpr,tppr,rsn in diversified[:12]:
+    print(f"{s:6s} {cl:>7.2f} {fr:+5.1f}% {m:+5.1f}% {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {su:>15s} {sc}/9 ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
     print(f"       {rsn}")
 PYEOF
 ```
