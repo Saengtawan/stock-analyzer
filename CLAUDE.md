@@ -286,7 +286,18 @@ def expected_vol_pct():
     next_h = ET_VOL_CURVE.get(h+1, base + 0.1)
     return base + (next_h - base) * (m / 60)
 expected_pct = expected_vol_pct()
-print(f"📊 Expected vol pct at this time: {expected_pct*100:.0f}%")
+
+# Time-decay penalty per backtest continuation rate (60% → 32%)
+def time_decay_score():
+    et = datetime.now(pytz.timezone('US/Eastern'))
+    h, m = et.hour, et.minute
+    minutes_from_open = (h - 9) * 60 + (m - 30) if h >= 9 else 0
+    if minutes_from_open < 60: return 0    # 09:30-10:30 = full edge
+    if minutes_from_open < 120: return 0   # 10:30-11:30 = ok
+    if minutes_from_open < 270: return -1  # 11:30-14:00 = weak (lunch hour drag)
+    return -2                              # 14:00+ = peak distribution time
+td_penalty = time_decay_score()
+print(f"📊 Expected vol pct: {expected_pct*100:.0f}% | Time decay: {td_penalty}")
 
 hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
 conn = sqlite3.connect("data/trade_history.db")
@@ -387,11 +398,12 @@ for sym in syms:
         sec_effective = min(sec_3d_avg, sec_today_avg)
         beta = betas.get(sym, 1.5)
         has_catalyst = sym in news_set or sym in insider_set or sym in si_set
-
-        # Volume pace: actual cum vol vs expected for this time
-        # vr = vol/prev_vol (full day prev). Adjust by expected_pct for time
-        # vol_pace > 1.0 = on pace, < 0.5 = drying up
         vol_pace = vr / expected_pct if expected_pct > 0 else 0
+
+        # Stale flag: how far below today's high (proxy for "peak passed")
+        # If now < hi by >1.5% AND price not rising = stale
+        from_peak_pct = (now/hi - 1) * 100 if hi > 0 else 0
+        is_stale = from_peak_pct < -1.5  # currently >1.5% below intraday high
 
         if chg >= 1.5 and daily_chg >= 0: mode = 'MomUP'
         elif drop <= -3 and sec_today_avg >= 0: mode = 'Bounce'  # use TODAY for bounce gate
@@ -412,20 +424,22 @@ for sym in syms:
         if abs(chg) >= 2 or drop <= -3: score += 1
         if beta < 1.5: score += 1
         if sec_effective >= 0.5: score += 1
-        if vol_pace >= 1.0: score += 1  # vol on pace = institutional support
+        if vol_pace >= 1.0: score += 1
         if has_catalyst: score += 1
         # Penalties
+        score += td_penalty  # time decay (0/-1/-2)
         if mode in ('Bounce','Watch') and sec_today_avg < -0.3: score -= 2
-        if vol_pace < 0.5: score -= 1  # vol drying up = weak
+        if vol_pace < 0.5: score -= 1
+        if is_stale: score -= 1  # peak passed
 
         if mode == 'KNIFE': continue
         if sec_today_avg < -0.5 and chg < 0: continue
         if mode == 'Watch' and chg < 0: continue
-        if vol_pace < 0.3: continue  # severe vol drought = skip
+        if vol_pace < 0.3: continue
         if abs(chg) < 1.5 and abs(daily_chg) < 2 and drop > -2: continue
 
         sl_price = now * (1 + sl_pct/100); tp_price = now * (1 + tp_pct/100)
-        results.append((sym, opn, now, chg, drop, vol_pace, daily_chg, sec, sec_effective, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price))
+        results.append((sym, opn, now, chg, drop, vol_pace, daily_chg, sec, sec_effective, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price, from_peak_pct, is_stale))
     except: pass
 
 mode_order = {'MomUP':0,'Bounce':1,'Watch':2}
@@ -439,12 +453,13 @@ for r in results:
     diversified.append(r)
 
 top_picks = diversified[:3]
-print(f"\n📊 {len(results)} candidates → TOP 3")
-print(f"{'#':>2s} {'Sym':6s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'VPace':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Mode':>7s} {'Sc':>3s} {'Tier':>5s} {'SL':>9s} {'TP':>9s}")
-for i,(s,o,n,c,dr,vp,dc,sec,sa,b,lg,mode,sc,atr,slp,tpp,slpr,tppr) in enumerate(top_picks, 1):
+print(f"\n📊 {len(results)} candidates → TOP 3 (TimeDecay {td_penalty})")
+print(f"{'#':>2s} {'Sym':6s} {'Now':>7s} {'Chg':>6s} {'VPace':>6s} {'Peak':>7s} {'β':>4s} {'Sec':>10s} {'Mode':>7s} {'Sc':>3s} {'Tier':>5s} {'SL':>9s} {'TP':>9s}")
+for i,(s,o,n,c,dr,vp,dc,sec,sa,b,lg,mode,sc,atr,slp,tpp,slpr,tppr,fp,stale) in enumerate(top_picks, 1):
     tier = 'HIGH' if sc >= 7 else ('MED' if sc >= 5 else 'LOW')
     vp_flag = '🟢' if vp >= 1.0 else ('🟡' if vp >= 0.5 else '🔴')
-    print(f"{i:>2d} {s:6s} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {vp_flag}{vp:>4.1f}x {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {mode:>7s} {sc}/9 {tier:>5s} ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
+    stale_flag = '🔴STALE' if stale else f'{fp:+.1f}%'
+    print(f"{i:>2d} {s:6s} {n:>7.2f} {c:+5.1f}% {vp_flag}{vp:>4.1f}x {stale_flag:>7s} {b:>4.1f} {sec[:10]:>10s} {mode:>7s} {sc}/9 {tier:>5s} ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
 PYEOF
 ```
 
@@ -466,7 +481,16 @@ def expected_vol_pct():
     next_h = ET_VOL_CURVE.get(h+1, base + 0.1)
     return base + (next_h - base) * (m / 60)
 expected_pct = expected_vol_pct()
-print(f"📊 Expected vol pct at this time: {expected_pct*100:.0f}%")
+def time_decay_score():
+    et = datetime.now(pytz.timezone('US/Eastern'))
+    h, m = et.hour, et.minute
+    minutes_from_open = (h - 9) * 60 + (m - 30) if h >= 9 else 0
+    if minutes_from_open < 60: return 0
+    if minutes_from_open < 120: return 0
+    if minutes_from_open < 270: return -1
+    return -2
+td_penalty = time_decay_score()
+print(f"📊 Expected vol pct: {expected_pct*100:.0f}% | Time decay: {td_penalty}")
 
 hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
 conn = sqlite3.connect("data/trade_history.db")
@@ -568,6 +592,8 @@ for sym in syms:
         beta = betas.get(sym, 1.5)
         has_catalyst = sym in news_set or sym in insider_set or sym in si_set
         vol_pace = vr / expected_pct if expected_pct > 0 else 0
+        from_peak_pct = (now/hi - 1) * 100 if hi > 0 else 0
+        is_stale = from_peak_pct < -1.5
 
         if daily_chg >= 3 and chg >= 0: mode = 'MomCont'
         elif drop <= -3 and sec_today_avg >= 0: mode = 'Bounce'
@@ -590,8 +616,10 @@ for sym in syms:
         if sec_effective >= 0.5: score += 1
         if vol_pace >= 1.0: score += 1
         if has_catalyst: score += 1
+        score += td_penalty
         if mode in ('Bounce','Watch') and sec_today_avg < -0.3: score -= 2
         if vol_pace < 0.5: score -= 1
+        if is_stale: score -= 1
 
         if mode == 'KNIFE': continue
         if sec_today_avg < -0.5 and chg < 0: continue
@@ -600,7 +628,7 @@ for sym in syms:
         if abs(chg) < 2 and abs(daily_chg) < 3 and drop > -2: continue
 
         sl_price = now * (1 + sl_pct/100); tp_price = now * (1 + tp_pct/100)
-        results.append((sym, opn, now, chg, drop, vol_pace, daily_chg, sec, sec_effective, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price))
+        results.append((sym, opn, now, chg, drop, vol_pace, daily_chg, sec, sec_effective, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price, from_peak_pct, is_stale))
     except: pass
 
 mode_order = {'MomCont':0,'Bounce':1,'Watch':2}
@@ -614,12 +642,13 @@ for r in results:
     diversified.append(r)
 
 top_picks = diversified[:3]
-print(f"\n📊 {len(results)} candidates → TOP 3")
-print(f"{'#':>2s} {'Sym':6s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'DChg':>6s} {'VPace':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Mode':>7s} {'Sc':>3s} {'Tier':>5s} {'SL':>9s} {'TP':>9s}")
-for i,(s,o,n,c,dr,vp,dc,sec,sa,b,lg,mode,sc,atr,slp,tpp,slpr,tppr) in enumerate(top_picks, 1):
+print(f"\n📊 {len(results)} candidates → TOP 3 (TimeDecay {td_penalty})")
+print(f"{'#':>2s} {'Sym':6s} {'Now':>7s} {'DChg':>6s} {'VPace':>6s} {'Peak':>7s} {'β':>4s} {'Sec':>10s} {'Mode':>7s} {'Sc':>3s} {'Tier':>5s} {'SL':>9s} {'TP':>9s}")
+for i,(s,o,n,c,dr,vp,dc,sec,sa,b,lg,mode,sc,atr,slp,tpp,slpr,tppr,fp,stale) in enumerate(top_picks, 1):
     tier = 'HIGH' if sc >= 7 else ('MED' if sc >= 5 else 'LOW')
     vp_flag = '🟢' if vp >= 1.0 else ('🟡' if vp >= 0.5 else '🔴')
-    print(f"{i:>2d} {s:6s} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {dc:+5.1f}% {vp_flag}{vp:>4.1f}x {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {mode:>7s} {sc}/9 {tier:>5s} ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
+    stale_flag = '🔴STALE' if stale else f'{fp:+.1f}%'
+    print(f"{i:>2d} {s:6s} {n:>7.2f} {dc:+5.1f}% {vp_flag}{vp:>4.1f}x {stale_flag:>7s} {b:>4.1f} {sec[:10]:>10s} {mode:>7s} {sc}/9 {tier:>5s} ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
 PYEOF
 ```
 
