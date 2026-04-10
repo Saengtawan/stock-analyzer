@@ -424,17 +424,15 @@ Score < 4 → ไม่แสดง
 - หลัง hit +2%: เช้า 64% วิ่งต่อ +3% | บ่าย 43% | 14:00+ 32%
 - Retrace risk: เช้า 32% retrace <+1% | บ่าย 19%
 
-**เมื่อไหร่ BUY NOW (market) vs WATCH (limit):**
-- ถ้าหลาย factors winner profile ตรง (low beta, large mcap, deep drop, high green fraction, SPY green, sector แข็ง) → edge สูงขึ้น — AI weigh รวมแล้วตัดสิน BUY NOW
-- SPY แดง ไม่ได้แปลว่าไม่มี BUY — หุ้น low beta + catalyst + SI สูง อาจ BUY NOW ได้แม้ SPY แดง (WR ลดลงแต่ไม่ใช่ 0%)
-- ถ้ารอ pullback แล้วราคาวิ่งขึ้นเรื่อยๆ → ถ้า profile แข็งพอตั้งแต่แรก ควร BUY NOW
+**เมื่อไหร่ BUY NOW:**
+- **ORB 09:30: Score 6+ จาก watchlist + PM gap 2-5% + Vol 2x → BUY at open ทันที** (WR 57-58%, ไม่ต้องรอ first bar/confirm)
+- **Intraday: Score 6+ + data confirm → BUY NOW** ไม่ต้องรอ pullback ถ้า profile แข็ง
+- SPY แดง ไม่ได้แปลว่าไม่มี BUY — หุ้น low beta + catalyst อาจ BUY ได้ (WR ลดลงแต่ไม่ใช่ 0%)
 
-**Entry characteristics:**
-- Bounce เช้า: median 14-18 bars (70-90 min) ค่อยๆ ขึ้น มีเวลาเข้า
-- Bounce บ่าย: median 17-18 bars ช้า + consolidation ชัด เหมาะ limit
-- 14:00+: median 6 bars (30 min) เร็ว เพราะใกล้ปิด
-- **26-30% ของ setups peak ใน ≤3 bars → บางตัววิ่งตรงขึ้นไม่ pullback เลย**
-- Limit fill ยาก: ขอบล่างสุดอาจไม่ถึง | กลาง range (70-80%) fill ง่ายกว่า
+**TP/SL ตามเวลา:**
+- เช้า: TP +3-5% | SL -3% | avg winner +2.3-3.6%
+- บ่าย: TP +1-2% | SL -2% | avg winner +1.0-1.8%
+- 14:00+: TP +1% | SL -1% | avg winner +0.6-0.9%
 
 ### ขั้นตอน 5: แสดงผล
 
