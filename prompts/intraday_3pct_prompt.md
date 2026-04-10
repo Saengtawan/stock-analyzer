@@ -37,22 +37,27 @@ Best combo: SPY green + AD≥2 + Drop 3%+ = WR 67% (N=7.6K)
 
 ---
 
-## Strategy 1: Down Bounce (WR 57-69%)
-หุ้นลง 2%+ จาก open → green bar bounce
-- Drop depth = primary signal (5%+ = WR 69%)
-- Green bar alone = WR ~50% — edge มาจาก drop + SPY + AD
+## ⛔ MOMENTUM-FIRST + Sector Gate
+**Default = Momentum UP**. Bounce เฉพาะเมื่อ sector ของหุ้นไม่ลง + AD≥2. ห้าม pick bounce >50% ของ output. ห้าม >2 ตัวจาก sector เดียวกัน.
 
-Entry: Buy green bar close | SL: -0.5% | TP: +1.5% (09:30-10:30)
-
-## Strategy 2: Vol Surge 3x No Gap (WR 55-62%)
-หุ้นไม่ gap แต่ vol พุ่ง 3x + green bar | $50+ = WR 62%
-
-## Strategy 3: Momentum UP — Gap + Vol 2x (WR 57-58%)
+## Strategy 1: Momentum UP — Gap + Vol 2x (WR 57-58%) — DEFAULT
 Gap up 2-8% + vol ≥2x → momentum continuation
 - 5d momentum +5%+ = trend confirmation
 - SI สูง + gap up = short squeeze acceleration
+- RS strong (stock > sector > SPY) = priority
 
-Entry: Buy at/near open | SL: prev close or gap fill | TP: +2%
+Entry: Buy at/near open หรือ limit ที่ pullback หลัง consolidation | SL: prev close or gap fill | TP: +2%
+
+## Strategy 2: Down Bounce (WR 57-69%) — REQUIRES SECTOR GATE
+หุ้นลง 2%+ จาก open → green bar bounce
+- ⛔ **Sector gate**: ถ้า sector ของหุ้นนั้นลงวันนั้น → ห้าม pick (falling knife)
+- Drop depth = primary signal (5%+ = WR 69%)
+- Green bar alone = WR ~50% — edge มาจาก drop + SPY + AD + sector OK
+
+Entry: Buy green bar close | SL: -0.5% | TP: +1.5% (09:30-10:30)
+
+## Strategy 3: Vol Surge 3x No Gap (WR 55-62%)
+หุ้นไม่ gap แต่ vol พุ่ง 3x + green bar | $50+ = WR 62%
 
 ## SHORT Strategy (highest edge)
 SPY red + VIX≥22 + Gap down 2%+ + Vol 2x → WR 72-75% EV +0.66-0.94%

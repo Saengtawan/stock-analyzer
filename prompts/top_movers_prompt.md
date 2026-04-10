@@ -35,16 +35,28 @@ Raw bounce (no AD filter) = WR 50% — no edge
 
 ---
 
-## Strategy: Down Bounce + AD≥2 (WR 57-68%)
+## ⛔ MOMENTUM-FIRST + Sector Gate (mandatory)
+**Default = Momentum UP** (8%+ by 11:30 → WR 54% continuation). Bounce เป็นทางเลือกรอง. ห้าม pick bounce >50% หรือ >2 ตัวจาก sector เดียว.
 
-1. AD ratio ≥2 (GATE — skip if AD<1)
-2. SPY daily green (+20pp, N=7.6K)
-3. Drop 2%+ from open (5%+ = best)
-4. Green bar = bounce signal
-5. EOD exit (backtest: EOD > fixed TP — TP caps winners)
-6. SL: -0.5%
+## Strategy 1: Momentum Continuation UP (WR 54%) — DEFAULT
+หุ้นขึ้น 8%+ by 11:30 + Vol แข็ง + RS strong → ถือ EOD
+- Stock vs sector: หุ้นที่แข็งกว่า sector = priority
+- Sector vs SPY: sector ที่แข็งกว่า SPY ทั้งวัน = best pool
+- Entry: limit ที่ pullback หลัง consolidation (no chase)
 
-Best combo: SPY green + AD≥3 + Drop 3%+ = WR 65-68%
+## Strategy 2: Down Bounce + AD≥2 (WR 57-68%) — REQUIRES SECTOR GATE
+
+1. ⛔ **Sector gate**: ถ้า sector ของหุ้นลงวันนั้น → ห้าม pick (falling knife, ไม่ใช่ bounce)
+2. AD ratio ≥2 (GATE — skip if AD<1)
+3. SPY daily green (+20pp, N=7.6K)
+4. Drop 2%+ from open (5%+ = best)
+5. Green bar = bounce signal
+6. EOD exit (backtest: EOD > fixed TP — TP caps winners)
+7. SL: -0.5%
+
+Best combo: SPY green + AD≥3 + Drop 3%+ + sector OK = WR 65-68%
+
+⚠️ **Falling Knife Warning**: หุ้นที่ drop ใหญ่ใน sector ที่ลงทั้ง sector = ลงต่อได้ (ไม่ใช่ bounce setup). INTU -14% ใน 5 วัน คือ proof — ขนาดใหญ่ไม่ป้องกันการลงต่อ
 
 ## TP/SL (afternoon — full data)
 

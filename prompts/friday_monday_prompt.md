@@ -88,12 +88,20 @@ Baseline ทุกหุ้น: **Friday→Monday close = +0.37%**, ปิดข
 - **Catalyst weekend**: earnings Mon pre-market, FDA weekend, conference
 - **VIX**: สูง = gap ใหญ่ทั้ง 2 ทาง (risk สูง)
 
+## ⛔ MOMENTUM-FIRST + Sector Trend Gate
+- **Default = Setup 1 (Friday Rally)** — momentum carry. Setup 2/3 (bounce/dump) เป็นทางเลือกรอง
+- **Sector gate**: Setup 3 (Friday Dump) — ห้าม pick ใน sector ที่ลงทั้งสัปดาห์ (= falling knife weekend)
+- **RS**: stock แข็งกว่า sector + sector แข็งกว่า SPY = priority
+- **Diversify**: ห้าม pick >2 ตัวจาก sector เดียวกัน, ห้าม >50% จาก setup เดียว
+
 ## Checklist (ข้อมูลให้ AI พิจารณา — ยิ่งผ่านมาก WR ยิ่งสูง)
 
 ☐ ศุกร์ rally ≥ 3% หรือ สัปดาห์แย่ + ศุกร์ bounce ≥ 2%
 ☐ Close position > 0.5 (ปิดครึ่งบน)
 ☐ Volume ≥ 1.5x average
 ☐ Sector Mon +3% rate สูง (ดูตาราง — เปลี่ยนตาม rotation)
+☐ **Sector ของหุ้นวันศุกร์ ≥ 0%** (ไม่ใช่ falling knife)
+☐ **Stock RS > sector** (Friday return > sector avg)
 ☐ ไม่มี bad news ที่รอ weekend (earnings Mon BMO, legal, FDA risk)
 ☐ VIX < 30 (สูงเกิน = risk symmetric ทั้งขึ้นลง)
 

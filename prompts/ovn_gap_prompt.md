@@ -112,6 +112,12 @@ Volume 3x+ = โอกาส gap เยอะขึ้น **แต่ risk ส�
 - OVN gap = symmetric (โอกาสลงเท่าขึ้น) → combo กับ direction ช่วย
 - **Position size**: ไม่เกิน 5% ของ portfolio per trade
 
+## ⛔ MOMENTUM-FIRST + Sector Trend Gate
+- OVN เป็น **momentum carry play** อยู่แล้ว — ห้าม pick "dump 5%+" ใน sector ที่ลงทั้ง sector (= falling knife overnight)
+- **Sector gate**: ถ้า sector ของหุ้นลงวันนั้น → skip dump setup (Setup 3)
+- **RS**: stock ขึ้นแรงกว่า sector + sector แข็งกว่า SPY = highest priority
+- ห้าม pick >2 ตัวจาก sector เดียวกัน
+
 ## Checklist (ข้อมูลให้ AI พิจารณา — ยิ่งผ่านมาก WR ยิ่งสูง)
 
 ☐ 5d momentum ↑5%+ (trending, ไม่ใช่แค่ spike วันเดียว)
@@ -119,6 +125,8 @@ Volume 3x+ = โอกาส gap เยอะขึ้น **แต่ risk ส�
 ☐ Volume ≥ 2x average
 ☐ Close position > 0.5 (ปิดครึ่งบนของ range)
 ☐ Sector gap rate สูง (ดูตาราง — เปลี่ยนตาม rotation)
+☐ **Sector ของหุ้นวันนี้ ≥ +0.5%** (ไม่ใช่ falling knife)
+☐ **Stock RS > sector** (stock change > sector avg)
 ☐ วันอังคาร หรือ พุธ
 
 ## Low WR Setups (ข้อมูลให้ AI พิจารณา)

@@ -8,6 +8,23 @@
 
 ORB ใช้ก่อนตลาดเปิด (06:00-09:30 ET) — หลัง 09:30 ใช้ Intraday prompt
 
+## ⛔ MOMENTUM-FIRST RULE (mandatory)
+
+**Default first choice = Momentum UP** (Gap +2-5% + Vol 2x + 5d positive). Bounce เป็นทางเลือก**รอง**
+
+**ข้อมูลจริง**: Gap UP + Vol 2x = WR 51-65% > Bounce + Vol 2x = WR 40% > Gap DOWN + Vol 2x = WR 42% (negative edge)
+
+### Sector Gate Before Bounce
+- ❌ **ห้าม pick bounce** ในหุ้นที่ sector ของมันลงวันนั้น (= falling knife)
+- ❌ **ห้าม pick bounce >50%** ของ scan output (diversify setup type)
+- ❌ **ห้าม pick bounce >2 ตัว** จาก sector เดียวกัน
+- ✅ Bounce ได้เมื่อ: AD≥2 + SPY green + sector ของหุ้น **ไม่ลง** + catalyst เฉพาะตัว
+
+### RS (Relative Strength)
+- Stock vs sector: stock +2% ตอน sector +0.5% = strong RS (ดี)
+- Stock vs SPY: หุ้นใน sector ที่แข็งกว่า SPY = priority pick
+- "No chase" = entry technique (limit ที่ pullback) ไม่ใช่ตัดหุ้นที่ขึ้น
+
 ## Backtest Data (557K daily bars + 55M 5-min bars)
 
 ### Volume คือตัวแบ่ง

@@ -84,11 +84,13 @@ hot = [r[0] for r in conn.execute("""
     JOIN universe_stocks u ON d.symbol = u.symbol
     WHERE d.date = (SELECT MAX(date) FROM stock_daily_ohlc)
     AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
-    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03 AND d.volume * d.close >= 5000000
+    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.05 AND d.volume * d.close >= 20000000
 """).fetchall()]
 if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
 syms = list(set(syms + hot))
 sectors = dict(conn.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
+earnings_today = set(r[0] for r in conn.execute("SELECT symbol FROM earnings_calendar WHERE next_earnings_date = date('now')").fetchall())
+earnings_tomorrow = set(r[0] for r in conn.execute("SELECT symbol FROM earnings_calendar WHERE next_earnings_date = date('now','+1 day')").fetchall())
 
 # 5d history from DB
 hist = {}
@@ -138,17 +140,21 @@ for sym in syms:
         pm_gap = 0  # จะคำนวณได้จริงตอน market open
         has_pm = False
 
+        if sym in earnings_today or sym in earnings_tomorrow: continue  # skip earnings
         if abs(yest_ret) >= 2 or abs(pm_gap) >= 1.5 or abs(mom5d) >= 5:
-            results.append((sym, now, pm_gap, yest_ret, mom5d, vr, cp, atr, sec, has_pm))
+            # Mode: Bounce (5d down + vol potential) vs Momentum (gap up + vol)
+            mode = 'Bounce' if mom5d <= -5 else ('MomUP' if yest_ret >= 3 and mom5d >= 0 else 'Watch')
+            results.append((sym, yest_close, pm_gap, yest_ret, mom5d, vr, cp, atr, sec, has_pm, mode))
     except: pass
 
-# Sort: Vol สูง + abs return (Vol = signal แข็งกว่า abs return)
-results.sort(key=lambda x: (x[5], abs(x[3])), reverse=True)  # vr DESC, then abs(yest) DESC
+# Sort: abs(yest_ret) DESC (Vol = TBD when closed, not useful for sort)
+results.sort(key=lambda x: abs(x[3]), reverse=True)
 pm_count = sum(1 for r in results if r[9])
 print(f"{len(results)} ORB candidates ({pm_count} มี PM activity)")
-print(f"{'Sym':5s} {'Now':>7s} {'PMGap':>6s} {'Yest':>6s} {'5dM':>6s} {'Vol':>4s} {'CPos':>5s} {'ATR':>4s} {'Sec':>8s} {'PM'}")
-for s,p,pg,yr,m,vr,cp,atr,sec,pm in results[:20]:
-    print(f"{s:5s} {p:>7.2f} {pg:+5.1f}% {yr:+5.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {atr:>3.1f}% {sec[:8]:>8s} {'✅' if pm else '—'}")
+print(f"{'Sym':6s} {'Close':>7s} {'PMGap':>6s} {'Yest':>6s} {'5dM':>6s} {'Vol':>5s} {'CPos':>5s} {'ATR':>4s} {'Sec':>8s} {'Mode':>6s}")
+for s,p,pg,yr,m,vr,cp,atr,sec,pm,mode in results[:20]:
+    vol_str = f'{vr:.1f}x' if vr >= 1.0 else 'TBD'
+    print(f"{s:6s} {p:>7.2f} {pg:+5.1f}% {yr:+5.1f}% {m:+5.1f}% {vol_str:>5s} {cp:>4.2f} {atr:>3.1f}% {sec[:8]:>8s} {mode:>6s}")
 PYEOF
 ```
 
@@ -166,10 +172,11 @@ hot = [r[0] for r in conn.execute("""
     JOIN universe_stocks u ON d.symbol = u.symbol
     WHERE d.date = (SELECT MAX(date) FROM stock_daily_ohlc)
     AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
-    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03 AND d.volume * d.close >= 5000000
+    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.05 AND d.volume * d.close >= 20000000
 """).fetchall()]
 if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
 syms = list(set(syms + hot))
+earnings_today = set(r[0] for r in conn.execute("SELECT symbol FROM earnings_calendar WHERE next_earnings_date = date('now')").fetchall())
 conn.close()
 
 # Alpaca snapshots — 2 seconds for 200 symbols
@@ -204,9 +211,10 @@ print(f"\n📊 Sector momentum วันนี้:")
 for s,v in sorted(sector_avg.items(), key=lambda x: x[1], reverse=True):
     print(f"  {v:+5.1f}% {s}")
 
-up_results = []; dn_results = []
+results = []
 for sym in syms:
     try:
+        if sym in earnings_today: continue  # skip earnings day
         s = snaps.get(sym)
         if not s: continue
         db = s.get('dailyBar',{}); pb = s.get('prevDailyBar',{})
@@ -251,10 +259,11 @@ hot = [r[0] for r in conn.execute("""
     JOIN universe_stocks u ON d.symbol = u.symbol
     WHERE d.date = (SELECT MAX(date) FROM stock_daily_ohlc)
     AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
-    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03 AND d.volume * d.close >= 5000000
+    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.05 AND d.volume * d.close >= 20000000
 """).fetchall()]
 if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
 syms = list(set(syms + hot))
+earnings_today = set(r[0] for r in conn.execute("SELECT symbol FROM earnings_calendar WHERE next_earnings_date = date('now')").fetchall())
 conn.close()
 
 # Alpaca snapshots — ~2 seconds
@@ -289,9 +298,10 @@ print(f"\n📊 Sector momentum วันนี้:")
 for s,v in sorted(sector_avg.items(), key=lambda x: x[1], reverse=True):
     print(f"  {v:+5.1f}% {s}")
 
-dn_results = []; up_results = []
+results = []
 for sym in syms:
     try:
+        if sym in earnings_today: continue  # skip earnings day
         s = snaps.get(sym)
         if not s: continue
         db = s.get('dailyBar',{}); pb = s.get('prevDailyBar',{}); mb = s.get('minuteBar',{})
@@ -320,53 +330,42 @@ PYEOF
 
 ### ขั้นตอน 3: ดึง context data ให้ครบ (สำหรับ top 5-8 ตัว)
 
-**ดึง data ทั้งหมดนี้ แล้ว AI ตัดสินเอง — ไม่ hardcode score:**
+**ใช้ symbols จริงจาก Step 2 — ไม่ต้อง replace มือ:**
 ```bash
-# แทน XXX,YYY,ZZZ ด้วย symbols จาก Step 2
+# ใส่ top 5-8 symbols จาก Step 2 ตรงนี้
+SYMS="'SYM1','SYM2','SYM3','SYM4','SYM5'"
 sqlite3 data/trade_history.db "
--- News: มีข่าวมั้ย ข่าวอะไร (มีข่าว = attention = ดี ไม่ว่า pos/neg)
+-- News (มีข่าว = attention = ดี ไม่ว่า pos/neg)
 SELECT n.symbol, n.sentiment_label, substr(n.headline,1,60), n.published_at
-FROM news_events n
-WHERE n.symbol IN ('XXX','YYY','ZZZ') AND n.published_at >= date('now','-3 days')
+FROM news_events n WHERE n.symbol IN ($SYMS) AND n.published_at >= date('now','-3 days')
 ORDER BY n.published_at DESC LIMIT 15;
 
--- Short Interest: SI สูง = short squeeze potential ช่วย bounce
--- SI ต่ำ = ไม่มีแรง squeeze → bounce อ่อนกว่า
+-- Short Interest (SI สูง = squeeze potential)
 SELECT s.symbol, s.short_pct_float, s.short_change_pct, u.sector
-FROM short_interest s
-JOIN universe_stocks u ON s.symbol = u.symbol
-WHERE s.symbol IN ('XXX','YYY','ZZZ') AND s.date = (SELECT MAX(date) FROM short_interest);
+FROM short_interest s JOIN universe_stocks u ON s.symbol = u.symbol
+WHERE s.symbol IN ($SYMS) AND s.date = (SELECT MAX(date) FROM short_interest);
 
--- Analyst: consensus ดีมั้ย target เท่าไหร่
-SELECT symbol, target_mean, upside_pct, bull_score FROM analyst_consensus
-WHERE symbol IN ('XXX','YYY','ZZZ');
+-- Analyst consensus
+SELECT symbol, target_mean, upside_pct, bull_score FROM analyst_consensus WHERE symbol IN ($SYMS);
 
--- Earnings: มี earnings ใกล้มั้ย (uncertainty สูง)
+-- Earnings within 3 days (uncertainty risk)
 SELECT symbol, next_earnings_date FROM earnings_calendar
-WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') AND date('now','+3 days');
+WHERE symbol IN ($SYMS) AND next_earnings_date BETWEEN date('now') AND date('now','+3 days');
 
--- Insider: มี insider buy ล่าสุดมั้ย (confidence signal)
+-- Insider buys (confidence signal)
 SELECT symbol, insider_name, total_value, transaction_date FROM insider_transactions
-WHERE symbol IN ('XXX','YYY','ZZZ') AND transaction_date >= date('now','-30 days')
-ORDER BY total_value DESC LIMIT 5;
+WHERE symbol IN ($SYMS) AND transaction_date >= date('now','-30 days') ORDER BY total_value DESC LIMIT 5;
 
--- Options: put/call ratio สูงมั้ย (hedging = fear)
-SELECT symbol, pc_volume_ratio, unusual_call_count, unusual_put_count
-FROM options_daily_summary
-WHERE symbol IN ('XXX','YYY','ZZZ') AND collected_date = (SELECT MAX(collected_date) FROM options_daily_summary);
+-- Options flow (put/call ratio)
+SELECT symbol, pc_volume_ratio, unusual_call_count, unusual_put_count FROM options_daily_summary
+WHERE symbol IN ($SYMS) AND collected_date = (SELECT MAX(collected_date) FROM options_daily_summary);
 
--- Beta + MCap
--- Beta<1.5 = WR 52.3% | Beta>1.5 = WR 50.8% | MCap>30B = WR 52.6%
+-- Beta + MCap (Beta<1.5 = WR 52.3% | MCap>30B = WR 52.6%)
 SELECT f.symbol, f.beta, f.market_cap, f.pe_forward, f.sector, f.industry
-FROM stock_fundamentals f
-WHERE f.symbol IN ('XXX','YYY','ZZZ');
+FROM stock_fundamentals f WHERE f.symbol IN ($SYMS);
 
--- Market Breadth (ดูความแข็งแรงของตลาดรวม)
+-- Market Breadth
 SELECT date, pct_above_20d_ma, ad_ratio FROM market_breadth ORDER BY date DESC LIMIT 1;
-
--- Earnings: มี earnings ใกล้มั้ย (uncertainty สูง)
-SELECT symbol, next_earnings_date FROM earnings_calendar
-WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') AND date('now','+3 days');
 "
 ```
 
@@ -380,7 +379,7 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 | AD ratio | ≥2 | +2 | +15pp (42→57%, N=106K) |
 | Setup | Drop ≥3% หรือ Gap+Vol 2x | +1 | มี edge |
 | Beta | <1.5 | +1 | +1.5pp (N=94K) |
-| Sector | แข็งวันนี้ | +1 | rotation |
+| Sector | sector avg > +0.5% วันนี้ | +1 | rotation |
 | Vol | ≥2x | +1 | +4pp |
 | Catalyst | news/upgrade/insider/SI | +1 | attention |
 
@@ -509,8 +508,8 @@ hot = [r[0] for r in conn.execute("""
     JOIN universe_stocks u ON d.symbol = u.symbol
     WHERE d.date = (SELECT MAX(date) FROM stock_daily_ohlc)
     AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
-    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03
-    AND d.volume * d.close >= 5000000
+    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.05
+    AND d.volume * d.close >= 20000000
 """).fetchall()]
 if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
 syms = list(set(syms + hot))
@@ -607,8 +606,8 @@ hot = [r[0] for r in conn.execute("""
     JOIN universe_stocks u ON d.symbol = u.symbol
     WHERE d.date = (SELECT MAX(date) FROM stock_daily_ohlc)
     AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
-    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03
-    AND d.volume * d.close >= 5000000
+    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.05
+    AND d.volume * d.close >= 20000000
 """).fetchall()]
 if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
 syms = list(set(syms + hot))
