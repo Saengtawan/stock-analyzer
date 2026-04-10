@@ -142,8 +142,8 @@ for sym in syms:
             results.append((sym, now, pm_gap, yest_ret, mom5d, vr, cp, atr, sec, has_pm))
     except: pass
 
-# Sort: PM active first, then by PM gap
-results.sort(key=lambda x: (x[9], abs(x[2])), reverse=True)
+# Sort: Vol สูง + abs return (Vol = signal แข็งกว่า abs return)
+results.sort(key=lambda x: (x[5], abs(x[3])), reverse=True)  # vr DESC, then abs(yest) DESC
 pm_count = sum(1 for r in results if r[9])
 print(f"{len(results)} ORB candidates ({pm_count} มี PM activity)")
 print(f"{'Sym':5s} {'Now':>7s} {'PMGap':>6s} {'Yest':>6s} {'5dM':>6s} {'Vol':>4s} {'CPos':>5s} {'ATR':>4s} {'Sec':>8s} {'PM'}")
@@ -230,7 +230,7 @@ for sym in syms:
             up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, cp, last_green, pullback, daily_chg, sec))
     except: pass
 
-dn_results.sort(key=lambda x: x[4])
+dn_results.sort(key=lambda x: (x[6], x[4]))  # vol DESC, then drop depth
 print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (drop 2%+ from open)")
 print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
 for s,o,n,c,dr,bn,vr,cp,lg,dc,sec in dn_results[:12]:
@@ -320,7 +320,7 @@ for sym in syms:
             up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, cp, last_green, pullback, daily_chg, sec))
     except: pass
 
-dn_results.sort(key=lambda x: x[4])
+dn_results.sort(key=lambda x: (x[6], x[4]))  # vol DESC, then drop depth
 print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (drop 2%+ from open)")
 print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
 for s,o,n,c,dr,bn,vr,cp,lg,dc,sec in dn_results[:12]:
