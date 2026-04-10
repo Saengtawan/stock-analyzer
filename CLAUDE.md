@@ -268,7 +268,25 @@ PYEOF
 ```bash
 python3 << 'PYEOF'
 import requests, os, sqlite3, numpy as np
+from datetime import datetime
+import pytz
 from dotenv import load_dotenv; load_dotenv()
+
+# Time-of-day expected volume curve (cumulative % of daily volume by ET hour)
+ET_VOL_CURVE = {
+    9:  0.05, 10: 0.18, 11: 0.30, 12: 0.42,
+    13: 0.52, 14: 0.62, 15: 0.78, 16: 1.00
+}
+def expected_vol_pct():
+    et = datetime.now(pytz.timezone('US/Eastern'))
+    h, m = et.hour, et.minute
+    if h < 9 or (h == 9 and m < 30): return 0
+    if h >= 16: return 1.0
+    base = ET_VOL_CURVE.get(h, 0.5)
+    next_h = ET_VOL_CURVE.get(h+1, base + 0.1)
+    return base + (next_h - base) * (m / 60)
+expected_pct = expected_vol_pct()
+print(f"📊 Expected vol pct at this time: {expected_pct*100:.0f}%")
 
 hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
 conn = sqlite3.connect("data/trade_history.db")
@@ -366,10 +384,14 @@ for sym in syms:
         sec = sectors.get(sym,'')
         sec_3d_avg = sector_3d.get(sec, 0)
         sec_today_avg = sector_avg.get(sec, 0) if 'sector_avg' in dir() else sec_3d_avg
-        # Effective sector = MIN of historical 3d and today (catches reversals)
         sec_effective = min(sec_3d_avg, sec_today_avg)
         beta = betas.get(sym, 1.5)
         has_catalyst = sym in news_set or sym in insider_set or sym in si_set
+
+        # Volume pace: actual cum vol vs expected for this time
+        # vr = vol/prev_vol (full day prev). Adjust by expected_pct for time
+        # vol_pace > 1.0 = on pace, < 0.5 = drying up
+        vol_pace = vr / expected_pct if expected_pct > 0 else 0
 
         if chg >= 1.5 and daily_chg >= 0: mode = 'MomUP'
         elif drop <= -3 and sec_today_avg >= 0: mode = 'Bounce'  # use TODAY for bounce gate
@@ -389,19 +411,21 @@ for sym in syms:
         if ad_ratio >= 2: score += 2
         if abs(chg) >= 2 or drop <= -3: score += 1
         if beta < 1.5: score += 1
-        if sec_effective >= 0.5: score += 1  # use min(historical, today) — catches reversals
-        if vr >= 2.0: score += 1
+        if sec_effective >= 0.5: score += 1
+        if vol_pace >= 1.0: score += 1  # vol on pace = institutional support
         if has_catalyst: score += 1
-        # Penalty: if intraday sector reversed negative, penalize bounce trades
+        # Penalties
         if mode in ('Bounce','Watch') and sec_today_avg < -0.3: score -= 2
+        if vol_pace < 0.5: score -= 1  # vol drying up = weak
 
         if mode == 'KNIFE': continue
-        if sec_today_avg < -0.5 and chg < 0: continue  # falling stock in falling sector
-        if mode == 'Watch' and chg < 0: continue  # Watch mode + falling = uncertain, skip
+        if sec_today_avg < -0.5 and chg < 0: continue
+        if mode == 'Watch' and chg < 0: continue
+        if vol_pace < 0.3: continue  # severe vol drought = skip
         if abs(chg) < 1.5 and abs(daily_chg) < 2 and drop > -2: continue
 
         sl_price = now * (1 + sl_pct/100); tp_price = now * (1 + tp_pct/100)
-        results.append((sym, opn, now, chg, drop, vr, daily_chg, sec, sec_effective, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price))
+        results.append((sym, opn, now, chg, drop, vol_pace, daily_chg, sec, sec_effective, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price))
     except: pass
 
 mode_order = {'MomUP':0,'Bounce':1,'Watch':2}
@@ -416,10 +440,11 @@ for r in results:
 
 top_picks = diversified[:3]
 print(f"\n📊 {len(results)} candidates → TOP 3")
-print(f"{'#':>2s} {'Sym':6s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Mode':>7s} {'Sc':>3s} {'Tier':>5s} {'SL':>9s} {'TP':>9s}")
-for i,(s,o,n,c,dr,vr,dc,sec,sa,b,lg,mode,sc,atr,slp,tpp,slpr,tppr) in enumerate(top_picks, 1):
+print(f"{'#':>2s} {'Sym':6s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'VPace':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Mode':>7s} {'Sc':>3s} {'Tier':>5s} {'SL':>9s} {'TP':>9s}")
+for i,(s,o,n,c,dr,vp,dc,sec,sa,b,lg,mode,sc,atr,slp,tpp,slpr,tppr) in enumerate(top_picks, 1):
     tier = 'HIGH' if sc >= 7 else ('MED' if sc >= 5 else 'LOW')
-    print(f"{i:>2d} {s:6s} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {mode:>7s} {sc}/9 {tier:>5s} ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
+    vp_flag = '🟢' if vp >= 1.0 else ('🟡' if vp >= 0.5 else '🔴')
+    print(f"{i:>2d} {s:6s} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {vp_flag}{vp:>4.1f}x {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {mode:>7s} {sc}/9 {tier:>5s} ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
 PYEOF
 ```
 
@@ -427,7 +452,21 @@ PYEOF
 ```bash
 python3 << 'PYEOF'
 import requests, os, sqlite3, numpy as np
+from datetime import datetime
+import pytz
 from dotenv import load_dotenv; load_dotenv()
+
+ET_VOL_CURVE = {9: 0.05, 10: 0.18, 11: 0.30, 12: 0.42, 13: 0.52, 14: 0.62, 15: 0.78, 16: 1.00}
+def expected_vol_pct():
+    et = datetime.now(pytz.timezone('US/Eastern'))
+    h, m = et.hour, et.minute
+    if h < 9 or (h == 9 and m < 30): return 0
+    if h >= 16: return 1.0
+    base = ET_VOL_CURVE.get(h, 0.5)
+    next_h = ET_VOL_CURVE.get(h+1, base + 0.1)
+    return base + (next_h - base) * (m / 60)
+expected_pct = expected_vol_pct()
+print(f"📊 Expected vol pct at this time: {expected_pct*100:.0f}%")
 
 hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
 conn = sqlite3.connect("data/trade_history.db")
@@ -524,11 +563,14 @@ for sym in syms:
         last_green = mb.get('c',0) > mb.get('o',0) if mb else False
         sec = sectors.get(sym,'')
         sec_3d_avg = sector_3d.get(sec, 0)
+        sec_today_avg = sector_avg.get(sec, 0) if 'sector_avg' in dir() else sec_3d_avg
+        sec_effective = min(sec_3d_avg, sec_today_avg)
         beta = betas.get(sym, 1.5)
         has_catalyst = sym in news_set or sym in insider_set or sym in si_set
+        vol_pace = vr / expected_pct if expected_pct > 0 else 0
 
         if daily_chg >= 3 and chg >= 0: mode = 'MomCont'
-        elif drop <= -3 and sec_3d_avg >= 0: mode = 'Bounce'
+        elif drop <= -3 and sec_today_avg >= 0: mode = 'Bounce'
         elif drop <= -3: mode = 'KNIFE'
         else: mode = 'Watch'
 
@@ -545,16 +587,20 @@ for sym in syms:
         if ad_ratio >= 2: score += 2
         if abs(chg) >= 2 or drop <= -3 or abs(daily_chg) >= 3: score += 1
         if beta < 1.5: score += 1
-        if sec_3d_avg >= 0.5: score += 1
-        if vr >= 2.0: score += 1
+        if sec_effective >= 0.5: score += 1
+        if vol_pace >= 1.0: score += 1
         if has_catalyst: score += 1
+        if mode in ('Bounce','Watch') and sec_today_avg < -0.3: score -= 2
+        if vol_pace < 0.5: score -= 1
 
         if mode == 'KNIFE': continue
-        # No min score gate — score = confidence, not filter
+        if sec_today_avg < -0.5 and chg < 0: continue
+        if mode == 'Watch' and chg < 0: continue
+        if vol_pace < 0.3: continue
         if abs(chg) < 2 and abs(daily_chg) < 3 and drop > -2: continue
 
         sl_price = now * (1 + sl_pct/100); tp_price = now * (1 + tp_pct/100)
-        results.append((sym, opn, now, chg, drop, vr, daily_chg, sec, sec_3d_avg, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price))
+        results.append((sym, opn, now, chg, drop, vol_pace, daily_chg, sec, sec_effective, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price))
     except: pass
 
 mode_order = {'MomCont':0,'Bounce':1,'Watch':2}
@@ -569,10 +615,11 @@ for r in results:
 
 top_picks = diversified[:3]
 print(f"\n📊 {len(results)} candidates → TOP 3")
-print(f"{'#':>2s} {'Sym':6s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'DChg':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Mode':>7s} {'Sc':>3s} {'Tier':>5s} {'SL':>9s} {'TP':>9s}")
-for i,(s,o,n,c,dr,vr,dc,sec,sa,b,lg,mode,sc,atr,slp,tpp,slpr,tppr) in enumerate(top_picks, 1):
+print(f"{'#':>2s} {'Sym':6s} {'Now':>7s} {'Chg':>6s} {'Drop':>6s} {'DChg':>6s} {'VPace':>6s} {'β':>4s} {'ATR':>5s} {'Sec':>10s} {'Mode':>7s} {'Sc':>3s} {'Tier':>5s} {'SL':>9s} {'TP':>9s}")
+for i,(s,o,n,c,dr,vp,dc,sec,sa,b,lg,mode,sc,atr,slp,tpp,slpr,tppr) in enumerate(top_picks, 1):
     tier = 'HIGH' if sc >= 7 else ('MED' if sc >= 5 else 'LOW')
-    print(f"{i:>2d} {s:6s} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {dc:+5.1f}% {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {mode:>7s} {sc}/9 {tier:>5s} ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
+    vp_flag = '🟢' if vp >= 1.0 else ('🟡' if vp >= 0.5 else '🔴')
+    print(f"{i:>2d} {s:6s} {n:>7.2f} {c:+5.1f}% {dr:+5.1f}% {dc:+5.1f}% {vp_flag}{vp:>4.1f}x {b:>4.1f} {atr:>4.1f}% {sec[:10]:>10s} {mode:>7s} {sc}/9 {tier:>5s} ${slpr:.2f}({slp:+.1f}%) ${tppr:.2f}(+{tpp:.1f}%)")
 PYEOF
 ```
 
