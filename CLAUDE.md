@@ -32,8 +32,8 @@ The terminal CAN render wide pipe-tables. Always use one table for all candidate
 
 **ไม่ overlap**: ORB→Intraday handoff ที่ 09:30 | Top Movers→OVN handoff ที่ 15:30
 
-**Prompt file มี rules + stats ครบ (Bounce Mode, Sector, peak timing)**
-**CLAUDE.md มี scan code + output format — ใช้ร่วมกัน**
+**Prompt file มี data + WR tables — CLAUDE.md มี Score + TP/SL**
+**ใช้ร่วมกัน: prompt file = strategy data | CLAUDE.md = scan code + Score + output format**
 
 จากนั้น **ทำ 5 ขั้นตอนนี้ทุกครั้ง ห้ามข้าม:**
 
@@ -388,82 +388,73 @@ WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') A
 "
 ```
 
-### ขั้นตอน 4: AI วิเคราะห์ + ตัดสิน
+### ขั้นตอน 4: Score + ตัดสิน
 
-**ใช้ data จาก Step 3 + หลักการจาก prompt file ที่อ่าน → AI ตัดสินเอง:**
+**Score /9 — เรียงหุ้น ตัดสินเร็ว:**
 
-**⚡ Score + Filter (ให้ AI ตัดสินเร็ว):**
-
-| Factor | เงื่อนไข | Score | WR Impact |
-|--------|---------|-------|-----------|
-| SPY daily | green | +2 | +20pp (47→67%) |
-| AD ratio | ≥2 | +2 | +15pp (42→56%) |
+| Factor | เงื่อนไข | Score | WR Impact (backtest) |
+|--------|---------|-------|---------------------|
+| SPY daily | green | +2 | +20pp (47→67%, N=7.6K) |
+| AD ratio | ≥2 | +2 | +15pp (42→57%, N=106K) |
 | Setup | Drop ≥3% หรือ Gap+Vol 2x | +1 | มี edge |
-| Beta | <1.5 | +1 | +1.5pp |
-| Sector | แข็งวันนี้ (ดู ranking) | +1 | rotation |
+| Beta | <1.5 | +1 | +1.5pp (N=94K) |
+| Sector | แข็งวันนี้ | +1 | rotation |
 | Vol | ≥2x | +1 | +4pp |
-| Catalyst | news/upgrade/insider/SI สูง | +1 | attention+vol |
+| Catalyst | news/upgrade/insider/SI | +1 | attention |
 
-```
-Score 6-9 → BUY NOW (มั่นใจ)
-Score 4-5 → พิจารณา (มี edge แต่ไม่แข็ง)
-Score < 4 → ไม่แสดง
-```
+Score 6+ → BUY NOW | 4-5 → พิจารณา | <4 → ไม่แสดง
+เรียง: Score สูงสุด → Vol สูง → Beta ต่ำ
 
-**SPY direction = ดูจาก DAILY** (prev close → now) ไม่ใช่ intraday (today open → now)
+**GATE: AD < 1 → WR 43% ทุกช่วง (N=149K) — edge ติดลบ**
+
+**SPY direction = ดูจาก DAILY** (prev close → now) ไม่ใช่ intraday
 - SPY +2.4% daily แต่ intraday -0.2% = **วันเขียว**
 
 **2 Play Types:**
-- **Down Bounce**: Drop ≥3% จาก open → รอ bounce confirm → TP ตาม drop depth
-- **Momentum UP**: Gap up 2-8% + Vol ≥2x → entry at open → TP +3-5%
+- **Bounce**: Drop ≥3% + AD≥2 + SPY green → WR 57-68%
+- **Momentum UP**: Gap 2-8% + Vol 2x at open → WR 57-58%
 
-**TP/SL — Best Combo ต่อช่วง (backtest 1.5M rows + 57M 5m bars):**
+**TP/SL ตามช่วง (full data verified):**
 
-| ช่วง | Type | TP | SL | Filter | WR | EV |
-|------|------|-----|-----|--------|-----|-----|
-| ORB | Long | +2% | **-0.5%** | SPY green + AD≥2 | 31% | +0.42% |
-| ORB | Short | -2% | +2% | SPY red + VIX≥22 + Gap dn + Vol 2x | **72%** | **+0.94%** |
-| 09:30-10:30 | Long | +1.5% | **-0.5%** | SPY green + AD≥2 | 44% | +0.43% |
-| 09:30-10:30 | Short | -1.5% | +2% | SPY red + VIX≥22 + Gap dn + Vol 2x | **75%** | +0.66% |
-| >10:30 | Long | +1.0% | -1.5% | SPY red + AD≥2 + Beta<1.5 | **65%** | +0.50% |
-| >10:30 | Short | -1.0% | +1.5% | SPY red + Gap dn + Vol 2x | **72%** | +0.29% |
-| Scalp | Long | +0.65% | -0.5% | 10:00-10:30 + Vol 2x | 48% | ~0% |
+| ช่วง | Long TP | Long SL | EV | Short condition | Short WR |
+|------|---------|---------|-----|----------------|---------|
+| ORB 09:30 | +2% | -0.5% | +0.42% | SPY red+VIX≥22+Gap dn+Vol 2x | 72% |
+| 09:30-10:30 | +1.5% | -0.5% | +0.43% | SPY red+VIX≥22+Gap dn+Vol 2x | 75% |
+| 10:30-11:30 | +1.0% | -0.5% | +0.10% | same | — |
+| 11:30-15:00 | EOD exit | -0.5% | varies | SPY red+Drop 3%+ | 55% |
+| 15:00+ | +0.65% | -0.5% | ~0% | VIX 38+ | 65% |
 
-**Key rules:**
-- **SL -0.5% ชนะทุก combo** — ตัดขาดทุนเร็ว = EV ดี
-- **AD ratio ≥2 = filter สำคัญสุด** (EV +0.04% → +0.42%)
-- **Short = edge สูงสุด** เมื่อ SPY red + Gap down + Vol 2x (WR 72%, แต่เกิดไม่บ่อย)
-- **Scalp +0.65% = edge น้อยมาก** ต้อง vol spike + 10:00-10:30 ถึงพอ
+**11:30-15:00 specific (full data 236K signals):**
+- Raw bounce = WR 50% (no edge without filter)
+- AD≥3: WR 61-68% per hour (11:30=65%, 12:00=68%, 13:00=62%)
+- AD<1: WR 43-45% (negative edge)
+- Momentum 8%+ by 11:30 → WR 54% continuation
+- EOD exit > TP/SL (backtest confirmed — TP caps winners)
 
-**เมื่อไหร่ BUY NOW:**
-- **ORB 09:30: Score 6+ + PM gap 2-5% + Vol 2x → BUY at open ทันที** (WR 57-58%)
-- **07:00-09:25 scan ใหม่ทั้งหมด** — หาตัวใหม่ที่ gap up ตอน PM (earnings BMO, overnight news)
-- **Intraday: Score 6+ → BUY NOW** ไม่ต้องรอ pullback ถ้า profile แข็ง
-- **SPY red + AD≥2: Long ยังได้** (mean reversion WR 65% หลัง 10:30)
-- **SPY red + VIX≥22 + Gap down + Vol 2x: SHORT** (WR 72%)
+**SHORT = highest edge setup:**
+- SPY red + Gap down 2%+ + Vol 2x → WR 72% EV +0.94%
+- VIX 38+ short → WR 65%
+- SPY green short → WR 42% (negative)
 
 ### ขั้นตอน 5: แสดงผล
 
-**เลือก 1-3 ตัวที่ดีที่สุด BUY NOW — ไม่ต้องจัดหมวดหมู่ ไม่ต้อง WATCH list**
-- AI เลือกตัวที่น่าซื้อที่สุดเลย พร้อม Entry/SL/TP
-- ไม่แยก "Momentum" vs "Bounce" — user สนแค่ว่าตัวไหนกำไร
+**เลือก 1-3 ตัวที่ดีที่สุด BUY NOW พร้อม Entry/SL/TP**
 - ถ้าไม่มีตัวดี → "ไม่มี BUY NOW" + เวลา re-scan
-- **ไม่อธิบายทุกตัว** — สรุปสั้นว่าตัวไหนดีสุด + ทำไม
 
 **ตัวอย่าง output — มีตัวดี:**
 
 ---
 
-## Scan — 12:30 ET Wed | SPY daily +2.4% 🟢 | VIX 21
+## Scan — 12:30 ET Wed | SPY +2.4% 🟢 | AD 2.3 | VIX 21
 
 ### 🟢 BUY NOW
 
-| # | Symbol | Now | SL | TP | R:R | เหตุผล |
-|---|--------|-----|-----|-----|-----|--------|
-| 1 | INTU | $405 | $392 (-3.2%) | $418 (+3.2%) | 1:1 | Drop -5% + Beta 1.21 + MCap $114B + SPY daily 🟢 |
-| 2 | NBIS | $125 | $119 (-4.8%) | $131 (+4.8%) | 1:1 | SI 19.6% + Beta 1.06 + Vol 2x + gap up |
+| # | Symbol | Now | SL | TP | R:R | Score | เหตุผล |
+|---|--------|-----|-----|-----|-----|-------|--------|
+| 1 | INTU | $405 | $403 (-0.5%) | EOD | — | 7/9 | Drop -5% + Beta 1.21 + MCap $114B + AD 2.3 |
+| 2 | NBIS | $125 | $124 (-0.5%) | EOD | — | 6/9 | SI 19.6% + Beta 1.06 + Vol 2x |
 
-**INTU**: deep drop + large cap + SPY green
+**INTU**: deep drop + large cap + SPY green + AD≥2
 **NBIS**: SI squeeze + low beta + momentum
 
 Re-check: 13:00
@@ -474,37 +465,11 @@ Re-check: 13:00
 
 ---
 
-## Scan — 09:42 ET Tue | SPY daily -0.5% 🔴 | VIX 24.2
+## Scan — 09:42 ET Tue | SPY -0.5% 🔴 | AD 0.8 | VIX 24.2
 
-ไม่มี BUY NOW
+ไม่มี BUY NOW — AD < 1 (WR 43%)
 
 Re-check: 10:00
-
----
-
-**ตัวอย่าง output — ORB Pre-Market (ยังไม่มี PM data):**
-
----
-
-## ORB Prep — 04:30 ET Thu | SPY daily +2.5% 🟢 | VIX 21
-
-| # | Symbol | Now | PMGap | Yest% | 5dM | Vol | Beta | MCap | Sector | Catalyst |
-|---|--------|-----|-------|-------|-----|-----|------|------|--------|----------|
-| 1 | NESR | $24 | +0.2% | +5.4% | +13% | 0.2x | 0.29 | $2.2B | Energy | tgt +20% |
-| 2 | UNFI | $47 | +0.1% | +5.0% | +6% | 0.0x | 0.83 | $2.7B | ConsDef | CP 0.97 |
-| 3 | CRDO | $110 | +0.1% | -3.3% | +17% | 0.0x | 2.72 | $20B | Tech | tgt +81% |
-
-สรุป: NESR (low beta + Energy) ดีสุด รอ PM Vol 2x+
-Re-check: 07:00 PM vol | 09:25 final
-
-| # | Symbol | Now | รอที่ | Limit | SL | TP | R:R |
-|---|--------|-----|------|-------|-----|-----|-----|
-| 1 | LLY | $899 | Green bar | GBar | $890 | $917 | 1:2 |
-
-**LLY**: Beta 0.43 + MCap $794B + Drop -2.8% + 51 unusual calls
-→ ยังไม่ bounce — รอ green bar + volume confirm
-
-Re-check: 10:00 LITE pullback | 10:15 LLY green bar
 
 ---
 
@@ -513,10 +478,6 @@ Re-check: 10:00 LITE pullback | 10:15 LLY green bar
 | หุ้น | Entry | Now | P&L | Action |
 |------|-------|-----|-----|--------|
 | AA 10 | $64.87 | $70.49 | +8.7% (+$56) | trail SL $69 |
-
----
-
-**(ใช้ format นี้ทุกครั้ง — กระชับ ตารางแคบ รายละเอียด 2 บรรทัดต่อตัว)**
 
 ---
 

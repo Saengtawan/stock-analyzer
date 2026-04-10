@@ -6,164 +6,68 @@
 
 ```
 คุณเป็น day trader ช่วง 09:30-11:30 ET
-หาหุ้นที่มี edge จริง — data-validated จาก 500K+ bars
+หาหุ้นที่มี edge จริง — data-validated
 
-## Backtest Data (2024-2026, validated)
+## Backtest Data (full data verified)
 
-### Down Bounce WR ตาม Drop Depth × เวลา (backtest 97K signals, 2024-2026)
+### Down Bounce WR ตาม AD Ratio (N=106K)
 
-**Drop depth คือตัวแบ่ง #1 — ไม่ใช่ price range หรือ setup type**
+| AD Ratio | WR | EV |
+|----------|-----|-----|
+| ≥3 | 65-68% | +0.50% |
+| ≥2 | 57-62% | +0.43% |
+| 1-2 | 50-52% | ~0% |
+| <1 | 43-45% | negative |
 
-| ช่วง | Drop 2-3% | Drop 3-5% | Drop 5-8% | Drop 8%+ | N |
-|------|-----------|-----------|-----------|----------|---|
-| **09:30-10:00** | **57.5%** | **59.5%** | **69.2%** | **93%** (N น้อย) | 14,719 |
-| **10:00-10:30** | 52.3% | 54.5% | **71.6%** | N<30 | 12,710 |
-| **10:30-11:30** | 53.9% | 54.4% | **67.3%** | N<30 | 30,904 |
+### Down Bounce WR ตาม Drop Depth (N=97K)
 
-Price range: $5-20 = WR 55% | $50+ = WR 54.8% (ไม่ต่างกันมาก — drop depth สำคัญกว่า)
+| Drop | 09:30-10:00 | 10:00-10:30 | 10:30-11:30 |
+|------|-------------|-------------|-------------|
+| 2-3% | 57% | 52% | 54% |
+| 3-5% | 60% | 55% | 54% |
+| 5%+ | 69% | 72% | 67% |
 
-### Other Setups (จาก backtest ก่อน — N น้อยกว่า)
+Best combo: SPY green + AD≥2 + Drop 3%+ = WR 67% (N=7.6K)
 
-| ช่วง | Strategy | WR | หมายเหตุ |
-|------|----------|-----|---------|
-| 10:00 | Vol Surge 3x No Gap $50+ | ~62% | N น้อย, ยังไม่ re-validate |
-| 10:00 | Top Mover 5%+ Green $50+ | ~62% | N น้อย, ยังไม่ re-validate |
-
-### Down Bounce WR Summary (97K signals)
-- Drop 2-3% = WR 53% | Drop 3-5% = WR 57% | Drop 5-8% = WR 68% | Drop 8%+ = WR 93% (N น้อย)
-- Morning (09:30-10:00) = WR 59.5% | Afternoon (14:00+) = WR 51%
-- SPY green = WR 58-62% | SPY < -1% = WR 34%
+### Momentum UP — Gap + Vol 2x (N=4.3K)
+- Gap 2-8% + Vol ≥2x at open = WR 57-58%
+- Entry after +3% intraday = WR 44%
 
 ### Gap Down + Vol 2x = WR 42% (N=4,347)
-- Gap Down >=2% + Vol >=2x = WR 42.4%
-- Down Bounce = ลงจาก open แล้ว bounce | Gap Down = gap จาก prev close
-
-### Setups WR < 55% (ข้อมูลให้ AI พิจารณา)
-| Strategy | WR | N |
-|----------|-----|---|
-| Gap Up Vol 2x entry after +3% intraday | 44% | - |
-| Top Mover 5%+ Green ($5-20) 11:00+ | 47% | - |
-| Up 2-5% Green ($50+) | 48% | - |
 
 ---
 
-## 🟢 09:30-10:00 ET — Opening Bell
+## Strategy 1: Down Bounce (WR 57-69%)
+หุ้นลง 2%+ จาก open → green bar bounce
+- Drop depth = primary signal (5%+ = WR 69%)
+- Green bar alone = WR ~50% — edge มาจาก drop + SPY + AD
 
-### Strategy 1: Down Bounce (WR 57-69% ขึ้นกับ drop depth)
-**หาอะไร**: หุ้นที่ลง 2%+ จาก open แล้ว green bar bounce
-**Sweet spot**: Drop 5%+ = WR 69% | Drop 3-5% = WR 60% | Drop 2-3% = WR 57%
+Entry: Buy green bar close | SL: -0.5% | TP: +1.5% (09:30-10:30)
 
-**วิธีหา:**
-1. Scan หุ้นที่ **ลง 2%+ จาก open** ภายใน 09:30-09:45
-2. ยิ่ง drop ลึก WR ยิ่งสูง (5%+ = 69%)
-3. รอ **Green bar** (bar close > bar open) = bounce signal
-4. Price range ไม่ค่อยสำคัญ ($5-20 = 55%, $50+ = 55% ใกล้กัน)
+## Strategy 2: Vol Surge 3x No Gap (WR 55-62%)
+หุ้นไม่ gap แต่ vol พุ่ง 3x + green bar | $50+ = WR 62%
 
-**Entry:** Buy green bar close | SL: day low | TP: +3-5%
-**Note:** Drop 2-3% = WR 57% | Drop 5%+ = WR 69%
-
-### Strategy 2: Vol Surge 3x No Gap (WR 55-62%)
-**หาอะไร**: หุ้นที่ไม่ gap แต่ vol พุ่ง 3x + green bar
-**เหมือนเดิม** — ยังใช้ได้ดี โดยเฉพาะ $50+ (WR 62%)
-
-### Strategy 3: Momentum UP — Gap Up + Vol 2x (WR 57-58% at open)
-**หาอะไร**: หุ้นที่ gap up 2-8% จาก prev close + vol ≥2x ตั้งแต่เปิด
-- Entry at open with gap + vol = WR 57-58% (momentum continuation)
-- Entry after +3% intraday = WR 44% (different setup)
-- 5d trend strong + gap + vol = momentum continuation signal
-
-**Context clues (momentum):**
-- 5d momentum +5%+ = trend confirmation → gap = continuation
-- Vol ≥2x = institutional participation (ไม่ใช่แค่ retail)
-- Sector strong วันนั้น = tailwind
+## Strategy 3: Momentum UP — Gap + Vol 2x (WR 57-58%)
+Gap up 2-8% + vol ≥2x → momentum continuation
+- 5d momentum +5%+ = trend confirmation
 - SI สูง + gap up = short squeeze acceleration
 
-**Entry:** Buy at/near open price | SL: prev close or gap fill | TP: +3-5%
-**Note:** Entry after +3% intraday = WR 44%
+Entry: Buy at/near open | SL: prev close or gap fill | TP: +2%
+
+## SHORT Strategy (highest edge)
+SPY red + VIX≥22 + Gap down 2%+ + Vol 2x → WR 72-75% EV +0.66-0.94%
+SPY green short → WR 42% (negative)
 
 ---
 
-## 🟢 10:00-10:30 ET — Confirmation
+## TP/SL Reference (see CLAUDE.md Step 4 for full table)
 
-### Down Bounce (WR 52-72% ขึ้นกับ drop depth)
-- Drop 2-3%: WR 52% | Drop 3-5%: WR 55% | Drop 5%+: WR **72%**
-- Avg return vs entry: +0.19%
+| ช่วง | Long TP | Long SL | EV |
+|------|---------|---------|-----|
+| 09:30-10:30 | +1.5% | -0.5% | +0.43% |
+| 10:30-11:30 | +1.0% | -0.5% | +0.10% |
 
-### Vol Surge + Top Mover (WR 58-62%)
-- Vol Surge 3x No Gap $50+: WR 62%, +1.0%
-- Top Mover 5%+ Green $50+: WR 62%, +0.7%
-
-### Kill Zone
-- Early peak before 10:30: avg giveback -5.4%
-- After +3%: 50% partial exit
-
----
-
-## 🟡 10:30-11:30 ET — Late Morning
-
-### Down Bounce (WR 54-67% ขึ้นกับ drop depth)
-| เวลา | Drop 2-3% | Drop 3-5% | Drop 5%+ |
-|------|-----------|-----------|----------|
-| 10:30-11:30 | 54% | 54% | **67%** |
-
-Avg return vs entry: +0.23%
-
-### Consolidation Breakout
-- เช้า sideways → breakout 2%+: 47.6% ปิด +3% (จาก backtest ก่อน)
-
----
-
-## สรุป: เรียงตาม WR (จาก 97K signals)
-
-| Rank | Setup | เวลา | WR | TP | N |
-|------|-------|------|-----|-----|---|
-| 🥇 | **Down Bounce, drop 5%+** | 09:30 | **69%** | +3-5% | สูง |
-| 🥈 | **Down Bounce, drop 5%+** | 10:00-10:30 | **67-72%** | +2-3% | ปานกลาง |
-| 🥉 | Down Bounce, drop 3-5% | 09:30 | **60%** | +2-3% | สูง |
-| 4 | Down Bounce, drop 2-3% | 09:30 | **57%** | +2% | สูง |
-| 5 | Down Bounce, drop 3-5% | 10:00-11:30 | **54-55%** | +1-2% | สูง |
-| 6 | Vol Surge 3x No Gap $50+ | 10:00 | **~62%** | +1% | N น้อย |
-| 7 | Down Bounce, drop 2-3% | 10:00-11:30 | **52-54%** | +1% | สูง |
-| 8 | **Momentum UP: Gap 2-8% + Vol 2x** | 09:30 | **57-58%** | +3-5% | ปานกลาง |
-
----
-
-## Low WR Setups (ข้อมูลให้ AI พิจารณา)
-
-| Setup | WR | หมายเหตุ |
-|-------|----|---------|
-| Gap Down + Vol 2x | 42% | N=4,347 |
-| SPY < -1% + bounce | 34% | - |
-| Drop 2-3% | 53% | - |
-| Gap Up Vol 2x Green $20+ | 44% | - |
-| Top Mover 5%+ Green หลัง 11:00 | 40-47% | - |
-| Down Bounce Vol 5x+ | <50% | - |
-| Price < $1 | <50% | - |
-
-## วิเคราะห์ Candidate (AI ตัดสินเอง)
-
-ดู data ที่ CLAUDE.md Step 3 ดึงมา แล้วพิจารณา:
-
-**Technical (จาก scan):**
-- Setup type (Down Bounce / Vol Surge / Momentum UP / Top Mover)
-- Green bar? Price range? Volume ratio?
-
-**Context (จาก DB query):**
-- SI สูง = short squeeze → bounce แรงกว่า
-- VIX สูง = volatility สูง → amplitude ใหญ่
-- มีข่าว = attention + volume (ไม่ว่า pos/neg ดีกว่าไม่มี)
-- Sector: ดู sector ที่แข็งแรงวันนั้น (sector rotation เปลี่ยนทุกวัน — ไม่ยึด sector ตายตัว)
-- Insider buy ล่าสุด = confidence signal
-- Earnings ใกล้ = uncertainty สูง
-- Unusual options = smart money
-
-**AI ดู data ทั้งหมดแล้ว weigh เอง — ยิ่งหลาย factors ตรง edge ยิ่งสูง**
-
-Data points: drop depth, SPY daily direction, AD ratio, VWAP position, bounce bar count + volume, sector direction, beta
-
-### Return Data ให้ AI ตั้ง TP/SL (backtest 126K setups)
-
-**Avg Winner / Avg Loser ตาม Drop × เวลา:**
+### Avg Winner / Avg Loser (N=126K)
 
 | Drop | 09:30 Win/Loss | 10:00-10:30 | 10:30-11:30 |
 |------|---------------|-------------|-------------|
@@ -171,57 +75,38 @@ Data points: drop depth, SPY daily direction, AD ratio, VWAP position, bounce ba
 | 3-5% | +2.7% / -2.8% | +2.1% / -2.3% | +2.0% / -2.0% |
 | 5%+ | +3.6% / -3.8% | +2.9% / -3.1% | +2.7% / -2.7% |
 
-**หลังถึง +2% จาก entry — วิ่งต่อหรือ retrace:**
+### หลังถึง +2% — วิ่งต่อ?
 
-| เวลาที่ hit +2% | → ถึง +3% | → ถึง +5% | retrace กลับ <+1% |
-|----------------|----------|----------|-------------------|
+| เวลา | → +3% | → +5% | retrace <+1% |
+|------|-------|-------|-------------|
 | 09:30-10:00 | 64% | 27% | 32% |
 | 10:00-10:30 | 53% | 19% | 30% |
 | 10:30-11:30 | 53% | 17% | 26% |
 
-**Bounce speed (median bars จาก entry ถึง peak):**
+---
 
-| Drop | 09:30 | 10:00-11:30 |
-|------|-------|-------------|
-| 2-3% | 18 bars (90 min) ช้า | 20 bars (100 min) ช้า |
-| 5%+ | 14 bars (70 min) เร็วกว่า | 15 bars (75 min) |
-| Fast bounce (≤3 bars) | 26-30% ของ setups | 24% |
+## Low WR Setups (data)
 
-**Bounce characteristics:**
-- เช้า: bounce ช้า (70-90 นาที median) แต่ amplitude สูง (winner +2.3-3.6%)
-- 5%+ drop bounce เร็วกว่า 2-3% drop
-- เพียง 24-30% ที่ peak ใน 15 นาที — ส่วนใหญ่ค่อยๆ ขึ้น มีเวลาเข้า
-- Green bar alone: WR ~50% — edge มาจาก drop depth + SPY direction + context
-
-### Winner vs Loser Profile (จาก backtest — ให้ AI ใช้ judge)
-
-WINNER signs (bounce hold):
-- Beta ปานกลาง (~1.3) — volatile พอ bounce แต่ไม่เกิน
-- Drop ลึก (4%+) — oversold จริง → bounce แรง
-- Bar vol ปกติ (1-2x) — institutional buying
-- Mom 5d flat/ลบ — dip จริง ไม่ใช่ pullback ระหว่าง rally
-- MCap ใหญ่กว่า — stable กว่า
-
-**AI ดู pattern รวมแล้วตัดสิน**
+| Setup | WR | N |
+|-------|----|---|
+| Gap Down + Vol 2x | 42% | 4,347 |
+| SPY < -1% + bounce | 34% | — |
+| AD < 1 + any bounce | 43-45% | 149K |
+| Gap Up Vol 2x entry after +3% | 44% | — |
+| Down Bounce Vol 5x+ | <50% | — |
 
 ## Output Format
 
-**แสดง BUY + WATCH เท่านั้น — ตัดกระบวนการ scan ออก**
-**ถ้าไม่มีตัวดี → "ไม่มี BUY signal" (ดีกว่าฝืน)**
+### 🟢 BUY NOW (1-3 ตัว)
 
-### 🟢 BUY NOW (1-3 ตัวที่ดีที่สุด — AI มั่นใจแล้ว)
-
-| # | Symbol | Now | SL | TP | R:R | เหตุผล |
-|---|--------|-----|-----|-----|-----|--------|
+| # | Symbol | Now | SL | TP | R:R | Score | เหตุผล |
+|---|--------|-----|-----|-----|-----|-------|--------|
 
 **ต่อตัว 2 บรรทัด** (ทำไม BUY + Risk)
-ตัวที่ไม่ดีพอ → ไม่แสดง
 ถ้าไม่มี BUY NOW → "ไม่มี BUY NOW" + เวลา re-scan
 ```
 
 ## Data Sources
 - 500K+ 5-min bar entries (2024-2026)
-- Honest: includes tautology warning for Down Bounce
-- WR vs entry (real) not vs open (misleading)
-- Penny stocks ($1-5) removed — WR 46-50%
-- Gap Up Vol 2x at open = WR 57-58% | Gap Up Vol 2x entry after +3% = WR 44%
+- WR vs entry price (not vs open)
+- Score system: see CLAUDE.md Step 4
