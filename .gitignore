@@ -255,6 +255,7 @@ test_coverage/
 *.joblib
 *.h5
 *.pb
+catboost_info/
 
 # Documentation builds
 docs/build/
