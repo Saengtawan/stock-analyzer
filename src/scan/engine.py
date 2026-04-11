@@ -16,36 +16,34 @@ import pytz
 
 from .strategies.base import ScanResult
 from .strategies.orb_prep import OrbPrepStrategy
+from .strategies.open_drive import OpenDriveStrategy
 from .strategies.morning_drive import MorningDriveStrategy
+from .strategies.consolidation_break import ConsolidationBreakStrategy
 from .strategies.afternoon_strict import AfternoonStrictStrategy
+from .strategies.vwap_reclaim import VwapReclaimStrategy
 from .strategies.crisis_reversal import CrisisReversalStrategy
 from .strategies.ovn_gap import OvernightGapStrategy
 from .strategies.fri_mon import FriMonStrategy
-from .strategies.meta import (
-    OpenObserveStrategy,
-    LateMorningQuietStrategy,
-    LateAfternoonQuietStrategy,
-    EodFlattenStrategy,
-)
+from .strategies.meta import EodFlattenStrategy
 
 ET = pytz.timezone('US/Eastern')
 
-# Trade strategies (try these first for auto dispatch)
+# Trade strategies (all attempt actual entries; may return no_picks)
 TRADE_STRATEGIES = {
-    'orb_prep':         OrbPrepStrategy,
-    'morning_drive':    MorningDriveStrategy,
-    'afternoon_strict': AfternoonStrictStrategy,
-    'crisis_reversal':  CrisisReversalStrategy,
-    'ovn_gap':          OvernightGapStrategy,
-    'fri_mon':          FriMonStrategy,
+    'orb_prep':            OrbPrepStrategy,
+    'open_drive':          OpenDriveStrategy,
+    'morning_drive':       MorningDriveStrategy,
+    'consolidation_break': ConsolidationBreakStrategy,
+    'afternoon_strict':    AfternoonStrictStrategy,
+    'vwap_reclaim':        VwapReclaimStrategy,
+    'crisis_reversal':     CrisisReversalStrategy,
+    'ovn_gap':             OvernightGapStrategy,
+    'fri_mon':             FriMonStrategy,
 }
 
-# Meta strategies (no-trade windows, always skip with message)
+# Meta strategies (specific windows with no real trade, e.g. MOC)
 META_STRATEGIES = {
-    'open_observe':        OpenObserveStrategy,
-    'late_morning_quiet':  LateMorningQuietStrategy,
-    'late_afternoon_quiet': LateAfternoonQuietStrategy,
-    'eod_flatten':         EodFlattenStrategy,
+    'eod_flatten': EodFlattenStrategy,
 }
 
 STRATEGIES = {**TRADE_STRATEGIES, **META_STRATEGIES}
