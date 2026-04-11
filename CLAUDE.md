@@ -427,20 +427,45 @@ for sym in syms:
         if sec_effective >= 0.5: score += 2  # HEAVIER weight (biggest factor)
         if in_top3_sec: score += 2  # NEW: top 3 sector = +19pp
         if 1.5 <= vol_pace < 2.5: score += 1  # refined sweet spot
-        if vix_now > 25: score += 1  # NEW: vol = edge
+        if vix_now > 25: score += 1
         # Penalties
         score += td_penalty
-        if has_catalyst: score -= 1  # NEW: catalyst HURTS momentum
+        if has_catalyst: score -= 1
         if vol_pace < 0.5: score -= 1
         if is_stale: score -= 1
 
-        # Hard filters (backtest-validated)
-        if mode == 'Watch': continue  # no edge for bounces or indecisive
-        if sec_today_avg < -0.5 and chg < 0: continue
-        if not spy_green and et_hour >= 11: continue  # SPY red + late = 37% WR
-        if chg > 8: continue  # gap too big = losing (WR 38%)
+        # === TIME-SPECIFIC FILTER RECIPES (backtest-validated) ===
+        # Each time window requires different filters per backtest findings
+        et_min = datetime.now(pytz.timezone('US/Eastern')).minute
+        minutes_open = (et_hour - 9) * 60 + (et_min - 30)
+
+        # Universal filters
+        if mode == 'Watch': continue  # bounces debunked
+        if chg > 8: continue  # gap overextended = 38% WR
         if vol_pace < 0.3: continue
-        if abs(chg) < 1.5: continue
+        if not (3 <= chg < 8): continue  # sweet spot for momentum
+
+        # Time-specific requirements
+        if minutes_open < 0: continue  # before open
+        elif minutes_open < 60:
+            # 09:30-10:30: simple — sweet spot, minimal filters
+            pass
+        elif minutes_open < 120:
+            # 10:30-11:30: need vol_pace ≥ 1.0x
+            if vol_pace < 1.0: continue
+        elif minutes_open < 180:
+            # 11:30-12:30: need SPY green
+            if not spy_green: continue
+            if vol_pace < 1.0: continue
+        elif minutes_open < 270:
+            # 12:30-14:00: STRICT (fresh peak + vol 1.5x + SPY green)
+            if not spy_green: continue
+            if is_stale: continue  # must be fresh
+            if vol_pace < 1.5: continue
+            if sec_effective < 0.3: continue  # sector must be positive
+        else:
+            # 14:00+: genuine dead zone per backtest — skip entirely
+            continue
 
         sl_price = now * (1 + sl_pct/100); tp_price = now * (1 + tp_pct/100)
         results.append((sym, opn, now, chg, drop, vol_pace, daily_chg, sec, sec_effective, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price, from_peak_pct, is_stale))
@@ -632,12 +657,33 @@ for sym in syms:
         if vol_pace < 0.5: score -= 1
         if is_stale: score -= 1
 
-        if mode == 'Watch': continue  # no edge (bounces debunked)
-        if sec_today_avg < -0.5 and chg < 0: continue
-        if not spy_green and et_hour >= 11: continue  # SPY red + late = dead
-        if daily_chg > 8: continue  # gap too big = losing
+        # === TIME-SPECIFIC FILTER RECIPES ===
+        et_min = datetime.now(pytz.timezone('US/Eastern')).minute
+        minutes_open = (et_hour - 9) * 60 + (et_min - 30)
+
+        # Universal filters
+        if mode == 'Watch': continue
+        if daily_chg > 8: continue
         if vol_pace < 0.3: continue
         if abs(daily_chg) < 3: continue
+
+        # Time-specific
+        if minutes_open < 120:
+            # 09:30-11:30: shouldn't reach top_movers scan, but allow
+            if not spy_green: continue
+        elif minutes_open < 180:
+            # 11:30-12:30: require SPY green + vol ≥ 1.0x
+            if not spy_green: continue
+            if vol_pace < 1.0: continue
+        elif minutes_open < 270:
+            # 12:30-14:00: STRICT — 65% WR setup
+            if not spy_green: continue
+            if is_stale: continue
+            if vol_pace < 1.5: continue
+            if sec_effective < 0.3: continue
+        else:
+            # 14:00+: dead zone — skip
+            continue
 
         sl_price = now * (1 + sl_pct/100); tp_price = now * (1 + tp_pct/100)
         results.append((sym, opn, now, chg, drop, vol_pace, daily_chg, sec, sec_effective, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price, from_peak_pct, is_stale))
