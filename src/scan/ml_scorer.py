@@ -18,9 +18,11 @@ Usage:
 import os
 import json
 from pathlib import Path
+import numpy as np
 import lightgbm as lgb
 
-MODEL_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod'
+# v2 = ensemble of 5 models per bucket, achieves 75%+ for 5/6 buckets
+MODEL_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v2'
 
 
 class MLScorer:
@@ -45,14 +47,21 @@ class MLScorer:
             self.features = [line.strip() for line in f if line.strip()]
 
     def _load_models(self):
+        """Load ensemble models. Each bucket has 5 LightGBM models averaged."""
         with open(MODEL_DIR / 'metadata.json') as f:
             meta_list = json.load(f)
         for m in meta_list:
             bucket = m['bucket']
             self.metadata[bucket] = m
-            model_path = MODEL_DIR / m['model_file']
-            if model_path.exists():
-                self.models[bucket] = lgb.Booster(model_file=str(model_path))
+            model_files = m.get('model_files') or [m.get('model_file')]
+            ensemble = []
+            for mf in model_files:
+                if not mf: continue
+                mp = MODEL_DIR / mf
+                if mp.exists():
+                    ensemble.append(lgb.Booster(model_file=str(mp)))
+            if ensemble:
+                self.models[bucket] = ensemble
 
     def get_bucket(self, minutes_from_open: int) -> str:
         for (lo, hi), name in self.BUCKETS.items():
@@ -61,16 +70,15 @@ class MLScorer:
         return '14:00-16:00'
 
     def score(self, features: dict, minutes_from_open: int) -> float:
-        """Return probability [0,1] from the appropriate bucket model."""
+        """Return ensemble-averaged probability [0,1] from bucket models."""
         bucket = self.get_bucket(minutes_from_open)
-        model = self.models.get(bucket)
-        if model is None:
+        ensemble = self.models.get(bucket)
+        if not ensemble:
             return 0.0
-        # Order features as training
         row = [features.get(f, 0.0) for f in self.features]
-        import numpy as np
         arr = np.array([row], dtype=float)
-        return float(model.predict(arr)[0])
+        preds = [float(m.predict(arr)[0]) for m in ensemble]
+        return sum(preds) / len(preds)
 
     def threshold_75(self, minutes_from_open: int) -> float:
         """Return prob threshold that achieves 75% WR, or None if bucket

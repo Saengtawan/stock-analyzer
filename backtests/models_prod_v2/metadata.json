@@ -1,0 +1,104 @@
+[
+  {
+    "bucket": "09:30-10:00",
+    "n_train": 13839,
+    "n_test": 4152,
+    "base_wr": 61.25,
+    "test_top5_wr": 81.64,
+    "test_top1_wr": 90.24,
+    "threshold_75": 0.8204,
+    "ensemble_size": 5,
+    "model_files": [
+      "lgb_0930_1000_seed0.txt",
+      "lgb_0930_1000_seed1.txt",
+      "lgb_0930_1000_seed2.txt",
+      "lgb_0930_1000_seed3.txt",
+      "lgb_0930_1000_seed4.txt"
+    ]
+  },
+  {
+    "bucket": "10:00-10:45",
+    "n_train": 32367,
+    "n_test": 9711,
+    "base_wr": 62.82,
+    "test_top5_wr": 83.51,
+    "test_top1_wr": 87.63,
+    "threshold_75": 0.7497,
+    "ensemble_size": 5,
+    "model_files": [
+      "lgb_1000_1045_seed0.txt",
+      "lgb_1000_1045_seed1.txt",
+      "lgb_1000_1045_seed2.txt",
+      "lgb_1000_1045_seed3.txt",
+      "lgb_1000_1045_seed4.txt"
+    ]
+  },
+  {
+    "bucket": "10:45-11:30",
+    "n_train": 36869,
+    "n_test": 11061,
+    "base_wr": 56.36,
+    "test_top5_wr": 77.03,
+    "test_top1_wr": 81.82,
+    "threshold_75": 0.81,
+    "ensemble_size": 5,
+    "model_files": [
+      "lgb_1045_1130_seed0.txt",
+      "lgb_1045_1130_seed1.txt",
+      "lgb_1045_1130_seed2.txt",
+      "lgb_1045_1130_seed3.txt",
+      "lgb_1045_1130_seed4.txt"
+    ]
+  },
+  {
+    "bucket": "11:30-13:00",
+    "n_train": 46465,
+    "n_test": 13940,
+    "base_wr": 46.46,
+    "test_top5_wr": 66.28,
+    "test_top1_wr": 71.94,
+    "threshold_75": 0.8719,
+    "ensemble_size": 5,
+    "model_files": [
+      "lgb_1130_1300_seed0.txt",
+      "lgb_1130_1300_seed1.txt",
+      "lgb_1130_1300_seed2.txt",
+      "lgb_1130_1300_seed3.txt",
+      "lgb_1130_1300_seed4.txt"
+    ]
+  },
+  {
+    "bucket": "13:00-14:00",
+    "n_train": 81879,
+    "n_test": 24564,
+    "base_wr": 36.17,
+    "test_top5_wr": 67.02,
+    "test_top1_wr": 76.33,
+    "threshold_75": 0.7873,
+    "ensemble_size": 5,
+    "model_files": [
+      "lgb_1300_1400_seed0.txt",
+      "lgb_1300_1400_seed1.txt",
+      "lgb_1300_1400_seed2.txt",
+      "lgb_1300_1400_seed3.txt",
+      "lgb_1300_1400_seed4.txt"
+    ]
+  },
+  {
+    "bucket": "14:00-16:00",
+    "n_train": 90252,
+    "n_test": 27076,
+    "base_wr": 23.64,
+    "test_top5_wr": 56.76,
+    "test_top1_wr": 61.11,
+    "threshold_75": 0.7916,
+    "ensemble_size": 5,
+    "model_files": [
+      "lgb_1400_1600_seed0.txt",
+      "lgb_1400_1600_seed1.txt",
+      "lgb_1400_1600_seed2.txt",
+      "lgb_1400_1600_seed3.txt",
+      "lgb_1400_1600_seed4.txt"
+    ]
+  }
+]
