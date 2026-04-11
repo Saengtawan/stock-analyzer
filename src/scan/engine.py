@@ -16,13 +16,20 @@ import pytz
 
 from .strategies.base import ScanResult
 from .strategies.morning_drive import MorningDriveStrategy
+from .strategies.afternoon_strict import AfternoonStrictStrategy
+from .strategies.crisis_reversal import CrisisReversalStrategy
+from .strategies.ovn_gap import OvernightGapStrategy
+from .strategies.fri_mon import FriMonStrategy
 
 ET = pytz.timezone('US/Eastern')
 
 # Registry of available strategies
 STRATEGIES = {
-    'morning_drive': MorningDriveStrategy,
-    # Future: afternoon_strict, crisis_reversal, ovn_gap, fri_mon
+    'morning_drive':    MorningDriveStrategy,
+    'afternoon_strict': AfternoonStrictStrategy,
+    'crisis_reversal':  CrisisReversalStrategy,
+    'ovn_gap':          OvernightGapStrategy,
+    'fri_mon':          FriMonStrategy,
 }
 
 
