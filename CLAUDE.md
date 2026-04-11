@@ -38,17 +38,100 @@ entry rules, exit rules, backtest-validated WR/EV, and hard time window.
   bounce mode, top 3 sector) were backtest-invalidated. If you find yourself
   referencing them, stop.
 
-## Current strategies (v2)
+## Current strategies (v2 + ML)
 
-| Strategy | Window ET | WR | EV | Status |
+### Trade strategies
+| Strategy | Window ET | WR | EV | Notes |
 |---|---|---|---|---|
-| morning_drive | 09:50-10:45 | 60% | +0.88% | ✅ implemented |
-| afternoon_strict | 13:00-13:30 | 65% | +2.79% | ⏳ pending |
-| crisis_reversal | any (VIX>30) | 79% | +5.84% | ⏳ pending |
-| ovn_gap | 15:30-15:55 | — | — | ⏳ extract from v1 |
-| fri_mon | Fri 15:00-15:55 | — | — | ⏳ extract from v1 |
+| **ml_filter** | 09:30-14:00 | **75-90%** | +1.5% | ⭐ ENSEMBLE ML — primary |
+| orb_prep | 03:00-09:30 | — | — | watchlist only |
+| open_drive | 09:30-09:50 | 55% | +0.5% | ORB breakout |
+| morning_drive | 09:50-10:45 | 60% | +0.88% | backtest-validated |
+| consolidation_break | 10:45-13:00 | 52% | +0.3% | tight range |
+| afternoon_strict | 13:00-13:30 | 65% | +2.79% | strict filters |
+| vwap_reclaim | 13:30-15:30 | 52% | +0.4% | afternoon VWAP |
+| crisis_reversal | any (VIX≥25) | 75% | +3.0% | contrarian |
+| ovn_gap | 15:30-15:55 | 55% | +0.5% | overnight gap |
+| fri_mon | Fri 15:00-15:55 | 40% | +0.5% | weekend hold |
+| eod_flatten | 15:55-16:00 | — | — | meta (MOC) |
+
+### ml_filter (PRIMARY)
+
+Uses 5-model LightGBM ensemble per time bucket. Only emits picks
+where ensemble probability ≥ threshold_75 (per-bucket, validated on
+walk-forward backtest 2025+ 301K samples).
+
+Per-bucket thresholds and expected top-1% WR:
+  09:30-10:00  prob ≥ 0.82  → 90% WR
+  10:00-10:45  prob ≥ 0.75  → 88% WR
+  10:45-11:30  prob ≥ 0.81  → 82% WR
+  11:30-13:00  prob ≥ 0.87  → 72% WR (near miss)
+  13:00-14:00  prob ≥ 0.79  → 76% WR
+  14:00-16:00       —       → 61% WR (skipped — dead zone)
+
+Target label: "reach +1% at any point before close" (matches
+trail-1%-from-peak exit). So 'win' = trade hits +1% intraday.
+
+Features (26): mins_from_open, gain_from_open, range_pct, from_peak_pct,
+vs_vwap, vol_ratio, vol_accel, bars_since_hi, hh_count, consol,
+range_exp, gap_from_prev, beta, mcap_bucket, spy_green, spy_intra,
+vix, vix_5d_chg, ad_ratio, sec3d, mom5d, mom20d, dist_sma20,
+pct_52w_hi, pct_52w_lo, dow.
+
+### How to scan with ml_filter
+
+```bash
+python3 -m src.scan.engine ml_filter   # force ml_filter
+python3 -m src.scan.engine auto        # auto picks ml_filter first
+```
+
+Output interpretation:
+- `active` + picks → trade these (ensemble prob ≥ threshold)
+- `no_picks` → no stocks passed threshold this scan (re-try in 5-10 min)
+- `skipped_gate` → current bucket cannot reach 75% WR (14:00-16:00)
+- `out_of_window` → outside 09:30-14:00 ET
+
+Picks are auto-recorded to data/scan_journal.db for drift monitoring.
+
+### Daily workflow
+
+```
+03:00-09:30  orb_prep watchlist scan
+09:30-09:50  ml_filter (90% WR bucket)
+09:50-10:45  ml_filter (88% WR bucket) — SWEET SPOT
+10:45-11:30  ml_filter (82% WR bucket)
+11:30-13:00  ml_filter (72% — marginal, consider skipping)
+13:00-14:00  ml_filter (76% WR bucket)
+14:00-15:30  NO trades (ml_filter returns skipped_gate)
+15:30-15:55  ovn_gap (overnight play)
+15:55-16:00  eod_flatten (exit intraday positions)
+```
+
+### Outcome update (after close)
+
+```bash
+python3 -m src.scan.outcome_updater           # last 7 days
+python3 -m src.scan.outcome_updater --days=30 # last 30 days
+```
+
+Or cron:
+```
+30 16 * * 1-5 cd /path && python3 -m src.scan.outcome_updater
+```
+
+### Weekly drift check
+
+```python
+from src.scan.journal import get_journal
+j = get_journal()
+for row in j.report(days=7):
+    print(row)
+# Shows actual WR vs expected WR per strategy/bucket
+# If drift > 5pp → investigate or retrain
+```
 
 Backtest source: `backtests/results/SUMMARY.md` (29 tests, 20M bars, 2025+).
+ML models: `backtests/models_prod_v2/` (6 ensembles × 5 seeds).
 
 ## Adding a new strategy
 
