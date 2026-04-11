@@ -26,6 +26,7 @@ import numpy as np
 from dotenv import load_dotenv
 
 from .base import BaseStrategy, ScanResult, Pick
+from ..alpaca_bars import fetch_today_bars
 
 load_dotenv()
 
@@ -79,7 +80,8 @@ class OrbGapBreakStrategy(BaseStrategy):
             """):
                 prev_close[r[0]] = r[1]
 
-            # 10-day average first-bar (09:30-09:35) volume per symbol
+            # 10-day average first-bar (09:30) volume — HISTORICAL from DB
+            # (safe: historical data doesn't need real-time updates)
             avg_first_vol = {}
             for r in conn.execute("""
                 SELECT symbol, AVG(volume) FROM intraday_bars_5m
@@ -90,18 +92,15 @@ class OrbGapBreakStrategy(BaseStrategy):
                 HAVING COUNT(*) >= 5
             """):
                 avg_first_vol[r[0]] = r[1] or 0
-
-            # Today's first-bar volume (from intraday table — auto-updated)
-            today_first_vol = {}
-            for r in conn.execute("""
-                SELECT symbol, volume FROM intraday_bars_5m
-                WHERE time_et = '09:30' AND date = date('now')
-            """):
-                today_first_vol[r[0]] = r[1] or 0
         finally:
             conn.close()
 
-        # Fetch snapshots
+        # Today's first-bar volume — fetch LIVE from Alpaca
+        # (decoupled from cron — always fresh)
+        # Pre-filter by gap first to minimize API calls
+        # We'll fetch bars for symbols that passed gap filter below
+
+        # Fetch snapshots first (for gap pre-filter)
         hdr = {
             'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'),
             'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY'),
@@ -114,39 +113,61 @@ class OrbGapBreakStrategy(BaseStrategy):
             if r.status_code == 200:
                 snaps.update(r.json())
 
-        candidates = []
+        # Pre-filter by gap (to minimize Alpaca bar API calls)
+        gap_qualified = []
+        gap_data = {}  # sym -> (opn, now, hi, lo, vol, pc)
         for sym in syms:
-            if sym in earnings_skip: continue
-            if sym == 'SPY': continue
+            if sym in earnings_skip or sym == 'SPY': continue
             s = snaps.get(sym)
             if not s: continue
             db = s.get('dailyBar', {})
             pb = s.get('prevDailyBar', {})
-            # Current open — at 09:30 this is the opening print
-            opn = db.get('o', 0)
-            now = db.get('c', 0)
-            hi = db.get('h', 0)
-            lo = db.get('l', 0)
+            opn = db.get('o', 0); now = db.get('c', 0)
+            hi = db.get('h', 0); lo = db.get('l', 0)
             vol = db.get('v', 0)
             pc = prev_close.get(sym) or pb.get('c', 0)
-
             if opn < 1 or now < self.MIN_PRICE or not pc or pc <= 0:
                 continue
-
             gap = (opn / pc - 1) * 100
             if not (self.MIN_GAP <= gap < self.MAX_GAP):
                 continue
-
-            # Dollar volume check (basic liquidity)
             if opn * vol < self.MIN_DOLLAR_VOL and vol > 0:
                 continue
+            # Need history for vol filter — skip if no avg
+            if avg_first_vol.get(sym, 0) <= 0:
+                continue
+            gap_qualified.append(sym)
+            gap_data[sym] = (opn, now, hi, lo, vol, pc, gap)
 
-            # First-bar vol filter (must be ≥ 2x 10-day avg)
-            today_fv = today_first_vol.get(sym, 0)
+        if not gap_qualified:
+            return self.no_picks(f"No stocks with gap ≥ {self.MIN_GAP}% + history")
+
+        # Fetch live 5-min bars from Alpaca for gap-qualified symbols
+        # (decoupled from cron — always fresh)
+        live_bars = fetch_today_bars(gap_qualified[:100])
+
+        candidates = []
+        for sym in gap_qualified:
+            opn, now, hi, lo, vol, pc, gap = gap_data[sym]
+
+            # Get today's first 5-min bar volume from LIVE Alpaca fetch
+            sym_bars = live_bars.get(sym, [])
+            first_bar_vol = 0
+            for b in sym_bars:
+                # Alpaca timestamps: "2026-04-13T13:30:00Z" = 09:30 ET (DST)
+                # Or "14:30:00Z" = 09:30 ET (standard time)
+                t = b.get('t', '')
+                if 'T13:30:00' in t or 'T14:30:00' in t:
+                    first_bar_vol = b.get('v', 0)
+                    break
+
+            if first_bar_vol == 0:
+                continue  # no first bar data yet
+
             avg_fv = avg_first_vol.get(sym, 0)
             if avg_fv <= 0:
-                continue  # no history, skip
-            vol_ratio = today_fv / avg_fv
+                continue
+            vol_ratio = first_bar_vol / avg_fv
             if vol_ratio < self.MIN_VOL_RATIO:
                 continue
 
@@ -183,7 +204,9 @@ class OrbGapBreakStrategy(BaseStrategy):
             ))
 
         if not candidates:
-            return self.no_picks(f"No stocks with gap ≥ {self.MIN_GAP}% + liquidity")
+            return self.no_picks(
+                f"No stocks passed gap ≥{self.MIN_GAP}% + vol ≥{self.MIN_VOL_RATIO}x filter"
+            )
 
         # Sort by gap size descending, take top MAX_PICKS
         candidates.sort(key=lambda p: -p.extra['gap'])
