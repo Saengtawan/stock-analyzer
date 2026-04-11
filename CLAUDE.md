@@ -772,7 +772,21 @@ Score 6+ → BUY NOW | 4-5 → พิจารณา | <4 → ไม่แสด
 
 ### ขั้นตอน 5: แสดงผล
 
-**⛔ HARD RULE: scan output = fresh recommendation จากข้อมูลปัจจุบัน เท่านั้น**
+**⛔ HARD RULE 1: analyze within requested scan context only**
+
+ห้าม compare ระหว่าง scan types หรือแนะนำให้ user ไปทำ scan อื่นแทน:
+- ❌ "Fri-Mon edge ต่ำกว่า intraday, skip ไปทำ intraday"
+- ❌ "รอ Monday ORB ดีกว่า"
+- ❌ "Bounce WR ต่ำกว่า momentum, หา momentum setup แทน"
+
+User ขอ scan X = ต้องการ strategy X. Analyze ภายใน framework ของ X:
+- ORB: gap + vol ก่อนเปิด
+- Intraday: Down Bounce + AD gate, MomUP with vol
+- Top Movers: lunch hour continuation
+- OVN: overnight gap, Tue/Wed bonus
+- Fri-Mon: weekend hold, sell Mon close
+
+**⛔ HARD RULE 2: scan output = fresh recommendation จากข้อมูลปัจจุบัน เท่านั้น**
 
 ห้าม assume ว่า user ถือ position ใดๆ จาก scan ก่อนหน้า:
 - ❌ "ถ้าซื้อ X ไปแล้ว..."
