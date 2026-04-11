@@ -13,15 +13,36 @@ python3 -m src.scan.engine morning_drive   # force specific strategy
 Each strategy is one file under `src/scan/strategies/`. Each has its own
 entry rules, exit rules, backtest-validated WR/EV, and hard time window.
 
-## When user says "scan หุ้น" / "scan orb" / "scan"
+## User commands → CLI mapping
 
-1. Run `python3 -m src.scan.engine auto` — it picks the right strategy
-2. Report the result verbatim to user
-3. If result status is `out_of_window` or `skipped_gate`, **do not** override
-   with another strategy or add "but you could also..." — the gate exists
-   because backtest showed no edge. Trust the system.
+User พิมพ์คำสั่งเป็นภาษาไทยหรือ slang — ผมแปลงเป็น CLI command ดังนี้:
+
+| User พิมพ์ | Run |
+|---|---|
+| `scan` / `scan หุ้น` | `python3 -m src.scan.engine auto` |
+| `scan orb` | `orb_gap_preview` (ก่อน 09:30) / `orb_gap_break` (09:30-09:35) / `orb_prep` (03:00 prep) |
+| `scan intraday` | `ml_filter` |
+| `scan top movers` | `ml_filter` (ถ้าอยู่ใน 09:30-14:00 window) |
+| `scan ovn` | `ovn_gap` |
+| `scan fri mon` / `scan fri-mon` / `scan weekend` | `fri_mon` |
+| `scan ml` | `ml_filter` (force) |
+| `scan gap` | `orb_gap_preview` หรือ `orb_gap_break` ตามเวลา |
+| `scan morning` | `morning_drive` (force) |
+| `scan afternoon` | `afternoon_strict` |
+| `scan crisis` / `scan VIX high` | `crisis_reversal` |
+| `scan list` | `python3 -m src.scan.engine list` |
+
+**Default rule**: ถ้าไม่ match อะไรชัด → `auto`
+
+### Output handling (ALL commands)
+
+1. Run the CLI command
+2. Report the result **verbatim** to user (can translate/format for readability)
+3. If result is `out_of_window` or `skipped_gate`, **do not** override with
+   another strategy. The gate exists because backtest showed no edge.
 4. If result has picks, present them as-is. Don't add your own analysis
    layer on top of the strategy's reasoning.
+5. Scan output auto-recorded to journal for drift monitoring.
 
 ## Output rules (hard)
 
