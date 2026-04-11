@@ -15,6 +15,7 @@ from datetime import datetime
 import pytz
 
 from .strategies.base import ScanResult
+from .strategies.orb_prep import OrbPrepStrategy
 from .strategies.morning_drive import MorningDriveStrategy
 from .strategies.afternoon_strict import AfternoonStrictStrategy
 from .strategies.crisis_reversal import CrisisReversalStrategy
@@ -25,6 +26,7 @@ ET = pytz.timezone('US/Eastern')
 
 # Registry of available strategies
 STRATEGIES = {
+    'orb_prep':         OrbPrepStrategy,
     'morning_drive':    MorningDriveStrategy,
     'afternoon_strict': AfternoonStrictStrategy,
     'crisis_reversal':  CrisisReversalStrategy,
