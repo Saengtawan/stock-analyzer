@@ -32,18 +32,19 @@ load_dotenv()
 
 class OrbGapBreakStrategy(BaseStrategy):
     name = "orb_gap_break"
-    description = "09:30-09:35 gap up ≥5% break at open, trail 1% from peak"
-    expected_wr = 0.815
-    expected_ev = 0.0046  # +0.46%
-    time_start = "09:30"
-    time_end = "09:35"
-    version = "1.0"
+    description = "09:35-09:40 gap ≥5% + first-bar vol ≥2x + trail 1%"
+    expected_wr = 0.801
+    expected_ev = 0.0035  # +0.35% (gap 5%+ with vol 2x filter)
+    time_start = "09:35"
+    time_end = "09:40"
+    version = "2.0"
 
     DB_PATH = "data/trade_history.db"
     MIN_PRICE = 3.0
     MIN_GAP = 5.0      # min gap% vs prev close
-    MAX_GAP = 25.0     # too big = priced in / earnings shock
+    MAX_GAP = 25.0     # too big = earnings shock
     MIN_DOLLAR_VOL = 5e6
+    MIN_VOL_RATIO = 2.0   # first-bar vol vs 10d avg
     MAX_PICKS = 3      # top 3 per day by gap size
 
     def scan(self) -> ScanResult:
@@ -77,6 +78,26 @@ class OrbGapBreakStrategy(BaseStrategy):
                 WHERE date = (SELECT MAX(date) FROM stock_daily_ohlc WHERE date < date('now'))
             """):
                 prev_close[r[0]] = r[1]
+
+            # 10-day average first-bar (09:30-09:35) volume per symbol
+            avg_first_vol = {}
+            for r in conn.execute("""
+                SELECT symbol, AVG(volume) FROM intraday_bars_5m
+                WHERE time_et = '09:30'
+                AND date >= date('now','-14 days')
+                AND date < date('now')
+                GROUP BY symbol
+                HAVING COUNT(*) >= 5
+            """):
+                avg_first_vol[r[0]] = r[1] or 0
+
+            # Today's first-bar volume (from intraday table — auto-updated)
+            today_first_vol = {}
+            for r in conn.execute("""
+                SELECT symbol, volume FROM intraday_bars_5m
+                WHERE time_et = '09:30' AND date = date('now')
+            """):
+                today_first_vol[r[0]] = r[1] or 0
         finally:
             conn.close()
 
@@ -118,7 +139,15 @@ class OrbGapBreakStrategy(BaseStrategy):
 
             # Dollar volume check (basic liquidity)
             if opn * vol < self.MIN_DOLLAR_VOL and vol > 0:
-                # Not enough volume yet — might still qualify at open, skip low liquidity
+                continue
+
+            # First-bar vol filter (must be ≥ 2x 10-day avg)
+            today_fv = today_first_vol.get(sym, 0)
+            avg_fv = avg_first_vol.get(sym, 0)
+            if avg_fv <= 0:
+                continue  # no history, skip
+            vol_ratio = today_fv / avg_fv
+            if vol_ratio < self.MIN_VOL_RATIO:
                 continue
 
             sec = sectors.get(sym, '')
@@ -133,7 +162,7 @@ class OrbGapBreakStrategy(BaseStrategy):
             # Expected reach: avg winner from backtest ~+1.7%
             target = entry * 1.02
 
-            reason = f"GAP +{gap:.1f}% @ open={opn:.2f} prev={pc:.2f} {sec[:6]}"
+            reason = f"GAP +{gap:.1f}% vol{vol_ratio:.1f}x @ open={opn:.2f} prev={pc:.2f} {sec[:6]}"
 
             candidates.append(Pick(
                 symbol=sym,
@@ -146,6 +175,7 @@ class OrbGapBreakStrategy(BaseStrategy):
                 atr_pct=None,
                 extra={
                     'gap': round(gap, 2),
+                    'vol_ratio': round(vol_ratio, 2),
                     'open': round(opn, 2),
                     'prev_close': round(pc, 2),
                     'sector': sec,
