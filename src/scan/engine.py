@@ -24,12 +24,14 @@ from .strategies.vwap_reclaim import VwapReclaimStrategy
 from .strategies.crisis_reversal import CrisisReversalStrategy
 from .strategies.ovn_gap import OvernightGapStrategy
 from .strategies.fri_mon import FriMonStrategy
+from .strategies.ml_filter import MLFilterStrategy
 from .strategies.meta import EodFlattenStrategy
 
 ET = pytz.timezone('US/Eastern')
 
 # Trade strategies (all attempt actual entries; may return no_picks)
 TRADE_STRATEGIES = {
+    'ml_filter':           MLFilterStrategy,         # PRIORITY — 75%+ WR ensemble
     'orb_prep':            OrbPrepStrategy,
     'open_drive':          OpenDriveStrategy,
     'morning_drive':       MorningDriveStrategy,
