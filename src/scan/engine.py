@@ -21,11 +21,17 @@ from .strategies.afternoon_strict import AfternoonStrictStrategy
 from .strategies.crisis_reversal import CrisisReversalStrategy
 from .strategies.ovn_gap import OvernightGapStrategy
 from .strategies.fri_mon import FriMonStrategy
+from .strategies.meta import (
+    OpenObserveStrategy,
+    LateMorningQuietStrategy,
+    LateAfternoonQuietStrategy,
+    EodFlattenStrategy,
+)
 
 ET = pytz.timezone('US/Eastern')
 
-# Registry of available strategies
-STRATEGIES = {
+# Trade strategies (try these first for auto dispatch)
+TRADE_STRATEGIES = {
     'orb_prep':         OrbPrepStrategy,
     'morning_drive':    MorningDriveStrategy,
     'afternoon_strict': AfternoonStrictStrategy,
@@ -33,6 +39,16 @@ STRATEGIES = {
     'ovn_gap':          OvernightGapStrategy,
     'fri_mon':          FriMonStrategy,
 }
+
+# Meta strategies (no-trade windows, always skip with message)
+META_STRATEGIES = {
+    'open_observe':        OpenObserveStrategy,
+    'late_morning_quiet':  LateMorningQuietStrategy,
+    'late_afternoon_quiet': LateAfternoonQuietStrategy,
+    'eod_flatten':         EodFlattenStrategy,
+}
+
+STRATEGIES = {**TRADE_STRATEGIES, **META_STRATEGIES}
 
 
 def list_strategies() -> list:
@@ -55,20 +71,48 @@ def auto_select_strategy() -> str:
     """Pick best strategy for current ET time.
 
     Priority:
-    1. Check which strategies' time windows match current ET
-    2. If multiple match, pick highest expected_ev
-    3. If none match, return 'morning_drive' as fallback hint
+    1. Trade strategies with narrow windows match (morning_drive, afternoon_strict, etc.)
+    2. Fall back to meta (dead zone) strategies
+    3. Last resort: morning_drive hint
     """
     now_et = datetime.now(ET).strftime("%H:%M")
-    candidates = []
-    for name, cls in STRATEGIES.items():
+
+    # Prefer narrow-window trade strategies (exclude crisis_reversal which has wide window)
+    narrow_trade = []
+    wide_trade = []
+    for name, cls in TRADE_STRATEGIES.items():
         s = cls()
         if s.time_start <= now_et <= s.time_end:
-            candidates.append((name, s.expected_ev))
-    if not candidates:
-        return 'morning_drive'  # fallback
-    candidates.sort(key=lambda x: -x[1])
-    return candidates[0][0]
+            window_min = _window_minutes(s.time_start, s.time_end)
+            if window_min <= 180:
+                narrow_trade.append((name, s.expected_ev, window_min))
+            else:
+                wide_trade.append((name, s.expected_ev, window_min))
+
+    if narrow_trade:
+        # Sort by EV desc, then narrower window
+        narrow_trade.sort(key=lambda x: (-x[1], x[2]))
+        return narrow_trade[0][0]
+
+    # Fall back to meta (dead zones)
+    for name, cls in META_STRATEGIES.items():
+        s = cls()
+        if s.time_start <= now_et <= s.time_end:
+            return name
+
+    # Wide trade strategies (crisis_reversal)
+    if wide_trade:
+        wide_trade.sort(key=lambda x: -x[1])
+        return wide_trade[0][0]
+
+    return 'morning_drive'  # fallback hint
+
+
+def _window_minutes(start: str, end: str) -> int:
+    """Minutes in a HH:MM-HH:MM window."""
+    sh, sm = map(int, start.split(':'))
+    eh, em = map(int, end.split(':'))
+    return (eh - sh) * 60 + (em - sm)
 
 
 def run_scan(command: str = 'auto') -> ScanResult:
