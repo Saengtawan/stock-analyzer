@@ -1,0 +1,50 @@
+[
+  {
+    "bucket": "13:00-14:00",
+    "n_train": 84901,
+    "n_test": 25471,
+    "test_top5_wr": 65.51,
+    "threshold_75": null,
+    "model_file": "lgb_1300_1400.txt"
+  },
+  {
+    "bucket": "11:30-13:00",
+    "n_train": 50217,
+    "n_test": 15066,
+    "test_top5_wr": 67.99,
+    "threshold_75": null,
+    "model_file": "lgb_1130_1300.txt"
+  },
+  {
+    "bucket": "10:45-11:30",
+    "n_train": 42017,
+    "n_test": 12606,
+    "test_top5_wr": 68.57,
+    "threshold_75": null,
+    "model_file": "lgb_1045_1130.txt"
+  },
+  {
+    "bucket": "14:00-16:00",
+    "n_train": 61130,
+    "n_test": 18339,
+    "test_top5_wr": 47.38,
+    "threshold_75": null,
+    "model_file": "lgb_1400_1600.txt"
+  },
+  {
+    "bucket": "10:00-10:45",
+    "n_train": 49567,
+    "n_test": 14871,
+    "test_top5_wr": 80.62,
+    "threshold_75": 0.7358,
+    "model_file": "lgb_1000_1045.txt"
+  },
+  {
+    "bucket": "09:30-10:00",
+    "n_train": 13839,
+    "n_test": 4152,
+    "test_top5_wr": 81.64,
+    "threshold_75": 0.8243,
+    "model_file": "lgb_0930_1000.txt"
+  }
+]
