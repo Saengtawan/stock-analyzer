@@ -16,6 +16,7 @@ import pytz
 
 from .strategies.base import ScanResult
 from .strategies.orb_prep import OrbPrepStrategy
+from .strategies.orb_gap_preview import OrbGapPreviewStrategy
 from .strategies.orb_gap_break import OrbGapBreakStrategy
 from .strategies.open_drive import OpenDriveStrategy
 from .strategies.morning_drive import MorningDriveStrategy
@@ -34,6 +35,7 @@ ET = pytz.timezone('US/Eastern')
 TRADE_STRATEGIES = {
     'ml_filter':           MLFilterStrategy,         # PRIORITY — 75%+ WR ensemble
     'orb_gap_break':       OrbGapBreakStrategy,      # 81% WR gap ≥5% at open
+    'orb_gap_preview':     OrbGapPreviewStrategy,    # 04:00-09:29 PM gap preview
     'orb_prep':            OrbPrepStrategy,
     'open_drive':          OpenDriveStrategy,
     'morning_drive':       MorningDriveStrategy,
