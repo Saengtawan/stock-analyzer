@@ -27,6 +27,8 @@ from dotenv import load_dotenv
 
 from .base import BaseStrategy, ScanResult, Pick, ET
 from ..ml_scorer import get_scorer
+from ..alpaca_bars import fetch_today_bars, extract_multibar_features
+from ..journal import get_journal
 
 load_dotenv()
 
@@ -145,6 +147,27 @@ class MLFilterStrategy(BaseStrategy):
         if spy_db.get('o', 0) > 0:
             spy_intra = (spy_db.get('c', 0) / spy_db.get('o', 1) - 1) * 100
 
+        # Pre-filter: stocks with gain in range (to reduce bar fetch calls)
+        pre_qualified = []
+        for sym in syms:
+            if sym in earnings_skip or sym == 'SPY': continue
+            s = snaps.get(sym)
+            if not s: continue
+            db = s.get('dailyBar', {})
+            opn = db.get('o', 0); now = db.get('c', 0)
+            if opn < 1 or now < self.MIN_PRICE: continue
+            gain = (now / opn - 1) * 100
+            if self.MIN_GAIN <= gain < self.MAX_GAIN:
+                pre_qualified.append(sym)
+
+        # Fetch today's 5-min bars for pre-qualified symbols (for multi-bar features)
+        bars_by_sym = {}
+        if pre_qualified:
+            try:
+                bars_by_sym = fetch_today_bars(pre_qualified[:100])
+            except Exception:
+                bars_by_sym = {}
+
         dow = now_et.weekday()
         candidates = []
 
@@ -212,6 +235,19 @@ class MLFilterStrategy(BaseStrategy):
             sec = sectors.get(sym, '')
             sec3d = sector_3d.get(sec, 0)
 
+            # Live multi-bar features from Alpaca 5-min bars
+            sym_bars = bars_by_sym.get(sym, [])
+            if sym_bars:
+                day_open = sym_bars[0].get('o', opn)
+                bar_feats = extract_multibar_features(sym_bars, day_open)
+            else:
+                bar_feats = {
+                    'bars_since_hi': 0, 'vol_accel': 1.0, 'hh_count': 0,
+                    'consol': range_pct, 'consec_green': 0,
+                    'pullback_depth': 0, 'slope_5': 0, 'slope_10': 0,
+                    'gain_first30': 0, 'entry_vs_first30': 0, 'time_since_peak': 0,
+                }
+
             features = {
                 'mins_from_open': minutes_from_open,
                 'gain_from_open': gain,
@@ -219,10 +255,10 @@ class MLFilterStrategy(BaseStrategy):
                 'from_peak_pct': from_peak_pct,
                 'vs_vwap': vs_vwap,
                 'vol_ratio': vol_ratio,
-                'vol_accel': 1.0,  # not available from snapshot — default
-                'bars_since_hi': 0,  # not available from snapshot
-                'hh_count': 0,
-                'consol': range_pct,
+                'vol_accel': bar_feats.get('vol_accel', 1.0),
+                'bars_since_hi': bar_feats.get('bars_since_hi', 0),
+                'hh_count': bar_feats.get('hh_count', 0),
+                'consol': bar_feats.get('consol', range_pct),
                 'range_exp': range_exp,
                 'gap_from_prev': gap_from_prev,
                 'beta': beta,
@@ -293,6 +329,23 @@ class MLFilterStrategy(BaseStrategy):
 
         bucket = scorer.get_bucket(minutes_from_open)
         expected_wr = scorer.metadata[bucket].get('test_top1_wr', 75)
+
+        # Record picks to journal for drift monitoring
+        try:
+            journal = get_journal()
+            for p in picks:
+                journal.record_pick(
+                    strategy=self.name, bucket=bucket, symbol=p.symbol,
+                    entry=p.entry, sl_price=p.sl_price, tp_price=p.tp_price,
+                    trail_pct=p.trail_pct,
+                    ml_prob=p.extra.get('ml_prob'),
+                    ml_threshold=p.extra.get('threshold'),
+                    expected_wr=expected_wr / 100,
+                    reason=p.reason,
+                    features=p.extra,
+                )
+        except Exception:
+            pass
 
         return ScanResult(
             strategy=self.name,

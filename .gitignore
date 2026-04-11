@@ -286,3 +286,5 @@ src/web/portfolio_v3.json
 =*
 sector_cache.json
 sector_cache.backup.json
+data/scan_journal.db
+backtests/models_prod/
