@@ -37,8 +37,18 @@ Best combo: SPY green + AD≥2 + Drop 3%+ = WR 67% (N=7.6K)
 
 ---
 
-## ⛔ MOMENTUM-FIRST + Sector Gate
-**Default = Momentum UP**. Bounce เฉพาะเมื่อ sector ของหุ้นไม่ลง + AD≥2. ห้าม pick bounce >50% ของ output. **Diversify rule**: max 2/sector default, **max 4/sector ถ้า sector_3d ≥ +0.5%** (strong tailwind = ลด risk per stock).
+## ⛔ BACKTEST v2 OVERRIDE (2025+, 20M 5-min bars)
+
+**Findings ที่ override tables ด้านล่าง**:
+- **Intraday bounce edge = ไม่มี** (all drop depths 42-52% WR) — Down Bounce section ด้านล่าง **debunked**
+- **Gap UP hold-close = LOSING** (43% WR, -0.35% EV) — ใช้เฉพาะเมื่อ exit ที่ intraday peak
+- **Catalyst HURTS momentum** (none=58%, news=50%, insider=40%)
+- **Sec3d ≥ 0.5% = 71.6% WR** (biggest factor)
+- **Top 3 sector today = +19pp edge**
+- **Beta 1.0-2.0 sweet spot** (not <1.5)
+- **Trail 1% from peak** > fixed TP/SL (+0.93% EV vs +0.43%)
+
+**Default = Momentum UP + Sec3d filter + Top 3 sector**. Bounce section below is historical — **not validated in v2 backtest**.
 
 ## Strategy 1: Momentum UP — Gap + Vol 2x (WR 57-58%) — DEFAULT
 Gap up 2-8% + vol ≥2x → momentum continuation

@@ -344,6 +344,9 @@ for r in conn.execute("""
 spy_rows = conn.execute("SELECT spy_close FROM macro_snapshots ORDER BY date DESC LIMIT 2").fetchall()
 spy_daily = (spy_rows[0][0]/spy_rows[1][0]-1)*100 if len(spy_rows) >= 2 else 0
 spy_green = spy_daily > 0
+vix_row = conn.execute("SELECT vix_close FROM macro_snapshots ORDER BY date DESC LIMIT 1").fetchone()
+vix_now = float(vix_row[0]) if vix_row else 20.0
+et_hour = datetime.now(pytz.timezone('US/Eastern')).hour
 conn.close()
 
 # Alpaca snapshots — 2 seconds for 200 symbols
@@ -399,44 +402,45 @@ for sym in syms:
         beta = betas.get(sym, 1.5)
         has_catalyst = sym in news_set or sym in insider_set or sym in si_set
         vol_pace = vr / expected_pct if expected_pct > 0 else 0
-
-        # Stale flag: how far below today's high (proxy for "peak passed")
-        # If now < hi by >1.5% AND price not rising = stale
         from_peak_pct = (now/hi - 1) * 100 if hi > 0 else 0
-        is_stale = from_peak_pct < -1.5  # currently >1.5% below intraday high
+        is_stale = from_peak_pct < -1.5
+        # Top 3 sectors today (backtest: +19pp edge)
+        top3_secs = set(s for s,_ in sorted(sector_avg.items(), key=lambda x: -x[1])[:3]) if 'sector_avg' in dir() else set()
+        in_top3_sec = sec in top3_secs
 
         if chg >= 1.5 and daily_chg >= 0: mode = 'MomUP'
-        elif drop <= -3 and sec_today_avg >= 0: mode = 'Bounce'  # use TODAY for bounce gate
-        elif drop <= -3: mode = 'KNIFE'
-        else: mode = 'Watch'
+        else: mode = 'Watch'  # Backtest: intraday bounces have no edge — removed
 
-        # Adaptive SL/TP
+        # Adaptive SL/TP (backtest: trail 1% from peak > fixed TP/SL)
         if mode == 'MomUP':
-            sl_pct = -max(0.5, 0.2 * atr_pct); tp_pct = max(2.0, 0.5 * atr_pct)
-        elif mode == 'Bounce':
-            sl_pct = -max(1.5, 0.5 * atr_pct); tp_pct = max(3.0, 0.8 * atr_pct)
+            sl_pct = -max(1.5, 0.5 * atr_pct)  # wider per backtest (-0.5% = 28% WR)
+            tp_pct = max(3.0, 1.0 * atr_pct)  # wider TP, exit via trail 1% in practice
         else:
-            sl_pct = -max(1.0, 0.3 * atr_pct); tp_pct = max(1.5, 0.4 * atr_pct)
+            sl_pct = -max(1.5, 0.5 * atr_pct); tp_pct = max(2.0, 0.6 * atr_pct)
 
+        # === Score v2 (backtest-driven) ===
         score = 0
-        if spy_green: score += 2
+        if spy_green: score += 2  # critical after 10:00 (11:00 SPY red = 37% WR)
         if ad_ratio >= 2: score += 2
-        if abs(chg) >= 2 or drop <= -3: score += 1
-        if beta < 1.5: score += 1
-        if sec_effective >= 0.5: score += 1
-        if vol_pace >= 1.0: score += 1
-        if has_catalyst: score += 1
+        if abs(chg) >= 2: score += 1
+        if 1.0 <= beta < 2.0: score += 1  # sweet spot (not <1.5)
+        if sec_effective >= 0.5: score += 2  # HEAVIER weight (biggest factor)
+        if in_top3_sec: score += 2  # NEW: top 3 sector = +19pp
+        if 1.5 <= vol_pace < 2.5: score += 1  # refined sweet spot
+        if vix_now > 25: score += 1  # NEW: vol = edge
         # Penalties
-        score += td_penalty  # time decay (0/-1/-2)
-        if mode in ('Bounce','Watch') and sec_today_avg < -0.3: score -= 2
+        score += td_penalty
+        if has_catalyst: score -= 1  # NEW: catalyst HURTS momentum
         if vol_pace < 0.5: score -= 1
-        if is_stale: score -= 1  # peak passed
+        if is_stale: score -= 1
 
-        if mode == 'KNIFE': continue
+        # Hard filters (backtest-validated)
+        if mode == 'Watch': continue  # no edge for bounces or indecisive
         if sec_today_avg < -0.5 and chg < 0: continue
-        if mode == 'Watch' and chg < 0: continue
+        if not spy_green and et_hour >= 11: continue  # SPY red + late = 37% WR
+        if chg > 8: continue  # gap too big = losing (WR 38%)
         if vol_pace < 0.3: continue
-        if abs(chg) < 1.5 and abs(daily_chg) < 2 and drop > -2: continue
+        if abs(chg) < 1.5: continue
 
         sl_price = now * (1 + sl_pct/100); tp_price = now * (1 + tp_pct/100)
         results.append((sym, opn, now, chg, drop, vol_pace, daily_chg, sec, sec_effective, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price, from_peak_pct, is_stale))
@@ -537,6 +541,9 @@ for r in conn.execute("""
 spy_rows = conn.execute("SELECT spy_close FROM macro_snapshots ORDER BY date DESC LIMIT 2").fetchall()
 spy_daily = (spy_rows[0][0]/spy_rows[1][0]-1)*100 if len(spy_rows) >= 2 else 0
 spy_green = spy_daily > 0
+vix_row = conn.execute("SELECT vix_close FROM macro_snapshots ORDER BY date DESC LIMIT 1").fetchone()
+vix_now = float(vix_row[0]) if vix_row else 20.0
+et_hour = datetime.now(pytz.timezone('US/Eastern')).hour
 conn.close()
 
 # Alpaca snapshots — ~2 seconds
@@ -594,38 +601,43 @@ for sym in syms:
         vol_pace = vr / expected_pct if expected_pct > 0 else 0
         from_peak_pct = (now/hi - 1) * 100 if hi > 0 else 0
         is_stale = from_peak_pct < -1.5
+        top3_secs = set(s for s,_ in sorted(sector_avg.items(), key=lambda x: -x[1])[:3])
+        in_top3_sec = sec in top3_secs
 
         if daily_chg >= 3 and chg >= 0: mode = 'MomCont'
-        elif drop <= -3 and sec_today_avg >= 0: mode = 'Bounce'
-        elif drop <= -3: mode = 'KNIFE'
-        else: mode = 'Watch'
+        else: mode = 'Watch'  # Backtest: no edge for intraday bounces
 
-        # Adaptive SL/TP — afternoon uses EOD exit so wider TP
+        # Adaptive SL/TP (backtest: trail 1% from peak > fixed TP/SL)
         if mode == 'MomCont':
-            sl_pct = -max(0.5, 0.2 * atr_pct); tp_pct = max(2.5, 0.6 * atr_pct)
-        elif mode == 'Bounce':
-            sl_pct = -max(1.5, 0.5 * atr_pct); tp_pct = max(3.0, 0.8 * atr_pct)
+            sl_pct = -max(1.5, 0.5 * atr_pct)  # wider per backtest
+            tp_pct = max(3.0, 1.0 * atr_pct)   # EOD + trail 1%
         else:
-            sl_pct = -max(1.0, 0.3 * atr_pct); tp_pct = max(1.5, 0.4 * atr_pct)
+            sl_pct = -max(1.5, 0.5 * atr_pct); tp_pct = max(2.0, 0.6 * atr_pct)
 
+        # === Score v2 (backtest-driven) ===
         score = 0
         if spy_green: score += 2
         if ad_ratio >= 2: score += 2
-        if abs(chg) >= 2 or drop <= -3 or abs(daily_chg) >= 3: score += 1
-        if beta < 1.5: score += 1
-        if sec_effective >= 0.5: score += 1
-        if vol_pace >= 1.0: score += 1
-        if has_catalyst: score += 1
+        if abs(daily_chg) >= 3: score += 1
+        if 1.0 <= beta < 2.0: score += 1  # sweet spot
+        if sec_effective >= 0.5: score += 2  # biggest factor
+        if in_top3_sec: score += 2  # top 3 sector = +19pp
+        if 1.5 <= vol_pace < 2.5: score += 1
+        if vix_now > 25: score += 1
         score += td_penalty
-        if mode in ('Bounce','Watch') and sec_today_avg < -0.3: score -= 2
+        if has_catalyst: score -= 1  # catalyst HURTS momentum
         if vol_pace < 0.5: score -= 1
         if is_stale: score -= 1
 
-        if mode == 'KNIFE': continue
+        if vol_pace < 0.5: score -= 1
+        if is_stale: score -= 1
+
+        if mode == 'Watch': continue  # no edge (bounces debunked)
         if sec_today_avg < -0.5 and chg < 0: continue
-        if mode == 'Watch' and chg < 0: continue
+        if not spy_green and et_hour >= 11: continue  # SPY red + late = dead
+        if daily_chg > 8: continue  # gap too big = losing
         if vol_pace < 0.3: continue
-        if abs(chg) < 2 and abs(daily_chg) < 3 and drop > -2: continue
+        if abs(daily_chg) < 3: continue
 
         sl_price = now * (1 + sl_pct/100); tp_price = now * (1 + tp_pct/100)
         results.append((sym, opn, now, chg, drop, vol_pace, daily_chg, sec, sec_effective, beta, last_green, mode, score, atr_pct, sl_pct, tp_pct, sl_price, tp_price, from_peak_pct, is_stale))
@@ -695,17 +707,24 @@ SELECT date, pct_above_20d_ma, ad_ratio FROM market_breadth ORDER BY date DESC L
 
 ### ขั้นตอน 4: Score + ตัดสิน
 
-**Score /9 — เรียงหุ้น ตัดสินเร็ว:**
+**Score v2 (backtest-driven, 20M bars, 2025+)**:
 
-| Factor | เงื่อนไข | Score | WR Impact (backtest) |
-|--------|---------|-------|---------------------|
-| SPY daily | green | +2 | +20pp (47→67%, N=7.6K) |
-| AD ratio | ≥2 | +2 | +15pp (42→57%, N=106K) |
-| Setup | Drop ≥3% หรือ Gap+Vol 2x | +1 | มี edge |
-| Beta | <1.5 | +1 | +1.5pp (N=94K) |
-| Sector | sector avg > +0.5% วันนี้ | +1 | rotation |
-| Vol | ≥2x | +1 | +4pp |
-| Catalyst | news/upgrade/insider/SI | +1 | attention |
+| Factor | เงื่อนไข | Score | WR Impact |
+|--------|---------|-------|-----------|
+| SPY daily | green | +2 | +8pp @ 10:00, **+19pp @ 11:00** |
+| AD ratio | ≥2 | +2 | +15pp (N=106K) |
+| **Sec3d** | ≥ 0.5% | **+2** | **71.6% WR** (biggest factor) |
+| **Top 3 sector today** | in top 3 | **+2** | +19pp vs rest |
+| Setup | gain 3-8% or drop 3-5% | +1 | sweet spot |
+| **Beta** | 1.0-2.0 | +1 | **sweet spot** (not <1.5) |
+| Vol pace | 1.5-2.5x | +1 | refined sweet spot |
+| **VIX** | > 25 | **+1** | NEW (vol = edge) |
+| **Catalyst** | any news/insider/SI | **-1** | **NEGATIVE** — hurts momentum |
+| Time decay | ≥11:30 | **-1 to -2** | WR drops post-11:00 |
+| Stale | >1.5% below peak | -1 | peak passed |
+
+**Max realistic: 12 points** (SPY+2, AD+2, Sec3d+2, Top3+2, Setup+1, Beta+1, Vol+1, VIX+1)
+**Display as /9 for consistency** (cap at 9)
 
 Score 6+ → BUY NOW | 4-5 → พิจารณา | <4 → ไม่แสดง
 เรียง: Score สูงสุด → Vol สูง → Beta ต่ำ
@@ -719,44 +738,41 @@ Score 6+ → BUY NOW | 4-5 → พิจารณา | <4 → ไม่แสด
 - **Bounce**: Drop ≥3% + AD≥2 + SPY green → WR 57-68%
 - **Momentum UP**: Gap 2-8% + Vol 2x at open → WR 57-58%
 
-**TP/SL — แยกตาม Setup Type (CRITICAL: ใช้ผิดประเภท = stop out จาก noise)**
+**TP/SL — backtest-verified (20M 5-min bars, 274K symbol-days)**
 
-### Momentum Entries (Gap UP + Vol 2x, MomUP mode)
-ราคาเสถียร, volatility ต่ำ, ตาม backtest TP/SL
+### CRITICAL backtest findings (2025+ data)
+- **SL -0.5% tight = 28% WR** (noise stops) 🔴
+- **SL -3% wider = 54% WR** ✅
+- **Trail 1% from peak** = **best EV +0.93%** ⭐ (beats fixed TP/SL)
+- **Fixed TP +2% / SL -0.5%** = EV +0.43% (worse than trail)
+- **EOD hold** = 57% WR +0.88% (2nd best)
 
-| ช่วง | Long TP | Long SL | EV |
-|------|---------|---------|-----|
-| ORB 09:30 | +2% | -0.5% | +0.42% |
-| 09:30-10:30 | +1.5% | -0.5% | +0.43% |
-| 10:30-11:30 | +1.0% | -0.5% | +0.10% |
-| 11:30-15:00 | EOD exit | -1.0% | varies |
-| 15:00+ | +0.65% | -0.5% | ~0% |
+### Recommended SL/TP per entry
 
-### Bounce Entries (5d down 5%+, Bounce mode) — **WIDER SL**
-หุ้นที่ลงมา 5%+ มี ATR สูง 4-9% — SL -0.5% = noise level จะ stop out ก่อน setup ทำงาน
+| Strategy | Entry | SL | TP | Exit |
+|---|---|---|---|---|
+| **Momentum UP (09:50-10:30)** | 3-8% gain from open | -max(1.5%, 0.5×ATR) | n/a | **Trail 1% from peak OR EOD** |
+| **Momentum (10:30-11:30)** | Same | -1.5% | n/a | Trail 1% |
+| **Afternoon (13:00 strict)** | fresh + vol + SPY green | -2% | n/a | Trail 1% OR EOD |
+| **Gap Down bounce at open** | Gap -3 to -5% | -2% | +1% | EOD |
 
-**Avg loser ตาม drop depth (N=126K)**:
-| Drop | Avg Winner | Avg Loser | → SL recommend |
-|------|-----------|-----------|----------------|
-| 2-3% | +2.3% | -2.3% | **-1.5%** |
-| 3-5% | +2.7% | -2.8% | **-2.0%** |
-| 5%+ | +3.6% | -3.8% | **-2.5%** หรือ ATR-based |
+### What the backtest DEBUNKED
 
-**SL formula**: `SL = entry - max(1.5%, 0.5×ATR%)` — adaptive ตาม volatility ของหุ้น
+| Old rule | Backtest verdict |
+|---|---|
+| "Gap UP + Vol 2x = WR 51-65%" | **FALSE for buy-open hold-close** (WR 39-43%) |
+| "Tight SL -0.5% saves capital" | **FALSE** — noise stops, WR drops to 28% |
+| "Intraday bounce edge" | **FALSE** — all drop depths 42-52% WR |
+| "Beta <1.5 best" | **FALSE** — Beta 1.0-2.0 is sweet spot |
+| "Catalyst helps" | **FALSE** — no catalyst = 58% WR, news = 50% |
 
-| ช่วง | Bounce TP | Bounce SL |
-|------|-----------|-----------|
-| ORB/Intraday | +3% หรือ EOD | -2% (drop 3-5%) / -2.5% (drop 5%+) |
-| 11:30-15:00 | EOD exit | ATR-based |
-| 15:00+ | +1% | -1.5% |
-
-### Short Entries
+### Short Entries (unchanged — separate backtest not yet run)
 | ช่วง | Condition | Short WR |
 |------|-----------|----------|
-| ORB 09:30 | SPY red+VIX≥22+Gap dn+Vol 2x | 72% |
-| 09:30-10:30 | same | 75% |
-| 11:30-15:00 | SPY red+Drop 3%+ | 55% |
-| 15:00+ | VIX 38+ | 65% |
+| ORB 09:30 | SPY red+VIX≥22+Gap dn+Vol 2x | 72%* |
+| 09:30-10:30 | same | 75%* |
+
+*From old backtest — not re-validated in v2 suite
 
 **11:30-15:00 specific (full data 236K signals):**
 - Raw bounce = WR 50% (no edge without filter)

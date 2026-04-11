@@ -8,6 +8,13 @@
 
 ORB ใช้ก่อนตลาดเปิด (06:00-09:30 ET) — หลัง 09:30 ใช้ Intraday prompt
 
+## ⛔ BACKTEST v2 OVERRIDE
+- **Gap UP 3-5% buy-at-open hold-close = 43% WR (LOSING)**
+- **Gap UP 5-8% = 39% WR, Gap UP 8%+ = 37% WR**
+- → Old "Gap UP + Vol 2x = 51-65% WR" tables below measured differently (hit target intraday, not hold to close)
+- **Best ORB approach**: if entering at open, must exit intraday TP (not hold to close)
+- **Sec3d ≥ 0.5% + top 3 sector** = biggest WR boost
+
 ## ⛔ MOMENTUM-FIRST RULE (mandatory)
 
 **Default first choice = Momentum UP** (Gap +2-5% + Vol 2x + 5d positive). Bounce เป็นทางเลือก**รอง**

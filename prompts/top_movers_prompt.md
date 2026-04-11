@@ -35,8 +35,13 @@ Raw bounce (no AD filter) = WR 50% — no edge
 
 ---
 
-## ⛔ MOMENTUM-FIRST + Sector Gate (mandatory)
-**Default = Momentum UP** (8%+ by 11:30 → WR 54% continuation). Bounce เป็นทางเลือกรอง. **Diversify rule**: max 2/sector default, **max 4/sector ถ้า sector_3d ≥ +0.5%** (strong tailwind).
+## ⛔ BACKTEST v2 OVERRIDE
+- **13:00 strict filter (fresh peak + vol + SPY green) = WR 65.2%** — highest edge of day
+- **12:00+ SPY red = 37-44% WR** — hard skip when SPY red
+- **Intraday bounce = no edge** (42-52%) — removed
+- **Trail 1% from peak** is best exit
+
+**Default = Momentum UP + strict filters for 11:30-13:30 window**. After 14:00 genuine dead zone.
 
 ## Strategy 1: Momentum Continuation UP (WR 54%) — DEFAULT
 หุ้นขึ้น 8%+ by 11:30 + Vol แข็ง + RS strong → ถือ EOD
