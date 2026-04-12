@@ -24,11 +24,8 @@ dist_sma20
 pct_52w_hi
 pct_52w_lo
 dow
-gain_first30
-consec_green
-pullback_depth
-time_since_peak
-slope_5
-slope_10
-vol_trend
-entry_vs_first30
+insider_net_30d
+news_sentiment
+earnings_days
+pm_vol_ratio
+short_pct

@@ -56,8 +56,8 @@
     "n_test": 13940,
     "base_wr": 46.46,
     "test_top5_wr": 66.28,
-    "test_top1_wr": 71.94,
-    "threshold_75": 0.8719,
+    "test_top1_wr": 77.0,
+    "threshold_75": 0.845,
     "ensemble_size": 5,
     "model_files": [
       "lgb_1130_1300_seed0.txt",

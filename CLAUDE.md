@@ -7,7 +7,7 @@ Single entry point: `python3 -m src.scan.engine <command>`
 ```bash
 python3 -m src.scan.engine list            # show registered strategies
 python3 -m src.scan.engine auto            # auto-pick by time+regime
-python3 -m src.scan.engine morning_drive   # force specific strategy
+python3 -m src.scan.engine ml_filter       # force specific strategy
 ```
 
 Each strategy is one file under `src/scan/strategies/`. Each has its own
@@ -23,12 +23,9 @@ User พิมพ์คำสั่งเป็นภาษาไทยหรื
 | `scan orb` | `orb_gap_preview` (ก่อน 09:30) / `orb_gap_break` (09:30-09:35) / `orb_prep` (03:00 prep) |
 | `scan intraday` | `ml_filter` |
 | `scan top movers` | `ml_filter` (ถ้าอยู่ใน 09:30-14:00 window) |
-| `scan ovn` | `ovn_gap` |
-| `scan fri mon` / `scan fri-mon` / `scan weekend` | `fri_mon` |
+| `scan ovn` | removed — backtest showed no edge (gap prediction = coin flip) |
 | `scan ml` | `ml_filter` (force) |
 | `scan gap` | `orb_gap_preview` หรือ `orb_gap_break` ตามเวลา |
-| `scan morning` | `morning_drive` (force) |
-| `scan afternoon` | `afternoon_strict` |
 | `scan crisis` / `scan VIX high` | `crisis_reversal` |
 | `scan list` | `python3 -m src.scan.engine list` |
 
@@ -51,8 +48,8 @@ User พิมพ์คำสั่งเป็นภาษาไทยหรื
   position management.
 - **Never override gates.** If strategy says `skipped_gate: SPY red`, that
   is the answer — don't flip to "but sector X is strong".
-- **Never mix strategies.** If user asks `morning_drive` and it returns
-  out_of_window, say that. Don't say "let's try afternoon_strict instead".
+- **Never mix strategies.** If user asks `ml_filter` and it returns
+  out_of_window, say that. Don't say "let's try vwap_reclaim instead".
 - **Never invent picks.** If scan returns 0 picks, report 0. Do not
   substitute with ideas from your head.
 - **Never cite deprecated rules.** Old v1 rules (Sec3d +2, catalyst +1,
@@ -66,14 +63,8 @@ User พิมพ์คำสั่งเป็นภาษาไทยหรื
 |---|---|---|---|---|
 | **ml_filter** | 09:30-14:00 | **75-90%** | +1.5% | ⭐ ENSEMBLE ML — primary |
 | orb_prep | 03:00-09:30 | — | — | watchlist only |
-| open_drive | 09:30-09:50 | 55% | +0.5% | ORB breakout |
-| morning_drive | 09:50-10:45 | 60% | +0.88% | backtest-validated |
-| consolidation_break | 10:45-13:00 | 52% | +0.3% | tight range |
-| afternoon_strict | 13:00-13:30 | 65% | +2.79% | strict filters |
 | vwap_reclaim | 13:30-15:30 | 52% | +0.4% | afternoon VWAP |
 | crisis_reversal | any (VIX≥25) | 75% | +3.0% | contrarian |
-| ovn_gap | 15:30-15:55 | 55% | +0.5% | overnight gap |
-| fri_mon | Fri 15:00-15:55 | 40% | +0.5% | weekend hold |
 | eod_flatten | 15:55-16:00 | — | — | meta (MOC) |
 
 ### ml_filter (PRIMARY)
@@ -82,22 +73,26 @@ Uses 5-model LightGBM ensemble per time bucket. Only emits picks
 where ensemble probability ≥ threshold_75 (per-bucket, validated on
 walk-forward backtest 2025+ 301K samples).
 
-Per-bucket thresholds and expected top-1% WR:
+Per-bucket thresholds and expected top-1% WR (v3, 31 features):
   09:30-10:00  prob ≥ 0.82  → 90% WR
-  10:00-10:45  prob ≥ 0.75  → 88% WR
-  10:45-11:30  prob ≥ 0.81  → 82% WR
-  11:30-13:00  prob ≥ 0.87  → 72% WR (near miss)
-  13:00-14:00  prob ≥ 0.79  → 76% WR
-  14:00-16:00       —       → 61% WR (skipped — dead zone)
+  10:00-10:45  prob ≥ 0.77  → 91% WR
+  10:45-11:30  prob ≥ 0.80  → 83% WR
+  11:30-13:00  prob ≥ 0.82  → 76% WR
+  13:00-14:00  prob ≥ 0.78  → 78% WR
+  14:00-16:00       —       → 62% WR (skipped — dead zone)
+
+No AD hard gate — ad_ratio is a feature, model handles regime.
+Runs on ~100% of trading days (vs 24% with old AD≥2 gate).
 
 Target label: "reach +1% at any point before close" (matches
 trail-1%-from-peak exit). So 'win' = trade hits +1% intraday.
 
-Features (26): mins_from_open, gain_from_open, range_pct, from_peak_pct,
+Features (31): mins_from_open, gain_from_open, range_pct, from_peak_pct,
 vs_vwap, vol_ratio, vol_accel, bars_since_hi, hh_count, consol,
 range_exp, gap_from_prev, beta, mcap_bucket, spy_green, spy_intra,
 vix, vix_5d_chg, ad_ratio, sec3d, mom5d, mom20d, dist_sma20,
-pct_52w_hi, pct_52w_lo, dow.
+pct_52w_hi, pct_52w_lo, dow,
+insider_net_30d, news_sentiment, earnings_days, pm_vol_ratio, short_pct.
 
 ### How to scan with ml_filter
 
@@ -117,14 +112,16 @@ Picks are auto-recorded to data/scan_journal.db for drift monitoring.
 ### Daily workflow
 
 ```
-03:00-09:30  orb_prep watchlist scan
-09:30-09:50  ml_filter (90% WR bucket)
-09:50-10:45  ml_filter (88% WR bucket) — SWEET SPOT
+03:00-03:59  orb_prep watchlist scan
+04:00-09:29  orb_gap_preview (PM gap watchlist, confidence by time-to-open)
+09:30-09:34  ml_filter (90% WR bucket)
+09:35-09:40  orb_gap_break (81-89% WR, gap+vol 2x filter)
+09:41-10:45  ml_filter (88% WR bucket) — SWEET SPOT
 10:45-11:30  ml_filter (82% WR bucket)
-11:30-13:00  ml_filter (72% — marginal, consider skipping)
+11:30-13:00  ml_filter (77% WR bucket, threshold fixed)
 13:00-14:00  ml_filter (76% WR bucket)
-14:00-15:30  NO trades (ml_filter returns skipped_gate)
-15:30-15:55  ovn_gap (overnight play)
+14:00-15:29  vwap_reclaim (52% WR — optional)
+14:00-15:55  NO trades (dead zone — backtest confirmed)
 15:55-16:00  eod_flatten (exit intraday positions)
 ```
 
@@ -152,7 +149,7 @@ for row in j.report(days=7):
 ```
 
 Backtest source: `backtests/results/SUMMARY.md` (29 tests, 20M bars, 2025+).
-ML models: `backtests/models_prod_v2/` (6 ensembles × 5 seeds).
+ML models: `backtests/models_prod_v3/` (6 ensembles × 5 seeds, 31 features).
 
 ## Adding a new strategy
 
@@ -220,5 +217,5 @@ Don't copy rules back without re-validating against backtest v2.
 ## Rebuild history
 - **2026-04-11**: Full scan layer rebuild. 29 backtests exposed look-ahead
   bugs and wrong factor weights in v1. Rewrote from scratch with
-  per-strategy architecture. First working strategy: `morning_drive`.
+  per-strategy architecture. First working strategy: `ml_filter`.
   See `archive/v1/CLAUDE_v1.md` for the old monolithic system.

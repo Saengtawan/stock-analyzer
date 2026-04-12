@@ -3,13 +3,13 @@ Scan engine — dispatches `scan` commands to the right strategy.
 
 Usage:
     from src.scan.engine import run_scan
-    result = run_scan('morning_drive')
+    result = run_scan('ml_filter')
     result = run_scan('auto')  # auto-select by time/regime
 
 Command routing:
-    scan morning_drive  → MorningDriveStrategy
-    scan auto           → best strategy for current ET + regime
-    scan list           → show available strategies
+    scan ml_filter  → MLFilterStrategy
+    scan auto       → best strategy for current ET + regime
+    scan list       → show available strategies
 """
 from datetime import datetime
 import pytz
@@ -18,14 +18,8 @@ from .strategies.base import ScanResult
 from .strategies.orb_prep import OrbPrepStrategy
 from .strategies.orb_gap_preview import OrbGapPreviewStrategy
 from .strategies.orb_gap_break import OrbGapBreakStrategy
-from .strategies.open_drive import OpenDriveStrategy
-from .strategies.morning_drive import MorningDriveStrategy
-from .strategies.consolidation_break import ConsolidationBreakStrategy
-from .strategies.afternoon_strict import AfternoonStrictStrategy
 from .strategies.vwap_reclaim import VwapReclaimStrategy
 from .strategies.crisis_reversal import CrisisReversalStrategy
-from .strategies.ovn_gap import OvernightGapStrategy
-from .strategies.fri_mon import FriMonStrategy
 from .strategies.ml_filter import MLFilterStrategy
 from .strategies.meta import EodFlattenStrategy
 
@@ -37,14 +31,8 @@ TRADE_STRATEGIES = {
     'orb_gap_break':       OrbGapBreakStrategy,      # 81% WR gap ≥5% at open
     'orb_gap_preview':     OrbGapPreviewStrategy,    # 04:00-09:29 PM gap preview
     'orb_prep':            OrbPrepStrategy,
-    'open_drive':          OpenDriveStrategy,
-    'morning_drive':       MorningDriveStrategy,
-    'consolidation_break': ConsolidationBreakStrategy,
-    'afternoon_strict':    AfternoonStrictStrategy,
     'vwap_reclaim':        VwapReclaimStrategy,
     'crisis_reversal':     CrisisReversalStrategy,
-    'ovn_gap':             OvernightGapStrategy,
-    'fri_mon':             FriMonStrategy,
 }
 
 # Meta strategies (specific windows with no real trade, e.g. MOC)
@@ -74,17 +62,32 @@ def list_strategies() -> list:
 def auto_select_strategy() -> str:
     """Pick best strategy for current ET time.
 
-    Priority:
-    1. Trade strategies with narrow windows match (morning_drive, afternoon_strict, etc.)
-    2. Fall back to meta (dead zone) strategies
-    3. Last resort: morning_drive hint
+    Priority order (explicit — backtest-validated WR):
+    1. orb_gap_preview  04:00-09:29  (82% WR)
+    2. orb_gap_break    09:35-09:40  (81% WR) — beats open_drive
+    3. ml_filter        09:30-14:00  (75-90% WR bucketed) — PRIMARY intraday
+    4. Other narrow-window strategies by EV (vwap_reclaim, ...)
+    5. Meta strategies (eod_flatten)
+    6. Wide fallbacks (crisis_reversal)
     """
     now_et = datetime.now(ET).strftime("%H:%M")
 
-    # Prefer narrow-window trade strategies (exclude crisis_reversal which has wide window)
+    def in_window(name: str) -> bool:
+        s = STRATEGIES[name]()
+        return s.time_start <= now_et <= s.time_end
+
+    # Explicit priority — these beat EV-sort if in window
+    PRIORITY = ['orb_gap_preview', 'orb_gap_break', 'ml_filter']
+    for name in PRIORITY:
+        if name in TRADE_STRATEGIES and in_window(name):
+            return name
+
+    # Remaining narrow-window trade strategies by EV desc
     narrow_trade = []
     wide_trade = []
     for name, cls in TRADE_STRATEGIES.items():
+        if name in PRIORITY:
+            continue
         s = cls()
         if s.time_start <= now_et <= s.time_end:
             window_min = _window_minutes(s.time_start, s.time_end)
@@ -94,22 +97,21 @@ def auto_select_strategy() -> str:
                 wide_trade.append((name, s.expected_ev, window_min))
 
     if narrow_trade:
-        # Sort by EV desc, then narrower window
         narrow_trade.sort(key=lambda x: (-x[1], x[2]))
         return narrow_trade[0][0]
 
-    # Fall back to meta (dead zones)
+    # Meta (dead zones)
     for name, cls in META_STRATEGIES.items():
         s = cls()
         if s.time_start <= now_et <= s.time_end:
             return name
 
-    # Wide trade strategies (crisis_reversal)
+    # Wide fallback (crisis_reversal)
     if wide_trade:
         wide_trade.sort(key=lambda x: -x[1])
         return wide_trade[0][0]
 
-    return 'morning_drive'  # fallback hint
+    return 'ml_filter'
 
 
 def _window_minutes(start: str, end: str) -> int:

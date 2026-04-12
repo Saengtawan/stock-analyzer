@@ -7,15 +7,16 @@ only returns picks whose probability exceeds the 75%-WR threshold
 validated by backtest.
 
 Expected performance (backtest walk-forward, 2025+ data):
-  09:30-10:00  90.2% WR at threshold 0.8204 (very selective)
-  10:00-10:45  87.6% WR at threshold 0.7497
-  10:45-11:30  81.8% WR at threshold 0.81
-  11:30-13:00  71.9% WR at threshold 0.8719 (below 75% — skipped)
-  13:00-14:00  76.3% WR at threshold 0.7873
-  14:00-16:00  61.1% WR (no threshold achieves 75% — skipped)
+  v3 (31 features, no AD hard gate):
+  09:30-10:00  90.2% WR at threshold 0.82
+  10:00-10:45  90.7% WR at threshold 0.767
+  10:45-11:30  82.7% WR at threshold 0.799
+  11:30-13:00  76.3% WR at threshold 0.824
+  13:00-14:00  78.0% WR at threshold 0.781
+  14:00-16:00  62.2% WR (below 75% — skipped)
 
-So effective active windows: 09:30-11:30 and 13:00-14:00 (~4 hours).
-Outside those, strategy returns no picks.
+5 active buckets covering 09:30-14:00, all ≥76% WR.
+No AD hard gate — model uses ad_ratio as feature instead.
 """
 import os
 import sqlite3
@@ -46,7 +47,6 @@ class MLFilterStrategy(BaseStrategy):
     MIN_PRICE = 3.0
     MIN_GAIN = 2.0   # loose — let ML decide
     MAX_GAIN = 10.0
-    MIN_AD = 2.0
     REQUIRE_75_THRESHOLD = True
     MAX_PICKS = 3
 
@@ -69,11 +69,9 @@ class MLFilterStrategy(BaseStrategy):
 
         conn = sqlite3.connect(self.DB_PATH)
         try:
-            # Hard gates
+            # AD ratio — passed to ML as feature (no hard gate; model handles regime)
             br = conn.execute("SELECT ad_ratio FROM market_breadth ORDER BY date DESC LIMIT 1").fetchone()
             ad_ratio = float(br[0]) if br and br[0] else 0.0
-            if ad_ratio < self.MIN_AD:
-                return self.gate_failed(f"AD {ad_ratio:.2f} < {self.MIN_AD}")
 
             spy_rows = conn.execute("SELECT spy_close FROM macro_snapshots ORDER BY date DESC LIMIT 5").fetchall()
             if len(spy_rows) < 2:
@@ -124,6 +122,70 @@ class MLFilterStrategy(BaseStrategy):
                 AND u.sector IS NOT NULL GROUP BY u.sector
             """):
                 sector_3d[r[0]] = r[1] or 0
+
+            # v3 new features: insider, news, earnings, PM vol, short interest
+            insider_net = {}
+            for r in conn.execute("""
+                SELECT symbol,
+                    SUM(CASE WHEN transaction_type='purchase' THEN shares ELSE 0 END) as buys,
+                    SUM(CASE WHEN transaction_type='sale' THEN shares ELSE 0 END) as sells
+                FROM insider_transactions
+                WHERE transaction_date >= date('now','-30 days')
+                GROUP BY symbol
+            """):
+                total = (r[1] or 0) + (r[2] or 0)
+                if total > 0:
+                    insider_net[r[0]] = ((r[1] or 0) - (r[2] or 0)) / total
+
+            news_sent = {}
+            for r in conn.execute("""
+                SELECT symbol, AVG(CASE
+                    WHEN sentiment_label='very_positive' THEN 2
+                    WHEN sentiment_label='positive' THEN 1
+                    WHEN sentiment_label='negative' THEN -1
+                    WHEN sentiment_label='very_negative' THEN -2 ELSE 0 END)
+                FROM news_events
+                WHERE published_at >= datetime('now','-1 day')
+                AND symbol IS NOT NULL GROUP BY symbol
+            """):
+                news_sent[r[0]] = r[1] or 0
+
+            earn_days = {}
+            for r in conn.execute("""
+                SELECT symbol, MIN(julianday(next_earnings_date) - julianday('now'))
+                FROM earnings_calendar
+                WHERE next_earnings_date >= date('now')
+                GROUP BY symbol
+            """):
+                earn_days[r[0]] = min(r[1] or 60, 60)
+
+            pm_vol_today = {}
+            pm_vol_avg = {}
+            for r in conn.execute("""
+                SELECT symbol, SUM(volume) FROM intraday_bars_5m
+                WHERE date = date('now') AND time_et < '09:30'
+                GROUP BY symbol
+            """):
+                pm_vol_today[r[0]] = r[1] or 0
+            for r in conn.execute("""
+                SELECT symbol, AVG(vol) FROM (
+                    SELECT symbol, date, SUM(volume) as vol FROM intraday_bars_5m
+                    WHERE time_et < '09:30' AND date >= date('now','-14 days') AND date < date('now')
+                    GROUP BY symbol, date
+                ) GROUP BY symbol
+            """):
+                pm_vol_avg[r[0]] = r[1] or 0
+
+            short_pct = {}
+            try:
+                for r in conn.execute("""
+                    SELECT si.symbol, si.short_pct_float FROM short_interest si
+                    INNER JOIN (SELECT symbol, MAX(date) as md FROM short_interest GROUP BY symbol) latest
+                    ON si.symbol = latest.symbol AND si.date = latest.md
+                """):
+                    short_pct[r[0]] = r[1] or 0
+            except Exception:
+                pass
         finally:
             conn.close()
 
@@ -275,6 +337,13 @@ class MLFilterStrategy(BaseStrategy):
                 'pct_52w_hi': pct_52w_hi,
                 'pct_52w_lo': pct_52w_lo,
                 'dow': dow,
+                # v3 new features
+                'insider_net_30d': insider_net.get(sym, 0),
+                'news_sentiment': news_sent.get(sym, 0),
+                'earnings_days': earn_days.get(sym, 60),
+                'pm_vol_ratio': (pm_vol_today.get(sym, 0) / pm_vol_avg[sym]
+                                 if pm_vol_avg.get(sym, 0) > 0 else 0),
+                'short_pct': short_pct.get(sym, 0),
             }
 
             prob = scorer.score(features, minutes_from_open)

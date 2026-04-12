@@ -21,8 +21,8 @@ from pathlib import Path
 import numpy as np
 import lightgbm as lgb
 
-# v2 = ensemble of 5 models per bucket, achieves 75%+ for 5/6 buckets
-MODEL_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v2'
+# v3 = 31 features (no AD hard gate), 5/6 buckets 76%+ WR
+MODEL_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v3'
 
 
 class MLScorer:

@@ -1,12 +1,12 @@
 [
   {
     "bucket": "09:30-10:00",
-    "n_train": 13784,
-    "n_test": 4136,
-    "base_wr": 61.27,
-    "test_top5_wr": 84.47,
-    "test_top1_wr": 87.8,
-    "threshold_75": 0.8249,
+    "n_train": 13839,
+    "n_test": 4152,
+    "base_wr": 61.22,
+    "test_top5_wr": 81.64,
+    "test_top1_wr": 90.24,
+    "threshold_75": 0.8198,
     "ensemble_size": 5,
     "model_files": [
       "lgb_0930_1000_seed0.txt",
@@ -14,16 +14,17 @@
       "lgb_0930_1000_seed2.txt",
       "lgb_0930_1000_seed3.txt",
       "lgb_0930_1000_seed4.txt"
-    ]
+    ],
+    "top_features": "vix(717), ad_ratio(711), vix_5d_chg(682), sec3d(493), gap_from_prev(438), mom5d(348), pct_52w_hi(348), pct_52w_lo(343)"
   },
   {
     "bucket": "10:00-10:45",
-    "n_train": 49199,
-    "n_test": 14760,
-    "base_wr": 61.55,
-    "test_top5_wr": 79.0,
-    "test_top1_wr": 86.39,
-    "threshold_75": 0.7422,
+    "n_train": 32367,
+    "n_test": 9711,
+    "base_wr": 62.84,
+    "test_top5_wr": 82.89,
+    "test_top1_wr": 90.72,
+    "threshold_75": 0.7665,
     "ensemble_size": 5,
     "model_files": [
       "lgb_1000_1045_seed0.txt",
@@ -31,16 +32,17 @@
       "lgb_1000_1045_seed2.txt",
       "lgb_1000_1045_seed3.txt",
       "lgb_1000_1045_seed4.txt"
-    ]
+    ],
+    "top_features": "vix(876), ad_ratio(851), vix_5d_chg(719), sec3d(517), gap_from_prev(443), range_exp(396), range_pct(340), beta(277)"
   },
   {
     "bucket": "10:45-11:30",
-    "n_train": 42017,
-    "n_test": 12606,
-    "base_wr": 51.24,
-    "test_top5_wr": 72.54,
-    "test_top1_wr": 77.78,
-    "threshold_75": 0.8298,
+    "n_train": 36869,
+    "n_test": 11061,
+    "base_wr": 56.37,
+    "test_top5_wr": 76.31,
+    "test_top1_wr": 82.73,
+    "threshold_75": 0.7992,
     "ensemble_size": 5,
     "model_files": [
       "lgb_1045_1130_seed0.txt",
@@ -48,16 +50,17 @@
       "lgb_1045_1130_seed2.txt",
       "lgb_1045_1130_seed3.txt",
       "lgb_1045_1130_seed4.txt"
-    ]
+    ],
+    "top_features": "vix_5d_chg(1130), ad_ratio(1020), vix(761), gap_from_prev(433), sec3d(342), range_exp(277), range_pct(266), pct_52w_hi(244)"
   },
   {
     "bucket": "11:30-13:00",
-    "n_train": 50217,
-    "n_test": 15066,
-    "base_wr": 43.61,
-    "test_top5_wr": 68.92,
-    "test_top1_wr": 74.67,
-    "threshold_75": 0.845,
+    "n_train": 46465,
+    "n_test": 13940,
+    "base_wr": 46.48,
+    "test_top5_wr": 69.15,
+    "test_top1_wr": 76.26,
+    "threshold_75": 0.8242,
     "ensemble_size": 5,
     "model_files": [
       "lgb_1130_1300_seed0.txt",
@@ -65,16 +68,17 @@
       "lgb_1130_1300_seed2.txt",
       "lgb_1130_1300_seed3.txt",
       "lgb_1130_1300_seed4.txt"
-    ]
+    ],
+    "top_features": "ad_ratio(1145), vix(1042), vix_5d_chg(1003), gap_from_prev(395), sec3d(297), pct_52w_lo(282), dow(258), range_pct(256)"
   },
   {
     "bucket": "13:00-14:00",
-    "n_train": 84901,
-    "n_test": 25471,
-    "base_wr": 31.91,
-    "test_top5_wr": 64.34,
-    "test_top1_wr": 72.83,
-    "threshold_75": 0.8927,
+    "n_train": 81879,
+    "n_test": 24564,
+    "base_wr": 36.17,
+    "test_top5_wr": 68.49,
+    "test_top1_wr": 77.96,
+    "threshold_75": 0.7807,
     "ensemble_size": 5,
     "model_files": [
       "lgb_1300_1400_seed0.txt",
@@ -82,16 +86,17 @@
       "lgb_1300_1400_seed2.txt",
       "lgb_1300_1400_seed3.txt",
       "lgb_1300_1400_seed4.txt"
-    ]
+    ],
+    "top_features": "vix(1260), vix_5d_chg(1051), ad_ratio(1013), range_pct(389), range_exp(367), sec3d(293), dow(288), gap_from_prev(268)"
   },
   {
     "bucket": "14:00-16:00",
-    "n_train": 61130,
-    "n_test": 18339,
-    "base_wr": 20.59,
-    "test_top5_wr": 48.8,
-    "test_top1_wr": 54.64,
-    "threshold_75": 0.8039,
+    "n_train": 90252,
+    "n_test": 27076,
+    "base_wr": 23.64,
+    "test_top5_wr": 55.95,
+    "test_top1_wr": 62.22,
+    "threshold_75": 0.7833,
     "ensemble_size": 5,
     "model_files": [
       "lgb_1400_1600_seed0.txt",
@@ -99,6 +104,7 @@
       "lgb_1400_1600_seed2.txt",
       "lgb_1400_1600_seed3.txt",
       "lgb_1400_1600_seed4.txt"
-    ]
+    ],
+    "top_features": "vix(1156), vix_5d_chg(971), ad_ratio(933), range_pct(428), mins_from_open(419), range_exp(375), sec3d(336), dow(333)"
   }
 ]
