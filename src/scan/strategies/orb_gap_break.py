@@ -176,12 +176,8 @@ class OrbGapBreakStrategy(BaseStrategy):
             # In actual execution, market order at 09:30 will fill at open
             entry = now if now > 0 else opn
 
-            # Trail 1% exit — set initial SL at entry - 1% as worst case
-            # (will be raised as peak rises)
-            initial_sl = entry * 0.99
-
-            # Expected reach: avg winner from backtest ~+1.7%
-            target = entry * 1.02
+            initial_sl = entry * 0.97  # trail 3% acts as SL from entry
+            target = None  # no fixed TP — trail 1% handles exit
 
             reason = f"GAP +{gap:.1f}% vol{vol_ratio:.1f}x @ open={opn:.2f} prev={pc:.2f} {sec[:6]}"
 
@@ -189,8 +185,8 @@ class OrbGapBreakStrategy(BaseStrategy):
                 symbol=sym,
                 entry=entry,
                 sl_price=round(initial_sl, 2),
-                tp_price=round(target, 2),
-                trail_pct=1.0,
+                tp_price=None,
+                trail_pct=3.0,
                 reason=reason,
                 score=int(min(9, gap)),  # score by gap size
                 atr_pct=None,

@@ -7,15 +7,16 @@ only returns picks whose probability exceeds the 75%-WR threshold
 validated by backtest.
 
 Expected performance (backtest walk-forward, 2025+ data):
-  v3 (31 features, no AD hard gate):
-  09:30-10:00  90.2% WR at threshold 0.82
-  10:00-10:45  90.7% WR at threshold 0.767
-  10:45-11:30  82.7% WR at threshold 0.799
-  11:30-13:00  76.3% WR at threshold 0.824
-  13:00-14:00  78.0% WR at threshold 0.781
-  14:00-16:00  62.2% WR (below 75% — skipped)
+  v3 (31 features, no AD hard gate, trail 3%):
+  09:30-10:00  73% WR, avg +2.1%  — trail 3% full size
+  10:00-10:45  SKIP — dip avg -4.2% > trail 3%, WR <55%
+  10:45-11:30  64% WR, avg +1.5%  — top 50% prob, trail 3%
+  11:30-13:00  SKIP — lunch dead zone, all EV negative
+  13:00-14:00  69% WR, avg +1.0%  — trail 3%
+  14:00-16:00  SKIP — WR <75%
 
-5 active buckets covering 09:30-14:00, all ≥76% WR.
+3 active buckets: 09:30-10:00, 10:45-11:30, 13:00-14:00.
+Exit: trailing stop 3% (acts as both SL and TP).
 No AD hard gate — model uses ad_ratio as feature instead.
 """
 import os
@@ -58,8 +59,15 @@ class MLFilterStrategy(BaseStrategy):
         now_et = datetime.now(ET)
         minutes_from_open = (now_et.hour - 9) * 60 + (now_et.minute - 30)
 
+        bucket = scorer.get_bucket(minutes_from_open)
+
+        SKIP_BUCKETS = {'10:00-10:45', '11:30-13:00'}
+        if bucket in SKIP_BUCKETS:
+            return self.gate_failed(
+                f"Bucket {bucket} skipped — dip too deep for trail 3% (backtest WR < SL rate)"
+            )
+
         if self.REQUIRE_75_THRESHOLD and not scorer.can_reach_75(minutes_from_open):
-            bucket = scorer.get_bucket(minutes_from_open)
             return self.gate_failed(
                 f"Bucket {bucket} cannot achieve 75% WR at any threshold. "
                 f"Skip this window (use heuristic strategies or wait)."
@@ -73,14 +81,14 @@ class MLFilterStrategy(BaseStrategy):
             br = conn.execute("SELECT ad_ratio FROM market_breadth ORDER BY date DESC LIMIT 1").fetchone()
             ad_ratio = float(br[0]) if br and br[0] else 0.0
 
-            spy_rows = conn.execute("SELECT spy_close FROM macro_snapshots ORDER BY date DESC LIMIT 5").fetchall()
-            if len(spy_rows) < 2:
+            spy_rows = conn.execute("SELECT spy_close FROM macro_snapshots WHERE spy_close IS NOT NULL ORDER BY date DESC LIMIT 5").fetchall()
+            if len(spy_rows) < 2 or not spy_rows[0][0] or not spy_rows[1][0]:
                 return self.gate_failed("No SPY data")
             spy_daily = (spy_rows[0][0] / spy_rows[1][0] - 1) * 100
             spy_green = 1 if spy_daily > 0 else 0
 
-            vix_row = conn.execute("SELECT vix_close FROM macro_snapshots ORDER BY date DESC LIMIT 1").fetchone()
-            vix = float(vix_row[0]) if vix_row else 20.0
+            vix_row = conn.execute("SELECT vix_close FROM macro_snapshots WHERE vix_close IS NOT NULL ORDER BY date DESC LIMIT 1").fetchone()
+            vix = float(vix_row[0]) if vix_row and vix_row[0] else 20.0
 
             vix_5d_row = conn.execute("SELECT vix_close FROM macro_snapshots ORDER BY date DESC LIMIT 5 OFFSET 4").fetchone()
             vix_5d_chg = (vix - float(vix_5d_row[0])) if vix_5d_row else 0.0
@@ -351,9 +359,7 @@ class MLFilterStrategy(BaseStrategy):
                 continue
 
             atr_pct = (hi - lo) / now * 100 if now > 0 else 3.0
-            sl_pct = -max(1.5, 0.5 * atr_pct)
-            sl_price = now * (1 + sl_pct / 100)
-            tp_price = now * 1.02  # trail 1% from +1% hit
+            sl_price = now * 0.97  # trail 3% acts as SL from entry
             reason = (
                 f"ML prob={prob:.3f} (thr{threshold:.2f}) "
                 f"gain+{gain:.1f}% β{beta:.1f} ATR{atr_pct:.1f}% {sec[:6]}"
@@ -362,8 +368,8 @@ class MLFilterStrategy(BaseStrategy):
             candidates.append(Pick(
                 symbol=sym, entry=now,
                 sl_price=round(sl_price, 2),
-                tp_price=round(tp_price, 2),
-                trail_pct=1.0,
+                tp_price=None,
+                trail_pct=3.0,
                 reason=reason,
                 score=int(prob * 10),  # 0-10 proxy
                 atr_pct=atr_pct,
