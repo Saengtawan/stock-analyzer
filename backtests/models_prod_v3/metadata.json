@@ -15,7 +15,15 @@
       "lgb_0930_1000_seed3.txt",
       "lgb_0930_1000_seed4.txt"
     ],
-    "top_features": "vix(717), ad_ratio(711), vix_5d_chg(682), sec3d(493), gap_from_prev(438), mom5d(348), pct_52w_hi(348), pct_52w_lo(343)"
+    "top_features": "vix(717), ad_ratio(711), vix_5d_chg(682), sec3d(493), gap_from_prev(438), mom5d(348), pct_52w_hi(348), pct_52w_lo(343)",
+    "safe_model_files": [
+      "lgb_safe_0930_1000_seed0.txt",
+      "lgb_safe_0930_1000_seed1.txt",
+      "lgb_safe_0930_1000_seed2.txt",
+      "lgb_safe_0930_1000_seed3.txt",
+      "lgb_safe_0930_1000_seed4.txt"
+    ],
+    "safe_rate": 72.71
   },
   {
     "bucket": "10:00-10:45",
@@ -33,7 +41,15 @@
       "lgb_1000_1045_seed3.txt",
       "lgb_1000_1045_seed4.txt"
     ],
-    "top_features": "vix(876), ad_ratio(851), vix_5d_chg(719), sec3d(517), gap_from_prev(443), range_exp(396), range_pct(340), beta(277)"
+    "top_features": "vix(876), ad_ratio(851), vix_5d_chg(719), sec3d(517), gap_from_prev(443), range_exp(396), range_pct(340), beta(277)",
+    "safe_model_files": [
+      "lgb_safe_1000_1045_seed0.txt",
+      "lgb_safe_1000_1045_seed1.txt",
+      "lgb_safe_1000_1045_seed2.txt",
+      "lgb_safe_1000_1045_seed3.txt",
+      "lgb_safe_1000_1045_seed4.txt"
+    ],
+    "safe_rate": 76.62
   },
   {
     "bucket": "10:45-11:30",
@@ -51,7 +67,15 @@
       "lgb_1045_1130_seed3.txt",
       "lgb_1045_1130_seed4.txt"
     ],
-    "top_features": "vix_5d_chg(1130), ad_ratio(1020), vix(761), gap_from_prev(433), sec3d(342), range_exp(277), range_pct(266), pct_52w_hi(244)"
+    "top_features": "vix_5d_chg(1130), ad_ratio(1020), vix(761), gap_from_prev(433), sec3d(342), range_exp(277), range_pct(266), pct_52w_hi(244)",
+    "safe_model_files": [
+      "lgb_safe_1045_1130_seed0.txt",
+      "lgb_safe_1045_1130_seed1.txt",
+      "lgb_safe_1045_1130_seed2.txt",
+      "lgb_safe_1045_1130_seed3.txt",
+      "lgb_safe_1045_1130_seed4.txt"
+    ],
+    "safe_rate": 80.99
   },
   {
     "bucket": "11:30-13:00",
@@ -69,7 +93,15 @@
       "lgb_1130_1300_seed3.txt",
       "lgb_1130_1300_seed4.txt"
     ],
-    "top_features": "ad_ratio(1145), vix(1042), vix_5d_chg(1003), gap_from_prev(395), sec3d(297), pct_52w_lo(282), dow(258), range_pct(256)"
+    "top_features": "ad_ratio(1145), vix(1042), vix_5d_chg(1003), gap_from_prev(395), sec3d(297), pct_52w_lo(282), dow(258), range_pct(256)",
+    "safe_model_files": [
+      "lgb_safe_1130_1300_seed0.txt",
+      "lgb_safe_1130_1300_seed1.txt",
+      "lgb_safe_1130_1300_seed2.txt",
+      "lgb_safe_1130_1300_seed3.txt",
+      "lgb_safe_1130_1300_seed4.txt"
+    ],
+    "safe_rate": 88.11
   },
   {
     "bucket": "13:00-14:00",
@@ -87,7 +119,15 @@
       "lgb_1300_1400_seed3.txt",
       "lgb_1300_1400_seed4.txt"
     ],
-    "top_features": "vix(1260), vix_5d_chg(1051), ad_ratio(1013), range_pct(389), range_exp(367), sec3d(293), dow(288), gap_from_prev(268)"
+    "top_features": "vix(1260), vix_5d_chg(1051), ad_ratio(1013), range_pct(389), range_exp(367), sec3d(293), dow(288), gap_from_prev(268)",
+    "safe_model_files": [
+      "lgb_safe_1300_1400_seed0.txt",
+      "lgb_safe_1300_1400_seed1.txt",
+      "lgb_safe_1300_1400_seed2.txt",
+      "lgb_safe_1300_1400_seed3.txt",
+      "lgb_safe_1300_1400_seed4.txt"
+    ],
+    "safe_rate": 92.39
   },
   {
     "bucket": "14:00-16:00",
@@ -105,6 +145,14 @@
       "lgb_1400_1600_seed3.txt",
       "lgb_1400_1600_seed4.txt"
     ],
-    "top_features": "vix(1156), vix_5d_chg(971), ad_ratio(933), range_pct(428), mins_from_open(419), range_exp(375), sec3d(336), dow(333)"
+    "top_features": "vix(1156), vix_5d_chg(971), ad_ratio(933), range_pct(428), mins_from_open(419), range_exp(375), sec3d(336), dow(333)",
+    "safe_model_files": [
+      "lgb_safe_1400_1600_seed0.txt",
+      "lgb_safe_1400_1600_seed1.txt",
+      "lgb_safe_1400_1600_seed2.txt",
+      "lgb_safe_1400_1600_seed3.txt",
+      "lgb_safe_1400_1600_seed4.txt"
+    ],
+    "safe_rate": 95.7
   }
 ]

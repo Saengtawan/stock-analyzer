@@ -354,15 +354,18 @@ class MLFilterStrategy(BaseStrategy):
                 'short_pct': short_pct.get(sym, 0),
             }
 
-            prob = scorer.score(features, minutes_from_open)
-            if self.REQUIRE_75_THRESHOLD and prob < threshold:
+            prob_gain = scorer.score_gain(features, minutes_from_open)
+            prob_safe = scorer.score_safe(features, minutes_from_open)
+            prob = prob_gain * prob_safe  # combined: profitable AND safe
+
+            if self.REQUIRE_75_THRESHOLD and prob_gain < threshold:
                 continue
 
             atr_pct = (hi - lo) / now * 100 if now > 0 else 3.0
             sl_price = now * 0.97  # trail 3% acts as SL from entry
             reason = (
-                f"ML prob={prob:.3f} (thr{threshold:.2f}) "
-                f"gain+{gain:.1f}% β{beta:.1f} ATR{atr_pct:.1f}% {sec[:6]}"
+                f"ML gain={prob_gain:.2f} safe={prob_safe:.2f} (×{prob:.3f}) "
+                f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]}"
             )
 
             candidates.append(Pick(
@@ -371,12 +374,14 @@ class MLFilterStrategy(BaseStrategy):
                 tp_price=None,
                 trail_pct=3.0,
                 reason=reason,
-                score=int(prob * 10),  # 0-10 proxy
+                score=int(prob * 10),
                 atr_pct=atr_pct,
                 extra={
                     'ml_prob': round(prob, 4),
+                    'ml_prob_gain': round(prob_gain, 4),
+                    'ml_prob_safe': round(prob_safe, 4),
                     'threshold': round(threshold, 4),
-                    'bucket': scorer.get_bucket(minutes_from_open),
+                    'bucket': bucket,
                     'gain_pct': round(gain, 2),
                     'beta': round(beta, 2),
                     'sector': sec,
