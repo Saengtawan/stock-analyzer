@@ -102,7 +102,8 @@ class MLScorer:
         return 0.0
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
-        return True
+        # 13:00-14:00 and 14:00-16:00 both validated at WR 48% (coin flip) — skip.
+        return minutes_from_open < 180
 
 
 _SCORER_INSTANCE = None

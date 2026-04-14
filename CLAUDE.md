@@ -61,7 +61,7 @@ User พิมพ์คำสั่งเป็นภาษาไทยหรื
 ### Trade strategies
 | Strategy | Window ET | WR | EV | Notes |
 |---|---|---|---|---|
-| **ml_filter** | 09:30-14:00 | **75-90%** | +1.5% | ⭐ ENSEMBLE ML — primary |
+| **ml_filter** | 09:30-13:00 | **88-94%** | +1.5% | ⭐ ENSEMBLE ML — primary |
 | orb_prep | 03:00-09:30 | — | — | watchlist only |
 | vwap_reclaim | 13:30-15:30 | 52% | +0.4% | afternoon VWAP |
 | crisis_reversal | any (VIX≥25) | 75% | +3.0% | contrarian |
@@ -73,13 +73,16 @@ Uses 5-model LightGBM ensemble per time bucket. Only emits picks
 where ensemble probability ≥ threshold_75 (per-bucket, validated on
 walk-forward backtest 2025+ 301K samples).
 
-Per-bucket thresholds and expected top-1% WR (v3, 31 features):
-  09:30-10:00  prob ≥ 0.82  → 90% WR
-  10:00-10:45  prob ≥ 0.77  → 91% WR
-  10:45-11:30  prob ≥ 0.80  → 83% WR
-  11:30-13:00  prob ≥ 0.82  → 76% WR
-  13:00-14:00  prob ≥ 0.78  → 78% WR
-  14:00-16:00       —       → 62% WR (skipped — dead zone)
+Per-bucket top-1% WR (v3 profit model, trail-3% exit, validated 2026-04-14):
+  09:30-10:00  → 94% WR  ✅
+  10:00-10:45  → 94% WR  ✅
+  10:45-11:30  → 89% WR  ✅
+  11:30-13:00  → 89% WR  ✅
+  13:00-14:00  → 48% WR  ❌ skipped (coin flip, no edge)
+  14:00-16:00  → 48% WR  ❌ skipped (dead zone)
+
+Active window: 09:30-13:00 ET only. Both afternoon buckets hard-skipped
+via `can_reach_75()` — do not re-enable without new validation.
 
 No AD hard gate — ad_ratio is a feature, model handles regime.
 Runs on ~100% of trading days (vs 24% with old AD≥2 gate).
@@ -104,8 +107,8 @@ python3 -m src.scan.engine auto        # auto picks ml_filter first
 Output interpretation:
 - `active` + picks → trade these (ensemble prob ≥ threshold)
 - `no_picks` → no stocks passed threshold this scan (re-try in 5-10 min)
-- `skipped_gate` → current bucket cannot reach 75% WR (14:00-16:00)
-- `out_of_window` → outside 09:30-14:00 ET
+- `skipped_gate` → current bucket cannot reach 75% WR (13:00+ dead zone)
+- `out_of_window` → outside 09:30-13:00 ET
 
 Picks are auto-recorded to data/scan_journal.db for drift monitoring.
 
@@ -114,14 +117,12 @@ Picks are auto-recorded to data/scan_journal.db for drift monitoring.
 ```
 03:00-03:59  orb_prep watchlist scan
 04:00-09:29  orb_gap_preview (PM gap watchlist, confidence by time-to-open)
-09:30-09:34  ml_filter (90% WR bucket)
+09:30-09:34  ml_filter (94% WR bucket)
 09:35-09:40  orb_gap_break (81-89% WR, gap+vol 2x filter)
-09:41-10:45  ml_filter (88% WR bucket) — SWEET SPOT
-10:45-11:30  ml_filter (82% WR bucket)
-11:30-13:00  ml_filter (77% WR bucket, threshold fixed)
-13:00-14:00  ml_filter (76% WR bucket)
-14:00-15:29  vwap_reclaim (52% WR — optional)
-14:00-15:55  NO trades (dead zone — backtest confirmed)
+09:41-10:45  ml_filter (94% WR bucket) — SWEET SPOT
+10:45-11:30  ml_filter (89% WR bucket)
+11:30-13:00  ml_filter (89% WR bucket)
+13:00-15:55  NO trades (48% WR coin flip — validated 2026-04-14, skipped)
 15:55-16:00  eod_flatten (exit intraday positions)
 ```
 

@@ -41,7 +41,7 @@ class MLFilterStrategy(BaseStrategy):
     expected_wr = 0.80  # average of 5 active buckets
     expected_ev = 0.015
     time_start = "09:30"
-    time_end = "14:00"
+    time_end = "13:00"
     version = "2.0"
 
     DB_PATH = "data/trade_history.db"
