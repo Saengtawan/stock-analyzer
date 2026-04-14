@@ -32,7 +32,14 @@
       "lgb_profit_0930_1000_seed4.txt"
     ],
     "profit_top1_wr": 78.05,
-    "profit_threshold": 0.8126
+    "profit_threshold": 0.8126,
+    "big_model_files": [
+      "lgb_big_0930_1000_seed0.txt",
+      "lgb_big_0930_1000_seed1.txt",
+      "lgb_big_0930_1000_seed2.txt",
+      "lgb_big_0930_1000_seed3.txt",
+      "lgb_big_0930_1000_seed4.txt"
+    ]
   },
   {
     "bucket": "10:00-10:45",
@@ -67,7 +74,14 @@
       "lgb_profit_1000_1045_seed4.txt"
     ],
     "profit_top1_wr": 80.41,
-    "profit_threshold": 0.8159
+    "profit_threshold": 0.8159,
+    "big_model_files": [
+      "lgb_big_1000_1045_seed0.txt",
+      "lgb_big_1000_1045_seed1.txt",
+      "lgb_big_1000_1045_seed2.txt",
+      "lgb_big_1000_1045_seed3.txt",
+      "lgb_big_1000_1045_seed4.txt"
+    ]
   },
   {
     "bucket": "10:45-11:30",
@@ -102,7 +116,14 @@
       "lgb_profit_1045_1130_seed4.txt"
     ],
     "profit_top1_wr": 62.73,
-    "profit_threshold": null
+    "profit_threshold": null,
+    "big_model_files": [
+      "lgb_big_1045_1130_seed0.txt",
+      "lgb_big_1045_1130_seed1.txt",
+      "lgb_big_1045_1130_seed2.txt",
+      "lgb_big_1045_1130_seed3.txt",
+      "lgb_big_1045_1130_seed4.txt"
+    ]
   },
   {
     "bucket": "11:30-13:00",
@@ -137,7 +158,14 @@
       "lgb_profit_1130_1300_seed4.txt"
     ],
     "profit_top1_wr": 65.47,
-    "profit_threshold": null
+    "profit_threshold": null,
+    "big_model_files": [
+      "lgb_big_1130_1300_seed0.txt",
+      "lgb_big_1130_1300_seed1.txt",
+      "lgb_big_1130_1300_seed2.txt",
+      "lgb_big_1130_1300_seed3.txt",
+      "lgb_big_1130_1300_seed4.txt"
+    ]
   },
   {
     "bucket": "13:00-14:00",
@@ -172,7 +200,14 @@
       "lgb_profit_1300_1400_seed4.txt"
     ],
     "profit_top1_wr": 88.98,
-    "profit_threshold": 0.6125
+    "profit_threshold": 0.6125,
+    "big_model_files": [
+      "lgb_big_1300_1400_seed0.txt",
+      "lgb_big_1300_1400_seed1.txt",
+      "lgb_big_1300_1400_seed2.txt",
+      "lgb_big_1300_1400_seed3.txt",
+      "lgb_big_1300_1400_seed4.txt"
+    ]
   },
   {
     "bucket": "14:00-16:00",
@@ -207,6 +242,13 @@
       "lgb_profit_1400_1600_seed4.txt"
     ],
     "profit_top1_wr": 90.0,
-    "profit_threshold": 0.5984
+    "profit_threshold": 0.5984,
+    "big_model_files": [
+      "lgb_big_1400_1600_seed0.txt",
+      "lgb_big_1400_1600_seed1.txt",
+      "lgb_big_1400_1600_seed2.txt",
+      "lgb_big_1400_1600_seed3.txt",
+      "lgb_big_1400_1600_seed4.txt"
+    ]
   }
 ]

@@ -356,10 +356,8 @@ class MLFilterStrategy(BaseStrategy):
 
             atr_pct = (hi - lo) / now * 100 if now > 0 else 3.0
             sl_price = now * 0.97  # trail 3% acts as SL from entry
-            prob_gain = scorer.score_gain(features, minutes_from_open)
-            prob_profit = scorer.score_profit(features, minutes_from_open)
             reason = (
-                f"ML g={prob_gain:.2f}×p={prob_profit:.2f}={prob:.3f} "
+                f"ML vote={prob:.3f} "
                 f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]}"
             )
 

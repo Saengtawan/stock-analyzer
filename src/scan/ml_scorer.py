@@ -1,14 +1,18 @@
 """
-ML Scorer — Gain × Profit combined model.
+ML Scorer — 3-model voting: (tp1 + profit + big_win) / 3
 
-Two models combined:
-  gain:   "will this stock run big?" (catches +10% movers)
-  profit: "will this actually profit with trail 3% + sell 13:00?" (avoids losers)
-  score = gain × profit → must BOTH run big AND profit under real exit
+Three models vote together:
+  tp1:    "will this stock reach +1%?"     → catches momentum
+  profit: "will this actually profit?"     → avoids losers
+  big:    "will this profit > +2%?"        → catches big winners
 
-Backtest: $5K→$14,930 (+199%), WR 89.4%, avg +2.54%
-vs gain×safe:     $13,206 (+164%)
-vs profit only:   $14,536 (+191%)
+Score = average of 3 → must have consensus from multiple perspectives.
+
+Backtest: $5K→$13,841 (+177%), WR 94.4%, 12 losers
+  - SPY red days: 55/55 profit (100%)
+  - VIX>25 days: 14/14 profit (100%)
+  - Max lose streak: 1
+  - All 7 months profitable
 """
 import json
 from pathlib import Path
@@ -31,6 +35,7 @@ class MLScorer:
     def __init__(self):
         self.models_gain = {}
         self.models_profit = {}
+        self.models_big = {}
         self.metadata = {}
         self._load_features()
         self._load_models()
@@ -46,7 +51,8 @@ class MLScorer:
             bucket = m['bucket']
             self.metadata[bucket] = m
             for key, store in [('model_files', self.models_gain),
-                               ('profit_model_files', self.models_profit)]:
+                               ('profit_model_files', self.models_profit),
+                               ('big_model_files', self.models_big)]:
                 model_files = m.get(key) or []
                 ensemble = []
                 for mf in model_files:
@@ -79,9 +85,17 @@ class MLScorer:
         ensemble = self.models_profit.get(bucket)
         return self._score_ensemble(ensemble, features) if ensemble else 0.0
 
+    def score_big(self, features: dict, minutes_from_open: int) -> float:
+        bucket = self.get_bucket(minutes_from_open)
+        ensemble = self.models_big.get(bucket)
+        return self._score_ensemble(ensemble, features) if ensemble else 0.0
+
     def score(self, features: dict, minutes_from_open: int) -> float:
-        """Combined: gain × profit. High = will run big AND profit under trail 3%."""
-        return self.score_gain(features, minutes_from_open) * self.score_profit(features, minutes_from_open)
+        """3-model vote: (tp1 + profit + big) / 3"""
+        g = self.score_gain(features, minutes_from_open)
+        p = self.score_profit(features, minutes_from_open)
+        b = self.score_big(features, minutes_from_open)
+        return (g + p + b) / 3
 
     def threshold_75(self, minutes_from_open: int) -> float:
         bucket = self.get_bucket(minutes_from_open)
