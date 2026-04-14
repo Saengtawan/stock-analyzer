@@ -355,16 +355,15 @@ class MLFilterStrategy(BaseStrategy):
             }
 
             prob_gain = scorer.score_gain(features, minutes_from_open)
-            prob_safe = scorer.score_safe(features, minutes_from_open)
-            prob = prob_gain * prob_safe  # combined: profitable AND safe
+            prob = scorer.score(features, minutes_from_open)
 
-            if self.REQUIRE_75_THRESHOLD and prob_gain < threshold:
+            if self.REQUIRE_75_THRESHOLD and prob < threshold:
                 continue
 
             atr_pct = (hi - lo) / now * 100 if now > 0 else 3.0
             sl_price = now * 0.97  # trail 3% acts as SL from entry
             reason = (
-                f"ML gain={prob_gain:.2f} safe={prob_safe:.2f} (×{prob:.3f}) "
+                f"ML profit={prob:.3f} (thr{threshold:.2f}) "
                 f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]}"
             )
 
@@ -378,8 +377,6 @@ class MLFilterStrategy(BaseStrategy):
                 atr_pct=atr_pct,
                 extra={
                     'ml_prob': round(prob, 4),
-                    'ml_prob_gain': round(prob_gain, 4),
-                    'ml_prob_safe': round(prob_safe, 4),
                     'threshold': round(threshold, 4),
                     'bucket': bucket,
                     'gain_pct': round(gain, 2),
