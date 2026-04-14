@@ -98,12 +98,11 @@ class MLScorer:
         return (g + p + b) / 3
 
     def threshold_75(self, minutes_from_open: int) -> float:
-        bucket = self.get_bucket(minutes_from_open)
-        meta = self.metadata.get(bucket, {})
-        return meta.get('profit_threshold') or meta.get('threshold_75')
+        """Threshold for 3-model average. Top ~1% = 0.35+"""
+        return 0.30
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
-        return self.threshold_75(minutes_from_open) is not None
+        return True
 
 
 _SCORER_INSTANCE = None
