@@ -1,12 +1,14 @@
 """
-ML Scorer — Direct Profit model.
+ML Scorer — Gain × Profit combined model.
 
-Model predicts "will this pick actually profit with trail 3% + sell at 13:00?"
-This directly matches the real trading strategy, unlike the old model that
-predicted "will reach +1%" which didn't account for trail/exit mechanics.
+Two models combined:
+  gain:   "will this stock run big?" (catches +10% movers)
+  profit: "will this actually profit with trail 3% + sell 13:00?" (avoids losers)
+  score = gain × profit → must BOTH run big AND profit under real exit
 
-Backtest: WR 90.7%, avg +2.48%, $5K→$14,536 (+191%)
-vs old (gain×safe): WR 89.8%, avg +2.26%, $5K→$13,206 (+164%)
+Backtest: $5K→$14,930 (+199%), WR 89.4%, avg +2.54%
+vs gain×safe:     $13,206 (+164%)
+vs profit only:   $14,536 (+191%)
 """
 import json
 from pathlib import Path
@@ -27,6 +29,7 @@ class MLScorer:
     }
 
     def __init__(self):
+        self.models_gain = {}
         self.models_profit = {}
         self.metadata = {}
         self._load_features()
@@ -42,15 +45,17 @@ class MLScorer:
         for m in meta_list:
             bucket = m['bucket']
             self.metadata[bucket] = m
-            model_files = m.get('profit_model_files') or []
-            ensemble = []
-            for mf in model_files:
-                if not mf: continue
-                mp = MODEL_DIR / mf
-                if mp.exists():
-                    ensemble.append(lgb.Booster(model_file=str(mp)))
-            if ensemble:
-                self.models_profit[bucket] = ensemble
+            for key, store in [('model_files', self.models_gain),
+                               ('profit_model_files', self.models_profit)]:
+                model_files = m.get(key) or []
+                ensemble = []
+                for mf in model_files:
+                    if not mf: continue
+                    mp = MODEL_DIR / mf
+                    if mp.exists():
+                        ensemble.append(lgb.Booster(model_file=str(mp)))
+                if ensemble:
+                    store[bucket] = ensemble
 
     def get_bucket(self, minutes_from_open: int) -> str:
         for (lo, hi), name in self.BUCKETS.items():
@@ -58,16 +63,25 @@ class MLScorer:
                 return name
         return '14:00-16:00'
 
-    def score(self, features: dict, minutes_from_open: int) -> float:
-        """Direct profit probability — will this pick profit with trail 3% + sell 13:00?"""
-        bucket = self.get_bucket(minutes_from_open)
-        ensemble = self.models_profit.get(bucket)
-        if not ensemble:
-            return 0.0
+    def _score_ensemble(self, ensemble, features: dict) -> float:
         row = [features.get(f, 0.0) for f in self.features]
         arr = np.array([row], dtype=float)
         preds = [float(m.predict(arr)[0]) for m in ensemble]
         return sum(preds) / len(preds)
+
+    def score_gain(self, features: dict, minutes_from_open: int) -> float:
+        bucket = self.get_bucket(minutes_from_open)
+        ensemble = self.models_gain.get(bucket)
+        return self._score_ensemble(ensemble, features) if ensemble else 0.0
+
+    def score_profit(self, features: dict, minutes_from_open: int) -> float:
+        bucket = self.get_bucket(minutes_from_open)
+        ensemble = self.models_profit.get(bucket)
+        return self._score_ensemble(ensemble, features) if ensemble else 0.0
+
+    def score(self, features: dict, minutes_from_open: int) -> float:
+        """Combined: gain × profit. High = will run big AND profit under trail 3%."""
+        return self.score_gain(features, minutes_from_open) * self.score_profit(features, minutes_from_open)
 
     def threshold_75(self, minutes_from_open: int) -> float:
         bucket = self.get_bucket(minutes_from_open)
@@ -76,12 +90,6 @@ class MLScorer:
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
         return self.threshold_75(minutes_from_open) is not None
-
-    def score_gain(self, features: dict, minutes_from_open: int) -> float:
-        return self.score(features, minutes_from_open)
-
-    def score_safe(self, features: dict, minutes_from_open: int) -> float:
-        return 1.0
 
 
 _SCORER_INSTANCE = None
