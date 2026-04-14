@@ -98,8 +98,8 @@ class MLScorer:
         return (g + p + b) / 3
 
     def threshold_75(self, minutes_from_open: int) -> float:
-        """Threshold for 3-model average. Top ~1% = 0.35+"""
-        return 0.30
+        """No hard threshold — sort by score and take top 3."""
+        return 0.0
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
         return True
