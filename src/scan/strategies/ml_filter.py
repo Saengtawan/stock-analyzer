@@ -61,12 +61,6 @@ class MLFilterStrategy(BaseStrategy):
 
         bucket = scorer.get_bucket(minutes_from_open)
 
-        SKIP_BUCKETS = {'10:00-10:45', '11:30-13:00'}
-        if bucket in SKIP_BUCKETS:
-            return self.gate_failed(
-                f"Bucket {bucket} skipped — dip too deep for trail 3% (backtest WR < SL rate)"
-            )
-
         if self.REQUIRE_75_THRESHOLD and not scorer.can_reach_75(minutes_from_open):
             return self.gate_failed(
                 f"Bucket {bucket} cannot achieve 75% WR at any threshold. "
