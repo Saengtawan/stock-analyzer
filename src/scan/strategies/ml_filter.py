@@ -87,6 +87,18 @@ class MLFilterStrategy(BaseStrategy):
             vix_5d_row = conn.execute("SELECT vix_close FROM macro_snapshots ORDER BY date DESC LIMIT 5 OFFSET 4").fetchone()
             vix_5d_chg = (vix - float(vix_5d_row[0])) if vix_5d_row else 0.0
 
+            # v6 macro features: btc/jpy 5d change, skew, vvix, vix term spread
+            macro_now = conn.execute("SELECT btc_close, usdjpy_close, skew_close, vvix_close, vix3m_close FROM macro_snapshots WHERE btc_close IS NOT NULL ORDER BY date DESC LIMIT 1").fetchone()
+            macro_5d = conn.execute("SELECT btc_close, usdjpy_close FROM macro_snapshots WHERE btc_close IS NOT NULL ORDER BY date DESC LIMIT 1 OFFSET 5").fetchone()
+            if macro_now and macro_5d:
+                btc_5d_chg = (macro_now[0] / macro_5d[0] - 1) * 100 if macro_5d[0] else 0
+                jpy_5d_chg = (macro_now[1] / macro_5d[1] - 1) * 100 if macro_5d[1] else 0
+                skew_v = float(macro_now[2]) if macro_now[2] else 145.0
+                vvix_v = float(macro_now[3]) if macro_now[3] else 100.0
+                vix_term_spread = (float(macro_now[4]) - vix) if macro_now[4] else 1.5
+            else:
+                btc_5d_chg = jpy_5d_chg = 0; skew_v = 145; vvix_v = 100; vix_term_spread = 1.5
+
             # Universe
             syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
             sectors = dict(conn.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
@@ -346,6 +358,13 @@ class MLFilterStrategy(BaseStrategy):
                 'pm_vol_ratio': (pm_vol_today.get(sym, 0) / pm_vol_avg[sym]
                                  if pm_vol_avg.get(sym, 0) > 0 else 0),
                 'short_pct': short_pct.get(sym, 0),
+                # v6 macro features
+                'btc_5d_chg': btc_5d_chg,
+                'jpy_5d_chg': jpy_5d_chg,
+                'skew': skew_v,
+                'vvix': vvix_v,
+                'vix_term_spread': vix_term_spread,
+                'sec_rel_strength': max(-20, min(20, gain - sec3d)),
             }
 
             prob_gain = scorer.score_gain(features, minutes_from_open)
