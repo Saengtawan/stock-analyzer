@@ -1,0 +1,194 @@
+[
+  {
+    "bucket": "09:30-10:00",
+    "n_train": 21992,
+    "base_wr": 65.08,
+    "test_top5_wr": 87.54,
+    "test_top1_wr": 87.69,
+    "threshold_75": 0.7379,
+    "ensemble_size": 5,
+    "model_files": [
+      "lgb_0930_1000_seed0.txt",
+      "lgb_0930_1000_seed1.txt",
+      "lgb_0930_1000_seed2.txt",
+      "lgb_0930_1000_seed3.txt",
+      "lgb_0930_1000_seed4.txt"
+    ],
+    "profit_model_files": [
+      "lgb_profit_0930_1000_seed0.txt",
+      "lgb_profit_0930_1000_seed1.txt",
+      "lgb_profit_0930_1000_seed2.txt",
+      "lgb_profit_0930_1000_seed3.txt",
+      "lgb_profit_0930_1000_seed4.txt"
+    ],
+    "big_model_files": [
+      "lgb_big_0930_1000_seed0.txt",
+      "lgb_big_0930_1000_seed1.txt",
+      "lgb_big_0930_1000_seed2.txt",
+      "lgb_big_0930_1000_seed3.txt",
+      "lgb_big_0930_1000_seed4.txt"
+    ],
+    "profit_top1_wr": 75.38,
+    "big_top1_wr": 18.46
+  },
+  {
+    "bucket": "10:00-10:45",
+    "n_train": 51010,
+    "base_wr": 60.62,
+    "test_top5_wr": 84.05,
+    "test_top1_wr": 88.89,
+    "threshold_75": 0.6776,
+    "ensemble_size": 5,
+    "model_files": [
+      "lgb_1000_1045_seed0.txt",
+      "lgb_1000_1045_seed1.txt",
+      "lgb_1000_1045_seed2.txt",
+      "lgb_1000_1045_seed3.txt",
+      "lgb_1000_1045_seed4.txt"
+    ],
+    "profit_model_files": [
+      "lgb_profit_1000_1045_seed0.txt",
+      "lgb_profit_1000_1045_seed1.txt",
+      "lgb_profit_1000_1045_seed2.txt",
+      "lgb_profit_1000_1045_seed3.txt",
+      "lgb_profit_1000_1045_seed4.txt"
+    ],
+    "big_model_files": [
+      "lgb_big_1000_1045_seed0.txt",
+      "lgb_big_1000_1045_seed1.txt",
+      "lgb_big_1000_1045_seed2.txt",
+      "lgb_big_1000_1045_seed3.txt",
+      "lgb_big_1000_1045_seed4.txt"
+    ],
+    "profit_top1_wr": 60.13,
+    "big_top1_wr": 21.57
+  },
+  {
+    "bucket": "10:45-11:30",
+    "n_train": 54309,
+    "base_wr": 55.72,
+    "test_top5_wr": 81.08,
+    "test_top1_wr": 93.83,
+    "threshold_75": 0.7766,
+    "ensemble_size": 5,
+    "model_files": [
+      "lgb_1045_1130_seed0.txt",
+      "lgb_1045_1130_seed1.txt",
+      "lgb_1045_1130_seed2.txt",
+      "lgb_1045_1130_seed3.txt",
+      "lgb_1045_1130_seed4.txt"
+    ],
+    "profit_model_files": [
+      "lgb_profit_1045_1130_seed0.txt",
+      "lgb_profit_1045_1130_seed1.txt",
+      "lgb_profit_1045_1130_seed2.txt",
+      "lgb_profit_1045_1130_seed3.txt",
+      "lgb_profit_1045_1130_seed4.txt"
+    ],
+    "big_model_files": [
+      "lgb_big_1045_1130_seed0.txt",
+      "lgb_big_1045_1130_seed1.txt",
+      "lgb_big_1045_1130_seed2.txt",
+      "lgb_big_1045_1130_seed3.txt",
+      "lgb_big_1045_1130_seed4.txt"
+    ],
+    "profit_top1_wr": 71.6,
+    "big_top1_wr": 27.16
+  },
+  {
+    "bucket": "11:30-13:00",
+    "n_train": 67815,
+    "base_wr": 47.61,
+    "test_top5_wr": 71.68,
+    "test_top1_wr": 78.33,
+    "threshold_75": 0.7992,
+    "ensemble_size": 5,
+    "model_files": [
+      "lgb_1130_1300_seed0.txt",
+      "lgb_1130_1300_seed1.txt",
+      "lgb_1130_1300_seed2.txt",
+      "lgb_1130_1300_seed3.txt",
+      "lgb_1130_1300_seed4.txt"
+    ],
+    "profit_model_files": [
+      "lgb_profit_1130_1300_seed0.txt",
+      "lgb_profit_1130_1300_seed1.txt",
+      "lgb_profit_1130_1300_seed2.txt",
+      "lgb_profit_1130_1300_seed3.txt",
+      "lgb_profit_1130_1300_seed4.txt"
+    ],
+    "big_model_files": [
+      "lgb_big_1130_1300_seed0.txt",
+      "lgb_big_1130_1300_seed1.txt",
+      "lgb_big_1130_1300_seed2.txt",
+      "lgb_big_1130_1300_seed3.txt",
+      "lgb_big_1130_1300_seed4.txt"
+    ],
+    "profit_top1_wr": 54.68,
+    "big_top1_wr": 21.18
+  },
+  {
+    "bucket": "13:00-14:00",
+    "n_train": 119533,
+    "base_wr": 34.74,
+    "test_top5_wr": 67.48,
+    "test_top1_wr": 70.67,
+    "threshold_75": null,
+    "ensemble_size": 5,
+    "model_files": [
+      "lgb_1300_1400_seed0.txt",
+      "lgb_1300_1400_seed1.txt",
+      "lgb_1300_1400_seed2.txt",
+      "lgb_1300_1400_seed3.txt",
+      "lgb_1300_1400_seed4.txt"
+    ],
+    "profit_model_files": [
+      "lgb_profit_1300_1400_seed0.txt",
+      "lgb_profit_1300_1400_seed1.txt",
+      "lgb_profit_1300_1400_seed2.txt",
+      "lgb_profit_1300_1400_seed3.txt",
+      "lgb_profit_1300_1400_seed4.txt"
+    ],
+    "big_model_files": [
+      "lgb_big_1300_1400_seed0.txt",
+      "lgb_big_1300_1400_seed1.txt",
+      "lgb_big_1300_1400_seed2.txt",
+      "lgb_big_1300_1400_seed3.txt",
+      "lgb_big_1300_1400_seed4.txt"
+    ],
+    "profit_top1_wr": 61.45,
+    "big_top1_wr": 19.55
+  },
+  {
+    "bucket": "14:00-16:00",
+    "n_train": 131354,
+    "base_wr": 21.6,
+    "test_top5_wr": 58.02,
+    "test_top1_wr": 67.26,
+    "threshold_75": 0.7131,
+    "ensemble_size": 5,
+    "model_files": [
+      "lgb_1400_1600_seed0.txt",
+      "lgb_1400_1600_seed1.txt",
+      "lgb_1400_1600_seed2.txt",
+      "lgb_1400_1600_seed3.txt",
+      "lgb_1400_1600_seed4.txt"
+    ],
+    "profit_model_files": [
+      "lgb_profit_1400_1600_seed0.txt",
+      "lgb_profit_1400_1600_seed1.txt",
+      "lgb_profit_1400_1600_seed2.txt",
+      "lgb_profit_1400_1600_seed3.txt",
+      "lgb_profit_1400_1600_seed4.txt"
+    ],
+    "big_model_files": [
+      "lgb_big_1400_1600_seed0.txt",
+      "lgb_big_1400_1600_seed1.txt",
+      "lgb_big_1400_1600_seed2.txt",
+      "lgb_big_1400_1600_seed3.txt",
+      "lgb_big_1400_1600_seed4.txt"
+    ],
+    "profit_top1_wr": 59.39,
+    "big_top1_wr": 12.44
+  }
+]
