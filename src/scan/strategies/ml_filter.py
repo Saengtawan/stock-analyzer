@@ -48,6 +48,15 @@ class MLFilterStrategy(BaseStrategy):
     MIN_PRICE = 3.0
     MIN_GAIN = 2.0   # loose — let ML decide
     MAX_GAIN = 5.0   # gain ≥5% = chased/pumped — all strategies drop to 53-71% WR (2026-04-14 backtest)
+
+    @staticmethod
+    def _compute_vol_trend(bars):
+        """Ratio of last-3-bars vol to first-3-bars vol. Proxy for volume decay/surge."""
+        if not bars or len(bars) < 6:
+            return 1.0
+        first3 = sum(b.get('v', 0) for b in bars[:3]) / 3
+        last3 = sum(b.get('v', 0) for b in bars[-3:]) / 3
+        return min(20.0, last3 / first3) if first3 > 0 else 1.0
     REQUIRE_75_THRESHOLD = True
     MAX_PICKS = 3
 
@@ -365,6 +374,13 @@ class MLFilterStrategy(BaseStrategy):
                 'vvix': vvix_v,
                 'vix_term_spread': vix_term_spread,
                 'sec_rel_strength': max(-20, min(20, gain - sec3d)),
+                # v7 intraday features
+                'gain_first30': bar_feats.get('gain_first30', 0),
+                'entry_vs_first30': bar_feats.get('entry_vs_first30', 0),
+                'pullback_depth': bar_feats.get('pullback_depth', 0),
+                'vol_trend': self._compute_vol_trend(sym_bars) if sym_bars else 1.0,
+                'consec_green': bar_feats.get('consec_green', 0),
+                'time_since_peak': bar_feats.get('time_since_peak', 0),
             }
 
             prob_gain = scorer.score_gain(features, minutes_from_open)
