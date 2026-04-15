@@ -47,7 +47,7 @@ class MLFilterStrategy(BaseStrategy):
     DB_PATH = "data/trade_history.db"
     MIN_PRICE = 3.0
     MIN_GAIN = 2.0   # loose — let ML decide
-    MAX_GAIN = 10.0
+    MAX_GAIN = 5.0   # gain ≥5% = chased/pumped — all strategies drop to 53-71% WR (2026-04-14 backtest)
     REQUIRE_75_THRESHOLD = True
     MAX_PICKS = 3
 
