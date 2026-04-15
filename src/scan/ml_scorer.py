@@ -1,18 +1,20 @@
 """
-ML Scorer — 3-model voting: (tp1 + profit + big_win) / 3
+ML Scorer — big × vote hybrid: p_big × (tp1 + profit + big) / 3
 
-Three models vote together:
+Three models combined:
   tp1:    "will this stock reach +1%?"     → catches momentum
   profit: "will this actually profit?"     → avoids losers
   big:    "will this profit > +2%?"        → catches big winners
 
-Score = average of 3 → must have consensus from multiple perspectives.
+Score = p_big × vote → requires BOTH big-winner signal AND consensus.
+Filters out pumps (high tp1, low profit) and safe-small (high profit, low big).
 
-Backtest: $5K→$13,841 (+177%), WR 94.4%, 12 losers
-  - SPY red days: 55/55 profit (100%)
-  - VIX>25 days: 14/14 profit (100%)
-  - Max lose streak: 1
-  - All 7 months profitable
+Holdout validation (Feb-Apr 2026, N=538):
+  WR 67.3% (vote 65.4%)
+  avg_ret +1.23%/trade (vote +0.89%, +38% relative)
+  big-winner rate 40.0% (vote 33.6%)
+  bad rate 13.4% (vote 15.6%)
+  Wins 3/3 months vs vote.
 """
 import json
 from pathlib import Path
@@ -91,11 +93,14 @@ class MLScorer:
         return self._score_ensemble(ensemble, features) if ensemble else 0.0
 
     def score(self, features: dict, minutes_from_open: int) -> float:
-        """3-model vote: (tp1 + profit + big) / 3"""
+        """big × vote hybrid — validated 2026-04-14 holdout Feb-Apr 2026:
+        WR 67% (vs vote 65%), avg_ret +1.23%/trade (vs vote +0.89%, +38% $).
+        Highest big-winner rate (40%), lowest bad rate (13%). Wins 3/3 months."""
         g = self.score_gain(features, minutes_from_open)
         p = self.score_profit(features, minutes_from_open)
         b = self.score_big(features, minutes_from_open)
-        return (g + p + b) / 3
+        vote = (g + p + b) / 3
+        return b * vote
 
     def threshold_75(self, minutes_from_open: int) -> float:
         """No hard threshold — sort by score and take top 3."""
