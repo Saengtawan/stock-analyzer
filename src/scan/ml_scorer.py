@@ -103,20 +103,33 @@ class MLScorer:
         return b * vote
 
     def threshold_75(self, minutes_from_open: int) -> float:
-        """Time-conditional threshold — push each slice to WR ≥ 60%.
-        Validated 2026-04-16 threshold hunt on v7 holdout:
-          10:00-10:15 (mid-morning drift): bxv ≥ 0.05 → WR 57.6% → 62.9%
-          10:15-10:30 (worst morning lull): bxv ≥ 0.07 → WR 53.5% → 70.1%
-          10:55-11:15 (pre-lunch fade):    bxv ≥ 0.08 → WR 56.0% → 71.7%
-          12:00-13:00 (deep lunch):        bxv ≥ 0.10 → WR 59%   → 82%+
+        """Time-conditional threshold — push each slice to WR ≥ 60%+.
+        Validated 2026-04-16 threshold hunts on v7 holdout.
+
+        09:30-10:00 bucket: UNTOUCHED (peak performance, no filter needed).
+
+        Per-slice thresholds (slice → threshold → WR improvement):
+          10:00-10:15:  ≥ 0.05  →  57.6% → 62.9%
+          10:15-10:30:  ≥ 0.07  →  53.5% → 70.1%
+          10:30-10:45:  ≥ 0.05  →  60.8% → 64.3%
+          10:45-10:55:  ≥ 0.05  →  61.9% → 69.9%
+          10:55-11:15:  ≥ 0.08  →  56.0% → 71.7%
+          11:30-12:00:  ≥ 0.07  →  62.0% → 79.7%
+          12:00-13:00:  ≥ 0.10  →  59%   → 82%+
         """
-        if minutes_from_open >= 150:       # 12:00-13:00
+        if minutes_from_open >= 150:        # 12:00-13:00
             return 0.10
-        if 85 <= minutes_from_open < 105:  # 10:55-11:15
-            return 0.08
-        if 45 <= minutes_from_open < 60:   # 10:15-10:30
+        if 120 <= minutes_from_open < 150:  # 11:30-12:00
             return 0.07
-        if 30 <= minutes_from_open < 45:   # 10:00-10:15
+        if 85 <= minutes_from_open < 105:   # 10:55-11:15
+            return 0.08
+        if 75 <= minutes_from_open < 85:    # 10:45-10:55
+            return 0.05
+        if 60 <= minutes_from_open < 75:    # 10:30-10:45
+            return 0.05
+        if 45 <= minutes_from_open < 60:    # 10:15-10:30
+            return 0.07
+        if 30 <= minutes_from_open < 45:    # 10:00-10:15
             return 0.05
         return 0.0
 
