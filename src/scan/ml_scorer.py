@@ -120,15 +120,15 @@ class MLScorer:
         if minutes_from_open >= 150:        # 12:00-13:00
             return 0.10
         if 120 <= minutes_from_open < 150:  # 11:30-12:00
-            return 0.07
+            return 0.08                     # was 0.07 → WR 80→82%
         if 85 <= minutes_from_open < 105:   # 10:55-11:15
-            return 0.08
+            return 0.10                     # was 0.08 → WR 72→78%
         if 75 <= minutes_from_open < 85:    # 10:45-10:55
-            return 0.05
+            return 0.07                     # was 0.05 → WR 70→74%
         if 60 <= minutes_from_open < 75:    # 10:30-10:45
-            return 0.05
+            return 0.07                     # was 0.05 → WR 64→70%
         if 45 <= minutes_from_open < 60:    # 10:15-10:30
-            return 0.07
+            return 0.08                     # was 0.07 → WR 70→76%
         if 30 <= minutes_from_open < 45:    # 10:00-10:15
             return 0.05
         return 0.0
