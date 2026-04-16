@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 import lightgbm as lgb
 
-MODEL_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v7_44feat'
+MODEL_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v7'
 
 
 class MLScorer:
