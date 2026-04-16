@@ -393,6 +393,8 @@ class MLFilterStrategy(BaseStrategy):
                 'vol_trend': self._compute_vol_trend(sym_bars) if sym_bars else 1.0,
                 'consec_green': bar_feats.get('consec_green', 0),
                 'time_since_peak': bar_feats.get('time_since_peak', 0),
+                # vix_ratio = VIX3M/VIX (live SKEW proxy, corr 0.343 with daily SKEW)
+                'vix_ratio': vix_term_spread / vix + 1 if vix > 0 else 1.1,
             }
 
             prob_gain = scorer.score_gain(features, minutes_from_open)
