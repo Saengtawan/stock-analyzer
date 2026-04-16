@@ -93,8 +93,8 @@ class MLFilterStrategy(BaseStrategy):
             vix_row = conn.execute("SELECT vix_close FROM macro_snapshots WHERE vix_close IS NOT NULL ORDER BY date DESC LIMIT 1").fetchone()
             vix = float(vix_row[0]) if vix_row and vix_row[0] else 20.0
 
-            vix_5d_row = conn.execute("SELECT vix_close FROM macro_snapshots ORDER BY date DESC LIMIT 5 OFFSET 4").fetchone()
-            vix_5d_chg = (vix - float(vix_5d_row[0])) if vix_5d_row else 0.0
+            vix_5d_row = conn.execute("SELECT vix_close FROM macro_snapshots WHERE vix_close IS NOT NULL ORDER BY date DESC LIMIT 1 OFFSET 4").fetchone()
+            vix_5d_chg = (vix - float(vix_5d_row[0])) if vix_5d_row and vix_5d_row[0] else 0.0
 
             # v6 macro features: btc/jpy 5d change, skew, vvix, vix term spread
             macro_now = conn.execute("SELECT btc_close, usdjpy_close, skew_close, vvix_close, vix3m_close FROM macro_snapshots WHERE btc_close IS NOT NULL ORDER BY date DESC LIMIT 1").fetchone()
