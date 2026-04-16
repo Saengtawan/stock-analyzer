@@ -90,15 +90,8 @@ class MLFilterStrategy(BaseStrategy):
             spy_daily = (spy_rows[0][0] / spy_rows[1][0] - 1) * 100
             spy_green = 1 if spy_daily > 0 else 0
 
-            # Try live VIX/VVIX first (intraday), fall back to daily close
             vix_row = conn.execute("SELECT vix_close FROM macro_snapshots WHERE vix_close IS NOT NULL ORDER BY date DESC LIMIT 1").fetchone()
-            vix_daily = float(vix_row[0]) if vix_row and vix_row[0] else 20.0
-            try:
-                import yfinance as yf
-                vix_live = yf.Ticker('^VIX').fast_info.get('lastPrice', None)
-                vix = float(vix_live) if vix_live else vix_daily
-            except Exception:
-                vix = vix_daily
+            vix = float(vix_row[0]) if vix_row and vix_row[0] else 20.0
 
             vix_5d_row = conn.execute("SELECT vix_close FROM macro_snapshots ORDER BY date DESC LIMIT 5 OFFSET 4").fetchone()
             vix_5d_chg = (vix - float(vix_5d_row[0])) if vix_5d_row else 0.0
@@ -110,12 +103,7 @@ class MLFilterStrategy(BaseStrategy):
                 btc_5d_chg = (macro_now[0] / macro_5d[0] - 1) * 100 if macro_5d[0] else 0
                 jpy_5d_chg = (macro_now[1] / macro_5d[1] - 1) * 100 if macro_5d[1] else 0
                 skew_v = float(macro_now[2]) if macro_now[2] else 145.0
-                vvix_daily = float(macro_now[3]) if macro_now[3] else 100.0
-                try:
-                    vvix_live = yf.Ticker('^VVIX').fast_info.get('lastPrice', None)
-                    vvix_v = float(vvix_live) if vvix_live else vvix_daily
-                except Exception:
-                    vvix_v = vvix_daily
+                vvix_v = float(macro_now[3]) if macro_now[3] else 100.0
                 vix_term_spread = (float(macro_now[4]) - vix) if macro_now[4] else 1.5
             else:
                 btc_5d_chg = jpy_5d_chg = 0; skew_v = 145; vvix_v = 100; vix_term_spread = 1.5
@@ -393,8 +381,6 @@ class MLFilterStrategy(BaseStrategy):
                 'vol_trend': self._compute_vol_trend(sym_bars) if sym_bars else 1.0,
                 'consec_green': bar_feats.get('consec_green', 0),
                 'time_since_peak': bar_feats.get('time_since_peak', 0),
-                # vix_ratio = VIX3M/VIX (live SKEW proxy, corr 0.343 with daily SKEW)
-                'vix_ratio': vix_term_spread / vix + 1 if vix > 0 else 1.1,
             }
 
             prob_gain = scorer.score_gain(features, minutes_from_open)
