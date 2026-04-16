@@ -103,7 +103,16 @@ class MLScorer:
         return b * vote
 
     def threshold_75(self, minutes_from_open: int) -> float:
-        """No hard threshold — sort by score and take top 3."""
+        """Time-conditional threshold — filter weak slices.
+        Validated 2026-04-16 slice analysis on v7 holdout:
+          12:00-13:00 deep lunch:     bad% low but big% 21% — require bxv ≥ 0.10
+          10:55-11:15 pre-lunch fade: WR drops to 56%        — require bxv ≥ 0.08
+          Else: no hard threshold (sort top 3)
+        """
+        if minutes_from_open >= 150:       # 12:00-13:00
+            return 0.10
+        if 85 <= minutes_from_open < 105:  # 10:55-11:15
+            return 0.08
         return 0.0
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
