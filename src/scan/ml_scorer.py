@@ -131,7 +131,7 @@ class MLScorer:
             return 0.08                     # was 0.07 → WR 70→76%
         if 30 <= minutes_from_open < 45:    # 10:00-10:15
             return 0.05
-        return 0.0
+        return 0.03                         # 09:30-10:00: mild filter, skip 4 loss-days (avg -0.33%)
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
         # 13:00-14:00 and 14:00-16:00 both validated at WR 48% (coin flip) — skip.
