@@ -389,6 +389,10 @@ class MLFilterStrategy(BaseStrategy):
             if self.REQUIRE_75_THRESHOLD and prob < threshold:
                 continue
 
+            prob_profit = scorer.score_profit(features, minutes_from_open)
+            if prob_profit < 0.3:
+                continue
+
             atr_pct = (hi - lo) / now * 100 if now > 0 else 3.0
             sl_price = now * 0.97  # trail 3% acts as SL from entry
             reason = (
