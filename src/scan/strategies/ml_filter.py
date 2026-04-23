@@ -505,7 +505,8 @@ class MLFilterStrategy(BaseStrategy):
             # Momentum from daily history
             hist = daily_hist.get(sym, [])
             if len(hist) < 21: continue
-            closes = [h[1] for h in hist[-21:]]
+            closes = [h[1] for h in hist[-21:] if h[1] is not None]
+            if len(closes) < 21: continue
             mom5 = (closes[-1] / closes[-6] - 1) * 100 if closes[-6] else 0
             mom20 = (closes[-1] / closes[0] - 1) * 100 if closes[0] else 0
             sma20 = np.mean(closes[-20:])
@@ -513,8 +514,8 @@ class MLFilterStrategy(BaseStrategy):
 
             # 52w high/low from history
             hist_full = daily_hist.get(sym, [])
-            if len(hist_full) >= 100:
-                closes_full = [h[1] for h in hist_full]
+            closes_full = [h[1] for h in hist_full if h[1] is not None] if len(hist_full) >= 100 else []
+            if len(closes_full) >= 100:
                 h52w = max(closes_full)
                 l52w = min(closes_full)
                 pct_52w_hi = (now / h52w - 1) * 100 if h52w > 0 else 0
