@@ -6373,6 +6373,28 @@ class AutoTradingEngine:
                 except Exception as e:
                     logger.warning(f"Failed to get fill price from order {managed_pos.sl_order_id}: {e}")
 
+            # v7.9: If sl_order_id was canceled (e.g., replaced by market sell that filled >10s later),
+            # search Alpaca for the most recent filled SELL order for this symbol.
+            # Without this, we would fall back to current_sl_price (stop trigger), which is WRONG
+            # when the actual exit was a market sell at a different price.
+            if not actual_fill_price:
+                try:
+                    from alpaca.trading.requests import GetOrdersRequest
+                    from alpaca.trading.enums import QueryOrderStatus
+                    request = GetOrdersRequest(
+                        status=QueryOrderStatus.CLOSED,
+                        symbols=[symbol],
+                        limit=10,
+                    )
+                    recent_orders = self.broker.client.get_orders(filter=request)
+                    for o in recent_orders:
+                        if o.side.value == 'sell' and o.status.value == 'filled' and o.filled_avg_price:
+                            actual_fill_price = float(o.filled_avg_price)
+                            logger.info(f"✅ Recovered fill price for {symbol} from recent orders: ${actual_fill_price:.2f} (order {o.id})")
+                            break
+                except Exception as e:
+                    logger.warning(f"Failed to scan recent SELL orders for {symbol}: {e}")
+
             # Fallback to stop price if can't get actual fill
             sell_price = actual_fill_price if actual_fill_price else managed_pos.current_sl_price
             if not actual_fill_price:
@@ -6832,6 +6854,17 @@ class AutoTradingEngine:
             if et_now.hour == 15 and 20 <= et_now.minute <= 29:
                 logger.info(f"OVN_FORCE_CLOSE_PRE_SCAN: {symbol} Day {days_held}, P&L {pnl_pct:+.2f}% — closing before OVN scan")
                 self._close_position(symbol, managed_pos, "OVN_FORCE_CLOSE_PRE_SCAN")
+                return
+
+        # v7.9: PEM exit — close Day 1+ positions at morning (09:30-09:45 ET).
+        # PEM edge = overnight gap from earnings; multi-day holds lose the edge and risk mean reversion.
+        # Live evidence (2026-04-15 → 04-22, new paper account):
+        #   5/5 overnight holds won (+$179); HUM held 7 days via default TIME_EXIT (-$0.74, flat).
+        if is_pem and days_held >= 1:
+            et_now = self._get_et_time()
+            if et_now.hour == 9 and 30 <= et_now.minute <= 45:
+                logger.info(f"PEM_MORNING_EXIT: {symbol} Day {days_held}, P&L {pnl_pct:+.2f}% — PEM Day 1+ morning close")
+                self._close_position(symbol, managed_pos, "PEM_MORNING_EXIT")
                 return
 
         # Time exit (only for Day 1+)

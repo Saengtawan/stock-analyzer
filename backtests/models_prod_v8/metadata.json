@@ -1,0 +1,114 @@
+[
+  {
+    "bucket": "0930-1000",
+    "model_files": [
+      "lgb_0930_1000_seed0.txt",
+      "lgb_0930_1000_seed1.txt",
+      "lgb_0930_1000_seed2.txt",
+      "lgb_0930_1000_seed3.txt",
+      "lgb_0930_1000_seed4.txt"
+    ],
+    "profit_model_files": [
+      "lgb_profit_0930_1000_seed0.txt",
+      "lgb_profit_0930_1000_seed1.txt",
+      "lgb_profit_0930_1000_seed2.txt",
+      "lgb_profit_0930_1000_seed3.txt",
+      "lgb_profit_0930_1000_seed4.txt"
+    ],
+    "big_model_files": [
+      "lgb_big_0930_1000_seed0.txt",
+      "lgb_big_0930_1000_seed1.txt",
+      "lgb_big_0930_1000_seed2.txt",
+      "lgb_big_0930_1000_seed3.txt",
+      "lgb_big_0930_1000_seed4.txt"
+    ],
+    "tp1_cv_auc": 0.7701,
+    "profit_cv_auc": 0.7583,
+    "big_cv_auc": 0.792,
+    "n_train": 20608
+  },
+  {
+    "bucket": "1000-1045",
+    "model_files": [
+      "lgb_1000_1045_seed0.txt",
+      "lgb_1000_1045_seed1.txt",
+      "lgb_1000_1045_seed2.txt",
+      "lgb_1000_1045_seed3.txt",
+      "lgb_1000_1045_seed4.txt"
+    ],
+    "profit_model_files": [
+      "lgb_profit_1000_1045_seed0.txt",
+      "lgb_profit_1000_1045_seed1.txt",
+      "lgb_profit_1000_1045_seed2.txt",
+      "lgb_profit_1000_1045_seed3.txt",
+      "lgb_profit_1000_1045_seed4.txt"
+    ],
+    "big_model_files": [
+      "lgb_big_1000_1045_seed0.txt",
+      "lgb_big_1000_1045_seed1.txt",
+      "lgb_big_1000_1045_seed2.txt",
+      "lgb_big_1000_1045_seed3.txt",
+      "lgb_big_1000_1045_seed4.txt"
+    ],
+    "tp1_cv_auc": 0.7792,
+    "profit_cv_auc": 0.7577,
+    "big_cv_auc": 0.8182,
+    "n_train": 46886
+  },
+  {
+    "bucket": "1045-1130",
+    "model_files": [
+      "lgb_1045_1130_seed0.txt",
+      "lgb_1045_1130_seed1.txt",
+      "lgb_1045_1130_seed2.txt",
+      "lgb_1045_1130_seed3.txt",
+      "lgb_1045_1130_seed4.txt"
+    ],
+    "profit_model_files": [
+      "lgb_profit_1045_1130_seed0.txt",
+      "lgb_profit_1045_1130_seed1.txt",
+      "lgb_profit_1045_1130_seed2.txt",
+      "lgb_profit_1045_1130_seed3.txt",
+      "lgb_profit_1045_1130_seed4.txt"
+    ],
+    "big_model_files": [
+      "lgb_big_1045_1130_seed0.txt",
+      "lgb_big_1045_1130_seed1.txt",
+      "lgb_big_1045_1130_seed2.txt",
+      "lgb_big_1045_1130_seed3.txt",
+      "lgb_big_1045_1130_seed4.txt"
+    ],
+    "tp1_cv_auc": 0.7693,
+    "profit_cv_auc": 0.7405,
+    "big_cv_auc": 0.8419,
+    "n_train": 49999
+  },
+  {
+    "bucket": "1130-1300",
+    "model_files": [
+      "lgb_1130_1300_seed0.txt",
+      "lgb_1130_1300_seed1.txt",
+      "lgb_1130_1300_seed2.txt",
+      "lgb_1130_1300_seed3.txt",
+      "lgb_1130_1300_seed4.txt"
+    ],
+    "profit_model_files": [
+      "lgb_profit_1130_1300_seed0.txt",
+      "lgb_profit_1130_1300_seed1.txt",
+      "lgb_profit_1130_1300_seed2.txt",
+      "lgb_profit_1130_1300_seed3.txt",
+      "lgb_profit_1130_1300_seed4.txt"
+    ],
+    "big_model_files": [
+      "lgb_big_1130_1300_seed0.txt",
+      "lgb_big_1130_1300_seed1.txt",
+      "lgb_big_1130_1300_seed2.txt",
+      "lgb_big_1130_1300_seed3.txt",
+      "lgb_big_1130_1300_seed4.txt"
+    ],
+    "tp1_cv_auc": 0.7684,
+    "profit_cv_auc": 0.7342,
+    "big_cv_auc": 0.8978,
+    "n_train": 62137
+  }
+]
