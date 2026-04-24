@@ -656,14 +656,9 @@ class MLFilterStrategy(BaseStrategy):
                 continue
 
             atr_pct = (hi - lo) / now * 100 if now > 0 else 3.0
-            # 09:30: decay trail 5→2→1 (wider at start to avoid whipsaw, tighten later)
-            #        5% until 10:00 ET, 2% until 10:30 ET, 1% after
-            #        Backtest: +16% total PnL vs old 3-2-1 (whipsaw protection)
-            # 10:00+: fixed trail 3% (momentum still running)
-            if minutes_from_open < 30:
-                trail = 5.0  # starts at 5%, user/engine tightens to 2% at 10:00, 1% at 10:30
-            else:
-                trail = 3.0  # fixed 3% for 10:00+
+            # Unified trail 3% from peak (all buckets) — matches training label_fixed3
+            # Previously 09:30 used 5% trail but losers got too much room to drop.
+            trail = 3.0
             sl_price = now * (1 - trail / 100)
             q25 = scorer.score_q25(features, minutes_from_open)
             reason = (
@@ -700,9 +695,10 @@ class MLFilterStrategy(BaseStrategy):
         # USO+IWM hardcoded rule removed — ML handles it
         candidates.sort(key=lambda p: -p.extra['ml_prob'])
 
-        # === Industry Rotation filter (L1) ===
-        # Rank 11 sector ETFs by intraday; reject picks whose industry maps to bottom 3.
-        # Captures leadership rotation (e.g. Semis hot, Financials cold) the ML doesn't see.
+        # === Industry Rotation filter (L1) — STRICTER ===
+        # Require mapped ETF in TOP 3 (not just "not in bottom 3").
+        # Previously: only reject bottom 3 → on red days where 8/11 ETFs
+        # are red, middle-rank Tech still passed despite market weakness.
         etf_intra = {
             'XLK': etf_intraday('XLK'), 'XLV': etf_intraday('XLV'),
             'XLF': etf_intraday('XLF'), 'XLY': etf_intraday('XLY'),
@@ -714,6 +710,11 @@ class MLFilterStrategy(BaseStrategy):
         etf_ranked = sorted(etf_intra.items(), key=lambda x: -x[1])
         hot_etfs = {e[0] for e in etf_ranked[:3]}
         cold_etfs = {e[0] for e in etf_ranked[-3:]}
+
+        # SPY red-day gate: raise score threshold if market is weak
+        spy_red = spy_intra < -0.3
+        # Sector cap: 1 per sector on red days (vs 2 on normal days)
+        sector_cap = 1 if spy_red else 2
 
         # === L3: Stock vs peers (30-min relative strength) ===
         # L2 (sector fade from peak) removed 2026-04-24: backtest showed
@@ -759,20 +760,38 @@ class MLFilterStrategy(BaseStrategy):
             # Sector fallback
             return sector_to_etf.get(sectors.get(sym, ''), 'XLK')
 
-        # Diversify max 2/sector + L1/L3 filters
+        # Cross-scan dedup: skip symbols picked in last 60 min (prevent double-entry)
+        try:
+            from pathlib import Path as _Path
+            j_db = _Path(__file__).resolve().parents[3] / 'data' / 'scan_journal.db'
+            _conn = sqlite3.connect(str(j_db))
+            recent_syms = set(r[0] for r in _conn.execute(
+                "SELECT symbol FROM scan_picks WHERE scan_ts >= datetime('now', '-60 minutes')"
+            ).fetchall())
+            _conn.close()
+        except Exception:
+            recent_syms = set()
+
+        # Diversify sector + L1/L3 filters
         bucket_key = scorer.get_bucket(minutes_from_open)
         sec_count = {}
         picks = []
-        skipped = {'cold': [], 'rel': []}
+        skipped = {'cold': [], 'not_hot': [], 'rel': [], 'recent': []}
         for c in candidates:
+            if c.symbol in recent_syms:
+                skipped['recent'].append(c.symbol)
+                continue
             sec = c.extra['sector']
-            if sec_count.get(sec, 0) >= 2:
+            if sec_count.get(sec, 0) >= sector_cap:
                 continue
             etf = stock_etf(c.symbol)
 
-            # L1: Industry Rotation — reject if mapped ETF in bottom 3
-            if etf in cold_etfs:
-                skipped['cold'].append((c.symbol, etf))
+            # L1 STRICTER: require mapped ETF in TOP 3 (not just "not bottom 3")
+            if etf not in hot_etfs:
+                if etf in cold_etfs:
+                    skipped['cold'].append((c.symbol, etf))
+                else:
+                    skipped['not_hot'].append((c.symbol, etf))
                 continue
 
             # L3: Stock vs peers — reject if stock weaker than sector in last 30-min (10:00+ only)
