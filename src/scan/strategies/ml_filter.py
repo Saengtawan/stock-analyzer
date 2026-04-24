@@ -252,9 +252,10 @@ class MLFilterStrategy(BaseStrategy):
         # Smart-wait guard: first 5 minutes (09:30-09:34) have stale PM snapshots.
         # Avg 16/17 picks yesterday had >0.5% entry-price drift from real open.
         # Force wait to 09:35 ET = first 5-min bar closed → snapshot fresh.
-        if 0 <= minutes_from_open < 5:
+        # Also guard pre-market (defensive — in_time_window already catches).
+        if minutes_from_open < 5:
             return self.no_picks(
-                f"Too early (09:30-09:34 ET): PM-stale prices. "
+                f"Too early: PM-stale prices or pre-market. "
                 f"Wait until 09:35 ET for fresh snapshot."
             )
 

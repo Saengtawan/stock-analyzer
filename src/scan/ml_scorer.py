@@ -138,6 +138,10 @@ class MLScorer:
                 self.conf_models[bucket] = ensemble
 
     def get_bucket(self, minutes_from_open: int) -> str:
+        # Negative = pre-market (shouldn't be called — in_time_window guards this)
+        # but be defensive: return out-of-window marker
+        if minutes_from_open < 0:
+            return 'pre_market'
         for (lo, hi), name in self.BUCKETS.items():
             if lo <= minutes_from_open < hi:
                 return name
@@ -229,9 +233,9 @@ class MLScorer:
         return 0.45                        # 09:30 tp1 (P(reach +1%) >= 45%)
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
-        # 13:00+ (mins >= 210) has 48% WR coin flip — skip.
-        # 11:30-13:00 bucket extends to 210 per training data.
-        return minutes_from_open < 210
+        # Tradeable window: 0 (09:30) to 210 (13:00)
+        # Pre-market (< 0) and 13:00+ (>= 210) both skip
+        return 0 <= minutes_from_open < 210
 
 
 _SCORER_INSTANCE = None
