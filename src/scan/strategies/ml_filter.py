@@ -456,16 +456,10 @@ class MLFilterStrategy(BaseStrategy):
             s = snaps.get(sym)
             if not s: continue
             db = s.get('dailyBar', {})
-            pb = s.get('prevDailyBar', {})
             opn = db.get('o', 0); now = db.get('c', 0)
-            prev_c = pb.get('c', 0)
-            if opn < 1 or now < self.MIN_PRICE or prev_c < 1: continue
-            # Composite filter:
-            #   - gain_from_open 2-5%: momentum this session (catches dip-and-rip too)
-            #   - total_from_prev_close < 5%: cap to reject chased gap-ups
+            if opn < 1 or now < self.MIN_PRICE: continue
             gain = (now / opn - 1) * 100
-            total_gain = (now / prev_c - 1) * 100
-            if self.MIN_GAIN <= gain < self.MAX_GAIN and total_gain < self.MAX_GAIN:
+            if self.MIN_GAIN <= gain < self.MAX_GAIN:
                 pre_qualified.append(sym)
 
         # Fetch today's 5-min bars for pre-qualified symbols (for multi-bar features)
@@ -492,11 +486,8 @@ class MLFilterStrategy(BaseStrategy):
             if opn < 1 or now < self.MIN_PRICE or prev_c < 1:
                 continue
 
-            # Composite filter (same as pre_qualify above):
-            #   gain_from_open 2-5% AND total_from_prev_close < 5%
             gain = (now / opn - 1) * 100
-            total_gain = (now / prev_c - 1) * 100
-            if not (self.MIN_GAIN <= gain < self.MAX_GAIN and total_gain < self.MAX_GAIN):
+            if not (self.MIN_GAIN <= gain < self.MAX_GAIN):
                 continue
 
             # Build feature vector matching training
@@ -659,9 +650,9 @@ class MLFilterStrategy(BaseStrategy):
                 continue
 
             atr_pct = (hi - lo) / now * 100 if now > 0 else 3.0
-            # Unified trail 3% from peak (all buckets) — matches training label_fixed3
-            # Previously 09:30 used 5% trail but losers got too much room to drop.
-            trail = 3.0
+            # Trail 5% at 09:30 (wider for early whipsaw), 3% at 10:00+ (tighter momentum)
+            # Clean backtest 2026-04-24: unified 3% hurt avg (-0.09%) without WR benefit.
+            trail = 5.0 if minutes_from_open < 30 else 3.0
             sl_price = now * (1 - trail / 100)
             q25 = scorer.score_q25(features, minutes_from_open)
             reason = (
