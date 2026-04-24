@@ -292,6 +292,7 @@ class MLFilterStrategy(BaseStrategy):
             # Universe
             syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
             sectors = dict(conn.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
+            industries = dict(conn.execute("SELECT symbol, industry FROM stock_fundamentals WHERE industry IS NOT NULL").fetchall())
             betas = dict(conn.execute("SELECT symbol, beta FROM stock_fundamentals WHERE beta IS NOT NULL").fetchall())
             mcaps = dict(conn.execute("SELECT symbol, market_cap FROM stock_fundamentals WHERE market_cap IS NOT NULL").fetchall())
             earnings_skip = set(r[0] for r in conn.execute(
@@ -406,9 +407,9 @@ class MLFilterStrategy(BaseStrategy):
             if r.status_code == 200:
                 snaps.update(r.json())
 
-        # Fetch ETF snapshots (SPY, IWM, USO + sector ETFs) for regime detection
+        # Fetch ETF snapshots (SPY, IWM, USO + sector ETFs + SMH for semis) for regime detection
         etf_syms = ['SPY', 'IWM', 'USO', 'XLK', 'XLV', 'XLF', 'XLY', 'XLC', 'XLI',
-                    'XLP', 'XLE', 'XLB', 'XLRE', 'XLU']
+                    'XLP', 'XLE', 'XLB', 'XLRE', 'XLU', 'SMH']
         r = requests.get(f'https://data.alpaca.markets/v2/stocks/snapshots?symbols={",".join(etf_syms)}',
                          headers=hdr, timeout=15)
         etf_snaps = r.json() if r.status_code == 200 else {}
@@ -692,13 +693,54 @@ class MLFilterStrategy(BaseStrategy):
         # Regime handling now done via ML (Confidence + Q25 + cross-asset features)
         # USO+IWM hardcoded rule removed — ML handles it
         candidates.sort(key=lambda p: -p.extra['ml_prob'])
-        # Diversify max 2/sector
+
+        # === Industry Rotation filter ===
+        # Rank 11 sector ETFs by intraday; reject picks whose industry maps to bottom 3.
+        # Captures leadership rotation (e.g. Semis hot, Financials cold) the ML doesn't see.
+        etf_intra = {
+            'XLK': etf_intraday('XLK'), 'XLV': etf_intraday('XLV'),
+            'XLF': etf_intraday('XLF'), 'XLY': etf_intraday('XLY'),
+            'XLC': etf_intraday('XLC'), 'XLI': etf_intraday('XLI'),
+            'XLP': etf_intraday('XLP'), 'XLE': etf_intraday('XLE'),
+            'XLU': etf_intraday('XLU'), 'XLRE': etf_intraday('XLRE'),
+            'SMH': etf_intraday('SMH') if 'SMH' in etf_snaps else etf_intraday('XLK'),
+        }
+        etf_ranked = sorted(etf_intra.items(), key=lambda x: -x[1])
+        hot_etfs = {e[0] for e in etf_ranked[:3]}
+        cold_etfs = {e[0] for e in etf_ranked[-3:]}
+
+        def stock_etf(sym):
+            """Map stock to primary ETF (industry > sector fallback)."""
+            ind = (industries.get(sym) or '').lower()
+            if 'semiconduct' in ind: return 'SMH'
+            if 'software' in ind or 'information technology' in ind: return 'XLK'
+            if 'bank' in ind or 'insurance' in ind or 'capital market' in ind or 'financial' in ind: return 'XLF'
+            if 'oil' in ind or 'gas' in ind or 'energy' in ind: return 'XLE'
+            if 'utility' in ind or 'utilities' in ind: return 'XLU'
+            if 'reit' in ind or 'real estate' in ind: return 'XLRE'
+            if 'aerospace' in ind or 'airline' in ind or 'machinery' in ind or 'industrial' in ind: return 'XLI'
+            if 'drug' in ind or 'biotech' in ind or 'medical' in ind or 'health' in ind: return 'XLV'
+            if 'retail' in ind or 'auto' in ind or 'leisure' in ind or 'restaurant' in ind: return 'XLY'
+            if 'beverage' in ind or 'tobacco' in ind or 'household' in ind or 'grocery' in ind or 'staple' in ind: return 'XLP'
+            if 'internet' in ind or 'media' in ind or 'entertainment' in ind or 'telecom' in ind: return 'XLC'
+            # Sector fallback
+            return sector_to_etf.get(sectors.get(sym, ''), 'XLK')
+
+        # Diversify max 2/sector + Industry Rotation gate
         sec_count = {}
         picks = []
+        skipped_cold = []
         for c in candidates:
             sec = c.extra['sector']
             if sec_count.get(sec, 0) >= 2:
                 continue
+            etf = stock_etf(c.symbol)
+            # Reject if mapped ETF in bottom 3 (sector rotation gate)
+            if etf in cold_etfs:
+                skipped_cold.append((c.symbol, etf))
+                continue
+            c.extra['etf'] = etf
+            c.extra['etf_rank'] = next((i for i, (e, _) in enumerate(etf_ranked) if e == etf), -1) + 1
             sec_count[sec] = sec_count.get(sec, 0) + 1
             picks.append(c)
             if len(picks) >= self.MAX_PICKS:
