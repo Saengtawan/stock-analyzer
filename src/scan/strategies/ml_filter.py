@@ -694,7 +694,7 @@ class MLFilterStrategy(BaseStrategy):
         # USO+IWM hardcoded rule removed — ML handles it
         candidates.sort(key=lambda p: -p.extra['ml_prob'])
 
-        # === Industry Rotation filter ===
+        # === Industry Rotation filter (L1) ===
         # Rank 11 sector ETFs by intraday; reject picks whose industry maps to bottom 3.
         # Captures leadership rotation (e.g. Semis hot, Financials cold) the ML doesn't see.
         etf_intra = {
@@ -708,6 +708,42 @@ class MLFilterStrategy(BaseStrategy):
         etf_ranked = sorted(etf_intra.items(), key=lambda x: -x[1])
         hot_etfs = {e[0] for e in etf_ranked[:3]}
         cold_etfs = {e[0] for e in etf_ranked[-3:]}
+
+        # === L2: Sector fade from peak ===
+        # ETF high vs current — captures sector peaking and rolling over intraday.
+        # Only active for 10:00+ buckets (09:30 = market just opened, no peak yet).
+        def sector_fade_pct(etf_sym):
+            s = etf_snaps.get(etf_sym, {})
+            db = s.get('dailyBar', {})
+            h = db.get('h', 0); c = db.get('c', 0)
+            return (h - c) / h * 100 if h > 0 else 0
+
+        FADE_THRESHOLDS = {'10:00-10:45': 0.70, '10:45-11:30': 0.50, '11:30-13:00': 0.30}
+        l2_active = minutes_from_open >= 30  # skip 09:30 bucket
+
+        # === L3: Stock vs peers (30-min relative strength) ===
+        # Compare stock's last ~30-min change to its mapped ETF's last ~30-min change.
+        # Needs 5-min bars for both stock (bars_by_sym) and ETF (fetch below).
+        REL_THRESHOLDS = {'10:00-10:45': -0.30, '10:45-11:30': -0.10, '11:30-13:00': 0.10}
+        l3_active = minutes_from_open >= 30  # skip 09:30 bucket
+
+        etf_bars = {}
+        if l3_active:
+            try:
+                etf_bars = fetch_today_bars(list(etf_intra.keys()))
+            except Exception:
+                etf_bars = {}
+
+        def recent_change_pct(bars, bars_back=6):
+            """% change over last ~30 min (bars_back × 5min)."""
+            if not bars or len(bars) < 2:
+                return 0.0
+            now_c = bars[-1].get('c', 0)
+            idx = max(0, len(bars) - 1 - bars_back)
+            past_c = bars[idx].get('c', 0)
+            return (now_c / past_c - 1) * 100 if past_c > 0 else 0.0
+
+        etf_recent_mom = {e: recent_change_pct(etf_bars.get(e, []), 6) for e in etf_intra.keys()}
 
         def stock_etf(sym):
             """Map stock to primary ETF (industry > sector fallback)."""
@@ -726,19 +762,40 @@ class MLFilterStrategy(BaseStrategy):
             # Sector fallback
             return sector_to_etf.get(sectors.get(sym, ''), 'XLK')
 
-        # Diversify max 2/sector + Industry Rotation gate
+        # Diversify max 2/sector + L1/L2/L3 filters
+        bucket_key = scorer.get_bucket(minutes_from_open)
         sec_count = {}
         picks = []
-        skipped_cold = []
+        skipped = {'cold': [], 'fade': [], 'rel': []}
         for c in candidates:
             sec = c.extra['sector']
             if sec_count.get(sec, 0) >= 2:
                 continue
             etf = stock_etf(c.symbol)
-            # Reject if mapped ETF in bottom 3 (sector rotation gate)
+
+            # L1: Industry Rotation — reject if mapped ETF in bottom 3
             if etf in cold_etfs:
-                skipped_cold.append((c.symbol, etf))
+                skipped['cold'].append((c.symbol, etf))
                 continue
+
+            # L2: Sector fade — reject if sector ETF faded from peak too much (10:00+ only)
+            if l2_active and bucket_key in FADE_THRESHOLDS:
+                fade = sector_fade_pct(etf)
+                if fade > FADE_THRESHOLDS[bucket_key]:
+                    skipped['fade'].append((c.symbol, etf, round(fade, 2)))
+                    continue
+
+            # L3: Stock vs peers — reject if stock weaker than sector in last 30-min (10:00+ only)
+            if l3_active and bucket_key in REL_THRESHOLDS:
+                stock_bars = bars_by_sym.get(c.symbol, [])
+                stock_recent = recent_change_pct(stock_bars, 6)
+                sector_recent = etf_recent_mom.get(etf, 0)
+                rel_strength = stock_recent - sector_recent
+                if rel_strength < REL_THRESHOLDS[bucket_key]:
+                    skipped['rel'].append((c.symbol, etf, round(rel_strength, 2)))
+                    continue
+                c.extra['rel_strength'] = round(rel_strength, 2)
+
             c.extra['etf'] = etf
             c.extra['etf_rank'] = next((i for i, (e, _) in enumerate(etf_ranked) if e == etf), -1) + 1
             sec_count[sec] = sec_count.get(sec, 0) + 1
