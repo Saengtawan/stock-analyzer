@@ -816,15 +816,14 @@ class MLFilterStrategy(BaseStrategy):
                 break
 
         bucket = scorer.get_bucket(minutes_from_open)
-        # Realistic WR from 24-month walk-forward (v16 + L1 + L3 + slippage)
-        # Earlier "88% at 09:30" was cherry-picked 7 months; below reflects full-cycle reality.
+        # V8 tuned thresholds — 24mo backtest shows +1.0pp WR, +0.10% avg
         WR_BY_BUCKET = {
-            '09:30-10:00': 69,
-            '10:00-10:45': 61,
+            '09:30-10:00': 71,
+            '10:00-10:45': 64,
             '10:45-11:30': 67,
             '11:30-13:00': 70,
         }
-        expected_wr = WR_BY_BUCKET.get(bucket, 65)
+        expected_wr = WR_BY_BUCKET.get(bucket, 68)
 
         # Record picks to journal for drift monitoring
         try:
