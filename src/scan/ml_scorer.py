@@ -31,9 +31,9 @@ class MLScorer:
         (0, 30):    '09:30-10:00',
         (30, 75):   '10:00-10:45',
         (75, 120):  '10:45-11:30',
-        (120, 180): '11:30-13:00',
-        (180, 270): '13:00-14:00',
-        (270, 400): '14:00-16:00',
+        (120, 210): '11:30-13:00',  # match feature_builder training ranges
+        (210, 270): '13:00-14:00',
+        (270, 390): '14:00-16:00',  # 14:00 + 120 min = 16:00
     }
 
     # Primary model per bucket (returns score for threshold_75() check)
@@ -229,7 +229,9 @@ class MLScorer:
         return 0.45                        # 09:30 tp1 (P(reach +1%) >= 45%)
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
-        return minutes_from_open < 180
+        # 13:00+ (mins >= 210) has 48% WR coin flip — skip.
+        # 11:30-13:00 bucket extends to 210 per training data.
+        return minutes_from_open < 210
 
 
 _SCORER_INSTANCE = None

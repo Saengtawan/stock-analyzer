@@ -249,6 +249,15 @@ class MLFilterStrategy(BaseStrategy):
         now_et = datetime.now(ET)
         minutes_from_open = (now_et.hour - 9) * 60 + (now_et.minute - 30)
 
+        # Smart-wait guard: first 5 minutes (09:30-09:34) have stale PM snapshots.
+        # Avg 16/17 picks yesterday had >0.5% entry-price drift from real open.
+        # Force wait to 09:35 ET = first 5-min bar closed → snapshot fresh.
+        if 0 <= minutes_from_open < 5:
+            return self.no_picks(
+                f"Too early (09:30-09:34 ET): PM-stale prices. "
+                f"Wait until 09:35 ET for fresh snapshot."
+            )
+
         bucket = scorer.get_bucket(minutes_from_open)
 
         if self.REQUIRE_75_THRESHOLD and not scorer.can_reach_75(minutes_from_open):
@@ -289,8 +298,10 @@ class MLFilterStrategy(BaseStrategy):
             else:
                 btc_5d_chg = jpy_5d_chg = 0; skew_v = 145; vvix_v = 100; vix_term_spread = 1.5
 
-            # Universe
-            syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
+            # Universe — exclude ETFs (they're in top 200 by volume but not tradeable setups)
+            syms = [r[0] for r in conn.execute(
+                "SELECT symbol FROM universe_stocks WHERE sector != 'ETF' ORDER BY dollar_vol DESC LIMIT 200"
+            ).fetchall()]
             sectors = dict(conn.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
             industries = dict(conn.execute("SELECT symbol, industry FROM stock_fundamentals WHERE industry IS NOT NULL").fetchall())
             betas = dict(conn.execute("SELECT symbol, beta FROM stock_fundamentals WHERE beta IS NOT NULL").fetchall())
@@ -407,7 +418,8 @@ class MLFilterStrategy(BaseStrategy):
             if r.status_code == 200:
                 snaps.update(r.json())
 
-        # Fetch ETF snapshots (SPY, IWM, USO + sector ETFs + SMH for semis) for regime detection
+        # Fetch ETF snapshots (SPY, IWM, USO + all sector ETFs + SMH for semis) for regime detection
+        # Includes XLB (Basic Materials) — fixed missing from L1 ranking
         etf_syms = ['SPY', 'IWM', 'USO', 'XLK', 'XLV', 'XLF', 'XLY', 'XLC', 'XLI',
                     'XLP', 'XLE', 'XLB', 'XLRE', 'XLU', 'SMH']
         r = requests.get(f'https://data.alpaca.markets/v2/stocks/snapshots?symbols={",".join(etf_syms)}',
@@ -693,12 +705,14 @@ class MLFilterStrategy(BaseStrategy):
         # Require mapped ETF in TOP 3 (not just "not in bottom 3").
         # Previously: only reject bottom 3 → on red days where 8/11 ETFs
         # are red, middle-rank Tech still passed despite market weakness.
+        # Now ranks 12 ETFs (added XLB Basic Materials).
         etf_intra = {
             'XLK': etf_intraday('XLK'), 'XLV': etf_intraday('XLV'),
             'XLF': etf_intraday('XLF'), 'XLY': etf_intraday('XLY'),
             'XLC': etf_intraday('XLC'), 'XLI': etf_intraday('XLI'),
             'XLP': etf_intraday('XLP'), 'XLE': etf_intraday('XLE'),
             'XLU': etf_intraday('XLU'), 'XLRE': etf_intraday('XLRE'),
+            'XLB': etf_intraday('XLB'),
             'SMH': etf_intraday('SMH') if 'SMH' in etf_snaps else etf_intraday('XLK'),
         }
         etf_ranked = sorted(etf_intra.items(), key=lambda x: -x[1])
