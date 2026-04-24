@@ -460,9 +460,12 @@ class MLFilterStrategy(BaseStrategy):
             opn = db.get('o', 0); now = db.get('c', 0)
             prev_c = pb.get('c', 0)
             if opn < 1 or now < self.MIN_PRICE or prev_c < 1: continue
-            # Total move from prev close (catches post-gap chasing)
+            # Composite filter:
+            #   - gain_from_open 2-5%: momentum this session (catches dip-and-rip too)
+            #   - total_from_prev_close < 5%: cap to reject chased gap-ups
+            gain = (now / opn - 1) * 100
             total_gain = (now / prev_c - 1) * 100
-            if self.MIN_GAIN <= total_gain < self.MAX_GAIN:
+            if self.MIN_GAIN <= gain < self.MAX_GAIN and total_gain < self.MAX_GAIN:
                 pre_qualified.append(sym)
 
         # Fetch today's 5-min bars for pre-qualified symbols (for multi-bar features)
@@ -489,12 +492,12 @@ class MLFilterStrategy(BaseStrategy):
             if opn < 1 or now < self.MIN_PRICE or prev_c < 1:
                 continue
 
-            # Filter on TOTAL move from prev close (catches post-gap chasing)
-            total_gain = (now / prev_c - 1) * 100
-            if not (self.MIN_GAIN <= total_gain < self.MAX_GAIN):
-                continue
-            # Keep gain_from_open for model feature (matches training data)
+            # Composite filter (same as pre_qualify above):
+            #   gain_from_open 2-5% AND total_from_prev_close < 5%
             gain = (now / opn - 1) * 100
+            total_gain = (now / prev_c - 1) * 100
+            if not (self.MIN_GAIN <= gain < self.MAX_GAIN and total_gain < self.MAX_GAIN):
+                continue
 
             # Build feature vector matching training
             range_pct = (hi - lo) / opn * 100 if opn > 0 else 0
