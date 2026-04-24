@@ -38,7 +38,7 @@ load_dotenv()
 class MLFilterStrategy(BaseStrategy):
     name = "ml_filter"
     description = "Ensemble ML scoring — only picks where prob ≥ 75% threshold"
-    expected_wr = 0.80  # average of 5 active buckets
+    expected_wr = 0.67  # realistic (24-month walk-forward + slippage + L1/L3 filters)
     expected_ev = 0.015
     time_start = "09:30"
     time_end = "13:00"
@@ -709,19 +709,10 @@ class MLFilterStrategy(BaseStrategy):
         hot_etfs = {e[0] for e in etf_ranked[:3]}
         cold_etfs = {e[0] for e in etf_ranked[-3:]}
 
-        # === L2: Sector fade from peak ===
-        # ETF high vs current — captures sector peaking and rolling over intraday.
-        # Only active for 10:00+ buckets (09:30 = market just opened, no peak yet).
-        def sector_fade_pct(etf_sym):
-            s = etf_snaps.get(etf_sym, {})
-            db = s.get('dailyBar', {})
-            h = db.get('h', 0); c = db.get('c', 0)
-            return (h - c) / h * 100 if h > 0 else 0
-
-        FADE_THRESHOLDS = {'10:00-10:45': 0.70, '10:45-11:30': 0.50, '11:30-13:00': 0.30}
-        l2_active = minutes_from_open >= 30  # skip 09:30 bucket
-
         # === L3: Stock vs peers (30-min relative strength) ===
+        # L2 (sector fade from peak) removed 2026-04-24: backtest showed
+        # it only added 71 additional rejections on top of L1 (3%) and
+        # marginal WR impact. Largely redundant with L1 Industry Rotation.
         # Compare stock's last ~30-min change to its mapped ETF's last ~30-min change.
         # Needs 5-min bars for both stock (bars_by_sym) and ETF (fetch below).
         REL_THRESHOLDS = {'10:00-10:45': -0.30, '10:45-11:30': -0.10, '11:30-13:00': 0.10}
@@ -762,11 +753,11 @@ class MLFilterStrategy(BaseStrategy):
             # Sector fallback
             return sector_to_etf.get(sectors.get(sym, ''), 'XLK')
 
-        # Diversify max 2/sector + L1/L2/L3 filters
+        # Diversify max 2/sector + L1/L3 filters
         bucket_key = scorer.get_bucket(minutes_from_open)
         sec_count = {}
         picks = []
-        skipped = {'cold': [], 'fade': [], 'rel': []}
+        skipped = {'cold': [], 'rel': []}
         for c in candidates:
             sec = c.extra['sector']
             if sec_count.get(sec, 0) >= 2:
@@ -777,13 +768,6 @@ class MLFilterStrategy(BaseStrategy):
             if etf in cold_etfs:
                 skipped['cold'].append((c.symbol, etf))
                 continue
-
-            # L2: Sector fade — reject if sector ETF faded from peak too much (10:00+ only)
-            if l2_active and bucket_key in FADE_THRESHOLDS:
-                fade = sector_fade_pct(etf)
-                if fade > FADE_THRESHOLDS[bucket_key]:
-                    skipped['fade'].append((c.symbol, etf, round(fade, 2)))
-                    continue
 
             # L3: Stock vs peers — reject if stock weaker than sector in last 30-min (10:00+ only)
             if l3_active and bucket_key in REL_THRESHOLDS:
@@ -804,14 +788,15 @@ class MLFilterStrategy(BaseStrategy):
                 break
 
         bucket = scorer.get_bucket(minutes_from_open)
-        # v16 mixed — per-bucket walk-forward validated WR (7 unseen months 2025-10 to 2026-04)
+        # Realistic WR from 24-month walk-forward (v16 + L1 + L3 + slippage)
+        # Earlier "88% at 09:30" was cherry-picked 7 months; below reflects full-cycle reality.
         WR_BY_BUCKET = {
-            '09:30-10:00': 88,
-            '10:00-10:45': 80,
-            '10:45-11:30': 79,
-            '11:30-13:00': 81,
+            '09:30-10:00': 69,
+            '10:00-10:45': 61,
+            '10:45-11:30': 67,
+            '11:30-13:00': 70,
         }
-        expected_wr = WR_BY_BUCKET.get(bucket, 80)
+        expected_wr = WR_BY_BUCKET.get(bucket, 65)
 
         # Record picks to journal for drift monitoring
         try:
