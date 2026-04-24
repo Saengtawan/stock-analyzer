@@ -1,29 +1,29 @@
 """
-ML Scorer v16 mixed — trained on 5.3yr data (2021-04 → 2026-04).
+ML Scorer v19 — trained on 5.3yr data, prev-close gain filter.
 
-Per-bucket walk-forward validation (7 unseen months 2025-10 to 2026-04):
-  09:30  tp1 classifier      thr 0.45    WR=88%  avg=+2.01%  trail 3→2→1
-  10:00  Huber + Q25 + Conf  thr 0.10    WR=80%  avg=+1.82%  trail 3%
-  10:45  tp1 classifier      thr 0.55    WR=79%  avg=+2.74%  trail 3%
-  11:30  tp1 classifier      thr 0.60    WR=81%  avg=+2.91%  trail 3%
+Key change from v16: filter on total move from prev close (2-5%) instead of
+gain_from_open. Catches post-gap chasers (e.g. stock gaps +8% overnight,
+gains 2% more from open — v16 included, v19 excludes).
 
-Why mixed (Huber for 10:00, tp1 for 10:45/11:30):
-- 10:00: strong momentum bucket — Huber's smooth ranking captures it best
-- 10:45/11:30: noisier — tp1's binary "will it hit +1%?" cuts noise better
-- avg/trade jump: 10:45 +1.49→+2.74 (+84%), 11:30 +1.06→+2.91 (+175%)
+24-month walk-forward (vs v16 same methodology):
+  09:30  tp1 classifier      thr 0.45    WR=74.2% avg=+1.23%
+  10:00  Huber + Q25 + Conf  thr 0.10    WR=66.6% avg=+0.93% (+2.2pp vs v16)
+  10:45  tp1 classifier      thr 0.55    WR=63.8% avg=+1.11%
+  11:30  tp1 classifier      thr 0.60    WR=65.8% avg=+1.53% (+1.5pp vs v16)
+  TOTAL: n=2056 WR=67.9% avg=+1.09% (v16: 67.4%/+1.17%)
 
-For 10:45/11:30, tp1 alone is the gate (no Q25/Conf needed —
-tp1 already directly answers "is this trade worth taking?").
+With 0.2% slippage: 63.1% WR / +0.89% avg realistic production estimate.
 
-v16 mixed vs v9 production: +37% avg/trade across 10+ buckets.
+Trade-off vs v16: −17% picks (less overtrading), +0.5pp WR, -0.08% avg.
+Best improvements at 10:00 and 11:30 buckets.
 """
 import json
 from pathlib import Path
 import numpy as np
 import lightgbm as lgb
 
-MODEL_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v16'
-V9_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v9'  # rollback ref
+MODEL_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v19'
+V16_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v16'  # rollback ref
 
 
 class MLScorer:
