@@ -658,9 +658,8 @@ class MLFilterStrategy(BaseStrategy):
                 continue
 
             atr_pct = (hi - lo) / now * 100 if now > 0 else 3.0
-            # Trail 5% at 09:30 (wider for early whipsaw), 3% at 10:00+ (tighter momentum)
-            # Clean backtest 2026-04-24: unified 3% hurt avg (-0.09%) without WR benefit.
-            trail = 5.0 if minutes_from_open < 30 else 3.0
+            # Trail 3% unified — matches training label_fixed3 across all buckets.
+            trail = 3.0
             sl_price = now * (1 - trail / 100)
             q25 = scorer.score_q25(features, minutes_from_open)
             reason = (
