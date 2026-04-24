@@ -23,7 +23,7 @@ HIST_DB = Path(__file__).resolve().parents[2] / 'data' / 'trade_history.db'
 
 
 def get_intraday_outcome(symbol: str, date: str, entry_price: float, sl_price: float,
-                         trail_pct: float = 1.0) -> dict:
+                         trail_pct: float = 3.0) -> dict:
     """Walk 5-min bars forward from scan time to compute outcome.
 
     Returns dict with: exit_price, exit_reason, pnl_pct, reached_tp (hit +1%),
@@ -127,7 +127,8 @@ def update_pending(days_back: int = 7) -> int:
                 skipped += 1
                 continue
 
-        outcome = get_intraday_outcome(symbol, scan_date, entry, sl_price, trail_pct or 1.0)
+        # Default trail 3.0 (matches ml_filter 10+ buckets). 09:30 uses 5.0 but that's stored in trail_pct.
+        outcome = get_intraday_outcome(symbol, scan_date, entry, sl_price, trail_pct or 3.0)
         if not outcome:
             print(f"  {pick_id} {symbol} {scan_date}: no bars found")
             skipped += 1

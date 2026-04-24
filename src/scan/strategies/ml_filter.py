@@ -329,15 +329,10 @@ class MLFilterStrategy(BaseStrategy):
                 # tuple is (date, high, low, open)
                 daily_hl[r[0]].append((r[1], r[2], r[3], r[4]))  # date,h,l,o
 
-            # Sector 3d trend
+            # Sector 3d trend — set to 0 to match training data (sec3d=0 in pkl).
+            # Feeding non-zero values here would cause train/live feature mismatch.
+            # Fix properly: rebuild pkl with computed sec3d + retrain.
             sector_3d = {}
-            for r in conn.execute("""
-                SELECT u.sector, AVG((d.close - d.open) / d.open * 100.0)
-                FROM stock_daily_ohlc d JOIN universe_stocks u ON d.symbol = u.symbol
-                WHERE d.date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-3 days')
-                AND u.sector IS NOT NULL GROUP BY u.sector
-            """):
-                sector_3d[r[0]] = r[1] or 0
 
             # v3 new features: insider, news, earnings, PM vol, short interest
             insider_net = {}
