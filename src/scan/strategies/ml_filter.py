@@ -456,10 +456,13 @@ class MLFilterStrategy(BaseStrategy):
             s = snaps.get(sym)
             if not s: continue
             db = s.get('dailyBar', {})
+            pb = s.get('prevDailyBar', {})
             opn = db.get('o', 0); now = db.get('c', 0)
-            if opn < 1 or now < self.MIN_PRICE: continue
-            gain = (now / opn - 1) * 100
-            if self.MIN_GAIN <= gain < self.MAX_GAIN:
+            prev_c = pb.get('c', 0)
+            if opn < 1 or now < self.MIN_PRICE or prev_c < 1: continue
+            # Total move from prev close (catches post-gap chasing)
+            total_gain = (now / prev_c - 1) * 100
+            if self.MIN_GAIN <= total_gain < self.MAX_GAIN:
                 pre_qualified.append(sym)
 
         # Fetch today's 5-min bars for pre-qualified symbols (for multi-bar features)
@@ -486,9 +489,12 @@ class MLFilterStrategy(BaseStrategy):
             if opn < 1 or now < self.MIN_PRICE or prev_c < 1:
                 continue
 
-            gain = (now / opn - 1) * 100
-            if not (self.MIN_GAIN <= gain < self.MAX_GAIN):
+            # Filter on TOTAL move from prev close (catches post-gap chasing)
+            total_gain = (now / prev_c - 1) * 100
+            if not (self.MIN_GAIN <= total_gain < self.MAX_GAIN):
                 continue
+            # Keep gain_from_open for model feature (matches training data)
+            gain = (now / opn - 1) * 100
 
             # Build feature vector matching training
             range_pct = (hi - lo) / opn * 100 if opn > 0 else 0
