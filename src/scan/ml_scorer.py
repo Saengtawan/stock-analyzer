@@ -58,18 +58,11 @@ class MLScorer:
         '10:00-10:45': ('lgb_conf_1000_1045_seed{}.txt', 5),
     }
 
-    # Confidence thresholds — only Huber bucket (10:00) + 09:30 keep conf gate
-    # 10:45 / 11:30 use tp1 only (no conf threshold needed)
-    CONF_THRESHOLDS = {
-        '09:30-10:00': 0.60,
-        '10:00-10:45': 0.55,
-    }
+    # Confidence thresholds disabled — ML ranking decides (no magic gates)
+    CONF_THRESHOLDS = {}
 
-    # Q25 thresholds — only 10:00 (Huber bucket)
-    # 10:00: Q25>=-0.2 → WR 80%
-    Q25_THRESHOLDS = {
-        '10:00-10:45': -0.2,
-    }
+    # Q25 thresholds disabled — ML ranking decides
+    Q25_THRESHOLDS = {}
 
     def __init__(self):
         self.models = {}
@@ -223,21 +216,13 @@ class MLScorer:
         return self.score(features, minutes_from_open)
 
     def threshold_75(self, minutes_from_open: int) -> float:
-        """Per-bucket thresholds — high quality, no L1 dependency.
+        """Threshold gate disabled — ML ranking decides.
 
-        24mo backtest TOP 3 variants (no L1):
-          V11 (0.45+L1strict): 62.2% WR, +1.10% avg
-          BEST (0.55+no L1):  69.1% WR, +1.64% avg  ← deployed
-        L1 strict was rejecting quality picks. Removing it + higher threshold
-        gives +6.9pp WR, +0.54% avg, similar pick count.
+        Magic-number tuning (V0-V18, 0.45-0.62) abandoned 2026-04-25.
+        Pure ML approach: rank all candidates by score, take top N.
+        Returns 0 → all candidates pass to ranking.
         """
-        if minutes_from_open >= 120:       # 11:30-13:00 tp1
-            return 0.62
-        if minutes_from_open >= 75:        # 10:45-11:30 tp1
-            return 0.57
-        if minutes_from_open >= 30:        # 10:00-10:45 Huber
-            return 0.17
-        return 0.55                        # 09:30 tp1 — quality threshold (no L1)
+        return 0.0
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
         # Tradeable window: 0 (09:30) to 210 (13:00)

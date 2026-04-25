@@ -692,76 +692,8 @@ class MLFilterStrategy(BaseStrategy):
                 f"(bucket {scorer.get_bucket(minutes_from_open)})"
             )
 
-        # Regime handling now done via ML (Confidence + Q25 + cross-asset features)
-        # USO+IWM hardcoded rule removed — ML handles it
+        # Pure ML ranking — sort all candidates by ML probability
         candidates.sort(key=lambda p: -p.extra['ml_prob'])
-
-        # === Industry Rotation filter (L1) — STRICTER ===
-        # Require mapped ETF in TOP 3 (not just "not in bottom 3").
-        # Previously: only reject bottom 3 → on red days where 8/11 ETFs
-        # are red, middle-rank Tech still passed despite market weakness.
-        # Now ranks 12 ETFs (added XLB Basic Materials).
-        etf_intra = {
-            'XLK': etf_intraday('XLK'), 'XLV': etf_intraday('XLV'),
-            'XLF': etf_intraday('XLF'), 'XLY': etf_intraday('XLY'),
-            'XLC': etf_intraday('XLC'), 'XLI': etf_intraday('XLI'),
-            'XLP': etf_intraday('XLP'), 'XLE': etf_intraday('XLE'),
-            'XLU': etf_intraday('XLU'), 'XLRE': etf_intraday('XLRE'),
-            'XLB': etf_intraday('XLB'),
-            'SMH': etf_intraday('SMH') if 'SMH' in etf_snaps else etf_intraday('XLK'),
-        }
-        etf_ranked = sorted(etf_intra.items(), key=lambda x: -x[1])
-        hot_etfs = {e[0] for e in etf_ranked[:3]}
-        cold_etfs = {e[0] for e in etf_ranked[-3:]}
-
-        # SPY red-day gate: raise score threshold if market is weak
-        spy_red = spy_intra < -0.3
-        # Sector cap: 1 per sector on red days (vs 2 on normal days)
-        sector_cap = 1 if spy_red else 2
-
-        # === L3: Stock vs peers (30-min relative strength) ===
-        # L2 (sector fade from peak) removed 2026-04-24: backtest showed
-        # it only added 71 additional rejections on top of L1 (3%) and
-        # marginal WR impact. Largely redundant with L1 Industry Rotation.
-        # Compare stock's last ~30-min change to its mapped ETF's last ~30-min change.
-        # Needs 5-min bars for both stock (bars_by_sym) and ETF (fetch below).
-        REL_THRESHOLDS = {'10:00-10:45': -0.30, '10:45-11:30': -0.10, '11:30-13:00': 0.10}
-        l3_active = minutes_from_open >= 30  # skip 09:30 bucket
-
-        etf_bars = {}
-        if l3_active:
-            try:
-                etf_bars = fetch_today_bars(list(etf_intra.keys()))
-            except Exception:
-                etf_bars = {}
-
-        def recent_change_pct(bars, bars_back=6):
-            """% change over last ~30 min (bars_back × 5min)."""
-            if not bars or len(bars) < 2:
-                return 0.0
-            now_c = bars[-1].get('c', 0)
-            idx = max(0, len(bars) - 1 - bars_back)
-            past_c = bars[idx].get('c', 0)
-            return (now_c / past_c - 1) * 100 if past_c > 0 else 0.0
-
-        etf_recent_mom = {e: recent_change_pct(etf_bars.get(e, []), 6) for e in etf_intra.keys()}
-
-        def stock_etf(sym):
-            """Map stock to primary ETF (industry > sector fallback)."""
-            ind = (industries.get(sym) or '').lower()
-            if 'semiconduct' in ind: return 'SMH'
-            if 'software' in ind or 'information technology' in ind: return 'XLK'
-            if 'bank' in ind or 'insurance' in ind or 'capital market' in ind or 'financial' in ind: return 'XLF'
-            if 'oil' in ind or 'gas' in ind or 'energy' in ind: return 'XLE'
-            if 'utility' in ind or 'utilities' in ind: return 'XLU'
-            if 'reit' in ind or 'real estate' in ind: return 'XLRE'
-            if 'aerospace' in ind or 'airline' in ind or 'machinery' in ind or 'industrial' in ind: return 'XLI'
-            if 'drug' in ind or 'biotech' in ind or 'medical' in ind or 'health' in ind: return 'XLV'
-            if 'retail' in ind or 'auto' in ind or 'leisure' in ind or 'restaurant' in ind: return 'XLY'
-            if 'beverage' in ind or 'tobacco' in ind or 'household' in ind or 'grocery' in ind or 'staple' in ind: return 'XLP'
-            if 'internet' in ind or 'media' in ind or 'entertainment' in ind or 'telecom' in ind: return 'XLC'
-            # Sector fallback
-            return sector_to_etf.get(sectors.get(sym, ''), 'XLK')
 
         # Cross-scan dedup: skip symbols picked in last 60 min (prevent double-entry)
         try:
@@ -775,53 +707,23 @@ class MLFilterStrategy(BaseStrategy):
         except Exception:
             recent_syms = set()
 
-        # Diversify sector + L1/L3 filters
-        bucket_key = scorer.get_bucket(minutes_from_open)
+        # Sector diversification (max 2/sector) — only structural filter
         sec_count = {}
         picks = []
-        skipped = {'cold': [], 'not_hot': [], 'rel': [], 'recent': []}
         for c in candidates:
             if c.symbol in recent_syms:
-                skipped['recent'].append(c.symbol)
                 continue
             sec = c.extra['sector']
-            if sec_count.get(sec, 0) >= sector_cap:
+            if sec_count.get(sec, 0) >= 2:
                 continue
-            etf = stock_etf(c.symbol)
-
-            # L1 DISABLED — 24mo backtest TOP 3 showed:
-            #   L1 strict: 62.2% WR, +1.10% avg
-            #   no L1 + 0.55 thresh: 69.1% WR, +1.64% avg (+6.9pp WR, +0.54% avg)
-            # Higher ML score is better discriminator than sector rotation.
-            # (L1 logic kept in code as comment; can re-enable if regime changes)
-
-            # L3: Stock vs peers — reject if stock weaker than sector in last 30-min (10:00+ only)
-            if l3_active and bucket_key in REL_THRESHOLDS:
-                stock_bars = bars_by_sym.get(c.symbol, [])
-                stock_recent = recent_change_pct(stock_bars, 6)
-                sector_recent = etf_recent_mom.get(etf, 0)
-                rel_strength = stock_recent - sector_recent
-                if rel_strength < REL_THRESHOLDS[bucket_key]:
-                    skipped['rel'].append((c.symbol, etf, round(rel_strength, 2)))
-                    continue
-                c.extra['rel_strength'] = round(rel_strength, 2)
-
-            c.extra['etf'] = etf
-            c.extra['etf_rank'] = next((i for i, (e, _) in enumerate(etf_ranked) if e == etf), -1) + 1
             sec_count[sec] = sec_count.get(sec, 0) + 1
             picks.append(c)
             if len(picks) >= self.MAX_PICKS:
                 break
 
         bucket = scorer.get_bucket(minutes_from_open)
-        # 0.55 threshold + no L1 — 24mo: 69.1% WR, +1.64% avg
-        WR_BY_BUCKET = {
-            '09:30-10:00': 69,  # 0.55 + no L1
-            '10:00-10:45': 66,
-            '10:45-11:30': 70,
-            '11:30-13:00': 72,
-        }
-        expected_wr = WR_BY_BUCKET.get(bucket, 70)
+        # Expected WR — ML ranking, top 3, no threshold tweaks (validate live)
+        expected_wr = 65
 
         # Record picks to journal for drift monitoring
         try:
