@@ -1,21 +1,17 @@
 """
-ML Scorer v19 — trained on 5.3yr data, prev-close gain filter.
+ML Scorer v20 — 09:30 bucket upgraded with V7+cross features and 365d window.
 
-Key change from v16: filter on total move from prev close (2-5%) instead of
-gain_from_open. Catches post-gap chasers (e.g. stock gaps +8% overnight,
-gains 2% more from open — v16 included, v19 excludes).
+v20 changes (09:30 bucket only):
+  - Features: V7 (37) + cross-asset ETF intraday (25) = 62 features
+  - Training window: 365d (vs v19 = 180d)
+  - Validated 24-month walk-forward: 71.0% WR / +1.94% avg
+    (vs v19: 62.9% WR / +1.37% avg → +8.1pp WR / +0.57pp avg)
 
-24-month walk-forward (vs v16 same methodology):
-  09:30  tp1 classifier      thr 0.45    WR=74.2% avg=+1.23%
-  10:00  Huber + Q25 + Conf  thr 0.10    WR=66.6% avg=+0.93% (+2.2pp vs v16)
-  10:45  tp1 classifier      thr 0.55    WR=63.8% avg=+1.11%
-  11:30  tp1 classifier      thr 0.60    WR=65.8% avg=+1.53% (+1.5pp vs v16)
-  TOTAL: n=2056 WR=67.9% avg=+1.09% (v16: 67.4%/+1.17%)
-
-With 0.2% slippage: 63.1% WR / +0.89% avg realistic production estimate.
-
-Trade-off vs v16: −17% picks (less overtrading), +0.5pp WR, -0.08% avg.
-Best improvements at 10:00 and 11:30 buckets.
+Other buckets retain v19 design — separately validated improvement only at 09:30.
+  09:30  tp1 v20  V7+cross 365d   thr 0.45  WR=71.0% avg=+1.94%  ⭐ v20
+  10:00  Huber + Q25 + Conf       thr 0.10  WR=66.6% avg=+0.93%  v19
+  10:45  tp1 classifier            thr 0.55  WR=63.8% avg=+1.11%  v19
+  11:30  tp1 classifier            thr 0.60  WR=65.8% avg=+1.53%  v19
 """
 import json
 from pathlib import Path
@@ -23,6 +19,7 @@ import numpy as np
 import lightgbm as lgb
 
 MODEL_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v19'
+V20_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v20'  # 09:30 only
 V16_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v16'  # rollback ref
 
 
@@ -86,13 +83,18 @@ class MLScorer:
             self.features_v7 = [line.strip() for line in f if line.strip()]
         with open(MODEL_DIR / 'features.txt') as f:
             self.features_v9 = [line.strip() for line in f if line.strip()]
-        # 09:30 uses v7 features + 10 engineered gap interactions
-        features_0930_path = MODEL_DIR / 'features_0930.txt'
-        if features_0930_path.exists():
-            with open(features_0930_path) as f:
+        # 09:30 v20 features (V7+cross). Falls back to v19 if v20 dir missing.
+        v20_feats_path = V20_DIR / 'features_0930.txt'
+        if v20_feats_path.exists():
+            with open(v20_feats_path) as f:
                 self.features_0930 = [line.strip() for line in f if line.strip()]
         else:
-            self.features_0930 = self.features_v7
+            features_0930_path = MODEL_DIR / 'features_0930.txt'
+            if features_0930_path.exists():
+                with open(features_0930_path) as f:
+                    self.features_0930 = [line.strip() for line in f if line.strip()]
+            else:
+                self.features_0930 = self.features_v7
         # Confidence model uses extended features (v9 + cross-asset + anomaly)
         conf_feats_path = MODEL_DIR / 'features_confidence.txt'
         if conf_feats_path.exists():
@@ -109,11 +111,14 @@ class MLScorer:
             self.features_confidence_0930 = self.features_0930
 
     def _load_models(self):
-        # Load mean (Huber) models
+        # Load primary models per bucket. 09:30 prefers v20, others use v19.
         for bucket, (pattern, n_seeds) in self.MODEL_FILES.items():
+            base_dir = V20_DIR if bucket == '09:30-10:00' else MODEL_DIR
             ensemble = []
             for s in range(n_seeds):
-                mp = MODEL_DIR / pattern.format(s)
+                mp = base_dir / pattern.format(s)
+                if not mp.exists():
+                    mp = MODEL_DIR / pattern.format(s)  # fall back to v19
                 if mp.exists():
                     ensemble.append(lgb.Booster(model_file=str(mp)))
             if ensemble:
