@@ -223,12 +223,13 @@ class MLScorer:
         return self.score(features, minutes_from_open)
 
     def threshold_75(self, minutes_from_open: int) -> float:
-        """Per-bucket thresholds — relaxed for more pick coverage.
+        """Per-bucket thresholds — high quality, no L1 dependency.
 
-        24mo backtest with 0.40+no L1+top5 vs 0.45+L1+top3 (V11):
-          V11: n=233 WR=62% avg=+1.10% total=+255%
-          relaxed: n=957 WR=59% avg=+1.17% total=+1123%
-        4x more picks, +0.07% avg, total profit 4.4x better.
+        24mo backtest TOP 3 variants (no L1):
+          V11 (0.45+L1strict): 62.2% WR, +1.10% avg
+          BEST (0.55+no L1):  69.1% WR, +1.64% avg  ← deployed
+        L1 strict was rejecting quality picks. Removing it + higher threshold
+        gives +6.9pp WR, +0.54% avg, similar pick count.
         """
         if minutes_from_open >= 120:       # 11:30-13:00 tp1
             return 0.62
@@ -236,7 +237,7 @@ class MLScorer:
             return 0.57
         if minutes_from_open >= 30:        # 10:00-10:45 Huber
             return 0.17
-        return 0.40                        # 09:30 tp1 (relaxed from 0.45)
+        return 0.55                        # 09:30 tp1 — quality threshold (no L1)
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
         # Tradeable window: 0 (09:30) to 210 (13:00)

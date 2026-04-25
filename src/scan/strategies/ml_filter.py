@@ -239,7 +239,7 @@ class MLFilterStrategy(BaseStrategy):
         }
 
     REQUIRE_75_THRESHOLD = True
-    MAX_PICKS = 5  # was 3, relaxed for better pick coverage in bullish market
+    MAX_PICKS = 3  # quality over quantity — top 3 highest score
 
     def scan(self) -> ScanResult:
         if not self.in_time_window():
@@ -789,12 +789,11 @@ class MLFilterStrategy(BaseStrategy):
                 continue
             etf = stock_etf(c.symbol)
 
-            # L1 RELAXED: only reject bottom 3 (was: require top 3)
-            # 24mo backtest showed strict L1 hurt total returns: +255% vs +1123%
-            # Keeping bottom-3 reject as defensive against clearly cold sectors.
-            if etf in cold_etfs:
-                skipped['cold'].append((c.symbol, etf))
-                continue
+            # L1 DISABLED — 24mo backtest TOP 3 showed:
+            #   L1 strict: 62.2% WR, +1.10% avg
+            #   no L1 + 0.55 thresh: 69.1% WR, +1.64% avg (+6.9pp WR, +0.54% avg)
+            # Higher ML score is better discriminator than sector rotation.
+            # (L1 logic kept in code as comment; can re-enable if regime changes)
 
             # L3: Stock vs peers — reject if stock weaker than sector in last 30-min (10:00+ only)
             if l3_active and bucket_key in REL_THRESHOLDS:
@@ -815,14 +814,14 @@ class MLFilterStrategy(BaseStrategy):
                 break
 
         bucket = scorer.get_bucket(minutes_from_open)
-        # Relaxed thresholds — 24mo backtest validated higher total profit
+        # 0.55 threshold + no L1 — 24mo: 69.1% WR, +1.64% avg
         WR_BY_BUCKET = {
-            '09:30-10:00': 65,  # 0.40 thresh, no L1 strict
-            '10:00-10:45': 64,
-            '10:45-11:30': 68,
-            '11:30-13:00': 70,
+            '09:30-10:00': 69,  # 0.55 + no L1
+            '10:00-10:45': 66,
+            '10:45-11:30': 70,
+            '11:30-13:00': 72,
         }
-        expected_wr = WR_BY_BUCKET.get(bucket, 65)
+        expected_wr = WR_BY_BUCKET.get(bucket, 70)
 
         # Record picks to journal for drift monitoring
         try:
