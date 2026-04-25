@@ -658,6 +658,12 @@ class MLFilterStrategy(BaseStrategy):
                 'uso_iwm_combo': uso_intra * (1.0 if (iwm_intra - spy_intra) < -0.3 else 0.0),
                 'vxx_spy_combo': etf_intraday('VXX') * (1.0 if spy_intra < 0 else 0.0),
                 'anomaly_score': anomaly_score,
+                # Quality interactions (used by v20.1 09:30 model only — late buckets ignore)
+                'gain_x_spy': gain * spy_intra,
+                'vol_x_mcap': vol_ratio * mcap_bucket,
+                'gain_x_xlk': gain * etf_intraday('XLK'),
+                'gain_div_vix': gain / (vix / 20.0) if vix > 0 else 0.0,
+                'range_pullback': range_pct * (5 - max(0, min(5, gain))),
             }
 
             prob = scorer.score(features, minutes_from_open)

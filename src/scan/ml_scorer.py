@@ -1,16 +1,17 @@
 """
-ML Scorer v20 — All 3 tp1 buckets upgraded with V7+cross features + 365d window.
+ML Scorer v20.1 — Mixed plan: per-bucket optimal feature set.
 
-v20 changes (09:30, 10:45, 11:30 tp1 buckets):
-  - Features: V7 (37) + cross-asset ETF intraday (25) = 62 features
-  - Training window: 365d (vs v19 = 180d)
-  - Re-tuned per-bucket thresholds (v19 thresholds didn't fit v20 output range)
+v20.1 changes:
+  - Drop 6 always-zero features (sec3d, insider_net_30d, news_sentiment,
+    earnings_days, pm_vol_ratio, short_pct) — were placeholders, never populated
+  - 09:30 adds 5 quality interactions (validated +0.7pp WR)
+  - 10:45/11:30 keep base only (interactions hurt these buckets in backtest)
 
 Validated 24-month walk-forward (top 3 + sector cap 2):
-  09:30  tp1 v20  thr 0.45  WR=71.0% avg=+1.94%  (v19: 62.9% / +1.37%, +8.1pp)
-  10:00  Huber+Q25+Conf v19  thr 0.10  WR=66.6% avg=+0.93%  (unchanged)
-  10:45  tp1 v20  thr 0.28  WR=71.8% avg=+0.96%  (v19: ~63.8% / +1.11%)
-  11:30  tp1 v20  thr 0.30  WR=69.2% avg=+1.04%  (v19: ~65.8% / +1.53%)
+  09:30  tp1  56 base + 5 interactions  thr 0.45  WR=71.7% avg=+1.95%
+  10:00  Huber+Q25+Conf v19              thr 0.10  WR=66.6% avg=+0.93%
+  10:45  tp1  56 base                    thr 0.28  WR=71.8% avg=+0.96%
+  11:30  tp1  56 base                    thr 0.30  WR=69.2% avg=+1.04%
 
 10:00 Huber bucket retains v19 (different architecture — Q25 + Conf gates).
 """
@@ -84,18 +85,25 @@ class MLScorer:
             self.features_v7 = [line.strip() for line in f if line.strip()]
         with open(MODEL_DIR / 'features.txt') as f:
             self.features_v9 = [line.strip() for line in f if line.strip()]
-        # 09:30 v20 features (V7+cross). Falls back to v19 if v20 dir missing.
-        v20_feats_path = V20_DIR / 'features_0930.txt'
-        if v20_feats_path.exists():
-            with open(v20_feats_path) as f:
+        # 09:30 v20.1 features (56 base + 5 interactions = 61).
+        v20_0930 = V20_DIR / 'features_0930.txt'
+        if v20_0930.exists():
+            with open(v20_0930) as f:
                 self.features_0930 = [line.strip() for line in f if line.strip()]
         else:
-            features_0930_path = MODEL_DIR / 'features_0930.txt'
-            if features_0930_path.exists():
-                with open(features_0930_path) as f:
+            v19_0930 = MODEL_DIR / 'features_0930.txt'
+            if v19_0930.exists():
+                with open(v19_0930) as f:
                     self.features_0930 = [line.strip() for line in f if line.strip()]
             else:
                 self.features_0930 = self.features_v7
+        # 10:45 / 11:30 v20.1 features (56 base, no interactions).
+        v20_late = V20_DIR / 'features_late.txt'
+        if v20_late.exists():
+            with open(v20_late) as f:
+                self.features_late = [line.strip() for line in f if line.strip()]
+        else:
+            self.features_late = self.features_0930
         # Confidence model uses extended features (v9 + cross-asset + anomaly)
         conf_feats_path = MODEL_DIR / 'features_confidence.txt'
         if conf_feats_path.exists():
@@ -166,9 +174,15 @@ class MLScorer:
         if not ensemble:
             return 0.0
 
-        # v20 tp1 buckets (09:30, 10:45, 11:30) use features_0930 (V7+cross 62 feats).
-        # 10:00 Huber bucket uses v9 features.
-        feat_list = self.features_0930 if bucket in self.V20_BUCKETS else self.features_v9
+        # 09:30 uses features_0930 (56 base + 5 interactions).
+        # 10:45 / 11:30 use features_late (56 base, interactions hurt these buckets).
+        # 10:00 (Huber) uses v9 features.
+        if bucket == '09:30-10:00':
+            feat_list = self.features_0930
+        elif bucket in self.V20_BUCKETS:
+            feat_list = self.features_late
+        else:
+            feat_list = self.features_v9
         row = [features.get(f, 0.0) for f in feat_list]
         arr = np.array([row], dtype=float)
         preds = [float(m.predict(arr)[0]) for m in ensemble]

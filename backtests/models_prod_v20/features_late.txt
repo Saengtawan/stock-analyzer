@@ -54,8 +54,3 @@ tlt_intra
 uso_intra
 uup_intra
 vxx_intra
-gain_x_spy
-vol_x_mcap
-gain_x_xlk
-gain_div_vix
-range_pullback
