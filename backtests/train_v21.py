@@ -1,16 +1,19 @@
-"""Train v20.1 — Mixed plan: drop 6 dead features + per-bucket interactions.
+"""Train v21 — canonical features (no lookahead bias).
 
-v20.1 deployment (24-month walk-forward validated):
-  09:30  56 base + 5 interactions = 61 features  WR=71.7%  avg=+1.95%
-  10:45  56 base                  = 56 features  WR=71.8%  avg=+0.96%
-  11:30  56 base                  = 56 features  WR=69.2%  avg=+1.04%
+v21 changes from v20.1:
+  - vol_ratio: today_vol / (30d_avg_daily * fraction_of_day_elapsed)
+    (was: today_vol / today's-full-day-avg — LOOKAHEAD BIAS)
+  - vol_accel: last3 vs prev3 (was: last3 vs first3 — different signal)
+  - range_exp: range_pct / 10d_avg_range (was: hardcoded /3.0)
+  - consol: 5 bars (was: 4 bars — match live)
 
-Why mixed:
-  - 6 features were always 0/60 in pkl (sec3d, insider_net_30d, news_sentiment,
-    earnings_days, pm_vol_ratio, short_pct) — IC=0, LightGBM ignores them.
-    Drop = cleanup, no behavior change.
-  - 5 quality interactions help 09:30 (+0.7pp WR) but HURT late buckets
-    (10:45 -5.0pp, 11:30 -0.5pp) — different positive rate / data scale.
+24-month walk-forward HONEST validation:
+  09:30  56 base + 5 interactions  thr 0.45  WR=63.6%  avg=+1.49%
+  10:45  56 base                    thr 0.25  WR=66.7%  avg=+0.70%
+  11:30  56 base                    thr 0.22  WR=58.9%  avg=+0.39%
+
+Note: v20.1's "71% WR" was inflated by lookahead bias.
+v21 numbers are HONEST — backtest = live (when live also fixed).
 """
 import argparse
 import sys
@@ -22,8 +25,8 @@ import pandas as pd
 import lightgbm as lgb
 
 REPO = Path(__file__).resolve().parents[1]
-V19_PKL = '/tmp/bt_features_v19.pkl'
-OUT_DIR = REPO / 'backtests' / 'models_prod_v20'
+V21_PKL = '/tmp/bt_features_v21.pkl'
+OUT_DIR = REPO / 'backtests' / 'models_prod_v21'
 
 # v19 baseline features minus 6 always-zero placeholders.
 V7_FEATS = ['mins_from_open', 'gain_from_open', 'range_pct', 'from_peak_pct', 'vs_vwap',
@@ -104,8 +107,8 @@ def main():
     ap.add_argument('--buckets', nargs='+', default=list(BUCKET_SPECS.keys()))
     args = ap.parse_args()
 
-    print(f"Loading {V19_PKL}...")
-    df = pd.read_pickle(V19_PKL)
+    print(f"Loading {V21_PKL}...")
+    df = pd.read_pickle(V21_PKL)
     df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
 
     feats = V7_FEATS + CROSS_FEATS

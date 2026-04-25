@@ -243,10 +243,10 @@ def build_features(start_date, end_date, output_path, limit_symbols=200):
         f"SELECT date, ad_ratio FROM market_breadth WHERE date >= '{start_date}' AND date <= '{end_date}'"
     ).fetchall())
 
-    # 4. Load stock daily OHLC for momentum/52w
+    # 4. Load stock daily OHLC for momentum/52w + daily volume for vol_ratio baseline
     print(f"[{_time.time()-t_start:.0f}s] Loading daily OHLC...")
     daily = pd.read_sql_query(f"""
-        SELECT symbol, date, close, high, low FROM stock_daily_ohlc
+        SELECT symbol, date, close, high, low, volume FROM stock_daily_ohlc
         WHERE date >= date('{start_date}', '-300 days') AND date <= '{end_date}'
         AND symbol IN ({','.join(['?']*len(syms))})
         ORDER BY symbol, date
@@ -256,7 +256,7 @@ def build_features(start_date, end_date, output_path, limit_symbols=200):
     # Build per-symbol daily lookup
     daily_by_sym = defaultdict(list)
     for _, r in daily.iterrows():
-        daily_by_sym[r['symbol']].append((r['date'], r['close'], r['high'], r['low']))
+        daily_by_sym[r['symbol']].append((r['date'], r['close'], r['high'], r['low'], r['volume']))
 
     # 5. Load ETF 09:30 opens + changes at each 5-min for each date
     print(f"[{_time.time()-t_start:.0f}s] Loading ETF data...")
@@ -344,15 +344,30 @@ def build_features(start_date, end_date, output_path, limit_symbols=200):
             day_open = bar_0930[0][1]
             if day_open < 1: continue
 
-            # Previous day close (from daily)
+            # Previous day close + 10-day range + 30-day vol baseline (canonical).
             sym_daily = daily_by_sym.get(sym, [])
             prev_close = None
             closes_21d = []
-            for dd, c, h, l in sym_daily:
+            ranges_10d = []
+            vols_30d = []
+            for row in sym_daily:
+                # Tuple is (date, close, high, low, volume) — handle older 4-tuple too.
+                dd = row[0]
+                c = row[1]; h = row[2]; l = row[3]
+                v = row[4] if len(row) >= 5 else 0
                 if dd < date:
                     prev_close = c
                     closes_21d.append((dd, c))
+                    if c and c > 0:
+                        ranges_10d.append((dd, (h - l) / c * 100))
+                    if v and v > 0:
+                        vols_30d.append((dd, v))
             if prev_close is None or prev_close < 1: continue
+            ranges_10d = sorted(ranges_10d)[-10:]
+            rng10 = float(np.mean([r for _, r in ranges_10d])) if ranges_10d else 3.0
+            if rng10 <= 0: rng10 = 3.0
+            vols_30d = sorted(vols_30d)[-30:]
+            avg_daily_vol = float(np.mean([v for _, v in vols_30d])) if vols_30d else 0.0
 
             # Momentum features
             closes_21d = sorted(closes_21d)[-21:]
@@ -402,44 +417,48 @@ def build_features(start_date, end_date, output_path, limit_symbols=200):
                 vwap = vwap_num / vwap_den if vwap_den > 0 else cur_close
                 vs_vwap = (cur_close / vwap - 1) * 100 if vwap > 0 else 0
 
-                total_vol = sum(b[5] or 0 for b in past_bars)
-                prev_day_vol = 0
-                for dd, c, h, l in sym_daily:
-                    if dd == closes_21d[-1][0] if closes_21d else None:
-                        # Get volume from daily? We don't have it. Use simple estimate
-                        break
-                # Simple vol_ratio: today bars / typical bars
-                vol_ratio = total_vol / (sum(b[5] or 0 for b in sym_bars) / len(sym_bars) * len(past_bars)) if sym_bars else 1
-                vol_ratio = min(20, vol_ratio)
-
-                # Recent volume accel
-                if len(past_bars) >= 6:
-                    recent_vol = np.mean([b[5] or 0 for b in past_bars[-3:]])
-                    older_vol = np.mean([b[5] or 0 for b in past_bars[:3]]) or 1
-                    vol_accel = min(20, recent_vol / older_vol) if older_vol > 0 else 1
+                # vol_ratio — canonical: today_so_far vs expected (30d-avg-daily * fraction-elapsed).
+                # No lookahead. Captures "today running heavier than typical day at this point".
+                total_vol = sum((b[5] or 0) for b in past_bars)
+                # 390 minutes in a regular session; mfo=0 → 5 min elapsed (first bar)
+                minutes_elapsed = max(5, mfo + 5)
+                expected_so_far = avg_daily_vol * (minutes_elapsed / 390.0) if avg_daily_vol > 0 else 0
+                if expected_so_far > 0:
+                    vol_ratio = min(20.0, total_vol / expected_so_far)
                 else:
-                    vol_accel = 1
+                    vol_ratio = 1.0
 
-                # Bars since high
+                # vol_accel — last 3 bars vs prior 3 (canonical, matches live).
+                if len(past_bars) >= 6:
+                    recent_vol = sum((b[5] or 0) for b in past_bars[-3:])
+                    prior_vol = sum((b[5] or 0) for b in past_bars[-6:-3])
+                    vol_accel = min(20.0, recent_vol / prior_vol) if prior_vol > 0 else 1.0
+                else:
+                    vol_accel = 1.0
+
+                # bars_since_hi — first-occurrence (canonical).
                 peak_idx = 0
-                peak_h = 0
+                peak_h = -float('inf')
                 for i, b in enumerate(past_bars):
-                    if b[2] > peak_h: peak_h = b[2]; peak_idx = i
+                    if b[2] > peak_h:
+                        peak_h = b[2]
+                        peak_idx = i
                 bars_since_hi = len(past_bars) - 1 - peak_idx
 
-                # Higher highs
+                # hh_count — cumulative all-bar new highs (canonical).
                 hh_count = 0
-                prev_hi = 0
+                prev_hi = -float('inf')
                 for b in past_bars:
-                    if b[2] > prev_hi: hh_count += 1; prev_hi = b[2]
+                    if b[2] > prev_hi:
+                        hh_count += 1
+                        prev_hi = b[2]
 
-                # Consolidation (last 4 bars range)
-                last4 = past_bars[-min(4, len(past_bars)):]
-                consol = (max(b[2] for b in last4) - min(b[3] for b in last4)) / day_open * 100
+                # Consolidation — last 5 bars range as % of day_open (canonical, matches live).
+                last5 = past_bars[-min(5, len(past_bars)):]
+                consol = (max(b[2] for b in last5) - min(b[3] for b in last5)) / day_open * 100
 
-                # Range expansion (today vs 10-day avg)
-                # Simplified: use current range vs day_open
-                range_exp = range_pct / 3.0  # assume 3% avg daily range
+                # Range expansion — today's range vs 10-day rolling avg (canonical).
+                range_exp = range_pct / rng10 if rng10 > 0 else 1.0
 
                 # Gap
                 gap_from_prev = (day_open / prev_close - 1) * 100

@@ -278,7 +278,8 @@ class MLFilterStrategy(BaseStrategy):
             vix_row = conn.execute("SELECT vix_close FROM macro_snapshots WHERE vix_close IS NOT NULL ORDER BY date DESC LIMIT 1").fetchone()
             vix = float(vix_row[0]) if vix_row and vix_row[0] else 20.0
 
-            vix_5d_row = conn.execute("SELECT vix_close FROM macro_snapshots WHERE vix_close IS NOT NULL ORDER BY date DESC LIMIT 1 OFFSET 4").fetchone()
+            # OFFSET 5 = 5 trading days back (matches trainer's shift(5))
+            vix_5d_row = conn.execute("SELECT vix_close FROM macro_snapshots WHERE vix_close IS NOT NULL ORDER BY date DESC LIMIT 1 OFFSET 5").fetchone()
             vix_5d_chg = (vix - float(vix_5d_row[0])) if vix_5d_row and vix_5d_row[0] else 0.0
 
             # v6 macro features: btc/jpy 5d change, skew, vvix, vix term spread
@@ -323,6 +324,16 @@ class MLFilterStrategy(BaseStrategy):
             """):
                 # tuple is (date, high, low, open)
                 daily_hl[r[0]].append((r[1], r[2], r[3], r[4]))  # date,h,l,o
+
+            # 30-day avg daily volume (for v21 canonical vol_ratio = today_so_far / (avg_daily * frac_elapsed))
+            avg_daily_vol = {}
+            for r in conn.execute("""
+                SELECT symbol, AVG(volume) FROM stock_daily_ohlc
+                WHERE date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-30 days')
+                AND volume IS NOT NULL AND volume > 0
+                GROUP BY symbol
+            """):
+                avg_daily_vol[r[0]] = float(r[1]) if r[1] else 0.0
 
             # Sector 3d trend — set to 0 to match training data (sec3d=0 in pkl).
             # Feeding non-zero values here would cause train/live feature mismatch.
@@ -503,8 +514,13 @@ class MLFilterStrategy(BaseStrategy):
             from_peak_pct = (now / hi - 1) * 100 if hi > 0 else 0
             vwap = db.get('vw', 0)
             vs_vwap = (now / vwap - 1) * 100 if vwap > 0 else 0
-            prev_vol = pb.get('v', 1)
-            vol_ratio = db.get('v', 0) / prev_vol if prev_vol > 0 else 0
+            # v21 canonical vol_ratio: today_so_far / (30d_avg_daily * fraction_of_day_elapsed).
+            # No lookahead. today_so_far = dailyBar.v (cumulative volume up to current bar).
+            today_vol = db.get('v', 0) or 0
+            avg_daily = avg_daily_vol.get(sym, 0)
+            fraction_elapsed = max(5, minutes_from_open + 5) / 390.0  # mfo=0 means 5 min elapsed
+            expected = avg_daily * fraction_elapsed if avg_daily > 0 else 0
+            vol_ratio = min(20.0, today_vol / expected) if expected > 0 else 1.0
             gap_from_prev = (opn / prev_c - 1) * 100
 
             beta = betas.get(sym, 1.5)

@@ -1,19 +1,20 @@
 """
-ML Scorer v20.1 — Mixed plan: per-bucket optimal feature set.
+ML Scorer v21 — canonical features (no lookahead bias).
 
-v20.1 changes:
-  - Drop 6 always-zero features (sec3d, insider_net_30d, news_sentiment,
-    earnings_days, pm_vol_ratio, short_pct) — were placeholders, never populated
-  - 09:30 adds 5 quality interactions (validated +0.7pp WR)
-  - 10:45/11:30 keep base only (interactions hurt these buckets in backtest)
+v21 fixes silent train/inference mismatches present in v20.1:
+  - vol_ratio: today_vol / (30d_avg_daily × fraction_of_day_elapsed)
+  - vol_accel: last3 vs prev3 (matches live's logic)
+  - range_exp: range_pct / 10d_avg_range (per-stock adaptive)
+  - consol: 5 bars (matches live)
 
-Validated 24-month walk-forward (top 3 + sector cap 2):
-  09:30  tp1  56 base + 5 interactions  thr 0.45  WR=71.7% avg=+1.95%
-  10:00  Huber+Q25+Conf v19              thr 0.10  WR=66.6% avg=+0.93%
-  10:45  tp1  56 base                    thr 0.28  WR=71.8% avg=+0.96%
-  11:30  tp1  56 base                    thr 0.30  WR=69.2% avg=+1.04%
+24-month walk-forward HONEST validation:
+  09:30  tp1  56 base + 5 interactions  thr 0.45  WR=63.6%  avg=+1.49%
+  10:00  Huber+Q25+Conf v19              thr 0.10  WR=66.6%  avg=+0.93%
+  10:45  tp1  56 base                    thr 0.25  WR=66.7%  avg=+0.70%
+  11:30  tp1  56 base                    thr 0.22  WR=58.9%  avg=+0.39%
 
-10:00 Huber bucket retains v19 (different architecture — Q25 + Conf gates).
+v20.1 reported 71% WR was INFLATED by lookahead bias. v21 = honest WR.
+Live ml_filter.py must compute features the same way (see ml_filter.py audit).
 """
 import json
 from pathlib import Path
@@ -21,8 +22,8 @@ import numpy as np
 import lightgbm as lgb
 
 MODEL_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v19'
-V20_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v20'  # 09:30 only
-V16_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v16'  # rollback ref
+V21_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v21'  # tp1 buckets
+V20_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v20'  # rollback ref
 
 
 class MLScorer:
@@ -85,10 +86,10 @@ class MLScorer:
             self.features_v7 = [line.strip() for line in f if line.strip()]
         with open(MODEL_DIR / 'features.txt') as f:
             self.features_v9 = [line.strip() for line in f if line.strip()]
-        # 09:30 v20.1 features (56 base + 5 interactions = 61).
-        v20_0930 = V20_DIR / 'features_0930.txt'
-        if v20_0930.exists():
-            with open(v20_0930) as f:
+        # 09:30 v21 features (56 base + 5 interactions = 61).
+        v21_0930 = V21_DIR / 'features_0930.txt'
+        if v21_0930.exists():
+            with open(v21_0930) as f:
                 self.features_0930 = [line.strip() for line in f if line.strip()]
         else:
             v19_0930 = MODEL_DIR / 'features_0930.txt'
@@ -97,10 +98,10 @@ class MLScorer:
                     self.features_0930 = [line.strip() for line in f if line.strip()]
             else:
                 self.features_0930 = self.features_v7
-        # 10:45 / 11:30 v20.1 features (56 base, no interactions).
-        v20_late = V20_DIR / 'features_late.txt'
-        if v20_late.exists():
-            with open(v20_late) as f:
+        # 10:45 / 11:30 v21 features (56 base, no interactions).
+        v21_late = V21_DIR / 'features_late.txt'
+        if v21_late.exists():
+            with open(v21_late) as f:
                 self.features_late = [line.strip() for line in f if line.strip()]
         else:
             self.features_late = self.features_0930
@@ -119,14 +120,14 @@ class MLScorer:
         else:
             self.features_confidence_0930 = self.features_0930
 
-    # Buckets that use v20 models (tp1 classifier, V7+cross, 365d window).
+    # Buckets that use v21 models (tp1 classifier, canonical features, no lookahead).
     # 10:00-10:45 (Huber) stays on v19.
-    V20_BUCKETS = {'09:30-10:00', '10:45-11:30', '11:30-13:00'}
+    V21_BUCKETS = {'09:30-10:00', '10:45-11:30', '11:30-13:00'}
 
     def _load_models(self):
-        # Load primary models per bucket. v20 for tp1 buckets, v19 elsewhere.
+        # Load primary models per bucket. v21 for tp1 buckets, v19 elsewhere.
         for bucket, (pattern, n_seeds) in self.MODEL_FILES.items():
-            base_dir = V20_DIR if bucket in self.V20_BUCKETS else MODEL_DIR
+            base_dir = V21_DIR if bucket in self.V21_BUCKETS else MODEL_DIR
             ensemble = []
             for s in range(n_seeds):
                 mp = base_dir / pattern.format(s)
@@ -179,7 +180,7 @@ class MLScorer:
         # 10:00 (Huber) uses v9 features.
         if bucket == '09:30-10:00':
             feat_list = self.features_0930
-        elif bucket in self.V20_BUCKETS:
+        elif bucket in self.V21_BUCKETS:
             feat_list = self.features_late
         else:
             feat_list = self.features_v9
@@ -250,24 +251,24 @@ class MLScorer:
         return self.score(features, minutes_from_open)
 
     def threshold_75(self, minutes_from_open: int) -> float:
-        """Per-bucket thresholds.
+        """Per-bucket thresholds — v21 canonical (no lookahead).
 
-        v20 tp1 thresholds re-tuned because cross-asset features narrowed
-        the prediction distribution. v19 thresholds (0.55/0.60) cut almost
-        every pick on v20 outputs (max prediction at 11:30 = 0.63).
-        24-month walk-forward optimal balance:
-          09:30  tp1 v20  P(reach +1%) >= 0.45  WR=71.0% avg=+1.94%
-          10:00  Huber v19  predicted PnL >= 0.10  WR=66.6% avg=+0.93%
-          10:45  tp1 v20  P(reach +1%) >= 0.28  WR=71.8% avg=+0.96%
-          11:30  tp1 v20  P(reach +1%) >= 0.30  WR=69.2% avg=+1.04%
+        v21 thresholds re-tuned because canonical vol_ratio shifted prediction range.
+        24-month walk-forward HONEST validation:
+          09:30  tp1 v21  P(reach +1%) >= 0.45  WR=63.6%  avg=+1.49%
+          10:00  Huber v19  predicted PnL >= 0.10  WR=66.6%  avg=+0.93%
+          10:45  tp1 v21  P(reach +1%) >= 0.25  WR=66.7%  avg=+0.70%
+          11:30  tp1 v21  P(reach +1%) >= 0.22  WR=58.9%  avg=+0.39%
+
+        v20.1 reported 71% was inflated by lookahead bias — not real.
         """
-        if minutes_from_open >= 120:       # 11:30-13:00 tp1 v20
-            return 0.30
-        if minutes_from_open >= 75:        # 10:45-11:30 tp1 v20
-            return 0.28
+        if minutes_from_open >= 120:       # 11:30-13:00 tp1 v21
+            return 0.22
+        if minutes_from_open >= 75:        # 10:45-11:30 tp1 v21
+            return 0.25
         if minutes_from_open >= 30:        # 10:00-10:45 Huber v19
             return 0.10
-        return 0.45                        # 09:30 tp1 v20
+        return 0.45                        # 09:30 tp1 v21
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
         # Tradeable window: 0 (09:30) to 210 (13:00)

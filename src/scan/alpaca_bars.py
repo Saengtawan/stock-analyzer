@@ -106,19 +106,27 @@ def extract_multibar_features(bars: list, day_open: float) -> dict:
     if ec <= 0:
         return out
 
-    # Highest high so far + index of peak bar
-    hi_sofar = max(b.get('h', 0) for b in bars)
+    # Bars since cumulative session high — FIRST occurrence (canonical, matches trainer).
+    peak_h = -float('inf')
     peak_idx = 0
     for i, b in enumerate(bars):
-        if b.get('h', 0) >= hi_sofar - 0.01:
+        h = b.get('h', 0)
+        if h > peak_h:
+            peak_h = h
             peak_idx = i
     out['bars_since_hi'] = (n - 1) - peak_idx
     out['time_since_peak'] = out['bars_since_hi']
+    hi_sofar = peak_h
 
-    # Higher highs count (last 5 bars)
-    if n >= 5:
-        highs = [b.get('h', 0) for b in bars[-5:]]
-        out['hh_count'] = sum(1 for i in range(1, len(highs)) if highs[i] > highs[i-1])
+    # hh_count — cumulative all-bar new highs (canonical, matches trainer).
+    prev_hi = -float('inf')
+    cnt = 0
+    for b in bars:
+        h = b.get('h', 0)
+        if h > prev_hi:
+            cnt += 1
+            prev_hi = h
+    out['hh_count'] = cnt
 
     # Consolidation: range of last 5 bars as %
     if n >= 5:
