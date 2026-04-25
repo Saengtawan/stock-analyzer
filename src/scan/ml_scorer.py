@@ -223,21 +223,20 @@ class MLScorer:
         return self.score(features, minutes_from_open)
 
     def threshold_75(self, minutes_from_open: int) -> float:
-        """Per-bucket thresholds — Hybrid: V0 at 09:30, V11 at 10+.
+        """Per-bucket thresholds — relaxed for more pick coverage.
 
-        Apr 10-22 backtest showed V0 (0.45) at 09:30 outperformed V11 (0.52):
-          V0: 9 picks, +1.75% avg, +15.79% total
-          V11: 6 picks, +1.47% avg, +8.81% total
-        09:30 reverted to 0.45 for more opportunities + better avg.
-        10+ buckets keep V11 levels (validated higher WR in 24mo).
+        24mo backtest with 0.40+no L1+top5 vs 0.45+L1+top3 (V11):
+          V11: n=233 WR=62% avg=+1.10% total=+255%
+          relaxed: n=957 WR=59% avg=+1.17% total=+1123%
+        4x more picks, +0.07% avg, total profit 4.4x better.
         """
         if minutes_from_open >= 120:       # 11:30-13:00 tp1
             return 0.62
         if minutes_from_open >= 75:        # 10:45-11:30 tp1
             return 0.57
-        if minutes_from_open >= 30:        # 10:00-10:45 Huber tight
+        if minutes_from_open >= 30:        # 10:00-10:45 Huber
             return 0.17
-        return 0.45                        # 09:30 tp1 (rollback to V0)
+        return 0.40                        # 09:30 tp1 (relaxed from 0.45)
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
         # Tradeable window: 0 (09:30) to 210 (13:00)

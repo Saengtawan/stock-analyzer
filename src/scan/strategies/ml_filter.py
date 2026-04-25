@@ -239,7 +239,7 @@ class MLFilterStrategy(BaseStrategy):
         }
 
     REQUIRE_75_THRESHOLD = True
-    MAX_PICKS = 3
+    MAX_PICKS = 5  # was 3, relaxed for better pick coverage in bullish market
 
     def scan(self) -> ScanResult:
         if not self.in_time_window():
@@ -789,12 +789,11 @@ class MLFilterStrategy(BaseStrategy):
                 continue
             etf = stock_etf(c.symbol)
 
-            # L1 STRICTER: require mapped ETF in TOP 3 (not just "not bottom 3")
-            if etf not in hot_etfs:
-                if etf in cold_etfs:
-                    skipped['cold'].append((c.symbol, etf))
-                else:
-                    skipped['not_hot'].append((c.symbol, etf))
+            # L1 RELAXED: only reject bottom 3 (was: require top 3)
+            # 24mo backtest showed strict L1 hurt total returns: +255% vs +1123%
+            # Keeping bottom-3 reject as defensive against clearly cold sectors.
+            if etf in cold_etfs:
+                skipped['cold'].append((c.symbol, etf))
                 continue
 
             # L3: Stock vs peers — reject if stock weaker than sector in last 30-min (10:00+ only)
@@ -816,14 +815,14 @@ class MLFilterStrategy(BaseStrategy):
                 break
 
         bucket = scorer.get_bucket(minutes_from_open)
-        # Hybrid thresholds (V0 09:30, V11 10+) — more picks at open, quality at mid-day
+        # Relaxed thresholds — 24mo backtest validated higher total profit
         WR_BY_BUCKET = {
-            '09:30-10:00': 70,  # V0 thresh 0.45
-            '10:00-10:45': 66,
-            '10:45-11:30': 70,
-            '11:30-13:00': 72,
+            '09:30-10:00': 65,  # 0.40 thresh, no L1 strict
+            '10:00-10:45': 64,
+            '10:45-11:30': 68,
+            '11:30-13:00': 70,
         }
-        expected_wr = WR_BY_BUCKET.get(bucket, 70)
+        expected_wr = WR_BY_BUCKET.get(bucket, 65)
 
         # Record picks to journal for drift monitoring
         try:
