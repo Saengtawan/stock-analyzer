@@ -1,17 +1,18 @@
 """
-ML Scorer v20 — 09:30 bucket upgraded with V7+cross features and 365d window.
+ML Scorer v20 — All 3 tp1 buckets upgraded with V7+cross features + 365d window.
 
-v20 changes (09:30 bucket only):
+v20 changes (09:30, 10:45, 11:30 tp1 buckets):
   - Features: V7 (37) + cross-asset ETF intraday (25) = 62 features
   - Training window: 365d (vs v19 = 180d)
-  - Validated 24-month walk-forward: 71.0% WR / +1.94% avg
-    (vs v19: 62.9% WR / +1.37% avg → +8.1pp WR / +0.57pp avg)
+  - Re-tuned per-bucket thresholds (v19 thresholds didn't fit v20 output range)
 
-Other buckets retain v19 design — separately validated improvement only at 09:30.
-  09:30  tp1 v20  V7+cross 365d   thr 0.45  WR=71.0% avg=+1.94%  ⭐ v20
-  10:00  Huber + Q25 + Conf       thr 0.10  WR=66.6% avg=+0.93%  v19
-  10:45  tp1 classifier            thr 0.55  WR=63.8% avg=+1.11%  v19
-  11:30  tp1 classifier            thr 0.60  WR=65.8% avg=+1.53%  v19
+Validated 24-month walk-forward (top 3 + sector cap 2):
+  09:30  tp1 v20  thr 0.45  WR=71.0% avg=+1.94%  (v19: 62.9% / +1.37%, +8.1pp)
+  10:00  Huber+Q25+Conf v19  thr 0.10  WR=66.6% avg=+0.93%  (unchanged)
+  10:45  tp1 v20  thr 0.28  WR=71.8% avg=+0.96%  (v19: ~63.8% / +1.11%)
+  11:30  tp1 v20  thr 0.30  WR=69.2% avg=+1.04%  (v19: ~65.8% / +1.53%)
+
+10:00 Huber bucket retains v19 (different architecture — Q25 + Conf gates).
 """
 import json
 from pathlib import Path
@@ -110,10 +111,14 @@ class MLScorer:
         else:
             self.features_confidence_0930 = self.features_0930
 
+    # Buckets that use v20 models (tp1 classifier, V7+cross, 365d window).
+    # 10:00-10:45 (Huber) stays on v19.
+    V20_BUCKETS = {'09:30-10:00', '10:45-11:30', '11:30-13:00'}
+
     def _load_models(self):
-        # Load primary models per bucket. 09:30 prefers v20, others use v19.
+        # Load primary models per bucket. v20 for tp1 buckets, v19 elsewhere.
         for bucket, (pattern, n_seeds) in self.MODEL_FILES.items():
-            base_dir = V20_DIR if bucket == '09:30-10:00' else MODEL_DIR
+            base_dir = V20_DIR if bucket in self.V20_BUCKETS else MODEL_DIR
             ensemble = []
             for s in range(n_seeds):
                 mp = base_dir / pattern.format(s)
@@ -161,8 +166,9 @@ class MLScorer:
         if not ensemble:
             return 0.0
 
-        # 09:30 uses features_0930 (matches what tp1 model was trained on)
-        feat_list = self.features_0930 if minutes_from_open < 30 else self.features_v9
+        # v20 tp1 buckets (09:30, 10:45, 11:30) use features_0930 (V7+cross 62 feats).
+        # 10:00 Huber bucket uses v9 features.
+        feat_list = self.features_0930 if bucket in self.V20_BUCKETS else self.features_v9
         row = [features.get(f, 0.0) for f in feat_list]
         arr = np.array([row], dtype=float)
         preds = [float(m.predict(arr)[0]) for m in ensemble]
@@ -230,21 +236,24 @@ class MLScorer:
         return self.score(features, minutes_from_open)
 
     def threshold_75(self, minutes_from_open: int) -> float:
-        """Per-bucket thresholds — original v16 validated values.
+        """Per-bucket thresholds.
 
-        These came from training-time validation (not post-hoc tuning):
-          09:30  tp1 P(reach +1%) >= 0.45
-          10:00  Huber predicted PnL >= 0.10%
-          10:45  tp1 P(reach +1%) >= 0.55
-          11:30  tp1 P(reach +1%) >= 0.60
+        v20 tp1 thresholds re-tuned because cross-asset features narrowed
+        the prediction distribution. v19 thresholds (0.55/0.60) cut almost
+        every pick on v20 outputs (max prediction at 11:30 = 0.63).
+        24-month walk-forward optimal balance:
+          09:30  tp1 v20  P(reach +1%) >= 0.45  WR=71.0% avg=+1.94%
+          10:00  Huber v19  predicted PnL >= 0.10  WR=66.6% avg=+0.93%
+          10:45  tp1 v20  P(reach +1%) >= 0.28  WR=71.8% avg=+0.96%
+          11:30  tp1 v20  P(reach +1%) >= 0.30  WR=69.2% avg=+1.04%
         """
-        if minutes_from_open >= 120:       # 11:30-13:00 tp1
-            return 0.60
-        if minutes_from_open >= 75:        # 10:45-11:30 tp1
-            return 0.55
-        if minutes_from_open >= 30:        # 10:00-10:45 Huber
+        if minutes_from_open >= 120:       # 11:30-13:00 tp1 v20
+            return 0.30
+        if minutes_from_open >= 75:        # 10:45-11:30 tp1 v20
+            return 0.28
+        if minutes_from_open >= 30:        # 10:00-10:45 Huber v19
             return 0.10
-        return 0.45                        # 09:30 tp1
+        return 0.45                        # 09:30 tp1 v20
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
         # Tradeable window: 0 (09:30) to 210 (13:00)

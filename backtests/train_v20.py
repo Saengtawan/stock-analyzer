@@ -38,9 +38,12 @@ CROSS_FEATS = ['xlb_intra', 'xlc_intra', 'xle_intra', 'xlf_intra', 'xli_intra',
     'hyg_intra', 'igv_intra', 'ief_intra', 'lqd_intra', 'tlt_intra', 'uso_intra',
     'uup_intra', 'vxx_intra']
 
-# 09:30 bucket spec (mins_from_open range; matches v19 training)
-BUCKET_LO = 5
-BUCKET_HI = 25
+# Bucket specs: (name, mfo_lo, mfo_hi, model_pattern)
+BUCKET_SPECS = {
+    '0930_1000': (5, 25, 'lgb_tp1_0930_1000_seed{}.txt'),
+    '1045_1130': (75, 115, 'lgb_tp1_1045_1130_seed{}.txt'),
+    '1130_1300': (120, 200, 'lgb_tp1_1130_1300_seed{}.txt'),
+}
 TRAIN_DAYS = 365
 N_SEEDS = 5
 
@@ -51,10 +54,40 @@ CFG = dict(
 )
 
 
+def train_bucket(df, feats_avail, bucket_key, mfo_lo, mfo_hi, model_pattern, end_date):
+    cutoff = (datetime.strptime(end_date, '%Y-%m-%d') - timedelta(days=TRAIN_DAYS)).strftime('%Y-%m-%d')
+    train_mask = (
+        (df['date'] >= cutoff) & (df['date'] <= end_date) &
+        (df['mins_from_open'] >= mfo_lo) & (df['mins_from_open'] <= mfo_hi)
+    )
+    df_train = df[train_mask]
+    print(f"\n=== Bucket {bucket_key} (mfo {mfo_lo}-{mfo_hi}) ===")
+    print(f"Training rows: {len(df_train):,}  cutoff {cutoff} → {end_date}")
+
+    if len(df_train) < 5000:
+        print(f"ERROR: too few training rows ({len(df_train)})", file=sys.stderr)
+        return False
+
+    X = df_train[feats_avail].fillna(0).values
+    y = (df_train['label_decay'] >= 1.0).astype(int).values
+    print(f"Positive rate: {y.mean():.3f} ({y.sum():,}/{len(y):,})")
+
+    for seed in range(N_SEEDS):
+        m = lgb.LGBMClassifier(**{**CFG, 'random_state': seed})
+        m.fit(X, y)
+        out = OUT_DIR / model_pattern.format(seed)
+        m.booster_.save_model(str(out))
+        print(f"  seed {seed}: saved {out.name}")
+    return True
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--end-date', default=datetime.today().strftime('%Y-%m-%d'),
         help='Last date to include in training (cutoff = end - 365d)')
+    ap.add_argument('--buckets', nargs='+',
+        default=list(BUCKET_SPECS.keys()),
+        help='Buckets to train (default: all 3 tp1 buckets)')
     args = ap.parse_args()
 
     print(f"Loading {V19_PKL}...")
@@ -71,43 +104,23 @@ def main():
     for c in feats_avail + ['label_decay']:
         df[c] = pd.to_numeric(df[c], errors='coerce')
 
-    end_date = args.end_date
-    cutoff = (datetime.strptime(end_date, '%Y-%m-%d') - timedelta(days=TRAIN_DAYS)).strftime('%Y-%m-%d')
-    train_mask = (
-        (df['date'] >= cutoff) & (df['date'] <= end_date) &
-        (df['mins_from_open'] >= BUCKET_LO) & (df['mins_from_open'] <= BUCKET_HI)
-    )
-    df_train = df[train_mask]
-    print(f"Training rows: {len(df_train):,} (cutoff {cutoff} → {end_date}, mfo {BUCKET_LO}-{BUCKET_HI})")
-
-    if len(df_train) < 5000:
-        print(f"ERROR: too few training rows ({len(df_train)})", file=sys.stderr)
-        sys.exit(1)
-
-    X = df_train[feats_avail].fillna(0).values
-    y = (df_train['label_decay'] >= 1.0).astype(int).values
-    print(f"Positive rate: {y.mean():.3f} ({y.sum():,}/{len(y):,})")
-
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Save features list (order matches model input)
+    # Save features list (shared across all v20 tp1 buckets)
     feats_path = OUT_DIR / 'features_0930.txt'
     with open(feats_path, 'w') as f:
         for ft in feats_avail:
             f.write(ft + '\n')
     print(f"Wrote {feats_path}")
 
-    # Train 5 seeds
-    for seed in range(N_SEEDS):
-        m = lgb.LGBMClassifier(**{**CFG, 'random_state': seed})
-        m.fit(X, y)
-        out = OUT_DIR / f'lgb_tp1_0930_1000_seed{seed}.txt'
-        m.booster_.save_model(str(out))
-        train_acc = (m.predict_proba(X)[:, 1] >= 0.5).mean()
-        print(f"  seed {seed}: train_pos_rate@0.5={train_acc:.3f}  saved {out.name}")
+    for key in args.buckets:
+        if key not in BUCKET_SPECS:
+            print(f"WARN: unknown bucket {key}", file=sys.stderr)
+            continue
+        mfo_lo, mfo_hi, pattern = BUCKET_SPECS[key]
+        train_bucket(df, feats_avail, key, mfo_lo, mfo_hi, pattern, args.end_date)
 
-    print(f"\n✅ v20 09:30 models saved to {OUT_DIR}")
-    print(f"   Other buckets unchanged — keep using v19 paths in ml_scorer.py")
+    print(f"\n✅ v20 models saved to {OUT_DIR}")
 
 
 if __name__ == '__main__':
