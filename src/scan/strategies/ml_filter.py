@@ -816,9 +816,9 @@ class MLFilterStrategy(BaseStrategy):
                 break
 
         bucket = scorer.get_bucket(minutes_from_open)
-        # V11 thresholds — 24mo backtest: 71.4% WR, +1.62% avg (67.9% / +1.42% w/slip)
+        # Hybrid thresholds (V0 09:30, V11 10+) — more picks at open, quality at mid-day
         WR_BY_BUCKET = {
-            '09:30-10:00': 72,
+            '09:30-10:00': 70,  # V0 thresh 0.45
             '10:00-10:45': 66,
             '10:45-11:30': 70,
             '11:30-13:00': 72,
