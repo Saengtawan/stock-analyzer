@@ -722,8 +722,14 @@ class MLFilterStrategy(BaseStrategy):
                 break
 
         bucket = scorer.get_bucket(minutes_from_open)
-        # Expected WR — ML ranking, top 3, no threshold tweaks (validate live)
-        expected_wr = 65
+        # Original v16 validated WR — keep for journal drift monitoring
+        WR_BY_BUCKET = {
+            '09:30-10:00': 88,
+            '10:00-10:45': 80,
+            '10:45-11:30': 79,
+            '11:30-13:00': 81,
+        }
+        expected_wr = WR_BY_BUCKET.get(bucket, 80)
 
         # Record picks to journal for drift monitoring
         try:

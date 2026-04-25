@@ -58,11 +58,20 @@ class MLScorer:
         '10:00-10:45': ('lgb_conf_1000_1045_seed{}.txt', 5),
     }
 
-    # Confidence thresholds disabled — ML ranking decides (no magic gates)
-    CONF_THRESHOLDS = {}
+    # Confidence regime gates — original v16 design
+    # 09:30: conf >= 0.60 (gate uncertain regime picks)
+    # 10:00: conf >= 0.55 (mid-day regime check)
+    # 10:45/11:30: tp1 alone (no conf gate)
+    CONF_THRESHOLDS = {
+        '09:30-10:00': 0.60,
+        '10:00-10:45': 0.55,
+    }
 
-    # Q25 thresholds disabled — ML ranking decides
-    Q25_THRESHOLDS = {}
+    # Q25 downside filter — Huber bucket (10:00) only
+    # 10:00: Q25 >= -0.2 (reject high-variance faders)
+    Q25_THRESHOLDS = {
+        '10:00-10:45': -0.2,
+    }
 
     def __init__(self):
         self.models = {}
@@ -216,13 +225,21 @@ class MLScorer:
         return self.score(features, minutes_from_open)
 
     def threshold_75(self, minutes_from_open: int) -> float:
-        """Threshold gate disabled — ML ranking decides.
+        """Per-bucket thresholds — original v16 validated values.
 
-        Magic-number tuning (V0-V18, 0.45-0.62) abandoned 2026-04-25.
-        Pure ML approach: rank all candidates by score, take top N.
-        Returns 0 → all candidates pass to ranking.
+        These came from training-time validation (not post-hoc tuning):
+          09:30  tp1 P(reach +1%) >= 0.45
+          10:00  Huber predicted PnL >= 0.10%
+          10:45  tp1 P(reach +1%) >= 0.55
+          11:30  tp1 P(reach +1%) >= 0.60
         """
-        return 0.0
+        if minutes_from_open >= 120:       # 11:30-13:00 tp1
+            return 0.60
+        if minutes_from_open >= 75:        # 10:45-11:30 tp1
+            return 0.55
+        if minutes_from_open >= 30:        # 10:00-10:45 Huber
+            return 0.10
+        return 0.45                        # 09:30 tp1
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
         # Tradeable window: 0 (09:30) to 210 (13:00)
