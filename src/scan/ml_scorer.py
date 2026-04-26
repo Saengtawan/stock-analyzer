@@ -204,15 +204,19 @@ class MLScorer:
         return True
 
     def threshold_75(self, minutes_from_open: int) -> float:
-        """Per-bucket tp1 win thresholds — v23 (two-stage architecture).
+        """Per-bucket tp1 win thresholds — v26 (per-mfo at 09:30).
 
         Pick passes if: win_min >= threshold AND loss_max <= LOSS_THRESHOLDS.
 
-        24-month walk-forward (v23 with loss reject):
-          09:30  win>=0.42 + loss<=0.35  WR=65.6%  avg=+1.60%
-          10:00  win>=0.30 + loss<=0.45  WR=67.5%  avg=+1.64%
-          10:45  win>=0.22 + loss<=0.30  WR=70.3%  avg=+0.67%
-          11:30  win>=0.18 + loss<=0.35  WR=61.3%  avg=+0.51%
+        v26: mfo=5 (09:35 bar) uses looser 0.40 (whipsaw zone but signal fresh).
+        Validated: +0.5pp WR, +11% picks, +10% total profit at 09:30.
+
+        24-month walk-forward (v26):
+          09:35 (mfo=5) win>=0.40 + loss<=0.35  ← looser at first bar
+          09:40+        win>=0.42 + loss<=0.35
+          10:00         win>=0.30 + loss<=0.45  WR=67.5%
+          10:45         win>=0.22 + loss<=0.30  WR=70.3%
+          11:30         win>=0.18 + loss<=0.35  WR=61.3%
         """
         if minutes_from_open >= 120:       # 11:30-13:00
             return 0.18
@@ -220,7 +224,10 @@ class MLScorer:
             return 0.22
         if minutes_from_open >= 30:        # 10:00-10:45
             return 0.30
-        return 0.42                        # 09:30-10:00
+        # 09:30 bucket: mfo=5 (09:35 bar) gets looser threshold (whipsaw zone)
+        if minutes_from_open <= 5:
+            return 0.40                    # 09:35 bar
+        return 0.42                        # 09:40-09:55
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
         # Tradeable window: 0 (09:30) to 210 (13:00)
