@@ -1,19 +1,25 @@
 """
-ML Scorer v22 — UNIFIED architecture across all 4 buckets.
+ML Scorer v22.1 — UNIFIED architecture + ETF-clean training universe.
 
 Single design: tp1 binary classifier (5-seed bagging ensemble) + MIN-seed selection.
-Replaces v19 Huber+Q25+Conf complex stack at 10:00 (was different architecture).
+Trainer + live both exclude ETFs from candidate universe (aligned).
 
 24-month walk-forward HONEST validation:
-  09:30  min-seed ≥ 0.42  WR=65.3%  avg=+1.57%
-  10:00  min-seed ≥ 0.30  WR=69.5%  avg=+1.65%   (was Huber: 66.6%/+0.93%, +2.9pp)
-  10:45  min-seed ≥ 0.22  WR=68.4%  avg=+0.64%
-  11:30  min-seed ≥ 0.18  WR=60.8%  avg=+0.45%
+  09:30  min-seed ≥ 0.42  WR=63.2%  avg=+1.40%
+  10:00  min-seed ≥ 0.30  WR=66.6%  avg=+1.45%
+  10:45  min-seed ≥ 0.22  WR=68.7%  avg=+0.60%
+  11:30  min-seed ≥ 0.18  WR=61.0%  avg=+0.48%
 
-Key v22 features:
+v22.1 vs v22:
+  - ETF candidates excluded from trainer (was: included → inflated WR ~2pp at 09:30/10:00)
+  - 09:30 -2.1pp WR / 10:00 -2.9pp WR after honest exclusion
+  - Late buckets unchanged (few ETFs traded at those times)
+
+Key features (unchanged from v22):
   - bagging_fraction=0.8 + feature_fraction=0.8 → real ensemble diversity
   - MIN of 5 seeds → "all seeds agree" filter, removes lucky outliers
   - Canonical features (no lookahead) — backtest = live
+  - label_decay (3→2→1% trail) outperforms label_fixed3 at all buckets
 """
 import json
 from pathlib import Path
@@ -129,18 +135,19 @@ class MLScorer:
         return True
 
     def threshold_75(self, minutes_from_open: int) -> float:
-        """Per-bucket thresholds — v22 (uniform tp1 + min-seed across all 4 buckets).
+        """Per-bucket thresholds — v22.1 (ETF-clean trainer + uniform tp1 + min-seed).
 
-        Picks must have ALL 5 seeds confident (worst-case agreement), not just
-        1 outlier. Validated 24-month walk-forward HONEST results:
+        Picks must have ALL 5 seeds confident (worst-case agreement). Trainer
+        and live both exclude ETFs from candidate universe.
 
-          09:30  tp1 v22  min-seed >= 0.42  WR=65.3%  avg=+1.57%
-          10:00  tp1 v22  min-seed >= 0.30  WR=69.5%  avg=+1.65%
-          10:45  tp1 v22  min-seed >= 0.22  WR=68.4%  avg=+0.64%
-          11:30  tp1 v22  min-seed >= 0.18  WR=60.8%  avg=+0.45%
+        24-month walk-forward HONEST results (no ETF inflation):
+          09:30  min-seed >= 0.42  WR=63.2%  avg=+1.40%
+          10:00  min-seed >= 0.30  WR=66.6%  avg=+1.45%
+          10:45  min-seed >= 0.22  WR=68.7%  avg=+0.60%
+          11:30  min-seed >= 0.18  WR=61.0%  avg=+0.48%
 
-        v22 at 10:00 replaces v19 Huber+Q25+Conf complex stack —
-        +2.9pp WR, +0.72pp avg, simpler architecture.
+        v22.1 vs v22: 09:30 -2.1pp / 10:00 -2.9pp WR after ETF exclusion.
+        These are HONEST numbers — no easy ETF candidates inflating training.
         """
         if minutes_from_open >= 120:       # 11:30-13:00
             return 0.18

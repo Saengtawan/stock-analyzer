@@ -19,7 +19,7 @@ import pandas as pd
 import lightgbm as lgb
 
 REPO = Path(__file__).resolve().parents[1]
-V21_PKL = '/tmp/bt_features_v21.pkl'
+V22_PKL = '/tmp/bt_features_v22.pkl'  # ETF-clean (trainer matches live universe)
 OUT_DIR = REPO / 'backtests' / 'models_prod_v22'
 
 # v19 baseline features minus 6 always-zero placeholders.
@@ -104,8 +104,8 @@ def main():
     ap.add_argument('--buckets', nargs='+', default=list(BUCKET_SPECS.keys()))
     args = ap.parse_args()
 
-    print(f"Loading {V21_PKL}...")
-    df = pd.read_pickle(V21_PKL)
+    print(f"Loading {V22_PKL}...")
+    df = pd.read_pickle(V22_PKL)
     df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
 
     feats = V7_FEATS + CROSS_FEATS
