@@ -20,7 +20,6 @@ import lightgbm as lgb
 
 MODEL_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v19'
 V22_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v22'  # tp1 buckets
-V21_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v21'  # rollback ref
 
 
 class MLScorer:
@@ -245,15 +244,6 @@ class MLScorer:
 
         conf = self.score_confidence(features, minutes_from_open)
         return conf >= threshold
-
-    def score_gain(self, features: dict, minutes_from_open: int) -> float:
-        return self.score(features, minutes_from_open)
-
-    def score_profit(self, features: dict, minutes_from_open: int) -> float:
-        return self.score(features, minutes_from_open)
-
-    def score_big(self, features: dict, minutes_from_open: int) -> float:
-        return self.score(features, minutes_from_open)
 
     def threshold_75(self, minutes_from_open: int) -> float:
         """Per-bucket thresholds — v22 (min-seed of real ensemble).

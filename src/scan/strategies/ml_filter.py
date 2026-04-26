@@ -554,15 +554,6 @@ class MLFilterStrategy(BaseStrategy):
                 **self._compute_path_features(sym_bars, opn),
                 # v9 speed features
                 **self._compute_speed_features(sym_bars, opn),
-                # v9 gap interactions (legacy — most not in v22 model but kept for compat)
-                'gap_x_vol': gap_from_prev * vol_ratio,
-                'gap_x_beta': gap_from_prev * beta,
-                'gap_x_spy': gap_from_prev * spy_green,
-                'gap_abs': abs(gap_from_prev),
-                'gain_x_vol': gain * vol_ratio,
-                'gap_x_vix': gap_from_prev * vix,
-                'mom5_x_gap': mom5 * gap_from_prev,
-                'beta_x_spy': beta * spy_green,
                 # Cross-asset intraday features (v20 09:30 + Confidence ML)
                 'spy_intra': spy_intra,
                 'qqq_intra': etf_intraday('QQQ'),
@@ -724,7 +715,7 @@ class MLFilterStrategy(BaseStrategy):
                 'bucket': bucket,
                 'threshold_75': threshold,
                 'expected_wr': expected_wr,
-                'model_version': 'v11_confidence',
+                'model_version': 'v22',
                 'anomaly_score': round(anomaly_score, 2),
             },
         )
