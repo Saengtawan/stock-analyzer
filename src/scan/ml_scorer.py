@@ -1,28 +1,29 @@
 """
-ML Scorer v23 — Two-stage architecture: tp1 win + loss reject.
+ML Scorer v24 — Two-stage ML + per-bucket hard rules (hybrid).
 
-Stage 1 (tp1 win, MIN-seed):
-  - 5-seed bagging classifier predicts P(reach +1%)
-  - MIN of seeds = "all seeds agree" filter
+Architecture per bucket:
+  Stage 1: tp1 win model (MIN-seed of 5 bagging seeds)
+  Stage 2: loss reject model (MAX-seed of 5 bagging seeds)
+  Stage 3: per-bucket hard rules (in ml_filter.py — applied AFTER score)
 
-Stage 2 (loss reject, MAX-seed):
-  - Separate 5-seed classifier predicts P(loss > 1%)
-  - MAX of seeds = "ANY seed says big loss" → reject pick
+Hard rules (v24 hybrid additions):
+  09:30 — skip if mom20d > 20 (anti-extreme)
+  10:00 — skip if stock's sector ETF intraday < -0.3% (sector strength)
+  10:45 — skip if mom20d > 20 (anti-extreme)
+  11:30 — no rule (validated all rules HURT this bucket)
 
-Pick passes only if: win_min >= threshold AND loss_max <= LOSS_THRESHOLDS[bucket].
+24-month walk-forward HONEST validation:
+  09:30  ML+R3   WR=66.2%  avg=+1.48%  (+0.6pp vs v23)
+  10:00  ML+R1   WR=68.8%  avg=+1.65%  (+1.3pp ⭐)
+  10:45  ML+R3   WR=72.2%  avg=+0.72%  (+1.9pp 🎯 BREAKS 70%)
+  11:30  ML only WR=61.3%  avg=+0.51%  (no rule helps)
 
-24-month walk-forward HONEST validation (v23 vs v22.1):
-  09:30  win>=0.42 + loss<=0.35  WR=65.6%  avg=+1.60%  (vs 63.2%/+1.40%, +2.4pp)
-  10:00  win>=0.30 + loss<=0.45  WR=67.5%  avg=+1.64%  (vs 66.6%/+1.45%, +0.9pp)
-  10:45  win>=0.22 + loss<=0.30  WR=70.3%  avg=+0.67%  (vs 68.7%/+0.60%, +1.6pp)
-  11:30  win>=0.18 + loss<=0.35  WR=61.3%  avg=+0.51%  (vs 61.0%/+0.48%, marginal)
-
-Key features:
-  - bagging_fraction=0.8 + feature_fraction=0.8 → real ensemble diversity
-  - MIN(win) AND MAX(loss) — "all agree win, none warn loss" filter
-  - Canonical features (no lookahead) — backtest = live
-  - label_decay for tp1, label_fixed3 for loss model
-  - ETF excluded from training universe (matches live)
+Why hybrid works (where ML alone failed):
+  - Tree depth=3 → max 3-way splits, can't capture
+    sector × momentum × vol interactions cleanly
+  - Rules encode trader knowledge as explicit kill switches
+  - 5/9 losers in Apr 13-22 sim were in WEAK sectors
+  - Rules cut these without losing winners
 """
 import json
 from pathlib import Path

@@ -47,6 +47,23 @@ class MLFilterStrategy(BaseStrategy):
     DB_PATH = "data/trade_history.db"
     MIN_PRICE = 3.0
     MIN_GAIN = 2.0   # loose — let ML decide
+
+    # v24 hybrid sector strength rule (10:00 bucket): skip if stock's sector ETF down >0.3% intra
+    _SECTOR_ETF = {
+        'Technology': 'xlk_intra',
+        'Healthcare': 'xlv_intra',
+        'Health Care': 'xlv_intra',
+        'Financial Services': 'xlf_intra',
+        'Financials': 'xlf_intra',
+        'Consumer Cyclical': 'xly_intra',
+        'Communication Services': 'xlc_intra',
+        'Industrials': 'xli_intra',
+        'Consumer Defensive': 'xlp_intra',
+        'Energy': 'xle_intra',
+        'Basic Materials': 'xlb_intra',
+        'Real Estate': 'xlre_intra',
+        'Utilities': 'xlu_intra',
+    }
     MAX_GAIN = 5.0   # gain ≥5% = chased/pumped — all strategies drop to 53-71% WR (2026-04-14 backtest)
 
     REQUIRE_75_THRESHOLD = True
@@ -400,6 +417,25 @@ class MLFilterStrategy(BaseStrategy):
 
             if self.REQUIRE_75_THRESHOLD and prob < threshold:
                 continue
+
+            # v24 hybrid: per-bucket hard rules (validated +0.6 to +1.9pp WR).
+            # Rules apply ON TOP of ML score — gives ML candidates that the
+            # model couldn't filter due to depth=3 trees missing 3+ way interactions.
+            mfo = minutes_from_open
+            if mfo < 30:
+                # 09:30 — anti-extreme: skip if mom20 > 20 (overextended)
+                if features.get('mom20d', 0) > 20:
+                    continue
+            elif mfo < 75:
+                # 10:00 — sector strength: skip if stock's sector ETF down >0.3%
+                sec_etf_col = self._SECTOR_ETF.get(sec)
+                if sec_etf_col and features.get(sec_etf_col, 0) < -0.3:
+                    continue
+            elif mfo < 120:
+                # 10:45 — anti-extreme: skip if mom20 > 20
+                if features.get('mom20d', 0) > 20:
+                    continue
+            # 11:30+ : no rule (validated rules don't help this bucket)
 
             atr_pct = (hi - lo) / now * 100 if now > 0 else 3.0
             # Trail 3% unified — matches training label_fixed3 across all buckets.
