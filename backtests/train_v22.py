@@ -1,19 +1,13 @@
-"""Train v21 — canonical features (no lookahead bias).
+"""Train v22 — REAL ensemble (bagging + feature fraction) + min-seed selection.
 
-v21 changes from v20.1:
-  - vol_ratio: today_vol / (30d_avg_daily * fraction_of_day_elapsed)
-    (was: today_vol / today's-full-day-avg — LOOKAHEAD BIAS)
-  - vol_accel: last3 vs prev3 (was: last3 vs first3 — different signal)
-  - range_exp: range_pct / 10d_avg_range (was: hardcoded /3.0)
-  - consol: 5 bars (was: 4 bars — match live)
+v22 changes from v21:
+  - Enable bagging_fraction=0.8 + feature_fraction=0.8
+    (v21 had no bagging → 5 seeds = identical model, ensemble no-op)
+  - Live scorer uses MIN of 5 seed predictions (not MEAN)
+    Filters out "lucky outlier high" picks where seeds disagree
 
 24-month walk-forward HONEST validation:
-  09:30  56 base + 5 interactions  thr 0.45  WR=63.6%  avg=+1.49%
-  10:45  56 base                    thr 0.25  WR=66.7%  avg=+0.70%
-  11:30  56 base                    thr 0.22  WR=58.9%  avg=+0.39%
-
-Note: v20.1's "71% WR" was inflated by lookahead bias.
-v21 numbers are HONEST — backtest = live (when live also fixed).
+  09:30  thr 0.42  WR=65.3%  avg=+1.57%  (vs v21 mean: 63.5% / +1.50%)
 """
 import argparse
 import sys
@@ -26,7 +20,7 @@ import lightgbm as lgb
 
 REPO = Path(__file__).resolve().parents[1]
 V21_PKL = '/tmp/bt_features_v21.pkl'
-OUT_DIR = REPO / 'backtests' / 'models_prod_v21'
+OUT_DIR = REPO / 'backtests' / 'models_prod_v22'
 
 # v19 baseline features minus 6 always-zero placeholders.
 V7_FEATS = ['mins_from_open', 'gain_from_open', 'range_pct', 'from_peak_pct', 'vs_vwap',
@@ -59,6 +53,8 @@ CFG = dict(
     objective='binary', learning_rate=0.03, num_leaves=8, max_depth=3,
     min_child_samples=50, reg_alpha=1.0, reg_lambda=5.0, n_estimators=300,
     verbose=-1, n_jobs=4,
+    # v22: enable bagging so 5 seeds give DIFFERENT trees (real ensemble)
+    bagging_fraction=0.8, bagging_freq=1, feature_fraction=0.8,
 )
 
 

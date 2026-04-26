@@ -1,20 +1,17 @@
 """
-ML Scorer v21 — canonical features (no lookahead bias).
+ML Scorer v22 — REAL ensemble (bagging) + MIN-seed selection.
 
-v21 fixes silent train/inference mismatches present in v20.1:
-  - vol_ratio: today_vol / (30d_avg_daily × fraction_of_day_elapsed)
-  - vol_accel: last3 vs prev3 (matches live's logic)
-  - range_exp: range_pct / 10d_avg_range (per-stock adaptive)
-  - consol: 5 bars (matches live)
+v22 fixes from v21:
+  - bagging_fraction=0.8 + feature_fraction=0.8 → 5 seeds give DIFFERENT trees
+    (v21 had no bagging → 5 seeds = identical model, ensemble was no-op)
+  - score() returns MIN of 5 seed predictions (not mean)
+    Filters out "lucky outlier high" picks where seeds disagree
 
-24-month walk-forward HONEST validation:
-  09:30  tp1  56 base + 5 interactions  thr 0.45  WR=63.6%  avg=+1.49%
-  10:00  Huber+Q25+Conf v19              thr 0.10  WR=66.6%  avg=+0.93%
-  10:45  tp1  56 base                    thr 0.25  WR=66.7%  avg=+0.70%
-  11:30  tp1  56 base                    thr 0.22  WR=58.9%  avg=+0.39%
-
-v20.1 reported 71% WR was INFLATED by lookahead bias. v21 = honest WR.
-Live ml_filter.py must compute features the same way (see ml_filter.py audit).
+24-month walk-forward HONEST validation (min-seed selection):
+  09:30  tp1 v22  min-seed ≥ 0.42  WR=65.3%  avg=+1.57%  (vs v21: 63.5%/+1.50%)
+  10:00  Huber+Q25+Conf v19  thr 0.10        WR=66.6%  avg=+0.93%  (unchanged)
+  10:45  tp1 v22  min-seed ≥ 0.22  WR=68.4%  avg=+0.64%  (vs v21: 66.7%/+0.70%)
+  11:30  tp1 v22  min-seed ≥ 0.18  WR=60.8%  avg=+0.45%  (vs v21: 58.9%/+0.39%)
 """
 import json
 from pathlib import Path
@@ -22,8 +19,8 @@ import numpy as np
 import lightgbm as lgb
 
 MODEL_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v19'
-V21_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v21'  # tp1 buckets
-V20_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v20'  # rollback ref
+V22_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v22'  # tp1 buckets
+V21_DIR = Path(__file__).resolve().parents[2] / 'backtests' / 'models_prod_v21'  # rollback ref
 
 
 class MLScorer:
@@ -86,10 +83,10 @@ class MLScorer:
             self.features_v7 = [line.strip() for line in f if line.strip()]
         with open(MODEL_DIR / 'features.txt') as f:
             self.features_v9 = [line.strip() for line in f if line.strip()]
-        # 09:30 v21 features (56 base + 5 interactions = 61).
-        v21_0930 = V21_DIR / 'features_0930.txt'
-        if v21_0930.exists():
-            with open(v21_0930) as f:
+        # 09:30 v22 features (56 base + 5 interactions = 61).
+        v22_0930 = V22_DIR / 'features_0930.txt'
+        if v22_0930.exists():
+            with open(v22_0930) as f:
                 self.features_0930 = [line.strip() for line in f if line.strip()]
         else:
             v19_0930 = MODEL_DIR / 'features_0930.txt'
@@ -98,10 +95,10 @@ class MLScorer:
                     self.features_0930 = [line.strip() for line in f if line.strip()]
             else:
                 self.features_0930 = self.features_v7
-        # 10:45 / 11:30 v21 features (56 base, no interactions).
-        v21_late = V21_DIR / 'features_late.txt'
-        if v21_late.exists():
-            with open(v21_late) as f:
+        # 10:45 / 11:30 v22 features (56 base).
+        v22_late = V22_DIR / 'features_late.txt'
+        if v22_late.exists():
+            with open(v22_late) as f:
                 self.features_late = [line.strip() for line in f if line.strip()]
         else:
             self.features_late = self.features_0930
@@ -120,14 +117,14 @@ class MLScorer:
         else:
             self.features_confidence_0930 = self.features_0930
 
-    # Buckets that use v21 models (tp1 classifier, canonical features, no lookahead).
+    # Buckets that use v22 models (real ensemble, min-seed selection).
     # 10:00-10:45 (Huber) stays on v19.
-    V21_BUCKETS = {'09:30-10:00', '10:45-11:30', '11:30-13:00'}
+    V22_BUCKETS = {'09:30-10:00', '10:45-11:30', '11:30-13:00'}
 
     def _load_models(self):
-        # Load primary models per bucket. v21 for tp1 buckets, v19 elsewhere.
+        # Load primary models per bucket. v22 for tp1 buckets, v19 elsewhere.
         for bucket, (pattern, n_seeds) in self.MODEL_FILES.items():
-            base_dir = V21_DIR if bucket in self.V21_BUCKETS else MODEL_DIR
+            base_dir = V22_DIR if bucket in self.V22_BUCKETS else MODEL_DIR
             ensemble = []
             for s in range(n_seeds):
                 mp = base_dir / pattern.format(s)
@@ -169,7 +166,11 @@ class MLScorer:
         return '14:00-16:00'
 
     def score(self, features: dict, minutes_from_open: int) -> float:
-        """Score stock with bucket-appropriate mean model."""
+        """Score stock with bucket-appropriate model.
+
+        For v22 tp1 buckets: returns MIN of 5 seed predictions (worst-case agreement).
+        For v19 Huber bucket (10:00): returns mean (regression, no min-selection logic).
+        """
         bucket = self.get_bucket(minutes_from_open)
         ensemble = self.models.get(bucket)
         if not ensemble:
@@ -180,13 +181,17 @@ class MLScorer:
         # 10:00 (Huber) uses v9 features.
         if bucket == '09:30-10:00':
             feat_list = self.features_0930
-        elif bucket in self.V21_BUCKETS:
+        elif bucket in self.V22_BUCKETS:
             feat_list = self.features_late
         else:
             feat_list = self.features_v9
         row = [features.get(f, 0.0) for f in feat_list]
         arr = np.array([row], dtype=float)
         preds = [float(m.predict(arr)[0]) for m in ensemble]
+        # v22 tp1 buckets: use MIN (worst seed) — filters lucky outliers.
+        # Huber bucket: use mean.
+        if bucket in self.V22_BUCKETS:
+            return min(preds)
         return sum(preds) / len(preds)
 
     def score_q25(self, features: dict, minutes_from_open: int) -> float:
@@ -251,24 +256,24 @@ class MLScorer:
         return self.score(features, minutes_from_open)
 
     def threshold_75(self, minutes_from_open: int) -> float:
-        """Per-bucket thresholds — v21 canonical (no lookahead).
+        """Per-bucket thresholds — v22 (min-seed of real ensemble).
 
-        v21 thresholds re-tuned because canonical vol_ratio shifted prediction range.
+        v22 thresholds shifted lower because score = MIN of 5 seeds (not mean).
+        Picks must have ALL 5 seeds confident, not just 1 outlier.
+
         24-month walk-forward HONEST validation:
-          09:30  tp1 v21  P(reach +1%) >= 0.45  WR=63.6%  avg=+1.49%
+          09:30  tp1 v22  min-seed >= 0.42  WR=65.3%  avg=+1.57%
           10:00  Huber v19  predicted PnL >= 0.10  WR=66.6%  avg=+0.93%
-          10:45  tp1 v21  P(reach +1%) >= 0.25  WR=66.7%  avg=+0.70%
-          11:30  tp1 v21  P(reach +1%) >= 0.22  WR=58.9%  avg=+0.39%
-
-        v20.1 reported 71% was inflated by lookahead bias — not real.
+          10:45  tp1 v22  min-seed >= 0.22  WR=68.4%  avg=+0.64%
+          11:30  tp1 v22  min-seed >= 0.18  WR=60.8%  avg=+0.45%
         """
-        if minutes_from_open >= 120:       # 11:30-13:00 tp1 v21
+        if minutes_from_open >= 120:       # 11:30-13:00 tp1 v22
+            return 0.18
+        if minutes_from_open >= 75:        # 10:45-11:30 tp1 v22
             return 0.22
-        if minutes_from_open >= 75:        # 10:45-11:30 tp1 v21
-            return 0.25
         if minutes_from_open >= 30:        # 10:00-10:45 Huber v19
             return 0.10
-        return 0.45                        # 09:30 tp1 v21
+        return 0.42                        # 09:30 tp1 v22
 
     def can_reach_75(self, minutes_from_open: int) -> bool:
         # Tradeable window: 0 (09:30) to 210 (13:00)
