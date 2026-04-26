@@ -212,7 +212,7 @@ def build_features(start_date, end_date, output_path, limit_symbols=200):
     # 1. Load universe (top N by volume)
     print(f"\n[{_time.time()-t_start:.0f}s] Loading universe...")
     syms = [r[0] for r in conn.execute(
-        f"SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT {limit_symbols}"
+        f"SELECT symbol FROM universe_stocks WHERE sector != 'ETF' ORDER BY dollar_vol DESC LIMIT {limit_symbols}"
     ).fetchall()]
     sectors_map = dict(conn.execute("SELECT symbol, sector FROM universe_stocks WHERE sector IS NOT NULL").fetchall())
     betas = dict(conn.execute("SELECT symbol, beta FROM stock_fundamentals WHERE beta IS NOT NULL").fetchall())
