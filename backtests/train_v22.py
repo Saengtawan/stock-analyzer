@@ -43,6 +43,7 @@ INTERACTIONS = ['gain_x_spy', 'vol_x_mcap', 'gain_x_xlk', 'gain_div_vix', 'range
 # Bucket specs: (mfo_lo, mfo_hi, model_pattern, use_interactions)
 BUCKET_SPECS = {
     '0930_1000': (5, 25, 'lgb_tp1_0930_1000_seed{}.txt', True),
+    '1000_1045': (30, 75, 'lgb_tp1_1000_1045_seed{}.txt', False),
     '1045_1130': (75, 115, 'lgb_tp1_1045_1130_seed{}.txt', False),
     '1130_1300': (120, 200, 'lgb_tp1_1130_1300_seed{}.txt', False),
 }

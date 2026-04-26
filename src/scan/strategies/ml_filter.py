@@ -601,21 +601,12 @@ class MLFilterStrategy(BaseStrategy):
             if self.REQUIRE_75_THRESHOLD and prob < threshold:
                 continue
 
-            # Q25 downside filter: reject high-variance faders (10:00+ only)
-            if not scorer.passes_q25_filter(features, minutes_from_open):
-                continue
-
-            # Confidence gate: reject if model is uncertain (regime-aware, 10:00+ only)
-            if not scorer.passes_confidence_filter(features, minutes_from_open):
-                continue
-
             atr_pct = (hi - lo) / now * 100 if now > 0 else 3.0
             # Trail 3% unified — matches training label_fixed3 across all buckets.
             trail = 3.0
             sl_price = now * (1 - trail / 100)
-            q25 = scorer.score_q25(features, minutes_from_open)
             reason = (
-                f"ML pnl={prob:.3f} q25={q25:.3f} "
+                f"ML p={prob:.3f} thr={threshold:.2f} "
                 f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]}"
             )
 
