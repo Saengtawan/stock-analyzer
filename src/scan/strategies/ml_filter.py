@@ -335,74 +335,9 @@ class MLFilterStrategy(BaseStrategy):
             """):
                 avg_daily_vol[r[0]] = float(r[1]) if r[1] else 0.0
 
-            # Sector 3d trend — set to 0 to match training data (sec3d=0 in pkl).
-            # Feeding non-zero values here would cause train/live feature mismatch.
-            # Fix properly: rebuild pkl with computed sec3d + retrain.
-            sector_3d = {}
-
-            # v3 new features: insider, news, earnings, PM vol, short interest
-            insider_net = {}
-            for r in conn.execute("""
-                SELECT symbol,
-                    SUM(CASE WHEN transaction_type='purchase' THEN shares ELSE 0 END) as buys,
-                    SUM(CASE WHEN transaction_type='sale' THEN shares ELSE 0 END) as sells
-                FROM insider_transactions
-                WHERE transaction_date >= date('now','-30 days')
-                GROUP BY symbol
-            """):
-                total = (r[1] or 0) + (r[2] or 0)
-                if total > 0:
-                    insider_net[r[0]] = ((r[1] or 0) - (r[2] or 0)) / total
-
-            news_sent = {}
-            for r in conn.execute("""
-                SELECT symbol, AVG(CASE
-                    WHEN sentiment_label='very_positive' THEN 2
-                    WHEN sentiment_label='positive' THEN 1
-                    WHEN sentiment_label='negative' THEN -1
-                    WHEN sentiment_label='very_negative' THEN -2 ELSE 0 END)
-                FROM news_events
-                WHERE published_at >= datetime('now','-1 day')
-                AND symbol IS NOT NULL GROUP BY symbol
-            """):
-                news_sent[r[0]] = r[1] or 0
-
-            earn_days = {}
-            for r in conn.execute("""
-                SELECT symbol, MIN(julianday(next_earnings_date) - julianday('now'))
-                FROM earnings_calendar
-                WHERE next_earnings_date >= date('now')
-                GROUP BY symbol
-            """):
-                earn_days[r[0]] = min(r[1] or 60, 60)
-
-            pm_vol_today = {}
-            pm_vol_avg = {}
-            for r in conn.execute("""
-                SELECT symbol, SUM(volume) FROM intraday_bars_5m
-                WHERE date = date('now') AND time_et < '09:30'
-                GROUP BY symbol
-            """):
-                pm_vol_today[r[0]] = r[1] or 0
-            for r in conn.execute("""
-                SELECT symbol, AVG(vol) FROM (
-                    SELECT symbol, date, SUM(volume) as vol FROM intraday_bars_5m
-                    WHERE time_et < '09:30' AND date >= date('now','-14 days') AND date < date('now')
-                    GROUP BY symbol, date
-                ) GROUP BY symbol
-            """):
-                pm_vol_avg[r[0]] = r[1] or 0
-
-            short_pct = {}
-            try:
-                for r in conn.execute("""
-                    SELECT si.symbol, si.short_pct_float FROM short_interest si
-                    INNER JOIN (SELECT symbol, MAX(date) as md FROM short_interest GROUP BY symbol) latest
-                    ON si.symbol = latest.symbol AND si.date = latest.md
-                """):
-                    short_pct[r[0]] = r[1] or 0
-            except Exception:
-                pass
+            # NOTE: 6 features were dropped from v22 model (sec3d, insider_net_30d,
+            # news_sentiment, earnings_days, pm_vol_ratio, short_pct). Their SQL
+            # queries were removed — they were always 0 in pkl, model never used them.
         finally:
             conn.close()
 
@@ -560,7 +495,7 @@ class MLFilterStrategy(BaseStrategy):
             range_exp = range_pct / rng10 if rng10 > 0 else 1
 
             sec = sectors.get(sym, '')
-            sec3d = sector_3d.get(sec, 0)
+            # sec3d dropped from v22 (always 0 in trainer) — sec_rel_strength uses 0 implicitly.
 
             # Live multi-bar features from Alpaca 5-min bars
             sym_bars = bars_by_sym.get(sym, [])
@@ -595,27 +530,19 @@ class MLFilterStrategy(BaseStrategy):
                 'vix': vix,
                 'vix_5d_chg': vix_5d_chg,
                 'ad_ratio': ad_ratio,
-                'sec3d': sec3d,
                 'mom5d': mom5,
                 'mom20d': mom20,
                 'dist_sma20': dist_sma20,
                 'pct_52w_hi': pct_52w_hi,
                 'pct_52w_lo': pct_52w_lo,
                 'dow': dow,
-                # v3 new features
-                'insider_net_30d': insider_net.get(sym, 0),
-                'news_sentiment': news_sent.get(sym, 0),
-                'earnings_days': earn_days.get(sym, 60),
-                'pm_vol_ratio': (pm_vol_today.get(sym, 0) / pm_vol_avg[sym]
-                                 if pm_vol_avg.get(sym, 0) > 0 else 0),
-                'short_pct': short_pct.get(sym, 0),
                 # v6 macro features
                 'btc_5d_chg': btc_5d_chg,
                 'jpy_5d_chg': jpy_5d_chg,
                 'skew': skew_v,
                 'vvix': vvix_v,
                 'vix_term_spread': vix_term_spread,
-                'sec_rel_strength': max(-20, min(20, gain - sec3d)),
+                'sec_rel_strength': max(-20, min(20, gain)),  # sec3d=0 implicit
                 # v7 intraday features
                 'gain_first30': bar_feats.get('gain_first30', 0),
                 'entry_vs_first30': bar_feats.get('entry_vs_first30', 0),
@@ -627,15 +554,11 @@ class MLFilterStrategy(BaseStrategy):
                 **self._compute_path_features(sym_bars, opn),
                 # v9 speed features
                 **self._compute_speed_features(sym_bars, opn),
-                # v9 gap interactions (for 09:30 bucket)
+                # v9 gap interactions (legacy — most not in v22 model but kept for compat)
                 'gap_x_vol': gap_from_prev * vol_ratio,
                 'gap_x_beta': gap_from_prev * beta,
                 'gap_x_spy': gap_from_prev * spy_green,
-                'gap_x_pm': gap_from_prev * (pm_vol_today.get(sym, 0) / pm_vol_avg[sym]
-                            if pm_vol_avg.get(sym, 0) > 0 else 0),
                 'gap_abs': abs(gap_from_prev),
-                'vol_x_pm': vol_ratio * (pm_vol_today.get(sym, 0) / pm_vol_avg[sym]
-                            if pm_vol_avg.get(sym, 0) > 0 else 0),
                 'gain_x_vol': gain * vol_ratio,
                 'gap_x_vix': gap_from_prev * vix,
                 'mom5_x_gap': mom5 * gap_from_prev,
