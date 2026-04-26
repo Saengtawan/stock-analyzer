@@ -453,6 +453,32 @@ def build_features(start_date, end_date, output_path, limit_symbols=200):
                         hh_count += 1
                         prev_hi = b[2]
 
+                # v27 Multi-timeframe features: 15m, 30m, 1h aggregates
+                def _tf_feats(bars, tag):
+                    if not bars:
+                        return {f'{tag}_gain': 0.0, f'{tag}_range': 0.0,
+                                f'{tag}_vol_norm': 1.0, f'{tag}_green_pct': 0.0,
+                                f'{tag}_high_break': 0.0}
+                    o = bars[0][1]; c = bars[-1][4]
+                    hi = max(b[2] for b in bars); lo = min(b[3] for b in bars)
+                    vol = sum((b[5] or 0) for b in bars)
+                    green = sum(1 for b in bars if b[4] > b[1])
+                    avg_bar_vol = vol / len(bars) if bars else 1
+                    first_bar_vol = (bars[0][5] or 1) if bars else 1
+                    # Did current close break window high?
+                    high_break = 1.0 if c >= hi - 0.001 else 0.0
+                    return {
+                        f'{tag}_gain': (c / o - 1) * 100 if o > 0 else 0.0,
+                        f'{tag}_range': (hi - lo) / day_open * 100 if day_open > 0 else 0.0,
+                        f'{tag}_vol_norm': min(20.0, avg_bar_vol / first_bar_vol) if first_bar_vol > 0 else 1.0,
+                        f'{tag}_green_pct': green / len(bars) if bars else 0.0,
+                        f'{tag}_high_break': high_break,
+                    }
+
+                tf15_feats = _tf_feats(past_bars[-3:] if len(past_bars) >= 3 else past_bars, '15m')
+                tf30_feats = _tf_feats(past_bars[-6:] if len(past_bars) >= 6 else past_bars, '30m')
+                tf60_feats = _tf_feats(past_bars[-12:] if len(past_bars) >= 12 else past_bars, '1h')
+
                 # Consolidation — last 5 bars range as % of day_open (canonical, matches live).
                 last5 = past_bars[-min(5, len(past_bars)):]
                 consol = (max(b[2] for b in last5) - min(b[3] for b in last5)) / day_open * 100
@@ -524,6 +550,8 @@ def build_features(start_date, end_date, output_path, limit_symbols=200):
                     'vix': vix, 'vix_5d_chg': vix_5d, 'ad_ratio': ad, 'sec3d': sec3d,
                     'mom5d': mom5, 'mom20d': mom20, 'dist_sma20': dist_sma20,
                     'pct_52w_hi': pct_52w_hi, 'pct_52w_lo': pct_52w_lo, 'dow': dow,
+                    # v27: Multi-timeframe (15m, 30m, 1h aggregates)
+                    **tf15_feats, **tf30_feats, **tf60_feats,
                     # v3 features (zeros for now — need separate backfill)
                     'insider_net_30d': 0, 'news_sentiment': 0, 'earnings_days': 60,
                     'pm_vol_ratio': 0, 'short_pct': 0,

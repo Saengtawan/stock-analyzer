@@ -48,6 +48,35 @@ class MLFilterStrategy(BaseStrategy):
     MIN_PRICE = 3.0
     MIN_GAIN = 2.0   # loose — let ML decide
 
+    @staticmethod
+    def _compute_multi_tf(bars, day_open):
+        """v27: Multi-timeframe features (15m/30m/1h aggregates) from 5-min bars."""
+        def _tf(window_bars, tag):
+            if not window_bars or day_open <= 0:
+                return {f'{tag}_gain': 0.0, f'{tag}_range': 0.0,
+                        f'{tag}_vol_norm': 1.0, f'{tag}_green_pct': 0.0,
+                        f'{tag}_high_break': 0.0}
+            o = window_bars[0].get('o', 0); c = window_bars[-1].get('c', 0)
+            hi = max(b.get('h', 0) for b in window_bars)
+            lo = min(b.get('l', 9e9) for b in window_bars)
+            vol = sum(b.get('v', 0) or 0 for b in window_bars)
+            green = sum(1 for b in window_bars if b.get('c', 0) > b.get('o', 0))
+            avg_bar_vol = vol / len(window_bars) if window_bars else 1
+            first_bar_vol = window_bars[0].get('v', 1) or 1
+            high_break = 1.0 if c >= hi - 0.001 else 0.0
+            return {
+                f'{tag}_gain': (c / o - 1) * 100 if o > 0 else 0.0,
+                f'{tag}_range': (hi - lo) / day_open * 100,
+                f'{tag}_vol_norm': min(20.0, avg_bar_vol / first_bar_vol) if first_bar_vol > 0 else 1.0,
+                f'{tag}_green_pct': green / len(window_bars) if window_bars else 0.0,
+                f'{tag}_high_break': high_break,
+            }
+        out = {}
+        out.update(_tf(bars[-3:] if len(bars) >= 3 else bars, '15m'))
+        out.update(_tf(bars[-6:] if len(bars) >= 6 else bars, '30m'))
+        out.update(_tf(bars[-12:] if len(bars) >= 12 else bars, '1h'))
+        return out
+
     # v24 hybrid sector strength rule (10:00 bucket): skip if stock's sector ETF down >0.3% intra
     _SECTOR_ETF = {
         'Technology': 'xlk_intra',
@@ -371,6 +400,8 @@ class MLFilterStrategy(BaseStrategy):
                 'vvix': vvix_v,
                 'vix_term_spread': vix_term_spread,
                 'sec_rel_strength': max(-20, min(20, gain)),  # sec3d=0 implicit
+                # v27: multi-timeframe features (used by 10:00 + 11:30 models)
+                **self._compute_multi_tf(sym_bars, opn),
                 # Cross-asset intraday features (v22 model uses 25 of these)
                 'spy_intra': spy_intra,
                 'qqq_intra': etf_intraday('QQQ'),

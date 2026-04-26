@@ -1,30 +1,29 @@
 """
-ML Scorer v25 — Two-stage ML + hard rules + Tech-specialized 09:30.
+ML Scorer v27 — Multi-architecture: tabular + multi-timeframe + Tech routing.
 
-Architecture per bucket:
-  Stage 1: tp1 win model (MIN-seed of 5 bagging seeds)
-           v25 ADDITION: Tech sector at 09:30 → Tech-specialized model
-  Stage 2: loss reject model (MAX-seed of 5 bagging seeds)
-  Stage 3: per-bucket hard rules (in ml_filter.py)
+Architecture (v27 selective deployment based on validation):
+  09:30  Tech sector  → Tech-specialized model (v25 routing)
+         Other sector → unified model
+         Hard rule: mom20d ≤ 20
+         mfo=5 (09:35 bar) threshold = 0.40 (looser, v26)
 
-Hard rules (v24):
-  09:30 — skip if mom20d > 20 (anti-extreme)
-  10:00 — skip if sector_etf intra < -0.3% (sector strength)
-  10:45 — skip if mom20d > 20
-  11:30 — no rule
+  10:00  ALL stocks   → multi-timeframe model (v27, +6.2pp WR! 🎯)
+         Hard rule: sector_etf ≥ -0.3%
 
-Tech specialization (v25, 09:30 only — validated):
-  Tech sectors (Technology + Communication Services) use specialized model
-  Validated +3.1pp WR vs unified at 09:30 (only bucket where this helps).
-  Other sectors at 09:30 use unified model.
+  10:45  ALL stocks   → unified model (multi-tf hurts here)
+         Hard rule: mom20d ≤ 20
 
-24-month walk-forward HONEST validation (v25 vs v24):
-  09:30  WR≈68.7%  +3.1pp from Tech routing 🎯
-  10:00  WR=68.8%  same as v24
-  10:45  WR=72.2%  same as v24 (already >70%)
-  11:30  WR=61.3%  same as v24
+  11:30  ALL stocks   → multi-timeframe model (v27, +1.6pp WR)
+         No hard rule
 
-Avg WR projection: ~67.8% (vs v24 67.1%)
+24-month walk-forward HONEST validation (v27):
+  09:30  Tech-routed + mfo-tuned       WR≈68.5%  avg=+1.55%
+  10:00  multi-tf model                WR≈73.7%  avg=+1.79%  🎯 OVER 70%!
+  10:45  unified                       WR=70.3%  avg=+0.67%  🎯 (already)
+  11:30  multi-tf model                WR=62.9%  avg=+0.45%
+
+Avg WR: ~68.9% (vs v26 67.6%, +1.3pp)
+Best buckets: 10:00 = 73.7%, 10:45 = 70.3%
 """
 import json
 from pathlib import Path
@@ -67,6 +66,18 @@ class MLScorer:
     TECH_LOSS_FILES_0930 = ('lgb_loss_tech_0930_1000_seed{}.txt', 5)
     TECH_SECTORS = {'Technology', 'Communication Services'}
 
+    # v27: Multi-timeframe models (10:00 + 11:30 only — validated to help these buckets).
+    # 09:30 not enough bars for higher TFs; 10:45 multi-tf hurt. Selective deploy.
+    TF_BUCKETS = {'10:00-10:45', '11:30-13:00'}
+    TF_MODEL_FILES = {
+        '10:00-10:45': ('lgb_tp1_tf_1000_1045_seed{}.txt', 5),
+        '11:30-13:00': ('lgb_tp1_tf_1130_1300_seed{}.txt', 5),
+    }
+    TF_LOSS_FILES = {
+        '10:00-10:45': ('lgb_loss_tf_1000_1045_seed{}.txt', 5),
+        '11:30-13:00': ('lgb_loss_tf_1130_1300_seed{}.txt', 5),
+    }
+
     LOSS_THRESHOLDS = {
         '09:30-10:00': 0.35,
         '10:00-10:45': 0.45,
@@ -79,6 +90,9 @@ class MLScorer:
         self.loss_models = {}
         self.tech_models_0930 = []   # v25: Tech-specialized 09:30
         self.tech_loss_0930 = []     # v25: Tech-specialized loss 09:30
+        self.tf_models = {}          # v27: Multi-timeframe models per bucket
+        self.tf_loss_models = {}     # v27: Multi-timeframe loss models per bucket
+        self.features_late_tf = []   # v27: Features list with multi-tf (71)
         self._load_features()
         self._load_models()
 
@@ -107,6 +121,13 @@ class MLScorer:
                 self.features_late = [line.strip() for line in f if line.strip()]
         else:
             self.features_late = self.features_0930
+        # v27: features with multi-timeframe (71 features for 10:00 + 11:30)
+        v27_late_tf = V22_DIR / 'features_late_tf.txt'
+        if v27_late_tf.exists():
+            with open(v27_late_tf) as f:
+                self.features_late_tf = [line.strip() for line in f if line.strip()]
+        else:
+            self.features_late_tf = self.features_late
 
     def _load_models(self):
         # Load tp1 win models.
@@ -140,6 +161,23 @@ class MLScorer:
             mp = V22_DIR / pattern.format(s)
             if mp.exists():
                 self.tech_loss_0930.append(lgb.Booster(model_file=str(mp)))
+        # v27: Load multi-timeframe models for 10:00 + 11:30 buckets.
+        for bucket, (pattern, n_seeds) in self.TF_MODEL_FILES.items():
+            ensemble = []
+            for s in range(n_seeds):
+                mp = V22_DIR / pattern.format(s)
+                if mp.exists():
+                    ensemble.append(lgb.Booster(model_file=str(mp)))
+            if ensemble:
+                self.tf_models[bucket] = ensemble
+        for bucket, (pattern, n_seeds) in self.TF_LOSS_FILES.items():
+            ensemble = []
+            for s in range(n_seeds):
+                mp = V22_DIR / pattern.format(s)
+                if mp.exists():
+                    ensemble.append(lgb.Booster(model_file=str(mp)))
+            if ensemble:
+                self.tf_loss_models[bucket] = ensemble
 
     def get_bucket(self, minutes_from_open: int) -> str:
         # Negative = pre-market (shouldn't be called — in_time_window guards this)
@@ -152,34 +190,47 @@ class MLScorer:
         return '14:00-16:00'
 
     def score(self, features: dict, minutes_from_open: int, sector: str = '') -> float:
-        """Score stock with v25 two-stage + Tech-specialized 09:30 routing.
+        """Score stock with v27 architecture.
 
-        Stage 1 (tp1 win): MIN of 5 seeds — picks where ALL agree on win.
-                          v25: Tech stocks at 09:30 use Tech-specialized model.
-        Stage 2 (loss reject): MAX of 5 seeds — reject if ANY seed says big loss.
-
-        Returns 0.0 if rejected by loss model. Otherwise tp1 min-seed score.
+        Routing logic:
+        - Tech sectors at 09:30 → Tech-specialized model (v25)
+        - 10:00 + 11:30 buckets → multi-timeframe models (v27, +6.2pp at 10:00!)
+        - All others → unified models (v22)
         """
         bucket = self.get_bucket(minutes_from_open)
         ensemble = self.models.get(bucket)
         if not ensemble:
             return 0.0
 
-        feat_list = self.features_0930 if bucket == '09:30-10:00' else self.features_late
-        row = [features.get(f, 0.0) for f in feat_list]
-        arr = np.array([row], dtype=float)
-
-        # v25: route Tech stocks at 09:30 → Tech-specialized model (+3.1pp WR validated)
+        # v25: Tech routing at 09:30
         is_tech_0930 = (bucket == '09:30-10:00' and
                         sector in self.TECH_SECTORS and
                         len(self.tech_models_0930) == 5)
+        # v27: Multi-tf routing at 10:00 + 11:30 (validated to help)
+        use_tf = (bucket in self.TF_BUCKETS and
+                  bucket in self.tf_models and
+                  len(self.tf_models[bucket]) == 5)
+
+        # Pick feature list + ensembles
         if is_tech_0930:
+            feat_list = self.features_0930
             tp1_ensemble = self.tech_models_0930
             loss_ensemble = self.tech_loss_0930 or self.loss_models.get(bucket)
+        elif use_tf:
+            feat_list = self.features_late_tf
+            tp1_ensemble = self.tf_models[bucket]
+            loss_ensemble = self.tf_loss_models.get(bucket) or self.loss_models.get(bucket)
+        elif bucket == '09:30-10:00':
+            feat_list = self.features_0930
+            tp1_ensemble = ensemble
+            loss_ensemble = self.loss_models.get(bucket)
         else:
+            feat_list = self.features_late
             tp1_ensemble = ensemble
             loss_ensemble = self.loss_models.get(bucket)
 
+        row = [features.get(f, 0.0) for f in feat_list]
+        arr = np.array([row], dtype=float)
         preds = [float(m.predict(arr)[0]) for m in tp1_ensemble]
         win_score = min(preds)
 

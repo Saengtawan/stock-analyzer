@@ -19,7 +19,8 @@ import pandas as pd
 import lightgbm as lgb
 
 REPO = Path(__file__).resolve().parents[1]
-V22_PKL = '/tmp/bt_features_v22.pkl'  # ETF-clean (trainer matches live universe)
+V22_PKL = '/tmp/bt_features_v22.pkl'   # ETF-clean (no multi-tf)
+V27_PKL = '/tmp/bt_features_v27.pkl'   # v27: + multi-timeframe features (15m/30m/1h)
 OUT_DIR = REPO / 'backtests' / 'models_prod_v22'
 
 # v19 baseline features minus 6 always-zero placeholders.
@@ -61,6 +62,18 @@ TECH_SECTORS_TRAIN = {'Technology', 'Communication Services'}
 TECH_MODEL_SPECS = {
     '0930_1000_tech': (5, 25, 'lgb_tp1_tech_0930_1000_seed{}.txt', True),
     '0930_1000_tech_loss': (5, 25, 'lgb_loss_tech_0930_1000_seed{}.txt', True),
+}
+
+# v27 Multi-timeframe models (10:00 + 11:30 only, validated to help these buckets)
+TF_FEATURES = []
+for tf in ['15m', '30m', '1h']:
+    for f in ['gain', 'range', 'vol_norm', 'green_pct', 'high_break']:
+        TF_FEATURES.append(f'{tf}_{f}')
+TF_BUCKET_SPECS = {
+    '1000_1045_tf':      (30, 75, 'lgb_tp1_tf_1000_1045_seed{}.txt', False),
+    '1000_1045_tf_loss': (30, 75, 'lgb_loss_tf_1000_1045_seed{}.txt', False),
+    '1130_1300_tf':      (120, 200, 'lgb_tp1_tf_1130_1300_seed{}.txt', False),
+    '1130_1300_tf_loss': (120, 200, 'lgb_loss_tf_1130_1300_seed{}.txt', False),
 }
 TRAIN_DAYS = 365
 N_SEEDS = 5
@@ -120,6 +133,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--end-date', default=datetime.today().strftime('%Y-%m-%d'))
     ap.add_argument('--buckets', nargs='+', default=list(BUCKET_SPECS.keys()))
+    ap.add_argument('--train-v27-tf', action='store_true',
+                    help='Also train v27 multi-timeframe models (10:00 + 11:30)')
     args = ap.parse_args()
 
     print(f"Loading {V22_PKL}...")
@@ -177,7 +192,35 @@ def main():
                      TECH_MODEL_SPECS['0930_1000_tech_loss'], args.end_date,
                      label_col='label_fixed3', label_thr=-1.0, label_op='le', tag='tech-loss')
 
-    print(f"\n✅ v25 models saved to {OUT_DIR}")
+    # v27: Multi-timeframe models for 10:00 + 11:30 (validated +6.2pp at 10:00, +1.6pp at 11:30)
+    if args.train_v27_tf:
+        print(f"\n=== v27 MULTI-TIMEFRAME (10:00 + 11:30 only) ===")
+        # Load v27 pkl which has multi-tf features
+        df_tf = pd.read_pickle(V27_PKL)
+        df_tf['date'] = pd.to_datetime(df_tf['date']).dt.strftime('%Y-%m-%d')
+        tf_feats_avail = [f for f in TF_FEATURES if f in df_tf.columns]
+        print(f"  Multi-tf features available: {len(tf_feats_avail)}/{len(TF_FEATURES)}")
+        # Numeric conversion
+        for c in feats_avail + tf_feats_avail + ['label_decay', 'label_fixed3']:
+            if c in df_tf.columns:
+                df_tf[c] = pd.to_numeric(df_tf[c], errors='coerce')
+        df_tf = add_interactions(df_tf)
+        # Save tf feature list (base 56 + multi-tf 15 = 71)
+        feats_late_tf = feats_avail + tf_feats_avail
+        with open(OUT_DIR / 'features_late_tf.txt', 'w') as f:
+            for ft in feats_late_tf:
+                f.write(ft + '\n')
+        print(f"  Wrote features_late_tf.txt ({len(feats_late_tf)} features)")
+        # Train tp1 + loss for 10:00 and 11:30 with multi-tf
+        for bucket_key in ['1000_1045', '1130_1300']:
+            train_bucket(df_tf, feats_late_tf, f'{bucket_key}_tf',
+                         TF_BUCKET_SPECS[f'{bucket_key}_tf'], args.end_date,
+                         label_col='label_decay', label_thr=1.0, label_op='ge', tag='tf-tp1')
+            train_bucket(df_tf, feats_late_tf, f'{bucket_key}_tf_loss',
+                         TF_BUCKET_SPECS[f'{bucket_key}_tf_loss'], args.end_date,
+                         label_col='label_fixed3', label_thr=-1.0, label_op='le', tag='tf-loss')
+
+    print(f"\n✅ v27 models saved to {OUT_DIR}")
 
 
 if __name__ == '__main__':
