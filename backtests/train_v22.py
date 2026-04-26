@@ -47,6 +47,14 @@ BUCKET_SPECS = {
     '1045_1130': (75, 115, 'lgb_tp1_1045_1130_seed{}.txt', False),
     '1130_1300': (120, 200, 'lgb_tp1_1130_1300_seed{}.txt', False),
 }
+
+# Loss reject model patterns (v23 — explicit "predict loss > 1%" model per bucket)
+LOSS_MODEL_SPECS = {
+    '0930_1000': (5, 25, 'lgb_loss_0930_1000_seed{}.txt', True),
+    '1000_1045': (30, 75, 'lgb_loss_1000_1045_seed{}.txt', False),
+    '1045_1130': (75, 115, 'lgb_loss_1045_1130_seed{}.txt', False),
+    '1130_1300': (120, 200, 'lgb_loss_1130_1300_seed{}.txt', False),
+}
 TRAIN_DAYS = 365
 N_SEEDS = 5
 
@@ -68,7 +76,8 @@ def add_interactions(df):
     return df
 
 
-def train_bucket(df, feats_avail, bucket_key, spec, end_date):
+def train_bucket(df, feats_avail, bucket_key, spec, end_date,
+                 label_col='label_decay', label_thr=1.0, label_op='ge', tag='tp1'):
     mfo_lo, mfo_hi, model_pattern, use_inter = spec
     feats = feats_avail + (INTERACTIONS if use_inter else [])
     cutoff = (datetime.strptime(end_date, '%Y-%m-%d') - timedelta(days=TRAIN_DAYS)).strftime('%Y-%m-%d')
@@ -77,16 +86,18 @@ def train_bucket(df, feats_avail, bucket_key, spec, end_date):
         (df['mins_from_open'] >= mfo_lo) & (df['mins_from_open'] <= mfo_hi)
     )
     df_train = df[train_mask]
-    print(f"\n=== Bucket {bucket_key} (mfo {mfo_lo}-{mfo_hi}) ===")
-    print(f"Features: {len(feats)} ({'with interactions' if use_inter else 'base only'})")
-    print(f"Training rows: {len(df_train):,}  cutoff {cutoff} → {end_date}")
+    print(f"\n=== {tag.upper()} bucket {bucket_key} (mfo {mfo_lo}-{mfo_hi}) ===")
+    print(f"Training rows: {len(df_train):,}  feats: {len(feats)}")
 
     if len(df_train) < 5000:
         print(f"ERROR: too few training rows ({len(df_train)})", file=sys.stderr)
         return False
 
     X = df_train[feats].fillna(0).values
-    y = (df_train['label_decay'] >= 1.0).astype(int).values
+    if label_op == 'ge':
+        y = (df_train[label_col] >= label_thr).astype(int).values
+    else:  # 'le'
+        y = (df_train[label_col] <= label_thr).astype(int).values
     print(f"Positive rate: {y.mean():.3f} ({y.sum():,}/{len(y):,})")
 
     for seed in range(N_SEEDS):
@@ -115,7 +126,7 @@ def main():
         print(f"WARN: missing features in pkl: {missing}", file=sys.stderr)
     print(f"Base features: {len(feats_avail)} ({len(V7_FEATS)} V7 + {len(CROSS_FEATS)} cross)")
 
-    for c in feats_avail + ['label_decay']:
+    for c in feats_avail + ['label_decay', 'label_fixed3']:
         df[c] = pd.to_numeric(df[c], errors='coerce')
 
     df = add_interactions(df)
@@ -135,7 +146,12 @@ def main():
         if key not in BUCKET_SPECS:
             print(f"WARN: unknown bucket {key}", file=sys.stderr)
             continue
-        train_bucket(df, feats_avail, key, BUCKET_SPECS[key], args.end_date)
+        # tp1 win model (predict label_decay >= 1.0)
+        train_bucket(df, feats_avail, key, BUCKET_SPECS[key], args.end_date,
+                     label_col='label_decay', label_thr=1.0, label_op='ge', tag='tp1')
+        # loss reject model (predict label_fixed3 <= -1.0)
+        train_bucket(df, feats_avail, key, LOSS_MODEL_SPECS[key], args.end_date,
+                     label_col='label_fixed3', label_thr=-1.0, label_op='le', tag='loss')
 
     print(f"\n✅ v20.1 models saved to {OUT_DIR}")
 

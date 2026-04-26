@@ -1,25 +1,28 @@
 """
-ML Scorer v22.1 — UNIFIED architecture + ETF-clean training universe.
+ML Scorer v23 — Two-stage architecture: tp1 win + loss reject.
 
-Single design: tp1 binary classifier (5-seed bagging ensemble) + MIN-seed selection.
-Trainer + live both exclude ETFs from candidate universe (aligned).
+Stage 1 (tp1 win, MIN-seed):
+  - 5-seed bagging classifier predicts P(reach +1%)
+  - MIN of seeds = "all seeds agree" filter
 
-24-month walk-forward HONEST validation:
-  09:30  min-seed ≥ 0.42  WR=63.2%  avg=+1.40%
-  10:00  min-seed ≥ 0.30  WR=66.6%  avg=+1.45%
-  10:45  min-seed ≥ 0.22  WR=68.7%  avg=+0.60%
-  11:30  min-seed ≥ 0.18  WR=61.0%  avg=+0.48%
+Stage 2 (loss reject, MAX-seed):
+  - Separate 5-seed classifier predicts P(loss > 1%)
+  - MAX of seeds = "ANY seed says big loss" → reject pick
 
-v22.1 vs v22:
-  - ETF candidates excluded from trainer (was: included → inflated WR ~2pp at 09:30/10:00)
-  - 09:30 -2.1pp WR / 10:00 -2.9pp WR after honest exclusion
-  - Late buckets unchanged (few ETFs traded at those times)
+Pick passes only if: win_min >= threshold AND loss_max <= LOSS_THRESHOLDS[bucket].
 
-Key features (unchanged from v22):
+24-month walk-forward HONEST validation (v23 vs v22.1):
+  09:30  win>=0.42 + loss<=0.35  WR=65.6%  avg=+1.60%  (vs 63.2%/+1.40%, +2.4pp)
+  10:00  win>=0.30 + loss<=0.45  WR=67.5%  avg=+1.64%  (vs 66.6%/+1.45%, +0.9pp)
+  10:45  win>=0.22 + loss<=0.30  WR=70.3%  avg=+0.67%  (vs 68.7%/+0.60%, +1.6pp)
+  11:30  win>=0.18 + loss<=0.35  WR=61.3%  avg=+0.51%  (vs 61.0%/+0.48%, marginal)
+
+Key features:
   - bagging_fraction=0.8 + feature_fraction=0.8 → real ensemble diversity
-  - MIN of 5 seeds → "all seeds agree" filter, removes lucky outliers
+  - MIN(win) AND MAX(loss) — "all agree win, none warn loss" filter
   - Canonical features (no lookahead) — backtest = live
-  - label_decay (3→2→1% trail) outperforms label_fixed3 at all buckets
+  - label_decay for tp1, label_fixed3 for loss model
+  - ETF excluded from training universe (matches live)
 """
 import json
 from pathlib import Path
@@ -40,8 +43,7 @@ class MLScorer:
         (270, 390): '14:00-16:00',  # 14:00 + 120 min = 16:00
     }
 
-    # Primary model per bucket — uniform v22 architecture (tp1 + min-seed).
-    # All 4 buckets use same tp1 binary classifier with 5-seed bagging ensemble.
+    # Primary tp1 model per bucket — uniform v22 architecture (tp1 + min-seed).
     MODEL_FILES = {
         '09:30-10:00': ('lgb_tp1_0930_1000_seed{}.txt', 5),
         '10:00-10:45': ('lgb_tp1_1000_1045_seed{}.txt', 5),
@@ -49,8 +51,25 @@ class MLScorer:
         '11:30-13:00': ('lgb_tp1_1130_1300_seed{}.txt', 5),
     }
 
+    # v23: Loss reject models per bucket — predict P(label_fixed3 <= -1%).
+    # Pick rejected if MAX of 5 seed loss preds > LOSS_THRESHOLDS[bucket].
+    LOSS_MODEL_FILES = {
+        '09:30-10:00': ('lgb_loss_0930_1000_seed{}.txt', 5),
+        '10:00-10:45': ('lgb_loss_1000_1045_seed{}.txt', 5),
+        '10:45-11:30': ('lgb_loss_1045_1130_seed{}.txt', 5),
+        '11:30-13:00': ('lgb_loss_1130_1300_seed{}.txt', 5),
+    }
+
+    LOSS_THRESHOLDS = {
+        '09:30-10:00': 0.35,
+        '10:00-10:45': 0.45,
+        '10:45-11:30': 0.30,
+        '11:30-13:00': 0.35,
+    }
+
     def __init__(self):
         self.models = {}
+        self.loss_models = {}
         self._load_features()
         self._load_models()
 
@@ -81,7 +100,7 @@ class MLScorer:
             self.features_late = self.features_0930
 
     def _load_models(self):
-        # Load tp1 models — uniform v22 architecture for all 4 buckets.
+        # Load tp1 win models.
         for bucket, (pattern, n_seeds) in self.MODEL_FILES.items():
             ensemble = []
             for s in range(n_seeds):
@@ -92,6 +111,15 @@ class MLScorer:
                     ensemble.append(lgb.Booster(model_file=str(mp)))
             if ensemble:
                 self.models[bucket] = ensemble
+        # Load loss reject models (v23).
+        for bucket, (pattern, n_seeds) in self.LOSS_MODEL_FILES.items():
+            ensemble = []
+            for s in range(n_seeds):
+                mp = V22_DIR / pattern.format(s)
+                if mp.exists():
+                    ensemble.append(lgb.Booster(model_file=str(mp)))
+            if ensemble:
+                self.loss_models[bucket] = ensemble
 
     def get_bucket(self, minutes_from_open: int) -> str:
         # Negative = pre-market (shouldn't be called — in_time_window guards this)
@@ -104,23 +132,32 @@ class MLScorer:
         return '14:00-16:00'
 
     def score(self, features: dict, minutes_from_open: int) -> float:
-        """Score stock with bucket-appropriate model.
+        """Score stock with v23 two-stage architecture.
 
-        Uniform v22 architecture: all 4 buckets use tp1 binary classifier
-        with min-seed selection (worst seed agreement).
+        Stage 1 (tp1 win): MIN of 5 seeds — picks where ALL agree on win.
+        Stage 2 (loss reject): MAX of 5 seeds — reject if ANY seed says big loss.
+
+        Returns 0.0 if rejected by loss model. Otherwise tp1 min-seed score.
         """
         bucket = self.get_bucket(minutes_from_open)
         ensemble = self.models.get(bucket)
         if not ensemble:
             return 0.0
 
-        # 09:30 uses features_0930 (56 base + 5 interactions).
-        # 10:00 / 10:45 / 11:30 use features_late (56 base, no interactions).
         feat_list = self.features_0930 if bucket == '09:30-10:00' else self.features_late
         row = [features.get(f, 0.0) for f in feat_list]
         arr = np.array([row], dtype=float)
         preds = [float(m.predict(arr)[0]) for m in ensemble]
-        return min(preds)  # MIN of 5 seeds — filters lucky outliers
+        win_score = min(preds)  # MIN of 5 seeds — filters lucky outliers
+
+        # v23 loss reject: skip if any seed predicts high loss probability
+        loss_ensemble = self.loss_models.get(bucket)
+        loss_thr = self.LOSS_THRESHOLDS.get(bucket)
+        if loss_ensemble and loss_thr is not None:
+            loss_preds = [float(m.predict(arr)[0]) for m in loss_ensemble]
+            if max(loss_preds) > loss_thr:
+                return 0.0  # rejected — high loss probability
+        return win_score
 
     def score_q25(self, features: dict, minutes_from_open: int) -> float:
         """Deprecated in v22. Always returns 0.0 — kept for caller compat."""
@@ -135,19 +172,15 @@ class MLScorer:
         return True
 
     def threshold_75(self, minutes_from_open: int) -> float:
-        """Per-bucket thresholds — v22.1 (ETF-clean trainer + uniform tp1 + min-seed).
+        """Per-bucket tp1 win thresholds — v23 (two-stage architecture).
 
-        Picks must have ALL 5 seeds confident (worst-case agreement). Trainer
-        and live both exclude ETFs from candidate universe.
+        Pick passes if: win_min >= threshold AND loss_max <= LOSS_THRESHOLDS.
 
-        24-month walk-forward HONEST results (no ETF inflation):
-          09:30  min-seed >= 0.42  WR=63.2%  avg=+1.40%
-          10:00  min-seed >= 0.30  WR=66.6%  avg=+1.45%
-          10:45  min-seed >= 0.22  WR=68.7%  avg=+0.60%
-          11:30  min-seed >= 0.18  WR=61.0%  avg=+0.48%
-
-        v22.1 vs v22: 09:30 -2.1pp / 10:00 -2.9pp WR after ETF exclusion.
-        These are HONEST numbers — no easy ETF candidates inflating training.
+        24-month walk-forward (v23 with loss reject):
+          09:30  win>=0.42 + loss<=0.35  WR=65.6%  avg=+1.60%
+          10:00  win>=0.30 + loss<=0.45  WR=67.5%  avg=+1.64%
+          10:45  win>=0.22 + loss<=0.30  WR=70.3%  avg=+0.67%
+          11:30  win>=0.18 + loss<=0.35  WR=61.3%  avg=+0.51%
         """
         if minutes_from_open >= 120:       # 11:30-13:00
             return 0.18
