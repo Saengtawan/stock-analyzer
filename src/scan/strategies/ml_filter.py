@@ -413,7 +413,7 @@ class MLFilterStrategy(BaseStrategy):
                 'range_pullback': range_pct * (5 - max(0, min(5, gain))),
             }
 
-            prob = scorer.score(features, minutes_from_open)
+            prob = scorer.score(features, minutes_from_open, sector=sec)
 
             if self.REQUIRE_75_THRESHOLD and prob < threshold:
                 continue

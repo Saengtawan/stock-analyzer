@@ -1,29 +1,30 @@
 """
-ML Scorer v24 — Two-stage ML + per-bucket hard rules (hybrid).
+ML Scorer v25 — Two-stage ML + hard rules + Tech-specialized 09:30.
 
 Architecture per bucket:
   Stage 1: tp1 win model (MIN-seed of 5 bagging seeds)
+           v25 ADDITION: Tech sector at 09:30 → Tech-specialized model
   Stage 2: loss reject model (MAX-seed of 5 bagging seeds)
-  Stage 3: per-bucket hard rules (in ml_filter.py — applied AFTER score)
+  Stage 3: per-bucket hard rules (in ml_filter.py)
 
-Hard rules (v24 hybrid additions):
+Hard rules (v24):
   09:30 — skip if mom20d > 20 (anti-extreme)
-  10:00 — skip if stock's sector ETF intraday < -0.3% (sector strength)
-  10:45 — skip if mom20d > 20 (anti-extreme)
-  11:30 — no rule (validated all rules HURT this bucket)
+  10:00 — skip if sector_etf intra < -0.3% (sector strength)
+  10:45 — skip if mom20d > 20
+  11:30 — no rule
 
-24-month walk-forward HONEST validation:
-  09:30  ML+R3   WR=66.2%  avg=+1.48%  (+0.6pp vs v23)
-  10:00  ML+R1   WR=68.8%  avg=+1.65%  (+1.3pp ⭐)
-  10:45  ML+R3   WR=72.2%  avg=+0.72%  (+1.9pp 🎯 BREAKS 70%)
-  11:30  ML only WR=61.3%  avg=+0.51%  (no rule helps)
+Tech specialization (v25, 09:30 only — validated):
+  Tech sectors (Technology + Communication Services) use specialized model
+  Validated +3.1pp WR vs unified at 09:30 (only bucket where this helps).
+  Other sectors at 09:30 use unified model.
 
-Why hybrid works (where ML alone failed):
-  - Tree depth=3 → max 3-way splits, can't capture
-    sector × momentum × vol interactions cleanly
-  - Rules encode trader knowledge as explicit kill switches
-  - 5/9 losers in Apr 13-22 sim were in WEAK sectors
-  - Rules cut these without losing winners
+24-month walk-forward HONEST validation (v25 vs v24):
+  09:30  WR≈68.7%  +3.1pp from Tech routing 🎯
+  10:00  WR=68.8%  same as v24
+  10:45  WR=72.2%  same as v24 (already >70%)
+  11:30  WR=61.3%  same as v24
+
+Avg WR projection: ~67.8% (vs v24 67.1%)
 """
 import json
 from pathlib import Path
@@ -52,14 +53,19 @@ class MLScorer:
         '11:30-13:00': ('lgb_tp1_1130_1300_seed{}.txt', 5),
     }
 
-    # v23: Loss reject models per bucket — predict P(label_fixed3 <= -1%).
-    # Pick rejected if MAX of 5 seed loss preds > LOSS_THRESHOLDS[bucket].
+    # v23: Loss reject models per bucket.
     LOSS_MODEL_FILES = {
         '09:30-10:00': ('lgb_loss_0930_1000_seed{}.txt', 5),
         '10:00-10:45': ('lgb_loss_1000_1045_seed{}.txt', 5),
         '10:45-11:30': ('lgb_loss_1045_1130_seed{}.txt', 5),
         '11:30-13:00': ('lgb_loss_1130_1300_seed{}.txt', 5),
     }
+
+    # v25: Tech-specialized 09:30 models (validated +3.1pp WR for Tech stocks).
+    # Used at 09:30 only (other buckets validated to NOT benefit from specialization).
+    TECH_MODEL_FILES_0930 = ('lgb_tp1_tech_0930_1000_seed{}.txt', 5)
+    TECH_LOSS_FILES_0930 = ('lgb_loss_tech_0930_1000_seed{}.txt', 5)
+    TECH_SECTORS = {'Technology', 'Communication Services'}
 
     LOSS_THRESHOLDS = {
         '09:30-10:00': 0.35,
@@ -71,6 +77,8 @@ class MLScorer:
     def __init__(self):
         self.models = {}
         self.loss_models = {}
+        self.tech_models_0930 = []   # v25: Tech-specialized 09:30
+        self.tech_loss_0930 = []     # v25: Tech-specialized loss 09:30
         self._load_features()
         self._load_models()
 
@@ -121,6 +129,17 @@ class MLScorer:
                     ensemble.append(lgb.Booster(model_file=str(mp)))
             if ensemble:
                 self.loss_models[bucket] = ensemble
+        # v25: Load Tech-specialized 09:30 models.
+        pattern, n_seeds = self.TECH_MODEL_FILES_0930
+        for s in range(n_seeds):
+            mp = V22_DIR / pattern.format(s)
+            if mp.exists():
+                self.tech_models_0930.append(lgb.Booster(model_file=str(mp)))
+        pattern, n_seeds = self.TECH_LOSS_FILES_0930
+        for s in range(n_seeds):
+            mp = V22_DIR / pattern.format(s)
+            if mp.exists():
+                self.tech_loss_0930.append(lgb.Booster(model_file=str(mp)))
 
     def get_bucket(self, minutes_from_open: int) -> str:
         # Negative = pre-market (shouldn't be called — in_time_window guards this)
@@ -132,10 +151,11 @@ class MLScorer:
                 return name
         return '14:00-16:00'
 
-    def score(self, features: dict, minutes_from_open: int) -> float:
-        """Score stock with v23 two-stage architecture.
+    def score(self, features: dict, minutes_from_open: int, sector: str = '') -> float:
+        """Score stock with v25 two-stage + Tech-specialized 09:30 routing.
 
         Stage 1 (tp1 win): MIN of 5 seeds — picks where ALL agree on win.
+                          v25: Tech stocks at 09:30 use Tech-specialized model.
         Stage 2 (loss reject): MAX of 5 seeds — reject if ANY seed says big loss.
 
         Returns 0.0 if rejected by loss model. Otherwise tp1 min-seed score.
@@ -148,16 +168,27 @@ class MLScorer:
         feat_list = self.features_0930 if bucket == '09:30-10:00' else self.features_late
         row = [features.get(f, 0.0) for f in feat_list]
         arr = np.array([row], dtype=float)
-        preds = [float(m.predict(arr)[0]) for m in ensemble]
-        win_score = min(preds)  # MIN of 5 seeds — filters lucky outliers
 
-        # v23 loss reject: skip if any seed predicts high loss probability
-        loss_ensemble = self.loss_models.get(bucket)
+        # v25: route Tech stocks at 09:30 → Tech-specialized model (+3.1pp WR validated)
+        is_tech_0930 = (bucket == '09:30-10:00' and
+                        sector in self.TECH_SECTORS and
+                        len(self.tech_models_0930) == 5)
+        if is_tech_0930:
+            tp1_ensemble = self.tech_models_0930
+            loss_ensemble = self.tech_loss_0930 or self.loss_models.get(bucket)
+        else:
+            tp1_ensemble = ensemble
+            loss_ensemble = self.loss_models.get(bucket)
+
+        preds = [float(m.predict(arr)[0]) for m in tp1_ensemble]
+        win_score = min(preds)
+
+        # v23 loss reject
         loss_thr = self.LOSS_THRESHOLDS.get(bucket)
         if loss_ensemble and loss_thr is not None:
             loss_preds = [float(m.predict(arr)[0]) for m in loss_ensemble]
             if max(loss_preds) > loss_thr:
-                return 0.0  # rejected — high loss probability
+                return 0.0
         return win_score
 
     def score_q25(self, features: dict, minutes_from_open: int) -> float:

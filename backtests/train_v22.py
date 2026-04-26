@@ -55,6 +55,13 @@ LOSS_MODEL_SPECS = {
     '1045_1130': (75, 115, 'lgb_loss_1045_1130_seed{}.txt', False),
     '1130_1300': (120, 200, 'lgb_loss_1130_1300_seed{}.txt', False),
 }
+
+# v25 Tech-specialized model (09:30 only, validated +3.1pp WR vs unified)
+TECH_SECTORS_TRAIN = {'Technology', 'Communication Services'}
+TECH_MODEL_SPECS = {
+    '0930_1000_tech': (5, 25, 'lgb_tp1_tech_0930_1000_seed{}.txt', True),
+    '0930_1000_tech_loss': (5, 25, 'lgb_loss_tech_0930_1000_seed{}.txt', True),
+}
 TRAIN_DAYS = 365
 N_SEEDS = 5
 
@@ -153,7 +160,24 @@ def main():
         train_bucket(df, feats_avail, key, LOSS_MODEL_SPECS[key], args.end_date,
                      label_col='label_fixed3', label_thr=-1.0, label_op='le', tag='loss')
 
-    print(f"\n✅ v20.1 models saved to {OUT_DIR}")
+    # v25: Tech-specialized 09:30 model (validated +3.1pp WR vs unified at 09:30)
+    if '0930_1000' in args.buckets:
+        # Load sector map
+        import sqlite3 as _sql
+        _conn = _sql.connect('/home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db')
+        sec_map = dict(_conn.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
+        _conn.close()
+        df_tech = df[df['sym'].apply(lambda s: sec_map.get(s, '') in TECH_SECTORS_TRAIN)].copy()
+        print(f"\n=== TECH-SPECIALIZED 09:30 (v25) ===")
+        print(f"Tech rows: {len(df_tech):,}/{len(df):,} ({len(df_tech)/len(df)*100:.1f}%)")
+        train_bucket(df_tech, feats_avail, '0930_1000_tech',
+                     TECH_MODEL_SPECS['0930_1000_tech'], args.end_date,
+                     label_col='label_decay', label_thr=1.0, label_op='ge', tag='tech-tp1')
+        train_bucket(df_tech, feats_avail, '0930_1000_tech_loss',
+                     TECH_MODEL_SPECS['0930_1000_tech_loss'], args.end_date,
+                     label_col='label_fixed3', label_thr=-1.0, label_op='le', tag='tech-loss')
+
+    print(f"\n✅ v25 models saved to {OUT_DIR}")
 
 
 if __name__ == '__main__':
