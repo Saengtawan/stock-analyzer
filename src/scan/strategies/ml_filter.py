@@ -23,7 +23,9 @@ import os
 import sqlite3
 import requests
 import numpy as np
+import pytz
 from datetime import datetime
+from pathlib import Path
 from collections import defaultdict
 from dotenv import load_dotenv
 
@@ -95,8 +97,14 @@ class MLFilterStrategy(BaseStrategy):
     }
     MAX_GAIN = 5.0   # gain ≥5% = chased/pumped — all strategies drop to 53-71% WR (2026-04-14 backtest)
 
+    # 2026-04-30: skip Real Estate — uncalibrated (0 strict WF picks, expanded neg).
+    # WELL fade case (live 2026-04-29) confirms: model generalized into REIT blind spot.
+    # Consumer Defensive removed from blacklist — 1-yr WF showed 6/6 picks won (avg +2.23%);
+    #   PM 2026-04-29 loss was variance, replacements only refill 3/6 slots at 67% WR.
+    SECTOR_BLACKLIST = {'Real Estate'}
+
     REQUIRE_75_THRESHOLD = True
-    MAX_PICKS = 3  # quality over quantity — top 3 highest score
+    MAX_PICKS = 1  # 2026-04-30: top-1 deployed (WF: 100% WR, +2.98% avg, +672%/yr)
 
     def scan(self) -> ScanResult:
         if not self.in_time_window():
@@ -126,11 +134,23 @@ class MLFilterStrategy(BaseStrategy):
             br = conn.execute("SELECT ad_ratio FROM market_breadth ORDER BY date DESC LIMIT 1").fetchone()
             ad_ratio = float(br[0]) if br and br[0] else 0.0
 
-            spy_rows = conn.execute("SELECT spy_close FROM macro_snapshots WHERE spy_close IS NOT NULL ORDER BY date DESC LIMIT 5").fetchall()
+            spy_rows = conn.execute("SELECT spy_close FROM macro_snapshots WHERE spy_close IS NOT NULL ORDER BY date DESC LIMIT 50").fetchall()
             if len(spy_rows) < 2 or not spy_rows[0][0] or not spy_rows[1][0]:
                 return self.gate_failed("No SPY data")
             spy_daily = (spy_rows[0][0] / spy_rows[1][0] - 1) * 100
             spy_green = 1 if spy_daily > 0 else 0
+
+            # 2026-05-04: MoE soft regime weight (sigmoid based on SPY vs 50ma)
+            # w_28m = 1 / (1 + exp(-(spy/spy_50ma - 1) * 50))
+            # >0.5 = bull (favor 28m), <0.5 = bear (favor 49m)
+            if len(spy_rows) >= 50:
+                spy_50ma = sum(r[0] for r in spy_rows[:50] if r[0]) / 50
+                spy_now = spy_rows[0][0]
+                spy_vs_50ma = (spy_now / spy_50ma - 1) if spy_50ma > 0 else 0
+                regime_weight = 1.0 / (1.0 + np.exp(-spy_vs_50ma * 50))  # sigmoid
+            else:
+                regime_weight = 1.0  # default: pure 28m if not enough data
+            scorer.set_regime_weight(regime_weight)
 
             vix_row = conn.execute("SELECT vix_close FROM macro_snapshots WHERE vix_close IS NOT NULL ORDER BY date DESC LIMIT 1").fetchone()
             vix = float(vix_row[0]) if vix_row and vix_row[0] else 20.0
@@ -151,11 +171,19 @@ class MLFilterStrategy(BaseStrategy):
             else:
                 btc_5d_chg = jpy_5d_chg = 0; skew_v = 145; vvix_v = 100; vix_term_spread = 1.5
 
-            # Universe — exclude ETFs (they're in top 200 by volume but not tradeable setups)
+            # Universe — exclude ETFs. Top 500 (expanded 2026-04-29 from 200).
+            # Reason: catches stocks like AMKR/CNC/MOH that pumped +5-10% but were rank 400-500.
+            # All 500 have current data + ≥1y history + 99.7% daily coverage.
+            # 2026-05-05 BUG FIX: universe_stocks table is empty/legacy. Use universe_daily_snapshot.
             syms = [r[0] for r in conn.execute(
-                "SELECT symbol FROM universe_stocks WHERE sector != 'ETF' ORDER BY dollar_vol DESC LIMIT 200"
+                """SELECT symbol FROM universe_daily_snapshot
+                   WHERE date=(SELECT MAX(date) FROM universe_daily_snapshot)
+                   AND sector != 'ETF' ORDER BY dollar_vol DESC LIMIT 500"""
             ).fetchall()]
-            sectors = dict(conn.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
+            sectors = dict(conn.execute(
+                """SELECT symbol, sector FROM universe_daily_snapshot
+                   WHERE date=(SELECT MAX(date) FROM universe_daily_snapshot)"""
+            ).fetchall())
             industries = dict(conn.execute("SELECT symbol, industry FROM stock_fundamentals WHERE industry IS NOT NULL").fetchall())
             betas = dict(conn.execute("SELECT symbol, beta FROM stock_fundamentals WHERE beta IS NOT NULL").fetchall())
             mcaps = dict(conn.execute("SELECT symbol, market_cap FROM stock_fundamentals WHERE market_cap IS NOT NULL").fetchall())
@@ -198,26 +226,166 @@ class MLFilterStrategy(BaseStrategy):
         finally:
             conn.close()
 
-        # Alpaca snapshots
+        # 2026-05-07 v2: TRUE FIX — single source of truth (1-min bars only).
+        # Replaces snapshot fetch + override workaround.
+        # Snapshot endpoint had 30-60s lag → caused FFIV-style bad picks.
+        # 1-min bar endpoint is fresh + tick-accurate.
+        # Benefits: 50% fewer API calls, 1-2s faster scan, cleaner architecture.
+        # Cost: rewrote ~80 lines into ~50 lines.
         hdr = {
             'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'),
             'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY'),
         }
-        snaps = {}
-        for i in range(0, len(syms), 100):
-            batch = ','.join(syms[i:i+100])
-            r = requests.get(f'https://data.alpaca.markets/v2/stocks/snapshots?symbols={batch}',
-                             headers=hdr, timeout=15)
-            if r.status_code == 200:
-                snaps.update(r.json())
+        from concurrent.futures import ThreadPoolExecutor
 
-        # Fetch ETF snapshots (SPY, IWM, USO + all sector ETFs + SMH for semis) for regime detection
-        # Includes XLB (Basic Materials) — fixed missing from L1 ranking
         etf_syms = ['SPY', 'IWM', 'USO', 'XLK', 'XLV', 'XLF', 'XLY', 'XLC', 'XLI',
                     'XLP', 'XLE', 'XLB', 'XLRE', 'XLU', 'SMH']
-        r = requests.get(f'https://data.alpaca.markets/v2/stocks/snapshots?symbols={",".join(etf_syms)}',
-                         headers=hdr, timeout=15)
-        etf_snaps = r.json() if r.status_code == 200 else {}
+
+        today_str = now_et.strftime('%Y-%m-%d')
+        market_open_iso = ET.localize(datetime.strptime(f'{today_str} 09:30:00',
+            '%Y-%m-%d %H:%M:%S')).astimezone(pytz.UTC).strftime('%Y-%m-%dT%H:%M:%SZ')
+        now_utc_iso = now_et.astimezone(pytz.UTC).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+        def _fetch_bars(symbols_csv):
+            """Fetch 1-min bars from market open to NOW (real-time)."""
+            try:
+                params = {'symbols': symbols_csv, 'timeframe': '1Min',
+                          'start': market_open_iso, 'end': now_utc_iso,
+                          'limit': 10000, 'feed': 'sip'}
+                r = requests.get('https://data.alpaca.markets/v2/stocks/bars',
+                                 headers=hdr, params=params, timeout=15)
+                if r.status_code == 403:
+                    params['feed'] = 'iex'
+                    r = requests.get('https://data.alpaca.markets/v2/stocks/bars',
+                                     headers=hdr, params=params, timeout=15)
+                if r.status_code == 200:
+                    return r.json().get('bars', {})
+            except Exception:
+                pass
+            return {}
+
+        # Get prev_close from DB (single query)
+        conn = sqlite3.connect(self.DB_PATH)
+        try:
+            prev_closes = dict(conn.execute(
+                "SELECT symbol, close FROM stock_daily_ohlc "
+                "WHERE date = (SELECT MAX(date) FROM stock_daily_ohlc)").fetchall())
+        finally:
+            conn.close()
+
+        # Parallel 1-min bar fetch (5 batches × 100 stocks + ETF batch)
+        stock_batches = [','.join(syms[i:i+100]) for i in range(0, len(syms), 100)]
+        all_batches = stock_batches + [','.join(etf_syms)]
+        all_bars = {}
+        with ThreadPoolExecutor(max_workers=len(all_batches)) as ex:
+            for batch_bars in ex.map(_fetch_bars, all_batches):
+                all_bars.update(batch_bars)
+
+        # Wait+retry if first scan within 90s (1-min bar 09:30 not settled yet)
+        etf_with_bars = sum(1 for s in etf_syms if all_bars.get(s))
+        if etf_with_bars == 0 and minutes_from_open == 0:
+            import time as _time
+            market_open_local = ET.localize(datetime.strptime(f'{today_str} 09:30:00', '%Y-%m-%d %H:%M:%S'))
+            seconds_in = (now_et - market_open_local).total_seconds()
+            if seconds_in < 90:
+                wait_sec = max(0, 70 - seconds_in)
+                if wait_sec > 0:
+                    print(f"[ml_filter] Waiting {wait_sec:.0f}s for bar 09:30 to complete...")
+                    _time.sleep(wait_sec)
+                now_utc_iso = datetime.now(ET).astimezone(pytz.UTC).strftime('%Y-%m-%dT%H:%M:%SZ')
+                all_bars = {}
+                with ThreadPoolExecutor(max_workers=len(all_batches)) as ex:
+                    for batch_bars in ex.map(_fetch_bars, all_batches):
+                        all_bars.update(batch_bars)
+                etf_with_bars = sum(1 for s in etf_syms if all_bars.get(s))
+
+        if etf_with_bars == 0:
+            return self.gate_failed(
+                "Market data not ready — no 1-min bars available yet. "
+                "Wait until next scan cycle.")
+
+        # Build snapshot-equivalent from 1-min bars (single source of truth)
+        def _build_snap(sym, bars):
+            if not bars: return None
+            opens = [b['o'] for b in bars]
+            highs = [b['h'] for b in bars]
+            lows = [b['l'] for b in bars]
+            closes = [b['c'] for b in bars]
+            vols = [b['v'] for b in bars]
+            vws = [b.get('vw', b['c']) for b in bars]
+            tot_vol = sum(vols) or 1
+            vwap_today = sum(v*p for v, p in zip(vols, vws)) / tot_vol
+            return {
+                'dailyBar': {'o': opens[0], 'h': max(highs), 'l': min(lows),
+                             'c': closes[-1], 'v': sum(vols), 'vw': vwap_today,
+                             't': bars[0]['t']},
+                'prevDailyBar': {'c': prev_closes.get(sym, 0)},
+            }
+
+        snaps = {sym: _build_snap(sym, all_bars.get(sym, [])) for sym in syms}
+        snaps = {k: v for k, v in snaps.items() if v is not None}
+        etf_snaps = {sym: _build_snap(sym, all_bars.get(sym, [])) for sym in etf_syms}
+        etf_snaps = {k: v for k, v in etf_snaps.items() if v is not None}
+
+        # Dump snapshots for retrospective sim — self-contained replay.
+        # Per-scan: snaps + etf_snaps + DB state used. Per-day: daily history (separate file).
+        # Storage: ~80 KB/scan × 42 scans + ~3 MB/day = ~140 MB/month, ~1.7 GB/year.
+        try:
+            import gzip, json
+            snap_dir = Path(self.DB_PATH).parent / 'scan_snapshots'
+            snap_dir.mkdir(exist_ok=True)
+
+            # Read model version (mtime of zone Z1 model)
+            from ..ml_scorer import V22_DIR as _V22
+            import datetime as _dt
+            try:
+                model_mtime = (_V22 / 'lgb_tp1_Z1_seed0.txt').stat().st_mtime
+                model_version = _dt.datetime.fromtimestamp(model_mtime).strftime('%Y-%m-%d_%H-%M')
+            except Exception:
+                model_version = 'unknown'
+
+            ts_str = now_et.strftime('%Y-%m-%d_%H-%M-%S')
+            payload = {
+                'scan_ts_et': now_et.strftime('%Y-%m-%d %H:%M:%S %Z'),
+                'minutes_from_open': minutes_from_open,
+                'bucket': bucket,
+                'threshold': threshold,
+                'model_version': model_version,
+                'sector_blacklist': sorted(self.SECTOR_BLACKLIST),
+                'snaps': snaps,
+                'etf_snaps': etf_snaps,
+                # DB-derived state (captured at scan time)
+                'sectors': sectors,
+                'betas': betas,
+                'mcaps': mcaps,
+                'industries': industries,
+                'earnings_skip': sorted(earnings_skip),
+                'macro': {
+                    'spy_green': spy_green, 'spy_daily': spy_daily,
+                    'vix': vix, 'vix_5d_chg': vix_5d_chg,
+                    'btc_5d_chg': btc_5d_chg, 'jpy_5d_chg': jpy_5d_chg,
+                    'skew': skew_v, 'vvix': vvix_v,
+                    'vix_term_spread': vix_term_spread, 'ad_ratio': ad_ratio,
+                },
+            }
+            with gzip.open(snap_dir / f'{ts_str}.json.gz', 'wt') as f:
+                json.dump(payload, f)
+
+            # Per-day DB state (daily_hist, daily_hl, avg_daily_vol) — written once per day
+            day_str = now_et.strftime('%Y-%m-%d')
+            day_state_path = snap_dir / f'db_state_{day_str}.json.gz'
+            if not day_state_path.exists():
+                day_payload = {
+                    'date': day_str,
+                    # Convert defaultdict to dict for JSON
+                    'daily_hist': {k: v for k, v in daily_hist.items()},
+                    'daily_hl': {k: v for k, v in daily_hl.items()},
+                    'avg_daily_vol': avg_daily_vol,
+                }
+                with gzip.open(day_state_path, 'wt') as f:
+                    json.dump(day_payload, f)
+        except Exception:
+            pass  # non-fatal — sim is nice-to-have, scan continues
 
         def etf_intraday(sym):
             s = etf_snaps.get(sym, {})
@@ -278,6 +446,22 @@ class MLFilterStrategy(BaseStrategy):
                 bars_by_sym = fetch_today_bars(pre_qualified[:100])
             except Exception:
                 bars_by_sym = {}
+
+        # Append bars_by_sym to most recent snapshot (for replay multibar features)
+        try:
+            import gzip, json
+            snap_dir = Path(self.DB_PATH).parent / 'scan_snapshots'
+            ts_str = now_et.strftime('%Y-%m-%d_%H-%M-%S')
+            snap_path = snap_dir / f'{ts_str}.json.gz'
+            if snap_path.exists():
+                with gzip.open(snap_path, 'rt') as f:
+                    payload = json.load(f)
+                payload['bars_by_sym'] = bars_by_sym
+                payload['pre_qualified'] = pre_qualified
+                with gzip.open(snap_path, 'wt') as f:
+                    json.dump(payload, f)
+        except Exception:
+            pass
 
         dow = now_et.weekday()
         candidates = []
@@ -352,6 +536,8 @@ class MLFilterStrategy(BaseStrategy):
             range_exp = range_pct / rng10 if rng10 > 0 else 1
 
             sec = sectors.get(sym, '')
+            if sec in self.SECTOR_BLACKLIST:
+                continue
             # sec3d dropped from v22 (always 0 in trainer) — sec_rel_strength uses 0 implicitly.
 
             # Live multi-bar features from Alpaca 5-min bars
@@ -469,12 +655,27 @@ class MLFilterStrategy(BaseStrategy):
             # 11:30+ : no rule (validated rules don't help this bucket)
 
             atr_pct = (hi - lo) / now * 100 if now > 0 else 3.0
-            # Trail 3% unified — matches training label_fixed3 across all buckets.
-            trail = 3.0
-            sl_price = now * (1 - trail / 100)
+            # 2026-05-06 v5: Lower runner threshold 2.5 → 2.0 (+19% total in WF).
+            # Hybrid = Adaptive trail + Hard SL floor (-2%).
+            # WF: WR 85.3%, avg +2.84%, total +539% (vs +520% with thr=2.5, +19pp).
+            # Reasoning: stocks at gain 2.0-2.5% benefit from wider trail (5%) to ride rally.
+            base_trail = 5.0 if gain >= 2.0 else 2.5
+            # Volatility adjustments
+            if features.get('mcap_bucket', 0) == 2:    # mid-cap = volatile
+                base_trail = max(base_trail, 4.0)
+            if features.get('vix', 18) >= 25:           # high VIX
+                base_trail = max(base_trail, 4.0)
+            if beta >= 1.5:                             # high-beta stock
+                base_trail = max(base_trail, 4.0)
+            trail = round(min(7.0, max(2.5, base_trail)), 1)
+            HARD_SL_PCT = 2.0
+            trail_sl = now * (1 - trail / 100)
+            hard_sl = now * (1 - HARD_SL_PCT / 100)
+            sl_price = max(trail_sl, hard_sl)  # tighter (less risk)
             reason = (
                 f"ML p={prob:.3f} thr={threshold:.2f} "
-                f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]}"
+                f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]} "
+                f"trail{trail}%+hardSL{HARD_SL_PCT}%"
             )
 
             candidates.append(Pick(
@@ -501,8 +702,12 @@ class MLFilterStrategy(BaseStrategy):
                 f"(bucket {scorer.get_bucket(minutes_from_open)})"
             )
 
-        # Pure ML ranking — sort all candidates by ML probability
-        candidates.sort(key=lambda p: -p.extra['ml_prob'])
+        # 2026-05-05: U coef 0.05 → 0.10 (joint validation, +1% total, plateau 0.07-0.15).
+        # 2026-05-01: Reverted to U formula ranking + Top-1 after fixing stale data bug.
+        # WF: WR 100% (12/12 months), avg +3.06%, +$790/yr — best of all tested.
+        # U formula = ml_prob + 0.10×gain_from_open (favor high confidence + intraday momentum).
+        # Stale data bug fixed: ETF data now refreshed via 1-min bars at market open.
+        candidates.sort(key=lambda p: -(p.extra['ml_prob'] + 0.10 * p.extra.get('gain_pct', 0)))
 
         # Cross-scan dedup: skip symbols picked in last 60 min (prevent double-entry)
         try:
@@ -529,6 +734,34 @@ class MLFilterStrategy(BaseStrategy):
             picks.append(c)
             if len(picks) >= self.MAX_PICKS:
                 break
+
+        # Refresh entry price with latest TRADE (1-2 sec stale vs 1-min bar's 0-60 sec).
+        # Cuts user-side slippage from ~0.3-1.5% drift to ~0.05-0.3%.
+        # Recompute trail_sl + hard_sl from refreshed entry. Skip silently on failure.
+        if picks:
+            try:
+                pick_syms = ','.join(p.symbol for p in picks)
+                params = {'symbols': pick_syms, 'feed': 'iex'}
+                tr = requests.get('https://data.alpaca.markets/v2/stocks/trades/latest',
+                                  headers=hdr, params=params, timeout=3)
+                if tr.status_code == 200:
+                    trades = tr.json().get('trades', {})
+                    for p in picks:
+                        t = trades.get(p.symbol)
+                        if not t or 'p' not in t: continue
+                        live_px = float(t['p'])
+                        if live_px <= 0: continue
+                        old_entry = p.entry
+                        p.entry = round(live_px, 2)
+                        # Recompute SL with same trail_pct + Hard SL -2%
+                        trail_sl = live_px * (1 - p.trail_pct / 100)
+                        hard_sl = live_px * (1 - 2.0 / 100)
+                        p.sl_price = round(max(trail_sl, hard_sl), 2)
+                        # Annotate reason with drift for transparency
+                        drift_pct = (live_px / old_entry - 1) * 100
+                        p.reason += f" live${live_px:.2f}({drift_pct:+.2f}%)"
+            except Exception:
+                pass
 
         bucket = scorer.get_bucket(minutes_from_open)
         # Original v16 validated WR — keep for journal drift monitoring

@@ -18,16 +18,22 @@ Fixes from v1.0:
 - Per-symbol yf.Ticker() calls (slow) → now batch yf.download() (fast)
 """
 
+import os
 import pandas as pd
-from datetime import datetime, date, time
-from typing import List, Optional, Tuple
+import requests
+from datetime import datetime, date, time, timedelta, timezone
+from typing import List, Optional, Tuple, Dict
 from loguru import logger
-import yfinance as yf
 import pytz
 
 
-BATCH_SIZE = 100  # symbols per yf.download call
+BATCH_SIZE = 200  # v7.9: Alpaca allows 200 symbols per /v2/stocks/bars call
 ET_TZ = pytz.timezone('America/New_York')
+
+# v7.9: Alpaca SIP bars config — replaces yfinance which returns Volume=0 for pre-market.
+# SIP requires ≥15min delay on paper accounts; 20min buffer is safe.
+ALPACA_BARS_URL = 'https://data.alpaca.markets/v2/stocks/bars'
+SIP_DELAY_MIN = 20  # minutes
 
 
 class PreMarketGapSignal:
@@ -71,18 +77,34 @@ class PreMarketGapScanner:
       - volume_ratio: premarket_volume / avg daily regular-hours volume (past days)
     """
 
-    # Gap thresholds
-    MIN_GAP_PCT = 8.0             # Minimum gap to consider (raised from 5% — more selective)
-    POSSIBLE_CATALYST_GAP = 8.0
-    CATALYST_GAP = 10.0
-    MAJOR_CATALYST_GAP = 15.0
+    # Gap thresholds (v7.9: re-backtested on 204 real gaps past 90 days with Alpaca SIP vol)
+    # Sweet spot = 15-25% gap with SPY green (WR 87.5%, avg +5.50%, n=8)
+    # Below 15% = fade risk, above 25% = rug-pull risk
+    MIN_GAP_PCT = 15.0            # v7.9: 8.0 → 15.0 (backtest: 8-10% WR 27%, 15%+ WR 50%+)
+    MAX_GAP_PCT = 25.0            # v7.9: NEW — skip mega-gaps (gap≥25% WR 7.7%, rug)
+    POSSIBLE_CATALYST_GAP = 15.0  # aligned with MIN_GAP_PCT
+    CATALYST_GAP = 18.0
+    MAJOR_CATALYST_GAP = 22.0
 
-    # Volume thresholds (pre-market vol vs avg DAILY regular-hours vol)
-    # Pre-market runs 4:00-9:30 ET (5.5h) vs regular 9:30-16:00 (6.5h)
-    # v6.87: raised to 2.0x (backtest OOS WR: 0.3x→WR=28%, 2.0x→WR=57%)
-    MIN_VOLUME_RATIO = 2.0
-    HIGH_VOLUME_RATIO = 3.0
-    VERY_HIGH_VOLUME_RATIO = 5.0
+    # Volume ratio — backtest showed NO edge from this metric (pm_vol / avg_daily_vol)
+    # Previous 2.0x was impossible to achieve (max observed 0.14x on INTC +28% gap)
+    # v7.9: effectively disabled (0.01x ≈ any non-zero pm volume)
+    # v7.10: 0.01 → 0.0 fully disabled. Apr 2026 paper data showed pm_vol=0.000x consistently
+    # (URI +15.2%, PI +19.7% rejected for vol=0.000x though gap was real). Backtest already
+    # confirmed no edge from this metric — gating on it just penalizes paper-data quirks.
+    MIN_VOLUME_RATIO = 0.0        # v7.10: 0.01 → 0.0 (fully disabled)
+    HIGH_VOLUME_RATIO = 0.05
+    VERY_HIGH_VOLUME_RATIO = 0.15
+
+    # v7.9: New quality filters (backtest-validated)
+    MAX_ATR_PCT = 8.0             # Skip volatile stocks (USAR ATR 11.5% lost -15%)
+    MIN_DOLLAR_VOLUME = 50_000_000  # $50M daily — liquidity floor (NINE was $0M penny)
+    # v7.10: SPY threshold +0.3% → 0.0% (allow flat SPY).
+    # Apr 2026 lost 4 actionable gaps (OMCL +20.4 SPY -0.57; NXPI/HAIN/BE +18-20% all
+    # SPY -0.08%). The 0.3% bar excludes regimes where SPY is just noisy-flat.
+    # Trade-off: backtest WR 75% was on SPY-green only — this widens to "not red" which
+    # may dilute. Monitor: if WR drifts < 60% after n≥10, restore to +0.3%.
+    REQUIRE_SPY_CHANGE_PCT = 0.0  # v7.10: 0.30 → 0.0 (flat SPY OK; tighten back if WR drifts)
 
     # Rotation parameters
     ROTATION_COST = 0.1           # Slippage + fees
@@ -90,7 +112,35 @@ class PreMarketGapScanner:
 
     def __init__(self):
         self._universe: List[str] = []
+        self._spy_day_change: Optional[float] = None  # v7.9: SPY intraday change for regime gate
         self._load_universe()
+
+    def _fetch_spy_day_change(self) -> Optional[float]:
+        """v7.9: Fetch SPY open→current intraday % change for regime filter.
+        Returns None if fetch fails (scanner will let all gaps pass SPY gate)."""
+        try:
+            bars = self._fetch_alpaca_bars(['SPY'])
+            spy_df = bars.get('SPY')
+            if spy_df is None or spy_df.empty:
+                return None
+            today = datetime.now(ET_TZ).date()
+            today_bars = spy_df[spy_df.index.date == today]
+            if today_bars.empty:
+                return None
+            # Use first bar as "open" (may be pre-market), latest as "current"
+            reg_bars = today_bars[today_bars.index.time >= time(9, 30)]
+            if not reg_bars.empty:
+                day_open = float(reg_bars['Open'].iloc[0])
+                day_current = float(reg_bars['Close'].iloc[-1])
+            else:
+                # Pre-market only — use pre-market open/current as rough estimate
+                day_open = float(today_bars['Open'].iloc[0])
+                day_current = float(today_bars['Close'].iloc[-1])
+            if day_open > 0:
+                return (day_current / day_open - 1) * 100
+        except Exception as e:
+            logger.debug(f"SPY day change fetch error: {e}")
+        return None
 
     def _load_universe(self):
         """Load full universe from UniverseRepository (~1000 stocks)."""
@@ -125,8 +175,13 @@ class PreMarketGapScanner:
             return []
 
         today = datetime.now(ET_TZ).date()
+
+        # v7.9: Fetch SPY day change once for regime filter (used in _analyze_symbol)
+        self._spy_day_change = self._fetch_spy_day_change()
+        spy_str = f"SPY={self._spy_day_change:+.2f}%" if self._spy_day_change is not None else "SPY=unknown"
         logger.info(f"PreMarketGapScanner: Scanning {len(self._universe)} symbols "
-                    f"for gaps ≥{self.MIN_GAP_PCT}% (min_confidence={min_confidence}%)...")
+                    f"for gaps {self.MIN_GAP_PCT}-{self.MAX_GAP_PCT}% (ATR≤{self.MAX_ATR_PCT}%, "
+                    f"$vol≥${self.MIN_DOLLAR_VOLUME/1e6:.0f}M, SPY≥{self.REQUIRE_SPY_CHANGE_PCT}%, {spy_str})...")
 
         signals: List[PreMarketGapSignal] = []
         total_with_data = 0
@@ -155,27 +210,84 @@ class PreMarketGapScanner:
 
         return signals
 
+    def _fetch_alpaca_bars(self, symbols: List[str]) -> Dict[str, pd.DataFrame]:
+        """
+        v7.9: Fetch 5-min bars from Alpaca SIP feed (20-min delayed on paper).
+        Replaces yfinance which returned Volume=0 for pre-market bars.
+
+        Returns dict {symbol: DataFrame with Open/High/Low/Close/Volume cols}.
+        Index is ET-localized DatetimeIndex.
+        """
+        api_key = os.getenv('ALPACA_API_KEY')
+        secret = os.getenv('ALPACA_SECRET_KEY')
+        if not api_key or not secret:
+            logger.error("Alpaca API keys not configured")
+            return {}
+
+        now_utc = datetime.now(timezone.utc)
+        end = (now_utc - timedelta(minutes=SIP_DELAY_MIN)).isoformat().replace('+00:00', 'Z')
+        start = (now_utc - timedelta(days=5)).isoformat().replace('+00:00', 'Z')
+
+        headers = {'APCA-API-KEY-ID': api_key, 'APCA-API-SECRET-KEY': secret}
+
+        # Paginate through all bars
+        all_bars: Dict[str, list] = {}
+        page_token = None
+        for _ in range(20):  # safety cap
+            params = {
+                'symbols': ','.join(symbols),
+                'timeframe': '5Min',
+                'start': start, 'end': end,
+                'feed': 'sip', 'limit': 10000,
+                'adjustment': 'raw',
+            }
+            if page_token:
+                params['page_token'] = page_token
+            try:
+                r = requests.get(ALPACA_BARS_URL, headers=headers, params=params, timeout=30)
+                if r.status_code != 200:
+                    logger.warning(f"Alpaca bars {r.status_code}: {r.text[:200]}")
+                    break
+                j = r.json()
+            except Exception as e:
+                logger.warning(f"Alpaca bars fetch error: {e}")
+                break
+
+            for sym, bars in (j.get('bars') or {}).items():
+                all_bars.setdefault(sym, []).extend(bars)
+
+            page_token = j.get('next_page_token')
+            if not page_token:
+                break
+
+        # Convert to DataFrames with ET-localized index
+        result: Dict[str, pd.DataFrame] = {}
+        for sym, bars in all_bars.items():
+            if not bars:
+                continue
+            df = pd.DataFrame(bars)
+            # Alpaca fields: t,o,h,l,c,v,n,vw
+            df['t'] = pd.to_datetime(df['t'], utc=True)
+            df = df.set_index('t').rename(columns={
+                'o': 'Open', 'h': 'High', 'l': 'Low', 'c': 'Close', 'v': 'Volume'
+            })[['Open', 'High', 'Low', 'Close', 'Volume']]
+            df.index = df.index.tz_convert(ET_TZ)
+            result[sym] = df
+        return result
+
     def _scan_batch(self, symbols: List[str], today: date,
                     min_confidence: int) -> Tuple[List[PreMarketGapSignal], int]:
         """
-        Batch download 1h bars with prepost=True, analyze each symbol.
+        v7.9: Batch-fetch 5-min bars from Alpaca SIP, analyze each symbol.
         Returns (signals, n_symbols_with_data).
         """
         try:
-            data = yf.download(
-                symbols,
-                period='5d',
-                interval='1h',
-                prepost=True,
-                group_by='ticker',
-                progress=False,
-                auto_adjust=True,
-            )
+            per_symbol = self._fetch_alpaca_bars(symbols)
         except Exception as e:
-            logger.debug(f"yf.download batch failed ({len(symbols)} symbols): {e}")
+            logger.debug(f"Alpaca bars batch failed ({len(symbols)} symbols): {e}")
             return [], 0
 
-        if data is None or data.empty:
+        if not per_symbol:
             return [], 0
 
         signals = []
@@ -183,29 +295,9 @@ class PreMarketGapScanner:
 
         for symbol in symbols:
             try:
-                # Extract per-symbol DataFrame
-                if len(symbols) == 1:
-                    # Single symbol: flat DataFrame (no MultiIndex)
-                    sym_df = data.copy()
-                elif isinstance(data.columns, pd.MultiIndex):
-                    if symbol not in data.columns.get_level_values(0):
-                        continue
-                    sym_df = data[symbol].copy()
-                else:
-                    continue
-
+                sym_df = per_symbol.get(symbol)
                 if sym_df is None or sym_df.empty:
                     continue
-
-                # Drop all-NaN rows
-                sym_df = sym_df.dropna(how='all')
-                if sym_df.empty:
-                    continue
-
-                # Ensure tz-aware index in ET
-                if sym_df.index.tz is None:
-                    sym_df.index = sym_df.index.tz_localize('UTC')
-                sym_df.index = sym_df.index.tz_convert(ET_TZ)
 
                 n_ok += 1
                 sig = self._analyze_symbol(symbol, sym_df, today, min_confidence)
@@ -271,6 +363,34 @@ class PreMarketGapScanner:
                         )
                     except Exception:
                         pass
+                return None
+
+            # v7.9: Gap ceiling — backtest: gap ≥ 25% → WR 7.7%, rug-pull risk
+            if gap_pct >= self.MAX_GAP_PCT:
+                logger.info(f"  GAP_TOO_BIG {symbol}: gap={gap_pct:+.1f}% ≥ {self.MAX_GAP_PCT}% (rug-pull risk)")
+                try:
+                    from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                    ScreenerRejectionRepository().log_rejection(
+                        screener='gap', symbol=symbol, reject_reason='gap_too_big',
+                        scan_price=round(float(premarket_price), 2),
+                        gap_pct=round(gap_pct, 2),
+                    )
+                except Exception:
+                    pass
+                return None
+
+            # v7.9: SPY green requirement (macro tailwind) — backtest WR 75% vs 33% without
+            if self._spy_day_change is not None and self._spy_day_change < self.REQUIRE_SPY_CHANGE_PCT:
+                logger.info(f"  GAP_SPY_RED {symbol}: gap={gap_pct:+.1f}% but SPY={self._spy_day_change:+.2f}% < {self.REQUIRE_SPY_CHANGE_PCT}%")
+                try:
+                    from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                    ScreenerRejectionRepository().log_rejection(
+                        screener='gap', symbol=symbol, reject_reason='spy_not_green',
+                        scan_price=round(float(premarket_price), 2),
+                        gap_pct=round(gap_pct, 2),
+                    )
+                except Exception:
+                    pass
                 return None
 
             # Volume ratio: pre-market vol vs avg daily regular-hours vol (past days)
@@ -341,6 +461,47 @@ class PreMarketGapScanner:
                     daily_atr_pct = round(atr / prev_close * 100, 2)
             except Exception:
                 pass
+
+            # v7.9: ATR ceiling — backtest: ATR > 8% → USAR-style −15% intraday crashes
+            if daily_atr_pct > self.MAX_ATR_PCT:
+                logger.info(f"  GAP_HIGH_ATR {symbol}: gap={gap_pct:+.1f}% ATR={daily_atr_pct:.1f}% > {self.MAX_ATR_PCT}% (volatility risk)")
+                try:
+                    from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                    ScreenerRejectionRepository().log_rejection(
+                        screener='gap', symbol=symbol, reject_reason='atr_too_high',
+                        scan_price=round(float(premarket_price), 2),
+                        gap_pct=round(gap_pct, 2), atr_pct=daily_atr_pct,
+                    )
+                except Exception:
+                    pass
+                return None
+
+            # v7.9: Liquidity floor — backtest: NINE ($0M) penny was 0% win
+            # dollar_volume = avg of (day_close × day_volume) from regular_prev
+            try:
+                dollar_vols = []
+                for d in dates:
+                    day_bars = regular_prev[regular_prev.index.date == d]
+                    if day_bars.empty:
+                        continue
+                    day_close = float(day_bars['Close'].iloc[-1])
+                    day_vol = float(day_bars['Volume'].sum())
+                    dollar_vols.append(day_close * day_vol)
+                avg_dollar_vol = sum(dollar_vols) / len(dollar_vols) if dollar_vols else 0
+            except Exception:
+                avg_dollar_vol = 0
+            if avg_dollar_vol < self.MIN_DOLLAR_VOLUME:
+                logger.info(f"  GAP_ILLIQUID {symbol}: gap={gap_pct:+.1f}% $vol=${avg_dollar_vol/1e6:.1f}M < ${self.MIN_DOLLAR_VOLUME/1e6:.0f}M")
+                try:
+                    from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                    ScreenerRejectionRepository().log_rejection(
+                        screener='gap', symbol=symbol, reject_reason='illiquid',
+                        scan_price=round(float(premarket_price), 2),
+                        gap_pct=round(gap_pct, 2),
+                    )
+                except Exception:
+                    pass
+                return None
 
             # v7.5: pm_range_pct — pre-market high/low range (conviction proxy)
             pm_range_pct = None

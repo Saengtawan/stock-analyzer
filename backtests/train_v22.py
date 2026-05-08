@@ -75,7 +75,7 @@ TF_BUCKET_SPECS = {
     '1130_1300_tf':      (120, 200, 'lgb_tp1_tf_1130_1300_seed{}.txt', False),
     '1130_1300_tf_loss': (120, 200, 'lgb_loss_tf_1130_1300_seed{}.txt', False),
 }
-TRAIN_DAYS = 365
+TRAIN_DAYS = 840  # 28 months — WF validated 2026-04-30: +1.16pp WR vs 365 (Z2 +11.9pp)
 N_SEEDS = 5
 
 CFG = dict(

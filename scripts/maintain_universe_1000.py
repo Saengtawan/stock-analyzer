@@ -78,7 +78,13 @@ for i in range(0, len(all_current), BATCH_SIZE):
     time.sleep(1)
     print(f"  Progress: {min(i+BATCH_SIZE, len(all_current))}/{len(all_current)}, delisted so far: {len(delisted)}")
 
-if delisted:
+# 2026-05-05 BUG FIX: Don't wipe universe on yfinance API failure.
+# If >50% of "delisted" symbols, treat as API failure not actual delisting.
+if delisted and len(delisted) > 0.5 * len(current_symbols):
+    print(f"\n⚠️  ABORT: {len(delisted)}/{len(current_symbols)} marked delisted — likely API failure, not real.")
+    print(f"   Skipping deletion to preserve universe. Will retry next run.")
+    delisted = []
+elif delisted:
     for sym in delisted:
         cache.pop(sym, None)
     with open(DELISTED_LOG, 'a') as f:

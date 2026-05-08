@@ -61,7 +61,7 @@ User พิมพ์คำสั่งเป็นภาษาไทยหรื
 ### Trade strategies
 | Strategy | Window ET | WR | EV | Notes |
 |---|---|---|---|---|
-| **ml_filter** | 09:30-13:00 | **88-94%** | +1.5% | ⭐ ENSEMBLE ML — primary |
+| **ml_filter** | 09:30-13:00 | **78%** (honest WF) | +1.3% | ⭐ ENSEMBLE ML — primary |
 | orb_prep | 03:00-09:30 | — | — | watchlist only |
 | vwap_reclaim | 13:30-15:30 | 52% | +0.4% | afternoon VWAP |
 | crisis_reversal | any (VIX≥25) | 75% | +3.0% | contrarian |
@@ -69,17 +69,30 @@ User พิมพ์คำสั่งเป็นภาษาไทยหรื
 
 ### ml_filter (PRIMARY)
 
-Uses 5-model LightGBM ensemble per time bucket. Only emits picks
-where ensemble probability ≥ threshold_75 (per-bucket, validated on
-walk-forward backtest 2025+ 301K samples).
+Uses 5-model LightGBM ensemble (real bagging, MIN-of-5 seeds for win,
+MAX-of-5 for loss reject). Models v22 (label_decay for win, label_fixed3
+for loss) + Tech-specialized 09:30 + multi-timeframe 10:00/11:30.
 
-Per-bucket top-1% WR (v3 profit model, trail-3% exit, validated 2026-04-14):
-  09:30-10:00  → 94% WR  ✅
-  10:00-10:45  → 94% WR  ✅
-  10:45-11:30  → 89% WR  ✅
-  11:30-13:00  → 89% WR  ✅
-  13:00-14:00  → 48% WR  ❌ skipped (coin flip, no edge)
-  14:00-16:00  → 48% WR  ❌ skipped (dead zone)
+**Honest WR (walk-forward refit per month, Nov'25-Apr'26):**
+  Overall:  281 picks, **78.3% WR**, avg +1.34%/trade
+  Per-month range: 71-84% (no catastrophic month)
+  Worst month (Apr'26): 71.1% / +0.94%
+  Best month (Nov'25):  84.2% / +1.49%
+  Live expectation after 0.2% slippage: **~73% WR, +1.1% avg**
+
+**Earlier "88% WR" claim was lookahead bias** — single-cutoff training
+where train data overlapped test period. Walk-forward refit gold-standard
+gives honest 78.3%. Always retrain monthly to keep model current.
+
+**4 hard rules deployed (validated 2026-04-27):**
+  09:30 (mfo<30): mom20d>20 reject + chaser-trap (mfo≥10 AND bars_since_hi=0) reject
+  10:00 (mfo<75): sector_etf<-0.3% reject + vol_accel<1.0 reject
+  10:45 (mfo<120): mom20d>20 reject
+  11:30+: no rule
+
+**Hybrid trail (matches training labels per bucket):**
+  09:30/10:00 entries: trail 2% (early buckets benefit from tighter trail)
+  10:45/11:30 entries: trail 3% (late entries need wider trail)
 
 Active window: 09:30-13:00 ET only. Both afternoon buckets hard-skipped
 via `can_reach_75()` — do not re-enable without new validation.
@@ -87,15 +100,25 @@ via `can_reach_75()` — do not re-enable without new validation.
 No AD hard gate — ad_ratio is a feature, model handles regime.
 Runs on ~100% of trading days (vs 24% with old AD≥2 gate).
 
-Target label: "reach +1% at any point before close" (matches
-trail-1%-from-peak exit). So 'win' = trade hits +1% intraday.
+Target labels:
+  Win model: `label_decay` ≥ +1% (trail 3%/2%/1% by time-of-day)
+  Loss reject: `label_fixed3` ≤ -1% (trail 3% fixed)
+  Tested label_fixed2 retrain (v28) — 18pp WORSE than v22 → don't deploy.
 
-Features (31): mins_from_open, gain_from_open, range_pct, from_peak_pct,
-vs_vwap, vol_ratio, vol_accel, bars_since_hi, hh_count, consol,
-range_exp, gap_from_prev, beta, mcap_bucket, spy_green, spy_intra,
-vix, vix_5d_chg, ad_ratio, sec3d, mom5d, mom20d, dist_sma20,
-pct_52w_hi, pct_52w_lo, dow,
-insider_net_30d, news_sentiment, earnings_days, pm_vol_ratio, short_pct.
+Features (56 base + 5 interactions @09:30 + 15 multi-tf @10:00/11:30):
+  V7 (31): mins_from_open, gain_from_open, range_pct, from_peak_pct,
+  vs_vwap, vol_ratio, vol_accel, bars_since_hi, hh_count, consol,
+  range_exp, gap_from_prev, beta, mcap_bucket, spy_green, spy_intra,
+  vix, vix_5d_chg, ad_ratio, mom5d, mom20d, dist_sma20,
+  pct_52w_hi, pct_52w_lo, dow, btc_5d_chg, jpy_5d_chg,
+  skew, vvix, vix_term_spread, sec_rel_strength.
+  Cross-ETF (25): xlb/xlc/xle/xlf/xli/xlk/xlp/xlre/xlu/xlv/xly_intra,
+  smh/qqq/iwm/dbc/eem/gld/hyg/igv/ief/lqd/tlt/uso/uup/vxx_intra.
+  Multi-tf (15): {15m,30m,1h}_{gain,range,vol_norm,green_pct,high_break}.
+
+NOTE: vol_ratio is canonical (no lookahead) — uses 30d_avg_daily ×
+fraction_elapsed, NOT full-day average. Earlier vol_ratio bug inflated
+WR by ~8pp; canonical formula validated 2026-04.
 
 ### How to scan with ml_filter
 
@@ -117,12 +140,12 @@ Picks are auto-recorded to data/scan_journal.db for drift monitoring.
 ```
 03:00-03:59  orb_prep watchlist scan
 04:00-09:29  orb_gap_preview (PM gap watchlist, confidence by time-to-open)
-09:30-09:34  ml_filter (94% WR bucket)
-09:35-09:40  orb_gap_break (81-89% WR, gap+vol 2x filter)
-09:41-10:45  ml_filter (94% WR bucket) — SWEET SPOT
-10:45-11:30  ml_filter (89% WR bucket)
-11:30-13:00  ml_filter (89% WR bucket)
-13:00-15:55  NO trades (48% WR coin flip — validated 2026-04-14, skipped)
+09:30-09:34  ml_filter (09:30 bucket — honest 75-85% WF)
+09:35-09:40  orb_gap_break (gap+vol 2x filter)
+09:41-10:45  ml_filter (10:00 bucket — sweet spot, most robust)
+10:45-11:30  ml_filter (10:45 bucket)
+11:30-13:00  ml_filter (11:30 bucket)
+13:00-15:55  NO trades (48% WR coin flip — validated, skipped)
 15:55-16:00  eod_flatten (exit intraday positions)
 ```
 
@@ -150,7 +173,13 @@ for row in j.report(days=7):
 ```
 
 Backtest source: `backtests/results/SUMMARY.md` (29 tests, 20M bars, 2025+).
-ML models: `backtests/models_prod_v3/` (6 ensembles × 5 seeds, 31 features).
+ML models: `backtests/models_prod_v22/` (70 model files: 4 buckets × tp1+loss × 5 seeds,
+            + Tech-specialized 09:30, + multi-tf 10:00/11:30).
+Validation: walk-forward refit per month (gold standard), 6 months OOS.
+
+**Monthly retrain (recommended):**
+  Cron: `0 2 1 * * cd /repo && python3 -m backtests.train_v22 --train-v27-tf`
+  Refits with --end-date=today. Keeps model current with regime.
 
 ## Adding a new strategy
 

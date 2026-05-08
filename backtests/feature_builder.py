@@ -201,7 +201,7 @@ def simulate_trail(future_bars, entry_price, trail_mode='fixed3'):
     return 0
 
 
-def build_features(start_date, end_date, output_path, limit_symbols=200):
+def build_features(start_date, end_date, output_path, limit_symbols=500):
     """Main builder: produce pkl with all features + labels for date range."""
     t_start = _time.time()
     print(f"Feature builder: {start_date} → {end_date}")

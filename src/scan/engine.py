@@ -76,8 +76,9 @@ def auto_select_strategy() -> str:
         s = STRATEGIES[name]()
         return s.time_start <= now_et <= s.time_end
 
-    # Explicit priority — these beat EV-sort if in window
-    PRIORITY = ['orb_gap_preview', 'orb_gap_break', 'ml_filter']
+    # Explicit priority — ml_filter first (only walk-forward-validated strategy as of 2026-04-27)
+    # orb_gap_preview/break kept available but lower priority until walk-forward validated
+    PRIORITY = ['ml_filter', 'orb_gap_preview', 'orb_gap_break']
     for name in PRIORITY:
         if name in TRADE_STRATEGIES and in_window(name):
             return name
