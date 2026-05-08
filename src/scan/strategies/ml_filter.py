@@ -735,34 +735,6 @@ class MLFilterStrategy(BaseStrategy):
             if len(picks) >= self.MAX_PICKS:
                 break
 
-        # Refresh entry price with latest TRADE (1-2 sec stale vs 1-min bar's 0-60 sec).
-        # Cuts user-side slippage from ~0.3-1.5% drift to ~0.05-0.3%.
-        # Recompute trail_sl + hard_sl from refreshed entry. Skip silently on failure.
-        if picks:
-            try:
-                pick_syms = ','.join(p.symbol for p in picks)
-                params = {'symbols': pick_syms, 'feed': 'iex'}
-                tr = requests.get('https://data.alpaca.markets/v2/stocks/trades/latest',
-                                  headers=hdr, params=params, timeout=3)
-                if tr.status_code == 200:
-                    trades = tr.json().get('trades', {})
-                    for p in picks:
-                        t = trades.get(p.symbol)
-                        if not t or 'p' not in t: continue
-                        live_px = float(t['p'])
-                        if live_px <= 0: continue
-                        old_entry = p.entry
-                        p.entry = round(live_px, 2)
-                        # Recompute SL with same trail_pct + Hard SL -2%
-                        trail_sl = live_px * (1 - p.trail_pct / 100)
-                        hard_sl = live_px * (1 - 2.0 / 100)
-                        p.sl_price = round(max(trail_sl, hard_sl), 2)
-                        # Annotate reason with drift for transparency
-                        drift_pct = (live_px / old_entry - 1) * 100
-                        p.reason += f" live${live_px:.2f}({drift_pct:+.2f}%)"
-            except Exception:
-                pass
-
         bucket = scorer.get_bucket(minutes_from_open)
         # Original v16 validated WR — keep for journal drift monitoring
         WR_BY_BUCKET = {
