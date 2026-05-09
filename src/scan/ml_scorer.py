@@ -106,13 +106,12 @@ class MLScorer:
         'Z3': 0.50,  # 0.75 → 0.50 (Task 4 best)
         'Z4': 0.60,  # unchanged (Task 4 best)
     }
-    # 2026-05-09: Tightened for Lock+TightLoss combo (target WR 98%+).
-    # WF combined with Lock @ +2%/+0.5%: WR 98.3%, avg +2.57%, +454%/yr (-16% vs prev).
+    # 2026-05-06: Loss thresholds tuned (Task 3 + Task 4 sweep).
     ZONE_LOSS_THR = {
-        'Z1': 0.30,  # was 0.40 — tighter (reject more borderline losers)
-        'Z2': 0.15,  # was 0.20 — tighter
-        'Z3': 0.30,  # was 0.40 — tighter
-        'Z4': 0.40,  # was 0.50 — tighter
+        'Z1': 0.40,  # was 0.35 — slightly looser (Task 3 best)
+        'Z2': 0.20,  # was 0.35 — much tighter (Task 3 best)
+        'Z3': 0.40,  # was 0.55 — tighter (Task 3 best)
+        'Z4': 0.50,  # was 0.55 — tighter (Task 3 best)
     }
 
     # === MoE soft (Mixture of Experts) — 2026-05-04 ===
