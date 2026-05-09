@@ -993,6 +993,10 @@ class AutoTradingEngine:
         # v6.60: PEM trailing
         self.PEM_TRAIL_ACTIVATION_PCT = getattr(cfg, 'pem_trail_activation_pct', 2.0)
         self.PEM_TRAIL_LOCK_PCT = getattr(cfg, 'pem_trail_lock_pct', 80.0)
+        # 2026-05-09: ml_filter-specific trailing (Layer B lock).
+        # Activate at +2% peak, lock 25% → SL ≈ +0.5% at trigger.
+        self.ML_FILTER_TRAIL_ACTIVATION_PCT = getattr(cfg, 'ml_filter_trail_activation_pct', 2.0)
+        self.ML_FILTER_TRAIL_LOCK_PCT = getattr(cfg, 'ml_filter_trail_lock_pct', 25.0)
         # v7.6: PEM WR-lift filters (Apr 2026 backtest: 44% → 83% WR over 18 trades)
         self.PEM_R5M_SKIP_ABOVE_PCT = getattr(cfg, 'pem_r5m_skip_above_pct', 1.0)
         self.PEM_NORMAL_MODE_ONLY = getattr(cfg, 'pem_normal_mode_only', True)
@@ -1745,6 +1749,9 @@ class AutoTradingEngine:
                         elif _startup_src == SignalSource.PEM:
                             _startup_trail_act = self.PEM_TRAIL_ACTIVATION_PCT
                             _startup_trail_lock = self.PEM_TRAIL_LOCK_PCT
+                        elif _startup_src == SignalSource.ML_FILTER:
+                            _startup_trail_act = self.ML_FILTER_TRAIL_ACTIVATION_PCT
+                            _startup_trail_lock = self.ML_FILTER_TRAIL_LOCK_PCT
                         else:
                             _startup_trail_act = self.TRAIL_ACTIVATION_PCT
                             _startup_trail_lock = self.TRAIL_LOCK_PCT
@@ -4262,6 +4269,11 @@ class AutoTradingEngine:
             return SignalSource.PED
         if scan_type == 'premarket_gap':
             return SignalSource.PREMARKET_GAP
+        if scan_type == 'ml_filter':
+            return SignalSource.ML_FILTER
+        # Fallback: detect ml_filter via sl_method/source/strategy
+        if hasattr(signal, 'strategy') and getattr(signal, 'strategy', '') == 'ml_filter':
+            return SignalSource.ML_FILTER
         # sl_method / source attribute from screener output (secondary)
         sl_method = getattr(signal, 'sl_method', '')
         source_attr = signal.__dict__.get('source', '') if hasattr(signal, '__dict__') else ''
@@ -5524,12 +5536,16 @@ class AutoTradingEngine:
         _is_pem_src = signal_source == 'pem'
         _is_ovn_src = signal_source == 'overnight_gap'
         _is_gap_src = signal_source == 'premarket_gap'
+        _is_ml_src = signal_source == 'ml_filter'
         if _is_ovn_src:
             _trail_act = self.OVN_TRAIL_ACTIVATION_PCT
             _trail_lock = self.OVN_TRAIL_LOCK_PCT
         elif _is_pem_src or _is_gap_src:
             _trail_act = self.PEM_TRAIL_ACTIVATION_PCT
             _trail_lock = self.PEM_TRAIL_LOCK_PCT
+        elif _is_ml_src:
+            _trail_act = self.ML_FILTER_TRAIL_ACTIVATION_PCT
+            _trail_lock = self.ML_FILTER_TRAIL_LOCK_PCT
         else:
             _trail_act = self.TRAIL_ACTIVATION_PCT
             _trail_lock = self.TRAIL_LOCK_PCT
@@ -5660,12 +5676,16 @@ class AutoTradingEngine:
             _is_pem_src2 = signal_source == 'pem'
             _is_ovn_src2 = signal_source == 'overnight_gap'
             _is_gap_src2 = signal_source == 'premarket_gap'
+            _is_ml_src2 = signal_source == 'ml_filter'
             if _is_ovn_src2:
                 _trail_act = self.OVN_TRAIL_ACTIVATION_PCT
                 _trail_lock = self.OVN_TRAIL_LOCK_PCT
             elif _is_pem_src2 or _is_gap_src2:
                 _trail_act = self.PEM_TRAIL_ACTIVATION_PCT
                 _trail_lock = self.PEM_TRAIL_LOCK_PCT
+            elif _is_ml_src2:
+                _trail_act = self.ML_FILTER_TRAIL_ACTIVATION_PCT
+                _trail_lock = self.ML_FILTER_TRAIL_LOCK_PCT
             else:
                 _trail_act = self.TRAIL_ACTIVATION_PCT
                 _trail_lock = self.TRAIL_LOCK_PCT

@@ -669,13 +669,19 @@ class MLFilterStrategy(BaseStrategy):
                 base_trail = max(base_trail, 4.0)
             trail = round(min(7.0, max(2.5, base_trail)), 1)
             HARD_SL_PCT = 2.0
+            # 2026-05-09: Lock SL after peak hits trigger (Layer B).
+            # When peak gain ≥ LOCK_TRIGGER_PCT, raise SL floor to LOCK_AT_PCT (above entry).
+            # WF combined with tighter loss thr: WR 98.3%, avg +2.57%, +454%/yr.
+            # Trade-off: cap upside, but turn whipsaws into small wins (HL/GLW-type).
+            LOCK_TRIGGER_PCT = 2.0
+            LOCK_AT_PCT = 0.5
             trail_sl = now * (1 - trail / 100)
             hard_sl = now * (1 - HARD_SL_PCT / 100)
             sl_price = max(trail_sl, hard_sl)  # tighter (less risk)
             reason = (
                 f"ML p={prob:.3f} thr={threshold:.2f} "
                 f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]} "
-                f"trail{trail}%+hardSL{HARD_SL_PCT}%"
+                f"trail{trail}%+hardSL{HARD_SL_PCT}%+lock@+{LOCK_TRIGGER_PCT}%/+{LOCK_AT_PCT}%"
             )
 
             candidates.append(Pick(
@@ -693,6 +699,8 @@ class MLFilterStrategy(BaseStrategy):
                     'gain_pct': round(gain, 2),
                     'beta': round(beta, 2),
                     'sector': sec,
+                    'lock_trigger_pct': LOCK_TRIGGER_PCT,
+                    'lock_at_pct': LOCK_AT_PCT,
                 },
             ))
 

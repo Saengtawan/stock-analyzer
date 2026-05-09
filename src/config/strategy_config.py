@@ -87,6 +87,11 @@ class RapidRotationConfig:
     trail_enabled: bool = True          # Enable trailing stop
     trail_activation_pct: float = 3.0   # Activate trailing at +3% gain
     trail_lock_pct: float = 75.0        # Lock 75% of peak gains (legacy: 75)
+    # 2026-05-09: ml_filter-specific trail (Layer B lock — WR 98% target).
+    # WF: lock @ peak ≥ +2.0% with SL at +0.5% above entry.
+    # 25% of 2% gain = 0.5% → trail_lock_pct=25 gives SL=+0.5% at trigger.
+    ml_filter_trail_activation_pct: float = 2.0
+    ml_filter_trail_lock_pct: float = 25.0
 
     # =========================================================================
     # POSITION MANAGEMENT
