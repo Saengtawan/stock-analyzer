@@ -287,4 +287,29 @@ src/web/portfolio_v3.json
 sector_cache.json
 sector_cache.backup.json
 data/scan_journal.db
+
+# IBKR Gateway installer artifacts (run from repo root)
+IB Gateway*.desktop
+ibgateway.vmoptions
+jts.ini
+xmlopt.dat
+jars
+jars/
+uninstall
+dnbplkoidalmieohcpldbigbpampgnjanjgdneca
+
+# Claude scheduled tasks lock
+.claude/scheduled_tasks.lock
+
+# Model backup / replay directories (kept locally, not committed)
+backtests/models_prod_v22_pre_*/
+backtests/models_prod_v22_*_backup/
+backtests/models_prod_v22_*_backup_*/
+backtests/models_prod_v22_backup_*/
+backtests/models_prod_v22_step*/
+backtests/models_prod_v22_zone_2*/
+backtests/models_prod_v22_2026-*/
+backtests/models_prod_v22_1m*/
+backtests/models_prod_v22_oos/
+backtests/models_prod_v28/
 backtests/models_prod/
