@@ -12,14 +12,16 @@ export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
 
 PYTHON=/home/saengtawan/.pyenv/versions/issara/bin/python3
 LOG=logs/weekly_zone_retrain.log
+PKL=cache/bt_features/features.pkl
 
 echo "=== Weekly zone retrain $(date) ===" >> $LOG
 
 END=$(date +%Y-%m-%d)
 START=$(date -d '365 days ago' +%Y-%m-%d)
 
-echo "[$(date)] Rebuild features pkl (top 500, $START → $END)..." >> $LOG
-$PYTHON backtests/feature_builder.py --start $START --end $END --output /tmp/bt_features_v27_500.pkl --limit 500 >> $LOG 2>&1
+mkdir -p cache/bt_features
+echo "[$(date)] Rebuild features pkl (top 500, $START → $END) → $PKL..." >> $LOG
+$PYTHON backtests/feature_builder.py --start $START --end $END --output $PKL --limit 500 >> $LOG 2>&1
 
 # Backup zone models before retrain (versioning for replay)
 BACKUP_DIR="backtests/models_prod_v22_zone_$(date +%Y-%m-%d)"
@@ -30,11 +32,20 @@ if [ ! -d "$BACKUP_DIR" ]; then
     echo "[$(date)] Backed up zone models → $BACKUP_DIR" >> $LOG
 fi
 
-echo "[$(date)] Retrain zone models (Z1/Z2/Z3/Z4)..." >> $LOG
-$PYTHON scripts/train_zones.py --end-date $END --pkl /tmp/bt_features_v27_500.pkl >> $LOG 2>&1
+echo "[$(date)] Retrain zone models (Step 18: market labels + adaptlim + per-zone HP)..." >> $LOG
+$PYTHON scripts/train_zones.py --end-date $END --pkl $PKL >> $LOG 2>&1
 
-echo "[$(date)] Restart engine to pick up new zone models..." >> $LOG
-systemctl --user restart auto-trading.service >> $LOG 2>&1 \
-    || echo "[$(date)] WARN: engine restart failed" >> $LOG
+# 2026-05-14: validate new models before deploying. Roll back on failure.
+echo "[$(date)] Validate retrained models against WF baseline..." >> $LOG
+if bash scripts/validate_retrain.sh >> $LOG 2>&1; then
+    echo "[$(date)] ✅ Validation passed — restarting engine" >> $LOG
+    systemctl --user restart auto-trading.service >> $LOG 2>&1 \
+        || echo "[$(date)] WARN: engine restart failed" >> $LOG
+else
+    echo "[$(date)] ❌ Validation FAILED — rolling back from $BACKUP_DIR" >> $LOG
+    cp $BACKUP_DIR/lgb_*.txt backtests/models_prod_v22/ 2>/dev/null
+    cp $BACKUP_DIR/features_zone_*.txt backtests/models_prod_v22/ 2>/dev/null
+    echo "[$(date)] Rollback complete — engine NOT restarted (keep old models)" >> $LOG
+fi
 
 echo "[$(date)] DONE" >> $LOG

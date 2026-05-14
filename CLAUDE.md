@@ -236,8 +236,19 @@ ML models: `backtests/models_prod_v22/` (70 model files: 4 buckets × tp1+loss �
 Validation: walk-forward refit per month (gold standard), 6 months OOS.
 
 **Monthly retrain (recommended):**
-  Cron: `0 2 1 * * cd /repo && python3 -m backtests.train_v22 --train-v27-tf`
-  Refits with --end-date=today. Keeps model current with regime.
+  Cron: `0 2 1 * *  bash scripts/monthly_retrain.sh`
+  Cron: `0 2 * * 0  bash scripts/weekly_zone_retrain.sh` (Sunday — zone-only, faster)
+
+Both scripts now:
+  1. Rebuild pkl → `cache/bt_features/features.pkl` (persistent, not /tmp/)
+  2. Run `feature_builder.py` (incl 16 feat_* + market labels for Step 18)
+  3. Run `train_zones.py` (win + loss + adaptlim, per-zone labels + HP)
+  4. **Run `validate_retrain.sh`** before restart — rollback if WF floor missed
+  5. Backup old models to `backtests/models_prod_v22_<date>/` (replay)
+
+Validation floors (`configs/wf_baseline.json`):
+  Per-zone: Z1 WR≥75%/avg≥1%, Z2 WR≥70%/avg≥0.8%, Z3 WR≥65%/avg≥0.5%, Z4 WR≥70%/avg≥0.5%
+  Combined: WR≥75%, total≥30% (30-day OOS).
 
 ## Adding a new strategy
 

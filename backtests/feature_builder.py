@@ -592,17 +592,159 @@ def build_features(start_date, end_date, output_path, limit_symbols=500):
     print(f"  Columns: {len(df.columns)}")
     print(f"  Date range: {df.date.min()} → {df.date.max()}")
 
+    # 2026-05-14 Step 18 — append advanced features + market labels.
+    # Without these the pkl is incompatible with current zone models (77/72 feats).
+    print(f"\n[{_time.time()-t_start:.0f}s] Adding 16 advanced features (feat_*)...", flush=True)
+    df = _add_advanced_features(df, DB_PATH)
+    print(f"[{_time.time()-t_start:.0f}s] Adding market-context labels...", flush=True)
+    df = _add_market_labels(df)
+
     # Save
     df.to_pickle(output_path)
-    print(f"\n[{_time.time()-t_start:.0f}s] Saved: {output_path}")
+    print(f"\n[{_time.time()-t_start:.0f}s] Saved: {output_path} ({len(df.columns)} cols)")
+
+
+def _add_advanced_features(df, db_path):
+    """Step 2 (2026-05-13): add 16 `feat_*` columns. Required by Step 18 models.
+
+    Daily features: dist_sma20/50, pct from 52w hi/lo, days since 52w hi/lo,
+    rsi_14d, atr_pct_14d. Intraday-derived: velocity, range×velocity,
+    vol_gain_div, intraday_rsi, mom×vol, sec_avg_intra, stock_vs_sec,
+    combined_momentum.
+    """
+    import sqlite3 as _sq
+    conn = _sq.connect(db_path)
+    unique_syms = df['sym'].unique()
+    daily_dict = {}
+    for sym in unique_syms:
+        rows = conn.execute(
+            "SELECT date, open, high, low, close, volume FROM stock_daily_ohlc "
+            "WHERE symbol=? ORDER BY date", (sym,)
+        ).fetchall()
+        daily_dict[sym] = rows
+    conn.close()
+
+    feats = {}
+    for sym in unique_syms:
+        rows = daily_dict.get(sym, [])
+        if len(rows) < 50: continue
+        dates = [r[0] for r in rows]
+        closes = np.array([r[4] for r in rows], dtype=float)
+        highs = np.array([r[2] for r in rows], dtype=float)
+        lows = np.array([r[3] for r in rows], dtype=float)
+        for i, date in enumerate(dates):
+            if i < 21: continue
+            c = closes[i]
+            sma20 = closes[max(0,i-20):i].mean()
+            sma50 = closes[max(0,i-50):i].mean() if i >= 50 else sma20
+            d20 = (c/sma20-1)*100 if sma20>0 else 0
+            d50 = (c/sma50-1)*100 if sma50>0 else 0
+            w = closes[max(0,i-252):i]
+            if len(w) > 0:
+                hi52, lo52 = w.max(), w.min()
+                pct_hi = (c/hi52-1)*100 if hi52>0 else 0
+                pct_lo = (c/lo52-1)*100 if lo52>0 else 0
+                ds_hi = len(w)-1-int(np.argmax(w))
+                ds_lo = len(w)-1-int(np.argmin(w))
+            else:
+                pct_hi = pct_lo = 0; ds_hi = ds_lo = 0
+            if i >= 14:
+                d = np.diff(closes[i-14:i+1])
+                g = np.where(d>0, d, 0).mean()
+                l = np.where(d<0, -d, 0).mean()
+                rsi = 100-100/(1+g/l) if l>0 else 100
+                trs = [max(highs[j]-lows[j], abs(highs[j]-closes[j-1]), abs(lows[j]-closes[j-1])) for j in range(i-13, i+1) if j>0]
+                atr_pct = (np.mean(trs)/c*100) if (trs and c>0) else 0
+            else:
+                rsi = 50; atr_pct = 1.0
+            feats[(sym, date)] = (d20, d50, pct_hi, pct_lo, int(ds_hi), int(ds_lo), rsi, atr_pct)
+
+    DEFAULT = (0,0,0,0,0,0,50,1)
+    key = list(zip(df['sym'], df['date']))
+    df['feat_dist_sma20_d']    = [feats.get(k, DEFAULT)[0] for k in key]
+    df['feat_dist_sma50_d']    = [feats.get(k, DEFAULT)[1] for k in key]
+    df['feat_pct_from_hi52w']  = [feats.get(k, DEFAULT)[2] for k in key]
+    df['feat_pct_from_lo52w']  = [feats.get(k, DEFAULT)[3] for k in key]
+    df['feat_days_since_hi52w']= [feats.get(k, DEFAULT)[4] for k in key]
+    df['feat_days_since_lo52w']= [feats.get(k, DEFAULT)[5] for k in key]
+    df['feat_rsi_14d']         = [feats.get(k, DEFAULT)[6] for k in key]
+    df['feat_atr_pct_14d']     = [feats.get(k, DEFAULT)[7] for k in key]
+
+    df['feat_velocity'] = df['gain_from_open'].fillna(0) / df['mins_from_open'].clip(lower=1)
+    df['feat_range_x_velocity'] = df['range_pct'].fillna(0) * df['feat_velocity'].abs()
+    df['feat_vol_gain_div'] = df['vol_ratio'].fillna(1) / (df['gain_from_open'].abs() + 1)
+    df['feat_intraday_rsi'] = (df['gain_from_open'].fillna(0).clip(-10, 10) + 10) * 5
+    df['feat_mom_x_vol'] = df['mom20d'].fillna(0) * df['vol_ratio'].fillna(1)
+    sec_cols = [c for c in df.columns if c.endswith('_intra') and c not in ('spy_intra','vix_5d_chg')]
+    df['feat_sec_avg_intra'] = df[sec_cols].fillna(0).mean(axis=1) if sec_cols else 0
+    df['feat_stock_vs_sec'] = df['gain_from_open'].fillna(0) - df['feat_sec_avg_intra']
+    df['feat_combined_momentum'] = df['feat_rsi_14d'] * 0.5 + df['feat_intraday_rsi'] * 0.5
+    return df
+
+
+def _add_market_labels(df):
+    """Step 15-16 (2026-05-14): add market-context labels for Step 18.
+
+    label_z34_market (Z3/Z4): EOD > scan × 0.998 AND DD > -3%.
+    label_z12_market_3dd (Z1/Z2): same formula on Z1/Z2 mfo range.
+    label_eod_green_v2 (Z2): kept from existing pkl if present.
+
+    Uses cache/wf_1min_bars.db for intraday low/EOD lookup.
+    """
+    import sqlite3 as _sq
+    from pathlib import Path as _P
+    cache_db = _P(__file__).resolve().parents[1] / 'cache' / 'wf_1min_bars.db'
+    if not cache_db.exists():
+        print(f"  ⚠️ {cache_db} missing — skipping market labels (Step 18 needs them)")
+        return df
+
+    con = _sq.connect(str(cache_db))
+    # Cache all (sym, date) bars once
+    sym_date_pairs = df[['sym','date']].drop_duplicates().itertuples(index=False)
+    bar_cache = {}
+    for sym, date in sym_date_pairs:
+        rows = con.execute("SELECT em, l, c FROM bars WHERE sym=? AND date=? ORDER BY em",(sym,date)).fetchall()
+        if rows: bar_cache[(sym, date)] = rows
+    con.close()
+
+    Z14_RANGE = (0, 75)  # mfo range covered by Z1-Z4
+    df['label_z12_market_3dd'] = np.nan
+    df['label_z34_market'] = np.nan
+    mask = (df['mins_from_open']>=Z14_RANGE[0]) & (df['mins_from_open']<=Z14_RANGE[1])
+    for idx, r in df[mask].iterrows():
+        bars = bar_cache.get((r['sym'], r['date']))
+        if not bars: continue
+        target_em = 570 + int(r['mins_from_open'])  # 09:30 = em 570
+        scan_p = None; lows = []
+        for em, l, c in bars:
+            if em == target_em and c and c > 0: scan_p = c
+            if em > target_em and l and l > 0: lows.append(l)
+        if scan_p is None or not lows: continue
+        eod = bars[-1][2]
+        if eod is None or eod <= 0: continue
+        min_low = min(lows)
+        dd_pct = (min_low/scan_p - 1) * 100
+        is_green = eod > scan_p * 0.998
+        no_3dd = dd_pct > -3.0
+        # Same formula for Z1/Z2 (label_z12_market_3dd) and Z3/Z4 (label_z34_market)
+        # Naming kept distinct for clarity, even though identical
+        if r['mins_from_open'] <= 29:  # Z1+Z2
+            df.at[idx, 'label_z12_market_3dd'] = 1 if (is_green and no_3dd) else 0
+        if r['mins_from_open'] >= 30:  # Z3+Z4
+            df.at[idx, 'label_z34_market'] = 1 if (is_green and no_3dd) else 0
+    return df
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--start', default='2021-01-01')
     parser.add_argument('--end', default='2026-04-22')
-    parser.add_argument('--output', default='/tmp/bt_features_v16.pkl')
+    parser.add_argument('--output', default='cache/bt_features/features.pkl')
     parser.add_argument('--limit', type=int, default=200)
     args = parser.parse_args()
+
+    # Ensure output dir exists
+    from pathlib import Path as _P
+    _P(args.output).parent.mkdir(parents=True, exist_ok=True)
 
     build_features(args.start, args.end, args.output, args.limit)
