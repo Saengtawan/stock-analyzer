@@ -81,7 +81,13 @@ for current expectations. Earlier numbers like "78% honest WF" / "78.3% WF" /
 "88% WR" / "86.8% Triple Blend" / "0.1% live -81%" are OBSOLETE — they
 referred to deprecated configurations and feature pipelines.)
 
-### ml_filter (PRIMARY) — deployed 2026-05-14 (Step 17: Z4 Hard SL)
+### ml_filter (PRIMARY) — deployed 2026-05-14 (Step 18: rank by win only)
+
+**Step 18 (2026-05-14) — Top-1 ranking = `win_score` only (drop +0.10×gain)**
+  - WF grid (9 formulas): F1 win-only beats F3 (current) by +174% total.
+  - WF combined: +959%/6mo (vs F3 +785%). WR 89% (vs 83%). worst -3.50% (vs -4.48%).
+  - Per-zone: Z1 +325%, Z2 +211%, Z3 +206%, Z4 +216% (all under Top-1).
+  - Single-line code change: `ml_filter.py:834`.
 
 **Step 17 (2026-05-14) — Z4 Hard SL = -3% from limit_price**
   - All zones still use adaptive limit + label_z*_market (Step 16 config).

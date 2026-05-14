@@ -826,12 +826,13 @@ class MLFilterStrategy(BaseStrategy):
                 f"(bucket {scorer.get_bucket(minutes_from_open)})"
             )
 
-        # 2026-05-05: U coef 0.05 → 0.10 (joint validation, +1% total, plateau 0.07-0.15).
-        # 2026-05-01: Reverted to U formula ranking + Top-1 after fixing stale data bug.
-        # WF: WR 100% (12/12 months), avg +3.06%, +$790/yr — best of all tested.
-        # U formula = ml_prob + 0.10×gain_from_open (favor high confidence + intraday momentum).
-        # Stale data bug fixed: ETF data now refreshed via 1-min bars at market open.
-        candidates.sort(key=lambda p: -(p.extra['ml_prob'] + 0.10 * p.extra.get('gain_pct', 0)))
+        # 2026-05-14 Step 18: F1 (win only) ranking — drop +0.10×gain bonus.
+        # WF Top-1 grid (Nov 2025 - Apr 2026, 9 formulas tested):
+        #   F1 win only:      +959% / WR 89% / worst -3.50%  ⭐ BEST
+        #   F3 w+0.10g (old): +785% / WR 83% / worst -4.48%  (was current)
+        # Δ = +174% total, +6pp WR, -1pp tail. Win score already incorporates
+        # momentum via gain_from_open feature — adding it again was double-count.
+        candidates.sort(key=lambda p: -p.extra['ml_prob'])
 
         # Cross-scan dedup: skip symbols picked in last 60 min (prevent double-entry)
         try:
