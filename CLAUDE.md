@@ -2,8 +2,17 @@
 
 ## How to scan
 
-Single entry point: `python3 -m src.scan.engine <command>`
+**Preferred (handles early-scan wait):**
+```bash
+bash scripts/scan_smart.sh                 # auto-waits until 09:31:30 ET
+bash scripts/scan_smart.sh ml_filter       # force ml_filter
+```
+`scan_smart.sh` is the canonical scan entry point. If invoked between
+09:28:00–09:31:30 ET on a weekday, it sleeps until the first 1-min bar
+has closed + 30 s ingestion buffer, then forwards to the engine. Outside
+that window it passes straight through.
 
+**Raw engine (no wait — only use if you know data is ready):**
 ```bash
 python3 -m src.scan.engine list            # show registered strategies
 python3 -m src.scan.engine auto            # auto-pick by time+regime
@@ -19,7 +28,7 @@ User พิมพ์คำสั่งเป็นภาษาไทยหรื
 
 | User พิมพ์ | Run |
 |---|---|
-| `scan` / `scan หุ้น` | `python3 -m src.scan.engine auto` |
+| `scan` / `scan หุ้น` | `bash scripts/scan_smart.sh` (auto-waits if pre-09:31:30 ET) |
 | `scan orb` | `orb_gap_preview` (ก่อน 09:30) / `orb_gap_break` (09:30-09:35) / `orb_prep` (03:00 prep) |
 | `scan intraday` | `ml_filter` |
 | `scan top movers` | `ml_filter` (ถ้าอยู่ใน 09:30-14:00 window) |
@@ -59,51 +68,94 @@ User พิมพ์คำสั่งเป็นภาษาไทยหรื
 ## Current strategies (v2 + ML)
 
 ### Trade strategies
-| Strategy | Window ET | WR | EV | Notes |
-|---|---|---|---|---|
-| **ml_filter** | 09:30-13:00 | **78%** (honest WF) | +1.3% | ⭐ ENSEMBLE ML — primary |
-| orb_prep | 03:00-09:30 | — | — | watchlist only |
-| vwap_reclaim | 13:30-15:30 | 52% | +0.4% | afternoon VWAP |
-| crisis_reversal | any (VIX≥25) | 75% | +3.0% | contrarian |
-| eod_flatten | 15:55-16:00 | — | — | meta (MOC) |
+| Strategy | Window ET | Notes |
+|---|---|---|
+| **ml_filter** | 09:30-13:00 | ⭐ ENSEMBLE ML — primary. See deployed config below. |
+| orb_prep | 03:00-09:30 | watchlist only |
+| vwap_reclaim | 13:30-15:30 | afternoon VWAP |
+| crisis_reversal | any (VIX≥25) | contrarian |
+| eod_flatten | 15:55-16:00 | meta (MOC) |
 
-### ml_filter (PRIMARY)
+(Old per-strategy WR/EV numbers removed 2026-05-13 — see deployed config below
+for current expectations. Earlier numbers like "78% honest WF" / "78.3% WF" /
+"88% WR" / "86.8% Triple Blend" / "0.1% live -81%" are OBSOLETE — they
+referred to deprecated configurations and feature pipelines.)
 
-Uses 5-model LightGBM ensemble (real bagging, MIN-of-5 seeds for win,
-MAX-of-5 for loss reject). Models v22 (label_decay for win, label_fixed3
-for loss) + Tech-specialized 09:30 + multi-timeframe 10:00/11:30.
+### ml_filter (PRIMARY) — deployed 2026-05-14 (Step 17: Z4 Hard SL)
 
-**Honest WR (walk-forward refit per month, Nov'25-Apr'26):**
-  Overall:  281 picks, **78.3% WR**, avg +1.34%/trade
-  Per-month range: 71-84% (no catastrophic month)
-  Worst month (Apr'26): 71.1% / +0.94%
-  Best month (Nov'25):  84.2% / +1.49%
-  Live expectation after 0.2% slippage: **~73% WR, +1.1% avg**
+**Step 17 (2026-05-14) — Z4 Hard SL = -3% from limit_price**
+  - All zones still use adaptive limit + label_z*_market (Step 16 config).
+  - Z4 EXCEPTION: hard SL at -3% (was pure hold).
+  - WF: Z4 worst trade -4.68% → -3.10% (RIVN 2025-12-12 case capped).
+  - Total cost: -5% over 6mo (+259% → +254%). WR 92% → 91%.
+  - Config: `ZONE_HARD_SL = {'Z4': 0.03}` in `src/scan/ml_scorer.py`.
+  - Z1/Z2/Z3 remain pure hold (worst already < -3%).
 
-**Earlier "88% WR" claim was lookahead bias** — single-cutoff training
-where train data overlapped test period. Walk-forward refit gold-standard
-gives honest 78.3%. Always retrain monthly to keep model current.
+**Step 16 (2026-05-14) — Z1 retrained with label_z12_market_3dd**
+See `docs/ML_METHODOLOGY_2026-05-13.md` for full documentation.
 
-**4 hard rules deployed (validated 2026-04-27):**
-  09:30 (mfo<30): mom20d>20 reject + chaser-trap (mfo≥10 AND bars_since_hi=0) reject
-  10:00 (mfo<75): sector_etf<-0.3% reject + vol_accel<1.0 reject
-  10:45 (mfo<120): mom20d>20 reject
-  11:30+: no rule
+Key changes:
+  - **+16 new features** (feat_dist_sma20_d, feat_rsi_14d, feat_atr_pct_14d, etc.)
+  - **Per-zone optimal hyperparameters** (random search 10 trials)
+  - **Validated via true 6-month walk-forward** (monthly refit), not single-cutoff
+  - **MoE + 1m ensemble DISABLED** — pure 28m models (matches WF validation)
+  - Loss models retrained with same feature set
 
-**Hybrid trail (matches training labels per bucket):**
-  09:30/10:00 entries: trail 2% (early buckets benefit from tighter trail)
-  10:45/11:30 entries: trail 3% (late entries need wider trail)
+**WF validation (6 months, Nov 2025 - Apr 2026):**
+| Zone | WR | avg | Total | Worst | p-value |
+|---|---|---|---|---|---|
+| Z1 | 88% | +3.12% | +290% | -2.54% | 0.0000 ⭐ |
+| Z2 | 88% | +2.80% | +95%  | -2.08% | 0.0652 |
+| Z3 | 85% | +2.83% | +292% | -2.01% | 0.0000 ⭐ |
+| Z4 | 98% | +4.22% | +511% | -2.25% | 0.0000 ⭐ |
 
-Active window: 09:30-13:00 ET only. Both afternoon buckets hard-skipped
-via `can_reach_75()` — do not re-enable without new validation.
+Combined 6-month total: **+1188%** (2.8× baseline +422%).
 
-No AD hard gate — ad_ratio is a feature, model handles regime.
-Runs on ~100% of trading days (vs 24% with old AD≥2 gate).
+### ml_filter (PRIMARY) — deployed 2026-05-13 (initial)
 
-Target labels:
-  Win model: `label_decay` ≥ +1% (trail 3%/2%/1% by time-of-day)
-  Loss reject: `label_fixed3` ≤ -1% (trail 3% fixed)
-  Tested label_fixed2 retrain (v28) — 18pp WORSE than v22 → don't deploy.
+**Strategy:**
+  - Labels (zone-specific, all 840d train except where noted):
+    - Z1: `label_safe_eod_1` (EOD-green AND no -1% intraday DD from entry)
+    - Z2: `label_eod_green_v2` (EOD-green, baseline kept — safe variants didn't help)
+    - Z3: `label_safe_eod_2` (EOD-green AND no -2% intraday DD)
+    - Z4: `label_safe_eod_2` (same as Z3)
+  - Thresholds: Z1=0.40, Z2=0.40, Z3=0.40, Z4=0.35 (lowered from initial
+    based on live evidence: FTI 0.449 / TGT 0.420 on 5/12 both closed
+    EOD-green but were blocked by earlier 0.55 threshold).
+  - **Exit: pure hold to EOD, no SL, no trail, no Lock** — all zones.
+  - **Entry: LIMIT @ 09:30 1-min open** (suggested in scan output as `limit_price`).
+    Adverse selection caveat: limit only fills if stock dips back. Practical
+    fill rate ~25-40%. Live can also use market order at scan time (higher
+    fill, slightly worse entry).
+
+**Expected performance (WF using training pkl, Apr 1-May 8, 2026):**
+| Zone | N | WR | avg | Total | Worst |
+|---|---|---|---|---|---|
+| Z1 | 23 | 83% | +2.65% | +61% | -2.27% |
+| Z2 | 16 | 100% | +2.66% | +42% | +0.34% |
+| Z3 | 23 | 87% | +2.74% | +63% | -1.06% |
+| Z4 | 23 | 100% | +2.87% | +66% | +0.34% |
+
+Improvements vs initial 2026-05-13 deploy (label_eod_green_v2 + label_decay):
+  Z1 +12% total (label_safe_eod_1 +1% DD constraint helps Z1 winners hold)
+  Z3 +10pp WR, worst -6.96% → -1.06% (huge tail risk reduction)
+  Z4 +13pp WR (87→100%), worst -1.65% → +0.34% (no losing trades in OOS)
+
+⚠️ These are the only numbers to trust. Earlier OOS sim numbers (Z1 93%/+136%
+etc.) used custom Python feature computation that drifted from the training
+pkl — they overestimated performance by ~2-3×. Realistic upper bound shown
+above; live likely 5-15pp lower than these due to slippage + feature drift.
+
+**Diagnostic history (2026-05-12):**
+Previous live ml_filter was bleeding (-81% / 20% WR since 2026-04-15) under
+the old config: `label_decay` + market-order chase + Hard SL -2% + adaptive
+trail + Lock SL. Root cause was execution chase (entry above 09:30 open)
+combined with tight SL hitting on natural intraday retrace. Six losing
+picks (RMBS/GLW/DKNG/AKAM/NET/HL) all would have been winners with
+limit @ 09:30 open + no SL.
+
+**Active window: 09:30-13:00 ET only.** Late buckets hard-skipped via
+`can_reach_75()` — do not re-enable without new validation.
 
 Features (56 base + 5 interactions @09:30 + 15 multi-tf @10:00/11:30):
   V7 (31): mins_from_open, gain_from_open, range_pct, from_peak_pct,

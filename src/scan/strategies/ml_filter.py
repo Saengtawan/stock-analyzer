@@ -525,6 +525,62 @@ class MLFilterStrategy(BaseStrategy):
                 pct_52w_hi = 0
                 pct_52w_lo = 0
 
+            # 2026-05-13: 16 new features (Step 2 of methodology)
+            # Daily-derived (8): SMA20/50, 52w extremes + staleness, RSI, ATR
+            if len(closes_full) >= 50:
+                sma50_d = float(np.mean(closes_full[-50:]))
+                feat_dist_sma20_d = (now / sma20 - 1) * 100 if sma20 > 0 else 0
+                feat_dist_sma50_d = (now / sma50_d - 1) * 100 if sma50_d > 0 else 0
+            else:
+                feat_dist_sma20_d = feat_dist_sma50_d = 0
+            # Days since 52w hi/lo (from closes_full, recent window)
+            if len(closes_full) >= 252:
+                window = closes_full[-252:]
+                idx_hi = int(np.argmax(window))
+                idx_lo = int(np.argmin(window))
+                feat_days_since_hi52w = (len(window) - 1) - idx_hi
+                feat_days_since_lo52w = (len(window) - 1) - idx_lo
+            else:
+                feat_days_since_hi52w = feat_days_since_lo52w = 0
+            # RSI 14-day from closes
+            if len(closes_full) >= 15:
+                deltas = np.diff(closes_full[-15:])
+                gains_rsi = np.where(deltas > 0, deltas, 0).mean()
+                losses_rsi = np.where(deltas < 0, -deltas, 0).mean()
+                if losses_rsi > 0:
+                    rs_v = gains_rsi / losses_rsi
+                    feat_rsi_14d = 100 - 100/(1+rs_v)
+                else:
+                    feat_rsi_14d = 100
+            else:
+                feat_rsi_14d = 50
+            # ATR 14-day pct (using daily_hl)
+            hl_list = daily_hl.get(sym, [])
+            if len(hl_list) >= 15 and now > 0:
+                trs = []
+                for i in range(len(hl_list)-14, len(hl_list)):
+                    if i > 0:
+                        h_t, l_t = hl_list[i][1], hl_list[i][2]
+                        c_prev = hl_list[i-1][1]  # Use prev high as approx prev close
+                        if h_t is not None and l_t is not None and c_prev is not None:
+                            tr = max(h_t-l_t, abs(h_t-c_prev), abs(l_t-c_prev))
+                            trs.append(tr)
+                feat_atr_pct_14d = (float(np.mean(trs)) / now * 100) if trs else 1.0
+            else:
+                feat_atr_pct_14d = 1.0
+            # Intraday-derived (8)
+            mfo_safe = max(1, minutes_from_open)
+            feat_velocity = gain / mfo_safe
+            feat_range_x_velocity = range_pct * abs(feat_velocity)
+            feat_vol_gain_div = vol_ratio / (abs(gain) + 1)
+            feat_intraday_rsi = (max(-10, min(10, gain)) + 10) * 5
+            feat_mom_x_vol = mom20 * vol_ratio
+            # sector ETFs avg (computed below at line ~603+)
+            sec_etfs_for_avg = [etf_intraday(e) for e in ['XLB','XLC','XLE','XLF','XLI','XLK','XLP','XLRE','XLU','XLV','XLY','SMH','QQQ','IWM','DBC','EEM','GLD','HYG','IGV','IEF','LQD','TLT','USO','UUP','VXX']]
+            feat_sec_avg_intra = float(np.mean(sec_etfs_for_avg)) if sec_etfs_for_avg else 0
+            feat_stock_vs_sec = gain - feat_sec_avg_intra
+            feat_combined_momentum = feat_rsi_14d * 0.5 + feat_intraday_rsi * 0.5
+
             # 10-day range
             hl_hist = daily_hl.get(sym, [])
             # entries: (date, high, low, open)
@@ -546,6 +602,7 @@ class MLFilterStrategy(BaseStrategy):
                 day_open = sym_bars[0].get('o', opn)
                 bar_feats = extract_multibar_features(sym_bars, day_open)
             else:
+                day_open = opn
                 bar_feats = {
                     'bars_since_hi': 0, 'vol_accel': 1.0, 'hh_count': 0,
                     'consol': range_pct, 'consec_green': 0,
@@ -628,6 +685,31 @@ class MLFilterStrategy(BaseStrategy):
                 'gain_x_xlk': gain * etf_intraday('XLK'),
                 'gain_div_vix': gain / (vix / 20.0) if vix > 0 else 0.0,
                 'range_pullback': range_pct * (5 - max(0, min(5, gain))),
+                # 2026-05-12: Spike-fade features (Iter 2 for Z1)
+                # Computed from 09:30 5-min bar OHLC (day_open, hi, lo, current_close)
+                'range_930_pct': ((hi - lo) / day_open * 100) if (day_open > 0 and hi > lo) else 0.0,
+                'wick_top_pct': ((hi - max(day_open, now)) / (hi - lo)) if (hi > lo) else 0.0,
+                'wick_bot_pct': ((min(day_open, now) - lo) / (hi - lo)) if (hi > lo) else 0.0,
+                'body_pct': (abs(now - day_open) / (hi - lo)) if (hi > lo) else 0.0,
+                'pos_in_range': ((now - lo) / (hi - lo)) if (hi > lo) else 0.5,
+                'gain_from_low_930': ((now / lo - 1) * 100) if lo > 0 else 0.0,
+                # 2026-05-13: 16 new features (Step 2 ML methodology)
+                'feat_dist_sma20_d': feat_dist_sma20_d,
+                'feat_dist_sma50_d': feat_dist_sma50_d,
+                'feat_pct_from_hi52w': pct_52w_hi,
+                'feat_pct_from_lo52w': pct_52w_lo,
+                'feat_days_since_hi52w': feat_days_since_hi52w,
+                'feat_days_since_lo52w': feat_days_since_lo52w,
+                'feat_rsi_14d': feat_rsi_14d,
+                'feat_atr_pct_14d': feat_atr_pct_14d,
+                'feat_velocity': feat_velocity,
+                'feat_range_x_velocity': feat_range_x_velocity,
+                'feat_vol_gain_div': feat_vol_gain_div,
+                'feat_intraday_rsi': feat_intraday_rsi,
+                'feat_mom_x_vol': feat_mom_x_vol,
+                'feat_sec_avg_intra': feat_sec_avg_intra,
+                'feat_stock_vs_sec': feat_stock_vs_sec,
+                'feat_combined_momentum': feat_combined_momentum,
             }
 
             prob = scorer.score(features, minutes_from_open, sector=sec)
@@ -655,53 +737,87 @@ class MLFilterStrategy(BaseStrategy):
             # 11:30+ : no rule (validated rules don't help this bucket)
 
             atr_pct = (hi - lo) / now * 100 if now > 0 else 3.0
-            # 2026-05-06 v5: Lower runner threshold 2.5 → 2.0 (+19% total in WF).
-            # Hybrid = Adaptive trail + Hard SL floor (-2%).
-            # WF: WR 85.3%, avg +2.84%, total +539% (vs +520% with thr=2.5, +19pp).
-            # Reasoning: stocks at gain 2.0-2.5% benefit from wider trail (5%) to ride rally.
-            base_trail = 5.0 if gain >= 2.0 else 2.5
-            # Volatility adjustments
-            if features.get('mcap_bucket', 0) == 2:    # mid-cap = volatile
-                base_trail = max(base_trail, 4.0)
-            if features.get('vix', 18) >= 25:           # high VIX
-                base_trail = max(base_trail, 4.0)
-            if beta >= 1.5:                             # high-beta stock
-                base_trail = max(base_trail, 4.0)
-            trail = round(min(7.0, max(2.5, base_trail)), 1)
-            HARD_SL_PCT = 2.0
-            # 2026-05-09: Lock SL after peak hits trigger (Layer B).
-            # When peak gain ≥ LOCK_TRIGGER_PCT, raise SL floor to LOCK_AT_PCT (above entry).
-            # WF combined with tighter loss thr: WR 98.3%, avg +2.57%, +454%/yr.
-            # Trade-off: cap upside, but turn whipsaws into small wins (HL/GLW-type).
-            LOCK_TRIGGER_PCT = 2.0
-            LOCK_AT_PCT = 0.5
-            trail_sl = now * (1 - trail / 100)
-            hard_sl = now * (1 - HARD_SL_PCT / 100)
-            sl_price = max(trail_sl, hard_sl)  # tighter (less risk)
-            reason = (
-                f"ML p={prob:.3f} thr={threshold:.2f} "
-                f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]} "
-                f"trail{trail}%+hardSL{HARD_SL_PCT}%+lock@+{LOCK_TRIGGER_PCT}%/+{LOCK_AT_PCT}%"
-            )
+            # 2026-05-14: Step 12 per-zone ATR-adaptive buffer.
+            # buffer = base_buf + atr_coef × atr_pct_14d (daily ATR)
+            # WF: Combined +662%/6mo (vs Step 10 +588%, +13% improvement).
+            pred_ratio = scorer.predict_adaptive_limit_ratio(features, minutes_from_open, sector=sec)
+            zone_name = scorer.get_zone(minutes_from_open) if scorer.USE_ZONES else None
+            zone_cfg = getattr(scorer, 'ZONE_LIMIT_CONFIG', {}).get(zone_name)
+            if zone_cfg:
+                atr_14d = features.get('feat_atr_pct_14d', 3.0)
+                buf = zone_cfg['base_buf'] + zone_cfg['atr_coef'] * atr_14d
+            else:
+                buf = getattr(scorer, 'ADAPTIVE_LIMIT_BUFFER', 0.010)  # fallback
+            adaptive_limit = now * pred_ratio * (1 + buf)
+            # Z4 dip filter
+            if zone_name == 'Z4':
+                min_dip = getattr(scorer, 'Z4_DIP_FILTER', 0.005)
+                if (1 - pred_ratio) < min_dip:
+                    continue  # skip Z4 pick if predicted dip too small
+
+            is_eod = True  # all zones now use EOD strategy
+            if is_eod:
+                # Pure hold to EOD — no SL, no trail, no lock for Z1/Z2/Z3
+                # Z4 exception (Step 17): Hard SL = ZONE_HARD_SL['Z4'] from limit_price
+                # WF: caps worst trade from -4.68% → -3.10% (Z4 RIVN 2025-12-12 case)
+                trail = 0
+                # 2026-05-14: Use adaptive limit (ML-predicted) instead of 09:30 open
+                limit_price = adaptive_limit
+                zone_sl_pct = getattr(scorer, 'ZONE_HARD_SL', {}).get(zone_name)
+                if zone_sl_pct:
+                    sl_price = limit_price * (1 - zone_sl_pct)
+                    sl_tag = f"hardSL@{-zone_sl_pct*100:.1f}%"
+                else:
+                    sl_price = 0  # disabled (pure hold)
+                    sl_tag = "no SL"
+                reason = (
+                    f"ML p={prob:.3f} adapt_lim={pred_ratio:.4f} (dip {(1-pred_ratio)*100:.2f}%) "
+                    f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]} "
+                    f"LIMIT@${day_open:.2f} pure-hold-EOD ({sl_tag})"
+                )
+            else:
+                # Legacy for Z2/Z3/Z4 until retrained
+                base_trail = 5.0 if gain >= 2.0 else 2.5
+                if features.get('mcap_bucket', 0) == 2:
+                    base_trail = max(base_trail, 4.0)
+                if features.get('vix', 18) >= 25:
+                    base_trail = max(base_trail, 4.0)
+                if beta >= 1.5:
+                    base_trail = max(base_trail, 4.0)
+                trail = round(min(7.0, max(2.5, base_trail)), 1)
+                HARD_SL_PCT = 2.0
+                LOCK_TRIGGER_PCT = 2.0
+                LOCK_AT_PCT = 0.5
+                trail_sl = now * (1 - trail / 100)
+                hard_sl = now * (1 - HARD_SL_PCT / 100)
+                sl_price = max(trail_sl, hard_sl)
+                limit_price = now
+                reason = (
+                    f"ML p={prob:.3f} thr={threshold:.2f} "
+                    f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]} "
+                    f"trail{trail}%+hardSL{HARD_SL_PCT}%+lock@+{LOCK_TRIGGER_PCT}%/+{LOCK_AT_PCT}%"
+                )
+
+            extra_dict = {
+                'ml_prob': round(prob, 4),
+                'threshold': round(threshold, 4),
+                'bucket': bucket,
+                'gain_pct': round(gain, 2),
+                'beta': round(beta, 2),
+                'sector': sec,
+                'limit_price': round(limit_price, 2),
+                'exit_strategy': 'pure_hold_eod',
+            }
 
             candidates.append(Pick(
-                symbol=sym, entry=now,
-                sl_price=round(sl_price, 2),
+                symbol=sym, entry=limit_price,
+                sl_price=round(sl_price, 2) if sl_price else None,
                 tp_price=None,
                 trail_pct=trail,
                 reason=reason,
                 score=int(prob * 10),
                 atr_pct=atr_pct,
-                extra={
-                    'ml_prob': round(prob, 4),
-                    'threshold': round(threshold, 4),
-                    'bucket': bucket,
-                    'gain_pct': round(gain, 2),
-                    'beta': round(beta, 2),
-                    'sector': sec,
-                    'lock_trigger_pct': LOCK_TRIGGER_PCT,
-                    'lock_at_pct': LOCK_AT_PCT,
-                },
+                extra=extra_dict,
             ))
 
         if not candidates:

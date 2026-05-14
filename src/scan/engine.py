@@ -148,7 +148,10 @@ def format_result(r: ScanResult) -> str:
         lines.append("")
         lines.append(f"{'#':>2s} {'Sym':6s} {'Entry':>8s} {'SL':>18s} {'TP':>18s} {'Trail':>7s} {'Reason'}")
         for i, p in enumerate(r.picks, 1):
-            sl_str = f"${p.sl_price:.2f} ({p.extra.get('sl_pct',0):+.1f}%)" if p.extra.get('sl_pct') else f"${p.sl_price:.2f}"
+            if p.sl_price is None:
+                sl_str = "no SL (hold EOD)"
+            else:
+                sl_str = f"${p.sl_price:.2f} ({p.extra.get('sl_pct',0):+.1f}%)" if p.extra.get('sl_pct') else f"${p.sl_price:.2f}"
             tp_str = f"${p.tp_price:.2f} (+{p.extra.get('tp_pct',0):.1f}%)" if p.tp_price and p.extra.get('tp_pct') else f"${p.tp_price:.2f}" if p.tp_price else "-"
             trail_str = f"{p.trail_pct}%" if p.trail_pct else "-"
             lines.append(

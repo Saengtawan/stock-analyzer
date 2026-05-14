@@ -101,10 +101,31 @@ class MLScorer:
     # Z2/Z3 from 0.75 → 0.50 (looser plateau), Z1/Z4 unchanged.
     # WF: WR 87.6% (=baseline), avg +2.27%, total +495%/yr (+95% over Task 4 alone).
     ZONE_THRESHOLDS = {
-        'Z1': 0.35,  # unchanged (Task 4 best)
-        'Z2': 0.50,  # 0.75 → 0.50 (Task 4 best)
-        'Z3': 0.50,  # 0.75 → 0.50 (Task 4 best)
-        'Z4': 0.60,  # unchanged (Task 4 best)
+        # 2026-05-14: Per-zone optimized via Step 10 grid search.
+        # Adaptive limit (Step 7) + buffer 1.0% achieves fill >80% per zone.
+        # Win threshold tuned per zone to balance fill rate + WR.
+        # WF (Nov 2025 - Apr 2026, monthly refit):
+        #   Z1: fill 87%, WR 88%, +189%/6mo, worst -2.42%
+        #   Z2: fill 88%, WR 91%, +189%/6mo, worst -1.93%
+        #   Z3: fill 91%, WR 74%, +108%/6mo, worst -2.67%
+        #   Z4: fill 92%, WR 66%, +102%/6mo, worst -1.62% (with dip filter 0.5%)
+        'Z1': 0.60,
+        'Z2': 0.65,
+        'Z3': 0.50,  # 2026-05-14: label_z34_market deploy. Step 15 WF: WR 84% / +188%
+        'Z4': 0.50,  # 2026-05-14: label_z34_market deploy. Step 15 WF: WR 88% / +175%
+    }
+    # 2026-05-14: Z4 specific filter — only pick if ML predicts dip >= 0.5%
+    Z4_DIP_FILTER = 0.005  # 0.5% minimum predicted dip
+    # 2026-05-14: Adaptive limit buffer (above ML predicted low)
+    ADAPTIVE_LIMIT_BUFFER = 0.010  # 1.0% above predicted low (fallback)
+    # 2026-05-14 Step 12: Per-zone ATR-adaptive buffer.
+    # buffer = base_buf + atr_coef × atr_pct_14d
+    # WF (Nov 2025 - Apr 2026): Z1 +211%, Z2 +224%, Z3 +125%, Z4 +102%, Combined +662%
+    ZONE_LIMIT_CONFIG = {
+        'Z1': {'base_buf': 0.005, 'atr_coef': 0.0020},  # fill 93%, WR 89%, +211%, -2.85%
+        'Z2': {'base_buf': 0.005, 'atr_coef': 0.0015},  # fill 94%, WR 90%, +224%, -1.77%
+        'Z3': {'base_buf': 0.005, 'atr_coef': 0.0015},  # fill 95%, WR 75%, +125%, -2.55%
+        'Z4': {'base_buf': 0.010, 'atr_coef': 0.0000},  # fill 92%, WR 66%, +102%, -1.62% (keep Step 10)
     }
     # 2026-05-06: Loss thresholds tuned (Task 3 + Task 4 sweep).
     ZONE_LOSS_THR = {
@@ -112,6 +133,16 @@ class MLScorer:
         'Z2': 0.20,  # was 0.35 — much tighter (Task 3 best)
         'Z3': 0.40,  # was 0.55 — tighter (Task 3 best)
         'Z4': 0.50,  # was 0.55 — tighter (Task 3 best)
+    }
+    # 2026-05-14 Step 17: Per-zone Hard Stop Loss (% from fill_price).
+    # Z1/Z2/Z3 keep pure hold to EOD (worst already < -3%). Z4 adds -3% SL
+    # because worst-trade RIVN 2025-12-12 went to -4.68% without SL.
+    # WF (Nov 2025 - Apr 2026, refit monthly):
+    #   Z4 pure:    WR 92%, +259%, worst -4.68%
+    #   Z4 SL -3%:  WR 91%, +254%, worst -3.10%  ← deployed
+    # Trade-off: lose -5% total to cap tail from -4.68%→-3.10%.
+    ZONE_HARD_SL = {
+        'Z4': 0.03,  # 3% from fill_price
     }
 
     # === MoE soft (Mixture of Experts) — 2026-05-04 ===
@@ -121,18 +152,13 @@ class MLScorer:
     # 2026-05-06: Re-enabled for Triple Blend (MoE 5m + 1m_profit ensemble).
     #   Bull: regime_weight ≈0.95 → mostly 28m (current)
     #   Bear: regime_weight drops → 49m takes over (insurance)
-    USE_MOE = True
+    # 2026-05-13 deploy: Disabled MoE/1m ensemble because new feature set (77 features for Z1/Z2,
+    # 72 for Z3/Z4) doesn't match legacy 49m and 1m models (61-feat). WF validation used 28m only.
+    USE_MOE = False
 
-    # === Triple Blend (B2 + MoE) — 2026-05-06 v3 ===
-    # Layer 1: MoE 5m = w × 28m + (1-w) × 49m (regime-weighted)
-    # Layer 2: Final = 0.5 × MoE_5m + 0.5 × 1m_profit
-    # Bull: 28m dominates 5m blend → similar to B2
-    # Bear: 49m takes over 5m blend → insurance kicks in
-    # WF (B2 alone): WR 92.1%, avg +2.49%, total +473%/yr
-    # Triple = B2 with bear protection (estimated WR -1pp in bull, +5-10pp in bear)
-    USE_ENSEMBLE_1M = True
-    ENSEMBLE_W_5M = 0.5   # weight for MoE-blended 5m output
-    ENSEMBLE_W_1M = 0.5   # weight for 1m_profit model
+    USE_ENSEMBLE_1M = False
+    ENSEMBLE_W_5M = 1.0   # weight for MoE-blended 5m output (irrelevant when 1m off)
+    ENSEMBLE_W_1M = 0.0   # weight for 1m_profit model (disabled)
 
     def __init__(self):
         self.models = {}
@@ -152,6 +178,8 @@ class MLScorer:
         # 1m ensemble partner
         self.zone_tp1_models_1m = {}
         self.zone_loss_models_1m = {}
+        # 2026-05-14: Adaptive limit models (predicts intraday_low / scan_price ratio)
+        self.zone_adaptlim_models = {}
         # Regime weight (set per-scan from outside)
         self.regime_weight = 1.0  # default = pure 28m
         self._load_features()
@@ -162,6 +190,7 @@ class MLScorer:
             self._load_moe_models()
         if self.USE_ENSEMBLE_1M:
             self._load_1m_models()
+        self._load_adaptlim_models()
 
     def _load_moe_models(self):
         """Load 49m expert models for MoE soft."""
@@ -182,6 +211,32 @@ class MLScorer:
     def set_regime_weight(self, w: float):
         """Set MoE regime weight (0.0 = pure 49m, 1.0 = pure 28m). Called per-scan."""
         self.regime_weight = max(0.0, min(1.0, w))
+
+    def _load_adaptlim_models(self):
+        """Load adaptive limit models (Step 7) — predicts intraday low ratio per stock."""
+        for zname, lo, hi in self.ZONES:
+            ens = []
+            for s in range(5):
+                p = V22_DIR / f'lgb_adaptlim_{zname}_seed{s}.txt'
+                if p.exists():
+                    ens.append(lgb.Booster(model_file=str(p)))
+            if len(ens) == 5:
+                self.zone_adaptlim_models[zname] = ens
+
+    def predict_adaptive_limit_ratio(self, features: dict, mfo: int, sector: str = '') -> float:
+        """Predict intraday_low_ratio = min(low after scan) / scan_price for a candidate.
+        Returns ratio in [0.90, 1.00] typically. Lower = bigger predicted dip.
+        """
+        if not self.USE_ZONES:
+            return 1.0  # fallback: scan price
+        zone = self.get_zone(mfo)
+        if zone is None or zone not in self.zone_adaptlim_models:
+            return 1.0
+        feat_list = self.zone_features.get(zone, self.features_late)
+        row = [features.get(f, 0.0) for f in feat_list]
+        arr = np.array([row], dtype=float)
+        preds = [float(m.predict(arr)[0]) for m in self.zone_adaptlim_models[zone]]
+        return float(np.mean(preds))  # MEAN of 5 seeds for regression
 
     def _load_1m_models(self):
         """Load 1m-trained models for A3 ensemble."""

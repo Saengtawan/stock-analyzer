@@ -405,8 +405,6 @@ def build_features(start_date, end_date, output_path, limit_symbols=500):
                 gain = (cur_close / day_open - 1) * 100  # from today's open
                 total_gain = (cur_close / prev_close - 1) * 100  # from prev close (chased filter)
 
-                # v19: Filter on TOTAL move from prev close (catches overnight gap chasers)
-                # Old (v16): filter on gain_from_open only — could pick +8% gap stocks
                 if total_gain < 2 or total_gain >= 5: continue
 
                 # Base features
