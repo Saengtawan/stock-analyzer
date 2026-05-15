@@ -835,12 +835,16 @@ class MLFilterStrategy(BaseStrategy):
         candidates.sort(key=lambda p: -p.extra['ml_prob'])
 
         # Cross-scan dedup: skip symbols picked in last 60 min (prevent double-entry)
+        # 2026-05-14 bug fix: scan_ts stored in ET, but sqlite "now" is UTC →
+        # comparison always false → no dedup. Compute ET cutoff in Python.
         try:
             from pathlib import Path as _Path
+            from datetime import timedelta as _td
+            cutoff_et = (datetime.now(ET) - _td(minutes=60)).strftime('%Y-%m-%d %H:%M:%S')
             j_db = _Path(__file__).resolve().parents[3] / 'data' / 'scan_journal.db'
             _conn = sqlite3.connect(str(j_db))
             recent_syms = set(r[0] for r in _conn.execute(
-                "SELECT symbol FROM scan_picks WHERE scan_ts >= datetime('now', '-60 minutes')"
+                "SELECT symbol FROM scan_picks WHERE scan_ts >= ?", (cutoff_et,)
             ).fetchall())
             _conn.close()
         except Exception:
