@@ -150,10 +150,12 @@ def compute_path_features(past_bars, day_open):
     else:
         vol_at_peaks = 0
 
-    # VWAP slope
+    # VWAP slope — 2026-05-16 fix: HLC/3 weighted (match feature_compute.py)
     cum_pv = 0; cum_v = 0; vwap_diffs = []
     for b in past_bars:
-        v = b[5] or 0; cum_v += v; cum_pv += b[4] * v
+        v = b[5] or 0; cum_v += v
+        typical = (b[2] + b[3] + b[4]) / 3
+        cum_pv += typical * v
         vwap = cum_pv / cum_v if cum_v > 0 else b[4]
         vwap_diffs.append((b[4]/vwap - 1) * 100)
     vwap_slope = np.corrcoef(np.arange(len(vwap_diffs)), vwap_diffs)[0, 1] if len(vwap_diffs) > 3 else 0
@@ -410,7 +412,9 @@ def build_features(start_date, end_date, output_path, limit_symbols=500):
                 # Base features
                 range_pct = (cur_high - cur_low) / day_open * 100
                 from_peak_pct = (cur_close / cur_high - 1) * 100 if cur_high > 0 else 0
-                vwap_num = sum(b[4] * (b[5] or 0) for b in past_bars)
+                # 2026-05-16 fix: HLC/3 VWAP (Alpaca standard) to match live feature_compute.
+                # Was close-weighted; live uses HLC/3 → vs_vwap mismatched by 0.05-0.3%.
+                vwap_num = sum(((b[2] + b[3] + b[4]) / 3) * (b[5] or 0) for b in past_bars)
                 vwap_den = sum((b[5] or 0) for b in past_bars)
                 vwap = vwap_num / vwap_den if vwap_den > 0 else cur_close
                 vs_vwap = (cur_close / vwap - 1) * 100 if vwap > 0 else 0
@@ -710,14 +714,17 @@ def _add_market_labels(df):
     Z14_RANGE = (0, 75)  # mfo range covered by Z1-Z4
     df['label_z12_market_3dd'] = np.nan
     df['label_z34_market'] = np.nan
+    df['label_eod_green_v2'] = np.nan  # 2026-05-16: Z2 uses this label
     mask = (df['mins_from_open']>=Z14_RANGE[0]) & (df['mins_from_open']<=Z14_RANGE[1])
     for idx, r in df[mask].iterrows():
         bars = bar_cache.get((r['sym'], r['date']))
         if not bars: continue
         target_em = 570 + int(r['mins_from_open'])  # 09:30 = em 570
         scan_p = None; lows = []
+        day_open_em = None
         for em, l, c in bars:
             if em == target_em and c and c > 0: scan_p = c
+            if em == 570 and c and c > 0: day_open_em = c
             if em > target_em and l and l > 0: lows.append(l)
         if scan_p is None or not lows: continue
         eod = bars[-1][2]
@@ -726,12 +733,14 @@ def _add_market_labels(df):
         dd_pct = (min_low/scan_p - 1) * 100
         is_green = eod > scan_p * 0.998
         no_3dd = dd_pct > -3.0
-        # Same formula for Z1/Z2 (label_z12_market_3dd) and Z3/Z4 (label_z34_market)
-        # Naming kept distinct for clarity, even though identical
+        # label_z*_market: EOD > scan × 0.998 AND DD > -3%
         if r['mins_from_open'] <= 29:  # Z1+Z2
             df.at[idx, 'label_z12_market_3dd'] = 1 if (is_green and no_3dd) else 0
         if r['mins_from_open'] >= 30:  # Z3+Z4
             df.at[idx, 'label_z34_market'] = 1 if (is_green and no_3dd) else 0
+        # label_eod_green_v2: EOD > day_open (Z2 only uses this)
+        if day_open_em is not None:
+            df.at[idx, 'label_eod_green_v2'] = 1 if (eod > day_open_em) else 0
     return df
 
 
