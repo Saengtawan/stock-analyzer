@@ -81,7 +81,19 @@ for current expectations. Earlier numbers like "78% honest WF" / "78.3% WF" /
 "88% WR" / "86.8% Triple Blend" / "0.1% live -81%" are OBSOLETE — they
 referred to deprecated configurations and feature pipelines.)
 
-### ml_filter (PRIMARY) — deployed 2026-05-16 (Step 20: Option A 5-min alignment)
+### ml_filter (PRIMARY) — deployed 2026-05-16 (Step 21: VWAP formula fix)
+
+**Step 21 (2026-05-16) — VWAP formula aligned (HLC/3 both sides)**
+  - feature_builder.py used close-weighted VWAP (sum(c×v)/sum(v))
+    while feature_compute.py (live) uses HLC/3 standard.
+  - Fix: feature_builder → HLC/3 (matches live + Alpaca DB stored vwap)
+  - Also added: `label_eod_green_v2` to `_add_market_labels` (was missing,
+    Z2 trains on this label).
+  - Pkl rebuilt + 60 models retrained.
+  - Proper WF (Nov 2025-Apr 2026, monthly refit):
+      N=1188 / WR 79% / +1931% / worst -5.09%
+  - Pre-fix WF +2096% was over-optimistic (live≠train drift).
+  - Post-fix: live ≈ WF (no feature drift). Pipeline 10/10 consistent.
 
 **Step 20 (2026-05-16) — Live scan aligned to 5-min boundaries (Option A)**
   - Previous: live used 1-min real-time features at off-boundary mfos (1, 2, 3...)
