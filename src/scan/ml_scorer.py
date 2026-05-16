@@ -101,16 +101,13 @@ class MLScorer:
     # Z2/Z3 from 0.75 → 0.50 (looser plateau), Z1/Z4 unchanged.
     # WF: WR 87.6% (=baseline), avg +2.27%, total +495%/yr (+95% over Task 4 alone).
     ZONE_THRESHOLDS = {
-        # 2026-05-16 Step 22 (V3 super-strict): tighten thresholds for higher WR.
-        # WF compare (variants test, post-Step 21 baseline):
-        #   V1 baseline (current pre-V3): N=1188 / WR 79% / +1931% / worst -5.09%
-        #   V3 super-strict (deployed):   N=1041 / WR 82% / +1889% / worst -3.24%
-        # Trade-off: -1.2% total for +3pp WR + 36% tighter tail. Almost free.
-        # 2026-05-14: Step 10 grid search + Step 15 label_z34_market deploy.
-        'Z1': 0.80,  # was 0.60
-        'Z2': 0.80,  # was 0.65
-        'Z3': 0.70,  # was 0.50
-        'Z4': 0.70,  # was 0.50
+        # 2026-05-16: Step 22 V3 reverted by user — thresholds เยอะเกินไป.
+        # Keep V1 baseline (Step 21): WR 79% / +1931% / worst -5.09%.
+        # Earlier Step 10 grid + Step 15 label_z34_market.
+        'Z1': 0.60,
+        'Z2': 0.65,
+        'Z3': 0.50,
+        'Z4': 0.50,
     }
     # 2026-05-14: Z4 specific filter — only pick if ML predicts dip >= 0.5%
     Z4_DIP_FILTER = 0.005  # 0.5% minimum predicted dip

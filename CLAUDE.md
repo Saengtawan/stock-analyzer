@@ -81,16 +81,11 @@ for current expectations. Earlier numbers like "78% honest WF" / "78.3% WF" /
 "88% WR" / "86.8% Triple Blend" / "0.1% live -81%" are OBSOLETE — they
 referred to deprecated configurations and feature pipelines.)
 
-### ml_filter (PRIMARY) — deployed 2026-05-16 (Step 22: V3 super-strict thresholds)
+### ml_filter (PRIMARY) — deployed 2026-05-16 (Step 21: VWAP formula fix)
 
-**Step 22 (2026-05-16) — Stricter thresholds for higher WR**
-  - Z1: 0.60 → 0.80 (+0.20)
-  - Z2: 0.65 → 0.80 (+0.15)
-  - Z3: 0.50 → 0.70 (+0.20)
-  - Z4: 0.50 → 0.70 (+0.20)
-  - WF: N=1041 / WR 82% / +1889% / worst -3.24%
-  - Trade-off: -1.2% total vs V1 baseline (+1931%) for +3pp WR + 36% tighter tail.
-  - User preference: WR consistency > absolute total. Worst trade -5.09%→-3.24%.
+**Step 22 (2026-05-16) — REVERTED**: V3 thresholds (Z1/Z2=0.80, Z3/Z4=0.70) tested
+but user rejected as "เยอะเกินไป" (too strict). Reverted to V1 baseline (Step 21).
+Stays at Z1=0.60, Z2=0.65, Z3=0.50, Z4=0.50. WF +1931% / WR 79% / -5.09%.
 
 **Step 21 (2026-05-16) — VWAP formula aligned (HLC/3 both sides)**
   - feature_builder.py used close-weighted VWAP (sum(c×v)/sum(v))
