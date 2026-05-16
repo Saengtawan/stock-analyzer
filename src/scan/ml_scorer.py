@@ -101,18 +101,16 @@ class MLScorer:
     # Z2/Z3 from 0.75 → 0.50 (looser plateau), Z1/Z4 unchanged.
     # WF: WR 87.6% (=baseline), avg +2.27%, total +495%/yr (+95% over Task 4 alone).
     ZONE_THRESHOLDS = {
-        # 2026-05-14: Per-zone optimized via Step 10 grid search.
-        # Adaptive limit (Step 7) + buffer 1.0% achieves fill >80% per zone.
-        # Win threshold tuned per zone to balance fill rate + WR.
-        # WF (Nov 2025 - Apr 2026, monthly refit):
-        #   Z1: fill 87%, WR 88%, +189%/6mo, worst -2.42%
-        #   Z2: fill 88%, WR 91%, +189%/6mo, worst -1.93%
-        #   Z3: fill 91%, WR 74%, +108%/6mo, worst -2.67%
-        #   Z4: fill 92%, WR 66%, +102%/6mo, worst -1.62% (with dip filter 0.5%)
-        'Z1': 0.60,
-        'Z2': 0.65,
-        'Z3': 0.50,  # 2026-05-14: label_z34_market deploy. Step 15 WF: WR 84% / +188%
-        'Z4': 0.50,  # 2026-05-14: label_z34_market deploy. Step 15 WF: WR 88% / +175%
+        # 2026-05-16 Step 22 (V3 super-strict): tighten thresholds for higher WR.
+        # WF compare (variants test, post-Step 21 baseline):
+        #   V1 baseline (current pre-V3): N=1188 / WR 79% / +1931% / worst -5.09%
+        #   V3 super-strict (deployed):   N=1041 / WR 82% / +1889% / worst -3.24%
+        # Trade-off: -1.2% total for +3pp WR + 36% tighter tail. Almost free.
+        # 2026-05-14: Step 10 grid search + Step 15 label_z34_market deploy.
+        'Z1': 0.80,  # was 0.60
+        'Z2': 0.80,  # was 0.65
+        'Z3': 0.70,  # was 0.50
+        'Z4': 0.70,  # was 0.50
     }
     # 2026-05-14: Z4 specific filter — only pick if ML predicts dip >= 0.5%
     Z4_DIP_FILTER = 0.005  # 0.5% minimum predicted dip
