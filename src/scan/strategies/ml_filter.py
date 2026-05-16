@@ -24,7 +24,7 @@ import sqlite3
 import requests
 import numpy as np
 import pytz
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from collections import defaultdict
 from dotenv import load_dotenv
@@ -111,11 +111,25 @@ class MLFilterStrategy(BaseStrategy):
             return self.out_of_window()
 
         scorer = get_scorer()
-        now_et = datetime.now(ET)
-        minutes_from_open = (now_et.hour - 9) * 60 + (now_et.minute - 30)
+        wall_clock_et = datetime.now(ET)
+
+        # 2026-05-16 Option A deploy: snap to last closed 5-min boundary.
+        # Reason: training pkl uses 5-min bars + features computed at 5-min boundaries.
+        # Live previously used 1-min snapshots → features at off-boundary mfo (1, 2, 3...)
+        # caused phantom positives (FIS/BR on 5/15: live score 0.84-0.91 vs 5-min score 0.29).
+        # WF perfect refit confirms: 5-min train + 1-min test = -2248%/6mo,
+        # while 5-min train + 5-min test = +2096%/6mo (Step 18 baseline).
+        # Fix: align live to 5-min boundary so features match training.
+        wall_mfo = (wall_clock_et.hour - 9) * 60 + (wall_clock_et.minute - 30)
+        # Floor to last closed 5-min bar (e.g. 09:36 → mfo=5 from 09:30 bar)
+        snap_mfo = max(0, (wall_mfo // 5) * 5)
+        # Build "snap time" ET = market open + snap_mfo minutes
+        market_open_et = wall_clock_et.replace(hour=9, minute=30, second=0, microsecond=0)
+        now_et = market_open_et + timedelta(minutes=snap_mfo)
+        minutes_from_open = snap_mfo
 
         # Pre-market defensive guard (in_time_window() already catches < 09:30)
-        if minutes_from_open < 0:
+        if wall_mfo < 0:
             return self.out_of_window()
 
         bucket = scorer.get_bucket(minutes_from_open)

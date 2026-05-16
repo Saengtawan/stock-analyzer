@@ -81,7 +81,20 @@ for current expectations. Earlier numbers like "78% honest WF" / "78.3% WF" /
 "88% WR" / "86.8% Triple Blend" / "0.1% live -81%" are OBSOLETE — they
 referred to deprecated configurations and feature pipelines.)
 
-### ml_filter (PRIMARY) — deployed 2026-05-14 (Step 18: rank by win only)
+### ml_filter (PRIMARY) — deployed 2026-05-16 (Step 20: Option A 5-min alignment)
+
+**Step 20 (2026-05-16) — Live scan aligned to 5-min boundaries (Option A)**
+  - Previous: live used 1-min real-time features at off-boundary mfos (1, 2, 3...)
+    causing phantom positives (5/15 FIS: 1-min score 0.91 → 5-min score 0.17).
+  - Fix: `ml_filter.py` floors scan time to last closed 5-min bar.
+    `scan_smart.sh` waits for next 5-min boundary + 30s buffer.
+  - WF perfect refit (Nov 2025-Apr 2026):
+      Config A (5-min live): N=1248 / WR 80% / **+2096%** ⭐
+      Config B (1-min full): N=3812 / WR 36% / -1708%
+      Config C (current prod): N=5267 / WR 38% / **-2248%**
+  - Option A unlocks training-aligned execution. Δ vs current: +4344%/6mo.
+  - First scan now at 09:35:30 ET (was 09:31:30). 4-min delay traded for
+    feature alignment with training pipeline.
 
 **Step 18 (2026-05-14) — Top-1 ranking = `win_score` only (drop +0.10×gain)**
   - WF grid (9 formulas): F1 win-only beats F3 (current) by +174% total.
