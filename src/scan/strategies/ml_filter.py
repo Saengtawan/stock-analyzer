@@ -814,6 +814,7 @@ class MLFilterStrategy(BaseStrategy):
 
             extra_dict = {
                 'ml_prob': round(prob, 4),
+                'pred_ratio': round(pred_ratio, 4),
                 'threshold': round(threshold, 4),
                 'bucket': bucket,
                 'gain_pct': round(gain, 2),
@@ -840,13 +841,17 @@ class MLFilterStrategy(BaseStrategy):
                 f"(bucket {scorer.get_bucket(minutes_from_open)})"
             )
 
-        # 2026-05-14 Step 18: F1 (win only) ranking — drop +0.10×gain bonus.
-        # WF Top-1 grid (Nov 2025 - Apr 2026, 9 formulas tested):
-        #   F1 win only:      +959% / WR 89% / worst -3.50%  ⭐ BEST
-        #   F3 w+0.10g (old): +785% / WR 83% / worst -4.48%  (was current)
-        # Δ = +174% total, +6pp WR, -1pp tail. Win score already incorporates
-        # momentum via gain_from_open feature — adding it again was double-count.
-        candidates.sort(key=lambda p: -p.extra['ml_prob'])
+        # 2026-05-17 Step 26: R9 ranking — win_p × max(0, 1-pred_r)^0.5
+        # Bonus for picks with predicted dip (cushion for adaptive limit).
+        # WF A3 grid: R9 = +2443% (vs R1 baseline win_p only +2217%).
+        # +226% total / +1pp WR / worst -5.52% (slight tail expansion).
+        # Square-root dampens R3-type tail risk (raw (1-pred_r) gave -18% worst).
+        # Step 18: F1 win-only (+174% vs F3) → R9 (+10% vs F1).
+        def _rank(p):
+            wp = p.extra['ml_prob']
+            pr = p.extra.get('pred_ratio', 1.0)
+            return wp * max(0.0, 1.0 - pr) ** 0.5
+        candidates.sort(key=lambda p: -_rank(p))
 
         # Cross-scan dedup: skip symbols picked in last 60 min (prevent double-entry)
         # 2026-05-14 bug fix: scan_ts stored in ET, but sqlite "now" is UTC →

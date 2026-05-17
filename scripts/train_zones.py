@@ -37,25 +37,27 @@ ZONES = [
 ]
 
 ZONE_LABEL = {
+    # Step 26 (2026-05-17): Z3+Z4 → label_custom_dd (A1 experiment +59% WF)
     'Z1': 'label_z12_market_3dd',
-    'Z2': 'label_custom_dd',   # Step 24 (2026-05-17): was label_eod_green_v2
-    'Z3': 'label_z34_market',
-    'Z4': 'label_z34_market',
+    'Z2': 'label_custom_dd',
+    'Z3': 'label_custom_dd',   # Step 26: was label_z34_market
+    'Z4': 'label_custom_dd',   # Step 26: was label_z34_market
 }
 
 ZONE_HP = {
-    'Z1': dict(learning_rate=0.05, max_depth=3, num_leaves=24, min_child_samples=50,
-               reg_alpha=1.0, reg_lambda=1.0, n_estimators=500,
-               bagging_fraction=0.8, feature_fraction=0.9),
-    'Z2': dict(learning_rate=0.03, max_depth=5, num_leaves=47, min_child_samples=80,
-               reg_alpha=0.5, reg_lambda=3.0, n_estimators=500,
-               bagging_fraction=0.8, feature_fraction=0.8),
-    'Z3': dict(learning_rate=0.05, max_depth=4, num_leaves=31, min_child_samples=30,
-               reg_alpha=0.5, reg_lambda=1.0, n_estimators=300,
-               bagging_fraction=0.8, feature_fraction=0.8),
-    'Z4': dict(learning_rate=0.05, max_depth=3, num_leaves=8, min_child_samples=30,
-               reg_alpha=1.0, reg_lambda=3.0, n_estimators=400,
-               bagging_fraction=0.7, feature_fraction=0.7),
+    # Step 26 (2026-05-17): Optuna-optimized HPs (A2 experiment +137% val total)
+    'Z1': dict(learning_rate=0.0678, max_depth=2, num_leaves=40, min_child_samples=44,
+               reg_alpha=3.463, reg_lambda=3.818, n_estimators=600,
+               bagging_fraction=0.945, feature_fraction=0.926),
+    'Z2': dict(learning_rate=0.0235, max_depth=3, num_leaves=5, min_child_samples=61,
+               reg_alpha=4.571, reg_lambda=2.035, n_estimators=500,
+               bagging_fraction=0.776, feature_fraction=0.787),
+    'Z3': dict(learning_rate=0.0435, max_depth=2, num_leaves=28, min_child_samples=99,
+               reg_alpha=1.466, reg_lambda=4.900, n_estimators=600,
+               bagging_fraction=0.884, feature_fraction=0.950),
+    'Z4': dict(learning_rate=0.0783, max_depth=6, num_leaves=49, min_child_samples=35,
+               reg_alpha=2.668, reg_lambda=3.341, n_estimators=800,
+               bagging_fraction=0.929, feature_fraction=0.998),
 }
 LOSS_HP = dict(learning_rate=0.03, max_depth=3, num_leaves=8, min_child_samples=50,
                reg_alpha=1.0, reg_lambda=5.0, n_estimators=300,

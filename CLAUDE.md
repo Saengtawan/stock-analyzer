@@ -83,6 +83,21 @@ referred to deprecated configurations and feature pipelines.)
 
 ### ml_filter (PRIMARY) — deployed 2026-05-16 (Step 21: VWAP formula fix)
 
+**Step 26 (2026-05-17) — Z3/Z4 custom_dd labels + Optuna HPs + R9 ranking**
+  - Combined deploy of 3 experiments (A1 + A2 + A3 R9 from research run).
+  - **A1: Z3+Z4 win label** `label_z34_market` → `label_custom_dd` (DD-aware).
+    WF: combined +59% total, WR +1pp, worst +0.39pp.
+  - **A2: Optuna HPs** (30 trials per zone). Pattern: Z1/Z2/Z3 shallower
+    (regularize), Z4 deeper (capture complex patterns). Val: +137% total.
+  - **A3 R9 ranking**: `win_p × max(0, 1-pred_r)**0.5` (was `win_p` only).
+    Bonus for picks with predicted cushion. WF: +226% total.
+  - 30-day OOS validation:
+      Z1 WR 100% / Z2 WR 100% / Z3 WR 95% / Z4 WR 94%
+      Combined **N=206 / WR 97% / +555%** (vs Step 25 +522%, +33%)
+      Z2 worst -2.57% → **+0.12%** (huge)
+  - Files: `scripts/train_zones.py` (ZONE_LABEL+ZONE_HP),
+    `src/scan/strategies/ml_filter.py` (R9 ranking), `scripts/validate_retrain.py`.
+
 **Step 25 (2026-05-17) — Remove Z4 SL: pure hold ALL zones to EOD**
   - `ZONE_HARD_SL = {}` (was `{'Z4': 0.03}` from Step 17).
   - After Step 23 dip filter + Step 24 better Z2 ML, the SL was converting

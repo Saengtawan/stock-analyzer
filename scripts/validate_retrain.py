@@ -29,15 +29,16 @@ ZONE_RANGE = {'Z1':(0,9),'Z2':(10,29),'Z3':(30,44),'Z4':(45,75)}
 ZONE_THR = {'Z1':0.60,'Z2':0.65,'Z3':0.50,'Z4':0.50}
 ZONE_LOSS_THR = {'Z1':0.40,'Z2':0.20,'Z3':0.40,'Z4':0.50}
 ZONE_BUF = {'Z1':(0.005,0.0020),'Z2':(0.005,0.0015),'Z3':(0.005,0.0015),'Z4':(0.010,0.0)}
-ZONE_HARD_SL = {'Z4':0.03}
-Z4_DIP = 0.005
-ZONE_LABEL = {'Z1':'label_z12_market_3dd','Z2':'label_eod_green_v2','Z3':'label_z34_market','Z4':'label_z34_market'}
+ZONE_HARD_SL = {}  # Step 25: pure hold all zones
+Z4_DIP = 0.009  # Step 23
+# Step 26 (2026-05-17): Z3+Z4 → label_custom_dd, Optuna-optimized HPs
+ZONE_LABEL = {'Z1':'label_z12_market_3dd','Z2':'label_custom_dd','Z3':'label_custom_dd','Z4':'label_custom_dd'}
 
 HP = {
-    'Z1': dict(learning_rate=0.05, max_depth=3, num_leaves=24, min_child_samples=50, reg_alpha=1.0, reg_lambda=1.0, n_estimators=500, bagging_fraction=0.8, feature_fraction=0.9),
-    'Z2': dict(learning_rate=0.03, max_depth=5, num_leaves=47, min_child_samples=80, reg_alpha=0.5, reg_lambda=3.0, n_estimators=500, bagging_fraction=0.8, feature_fraction=0.8),
-    'Z3': dict(learning_rate=0.05, max_depth=4, num_leaves=31, min_child_samples=30, reg_alpha=0.5, reg_lambda=1.0, n_estimators=300, bagging_fraction=0.8, feature_fraction=0.8),
-    'Z4': dict(learning_rate=0.05, max_depth=3, num_leaves=8, min_child_samples=30, reg_alpha=1.0, reg_lambda=3.0, n_estimators=400, bagging_fraction=0.7, feature_fraction=0.7),
+    'Z1': dict(learning_rate=0.0678, max_depth=2, num_leaves=40, min_child_samples=44, reg_alpha=3.463, reg_lambda=3.818, n_estimators=600, bagging_fraction=0.945, feature_fraction=0.926),
+    'Z2': dict(learning_rate=0.0235, max_depth=3, num_leaves=5, min_child_samples=61, reg_alpha=4.571, reg_lambda=2.035, n_estimators=500, bagging_fraction=0.776, feature_fraction=0.787),
+    'Z3': dict(learning_rate=0.0435, max_depth=2, num_leaves=28, min_child_samples=99, reg_alpha=1.466, reg_lambda=4.900, n_estimators=600, bagging_fraction=0.884, feature_fraction=0.950),
+    'Z4': dict(learning_rate=0.0783, max_depth=6, num_leaves=49, min_child_samples=35, reg_alpha=2.668, reg_lambda=3.341, n_estimators=800, bagging_fraction=0.929, feature_fraction=0.998),
 }
 LOSS_HP = dict(learning_rate=0.03, max_depth=3, num_leaves=8, min_child_samples=50, reg_alpha=1.0, reg_lambda=5.0, n_estimators=300, bagging_fraction=0.8, feature_fraction=0.8)
 ADAPT_HP = dict(objective='regression', learning_rate=0.05, max_depth=4, num_leaves=15, min_child_samples=30, reg_alpha=0.5, reg_lambda=1.0, n_estimators=300, bagging_fraction=0.8, feature_fraction=0.8)
@@ -208,8 +209,10 @@ def main():
                 if min_low <= limit:
                     eod = get_eod(sym, date)
                     if eod is None: continue
-                    if zone == 'Z4':
-                        sl = limit * (1 - ZONE_HARD_SL['Z4'])
+                    # Step 25: pure hold all zones (ZONE_HARD_SL={})
+                    sl_pct = ZONE_HARD_SL.get(zone)
+                    if sl_pct is not None:
+                        sl = limit * (1 - sl_pct)
                         sl_hit = any(b[1] and b[1] <= sl for b in after[1:])
                         pnl = (sl-limit)/limit*100-0.1 if sl_hit else (eod-limit)/limit*100-0.1
                     else:
