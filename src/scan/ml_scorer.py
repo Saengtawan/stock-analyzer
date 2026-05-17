@@ -109,8 +109,11 @@ class MLScorer:
         'Z3': 0.50,
         'Z4': 0.50,
     }
-    # 2026-05-14: Z4 specific filter — only pick if ML predicts dip >= 0.5%
-    Z4_DIP_FILTER = 0.005  # 0.5% minimum predicted dip
+    # 2026-05-17 Step 23: Z4 dip filter tightened 0.5%→0.9% (pred_r > 0.991 skip).
+    # Eliminates over-buffered Z4 picks where limit > scan_price → no cushion if drop.
+    # WF (Nov 2025-Apr 2026, monthly refit): worst -6.21%→-3.48%, WR 77%→81%, total +1737%→+1518%.
+    # Trade-off: -219% total / -2.73pp worst (PGR/VALE tails eliminated).
+    Z4_DIP_FILTER = 0.009  # 0.9% minimum predicted dip (was 0.005)
     # 2026-05-14: Adaptive limit buffer (above ML predicted low)
     ADAPTIVE_LIMIT_BUFFER = 0.010  # 1.0% above predicted low (fallback)
     # 2026-05-14 Step 12: Per-zone ATR-adaptive buffer.

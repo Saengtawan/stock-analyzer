@@ -83,6 +83,19 @@ referred to deprecated configurations and feature pipelines.)
 
 ### ml_filter (PRIMARY) — deployed 2026-05-16 (Step 21: VWAP formula fix)
 
+**Step 23 (2026-05-17) — Z4 dip filter 0.5%→0.9% (pred_r > 0.991 skip)**
+  - Eliminates over-buffered Z4 picks where adaptive limit ≥ scan_price
+    (no cushion if intraday drop). PGR 2025-11-07 -6.21% / VALE 2025-12-10
+    -4.99% both eliminated.
+  - `Z4_DIP_FILTER = 0.009` (was 0.005) in `src/scan/ml_scorer.py:113`.
+  - WF (Nov 2025-Apr 2026, monthly refit, same models as Step 21):
+      N=885 / WR 81% / +1518% / worst -3.48%
+  - vs Step 21 baseline (+1737% / 77% / -6.21%):
+      Total: -219% / Worst: -2.73pp / WR: +4pp / Z4 picks: 534→268 (-50%)
+  - Remaining DD>3% trades: 1 (MNST Z2 -3.48% on 2025-11-07).
+  - Cost-efficiency vs other DD filters: dominate (sweet spot at cliff
+    where VALE pred_r=0.9920 just gets included).
+
 **Step 22 (2026-05-16) — REVERTED**: V3 thresholds (Z1/Z2=0.80, Z3/Z4=0.70) tested
 but user rejected as "เยอะเกินไป" (too strict). Reverted to V1 baseline (Step 21).
 Stays at Z1=0.60, Z2=0.65, Z3=0.50, Z4=0.50. WF +1931% / WR 79% / -5.09%.
