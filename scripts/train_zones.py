@@ -2,9 +2,9 @@
 
 Trains all 60 models: 4 zones × (win + loss + adaptlim) × 5 seeds.
 
-Per-zone config (Step 18):
+Per-zone config (Step 24 — 2026-05-17):
   Z1: label=label_z12_market_3dd, lr=0.05, depth=3, leaves=24, n_est=500
-  Z2: label=label_eod_green_v2,   lr=0.03, depth=5, leaves=47, n_est=500
+  Z2: label=label_custom_dd,      lr=0.03, depth=5, leaves=47, n_est=500  # Step 24
   Z3: label=label_z34_market,     lr=0.05, depth=4, leaves=31, n_est=300
   Z4: label=label_z34_market,     lr=0.05, depth=3, leaves=8,  n_est=400
 
@@ -38,7 +38,7 @@ ZONES = [
 
 ZONE_LABEL = {
     'Z1': 'label_z12_market_3dd',
-    'Z2': 'label_eod_green_v2',
+    'Z2': 'label_custom_dd',   # Step 24 (2026-05-17): was label_eod_green_v2
     'Z3': 'label_z34_market',
     'Z4': 'label_z34_market',
 }

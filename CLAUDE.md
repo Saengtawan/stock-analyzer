@@ -83,6 +83,22 @@ referred to deprecated configurations and feature pipelines.)
 
 ### ml_filter (PRIMARY) — deployed 2026-05-16 (Step 21: VWAP formula fix)
 
+**Step 24 (2026-05-17) — Z2 trained with new custom DD-aware label**
+  - New label `label_custom_dd`: EOD > scan_p × 1.0 AND no -3% intraday DD.
+    Data-dense (38% pkl avail vs 12.8% for label_z12_market_3dd, 96% Z2-only).
+  - Z2 win model retrained: `label_eod_green_v2` → `label_custom_dd` (DD-aware).
+  - Z1/Z3/Z4 unchanged.
+  - WF (Nov 2025-Apr 2026, monthly refit, Step 23 dip filter active):
+      N=1071 / WR 81% / +1796% / worst -3.45%
+  - vs Step 23 baseline (+1518% / 81% / -3.48%):
+      Total: **+278% (+18%)** / Worst: -0.03pp / Z2 WR: 79%→84% (+5pp)
+  - Validation 30d OOS (Apr 17-May 17): WR 95% / +522% / Z2 worst -2.57%
+  - Why it works: data-dense label trains Z2 model on full mfo 10-29 rows
+    with DD-aware target → model picks differently → cross-scan dedup
+    cascade lets Z4 see more good candidates.
+  - Pipeline: feature_builder.py adds `label_custom_dd`; train_zones.py
+    Z2 → label_custom_dd; no engine code change.
+
 **Step 23 (2026-05-17) — Z4 dip filter 0.5%→0.9% (pred_r > 0.991 skip)**
   - Eliminates over-buffered Z4 picks where adaptive limit ≥ scan_price
     (no cushion if intraday drop). PGR 2025-11-07 -6.21% / VALE 2025-12-10

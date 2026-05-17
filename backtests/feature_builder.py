@@ -687,11 +687,12 @@ def _add_advanced_features(df, db_path):
 
 
 def _add_market_labels(df):
-    """Step 15-16 (2026-05-14): add market-context labels for Step 18.
+    """Step 15-16 + 24: add market-context labels.
 
     label_z34_market (Z3/Z4): EOD > scan × 0.998 AND DD > -3%.
     label_z12_market_3dd (Z1/Z2): same formula on Z1/Z2 mfo range.
-    label_eod_green_v2 (Z2): kept from existing pkl if present.
+    label_eod_green_v2 (Z2 legacy): EOD > day_open.
+    label_custom_dd (Z2, Step 24): EOD > scan × 1.0 AND DD > -3%, all mfo, data-dense.
 
     Uses cache/wf_1min_bars.db for intraday low/EOD lookup.
     """
@@ -703,7 +704,6 @@ def _add_market_labels(df):
         return df
 
     con = _sq.connect(str(cache_db))
-    # Cache all (sym, date) bars once
     sym_date_pairs = df[['sym','date']].drop_duplicates().itertuples(index=False)
     bar_cache = {}
     for sym, date in sym_date_pairs:
@@ -711,15 +711,16 @@ def _add_market_labels(df):
         if rows: bar_cache[(sym, date)] = rows
     con.close()
 
-    Z14_RANGE = (0, 75)  # mfo range covered by Z1-Z4
+    Z14_RANGE = (0, 75)
     df['label_z12_market_3dd'] = np.nan
     df['label_z34_market'] = np.nan
-    df['label_eod_green_v2'] = np.nan  # 2026-05-16: Z2 uses this label
+    df['label_eod_green_v2'] = np.nan
+    df['label_custom_dd'] = np.nan  # Step 24: Z2 DD-aware, data-dense
     mask = (df['mins_from_open']>=Z14_RANGE[0]) & (df['mins_from_open']<=Z14_RANGE[1])
     for idx, r in df[mask].iterrows():
         bars = bar_cache.get((r['sym'], r['date']))
         if not bars: continue
-        target_em = 570 + int(r['mins_from_open'])  # 09:30 = em 570
+        target_em = 570 + int(r['mins_from_open'])
         scan_p = None; lows = []
         day_open_em = None
         for em, l, c in bars:
@@ -733,14 +734,15 @@ def _add_market_labels(df):
         dd_pct = (min_low/scan_p - 1) * 100
         is_green = eod > scan_p * 0.998
         no_3dd = dd_pct > -3.0
-        # label_z*_market: EOD > scan × 0.998 AND DD > -3%
-        if r['mins_from_open'] <= 29:  # Z1+Z2
+        if r['mins_from_open'] <= 29:
             df.at[idx, 'label_z12_market_3dd'] = 1 if (is_green and no_3dd) else 0
-        if r['mins_from_open'] >= 30:  # Z3+Z4
+        if r['mins_from_open'] >= 30:
             df.at[idx, 'label_z34_market'] = 1 if (is_green and no_3dd) else 0
-        # label_eod_green_v2: EOD > day_open (Z2 only uses this)
         if day_open_em is not None:
             df.at[idx, 'label_eod_green_v2'] = 1 if (eod > day_open_em) else 0
+        # Step 24: label_custom_dd — EOD > scan AND no -3% DD, all mfo.
+        # Slightly stricter than label_z12_market_3dd (× 1.0 not × 0.998).
+        df.at[idx, 'label_custom_dd'] = 1 if (eod > scan_p * 1.0 and no_3dd) else 0
     return df
 
 
