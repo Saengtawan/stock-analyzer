@@ -132,16 +132,16 @@ class MLScorer:
         'Z3': 0.40,  # was 0.55 — tighter (Task 3 best)
         'Z4': 0.50,  # was 0.55 — tighter (Task 3 best)
     }
-    # 2026-05-14 Step 17: Per-zone Hard Stop Loss (% from fill_price).
-    # Z1/Z2/Z3 keep pure hold to EOD (worst already < -3%). Z4 adds -3% SL
-    # because worst-trade RIVN 2025-12-12 went to -4.68% without SL.
-    # WF (Nov 2025 - Apr 2026, refit monthly):
-    #   Z4 pure:    WR 92%, +259%, worst -4.68%
-    #   Z4 SL -3%:  WR 91%, +254%, worst -3.10%  ← deployed
-    # Trade-off: lose -5% total to cap tail from -4.68%→-3.10%.
-    ZONE_HARD_SL = {
-        'Z4': 0.03,  # 3% from fill_price
-    }
+    # 2026-05-17 Step 25: Remove Z4 SL — pure hold ALL zones to EOD.
+    # Step 23 dip filter already eliminates the PGR/VALE over-buffered cases
+    # that originally needed SL. Step 24 Z2 retraining further improved
+    # picks. Remaining Z4 worst -4.75% (ALB) is genuine ML mispredict; SL
+    # was converting 21 recoverable -1 to -2.5% dips into -3.10% locks.
+    # WF (6mo, monthly refit, post Step 24):
+    #   Z4 SL -3%:  WR 79%, +606%, worst -3.10% (Step 24)
+    #   Z4 NO SL:   WR 81%, +665%, worst -4.75%, only 2/466 trades < -3%
+    # Net: +58% total, +2pp Z4 WR, DD>3% trades 25→4 (mostly whipsaws gone).
+    ZONE_HARD_SL = {}  # pure hold all zones
 
     # === MoE soft (Mixture of Experts) — 2026-05-04 ===
     # Combine 28m specialist (current production) + 49m regime-mixed.

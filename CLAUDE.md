@@ -83,6 +83,19 @@ referred to deprecated configurations and feature pipelines.)
 
 ### ml_filter (PRIMARY) — deployed 2026-05-16 (Step 21: VWAP formula fix)
 
+**Step 25 (2026-05-17) — Remove Z4 SL: pure hold ALL zones to EOD**
+  - `ZONE_HARD_SL = {}` (was `{'Z4': 0.03}` from Step 17).
+  - After Step 23 dip filter + Step 24 better Z2 ML, the SL was converting
+    21 recoverable -1 to -2.5% dips into -3.10% locks (whipsaw).
+  - WF (6mo, monthly refit):
+      Step 24 with Z4 SL: N=1071 / WR 81% / +1796% / worst -3.45% / 25 DD>3% trades
+      **Step 25 NO SL:    N=1071 / WR 81% / +1854% / worst -4.75% / 4 DD>3% trades** ⭐
+  - Δ: +58% total, +2pp Z4 WR (79→81%), DD>3% trades 25→4.
+  - Trade-off: worst -3.45% → -4.75% (ALB 2025-11-13, single genuine
+    mispredict). 2/466 Z4 trades fall below -3% (0.4%).
+  - Aligns with user "smart ML not SL" philosophy.
+  - Z4 distribution (no SL): min=-4.75%, p1=-2.70%, p5=-1.39%, p10=-0.64%.
+
 **Step 24 (2026-05-17) — Z2 trained with new custom DD-aware label**
   - New label `label_custom_dd`: EOD > scan_p × 1.0 AND no -3% intraday DD.
     Data-dense (38% pkl avail vs 12.8% for label_z12_market_3dd, 96% Z2-only).
