@@ -1,0 +1,23 @@
+version: v2.2.0
+step: 26
+deploy_date: 2026-05-17T19:12+07:00
+description: A1+A2+A3 R9 combined — Z3/Z4 label_custom_dd + Optuna HPs + R9 ranking
+
+metrics:
+  wf_6mo:
+    total: +1854%
+    wr: 81%
+    worst: -4.75%
+  oos_30d:
+    total: +555%
+    wr: 97%
+    worst: -3.72%
+
+artifacts:
+  models: backtests/models_prod_v22
+  pkl: cache/bt_features/features.pkl
+  pre_deploy_backup:
+    models: backtests/models_prod_v22_pre_step26
+    pkl: (unchanged)
+
+prev_version: v2.1.1

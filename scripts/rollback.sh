@@ -11,7 +11,11 @@
 #   bash scripts/rollback.sh --status             # show current state
 #   bash scripts/rollback.sh --list               # show available targets
 #
-# Targets: 21, 23, 24, 25
+# Targets (by step number or SemVer tag):
+#   21 / v2.0.0      Step 21 baseline (pipeline-fixed)
+#   23 / v2.0.1      Step 23 (Z4 dip filter 0.9%)
+#   24 / v2.1.0      Step 24 (Z2 custom_dd)
+#   25 / v2.1.1      Step 25 (no Z4 SL)
 #   (Step 22 was reverted; cannot roll forward to 26 — only backwards)
 
 set -euo pipefail
@@ -80,11 +84,18 @@ for arg in "$@"; do
             ;;
         --list)
             echo "Available rollback targets:"
-            for step in 25 24 23 21; do
-                echo "  $step  →  ${STEP_DESC[$step]}"
-            done
+            echo "  Step  SemVer    Description"
+            echo "  ----  ------    -----------"
+            echo "  25    v2.1.1    ${STEP_DESC[25]}"
+            echo "  24    v2.1.0    ${STEP_DESC[24]}"
+            echo "  23    v2.0.1    ${STEP_DESC[23]}"
+            echo "  21    v2.0.0    ${STEP_DESC[21]}"
             echo ""
-            echo "Currently at: Step $CURRENT_STEP"
+            echo "Currently at: Step $CURRENT_STEP (v2.2.0)"
+            echo ""
+            echo "Usage:"
+            echo "  bash scripts/rollback.sh 25       # step number"
+            echo "  bash scripts/rollback.sh v2.1.1   # SemVer tag"
             exit 0
             ;;
         --help|-h)
@@ -92,6 +103,14 @@ for arg in "$@"; do
             exit 0
             ;;
         25|24|23|21) TARGET="$arg" ;;
+        v2.0.0)      TARGET="21" ;;
+        v2.0.1)      TARGET="23" ;;
+        v2.1.0)      TARGET="24" ;;
+        v2.1.1)      TARGET="25" ;;
+        v2.2.0)
+            echo "ERROR: v2.2.0 is current — nothing to rollback"
+            exit 1
+            ;;
         *)
             echo "Unknown arg: $arg"
             echo "Run with --help for usage."
