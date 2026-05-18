@@ -116,11 +116,50 @@ didn't exist in training (FIS/BR 5/15 case: 1-min score 0.91 → 5-min score 0.1
 
 ---
 
+## [v1.8.0] — 2026-05-14 (Step 18 — LEGACY 5/14-5/15 live era) ⚠️
+
+### Status
+**LEGACY rollback target** — reconstructed 2026-05-18 to support `bash scripts/rollback.sh v1.8.0`.
+**KNOWN BUG**: pipeline diverges (live ≠ training). Live Apr-May 2026 was -81%.
+
+### Config
+- 1-min scan snap (off-boundary mfo: 1, 2, 3...)
+- VWAP formula: close-weighted `sum(c × v) / sum(v)`
+- Z1: `label_z12_market_3dd`, Z2: `label_eod_green_v2`, Z3/Z4: `label_z34_market`
+- Z4 hard SL -3%
+- `Z4_DIP_FILTER = 0.005` (looser)
+- Top-1 by `win_p` (no R9)
+- HPs: defaults (no Optuna)
+
+### Live picks on 5/14-5/15 (for reference)
+- 5/14: AVGO, F, HPE, MRVL, APO, NVDA, ARES
+- 5/15: WDAY, FIS, BR, DVN, ZS, MSFT
+
+### Reconstruction (2026-05-18)
+- Built via git worktree at commit `a5bd6a7` (Step 18 deploy)
+- pkl rebuilt with data ≤ 2026-05-13 (matches what 5/14 retrain would have used)
+- Models trained with Step 18 config (label_decay-based, OLD code)
+- Artifacts: `backtests/models_prod_v22_v1.8.0/` + `cache/bt_features/backups/features_v1.8.0.pkl`
+
+### Rollback usage
+```bash
+bash scripts/rollback.sh v1.8.0 --dry-run   # preview
+bash scripts/rollback.sh v1.8.0             # interactive
+```
+
+### ⚠️ Warnings
+- Pipeline bug returns (live ≠ training, phantom positives on 1-min mfo)
+- FIS 0.91 → 0.17 type mismatch will recur
+- Models retrained NOW (random seeds may differ slightly from original 5/14 production)
+- DO NOT use unless explicit forensic need
+
+---
+
 ## [v1.x.x] — pre-2026-05-16 (Step 6-19, DEPRECATED)
 
 Old era — pipeline buggy, live performance diverged from WF.
 - Live Apr-May: -81% (vs WF claimed +1188%)
-- DO NOT use v1.x.x WF numbers as baseline
+- DO NOT use v1.x.x WF numbers as baseline (except v1.8.0 reconstructed above)
 - Models incompatible with v2.x.x pipeline
 
 Kept in git for historical reference only.

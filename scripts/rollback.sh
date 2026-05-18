@@ -12,6 +12,7 @@
 #   bash scripts/rollback.sh --list               # show available targets
 #
 # Targets (by step number or SemVer tag):
+#   18 / v1.8.0      Step 18 legacy 5/14-5/15 era ⚠️ buggy pipeline, OLD VWAP
 #   21 / v2.0.0      Step 21 baseline (pipeline-fixed)
 #   23 / v2.0.1      Step 23 (Z4 dip filter 0.9%)
 #   24 / v2.1.0      Step 24 (Z2 custom_dd)
@@ -26,6 +27,7 @@ cd "$REPO"
 # ─── Step metadata ───────────────────────────────────────────────────
 # commit SHAs (each step's deploy commit)
 declare -A STEP_COMMIT=(
+    [18]="a5bd6a7"
     [23]="2100214"
     [24]="fb86e16"
     [25]="96cce9a"
@@ -33,6 +35,7 @@ declare -A STEP_COMMIT=(
 )
 
 declare -A STEP_DESC=(
+    [18]="LEGACY 5/14-5/15 era (Step 18, OLD VWAP, 1-min snap) ⚠️ buggy pipeline"
     [21]="baseline (Z4 SL -3%, dip 0.5%, label_eod_green_v2)"
     [23]="Step 23: Z4 dip filter 0.5%→0.9%"
     [24]="Step 24: + Z2 label_custom_dd"
@@ -42,6 +45,7 @@ declare -A STEP_DESC=(
 
 # Which models backup to restore (none = use current)
 declare -A MODELS_BACKUP=(
+    [18]="backtests/models_prod_v22_v1.8.0"
     [21]="backtests/models_prod_v22_pre_step24"
     [23]="backtests/models_prod_v22_pre_step24"
     [24]="backtests/models_prod_v22_pre_step26"
@@ -50,6 +54,7 @@ declare -A MODELS_BACKUP=(
 
 # Which pkl backup to restore (empty = no change needed)
 declare -A PKL_BACKUP=(
+    [18]="cache/bt_features/backups/features_v1.8.0.pkl"
     [21]="cache/bt_features/backups/features_pre_step24.pkl"
     [23]="cache/bt_features/backups/features_pre_step24.pkl"
     [24]=""
@@ -59,6 +64,7 @@ declare -A PKL_BACKUP=(
 # Which commits to revert (sequential, newest first)
 # Rollback to N → revert all commits AFTER N
 declare -A REVERT_COMMITS=(
+    [18]="60550a8 96cce9a fb86e16 2100214 7d3606c ad2886b 6f38f60 d7ae779 463c35c"
     [21]="60550a8 96cce9a fb86e16 2100214"   # revert Step 26, 25, 24, 23
     [23]="60550a8 96cce9a fb86e16"             # revert 26, 25, 24
     [24]="60550a8 96cce9a"                     # revert 26, 25
@@ -90,6 +96,7 @@ for arg in "$@"; do
             echo "  24    v2.1.0    ${STEP_DESC[24]}"
             echo "  23    v2.0.1    ${STEP_DESC[23]}"
             echo "  21    v2.0.0    ${STEP_DESC[21]}"
+            echo "  18    v1.8.0    ${STEP_DESC[18]}"
             echo ""
             echo "Currently at: Step $CURRENT_STEP (v2.2.0)"
             echo ""
@@ -102,7 +109,8 @@ for arg in "$@"; do
             sed -n '2,15p' "$0"
             exit 0
             ;;
-        25|24|23|21) TARGET="$arg" ;;
+        25|24|23|21|18) TARGET="$arg" ;;
+        v1.8.0)      TARGET="18" ;;
         v2.0.0)      TARGET="21" ;;
         v2.0.1)      TARGET="23" ;;
         v2.1.0)      TARGET="24" ;;
