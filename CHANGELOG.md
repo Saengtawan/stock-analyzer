@@ -116,42 +116,52 @@ didn't exist in training (FIS/BR 5/15 case: 1-min score 0.91 → 5-min score 0.1
 
 ---
 
-## [v1.8.0] — 2026-05-14 (Step 18 — LEGACY 5/14-5/15 live era) ⚠️
+## [v1.9.0] — 2026-05-14 (Step 19 — 5/14-5/15 LIVE PRODUCTION) ⚠️
 
 ### Status
-**LEGACY rollback target** — reconstructed 2026-05-18 to support `bash scripts/rollback.sh v1.8.0`.
-**KNOWN BUG**: pipeline diverges (live ≠ training). Live Apr-May 2026 was -81%.
+**LEGACY rollback target** — reconstructed 2026-05-18 from commit `26a75e5`.
+**Identified as ACTUAL 5/14-5/15 production commit** (was on master HEAD during those trading days).
+**KNOWN BUG**: pre-pipeline-fix (live ≠ training, phantom positives on 1-min snap).
 
-### Config
+### Config (exact match to 5/14-5/15 live)
 - 1-min scan snap (off-boundary mfo: 1, 2, 3...)
 - VWAP formula: close-weighted `sum(c × v) / sum(v)`
-- Z1: `label_z12_market_3dd`, Z2: `label_eod_green_v2`, Z3/Z4: `label_z34_market`
+- **Z1: `label_z12_market_3dd`** ✓
+- **Z2: `label_eod_green_v2`** ✓
+- **Z3/Z4: `label_z34_market`** ✓
 - Z4 hard SL -3%
 - `Z4_DIP_FILTER = 0.005` (looser)
 - Top-1 by `win_p` (no R9)
-- HPs: defaults (no Optuna)
+- HPs: defaults from Step 16 (no Optuna)
 
 ### Live picks on 5/14-5/15 (for reference)
 - 5/14: AVGO, F, HPE, MRVL, APO, NVDA, ARES
 - 5/15: WDAY, FIS, BR, DVN, ZS, MSFT
 
 ### Reconstruction (2026-05-18)
-- Built via git worktree at commit `a5bd6a7` (Step 18 deploy)
-- pkl rebuilt with data ≤ 2026-05-13 (matches what 5/14 retrain would have used)
-- Models trained with Step 18 config (label_decay-based, OLD code)
-- Artifacts: `backtests/models_prod_v22_v1.8.0/` + `cache/bt_features/backups/features_v1.8.0.pkl`
+- Built via git worktree at commit `26a75e5` (Step 19 — ACTUAL 5/14 production commit)
+- pkl rebuilt with data ≤ 2026-05-13 (matches what 5/14 retrain used)
+- Market labels patched in manually (worktree feature_builder had bug with full-DF processing)
+- Models trained with Step 19 config (proper labels per zone)
+- Artifacts: `backtests/models_prod_v22_v1.9.0/` (137 files, 50MB) + `features_v1.9.0.pkl` (1.6GB)
+
+### Note: v1.8.0 was incorrect
+Initially tagged at `a5bd6a7` (Step 18) but actual 5/14 production was Step 19 deployed at
+05:32 ET 5/14 morning (before market open). v1.8.0 has been removed and replaced with v1.9.0.
 
 ### Rollback usage
 ```bash
-bash scripts/rollback.sh v1.8.0 --dry-run   # preview
-bash scripts/rollback.sh v1.8.0             # interactive
+bash scripts/rollback.sh v1.9.0 --dry-run   # preview
+bash scripts/rollback.sh v1.9.0             # interactive
 ```
 
 ### ⚠️ Warnings
 - Pipeline bug returns (live ≠ training, phantom positives on 1-min mfo)
 - FIS 0.91 → 0.17 type mismatch will recur
-- Models retrained NOW (random seeds may differ slightly from original 5/14 production)
-- DO NOT use unless explicit forensic need
+- Random seeds may produce slightly different model bytes than original 5/14 (LightGBM parallel)
+- Training data has minor updates between 5/14 and reconstruction date
+- DO NOT use unless explicit forensic need / regression test
+- Production WAS profitable on 5/14-5/15 but BUGGY across longer window (-81% Apr-May overall)
 
 ---
 
