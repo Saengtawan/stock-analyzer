@@ -128,9 +128,33 @@ for arg in "$@"; do
 done
 
 if [ -z "$TARGET" ]; then
-    echo "ERROR: must specify target step (21, 23, 24, or 25)"
-    echo "Run: bash scripts/rollback.sh --list"
-    exit 1
+    # Interactive menu
+    echo ""
+    echo "============================================================"
+    echo "  ROLLBACK VERSION PICKER"
+    echo "============================================================"
+    echo "  Current: Step $CURRENT_STEP (v2.2.0)"
+    echo ""
+    echo "  Select target version to rollback to:"
+    echo ""
+    echo "    [1] v2.1.1  Step 25  ${STEP_DESC[25]}"
+    echo "    [2] v2.1.0  Step 24  ${STEP_DESC[24]}"
+    echo "    [3] v2.0.1  Step 23  ${STEP_DESC[23]}"
+    echo "    [4] v2.0.0  Step 21  ${STEP_DESC[21]}"
+    echo "    [5] v1.8.0  Step 18  ${STEP_DESC[18]}"
+    echo "    [q] Quit"
+    echo ""
+    read -p "  Enter selection [1-5/q]: " choice
+    case "$choice" in
+        1) TARGET="25" ;;
+        2) TARGET="24" ;;
+        3) TARGET="23" ;;
+        4) TARGET="21" ;;
+        5) TARGET="18" ;;
+        q|Q|"") echo "  Cancelled."; exit 0 ;;
+        *) echo "  Invalid selection."; exit 1 ;;
+    esac
+    echo ""
 fi
 
 if [ "$TARGET" -ge "$CURRENT_STEP" ]; then
