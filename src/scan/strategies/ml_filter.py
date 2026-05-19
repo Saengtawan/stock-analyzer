@@ -784,14 +784,13 @@ class MLFilterStrategy(BaseStrategy):
                 else:
                     sl_price = 0  # disabled (pure hold)
                     sl_tag = "no SL"
-                # Step 27 (2026-05-19): LIMIT@ shows adapt_lim (backtest-aligned)
-                # instead of day_open. Phase 1-4 validation: day_open mode had
-                # 47% fill rate vs adapt_lim 89% over 19 live picks; WF
-                # backtest also uses adapt_lim. User trades the value shown.
+                # Step 27 (2026-05-19): LIMIT@ shows adapt_lim (backtest-aligned).
+                # day_open shown alongside for reference (= 09:30 open price).
+                # User trades LIMIT@ value; (open$X) is informational only.
                 reason = (
                     f"ML p={prob:.3f} adapt_lim={pred_ratio:.4f} (dip {(1-pred_ratio)*100:.2f}%) "
                     f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]} "
-                    f"LIMIT@${limit_price:.2f} pure-hold-EOD ({sl_tag})"
+                    f"LIMIT@${limit_price:.2f} (open${day_open:.2f}) pure-hold-EOD ({sl_tag})"
                 )
             else:
                 # Legacy for Z2/Z3/Z4 until retrained
