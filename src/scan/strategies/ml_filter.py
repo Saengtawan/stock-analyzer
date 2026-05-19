@@ -773,7 +773,6 @@ class MLFilterStrategy(BaseStrategy):
             if is_eod:
                 # Pure hold to EOD — no SL, no trail, no lock for Z1/Z2/Z3
                 # Z4 exception (Step 17): Hard SL = ZONE_HARD_SL['Z4'] from limit_price
-                # WF: caps worst trade from -4.68% → -3.10% (Z4 RIVN 2025-12-12 case)
                 trail = 0
                 # 2026-05-14: Use adaptive limit (ML-predicted) instead of 09:30 open
                 limit_price = adaptive_limit
@@ -784,16 +783,34 @@ class MLFilterStrategy(BaseStrategy):
                 else:
                     sl_price = 0  # disabled (pure hold)
                     sl_tag = "no SL"
-                # Step 27 (2026-05-19): LIMIT@ shows adapt_lim (backtest-aligned).
-                # mkt$X shows current scan price (= 'now') — alternative market entry.
-                # open$X = day open as reference. User can choose:
-                #   - LIMIT@$X = backtest-aligned (fills if dips), Phase 4 OOS +854%
-                #   - mkt$X = guaranteed fill, +20% WF but needs auto-exec
+                # Step 28 (2026-05-19): Hybrid Rule E — auto-decide MKT vs LIMIT.
+                # WF validated +8.7% combined over pure LIMIT (n=1365, 6 months).
+                # Rule: pred_r > 0.99 → MKT (model expects shallow dip; LIMIT often misses)
+                #       pred_r ≤ 0.99 → LIMIT (dip likely; capture better entry)
+                adapt_lim_price = limit_price  # preserve original adapt_lim for logging
+                use_market = pred_ratio > 0.99
+                if use_market:
+                    entry_price = now
+                    primary_label = 'MKT'
+                    alt_label = 'LIMIT'
+                    alt_price = adapt_lim_price
+                else:
+                    entry_price = adapt_lim_price
+                    primary_label = 'LIMIT@'
+                    alt_label = 'mkt'
+                    alt_price = now
+                # Option B: 2-line format (entry primary on line 1, alt on line 2)
                 reason = (
                     f"ML p={prob:.3f} adapt_lim={pred_ratio:.4f} (dip {(1-pred_ratio)*100:.2f}%) "
-                    f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]} "
-                    f"mkt${now:.2f} LIMIT@${limit_price:.2f} (open${day_open:.2f}) pure-hold-EOD ({sl_tag})"
+                    f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]}\n"
+                    f"     ⭐ {primary_label}@${entry_price:.2f} — pure-hold-EOD ({sl_tag})\n"
+                    f"        alt: {alt_label} ${alt_price:.2f}   |   open ${day_open:.2f}"
                 )
+                # Pick.entry = the price user trades (mkt if Rule E says market, else adapt_lim)
+                limit_price = entry_price
+                # Update SL price if it was set (only Z4 with Hard SL)
+                if zone_sl_pct:
+                    sl_price = entry_price * (1 - zone_sl_pct)
             else:
                 # Legacy for Z2/Z3/Z4 until retrained
                 base_trail = 5.0 if gain >= 2.0 else 2.5
@@ -825,7 +842,11 @@ class MLFilterStrategy(BaseStrategy):
                 'gain_pct': round(gain, 2),
                 'beta': round(beta, 2),
                 'sector': sec,
-                'limit_price': round(limit_price, 2),
+                'limit_price': round(limit_price, 2),  # = entry_price (mkt or adapt_lim)
+                'adaptive_limit': round(adapt_lim_price, 2) if is_eod else round(limit_price, 2),
+                'scan_price': round(now, 2),
+                'use_market': use_market if is_eod else False,
+                'day_open': round(day_open, 2) if is_eod else None,
                 'exit_strategy': 'pure_hold_eod',
             }
 
