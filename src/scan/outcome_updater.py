@@ -76,8 +76,8 @@ def get_intraday_outcome(symbol: str, date: str, entry_price: float, sl_price: f
             hit_sl = True
             break
 
-        # Check trail 1% from peak
-        if exit_price is None and peak > entry_price * 1.01:
+        # Check trail 1% from peak (skip if trail_pct=0 → pure hold strategy)
+        if trail_pct > 0 and exit_price is None and peak > entry_price * 1.01:
             trail_stop = peak * (1 - trail_pct / 100)
             if l <= trail_stop:
                 exit_price = trail_stop
@@ -127,8 +127,10 @@ def update_pending(days_back: int = 7) -> int:
                 skipped += 1
                 continue
 
-        # Default trail 3.0 (matches ml_filter 10+ buckets). 09:30 uses 5.0 but that's stored in trail_pct.
-        outcome = get_intraday_outcome(symbol, scan_date, entry, sl_price, trail_pct or 3.0)
+        # 2026-05-19: trail_pct=0.0 means PURE HOLD (Step 25+, no SL no trail).
+        # Python `0.0 or 3.0` = 3.0 BUG → fix with explicit None check.
+        effective_trail = trail_pct if trail_pct is not None else 3.0
+        outcome = get_intraday_outcome(symbol, scan_date, entry, sl_price, effective_trail)
         if not outcome:
             print(f"  {pick_id} {symbol} {scan_date}: no bars found")
             skipped += 1
