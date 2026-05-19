@@ -785,12 +785,14 @@ class MLFilterStrategy(BaseStrategy):
                     sl_price = 0  # disabled (pure hold)
                     sl_tag = "no SL"
                 # Step 27 (2026-05-19): LIMIT@ shows adapt_lim (backtest-aligned).
-                # day_open shown alongside for reference (= 09:30 open price).
-                # User trades LIMIT@ value; (open$X) is informational only.
+                # mkt$X shows current scan price (= 'now') — alternative market entry.
+                # open$X = day open as reference. User can choose:
+                #   - LIMIT@$X = backtest-aligned (fills if dips), Phase 4 OOS +854%
+                #   - mkt$X = guaranteed fill, +20% WF but needs auto-exec
                 reason = (
                     f"ML p={prob:.3f} adapt_lim={pred_ratio:.4f} (dip {(1-pred_ratio)*100:.2f}%) "
                     f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]} "
-                    f"LIMIT@${limit_price:.2f} (open${day_open:.2f}) pure-hold-EOD ({sl_tag})"
+                    f"mkt${now:.2f} LIMIT@${limit_price:.2f} (open${day_open:.2f}) pure-hold-EOD ({sl_tag})"
                 )
             else:
                 # Legacy for Z2/Z3/Z4 until retrained
