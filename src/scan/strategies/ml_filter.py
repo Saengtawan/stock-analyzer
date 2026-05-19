@@ -775,8 +775,29 @@ class MLFilterStrategy(BaseStrategy):
                 # Z4 exception (Step 17): Hard SL = ZONE_HARD_SL['Z4'] from limit_price
                 # WF: caps worst trade from -4.68% → -3.10% (Z4 RIVN 2025-12-12 case)
                 trail = 0
-                # 2026-05-14: Use adaptive limit (ML-predicted) instead of 09:30 open
-                limit_price = adaptive_limit
+                # ============================================================
+                # ⚠️ IMPORTANT — TWO LIMIT VALUES EXIST. DO NOT CONFUSE.
+                # ============================================================
+                # When validating live performance, ALWAYS use `user_limit` from
+                # reason text or features_json — that's what user actually trades.
+                #
+                # (1) `adaptive_limit` = ML-internal value (Step 24-26 backtest)
+                #     Formula: scan_p × pred_r × (1 + base_buf + atr_coef × atr)
+                #     Stored at: Pick.entry, features_json.adaptive_limit
+                #     Used by:   WF backtest validation, internal scoring
+                #     NOT what user trades.
+                #
+                # (2) `user_limit` = day_open (Step 6 original recommendation)
+                #     Source: Alpaca snapshot.dailyBar.o (or 5-min bar fallback)
+                #     Shown in: reason text "LIMIT@$XXX", features_json.user_limit
+                #     Used by:  USER MANUAL TRADING — copied to desktop platform
+                #     This IS the recommended buy price for user.
+                #
+                # History: Step 6 used day_open as limit. Step 7+ added adaptive_limit
+                # as internal value but reason text was never migrated. Both coexist.
+                # ============================================================
+                limit_price = adaptive_limit   # internal — NOT user-facing
+                user_limit = day_open          # user-facing — for reason text
                 zone_sl_pct = getattr(scorer, 'ZONE_HARD_SL', {}).get(zone_name)
                 if zone_sl_pct:
                     sl_price = limit_price * (1 - zone_sl_pct)
@@ -787,7 +808,7 @@ class MLFilterStrategy(BaseStrategy):
                 reason = (
                     f"ML p={prob:.3f} adapt_lim={pred_ratio:.4f} (dip {(1-pred_ratio)*100:.2f}%) "
                     f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]} "
-                    f"LIMIT@${day_open:.2f} pure-hold-EOD ({sl_tag})"
+                    f"LIMIT@${user_limit:.2f} pure-hold-EOD ({sl_tag})"  # ← USER trades this value
                 )
             else:
                 # Legacy for Z2/Z3/Z4 until retrained
@@ -812,6 +833,20 @@ class MLFilterStrategy(BaseStrategy):
                     f"trail{trail}%+hardSL{HARD_SL_PCT}%+lock@+{LOCK_TRIGGER_PCT}%/+{LOCK_AT_PCT}%"
                 )
 
+            # ============================================================
+            # features_json schema — for live PnL validation:
+            #   user_limit:     ⭐ ราคา user trade (= reason text "LIMIT@$XXX")
+            #                   USE THIS for fill check vs intraday bars
+            #   adaptive_limit: ML-internal (Step 24-26 WF backtest)
+            #                   DO NOT use for live PnL — internal only
+            #   scan_price:     real-time price at scan time
+            #   limit_price:    DEPRECATED — kept for backwards compat
+            #                   (same as adaptive_limit, ambiguous name)
+            # ============================================================
+            try:
+                _ul = round(user_limit, 2)
+            except NameError:
+                _ul = round(limit_price, 2)  # legacy fallback (Z2/Z3/Z4 trailing path)
             extra_dict = {
                 'ml_prob': round(prob, 4),
                 'pred_ratio': round(pred_ratio, 4),
@@ -820,7 +855,11 @@ class MLFilterStrategy(BaseStrategy):
                 'gain_pct': round(gain, 2),
                 'beta': round(beta, 2),
                 'sector': sec,
-                'limit_price': round(limit_price, 2),
+                # === Limit values (TWO of them — see comment block above) ===
+                'user_limit': _ul,                       # ⭐ USER TRADES THIS (matches reason text)
+                'adaptive_limit': round(limit_price, 2), # internal — Step 24-26 ML backtest value
+                'scan_price': round(now, 2),             # real-time scan-time price
+                'limit_price': round(limit_price, 2),    # DEPRECATED (= adaptive_limit, ambiguous name)
                 'exit_strategy': 'pure_hold_eod',
             }
 
