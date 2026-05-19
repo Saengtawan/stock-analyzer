@@ -786,11 +786,11 @@ class MLFilterStrategy(BaseStrategy):
                     sl_tag = "no SL"
                 # 2026-05-19: Bug fix — was using day_open instead of limit_price (caused
                 # confusion: reason text said "LIMIT@$XXX" but XXX was 09:30 open, not actual
-                # limit_price). Now shows actual limit, plus scan_p for clarity.
+                # limit_price). Now shows all 3: open, scan_p, limit_price with clear labels.
                 reason = (
                     f"ML p={prob:.3f} adapt_lim={pred_ratio:.4f} (dip {(1-pred_ratio)*100:.2f}%) "
                     f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]} "
-                    f"scan_p=${now:.2f} LIMIT@${limit_price:.2f} pure-hold-EOD ({sl_tag})"
+                    f"open=${day_open:.2f} scan=${now:.2f} LIMIT@${limit_price:.2f} pure-hold-EOD ({sl_tag})"
                 )
             else:
                 # Legacy for Z2/Z3/Z4 until retrained
