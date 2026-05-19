@@ -896,8 +896,9 @@ class MLFilterStrategy(BaseStrategy):
         # Record picks to journal for drift monitoring
         try:
             journal = get_journal()
+            pick_ids = []
             for p in picks:
-                journal.record_pick(
+                pid = journal.record_pick(
                     strategy=self.name, bucket=bucket, symbol=p.symbol,
                     entry=p.entry, sl_price=p.sl_price, tp_price=p.tp_price,
                     trail_pct=p.trail_pct,
@@ -907,8 +908,54 @@ class MLFilterStrategy(BaseStrategy):
                     reason=p.reason,
                     features=p.extra,
                 )
+                pick_ids.append(pid)
         except Exception:
-            pass
+            pick_ids = []
+
+        # 2026-05-19: Production-grade candidate logging.
+        # Records ALL passed-filter candidates with rank info → enables
+        # exact sim-vs-live parity for post-market analysis.
+        try:
+            zone_name_log = scorer.get_zone(minutes_from_open) if scorer.USE_ZONES else None
+            # Sort candidates by R9 + win for rank assignment
+            sorted_r9 = sorted(candidates, key=lambda p: -p.extra.get('r9_score',
+                p.extra.get('ml_prob', 0) * max(0.0, 1 - p.extra.get('pred_ratio', 1.0)) ** 0.5))
+            sorted_win = sorted(candidates, key=lambda p: -p.extra.get('ml_prob', 0))
+            r9_rank = {p.symbol: i+1 for i, p in enumerate(sorted_r9)}
+            win_rank = {p.symbol: i+1 for i, p in enumerate(sorted_win)}
+            picked_syms = {p.symbol for p in picks}
+            pick_id_map = {p.symbol: pid for p, pid in zip(picks, pick_ids)}
+            scored_rows = []
+            for c in candidates:
+                prob = c.extra.get('ml_prob', 0.0)
+                pr = c.extra.get('pred_ratio', 1.0)
+                scored_rows.append({
+                    'symbol': c.symbol,
+                    'win_p': prob,
+                    'loss_p': None,  # not exposed in extra_dict (would need score_detailed)
+                    'pred_r': pr,
+                    'r9_score': prob * max(0.0, 1 - pr) ** 0.5,
+                    'passed_filter': True,
+                    'rank_by_win': win_rank.get(c.symbol),
+                    'rank_by_r9': r9_rank.get(c.symbol),
+                    'selected': c.symbol in picked_syms,
+                    'sector': c.extra.get('sector'),
+                    'beta': c.extra.get('beta'),
+                    'gain_from_open': c.extra.get('gain_pct'),
+                    'gain_from_prev': None,
+                    'scan_price': None,
+                    'adaptive_limit': c.extra.get('limit_price'),
+                    'user_limit': c.entry,
+                    'features': c.extra,
+                })
+            if scored_rows:
+                first_pick_id = pick_ids[0] if pick_ids else None
+                journal.record_candidates_batch(
+                    scored_rows, pick_id=first_pick_id,
+                    strategy=self.name, zone=zone_name_log, mfo=minutes_from_open,
+                )
+        except Exception:
+            pass  # logging failure must not break scan
 
         regime_str = f"SPY{spy_daily:+.1f}% AD{ad_ratio:.1f} VIX{vix:.0f} anom{anomaly_score:.1f}"
 

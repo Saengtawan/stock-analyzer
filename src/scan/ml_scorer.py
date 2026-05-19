@@ -473,6 +473,51 @@ class MLScorer:
         """Deprecated in v22. Always returns 0.0 — kept for caller compat."""
         return 0.0
 
+    def score_detailed(self, features: dict, minutes_from_open: int, sector: str = '') -> dict:
+        """Return raw win_p, loss_p, pred_r (no loss-filter masking).
+
+        Used by ml_filter.py for production-grade logging of ALL candidates.
+        Unlike score() which returns 0 if loss filter triggers, this returns
+        actual values so we can log them for post-market analysis.
+
+        Returns: dict {win_p, loss_p, pred_r, zone, passed_filter}
+        """
+        if self.USE_ZONES:
+            zone = self.get_zone(minutes_from_open)
+            if zone and zone in self.zone_tp1_models:
+                feat_list = self.zone_features.get(zone, self.features_late)
+                row = [features.get(f, 0.0) for f in feat_list]
+                arr = np.array([row], dtype=float)
+                preds_28 = [float(m.predict(arr)[0]) for m in self.zone_tp1_models[zone]]
+                win_28 = min(preds_28)
+                loss_28 = max([float(m.predict(arr)[0]) for m in self.zone_loss_models[zone]])
+                # Skip MoE / 1m ensemble (both disabled for Step 26)
+                win_5m = win_28
+                loss_5m = loss_28
+                # pred_r from adapt_lim model
+                if zone in self.zone_adaptlim_models:
+                    preds_r = [float(m.predict(arr)[0]) for m in self.zone_adaptlim_models[zone]]
+                    pred_r = sum(preds_r) / len(preds_r)
+                else:
+                    pred_r = 1.0
+                # Filter status
+                win_thr = self.ZONE_THRESHOLDS.get(zone, 99.0)
+                loss_thr = self.ZONE_LOSS_THR.get(zone)
+                passed = (win_5m >= win_thr) and (loss_thr is None or loss_5m < loss_thr)
+                if zone == 'Z4':
+                    min_dip = self.Z4_DIP_FILTER
+                    if (1 - pred_r) < min_dip:
+                        passed = False
+                return {
+                    'win_p': win_5m, 'loss_p': loss_5m, 'pred_r': pred_r,
+                    'zone': zone, 'passed_filter': passed,
+                    'win_thr': win_thr, 'loss_thr': loss_thr,
+                }
+        # Fallback for bucket-based or no zone (Step 26 should always go zone path)
+        win_p = self.score(features, minutes_from_open, sector)
+        return {'win_p': win_p, 'loss_p': None, 'pred_r': 1.0,
+                'zone': None, 'passed_filter': win_p > 0, 'win_thr': None, 'loss_thr': None}
+
     def passes_q25_filter(self, features: dict, minutes_from_open: int) -> bool:
         """No Q25 in v22 (deprecated). Always passes — kept for caller compat."""
         return True

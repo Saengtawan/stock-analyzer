@@ -68,6 +68,46 @@ class Journal:
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_picks_date ON scan_picks(scan_date)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_picks_strategy ON scan_picks(strategy)")
+        # 2026-05-19: Production-grade logging for sim-vs-live parity.
+        # Records ALL candidates per scan (not just top-1 picked) with full
+        # ML scores, ranks, features. Enables exact replay post-market.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS scan_candidates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pick_id INTEGER,           -- FK to scan_picks (NULL if not selected)
+                scan_ts TEXT NOT NULL,
+                scan_date TEXT NOT NULL,
+                strategy TEXT NOT NULL,
+                zone TEXT,                 -- Z1/Z2/Z3/Z4
+                mfo INTEGER,               -- minutes from open
+                symbol TEXT NOT NULL,
+                -- ML scores
+                win_p REAL,
+                loss_p REAL,
+                pred_r REAL,
+                r9_score REAL,
+                passed_filter INTEGER,     -- 1 if passed win/loss/dip thresholds
+                rank_by_win INTEGER,       -- rank among valid candidates (1 = highest win_p)
+                rank_by_r9 INTEGER,        -- rank among valid candidates (1 = highest R9)
+                selected INTEGER DEFAULT 0,-- 1 if this was the actual pick
+                -- Context (for quick filter without parsing features_json)
+                sector TEXT,
+                beta REAL,
+                gain_from_open REAL,
+                gain_from_prev REAL,
+                scan_price REAL,
+                adaptive_limit REAL,
+                user_limit REAL,           -- = reason text LIMIT@$XXX (day_open value)
+                -- Full features for exact replay
+                features_json TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (pick_id) REFERENCES scan_picks(id)
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_cand_date ON scan_candidates(scan_date)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_cand_sym ON scan_candidates(symbol)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_cand_pick ON scan_candidates(pick_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_cand_selected ON scan_candidates(selected)")
         conn.commit()
         conn.close()
 
@@ -155,6 +195,51 @@ class Journal:
                 'drift': round(wr - (exp_wr * 100 if exp_wr else 0), 1),
             })
         return out
+
+    def record_candidates_batch(self, candidates: list, pick_id: int = None,
+                                strategy: str = 'ml_filter', zone: str = None,
+                                mfo: int = None):
+        """Record all candidates from a single scan with ML scores + features.
+
+        Args:
+            candidates: list of dicts, each with keys:
+                symbol, win_p, loss_p, pred_r, r9_score, passed_filter,
+                rank_by_win, rank_by_r9, selected, sector, beta,
+                gain_from_open, gain_from_prev, scan_price, adaptive_limit,
+                user_limit, features (dict for json)
+            pick_id: optional pick_id to link (NULL if no pick selected)
+            strategy, zone, mfo: scan context
+        """
+        if not candidates:
+            return
+        now_et = datetime.now(ET)
+        scan_ts = now_et.strftime('%Y-%m-%d %H:%M:%S')
+        scan_date = now_et.strftime('%Y-%m-%d')
+        conn = sqlite3.connect(str(self.db_path))
+        cur = conn.cursor()
+        for c in candidates:
+            cur.execute("""
+                INSERT INTO scan_candidates (
+                    pick_id, scan_ts, scan_date, strategy, zone, mfo, symbol,
+                    win_p, loss_p, pred_r, r9_score, passed_filter,
+                    rank_by_win, rank_by_r9, selected,
+                    sector, beta, gain_from_open, gain_from_prev,
+                    scan_price, adaptive_limit, user_limit, features_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                pick_id if c.get('selected') else None,
+                scan_ts, scan_date, strategy, zone, mfo, c['symbol'],
+                c.get('win_p'), c.get('loss_p'), c.get('pred_r'),
+                c.get('r9_score'), int(bool(c.get('passed_filter'))),
+                c.get('rank_by_win'), c.get('rank_by_r9'),
+                int(bool(c.get('selected'))),
+                c.get('sector'), c.get('beta'),
+                c.get('gain_from_open'), c.get('gain_from_prev'),
+                c.get('scan_price'), c.get('adaptive_limit'), c.get('user_limit'),
+                json.dumps(c.get('features')) if c.get('features') else None,
+            ))
+        conn.commit()
+        conn.close()
 
     def pending_outcomes(self):
         """List picks without outcomes yet (need follow-up)."""

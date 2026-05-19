@@ -69,8 +69,8 @@ def get_intraday_outcome(symbol: str, date: str, entry_price: float, sl_price: f
         if h >= tp_price:
             reached_tp = True
 
-        # Check SL (low touches)
-        if l <= sl_price and not exit_price:
+        # Check SL (low touches) — only if SL set (Z4 only since Step 17; None for Z1-Z3)
+        if sl_price is not None and l <= sl_price and not exit_price:
             exit_price = sl_price
             exit_reason = 'SL'
             hit_sl = True
