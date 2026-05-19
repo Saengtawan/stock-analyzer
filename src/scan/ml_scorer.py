@@ -118,12 +118,14 @@ class MLScorer:
     ADAPTIVE_LIMIT_BUFFER = 0.010  # 1.0% above predicted low (fallback)
     # 2026-05-14 Step 12: Per-zone ATR-adaptive buffer.
     # buffer = base_buf + atr_coef × atr_pct_14d
-    # WF (Nov 2025 - Apr 2026): Z1 +211%, Z2 +224%, Z3 +125%, Z4 +102%, Combined +662%
+    # 2026-05-19 Step 27: Z3+Z4 buffer optimized via Phase 1-4 WF analysis.
+    # Phase 4 OOS (Apr 2026, n=319): combined +800% → +854% (Δ+6.8%).
+    # Z4 biggest win: flat 1% buffer was missing 19% picks → ATR-scaled.
     ZONE_LIMIT_CONFIG = {
-        'Z1': {'base_buf': 0.005, 'atr_coef': 0.0020},  # fill 93%, WR 89%, +211%, -2.85%
-        'Z2': {'base_buf': 0.005, 'atr_coef': 0.0015},  # fill 94%, WR 90%, +224%, -1.77%
-        'Z3': {'base_buf': 0.005, 'atr_coef': 0.0015},  # fill 95%, WR 75%, +125%, -2.55%
-        'Z4': {'base_buf': 0.010, 'atr_coef': 0.0000},  # fill 92%, WR 66%, +102%, -1.62% (keep Step 10)
+        'Z1': {'base_buf': 0.005, 'atr_coef': 0.0020},  # keep (OOS confirmed optimal)
+        'Z2': {'base_buf': 0.005, 'atr_coef': 0.0015},  # keep (IS-opt was OOS overfit)
+        'Z3': {'base_buf': 0.000, 'atr_coef': 0.0020},  # Step 27: marginal +6% OOS
+        'Z4': {'base_buf': 0.000, 'atr_coef': 0.0020},  # Step 27: BIG +48% OOS (was 0.010, 0.0000)
     }
     # 2026-05-06: Loss thresholds tuned (Task 3 + Task 4 sweep).
     ZONE_LOSS_THR = {
