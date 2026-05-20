@@ -1,23 +1,34 @@
-version: v2.2.0
-step: 26
-deploy_date: 2026-05-17T19:12+07:00
-description: A1+A2+A3 R9 combined — Z3/Z4 label_custom_dd + Optuna HPs + R9 ranking
+version: v2.3.0
+step: 29
+deploy_date: 2026-05-20T16:10+07:00
+description: Step 27 ATR buffer + Step 28 Hybrid Rule E + Step 29 Z3+Z4 class_w 2.0
 
 metrics:
-  wf_6mo:
-    total: +1854%
-    wr: 81%
-    worst: -4.75%
+  wf_6mo_monthly_refit:
+    z3:
+      delta_wr: +2.6pp
+      delta_total: -0.3%
+      delta_worst: 0pp
+    z4:
+      delta_wr: +0.6pp
+      delta_total: +1.7%
+      delta_worst: +0.54pp
   oos_30d:
-    total: +555%
-    wr: 97%
-    worst: -3.72%
+    window: 2026-04-20 to 2026-05-20
+    z1: {n: 28, wr: 100%, total: +125%, worst: +0.15%}
+    z2: {n: 46, wr: 100%, total: +141%, worst: +0.38%}
+    z3: {n: 36, wr: 97%, total: +94%, worst: -0.12%}
+    z4: {n: 72, wr: 99%, total: +140%, worst: -2.60%}
+    combined:
+      n: 182
+      wr: 99%
+      total: +500%
 
 artifacts:
   models: backtests/models_prod_v22
   pkl: cache/bt_features/features.pkl
   pre_deploy_backup:
-    models: backtests/models_prod_v22_pre_step26
+    models: backtests/models_prod_v22_2026-05-20_pre_classw_backup
     pkl: (unchanged)
 
-prev_version: v2.1.1
+prev_version: v2.2.0

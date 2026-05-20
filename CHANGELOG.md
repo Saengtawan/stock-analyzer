@@ -9,7 +9,50 @@ All deploys tagged in git. Backup artifacts retained per version.
 
 ---
 
-## [v2.2.0] — 2026-05-17 (Step 26) ⭐ CURRENT
+## [v2.3.0] — 2026-05-20 (Steps 27 + 28 + 29) ⭐ CURRENT
+
+### Added
+- **Step 29 (2026-05-20)**: `ZONE_CW = {Z1: None, Z2: None, Z3: 2.0, Z4: 2.0}` — Z3+Z4 win model trained with `sample_weight=where(y==0, 2.0, 1.0)`. Forces model conservative on borderline picks. Loss + adapt models unchanged.
+- **Step 28 (2026-05-19)**: Hybrid Rule E — `use_market = pred_ratio > 0.99` (MKT order when no cushion predicted, else LIMIT). 2-line reason text format showing `mkt$X` + `LIMIT@$Y` + `(open$Z)`.
+- **Step 27 (2026-05-19)**: Z3+Z4 buffer ATR-scaled — `Z3/Z4: base=0.000, atr_coef=0.0020` (was Z4 flat=0.010, atr=0.0000). Reason text shows `adapt_lim` (was `day_open`).
+
+### Validation (Step 29)
+- Funnel methodology applied (per validation_standards.md):
+  - Step 2 Quick: class_w promising at single-split
+  - Step 3 Rough sweep (cw 1.0-3.0 × 6 months): Z3 cw=2.0 best marginal, Z4 cw=2.0 free Total gain
+  - Phase 2 6-mo monthly refit (NO LEAK):
+    - Z3: ΔWR +2.6pp / ΔT -0.3% / ΔWorst 0pp (6/6 months+)
+    - Z4: ΔWR +0.6pp / ΔT +1.7% / ΔWorst +0.54pp (6/6 months+)
+  - Phase 3 5-regime cross-regime:
+    - Z4: 4/5 PASS, 3/3 critical PASS (CRISIS+STRESS+NEUTRAL)
+    - Z3: 4/5 PASS, NEUTRAL fail borderline -7% Total but +9pp WR
+  - Phase 4 TRUE 30-day OOS (`validate_retrain.sh`, 2026-04-20→2026-05-20):
+    - Z1 N=28 WR 100% Total +125% Worst +0.15% ✓
+    - Z2 N=46 WR 100% Total +141% Worst +0.38% ✓
+    - Z3 N=36 WR  97% Total  +94% Worst -0.12% ✓ ⭐ cw=2.0
+    - Z4 N=72 WR  99% Total +140% Worst -2.60% ✓ ⭐ cw=2.0
+    - Combined N=182 WR 99% Total +500% (floor 75%/30%) ✓
+  - Phase 5 smoke test: engine restart active, no import errors.
+
+### Anti-pattern logged (Funnel methodology vindicated)
+Ensemble (AVG(custom_dd, strong_win)) looked +4.2pp WR at single-split Step 2 Quick but failed Phase 2 monthly refit (-3.1% Total / +3.7pp WR — net unfavorable). Confirms: single-split is NOT truth — must pass monthly refit.
+
+### Files
+- `scripts/train_zones.py` — `ZONE_CW` dict + `sample_weight` in win training
+- `scripts/validate_retrain.py` — mirrored `ZONE_CW` for aligned validation
+- `src/scan/strategies/ml_filter.py` — Step 27/28 buffer + reason text + Rule E
+- `src/scan/ml_scorer.py` — ZONE_LIMIT_CONFIG ATR-scaled buffer
+
+### Backup
+- `backtests/models_prod_v22_2026-05-20_pre_classw_backup/` (61 files)
+
+### Git tags
+- `v2.3.0` (main tag)
+- `v2.3.0-step29` (with step, optional)
+
+---
+
+## [v2.2.0] — 2026-05-17 (Step 26)
 
 ### Added
 - Z3 + Z4 win label: `label_custom_dd` (DD-aware, EOD>scan AND no -3% DD)
