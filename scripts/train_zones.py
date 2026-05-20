@@ -59,6 +59,10 @@ ZONE_HP = {
                reg_alpha=2.668, reg_lambda=3.341, n_estimators=800,
                bagging_fraction=0.929, feature_fraction=0.998),
 }
+# Step 29 (2026-05-20): class weighting on losers in win model.
+# Validated Z3 Phase 2 ΔWR +2.6pp / Phase 3 4/5 regimes pass.
+# Validated Z4 Phase 2 ΔT +1.7% ΔWR +0.6pp ΔWorst +0.54pp / Phase 3 4/5 + 3/3 critical.
+ZONE_CW = {'Z1': None, 'Z2': None, 'Z3': 2.0, 'Z4': 2.0}
 LOSS_HP = dict(learning_rate=0.03, max_depth=3, num_leaves=8, min_child_samples=50,
                reg_alpha=1.0, reg_lambda=5.0, n_estimators=300,
                bagging_fraction=0.8, feature_fraction=0.8)
@@ -159,11 +163,14 @@ def main():
             X_w = sub[mask_w][feats].fillna(0).values
             y_w = yw_raw[mask_w].astype(int).values
             hp = {**ZONE_HP[zname], 'objective':'binary', 'bagging_freq':1, 'verbose':-1, 'n_jobs':4}
+            cw = ZONE_CW.get(zname)
+            sw_w = np.where(y_w == 0, cw, 1.0) if cw and cw > 1.0 else None
             for seed in range(N_SEEDS):
                 m = lgb.LGBMClassifier(**{**hp, 'random_state':seed})
-                m.fit(X_w, y_w)
+                m.fit(X_w, y_w, sample_weight=sw_w)
                 m.booster_.save_model(str(PROD_DIR / f'lgb_tp1_{zname}_seed{seed}.txt'))
-            print(f"    win ({win_label}): pos={y_w.mean():.3f}, saved 5 seeds")
+            cw_tag = f" cw={cw}" if cw else ""
+            print(f"    win ({win_label}){cw_tag}: pos={y_w.mean():.3f}, saved 5 seeds")
 
         # 2. Loss model — label_fixed3 ≤ -1%
         yl = (sub['label_fixed3'] <= -1.0).astype(int).values

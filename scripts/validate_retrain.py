@@ -40,6 +40,8 @@ HP = {
     'Z3': dict(learning_rate=0.0435, max_depth=2, num_leaves=28, min_child_samples=99, reg_alpha=1.466, reg_lambda=4.900, n_estimators=600, bagging_fraction=0.884, feature_fraction=0.950),
     'Z4': dict(learning_rate=0.0783, max_depth=6, num_leaves=49, min_child_samples=35, reg_alpha=2.668, reg_lambda=3.341, n_estimators=800, bagging_fraction=0.929, feature_fraction=0.998),
 }
+# Step 29 (2026-05-20): class weighting on losers — must match train_zones.py
+ZONE_CW = {'Z1': None, 'Z2': None, 'Z3': 2.0, 'Z4': 2.0}
 LOSS_HP = dict(learning_rate=0.03, max_depth=3, num_leaves=8, min_child_samples=50, reg_alpha=1.0, reg_lambda=5.0, n_estimators=300, bagging_fraction=0.8, feature_fraction=0.8)
 ADAPT_HP = dict(objective='regression', learning_rate=0.05, max_depth=4, num_leaves=15, min_child_samples=30, reg_alpha=0.5, reg_lambda=1.0, n_estimators=300, bagging_fraction=0.8, feature_fraction=0.8)
 TRAIN_DAYS = 840
@@ -117,10 +119,12 @@ def main():
         Xw = sub[mw][feats].fillna(0).values
         yw = sub[mw][wl].astype(int).values
         cfg = {**HP[zone], 'objective':'binary', 'bagging_freq':1, 'verbose':-1, 'n_jobs':4}
+        cw_z = ZONE_CW.get(zone)
+        sw_w = np.where(yw == 0, cw_z, 1.0) if cw_z and cw_z > 1.0 else None
         wseeds = []
         for s in range(N_SEEDS):
             m = lgb.LGBMClassifier(**{**cfg, 'random_state':s})
-            m.fit(Xw, yw)
+            m.fit(Xw, yw, sample_weight=sw_w)
             wseeds.append(m.booster_)
 
         yl = (sub['label_fixed3'] <= -1.0).astype(int).values

@@ -83,6 +83,22 @@ referred to deprecated configurations and feature pipelines.)
 
 ### ml_filter (PRIMARY) — deployed 2026-05-16 (Step 21: VWAP formula fix)
 
+**Step 29 (2026-05-20) — Z3+Z4 win model class_weighted (cw=2.0 on losers)**
+  - `ZONE_CW = {'Z1': None, 'Z2': None, 'Z3': 2.0, 'Z4': 2.0}` in train_zones.py
+  - Win model: `sample_weight = where(y==0, 2.0, 1.0)` for Z3+Z4 (losers weighted 2x)
+  - Z1, Z2, loss models, adapt models unchanged.
+  - Validation funnel (Quick → Sweep → Phase 2 → Phase 3 → Phase 4):
+      Phase 2 6-mo monthly refit: Z3 ΔWR +2.6pp ΔT -0.3%, Z4 ΔWR +0.6pp ΔT +1.7% ΔWorst +0.54pp
+      Phase 3 5-regime: Z4 4/5 PASS (3/3 critical), Z3 4/5 (NEUTRAL fail borderline -7% but WR +9pp)
+      Phase 4 TRUE 30-day OOS (Apr 20-May 20):
+        Z1 WR 100% / Z2 WR 100% / Z3 WR 97% / Z4 WR 99%
+        Combined N=182 / WR 99% / Total +500% (floor 75%/30%)
+  - Anti-pattern logged: ensemble exploration (AVG cd+sw) looked +4.2pp WR at single-split
+    but failed Phase 2 monthly refit (-3.1% Total). Funnel methodology vindicated.
+  - Files: `scripts/train_zones.py` (ZONE_CW + sample_weight),
+           `scripts/validate_retrain.py` (mirrored ZONE_CW for aligned validation)
+  - Backup: `backtests/models_prod_v22_2026-05-20_pre_classw_backup/`
+
 **Step 26 (2026-05-17) — Z3/Z4 custom_dd labels + Optuna HPs + R9 ranking**
   - Combined deploy of 3 experiments (A1 + A2 + A3 R9 from research run).
   - **A1: Z3+Z4 win label** `label_z34_market` → `label_custom_dd` (DD-aware).
