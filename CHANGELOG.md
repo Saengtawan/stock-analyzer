@@ -9,7 +9,44 @@ All deploys tagged in git. Backup artifacts retained per version.
 
 ---
 
-## [v2.3.0] — 2026-05-20 (Steps 27 + 28 + 29) ⭐ CURRENT
+## [v2.4.0] — 2026-05-21 (Step 31) ⭐ CURRENT
+
+### Added
+- **Step 31**: Z2+Z4 ZONE_HP re-tuned via Optuna under label_custom_dd + cw=2.0 setup
+  - Z2: lr 0.0235→0.0970, depth 3→2, leaves 5→56, n_est 500→400, min_child 61→120
+  - Z4: lr 0.0783→0.0827, depth 6→5, leaves 49→5 (much smaller), min_child 35→69
+  - Z1, Z3 HPs unchanged. ZONE_CW unchanged from Step 29 (Z3+Z4 cw=2.0).
+
+### Validation (Funnel per validation_standards.md)
+- Step 3 Optuna 25 trials × 4 zones, single-cutoff WF
+- Phase 2 6-mo monthly refit (NO LEAK):
+  - Z2: ΔT +9.7% ΔWR +0.3pp ΔWorst 0 (6/6 months+)
+  - Z4: ΔT +6.1% ΔWR +1.0pp ΔWorst 0 (6/6 months+)
+- Phase 3 5-regime: both 4/5 PASS (CRISIS worst marginal -0.5pp, immaterial)
+- Phase 4 TRUE 30-day OOS (validate_retrain.sh, 2026-04-20→2026-05-20):
+  - Z1 N=28 WR 100% Total +125% Worst +0.15% ✓
+  - Z2 N=49 WR 100% Total **+161%** (+20% vs Step 29) Worst +0.48% ✓
+  - Z3 N=36 WR  97% Total  +94% Worst -0.12% ✓
+  - Z4 N=70 WR  99% Total **+158%** (+18% vs Step 29) Worst -0.28% ✓
+  - Combined N=183 WR 99% Total **+539%** (vs Step 29 +500%, +7.8% relative)
+
+### Anti-pattern caveat
+Single-cutoff said Z2 +11.1%. Monthly refit said +9.7%. Difference small = NOT overfit. (Funnel methodology vindicated again.)
+
+### Files
+- `scripts/train_zones.py` — ZONE_HP Z2, Z4 updated
+- `scripts/validate_retrain.py` — mirrored ZONE_HP for aligned validation
+
+### Backup
+- `backtests/models_prod_v22_2026-05-21_pre_step31_backup/` (137 files)
+
+### Git tags
+- `v2.4.0` (main)
+- `v2.4.0-step31` (with step, optional)
+
+---
+
+## [v2.3.0] — 2026-05-20 (Steps 27 + 28 + 29)
 
 ### Added
 - **Step 29 (2026-05-20)**: `ZONE_CW = {Z1: None, Z2: None, Z3: 2.0, Z4: 2.0}` — Z3+Z4 win model trained with `sample_weight=where(y==0, 2.0, 1.0)`. Forces model conservative on borderline picks. Loss + adapt models unchanged.

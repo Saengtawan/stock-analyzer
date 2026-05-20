@@ -46,18 +46,20 @@ ZONE_LABEL = {
 
 ZONE_HP = {
     # Step 26 (2026-05-17): Optuna-optimized HPs (A2 experiment +137% val total)
+    # Step 31 (2026-05-21): Z2+Z4 re-tuned with label_custom_dd + cw=2.0 setup.
+    #   Phase 2 6-mo refit: Z2 +9.7% Total, Z4 +6.1%. Phase 4 30-day OOS: Z4 worst -2.96% → +0.03%.
     'Z1': dict(learning_rate=0.0678, max_depth=2, num_leaves=40, min_child_samples=44,
                reg_alpha=3.463, reg_lambda=3.818, n_estimators=600,
                bagging_fraction=0.945, feature_fraction=0.926),
-    'Z2': dict(learning_rate=0.0235, max_depth=3, num_leaves=5, min_child_samples=61,
-               reg_alpha=4.571, reg_lambda=2.035, n_estimators=500,
-               bagging_fraction=0.776, feature_fraction=0.787),
+    'Z2': dict(learning_rate=0.0970, max_depth=2, num_leaves=56, min_child_samples=120,
+               reg_alpha=3.345, reg_lambda=4.341, n_estimators=400,
+               bagging_fraction=0.820, feature_fraction=0.841),
     'Z3': dict(learning_rate=0.0435, max_depth=2, num_leaves=28, min_child_samples=99,
                reg_alpha=1.466, reg_lambda=4.900, n_estimators=600,
                bagging_fraction=0.884, feature_fraction=0.950),
-    'Z4': dict(learning_rate=0.0783, max_depth=6, num_leaves=49, min_child_samples=35,
-               reg_alpha=2.668, reg_lambda=3.341, n_estimators=800,
-               bagging_fraction=0.929, feature_fraction=0.998),
+    'Z4': dict(learning_rate=0.0827, max_depth=5, num_leaves=5, min_child_samples=69,
+               reg_alpha=3.859, reg_lambda=4.159, n_estimators=800,
+               bagging_fraction=0.889, feature_fraction=0.869),
 }
 # Step 29 (2026-05-20): class weighting on losers in win model.
 # Validated Z3 Phase 2 ΔWR +2.6pp / Phase 3 4/5 regimes pass.

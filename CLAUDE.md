@@ -83,6 +83,17 @@ referred to deprecated configurations and feature pipelines.)
 
 ### ml_filter (PRIMARY) — deployed 2026-05-16 (Step 21: VWAP formula fix)
 
+**Step 31 (2026-05-21) — Z2+Z4 HPs Optuna re-tune (under label_custom_dd + cw=2.0)**
+  - Z2 HPs: lr 0.0235→0.0970, depth 3→2, leaves 5→56, n_est 500→400, min_child 61→120, reg_alpha 4.571→3.345, reg_lambda 2.035→4.341
+  - Z4 HPs: lr 0.0783→0.0827, depth 6→5, leaves 49→5 (much smaller), min_child 35→69, reg_alpha 2.668→3.859
+  - Z1, Z3 unchanged. ZONE_CW unchanged from Step 29.
+  - Funnel: Step 3 Optuna 25 trials per zone → Phase 2 6-mo refit (Z2 +9.7%, Z4 +6.1%) → Phase 3 4/5 regimes → Phase 4 30-day OOS:
+      Step 29 baseline: Combined +500%, Z2=+141, Z4=+140
+      Step 31 (new):    Combined **+539%** (+7.8%), Z2=+161 (+20%), Z4=+158 (+18%)
+      WR 99% across all zones (Z1 100% / Z2 100% / Z3 97% / Z4 99%)
+  - Files: `scripts/train_zones.py` (ZONE_HP Z2,Z4), `scripts/validate_retrain.py` (mirrored)
+  - Backup: `backtests/models_prod_v22_2026-05-21_pre_step31_backup/`
+
 **Step 29 (2026-05-20) — Z3+Z4 win model class_weighted (cw=2.0 on losers)**
   - `ZONE_CW = {'Z1': None, 'Z2': None, 'Z3': 2.0, 'Z4': 2.0}` in train_zones.py
   - Win model: `sample_weight = where(y==0, 2.0, 1.0)` for Z3+Z4 (losers weighted 2x)
