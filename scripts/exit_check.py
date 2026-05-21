@@ -24,11 +24,11 @@ sys.path.insert(0, str(PROJ / 'backtests'))
 
 
 def fetch_today_bars(sym):
-    """Fetch today's (US/Eastern) bars from intraday_bars_5m (Alpaca DB).
+    """Fetch today's bars. Prefer intraday_bars_5m (after engine flush);
+    fall back to intraday_snapshots (live during market hours).
     Returns list of (em, o, h, l, c) ET.
     """
     db = PROJ / 'data' / 'trade_history.db'
-    # Use US/Eastern date — server may be in different TZ
     try:
         import pytz
         today = datetime.now(pytz.timezone('US/Eastern')).strftime('%Y-%m-%d')
@@ -41,14 +41,41 @@ def fetch_today_bars(sym):
         "WHERE symbol=? AND DATE(timestamp)=? ORDER BY timestamp",
         (sym, today)
     ).fetchall()
-    # Fallback: if no rows today, use latest available date for this symbol
+
+    source = 'intraday_bars_5m'
     if not rows:
+        snap_rows = con.execute(
+            "SELECT time_et, price, open_price, high, low FROM intraday_snapshots "
+            "WHERE symbol=? AND date=? AND price IS NOT NULL ORDER BY time_et",
+            (sym, today)
+        ).fetchall()
+        if snap_rows:
+            print(f"  (live from intraday_snapshots, {len(snap_rows)} snapshots)", flush=True)
+            con.close()
+            bars = []
+            day_open = None
+            for t_et, price, op, hi, lo in snap_rows:
+                try:
+                    hh, mm = t_et.split(':')
+                    em = int(hh) * 60 + int(mm)
+                except Exception:
+                    continue
+                if em < 570 or em > 960: continue
+                if price is None: continue
+                p = float(price)
+                if day_open is None and op:
+                    day_open = float(op)
+                bars.append((em, p, p, p, p))
+            if not day_open and bars:
+                day_open = bars[0][1]
+            return bars, day_open
+
         latest = con.execute(
             "SELECT MAX(DATE(timestamp)) FROM intraday_bars_5m WHERE symbol=?",
             (sym,)
         ).fetchone()
         if latest and latest[0]:
-            print(f"  (no data for {today}, using latest: {latest[0]})", flush=True)
+            print(f"  (no live data for {today}, using {source} latest: {latest[0]})", flush=True)
             rows = con.execute(
                 "SELECT strftime('%H', timestamp) as h, strftime('%M', timestamp) as m, "
                 "open, high, low, close FROM intraday_bars_5m "
@@ -59,12 +86,7 @@ def fetch_today_bars(sym):
     bars = []
     day_open = None
     for h_str, m_str, o, hi, lo, c in rows:
-        # Bangkok server stores in DB as Bangkok time? or UTC? Need to convert.
-        # intraday_bars_5m timestamp = US/Eastern actually (Alpaca returns ET)
-        # But sqlite strftime treats stored value as-is. Trust the timestamp.
         em = int(h_str) * 60 + int(m_str)
-        # Map server-stored time to ET: if 13:30 = 09:30 ET shift, but appears
-        # we store in ET already. First bar should be em=570 (09:30 ET).
         if em < 570: continue
         if em > 960: break
         if o is None or c is None: continue
