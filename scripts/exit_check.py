@@ -110,29 +110,82 @@ def fetch_recent_pkl_features(sym):
     return sym_rows.iloc[0] if len(sym_rows) else None
 
 
+def auto_lookup_entry(sym):
+    """Look up today's entry for this symbol from scan_picks DB.
+    Returns (entry_price, entry_em, win_p, pred_r) or None.
+    """
+    db = PROJ / 'data' / 'scan_journal.db'
+    if not db.exists(): return None
+    try:
+        import pytz
+        today = datetime.now(pytz.timezone('US/Eastern')).strftime('%Y-%m-%d')
+    except ImportError:
+        today = datetime.today().strftime('%Y-%m-%d')
+    con = sqlite3.connect(str(db))
+    row = con.execute(
+        "SELECT scan_ts, entry, ml_prob FROM scan_picks "
+        "WHERE symbol=? AND scan_date=? ORDER BY scan_ts LIMIT 1",
+        (sym, today)
+    ).fetchone()
+    # Fallback: latest entry for this symbol any date
+    if not row:
+        row = con.execute(
+            "SELECT scan_ts, entry, ml_prob FROM scan_picks "
+            "WHERE symbol=? ORDER BY scan_ts DESC LIMIT 1",
+            (sym,)
+        ).fetchone()
+    con.close()
+    if not row: return None
+    scan_ts, entry, ml_prob = row
+    # Parse scan_ts "2026-05-20 09:35:39" → ET HH:MM
+    dt = datetime.strptime(scan_ts.split('.')[0], '%Y-%m-%d %H:%M:%S')
+    entry_em = dt.hour * 60 + dt.minute
+    return entry, entry_em, ml_prob, scan_ts
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('symbol', help='Stock symbol (e.g. MKSI)')
-    ap.add_argument('entry_price', type=float, help='Entry price (e.g. 301.75)')
+    ap.add_argument('entry_price', type=float, nargs='?', default=None,
+                    help='Entry price (auto-lookup from scan_picks if omitted)')
     ap.add_argument('entry_time', nargs='?', default=None,
-                    help='Entry time ET HH:MM (default: now-30min)')
-    ap.add_argument('--win_p', type=float, default=0.7, help='Entry win_p (default 0.7)')
+                    help='Entry time ET HH:MM (auto-lookup if omitted)')
+    ap.add_argument('--win_p', type=float, default=None, help='Entry win_p (auto)')
     ap.add_argument('--pred_r', type=float, default=0.99, help='Entry pred_r (default 0.99)')
     ap.add_argument('--atr', type=float, default=3.0, help='ATR pct (default 3.0)')
     args = ap.parse_args()
 
     sym = args.symbol.upper()
     entry_price = args.entry_price
+    win_p_arg = args.win_p
+
+    # Auto-lookup if entry_price not given
+    if entry_price is None:
+        result = auto_lookup_entry(sym)
+        if not result:
+            print(f"  ❌ No scan_picks entry found for {sym} today or recent. "
+                  f"Provide entry_price manually.")
+            sys.exit(1)
+        entry_price, auto_em, auto_winp, scan_ts = result
+        print(f"  Auto-detected: entry ${entry_price:.2f} at {auto_em//60:02d}:{auto_em%60:02d} ET "
+              f"(scan_ts {scan_ts})")
+        if args.entry_time is None:
+            entry_em = auto_em
+        if win_p_arg is None:
+            win_p_arg = auto_winp
 
     # Entry time → em
     if args.entry_time:
         h, m = map(int, args.entry_time.split(':'))
         entry_em = h * 60 + m
-    else:
+    elif 'entry_em' not in locals() or entry_em is None:
         # Default: 30 min ago
         import pytz
         et_now = datetime.now(pytz.timezone('US/Eastern'))
         entry_em = (et_now.hour * 60 + et_now.minute) - 30
+
+    if win_p_arg is None:
+        win_p_arg = 0.7  # final fallback
     entry_mfo = entry_em - 570
     if entry_mfo < 0: entry_mfo = 5
 
@@ -189,7 +242,7 @@ def main():
         'entry_em': entry_em,
         'entry_price': entry_price,
         'entry_pkl_feats': entry_pkl_feats,
-        'entry_win_p': args.win_p,
+        'entry_win_p': win_p_arg,
         'entry_pred_r': args.pred_r,
         'entry_mfo': entry_mfo,
         'atr': args.atr,
