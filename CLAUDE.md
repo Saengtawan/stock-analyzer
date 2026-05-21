@@ -37,7 +37,7 @@ User พิมพ์คำสั่งเป็นภาษาไทยหรื
 | `scan gap` | `orb_gap_preview` หรือ `orb_gap_break` ตามเวลา |
 | `scan crisis` / `scan VIX high` | `crisis_reversal` |
 | `scan list` | `python3 -m src.scan.engine list` |
-| `exit SYM PRICE [TIME]` | `bash scripts/exit_check.sh SYM PRICE [HH:MM]` — manual Exit ML check, returns HOLD/EXIT recommendation (user decides) |
+| `exit SYM PRICE TIME` | `bash scripts/exit_check.sh SYM PRICE HH:MM` — manual Exit ML check (both price+time REQUIRED to avoid wrong defaults from scan_picks). Returns HOLD/EXIT recommendation (user decides) |
 
 **Default rule**: ถ้าไม่ match อะไรชัด → `auto`
 

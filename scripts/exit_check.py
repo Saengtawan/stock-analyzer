@@ -144,13 +144,16 @@ def auto_lookup_entry(sym):
 
 
 def main():
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(
+        description='Manual Exit ML check. Both entry_price + entry_time are REQUIRED '
+                    '(prevents wrong defaults if broker fill differs from scan_picks).')
     ap.add_argument('symbol', help='Stock symbol (e.g. MKSI)')
-    ap.add_argument('entry_price', type=float, nargs='?', default=None,
-                    help='Entry price (auto-lookup from scan_picks if omitted)')
-    ap.add_argument('entry_time', nargs='?', default=None,
-                    help='Entry time ET HH:MM (auto-lookup if omitted)')
-    ap.add_argument('--win_p', type=float, default=None, help='Entry win_p (auto)')
+    ap.add_argument('entry_price', type=float,
+                    help='Actual entry price (your fill, may differ from scan)')
+    ap.add_argument('entry_time',
+                    help='Entry time ET HH:MM (your actual fill time)')
+    ap.add_argument('--win_p', type=float, default=None,
+                    help='Entry win_p (auto-lookup from scan_picks if omitted)')
     ap.add_argument('--pred_r', type=float, default=0.99, help='Entry pred_r (default 0.99)')
     ap.add_argument('--atr', type=float, default=3.0, help='ATR pct (default 3.0)')
     args = ap.parse_args()
@@ -158,45 +161,32 @@ def main():
     sym = args.symbol.upper()
     entry_price = args.entry_price
     win_p_arg = args.win_p
-    entry_em = None
 
-    # Auto-lookup from scan_picks
+    # Parse required time
+    h, m = map(int, args.entry_time.split(':'))
+    entry_em = h * 60 + m
+
+    # Auto-lookup win_p from scan_picks (and show scan comparison)
     auto_result = auto_lookup_entry(sym)
-    scan_price = scan_em = auto_winp = None
     if auto_result:
         scan_price, scan_em, auto_winp, scan_ts = auto_result
         if win_p_arg is None: win_p_arg = auto_winp
-
-    # Resolve entry_price + entry_em with user overrides
-    price_source = 'user' if entry_price is not None else 'scan_picks'
-    if entry_price is None:
-        if scan_price is None:
-            print(f"  ❌ No scan_picks entry for {sym} + no entry_price given.")
-            sys.exit(1)
-        entry_price = scan_price
-
-    if args.entry_time:
-        h, m = map(int, args.entry_time.split(':'))
-        entry_em = h * 60 + m
-        time_source = 'user'
-    elif scan_em is not None:
-        entry_em = scan_em
-        time_source = 'scan_picks'
+        price_diff = abs(entry_price - scan_price)
+        time_diff = abs(entry_em - scan_em)
+        diff_notes = []
+        if price_diff >= 0.005:  # half-cent tolerance
+            diff_notes.append(f"price diff ${entry_price-scan_price:+.2f}")
+        if time_diff > 0:
+            diff_notes.append(f"time diff {entry_em-scan_em:+d}min")
+        diff_str = f"  ({', '.join(diff_notes)})" if diff_notes else "  (matches scan_picks)"
+        print(f"  User: ${entry_price:.2f} @ {entry_em//60:02d}:{entry_em%60:02d}  |  "
+              f"scan: ${scan_price:.2f} @ {scan_em//60:02d}:{scan_em%60:02d} win_p={auto_winp:.3f}"
+              f"{diff_str}")
     else:
-        import pytz
-        et_now = datetime.now(pytz.timezone('US/Eastern'))
-        entry_em = (et_now.hour * 60 + et_now.minute) - 30
-        time_source = 'default (now-30min)'
+        print(f"  User: ${entry_price:.2f} @ {entry_em//60:02d}:{entry_em%60:02d}  "
+              f"(no scan_picks history, win_p default 0.7)")
 
-    # Display sources
-    if scan_price is not None:
-        price_note = f" (scan was ${scan_price:.2f})" if price_source == 'user' and abs(entry_price-scan_price) > 0.001 else ""
-        time_note = f" (scan was {scan_em//60:02d}:{scan_em%60:02d})" if time_source == 'user' and entry_em != scan_em else ""
-        print(f"  Sources: price={price_source} ${entry_price:.2f}{price_note}  |  "
-              f"time={time_source} {entry_em//60:02d}:{entry_em%60:02d}{time_note}  |  "
-              f"win_p={auto_winp:.3f}")
-    else:
-        print(f"  Sources: price=user ${entry_price:.2f}  |  time={time_source} {entry_em//60:02d}:{entry_em%60:02d}  |  win_p=default")
+    if win_p_arg is None: win_p_arg = 0.7
 
     if win_p_arg is None:
         win_p_arg = 0.7
