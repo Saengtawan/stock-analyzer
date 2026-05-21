@@ -1,29 +1,35 @@
-version: v2.4.0
-step: 31
-deploy_date: 2026-05-21T08:38-04:00
-description: Step 31 — Z2+Z4 HPs Optuna re-tune under label_custom_dd + cw=2.0
+version: v2.5.0
+step: 32
+deploy_date: 2026-05-21T08:35-04:00
+description: Step 32 — Exit ML v3.1 infrastructure (Phase 6a, enabled=false)
 
 metrics:
-  oos_30d:
-    window: 2026-04-20 to 2026-05-20
-    z1: {n: 28, wr: 100%, total: +125%, worst: +0.15%}
-    z2: {n: 49, wr: 100%, total: +161%, worst: +0.48%}
-    z3: {n: 36, wr: 97%, total: +94%, worst: -0.12%}
-    z4: {n: 70, wr: 99%, total: +158%, worst: -0.28%}
-    combined:
-      n: 183
-      wr: 99%
-      total: +539%
-  delta_vs_step29:
-    z2_total: +20%
-    z4_total: +18%
-    combined: +39% (+7.8% relative)
+  exit_ml_phase2_monthly_refit:
+    z4_delta_total: +10.7%
+    z4_months_positive: 6/6
+  exit_ml_phase3_cross_regime:
+    crisis: +6.0%
+    stress: +13.0%
+    neutral: +9.8%
+    volatile: +7.5%
+    calm: +14.2%
+    critical_3_pass: true
+  exit_ml_phase4_oos:
+    window: 2026-04-21 to 2026-05-21
+    delta_total: +5.9%
+    exits: 30/66 (45%)
+    pass: true
 
 artifacts:
-  models: backtests/models_prod_v22
+  entry_models: backtests/models_prod_v22
+  exit_models: backtests/models_prod_exit  # NEW
   pkl: cache/bt_features/features.pkl
+  config: config/exit_config.json  # NEW (enabled=false)
   pre_deploy_backup:
-    models: backtests/models_prod_v22_2026-05-21_pre_step31_backup
-    pkl: (unchanged)
+    models: backtests/models_prod_v22_2026-05-21_pre_step31_backup  # entry still pre-step31
 
-prev_version: v2.3.0
+phase_status:
+  6a_files_deployed: true
+  6b_engine_integration: pending  # next deploy
+
+prev_version: v2.4.0

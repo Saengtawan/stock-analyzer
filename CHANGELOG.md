@@ -9,7 +9,60 @@ All deploys tagged in git. Backup artifacts retained per version.
 
 ---
 
-## [v2.4.0] — 2026-05-21 (Step 31) ⭐ CURRENT
+## [v2.5.0] — 2026-05-21 (Step 32) ⭐ CURRENT — Exit ML Infrastructure
+
+### Added (Phase 6a — safe deploy, no engine integration)
+- **src/scan/ml_exit_scorer.py** — Exit ML inference module (separate from ml_scorer.py entry)
+- **scripts/train_exit.py** — Exit ML training pipeline
+- **config/exit_config.json** — `enabled: false` safe default, thr=0.35, min_hold=30, zones=['Z4']
+- **backtests/models_prod_exit/lgb_exit_Z4_seed{0-4}.txt** — 5-seed Z4 exit models (~940KB each)
+
+### NOT changed (intentional)
+- `src/auto_trading_engine.py` — engine NOT modified (Phase 6b pending)
+- All entry models, Step 31 entry config — unchanged
+- Engine behavior — zero change (enabled=false in config + no engine import)
+
+### Validation Funnel (4 phases COMPLETE)
+- **Phase 2 Monthly Refit** (6 months NO LEAK): ΔTotal +10.7%, 6/6 months positive
+- **Phase 3 Cross-Regime** (5 regimes): CRISIS +6.0%, STRESS +13.0%, NEUTRAL +9.8%, Volatile +7.5%, Calm +14.2%
+- **Phase 4 TRUE OOS** (30-day, prod pipeline style): ΔTotal +5.9%, 30/66 exits (45%)
+- **Phase 5 Smoke Test** (7 points): module imports, models load, features build, predict works, safety guards (enabled=false default + min_hold check)
+
+### Methodology
+Inference (planned for Phase 6b):
+```python
+every 5 min, for each Z4 position:
+    hold_prob = ml_exit_scorer.predict_hold_prob(zone, position, current_bars)
+    if hold_prob < 0.35 AND mins_since_entry >= 30:
+        place_sell_order(position, reason='exit_ml')
+```
+
+Features (88-dim):
+- 72 entry-time pkl features (frozen at entry — sector, market regime context)
+- 16 post-entry context (PnL, drawdown, peak-tracking, momentum 5/15/30min)
+
+Best architecture: LightGBM classifier, P(EOD > current_price), AUC 0.82.
+
+### Phase 6 Stages
+- **Phase 6a** (this release): files + models deployed, engine NOT touched, enabled=false
+- **Phase 6b** (next release v2.5.1 or v2.6.0): engine integration (position_exit_monitor loop) + enable
+
+### Files
+- `src/scan/ml_exit_scorer.py` (NEW)
+- `scripts/train_exit.py` (NEW)
+- `config/exit_config.json` (NEW)
+- `backtests/models_prod_exit/` (NEW dir, 5 model files)
+- `CLAUDE.md` Step 32 section added
+- `VERSION` updated to v2.5.0
+- `CHANGELOG.md` this entry
+
+### Git tags
+- `v2.5.0` (main)
+- `v2.5.0-step32-infra` (with step, optional)
+
+---
+
+## [v2.4.0] — 2026-05-21 (Step 31)
 
 ### Added
 - **Step 31**: Z2+Z4 ZONE_HP re-tuned via Optuna under label_custom_dd + cw=2.0 setup

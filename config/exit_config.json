@@ -1,0 +1,15 @@
+{
+  "_comment": "Exit ML configuration. enabled=false \u2192 no exit decisions made. Set true to activate.",
+  "enabled": false,
+  "active_zones": [
+    "Z4"
+  ],
+  "exit_threshold": 0.35,
+  "min_hold_minutes": 30,
+  "_validation": {
+    "phase2_monthly_refit": "+10.7% Total, 6/6 months positive",
+    "phase3_cross_regime": "5/5 regimes positive (+6 to +14%)",
+    "phase4_oos_30d": "+5.9% Total, 30 exits/66 entries (45% trigger rate)",
+    "trained_on": "Z4 entries, 840-day rolling, label=EOD>current_price"
+  }
+}

@@ -83,6 +83,21 @@ referred to deprecated configurations and feature pipelines.)
 
 ### ml_filter (PRIMARY) — deployed 2026-05-16 (Step 21: VWAP formula fix)
 
+**Step 32 (2026-05-21) — Exit ML v3.1 infrastructure (Phase 6a, enabled=false)**
+  - NEW files: `src/scan/ml_exit_scorer.py`, `scripts/train_exit.py`, `config/exit_config.json`
+  - NEW models: `backtests/models_prod_exit/lgb_exit_Z4_seed{0-4}.txt` (5 seeds, 940KB each)
+  - `enabled: false` in config = safe default, no actual exits
+  - Engine NOT modified (Phase 6b later for integration)
+  - Validation Funnel COMPLETE (Phase 2-5):
+      Phase 2 Monthly Refit: +10.7% Total, 6/6 months
+      Phase 3 Cross-Regime: 5/5 regimes positive (+6 to +14%)
+      Phase 4 OOS 30-day: +5.9% Total, 30/66 exits (45%)
+      Phase 5 Smoke Test: 7-point all pass
+  - Config: thr=0.35, min_hold=30 min, zone Z4 only
+  - Features: 88-dim (72 entry pkl + 16 post-entry: mins_since, pnl, hwm, drawdown, momentum)
+  - Label: P(EOD > current_price) — classifier
+  - Best AUC: 0.82 (vs 0.69 v1 basic features)
+
 **Step 31 (2026-05-21) — Z2+Z4 HPs Optuna re-tune (under label_custom_dd + cw=2.0)**
   - Z2 HPs: lr 0.0235→0.0970, depth 3→2, leaves 5→56, n_est 500→400, min_child 61→120, reg_alpha 4.571→3.345, reg_lambda 2.035→4.341
   - Z4 HPs: lr 0.0783→0.0827, depth 6→5, leaves 49→5 (much smaller), min_child 35→69, reg_alpha 2.668→3.859
