@@ -237,9 +237,16 @@ def main():
 
     print(f"  Features:   72 entry pkl features from {feats_source}")
 
+    # Determine zone from entry mfo
+    if entry_mfo <= 9: zone = 'Z1'
+    elif entry_mfo <= 29: zone = 'Z2'
+    elif entry_mfo <= 44: zone = 'Z3'
+    else: zone = 'Z4'
+
     # Build position dict + predict
     from src.scan.ml_exit_scorer import ExitScorer
     scorer = ExitScorer()
+    model_set = scorer.get_model_set_for_zone(zone)
 
     position = {
         'sym': sym,
@@ -251,7 +258,8 @@ def main():
         'entry_mfo': entry_mfo,
         'atr': args.atr,
     }
-    hold_prob = scorer.predict_hold_prob('Z4', position, bars)
+    print(f"  Zone: {zone} (mfo {entry_mfo}) → using {model_set} model")
+    hold_prob = scorer.predict_hold_prob(zone, position, bars)
     threshold = scorer.config.get('exit_threshold', 0.35)
     min_hold = scorer.config.get('min_hold_minutes', 30)
     mins_since = last_em - entry_em

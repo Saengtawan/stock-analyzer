@@ -9,7 +9,62 @@ All deploys tagged in git. Backup artifacts retained per version.
 
 ---
 
-## [v2.5.0] — 2026-05-21 (Step 32) ⭐ CURRENT — Exit ML Infrastructure
+## [v2.5.1] — 2026-05-21 (Step 32b) ⭐ CURRENT — Hybrid Exit ML (Z4 + Multi-zone)
+
+### Added
+- **Multi-zone Exit ML models** — `backtests/models_prod_exit/lgb_exit_MULTI_seed{0-4}.txt`
+  - Trained on Z1+Z2+Z3+Z4 entries combined (5584 entries)
+  - 89-dim features (88 base + zone_idx)
+  - Universal model for Z1/Z2/Z3 (single-zone variants all FAILED Phase 2/3)
+- **Hybrid routing** in `src/scan/ml_exit_scorer.py`:
+  - Z4 → Z4-only model (CRISIS validated +6%)
+  - Z1/Z2/Z3 → Multi-zone universal model
+- **exit_check.sh auto-zone-detect** — chooses model based on entry mfo
+
+### Validation Funnel (Multi-zone)
+- **Phase 2 Monthly Refit**: ΔT +7.6% (Z1+4.4 / Z2+6.4 / Z3+7.7 / Z4+10.0)
+- **Phase 3 Cross-Regime**: 4/5 PASS
+  - CRISIS combined -3.0% ✗ marginal (Z4 in multi -5.9%)
+  - STRESS +9.5% ⭐
+  - NEUTRAL +5.9% ⭐
+  - Volatile +3.8% ⭐
+  - Calm +11.5% ⭐
+- **Phase 4 TRUE OOS** (30d): ΔT +4.6% (Z1+2.9 / Z2+6.3 / Z3+0.7 / Z4+6.8), AUC 0.935
+
+### Rationale for Hybrid
+```
+Single-zone tests (rejected):
+  Z1-only:  P2 +1.8%, P3 critical 2/3 fail → REJECT
+  Z2-only:  P2 +4.5%, P3 critical 1/3 pass → REJECT (CRISIS -21.2%)
+  Z3-only:  P2 +2.5%, P3 critical 0/3 fail → REJECT
+  Z4-only:  P2 +10.7%, P3 critical 3/3 PASS → KEEP for Z4
+
+Multi-zone (cross-pollination):
+  ALL zones improved vs single-zone (Z3 most dramatic: +2.5% → +7.7%)
+  CRISIS Z2 dramatic fix: -21.2% → +0.7%
+  But Z4 in multi worse (-5.9% CRISIS vs Z4-only +6.0%)
+
+Hybrid solution:
+  Z4 → keep Z4-only (CRISIS safe)
+  Z1/Z2/Z3 → multi-zone (only valid option)
+```
+
+### Files
+- `src/scan/ml_exit_scorer.py` — Hybrid routing, loads both model sets
+- `config/exit_config.json` — model_routing field added, active_zones expanded
+- `scripts/exit_check.py` — auto-zone-detect from mfo, displays model used
+- `backtests/models_prod_exit/lgb_exit_MULTI_seed{0-4}.txt` — 5 new model files
+
+### Behavior change
+- **NO** behavior change in engine (config still enabled=false, engine doesn't import scorer)
+- Manual CLI users can now check Z1/Z2/Z3 positions via `bash scripts/exit_check.sh SYM PRICE TIME`
+
+### Git tag
+- `v2.5.1` (main)
+
+---
+
+## [v2.5.0] — 2026-05-21 (Step 32) — Exit ML Infrastructure
 
 ### Added (Phase 6a — safe deploy, no engine integration)
 - **src/scan/ml_exit_scorer.py** — Exit ML inference module (separate from ml_scorer.py entry)

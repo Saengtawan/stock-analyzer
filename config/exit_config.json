@@ -1,15 +1,20 @@
 {
-  "_comment": "Exit ML configuration. enabled=false \u2192 no exit decisions made. Set true to activate.",
+  "_comment": "Hybrid Exit ML config (Step 32b). enabled=false → no exits. Routes per zone.",
   "enabled": false,
-  "active_zones": [
-    "Z4"
-  ],
+  "active_zones": ["Z1", "Z2", "Z3", "Z4"],
   "exit_threshold": 0.35,
   "min_hold_minutes": 30,
+  "model_routing": {
+    "Z1": "multi",
+    "Z2": "multi",
+    "Z3": "multi",
+    "Z4": "z4"
+  },
   "_validation": {
-    "phase2_monthly_refit": "+10.7% Total, 6/6 months positive",
-    "phase3_cross_regime": "5/5 regimes positive (+6 to +14%)",
-    "phase4_oos_30d": "+5.9% Total, 30 exits/66 entries (45% trigger rate)",
-    "trained_on": "Z4 entries, 840-day rolling, label=EOD>current_price"
+    "z4_only_model": "Z4-only (88 feat). Phase 3 3/3 critical PASS. Phase 4 OOS +5.9%.",
+    "multi_zone_model": "Multi-zone Z1+Z2+Z3+Z4 combined (89 feat incl zone_idx). Phase 2 +7.6%. Phase 4 OOS +4.6% (all zones positive).",
+    "routing_rationale": "Z4 → z4-only (CRISIS validated). Z1/Z2/Z3 → multi-zone (single-zone tests all FAILED; multi works for them).",
+    "z4_crisis_phase3": "+6.0% (Z4-only model)",
+    "multi_crisis_phase3": "-3.0% combined (Z4 in multi -5.9%, Z1-Z3 in multi -2.8 to +0.7)"
   }
 }

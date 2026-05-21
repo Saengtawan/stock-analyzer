@@ -84,6 +84,19 @@ referred to deprecated configurations and feature pipelines.)
 
 ### ml_filter (PRIMARY) — deployed 2026-05-16 (Step 21: VWAP formula fix)
 
+**Step 32b (2026-05-21) — Hybrid Exit ML (Z4-only + Multi-zone universal)**
+  - NEW models: `backtests/models_prod_exit/lgb_exit_MULTI_seed{0-4}.txt` (multi-zone universal, 89-dim)
+  - Existing: `lgb_exit_Z4_seed{0-4}.txt` (Z4-only, 88-dim, kept)
+  - ml_exit_scorer.py: routes per zone — Z4 → z4 model, Z1/Z2/Z3 → multi model
+  - exit_check.sh: auto-detects zone from entry mfo, uses correct model
+  - Validation Funnel for Multi-zone:
+      Phase 2 Monthly Refit: ΔT +7.6% (Z1+4.4 / Z2+6.4 / Z3+7.7 / Z4+10.0)
+      Phase 3 Cross-Regime: 4/5 PASS (CRISIS marginal -3% combined fail)
+      Phase 4 TRUE OOS: ΔT +4.6% (all zones positive)
+  - Hybrid rationale: Z4-only keeps CRISIS safety (+6% Phase 3). Multi-zone covers
+    Z1/Z2/Z3 which all FAILED single-zone training. Best of both.
+  - enabled=false in config = safe default, no actual exits
+
 **Step 32 (2026-05-21) — Exit ML v3.1 infrastructure (Phase 6a, enabled=false)**
   - NEW files: `src/scan/ml_exit_scorer.py`, `scripts/train_exit.py`, `config/exit_config.json`
   - NEW models: `backtests/models_prod_exit/lgb_exit_Z4_seed{0-4}.txt` (5 seeds, 940KB each)

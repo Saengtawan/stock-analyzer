@@ -1,35 +1,31 @@
-version: v2.5.0
-step: 32
-deploy_date: 2026-05-21T08:35-04:00
-description: Step 32 — Exit ML v3.1 infrastructure (Phase 6a, enabled=false)
+version: v2.5.1
+step: 32b
+deploy_date: 2026-05-21T09:00-04:00
+description: Step 32b — Hybrid Exit ML (Z4-only + Multi-zone universal). enabled=false safe.
 
 metrics:
-  exit_ml_phase2_monthly_refit:
-    z4_delta_total: +10.7%
-    z4_months_positive: 6/6
-  exit_ml_phase3_cross_regime:
-    crisis: +6.0%
-    stress: +13.0%
-    neutral: +9.8%
-    volatile: +7.5%
-    calm: +14.2%
-    critical_3_pass: true
-  exit_ml_phase4_oos:
-    window: 2026-04-21 to 2026-05-21
-    delta_total: +5.9%
-    exits: 30/66 (45%)
-    pass: true
+  exit_ml_z4_only:
+    phase2_monthly_refit: +10.7%
+    phase3_critical: 3/3 PASS (CRISIS +6.0%)
+    phase4_oos: +5.9%
+  exit_ml_multi_zone:
+    phase2_monthly_refit: +7.6% (Z1+4.4 / Z2+6.4 / Z3+7.7 / Z4+10.0)
+    phase3_critical: 2/3 (CRISIS -3.0%, STRESS +9.5%, NEUTRAL +5.9%)
+    phase4_oos: +4.6% (all zones positive: Z1+2.9 / Z2+6.3 / Z3+0.7 / Z4+6.8)
+    auc: 0.935
+  hybrid_routing:
+    Z4: z4_only_model    # CRISIS validated
+    Z1_Z2_Z3: multi_zone_model    # single-zone all failed
 
 artifacts:
-  entry_models: backtests/models_prod_v22
-  exit_models: backtests/models_prod_exit  # NEW
-  pkl: cache/bt_features/features.pkl
-  config: config/exit_config.json  # NEW (enabled=false)
-  pre_deploy_backup:
-    models: backtests/models_prod_v22_2026-05-21_pre_step31_backup  # entry still pre-step31
+  exit_models_z4: backtests/models_prod_exit/lgb_exit_Z4_seed{0-4}.txt
+  exit_models_multi: backtests/models_prod_exit/lgb_exit_MULTI_seed{0-4}.txt
+  config: config/exit_config.json (enabled=false safe)
+  scorer: src/scan/ml_exit_scorer.py
+  cli: scripts/exit_check.sh (auto-zone-detect routing)
 
 phase_status:
   6a_files_deployed: true
-  6b_engine_integration: pending  # next deploy
+  6b_engine_integration: pending
 
-prev_version: v2.4.0
+prev_version: v2.5.0
