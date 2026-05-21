@@ -84,6 +84,13 @@ referred to deprecated configurations and feature pipelines.)
 
 ### ml_filter (PRIMARY) — deployed 2026-05-16 (Step 21: VWAP formula fix)
 
+**Manual Exit Workflow (decided 2026-05-21): User-driven, no engine auto-exit**
+- Engine remains pure-hold-EOD (Step 25 default behavior preserved)
+- Exit ML = decision support tool (not autopilot)
+- User runs `bash scripts/exit_check.sh SYM PRICE TIME` manually or via Claude /loop
+- ML outputs HOLD/EXIT recommendation; user decides + executes sell via broker manually
+- Phase 6b engine integration intentionally NOT done (user preference)
+
 **Step 32b (2026-05-21) — Hybrid Exit ML (Z4-only + Multi-zone universal)**
   - NEW models: `backtests/models_prod_exit/lgb_exit_MULTI_seed{0-4}.txt` (multi-zone universal, 89-dim)
   - Existing: `lgb_exit_Z4_seed{0-4}.txt` (Z4-only, 88-dim, kept)
