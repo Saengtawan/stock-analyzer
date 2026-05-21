@@ -158,34 +158,41 @@ def main():
     sym = args.symbol.upper()
     entry_price = args.entry_price
     win_p_arg = args.win_p
+    entry_em = None
 
-    # Auto-lookup if entry_price not given
-    if entry_price is None:
-        result = auto_lookup_entry(sym)
-        if not result:
-            print(f"  ❌ No scan_picks entry found for {sym} today or recent. "
-                  f"Provide entry_price manually.")
-            sys.exit(1)
-        entry_price, auto_em, auto_winp, scan_ts = result
-        print(f"  Auto-detected: entry ${entry_price:.2f} at {auto_em//60:02d}:{auto_em%60:02d} ET "
-              f"(scan_ts {scan_ts})")
+    # Auto-lookup time/win_p from scan_picks (price override allowed)
+    auto_result = auto_lookup_entry(sym)
+    if auto_result:
+        scan_price, auto_em, auto_winp, scan_ts = auto_result
+        # If user provided price but not time → use scan_picks time
+        if entry_price is None:
+            entry_price = scan_price
+            print(f"  Auto-detected: entry ${entry_price:.2f} at {auto_em//60:02d}:{auto_em%60:02d} ET "
+                  f"(scan_ts {scan_ts})")
+        else:
+            # User overrode price → still use scan_picks time + win_p
+            print(f"  Auto-detected: time {auto_em//60:02d}:{auto_em%60:02d} ET, "
+                  f"win_p={auto_winp:.3f}  |  user override price ${entry_price:.2f} "
+                  f"(scan price was ${scan_price:.2f})")
         if args.entry_time is None:
             entry_em = auto_em
         if win_p_arg is None:
             win_p_arg = auto_winp
+    elif entry_price is None:
+        print(f"  ❌ No scan_picks entry found for {sym} today/recent + no entry_price given.")
+        sys.exit(1)
 
-    # Entry time → em
+    # User-specified time wins
     if args.entry_time:
         h, m = map(int, args.entry_time.split(':'))
         entry_em = h * 60 + m
-    elif 'entry_em' not in locals() or entry_em is None:
-        # Default: 30 min ago
+    elif entry_em is None:
         import pytz
         et_now = datetime.now(pytz.timezone('US/Eastern'))
         entry_em = (et_now.hour * 60 + et_now.minute) - 30
 
     if win_p_arg is None:
-        win_p_arg = 0.7  # final fallback
+        win_p_arg = 0.7
     entry_mfo = entry_em - 570
     if entry_mfo < 0: entry_mfo = 5
 
