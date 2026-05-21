@@ -160,36 +160,43 @@ def main():
     win_p_arg = args.win_p
     entry_em = None
 
-    # Auto-lookup time/win_p from scan_picks (price override allowed)
+    # Auto-lookup from scan_picks
     auto_result = auto_lookup_entry(sym)
+    scan_price = scan_em = auto_winp = None
     if auto_result:
-        scan_price, auto_em, auto_winp, scan_ts = auto_result
-        # If user provided price but not time → use scan_picks time
-        if entry_price is None:
-            entry_price = scan_price
-            print(f"  Auto-detected: entry ${entry_price:.2f} at {auto_em//60:02d}:{auto_em%60:02d} ET "
-                  f"(scan_ts {scan_ts})")
-        else:
-            # User overrode price → still use scan_picks time + win_p
-            print(f"  Auto-detected: time {auto_em//60:02d}:{auto_em%60:02d} ET, "
-                  f"win_p={auto_winp:.3f}  |  user override price ${entry_price:.2f} "
-                  f"(scan price was ${scan_price:.2f})")
-        if args.entry_time is None:
-            entry_em = auto_em
-        if win_p_arg is None:
-            win_p_arg = auto_winp
-    elif entry_price is None:
-        print(f"  ❌ No scan_picks entry found for {sym} today/recent + no entry_price given.")
-        sys.exit(1)
+        scan_price, scan_em, auto_winp, scan_ts = auto_result
+        if win_p_arg is None: win_p_arg = auto_winp
 
-    # User-specified time wins
+    # Resolve entry_price + entry_em with user overrides
+    price_source = 'user' if entry_price is not None else 'scan_picks'
+    if entry_price is None:
+        if scan_price is None:
+            print(f"  ❌ No scan_picks entry for {sym} + no entry_price given.")
+            sys.exit(1)
+        entry_price = scan_price
+
     if args.entry_time:
         h, m = map(int, args.entry_time.split(':'))
         entry_em = h * 60 + m
-    elif entry_em is None:
+        time_source = 'user'
+    elif scan_em is not None:
+        entry_em = scan_em
+        time_source = 'scan_picks'
+    else:
         import pytz
         et_now = datetime.now(pytz.timezone('US/Eastern'))
         entry_em = (et_now.hour * 60 + et_now.minute) - 30
+        time_source = 'default (now-30min)'
+
+    # Display sources
+    if scan_price is not None:
+        price_note = f" (scan was ${scan_price:.2f})" if price_source == 'user' and abs(entry_price-scan_price) > 0.001 else ""
+        time_note = f" (scan was {scan_em//60:02d}:{scan_em%60:02d})" if time_source == 'user' and entry_em != scan_em else ""
+        print(f"  Sources: price={price_source} ${entry_price:.2f}{price_note}  |  "
+              f"time={time_source} {entry_em//60:02d}:{entry_em%60:02d}{time_note}  |  "
+              f"win_p={auto_winp:.3f}")
+    else:
+        print(f"  Sources: price=user ${entry_price:.2f}  |  time={time_source} {entry_em//60:02d}:{entry_em%60:02d}  |  win_p=default")
 
     if win_p_arg is None:
         win_p_arg = 0.7
