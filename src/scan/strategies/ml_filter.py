@@ -762,7 +762,18 @@ class MLFilterStrategy(BaseStrategy):
                 buf = zone_cfg['base_buf'] + zone_cfg['atr_coef'] * atr_14d
             else:
                 buf = getattr(scorer, 'ADAPTIVE_LIMIT_BUFFER', 0.010)  # fallback
-            adaptive_limit = now * pred_ratio * (1 + buf)
+            # Step 33 v2.6.0: per_zone LIMIT ensemble (Z3/Z4 only)
+            # target = w_r × pred_r + (1-w_r) × pred_opt
+            #   Z3 w_r=0.7 (more weight on pred_r)
+            #   Z4 w_r=0.45 (more weight on pred_opt = looser LIMIT)
+            # Phase 4 OOS +22.7%, Phase 3 5/5 positive, 2/2 CRITICAL PASS
+            pred_target = pred_ratio  # default = baseline pred_r only
+            if zone_name in ('Z3', 'Z4'):
+                pred_opt = scorer.predict_opt_entry_ratio(features, minutes_from_open, sector=sec)
+                if pred_opt is not None:
+                    w_r = 0.7 if zone_name == 'Z3' else 0.45
+                    pred_target = w_r * pred_ratio + (1 - w_r) * pred_opt
+            adaptive_limit = now * pred_target * (1 + buf)
             # Z4 dip filter
             if zone_name == 'Z4':
                 min_dip = getattr(scorer, 'Z4_DIP_FILTER', 0.005)
@@ -796,15 +807,15 @@ class MLFilterStrategy(BaseStrategy):
                     alt_price = adapt_lim_price
                 else:
                     entry_price = adapt_lim_price
-                    primary_label = 'LIMIT@'
-                    alt_label = 'mkt'
+                    primary_label = 'LIMIT'
+                    alt_label = 'MKT'
                     alt_price = now
                 # Option B: 2-line format (entry primary on line 1, alt on line 2)
                 reason = (
                     f"ML p={prob:.3f} adapt_lim={pred_ratio:.4f} (dip {(1-pred_ratio)*100:.2f}%) "
                     f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]}\n"
-                    f"     ⭐ {primary_label}@${entry_price:.2f} — pure-hold-EOD ({sl_tag})\n"
-                    f"        alt: {alt_label} ${alt_price:.2f}   |   open ${day_open:.2f}"
+                    f"     ⭐ ENTRY: {primary_label}@${entry_price:.2f} — pure-hold-EOD ({sl_tag})\n"
+                    f"     ▸ ALT:   {alt_label}@${alt_price:.2f}   |   open ${day_open:.2f}"
                 )
                 # Pick.entry = the price user trades (mkt if Rule E says market, else adapt_lim)
                 limit_price = entry_price
@@ -868,13 +879,17 @@ class MLFilterStrategy(BaseStrategy):
             )
 
         # 2026-05-17 Step 26: R9 ranking — win_p × max(0, 1-pred_r)^0.5
-        # Bonus for picks with predicted dip (cushion for adaptive limit).
-        # WF A3 grid: R9 = +2443% (vs R1 baseline win_p only +2217%).
-        # +226% total / +1pp WR / worst -5.52% (slight tail expansion).
-        # Square-root dampens R3-type tail risk (raw (1-pred_r) gave -18% worst).
-        # Step 18: F1 win-only (+174% vs F3) → R9 (+10% vs F1).
+        # 2026-05-24 Step 33 v2.6.0: Per-zone ranking — Z3/Z4 use win_only,
+        #   Z1/Z2 keep R9 (TRIPLE_B Phase 4 OOS +22.7%, CRISIS +4.6%).
+        # win_only avoids "knife catcher" bias that R9 has (favors deeper dip).
+        # Bucket '10:00-10:45' covers Z3 (mfo 30-44) + Z4 (mfo 45-75).
         def _rank(p):
             wp = p.extra['ml_prob']
+            bucket = p.extra.get('bucket', '')
+            # Step 33: Z3/Z4 → win_only ranking
+            if bucket == '10:00-10:45':
+                return wp
+            # Z1/Z2 (bucket '09:30-10:00') keep R9 ranking
             pr = p.extra.get('pred_ratio', 1.0)
             return wp * max(0.0, 1.0 - pr) ** 0.5
         candidates.sort(key=lambda p: -_rank(p))

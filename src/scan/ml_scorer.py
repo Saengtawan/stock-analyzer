@@ -180,6 +180,8 @@ class MLScorer:
         self.zone_loss_models_1m = {}
         # 2026-05-14: Adaptive limit models (predicts intraday_low / scan_price ratio)
         self.zone_adaptlim_models = {}
+        # Step 33 v2.6.0: opt_entry models for per_zone LIMIT (Z3/Z4 only)
+        self.zone_adaptopt_models = {}
         # Regime weight (set per-scan from outside)
         self.regime_weight = 1.0  # default = pure 28m
         self._load_features()
@@ -191,6 +193,7 @@ class MLScorer:
         if self.USE_ENSEMBLE_1M:
             self._load_1m_models()
         self._load_adaptlim_models()
+        self._load_adaptopt_models()
 
     def _load_moe_models(self):
         """Load 49m expert models for MoE soft."""
@@ -222,6 +225,31 @@ class MLScorer:
                     ens.append(lgb.Booster(model_file=str(p)))
             if len(ens) == 5:
                 self.zone_adaptlim_models[zname] = ens
+
+    def _load_adaptopt_models(self):
+        """Step 33 v2.6.0: Load opt_entry models (Z3/Z4 only) for per_zone LIMIT ensemble."""
+        for zname in ('Z3', 'Z4'):
+            ens = []
+            for s in range(5):
+                p = V22_DIR / f'lgb_adaptopt_{zname}_seed{s}.txt'
+                if p.exists():
+                    ens.append(lgb.Booster(model_file=str(p)))
+            if len(ens) == 5:
+                self.zone_adaptopt_models[zname] = ens
+
+    def predict_opt_entry_ratio(self, features: dict, mfo: int, sector: str = '') -> float:
+        """Step 33 v2.6.0: Predict opt_entry_ratio for per_zone LIMIT ensemble (Z3/Z4 only).
+        Returns ratio in [0.90, 1.00] typically. Used alongside pred_r for per_zone LIMIT.
+        Returns None if model not available.
+        """
+        if not self.USE_ZONES: return None
+        zone = self.get_zone(mfo)
+        if zone is None or zone not in self.zone_adaptopt_models: return None
+        feats_z = self.zone_features.get(zone)
+        if not feats_z: return None
+        arr = np.array([[features.get(f, 0.0) for f in feats_z]])
+        preds = [float(m.predict(arr)[0]) for m in self.zone_adaptopt_models[zone]]
+        return sum(preds) / len(preds)
 
     def predict_adaptive_limit_ratio(self, features: dict, mfo: int, sector: str = '') -> float:
         """Predict intraday_low_ratio = min(low after scan) / scan_price for a candidate.

@@ -687,18 +687,22 @@ def _add_advanced_features(df, db_path):
 
 
 def _add_market_labels(df):
-    """Step 15-16 + 24: add market-context labels.
+    """Step 15-16 + 24 + v2.6.0 (Step 33): add market-context labels.
 
     label_z34_market (Z3/Z4): EOD > scan × 0.998 AND DD > -3%.
     label_z12_market_3dd (Z1/Z2): same formula on Z1/Z2 mfo range.
     label_eod_green_v2 (Z2 legacy): EOD > day_open.
-    label_custom_dd (Z2, Step 24): EOD > scan × 1.0 AND DD > -3%, all mfo, data-dense.
+    label_custom_dd (Z2, Step 24): EOD > scan × 1.0 AND DD > -3%, all mfo.
+    label_smart_v2 (Z3/Z4, Step 33 v2.6.0): EOD > scan, skip large-cap (β>1.5)
+        earnings days from training (training-noise filter). Phase 4 OOS +22.7%.
 
     Uses cache/wf_1min_bars.db for intraday low/EOD lookup.
+    earnings_history table for earnings dates.
     """
     import sqlite3 as _sq
     from pathlib import Path as _P
     cache_db = _P(__file__).resolve().parents[1] / 'cache' / 'wf_1min_bars.db'
+    th_db = _P(__file__).resolve().parents[1] / 'data' / 'trade_history.db'
     if not cache_db.exists():
         print(f"  ⚠️ {cache_db} missing — skipping market labels (Step 18 needs them)")
         return df
@@ -711,11 +715,26 @@ def _add_market_labels(df):
         if rows: bar_cache[(sym, date)] = rows
     con.close()
 
+    # Step 33 v2.6.0: load earnings history for label_smart_v2
+    earnings_set = set()
+    if th_db.exists():
+        try:
+            con_th = _sq.connect(str(th_db))
+            for s, d in con_th.execute(
+                "SELECT symbol, report_date FROM earnings_history WHERE report_date >= '2020-01-01'"
+            ).fetchall():
+                if d: earnings_set.add((s, d))
+            con_th.close()
+        except Exception as e:
+            print(f"  ⚠️ earnings_history query failed: {e}")
+
     Z14_RANGE = (0, 75)
     df['label_z12_market_3dd'] = np.nan
     df['label_z34_market'] = np.nan
     df['label_eod_green_v2'] = np.nan
     df['label_custom_dd'] = np.nan  # Step 24: Z2 DD-aware, data-dense
+    df['label_smart_v2'] = np.nan   # Step 33 v2.6.0: TRIPLE_B label
+    df['label_opt_entry'] = np.nan  # Step 33 v2.6.0: per_zone LIMIT target
     mask = (df['mins_from_open']>=Z14_RANGE[0]) & (df['mins_from_open']<=Z14_RANGE[1])
     for idx, r in df[mask].iterrows():
         bars = bar_cache.get((r['sym'], r['date']))
@@ -741,8 +760,20 @@ def _add_market_labels(df):
         if day_open_em is not None:
             df.at[idx, 'label_eod_green_v2'] = 1 if (eod > day_open_em) else 0
         # Step 24: label_custom_dd — EOD > scan AND no -3% DD, all mfo.
-        # Slightly stricter than label_z12_market_3dd (× 1.0 not × 0.998).
         df.at[idx, 'label_custom_dd'] = 1 if (eod > scan_p * 1.0 and no_3dd) else 0
+        # Step 33 v2.6.0: label_smart_v2 — EOD > scan BUT skip large-cap earnings.
+        # Z3/Z4 only (mfo ≥ 30). Skip rows where stock has earnings AND β > 1.5.
+        if r['mins_from_open'] >= 30:
+            beta = r.get('beta', 1.0)
+            try:
+                beta = float(beta) if beta is not None else 1.0
+            except: beta = 1.0
+            is_large_cap_earnings = (beta > 1.5) and ((r['sym'], r['date']) in earnings_set)
+            if not is_large_cap_earnings:
+                df.at[idx, 'label_smart_v2'] = 1 if (eod > scan_p) else 0
+            # Step 33 v2.6.0: label_opt_entry — intraday_low + 0.3% buffer / scan_p.
+            # Used by per_zone LIMIT ensemble (different prediction target than adapt_low).
+            df.at[idx, 'label_opt_entry'] = min_low * 1.003 / scan_p
     return df
 
 

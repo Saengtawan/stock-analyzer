@@ -37,11 +37,13 @@ ZONES = [
 ]
 
 ZONE_LABEL = {
-    # Step 26 (2026-05-17): Z3+Z4 → label_custom_dd (A1 experiment +59% WF)
+    # Step 26 (2026-05-17): Z3+Z4 → label_custom_dd (A1 +59% WF)
+    # Step 33 (2026-05-24) v2.6.0: Z3+Z4 → label_smart_v2 (TRIPLE_B
+    #   Phase 4 OOS +22.7%, Phase 3 5/5 positive, 2/2 CRITICAL PASS)
     'Z1': 'label_z12_market_3dd',
     'Z2': 'label_custom_dd',
-    'Z3': 'label_custom_dd',   # Step 26: was label_z34_market
-    'Z4': 'label_custom_dd',   # Step 26: was label_z34_market
+    'Z3': 'label_smart_v2',    # Step 33 v2.6.0: TRIPLE_B
+    'Z4': 'label_smart_v2',    # Step 33 v2.6.0: TRIPLE_B
 }
 
 ZONE_HP = {
@@ -196,6 +198,21 @@ def main():
             print(f"    adaptlim: N={mask_a.sum()}, saved 5 seeds")
         else:
             print(f"    ⚠️ label_adaptlim missing, skip adaptlim")
+
+        # 4. Step 33 v2.6.0: opt_entry model (Z3/Z4 only) — for per_zone LIMIT
+        if zname in ('Z3','Z4') and 'label_opt_entry' in sub.columns:
+            mask_o = sub['label_opt_entry'].notna()
+            if mask_o.sum() >= 1000:
+                X_o = sub[mask_o][feats].fillna(0).values
+                y_o = sub[mask_o]['label_opt_entry'].values
+                hp_o = {**ADAPT_HP, 'bagging_freq':1, 'verbose':-1, 'n_jobs':4}
+                for seed in range(N_SEEDS):
+                    m = lgb.LGBMRegressor(**{**hp_o, 'random_state':seed})
+                    m.fit(X_o, y_o)
+                    m.booster_.save_model(str(PROD_DIR / f'lgb_adaptopt_{zname}_seed{seed}.txt'))
+                print(f"    adaptopt: N={mask_o.sum()}, saved 5 seeds")
+            else:
+                print(f"    ⚠️ label_opt_entry insufficient, skip adaptopt")
 
         # Update zone feature list
         (PROD_DIR / f'features_zone_z{zname[1]}.txt').write_text('\n'.join(feats))

@@ -1,31 +1,38 @@
-version: v2.5.1
-step: 32b
-deploy_date: 2026-05-21T09:00-04:00
-description: Step 32b — Hybrid Exit ML (Z4-only + Multi-zone universal). enabled=false safe.
+version: v2.6.0
+step: 33
+deploy_date: 2026-05-24T11:30+07:00
+description: Step 33 — TRIPLE_B Z3/Z4 (smart_v2 label + win_only ranking + per_zone LIMIT). +14% improvement validated through full Funnel.
 
 metrics:
-  exit_ml_z4_only:
-    phase2_monthly_refit: +10.7%
-    phase3_critical: 3/3 PASS (CRISIS +6.0%)
-    phase4_oos: +5.9%
-  exit_ml_multi_zone:
-    phase2_monthly_refit: +7.6% (Z1+4.4 / Z2+6.4 / Z3+7.7 / Z4+10.0)
-    phase3_critical: 2/3 (CRISIS -3.0%, STRESS +9.5%, NEUTRAL +5.9%)
-    phase4_oos: +4.6% (all zones positive: Z1+2.9 / Z2+6.3 / Z3+0.7 / Z4+6.8)
-    auc: 0.935
-  hybrid_routing:
-    Z4: z4_only_model    # CRISIS validated
-    Z1_Z2_Z3: multi_zone_model    # single-zone all failed
+  triple_b_z3z4:
+    phase2_monthly_refit: +12.6% (vs custom_dd+R9 baseline)
+    phase3_critical: 2/2 CRITICAL PASS (CRISIS +4.6%, STRESS +11.7%)
+    phase3_total: 5/5 regimes positive
+    phase4_true_oos: +22.7% (30-day, train cutoff 2026-04-23)
+    phase5_smoke: 15/16 passed (1 false alarm threshold)
+    validate_retrain: combined N=130 WR=98% total=+407%
+    per_zone_floors: all 4 zones pass (Z1 100%/Z2 100%/Z3 92%/Z4 100%)
+
+components:
+  label_smart_v2: skip large-cap (β>1.5) earnings days from training
+  ranking_win_only: replace R9 cushion bias (Z3/Z4 only)
+  per_zone_limit: ensemble w_r × pred_r + (1-w_r) × pred_opt (Z3 w=0.7, Z4 w=0.45)
+
+zones_affected: Z3, Z4 only
+  Z1: label_z12_market_3dd + R9 + baseline LIMIT (unchanged)
+  Z2: label_custom_dd + R9 + baseline LIMIT (unchanged)
+  Z3: label_smart_v2 + win_only + per_zone LIMIT (NEW)
+  Z4: label_smart_v2 + win_only + per_zone LIMIT (NEW)
 
 artifacts:
-  exit_models_z4: backtests/models_prod_exit/lgb_exit_Z4_seed{0-4}.txt
-  exit_models_multi: backtests/models_prod_exit/lgb_exit_MULTI_seed{0-4}.txt
-  config: config/exit_config.json (enabled=false safe)
-  scorer: src/scan/ml_exit_scorer.py
-  cli: scripts/exit_check.sh (auto-zone-detect routing)
+  models: backtests/models_prod_v22/ (140 files incl 10 new adaptopt)
+  pkl: cache/bt_features/features.pkl (1.57M rows, 139 cols)
+  feature_builder: backtests/feature_builder.py
+  train_zones: scripts/train_zones.py
+  scorer: src/scan/ml_scorer.py (added predict_opt_entry_ratio)
+  filter: src/scan/strategies/ml_filter.py (per-zone ranking + LIMIT)
 
-phase_status:
-  6a_files_deployed: true
-  6b_engine_integration: pending
+backup:
+  pre_deploy_models: backtests/models_prod_v22_2026-05-24_pre_v2.6.0/
 
-prev_version: v2.5.0
+prev_version: v2.5.1
