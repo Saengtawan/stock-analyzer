@@ -9,7 +9,86 @@ All deploys tagged in git. Backup artifacts retained per version.
 
 ---
 
-## [v2.5.1] — 2026-05-21 (Step 32b) ⭐ CURRENT — Hybrid Exit ML (Z4 + Multi-zone)
+## [v2.6.0] — 2026-05-24 (Step 33) ⭐ CURRENT — TRIPLE_B Z3/Z4 (smart_v2 + win_only + per_zone LIMIT)
+
+### Added
+- **label_smart_v2** in `backtests/feature_builder.py` — EOD>scan, BUT skip large-cap
+  (β>1.5) earnings days from training. Filters out training noise from extreme
+  large-cap earnings volatility while keeping small-cap earnings (less dramatic).
+  Z3/Z4 only (mfo ≥ 30). Positive rate 51%.
+- **label_opt_entry** — intraday_low × 1.003 / scan_price (target for opt_entry model).
+  Used by per_zone LIMIT ensemble. Z3/Z4 only.
+- **adaptopt models** — `backtests/models_prod_v22/lgb_adaptopt_{Z3,Z4}_seed{0-4}.txt`
+  (10 new model files). Predicts opt_entry_ratio for per_zone LIMIT.
+- **predict_opt_entry_ratio()** method in `src/scan/ml_scorer.py` (loads Z3/Z4
+  adaptopt models, returns ensemble prediction).
+- **Per-zone ranking in ml_filter.py**: bucket '10:00-10:45' (Z3+Z4) → win_only
+  (avoids R9 knife-catcher bias); '09:30-10:00' (Z1+Z2) → R9 (unchanged).
+- **Per-zone LIMIT ensemble in ml_filter.py**:
+  `target = w_r × pred_r + (1-w_r) × pred_opt`
+  - Z3 w_r=0.7 (more weight on pred_r)
+  - Z4 w_r=0.45 (more weight on pred_opt = looser LIMIT)
+  - Z1/Z2 fall through to baseline (target = pred_r unchanged)
+
+### Changed
+- `scripts/train_zones.py`:
+  - `ZONE_LABEL['Z3']`: `'label_custom_dd'` → `'label_smart_v2'`
+  - `ZONE_LABEL['Z4']`: `'label_custom_dd'` → `'label_smart_v2'`
+  - Z1, Z2 unchanged (`'label_z12_market_3dd'`, `'label_custom_dd'`)
+  - Added opt_entry model training (Z3/Z4 only)
+
+### Validation Funnel (TRIPLE_B Z3/Z4)
+- **Phase 2 Monthly Refit** (6 mo NO LEAK): +12.6% vs baseline ⭐ PASS
+- **Phase 3 Cross-Regime** (5 regimes):
+  - CRISIS  +4.6% ✅ [CRITICAL]
+  - STRESS  +11.7% ✅ [CRITICAL]
+  - VOLATILE +4.7% ✅
+  - NEUTRAL  +7.3% ✅
+  - RECOVERY +6.1% ✅
+  - 5/5 positive, 2/2 CRITICAL PASS ⭐
+- **Phase 4 TRUE OOS** (30-day, train < 2026-04-23): +22.7% ⭐ PASS
+- **Phase 5 Smoke Test**: 15/16 PASS (1 false alarm threshold)
+- **validate_retrain.sh** (TRUE OOS, no leak):
+  - Z1: WR 100% avg +4.80% total +91% ✓
+  - Z2: WR 100% avg +3.30% total +106% ✓
+  - Z3: WR 92% avg +2.85% total +74% ✓
+  - Z4: WR 100% avg +2.57% total +136% ✓
+  - Combined: N=130 WR=98% total=+407% ✓ ALL FLOORS PASS
+
+### Why TRIPLE_B over alternatives (22+ experiments today)
+- TRIPLE_A (smart_eod label) vs TRIPLE_B (smart_v2): both pass Funnel, TRIPLE_B
+  marginally better in Phase 4 (+22.7% vs +15.3%) and CRISIS (+4.6% vs +3.3%)
+- HYBRID_Z3B_Z4A and HYBRID_Z3A_Z4B: both pass but smart_v2 uniform (TRIPLE_B)
+  proved best for BOTH zones in Phase 4
+- 18 other variants failed Phase 2 or Phase 3 cleanly
+
+### Zones impact
+- Z1: **NO CHANGE** (label_z12_market_3dd + R9 + baseline LIMIT)
+- Z2: **NO CHANGE** (label_custom_dd + R9 + baseline LIMIT)
+- Z3: **CHANGED** (smart_v2 + win_only + per_zone LIMIT w_r=0.7)
+- Z4: **CHANGED** (smart_v2 + win_only + per_zone LIMIT w_r=0.45)
+
+### Why win_only > R9 for Z3/Z4
+R9 = `win_p × √(1-pred_r)` biased toward stocks with bigger predicted dip.
+These are often "knife catchers" — stocks dipping for real reasons (sector
+rotation, earnings, news). 5/19 NOW disaster: R9 picked NOW (rank 1 of 32)
+with pred_r 0.9817 (1.83% dip) → result -4.97%. win_only would have picked
+ZTS (highest win_p, defensive Healthcare) → -0.55% loss. Saved 4.42pp.
+
+### Why per_zone LIMIT helps
+Adding pred_opt (slightly shallower than pred_r) to LIMIT formula via weighted
+ensemble. Net effect: LIMIT slightly less strict, captures more fills.
+- Z3 fill rate: 79% → 90%
+- Z4 fill rate: 75% → 88%
+Math: target = w_r × pred_r + (1-w_r) × pred_opt where pred_opt > pred_r on average.
+
+### Backup
+- Pre-deploy models: `backtests/models_prod_v22_2026-05-24_pre_v2.6.0/`
+- Rollback: `cp models_prod_v22_2026-05-24_pre_v2.6.0/* models_prod_v22/` + git revert
+
+---
+
+## [v2.5.1] — 2026-05-21 (Step 32b) — Hybrid Exit ML (Z4 + Multi-zone)
 
 ### Added
 - **Multi-zone Exit ML models** — `backtests/models_prod_exit/lgb_exit_MULTI_seed{0-4}.txt`

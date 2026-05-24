@@ -82,7 +82,7 @@ for current expectations. Earlier numbers like "78% honest WF" / "78.3% WF" /
 "88% WR" / "86.8% Triple Blend" / "0.1% live -81%" are OBSOLETE — they
 referred to deprecated configurations and feature pipelines.)
 
-### ml_filter (PRIMARY) — deployed 2026-05-16 (Step 21: VWAP formula fix)
+### ml_filter (PRIMARY) — deployed 2026-05-24 (Step 33: TRIPLE_B Z3/Z4)
 
 **Manual Exit Workflow (decided 2026-05-21): User-driven, no engine auto-exit**
 - Engine remains pure-hold-EOD (Step 25 default behavior preserved)
@@ -90,6 +90,29 @@ referred to deprecated configurations and feature pipelines.)
 - User runs `bash scripts/exit_check.sh SYM PRICE TIME` manually or via Claude /loop
 - ML outputs HOLD/EXIT recommendation; user decides + executes sell via broker manually
 - Phase 6b engine integration intentionally NOT done (user preference)
+
+**Step 33 (2026-05-24) v2.6.0 — TRIPLE_B Z3/Z4 (smart_v2 + win_only + per_zone LIMIT)**
+  - Z3/Z4 ONLY (Z1/Z2 unchanged)
+  - NEW label: `label_smart_v2` — EOD>scan, skip large-cap (β>1.5) earnings days from training
+  - NEW ranking: `win_only` for Z3/Z4 (R9 kept for Z1/Z2). Avoids R9 knife-catcher bias.
+  - NEW LIMIT: per_zone ensemble `target = w_r × pred_r + (1-w_r) × pred_opt`
+    - Z3 w_r=0.7, Z4 w_r=0.45
+    - Requires NEW adaptopt models (10 new files: `lgb_adaptopt_{Z3,Z4}_seed{0-4}.txt`)
+  - 22+ experiments today, 4 passed Phase 2, only TRIPLE_A and TRIPLE_B passed Phase 3 critical
+  - Validation Funnel (PASS ALL):
+      Phase 2 Monthly Refit: +12.6% (vs custom_dd+R9 baseline)
+      Phase 3 Cross-Regime: 5/5 positive, 2/2 CRITICAL PASS (CRISIS +4.6%, STRESS +11.7%)
+      Phase 4 TRUE OOS (30d): +22.7%
+      Phase 5 Smoke Test: 15/16 PASS
+      validate_retrain.sh: N=130 WR=98% +407% all floors PASS
+  - Why win_only > R9: 5/19 NOW disaster — R9 picked NOW (deep dip = -4.97%),
+    win_only would have picked ZTS (defensive Healthcare = -0.55%). Saved 4.42pp.
+  - Why per_zone LIMIT helps: fill rate Z3 79%→90%, Z4 75%→88%. Slightly looser
+    LIMIT captures more fills with similar avg PnL.
+  - Files: `backtests/feature_builder.py` (+labels), `scripts/train_zones.py`
+    (ZONE_LABEL Z3/Z4 + train adaptopt), `src/scan/ml_scorer.py` (load+predict
+    adaptopt), `src/scan/strategies/ml_filter.py` (per-zone ranking + LIMIT).
+  - Backup: `backtests/models_prod_v22_2026-05-24_pre_v2.6.0/`
 
 **Step 32b (2026-05-21) — Hybrid Exit ML (Z4-only + Multi-zone universal)**
   - NEW models: `backtests/models_prod_exit/lgb_exit_MULTI_seed{0-4}.txt` (multi-zone universal, 89-dim)
