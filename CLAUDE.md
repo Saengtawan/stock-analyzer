@@ -36,6 +36,7 @@ User พิมพ์คำสั่งเป็นภาษาไทยหรื
 | `scan ml` | `ml_filter` (force) |
 | `scan gap` | `orb_gap_preview` หรือ `orb_gap_break` ตามเวลา |
 | `scan crisis` / `scan VIX high` | `crisis_reversal` |
+| `scan swing` | `swing_filter` — multi-day hold ML (PAPER ONLY 2026-05-26+) |
 | `scan list` | `python3 -m src.scan.engine list` |
 | `exit SYM PRICE TIME` | `bash scripts/exit_check.sh SYM PRICE HH:MM` — manual Exit ML check (both price+time REQUIRED to avoid wrong defaults from scan_picks). Returns HOLD/EXIT recommendation (user decides) |
 
@@ -72,6 +73,7 @@ User พิมพ์คำสั่งเป็นภาษาไทยหรื
 | Strategy | Window ET | Notes |
 |---|---|---|
 | **ml_filter** | 09:30-13:00 | ⭐ ENSEMBLE ML — primary. See deployed config below. |
+| **swing_filter** | 15:55-16:00 | ⭐ SWING ML — multi-day hold (PAPER ONLY 2026-05-26). See swing section below. |
 | orb_prep | 03:00-09:30 | watchlist only |
 | vwap_reclaim | 13:30-15:30 | afternoon VWAP |
 | crisis_reversal | any (VIX≥25) | contrarian |
@@ -365,6 +367,37 @@ Output interpretation:
 
 Picks are auto-recorded to data/scan_journal.db for drift monitoring.
 
+### swing_filter (PAPER ONLY) — deployed 2026-05-26 (swing_v1.0)
+
+**Multi-day hold ML — completely separate from ml_filter.**
+
+```bash
+python3 -m src.scan.engine swing_filter   # force swing_filter (15:55-16:00 ET only)
+```
+
+**Config:**
+- Label: `L_touch_5_in_30d` (predicts stock touches +5% within 30 days)
+- Threshold: 0.90
+- Entry: market close (next day open in practice)
+- Exit: TP +5% / no SL / time stop 30d
+- Sizing: 5% per position × max 5 concurrent
+- Scan time: 15:55-16:00 ET only
+
+**Validated (5-phase Funnel 2026-05-26):**
+- F1 walk-forward 6mo: WR 94.9% / EV +3.83% / Sharpe 1.96
+- F2 cross-regime: 4/5 positive (Crisis no data in test)
+- F3 TRUE OOS 75 days: WR **95.0%** / EV **+4.17%** / N=715
+- F4 smoke: 6/7 (1 false alarm)
+
+**Realistic annual return:** +12-15%/yr after position capacity constraints.
+(Phase 3 raw +1100%/yr ignores max 5 concurrent + 15d avg hold.)
+
+**Models:** `backtests/models_swing/lgb_swing_seed{0-4}.txt` (5-seed ensemble, 61 features)
+**Final report:** `backtests/results_swing/FINAL_REPORT.md`
+
+⚠️ **PAPER TRADE ONLY** for 4-6 weeks before any live consideration.
+   Crisis regime not tested. No SL = -30% catastrophic risk on bad pick.
+
 ### Daily workflow
 
 ```
@@ -377,6 +410,7 @@ Picks are auto-recorded to data/scan_journal.db for drift monitoring.
 11:30-13:00  ml_filter (11:30 bucket)
 13:00-15:55  NO trades (48% WR coin flip — validated, skipped)
 15:55-16:00  eod_flatten (exit intraday positions)
+             swing_filter (PAPER ONLY — multi-day swing picks for next day open)
 ```
 
 ### Outcome update (after close)

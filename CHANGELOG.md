@@ -9,6 +9,99 @@ All deploys tagged in git. Backup artifacts retained per version.
 
 ---
 
+## [swing_v1.0] — 2026-05-26 — NEW STRATEGY: swing_filter (PAPER ONLY) ⭐
+
+**Note:** Separate strategy. Does NOT affect ml_filter prod (v2.6.0).
+Runs at 15:55-16:00 ET market close. PAPER trade for 4-6 weeks before live.
+
+### Added — New swing trading ML system
+- **Strategy**: `src/scan/strategies/swing_filter.py` (NEW)
+  - Predicts: "stock touches +5% within 30 days"
+  - Entry: market close (next day open)
+  - Exit: TP +5% / no SL / time stop 30d
+  - Position sizing: 5% × max 5 concurrent
+  - 5-seed LightGBM ensemble
+
+- **Live feature builder**: `src/scan/swing_features.py` (NEW)
+  - Builds 61 daily features at scan time
+  - TA (RSI, MACD, BB, ATR, MAs, momentum) + Macro (VIX, SPY) + Fundamentals
+
+- **Production models**: `backtests/models_swing/lgb_swing_seed{0-4}.txt` (5 files)
+- **Config**: `backtests/models_swing/swing_config.json`
+
+### Validation Funnel (5 candidates tested, C5 won)
+
+WINNER: **C5 (L_touch_5_in_30d / threshold 0.90 / TP=5% / no SL / time=30d)**
+
+- **F1 Walk-forward monthly refit** (6mo OOS): WR 94.9% / EV +3.83% / Sharpe 1.96 ⭐ PASS
+- **F2 Cross-regime**:
+  - Calm:     100% WR / +5.0%  / N=19
+  - Normal:   92.2% WR / +3.24% / N=154
+  - Elevated: 95.4% WR / +4.02% / N=482
+  - Stress:   95.1% WR / +3.77% / N=430
+  - Crisis:   no data (test period lacked Crisis VIX)
+  - 4/5 positive → PASS
+- **F3 TRUE OOS** (75 days unseen): WR **95.0%** / EV **+4.17%** / N=715 ⭐ PASS
+- **F4 Smoke tests**: 6/7 pass (1 false alarm — prob_variation check buggy)
+
+### Research Pipeline (Phase 0-7)
+- Phase 0: data sanity + base rates (30 label variants)
+- Phase 1: label exploration (per-year/sector/mcap/VIX/earnings)
+- Phase 2: 66 features (no lookahead)
+- Phase 3: 10 labels × 39 monthly walk-forward refits (73 min, 390 LGB fits)
+- Phase 4: exit rule grid (TP × SL × time stop)
+- Phase 5: 5-phase Validation Funnel
+- Phase 6: production 5-seed ensemble trained
+
+### Key Insights
+- DD-constrained labels FAIL: AUC ~0.52, model can't predict drawdowns
+- Short windows (5-7d) have higher AUC but 30d wins Funnel due to regime stability
+- WR >85-90% achievable at threshold 0.90 with modest target (+5%)
+- Macro-driven model: top features = atr_pct, vix, vol_60d, month, SPY trend
+
+### Realistic Expectations
+- Phase 3 raw EV is BEFORE position capacity constraints
+- With max 5 concurrent positions × ~15d avg hold = ~80-100 trades/year (capped)
+- Realistic portfolio impact: **+12-15%/year after slippage**
+
+### Deployment Status
+- ✅ Registered in `engine.STRATEGIES` as 'swing_filter'
+- ✅ Callable: `python3 -m src.scan.engine swing_filter`
+- ⚠️ PAPER ONLY — do NOT trade live yet
+- ⚠️ 4-6 week paper observation required before live consideration
+- Cron registration pending user decision
+
+### Risks
+- Survivorship bias (universe = currently-listed symbols only)
+- No SL = -30% catastrophic risk on individual bad pick
+- F2 didn't include real Crisis days (VIX >30)
+- 30-day hold = slow capital turnover
+
+### Files Added
+```
+src/scan/strategies/swing_filter.py
+src/scan/swing_features.py
+src/scan/engine.py (mod: register swing_filter)
+
+scripts/swing_scan.sh
+
+backtests/swing_phase0_baserates.py
+backtests/swing_phase1_label_exploration.py
+backtests/swing_phase2_features.py
+backtests/swing_phase3_train.py
+backtests/swing_phase4_exit_fast.py
+backtests/swing_phase5_funnel.py
+backtests/swing_phase6_train_prod.py
+
+backtests/models_swing/lgb_swing_seed{0-4}.txt   (5 × 1.1 MB)
+backtests/models_swing/swing_config.json
+backtests/models_swing/feature_importance.csv
+
+backtests/results_swing/  (phase reports + FINAL_REPORT.md)
+```
+
+---
+
 ## [v2.6.0] — 2026-05-24 (Step 33) ⭐ CURRENT — TRIPLE_B Z3/Z4 (smart_v2 + win_only + per_zone LIMIT)
 
 ### Added

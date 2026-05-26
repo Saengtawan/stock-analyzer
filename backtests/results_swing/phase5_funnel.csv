@@ -1,0 +1,6 @@
+name,label,threshold,tp,sl,overall,f1_wr,f1_ev_mid,f1_sharpe,f1_n,f2_positive,f3_wr,f3_ev,f4_pass
+C1_winner_run,L_touch_3_in_5d,0.9,5.0,,FAIL,0.828,1.443,1.2,99,1,0.741,1.495,6
+C2_sl_protected,L_touch_3_in_5d,0.9,5.0,-2.0,FAIL,0.808,1.783,5.32,99,2,0.677,1.261,5
+C3_more_trades,L_touch_3_in_7d,0.9,5.0,-2.0,FAIL,0.891,1.786,5.65,257,3,0.842,2.116,6
+C4_wr_max,L_touch_3_in_5d,0.9,3.0,,FAIL,0.848,0.221,0.21,99,1,0.83,1.012,6
+C5_30d_5pct,L_touch_5_in_30d,0.9,5.0,,FAIL,0.949,3.827,1.96,1085,4,0.95,4.172,6

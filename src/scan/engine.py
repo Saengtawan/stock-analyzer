@@ -21,6 +21,7 @@ from .strategies.orb_gap_break import OrbGapBreakStrategy
 from .strategies.vwap_reclaim import VwapReclaimStrategy
 from .strategies.crisis_reversal import CrisisReversalStrategy
 from .strategies.ml_filter import MLFilterStrategy
+from .strategies.swing_filter import SwingFilter
 from .strategies.meta import EodFlattenStrategy
 
 ET = pytz.timezone('US/Eastern')
@@ -33,6 +34,7 @@ TRADE_STRATEGIES = {
     'orb_prep':            OrbPrepStrategy,
     'vwap_reclaim':        VwapReclaimStrategy,
     'crisis_reversal':     CrisisReversalStrategy,
+    'swing_filter':        SwingFilter,              # PAPER ONLY — 95% WR / +4.17% EV (validated 2026-05-26)
 }
 
 # Meta strategies (specific windows with no real trade, e.g. MOC)

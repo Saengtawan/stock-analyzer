@@ -1,0 +1,12 @@
+sector,mean,count,label
+Industrials,0.553,191337,L_touch_5_dd-10_in_30d
+Financial Services,0.544,222498,L_touch_5_dd-10_in_30d
+Basic Materials,0.526,87249,L_touch_5_dd-10_in_30d
+Real Estate,0.526,92946,L_touch_5_dd-10_in_30d
+Energy,0.514,107532,L_touch_5_dd-10_in_30d
+Utilities,0.505,74713,L_touch_5_dd-10_in_30d
+Healthcare,0.505,172313,L_touch_5_dd-10_in_30d
+Consumer Defensive,0.502,74637,L_touch_5_dd-10_in_30d
+Communication Services,0.497,66371,L_touch_5_dd-10_in_30d
+Technology,0.497,255725,L_touch_5_dd-10_in_30d
+Consumer Cyclical,0.496,179519,L_touch_5_dd-10_in_30d
