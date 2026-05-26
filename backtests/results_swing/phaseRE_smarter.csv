@@ -1,0 +1,16 @@
+period,is_crisis,approach,thr,class_weight,n,wr,avg_pnl,worst_pnl,worst_dd,pct_safe_5
+Normal-2026-Mar-May,False,A_thr,0.75,False,2,1.0,2.0,2.0,-14.46,0.5
+Normal-2026-Mar-May,False,B_cw,0.75,True,664,0.529,-0.771,-15.68,-20.51,0.717
+Russia-Ukraine-2022,True,A_thr,0.75,False,4398,0.669,-0.589,-30.32,-32.7,0.568
+Russia-Ukraine-2022,True,A_thr,0.8,False,2686,0.648,-0.771,-23.49,-23.63,0.582
+Russia-Ukraine-2022,True,A_thr,0.85,False,1116,0.574,-1.412,-21.38,-23.15,0.557
+Russia-Ukraine-2022,True,A_thr,0.9,False,74,0.554,-2.089,-14.94,-15.49,0.446
+Russia-Ukraine-2022,True,B_cw,0.75,True,4283,0.667,-0.475,-27.18,-32.7,0.606
+Russia-Ukraine-2022,True,B_cw,0.85,True,1093,0.56,-1.018,-21.66,-23.15,0.619
+Rate-Hike-2022,True,A_thr,0.75,False,214,0.897,1.421,-9.5,-13.31,0.921
+Rate-Hike-2022,True,B_cw,0.75,True,3,0.333,-0.053,-2.02,-3.69,1.0
+Israel-Hamas-2023,True,A_thr,0.75,False,19,0.579,-0.011,-4.46,-6.03,0.947
+Israel-Hamas-2023,True,B_cw,0.75,True,1,1.0,2.0,2.0,-3.52,1.0
+Iran-Israel-Apr-2024,True,A_thr,0.75,False,117,0.248,-2.57,-13.94,-19.99,0.41
+Iran-Israel-Apr-2024,True,A_thr,0.8,False,1,0.0,-4.884,-4.88,-5.47,0.0
+Iran-Israel-Apr-2024,True,B_cw,0.75,True,1,0.0,-4.913,-4.91,-6.68,0.0

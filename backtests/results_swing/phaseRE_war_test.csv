@@ -1,0 +1,5 @@
+period,n_picks,wr,avg_pnl,worst_pnl,worst_dd,pct_safe_5
+2022 Russia-Ukraine,4398,0.669,-0.589,-30.32,-32.7,0.568
+2022 Rate-Hike + War,214,0.897,1.421,-9.5,-13.31,0.921
+2023 Israel-Hamas,19,0.579,-0.011,-4.46,-6.03,0.947
+2024 Iran-Israel-Apr,117,0.248,-2.57,-13.94,-19.99,0.41

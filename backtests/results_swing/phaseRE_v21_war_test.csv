@@ -1,0 +1,6 @@
+period,is_crisis,thr,n,wr,avg_pnl,worst_pnl,worst_dd,pct_safe_5
+Normal-2026-MarMay,False,0.75,679,0.669,0.138,-12.53,-16.16,0.779
+Russia-Ukraine-2022,True,0.75,244,0.615,-0.341,-15.15,-16.25,0.639
+Israel-Hamas-2023,True,0.75,201,0.761,0.506,-10.8,-10.89,0.856
+Iran-Israel-Apr-2024,True,0.75,2047,0.646,-0.05,-19.49,-20.21,0.756
+Iran-Israel-Apr-2024,True,0.85,33,0.636,0.168,-9.76,-12.77,0.788
