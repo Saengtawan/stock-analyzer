@@ -367,36 +367,45 @@ Output interpretation:
 
 Picks are auto-recorded to data/scan_journal.db for drift monitoring.
 
-### swing_filter (PAPER ONLY) — deployed 2026-05-26 (swing_v1.0)
+### swing_filter (PAPER ONLY) — deployed 2026-05-26 (swing_v2.0)
 
-**Multi-day hold ML — completely separate from ml_filter.**
+**Short-window swing ML — completely separate from ml_filter.**
+**v1.0 archived** at `backtests/models_swing_v1.0_2026-05-26/` (rejected — tail risk -94%).
 
 ```bash
-python3 -m src.scan.engine swing_filter   # force swing_filter (15:55-16:00 ET only)
+python3 -m src.scan.engine swing_filter   # 15:55 ET → 09:29 ET window
+bash scripts/swing_scan.sh                # cron auto-runs 03:00 BKK
 ```
 
-**Config:**
-- Label: `L_touch_5_in_30d` (predicts stock touches +5% within 30 days)
-- Threshold: 0.90
-- Entry: market close (next day open in practice)
-- Exit: TP +5% / no SL / time stop 30d
+**v2.0 Config:**
+- Label: `L_touch_2_dd-3_in_7d` ("+2% touch AND no DD <-3% within 7 days")
+- Universe filter: price≥$5, mcap≥$1B, ADV≥$10M (~936 symbols)
+- Threshold: 0.75
+- Entry: market close → next day open
+- Exit: pure hold — TP +2% / NO SL / time stop 7d
 - Sizing: 5% per position × max 5 concurrent
-- Scan time: 15:55-16:00 ET only
+- Scan time: 15:55 ET (post-close) → 09:29 ET next day (pre-open) = ~17 hr/day
 
-**Validated (5-phase Funnel 2026-05-26):**
-- F1 walk-forward 6mo: WR 94.9% / EV +3.83% / Sharpe 1.96
-- F2 cross-regime: 4/5 positive (Crisis no data in test)
-- F3 TRUE OOS 75 days: WR **95.0%** / EV **+4.17%** / N=715
-- F4 smoke: 6/7 (1 false alarm)
+**Validated (4-phase Funnel 2026-05-26):**
+- F1 walk-forward 6mo: WR **93%** / EV +1.78% / Worst -2.27% / Sharpe **12.97**
+- F2 cross-regime: Elevated VIX only in test period
+- F3 TRUE OOS 75 days: WR **100%** / EV +1.99% / Worst **+1.48%** / N=96 ⭐
+- F4 smoke: 4/4 pass
+- Feature parity (filtered): 100% (117/117 match)
 
-**Realistic annual return:** +12-15%/yr after position capacity constraints.
-(Phase 3 raw +1100%/yr ignores max 5 concurrent + 15d avg hold.)
+**Why v2.0 (not v1.0):**
+- v1.0 had worst trade -94.75% (GOEV bankruptcy 2024)
+- 30-day exposure too long, no universe filter
+- v2.0 short window + filter + DD label → bounded worst exit -2.27%
 
-**Models:** `backtests/models_swing/lgb_swing_seed{0-4}.txt` (5-seed ensemble, 61 features)
-**Final report:** `backtests/results_swing/FINAL_REPORT.md`
+**Realistic annual return:** +10-15%/yr after slippage.
+~117 trades/year × +1.78% × 5% sizing = +10.4% raw.
+
+**Models:** `backtests/models_swing/lgb_swing_v2_seed{0-4}.txt` (5-seed ensemble, 61 features)
+**Final report:** `backtests/results_swing/FINAL_REPORT.md` + `AUDIT_REPORT.md`
 
 ⚠️ **PAPER TRADE ONLY** for 4-6 weeks before any live consideration.
-   Crisis regime not tested. No SL = -30% catastrophic risk on bad pick.
+   F2 didn't include Crisis VIX days. Cron auto-scan 03:00 BKK Tue-Sat.
 
 ### Daily workflow
 

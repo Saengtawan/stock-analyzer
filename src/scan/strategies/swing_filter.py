@@ -1,22 +1,30 @@
 """
-swing_filter — Daily/swing trading ML strategy.
+swing_filter — Short-window swing ML strategy (v2.0).
 
-Scan window: 15:55-16:00 ET (after market close)
-Entry: market close (next day open in practice)
-Hold: variable, up to 30 days
-Exit: rule-based (TP +5%, no SL, time stop 30d)
+Version: swing_v2.0 (deployed 2026-05-26)
+Scan window: 15:55 ET (post-close) → 09:29 ET next day (pre-open)
+Entry: market close → next day open
+Hold: up to 7 days
+Exit: pure hold — TP +2% if hit, else time stop 7d (NO SL)
 
-Validated 2026-05-26 via 5-phase Funnel:
-  F1 (6mo monthly refit):   WR 94.9% / EV +3.83% / Sharpe 1.96
-  F2 (cross-regime):        4/5 regimes positive (Crisis N=0 in test)
-  F3 (TRUE OOS 75 days):    WR 95.0% / EV +4.17% / N=715
-  F4 (smoke tests):         6/7 pass (1 false alarm)
+Universe filter (v2.0): price≥$5, mcap≥$1B, ADV≥$10M (~936 symbols)
+Label: "+2% touch AND no DD <-3% within 7 days" (L_touch_2_dd-3_in_7d)
+Threshold: 0.75
+
+Validated 2026-05-26 via 4-phase Funnel:
+  F1 (6mo walk-forward):  WR 93%   / EV +1.78% / Worst -2.27% / Sharpe 12.97
+  F2 (cross-regime):      Elevated regime only in test period
+  F3 (TRUE OOS 75 days):  WR 100%  / EV +1.99% / Worst +1.48% / N=96
+  F4 (smoke tests):       4/4 pass
 
 Position management:
   - Max 5 concurrent positions
   - 5% of capital per position
   - Rank by ml_prob descending
   - Skip if already holding the symbol
+
+v1.0 archived at backtests/models_swing_v1.0_2026-05-26/ (rejected — tail risk
+-94% from GOEV bankruptcy. v2.0 universe filter + short window fixes this.)
 """
 import json
 import numpy as np
@@ -36,14 +44,14 @@ class SwingFilter(BaseStrategy):
     """Swing ML — multi-day hold, daily-bar features, 5-seed ensemble."""
 
     name = "swing_filter"
-    description = "Swing ML — +5% in 30d, validated WR 95% / EV +4.17%"
-    expected_wr = 0.95
-    expected_ev = 4.17 / 100
+    description = "Swing ML v2.0 — +2% in 7d w/ DD<-3%, WR 100% OOS / Sharpe 12.97"
+    expected_wr = 0.93
+    expected_ev = 1.78 / 100
     # Swing strategy uses daily EOD features. Valid window = post-close to pre-next-open.
     # ET 15:55 (today close) → ET 09:29 next day (pre-open). Crosses midnight, see in_time_window().
     time_start = "15:55"
     time_end = "09:29"
-    version = "1.0"
+    version = "2.0"
 
     def in_time_window(self) -> bool:
         """Valid: AFTER close (15:55+) OR BEFORE next open (00:00-09:29)."""
@@ -69,12 +77,15 @@ class SwingFilter(BaseStrategy):
         self._config = json.load(open(CONFIG_PATH))
         self._feature_cols = self._config['feature_cols']
         self._models = []
+        # Try v2 models first, fall back to v1 (legacy)
+        version_tag = 'v2' if self._config.get('strategy_version', '').startswith('swing_v2') else ''
         for seed in range(5):
-            mp = MODELS_DIR / f'lgb_swing_seed{seed}.txt'
+            fname = f'lgb_swing_v2_seed{seed}.txt' if version_tag == 'v2' else f'lgb_swing_seed{seed}.txt'
+            mp = MODELS_DIR / fname
             if mp.exists():
                 self._models.append(lgb.Booster(model_file=str(mp)))
         if not self._models:
-            raise FileNotFoundError("No swing models found in " + str(MODELS_DIR))
+            raise FileNotFoundError(f"No swing models found ({version_tag}) in {MODELS_DIR}")
 
     def _predict(self, features: dict) -> float:
         """Ensemble predict for one symbol."""

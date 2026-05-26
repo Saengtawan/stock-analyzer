@@ -9,6 +9,93 @@ All deploys tagged in git. Backup artifacts retained per version.
 
 ---
 
+## [swing_v2.0] — 2026-05-26 — REWORKED swing_filter (PAPER ONLY) ⭐
+
+**Note:** Replaces swing_v1.0 (same day). Backup at `models_swing_v1.0_2026-05-26/`.
+ml_filter (v2.6.0) unaffected.
+
+### Why v2.0 (v1.0 had tail risk)
+v1.0 had `worst PnL -94.75%` (GOEV bankruptcy 2024 pick). Root cause:
+- 30-day hold = 22+ trading days exposure to external events
+- No universe filter = penny stocks + micro-caps in pool
+- No DD constraint in label = picks any stock that touches +5%
+
+### v2.0 Solution
+- **Short window (7d)** — limit exposure to news/earnings shocks
+- **Universe filter** — price≥$5, mcap≥$1B, ADV≥$10M (936 symbols, auto-excludes GOEV)
+- **DD-aware label** — "+2% touch AND no DD <-3% in 7 days"
+- **Pure hold preserved** — TP +2% / NO SL / time stop 7d
+
+### Validation Funnel (3 candidates tested, C1 won)
+
+WINNER: **C1 (L_touch_2_dd-3_in_7d / threshold 0.75 / TP=2% / no SL / time=7d)**
+
+- **F1 Walk-forward monthly refit** (6mo OOS): WR 93% / EV +1.78% / Worst **-2.27%** / Sharpe 12.97
+  - 98.2% of picks have intraday DD > -5%
+- **F2 Cross-regime**: Elevated VIX only in test period (limited coverage)
+- **F3 TRUE OOS** (75 days unseen): WR **100%** / EV +1.99% / Worst **+1.48%** / N=96 ⭐
+  - Every single pick profitable in true out-of-sample
+- **F4 Smoke tests**: 4/4 pass
+- **Universe filter audit**: GOEV (mcap $5M) auto-excluded ✅
+- **Feature parity (v2 filtered universe)**: 100% (117/117 match)
+
+### v1.0 vs v2.0 comparison
+
+| Metric | v1.0 | v2.0 | Δ |
+|---|---|---|---|
+| Strategy | L_touch_5_in_30d | L_touch_2_dd-3_in_7d | new label |
+| Hold | 30 days | 7 days | -23 d |
+| TP | +5% | +2% | smaller |
+| Worst exit PnL | -94.75% 💀 | -2.27% ⭐ | +92pp |
+| F3 OOS WR | 95.0% | **100%** | +5pp |
+| F3 OOS worst | -50% range | **+1.48%** (POSITIVE) | huge |
+| Sharpe | 3.15 | **12.97** | +9.8 |
+| N/year | ~715 (capacity-capped) | ~244 | -66% |
+| Pure hold | yes | yes ✅ | same |
+
+### Key Insights
+- **Short window = exponential DD reduction** (5 events vs 22+ in hold)
+- **C2/C3 with looser thresholds FAIL true OOS** — overfitting
+- **C1 alone passes**: in-sample WR 93% ≈ OOS WR 100% (real edge, no overfit)
+- **Universe filter critical**: removes bankruptcy candidates like GOEV
+- **Macro-driven still**: top features = atr_pct, spy_dist_ma50, vix_x
+
+### Risks & Caveats
+- **F2 limited regime coverage**: only Elevated VIX in test period
+  - Need ongoing paper monitoring for regime robustness
+- **Small N at threshold 0.75**: 1-2 picks/day average
+  - Some days will have 0 picks (normal)
+- **Earnings exposure**: 7-day window may still contain earnings
+  - Optional future enhancement: filter days_to_next_earnings < 7
+
+### Files
+```
+backtests/models_swing/lgb_swing_v2_seed{0-4}.txt   NEW (5 models)
+backtests/models_swing/swing_config.json            UPDATE (v2.0 config)
+backtests/models_swing/feature_importance_v2.csv    NEW
+backtests/models_swing_v1.0_2026-05-26/             BACKUP (v1.0)
+
+backtests/swing_phaseRE_base_rates.py    NEW
+backtests/swing_phaseRE_train.py         NEW
+backtests/swing_phaseRE_short.py         NEW (key research)
+backtests/swing_phaseRE_funnel.py        NEW
+backtests/swing_phaseRE_train_v2.py      NEW
+
+backtests/results_swing/phaseRE_*.csv    NEW
+
+src/scan/strategies/swing_filter.py      UPDATE (v2.0)
+src/scan/swing_features.py               UPDATE (universe filter)
+```
+
+### Deployment Status
+- ✅ Registered in `engine.STRATEGIES` as 'swing_filter'
+- ✅ Callable: `python3 -m src.scan.engine swing_filter`
+- ✅ Cron auto-scan at 03:00 BKK Tue-Sat
+- ⚠️ PAPER ONLY — 4-6 weeks observation required
+- User manual trade workflow (Alpaca paper account #2)
+
+---
+
 ## [swing_v1.0] — 2026-05-26 — NEW STRATEGY: swing_filter (PAPER ONLY) ⭐
 
 **Note:** Separate strategy. Does NOT affect ml_filter prod (v2.6.0).

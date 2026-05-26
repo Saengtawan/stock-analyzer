@@ -116,8 +116,16 @@ def _compute_ta_one_symbol(g):
     return g
 
 
-def build_today_features(target_date=None, universe=None):
+def build_today_features(target_date=None, universe=None,
+                          apply_liquidity_filter=True,
+                          min_price=5.0, min_mcap=1e9, min_dollar_vol=10e6):
     """Build feature vector for each symbol on target_date (or latest).
+
+    Args:
+        target_date: date string YYYY-MM-DD or None (= latest)
+        universe: list of symbols to limit to, or None (= all)
+        apply_liquidity_filter: if True (default), apply v2.0 universe filter
+        min_price, min_mcap, min_dollar_vol: filter thresholds
 
     Returns: DataFrame indexed by symbol with all feature cols.
     """
@@ -245,6 +253,30 @@ def build_today_features(target_date=None, universe=None):
                                   ('yield_spread_chg', 'yield_spread_chg')]:
         if col_live in macro_sorted.columns:
             df[col_train] = m[col_live]
+
+    # Apply v2.0 universe filter (price, mcap, ADV)
+    if apply_liquidity_filter:
+        funda_full = pd.read_sql(
+            f"SELECT symbol, market_cap, avg_volume FROM stock_fundamentals",
+            sqlite3.connect(str(DB))
+        )
+        df = df.merge(funda_full, on='symbol', how='left', suffixes=('', '_f2'))
+        if 'avg_volume_f2' in df.columns:
+            df['avg_volume'] = df['avg_volume_f2']
+            df = df.drop(columns=['avg_volume_f2'])
+        if 'market_cap_f2' in df.columns:
+            df['market_cap'] = df['market_cap_f2']
+            df = df.drop(columns=['market_cap_f2'])
+        df['avg_dollar_vol'] = df['avg_volume'] * df['close']
+        n_before = len(df)
+        df = df[
+            (df['close'] >= min_price) &
+            (df['market_cap'].fillna(0) >= min_mcap) &
+            (df['avg_dollar_vol'].fillna(0) >= min_dollar_vol)
+        ].copy()
+        n_after = len(df)
+        # Drop intermediate columns (don't pollute features)
+        df = df.drop(columns=[c for c in ['market_cap', 'avg_volume', 'avg_dollar_vol'] if c in df.columns])
 
     return df
 

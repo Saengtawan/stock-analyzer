@@ -1,37 +1,32 @@
 {
-  "strategy_version": "swing_v2.0",
-  "deploy_date": "2026-05-26",
-  "label": "L_touch_2_dd-3_in_7d",
-  "window_days": 7,
-  "target_pct": 2.0,
-  "dd_constraint_pct": -3.0,
-  "threshold": 0.75,
+  "strategy_version": "swing_v1.0",
+  "label": "L_touch_5_in_30d",
+  "window_days": 30,
+  "target_pct": 5.0,
+  "threshold": 0.9,
   "exit_rules": {
-    "tp_pct": 2.0,
+    "tp_pct": 5.0,
     "sl_pct": null,
-    "time_stop_days": 7
+    "time_stop_days": 30
   },
   "position_sizing": {
     "pct_per_position": 5.0,
     "max_concurrent": 5,
     "rank_by": "prob"
   },
-  "universe_filter": {
-    "min_price": 5.0,
-    "min_market_cap": 1000000000.0,
-    "min_avg_dollar_volume": 10000000.0
-  },
-  "scan_window_et": "15:55-09:29 (post-close to pre-next-open)",
+  "scan_window_et": "15:55-16:00",
   "expected_metrics": {
-    "wr": 0.93,
-    "ev_per_trade": 1.78,
-    "sharpe": 12.97,
-    "worst_exit_pct": -2.27,
-    "pct_safe_5pct_dd": 0.982,
-    "oos_wr": 1.0,
-    "oos_ev": 1.99,
-    "oos_worst_pct": 1.48,
-    "oos_n": 96
+    "wr": 0.95,
+    "ev_per_trade": 4.17,
+    "sharpe": 1.96,
+    "n_per_year_unfiltered": 3500,
+    "phase4_oos_wr": 0.95,
+    "phase4_oos_ev": 4.17
+  },
+  "data": {
+    "train_start": "2020-01-01",
+    "features_pkl": "/home/saengtawan/work/project/cc/stock-analyzer/backtests/cache_swing/phase2_features.pkl",
+    "n_features": 61
   },
   "feature_cols": [
     "beta",
