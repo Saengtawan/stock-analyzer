@@ -39,9 +39,22 @@ class SwingFilter(BaseStrategy):
     description = "Swing ML — +5% in 30d, validated WR 95% / EV +4.17%"
     expected_wr = 0.95
     expected_ev = 4.17 / 100
+    # Swing strategy uses daily EOD features. Valid window = post-close to pre-next-open.
+    # ET 15:55 (today close) → ET 09:29 next day (pre-open). Crosses midnight, see in_time_window().
     time_start = "15:55"
-    time_end = "16:00"
+    time_end = "09:29"
     version = "1.0"
+
+    def in_time_window(self) -> bool:
+        """Valid: AFTER close (15:55+) OR BEFORE next open (00:00-09:29)."""
+        now = self.time_et_str()
+        # Post-close today
+        if now >= "15:55":
+            return True
+        # Pre-open next day (still using yesterday's EOD data)
+        if now <= "09:29":
+            return True
+        return False
 
     def __init__(self):
         self._models = None
