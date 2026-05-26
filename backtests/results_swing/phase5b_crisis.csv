@@ -1,0 +1,3 @@
+name,train_end,test_period,n,wr,avg_pnl,sharpe,status
+2022-H1-RateHike,2021-12-01,2022-01-01 to 2022-06-30,57527,0.775,0.696,0.22,FAIL
+2022-Q3-Hawkish,2022-08-01,2022-09-01 to 2022-10-31,17316,0.91,3.184,1.35,PASS
