@@ -9,6 +9,48 @@ All deploys tagged in git. Backup artifacts retained per version.
 
 ---
 
+## [swing-retired] — 2026-05-27 — swing_filter v2.0 RETIRED
+
+**Decision:** Retire swing_filter (stock-based multi-day swing).
+**Reason:** Stock-based swing trade inherently crisis-vulnerable.
+WR drops to 25-67% in war periods (e.g., Iran-Israel-2024).
+
+After 50+ hours of research (Phases Re-A through Re-I):
+  - Confirmed v2.0 is optimal *for stock-based swing*
+  - No ML technique can fix the underlying problem
+  - User insight: stocks should be day-trade or long-term hold,
+    not multi-day swing — ETF better for swing horizon
+
+### Action taken
+  - Unregistered `swing_filter` from `engine.STRATEGIES`
+  - Removed crontab entries (swing_scan + swing_outcome_updater)
+  - Documentation moved to "retired strategies" section
+  - Memory entries moved to archive
+
+### Preserved (full restore possible via git)
+  - Git tag: `swing-v2.0-final` (points to commit 17d3a6d)
+  - Code: `src/scan/strategies/swing_filter.py`, `src/scan/swing_features.py`
+  - Models: `backtests/models_swing/lgb_swing_v2_seed{0-4}.txt`
+  - v1.0 backup: `backtests/models_swing_v1.0_2026-05-26/`
+  - Research: `backtests/swing_phaseRE_*.py`, `results_swing/*`
+  - Scripts: `scripts/swing_*.sh`, `scripts/swing_*.py`
+
+### Restore command (future)
+```bash
+git checkout swing-v2.0-final -- src/scan/engine.py
+# Re-add crontab:
+#   0 3 * * 2-6 bash scripts/swing_scan.sh ...
+#   0 4 * * 2-6 python3 scripts/swing_outcome_updater.py ...
+```
+
+### Next direction
+- Plan: build `etf_rotation` (multi-asset ETF-based swing)
+- ETFs naturally crisis-hedged (TLT/GLD rotation)
+- Less complex per-position tracking (universe = 15-20 vs 936 stocks)
+- Single-asset bankruptcy risk eliminated
+
+---
+
 ## [swing_v2.0] — 2026-05-26 — REWORKED swing_filter (PAPER ONLY) ⭐
 
 **Note:** Replaces swing_v1.0 (same day). Backup at `models_swing_v1.0_2026-05-26/`.

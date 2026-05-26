@@ -36,7 +36,6 @@ User พิมพ์คำสั่งเป็นภาษาไทยหรื
 | `scan ml` | `ml_filter` (force) |
 | `scan gap` | `orb_gap_preview` หรือ `orb_gap_break` ตามเวลา |
 | `scan crisis` / `scan VIX high` | `crisis_reversal` |
-| `scan swing` | `swing_filter` — multi-day hold ML (PAPER ONLY 2026-05-26+) |
 | `scan list` | `python3 -m src.scan.engine list` |
 | `exit SYM PRICE TIME` | `bash scripts/exit_check.sh SYM PRICE HH:MM` — manual Exit ML check (both price+time REQUIRED to avoid wrong defaults from scan_picks). Returns HOLD/EXIT recommendation (user decides) |
 
@@ -73,11 +72,16 @@ User พิมพ์คำสั่งเป็นภาษาไทยหรื
 | Strategy | Window ET | Notes |
 |---|---|---|
 | **ml_filter** | 09:30-13:00 | ⭐ ENSEMBLE ML — primary. See deployed config below. |
-| **swing_filter** | 15:55-16:00 | ⭐ SWING ML — multi-day hold (PAPER ONLY 2026-05-26). See swing section below. |
 | orb_prep | 03:00-09:30 | watchlist only |
 | vwap_reclaim | 13:30-15:30 | afternoon VWAP |
 | crisis_reversal | any (VIX≥25) | contrarian |
 | eod_flatten | 15:55-16:00 | meta (MOC) |
+
+### Retired strategies (preserved via git)
+- **swing_filter** v2.0 — retired 2026-05-27. Stock-based multi-day swing.
+  Validated WR 100% TRUE OOS but crisis-vulnerable (WR 25% in Iran-Israel-2024).
+  Decision: pivot to ETF-based approach for swing horizon.
+  Restore via `git checkout swing-v2.0-final -- src/scan/engine.py` + cron.
 
 (Old per-strategy WR/EV numbers removed 2026-05-13 — see deployed config below
 for current expectations. Earlier numbers like "78% honest WF" / "78.3% WF" /
@@ -367,46 +371,6 @@ Output interpretation:
 
 Picks are auto-recorded to data/scan_journal.db for drift monitoring.
 
-### swing_filter (PAPER ONLY) — deployed 2026-05-26 (swing_v2.0)
-
-**Short-window swing ML — completely separate from ml_filter.**
-**v1.0 archived** at `backtests/models_swing_v1.0_2026-05-26/` (rejected — tail risk -94%).
-
-```bash
-python3 -m src.scan.engine swing_filter   # 15:55 ET → 09:29 ET window
-bash scripts/swing_scan.sh                # cron auto-runs 03:00 BKK
-```
-
-**v2.0 Config:**
-- Label: `L_touch_2_dd-3_in_7d` ("+2% touch AND no DD <-3% within 7 days")
-- Universe filter: price≥$5, mcap≥$1B, ADV≥$10M (~936 symbols)
-- Threshold: 0.75
-- Entry: market close → next day open
-- Exit: pure hold — TP +2% / NO SL / time stop 7d
-- Sizing: 5% per position × max 5 concurrent
-- Scan time: 15:55 ET (post-close) → 09:29 ET next day (pre-open) = ~17 hr/day
-
-**Validated (4-phase Funnel 2026-05-26):**
-- F1 walk-forward 6mo: WR **93%** / EV +1.78% / Worst -2.27% / Sharpe **12.97**
-- F2 cross-regime: Elevated VIX only in test period
-- F3 TRUE OOS 75 days: WR **100%** / EV +1.99% / Worst **+1.48%** / N=96 ⭐
-- F4 smoke: 4/4 pass
-- Feature parity (filtered): 100% (117/117 match)
-
-**Why v2.0 (not v1.0):**
-- v1.0 had worst trade -94.75% (GOEV bankruptcy 2024)
-- 30-day exposure too long, no universe filter
-- v2.0 short window + filter + DD label → bounded worst exit -2.27%
-
-**Realistic annual return:** +10-15%/yr after slippage.
-~117 trades/year × +1.78% × 5% sizing = +10.4% raw.
-
-**Models:** `backtests/models_swing/lgb_swing_v2_seed{0-4}.txt` (5-seed ensemble, 61 features)
-**Final report:** `backtests/results_swing/FINAL_REPORT.md` + `AUDIT_REPORT.md`
-
-⚠️ **PAPER TRADE ONLY** for 4-6 weeks before any live consideration.
-   F2 didn't include Crisis VIX days. Cron auto-scan 03:00 BKK Tue-Sat.
-
 ### Daily workflow
 
 ```
@@ -419,7 +383,6 @@ bash scripts/swing_scan.sh                # cron auto-runs 03:00 BKK
 11:30-13:00  ml_filter (11:30 bucket)
 13:00-15:55  NO trades (48% WR coin flip — validated, skipped)
 15:55-16:00  eod_flatten (exit intraday positions)
-             swing_filter (PAPER ONLY — multi-day swing picks for next day open)
 ```
 
 ### Outcome update (after close)
