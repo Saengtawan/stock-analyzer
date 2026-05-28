@@ -38,12 +38,14 @@ ZONES = [
 
 ZONE_LABEL = {
     # Step 26 (2026-05-17): Z3+Z4 → label_custom_dd (A1 +59% WF)
-    # Step 33 (2026-05-24) v2.6.0: Z3+Z4 → label_smart_v2 (TRIPLE_B
-    #   Phase 4 OOS +22.7%, Phase 3 5/5 positive, 2/2 CRITICAL PASS)
+    # Step 33 (2026-05-24) v2.6.0: Z3+Z4 → label_smart_v2 (TRIPLE_B)
+    # Step 35 (2026-05-28): Z3+Z4 → label_real_pnl_05 (Agent D: +33pp Z3, +29pp Z4)
+    #   Real EOD gain > 0.5% target. Z1/Z2 untouched (work as-is).
     'Z1': 'label_z12_market_3dd',
     'Z2': 'label_custom_dd',
-    'Z3': 'label_smart_v2',    # Step 33 v2.6.0: TRIPLE_B
-    'Z4': 'label_smart_v2',    # Step 33 v2.6.0: TRIPLE_B
+    # Step 35 reverted 2026-05-28: Funnel Phase 2+3 fail. Back to Step 33 baseline.
+    'Z3': 'label_smart_v2',       # Step 33: EOD > scan, skip earnings
+    'Z4': 'label_smart_v2',       # Step 33: EOD > scan, skip earnings
 }
 
 ZONE_HP = {

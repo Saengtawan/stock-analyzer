@@ -28,11 +28,14 @@ BASELINE = Path(__file__).resolve().parents[1] / 'configs' / 'wf_baseline.json'
 ZONE_RANGE = {'Z1':(0,9),'Z2':(10,29),'Z3':(30,44),'Z4':(45,75)}
 ZONE_THR = {'Z1':0.60,'Z2':0.65,'Z3':0.50,'Z4':0.50}
 ZONE_LOSS_THR = {'Z1':0.40,'Z2':0.20,'Z3':0.40,'Z4':0.50}
-ZONE_BUF = {'Z1':(0.005,0.0020),'Z2':(0.005,0.0015),'Z3':(0.005,0.0015),'Z4':(0.010,0.0)}
+# FIX 2026-05-28: ZONE_BUF match ml_scorer.py (Step 27 deployed values)
+ZONE_BUF = {'Z1':(0.005,0.0020),'Z2':(0.005,0.0015),'Z3':(0.000,0.0020),'Z4':(0.000,0.0020)}
 ZONE_HARD_SL = {}  # Step 25: pure hold all zones
 Z4_DIP = 0.009  # Step 23
-# Step 26 (2026-05-17): Z3+Z4 → label_custom_dd, Optuna-optimized HPs
-ZONE_LABEL = {'Z1':'label_z12_market_3dd','Z2':'label_custom_dd','Z3':'label_custom_dd','Z4':'label_custom_dd'}
+# Step 35 (2026-05-28): Z3+Z4 → label_real_pnl_05 (Agent D winner)
+ZONE_LABEL = {'Z1':'label_z12_market_3dd','Z2':'label_custom_dd','Z3':'label_smart_v2','Z4':'label_smart_v2'}
+# Step 33: per_zone LIMIT ensemble weights (Z3/Z4 only)
+ZONE_LIMIT_W_R = {'Z3': 0.7, 'Z4': 0.45}  # weight on baseline pred_r (vs pred_opt)
 
 HP = {
     # Step 31 (2026-05-21): Z2+Z4 re-tuned with label_custom_dd + cw=2.0
@@ -104,7 +107,7 @@ def main():
 
     # Train validation models in-memory with no-leak cutoff
     print(f"\nTraining validation models (train ≤ {train_end})...", flush=True)
-    win_m, loss_m, adapt_m = {}, {}, {}
+    win_m, loss_m, adapt_m, adaptopt_m = {}, {}, {}, {}  # adaptopt for Step 33 Z3/Z4
     for zone in ['Z1','Z2','Z3','Z4']:
         feats = FEATS_BY_ZONE[zone]
         LO, HI = ZONE_RANGE[zone]
@@ -149,6 +152,21 @@ def main():
         win_m[zone] = wseeds
         loss_m[zone] = lseeds
         adapt_m[zone] = aseeds
+
+        # Step 33 v2.6.0: Train opt_entry model for Z3/Z4 per_zone LIMIT ensemble
+        if zone in ('Z3', 'Z4') and 'label_opt_entry' in sub.columns:
+            mo = sub['label_opt_entry'].notna()
+            if mo.sum() >= 1000:
+                Xo = sub[mo][feats].fillna(0).values
+                yo = sub[mo]['label_opt_entry'].values
+                hp_o = {**ADAPT_HP, 'bagging_freq':1, 'verbose':-1, 'n_jobs':4}
+                oseeds = []
+                for s in range(N_SEEDS):
+                    m = lgb.LGBMRegressor(**{**hp_o, 'random_state':s})
+                    m.fit(Xo, yo)
+                    oseeds.append(m.booster_)
+                adaptopt_m[zone] = oseeds
+
         print(f"  {zone}: {len(sub):,} train rows, models ready")
 
     con_db = sqlite3.connect(str(DB))
@@ -210,7 +228,14 @@ def main():
                 atr = float(pick.get('feat_atr_pct_14d', 3.0))
                 bb, bc = ZONE_BUF[zone]
                 pr = float(pred_r[top])
-                limit = scan_p * pr * (1 + bb + bc*atr)
+                # Step 33: per_zone LIMIT ensemble for Z3/Z4 (target = w_r×pred_r + (1-w_r)×pred_opt)
+                pred_target = pr
+                if zone in ('Z3', 'Z4') and zone in adaptopt_m:
+                    Xpick = zg.iloc[[top]][feats].fillna(0).values
+                    pred_opt = float(np.array([m.predict(Xpick) for m in adaptopt_m[zone]]).mean())
+                    w_r = ZONE_LIMIT_W_R[zone]
+                    pred_target = w_r * pr + (1 - w_r) * pred_opt
+                limit = scan_p * pred_target * (1 + bb + bc*atr)
                 if min_low <= limit:
                     eod = get_eod(sym, date)
                     if eod is None: continue

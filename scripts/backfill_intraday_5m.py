@@ -66,6 +66,7 @@ def fetch_bars(symbol, start_date, end_date):
             'end': f'{end_date}T21:00:00Z',
             'limit': 10000,
             'adjustment': 'all',
+            'feed': 'iex',  # free tier compatible (SIP requires paid sub for recent data)
         }
         if page_token:
             params['page_token'] = page_token

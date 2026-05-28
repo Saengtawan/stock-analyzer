@@ -88,7 +88,40 @@ for current expectations. Earlier numbers like "78% honest WF" / "78.3% WF" /
 "88% WR" / "86.8% Triple Blend" / "0.1% live -81%" are OBSOLETE — they
 referred to deprecated configurations and feature pipelines.)
 
-### ml_filter (PRIMARY) — deployed 2026-05-24 (Step 33: TRIPLE_B Z3/Z4)
+### ml_filter (PRIMARY) — deployed 2026-05-28 (Step 36: universal live↔train alignment)
+
+**Step 36 v2 (2026-05-28 17:30) — Extended to Z1**: evidence showed Z1 has same drift bugs (HL/NET/RBLX/BR/CHTR/FIS losses caused by day_open drift). Removed all `if zone != 'Z1'` guards. Now ALL zones use bar5m_RTH day_open + pkl universe filter. Top-1 sim (May 14-27): Z1 WR 64%→73% (+9pp), combined 62%→88% (+26pp), total +25%→+65% (+40%).
+
+**Step 36 v1 (2026-05-28) — Live-vs-train feature alignment (zone-conditional, Z1 initially untouched)**
+  - Root-cause found: backtest WR Z3 95%/Z4 99% vs live 47%/62%. Cause = feature pipeline drift, NOT model.
+  - 3 root causes identified by parallel-agent audit (research_step36/):
+      A. day_open: live uses Alpaca dailyBar.o (close-weighted incl premarket); trainer uses first 5-min bar.
+         93% picks drift >0.2pp, Z3 97%, Z4 100%. WR drops monotonic 58→44% with drift magnitude (-15pp).
+      B. beta drift: live reads stock_fundamentals live; trainer freezes at pkl build (44% picks drift >0.05).
+      C. pkl stale + universe gap: pkl 6d stale, 47% picks OOD, 30% syms not in trainer universe.
+  - Fixes (Z1 preserves CURRENT behavior — DO NOT TOUCH):
+      - **36a** zone-conditional day_open (`src/scan/strategies/ml_filter.py:613-636`):
+          Z2/Z3/Z4 use first 5-min bar open (matches trainer); Z1 keeps Alpaca dailyBar.o.
+      - **36b** daily incremental pkl refresh: `scripts/refresh_pkl_daily.sh` + cron `0 18 * * 1-5`.
+          ~5 min per run (vs 60min full rebuild). Pkl now stays ≤1 day stale.
+      - **36c** beta drift: subsumed by 36b (both live + trainer read same stock_fundamentals
+          on similar dates after daily pkl refresh).
+      - **36d** universe filter Z2/Z3/Z4 only (`ml_filter.py:54-65, 488-493`):
+          `cache/bt_features/pkl_universe.txt` (498 syms). Z1 unfiltered.
+      - **36e** persist `features_full` (89-dim) in scan_picks extra_dict for ongoing drift audit.
+  - Replay test 70 unique picks Apr 28-May 28: total return +0.1% → +2.6% (catches 4 big losers
+    NOW -4.97%, OMC -2.58%, ALAB -2.23%, GPN -0.99%). N=42 after filter (vs 62 raw).
+  - Z1 PRESERVED: 33 picks unchanged, WR 45%, same code path.
+  - Validation: Funnel methodology can't measure code fix (validate_retrain uses pkl features
+    which already have correct day_open). True validation requires 2 weeks paper trade.
+  - Production: Step 33 model files retained (rolled back from Step 35 reverted same day).
+    Pkl: features.pkl last date 2026-05-27. Models: backtests/models_prod_v22/.
+  - Backup pre-Step 36: `backtests/models_prod_v22_2026-05-28_pre_step35_backup` (still labeled
+    pre_step35 since Step 35 was attempted same day and rolled back).
+
+**Step 35 (2026-05-28) — REVERTED**: label_real_pnl_05 for Z3/Z4. Passed Phase 4 (+377% all 100% WR)
+but failed Phase 2 (-354% vs S33 baseline) and Phase 3 (only 1/2 critical pass). Rolled back
+same day. Insights led to Step 36 root-cause investigation. See `archive_index_pre_v2.md`.
 
 **Manual Exit Workflow (decided 2026-05-21): User-driven, no engine auto-exit**
 - Engine remains pure-hold-EOD (Step 25 default behavior preserved)

@@ -50,6 +50,22 @@ class MLFilterStrategy(BaseStrategy):
     MIN_PRICE = 3.0
     MIN_GAIN = 2.0   # loose — let ML decide
 
+    # STEP 36d (2026-05-28): trainer pkl universe — used to filter ALL zones to
+    # syms that exist in training data (avoid OOD scoring). Applied universally
+    # after evidence Z1 has same drift bugs as Z2-Z4.
+    _PKL_UNIVERSE = None  # lazy-loaded
+
+    @classmethod
+    def _load_pkl_universe(cls):
+        if cls._PKL_UNIVERSE is None:
+            from pathlib import Path
+            p = Path(__file__).resolve().parents[3] / 'cache' / 'bt_features' / 'pkl_universe.txt'
+            if p.exists():
+                cls._PKL_UNIVERSE = set(p.read_text().strip().split('\n'))
+            else:
+                cls._PKL_UNIVERSE = set()  # empty = no filter
+        return cls._PKL_UNIVERSE
+
     @staticmethod
     def _compute_multi_tf(bars, day_open):
         """v27: Multi-timeframe features (15m/30m/1h aggregates) from 5-min bars."""
@@ -480,9 +496,18 @@ class MLFilterStrategy(BaseStrategy):
         dow = now_et.weekday()
         candidates = []
 
+        # STEP 36d (2026-05-28): Load pkl universe for all-zone filter.
+        # All zones (Z1+Z2+Z3+Z4) restricted to trainer universe (498 syms).
+        _pkl_univ = self._load_pkl_universe()
+        _univ_skipped = 0
+
         for sym in syms:
             if sym in earnings_skip: continue
             if sym == 'SPY': continue
+            # Step 36d: universe filter (all zones)
+            if _pkl_univ and sym not in _pkl_univ:
+                _univ_skipped += 1
+                continue
             s = snaps.get(sym)
             if not s: continue
             db = s.get('dailyBar', {})
@@ -612,9 +637,15 @@ class MLFilterStrategy(BaseStrategy):
 
             # Live multi-bar features from Alpaca 5-min bars
             sym_bars = bars_by_sym.get(sym, [])
+            # STEP 36 (2026-05-28): day_open fix applied ALL zones (Z1 included 2026-05-28).
+            # Use first 5-min bar open (matches feature_builder training RTH 09:30).
+            # Bug: Alpaca dailyBar.o is close-weighted incl premarket → ±1-2.4pp drift.
             if sym_bars:
                 day_open = sym_bars[0].get('o', opn)
                 bar_feats = extract_multibar_features(sym_bars, day_open)
+                gain = (now / day_open - 1) * 100 if day_open > 0 else gain
+                range_pct = (hi - lo) / day_open * 100 if day_open > 0 else range_pct
+                gap_from_prev = (day_open / prev_c - 1) * 100 if prev_c > 0 else gap_from_prev
             else:
                 day_open = opn
                 bar_feats = {
@@ -859,6 +890,10 @@ class MLFilterStrategy(BaseStrategy):
                 'use_market': use_market if is_eod else False,
                 'day_open': round(day_open, 2) if is_eod else None,
                 'exit_strategy': 'pure_hold_eod',
+                # STEP 36e (2026-05-28): persist full feature vector for drift audit.
+                # Trades ~5KB DB write per pick — needed to detect drift in future scans.
+                'features_full': {k: (round(v, 4) if isinstance(v, (int, float)) else v)
+                                  for k, v in features.items()},
             }
 
             candidates.append(Pick(

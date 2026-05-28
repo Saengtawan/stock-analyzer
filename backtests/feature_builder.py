@@ -735,6 +735,7 @@ def _add_market_labels(df):
     df['label_custom_dd'] = np.nan  # Step 24: Z2 DD-aware, data-dense
     df['label_smart_v2'] = np.nan   # Step 33 v2.6.0: TRIPLE_B label
     df['label_opt_entry'] = np.nan  # Step 33 v2.6.0: per_zone LIMIT target
+    df['label_real_pnl_05'] = np.nan  # Step 35 (2026-05-28): real EOD gain > 0.5% (Z3/Z4)
     mask = (df['mins_from_open']>=Z14_RANGE[0]) & (df['mins_from_open']<=Z14_RANGE[1])
     for idx, r in df[mask].iterrows():
         bars = bar_cache.get((r['sym'], r['date']))
@@ -774,6 +775,10 @@ def _add_market_labels(df):
             # Step 33 v2.6.0: label_opt_entry — intraday_low + 0.3% buffer / scan_p.
             # Used by per_zone LIMIT ensemble (different prediction target than adapt_low).
             df.at[idx, 'label_opt_entry'] = min_low * 1.003 / scan_p
+            # Step 35 (2026-05-28): label_real_pnl_05 — direct EOD gain target.
+            # Trains model on actual pnl (EOD > scan × 1.005), not synthetic touch/DD.
+            # Z3/Z4 use this label (Agent D: +33pp Z3, +29pp Z4 vs current).
+            df.at[idx, 'label_real_pnl_05'] = 1 if (eod > scan_p * 1.005) else 0
     return df
 
 
