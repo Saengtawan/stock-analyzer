@@ -1,5 +1,18 @@
 # Stock Analyzer — Claude Code Instructions (v2, rebuilt 2026-04-11)
 
+## ⭐ Current version: v1.9.0 (Step 19) — set as MAIN 2026-05-29
+
+v1.9.0 is the primary/main ml_filter version. Local `master` points here
+(commit cac8a9c = Step 19 `26a75e5` + verified runtime models). NOT pushed.
+
+- **Exit logic:** deterministic only — Z4 hard SL -3% from entry, all other
+  zones pure hold-to-EOD. There is **no Exit ML** on v1.9.0
+  (`scripts/exit_check.sh` does not exist here — that was Step 32 / v2.7.0).
+- **Step 36 (v2.7.0) is set aside but 100% recoverable:** tag `v2.7.0`
+  (commit b4e5db2) + `/tmp/safe_v2.7.0_models` + `/tmp/safe_v2.7.0_pkl`.
+  Return path: `git checkout -B master v2.7.0`, restore models+pkl from /tmp,
+  restart both services.
+
 ## How to scan
 
 **Preferred (handles early-scan wait):**
