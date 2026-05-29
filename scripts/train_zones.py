@@ -106,7 +106,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--end-date', default=datetime.today().strftime('%Y-%m-%d'))
     ap.add_argument('--pkl', default='cache/bt_features/features.pkl')
+    ap.add_argument('--out-dir', default=None, help='Output dir for models (default: prod models_prod_v22)')
     args = ap.parse_args()
+
+    global PROD_DIR
+    if args.out_dir:
+        PROD_DIR = Path(args.out_dir).resolve()
 
     print(f"Loading {args.pkl}...", flush=True)
     df = pd.read_pickle(args.pkl)

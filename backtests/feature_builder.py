@@ -243,6 +243,19 @@ def build_features(start_date, end_date, output_path, limit_symbols=500):
         f"SELECT date, ad_ratio FROM market_breadth WHERE date >= '{start_date}' AND date <= '{end_date}'"
     ).fetchall())
 
+    # Macro/breadth use PRIOR trading day's close to match live (no same-day-close
+    # lookahead). Live reads `macro_snapshots ORDER BY date DESC LIMIT 1`, which is
+    # always yesterday's close at scan time. P2 fix 2026-05-30.
+    import bisect as _bisect
+    _macro_dates = sorted(macro_dict.keys())
+    _breadth_dates = sorted(breadth.keys())
+    def _prior_macro(date):
+        i = _bisect.bisect_left(_macro_dates, date)
+        return macro_dict[_macro_dates[i-1]] if i > 0 else {}
+    def _prior_breadth(date):
+        i = _bisect.bisect_left(_breadth_dates, date)
+        return breadth[_breadth_dates[i-1]] if i > 0 else None
+
     # 4. Load stock daily OHLC for momentum/52w + daily volume for vol_ratio baseline
     print(f"[{_time.time()-t_start:.0f}s] Loading daily OHLC...")
     daily = pd.read_sql_query(f"""
@@ -303,8 +316,10 @@ def build_features(start_date, end_date, output_path, limit_symbols=500):
 
         if bars_today.empty: continue
 
-        # Macro for this date
-        m = macro_dict.get(date, {})
+        # Macro for this date — PRIOR trading day's close (matches live, no lookahead)
+        m = _prior_macro(date)
+        if not m:
+            continue  # first date has no prior-day macro (matches staging shift)
         spy_daily_chg = m.get('spy_daily', 0) or 0
         vix = float(m.get('vix_close', 20) or 20)
         vix_5d = float(m.get('vix_5d_chg', 0) or 0)
@@ -313,7 +328,7 @@ def build_features(start_date, end_date, output_path, limit_symbols=500):
         vvix = float(m.get('vvix_close', 100) or 100)
         skew = float(m.get('skew_close', 145) or 145)
         vix_term = float(m.get('vix_term_spread', 1.5) or 1.5)
-        ad = float(breadth.get(date, 1.0) or 1.0)
+        ad = float(_prior_breadth(date) or 1.0)
 
         # SPY intraday at each 5-min bar
         spy_open = etf_opens.get(('SPY', date), 0)

@@ -101,16 +101,22 @@ def _ensure_table(session):
 
 def main():
     today = datetime.now(ET).date()
-    # Capture yesterday's close (market already closed)
-    target = today - timedelta(days=1)
-    # Skip weekends
-    if target.weekday() >= 5:
-        target -= timedelta(days=target.weekday() - 4)
+    # Optional CLI arg = backfill a specific date (YYYY-MM-DD); else yesterday's close
+    if len(sys.argv) > 1:
+        target = datetime.strptime(sys.argv[1], '%Y-%m-%d').date()
+    else:
+        # Capture yesterday's close (market already closed)
+        target = today - timedelta(days=1)
+        # Skip weekends
+        if target.weekday() >= 5:
+            target -= timedelta(days=target.weekday() - 4)
 
     target_str = target.strftime('%Y-%m-%d')
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] macro_snapshot date={target_str}")
 
     with get_session() as session:
+        # Wait up to 30s for a write lock instead of failing instantly (13GB shared DB)
+        session.execute(text("PRAGMA busy_timeout=30000"))
         _ensure_table(session)
 
         # Skip if already collected
@@ -198,4 +204,15 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    import time as _t
+    from sqlalchemy.exc import OperationalError
+    for _attempt in range(5):
+        try:
+            main(); break
+        except OperationalError as _e:
+            if 'locked' in str(_e).lower() and _attempt < 4:
+                _w = 2 ** _attempt
+                print(f"  DB locked — retry {_attempt+1}/5 in {_w}s")
+                _t.sleep(_w)
+            else:
+                raise

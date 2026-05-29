@@ -203,12 +203,12 @@ class MLFilterStrategy(BaseStrategy):
             # 10-day range avg
             daily_hl = defaultdict(list)
             for r in conn.execute("""
-                SELECT symbol, date, high, low, open FROM stock_daily_ohlc
+                SELECT symbol, date, high, low, open, close FROM stock_daily_ohlc
                 WHERE date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-15 days')
                 ORDER BY symbol, date
             """):
-                # tuple is (date, high, low, open)
-                daily_hl[r[0]].append((r[1], r[2], r[3], r[4]))  # date,h,l,o
+                # tuple is (date, high, low, open, close)
+                daily_hl[r[0]].append((r[1], r[2], r[3], r[4], r[5]))  # date,h,l,o,c
 
             # 30-day avg daily volume (for v21 canonical vol_ratio = today_so_far / (avg_daily * frac_elapsed))
             avg_daily_vol = {}
@@ -561,7 +561,7 @@ class MLFilterStrategy(BaseStrategy):
                 for i in range(len(hl_list)-14, len(hl_list)):
                     if i > 0:
                         h_t, l_t = hl_list[i][1], hl_list[i][2]
-                        c_prev = hl_list[i-1][1]  # Use prev high as approx prev close
+                        c_prev = hl_list[i-1][4]  # prev close (matches training true-range)
                         if h_t is not None and l_t is not None and c_prev is not None:
                             tr = max(h_t-l_t, abs(h_t-c_prev), abs(l_t-c_prev))
                             trs.append(tr)
@@ -583,10 +583,10 @@ class MLFilterStrategy(BaseStrategy):
 
             # 10-day range
             hl_hist = daily_hl.get(sym, [])
-            # entries: (date, high, low, open)
+            # entries: (date, high, low, open, close)
             ranges = []
             for row in hl_hist:
-                if len(row) == 4 and row[3] and row[3] > 0:
+                if len(row) >= 4 and row[3] and row[3] > 0:
                     ranges.append((row[1] - row[2]) / row[3] * 100)
             rng10 = np.mean(ranges) if ranges else 3.0
             range_exp = range_pct / rng10 if rng10 > 0 else 1
