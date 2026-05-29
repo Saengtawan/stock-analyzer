@@ -687,7 +687,9 @@ def _add_market_labels(df):
 
     label_z34_market (Z3/Z4): EOD > scan × 0.998 AND DD > -3%.
     label_z12_market_3dd (Z1/Z2): same formula on Z1/Z2 mfo range.
-    label_eod_green_v2 (Z2): kept from existing pkl if present.
+    label_eod_green_v2 (Z2): EOD > day_open (em 570 close). Backported from
+        v2.7.0 generator 2026-05-29 — v1.9.0 previously relied on carry-over
+        from an existing pkl, which broke on fresh rebuild.
 
     Uses cache/wf_1min_bars.db for intraday low/EOD lookup.
     """
@@ -710,14 +712,16 @@ def _add_market_labels(df):
     Z14_RANGE = (0, 75)  # mfo range covered by Z1-Z4
     df['label_z12_market_3dd'] = np.nan
     df['label_z34_market'] = np.nan
+    df['label_eod_green_v2'] = np.nan
     mask = (df['mins_from_open']>=Z14_RANGE[0]) & (df['mins_from_open']<=Z14_RANGE[1])
     for idx, r in df[mask].iterrows():
         bars = bar_cache.get((r['sym'], r['date']))
         if not bars: continue
         target_em = 570 + int(r['mins_from_open'])  # 09:30 = em 570
-        scan_p = None; lows = []
+        scan_p = None; lows = []; day_open_em = None
         for em, l, c in bars:
             if em == target_em and c and c > 0: scan_p = c
+            if em == 570 and c and c > 0: day_open_em = c
             if em > target_em and l and l > 0: lows.append(l)
         if scan_p is None or not lows: continue
         eod = bars[-1][2]
@@ -732,6 +736,8 @@ def _add_market_labels(df):
             df.at[idx, 'label_z12_market_3dd'] = 1 if (is_green and no_3dd) else 0
         if r['mins_from_open'] >= 30:  # Z3+Z4
             df.at[idx, 'label_z34_market'] = 1 if (is_green and no_3dd) else 0
+        if day_open_em is not None:  # label_eod_green_v2 (Z2): EOD > day_open
+            df.at[idx, 'label_eod_green_v2'] = 1 if (eod > day_open_em) else 0
     return df
 
 
