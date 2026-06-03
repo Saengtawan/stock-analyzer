@@ -5,13 +5,49 @@
 v1.9.0 is the primary/main ml_filter version. Local `master` points here
 (commit cac8a9c = Step 19 `26a75e5` + verified runtime models). NOT pushed.
 
-- **Exit logic:** deterministic only — Z4 hard SL -3% from entry, all other
-  zones pure hold-to-EOD. There is **no Exit ML** on v1.9.0
-  (`scripts/exit_check.sh` does not exist here — that was Step 32 / v2.7.0).
+- **Exit logic:** deterministic Z4 hard SL -3% / hold-to-EOD remains the
+  in-engine default. Exit ML **v17c manual workflow** added 2026-06-04
+  (shadow mode by default — see "Exit ML v17c" section below).
 - **Step 36 (v2.7.0) is set aside but 100% recoverable:** tag `v2.7.0`
   (commit b4e5db2) + `/tmp/safe_v2.7.0_models` + `/tmp/safe_v2.7.0_pkl`.
   Return path: `git checkout -B master v2.7.0`, restore models+pkl from /tmp,
   restart both services.
+- **Reversibility checkpoint** before Exit ML build: tag `v1.9.0-pre-exitml`
+  (created 2026-06-04). Roll back: `git reset --hard v1.9.0-pre-exitml`.
+
+## Exit ML v17c — Manual exit workflow (added 2026-06-04)
+
+After scan → buy → check exit signal manually. Engine does **not** auto-exit;
+user runs the CLI and clicks the exit at Alpaca.
+
+```bash
+# entry pulled from active_positions table:
+bash scripts/exit_check.sh URI
+
+# explicit (replay or override):
+bash scripts/exit_check.sh URI 1022.14 10:40            # today
+bash scripts/exit_check.sh CNQ 46.47 09:35 2026-06-01   # historical replay
+bash scripts/exit_check.sh URI --live                   # mark check as LIVE (default = shadow)
+```
+
+Output shows: sector/zone, VIX safety state, ML prob vs threshold,
+current PnL, verdict (HOLD / EXIT / CRISIS_HOLD). Every call is logged
+to `data/exit_ml_journal.db` for shadow monitoring.
+
+- **Spec** — `backtests/models_exit_v17c/spec.json` (frozen)
+- **Models** — `backtests/models_exit_v17c/sector_specialists.pkl` (11 sectors × 5 seeds)
+- **Inference** — `src/exit_ml/inference.py` (importable as
+  `from src.exit_ml.inference import predict_exit`)
+- **CLI** — `scripts/exit_check.sh` → `src/exit_ml/cli.py`
+- **Journal** — `data/exit_ml_journal.db` table `exit_checks`
+- **Python env** — `~/.pyenv/versions/issara/bin/python` (pandas 3.0.2 — required for the pkl)
+
+**Rules (v17c-FINAL):** Z1 universal THR 0.13; Z4 Energy override 0.15;
+others AUTO per-sector. Z1 DD-gate: Energy +0.50%, others −2.0%. VIX-gate:
+if VIX ≥ 28 at entry → SKIP Exit ML (hold-EOD). Min hold 60 min.
+
+**Rollout posture:** SHADOW mode — log verdicts, do not execute. After
+10–15 picks compare "if followed" vs hold-EOD before going live.
 
 ## How to scan
 
