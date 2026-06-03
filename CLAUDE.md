@@ -21,18 +21,29 @@ After scan → buy → check exit signal manually. Engine does **not** auto-exit
 user runs the CLI and clicks the exit at Alpaca.
 
 ```bash
-# entry pulled from active_positions table:
-bash scripts/exit_check.sh URI
+# === Recommended: scan + auto-track in one command ===
+bash scripts/scan_track.sh                              # runs scan_smart, auto-launches
+                                                         # an exit_loop in background for
+                                                         # every new pick. One terminal,
+                                                         # tracker stays alive after shell
+                                                         # closes. Logs go to data/exit_loops/.
 
-# explicit (replay or override):
-bash scripts/exit_check.sh URI 1022.14 10:40            # today
+# Monitor a running tracker:
+tail -f data/exit_loops/URI_2026-06-04_1040.log
+
+# Stop trackers:
+pkill -f "exit_loop.sh URI"      # specific symbol
+pkill -f "exit_loop.sh"           # all
+
+# === Lower-level tools (manual use) ===
+bash scripts/exit_check.sh URI                          # one-shot check
+bash scripts/exit_check.sh URI 1022.14 10:40            # explicit entry/time
 bash scripts/exit_check.sh CNQ 46.47 09:35 2026-06-01   # historical replay
-bash scripts/exit_check.sh URI --live                   # mark check as LIVE (default = shadow)
+bash scripts/exit_check.sh URI --live                   # mark LIVE (default = shadow)
 
-# auto-loop: polls every 5 min until EXIT / CRISIS_HOLD / 15:55 ET:
-bash scripts/exit_loop.sh URI 1022.14 10:40             # foreground in terminal
-# override poll: POLL_SECONDS=600 bash scripts/exit_loop.sh URI ...
-# silent (no terminal beep on EXIT): QUIET=1 bash scripts/exit_loop.sh URI ...
+bash scripts/exit_loop.sh URI 1022.14 10:40             # foreground 5-min poll
+POLL_SECONDS=600 bash scripts/exit_loop.sh URI ...      # 10-min poll
+QUIET=1 bash scripts/exit_loop.sh URI ...               # no beep
 ```
 
 Output shows: sector/zone, VIX safety state, ML prob vs threshold,
