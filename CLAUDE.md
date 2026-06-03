@@ -28,6 +28,11 @@ bash scripts/exit_check.sh URI
 bash scripts/exit_check.sh URI 1022.14 10:40            # today
 bash scripts/exit_check.sh CNQ 46.47 09:35 2026-06-01   # historical replay
 bash scripts/exit_check.sh URI --live                   # mark check as LIVE (default = shadow)
+
+# auto-loop: polls every 5 min until EXIT / CRISIS_HOLD / 15:55 ET:
+bash scripts/exit_loop.sh URI 1022.14 10:40             # foreground in terminal
+# override poll: POLL_SECONDS=600 bash scripts/exit_loop.sh URI ...
+# silent (no terminal beep on EXIT): QUIET=1 bash scripts/exit_loop.sh URI ...
 ```
 
 Output shows: sector/zone, VIX safety state, ML prob vs threshold,
