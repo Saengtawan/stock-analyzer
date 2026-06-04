@@ -106,11 +106,26 @@ class MLFilterStrategy(BaseStrategy):
     REQUIRE_75_THRESHOLD = True
     MAX_PICKS = 1  # 2026-04-30: top-1 deployed (WF: 100% WR, +2.98% avg, +672%/yr)
 
+    # 2026-05-30: MARKET entry — enter at current scan price (`now`), 100% fill.
+    # WF (6mo, thr 0.75): MARKET beats adaptive-LIMIT on every zone up to ~0.40-0.50%
+    # slippage (ALL +3630% vs +2663%); limit discarded 173 runaway winners (99% WR).
+    # Reversible: set False to restore adaptive-limit (dip-wait) entry.
+    MARKET_ENTRY = True
+
+    # 2026-05-30: per-zone max buy price = `now` × (1 + budget). Display-only — the
+    # slippage ceiling beyond which the WF MARKET edge erodes vs LIMIT (wf_slip).
+    # Z1/Z2/Z3 still beat limit on total even at 0.50%; Z4 breakeven ~0.40% (fragile).
+    ZONE_SLIP_BUDGET = {'Z1': 0.005, 'Z2': 0.005, 'Z3': 0.005, 'Z4': 0.004}
+
     def scan(self) -> ScanResult:
         if not self.in_time_window():
             return self.out_of_window()
 
         scorer = get_scorer()
+        # [timing] perf instrumentation — log-only, no behavior change (2026-05-30)
+        from time import perf_counter as _pc
+        _t_scan0 = _pc()
+        _t_fetch0 = _t_fetch1 = None
         now_et = datetime.now(ET)
         minutes_from_open = (now_et.hour - 9) * 60 + (now_et.minute - 30)
 
@@ -192,19 +207,23 @@ class MLFilterStrategy(BaseStrategy):
             ).fetchall())
 
             # Per-stock daily history for momentum/SMA/52w
+            # P5 (2026-05-30): widened -300 -> -400 cal days so >=250 prior TRADING
+            # days are available; closes_full is sliced to [-250:] below to match the
+            # no-leak trainer window exactly (was ~206 rows -> 52w + days_since skew).
             daily_hist = defaultdict(list)
             for r in conn.execute("""
                 SELECT symbol, date, close FROM stock_daily_ohlc
-                WHERE date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-300 days')
+                WHERE date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-400 days')
                 ORDER BY symbol, date
             """):
                 daily_hist[r[0]].append((r[1], r[2]))
 
-            # 10-day range avg
+            # 14-day ATR window. P5 (2026-05-30): widened -15 -> -30 cal days so >=15
+            # prior TRADING rows exist (was ~10-11 -> feat_atr_pct_14d stuck at 1.0).
             daily_hl = defaultdict(list)
             for r in conn.execute("""
                 SELECT symbol, date, high, low, open, close FROM stock_daily_ohlc
-                WHERE date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-15 days')
+                WHERE date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-30 days')
                 ORDER BY symbol, date
             """):
                 # tuple is (date, high, low, open, close)
@@ -277,9 +296,11 @@ class MLFilterStrategy(BaseStrategy):
         stock_batches = [','.join(syms[i:i+100]) for i in range(0, len(syms), 100)]
         all_batches = stock_batches + [','.join(etf_syms)]
         all_bars = {}
+        _t_fetch0 = _pc()  # [timing]
         with ThreadPoolExecutor(max_workers=len(all_batches)) as ex:
             for batch_bars in ex.map(_fetch_bars, all_batches):
                 all_bars.update(batch_bars)
+        _t_fetch1 = _pc()  # [timing]
 
         # Wait+retry if first scan within 90s (1-min bar 09:30 not settled yet)
         etf_with_bars = sum(1 for s in etf_syms if all_bars.get(s))
@@ -514,8 +535,11 @@ class MLFilterStrategy(BaseStrategy):
             dist_sma20 = (now / sma20 - 1) * 100 if sma20 > 0 else 0
 
             # 52w high/low from history
+            # P5 (2026-05-30): slice to last 250 prior trading days to match the
+            # no-leak trainer's closes_full = [...][-250:].
             hist_full = daily_hist.get(sym, [])
-            closes_full = [h[1] for h in hist_full if h[1] is not None] if len(hist_full) >= 100 else []
+            closes_full = ([h[1] for h in hist_full if h[1] is not None][-250:]
+                           if len(hist_full) >= 100 else [])
             if len(closes_full) >= 100:
                 h52w = max(closes_full)
                 l52w = min(closes_full)
@@ -533,8 +557,10 @@ class MLFilterStrategy(BaseStrategy):
                 feat_dist_sma50_d = (now / sma50_d - 1) * 100 if sma50_d > 0 else 0
             else:
                 feat_dist_sma20_d = feat_dist_sma50_d = 0
-            # Days since 52w hi/lo (from closes_full, recent window)
-            if len(closes_full) >= 252:
+            # Days since 52w hi/lo. P5 (2026-05-30): drop the >=252 guard (live window
+            # is ~250 prior trading days, never 252) to match the no-leak trainer which
+            # computes over closes_full[-252:] whenever len(closes_full) >= 100.
+            if len(closes_full) >= 100:
                 window = closes_full[-252:]
                 idx_hi = int(np.argmax(window))
                 idx_lo = int(np.argmin(window))
@@ -761,8 +787,19 @@ class MLFilterStrategy(BaseStrategy):
                 # Z4 exception (Step 17): Hard SL = ZONE_HARD_SL['Z4'] from limit_price
                 # WF: caps worst trade from -4.68% → -3.10% (Z4 RIVN 2025-12-12 case)
                 trail = 0
-                # 2026-05-14: Use adaptive limit (ML-predicted) instead of 09:30 open
-                limit_price = adaptive_limit
+                # 2026-05-30: MARKET entry at current scan price (`now`), 100% fill.
+                # Falls back to adaptive-limit (dip-wait) when MARKET_ENTRY=False.
+                max_buy = None
+                slip_budget = None
+                if self.MARKET_ENTRY:
+                    limit_price = now
+                    slip_budget = self.ZONE_SLIP_BUDGET.get(zone_name, 0.004)
+                    max_buy = now * (1 + slip_budget)
+                    entry_tag = (f"MARKET@${now:.2f} "
+                                 f"(max ${max_buy:.2f} +{slip_budget*100:.1f}%)")
+                else:
+                    limit_price = adaptive_limit  # ML-predicted dip-wait limit
+                    entry_tag = f"LIMIT@${adaptive_limit:.2f} (dip {(1-pred_ratio)*100:.2f}%)"
                 zone_sl_pct = getattr(scorer, 'ZONE_HARD_SL', {}).get(zone_name)
                 if zone_sl_pct:
                     sl_price = limit_price * (1 - zone_sl_pct)
@@ -771,9 +808,9 @@ class MLFilterStrategy(BaseStrategy):
                     sl_price = 0  # disabled (pure hold)
                     sl_tag = "no SL"
                 reason = (
-                    f"ML p={prob:.3f} adapt_lim={pred_ratio:.4f} (dip {(1-pred_ratio)*100:.2f}%) "
+                    f"ML p={prob:.3f} adapt_lim={pred_ratio:.4f} "
                     f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]} "
-                    f"LIMIT@${day_open:.2f} pure-hold-EOD ({sl_tag})"
+                    f"{entry_tag} pure-hold-EOD ({sl_tag})"
                 )
             else:
                 # Legacy for Z2/Z3/Z4 until retrained
@@ -806,7 +843,11 @@ class MLFilterStrategy(BaseStrategy):
                 'beta': round(beta, 2),
                 'sector': sec,
                 'limit_price': round(limit_price, 2),
+                'max_buy_price': round(max_buy, 2) if max_buy else None,
+                'slip_budget_pct': round(slip_budget * 100, 2) if slip_budget else None,
                 'exit_strategy': 'pure_hold_eod',
+                # 2026-06-04: stash per-symbol features used by entry_filter
+                'mom20d': round(mom20, 2) if mom20 is not None else None,
             }
 
             candidates.append(Pick(
@@ -821,6 +862,14 @@ class MLFilterStrategy(BaseStrategy):
             ))
 
         if not candidates:
+            try:
+                _fetch_ms = (_t_fetch1 - _t_fetch0) * 1000 if (_t_fetch0 and _t_fetch1) else -1
+                print(f"[ml_filter:timing] mfo={minutes_from_open} "
+                      f"total={(_pc()-_t_scan0)*1000:.0f}ms fetch={_fetch_ms:.0f}ms "
+                      f"syms={len(syms)} bars={len(all_bars)} cands=0 "
+                      f"picks=0 status=no_picks", flush=True)
+            except Exception:
+                pass
             return self.no_picks(
                 f"No picks ≥ threshold {threshold:.2f} "
                 f"(bucket {scorer.get_bucket(minutes_from_open)})"
@@ -833,6 +882,46 @@ class MLFilterStrategy(BaseStrategy):
         # Δ = +174% total, +6pp WR, -1pp tail. Win score already incorporates
         # momentum via gain_from_open feature — adding it again was double-count.
         candidates.sort(key=lambda p: -p.extra['ml_prob'])
+
+        # 2026-06-04: entry_filter v1 (rule-based per-zone selection)
+        # Applied AFTER ML threshold gate, BEFORE top-1 selection.
+        # spec: backtests/entry_filter_v1/spec.json
+        # Toggle: set env ENTRY_FILTER_ENABLED=0 to disable.
+        all_candidates = list(candidates)  # keep full list for logging
+        filter_verdicts = {}  # symbol -> (passes: bool, reason: str)
+        import os as _os
+        if _os.environ.get('ENTRY_FILTER_ENABLED', '1') == '1':
+            try:
+                from src.entry_filter.rules import evaluate as _ef_evaluate, zone_of_mfo as _ef_zone
+                import datetime as _dt
+                _zone_str = _ef_zone(minutes_from_open)
+                _dow = _dt.datetime.now(ET).weekday()
+                survivors = []
+                for c in candidates:
+                    fx = c.extra
+                    passes, reason = _ef_evaluate(
+                        zone=_zone_str,
+                        beta=fx.get('beta'),
+                        sector=fx.get('sector'),
+                        vix=vix,                # outer-scope macro
+                        dow=_dow,
+                        gain_from_open=fx.get('gain_pct'),
+                        spy_intra=spy_intra,    # outer-scope macro
+                        mom20d=fx.get('mom20d'),
+                    )
+                    filter_verdicts[c.symbol] = (passes, reason)
+                    if passes:
+                        survivors.append(c)
+                # Replace candidates with survivors for downstream selection
+                # If no survivors, downstream still has empty list (handled gracefully)
+                candidates = survivors
+            except Exception as _e:
+                # Graceful fallback — never break engine
+                try:
+                    print(f"[ml_filter] entry_filter error (skipped): {_e}", flush=True)
+                except Exception:
+                    pass
+                filter_verdicts = {}
 
         # Cross-scan dedup: skip symbols picked in last 60 min (prevent double-entry)
         try:
@@ -871,10 +960,11 @@ class MLFilterStrategy(BaseStrategy):
         expected_wr = WR_BY_BUCKET.get(bucket, 80)
 
         # Record picks to journal for drift monitoring
+        pick_ids = []
         try:
             journal = get_journal()
             for p in picks:
-                journal.record_pick(
+                pid = journal.record_pick(
                     strategy=self.name, bucket=bucket, symbol=p.symbol,
                     entry=p.entry, sl_price=p.sl_price, tp_price=p.tp_price,
                     trail_pct=p.trail_pct,
@@ -884,12 +974,80 @@ class MLFilterStrategy(BaseStrategy):
                     reason=p.reason,
                     features=p.extra,
                 )
+                pick_ids.append(pid)
         except Exception:
-            pass
+            pick_ids = []
+
+        # 2026-06-02: Port from v2.7.0 — record ALL candidates with rank info
+        # → enables sim-vs-live parity for post-market analysis. Logging only.
+        # 2026-06-04: log filter_verdict + filter_reason from entry_filter v1
+        try:
+            zone_name_log = scorer.get_zone(minutes_from_open) if scorer.USE_ZONES else None
+            # Rank across ALL ml-passing candidates (pre-filter set) so log shows true rank
+            sorted_r9 = sorted(all_candidates, key=lambda p: -p.extra.get('r9_score',
+                p.extra.get('ml_prob', 0) * max(0.0, 1 - p.extra.get('pred_ratio', 1.0)) ** 0.5))
+            sorted_win = sorted(all_candidates, key=lambda p: -p.extra.get('ml_prob', 0))
+            r9_rank = {p.symbol: i+1 for i, p in enumerate(sorted_r9)}
+            win_rank = {p.symbol: i+1 for i, p in enumerate(sorted_win)}
+            picked_syms = {p.symbol for p in picks}
+            scored_rows = []
+            for c in all_candidates:
+                prob = c.extra.get('ml_prob', 0.0)
+                pr = c.extra.get('pred_ratio', 1.0)
+                fv = filter_verdicts.get(c.symbol)
+                f_pass = fv[0] if fv else True
+                f_reason = fv[1] if fv else None
+                scored_rows.append({
+                    'symbol': c.symbol,
+                    'win_p': prob,
+                    'loss_p': None,
+                    'pred_r': pr,
+                    'r9_score': prob * max(0.0, 1 - pr) ** 0.5,
+                    'passed_filter': True,
+                    'rank_by_win': win_rank.get(c.symbol),
+                    'rank_by_r9': r9_rank.get(c.symbol),
+                    'selected': c.symbol in picked_syms,
+                    'sector': c.extra.get('sector'),
+                    'beta': c.extra.get('beta'),
+                    'gain_from_open': c.extra.get('gain_pct'),
+                    'gain_from_prev': None,
+                    'scan_price': None,
+                    'adaptive_limit': c.extra.get('limit_price'),
+                    'user_limit': c.entry,
+                    'features': c.extra,
+                    'filter_verdict': 'PASS' if f_pass else 'SKIP',
+                    'filter_reason': f_reason,
+                })
+            if scored_rows:
+                first_pick_id = pick_ids[0] if pick_ids else None
+                journal.record_candidates_batch(
+                    scored_rows, pick_id=first_pick_id,
+                    strategy=self.name, zone=zone_name_log, mfo=minutes_from_open,
+                )
+        except Exception:
+            pass  # logging failure must not break scan
 
         regime_str = f"SPY{spy_daily:+.1f}% AD{ad_ratio:.1f} VIX{vix:.0f} anom{anomaly_score:.1f}"
 
-        reason = f"{len(candidates)} ML-passing → top {len(picks)} (expected WR ~{expected_wr:.0f}%)"
+        # 2026-06-04: surface entry_filter activity in reason text
+        n_all = len(all_candidates) if 'all_candidates' in dir() else len(candidates)
+        n_passed_filter = len(candidates)
+        n_filtered_out = n_all - n_passed_filter
+        if n_filtered_out > 0:
+            reason = (f"{n_all} ML-passing → {n_filtered_out} filtered out → "
+                      f"{n_passed_filter} survivors → top {len(picks)} (expected WR ~{expected_wr:.0f}%)")
+        else:
+            reason = f"{n_all} ML-passing → top {len(picks)} (expected WR ~{expected_wr:.0f}%)"
+
+        # [timing] log-only — total scan time + parallel bar-fetch slice (active path)
+        try:
+            _fetch_ms = (_t_fetch1 - _t_fetch0) * 1000 if (_t_fetch0 and _t_fetch1) else -1
+            print(f"[ml_filter:timing] mfo={minutes_from_open} "
+                  f"total={(_pc()-_t_scan0)*1000:.0f}ms fetch={_fetch_ms:.0f}ms "
+                  f"syms={len(syms)} bars={len(all_bars)} cands={len(candidates)} "
+                  f"picks={len(picks)} status=active", flush=True)
+        except Exception:
+            pass
 
         return ScanResult(
             strategy=self.name,

@@ -14,6 +14,13 @@ v1.9.0 is the primary/main ml_filter version. Local `master` points here
   restart both services.
 - **Reversibility checkpoint** before Exit ML build: tag `v1.9.0-pre-exitml`
   (created 2026-06-04). Roll back: `git reset --hard v1.9.0-pre-exitml`.
+- **Entry Filter v1** (deployed 2026-06-04): rule-based per-zone selection
+  applied AFTER ML threshold gate, BEFORE top-1 selection in `ml_filter.py`.
+  Survivors are re-ranked by `ml_prob`; top-1 of survivors is emitted.
+  Spec: `backtests/entry_filter_v1/spec.json`. Toggle: env
+  `ENTRY_FILTER_ENABLED=0` to disable instantly. Reversibility tag:
+  `v1.9.0-pre-entryfilter`. All candidates (PASS + SKIP) logged to
+  `scan_candidates` with `filter_verdict` + `filter_reason` columns.
 
 ## Exit ML v17c — Manual exit workflow (added 2026-06-04)
 

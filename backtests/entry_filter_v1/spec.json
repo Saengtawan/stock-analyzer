@@ -1,0 +1,61 @@
+{
+  "version": "v1",
+  "deployed": "2026-06-04",
+  "purpose": "Rule-based per-zone entry filter applied AFTER ML threshold gate, BEFORE top-1 selection. Survivors are re-sorted by ml_prob; top-1 of survivors is emitted.",
+  "training_evidence": {
+    "research_sample": "1832 Z1 + 555 Z2 + 514 Z3 + 3592 Z4 gated picks (2023-05 to 2026-04)",
+    "z1_lift_pp_wr": 11.7,
+    "z2_lift_pp_wr": 8.9,
+    "z3_lift_pp_wr": 4.3,
+    "z4_lift_pp_wr": 15.5,
+    "one_month_oos_test": {
+      "n_picks": 27,
+      "correct_decisions": "20/27 = 74%",
+      "hold_all_avg_pct": 0.88,
+      "with_filter_keep_avg_pct": 1.69,
+      "lift_pp_per_pick": 0.81
+    }
+  },
+  "rules": {
+    "Z1": {
+      "description": "Triple gate — beta + sector + VIX bucket",
+      "conditions": [
+        {"feature": "beta", "op": ">=", "value": 1.5},
+        {"feature": "sector", "op": "!=", "value": "Industrials"},
+        {"feature": "vix", "op": "in_range", "value": [14, 18]}
+      ]
+    },
+    "Z2": {
+      "description": "DOW + chase + SPY + sector exclusion",
+      "conditions": [
+        {"feature": "dow", "op": "!=", "value": 0, "comment": "skip Monday"},
+        {"feature": "gain_from_open", "op": "<=", "value": 3.0, "comment": "no chase"},
+        {"feature": "spy_intra", "op": ">=", "value": -0.3, "comment": "SPY not crashing"},
+        {"feature": "sector", "op": "not_in", "value": ["Utilities", "Real Estate"]}
+      ]
+    },
+    "Z3": {
+      "description": "Trend + SPY + chase",
+      "conditions": [
+        {"feature": "mom20d", "op": ">=", "value": 0},
+        {"feature": "spy_intra", "op": ">=", "value": -0.3},
+        {"feature": "gain_from_open", "op": "<=", "value": 3.0}
+      ]
+    },
+    "Z4": {
+      "description": "Single rule — 20-day momentum filter (mom20d>=0 unlocked +15.5pp WR)",
+      "conditions": [
+        {"feature": "mom20d", "op": ">=", "value": 0}
+      ]
+    }
+  },
+  "zone_mfo_ranges": {
+    "Z1": [0, 9],
+    "Z2": [10, 29],
+    "Z3": [30, 44],
+    "Z4": [45, 120]
+  },
+  "graceful_fallback": "If a required feature is missing (NaN/None) → treat as PASS (don't drop). Engine continues normal selection.",
+  "env_toggle": "ENTRY_FILTER_ENABLED (default=1). Set to 0 to disable instantly without code change.",
+  "rollback": "git reset --hard v1.9.0-pre-entryfilter && systemctl --user restart auto-trading.service"
+}

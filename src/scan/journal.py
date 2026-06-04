@@ -122,6 +122,45 @@ class Journal:
         conn.commit()
         conn.close()
 
+    def record_candidates_batch(self, candidates: list, pick_id: int = None,
+                                strategy: str = 'ml_filter', zone: str = None,
+                                mfo: int = None):
+        """Record all candidates from a single scan with ML scores + features.
+        Ported from v2.7.0 (Step 36) 2026-06-02 — logging only, no logic change.
+        """
+        if not candidates:
+            return
+        now_et = datetime.now(ET)
+        scan_ts = now_et.strftime('%Y-%m-%d %H:%M:%S')
+        scan_date = now_et.strftime('%Y-%m-%d')
+        conn = sqlite3.connect(str(self.db_path))
+        cur = conn.cursor()
+        for c in candidates:
+            cur.execute("""
+                INSERT INTO scan_candidates (
+                    pick_id, scan_ts, scan_date, strategy, zone, mfo, symbol,
+                    win_p, loss_p, pred_r, r9_score, passed_filter,
+                    rank_by_win, rank_by_r9, selected,
+                    sector, beta, gain_from_open, gain_from_prev,
+                    scan_price, adaptive_limit, user_limit, features_json,
+                    filter_verdict, filter_reason
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                pick_id if c.get('selected') else None,
+                scan_ts, scan_date, strategy, zone, mfo, c['symbol'],
+                c.get('win_p'), c.get('loss_p'), c.get('pred_r'),
+                c.get('r9_score'), int(bool(c.get('passed_filter'))),
+                c.get('rank_by_win'), c.get('rank_by_r9'),
+                int(bool(c.get('selected'))),
+                c.get('sector'), c.get('beta'),
+                c.get('gain_from_open'), c.get('gain_from_prev'),
+                c.get('scan_price'), c.get('adaptive_limit'), c.get('user_limit'),
+                json.dumps(c.get('features')) if c.get('features') else None,
+                c.get('filter_verdict'), c.get('filter_reason'),
+            ))
+        conn.commit()
+        conn.close()
+
     def report(self, days: int = 30) -> dict:
         """WR by strategy + bucket over last N days."""
         conn = sqlite3.connect(str(self.db_path))
