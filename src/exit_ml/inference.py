@@ -242,13 +242,20 @@ def predict_exit(
     if len(sym_bars) < 3:
         return {"verdict": "ERROR", "reason": f"too few bars ({len(sym_bars)})"}
 
-    # Find fill price (next bar open after entry)
-    fill_price = None
-    for em, o, _, _, _, _ in sym_bars:
-        if em >= fill_em:
-            fill_price = o; break
-    if fill_price is None:
-        return {"verdict": "ERROR", "reason": "no fill bar after entry"}
+    # 2026-06-04 update: Fill price = user's actual entry price (MARKET order
+    # at scan time), NOT next-bar open (which was training-time simulation).
+    # For LIVE use, user fills near scan price (with slip). Using next-bar
+    # open caused massive misalignment on gap days (e.g. AXTI -3.4% gap).
+    # For replay accuracy on training data, next-bar fill still semi-OK.
+    fill_price = entry_price  # user's real fill (≈ scan price for MARKET order)
+    # Sanity: if entry_price wildly different from any bar (e.g. wrong arg),
+    # fall back to next-bar open as before.
+    if entry_price is None or entry_price <= 0:
+        for em, o, _, _, _, _ in sym_bars:
+            if em >= fill_em:
+                fill_price = o; break
+        if fill_price is None or fill_price <= 0:
+            return {"verdict": "ERROR", "reason": "no fill bar after entry"}
 
     # Forward bars from fill onwards
     fwd_bars = [b for b in sym_bars if b[0] >= fill_em]
@@ -279,10 +286,19 @@ def predict_exit(
     THR = threshold_of(sector, zone)
     gate = dd_gate_of(sector, zone)
 
+    # 2026-06-04: also track first snap that would trigger exit if min_hold
+    # were already met — so user knows "exit is coming" instead of seeing HOLD.
+    pending_min_hold = None
     # Scan snaps; find first that triggers exit
     for i, snap in enumerate(snaps_use):
-        if snap["em"] - fill_em < SPEC["min_hold_minutes"]: continue
+        # Check exit conditions BEFORE min_hold so we can report pending state
         p = float(probs[i])
+        cur_pnl_i = snap["cur_pnl"]
+        would_exit_ml = p >= THR and (gate is None or cur_pnl_i <= gate)
+        if snap["em"] - fill_em < SPEC["min_hold_minutes"]:
+            if would_exit_ml and pending_min_hold is None:
+                pending_min_hold = (snap["em"], cur_pnl_i, p)
+            continue
         if p < THR: continue
         if gate is not None and snap["cur_pnl"] > gate: continue
         # EXIT
@@ -300,12 +316,26 @@ def predict_exit(
 
     # No trigger
     latest = snaps_use[-1]
+    elapsed_min = latest["em"] - fill_em
+    if pending_min_hold is not None:
+        # Exit conditions met but blocked by min_hold
+        em_p, pnl_p, p_p = pending_min_hold
+        reason = (
+            f"⏳ Exit signal triggered (p={p_p:.3f}≥{THR:.2f}, cur_pnl={pnl_p:+.2f}%) "
+            f"but blocked by min_hold ({elapsed_min}/{SPEC['min_hold_minutes']} min). "
+            f"Will exit at em+{SPEC['min_hold_minutes']} if conditions hold."
+        )
+    else:
+        reason = (
+            f"no exit signal (latest p={float(probs[-1]):.3f} thr={THR:.2f}, "
+            f"cur_pnl={latest['cur_pnl']:+.2f}%, elapsed {elapsed_min} min)"
+        )
     return {
         "verdict": "HOLD",
-        "reason": f"no exit signal (latest p={float(probs[-1]):.3f} thr={THR:.2f}, "
-                  f"cur_pnl={latest['cur_pnl']:+.2f}%)",
+        "reason": reason,
         "ml_prob": float(probs[-1]), "threshold": THR, "dd_gate": gate,
         "cur_pnl_pct": latest["cur_pnl"], "max_prob_so_far": float(probs.max()),
         "sector": sector, "zone": zone, "fill_price": fill_price,
         "vix_at_entry": vix_at_entry,
+        "pending_exit_at_min_hold": pending_min_hold is not None,
     }
