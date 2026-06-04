@@ -25,12 +25,13 @@
       ]
     },
     "Z2": {
-      "description": "DOW + chase + SPY + sector exclusion",
+      "description": "DOW + chase + SPY + sector exclusion + β cap (β≤1.5 added 2026-06-04)",
       "conditions": [
         {"feature": "dow", "op": "!=", "value": 0, "comment": "skip Monday"},
         {"feature": "gain_from_open", "op": "<=", "value": 3.0, "comment": "no chase"},
         {"feature": "spy_intra", "op": ">=", "value": -0.3, "comment": "SPY not crashing"},
-        {"feature": "sector", "op": "not_in", "value": ["Utilities", "Real Estate"]}
+        {"feature": "sector", "op": "not_in", "value": ["Utilities", "Real Estate"]},
+        {"feature": "beta", "op": "<=", "value": 1.5, "comment": "Z2 prefers low-β (research: β≥1.5 = 40% WR)"}
       ]
     },
     "Z3": {

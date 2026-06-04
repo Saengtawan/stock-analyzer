@@ -49,7 +49,10 @@ def evaluate(
         elif sector == "Industrials": fails.append("sec=Industrial")
 
     elif zone == "Z2":
-        # DOW≠Mon + gain≤3 + SPY≥-0.3 + sector∉{Utilities,Real Estate}
+        # DOW≠Mon + gain≤3 + SPY≥-0.3 + sector∉{Utilities,Real Estate} + β≤1.5
+        # (β≤1.5 added 2026-06-04: research 555 picks/3yr — Z2 high-β (β≥1.5)
+        #  = 40% WR / -2.0% avg, β≤1.5 = 75% WR / +1.50% avg. RCL β=1.78
+        #  in May 2026 confirmed pattern. +5.8pp WR research, ~+0.5pp/pick.)
         if _is_missing(dow): skipped.append("dow?")
         elif dow == 0: fails.append("DOW=Mon")
         if _is_missing(gain_from_open): skipped.append("gain?")
@@ -58,6 +61,8 @@ def evaluate(
         elif spy_intra < -0.3: fails.append(f"spy={spy_intra:.2f}<-0.3")
         if _is_missing(sector): skipped.append("sec?")
         elif sector in ("Utilities", "Real Estate"): fails.append(f"sec={sector}")
+        if _is_missing(beta): skipped.append("β?")
+        elif beta > 1.5: fails.append(f"β={beta:.2f}>1.5 (Z2 prefers low-β)")
 
     elif zone == "Z3":
         if _is_missing(mom20d): skipped.append("mom20d?")
