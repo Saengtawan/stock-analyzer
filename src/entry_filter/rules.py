@@ -62,6 +62,7 @@ def evaluate(
     elif zone == "Z3":
         if _is_missing(mom20d): skipped.append("mom20d?")
         elif mom20d < 0: fails.append(f"mom20d={mom20d:.1f}<0")
+        elif mom20d > 25: fails.append(f"mom20d={mom20d:.1f}>25 (over-extended)")  # Gap 1
         if _is_missing(spy_intra): skipped.append("spy?")
         elif spy_intra < -0.3: fails.append(f"spy={spy_intra:.2f}<-0.3")
         if _is_missing(gain_from_open): skipped.append("gain?")
@@ -70,6 +71,7 @@ def evaluate(
     elif zone == "Z4":
         if _is_missing(mom20d): skipped.append("mom20d?")
         elif mom20d < 0: fails.append(f"mom20d={mom20d:.1f}<0")
+        elif mom20d > 25: fails.append(f"mom20d={mom20d:.1f}>25 (over-extended)")  # Gap 1
 
     else:
         return (True, f"unknown_zone={zone} (PASS by default)")

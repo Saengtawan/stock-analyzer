@@ -46,8 +46,9 @@
   },
   "z1_dd_gate_pct": {
     "Energy": 0.50,
+    "Tech": -1.0,
     "_default": -2.0,
-    "_semantic": "Exit allowed only when cur_pnl <= gate_value (percent)"
+    "_semantic": "Exit allowed only when cur_pnl <= gate_value (percent). Gap2 2026-06-04: Tech tightened from -2.0 to -1.0 — Z1 Tech β 1.2-1.5 had 38% drop rate to -1% (research N=74, +52pp aggregate save)."
   },
   "vix_safety_gate": {
     "cutoff": 28.0,
