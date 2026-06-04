@@ -18,9 +18,9 @@
   },
   "rules": {
     "Z1": {
-      "description": "Double gate — beta + sector (VIX dropped 2026-06-04: halved N for +2.4pp WR, too restrictive)",
+      "description": "Double gate — beta + sector (β relaxed 1.5→1.2 on 2026-06-04 to catch ASML/AVGO-style borderline winners; VIX 14-18 also dropped)",
       "conditions": [
-        {"feature": "beta", "op": ">=", "value": 1.5},
+        {"feature": "beta", "op": ">=", "value": 1.2},
         {"feature": "sector", "op": "!=", "value": "Industrials"}
       ]
     },
