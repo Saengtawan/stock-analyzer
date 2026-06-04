@@ -38,15 +38,17 @@ def evaluate(
     skipped = []
 
     if zone == "Z1":
-        # Double gate: β≥1.2 + sector≠Industrials
-        # (β threshold relaxed 1.5→1.2 on 2026-06-04 to catch β 1.2-1.5 winners
-        #  like ASML/AVGO that were borderline-skipped. Trade-off accepted:
-        #  WR drops ~2pp vs 1.5 threshold, but N rises ~30%.
-        #  VIX 14-18 dropped earlier same day — too restrictive.)
+        # Triple gate: β≥1.2 + sector≠Industrials + gain≤4.5
+        # gain≤4.5 added 2026-06-04 (DD-control): 1-month live evidence FSLR+4.6
+        # DD -4.58%, AXTI+5.99 DD -2.79% (intraday pain). Recent 1mo: blocks
+        # AXTI+FSLR+ANET, keeps F/HPE/FICO/AVGO winners. avgDD -1.10→-0.60,
+        # p10DD -1.93→-0.99, bad%(DD<-2) 10→0. 3yr cost: sum -8% (-19% rel).
         if _is_missing(beta): skipped.append("β?")
         elif beta < 1.2: fails.append(f"β={beta:.2f}<1.2")
         if _is_missing(sector): skipped.append("sec?")
         elif sector == "Industrials": fails.append("sec=Industrial")
+        if _is_missing(gain_from_open): skipped.append("gain?")
+        elif gain_from_open > 4.5: fails.append(f"gain={gain_from_open:.1f}>4.5 (Z1 DD-control)")
 
     elif zone == "Z2":
         # DOW≠Mon + gain≤3 + SPY≥-0.3 + sector∉{Utilities,Real Estate} + β≤1.5

@@ -18,10 +18,11 @@
   },
   "rules": {
     "Z1": {
-      "description": "Double gate — beta + sector (β relaxed 1.5→1.2 on 2026-06-04 to catch ASML/AVGO-style borderline winners; VIX 14-18 also dropped)",
+      "description": "Triple gate — beta + sector + gain cap (gain≤4.5 added 2026-06-04 for DD-control: blocks AXTI/FSLR-style high-gain entries that take deep intraday DD; recent 1mo: avgDD -1.10→-0.60, p10DD -1.93→-0.99, bad%(DD<-2) 10→0; 3yr cost: sum -8% (-19% rel))",
       "conditions": [
         {"feature": "beta", "op": ">=", "value": 1.2},
-        {"feature": "sector", "op": "!=", "value": "Industrials"}
+        {"feature": "sector", "op": "!=", "value": "Industrials"},
+        {"feature": "gain_from_open", "op": "<=", "value": 4.5, "comment": "DD-control: block AXTI/FSLR-style deep-DD entries"}
       ]
     },
     "Z2": {
