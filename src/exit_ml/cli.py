@@ -121,7 +121,8 @@ def format_output(symbol: str, result: dict, entry_price: float, entry_time: str
               + (f", DD-gate={result['dd_gate']:+.2f}%" if result.get('dd_gate') is not None else "")
               + ")")
     if "cur_pnl_pct" in result:
-        print(f"PnL:   {fmt_pct(result['cur_pnl_pct'])}")
+        cur_price = result.get("fill_price", entry_price) * (1 + result["cur_pnl_pct"] / 100.0)
+        print(f"Price: ${cur_price:.2f}  ({fmt_pct(result['cur_pnl_pct'])})")
     if "max_prob_so_far" in result:
         print(f"max_p: {result['max_prob_so_far']:.3f} (so far)")
     print(f"Verdict: {emoji} {v}")

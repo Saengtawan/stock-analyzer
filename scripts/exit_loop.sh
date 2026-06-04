@@ -69,11 +69,14 @@ while true; do
   verdict=$(printf '%s\n' "$out" | grep -E '^Verdict:' | head -1 | sed -E 's/^Verdict:[[:space:]]*[^A-Z]*//' | awk '{print $1}')
   if [ -z "$verdict" ]; then verdict=$(printf '%s\n' "$out" | grep -oE '(HOLD|EXIT|CRISIS_HOLD|ERROR)' | head -1); fi
   prob=$(printf '%s\n' "$out" | grep -oE 'ML p:[[:space:]]+[0-9.]+' | head -1 | awk '{print $NF}')
-  pnl=$(printf '%s\n' "$out" | grep -oE 'PnL:[[:space:]]+[+-]?[0-9.]+%' | head -1 | awk '{print $NF}')
+  price=$(printf '%s\n' "$out" | grep -oE 'Price:[[:space:]]+\$[0-9.]+' | head -1 | awk -F'$' '{print $NF}')
+  pnl=$(printf '%s\n' "$out" | grep -oE '\([+-]?[0-9.]+%\)' | head -1 | tr -d '()')
+  [ -z "$pnl" ] && pnl=$(printf '%s\n' "$out" | grep -oE 'PnL:[[:space:]]+[+-]?[0-9.]+%' | head -1 | awk '{print $NF}')
 
   compact="[$(ts)] ET $ET_NOW  iter=$iter  ${verdict:-?}"
-  [ -n "$prob" ] && compact="$compact  p=$prob"
-  [ -n "$pnl" ]  && compact="$compact  pnl=$pnl"
+  [ -n "$prob" ]  && compact="$compact  p=$prob"
+  [ -n "$price" ] && compact="$compact  \$$price"
+  [ -n "$pnl" ]   && compact="$compact  ($pnl)"
 
   case "$verdict" in
     EXIT)
