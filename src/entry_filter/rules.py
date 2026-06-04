@@ -38,13 +38,14 @@ def evaluate(
     skipped = []
 
     if zone == "Z1":
-        # Triple gate: β≥1.5 + sector≠Industrials + VIX 14-18
+        # Double gate: β≥1.5 + sector≠Industrials
+        # (VIX 14-18 removed 2026-06-04 — too restrictive, halved N for +2.4pp WR.
+        #  Underlying F4+B3 stack stays: β + sector. Mid-VIX safety gate is
+        #  still enforced downstream by Exit ML VIX≥28 crisis-skip.)
         if _is_missing(beta): skipped.append("β?")
         elif beta < 1.5: fails.append(f"β={beta:.2f}<1.5")
         if _is_missing(sector): skipped.append("sec?")
         elif sector == "Industrials": fails.append("sec=Industrial")
-        if _is_missing(vix): skipped.append("vix?")
-        elif not (14 <= vix < 18): fails.append(f"VIX={vix:.1f}∉[14,18)")
 
     elif zone == "Z2":
         # DOW≠Mon + gain≤3 + SPY≥-0.3 + sector∉{Utilities,Real Estate}

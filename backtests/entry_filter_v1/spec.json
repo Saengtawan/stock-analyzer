@@ -18,11 +18,10 @@
   },
   "rules": {
     "Z1": {
-      "description": "Triple gate — beta + sector + VIX bucket",
+      "description": "Double gate — beta + sector (VIX dropped 2026-06-04: halved N for +2.4pp WR, too restrictive)",
       "conditions": [
         {"feature": "beta", "op": ">=", "value": 1.5},
-        {"feature": "sector", "op": "!=", "value": "Industrials"},
-        {"feature": "vix", "op": "in_range", "value": [14, 18]}
+        {"feature": "sector", "op": "!=", "value": "Industrials"}
       ]
     },
     "Z2": {
