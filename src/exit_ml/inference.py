@@ -156,38 +156,91 @@ def predict_exit(
             "vix_at_entry": vix_at_entry,
         }
 
+    # 2026-06-04: Live-mode bar fetching.
+    # If date == today_et, try Alpaca live API first (DB has no real-time data
+    # during market hours). Fallback to DB for historical replay.
+    import datetime as _dt, os as _os
+    try:
+        from zoneinfo import ZoneInfo as _ZI
+        today_et_str = _dt.datetime.now(_ZI("America/New_York")).strftime("%Y-%m-%d")
+    except Exception:
+        today_et_str = _dt.date.today().isoformat()
+
     con = sqlite3.connect(db_path)
     if date is None:
         today_row = con.execute("SELECT MAX(date) FROM intraday_bars_5m WHERE symbol=?", (symbol,)).fetchone()
-        if not today_row or not today_row[0]:
-            con.close()
-            return {"verdict": "ERROR", "reason": f"no 5m bars for {symbol}"}
-        today = today_row[0]
+        today = today_row[0] if today_row and today_row[0] else today_et_str
     else:
         today = date
-    bars = con.execute(
-        "SELECT time_et, open, high, low, close, volume "
-        "FROM intraday_bars_5m WHERE symbol=? AND date=? AND time_et>='09:30' "
-        "ORDER BY time_et", (symbol, today)
-    ).fetchall()
-    sym_bars = [(tomin(t), o, h, l, c, v) for t, o, h, l, c, v in bars if c]
-    if len(sym_bars) < 3:
-        con.close()
-        return {"verdict": "ERROR", "reason": f"too few bars ({len(sym_bars)})"}
 
-    # ETF data
-    sec_etfs = SPEC["sector_etfs"][sector]
+    use_live = (today == today_et_str)
+    sym_bars = []
     etf_data = {}
-    for e in sec_etfs:
-        rr = con.execute(
-            "SELECT time_et, open, close FROM intraday_bars_5m "
-            "WHERE symbol=? AND date=? AND time_et>='09:30' ORDER BY time_et",
-            (e, today)
+    sec_etfs = SPEC["sector_etfs"][sector]
+
+    def _et_min_from_iso(t_iso):
+        # bar 't' from Alpaca is UTC ISO; convert to ET minutes-of-day
+        try:
+            from zoneinfo import ZoneInfo as _ZI
+            dt_utc = _dt.datetime.fromisoformat(t_iso.replace("Z", "+00:00"))
+            dt_et = dt_utc.astimezone(_ZI("America/New_York"))
+            return dt_et.hour * 60 + dt_et.minute
+        except Exception:
+            return None
+
+    if use_live:
+        # Load .env so ALPACA_API_KEY/SECRET are available
+        try:
+            from pathlib import Path as _P
+            env_p = _P(__file__).resolve().parents[2] / ".env"
+            if env_p.exists():
+                for ln in env_p.read_text().splitlines():
+                    ln = ln.strip()
+                    if ln and not ln.startswith("#") and "=" in ln:
+                        k, v = ln.split("=", 1)
+                        _os.environ.setdefault(k.strip(), v.strip().strip('"\''))
+            from src.scan.alpaca_bars import fetch_today_bars
+            all_syms = [symbol] + list(sec_etfs)
+            live_bars = fetch_today_bars(all_syms)
+            # Symbol bars
+            for b in live_bars.get(symbol, []):
+                em = _et_min_from_iso(b["t"])
+                if em is None: continue
+                sym_bars.append((em, b["o"], b["h"], b["l"], b["c"], b["v"]))
+            # ETF bars → cumulative %
+            for e in sec_etfs:
+                eb = live_bars.get(e, [])
+                if not eb: continue
+                op = eb[0]["o"]
+                etf_data[e] = {}
+                for b in eb:
+                    em = _et_min_from_iso(b["t"])
+                    if em is None: continue
+                    etf_data[e][em] = (b["c"] / op - 1) * 100 if op else 0
+        except Exception as _e:
+            sym_bars = []  # fall through to DB
+
+    # DB fallback (historical replay, or if live fetch failed)
+    if not sym_bars:
+        bars = con.execute(
+            "SELECT time_et, open, high, low, close, volume "
+            "FROM intraday_bars_5m WHERE symbol=? AND date=? AND time_et>='09:30' "
+            "ORDER BY time_et", (symbol, today)
         ).fetchall()
-        if not rr: continue
-        op = rr[0][1]
-        etf_data[e] = {tomin(t): (c / op - 1) * 100 if op else 0 for t, _, c in rr}
+        sym_bars = [(tomin(t), o, h, l, c, v) for t, o, h, l, c, v in bars if c]
+        for e in sec_etfs:
+            rr = con.execute(
+                "SELECT time_et, open, close FROM intraday_bars_5m "
+                "WHERE symbol=? AND date=? AND time_et>='09:30' ORDER BY time_et",
+                (e, today)
+            ).fetchall()
+            if not rr: continue
+            op = rr[0][1]
+            etf_data[e] = {tomin(t): (c / op - 1) * 100 if op else 0 for t, _, c in rr}
     con.close()
+
+    if len(sym_bars) < 3:
+        return {"verdict": "ERROR", "reason": f"too few bars ({len(sym_bars)})"}
 
     # Find fill price (next bar open after entry)
     fill_price = None
