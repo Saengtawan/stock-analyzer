@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # Exit ML v17c — auto-poll loop. Calls exit_check.sh every 5 minutes
-# until EXIT verdict, CRISIS_HOLD, or 15:55 ET (market close).
+# until 15:55 ET (market close) or manual stop.
+#
+# 2026-06-04: EXIT and CRISIS_HOLD no longer terminate the loop. The first
+# EXIT triggers a loud banner + beep; subsequent EXIT iters are logged
+# compactly. This lets the user track PnL/ML trajectory through and past
+# the exit point (shadow-mode monitoring).
 #
 # Usage (same args as exit_check.sh):
 #   bash scripts/exit_loop.sh SYM                       # lookup from active_positions
@@ -41,10 +46,12 @@ beep() {
 }
 
 echo "[$(ts)] === Exit-loop started for $SYM (poll ${POLL}s) ==="
-echo "[$(ts)] Press Ctrl+C to stop. Loop ends on EXIT / CRISIS_HOLD / 15:55 ET."
+echo "[$(ts)] Press Ctrl+C to stop. Loop ends at 15:55 ET (EXIT/CRISIS_HOLD = alert only, keeps polling)."
 echo
 
 last_verdict=""
+exit_fired=""
+crisis_fired=""
 iter=0
 while true; do
   iter=$((iter+1))
@@ -70,21 +77,29 @@ while true; do
 
   case "$verdict" in
     EXIT)
-      echo
-      echo "===================================================================="
-      echo "⚠️⚠️⚠️  EXIT SIGNAL  ⚠️⚠️⚠️"
-      echo "===================================================================="
-      printf '%s\n' "$out"
-      echo "===================================================================="
-      echo "Time: $(ts) ET=$ET_NOW — GO SELL AT ALPACA NOW"
-      beep
-      exit 0
+      if [ -z "$exit_fired" ]; then
+        echo
+        echo "===================================================================="
+        echo "⚠️⚠️⚠️  EXIT SIGNAL  ⚠️⚠️⚠️"
+        echo "===================================================================="
+        printf '%s\n' "$out"
+        echo "===================================================================="
+        echo "Time: $(ts) ET=$ET_NOW — GO SELL AT ALPACA NOW"
+        beep
+        exit_fired=1
+      else
+        echo "$compact  [post-EXIT, still monitoring]"
+      fi
       ;;
     CRISIS_HOLD)
-      echo "$compact"
-      echo "[$(ts)] === CRISIS_HOLD (VIX gate) — Exit ML disabled for this trade, stopping loop ==="
-      printf '%s\n' "$out" | tail -8
-      exit 0
+      if [ -z "$crisis_fired" ]; then
+        echo "$compact"
+        echo "[$(ts)] === CRISIS_HOLD (VIX gate) — Exit ML disabled for this trade ==="
+        printf '%s\n' "$out" | tail -8
+        crisis_fired=1
+      else
+        echo "$compact  [CRISIS_HOLD, still monitoring]"
+      fi
       ;;
     ERROR)
       echo "$compact"
