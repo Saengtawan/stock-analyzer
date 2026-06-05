@@ -313,7 +313,13 @@ def predict_exit(
         e_gain=0.0, e_beta=1.0, sec_name=sector,
     )
     if not snaps:
-        return {"verdict": "ERROR", "reason": "no feature snaps built"}
+        # Not an error — just too fresh. First snap requires bars at >= fill_em+10.
+        return {
+            "verdict": "HOLD",
+            "reason": "trade too fresh — no feature snap yet (need ≥10 min of 5m bars after fill)",
+            "sector": sector, "zone": zone, "fill_price": fill_price,
+            "add_signal": None,
+        }
 
     # If current_em given, filter to snaps up to current_em
     if current_em is not None:
