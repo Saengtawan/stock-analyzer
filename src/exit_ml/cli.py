@@ -123,6 +123,12 @@ def format_output(symbol: str, result: dict, entry_price: float, entry_time: str
     if "cur_pnl_pct" in result:
         cur_price = result.get("fill_price", entry_price) * (1 + result["cur_pnl_pct"] / 100.0)
         print(f"Price: ${cur_price:.2f}  ({fmt_pct(result['cur_pnl_pct'])})")
+    add = result.get("add_signal")
+    if add:
+        print(f"ADD:   🟢 {add['tier']} {add['zone']} {add['sector']} — DCA suggested @ ${add['dca_entry']:.2f}")
+    elif "ml_prob" in result and result.get("ml_prob") is not None and result.get("threshold"):
+        # show "no ADD" only when we had a real ML eval (not error/CRISIS_HOLD)
+        print(f"ADD:   ⚪ no ADD (zone/sector/dip/p_ratio not eligible)")
     if "max_prob_so_far" in result:
         print(f"max_p: {result['max_prob_so_far']:.3f} (so far)")
     print(f"Verdict: {emoji} {v}")

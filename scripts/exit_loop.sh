@@ -52,6 +52,7 @@ echo
 last_verdict=""
 exit_fired=""
 crisis_fired=""
+add_fired=""
 iter=0
 while true; do
   iter=$((iter+1))
@@ -72,8 +73,10 @@ while true; do
   price=$(printf '%s\n' "$out" | grep -oE 'Price:[[:space:]]+\$[0-9.]+' | head -1 | awk -F'$' '{print $NF}')
   pnl=$(printf '%s\n' "$out" | grep -oE '\([+-]?[0-9.]+%\)' | head -1 | tr -d '()')
   [ -z "$pnl" ] && pnl=$(printf '%s\n' "$out" | grep -oE 'PnL:[[:space:]]+[+-]?[0-9.]+%' | head -1 | awk '{print $NF}')
+  add_tier=$(printf '%s\n' "$out" | grep -oE 'ADD:[[:space:]]+🟢 T[0-9][a-z]?' | head -1 | grep -oE 'T[0-9][a-z]?')
 
   compact="[$(ts)] ET $ET_NOW  iter=$iter  ${verdict:-?}"
+  [ -n "$add_tier" ] && compact="${compact}+ADD-${add_tier}"
   [ -n "$prob" ]  && compact="$compact  p=$prob"
   [ -n "$price" ] && compact="$compact  \$$price"
   [ -n "$pnl" ]   && compact="$compact  ($pnl)"
@@ -119,6 +122,20 @@ while true; do
       printf '%s\n' "$out" | tail -3
       ;;
   esac
+
+  # ADD signal alert (independent of HOLD/EXIT verdict — fire once on first detect)
+  if [ -n "$add_tier" ] && [ -z "$add_fired" ]; then
+    echo
+    echo "===================================================================="
+    echo "🟢🟢🟢  ADD SIGNAL — $add_tier  🟢🟢🟢"
+    echo "===================================================================="
+    printf '%s\n' "$out" | grep -E '^(Entry|Fill|Price|ML p|ADD):'
+    echo "===================================================================="
+    echo "Time: $(ts) ET=$ET_NOW — Consider adding 0.5x position at Alpaca"
+    beep
+    add_fired="$add_tier"
+  fi
+
   last_verdict="$verdict"
 
   sleep "$POLL"

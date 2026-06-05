@@ -53,6 +53,55 @@ def dd_gate_of(sector: str, zone: str) -> Optional[float]:
     return gates.get(sector, gates["_default"])
 
 
+def evaluate_add_signal(zone: str, sector: str, cur_pnl_pct: float,
+                        ml_p: Optional[float], threshold: Optional[float],
+                        elapsed_min: int, fill_price: float) -> Optional[dict]:
+    """ADD signal v1 (deployed 2026-06-05).
+    Dip + Exit ML still strong-HOLD = DCA opportunity.
+
+    Tiers (3yr backtest verified, see add_signal_v1/spec.json):
+      Tier  Zone Sector       Dip_thr  3yr WR / avg / N
+      T1    Z1   any          -0.5%    82% / +1.27% / N=22
+      T2a   Z3   Energy       -0.5%    64% / +0.42% / N=22
+      T2b   Z3   Industrial   -0.5%    70% / +0.42% / N=10
+      T3    Z4   Health       -1.0%    80% / +0.67% / N=5  (small N)
+      T4    Z4   Industrial   -2.0%    80% / +0.56% / N=5  (small N)
+
+    Common rules:
+      - cur_pnl <= tier dip_thr   (real dip from fill, per tier)
+      - ml_p / threshold <= 0.5   (Exit ML strong HOLD — ≥2x below EXIT trigger)
+      - elapsed >= 30 min         (avoid early scalp DCAs)
+
+    Returns dict {tier, dca_entry, p_ratio, dip_thr, reason} or None.
+    """
+    if elapsed_min < 30: return None
+    if ml_p is None or threshold is None or threshold <= 0: return None
+    p_ratio = ml_p / threshold
+    if p_ratio > 0.5: return None
+    # Tier-specific dip threshold
+    tier_rule = None
+    if zone == "Z1":
+        tier_rule = ("T1", -0.5)
+    elif zone == "Z3" and sector == "Energy":
+        tier_rule = ("T2a", -0.5)
+    elif zone == "Z3" and sector == "Industrial":
+        tier_rule = ("T2b", -0.5)
+    elif zone == "Z4" and sector == "Health":
+        tier_rule = ("T3", -1.0)
+    elif zone == "Z4" and sector == "Industrial":
+        tier_rule = ("T4", -2.0)
+    if tier_rule is None: return None
+    tier, dip_thr = tier_rule
+    if cur_pnl_pct > dip_thr: return None  # not dipped enough for this tier
+    dca_entry = fill_price * (1 + dip_thr / 100.0)
+    return {
+        "tier": tier, "zone": zone, "sector": sector,
+        "dca_entry": dca_entry, "p_ratio": p_ratio, "dip_thr": dip_thr,
+        "reason": f"{tier} {zone} {sector} dip={cur_pnl_pct:+.2f}% ≤ {dip_thr:.1f}% "
+                  f"p_ratio={p_ratio:.2f} (≤0.5) — DCA @ ${dca_entry:.2f}",
+    }
+
+
 def build_features(
     entry_em: int, entry_price: float,
     sym_bars: list, etf_data: dict, sec_etfs: list,
@@ -312,6 +361,7 @@ def predict_exit(
             "trigger_price": snap["c"],
             "sector": sector, "zone": zone, "fill_price": fill_price,
             "vix_at_entry": vix_at_entry,
+            "add_signal": None,  # EXIT path: ml_p >= thr so p_ratio >= 1 — ADD won't fire
         }
 
     # No trigger
@@ -330,6 +380,12 @@ def predict_exit(
             f"no exit signal (latest p={float(probs[-1]):.3f} thr={THR:.2f}, "
             f"cur_pnl={latest['cur_pnl']:+.2f}%, elapsed {elapsed_min} min)"
         )
+    # Evaluate ADD signal (DCA opportunity if dip + low ml_p + qualifying zone/sector)
+    add_signal = evaluate_add_signal(
+        zone=zone, sector=sector, cur_pnl_pct=latest["cur_pnl"],
+        ml_p=float(probs[-1]), threshold=THR,
+        elapsed_min=elapsed_min, fill_price=fill_price,
+    )
     return {
         "verdict": "HOLD",
         "reason": reason,
@@ -338,4 +394,5 @@ def predict_exit(
         "sector": sector, "zone": zone, "fill_price": fill_price,
         "vix_at_entry": vix_at_entry,
         "pending_exit_at_min_hold": pending_min_hold is not None,
+        "add_signal": add_signal,
     }
