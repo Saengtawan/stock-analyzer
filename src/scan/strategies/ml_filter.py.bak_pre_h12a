@@ -122,26 +122,6 @@ class MLFilterStrategy(BaseStrategy):
             return self.out_of_window()
 
         scorer = get_scorer()
-
-        # 2026-06-07: H12-A multi-model opt-in via env flag (default: production unchanged).
-        # Set ML_FILTER_VARIANT=h12a → swap to per-(zone,sector) V-2/V-C models +
-        # cell filter (S2 Z1, S7 Z2/Z3, none Z4) + regime gates (VIX<20 Z1, vix_5d<0 Z2,
-        # sec>0+¬Fri Z3, Option E* Z4). Default unset → existing single-zone behavior.
-        # Spec: backtests/research/H12A_FINAL_spec.md
-        import os as _os_h12a
-        h12a_enabled = _os_h12a.environ.get('ML_FILTER_VARIANT', '') == 'h12a'
-        h12a_scorer = None
-        if h12a_enabled:
-            try:
-                from ..ml_scorer_h12a import get_scorer_h12a as _get_h12a
-                from ..h12a_picker import score_and_filter_h12a as _h12a_score_filter
-                h12a_scorer = _get_h12a()
-                print('[ml_filter] H12-A mode enabled', flush=True)
-            except Exception as _e:
-                print(f'[ml_filter] H12-A load failed, falling back to v1: {_e}', flush=True)
-                h12a_enabled = False
-                h12a_scorer = None
-
         # [timing] perf instrumentation — log-only, no behavior change (2026-05-30)
         from time import perf_counter as _pc
         _t_scan0 = _pc()
@@ -758,27 +738,10 @@ class MLFilterStrategy(BaseStrategy):
                 'feat_combined_momentum': feat_combined_momentum,
             }
 
-            # 2026-06-07: H12-A scoring + cell+regime filter when enabled
-            if h12a_enabled and h12a_scorer is not None:
-                import datetime as _dt_h12a
-                _h_dow = _dt_h12a.datetime.now(ET).weekday()
-                _h_score, _h_reason = _h12a_score_filter(
-                    h12a_scorer, features, minutes_from_open, sec,
-                    vix=vix,
-                    vix_5d_chg=vix_5d_chg,
-                    sec_rel_strength=features.get('sec_rel_strength', 0.0),
-                    spy_intra=spy_intra,
-                    dow=_h_dow,
-                )
-                if _h_score <= 0:
-                    continue  # filtered by H12-A cell/regime gate
-                prob = _h_score
-                if self.REQUIRE_75_THRESHOLD and prob < threshold:
-                    continue
-            else:
-                prob = scorer.score(features, minutes_from_open, sector=sec)
-                if self.REQUIRE_75_THRESHOLD and prob < threshold:
-                    continue
+            prob = scorer.score(features, minutes_from_open, sector=sec)
+
+            if self.REQUIRE_75_THRESHOLD and prob < threshold:
+                continue
 
             # v24 hybrid: per-bucket hard rules (validated +0.6 to +1.9pp WR).
             # Rules apply ON TOP of ML score — gives ML candidates that the
