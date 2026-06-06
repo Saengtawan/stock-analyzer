@@ -1,0 +1,75 @@
+{
+  "version": "v2-h12a",
+  "deployed": "PENDING",
+  "supersedes": "v1 (spec.json)",
+  "purpose": "H12-A minimal Entry Filter — keep only Z1 gain<=4.5 (DD-control with explicit DD evidence). All other 13 rules dropped per H12-A research (each cost 0-36pp on 3yr without DD evidence). Apply AFTER ML threshold gate, BEFORE top-1 selection.",
+  "h12a_research": {
+    "previous_total_rules": 14,
+    "h12a_kept_rules": 1,
+    "h12a_dropped_rules": 13,
+    "3yr_recovery_pp": 88,
+    "z1_beta12_dropped_gain_pp": 36.1,
+    "z4_mom_pos_dropped_gain_pp": 10.3,
+    "z3_mom_25_dropped_gain_pp": 7.1,
+    "z3_spy_-03_dropped_gain_pp": 5.1,
+    "z3_gain_3_dropped_gain_pp": 5.0,
+    "z4_mom_25_dropped_gain_pp": 4.7,
+    "z2_no_mon_dropped_gain_pp": 2.5,
+    "z2_spy_-03_dropped_gain_pp": 2.2,
+    "z2_beta_15_dropped_gain_pp": 2.2,
+    "z3_mom_pos_dropped_gain_pp": 1.0,
+    "z1_no_indust_dropped_gain_pp": 0.0,
+    "z2_no_util_re_dropped_gain_pp": 0.0,
+    "z2_gain_3_dropped_gain_pp": -1.5
+  },
+  "training_evidence_h12a": {
+    "research_baseline": "H12-A FINAL — 3yr +150.6%, Sharpe 2.84, 6 rules total",
+    "with_v1_ef": "+62.6% 3yr (current production)",
+    "with_h12a_ef": "+150.6% 3yr",
+    "delta_pp": 88
+  },
+  "rules": {
+    "Z1": {
+      "description": "DD-control gain cap (gain≤4.5 added 2026-06-04 for blocking AXTI/FSLR-style high-gain entries that take deep intraday DD; recent 1mo: avgDD -1.10→-0.60, p10DD -1.93→-0.99, bad%(DD<-2) 10→0; 3yr cost: sum -8% / -1.3pp acceptable for DD reduction)",
+      "conditions": [
+        {"feature": "gain_from_open", "op": "<=", "value": 4.5, "comment": "DD-control: block AXTI/FSLR-style deep-DD entries"}
+      ]
+    },
+    "Z2": {
+      "description": "NO entry filter rules — stack-model + cell filter + regime gate handle selection",
+      "conditions": []
+    },
+    "Z3": {
+      "description": "NO entry filter rules — cell filter + skip Fri + sec>0 handle selection",
+      "conditions": []
+    },
+    "Z4": {
+      "description": "NO entry filter rules — Option E* (VIX-conditional + sector-aware SPY) handles selection",
+      "conditions": []
+    }
+  },
+  "zone_mfo_ranges": {
+    "Z1": [0, 9],
+    "Z2": [10, 29],
+    "Z3": [30, 44],
+    "Z4": [45, 120]
+  },
+  "graceful_fallback": "If a required feature is missing (NaN/None) → treat as PASS (don't drop). Engine continues normal selection.",
+  "env_toggle": "ENTRY_FILTER_ENABLED (default=1). Set to 0 to disable instantly without code change. ENTRY_FILTER_SPEC=v2-h12a to enable this spec instead of v1.",
+  "rollback": "Restore spec.pre_h12a.json (backed up automatically) or `git reset --hard v1.9.0-pre-h12a` + restart auto-trading.service",
+  "dropped_rules_audit": {
+    "Z1_beta_ge_1_2": "DROPPED — cost -36pp 3yr (worst rule!). Conflicted with H12 defensive picks (ConsDef/Utilities have β<1.2)",
+    "Z1_sector_neq_Industrials": "DROPPED — cost 0pp 3yr (neutral, removed for simplicity)",
+    "Z2_dow_neq_Mon": "DROPPED — cost -2.5pp",
+    "Z2_gain_le_3": "DROPPED — cost +1.5pp (helps slightly, but kept simple)",
+    "Z2_spy_intra_ge_-0_3": "DROPPED — cost -2.2pp",
+    "Z2_sector_not_in_Utilities_RE": "DROPPED — cost 0pp",
+    "Z2_beta_le_1_5": "DROPPED — cost -2.2pp",
+    "Z3_mom20d_ge_0": "DROPPED — cost -1.0pp",
+    "Z3_mom20d_le_25": "DROPPED — cost -7.1pp",
+    "Z3_spy_intra_ge_-0_3": "DROPPED — cost -5.1pp",
+    "Z3_gain_le_3": "DROPPED — cost -5.0pp",
+    "Z4_mom20d_ge_0": "DROPPED — cost -10.3pp",
+    "Z4_mom20d_le_25": "DROPPED — cost -4.7pp"
+  }
+}

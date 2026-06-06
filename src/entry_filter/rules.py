@@ -1,5 +1,11 @@
-"""Entry filter v1 rules — pure-function evaluator, no IO."""
+"""Entry filter rules — pure-function evaluator, no IO.
+
+Supports two specs (env-toggleable):
+  - v1 (default): Original 14-rule entry filter (deployed 2026-06-04)
+  - v2-h12a: Minimal 1-rule (Z1 gain≤4.5 only) — set ENTRY_FILTER_SPEC=v2-h12a
+"""
 from __future__ import annotations
+import os
 from typing import Tuple
 
 # Zone mfo ranges (mins_from_open)
@@ -19,6 +25,25 @@ def _is_missing(x) -> bool:
         return False
 
 
+def _evaluate_h12a(
+    zone: str,
+    gain_from_open: float | None = None,
+) -> Tuple[bool, str]:
+    """H12-A spec: keep only Z1 gain≤4.5 (DD-control with explicit evidence).
+
+    All other 13 rules dropped per H12-A research (each cost 0-36pp on 3yr
+    without DD evidence). See backtests/entry_filter_v1/spec.h12a.json.
+    """
+    if zone == "Z1":
+        if _is_missing(gain_from_open):
+            return (True, "Z1 PASS (gain missing — graceful)")
+        if gain_from_open > 4.5:
+            return (False, f"Z1 SKIP: gain={gain_from_open:.1f}>4.5 (H12-A DD-control)")
+        return (True, "Z1 PASS (H12-A)")
+    # Z2/Z3/Z4: no entry filter rules in H12-A
+    return (True, f"{zone} PASS (H12-A — no EF rules for this zone)")
+
+
 def evaluate(
     zone: str,
     beta: float | None = None,
@@ -31,9 +56,16 @@ def evaluate(
 ) -> Tuple[bool, str]:
     """Return (passes, reason_string).
 
+    Routes to spec based on env ENTRY_FILTER_SPEC:
+      - default (v1): conjunctive 14-rule filter
+      - v2-h12a: 1-rule minimal (Z1 gain≤4.5 only)
+
     PASS rules are conjunctive (all must hold). If a feature is missing,
     that specific check is skipped (graceful fallback — do not drop pick).
     """
+    if os.environ.get("ENTRY_FILTER_SPEC", "v1") == "v2-h12a":
+        return _evaluate_h12a(zone, gain_from_open=gain_from_open)
+
     fails = []
     skipped = []
 
