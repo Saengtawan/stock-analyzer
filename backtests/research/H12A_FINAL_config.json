@@ -1,0 +1,205 @@
+{
+  "version": "H12A_FINAL",
+  "date": "2026-06-06",
+  "status": "backtest_only_not_deployed",
+
+  "performance": {
+    "3yr_total_pct_flat": 150.6,
+    "3yr_total_pct_kelly": 297,
+    "holdout_1yr_pct_flat": 109.3,
+    "holdout_1yr_pct_kelly": 214,
+    "sharpe_annualized": 2.84,
+    "total_picks_3yr": 391,
+    "wr_3yr": 58.6,
+    "avg_per_pick_pct": 0.39,
+    "vs_h8_pct": 8.8,
+    "vs_current_prod_pct": 88
+  },
+
+  "rules_total": 6,
+  "rules_breakdown": {
+    "hard_regime_gates": 5,
+    "entry_filter": 1
+  },
+
+  "win_thr": 0.75,
+  "train_window_days": 840,
+  "regime_window_days": 90,
+  "seeds": [0, 1, 2, 3, 4],
+
+  "zones": {
+    "Z1": {
+      "mfo_range": [0, 9],
+      "source": "V2",
+      "label": "label_z12_market_3dd",
+      "win_model_hp": {
+        "learning_rate": 0.05, "max_depth": 3, "num_leaves": 24,
+        "min_child_samples": 50, "reg_alpha": 1.0, "reg_lambda": 1.0,
+        "n_estimators": 500
+      },
+      "cell_filter": "S2",
+      "cell_filter_rule": "(cell_avg > 0) OR (cell_WR >= 50)",
+      "regime_gates": ["vix < 20", "sec_rel_strength > 0"],
+      "entry_filter_rules": ["gain_from_open <= 4.5"],
+      "entry_filter_reason": "DD-control (AXTI/FSLR style block)"
+    },
+    "Z2": {
+      "mfo_range": [10, 29],
+      "source": "VC",
+      "label": "label_z12_market_3dd",
+      "label_changed_from": "label_eod_green_v2",
+      "win_model_hp": {
+        "learning_rate": 0.03, "max_depth": 5, "num_leaves": 47,
+        "min_child_samples": 80, "reg_alpha": 0.5, "reg_lambda": 3.0,
+        "n_estimators": 500
+      },
+      "cell_filter": "S7",
+      "cell_filter_rule": "(cell_avg > 0) AND (cell_WR >= 50)",
+      "regime_gates": ["vix_5d_chg < 0"],
+      "entry_filter_rules": []
+    },
+    "Z3": {
+      "mfo_range": [30, 44],
+      "source": "VC",
+      "label": "label_z34_market",
+      "win_model_hp": {
+        "learning_rate": 0.05, "max_depth": 4, "num_leaves": 31,
+        "min_child_samples": 30, "reg_alpha": 0.5, "reg_lambda": 1.0,
+        "n_estimators": 300
+      },
+      "cell_filter": "S7",
+      "regime_gates": ["sec_rel_strength > 0", "dow != 4"],
+      "entry_filter_rules": []
+    },
+    "Z4": {
+      "mfo_range": [45, 75],
+      "source": "VC",
+      "label": "label_z34_market",
+      "win_model_hp": {
+        "learning_rate": 0.05, "max_depth": 3, "num_leaves": 8,
+        "min_child_samples": 30, "reg_alpha": 1.0, "reg_lambda": 3.0,
+        "n_estimators": 400
+      },
+      "cell_filter": null,
+      "regime_gate": "Option_E_star",
+      "regime_gate_rule": {
+        "if_vix_below_25": {
+          "if_sector_in_good_sectors": "spy_intra > 0.2",
+          "else": "spy_intra > 0.5"
+        },
+        "if_vix_at_least_25": "spy_intra > 0.5"
+      },
+      "good_sectors": ["Consumer Defensive", "Basic Materials", "Technology"],
+      "vix_crisis_threshold": 25,
+      "entry_filter_rules": []
+    }
+  },
+
+  "ranking": {
+    "score": "wp_use",
+    "selection": "top-1 per day per zone"
+  },
+
+  "sizing_options": {
+    "default": "flat_1x",
+    "recommended": "kelly_2x_linear_by_wp",
+    "kelly_formula": "weight = 2 * wp_use / mean(wp_use)"
+  },
+
+  "entry_rule": "scan_now market order (no change from production)",
+  "exit_rule": "hold_to_EOD, Z4_hard_SL_-3pct (no change from production)",
+
+  "entry_filter_v1_dropped_rules": {
+    "Z1": ["beta >= 1.2", "sector != Industrials"],
+    "Z2": [
+      "dow != 0 (Monday)",
+      "gain_from_open <= 3.0",
+      "spy_intra >= -0.3",
+      "sector not in [Utilities, Real Estate]",
+      "beta <= 1.5"
+    ],
+    "Z3": [
+      "mom20d >= 0",
+      "mom20d <= 25",
+      "spy_intra >= -0.3",
+      "gain_from_open <= 3.0"
+    ],
+    "Z4": [
+      "mom20d >= 0",
+      "mom20d <= 25"
+    ]
+  },
+
+  "ef_rule_cost_analysis": {
+    "Z1_beta12_dropped_gain_pp": 36.1,
+    "Z4_mom_pos_dropped_gain_pp": 10.3,
+    "Z3_mom_25_dropped_gain_pp": 7.1,
+    "Z1_gain_45_dropped_gain_pp": 6.9,
+    "Z3_spy_-03_dropped_gain_pp": 5.1,
+    "Z3_gain_3_dropped_gain_pp": 5.0,
+    "Z4_mom_25_dropped_gain_pp": 4.7,
+    "Z2_no_mon_dropped_gain_pp": 2.5,
+    "Z2_spy_-03_dropped_gain_pp": 2.2,
+    "Z2_beta_15_dropped_gain_pp": 2.2,
+    "Z3_mom_pos_dropped_gain_pp": 1.0,
+    "Z1_no_indust_dropped_gain_pp": 0.0,
+    "Z2_no_util_re_dropped_gain_pp": 0.0,
+    "Z2_gain_3_dropped_gain_pp": -1.5
+  },
+
+  "lineage": [
+    {"version": "H8 FINAL v3", "rules": 5, "pct_3yr": 141.8},
+    {"version": "H8 + Option E*", "rules": 5, "pct_3yr": 151.9, "note": "H12 baseline"},
+    {"version": "H8 + Option E* + ALL EF v1", "rules": 19, "pct_3yr": 63.6, "note": "production-like"},
+    {"version": "H12-A FINAL (6 rules)", "rules": 6, "pct_3yr": 150.6, "champion": true}
+  ],
+
+  "files": {
+    "trainer_scripts": [
+      "/tmp/finetune_v2_prod_baseline.py",
+      "/tmp/finetune_v3_regime.py",
+      "/tmp/p2_z2_label.py",
+      "/tmp/c_z4_label.py"
+    ],
+    "analysis_scripts": [
+      "/tmp/h12_with_entry_filter.py",
+      "/tmp/h12_ef_rule_drilldown.py",
+      "/tmp/h12b_multi_drop.py",
+      "/tmp/h8_h11_deep_compare.py"
+    ],
+    "prediction_csvs": {
+      "Z1_V2": "/tmp/finetune_v2_predictions.csv",
+      "Z2_VC_z12_3dd": "/tmp/p2_z2_pred_z12_market_3dd.csv",
+      "Z3_VC": "/tmp/finetune_v3_predictions.csv",
+      "Z4_VC": "/tmp/c_z4_pred_z34_market_current.csv"
+    }
+  },
+
+  "deploy_checklist": [
+    "git tag v1.9.0-pre-h12",
+    "Backup backtests/models_prod_v22 to _pre_h12",
+    "Retrain Z2 model with label_z12_market_3dd",
+    "Save models to backtests/models_prod_v23_h12a/",
+    "Modify src/scan/strategies/ml_filter.py (Z4 Option E*)",
+    "Modify entry_filter v1 (keep only Z1 gain<=4.5, drop 13 rules)",
+    "Modify scripts/train_zones.py (Z2 label change)",
+    "Optional: add Kelly sizing in position calc",
+    "Env flag H12A_ENABLED=1",
+    "Shadow mode 1-2 weeks",
+    "Paper trade 2-4 weeks",
+    "LIVE gradual rollout 25% -> 50% -> 100%"
+  ],
+
+  "estimated_work_hours": 18,
+  "estimated_time_to_live_weeks": 7,
+
+  "key_lessons": [
+    "Smart > Rules not universally true: stack model failed on apples-to-apples comparison",
+    "wp_use ranking beats stack_pred by ~90pp on 3yr",
+    "Z1_beta12 EF rule was single biggest cost: -36pp",
+    "Z1 gain<=4.5 has explicit DD evidence; other EF rules don't",
+    "Option E* for Z4 adds +10pp by replacing single rule",
+    "Loss model merge shrinks data subset; predictions don't generalize",
+    "Larger stack models overfit; small (depth 3, 100 rounds) optimal but still suboptimal"
+  ]
+}

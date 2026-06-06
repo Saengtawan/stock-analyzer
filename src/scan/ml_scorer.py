@@ -109,10 +109,10 @@ class MLScorer:
         #   Z2: fill 88%, WR 91%, +189%/6mo, worst -1.93%
         #   Z3: fill 91%, WR 74%, +108%/6mo, worst -2.67%
         #   Z4: fill 92%, WR 66%, +102%/6mo, worst -1.62% (with dip filter 0.5%)
-        'Z1': 0.60,
-        'Z2': 0.65,
-        'Z3': 0.50,  # 2026-05-14: label_z34_market deploy. Step 15 WF: WR 84% / +188%
-        'Z4': 0.50,  # 2026-05-14: label_z34_market deploy. Step 15 WF: WR 88% / +175%
+        'Z1': 0.75,  # 2026-05-29: 0.60→0.75. WF+live: <0.70 picks WR 22%; 0.70-0.75 = LITE/AMKR (-8.5%/-6.5%). 0.75 keeps WR 82%/worst -2.19%, total unchanged.
+        'Z2': 0.75,  # 2026-05-29: uniform 0.75 (user). WF: WR 85%/+155%/worst -3.08% (vs 0.65: 86%/+156%) — near-identical, passes floor.
+        'Z3': 0.75,  # 2026-05-29: uniform 0.75 (user). WF: WR 77%/+150%/worst -3.34% (vs 0.50: 74%/+150%) — WR +3pp, passes floor.
+        'Z4': 0.75,  # 2026-05-29: uniform 0.75 (user). WF flat for Z4: WR 82%/+212%/worst -3.10%; win_p doesn't bind (Z4_DIP + loss_thr govern).
     }
     # 2026-05-14: Z4 specific filter — only pick if ML predicts dip >= 0.5%
     Z4_DIP_FILTER = 0.005  # 0.5% minimum predicted dip

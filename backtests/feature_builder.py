@@ -260,7 +260,7 @@ def build_features(start_date, end_date, output_path, limit_symbols=500):
     print(f"[{_time.time()-t_start:.0f}s] Loading daily OHLC...")
     daily = pd.read_sql_query(f"""
         SELECT symbol, date, close, high, low, volume FROM stock_daily_ohlc
-        WHERE date >= date('{start_date}', '-300 days') AND date <= '{end_date}'
+        WHERE date >= date('{start_date}', '-400 days') AND date <= '{end_date}'
         AND symbol IN ({','.join(['?']*len(syms))})
         ORDER BY symbol, date
     """, conn, params=syms)
@@ -318,7 +318,7 @@ def build_features(start_date, end_date, output_path, limit_symbols=500):
 
         # Macro for this date — PRIOR trading day's close (matches live, no lookahead)
         m = _prior_macro(date)
-        if not m:
+        if len(m) == 0:
             continue  # first date has no prior-day macro (matches staging shift)
         spy_daily_chg = m.get('spy_daily', 0) or 0
         vix = float(m.get('vix_close', 20) or 20)
@@ -397,6 +397,31 @@ def build_features(start_date, end_date, output_path, limit_symbols=500):
             if len(closes_full) < 100: continue
             h52w = max(closes_full)
             l52w = min(closes_full)
+
+            # P5 no-leak daily prep (2026-05-30): the feat_* DAILY family used to be
+            # built post-hoc from the SCAN-DAY daily close (lookahead). Recompute here
+            # from PRIOR-day history only; the distance/pct members use intraday
+            # cur_close inside the mfo loop (matches live ml_filter.py exactly).
+            sma50_d = float(np.mean(closes_full[-50:])) if len(closes_full) >= 50 else sma20
+            _w52 = closes_full[-252:]
+            feat_days_since_hi52w = (len(_w52) - 1) - int(np.argmax(_w52))
+            feat_days_since_lo52w = (len(_w52) - 1) - int(np.argmin(_w52))
+            if len(closes_full) >= 15:
+                _d = np.diff(closes_full[-15:])
+                _g = np.where(_d > 0, _d, 0).mean(); _l = np.where(_d < 0, -_d, 0).mean()
+                feat_rsi_14d = (100 - 100 / (1 + _g / _l)) if _l > 0 else 100
+            else:
+                feat_rsi_14d = 50
+            _prior_hlc = [(t[2], t[3], t[1]) for t in sorted(sym_daily) if t[0] < date]  # (h,l,c)
+            if len(_prior_hlc) >= 15:
+                _trs = []
+                for _k in range(len(_prior_hlc) - 14, len(_prior_hlc)):
+                    _h, _lo, _c = _prior_hlc[_k]; _pc = _prior_hlc[_k - 1][2]
+                    if _h is not None and _lo is not None and _pc is not None:
+                        _trs.append(max(_h - _lo, abs(_h - _pc), abs(_lo - _pc)))
+                _atr_tr_mean = float(np.mean(_trs)) if _trs else None
+            else:
+                _atr_tr_mean = None
 
             # Sector
             sec = sectors_map.get(sym, '')
@@ -507,6 +532,14 @@ def build_features(start_date, end_date, output_path, limit_symbols=500):
                 pct_52w_hi = (cur_close / h52w - 1) * 100 if h52w > 0 else 0
                 pct_52w_lo = (cur_close / l52w - 1) * 100 if l52w > 0 else 0
 
+                # P5 no-leak feat_* daily (2026-05-30): intraday cur_close vs PRIOR-day
+                # SMA/52w/ATR (no scan-day daily close). Matches live ml_filter.py.
+                feat_dist_sma20_d = dist_sma20
+                feat_dist_sma50_d = (cur_close / sma50_d - 1) * 100 if sma50_d > 0 else 0
+                feat_pct_from_hi52w = pct_52w_hi
+                feat_pct_from_lo52w = pct_52w_lo
+                feat_atr_pct_14d = (_atr_tr_mean / cur_close * 100) if (_atr_tr_mean and cur_close > 0) else 1.0
+
                 # SPY intra at this time
                 spy_chg = etf_change_lookup.get(('SPY', date, time_et), 0)
 
@@ -563,6 +596,15 @@ def build_features(start_date, end_date, output_path, limit_symbols=500):
                     'vix': vix, 'vix_5d_chg': vix_5d, 'ad_ratio': ad, 'sec3d': sec3d,
                     'mom5d': mom5, 'mom20d': mom20, 'dist_sma20': dist_sma20,
                     'pct_52w_hi': pct_52w_hi, 'pct_52w_lo': pct_52w_lo, 'dow': dow,
+                    # P5 no-leak feat_* daily (computed above from prior-day history)
+                    'feat_dist_sma20_d': feat_dist_sma20_d,
+                    'feat_dist_sma50_d': feat_dist_sma50_d,
+                    'feat_pct_from_hi52w': feat_pct_from_hi52w,
+                    'feat_pct_from_lo52w': feat_pct_from_lo52w,
+                    'feat_days_since_hi52w': feat_days_since_hi52w,
+                    'feat_days_since_lo52w': feat_days_since_lo52w,
+                    'feat_rsi_14d': feat_rsi_14d,
+                    'feat_atr_pct_14d': feat_atr_pct_14d,
                     # v27: Multi-timeframe (15m, 30m, 1h aggregates)
                     **tf15_feats, **tf30_feats, **tf60_feats,
                     # v3 features (zeros for now — need separate backfill)
@@ -627,64 +669,13 @@ def _add_advanced_features(df, db_path):
     vol_gain_div, intraday_rsi, mom×vol, sec_avg_intra, stock_vs_sec,
     combined_momentum.
     """
-    import sqlite3 as _sq
-    conn = _sq.connect(db_path)
-    unique_syms = df['sym'].unique()
-    daily_dict = {}
-    for sym in unique_syms:
-        rows = conn.execute(
-            "SELECT date, open, high, low, close, volume FROM stock_daily_ohlc "
-            "WHERE symbol=? ORDER BY date", (sym,)
-        ).fetchall()
-        daily_dict[sym] = rows
-    conn.close()
-
-    feats = {}
-    for sym in unique_syms:
-        rows = daily_dict.get(sym, [])
-        if len(rows) < 50: continue
-        dates = [r[0] for r in rows]
-        closes = np.array([r[4] for r in rows], dtype=float)
-        highs = np.array([r[2] for r in rows], dtype=float)
-        lows = np.array([r[3] for r in rows], dtype=float)
-        for i, date in enumerate(dates):
-            if i < 21: continue
-            c = closes[i]
-            sma20 = closes[max(0,i-20):i].mean()
-            sma50 = closes[max(0,i-50):i].mean() if i >= 50 else sma20
-            d20 = (c/sma20-1)*100 if sma20>0 else 0
-            d50 = (c/sma50-1)*100 if sma50>0 else 0
-            w = closes[max(0,i-252):i]
-            if len(w) > 0:
-                hi52, lo52 = w.max(), w.min()
-                pct_hi = (c/hi52-1)*100 if hi52>0 else 0
-                pct_lo = (c/lo52-1)*100 if lo52>0 else 0
-                ds_hi = len(w)-1-int(np.argmax(w))
-                ds_lo = len(w)-1-int(np.argmin(w))
-            else:
-                pct_hi = pct_lo = 0; ds_hi = ds_lo = 0
-            if i >= 14:
-                d = np.diff(closes[i-14:i+1])
-                g = np.where(d>0, d, 0).mean()
-                l = np.where(d<0, -d, 0).mean()
-                rsi = 100-100/(1+g/l) if l>0 else 100
-                trs = [max(highs[j]-lows[j], abs(highs[j]-closes[j-1]), abs(lows[j]-closes[j-1])) for j in range(i-13, i+1) if j>0]
-                atr_pct = (np.mean(trs)/c*100) if (trs and c>0) else 0
-            else:
-                rsi = 50; atr_pct = 1.0
-            feats[(sym, date)] = (d20, d50, pct_hi, pct_lo, int(ds_hi), int(ds_lo), rsi, atr_pct)
-
-    DEFAULT = (0,0,0,0,0,0,50,1)
-    key = list(zip(df['sym'], df['date']))
-    df['feat_dist_sma20_d']    = [feats.get(k, DEFAULT)[0] for k in key]
-    df['feat_dist_sma50_d']    = [feats.get(k, DEFAULT)[1] for k in key]
-    df['feat_pct_from_hi52w']  = [feats.get(k, DEFAULT)[2] for k in key]
-    df['feat_pct_from_lo52w']  = [feats.get(k, DEFAULT)[3] for k in key]
-    df['feat_days_since_hi52w']= [feats.get(k, DEFAULT)[4] for k in key]
-    df['feat_days_since_lo52w']= [feats.get(k, DEFAULT)[5] for k in key]
-    df['feat_rsi_14d']         = [feats.get(k, DEFAULT)[6] for k in key]
-    df['feat_atr_pct_14d']     = [feats.get(k, DEFAULT)[7] for k in key]
-
+    # P5 no-leak fix (2026-05-30): the 8 feat_* DAILY columns (feat_dist_sma20_d,
+    # feat_dist_sma50_d, feat_pct_from_hi52w/lo52w, feat_days_since_hi52w/lo52w,
+    # feat_rsi_14d, feat_atr_pct_14d) are now produced inside the MAIN builder loop
+    # from PRIOR-day daily history + the intraday cur_close — exactly how live
+    # ml_filter.py computes them. The previous post-hoc block here recomputed them
+    # from the scan-day's COMPLETED daily close (closes[i]) = lookahead leak, and
+    # OVERWROTE the correct values. Removed. See project-featdaily-lookahead.
     df['feat_velocity'] = df['gain_from_open'].fillna(0) / df['mins_from_open'].clip(lower=1)
     df['feat_range_x_velocity'] = df['range_pct'].fillna(0) * df['feat_velocity'].abs()
     df['feat_vol_gain_div'] = df['vol_ratio'].fillna(1) / (df['gain_from_open'].abs() + 1)

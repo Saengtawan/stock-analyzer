@@ -128,12 +128,13 @@ def extract_multibar_features(bars: list, day_open: float) -> dict:
             prev_hi = h
     out['hh_count'] = cnt
 
-    # Consolidation: range of last 5 bars as %
-    if n >= 5:
-        last5 = bars[-5:]
-        l5_hi = max(b.get('h', 0) for b in last5)
-        l5_lo = min(b.get('l', 9e9) for b in last5)
-        out['consol'] = (l5_hi - l5_lo) / day_open * 100 if day_open > 0 else 0
+    # Consolidation: range of last up-to-5 bars as % of day_open. Use all bars when
+    # <5 (matches trainer feature_builder.py `past_bars[-min(5,len):]`; was guarded
+    # n>=5 → fed 0 on early bars, a Z1/early-Z2 train/serve skew). Parity fix 2026-05-30.
+    last5 = bars[-min(5, n):]
+    l5_hi = max(b.get('h', 0) for b in last5)
+    l5_lo = min(b.get('l', 9e9) for b in last5)
+    out['consol'] = (l5_hi - l5_lo) / day_open * 100 if day_open > 0 else 0
 
     # Consecutive green bars
     for i in range(n - 1, -1, -1):
@@ -143,11 +144,13 @@ def extract_multibar_features(bars: list, day_open: float) -> dict:
         else:
             break
 
-    # Vol acceleration (last 3 vs prior 3)
+    # Vol acceleration (last 3 vs prior 3). cap 20 + 1.0-when-zero-denom matches
+    # trainer feature_builder.py (was uncapped last3/max(prev3,1) → could feed
+    # values >20 the model never saw in training). Parity fix 2026-05-30.
     if n >= 6:
         last3_v = sum(b.get('v', 0) for b in bars[-3:])
         prev3_v = sum(b.get('v', 0) for b in bars[-6:-3])
-        out['vol_accel'] = last3_v / max(prev3_v, 1)
+        out['vol_accel'] = min(20.0, last3_v / prev3_v) if prev3_v > 0 else 1.0
 
     # Pullback depth from peak
     if peak_idx < n - 1:
