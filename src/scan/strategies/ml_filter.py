@@ -128,18 +128,29 @@ class MLFilterStrategy(BaseStrategy):
         # cell filter (S2 Z1, S7 Z2/Z3, none Z4) + regime gates (VIX<20 Z1, vix_5d<0 Z2,
         # sec>0+¬Fri Z3, Option E* Z4). Default unset → existing single-zone behavior.
         # Spec: backtests/research/H12A_FINAL_spec.md
+        # 2026-06-07: H12-B = H12-A + AD-conditional WIN_THR on Z1/Z3 only.
+        #   AD>1.5 → 0.68 (broad rally, lower bar) ; AD<0.7 → 0.80 (thin tape, raise bar)
+        #   else 0.75. Z2/Z4 keep base 0.75. WF 2yr: +27pp total vs H12-A, Sharpe 3.3,
+        #   7/9 quarters win, same worst-day. AD is mechanistic (winner base-rate rises
+        #   with breadth) + beats SPY/VIX conditioning + adds selection beyond flat-lower.
+        #   Spec: backtests/research/H12B_FINAL_spec.md. Disable: set ML_FILTER_VARIANT=h12a.
         import os as _os_h12a
-        h12a_enabled = _os_h12a.environ.get('ML_FILTER_VARIANT', '') == 'h12a'
+        _h12_variant = _os_h12a.environ.get('ML_FILTER_VARIANT', '')
+        h12a_enabled = _h12_variant in ('h12a', 'h12b')
+        h12b_ad_cond = _h12_variant == 'h12b'
         h12a_scorer = None
         if h12a_enabled:
             try:
                 from ..ml_scorer_h12a import get_scorer_h12a as _get_h12a
                 from ..h12a_picker import score_and_filter_h12a as _h12a_score_filter
+                from ..h12a_picker import get_zone as _h12a_get_zone
                 h12a_scorer = _get_h12a()
-                print('[ml_filter] H12-A mode enabled', flush=True)
+                print(f'[ml_filter] H12 mode enabled (variant={_h12_variant}, '
+                      f'AD-conditional={h12b_ad_cond})', flush=True)
             except Exception as _e:
-                print(f'[ml_filter] H12-A load failed, falling back to v1: {_e}', flush=True)
+                print(f'[ml_filter] H12 load failed, falling back to v1: {_e}', flush=True)
                 h12a_enabled = False
+                h12b_ad_cond = False
                 h12a_scorer = None
 
         # [timing] perf instrumentation — log-only, no behavior change (2026-05-30)
@@ -773,7 +784,17 @@ class MLFilterStrategy(BaseStrategy):
                 if _h_score <= 0:
                     continue  # filtered by H12-A cell/regime gate
                 prob = _h_score
-                if self.REQUIRE_75_THRESHOLD and prob < threshold:
+                # H12-B: AD-conditional effective threshold on Z1/Z3 only.
+                _eff_thr = threshold
+                if h12b_ad_cond:
+                    _h12_zone = _h12a_get_zone(minutes_from_open)
+                    if _h12_zone in ('Z1', 'Z3'):
+                        if ad_ratio > 1.5:
+                            _eff_thr = 0.68
+                        elif ad_ratio < 0.7:
+                            _eff_thr = 0.80
+                        # else: keep base 0.75
+                if self.REQUIRE_75_THRESHOLD and prob < _eff_thr:
                     continue
             else:
                 prob = scorer.score(features, minutes_from_open, sector=sec)
