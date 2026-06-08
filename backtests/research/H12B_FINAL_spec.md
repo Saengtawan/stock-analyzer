@@ -1,4 +1,23 @@
-# H12-B FINAL spec (deployed to paper 2026-06-07)
+# H12-B FINAL spec — ⛔ REVERTED 2026-06-08 (LOOKAHEAD)
+
+> **STATUS: REVERTED to H12-A on 2026-06-08, before first live trade.**
+> The AD-conditional threshold was validated on **same-day EOD ad_ratio**, but
+> `market_breadth` updates EOD-only (cron ~17:00 ET) so the live engine at 09:30
+> can only read **prior-day** AD. `corr(same-day AD, prior-day AD) = -0.04` (AD has
+> no day-to-day persistence), so the +27pp "edge" was lookahead. With realistic
+> prior-day AD: full +119% Sh 2.90 / holdout +128% Sh 4.45 — **≈ or worse than
+> H12-A** (full +99% Sh 2.94 / holdout +117% Sh 5.21, lower total but better Sharpe).
+> No legitimate at-scan proxy (spy_intra) robustly beat H12-A flat 0.75. The
+> AD signal IS real *same-day* (broad rally → more winners) but that's only known
+> at EOD — to recover it legitimately would require computing a **same-day intraday
+> breadth proxy at scan time** (open research, not yet built/validated).
+> **Live system = H12-A** (`ML_FILTER_VARIANT=h12a`). H12-A gates use no ad_ratio
+> (vix/sec_rel_strength/spy_intra/dow — all prior-day-consistent or at-scan), so
+> H12-A is clean of this lookahead.
+
+---
+
+# H12-B FINAL spec (deployed to paper 2026-06-07, reverted 2026-06-08)
 
 H12-B = **H12-A + AD-conditional WIN_THR on Z1/Z3 only**. Everything else
 (models, cell filter, regime gates, entry filter, exit) is identical to H12-A.

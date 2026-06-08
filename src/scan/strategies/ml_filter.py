@@ -785,6 +785,13 @@ class MLFilterStrategy(BaseStrategy):
                     continue  # filtered by H12-A cell/regime gate
                 prob = _h_score
                 # H12-B: AD-conditional effective threshold on Z1/Z3 only.
+                # ⚠️ LOOKAHEAD-FLAWED — DO NOT RE-ENABLE (reverted 2026-06-08).
+                # Backtest used SAME-DAY EOD ad_ratio to set the morning threshold,
+                # but market_breadth updates EOD-only (cron ~17:00 ET), so live can
+                # only see PRIOR-day AD. corr(same-day, prior-day AD)=-0.04 → the
+                # +27pp edge was lookahead; prior-day AD ≈ H12-A or worse on Sharpe.
+                # No legit at-scan proxy (spy_intra) beat H12-A flat 0.75. Kept dormant
+                # for record only. See backtests/research/H12B_FINAL_spec.md (REVERTED).
                 _eff_thr = threshold
                 if h12b_ad_cond:
                     _h12_zone = _h12a_get_zone(minutes_from_open)
