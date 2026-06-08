@@ -797,6 +797,7 @@ class MLFilterStrategy(BaseStrategy):
                 if self.REQUIRE_75_THRESHOLD and prob < _eff_thr:
                     continue
             else:
+                _eff_thr = threshold  # no AD-conditional in non-H12 path
                 prob = scorer.score(features, minutes_from_open, sector=sec)
                 if self.REQUIRE_75_THRESHOLD and prob < threshold:
                     continue
@@ -866,7 +867,7 @@ class MLFilterStrategy(BaseStrategy):
                     sl_price = 0  # disabled (pure hold)
                     sl_tag = "no SL"
                 reason = (
-                    f"ML p={prob:.3f} adapt_lim={pred_ratio:.4f} "
+                    f"ML p={prob:.3f} thr={_eff_thr:.2f} adapt_lim={pred_ratio:.4f} "
                     f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]} "
                     f"{entry_tag} pure-hold-EOD ({sl_tag})"
                 )
@@ -888,14 +889,14 @@ class MLFilterStrategy(BaseStrategy):
                 sl_price = max(trail_sl, hard_sl)
                 limit_price = now
                 reason = (
-                    f"ML p={prob:.3f} thr={threshold:.2f} "
+                    f"ML p={prob:.3f} thr={_eff_thr:.2f} "
                     f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]} "
                     f"trail{trail}%+hardSL{HARD_SL_PCT}%+lock@+{LOCK_TRIGGER_PCT}%/+{LOCK_AT_PCT}%"
                 )
 
             extra_dict = {
                 'ml_prob': round(prob, 4),
-                'threshold': round(threshold, 4),
+                'threshold': round(_eff_thr, 4),
                 'bucket': bucket,
                 'gain_pct': round(gain, 2),
                 'beta': round(beta, 2),
