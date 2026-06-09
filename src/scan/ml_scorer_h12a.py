@@ -23,8 +23,13 @@ import lightgbm as lgb
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
-MODELS_DIR = ROOT / 'backtests/models_prod_v23_h12a'
-CELL_RATINGS_PATH = ROOT / 'configs/h12a_cell_ratings.json'
+# 2026-06-09: env overrides for staging validation (retrain pipeline points verify
+# at staging dirs). Defaults unchanged → live behavior identical when env unset.
+import os as _os_h12a
+MODELS_DIR = Path(_os_h12a.environ.get('H12A_MODELS_DIR',
+                  str(ROOT / 'backtests/models_prod_v23_h12a')))
+CELL_RATINGS_PATH = Path(_os_h12a.environ.get('H12A_CELLS',
+                  str(ROOT / 'configs/h12a_cell_ratings.json')))
 
 ZONES = [
     ('Z1', 0, 9),

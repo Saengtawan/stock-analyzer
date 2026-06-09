@@ -31,7 +31,9 @@ PRED_FILES = {
 
 
 def load_cells():
-    with open(ROOT / 'configs/h12a_cell_ratings.json') as f:
+    import os as _os
+    _p = _os.environ.get('H12A_CELLS', str(ROOT / 'configs/h12a_cell_ratings.json'))
+    with open(_p) as f:
         return json.load(f)['cells_by_zone']
 
 

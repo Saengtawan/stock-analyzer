@@ -288,3 +288,11 @@ sector_cache.json
 sector_cache.backup.json
 data/scan_journal.db
 backtests/models_prod/
+
+# H12-A retrain staging artifacts
+backtests/models_prod_v23_h12a_staging_*
+backtests/models_prod_v23_h12a_pre_swap_*
+configs/h12a_cell_ratings_staging_*
+configs/h12a_cell_ratings_pre_swap_*
+cache/bt_features/features_5yr_staging_*
+cache/bt_features/phase0_labels_staging_*

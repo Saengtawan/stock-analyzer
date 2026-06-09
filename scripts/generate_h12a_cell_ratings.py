@@ -43,7 +43,7 @@ def compute_cells(pred_df, zone):
 
 
 def main():
-    out_path = ROOT / 'configs/h12a_cell_ratings.json'
+    import os as _os; out_path = Path(_os.environ.get('H12A_CELLS_OUT', str(ROOT / 'configs/h12a_cell_ratings.json')))
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"[generate cell ratings] WIN_THR={WIN_THR}")
