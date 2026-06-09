@@ -65,19 +65,20 @@ def get_intraday_outcome(symbol: str, date: str, entry_price: float, sl_price: f
         if dd < max_drawdown:
             max_drawdown = dd
 
-        # Check +1% reached
-        if h >= tp_price:
+        # Check +1% reached (guard: tp_price may be None for hold-EOD picks)
+        if tp_price and h >= tp_price:
             reached_tp = True
 
-        # Check SL (low touches)
-        if l <= sl_price and not exit_price:
+        # Check SL (low touches). 2026-06-09: guard sl_price None/0 — H12-A
+        # Z1/Z2/Z3 are hold-EOD (no SL); only Z4 has a hard SL. None/0 → skip.
+        if sl_price and l <= sl_price and not exit_price:
             exit_price = sl_price
             exit_reason = 'SL'
             hit_sl = True
             break
 
-        # Check trail 1% from peak
-        if exit_price is None and peak > entry_price * 1.01:
+        # Check trail from peak (guard: trail_pct may be 0/None for hold-EOD)
+        if exit_price is None and trail_pct and peak > entry_price * 1.01:
             trail_stop = peak * (1 - trail_pct / 100)
             if l <= trail_stop:
                 exit_price = trail_stop
