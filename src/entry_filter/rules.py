@@ -35,10 +35,18 @@ def _evaluate_h12a(
     without DD evidence). See backtests/entry_filter_v1/spec.h12a.json.
     """
     if zone == "Z1":
+        # 2026-06-09: gain cap now env-controllable. Set H12A_Z1_GAIN_CAP=off to
+        # disable (WF showed it blocks only ~2 picks/2yr on H12-A's gated stream —
+        # near no-op since win_p 0.75 already filters extended names). Default 4.5
+        # preserved for safety if env unset. Reversible: remove .env line → 4.5.
+        cap_env = os.environ.get("H12A_Z1_GAIN_CAP", "4.5").strip().lower()
+        if cap_env in ("off", "none", ""):
+            return (True, "Z1 PASS (gain cap OFF)")
+        cap = float(cap_env)
         if _is_missing(gain_from_open):
             return (True, "Z1 PASS (gain missing — graceful)")
-        if gain_from_open > 4.5:
-            return (False, f"Z1 SKIP: gain={gain_from_open:.1f}>4.5 (H12-A DD-control)")
+        if gain_from_open > cap:
+            return (False, f"Z1 SKIP: gain={gain_from_open:.1f}>{cap} (DD-control)")
         return (True, "Z1 PASS (H12-A)")
     # Z2/Z3/Z4: no entry filter rules in H12-A
     return (True, f"{zone} PASS (H12-A — no EF rules for this zone)")
