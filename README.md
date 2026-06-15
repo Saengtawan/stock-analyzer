@@ -33,15 +33,27 @@ Code is in git; large artifacts (models ~200MB, DBs incl. 21GB `trade_history`,
 ```bash
 git clone git@github.com:Saengtawan/stock-analyzer.git
 cd stock-analyzer
-
-# one-time: install + connect Drive
-curl https://rclone.org/install.sh | sudo bash
-rclone config            # New remote named 'gdrive' → Google Drive → authorize
-
-# pull everything (models + DBs + .env) → ready to run
-bash scripts/bootstrap.sh             # full (incl. 21GB trade_history.db)
-#   bash scripts/bootstrap.sh --light # skip the 21GB DB; rebuild via cron
+bash scripts/setup.sh                 # one command: pyenv + Drive pull + services + cron
+#   bash scripts/setup.sh --light     # skip the 21GB DB (rebuild via cron)
 ```
+
+`setup.sh` is **idempotent** — it does everything it can and stops with the exact
+command for the 3 things only you can do (they need sudo / Google login):
+`curl https://rclone.org/install.sh | sudo bash` · `rclone config` (remote named
+`gdrive`) · install pyenv. Fix the one it names, re-run `setup.sh`, it continues.
+
+<details><summary>…or do the phases manually</summary>
+
+```bash
+curl https://rclone.org/install.sh | sudo bash      # rclone
+rclone config                                       # remote 'gdrive' → Drive
+bash scripts/bootstrap.sh                            # pull models + DBs + .env
+# pyenv: install 3.11.8 + envs from deploy/requirements_{issara,cc}.txt
+cp deploy/systemd/*.service ~/.config/systemd/user/ && systemctl --user daemon-reload
+bash scripts/restore_cron.sh --install               # crontab (auto path-fix)
+systemctl --user enable --now auto-trading.service stock-webapp.service
+```
+</details>
 
 ### Make cron + services work (the part git/Drive doesn't auto-handle)
 
