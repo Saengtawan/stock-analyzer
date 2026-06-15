@@ -41,13 +41,37 @@ rclone config            # New remote named 'gdrive' → Google Drive → author
 # pull everything (models + DBs + .env) → ready to run
 bash scripts/bootstrap.sh             # full (incl. 21GB trade_history.db)
 #   bash scripts/bootstrap.sh --light # skip the 21GB DB; rebuild via cron
+```
 
-systemctl --user start auto-trading.service stock-webapp.service
-crontab data/crontab_backup_*.txt     # restore the schedule (adjust paths)
+### Make cron + services work (the part git/Drive doesn't auto-handle)
+
+`git clone` + `bootstrap.sh` gives code + models + DBs + `.env`, but **NOT** the
+crontab, pyenv envs, or systemd services. Restore them from `deploy/`:
+
+```bash
+# 1. pyenv environments (cron + the pkl need these exact ones)
+pyenv install 3.11.8
+pyenv virtualenv 3.11.8 issara && pip install -r deploy/requirements_issara.txt   # pandas 3.x (loads the pkls)
+pyenv virtualenv 3.11.8 cc      && pip install -r deploy/requirements_cc.txt
+
+# 2. systemd services (adjust paths inside if username/dir differ)
+cp deploy/systemd/*.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now auto-trading.service stock-webapp.service
+
+# 3. crontab (auto-rewrites the original machine's paths to THIS machine)
+bash scripts/restore_cron.sh             # dry-run: checks deps + previews
+bash scripts/restore_cron.sh --install   # apply (backs up existing crontab first)
+
+# 4. rclone for the backup crons
+rclone config            # remote named 'gdrive'  (if not done in step above)
 ```
 
 If there's no Drive backup: fill `.env` from `.env.template` (49 keys) and let
-the cron data-collectors rebuild the DBs over time.
+the cron data-collectors rebuild the DBs over time (days–weeks).
+
+> ⚠️ cron uses **absolute paths** + `TZ=Asia/Bangkok` (ET+11 during EDT; shift
+> +1h at the Nov EST changeover). `restore_cron.sh` fixes paths; timezone you keep.
 
 ---
 

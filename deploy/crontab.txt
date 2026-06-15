@@ -1,0 +1,165 @@
+# =============================================================================
+# STOCK ANALYZER CRON JOBS
+# =============================================================================
+# --- Maintenance (Bangkok local time, UTC+7) ---
+TZ=Asia/Bangkok
+# Health check (every 5 min)
+*/5 * * * * /home/saengtawan/work/project/cc/stock-analyzer/scripts/health_check.sh
+# Daily cleanup (04:00-04:30 Bangkok)
+0 4 * * * /home/saengtawan/work/project/cc/stock-analyzer/scripts/cleanup_alerts.sh
+30 4 * * * /home/saengtawan/work/project/cc/stock-analyzer/scripts/cleanup_logs.sh
+# Weekly maintenance (Sunday Bangkok)
+0 6 * * 0 /home/saengtawan/work/project/cc/stock-analyzer/scripts/db_backup.sh
+# Daily universe refresh (Tue-Sat Bangkok = Mon-Fri US close)
+0 3 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/maintain_universe_1000.py >> logs/universe_maintenance.log 2>&1
+# Weekly signal report (Monday 09:00 Bangkok — weekly summary, not market-time critical)
+# DISABLED 2026-05-13 (no data): 0 9 * * 1 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/weekly_signal_report.py >> logs/weekly_signal_report.log 2>&1
+# Macro/Fed/SEC news — every 2h (timezone-independent)
+# DISABLED 2026-06-15 (Tier5: live models 0 reads): 0 */2 * * * cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/news_collector.py --mode macro >> logs/news_collector.log 2>&1
+# =============================================================================
+# TRADING JOBS — US Eastern Time (auto-handles EDT/EST DST automatically)
+# =============================================================================
+# Trading jobs — times converted to Bangkok (= ET + 11 hours during EDT)
+# --- After previous day's close: 5:00-5:30 AM ET ---
+# Runs Tue-Sat ET to cover Mon-Fri market days (Mon close → Tue 5 AM fill, etc.)
+0 16 * * 2-6 /home/saengtawan/work/project/cc/stock-analyzer/scripts/run_outcome_tracker.sh # ET 5:0
+0 16 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_outcomes_all.py >> logs/fill_outcomes_all.log 2>&1 # ET 5:0
+10 16 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/macro_snapshot_cron.py >> logs/macro_snapshot.log 2>&1 # ET 5:10
+# DISABLED 2026-06-15 (Tier5: live models 0 reads): 30 16 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/news_collector.py --mode symbol >> logs/news_collector.log 2>&1 # ET 5:30
+# --- Pre-open: 9:00 AM ET, Mon-Fri ---
+0 20 * * 1-5 /home/saengtawan/work/project/cc/stock-analyzer/scripts/run_prefilter.sh pre_open # ET 9:0
+# --- Market open: 9:35 AM ET, Mon-Fri (fill OVN next-day open price) ---
+35 20 * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_next_day_open.py >> logs/fill_next_day_open.log 2>&1 # ET 9:35
+5 21 * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_first_30min.py >> logs/fill_first_30min.log 2>&1 # ET 10:5
+# DISABLED 2026-05-13 (0 hot sectors; top-3-sector rule deprecated): 10 21 * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/sector_momentum_scan.py >> logs/sector_momentum_scan.log 2>&1 # ET 10:10
+# --- Intraday snapshots: every 5 min, 9:00-16:55 ET, Mon-Fri ---
+# Script exits immediately if outside market hours (9:28-16:02 ET)
+*/5 20,21,22,23,0,1,2,3 * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/intraday_snapshot_cron.py >> logs/intraday_snapshot.log 2>&1 # ET 9,10,11,12,13,14,15,16:*/5
+# --- Intraday prefilter pool refresh: 10:45 AM and 1:45 PM ET, Mon-Fri ---
+45 21 * * 1-5 /home/saengtawan/work/project/cc/stock-analyzer/scripts/run_prefilter.sh intraday_midday # ET 10:45
+45 0 * * 2-6 /home/saengtawan/work/project/cc/stock-analyzer/scripts/run_prefilter.sh intraday_afternoon # ET 13:45
+# --- Pre-scan news bundle: 2:00 PM ET, before OVN scan at 3:45 PM (Mon-Fri) ---
+# DISABLED 2026-06-15 (Tier5: live models 0 reads): 0 1 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/news_collector.py --mode pre_scan >> logs/news_collector.log 2>&1 # ET 14:0
+# --- After market close: 4:30 PM ET, Mon-Fri ---
+# DISABLED 2026-06-15 (Tier5: live models 0 reads): 30 3 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/insider_collector.py >> logs/insider_collector.log 2>&1 # ET 16:30
+# --- Nightly entry metrics fill: 9:30 PM ET, Mon-Fri ---
+30 8 * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_entry_metrics.py >> logs/fill_entry_metrics.log 2>&1 # ET 21:30
+# --- Evening prefilter: 8:00 PM ET, Mon-Fri (prepares pool for next trading day) ---
+0 7 * * 2-6 /home/saengtawan/work/project/cc/stock-analyzer/scripts/run_prefilter.sh evening # ET 20:0
+
+# --- Universe daily snapshot: 20:15 ET (after evening prefilter at 20:00) ---
+15 7 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/save_universe_snapshot.py >> logs/save_universe_snapshot.log 2>&1 # ET 20:15
+
+# --- Collect 1m bars for signal candidates: 16:35 ET (after close) ---
+37 3 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_candidate_bars.py >> logs/collect_candidate_bars.log 2>&1 # ET 16:37
+
+# --- Fill OVN/PEM/GAP screener features: 21:45 ET (after bars collected) ---
+45 8 * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_screener_features.py >> logs/fill_screener_features.log 2>&1 # ET 21:45
+30 9 * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_trade_mfe_mae.py >> logs/fill_trade_mfe_mae.log 2>&1 # ET 22:30
+0 8 * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_earnings_calendar.py >> logs/collect_earnings_calendar.log 2>&1 # ET 21:0
+
+# --- Market breadth: 17:00 ET (after close, before other nightly jobs) ---
+0 4 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_market_breadth.py >> logs/collect_market_breadth.log 2>&1 # ET 17:0
+
+# --- Options flow: 17:30 ET ---
+# DISABLED 2026-06-15 (Tier5: live models 0 reads): 30 4 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_options_flow.py >> logs/collect_options_flow.log 2>&1 # ET 17:30
+
+# --- Per-stock news: 16:40 ET (just after market close, after candidate_bars) ---
+# DISABLED 2026-06-15 (Tier5: live models 0 reads): 40 3 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_stock_news.py >> logs/collect_stock_news.log 2>&1 # ET 16:40
+
+# --- Pre-market analysis: 16:50 ET (needs today's bars collected at 16:35) ---
+51 3 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_premarket_analysis.py >> logs/fill_premarket_analysis.log 2>&1 # ET 16:50
+
+# --- Short interest: Wednesday 18:00 ET (biweekly SEC data, weekly refresh sufficient) ---
+# DISABLED 2026-06-15 (Tier5: live models 0 reads): 0 5 * * 3 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_short_interest.py >> logs/collect_short_interest.log 2>&1 # ET 18:0
+
+# --- Stock fundamentals: Sunday 08:00 ET (weekly refresh) ---
+0 19 * * 0 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_stock_fundamentals.py >> logs/collect_stock_fundamentals.log 2>&1 # ET 8:0
+
+# --- Analyst ratings: 16:45 ET daily (candidates) + Sunday 08:30 full refresh ---
+# DISABLED 2026-06-15 (Tier5: live models 0 reads): 44 3 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_analyst_ratings.py >> logs/collect_analyst_ratings.log 2>&1 # ET 16:45
+# DISABLED 2026-06-15 (Tier5: live models 0 reads): 30 19 * * 0 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_analyst_ratings.py --full >> logs/collect_analyst_ratings.log 2>&1 # ET 8:30
+
+# --- Institutional holdings: Sunday 09:00 ET (quarterly 13F data, weekly refresh) ---
+# DISABLED 2026-06-15 (Tier5: live models 0 reads): 0 20 * * 0 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_institutional_holdings.py >> logs/collect_institutional_holdings.log 2>&1 # ET 9:0
+
+# --- Day trade outcomes: 16:55 ET daily (after bars collected at 16:35) ---
+58 3 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_daytrade_outcomes.py >> logs/fill_daytrade_outcomes.log 2>&1 # ET 16:55
+
+# --- Day trade screener: every 5 min 9:00-10:55 ET (gate 1-5) ---
+# DISABLED 2026-05-13 (0/200 candidates pass, outcomes stopped 05-01): */5 20,21 * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/daytrade_screener.py >> logs/daytrade_screener.log 2>&1 # ET 9,10:*/5
+
+# --- Sector ETF daily returns: 17:10 ET (after market breadth at 17:00) ---
+10 4 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_sector_etf_returns.py >> logs/collect_sector_etf_returns.log 2>&1 # ET 17:10
+# --- Stock daily OHLC update: 17:05 ET (after market close, feeds v17 SectorScorer + kernel) ---
+5 4 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/update_stock_ohlc.py >> logs/update_stock_ohlc.log 2>&1 # ET 17:5
+
+# --- Signal enrichment: 17:15 ET (after sector ETF collected) ---
+15 4 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_signal_enrichment.py >> logs/fill_signal_enrichment.log 2>&1 # ET 17:15
+
+# --- Discovery Engine: 20:30 ET daily scan (after evening prefilter + all data collection) ---
+# DISABLED 2026-05-13 (PAUSED — consecutive losses, 0 picks): 30 7 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/discovery_scan.py >> logs/discovery_scan.log 2>&1 # ET 20:30
+# --- Discovery outcomes: 06:00 AM ET Tue-Sat (after market data settles) ---
+# DISABLED 2026-05-13 (no picks to fill): 0 17 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_discovery_outcomes.py >> logs/fill_discovery_outcomes.log 2>&1 # ET 6:0
+10 16 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_rejected_outcomes.py >> logs/fill_rejected_outcomes.log 2>&1 # ET 5:10
+15 16 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/fill_sell_outcomes.py >> logs/fill_sell_outcomes.log 2>&1 # ET 5:15
+
+# --- Discovery pre-market validation: 09:05 ET Mon-Fri (gap confirmation, limit price calc) ---
+# DISABLED 2026-05-13 (no discovery picks to validate): 5 20 * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/discovery_premarket_validate.py >> logs/discovery_premarket.log 2>&1 # ET 9:5
+# --- Discovery intraday re-scan: every 30 min 10:00-15:00 ET Mon-Fri (reuses evening kernels) ---
+# DISABLED 2026-05-13 (PAUSED — consecutive losses): 0,30 21,22,23,0,1,2 * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/discovery_intraday_scan.py >> logs/discovery_intraday.log 2>&1 # ET 10,11,12,13,14,15:0,30
+# --- BTC weekend close: 18:00 ET Sunday (captures Sat+Sun BTC close for Monday gap prediction) ---
+0 5 * * 0 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/btc_weekend_cron.py >> logs/btc_weekend.log 2>&1 # ET 18:0
+# DISABLED 2026-06-15 (dead: no script / 0 saved): 30 3 * * 2-6 /home/saengtawan/work/project/cc/stock-analyzer/scripts/cboe_options_cron.sh # ET 16:30
+# DISABLED 2026-05-13 (PAUSED — 0 picks): 0 20 * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/run_pm_scan.py >> logs/pm_scan.log 2>&1 # ET 9:0
+# --- Intraday 5m bars daily: 17:20 ET Mon-Fri ---
+20 4 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_intraday_5m_daily.py >> logs/collect_intraday_5m_daily.log 2>&1 # ET 17:20
+# --- Polygon options snapshot: 17:35 ET ---
+# DISABLED 2026-06-15 (dead: no script / 0 saved): 35 4 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && python3 scripts/collect_options_polygon.py >> logs/collect_options_polygon.log 2>&1 # ET 17:35
+
+# --- Scan journal outcome updater: 16:30 ET daily (1hr after close) ---
+30 3 * * 2-6 /home/saengtawan/.pyenv/versions/issara/bin/python3 -m src.scan.outcome_updater --days=7 >> logs/scan_outcome.log 2>&1 # ET 16:30
+# IBKR ml_filter scan → execute orders (every 5 min during trading hours BKK)
+# DISABLED 2026-04-29 (IBKR off): */5 20-23 * * 1-5 /home/saengtawan/work/project/cc/stock-analyzer/scripts/run_ml_filter_to_ibkr.sh
+# DISABLED 2026-04-29 (IBKR off): */5 0 * * 2-6 /home/saengtawan/work/project/cc/stock-analyzer/scripts/run_ml_filter_to_ibkr.sh
+
+# Dynamic trail monitor (every 5 min during trading hours)
+# DISABLED 2026-04-29 (IBKR off): */5 20-23 * * 1-5 /home/saengtawan/work/project/cc/stock-analyzer/scripts/run_dynamic_trail_monitor.sh
+# DISABLED 2026-04-29 (IBKR off): */5 0-3 * * 2-6 /home/saengtawan/work/project/cc/stock-analyzer/scripts/run_dynamic_trail_monitor.sh
+
+# Daily IBKR Gateway re-login at 07:00 BKK (after IBKR forced logout at ~06:55)
+# DISABLED 2026-04-29 (IBKR off): 0 7 * * * /home/saengtawan/work/project/cc/stock-analyzer/scripts/ibkr_ensure_running.sh
+
+# Pre-market check at 20:00 BKK (30 min before market) — ensure Gateway is up
+# DISABLED 2026-04-29 (IBKR off): 0 20 * * 1-5 /home/saengtawan/work/project/cc/stock-analyzer/scripts/ibkr_ensure_running.sh
+
+
+# Monthly retrain ml_filter v22 — rebuild features (top 500) + train v22 + multi-tf (1st of month, 02:00 UTC)
+0 2 1 * * /home/saengtawan/work/project/cc/stock-analyzer/scripts/monthly_retrain.sh
+# Weekly retrain (Sunday 02:00 UTC = 09:00 Bangkok = 22:00 ET Sat) — keeps zone models current.
+# Adds to monthly: monthly does full pkl rebuild + bucket+zone, weekly only refits zone on existing pkl.
+0 2 * * 0 /home/saengtawan/work/project/cc/stock-analyzer/scripts/weekly_zone_retrain.sh
+
+# =============================================================================
+# 4 scans during 09:30-10:45 ET (one per zone sweet spot).
+# =============================================================================
+# Drift alert — daily after outcomes update (16:45 ET = 03:45 BKK weekdays+Sat)
+# DISABLED 2026-06-15 (dead: no script / 0 saved): 45 3 * * 2-6 cd /home/saengtawan/work/project/cc/stock-analyzer && /home/saengtawan/.pyenv/versions/cc/bin/python scripts/drift_alert.py --days=7 >> logs/drift_alert.log 2>&1
+# Shadow Step 24 weekly comparison (Sunday 04:00 BKK)
+# DISABLED 2026-06-15 (dead: no script / 0 saved): 0 4 * * 0 /home/saengtawan/.pyenv/versions/cc/bin/python scripts/shadow_step24.py --days=30 >> logs/shadow_step24.log 2>&1
+
+
+
+# === Exit ML auto-scan (scan_track) ===
+# Fires scan_track.sh at each zone window. Picks → background exit_loop.
+# Logs go to data/exit_loops/<SYM>_<DATE>_<HHMM>.log
+30 20  * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && bash scripts/scan_track.sh >> logs/scan_track.log 2>&1   # ET 09:30 (Z1)
+40 20  * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && bash scripts/scan_track.sh >> logs/scan_track.log 2>&1   # ET 09:40 (Z2)
+0  21  * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && bash scripts/scan_track.sh >> logs/scan_track.log 2>&1   # ET 10:00 (Z3)
+45 21  * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && bash scripts/scan_track.sh >> logs/scan_track.log 2>&1   # ET 10:45 (Z4)
+# === end Exit ML auto-scan ===
+0 3 1 * * cd /home/saengtawan/work/project/cc/stock-analyzer && bash scripts/monthly_retrain_h12a.sh
+# === Riser momentum lane (multi-scan capture, deployed 2026-06-12, paper). Disable: RISER_ENABLED=0 / remove ===
+31 20 * * 1-5 cd /home/saengtawan/work/project/cc/stock-analyzer && bash scripts/riser_capture.sh >> logs/riser_momentum.log 2>&1   # ET 09:31 start (capture->display 09:38:00, EDT)
+0 21 * * 0 cd /home/saengtawan/work/project/cc/stock-analyzer && bash scripts/backup_to_drive.sh --light >> logs/backup_drive.log 2>&1   # weekly light: models+journals (BKK Sun 21:00)
+0 22 1 * * cd /home/saengtawan/work/project/cc/stock-analyzer && bash scripts/backup_to_drive.sh >> logs/backup_drive_full.log 2>&1   # monthly full: +trade_history 21GB (BKK 1st 22:00)
