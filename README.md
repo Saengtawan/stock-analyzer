@@ -1,163 +1,123 @@
-# Stock Analyzer — AI-Powered Intraday Trading System
+# Stock Analyzer — Intraday ML Trading System
 
-![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
-![Status](https://img.shields.io/badge/status-production-green.svg)
-![Data](https://img.shields.io/badge/data-Alpaca%20realtime-green.svg)
+![Python](https://img.shields.io/badge/python-3.11-blue.svg)
+![Account](https://img.shields.io/badge/account-Alpaca%20Paper-orange.svg)
+![Status](https://img.shields.io/badge/status-deployed%20(paper)-green.svg)
 
-AI scans 200+ stocks via Alpaca real-time API, analyzes with backtest-validated data (126K setups), and recommends BUY NOW 1-3 picks with Entry/SL/TP.
+Backtest-validated intraday trading on Alpaca **paper**. Two entry lanes, each
+with its own regime-conditional exit. Manual workflow (suggest → you click at
+Alpaca). Driven via Claude Code + `CLAUDE.md`.
 
-**Account:** Alpaca Paper ($5K, dynamic budget)
-**AI:** Claude Code + CLAUDE.md + 5 prompt files
-**Data:** 56M intraday bars + 1.5M daily OHLC + 1000 stock universe
-
----
-
-## Quick Start
-
-### From Google Drive backup (5 min)
-
-```bash
-git clone git@gitlab.com:Saengtawan/stock-analyzer.git
-cd stock-analyzer
-./setup.sh
-# Download from Drive → วาง .env (root) + trade_history.db.gz (data/)
-gunzip data/trade_history.db.gz
-# พร้อมใช้ → "scan หุ้น" ใน Claude Code
-```
-
-### From scratch (2-3 days)
-
-```bash
-git clone git@gitlab.com:Saengtawan/stock-analyzer.git
-cd stock-analyzer
-./setup.sh
-# แก้ .env ใส่ Alpaca keys (https://app.alpaca.markets)
-# สร้าง DB + backfill:
-python3 scripts/maintain_universe_1000.py
-python3 scripts/update_stock_ohlc.py
-python3 scripts/collect_intraday_5m_daily.py
-python3 scripts/macro_snapshot_cron.py
-python3 scripts/collect_stock_fundamentals.py
-```
+> **`CLAUDE.md` is the canonical spec** (rules, params, history). This README is
+> the quickstart + map. When they disagree, trust `CLAUDE.md`.
 
 ---
 
-## How It Works
+## System at a glance — 2 entry lanes × 2 exits
 
+| Lane (entry) | What it picks | Exit | Holdout result |
+|---|---|---|---|
+| **H12-A** (`ml_filter`) | per-(zone,sector) ML, top-1 by win_p, 09:30–13:00 | **v18** — SL2.5 / prop-trail / model-PL, gated on `spy_dd≤−0.3` (reacts to a falling market) | +154%/3yr; exit Sharpe 2.93→**3.89**, worst −8.7→**−3.0** |
+| **riser** (`riser_capture`) | Z1 ranked by `gain_from_open`, buy top-1, hold-EOD | **riser dynamic** — trail 1% if `VIX_entry≥22 OR own_range[20m]≥3%`, else hold-EOD | WR(peak≥1%) 73%; exit ret/DD 0.85→**1.97** |
+
+`exit_check.sh` **auto-routes**: a symbol in `riser_picks` → riser exit; else → v18.
+Both are PAPER/shadow — forward-track before sizing up.
+
+---
+
+## Quick start (new machine)
+
+Code is in git; large artifacts (models ~200MB, DBs incl. 21GB `trade_history`,
+`.env`) live in **Google Drive** via rclone.
+
+```bash
+git clone git@github.com:Saengtawan/stock-analyzer.git
+cd stock-analyzer
+
+# one-time: install + connect Drive
+curl https://rclone.org/install.sh | sudo bash
+rclone config            # New remote named 'gdrive' → Google Drive → authorize
+
+# pull everything (models + DBs + .env) → ready to run
+bash scripts/bootstrap.sh             # full (incl. 21GB trade_history.db)
+#   bash scripts/bootstrap.sh --light # skip the 21GB DB; rebuild via cron
+
+systemctl --user start auto-trading.service stock-webapp.service
+crontab data/crontab_backup_*.txt     # restore the schedule (adjust paths)
 ```
-User: "scan หุ้น"
-  ↓
-CLAUDE.md → เช็คเวลา → เลือก prompt → Alpaca scan 200 stocks (2 วิ)
-  ↓
-DB query: news, SI, beta, mcap, insider, options, breadth
-  ↓
-AI วิเคราะห์ data + prompt knowledge → BUY NOW 1-3 ตัว
+
+If there's no Drive backup: fill `.env` from `.env.template` (49 keys) and let
+the cron data-collectors rebuild the DBs over time.
+
+---
+
+## Daily usage
+
+```bash
+# scan (auto-waits until 09:31:30 ET if run early)
+bash scripts/scan_smart.sh            # H12-A picks, auto-tracked with v18
+# riser lane runs via cron (09:31 ET) → riser_capture.sh
+
+# check / track an exit (auto-picks the right exit for the symbol)
+bash scripts/exit_check.sh SYM            # one-shot verdict
+bash scripts/exit_loop.sh SYM ENTRY TIME  # poll every 5 min
+bash scripts/watch_riser.sh               # live terminal view of the riser lane
+
+# verdicts: ✅ HOLD  🟢 TRAIL_EXIT  🟡 PL_EXIT  🔴 SL_EXIT  🛡️ VIX_SKIP
+# read the Verdict line; EXIT = sell at Alpaca, HOLD = keep, EOD-flat at 15:55.
+
+# weekly: live-vs-backtest drift scorecard
+python3 scripts/forward_track.py
 ```
 
-### 5 Scan Modes (by time)
-
-| เวลา ET | Mode | ทำอะไร |
-|---------|------|--------|
-| 06:00-09:30 | ORB | PM gap + vol + catalyst → watchlist |
-| 09:30-11:30 | Intraday | Down Bounce + Momentum + Vol Surge |
-| 11:30-15:30 | Top Movers | Sector momentum + Down Bounce + Drop depth |
-| 15:30-15:55 | OVN | 5d mom + vol + close position → overnight gap |
-| Friday 15:00 | Fri-Mon | Friday rally/bounce → Monday close |
-
-### AI Judgment (not hardcode)
-
-- Prompts give DATA only (WR%, avg return, bounce speed)
-- No directives ("skip!", "ห้าม", "ต้อง")
-- No hardcoded sector/threshold
-- AI weighs all factors and decides per stock per day
+**Reversibility flags:** `EXIT_ML_VERSION=v17c` or `--v17c` (roll back v18) ·
+`RISER_EXIT_DYNAMIC=0` (riser → plain hold-EOD) · `RISER_ENABLED=0` ·
+`RISER_TRACK=0` · `H12A_*` env toggles (see `CLAUDE.md`).
 
 ---
 
 ## Architecture
 
 ```
-src/
-├── auto_trading_engine.py    # Main engine (systemd service)
-├── discovery/engine.py       # Discovery scanner + MacroDayGate ML
-├── database/                 # ORM + repositories
-├── web/app.py                # Flask dashboard
-config/
-├── trading.yaml              # Trading params
-├── discovery.yaml            # Discovery config
-prompts/                      # AI scan prompts (5 files)
-├── orb_breakout_prompt.md
-├── intraday_3pct_prompt.md
-├── top_movers_prompt.md
-├── ovn_gap_prompt.md
-├── friday_monday_prompt.md
-CLAUDE.md                     # Master AI instructions + scan code
-data/trade_history.db          # SQLite 13GB (not in git)
+src/scan/strategies/ml_filter.py     # H12-A entry (multi-model serving)
+src/scan/strategies/riser_momentum.py# riser entry
+src/scan/{engine,h12a_picker,ml_scorer}.py
+src/exit_ml/inference_v18.py         # v18 exit (H12-A) — spy_dd-reactive
+src/exit_ml/inference_riser.py       # riser exit — VIX/own_range dynamic trail
+src/exit_ml/cli.py                   # exit_check entry; auto-routes per lane
+scripts/{scan_smart,scan_track,riser_capture}.sh   # scan + auto-track
+scripts/{exit_check,exit_loop,watch_riser}.sh      # exit / monitor
+scripts/{backup_to_drive,bootstrap}.sh             # Drive backup / restore
+scripts/forward_track.py                           # drift scorecard
+backtests/models_prod_v23_h12a/   # H12-A serving models (235)   [pkl gitignored]
+backtests/models_exit_v18/        # v18 exit models               [pkl gitignored]
+data/trade_history.db             # 21GB feature store            [gitignored]
+CLAUDE.md                         # canonical spec
 ```
 
-### Key DB Tables
-
-| Table | Rows | Purpose |
-|-------|------|---------|
-| stock_daily_ohlc | 1.5M | Daily OHLC 1000 stocks |
-| intraday_bars_5m | 56M | 5-min bars 2024-2026 |
-| macro_snapshots | 2K+ | VIX, SPY, crude, gold, BTC |
-| stock_fundamentals | 1K | Beta, MCap, PE (98% coverage) |
-| universe_stocks | 1K | Top 1000 by dollar volume |
-| news_events | 50K+ | Stock news + sentiment |
-| short_interest | 8K+ | SI% per stock |
-
-### Services
-
-```bash
-systemctl --user start auto-trading.service   # Trading engine
-systemctl --user start stock-webapp.service   # Web dashboard :5002
-# NEVER pkill — always use systemctl
-```
-
-### Cron (40+ jobs)
-
-All times Bangkok (ET + 11h during EDT). Key jobs:
-- 04:05 BKK: update_stock_ohlc (daily OHLC)
-- 04:20 BKK: collect_intraday_5m_daily (5-min bars)
-- 07:00 BKK: evening pre-filter
-- 07:30 BKK: discovery scan
-- 20:00 BKK: pre-open scan
+Services are systemd (`auto-trading.service`, `stock-webapp.service`) — **never
+`pkill`**, use `systemctl --user restart`.
 
 ---
 
-## Data Sources
+## Backup / restore
 
-| Source | API | Used For |
-|--------|-----|----------|
-| **Alpaca** | Real-time snapshots | Scan (2 sec for 200 stocks) |
-| **yfinance** | Historical | Backfill only (not for scan) |
-| **SQLite DB** | Local | All historical data + context |
+| Layer | Where | Refresh |
+|---|---|---|
+| code | git (github + gitlab) | `git push` |
+| models, small DBs, `.env` | Google Drive (`backup_to_drive.sh --light`) | weekly cron (Sun 21:00 BKK) |
+| `trade_history.db` (21GB) | Google Drive (`backup_to_drive.sh`) | monthly cron (1st 22:00 BKK) |
 
----
-
-## Claude Code Integration
-
-### Scan
-
-```bash
-# ใน Claude Code พิมพ์:
-scan หุ้น
-# → AI อ่าน CLAUDE.md → เลือก prompt ตามเวลา → scan → BUY NOW
-```
-
-### Audit prompts
-
-```bash
-/audit-prompts
-# → ตรวจ directive, bias, inconsistency ใน CLAUDE.md + prompts
-```
-
-### Skills
-
-| Skill | ทำอะไร |
-|-------|--------|
-| `/audit-prompts` | Audit CLAUDE.md + 5 prompts for issues |
+New machine = `git clone` + `bootstrap.sh`. Secrets (`.env`) never go to git —
+only to your private Drive.
 
 ---
 
-**Last Updated:** 2026-04-09
+## ⚠️ Notes
+
+- **Paper account** — no real money. `.env` holds API keys (gitignored).
+- Exits are **shadow/paper**; track 10–15 forward picks (`forward_track.py`)
+  before trusting live / increasing size.
+- This README is a map; **`CLAUDE.md` is authoritative** for rules and numbers.
+
+**Last updated:** 2026-06-15
