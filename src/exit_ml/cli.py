@@ -50,12 +50,12 @@ def get_vix(db_path: str, date: str | None = None) -> float | None:
     con = sqlite3.connect(db_path)
     if date:
         row = con.execute(
-            "SELECT vix_close FROM macro_snapshots WHERE date<=? ORDER BY date DESC LIMIT 1",
+            "SELECT vix_close FROM macro_snapshots WHERE date<=? AND vix_close IS NOT NULL ORDER BY date DESC LIMIT 1",
             (date,)
         ).fetchone()
     else:
         row = con.execute(
-            "SELECT vix_close FROM macro_snapshots ORDER BY date DESC LIMIT 1"
+            "SELECT vix_close FROM macro_snapshots WHERE vix_close IS NOT NULL ORDER BY date DESC LIMIT 1"
         ).fetchone()
     con.close()
     return float(row[0]) if row and row[0] is not None else None

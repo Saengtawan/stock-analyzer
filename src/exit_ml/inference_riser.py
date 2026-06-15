@@ -88,9 +88,9 @@ def predict_exit_riser(
     own_on = own_range >= OWN_RANGE_GATE
     dynamic = os.environ.get("RISER_EXIT_DYNAMIC", "1") != "0"
     gate_on = dynamic and (vix_on or own_on)
-    gate_txt = (f"VIX {vix_at_entry:.1f}{'≥' if vix_on else '<'}22"
-                + (" OR " if True else "")
-                + f"own_range {own_range:.2f}{'≥' if own_on else '<'}3.0")
+    vix_str = f"{vix_at_entry:.1f}" if vix_at_entry is not None else "n/a"
+    gate_txt = (f"VIX {vix_str}{'≥' if vix_on else '<'}22"
+                f" OR own_range {own_range:.2f}{'≥' if own_on else '<'}3.0")
 
     hwm = 0.0
     for el, cur in series:

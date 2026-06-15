@@ -243,9 +243,9 @@ def _fetch_bars(symbol, sec_etfs, db_path, date):
 def _get_vix(db_path, date):
     con = sqlite3.connect(db_path)
     if date:
-        r = con.execute("SELECT vix_close FROM macro_snapshots WHERE date<=? ORDER BY date DESC LIMIT 1", (date,)).fetchone()
+        r = con.execute("SELECT vix_close FROM macro_snapshots WHERE date<=? AND vix_close IS NOT NULL ORDER BY date DESC LIMIT 1", (date,)).fetchone()
     else:
-        r = con.execute("SELECT vix_close FROM macro_snapshots ORDER BY date DESC LIMIT 1").fetchone()
+        r = con.execute("SELECT vix_close FROM macro_snapshots WHERE vix_close IS NOT NULL ORDER BY date DESC LIMIT 1").fetchone()
     con.close()
     return r[0] if r and r[0] else None
 
