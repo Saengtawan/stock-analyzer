@@ -3,7 +3,7 @@
 # Run this AFTER you have: git + rclone installed, rclone 'gdrive' remote configured.
 #
 # Usage on the new machine:
-#   git clone git@github.com:Saengtawan/stock-analyzer-.git stock-analyzer
+#   git clone git@github.com:Saengtawan/stock-analyzer.git stock-analyzer
 #   cd stock-analyzer
 #   bash scripts/bootstrap.sh            # pulls models + DBs + .env from Drive
 #   bash scripts/bootstrap.sh --light    # skip the 21GB trade_history (rebuild via cron)
