@@ -100,6 +100,32 @@ python3 scripts/forward_track.py
 
 ---
 
+## Operating via Claude Code (new machine / new session)
+
+The trading system runs **without** Claude — OS-cron writes picks, `watch_riser.sh`
+streams them to a terminal, exits route automatically. Claude Code is the *operator*
+(scan on demand, analyze, run tooling). Two things are **session-bound** and must be
+re-created when you open a fresh Claude session elsewhere:
+
+1. **In-chat riser alert** (Claude pings you at ~09:37:45 when the riser pick prints).
+   This is a background watcher tied to the session — start it by telling Claude:
+   > "ตั้ง background watcher รอ riser แล้วเด้งบอกในแชตตอน display"
+
+   (or just run the session-independent terminal view yourself: `bash scripts/watch_riser.sh`).
+
+2. **Claude scheduled wake-ups** (optional) — recreate with a request like
+   *"ตั้ง Claude schedule ปลุก 09:38 ET มาสรุป riser pick"*.
+
+To bring a fresh Claude session fully up to speed, paste this:
+
+> อ่าน CLAUDE.md + memory/MEMORY.md ก่อน. ระบบ = H12-A (ml_filter) + riser lane,
+> exit = v18 (auto) + riser dynamic (VIX/own_range). อยากให้: (1) ยืนยัน cron/services
+> รันอยู่ (systemctl, crontab -l), (2) ตั้ง background watcher รอ riser display เด้งในแชต,
+> (3) พร้อมช่วย scan/exit_check/forward_track ระหว่างวัน.
+
+Everything the system *needs* to trade is in git + Drive + cron. The Claude session
+only adds convenience (alerts, analysis) — never required for an order to fire.
+
 ## Architecture
 
 ```
