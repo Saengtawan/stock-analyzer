@@ -21,6 +21,7 @@ from .strategies.orb_gap_break import OrbGapBreakStrategy
 from .strategies.vwap_reclaim import VwapReclaimStrategy
 from .strategies.crisis_reversal import CrisisReversalStrategy
 from .strategies.ml_filter import MLFilterStrategy
+from .strategies.riser_momentum import RiserMomentumStrategy
 from .strategies.meta import EodFlattenStrategy
 
 ET = pytz.timezone('US/Eastern')
@@ -28,6 +29,7 @@ ET = pytz.timezone('US/Eastern')
 # Trade strategies (all attempt actual entries; may return no_picks)
 TRADE_STRATEGIES = {
     'ml_filter':           MLFilterStrategy,         # PRIORITY — 75%+ WR ensemble
+    'riser_momentum':      RiserMomentumStrategy,    # Z1 riser lane — rank by gain (peak>=1% 73% WR, paper)
     'orb_gap_break':       OrbGapBreakStrategy,      # 81% WR gap ≥5% at open
     'orb_gap_preview':     OrbGapPreviewStrategy,    # 04:00-09:29 PM gap preview
     'orb_prep':            OrbPrepStrategy,

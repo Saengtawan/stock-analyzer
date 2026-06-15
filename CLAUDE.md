@@ -22,6 +22,37 @@ v1.9.0 is the primary/main ml_filter version. Local `master` points here
   `v1.9.0-pre-entryfilter`. All candidates (PASS + SKIP) logged to
   `scan_candidates` with `filter_verdict` + `filter_reason` columns.
 
+## Exit ML — Manual exit workflow
+
+**⭐ v18 DEPLOYED LIVE 2026-06-13** (replaces v17c as the default exit verdict).
+Same CLI (`exit_check.sh` / `exit_loop.sh`) now returns the v18 two-sided stack:
+- **SL**: held ≥20m & cur ≤ −2.5% → 🔴 SL_EXIT
+- **TRAIL**: held ≥25m & peak ≥+1% & cur ≥0 & gave back ≥ max(1%, 0.4×peak) & SPY dd ≤ −0.3% → 🟢 TRAIL_EXIT
+- **PL**: held ≥60m & model p ≥0.55 & cur ≥+0.3% & SPY dd ≤ −0.3% → 🟡 PL_EXIT
+- else → ✅ HOLD to EOD. VIX≥28 at entry → 🛡️ skip (hold-EOD).
+Holdout N=279: Sharpe 2.93→3.89, total +117→+136, worst trade −8.72→−3.04%.
+Models `backtests/models_exit_v18/`, inference `src/exit_ml/inference_v18.py`
+(computes spy_dd + sector breadth LIVE; parity-verified bit-exact vs research replay).
+**Rollback to v17c instantly:** `bash scripts/exit_check.sh SYM --v17c` or set
+`EXIT_ML_VERSION=v17c`. v17c code/models fully intact and untouched.
+**NOTE:** user deployed direct (skipped the spec's shadow-first step). Still track
+forward picks in `exit_ml_journal.db` to confirm live ≈ backtest.
+
+**⭐ RISER picks use a SEPARATE exit (2026-06-14)** — `exit_check.sh` auto-detects riser
+picks (in `riser_picks` table) and routes them to `src/exit_ml/inference_riser.py` (NOT v18 —
+v18 hurts risers). Riser exit = dynamic vol-gated trailing stop:
+- gate ON if `VIX_at_entry >= 22` **OR** `own_range[first 20min] >= 3.0%` (orthogonal vol
+  signals, corr 0.00: market-vol OR stock's own early choppiness) → trailing SL 1.0% from peak.
+- gate OFF (calm) → hold-EOD (risers U-recover; holding captured ASTS +14.6% where v18 would
+  have wrongly trailed it at +0.66%).
+Validated riser holdout: ret/DD 0.85→1.97, total +69→+123, robust (remove-top3 +18.8), no
+lookahead. Disable: `RISER_EXIT_DYNAMIC=0`. Verdicts: 🟢 TRAIL_EXIT / ✅ HOLD.
+**Auto-tracked** (2026-06-14): `riser_capture.sh` cron now launches a background `exit_loop.sh`
+for each riser pick (logs to `data/exit_loops/SYM_DATE_riser.log`) → polls the riser exit every
+5 min, same as scan_track does for H12-A. Disable: `RISER_TRACK=0`.
+
+The v17c reference below is retained for the rollback path.
+
 ## Exit ML v17c — Manual exit workflow (added 2026-06-04)
 
 After scan → buy → check exit signal manually. Engine does **not** auto-exit;

@@ -21,11 +21,41 @@ Usage from ml_filter.py:
     picks = pick_top1_per_zone(candidates)
 """
 from __future__ import annotations
+import os
 from typing import Optional, Dict, List, Any, Tuple
 
 # Z4 Option E* sectors
 Z4_GOOD_SECTORS = {'Consumer Defensive', 'Basic Materials', 'Technology'}
 Z4_VIX_CRISIS = 25.0
+
+# 2026-06-10: ablation proved Z1/Z3 `sec_rel_strength>0` gates are REDUNDANT
+# (Z1 removal = exact no-op on final picks; Z3 removal = +1% / Sharpe 3.72->3.77,
+# multi-window verified). Drop them via env. Reversible: unset H12A_DROP_SEC_GATE.
+def _drop_sec_gate() -> bool:
+    return os.environ.get('H12A_DROP_SEC_GATE', '0') == '1'
+
+
+# 2026-06-11: spy_intra>0 directional gate on Z1 (market-green-at-entry).
+# Root cause (research_popfade_is_beta_market_reversal): pop-fade = market reversal
+# x beta. Z1 enters 09:30-09:39 when SPY direction is freshest/most predictive of EOD.
+# Full-WF backtest (phase0 pnl): Z1 avg +0.276% -> +0.587% (both holdout folds up,
+# 7/9 quarters), WR 56->62%. Z1 ONLY — Z3 slightly worse, Z2 too thin (N=9), Z4
+# already has Option E* spy gate. SPY beats QQQ/XLK/sector-ETF as the gate (broad
+# risk-off is the systematic fade driver). PIT-clean (spy_intra known at scan).
+# Does NOT replace vix<20: cell vix>=20 & spy>0 still loses -0.56% (orthogonal —
+# vix=regime, spy=direction). Reversible: unset H12A_SPY_GATE.
+def _spy_gate_enabled() -> bool:
+    return os.environ.get('H12A_SPY_GATE', '0') == '1'
+
+
+# 2026-06-11: drop the Z1 vix<20 gate (env H12A_DROP_VIX). User-requested override.
+# Backtest WARNING: removing vix<20 re-admits the vix>=20 cell which LOSES (vix>=20 &
+# spy>0 = -0.56% both folds). Z1 avg: vix<20 & spy>0 = +0.587% ; spy>0 only (no vix) =
+# +0.268% ; no gate = +0.109%. vix=regime / spy=direction are orthogonal (8+ tests +
+# slope-flip mechanism: momentum premium dies in high VIX). Kept as a flag for live A/B
+# on paper — user's call. Reversible: H12A_DROP_VIX=0.
+def _drop_vix_gate() -> bool:
+    return os.environ.get('H12A_DROP_VIX', '0') == '1'
 
 
 def get_zone(mfo: int) -> Optional[str]:
@@ -48,12 +78,17 @@ def passes_regime_gate(zone: str,
     Returns (passes, reason_if_blocked).
     Missing features → graceful PASS (don't drop).
     """
+    drop_sec = _drop_sec_gate()
     if zone == 'Z1':
-        # VIX < 20 AND sec_rel_strength > 0
-        if vix is not None and vix >= 20:
+        # VIX < 20 AND sec_rel_strength > 0  (sec gate droppable — redundant, see header)
+        # vix gate droppable via H12A_DROP_VIX (user A/B — backtest says keep it, see header)
+        if not _drop_vix_gate() and vix is not None and vix >= 20:
             return False, f'Z1 VIX={vix:.1f}>=20'
-        if sec_rel_strength is not None and sec_rel_strength <= 0:
+        if not drop_sec and sec_rel_strength is not None and sec_rel_strength <= 0:
             return False, f'Z1 sec_strength={sec_rel_strength:.2f}<=0'
+        # spy_intra>0 directional gate (env H12A_SPY_GATE, default off — see header)
+        if _spy_gate_enabled() and spy_intra is not None and spy_intra <= 0:
+            return False, f'Z1 spy_intra={spy_intra:.2f}<=0 (market red)'
         return True, 'Z1 regime OK'
 
     if zone == 'Z2':
@@ -63,8 +98,8 @@ def passes_regime_gate(zone: str,
         return True, 'Z2 regime OK'
 
     if zone == 'Z3':
-        # sec_rel_strength > 0 AND DOW != Friday (4)
-        if sec_rel_strength is not None and sec_rel_strength <= 0:
+        # sec_rel_strength > 0 AND DOW != Friday (4)  (sec gate droppable — redundant)
+        if not drop_sec and sec_rel_strength is not None and sec_rel_strength <= 0:
             return False, f'Z3 sec_strength={sec_rel_strength:.2f}<=0'
         if dow == 4:
             return False, 'Z3 DOW=Fri'

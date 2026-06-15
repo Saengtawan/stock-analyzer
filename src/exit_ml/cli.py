@@ -4,11 +4,15 @@ import argparse, sqlite3, sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+import os
 from src.exit_ml.inference import predict_exit, SPEC
+from src.exit_ml.inference_v18 import predict_exit_v18
+from src.exit_ml.inference_riser import predict_exit_riser, is_riser_pick
 
 ROOT = Path(__file__).resolve().parents[2]
 DB = str(ROOT / "data/trade_history.db")
 JOURNAL = str(ROOT / "data/exit_ml_journal.db")
+SCAN_JOURNAL = str(ROOT / "data/scan_journal.db")  # riser_picks table lives here
 
 
 SCHEMA = """
@@ -103,6 +107,46 @@ def fmt_pct(x):
     return f"{x:+.2f}%"
 
 
+def format_output_riser(symbol: str, result: dict, entry_price: float, entry_time: str, date: str | None):
+    v = result["verdict"]
+    emoji = {"HOLD": "✅", "TRAIL_EXIT": "🟢", "ERROR": "❌"}.get(v, "?")
+    print(f"=== Riser Exit: {symbol} @ {entry_time}{' ('+date+')' if date else ''} ===")
+    print(f"Entry: ${entry_price:.2f}  {result.get('sector','?')}  [RISER lane]")
+    if result.get("vix_at_entry") is not None:
+        print(f"VIX:   {result['vix_at_entry']:.1f}  |  own_range(20m): {result.get('own_range',0):.2f}%")
+    if result.get("cur_pnl_pct") is not None:
+        cur_price = entry_price * (1 + result["cur_pnl_pct"] / 100.0)
+        hw = f"  hwm {result['hwm_pct']:+.2f}%" if result.get("hwm_pct") is not None else ""
+        print(f"Price: ${cur_price:.2f}  ({fmt_pct(result['cur_pnl_pct'])}){hw}")
+    if result.get("exit_time"):
+        print(f"Fired: @{result['exit_time']} ET")
+    print(f"Verdict: {emoji} {v}")
+    print(f"Reason:  {result.get('reason','')}")
+
+
+def format_output_v18(symbol: str, result: dict, entry_price: float, entry_time: str, date: str | None):
+    v = result["verdict"]
+    emoji = {"HOLD": "✅", "SL_EXIT": "🔴", "TRAIL_EXIT": "🟢", "PL_EXIT": "🟡",
+             "VIX_SKIP": "🛡️", "ERROR": "❌"}.get(v, "?")
+    sector = result.get("sector", "?"); zone = result.get("zone", "?")
+    print(f"=== Exit Check v18: {symbol} @ {entry_time}{' ('+date+')' if date else ''} ===")
+    print(f"Entry: ${entry_price:.2f}  {zone} {sector}")
+    if result.get("vix_at_entry") is not None:
+        print(f"VIX:   {result['vix_at_entry']:.1f} (gate {'ON' if result['vix_at_entry']>=28 else 'OFF'}, cutoff 28)")
+    if result.get("ml_prob") is not None:
+        print(f"ML p:  {result['ml_prob']:.3f}  (PL thr 0.55)")
+    if result.get("spy_dd") is not None:
+        print(f"SPY dd: {result['spy_dd']:+.2f}%  (gate <= -0.30 for TRAIL/PL)")
+    if result.get("cur_pnl_pct") is not None:
+        cur_price = entry_price * (1 + result["cur_pnl_pct"] / 100.0)
+        hw = f"  hwm {result['hwm_pct']:+.2f}%" if result.get("hwm_pct") is not None else ""
+        print(f"Price: ${cur_price:.2f}  ({fmt_pct(result['cur_pnl_pct'])}){hw}")
+    if result.get("exit_time"):
+        print(f"Fired: @{result['exit_time']} ET")
+    print(f"Verdict: {emoji} {v}")
+    print(f"Reason:  {result.get('reason','')}")
+
+
 def format_output(symbol: str, result: dict, entry_price: float, entry_time: str, date: str | None):
     v = result["verdict"]
     emoji = {"HOLD": "✅", "EXIT": "⚠️", "CRISIS_HOLD": "🛡️", "ERROR": "❌"}.get(v, "?")
@@ -144,7 +188,12 @@ def main():
     ap.add_argument("--vix", type=float, help="VIX at entry (else lookup macro_snapshots)")
     ap.add_argument("--live", action="store_true",
                     help="LIVE mode — do not write to shadow journal (default = shadow)")
+    ap.add_argument("--v17c", action="store_true",
+                    help="rollback: use legacy v17c exit logic instead of v18 (default v18)")
     args = ap.parse_args()
+
+    # v18 is the deployed default; EXIT_ML_VERSION=v17c or --v17c rolls back.
+    use_v18 = not (args.v17c or os.environ.get("EXIT_ML_VERSION", "v18").lower() == "v17c")
 
     init_journal()
 
@@ -162,16 +211,33 @@ def main():
 
     vix = args.vix if args.vix is not None else get_vix(DB, date=date)
 
-    result = predict_exit(
-        args.symbol, entry_price, entry_time, DB,
-        vix_at_entry=vix, date=date,
-    )
-
-    format_output(args.symbol, result, entry_price, entry_time, date)
+    # Riser picks use the dedicated dynamic-trail exit (NOT v18 — v18 hurts risers).
+    riser = is_riser_pick(args.symbol, date, SCAN_JOURNAL) and not args.v17c
+    if riser:
+        result = predict_exit_riser(
+            args.symbol, entry_price, entry_time, DB,
+            vix_at_entry=vix, date=date,
+        )
+        result.setdefault("vix_at_entry", vix)
+        format_output_riser(args.symbol, result, entry_price, entry_time, date)
+    elif use_v18:
+        result = predict_exit_v18(
+            args.symbol, entry_price, entry_time, DB,
+            vix_at_entry=vix, date=date,
+        )
+        result.setdefault("vix_at_entry", vix)
+        format_output_v18(args.symbol, result, entry_price, entry_time, date)
+    else:
+        result = predict_exit(
+            args.symbol, entry_price, entry_time, DB,
+            vix_at_entry=vix, date=date,
+        )
+        format_output(args.symbol, result, entry_price, entry_time, date)
 
     write_journal(args.symbol, result, entry_price, entry_time, date, shadow_mode=not args.live)
     journal_state = "shadow" if not args.live else "LIVE"
-    print(f"\n[logged to exit_ml_journal.db — {journal_state} mode]")
+    ver = "riser-dyn" if riser else ("v18" if use_v18 else "v17c")
+    print(f"\n[logged to exit_ml_journal.db — {journal_state} mode, {ver}]")
 
 
 if __name__ == "__main__":

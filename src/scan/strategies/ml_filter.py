@@ -152,6 +152,16 @@ class MLFilterStrategy(BaseStrategy):
                 h12a_enabled = False
                 h12b_ad_cond = False
                 h12a_scorer = None
+        # 2026-06-10: VIX-stress satellite lane. Opens VIX>=20 / vix_5d>=0 blocks
+        # (currently hard-blocked) at win_p>=0.80 with stop-2%/TP+3% exit. Validated
+        # multi-window (+47% / blended Sharpe 3.72->4.60, robust across 24 configs).
+        # Core gets slot priority; lane fills remaining (core Z1/Z2 sit out in high VIX).
+        # OFF by default. Enable: H12A_VIX_LANE=live. Reverse: =off + restart.
+        _vix_lane_enabled = (h12a_enabled and h12a_scorer is not None
+                             and _os_h12a.environ.get('H12A_VIX_LANE', 'off') == 'live')
+        _vix_lane_thr = float(_os_h12a.environ.get('H12A_VIX_LANE_THR', '0.80'))
+        _vix_lane_sl = 0.02   # stop -2% from entry
+        _vix_lane_tp = 0.03   # take-profit +3% from entry
 
         # [timing] perf instrumentation — log-only, no behavior change (2026-05-30)
         from time import perf_counter as _pc
@@ -517,6 +527,12 @@ class MLFilterStrategy(BaseStrategy):
 
         dow = now_et.weekday()
         candidates = []
+        # 2026-06-10: MOM-30 informational list (manual-trade). 2-signal linear
+        # (rs+ -0.198*sec_etf) on the cell-ok+threshold pool (NO regime gate),
+        # exit +30min. Step 1 validated: net +0.6-0.9%/trade WR70% all liquid
+        # buckets, 3/3 folds. Surfaced in scan output only — NOT engine picks
+        # (manual exit). Disable: H12A_MOM30=0.
+        _mom30_pool = []
 
         for sym in syms:
             if sym in earnings_skip: continue
@@ -781,9 +797,44 @@ class MLFilterStrategy(BaseStrategy):
                     spy_intra=spy_intra,
                     dow=_h_dow,
                 )
+                if _os_h12a.environ.get('H12A_DUMP'):
+                    import json as _json_d
+                    _wp_raw = _h_score if _h_score > 0 else h12a_scorer.score(features, minutes_from_open, sec)
+                    with open('/tmp/h12a_dump.jsonl', 'a') as _f:
+                        _f.write(_json_d.dumps({'sym': sym, 'mfo': minutes_from_open, 'sec': sec,
+                            'gain': round(features.get('gain_from_open', 0), 2),
+                            'win_p': round(float(_wp_raw), 4), 'spy_intra': round(float(spy_intra or 0), 3),
+                            'price': round(float(now), 2),
+                            'score': round(float(_h_score), 4), 'reason': _h_reason}) + '\n')
+                # MOM-30 pool: cell-ok + win_p>=thr (NO regime gate). Informational.
+                if _os_h12a.environ.get('H12A_MOM30', '1') == '1' and 'cell_bad' not in _h_reason:
+                    _wp_m = _h_score if _h_score > 0 else h12a_scorer.score(features, minutes_from_open, sec)
+                    if _wp_m >= threshold:
+                        _rs_m = features.get('gain_from_open', 0.0) - (spy_intra or 0.0)
+                        _se_col = self._SECTOR_ETF.get(sec)
+                        _se_m = features.get(_se_col, 0.0) if _se_col else 0.0
+                        _mom30_pool.append(dict(
+                            sym=sym, score=0.217 * _rs_m - 0.198 * _se_m,
+                            rs=round(_rs_m, 2), sec_etf=round(_se_m, 2),
+                            price=round(now, 2), wp=round(float(_wp_m), 3),
+                            zone=_h12a_get_zone(minutes_from_open), sec=sec[:10]))
+                _vix_lane = False
                 if _h_score <= 0:
-                    continue  # filtered by H12-A cell/regime gate
-                prob = _h_score
+                    # VIX-stress lane: rescue VIX>=20 / vix_5d>=0 regime blocks (NOT
+                    # cell_bad) at win_p>=thr. Flows through with stop/TP exit below.
+                    if (_vix_lane_enabled
+                            and ('VIX=' in _h_reason or 'vix_5d_chg' in _h_reason)
+                            and 'cell_bad' not in _h_reason):
+                        _wp_lane = h12a_scorer.score(features, minutes_from_open, sec)
+                        if _wp_lane >= _vix_lane_thr:
+                            _vix_lane = True
+                            prob = _wp_lane
+                        else:
+                            continue
+                    else:
+                        continue  # filtered by H12-A cell/regime gate
+                else:
+                    prob = _h_score
                 # H12-B: AD-conditional effective threshold on Z1/Z3 only.
                 # ⚠️ LOOKAHEAD-FLAWED — DO NOT RE-ENABLE (reverted 2026-06-08).
                 # Backtest used SAME-DAY EOD ad_ratio to set the morning threshold,
@@ -873,10 +924,30 @@ class MLFilterStrategy(BaseStrategy):
                 else:
                     sl_price = 0  # disabled (pure hold)
                     sl_tag = "no SL"
+                # VIX-stress lane: override pure-hold-EOD with stop-2%/TP+3%
+                _lane_tp_price = None
+                if _vix_lane:
+                    sl_price = limit_price * (1 - _vix_lane_sl)
+                    _lane_tp_price = limit_price * (1 + _vix_lane_tp)
+                    sl_tag = (f"VIXlane SL-{_vix_lane_sl*100:.0f}%/"
+                              f"TP+{_vix_lane_tp*100:.0f}%")
+                # 2026-06-11: optional take-profit suggestion (manual). Set
+                # H12A_TP_PCT=3 -> emit TP@+3% on the pick. Backtest: TP caps
+                # winners so avg < hold-EOD, but locks gains + avoids fade-days.
+                _tp_pct = 0.0
+                try:
+                    _tp_pct = float(_os_h12a.environ.get('H12A_TP_PCT', '0') or 0)
+                except ValueError:
+                    _tp_pct = 0.0
+                _tp_tag = ''
+                if not _vix_lane and _tp_pct > 0:
+                    _lane_tp_price = limit_price * (1 + _tp_pct / 100.0)
+                    _tp_tag = f" TP@+{_tp_pct:.1f}% (${_lane_tp_price:.2f})"
                 reason = (
+                    f"{'[VIX-LANE] ' if _vix_lane else ''}"
                     f"ML p={prob:.3f} thr={_eff_thr:.2f} adapt_lim={pred_ratio:.4f} "
                     f"gain+{gain:.1f}% β{beta:.1f} {sec[:6]} "
-                    f"{entry_tag} pure-hold-EOD ({sl_tag})"
+                    f"{entry_tag} pure-hold-EOD ({sl_tag}){_tp_tag}"
                 )
             else:
                 # Legacy for Z2/Z3/Z4 until retrained
@@ -911,7 +982,8 @@ class MLFilterStrategy(BaseStrategy):
                 'limit_price': round(limit_price, 2),
                 'max_buy_price': round(max_buy, 2) if max_buy else None,
                 'slip_budget_pct': round(slip_budget * 100, 2) if slip_budget else None,
-                'exit_strategy': 'pure_hold_eod',
+                'exit_strategy': 'vix_lane_sl_tp' if _vix_lane else 'pure_hold_eod',
+                'vix_lane': _vix_lane,
                 # 2026-06-04: stash per-symbol features used by entry_filter
                 'mom20d': round(mom20, 2) if mom20 is not None else None,
             }
@@ -919,13 +991,34 @@ class MLFilterStrategy(BaseStrategy):
             candidates.append(Pick(
                 symbol=sym, entry=limit_price,
                 sl_price=round(sl_price, 2) if sl_price else None,
-                tp_price=None,
+                tp_price=round(_lane_tp_price, 2) if _lane_tp_price else None,
                 trail_pct=trail,
                 reason=reason,
                 score=int(prob * 10),
                 atr_pct=atr_pct,
                 extra=extra_dict,
             ))
+
+        # 2026-06-10: MOM-30 informational output (manual trade, exit +30min).
+        # Top-5 of cell-ok+thr pool by 2-signal score (rs+, sec_etf-). Step 1
+        # validated net +0.6-0.9%/trade WR70%. Printed + journaled, NOT auto-traded.
+        if _mom30_pool:
+            try:
+                _m30 = sorted(_mom30_pool, key=lambda x: -x['score'])[:5]
+                _lines = [f"  {i+1}. {p['sym']:<6} ${p['price']:<8.2f} "
+                          f"score{p['score']:+.2f} (rs{p['rs']:+.1f} secETF{p['sec_etf']:+.1f}) "
+                          f"{p['zone']} {p['sec']} wp{p['wp']:.2f}" for i, p in enumerate(_m30)]
+                print("\n📈 MOM-30 picks (2-signal, EXIT +30min — manual):\n" + "\n".join(_lines)
+                      + "\n   (Step1: net +0.6-0.9%/trade WR70%, large-cap. exit at entry+30min)\n",
+                      flush=True)
+                from pathlib import Path as _MPath
+                _mlog = _MPath(__file__).resolve().parents[3] / 'data' / 'mom30_picks.jsonl'
+                import json as _mjson, datetime as _mdt
+                with open(_mlog, 'a') as _mf:
+                    _mf.write(_mjson.dumps({'ts': now_et.isoformat(), 'mfo': minutes_from_open,
+                                            'picks': _m30}) + "\n")
+            except Exception as _me:
+                print(f"[ml_filter] MOM-30 output error (skipped): {_me}", flush=True)
 
         if not candidates:
             try:
@@ -947,13 +1040,16 @@ class MLFilterStrategy(BaseStrategy):
         #   F3 w+0.10g (old): +785% / WR 83% / worst -4.48%  (was current)
         # Δ = +174% total, +6pp WR, -1pp tail. Win score already incorporates
         # momentum via gain_from_open feature — adding it again was double-count.
-        candidates.sort(key=lambda p: -p.extra['ml_prob'])
+        # Core picks get slot priority; VIX-stress lane fills remaining (core Z1/Z2
+        # sit out in high VIX → slots free). vix_lane=False sorts before True.
+        candidates.sort(key=lambda p: (p.extra.get('vix_lane', False), -p.extra['ml_prob']))
 
         # 2026-06-04: entry_filter v1 (rule-based per-zone selection)
         # Applied AFTER ML threshold gate, BEFORE top-1 selection.
         # spec: backtests/entry_filter_v1/spec.json
         # Toggle: set env ENTRY_FILTER_ENABLED=0 to disable.
         all_candidates = list(candidates)  # keep full list for logging
+        self.last_all_candidates = all_candidates  # 2026-06-12: hook for riser_momentum lane (re-rank Z1 by gain)
         filter_verdicts = {}  # symbol -> (passes: bool, reason: str)
         import os as _os
         if _os.environ.get('ENTRY_FILTER_ENABLED', '1') == '1':
@@ -965,6 +1061,11 @@ class MLFilterStrategy(BaseStrategy):
                 survivors = []
                 for c in candidates:
                     fx = c.extra
+                    # VIX-stress lane picks bypass entry_filter (own validated sleeve)
+                    if fx.get('vix_lane'):
+                        filter_verdicts[c.symbol] = (True, 'vix_lane_bypass')
+                        survivors.append(c)
+                        continue
                     passes, reason = _ef_evaluate(
                         zone=_zone_str,
                         beta=fx.get('beta'),

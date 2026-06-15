@@ -501,7 +501,20 @@ class MLScorer:
         # NEW 2026-04-29: zone-based thresholds (overrides bucket if USE_ZONES)
         if self.USE_ZONES:
             zone = self.get_zone(minutes_from_open)
-            return self.ZONE_THRESHOLDS.get(zone, 99.0)
+            base = self.ZONE_THRESHOLDS.get(zone, 99.0)
+            # 2026-06-09: per-zone threshold env override (reversible tune).
+            # Z1/Z4 lowered 0.75->0.68: WF holdout +44 trade-days (126->170),
+            # total +118%->+147%, Sharpe 5.27->4.45 (still excellent), WR 67->62.
+            # Z2/Z3 kept 0.75 (lowering craters Sharpe 13.8->4.1 / 6.9->3.1).
+            # Restore: unset H12A_THR_* envs -> back to ZONE_THRESHOLDS.
+            import os as _os_thr
+            _ov = _os_thr.environ.get(f'H12A_THR_{zone}')
+            if _ov:
+                try:
+                    return float(_ov)
+                except ValueError:
+                    pass
+            return base
         if minutes_from_open >= 120:       # 11:30-13:00
             return 0.18
         if minutes_from_open >= 75:        # 10:45-11:30
