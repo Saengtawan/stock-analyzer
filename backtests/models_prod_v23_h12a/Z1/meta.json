@@ -2,7 +2,7 @@
   "zone": "Z1",
   "arch": "V-2",
   "label": "label_z12_market_3dd",
-  "cutoff": "2026-06-06",
+  "cutoff": "2026-06-19",
   "train_days": 840,
   "mfo_range": [
     0,
@@ -131,7 +131,7 @@
     "n_jobs": 4
   },
   "ft_rounds": 100,
-  "train_rows": 25128,
-  "positive_rate": 0.530404329831264,
-  "trained_at": "2026-06-07T00:33:29.242970"
+  "train_rows": 25045,
+  "positive_rate": 0.5329606707925734,
+  "trained_at": "2026-06-21T11:32:29.548149"
 }

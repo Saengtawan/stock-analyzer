@@ -20,11 +20,13 @@ START="$(date -d '3 years ago' +%Y-%m-%d)"
 
 exec >>"$LOG" 2>&1
 echo "===== H12-A retrain $DATE (END=$END) ====="
-echo "[1/5] rebuild feature pkl..."
-$PY backtests/feature_builder.py --start "$START" --end "$END" --output "$PKL" --limit 500
+echo "[1/5] rebuild FAITHFUL feature pkl (2026-06-21: train==serve, IEX 1-min source)..."
+# Extend wf_1min (IEX 1-min = live source) to current, then build faithful pkl + labels.
+# This keeps train==serve parity closed each month (vs plain feature_builder which has open-skew).
+$PY scripts/extend_wf1min.py --end "$END" || echo "  ⚠️ wf_1min extend partial (faithful uses what's available)"
+$PY scripts/build_faithful_pkl.py --start "$START" --end "$END" --out-pkl "$PKL" --out-labels "$LABELS"
 
-echo "[2/5] rebuild phase0 labels..."
-PHASE0_LABELS_OUT="$LABELS" $PY scripts/rebuild_phase0_labels.py
+echo "[2/5] labels built by build_faithful_pkl (phase0 convention) -> $LABELS"
 
 echo "[3/5] train H12-A → staging ($STAGE)..."
 mkdir -p "$STAGE"
@@ -48,4 +50,12 @@ else
   echo "⚠️ STAGING FAILED validation (rc=$RC) — DO NOT swap. Live H12-A untouched."
 fi
 echo "Staging models: $STAGE | cells: $CELLS | pkl: $PKL"
+
+# --- Reseed stock identity track record from the fresh pkl (2026-06-21) ---
+# Keeps the identity gate consistent: prior_avg rebuilt from the SAME source as the seed
+# (correct riser label, entry 09:40 / exit 15:55). Avoids the open-source skew a naive
+# daily-updater introduces (it used 09:30-bar-open != pkl official open -> missed movers).
+echo "[reseed] stock identity track record (correct label)..."
+$PY scripts/seed_track_record_correct.py --pkl "$PKL" || echo "  reseed failed (gate keeps prior table)"
+
 echo "===== done $DATE ====="

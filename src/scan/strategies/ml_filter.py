@@ -152,6 +152,21 @@ class MLFilterStrategy(BaseStrategy):
                 h12a_enabled = False
                 h12b_ad_cond = False
                 h12a_scorer = None
+        # 2026-06-18: Lean foundation SHADOW lane — scores Z1/Z2 with ml_scorer_lean
+        # (pooled+sector+calibrated, beats 235 per-sector on WF), logs its top-1 pick
+        # + quantile abstention alongside the live pick. Does NOT change trading.
+        # Enable: LEAN_SHADOW=1. See memory research_lean_vs_235_ablation.
+        _lean_shadow = _os_h12a.environ.get('LEAN_SHADOW', '0') == '1'
+        lean_scorer = None
+        _lean_pool = []
+        if _lean_shadow:
+            try:
+                from ..ml_scorer_lean import get_scorer_lean as _get_lean
+                lean_scorer = _get_lean()
+                print('[ml_filter] LEAN shadow enabled (Z1/Z2)', flush=True)
+            except Exception as _e:
+                print(f'[ml_filter] LEAN shadow load failed: {_e}', flush=True)
+                lean_scorer = None
         # 2026-06-10: VIX-stress satellite lane. Opens VIX>=20 / vix_5d>=0 blocks
         # (currently hard-blocked) at win_p>=0.80 with stop-2%/TP+3% exit. Validated
         # multi-window (+47% / blended Sharpe 3.72->4.60, robust across 24 configs).
@@ -785,6 +800,14 @@ class MLFilterStrategy(BaseStrategy):
                 'feat_combined_momentum': feat_combined_momentum,
             }
 
+            # 2026-06-18: lean shadow scoring (Z1/Z2 only; score() returns None elsewhere)
+            if lean_scorer is not None:
+                _lp = lean_scorer.score(features, minutes_from_open, sec)
+                if _lp is not None:
+                    _lean_pool.append({'sym': sym, 'sec': sec, 'mfo': minutes_from_open,
+                                       'zone': lean_scorer.get_zone(minutes_from_open),
+                                       'score': float(_lp), 'price': round(float(now), 2)})
+
             # 2026-06-07: H12-A scoring + cell+regime filter when enabled
             if h12a_enabled and h12a_scorer is not None:
                 import datetime as _dt_h12a
@@ -805,6 +828,8 @@ class MLFilterStrategy(BaseStrategy):
                             'gain': round(features.get('gain_from_open', 0), 2),
                             'win_p': round(float(_wp_raw), 4), 'spy_intra': round(float(spy_intra or 0), 3),
                             'price': round(float(now), 2),
+                            'gap': round(float(features.get('gap_from_prev', 0) or 0), 3),
+                            'range_exp': round(float(features.get('range_exp', 0) or 0), 3),
                             'score': round(float(_h_score), 4), 'reason': _h_reason}) + '\n')
                 # MOM-30 pool: cell-ok + win_p>=thr (NO regime gate). Informational.
                 if _os_h12a.environ.get('H12A_MOM30', '1') == '1' and 'cell_bad' not in _h_reason:
@@ -1050,6 +1075,25 @@ class MLFilterStrategy(BaseStrategy):
         # Toggle: set env ENTRY_FILTER_ENABLED=0 to disable.
         all_candidates = list(candidates)  # keep full list for logging
         self.last_all_candidates = all_candidates  # 2026-06-12: hook for riser_momentum lane (re-rank Z1 by gain)
+        # 2026-06-18: LEAN SHADOW — top-1/zone by lean score + causal quantile abstention,
+        # journal to lean_picks. Shadow only (NO effect on engine picks/returns).
+        if _lean_shadow and _lean_pool:
+            try:
+                from ..lean_abstain import decide as _lean_decide, record as _lean_record, DEFAULT_Q
+                _ldate = now_et.strftime('%Y-%m-%d'); _lts = now_et.strftime('%Y-%m-%d %H:%M:%S')
+                _byz = {}
+                for _c in _lean_pool:
+                    _z = _c['zone']
+                    if _z and (_z not in _byz or _c['score'] > _byz[_z]['score']):
+                        _byz[_z] = _c
+                for _z, _top in _byz.items():
+                    _dec = _lean_decide(_z, _top['score'], _ldate, q=DEFAULT_Q)
+                    _lean_record(_ldate, _lts, _z, _top['mfo'], _top['sym'], _top['sec'],
+                                 _top['score'], int(_dec['trade']), DEFAULT_Q, _dec['thr'], len(_lean_pool))
+                    print(f"[lean-shadow] {_z} top1={_top['sym']} score={_top['score']:.3f} "
+                          f"trade={_dec['trade']} ({_dec['reason']})", flush=True)
+            except Exception as _e:
+                print(f'[ml_filter] lean shadow record failed: {_e}', flush=True)
         filter_verdicts = {}  # symbol -> (passes: bool, reason: str)
         import os as _os
         if _os.environ.get('ENTRY_FILTER_ENABLED', '1') == '1':

@@ -2,7 +2,7 @@
   "zone": "Z3",
   "arch": "V-C",
   "label": "label_z34_market",
-  "cutoff": "2026-06-06",
+  "cutoff": "2026-06-19",
   "train_days": 840,
   "regime_days": 90,
   "mfo_range": [
@@ -128,8 +128,8 @@
     "n_jobs": 4
   },
   "ft_rounds": 80,
-  "train_rows_840": 48248,
-  "train_rows_90": 7048,
-  "positive_rate": 0.5387166307411706,
-  "trained_at": "2026-06-07T00:33:42.568641"
+  "train_rows_840": 47795,
+  "train_rows_90": 6657,
+  "positive_rate": 0.5374830003138403,
+  "trained_at": "2026-06-21T11:32:43.795246"
 }
