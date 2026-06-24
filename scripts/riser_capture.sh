@@ -21,8 +21,10 @@ if [[ "${RISER_ENABLED:-1}" != "1" ]]; then echo "[riser] RISER_ENABLED=0 — sk
 
 et_secs() { read -r h m s < <(TZ=America/New_York date '+%H %M %S'); echo $((10#$h*3600+10#$m*60+10#$s)); }
 
-# Capture window: 09:31:30, 09:32:30, ... 09:37:30 (mfo 1..7, all Z1)
-for MIN in 31 32 33 34 35 36 37; do
+# Capture window: 09:31:30 .. last scan (default 09:36:30 = display 1 bar earlier, 2026-06-23).
+# Display uses the LAST scan record; ending at :36:30 (vs old :37:30) shows the pick ~1 min
+# earlier (uses the 09:35 bar / ~09:36 price instead of ~09:37). Revert: RISER_LAST_MIN=37.
+for MIN in $(seq 31 "${RISER_LAST_MIN:-36}"); do
   TARGET=$((9*3600 + MIN*60 + 30))               # HH:MM:30 ET
   while [[ "$(et_secs)" -lt "$TARGET" ]]; do sleep 2; done
   rm -f /tmp/h12a_dump.jsonl
@@ -68,42 +70,60 @@ def _riser_ok(r):
     if _GAP_CAP is not None and r.get('gap') is not None and r['gap'] > _GAP_CAP: return False
     return True
 risers=[r for r in acc.values() if _riser_ok(r)]
-# --- v2 GATES (2026-06-21): vix<20 (regime, rediscover H12-A) + identity (ticker track record).
-#     Validated OOS correct-label: vix<20+identity(n>=8) net -0.04->+0.64, maxDD 93->47, CI[+0.09,+1.18]
-#     SIG+, fold both +, rmT3 +0.43. Reversible: RISER_VIX_GATE=0 / RISER_IDENTITY_GATE=0. ---
-_VIX_GATE=os.environ.get('RISER_VIX_GATE','0')=='1'
+# --- v2 REGIME-ADAPTIVE GATES (2026-06-21, drilled vs user + 2 independent AIs, full 2021+ N).
+#     SEASON DETERMINANT = VIX-20d (20-day avg of prior-day VIX, slow regime). Validated net-of-cost
+#     ACROSS TWO INDEPENDENT ERAS (2021-22 bear + 2025-26):
+#       VIX-20d < 22 -> identity gate WORKS (net +0.11..+0.62 both eras).
+#       VIX-20d >= 22 (storm) -> NO rule tradeable (gain/identity/anti/beta all lose >=1 era) -> abstain.
+#     Drilled-away artifacts: instantaneous-vix (noise), VIX-20d 24-26 "junk-mania" (1 melt-up day,
+#     2025-04-09 tariff-pause), sub-buckets (thin-N single-big-beta-day). Reversible: flags below. ---
 _ID_GATE=os.environ.get('RISER_IDENTITY_GATE','0')=='1'
-if _VIX_GATE or _ID_GATE:
-    _tg=now.strftime('%Y-%m-%d'); _vix=None
-    if _VIX_GATE:
-        try:
-            import sqlite3 as _s3
-            _th=_s3.connect('/home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db')
-            _row=_th.execute("SELECT vix_close FROM macro_snapshots WHERE vix_close IS NOT NULL ORDER BY date DESC LIMIT 1").fetchone(); _th.close()
-            _vix=_row[0] if _row else None
-        except Exception: _vix=None
-    _STRg=None
-    if _ID_GATE:
-        try:
-            import sys as _s2; _s2.path.insert(0,'/home/saengtawan/work/project/cc/stock-analyzer')
-            from src.scan import stock_track_record as _STRg
-        except Exception: _STRg=None
-    def _gate_ok(r):
-        if _VIX_GATE and _vix is not None and _vix>=20: return False
-        if _ID_GATE and _STRg is not None and not _STRg.passes_gate(r['sym'],_tg,min_n=8): return False
-        return True
-    _pre=len(risers); risers=[r for r in risers if _gate_ok(r)]
-    print(f"[v2-gates] vix_gate={('ON vix=%.1f'%_vix) if (_VIX_GATE and _vix is not None) else 'off'} | id_gate={'ON(n>=8)' if _ID_GATE else 'off'} -> {len(risers)}/{_pre} candidates pass")
+_VIX20_MAX=float(os.environ.get('RISER_VIX20_MAX','99'))   # abstain whole day if VIX-20d >= this (storm)
+if _ID_GATE or _VIX20_MAX<99:
+    _tg=now.strftime('%Y-%m-%d'); _vix20=None
+    try:
+        import sqlite3 as _s3
+        _th=_s3.connect('/home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db')
+        _rows=_th.execute("SELECT vix_close FROM macro_snapshots WHERE vix_close IS NOT NULL ORDER BY date DESC LIMIT 20").fetchall(); _th.close()
+        if len(_rows)>=20: _vix20=sum(x[0] for x in _rows)/20.0
+    except Exception: _vix20=None
+    # STORM regime: VIX-20d >= max -> no tradeable edge -> abstain entire day
+    if _vix20 is not None and _vix20>=_VIX20_MAX:
+        print(f"[v2-gates] VIX-20d={_vix20:.1f} >= {_VIX20_MAX} (storm, no-edge regime) -> ABSTAIN")
+        risers=[]
+    else:
+        _STRg=None
+        if _ID_GATE:
+            try:
+                import sys as _s2; _s2.path.insert(0,'/home/saengtawan/work/project/cc/stock-analyzer')
+                from src.scan import stock_track_record as _STRg
+            except Exception: _STRg=None
+        def _gate_ok(r):
+            if _ID_GATE and _STRg is not None and not _STRg.passes_gate(r['sym'],_tg,min_n=8): return False
+            return True
+        _pre=len(risers); risers=[r for r in risers if _gate_ok(r)]
+        print(f"[v2-gates] VIX-20d={('%.1f'%_vix20) if _vix20 is not None else 'na'}<{_VIX20_MAX} | id_gate={'ON(n>=8)' if _ID_GATE else 'off'} -> {len(risers)}/{_pre} pass")
 print(f"=== riser_momentum @ {now.strftime('%Y-%m-%d %H:%M:%S %Z')} ===")
 if not risers:
-    print(f"Status: no_picks — no Z1 riser in band (gain {_MIN_GAIN}-{_MAX_GAIN}, gap<={_GAP_CAP}) across 09:31-37 scans"); raise SystemExit
+    print(f"Status: no_picks — no Z1 riser in band (gain {_MIN_GAIN}-{_MAX_GAIN}, gap<={_GAP_CAP}) across 09:31-36 scans"); raise SystemExit
 risers.sort(key=lambda r: -r['gain'])
 top=risers[0]
-print(f"Status: active — top RISER by gain in band({_MIN_GAIN}-{_MAX_GAIN},gap<={_GAP_CAP}) among {len(risers)} Z1 candidates (09:31:30-09:37:30)")
+print(f"Status: active — top RISER by gain in band({_MIN_GAIN}-{_MAX_GAIN},gap<={_GAP_CAP}) among {len(risers)} Z1 candidates (09:31:30-09:36:30)")
 print()
 print(f"  BUY  {top['sym']}  @ ${top.get('price',0):.2f}")
 print(f"       gain +{top['gain']:.1f}%  win_p {top.get('win_p',0):.3f}  sec {str(top.get('sec',''))[:12]}  spy_intra {top.get('spy_intra',0):+.2f}")
-print(f"       rank-by-gain top-1 | BUY NOW (at display, no wait) | win=peak>=1% | hold-EOD")
+print(f"       rank-by-gain top-1 | BUY NOW (at display, no wait) | win=peak>=1%")
+# exit-plan from PRIOR-DAY regime (Phase 1, 2026-06-24): BULL hold-EOD / BEAR exit~10:05.
+# Informational at entry; the actual exit logic lives in inference_riser (RISER_REGIME_EXIT).
+_exit_plan='hold-EOD (default)'
+if os.environ.get('RISER_REGIME_EXIT','0')=='1':
+    try:
+        import sys as _se; _se.path.insert(0,'/home/saengtawan/work/project/cc/stock-analyzer')
+        from src.scan.riser_winp import _prior_day_regime as _pdr
+        _rg=_pdr(now.strftime('%Y-%m-%d'))
+        _exit_plan=('hold-EOD (BULL sustain)' if (_rg and _rg.get('bull')) else 'exit~10:05 (BEAR pump-fade)') if _rg else 'hold-EOD (regime n/a)'
+    except Exception as _ee: _exit_plan=f'hold-EOD (regime err)'
+    print(f"       EXIT-PLAN: {_exit_plan}  [+ peak-fade reactive]")
 print()
 print(f"  รองลงมา: " + " ".join(f"{r['sym']}+{r['gain']:.1f}%(wp{r.get('win_p',0):.2f})" for r in risers[1:6]))
 # journal the suggested pick for forward tracking
@@ -140,6 +160,31 @@ if os.environ.get('RISER_IDENTITY_SHADOW','1')=='1':
         _db.commit(); _db.close()
     except Exception as _e:
         print(f"  [identity-shadow skip: {_e}]")
+
+# --- win_p v2 SHADOW (2026-06-24, LOG-ONLY, zero trade impact). Disable: RISER_WINP_SHADOW=0 ---
+# New quality-feature win_p (regime+identity+sector+market, lookahead-safe, cache/riser_winp_v1.pkl).
+# WF-OOF gate: win_p>=0.5 -> net +0.89 WR61% vs trade-all -0.47. SHADOW to verify live≈backtest
+# parity before gating. Logs live-pick win_p + the win_p-best candidate. Does NOT change the trade.
+if os.environ.get('RISER_WINP_SHADOW','1')=='1':
+    try:
+        import sys as _s3; _s3.path.insert(0,'/home/saengtawan/work/project/cc/stock-analyzer')
+        from src.scan.riser_winp import score_pick as _wp
+        _td=now.strftime('%Y-%m-%d')
+        _allg=[r['gain'] for r in risers]  # cross-sectional gains for grank (v3)
+        _lwp=_wp(top['sym'],top['gain'],top.get('spy_intra',0),top.get('sec',''),_td,_allg)
+        _scored=[(r['sym'],r['gain'],_wp(r['sym'],r['gain'],r.get('spy_intra',0),r.get('sec',''),_td,_allg)) for r in risers]
+        _scored=[x for x in _scored if x[2] is not None]
+        _best=max(_scored,key=lambda x:x[2]) if _scored else None
+        _gate='PASS(>=0.5)' if (_lwp is not None and _lwp>=0.5) else ('BLOCK(<0.5)' if _lwp is not None else 'n/a')
+        print(f"\n  [winp-shadow] live-pick {top['sym']} win_p={(('%.3f'%_lwp) if _lwp is not None else 'na')} gate={_gate}")
+        print(f"  [winp-shadow] winp-best: {(_best[0]+' wp%.3f g+%.1f'%(_best[2],_best[1])) if _best else 'na'}")
+        import sqlite3 as _sq2
+        _db2=_sq2.connect('/home/saengtawan/work/project/cc/stock-analyzer/data/scan_journal.db')
+        _db2.execute("CREATE TABLE IF NOT EXISTS riser_winp_shadow(scan_date TEXT,scan_ts TEXT,live_sym TEXT,live_gain REAL,live_winp REAL,gate_pass INT,winp_best_sym TEXT,winp_best_winp REAL,n_scored INT)")
+        _db2.execute("INSERT INTO riser_winp_shadow VALUES(?,?,?,?,?,?,?,?,?)",(_td,now.strftime('%Y-%m-%d %H:%M:%S'),top['sym'],top['gain'],_lwp,1 if (_lwp is not None and _lwp>=0.5) else 0,(_best[0] if _best else None),(_best[2] if _best else None),len(_scored)))
+        _db2.commit(); _db2.close()
+    except Exception as _e2:
+        print(f"  [winp-shadow skip: {_e2}]")
 PYEOF
 
 # --- Auto-launch exit tracker for the riser pick (2026-06-14) ---
@@ -155,7 +200,7 @@ if [[ "${RISER_TRACK:-1}" == "1" ]]; then
       echo "[riser] $RSYM exit-tracker already running — skip"
     else
       LOG="$LOG_DIR/${RSYM}_${ET_DATE}_riser.log"
-      nohup bash scripts/exit_loop.sh "$RSYM" "$RPRICE" 09:38 "$ET_DATE" > "$LOG" 2>&1 < /dev/null &
+      nohup bash scripts/exit_loop.sh "$RSYM" "$RPRICE" 09:37 "$ET_DATE" > "$LOG" 2>&1 < /dev/null &
       disown 2>/dev/null || true
       echo "[riser] launched exit-tracker: $RSYM @ \$$RPRICE (riser dynamic exit) -> $LOG"
     fi

@@ -92,11 +92,53 @@ def predict_exit_riser(
     gate_txt = (f"VIX {vix_str}{'≥' if vix_on else '<'}22"
                 f" OR own_range {own_range:.2f}{'≥' if own_on else '<'}3.0")
 
+    # --- REGIME-AWARE EXIT (Phase 2-3, 2026-06-24). Enable: RISER_REGIME_EXIT=1.
+    #   BULL pick -> hold-EOD (sustain). BEAR pick -> exit ~10:05 (pump-fade: capture pop
+    #   before EOD fade; backtest BEAR exit-10:05 -0.64 vs hold-EOD -1.80). PEAK-FADE becomes
+    #   an ACTION (not advisory): stock off peak + SPY rolling over -> EXIT (market-led fade).
+    #   Regime = PRIOR-DAY spy_regime (lookahead-safe). Disable: RISER_REGIME_EXIT=0.
+    gb_thr = float(os.environ.get("RISER_GIVEBACK_THR", "1.5"))
+    spy_thr = float(os.environ.get("RISER_SPY_DD_THR", "-0.3"))
+    REGIME_EXIT = os.environ.get("RISER_REGIME_EXIT", "0") == "1"
+    regime_bull = None
+    spy_dd_at = {}
+    if REGIME_EXIT:
+        try:
+            from src.scan.riser_winp import _prior_day_regime
+            _rg = _prior_day_regime(date) if date else None
+            regime_bull = _rg["bull"] if _rg else None
+        except Exception:
+            regime_bull = None
+        try:  # running SPY intraday drawdown per minute (SPY close vs its running high)
+            _sb, _ = _fetch_bars("SPY", [], db_path, date)
+            _spk = 0.0
+            for _b in _sb:
+                _spk = max(_spk, _b[2])
+                if _spk > 0:
+                    spy_dd_at[_b[0]] = (_b[4] / _spk - 1) * 100
+        except Exception:
+            pass
+
     hwm = 0.0
     for el, cur in series:
         hwm = max(hwm, cur)
         m = (fill_em + el)
         tt = f"{m // 60:02d}:{m % 60:02d}"
+        # REGIME-AWARE EXIT actions (only when RISER_REGIME_EXIT=1, after min-hold)
+        if REGIME_EXIT and el >= MIN_HOLD:
+            _sdd = spy_dd_at.get(m)
+            # (a) PEAK-FADE action: stock gave back from peak + SPY rolling over -> EXIT (both regimes)
+            if hwm >= 1.0 and (hwm - cur) >= gb_thr and _sdd is not None and _sdd <= spy_thr:
+                return {"verdict": "TRAIL_EXIT", "exit_time": tt, "cur_pnl_pct": float(cur),
+                        "hwm_pct": float(hwm), "sector": sector, "vix_at_entry": vix_at_entry,
+                        "own_range": float(own_range), "gate": gate_txt, "spy_dd": float(_sdd),
+                        "reason": f"PEAK-FADE exit @{tt}: peak {hwm:+.2f}%->{cur:+.2f}% + SPY {_sdd:+.2f}% from peak (market-led fade)"}
+            # (b) BEAR 10:05 exit: prior-day BEAR = pump-fade -> capture pop before EOD fade
+            if regime_bull == 0 and m >= 605 and cur < hwm:
+                return {"verdict": "TRAIL_EXIT", "exit_time": tt, "cur_pnl_pct": float(cur),
+                        "hwm_pct": float(hwm), "sector": sector, "vix_at_entry": vix_at_entry,
+                        "own_range": float(own_range), "gate": gate_txt,
+                        "reason": f"BEAR-10:05 exit @{tt}: prior-day BEAR, off peak ({hwm:+.2f}%->{cur:+.2f}%) -> capture pop before EOD fade"}
         # own_range only usable once its window has closed (el >= OWN_WINDOW_MIN)
         window_ready = el >= OWN_WINDOW_MIN
         gate_now = dynamic and (vix_on or (own_on and window_ready))
@@ -108,7 +150,33 @@ def predict_exit_riser(
                               f"(gate ON: {gate_txt})"}
     last_cur = series[-1][1]
     mode = "trail-armed (no trigger yet)" if gate_on else "hold-EOD (calm regime)"
+    # --- PEAK-FADE advisory (2026-06-23): stock gives back from its peak + market (SPY) rolling
+    # over from ITS intraday peak = "stock หลุด peak" confluence. ADVISORY ONLY — does NOT change
+    # the HOLD/TRAIL verdict (backtest: confluence auto-exit ≈ hold / slightly worse, U-recovery
+    # clips winners; but it cuts the worst trade and is a useful discretionary signal on clean
+    # market-led fades like COIN 2026-06-22). Disable: RISER_PEAK_ALERT=0. Thresholds tunable.
+    peak_fade = hwm - last_cur
+    spy_dd = None
+    if os.environ.get("RISER_PEAK_ALERT", "1") != "0":
+        try:
+            spy_bars, _ = _fetch_bars("SPY", [], db_path, date)
+            spy_cut = [b for b in spy_bars if current_em is None or b[0] <= current_em]
+            if spy_cut:
+                spk = max(b[2] for b in spy_cut)  # SPY intraday high
+                if spk > 0:
+                    spy_dd = (spy_cut[-1][4] / spk - 1) * 100  # SPY close vs its peak
+        except Exception:
+            spy_dd = None
+    gb_thr = float(os.environ.get("RISER_GIVEBACK_THR", "1.5"))
+    spy_thr = float(os.environ.get("RISER_SPY_DD_THR", "-0.3"))
+    peak_alert = bool(hwm >= 1.0 and peak_fade >= gb_thr
+                      and spy_dd is not None and spy_dd <= spy_thr)
+    advisory = ""
+    if spy_dd is not None and peak_alert:
+        advisory = (f"  ⚠️ PEAK_FADE: stock {peak_fade:.2f}% from peak + SPY {spy_dd:+.2f}% "
+                    f"from peak — CONSIDER EXIT (market-led fade)")
     return {"verdict": "HOLD", "sector": sector, "cur_pnl_pct": float(last_cur),
             "hwm_pct": float(hwm), "vix_at_entry": vix_at_entry, "own_range": float(own_range),
-            "gate": gate_txt,
-            "reason": f"HOLD — {mode}, cur {last_cur:+.2f}% (gate {'ON' if gate_on else 'OFF'}: {gate_txt})"}
+            "gate": gate_txt, "spy_dd": (float(spy_dd) if spy_dd is not None else None),
+            "peak_fade": float(peak_fade), "peak_alert": peak_alert,
+            "reason": f"HOLD — {mode}, cur {last_cur:+.2f}% (gate {'ON' if gate_on else 'OFF'}: {gate_txt}){advisory}"}

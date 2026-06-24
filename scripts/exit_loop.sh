@@ -74,12 +74,16 @@ while true; do
   pnl=$(printf '%s\n' "$out" | grep -oE '\([+-]?[0-9.]+%\)' | head -1 | tr -d '()')
   [ -z "$pnl" ] && pnl=$(printf '%s\n' "$out" | grep -oE 'PnL:[[:space:]]+[+-]?[0-9.]+%' | head -1 | awk '{print $NF}')
   add_tier=$(printf '%s\n' "$out" | grep -oE 'ADD:[[:space:]]+🟢 T[0-9][a-z]?' | head -1 | grep -oE 'T[0-9][a-z]?')
+  peakfade=$(printf '%s\n' "$out" | grep -oE 'PeakFade:.*' | head -1)
 
   compact="[$(ts)] ET $ET_NOW  iter=$iter  ${verdict:-?}"
   [ -n "$add_tier" ] && compact="${compact}+ADD-${add_tier}"
   [ -n "$prob" ]  && compact="$compact  p=$prob"
   [ -n "$price" ] && compact="$compact  \$$price"
   [ -n "$pnl" ]   && compact="$compact  ($pnl)"
+  [ -n "$peakfade" ] && compact="$compact  | $peakfade"
+  # PEAK_FADE advisory beep (2026-06-23): single beep when SPY+stock confluence flags exit
+  if [ "${QUIET:-0}" != "1" ] && printf '%s' "$peakfade" | grep -q "CONSIDER EXIT"; then printf '\a'; fi
 
   case "$verdict" in
     EXIT)

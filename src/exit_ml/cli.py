@@ -118,6 +118,9 @@ def format_output_riser(symbol: str, result: dict, entry_price: float, entry_tim
         cur_price = entry_price * (1 + result["cur_pnl_pct"] / 100.0)
         hw = f"  hwm {result['hwm_pct']:+.2f}%" if result.get("hwm_pct") is not None else ""
         print(f"Price: ${cur_price:.2f}  ({fmt_pct(result['cur_pnl_pct'])}){hw}")
+    if result.get("spy_dd") is not None:
+        al = "  ⚠️ CONSIDER EXIT" if result.get("peak_alert") else ""
+        print(f"PeakFade: stk {result.get('peak_fade', 0):.2f}% from pk | SPY {result['spy_dd']:+.2f}% from pk{al}")
     if result.get("exit_time"):
         print(f"Fired: @{result['exit_time']} ET")
     print(f"Verdict: {emoji} {v}")
