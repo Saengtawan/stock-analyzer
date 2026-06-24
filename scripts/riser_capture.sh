@@ -116,6 +116,16 @@ if _ID_GATE or _VIX20_MAX<99:
             return True
         _pre=len(risers); risers=[r for r in risers if _gate_ok(r)]
         print(f"[v2-gates] VIX-20d={('%.1f'%_vix20) if _vix20 is not None else 'na'}<{_VIX20_MAX} | id_gate={'ON(n>=8)' if _ID_GATE else 'off'} -> {len(risers)}/{_pre} pass")
+# WIN_P GATE (2026-06-24, user deploy on LIVE evidence). Keep only win_p >= RISER_WINP_MIN, then
+# rank-by-gain among survivors. Empty -> abstain (faithful to "low win_p = likely fade"; don't pick
+# a likely loser). Live N=7 showed perfect win_p->ret separation (corr +0.89; >=0.55 WR100% vs <0.55
+# WR0%) BUT N tiny + backtest fold-split previously REJECTED a win_p gate -> HIGH-RISK bet, tracked
+# vs winp_ab_shadow. The lane had run gain-only (NO win_p filter) since 2026-06-12; this re-adds it.
+# Reversible: RISER_WINP_MIN=0 (or unset) -> gain-only. Tune threshold via the same flag.
+_WINP_MIN=float(os.environ.get('RISER_WINP_MIN','0') or 0)
+if _WINP_MIN>0:
+    _pw=len(risers); risers=[r for r in risers if (r.get('win_p') or 0)>=_WINP_MIN]
+    print(f"[winp-gate] win_p>={_WINP_MIN} -> {len(risers)}/{_pw} pass" + ("  (ABSTAIN: none qualify)" if not risers else ""))
 print(f"=== riser_momentum @ {now.strftime('%Y-%m-%d %H:%M:%S %Z')} ===")
 if not risers:
     print(f"Status: no_picks — no Z1 riser in band (gain {_MIN_GAIN}-{_MAX_GAIN}, gap<={_GAP_CAP}) across 09:31-36 scans"); raise SystemExit
