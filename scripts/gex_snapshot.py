@@ -165,6 +165,27 @@ def main():
             j.close()
         except Exception:
             pass
+        # + in-band riser candidates from the persisted dumps (gain 2-6). Today's so GEX can be
+        # tested vs each candidate's outcome; the last ~30 days so the cache covers RECURRING
+        # candidates (gex_live reads the latest cached chain -> a name seen before stays warm and
+        # has live GEX at the 09:37 pick). Disable: GEX_CANDIDATES=0.
+        if os.environ.get("GEX_CANDIDATES", "1") != "0":
+            try:
+                import glob as _g, json as _j
+                dumpdirs = sorted(_g.glob(str(ROOT / "data" / "riser_dumps" / "*")))[-30:]
+                seen = set()
+                for dd in dumpdirs:
+                    for f in _g.glob(str(Path(dd) / "min_*.jsonl")):
+                        for ln in open(f):
+                            try:
+                                r = _j.loads(ln)
+                            except Exception:
+                                continue
+                            if 0 <= r.get("mfo", 99) <= 9 and r.get("gain") and 2.0 <= r["gain"] <= 6.0:
+                                seen.add(r["sym"])
+                syms += sorted(seen)
+            except Exception:
+                pass
         syms = list(dict.fromkeys(syms))  # dedupe, preserve order
     con = sqlite3.connect(DB); ensure_db(con)
     for sym in syms:

@@ -163,6 +163,26 @@ if _ddcap>0:
     _cp=[r for r in risers if _path_ok(r)]
     print(f"[clean-path] maxDD<={_ddcap} (n>={_ddmin}) -> {len(_cp)}/{len(risers)} pass")
     if _cp: risers=_cp
+# GEX filter (2026-06-25, user deploy). Drop NEG-GEX (put-heavy = dealer short gamma = fade-risk)
+# candidates. gex_live reads the cached prior-day chain (OI is prior-day, doesn't change intraday)
+# and recomputes gamma with the live price -> <100ms, no API, available at the 09:37 pick. Sign from
+# the 06-24 cross-section (POS-GEX +1.94% vs NEG-GEX -0.30%, N=19, 1 DAY -> UNVALIDATED, may be
+# inverted: historical SPY GEX skewed all-negative). Candidates with no cached chain pass through;
+# keep-all if the filter empties (don't abstain on GEX). gex stored on each pick. RISER_GEX_FILTER=0 -> off.
+if os.environ.get('RISER_GEX_FILTER','0')=='1':
+    try:
+        import sys as _gxs; _gxs.path.insert(0,'/home/saengtawan/work/project/cc/stock-analyzer')
+        from src.scan.gex_live import gex_live as _gxl
+        _gxd=now.strftime('%Y-%m-%d')
+        def _gex_ok(r):
+            _g=_gxl(r['sym'], r.get('price') or 0, _gxd); r['gex']=_g
+            return (_g is None) or (_g>=0)   # no cache -> pass; NEG-GEX -> drop
+        _gf=[r for r in risers if _gex_ok(r)]
+        _ncov=sum(1 for r in risers if r.get('gex') is not None)
+        print(f"[gex-filter] drop NEG-GEX -> {len(_gf)}/{len(risers)} pass ({_ncov} had cache)")
+        if _gf: risers=_gf
+    except Exception as _gee:
+        print(f"[gex-filter] skip: {_gee}")
 # RANKING (2026-06-24). RISER_RANK_MODE = gain (default) | gainwinp | mean.
 #   mean = average of gain-rank and win_p-rank (both 1=best). Ranks are BOUNDED (1..N) so a huge gain
 #     can't dominate a low win_p (froth resistance: ARM gain6.2/winp0.43 lands mid-pack, NOT #1 the
@@ -222,12 +242,12 @@ try:
     import sqlite3
     db=sqlite3.connect('/home/saengtawan/work/project/cc/stock-analyzer/data/scan_journal.db')
     db.execute("""CREATE TABLE IF NOT EXISTS riser_picks(scan_date TEXT, scan_ts TEXT, symbol TEXT, price REAL, gain REAL, win_p REAL, sector TEXT, n_cand INT)""")
-    # 2026-06-16: add gap+range_exp for forward verification of the band+gap filter (idempotent).
-    for _c in ('gap REAL','range_exp REAL'):
+    # 2026-06-16: add gap+range_exp; 2026-06-25: add gex (live monitoring of the GEX filter). idempotent.
+    for _c in ('gap REAL','range_exp REAL','gex REAL'):
         try: db.execute(f"ALTER TABLE riser_picks ADD COLUMN {_c}")
         except Exception: pass
     for _p in picks:
-        db.execute("INSERT INTO riser_picks(scan_date,scan_ts,symbol,price,gain,win_p,sector,n_cand,gap,range_exp) VALUES(?,?,?,?,?,?,?,?,?,?)",(now.strftime('%Y-%m-%d'),now.strftime('%Y-%m-%d %H:%M:%S'),_p['sym'],_p.get('price',0),_p['gain'],_p.get('win_p',0),_p.get('sec',''),len(risers),_p.get('gap'),_p.get('range_exp')))
+        db.execute("INSERT INTO riser_picks(scan_date,scan_ts,symbol,price,gain,win_p,sector,n_cand,gap,range_exp,gex) VALUES(?,?,?,?,?,?,?,?,?,?,?)",(now.strftime('%Y-%m-%d'),now.strftime('%Y-%m-%d %H:%M:%S'),_p['sym'],_p.get('price',0),_p['gain'],_p.get('win_p',0),_p.get('sec',''),len(risers),_p.get('gap'),_p.get('range_exp'),_p.get('gex')))
     db.commit(); db.close()
     print(f"\n  [journaled {len(picks)} pick(s) -> riser_picks]")
 except Exception as e:
