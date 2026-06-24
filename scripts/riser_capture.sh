@@ -163,16 +163,23 @@ if _ddcap>0:
     _cp=[r for r in risers if _path_ok(r)]
     print(f"[clean-path] maxDD<={_ddcap} (n>={_ddmin}) -> {len(_cp)}/{len(risers)} pass")
     if _cp: risers=_cp
-# RANKING (2026-06-24). Default = gain. RISER_RANK_WINP=1 -> rank by gain*win_p: a SOFT version of
-# the win_p gate (low win_p drags a high-gain name DOWN the order instead of a hard cutoff) -> same
-# top picks as the gate on a normal day but NO over-abstention on thin days, and win_p influences
-# continuously (a genuinely high-gain name can still win). When on, the gain-window min-gain tiebreak
-# is skipped (the product already encodes quality). Reversible: RISER_RANK_WINP=0 -> gain-only.
-_rankwinp=os.environ.get('RISER_RANK_WINP','0')=='1'
-if _rankwinp:
+# RANKING (2026-06-24). RISER_RANK_MODE = gain (default) | gainwinp | mean.
+#   mean = average of gain-rank and win_p-rank (both 1=best). Ranks are BOUNDED (1..N) so a huge gain
+#     can't dominate a low win_p (froth resistance: ARM gain6.2/winp0.43 lands mid-pack, NOT #1 the
+#     way gain×win_p would put it), while a low-gain HIGH-win_p name can still rise (ABNB winp#1 ->
+#     top despite gain#6). Needs to be good in BOTH. Pairs with a LIGHT win_p floor (RISER_WINP_MIN
+#     ~0.45) that blocks only the worst (ARM) and abstains when the whole pool is bad.
+#   gainwinp = gain*win_p (REVERTED as default: high gain dominates low win_p -> picks froth losers).
+#   gain = pure momentum + min-gain tiebreak (original). Reversible: RISER_RANK_MODE=gain.
+_rankmode=os.environ.get('RISER_RANK_MODE','gain')
+if _rankmode=='mean':
+    _bg=sorted(risers,key=lambda r:-r['gain']); _gr={id(r):i+1 for i,r in enumerate(_bg)}
+    _bw=sorted(risers,key=lambda r:-(r.get('win_p') or 0)); _wr={id(r):i+1 for i,r in enumerate(_bw)}
+    risers.sort(key=lambda r:(_gr[id(r)]+_wr[id(r)])/2.0)
+    top=risers[0]; _rankdesc='mean-rank(gain,win_p)'
+elif _rankmode=='gainwinp':
     risers.sort(key=lambda r: -(r['gain']*(r.get('win_p') or 0)))
-    top=risers[0]
-    _rankdesc='gain×win_p'
+    top=risers[0]; _rankdesc='gain×win_p'
 else:
     risers.sort(key=lambda r: -r['gain'])
     top=risers[0]
