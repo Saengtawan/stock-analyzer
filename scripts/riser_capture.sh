@@ -132,45 +132,48 @@ _tw=float(os.environ.get('RISER_TIEBREAK_WIN','0') or 0)
 if _tw>0 and len(risers)>1:
     _tie=[r for r in risers if r['gain']>=risers[0]['gain']-_tw]
     top=max(_tie, key=lambda r:(r.get('min_gain') if r.get('min_gain') is not None else -99))
-print(f"Status: active — top RISER by gain in band({_MIN_GAIN}-{_MAX_GAIN},gap<={_GAP_CAP}) among {len(risers)} Z1 candidates (09:31:30-09:36:30)")
+# TOP-N picks (2026-06-24): tiebroken #1 + next highest-gain distinct names. RISER_TOP_N (default 1).
+# Diversification: top-2/3 cuts the worst trade (broad pool -13 -> -6) though per-pick edge is flat.
+_topn=max(1,int(os.environ.get('RISER_TOP_N','1') or 1))
+picks=[top]+[r for r in risers if r['sym']!=top['sym']][:_topn-1]
+print(f"Status: active — top-{len(picks)} RISER by gain in band({_MIN_GAIN}-{_MAX_GAIN},gap<={_GAP_CAP}) among {len(risers)} Z1 candidates (09:31:30-09:36:30)")
+# ENTRY: chase MARKET immediately (2026-06-24 refit). Limit-dip LOSES once measured realistically
+# (pick visible ~09:37 -> the dip is already past): chase -1.18 > static-limit -1.36 / walking -1.25;
+# timing 09:33-40 = noise. Set RISER_LIMIT_DISCOUNT>0 to re-show a limit suggestion.
+_disc=float(os.environ.get('RISER_LIMIT_DISCOUNT','0') or 0)
+_regime=os.environ.get('RISER_REGIME_EXIT','0')=='1'
+for _i,_p in enumerate(picks,1):
+    _px=_p.get('price',0)
+    print()
+    print(f"  BUY#{_i}  {_p['sym']}  @ ${_px:.2f}")
+    print(f"        gain +{_p['gain']:.1f}%  min-gain {(('%+.1f%%'%_p['min_gain']) if _p.get('min_gain') is not None else 'na')}  win_p {_p.get('win_p',0):.3f}  sec {str(_p.get('sec',''))[:12]}  spy_intra {_p.get('spy_intra',0):+.2f}")
+    if _disc>0:
+        print(f"        ENTRY: LIMIT @ ${_px*(1-_disc/100):.2f} (display −{_disc:.1f}%) — runner ไม่ fill → market @ ${_px:.2f}")
+    else:
+        print(f"        ENTRY: chase MARKET ทันที @ ~${_px:.2f} (อย่ารอ limit — ย่อผ่านไปแล้วตอนเห็น pick)")
+    if _regime:
+        _si=_p.get('spy_intra')
+        if _si is None: _ep='hold-EOD (spy_intra n/a)'
+        elif _si>0:     _ep=f'hold-EOD (SPY {_si:+.2f}% green, sustain)'
+        else:           _ep=f'exit~10:05 (SPY {_si:+.2f}% red, pump-fade)'
+        print(f"        EXIT-PLAN: {_ep}  [+ peak-fade reactive]")
 print()
-print(f"  BUY  {top['sym']}  @ ${top.get('price',0):.2f}")
-print(f"       gain +{top['gain']:.1f}%  min-gain {(('%+.1f%%'%top['min_gain']) if top.get('min_gain') is not None else 'na')}  win_p {top.get('win_p',0):.3f}  sec {str(top.get('sec',''))[:12]}  spy_intra {top.get('spy_intra',0):+.2f}")
-print(f"       rank-by-gain top-1 | win=peak>=1%")
-# ENTRY: chase MARKET immediately (2026-06-24 refit). The limit-dip idea LOSES once measured
-# realistically: the pick is only visible ~09:37, so the 09:37-38 pullback that justified a
-# limit is ALREADY PAST -> chase@09:37 (-1.18) beats static-limit (-1.36)/walking-limit (-1.25);
-# entry-timing 09:33-40 = pure noise. All entry mechanics cluster +-0.2 = pool cost not a lever.
-# Revive limit only if you can act before ~09:36. (set RISER_LIMIT_DISCOUNT to re-show the limit.)
-_px=top.get('price',0); _disc=float(os.environ.get('RISER_LIMIT_DISCOUNT','0') or 0)
-if _disc>0:
-    print(f"       ENTRY: LIMIT @ ${_px*(1-_disc/100):.2f} (display −{_disc:.1f}%) — runner ไม่ fill → market @ ${_px:.2f}")
-else:
-    print(f"       ENTRY: chase MARKET ทันที @ ~${_px:.2f} (อย่ารอ limit — ย่อผ่านไปแล้วตอนเห็น pick)")
-# exit-plan from AT-SCAN SPY intraday (2026-06-24 refit): market green->hold-EOD / red->exit~10:05.
-# Uses top's spy_intra (already shown in the BUY line) = the same signal inference_riser keys on.
-# Informational at entry; actual exit logic in inference_riser (RISER_REGIME_EXIT/SPYINTRA_EXIT).
-_exit_plan='hold-EOD (default)'
-if os.environ.get('RISER_REGIME_EXIT','0')=='1':
-    _si=top.get('spy_intra')
-    if _si is None: _exit_plan='hold-EOD (spy_intra n/a)'
-    elif _si>0:     _exit_plan=f'hold-EOD (SPY {_si:+.2f}% green, sustain)'
-    else:           _exit_plan=f'exit~10:05 (SPY {_si:+.2f}% red, pump-fade)'
-    print(f"       EXIT-PLAN: {_exit_plan}  [+ peak-fade reactive]")
-print()
-print(f"  รองลงมา: " + " ".join(f"{r['sym']}+{r['gain']:.1f}%(wp{r.get('win_p',0):.2f})" for r in risers[1:6]))
-# journal the suggested pick for forward tracking
+_pset={p['sym'] for p in picks}
+_runners=[r for r in risers if r['sym'] not in _pset][:5]
+print(f"  รองลงมา: " + " ".join(f"{r['sym']}+{r['gain']:.1f}%(wp{r.get('win_p',0):.2f})" for r in _runners))
+# journal each pick for forward tracking
 try:
     import sqlite3
-    db=sqlite3.connect(os.path.join(os.path.dirname(__file__) if '__file__' in dir() else '.','/home/saengtawan/work/project/cc/stock-analyzer/data/scan_journal.db'))
+    db=sqlite3.connect('/home/saengtawan/work/project/cc/stock-analyzer/data/scan_journal.db')
     db.execute("""CREATE TABLE IF NOT EXISTS riser_picks(scan_date TEXT, scan_ts TEXT, symbol TEXT, price REAL, gain REAL, win_p REAL, sector TEXT, n_cand INT)""")
     # 2026-06-16: add gap+range_exp for forward verification of the band+gap filter (idempotent).
     for _c in ('gap REAL','range_exp REAL'):
         try: db.execute(f"ALTER TABLE riser_picks ADD COLUMN {_c}")
         except Exception: pass
-    db.execute("INSERT INTO riser_picks(scan_date,scan_ts,symbol,price,gain,win_p,sector,n_cand,gap,range_exp) VALUES(?,?,?,?,?,?,?,?,?,?)",(now.strftime('%Y-%m-%d'),now.strftime('%Y-%m-%d %H:%M:%S'),top['sym'],top.get('price',0),top['gain'],top.get('win_p',0),top.get('sec',''),len(risers),top.get('gap'),top.get('range_exp')))
+    for _p in picks:
+        db.execute("INSERT INTO riser_picks(scan_date,scan_ts,symbol,price,gain,win_p,sector,n_cand,gap,range_exp) VALUES(?,?,?,?,?,?,?,?,?,?)",(now.strftime('%Y-%m-%d'),now.strftime('%Y-%m-%d %H:%M:%S'),_p['sym'],_p.get('price',0),_p['gain'],_p.get('win_p',0),_p.get('sec',''),len(risers),_p.get('gap'),_p.get('range_exp')))
     db.commit(); db.close()
-    print(f"\n  [journaled -> riser_picks]")
+    print(f"\n  [journaled {len(picks)} pick(s) -> riser_picks]")
 except Exception as e:
     print(f"\n  [journal skip: {e}]")
 
@@ -189,9 +192,11 @@ PYEOF
 if [[ "${RISER_TRACK:-1}" == "1" ]]; then
   LOG_DIR="data/exit_loops"; mkdir -p "$LOG_DIR"
   ET_DATE="$(TZ=America/New_York date '+%Y-%m-%d')"
-  IFS='|' read -r RSYM RPRICE < <(sqlite3 data/scan_journal.db \
-    "SELECT symbol, price FROM riser_picks WHERE scan_date='$ET_DATE' ORDER BY scan_ts DESC LIMIT 1" 2>/dev/null)
-  if [[ -n "${RSYM:-}" ]]; then
+  _DISC="${RISER_LIMIT_DISCOUNT:-0}"
+  # launch an exit-tracker (+ entry-fill monitor if a limit is in use) for EACH pick of the latest
+  # scan — top-N aware (2026-06-24): reads all rows at the most recent scan_ts.
+  while IFS='|' read -r RSYM RPRICE; do
+    [[ -z "${RSYM:-}" ]] && continue
     if pgrep -f "exit_loop.sh $RSYM " >/dev/null 2>&1; then
       echo "[riser] $RSYM exit-tracker already running — skip"
     else
@@ -200,10 +205,6 @@ if [[ "${RISER_TRACK:-1}" == "1" ]]; then
       disown 2>/dev/null || true
       echo "[riser] launched exit-tracker: $RSYM @ \$$RPRICE (riser dynamic exit) -> $LOG"
     fi
-    # --- Entry-fill monitor (2026-06-24): only relevant when a LIMIT is suggested. We now chase
-    # market by default (RISER_LIMIT_DISCOUNT=0) -> nothing to watch, monitor is skipped. It re-arms
-    # automatically if you set RISER_LIMIT_DISCOUNT>0. Logs to *_entry.log. Force-off: RISER_FILL_WATCH=0.
-    _DISC="${RISER_LIMIT_DISCOUNT:-0}"
     if [[ "${RISER_FILL_WATCH:-1}" == "1" && -n "$_DISC" && "$_DISC" != "0" ]]; then
       _LIM=$(awk -v p="$RPRICE" -v d="$_DISC" 'BEGIN{printf "%.2f", p*(1-d/100)}')
       ELOG="$LOG_DIR/${RSYM}_${ET_DATE}_entry.log"
@@ -213,5 +214,6 @@ if [[ "${RISER_TRACK:-1}" == "1" ]]; then
         echo "[riser] launched entry-fill monitor: $RSYM LIMIT \$$_LIM -> $ELOG"
       fi
     fi
-  fi
+  done < <(sqlite3 data/scan_journal.db \
+    "SELECT symbol, price FROM riser_picks WHERE scan_date='$ET_DATE' AND scan_ts=(SELECT MAX(scan_ts) FROM riser_picks WHERE scan_date='$ET_DATE')" 2>/dev/null)
 fi
