@@ -198,5 +198,17 @@ if [[ "${RISER_TRACK:-1}" == "1" ]]; then
       disown 2>/dev/null || true
       echo "[riser] launched exit-tracker: $RSYM @ \$$RPRICE (riser dynamic exit) -> $LOG"
     fi
+    # --- Entry-fill monitor (2026-06-24): watch ~3 min if the limit-dip fills; else tell to CHASE.
+    # Answers "who tells me to buy at market". Logs to *_entry.log (riser_watch tails it). Disable: RISER_FILL_WATCH=0.
+    if [[ "${RISER_FILL_WATCH:-1}" == "1" ]]; then
+      _DISC="${RISER_LIMIT_DISCOUNT:-0.8}"
+      _LIM=$(awk -v p="$RPRICE" -v d="$_DISC" 'BEGIN{printf "%.2f", p*(1-d/100)}')
+      ELOG="$LOG_DIR/${RSYM}_${ET_DATE}_entry.log"
+      if ! pgrep -f "entry_fill_watch.py $RSYM " >/dev/null 2>&1; then
+        nohup "$PY" scripts/entry_fill_watch.py "$RSYM" "$_LIM" "$RPRICE" "$ET_DATE" > "$ELOG" 2>&1 < /dev/null &
+        disown 2>/dev/null || true
+        echo "[riser] launched entry-fill monitor: $RSYM LIMIT \$$_LIM -> $ELOG"
+      fi
+    fi
   fi
 fi

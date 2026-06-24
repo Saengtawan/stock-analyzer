@@ -26,13 +26,14 @@ tail -n 0 -F "$RL" 2>/dev/null | sed -u 's/^/[entry] /' &
 
 # follow today's exit logs; pick up new ones as the exit_loop creates them per pick
 while true; do
-  for f in data/exit_loops/*_"${ET_DATE}"_riser.log; do
+  for f in data/exit_loops/*_"${ET_DATE}"_riser.log data/exit_loops/*_"${ET_DATE}"_entry.log; do
     [ -e "$f" ] || continue
     _m="/tmp/.riserwatch_$(basename "$f")"
     if [ ! -e "$_m" ]; then
       touch "$_m"
       _sym=$(basename "$f" | cut -d_ -f1)
-      tail -n 3 -F "$f" 2>/dev/null | sed -u "s/^/[exit $_sym] /" &
+      _kind=$([ "${f%_entry.log}" != "$f" ] && echo "fill $_sym" || echo "exit $_sym")
+      tail -n 3 -F "$f" 2>/dev/null | sed -u "s/^/[$_kind] /" &
     fi
   done
   sleep 10
