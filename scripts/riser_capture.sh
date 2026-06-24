@@ -32,6 +32,16 @@ for MIN in $(seq 31 "${RISER_LAST_MIN:-36}"); do
   [[ -f /tmp/h12a_dump.jsonl ]] && cp /tmp/h12a_dump.jsonl "$OUT/min_09${MIN}.jsonl"
 done
 
+# PERSIST the per-minute candidate dumps (2026-06-24). /tmp/riser_capture is wiped each run;
+# this keeps the REAL cell-ok Z1 candidate set per day so forward entry-selection experiments
+# (win_p / tiebreak / min-gain filter) can be tested on the SAME population as live — which
+# historical reconstruction could NOT match. Disable: RISER_PERSIST_DUMP=0.
+if [[ "${RISER_PERSIST_DUMP:-1}" == "1" ]]; then
+  _PDATE=$(TZ=America/New_York date '+%Y-%m-%d'); _PDIR="data/riser_dumps/$_PDATE"
+  mkdir -p "$_PDIR" && cp "$OUT"/*.jsonl "$_PDIR"/ 2>/dev/null \
+    && echo "[riser] persisted $(ls "$_PDIR"/*.jsonl 2>/dev/null | wc -l) candidate dumps -> $_PDIR"
+fi
+
 # Display IMMEDIATELY after the last (09:37:30) scan — same info as waiting to 09:38:00
 # (scan takes ~10s -> display ~09:37:45; closer to scan price = less drift). 2026-06-12.
 
@@ -41,12 +51,15 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 ET=ZoneInfo('America/New_York'); now=datetime.now(ET)
 # accumulate per-symbol latest record across the 7 scans (Z1 only = mfo 0-9)
-acc={}
+acc={}; _mingain={}
 for f in sorted(glob.glob('/tmp/riser_capture/min_*.jsonl')):
     for ln in open(f):
         r=json.loads(ln)
         if not (0<=r.get('mfo',99)<=9): continue
         acc[r['sym']]=r  # latest wins (files sorted by minute)
+        _g=r.get('gain')
+        if _g is not None: _mingain[r['sym']]=min(_mingain.get(r['sym'],_g),_g)  # min gain across the 6 scans
+for _s in acc: acc[_s]['min_gain']=_mingain.get(_s)
 # POOL: gain>0 only — NO win_p filter (user decision 2026-06-12: revert the wp>=0.68
 # filter; peak-metric favors unfiltered in recent fold WR69 vs 64, avgPeak +3.08 vs
 # +2.65. Trade-off accepted: avgEOD 26H1 -0.28 if held to EOD).
@@ -106,12 +119,23 @@ if _ID_GATE or _VIX20_MAX<99:
 print(f"=== riser_momentum @ {now.strftime('%Y-%m-%d %H:%M:%S %Z')} ===")
 if not risers:
     print(f"Status: no_picks — no Z1 riser in band (gain {_MIN_GAIN}-{_MAX_GAIN}, gap<={_GAP_CAP}) across 09:31-36 scans"); raise SystemExit
+# ENTRY-QUALITY (2026-06-24, user deploy — reversible flags). min-gain = lowest gain-from-open
+# across the 6 scans (path cleanliness). BACKTEST (on reconstructed pool, NOT exactly live —
+# verify on persisted real dumps forward): RISER_MINGAIN_FILTER drops dippers (min<0); RISER_TIEBREAK_WIN
+# picks highest min-gain among near-ties. Cut worst -27->-17, net-neutral, catches HOOD-type. Disable: =0.
+if os.environ.get('RISER_MINGAIN_FILTER','0')=='1':
+    _clean=[r for r in risers if (r.get('min_gain') is None or r['min_gain']>=0)]
+    if _clean: risers=_clean   # drop negative-dip candidates; if ALL dip, keep all (don't abstain)
 risers.sort(key=lambda r: -r['gain'])
 top=risers[0]
+_tw=float(os.environ.get('RISER_TIEBREAK_WIN','0') or 0)
+if _tw>0 and len(risers)>1:
+    _tie=[r for r in risers if r['gain']>=risers[0]['gain']-_tw]
+    top=max(_tie, key=lambda r:(r.get('min_gain') if r.get('min_gain') is not None else -99))
 print(f"Status: active — top RISER by gain in band({_MIN_GAIN}-{_MAX_GAIN},gap<={_GAP_CAP}) among {len(risers)} Z1 candidates (09:31:30-09:36:30)")
 print()
 print(f"  BUY  {top['sym']}  @ ${top.get('price',0):.2f}")
-print(f"       gain +{top['gain']:.1f}%  win_p {top.get('win_p',0):.3f}  sec {str(top.get('sec',''))[:12]}  spy_intra {top.get('spy_intra',0):+.2f}")
+print(f"       gain +{top['gain']:.1f}%  min-gain {(('%+.1f%%'%top['min_gain']) if top.get('min_gain') is not None else 'na')}  win_p {top.get('win_p',0):.3f}  sec {str(top.get('sec',''))[:12]}  spy_intra {top.get('spy_intra',0):+.2f}")
 print(f"       rank-by-gain top-1 | BUY NOW (at display, no wait) | win=peak>=1%")
 # exit-plan from PRIOR-DAY regime (Phase 1, 2026-06-24): BULL hold-EOD / BEAR exit~10:05.
 # Informational at entry; the actual exit logic lives in inference_riser (RISER_REGIME_EXIT).
@@ -141,50 +165,13 @@ try:
 except Exception as e:
     print(f"\n  [journal skip: {e}]")
 
-# --- Identity-gate SHADOW (2026-06-20, LOG-ONLY, zero trade impact). Disable: RISER_IDENTITY_SHADOW=0 ---
-# Identity edge sig at population (p=0.010 on live-faithful label) but pick-level CI still crosses 0
-# -> shadow to accumulate forward N before switching. Does NOT change the live pick/trade.
-if os.environ.get('RISER_IDENTITY_SHADOW','1')=='1':
-    try:
-        import sys as _sys; _sys.path.insert(0,'/home/saengtawan/work/project/cc/stock-analyzer')
-        from src.scan import stock_track_record as _STR
-        _today=now.strftime('%Y-%m-%d')
-        _tg=_STR.passes_gate(top['sym'],_today); _n,_avg=_STR.prior_stats(top['sym'],_today)
-        _ident=next((r for r in risers if _STR.passes_gate(r['sym'],_today)),None)
-        print(f"\n  [identity-shadow] live-pick {top['sym']} gate={'PASS' if _tg else 'BLOCK'} (prior_n={_n} avg={(_avg if _avg is not None else float('nan')):+.2f})")
-        print(f"  [identity-shadow] identity-pick: {(_ident['sym']+' +%.1f%%'%_ident['gain']) if _ident else 'ABSTAIN (no gate-pass today)'}")
-        import sqlite3 as _sq
-        _db=_sq.connect('/home/saengtawan/work/project/cc/stock-analyzer/data/scan_journal.db')
-        _db.execute("CREATE TABLE IF NOT EXISTS riser_identity_shadow(scan_date TEXT,scan_ts TEXT,live_sym TEXT,live_gate INT,live_prior_n INT,live_prior_avg REAL,identity_sym TEXT,identity_gain REAL)")
-        _db.execute("INSERT INTO riser_identity_shadow VALUES(?,?,?,?,?,?,?,?)",(_today,now.strftime('%Y-%m-%d %H:%M:%S'),top['sym'],int(_tg),_n,_avg,(_ident['sym'] if _ident else None),(_ident['gain'] if _ident else None)))
-        _db.commit(); _db.close()
-    except Exception as _e:
-        print(f"  [identity-shadow skip: {_e}]")
+# Identity-gate SHADOW removed 2026-06-24 (cleanup): identity is now a LIVE GATE
+# (RISER_IDENTITY_GATE=1) so the shadow A/B is moot; identity-pick recompute-able from the
+# persisted candidate dumps (data/riser_dumps/) if revisited.
 
-# --- win_p v2 SHADOW (2026-06-24, LOG-ONLY, zero trade impact). Disable: RISER_WINP_SHADOW=0 ---
-# New quality-feature win_p (regime+identity+sector+market, lookahead-safe, cache/riser_winp_v1.pkl).
-# WF-OOF gate: win_p>=0.5 -> net +0.89 WR61% vs trade-all -0.47. SHADOW to verify live≈backtest
-# parity before gating. Logs live-pick win_p + the win_p-best candidate. Does NOT change the trade.
-if os.environ.get('RISER_WINP_SHADOW','1')=='1':
-    try:
-        import sys as _s3; _s3.path.insert(0,'/home/saengtawan/work/project/cc/stock-analyzer')
-        from src.scan.riser_winp import score_pick as _wp
-        _td=now.strftime('%Y-%m-%d')
-        _allg=[r['gain'] for r in risers]  # cross-sectional gains for grank (v3)
-        _lwp=_wp(top['sym'],top['gain'],top.get('spy_intra',0),top.get('sec',''),_td,_allg)
-        _scored=[(r['sym'],r['gain'],_wp(r['sym'],r['gain'],r.get('spy_intra',0),r.get('sec',''),_td,_allg)) for r in risers]
-        _scored=[x for x in _scored if x[2] is not None]
-        _best=max(_scored,key=lambda x:x[2]) if _scored else None
-        _gate='PASS(>=0.5)' if (_lwp is not None and _lwp>=0.5) else ('BLOCK(<0.5)' if _lwp is not None else 'n/a')
-        print(f"\n  [winp-shadow] live-pick {top['sym']} win_p={(('%.3f'%_lwp) if _lwp is not None else 'na')} gate={_gate}")
-        print(f"  [winp-shadow] winp-best: {(_best[0]+' wp%.3f g+%.1f'%(_best[2],_best[1])) if _best else 'na'}")
-        import sqlite3 as _sq2
-        _db2=_sq2.connect('/home/saengtawan/work/project/cc/stock-analyzer/data/scan_journal.db')
-        _db2.execute("CREATE TABLE IF NOT EXISTS riser_winp_shadow(scan_date TEXT,scan_ts TEXT,live_sym TEXT,live_gain REAL,live_winp REAL,gate_pass INT,winp_best_sym TEXT,winp_best_winp REAL,n_scored INT)")
-        _db2.execute("INSERT INTO riser_winp_shadow VALUES(?,?,?,?,?,?,?,?,?)",(_td,now.strftime('%Y-%m-%d %H:%M:%S'),top['sym'],top['gain'],_lwp,1 if (_lwp is not None and _lwp>=0.5) else 0,(_best[0] if _best else None),(_best[2] if _best else None),len(_scored)))
-        _db2.commit(); _db2.close()
-    except Exception as _e2:
-        print(f"  [winp-shadow skip: {_e2}]")
+# win_p-v3 SHADOW removed 2026-06-24 (cleanup): win_p entry-gate is NOT the deployed path
+# (modest + abstain trade-off — disaster-money is at EXIT). Recompute-able any time from the
+# persisted candidate dumps (data/riser_dumps/) via src.scan.riser_winp if revisited on real data.
 PYEOF
 
 # --- Auto-launch exit tracker for the riser pick (2026-06-14) ---
