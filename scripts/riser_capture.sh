@@ -137,13 +137,16 @@ print()
 print(f"  BUY  {top['sym']}  @ ${top.get('price',0):.2f}")
 print(f"       gain +{top['gain']:.1f}%  min-gain {(('%+.1f%%'%top['min_gain']) if top.get('min_gain') is not None else 'na')}  win_p {top.get('win_p',0):.3f}  sec {str(top.get('sec',''))[:12]}  spy_intra {top.get('spy_intra',0):+.2f}")
 print(f"       rank-by-gain top-1 | win=peak>=1%")
-# ENTRY: limit-dip suggestion (2026-06-24). Backtest: riser dips below display price ~91% of days
-# in 09:37-42; entering at the dip = +0.74% vs market@display -0.53% (real picks). Place LIMIT at
-# display-RISER_LIMIT_DISCOUNT%; if no fill in ~1-2 min (runner, ~9%) -> market THIS stock (don't
-# switch to top-2: runner -0.63 beats top-2 -1.83). Tune/disable: RISER_LIMIT_DISCOUNT (default 0.3).
-_disc=float(os.environ.get('RISER_LIMIT_DISCOUNT','0.3') or 0); _px=top.get('price',0)
-print(f"       ENTRY: LIMIT @ ${_px*(1-_disc/100):.2f} (display −{_disc:.1f}%) — riser ย่อ ~91% ใน 1-5min")
-print(f"              ไม่ fill ใน ~1-2 นาที (runner) → market @ ${_px:.2f} (chase ตัวนี้, อย่า switch)")
+# ENTRY: chase MARKET immediately (2026-06-24 refit). The limit-dip idea LOSES once measured
+# realistically: the pick is only visible ~09:37, so the 09:37-38 pullback that justified a
+# limit is ALREADY PAST -> chase@09:37 (-1.18) beats static-limit (-1.36)/walking-limit (-1.25);
+# entry-timing 09:33-40 = pure noise. All entry mechanics cluster +-0.2 = pool cost not a lever.
+# Revive limit only if you can act before ~09:36. (set RISER_LIMIT_DISCOUNT to re-show the limit.)
+_px=top.get('price',0); _disc=float(os.environ.get('RISER_LIMIT_DISCOUNT','0') or 0)
+if _disc>0:
+    print(f"       ENTRY: LIMIT @ ${_px*(1-_disc/100):.2f} (display −{_disc:.1f}%) — runner ไม่ fill → market @ ${_px:.2f}")
+else:
+    print(f"       ENTRY: chase MARKET ทันที @ ~${_px:.2f} (อย่ารอ limit — ย่อผ่านไปแล้วตอนเห็น pick)")
 # exit-plan from AT-SCAN SPY intraday (2026-06-24 refit): market green->hold-EOD / red->exit~10:05.
 # Uses top's spy_intra (already shown in the BUY line) = the same signal inference_riser keys on.
 # Informational at entry; actual exit logic in inference_riser (RISER_REGIME_EXIT/SPYINTRA_EXIT).
@@ -197,10 +200,11 @@ if [[ "${RISER_TRACK:-1}" == "1" ]]; then
       disown 2>/dev/null || true
       echo "[riser] launched exit-tracker: $RSYM @ \$$RPRICE (riser dynamic exit) -> $LOG"
     fi
-    # --- Entry-fill monitor (2026-06-24): watch ~3 min if the limit-dip fills; else tell to CHASE.
-    # Answers "who tells me to buy at market". Logs to *_entry.log (riser_watch tails it). Disable: RISER_FILL_WATCH=0.
-    if [[ "${RISER_FILL_WATCH:-1}" == "1" ]]; then
-      _DISC="${RISER_LIMIT_DISCOUNT:-0.8}"
+    # --- Entry-fill monitor (2026-06-24): only relevant when a LIMIT is suggested. We now chase
+    # market by default (RISER_LIMIT_DISCOUNT=0) -> nothing to watch, monitor is skipped. It re-arms
+    # automatically if you set RISER_LIMIT_DISCOUNT>0. Logs to *_entry.log. Force-off: RISER_FILL_WATCH=0.
+    _DISC="${RISER_LIMIT_DISCOUNT:-0}"
+    if [[ "${RISER_FILL_WATCH:-1}" == "1" && -n "$_DISC" && "$_DISC" != "0" ]]; then
       _LIM=$(awk -v p="$RPRICE" -v d="$_DISC" 'BEGIN{printf "%.2f", p*(1-d/100)}')
       ELOG="$LOG_DIR/${RSYM}_${ET_DATE}_entry.log"
       if ! pgrep -f "entry_fill_watch.py $RSYM " >/dev/null 2>&1; then
