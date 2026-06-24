@@ -92,15 +92,17 @@ def predict_exit_riser(
     gate_txt = (f"VIX {vix_str}{'≥' if vix_on else '<'}22"
                 f" OR own_range {own_range:.2f}{'≥' if own_on else '<'}3.0")
 
-    # --- REGIME-AWARE EXIT (Phase 2-3, 2026-06-24). Enable: RISER_REGIME_EXIT=1.
-    #   BULL pick -> hold-EOD (sustain). BEAR pick -> exit ~10:05 (pump-fade: capture pop
-    #   before EOD fade; backtest BEAR exit-10:05 -0.64 vs hold-EOD -1.80). PEAK-FADE becomes
-    #   an ACTION (not advisory): stock off peak + SPY rolling over -> EXIT (market-led fade).
-    #   Regime = PRIOR-DAY spy_regime (lookahead-safe). Disable: RISER_REGIME_EXIT=0.
+    # --- REGIME-AWARE EXIT (Phase 2-3, 2026-06-24; at-scan refit same day). Enable: RISER_REGIME_EXIT=1.
+    #   Market GREEN at scan -> hold-EOD (sustain). Market RED at scan -> exit ~10:05 (pump-fade:
+    #   capture pop before EOD fade). Signal = AT-SCAN SPY intraday (spy_intra<=0), validated to beat
+    #   prior-day regime: green-EOD/red-fast vs always-hold = +Δ ALL 5 yrs (red subset hold -1.84 ->
+    #   exit@10:05 -0.56). PEAK-FADE is an ACTION (both regimes): stock off peak + SPY rolling over ->
+    #   EXIT (market-led fade). Fallback to prior-day BEAR if SPY intra n/a. Disable: RISER_REGIME_EXIT=0.
     gb_thr = float(os.environ.get("RISER_GIVEBACK_THR", "1.5"))
     spy_thr = float(os.environ.get("RISER_SPY_DD_THR", "-0.3"))
     REGIME_EXIT = os.environ.get("RISER_REGIME_EXIT", "0") == "1"
     regime_bull = None
+    spy_intra_entry = None
     spy_dd_at = {}
     if REGIME_EXIT:
         try:
@@ -109,15 +111,33 @@ def predict_exit_riser(
             regime_bull = _rg["bull"] if _rg else None
         except Exception:
             regime_bull = None
-        try:  # running SPY intraday drawdown per minute (SPY close vs its running high)
+        try:  # running SPY intraday drawdown per minute + SPY intraday at entry (at-scan market)
             _sb, _ = _fetch_bars("SPY", [], db_path, date)
-            _spk = 0.0
+            _spk = 0.0; _spy_open = None; _spy_at_entry = None
             for _b in _sb:
+                if _spy_open is None and _b[0] >= 570:
+                    _spy_open = _b[1]            # SPY 09:30 open (first bar at/after 570)
+                if _b[0] <= entry_em:
+                    _spy_at_entry = _b[4]        # SPY close at/just before entry (= market at scan)
                 _spk = max(_spk, _b[2])
                 if _spk > 0:
                     spy_dd_at[_b[0]] = (_b[4] / _spk - 1) * 100
+            if _spy_open and _spy_open > 0 and _spy_at_entry is not None:
+                spy_intra_entry = (_spy_at_entry / _spy_open - 1) * 100
         except Exception:
             pass
+
+    # FAST-EXIT signal = AT-SCAN market (SPY intraday red this morning), validated 2026-06-24
+    # to beat prior-day regime: green-EOD/red-fast vs always-hold = +Δ ALL 5 years (red subset
+    # hold-EOD -1.84 -> exit@10:05 -0.56). market red -> capture pop, exit ~10:05 before EOD fade;
+    # market green -> hold-EOD (momentum sustains). Falls back to prior-day BEAR if SPY intra n/a.
+    # Disable at-scan (use prior-day regime): RISER_SPYINTRA_EXIT=0.
+    if os.environ.get("RISER_SPYINTRA_EXIT", "1") != "0" and spy_intra_entry is not None:
+        market_red = spy_intra_entry <= 0
+        regime_src = f"SPY_intra {spy_intra_entry:+.2f}% at scan"
+    else:
+        market_red = (regime_bull == 0)
+        regime_src = "prior-day BEAR"
 
     hwm = 0.0
     for el, cur in series:
@@ -133,12 +153,12 @@ def predict_exit_riser(
                         "hwm_pct": float(hwm), "sector": sector, "vix_at_entry": vix_at_entry,
                         "own_range": float(own_range), "gate": gate_txt, "spy_dd": float(_sdd),
                         "reason": f"PEAK-FADE exit @{tt}: peak {hwm:+.2f}%->{cur:+.2f}% + SPY {_sdd:+.2f}% from peak (market-led fade)"}
-            # (b) BEAR 10:05 exit: prior-day BEAR = pump-fade -> capture pop before EOD fade
-            if regime_bull == 0 and m >= 605 and cur < hwm:
+            # (b) 10:05 fast-exit: market red at scan = pump-fade -> capture pop before EOD fade
+            if market_red and m >= 605 and cur < hwm:
                 return {"verdict": "TRAIL_EXIT", "exit_time": tt, "cur_pnl_pct": float(cur),
                         "hwm_pct": float(hwm), "sector": sector, "vix_at_entry": vix_at_entry,
                         "own_range": float(own_range), "gate": gate_txt,
-                        "reason": f"BEAR-10:05 exit @{tt}: prior-day BEAR, off peak ({hwm:+.2f}%->{cur:+.2f}%) -> capture pop before EOD fade"}
+                        "reason": f"FAST-EXIT @{tt}: {regime_src} (market red), off peak ({hwm:+.2f}%->{cur:+.2f}%) -> capture pop before EOD fade"}
         # own_range only usable once its window has closed (el >= OWN_WINDOW_MIN)
         window_ready = el >= OWN_WINDOW_MIN
         gate_now = dynamic and (vix_on or (own_on and window_ready))

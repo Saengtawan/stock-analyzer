@@ -144,16 +144,15 @@ print(f"       rank-by-gain top-1 | win=peak>=1%")
 _disc=float(os.environ.get('RISER_LIMIT_DISCOUNT','0.3') or 0); _px=top.get('price',0)
 print(f"       ENTRY: LIMIT @ ${_px*(1-_disc/100):.2f} (display −{_disc:.1f}%) — riser ย่อ ~91% ใน 1-5min")
 print(f"              ไม่ fill ใน ~1-2 นาที (runner) → market @ ${_px:.2f} (chase ตัวนี้, อย่า switch)")
-# exit-plan from PRIOR-DAY regime (Phase 1, 2026-06-24): BULL hold-EOD / BEAR exit~10:05.
-# Informational at entry; the actual exit logic lives in inference_riser (RISER_REGIME_EXIT).
+# exit-plan from AT-SCAN SPY intraday (2026-06-24 refit): market green->hold-EOD / red->exit~10:05.
+# Uses top's spy_intra (already shown in the BUY line) = the same signal inference_riser keys on.
+# Informational at entry; actual exit logic in inference_riser (RISER_REGIME_EXIT/SPYINTRA_EXIT).
 _exit_plan='hold-EOD (default)'
 if os.environ.get('RISER_REGIME_EXIT','0')=='1':
-    try:
-        import sys as _se; _se.path.insert(0,'/home/saengtawan/work/project/cc/stock-analyzer')
-        from src.scan.riser_winp import _prior_day_regime as _pdr
-        _rg=_pdr(now.strftime('%Y-%m-%d'))
-        _exit_plan=('hold-EOD (BULL sustain)' if (_rg and _rg.get('bull')) else 'exit~10:05 (BEAR pump-fade)') if _rg else 'hold-EOD (regime n/a)'
-    except Exception as _ee: _exit_plan=f'hold-EOD (regime err)'
+    _si=top.get('spy_intra')
+    if _si is None: _exit_plan='hold-EOD (spy_intra n/a)'
+    elif _si>0:     _exit_plan=f'hold-EOD (SPY {_si:+.2f}% green, sustain)'
+    else:           _exit_plan=f'exit~10:05 (SPY {_si:+.2f}% red, pump-fade)'
     print(f"       EXIT-PLAN: {_exit_plan}  [+ peak-fade reactive]")
 print()
 print(f"  รองลงมา: " + " ".join(f"{r['sym']}+{r['gain']:.1f}%(wp{r.get('win_p',0):.2f})" for r in risers[1:6]))
