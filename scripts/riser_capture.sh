@@ -51,15 +51,27 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 ET=ZoneInfo('America/New_York'); now=datetime.now(ET)
 # accumulate per-symbol latest record across the 7 scans (Z1 only = mfo 0-9)
-acc={}; _mingain={}
+acc={}; _mingain={}; _gser={}
 for f in sorted(glob.glob('/tmp/riser_capture/min_*.jsonl')):
     for ln in open(f):
         r=json.loads(ln)
         if not (0<=r.get('mfo',99)<=9): continue
         acc[r['sym']]=r  # latest wins (files sorted by minute)
         _g=r.get('gain')
-        if _g is not None: _mingain[r['sym']]=min(_mingain.get(r['sym'],_g),_g)  # min gain across the 6 scans
-for _s in acc: acc[_s]['min_gain']=_mingain.get(_s)
+        if _g is not None:
+            _mingain[r['sym']]=min(_mingain.get(r['sym'],_g),_g)  # min gain across the 6 scans
+            _gser.setdefault(r['sym'],[]).append(_g)              # gain path across scans (time order)
+for _s in acc:
+    acc[_s]['min_gain']=_mingain.get(_s)
+    _gs=_gser.get(_s,[])                                          # maxDD = biggest giveback from running peak
+    if len(_gs)>=2:
+        _pk=_gs[0]; _dd=0.0
+        for _v in _gs[1:]:
+            _pk=max(_pk,_v); _dd=max(_dd,_pk-_v)
+        acc[_s]['maxdd']=_dd
+    else:
+        acc[_s]['maxdd']=None
+    acc[_s]['n_read']=len(_gs)
 # POOL: gain>0 only — NO win_p filter (user decision 2026-06-12: revert the wp>=0.68
 # filter; peak-metric favors unfiltered in recent fold WR69 vs 64, avgPeak +3.08 vs
 # +2.65. Trade-off accepted: avgEOD 26H1 -0.28 if held to EOD).
@@ -136,6 +148,21 @@ if not risers:
 if os.environ.get('RISER_MINGAIN_FILTER','0')=='1':
     _clean=[r for r in risers if (r.get('min_gain') is None or r['min_gain']>=0)]
     if _clean: risers=_clean   # drop negative-dip candidates; if ALL dip, keep all (don't abstain)
+# CLEAN-PATH filter (2026-06-24, user deploy). Drop choppy risers = maxDD from the running peak
+# across scans > RISER_MAXDD_CAP, assessed only when seen >= RISER_MAXDD_MINREAD times (late-entrants
+# exempt, can't judge). Keep-all if it empties (don't abstain on cleanliness alone). CAVEAT: conflicts
+# with the vol-IS-momentum finding (choppy may = the real mover) + barely binds -> track forward.
+# Reversible: RISER_MAXDD_CAP unset/=0 -> off. Tune cap / RISER_MAXDD_MINREAD.
+_ddcap=float(os.environ.get('RISER_MAXDD_CAP','0') or 0)
+_ddmin=int(os.environ.get('RISER_MAXDD_MINREAD','3'))
+if _ddcap>0:
+    def _path_ok(r):
+        _dd=r.get('maxdd')
+        if _dd is None or r.get('n_read',0)<_ddmin: return True   # too few readings -> exempt
+        return _dd<=_ddcap
+    _cp=[r for r in risers if _path_ok(r)]
+    print(f"[clean-path] maxDD<={_ddcap} (n>={_ddmin}) -> {len(_cp)}/{len(risers)} pass")
+    if _cp: risers=_cp
 risers.sort(key=lambda r: -r['gain'])
 top=risers[0]
 _tw=float(os.environ.get('RISER_TIEBREAK_WIN','0') or 0)
