@@ -136,7 +136,14 @@ print(f"Status: active — top RISER by gain in band({_MIN_GAIN}-{_MAX_GAIN},gap
 print()
 print(f"  BUY  {top['sym']}  @ ${top.get('price',0):.2f}")
 print(f"       gain +{top['gain']:.1f}%  min-gain {(('%+.1f%%'%top['min_gain']) if top.get('min_gain') is not None else 'na')}  win_p {top.get('win_p',0):.3f}  sec {str(top.get('sec',''))[:12]}  spy_intra {top.get('spy_intra',0):+.2f}")
-print(f"       rank-by-gain top-1 | BUY NOW (at display, no wait) | win=peak>=1%")
+print(f"       rank-by-gain top-1 | win=peak>=1%")
+# ENTRY: limit-dip suggestion (2026-06-24). Backtest: riser dips below display price ~91% of days
+# in 09:37-42; entering at the dip = +0.74% vs market@display -0.53% (real picks). Place LIMIT at
+# display-RISER_LIMIT_DISCOUNT%; if no fill in ~1-2 min (runner, ~9%) -> market THIS stock (don't
+# switch to top-2: runner -0.63 beats top-2 -1.83). Tune/disable: RISER_LIMIT_DISCOUNT (default 0.3).
+_disc=float(os.environ.get('RISER_LIMIT_DISCOUNT','0.3') or 0); _px=top.get('price',0)
+print(f"       ENTRY: LIMIT @ ${_px*(1-_disc/100):.2f} (display −{_disc:.1f}%) — riser ย่อ ~91% ใน 1-5min")
+print(f"              ไม่ fill ใน ~1-2 นาที (runner) → market @ ${_px:.2f} (chase ตัวนี้, อย่า switch)")
 # exit-plan from PRIOR-DAY regime (Phase 1, 2026-06-24): BULL hold-EOD / BEAR exit~10:05.
 # Informational at entry; the actual exit logic lives in inference_riser (RISER_REGIME_EXIT).
 _exit_plan='hold-EOD (default)'
