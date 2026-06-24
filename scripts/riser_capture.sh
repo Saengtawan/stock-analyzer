@@ -163,17 +163,29 @@ if _ddcap>0:
     _cp=[r for r in risers if _path_ok(r)]
     print(f"[clean-path] maxDD<={_ddcap} (n>={_ddmin}) -> {len(_cp)}/{len(risers)} pass")
     if _cp: risers=_cp
-risers.sort(key=lambda r: -r['gain'])
-top=risers[0]
-_tw=float(os.environ.get('RISER_TIEBREAK_WIN','0') or 0)
-if _tw>0 and len(risers)>1:
-    _tie=[r for r in risers if r['gain']>=risers[0]['gain']-_tw]
-    top=max(_tie, key=lambda r:(r.get('min_gain') if r.get('min_gain') is not None else -99))
-# TOP-N picks (2026-06-24): tiebroken #1 + next highest-gain distinct names. RISER_TOP_N (default 1).
+# RANKING (2026-06-24). Default = gain. RISER_RANK_WINP=1 -> rank by gain*win_p: a SOFT version of
+# the win_p gate (low win_p drags a high-gain name DOWN the order instead of a hard cutoff) -> same
+# top picks as the gate on a normal day but NO over-abstention on thin days, and win_p influences
+# continuously (a genuinely high-gain name can still win). When on, the gain-window min-gain tiebreak
+# is skipped (the product already encodes quality). Reversible: RISER_RANK_WINP=0 -> gain-only.
+_rankwinp=os.environ.get('RISER_RANK_WINP','0')=='1'
+if _rankwinp:
+    risers.sort(key=lambda r: -(r['gain']*(r.get('win_p') or 0)))
+    top=risers[0]
+    _rankdesc='gain×win_p'
+else:
+    risers.sort(key=lambda r: -r['gain'])
+    top=risers[0]
+    _tw=float(os.environ.get('RISER_TIEBREAK_WIN','0') or 0)
+    if _tw>0 and len(risers)>1:
+        _tie=[r for r in risers if r['gain']>=risers[0]['gain']-_tw]
+        top=max(_tie, key=lambda r:(r.get('min_gain') if r.get('min_gain') is not None else -99))
+    _rankdesc='gain'
+# TOP-N picks (2026-06-24): #1 + next distinct names by the same rank key. RISER_TOP_N (default 1).
 # Diversification: top-2/3 cuts the worst trade (broad pool -13 -> -6) though per-pick edge is flat.
 _topn=max(1,int(os.environ.get('RISER_TOP_N','1') or 1))
 picks=[top]+[r for r in risers if r['sym']!=top['sym']][:_topn-1]
-print(f"Status: active — top-{len(picks)} RISER by gain in band({_MIN_GAIN}-{_MAX_GAIN},gap<={_GAP_CAP}) among {len(risers)} Z1 candidates (09:31:30-09:36:30)")
+print(f"Status: active — top-{len(picks)} RISER by {_rankdesc} in band({_MIN_GAIN}-{_MAX_GAIN},gap<={_GAP_CAP}) among {len(risers)} Z1 candidates (09:31:30-09:36:30)")
 # ENTRY: chase MARKET immediately (2026-06-24 refit). Limit-dip LOSES once measured realistically
 # (pick visible ~09:37 -> the dip is already past): chase -1.18 > static-limit -1.36 / walking -1.25;
 # timing 09:33-40 = noise. Set RISER_LIMIT_DISCOUNT>0 to re-show a limit suggestion.
