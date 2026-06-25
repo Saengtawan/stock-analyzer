@@ -128,6 +128,26 @@ if _ID_GATE or _VIX20_MAX<99:
             return True
         _pre=len(risers); risers=[r for r in risers if _gate_ok(r)]
         print(f"[v2-gates] VIX-20d={('%.1f'%_vix20) if _vix20 is not None else 'na'}<{_VIX20_MAX} | id_gate={'ON(n>=8)' if _ID_GATE else 'off'} -> {len(risers)}/{_pre} pass")
+# SPX-GEX gate (2026-06-25). Abstain on a fragile MARKET day: prior-day SPX GEX < 0 = dealers short
+# gamma (past the gamma-flip at 0) = they AMPLIFY moves -> reversal-prone. Validated 15yr (GEX<0 ->
+# next-day |move| 2.4x; 16/20 worst days were prior-day GEX<0) and ORTHOGONAL to spy_intra (39% of
+# GEX<0 days are SPY-green) -> catches "green-but-fragile" days the direction/exit signals miss
+# (+1.27% on SPY-green days, +0.97% beyond the VIX-20d gate). On GEX<0 days even exit@10:05 loses
+# -0.83% so ABSTAIN beats trade-and-exit. Free SqueezeMetrics CSV, prior-day = lookahead-safe,
+# graceful on fetch fail (cached). 0 = gamma flip = mechanical threshold, not a fitted number.
+# Disable: RISER_SPXGEX_GATE=0.
+if os.environ.get('RISER_SPXGEX_GATE','0')=='1' and risers:
+    try:
+        import sys as _sg; _sg.path.insert(0,'/home/saengtawan/work/project/cc/stock-analyzer')
+        from src.scan.spx_gex import latest_spx_gex
+        _sgd,_sgv=latest_spx_gex(now.strftime('%Y-%m-%d'))
+        if _sgv is not None and _sgv<0:
+            print(f"[spx-gex] SPX GEX {_sgv/1e9:+.2f}B < 0 ({_sgd}, fragile/short-gamma market) -> ABSTAIN")
+            risers=[]
+        else:
+            print(f"[spx-gex] SPX GEX {(_sgv/1e9 if _sgv is not None else 0):+.2f}B ({_sgd or 'n/a'}) >= 0 -> ok")
+    except Exception as _sge:
+        print(f"[spx-gex] skip (fetch/err): {_sge}")
 # WIN_P GATE (2026-06-24, user deploy on LIVE evidence). Keep only win_p >= RISER_WINP_MIN, then
 # rank-by-gain among survivors. Empty -> abstain (faithful to "low win_p = likely fade"; don't pick
 # a likely loser). Live N=7 showed perfect win_p->ret separation (corr +0.89; >=0.55 WR100% vs <0.55
