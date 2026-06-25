@@ -135,8 +135,27 @@ def compute(sym, today):
     call_gex, put_gex = leg("C"), leg("P")
     call_oi = sum(r[4] for r in rows if r[3] == "C")
     put_oi = sum(r[4] for r in rows if r[3] == "P")
+    # --- extended metrics for forward eval of the 6 GEX analytics (gamma walls / flip / skew) ---
+    import statistics as _stx
+    from collections import defaultdict as _dd
+    signed = _dd(float); absmag = _dd(float); civ = []; piv = []
+    for (_s, K, _e, cp, oi, _m, iv, g) in rows:
+        lev = g * oi * 100 * spot * spot * 0.01
+        signed[K] += lev * (1 if cp == "C" else -1)
+        absmag[K] += lev
+        if abs(K / spot - 1) <= 0.05 and 0.01 < iv < 3:        # near-ATM IV for skew
+            (civ if cp == "C" else piv).append(iv)
+    call_wall = max(((K, v) for K, v in absmag.items() if K > spot), key=lambda x: x[1], default=(None, 0))[0]
+    put_wall = max(((K, v) for K, v in absmag.items() if K < spot), key=lambda x: x[1], default=(None, 0))[0]
+    cum = 0.0; flip = None                                     # gamma flip = cumulative signed GEX crosses 0
+    for K in sorted(signed):
+        pv = cum; cum += signed[K]
+        if (pv < 0 <= cum) or (pv > 0 >= cum):
+            flip = K
+    skew = (_stx.median(piv) - _stx.median(civ)) if (piv and civ) else None  # put IV - call IV (fear-greed)
     return dict(spot=spot, rows=rows, call_gex=call_gex, put_gex=put_gex,
-                gex_naive=call_gex - put_gex, n=len(rows), call_oi=call_oi, put_oi=put_oi)
+                gex_naive=call_gex - put_gex, n=len(rows), call_oi=call_oi, put_oi=put_oi,
+                call_wall=call_wall, put_wall=put_wall, flip=flip, skew=skew)
 
 
 def ensure_db(con):
@@ -147,6 +166,12 @@ def ensure_db(con):
         snap_date TEXT, underlying TEXT, opt_symbol TEXT, strike REAL, expiry TEXT,
         type TEXT, oi REAL, mid REAL, iv REAL, gamma REAL, spot REAL)""")
     con.execute("CREATE INDEX IF NOT EXISTS ix_daily ON gex_daily(snap_date, underlying)")
+    # extended metrics (2026-06-25): gamma walls / flip / skew, for forward eval of the 6 analytics
+    for col in ("call_wall REAL", "put_wall REAL", "flip REAL", "skew REAL"):
+        try:
+            con.execute(f"ALTER TABLE gex_daily ADD COLUMN {col}")
+        except sqlite3.OperationalError:
+            pass
 
 
 def main():
@@ -199,9 +224,12 @@ def main():
             print(f"  {sym}: ERROR {type(e).__name__}: {e}"); continue
         if not res:
             print(f"  {sym}: no spot/chain — skip"); continue
-        con.execute("INSERT INTO gex_daily VALUES(?,?,?,?,?,?,?,?,?,?)",
+        con.execute("INSERT INTO gex_daily(snap_date,snap_ts,underlying,spot,call_gex,put_gex,"
+                    "gex_naive,n_contracts,call_oi,put_oi,call_wall,put_wall,flip,skew) "
+                    "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (today.isoformat(), now.strftime("%Y-%m-%d %H:%M:%S"), sym, res["spot"],
-                     res["call_gex"], res["put_gex"], res["gex_naive"], res["n"], res["call_oi"], res["put_oi"]))
+                     res["call_gex"], res["put_gex"], res["gex_naive"], res["n"], res["call_oi"], res["put_oi"],
+                     res["call_wall"], res["put_wall"], res["flip"], res["skew"]))
         con.executemany("INSERT INTO gex_chain VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                         [(today.isoformat(), sym, r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], res["spot"]) for r in res["rows"]])
         con.commit()
