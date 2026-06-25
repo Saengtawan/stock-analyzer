@@ -163,6 +163,41 @@ if _ddcap>0:
     _cp=[r for r in risers if _path_ok(r)]
     print(f"[clean-path] maxDD<={_ddcap} (n>={_ddmin}) -> {len(_cp)}/{len(risers)} pass")
     if _cp: risers=_cp
+# ROLLOVER filter (2026-06-25). The dump's per-scan gain is SPARSE and missed ALAB's 09:35 +4.4%
+# peak -> dump-maxDD wrongly read 0 ("clean"). Fix: pull the REAL 1-min bars (09:30->now) at the
+# pick and compute giveback = peak_gain - current_gain. Drop candidates that ROLLED OVER before
+# entry (giveback > RISER_ROLLOVER_CAP). Validated 06-24: ALAB giveback 1.7% (peak +4.4 -> entry
+# +2.7) = the worst pick -4.1%; winners EXPE/ABNB sat at their highs (giveback ~0). No bars -> pass;
+# keep-all if empty; giveback stored on picks. Reversible: RISER_ROLLOVER_CAP=0.
+_rocap=os.environ.get('RISER_ROLLOVER_CAP','0')
+if _rocap not in ('0','off',''):
+    _rocap=float(_rocap)
+    try:
+        import requests as _rq, zoneinfo as _zi
+        _kk={}
+        for _l in open('/home/saengtawan/work/project/cc/stock-analyzer/.env'):
+            _l=_l.strip()
+            if _l and not _l.startswith('#') and '=' in _l:
+                _k,_v=_l.split('=',1); _kk[_k.strip()]=_v.strip().strip('\"\'')
+        _hdr={'APCA-API-KEY-ID':_kk.get('ALPACA_API_KEY'),'APCA-API-SECRET-KEY':_kk.get('ALPACA_SECRET_KEY')}
+        _u0=now.replace(hour=9,minute=30,second=0,microsecond=0).astimezone(_zi.ZoneInfo('UTC')).strftime('%Y-%m-%dT%H:%M:%SZ')
+        _u1=now.astimezone(_zi.ZoneInfo('UTC')).strftime('%Y-%m-%dT%H:%M:%SZ')
+        _rr=_rq.get('https://data.alpaca.markets/v2/stocks/bars',headers=_hdr,
+            params={'symbols':','.join(r['sym'] for r in risers),'timeframe':'1Min','start':_u0,'end':_u1,'feed':'iex','limit':5000},timeout=15)
+        _bd=_rr.json().get('bars',{})
+        def _giveback(r):
+            _b=_bd.get(r['sym'],[])
+            if len(_b)<2: return None
+            _op=_b[0]['o']
+            if _op<=0: return None
+            return ((max(x['h'] for x in _b)/_op-1)-(_b[-1]['c']/_op-1))*100
+        for r in risers: r['giveback']=_giveback(r)
+        _ro=[r for r in risers if (r.get('giveback') is None or r['giveback']<=_rocap)]
+        _rdrop=[r['sym'] for r in risers if r.get('giveback') is not None and r['giveback']>_rocap]
+        print(f"[rollover] giveback<={_rocap}% -> {len(_ro)}/{len(risers)} pass" + (f" (drop {_rdrop})" if _rdrop else ""))
+        if _ro: risers=_ro
+    except Exception as _roe:
+        print(f"[rollover] skip: {_roe}")
 # GEX filter (2026-06-25, user deploy). Drop NEG-GEX (put-heavy = dealer short gamma = fade-risk)
 # candidates. gex_live reads the cached prior-day chain (OI is prior-day, doesn't change intraday)
 # and recomputes gamma with the live price -> <100ms, no API, available at the 09:37 pick. Sign from
@@ -243,11 +278,11 @@ try:
     db=sqlite3.connect('/home/saengtawan/work/project/cc/stock-analyzer/data/scan_journal.db')
     db.execute("""CREATE TABLE IF NOT EXISTS riser_picks(scan_date TEXT, scan_ts TEXT, symbol TEXT, price REAL, gain REAL, win_p REAL, sector TEXT, n_cand INT)""")
     # 2026-06-16: add gap+range_exp; 2026-06-25: add gex (live monitoring of the GEX filter). idempotent.
-    for _c in ('gap REAL','range_exp REAL','gex REAL'):
+    for _c in ('gap REAL','range_exp REAL','gex REAL','giveback REAL'):
         try: db.execute(f"ALTER TABLE riser_picks ADD COLUMN {_c}")
         except Exception: pass
     for _p in picks:
-        db.execute("INSERT INTO riser_picks(scan_date,scan_ts,symbol,price,gain,win_p,sector,n_cand,gap,range_exp,gex) VALUES(?,?,?,?,?,?,?,?,?,?,?)",(now.strftime('%Y-%m-%d'),now.strftime('%Y-%m-%d %H:%M:%S'),_p['sym'],_p.get('price',0),_p['gain'],_p.get('win_p',0),_p.get('sec',''),len(risers),_p.get('gap'),_p.get('range_exp'),_p.get('gex')))
+        db.execute("INSERT INTO riser_picks(scan_date,scan_ts,symbol,price,gain,win_p,sector,n_cand,gap,range_exp,gex,giveback) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",(now.strftime('%Y-%m-%d'),now.strftime('%Y-%m-%d %H:%M:%S'),_p['sym'],_p.get('price',0),_p['gain'],_p.get('win_p',0),_p.get('sec',''),len(risers),_p.get('gap'),_p.get('range_exp'),_p.get('gex'),_p.get('giveback')))
     db.commit(); db.close()
     print(f"\n  [journaled {len(picks)} pick(s) -> riser_picks]")
 except Exception as e:
