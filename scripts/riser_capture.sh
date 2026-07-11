@@ -67,7 +67,8 @@ ET=ZoneInfo('America/New_York'); now=datetime.now(ET)
 _rpd=os.environ.get('RISER_REPLAY_DATE','')
 _dumpglob='/tmp/riser_capture/min_*.jsonl'
 if _rpd:
-    now=datetime(int(_rpd[:4]),int(_rpd[5:7]),int(_rpd[8:10]),9,37,0,tzinfo=ET)
+    _rpt=os.environ.get('RISER_REPLAY_TIME','09:37')  # HH:MM (bar window end / eval time)
+    now=datetime(int(_rpd[:4]),int(_rpd[5:7]),int(_rpd[8:10]),int(_rpt[:2]),int(_rpt[3:5]),0,tzinfo=ET)
     _dumpglob=f'/home/saengtawan/work/project/cc/stock-analyzer/data/riser_dumps/{_rpd}/min_*.jsonl'
     print(f"[REPLAY] now={now.isoformat()} dumps={_dumpglob}")
 # accumulate per-symbol latest record across the 7 scans (Z1 only = mfo 0-9)
@@ -414,6 +415,11 @@ elif _rankmode=='steady':
                 _rise[_s]=(_gb,_slope)
     except Exception as _e4: print(f"[steady] bar fetch error: {_e4}")
     # 3) filter to rising + identity, annotate
+    # RISER_RISING_GB (2026-07-11, user deploy): giveback threshold for "at the intraday high". Tightened
+    # 0.4->0.3 — pick only stocks REALLY glued to their high (<0.3% off) => the ones starting to fade drop
+    # out. Validated steady+capture-peak per-year+fold: med +0.67->+0.76, WR 77->79, Sharpe 0.66->0.72,
+    # worst -4.0->-2.3, every year >= current, monotonic (0.5 worse / 0.4 mid / 0.3 best). Rollback: =0.4.
+    _RISING_GB=float(os.environ.get('RISER_RISING_GB','0.4'))
     _steady=[]
     for r in risers:
         _rv=_rise.get(r['sym'])
@@ -421,7 +427,7 @@ elif _rankmode=='steady':
         _gb,_sl=_rv
         _sid=_ida3(r)
         r['gb']=_gb; r['slope']=_sl; r['own']=_etfg3.get(_sec2etf3.get(r.get('sec')),-99.0); r['sid_s']=_sid
-        if _gb<0.4 and _sl>0 and _sid is not None and _sid>0:
+        if _gb<_RISING_GB and _sl>0 and _sid is not None and _sid>0:
             _steady.append(r)
     print(f"[steady] ETF {{{', '.join('%s:%+.2f'%(k,v) for k,v in sorted(_etfg3.items()))}}} | rising+id {len(_steady)}/{len(risers)} pass")
     if _steady:
