@@ -221,7 +221,10 @@ def predict_exit_riser(
         if CAPTURE_PEAK:
             _bell_dn = bell_trend is not None and bell_trend < 0
             _iwm_dn = iwm_trend is not None and iwm_trend < 0
-            if BELL_GUARD and (_bell_dn or _iwm_dn) and m >= 585:
+            # GUARD-FLOOR (2026-07-11): don't guard-bail if already <= -HARD_SL — bailing at the 09:45
+            # price on a fast crasher can exit BELOW the -4 hard-stop (live-faithful worst -6.6). Instead
+            # let the hard-stop (el>=15) cap it at -4. Fixed live-faithful worst -6.6->-4.0, no downside.
+            if BELL_GUARD and (_bell_dn or _iwm_dn) and m >= 585 and cur > -HARD_SL:
                 _who = "+".join(([f"bell{bell_trend:+.2f}"] if _bell_dn else [])
                                 + ([f"IWM{iwm_trend:+.2f}"] if _iwm_dn else []))
                 return {"verdict": "TRAIL_EXIT", "exit_time": tt, "cur_pnl_pct": float(cur),
