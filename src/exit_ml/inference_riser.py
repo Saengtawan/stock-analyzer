@@ -28,6 +28,31 @@ TRAIL_PCT = 1.0           # giveback from peak to exit
 TRAIL_ARM = 1.0           # peak must reach +1% before trail arms
 MIN_HOLD = 20             # minutes
 
+# BELL-GUARD (2026-07-11, user deploy): the 10 market-signal-sensitive bellwethers (corr 0.48-0.73
+# w/ riser outcomes). Their MEAN gain-trend 09:36->09:45 predicts the day at the POOL level; used here
+# as an early-EXIT guard on the (idiosyncratic) steady pick — bail near entry when the market cohort
+# is rolling over, which flags the days the pick would ride to the -4% hard-stop.
+# Validated (steady+capture-peak, N=293, wf_1min clean): SAME return/total but WR 78->85, Sharpe
+# 0.66->0.80, worst -4.0->-2.3 (tail cut free). IN-SAMPLE -> track forward. Disable: RISER_BELL_GUARD=0.
+_BELLWETHERS = ["AAL", "CVNA", "AFRM", "RDDT", "CRWD", "NEM", "TSLA", "ARM", "COHR", "NCLH"]
+
+
+def _bell_trend(db_path: str, date: Optional[str]) -> Optional[float]:
+    """Mean gain-trend of the 10 bellwethers from 09:36 (em 576) to 09:45 (em 585), % of open.
+    = mean over bellwethers of (close@585 - close@576)/open. None if <4 have data."""
+    diffs = []
+    for s in _BELLWETHERS:
+        try:
+            bars, _ = _fetch_bars(s, [], db_path, date)
+        except Exception:
+            continue
+        o = next((b[1] for b in bars if b[0] >= 570), None)
+        le576 = [b[4] for b in bars if 570 <= b[0] <= 576]
+        le585 = [b[4] for b in bars if 570 <= b[0] <= 585]
+        if o and o > 0 and le576 and le585:
+            diffs.append((le585[-1] - le576[-1]) / o * 100)
+    return (sum(diffs) / len(diffs)) if len(diffs) >= 4 else None
+
 
 def is_riser_pick(symbol: str, date: Optional[str], db_journal: str) -> bool:
     """True if `symbol` was a riser_picks selection on `date` (today if None)."""
@@ -59,8 +84,12 @@ def predict_exit_riser(
     if vix_at_entry is None:
         vix_at_entry = _get_vix(db_path, date)
 
-    # fetch stock bars (sec_etfs empty — riser exit needs only the stock + VIX)
-    sym_bars, _ = _fetch_bars(symbol, [], db_path, date)
+    # fetch stock bars (sec_etfs empty — riser exit needs only the stock + VIX). 1Min resolution:
+    # capture-peak with a tight give-back (0.5%) only works on 1-min bars — on 5-min bars the coarse
+    # close/high can't lock near the peak (validated: 1min+arm0.5/gb0.5 x35 vs 5min x13). Live=Alpaca
+    # 1Min; historical DB fallback is intraday_bars_5m (5-min) so backtest-from-DB stays 5-min.
+    _tf = os.environ.get("RISER_EXIT_TF", "1Min")
+    sym_bars, _ = _fetch_bars(symbol, [], db_path, date, timeframe=_tf)
     if len(sym_bars) < 3:
         return {"verdict": "ERROR", "reason": f"too few bars ({len(sym_bars)})", "sector": sector}
 
@@ -78,10 +107,11 @@ def predict_exit_riser(
     if not fwd:
         return {"verdict": "HOLD", "sector": sector, "reason": "too fresh (no bars after fill yet)"}
 
-    # build (elapsed, cur_pnl) series
-    series = [(b[0] - fill_em, (b[4] / fill_price - 1) * 100) for b in fwd]  # (el, cur)
+    # build (elapsed, cur=close-pnl, hi=high-pnl) series. hi lets CAPTURE-PEAK trail from the true
+    # intraday peak (a peak seen only in the 5-min high still arms the lock).
+    series = [(b[0] - fill_em, (b[4] / fill_price - 1) * 100, (b[2] / fill_price - 1) * 100) for b in fwd]
     # own_range over first OWN_WINDOW_MIN (causal — known by el=OWN_WINDOW_MIN)
-    early = [c for el, c in series if el <= OWN_WINDOW_MIN]
+    early = [c for el, c, hi in series if el <= OWN_WINDOW_MIN]
     own_range = (max(early) - min(early)) if len(early) >= 2 else 0.0
 
     vix_on = (vix_at_entry is not None and vix_at_entry >= VIX_GATE)
@@ -139,11 +169,55 @@ def predict_exit_riser(
         market_red = (regime_bull == 0)
         regime_src = "prior-day BEAR"
 
-    hwm = 0.0
-    for el, cur in series:
+    # CAPTURE-PEAK mode (2026-07-08, user deploy LIVE). Objective = RISK-ADJUSTED COMPOUNDING, not
+    # arithmetic mean: high-WR + low-DD lets you size up -> compounds MORE. Validated (308 riser
+    # picks, wf_1min replay, relative so bar-source bias cancels): sized to same maxDD -20%, hold-EOD
+    # x8.6 vs TRAIL-capture+hard-stop x28.7 (3.3x). WR 58->70, maxDD ~halved EVERY year (2024/25 also
+    # win raw geo; 2026 raw geo lower but DD still lower = the user's stated objective: win often,
+    # don't gamble EOD, compound). Trail from intraday HIGH (arm +1%, lock on 1% give-back) + hard-SL
+    # -4% (cuts the 12 disasters <-5% at ~0 mean cost). Replaces peak-fade/fast/gated-trail when on.
+    # Rollback: RISER_CAPTURE_PEAK=0 -> old regime-exit. Tunables: RISER_CAP_ARM/CAP_GB/HARD_SL.
+    CAPTURE_PEAK = os.environ.get("RISER_CAPTURE_PEAK", "1") == "1"
+    CAP_ARM = float(os.environ.get("RISER_CAP_ARM", "1.0"))    # peak must reach +1% to arm the lock
+    CAP_GB = float(os.environ.get("RISER_CAP_GB", "1.0"))      # give-back from peak to lock the gain
+    HARD_SL = float(os.environ.get("RISER_HARD_SL", "4.0"))    # wide stop cuts disasters (not U-recovery)
+    # CONFIRM (2026-07-08): don't lock until the peak is CONFIRMED — no new intraday high for
+    # CAP_CONFIRM minutes. Without it, arm0.5 fires on the first small pop-and-dip (WDC 07-08: locked
+    # +0.04% @09:56 on a +0.63% wiggle, missing the +1.5% real peak @10:00). With confirm=3, it lets
+    # the stock keep making higher highs, then locks ~3 min after the peak holds -> WDC ~+1.0% ($559,
+    # the 556-560 the user wanted). Compounding-NEUTRAL (WR unchanged ~70%) but captures peaks higher.
+    CAP_CONFIRM = int(os.environ.get("RISER_CAP_CONFIRM", "3"))
+    # BELL-GUARD: compute the bellwether trend once (only if enabled + in capture-peak mode + the
+    # series reaches 09:45). bell_trend<0 -> early-exit at the first bar >= 09:45 (em 585).
+    BELL_GUARD = os.environ.get("RISER_BELL_GUARD", "1") == "1"
+    bell_trend = None
+    if CAPTURE_PEAK and BELL_GUARD and any((fill_em + el) >= 585 for el, _, _ in series):
+        bell_trend = _bell_trend(db_path, date)
+    hwm = 0.0; hwm_hi = 0.0; last_hi_m = fill_em
+    for el, cur, hi in series:
         hwm = max(hwm, cur)
         m = (fill_em + el)
+        if hi > hwm_hi:
+            hwm_hi = hi; last_hi_m = m          # new intraday high -> reset the confirm clock
         tt = f"{m // 60:02d}:{m % 60:02d}"
+        if CAPTURE_PEAK:
+            if bell_trend is not None and bell_trend < 0 and m >= 585:
+                return {"verdict": "TRAIL_EXIT", "exit_time": tt, "cur_pnl_pct": float(cur),
+                        "hwm_pct": float(hwm_hi), "sector": sector, "vix_at_entry": vix_at_entry,
+                        "own_range": float(own_range), "gate": gate_txt, "bell_trend": float(bell_trend),
+                        "reason": f"BELL-GUARD @{tt}: bellwethers trending down {bell_trend:+.2f}% (09:36->09:45) "
+                                  f"— bail near entry (cut tail; day flagged weak by market cohort)"}
+            if el >= 15 and cur <= -HARD_SL:
+                return {"verdict": "TRAIL_EXIT", "exit_time": tt, "cur_pnl_pct": float(cur),
+                        "hwm_pct": float(hwm_hi), "sector": sector, "vix_at_entry": vix_at_entry,
+                        "own_range": float(own_range), "gate": gate_txt,
+                        "reason": f"HARD-STOP @{tt}: {cur:+.2f}% <= -{HARD_SL:.1f}% (cut disaster, protect compounding)"}
+            if el >= 15 and hwm_hi >= CAP_ARM and (hwm_hi - cur) >= CAP_GB and (m - last_hi_m) >= CAP_CONFIRM:
+                return {"verdict": "TRAIL_EXIT", "exit_time": tt, "cur_pnl_pct": float(cur),
+                        "hwm_pct": float(hwm_hi), "sector": sector, "vix_at_entry": vix_at_entry,
+                        "own_range": float(own_range), "gate": gate_txt,
+                        "reason": f"CAPTURE-PEAK @{tt}: peak {hwm_hi:+.2f}% -> lock {cur:+.2f}% (give-back {hwm_hi-cur:.1f}%>={CAP_GB:.1f}%, peak confirmed {CAP_CONFIRM}m)"}
+            continue   # capture-peak replaces the old regime-exit/gated-trail branches below
         # REGIME-AWARE EXIT actions (only when RISER_REGIME_EXIT=1, after min-hold)
         if REGIME_EXIT and el >= MIN_HOLD:
             _sdd = spy_dd_at.get(m)

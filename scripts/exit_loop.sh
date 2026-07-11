@@ -86,11 +86,14 @@ while true; do
   if [ "${QUIET:-0}" != "1" ] && printf '%s' "$peakfade" | grep -q "CONSIDER EXIT"; then printf '\a'; fi
 
   case "$verdict" in
-    EXIT)
+    # 2026-07-11 FIX: riser exit returns TRAIL_EXIT (and v18 returns SL_EXIT/PL_EXIT) — the old
+    # case matched only bare "EXIT" so these fell through to default = NO banner/beep (silent).
+    # All real exit verdicts now trigger the loud banner + beep.
+    EXIT|TRAIL_EXIT|SL_EXIT|PL_EXIT)
       if [ -z "$exit_fired" ]; then
         echo
         echo "===================================================================="
-        echo "⚠️⚠️⚠️  EXIT SIGNAL  ⚠️⚠️⚠️"
+        echo "⚠️⚠️⚠️  EXIT SIGNAL ($verdict)  ⚠️⚠️⚠️"
         echo "===================================================================="
         printf '%s\n' "$out"
         echo "===================================================================="
