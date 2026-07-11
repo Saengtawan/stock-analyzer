@@ -206,8 +206,9 @@ def predict_exit_riser(
     # BELL-GUARD: compute the bellwether trend once (only if enabled + in capture-peak mode + the
     # series reaches 09:45). bell_trend<0 -> early-exit at the first bar >= 09:45 (em 585).
     BELL_GUARD = os.environ.get("RISER_BELL_GUARD", "1") == "1"
+    HOLD_ON_UP = os.environ.get("RISER_HOLD_ON_UP", "0") == "1"   # user choice B: hold to EOD on up-days
     bell_trend = None; iwm_trend = None
-    if CAPTURE_PEAK and BELL_GUARD and any((fill_em + el) >= 585 for el, _, _ in series):
+    if CAPTURE_PEAK and (BELL_GUARD or HOLD_ON_UP) and any((fill_em + el) >= 585 for el, _, _ in series):
         bell_trend = _bell_trend(db_path, date)
         iwm_trend = _etf_trend("IWM", db_path, date)   # small-cap risk proxy — combined w/ bell (either down)
     hwm = 0.0; hwm_hi = 0.0; last_hi_m = fill_em
@@ -220,7 +221,7 @@ def predict_exit_riser(
         if CAPTURE_PEAK:
             _bell_dn = bell_trend is not None and bell_trend < 0
             _iwm_dn = iwm_trend is not None and iwm_trend < 0
-            if (_bell_dn or _iwm_dn) and m >= 585:
+            if BELL_GUARD and (_bell_dn or _iwm_dn) and m >= 585:
                 _who = "+".join(([f"bell{bell_trend:+.2f}"] if _bell_dn else [])
                                 + ([f"IWM{iwm_trend:+.2f}"] if _iwm_dn else []))
                 return {"verdict": "TRAIL_EXIT", "exit_time": tt, "cur_pnl_pct": float(cur),
@@ -235,6 +236,14 @@ def predict_exit_riser(
                         "hwm_pct": float(hwm_hi), "sector": sector, "vix_at_entry": vix_at_entry,
                         "own_range": float(own_range), "gate": gate_txt,
                         "reason": f"HARD-STOP @{tt}: {cur:+.2f}% <= -{HARD_SL:.1f}% (cut disaster, protect compounding)"}
+            # HOLD-ON-UP (2026-07-11, user choice B): on an UP day (past 09:45, guard did NOT fire =>
+            # bellwether/IWM both trending up = strong/trending market), SKIP the capture-peak lock and
+            # HOLD to EOD (hard-stop above still caps disasters). Catches the trending winners the tight
+            # capture clips (07-09 NCLH +4.33 EOD vs +1.17 capture). Validated steady N=294: mean +0.97
+            # ->+1.15, total +285->+337 (up-days 37%) at the cost of consistency (WR 87->81, Sharpe
+            # 0.81->0.51, worst -1.9->-4.0). USER chose upside over consistency. Disable: RISER_HOLD_ON_UP=0.
+            if HOLD_ON_UP and m >= 585 and (bell_trend is not None or iwm_trend is not None):
+                continue   # up-day -> hold to EOD (no capture lock)
             if el >= 15 and hwm_hi >= CAP_ARM and (hwm_hi - cur) >= CAP_GB and (m - last_hi_m) >= CAP_CONFIRM:
                 return {"verdict": "TRAIL_EXIT", "exit_time": tt, "cur_pnl_pct": float(cur),
                         "hwm_pct": float(hwm_hi), "sector": sector, "vix_at_entry": vix_at_entry,
