@@ -54,6 +54,22 @@ def _bell_trend(db_path: str, date: Optional[str]) -> Optional[float]:
     return (sum(diffs) / len(diffs)) if len(diffs) >= 4 else None
 
 
+def _etf_trend(sym: str, db_path: str, date: Optional[str]) -> Optional[float]:
+    """Single-ETF gain-trend 09:36->09:45 (% of open). IWM (small-caps) ~= the bellwether cohort
+    (corr 0.53) but a single always-available ETF; BELL-or-IWM (either down) beats bell alone
+    (steady+capture N=294: WR 85->87, worst -2.3->-1.9, mean +0.94->+0.97). 2026-07-11."""
+    try:
+        bars, _ = _fetch_bars(sym, [], db_path, date)
+    except Exception:
+        return None
+    o = next((b[1] for b in bars if b[0] >= 570), None)
+    le576 = [b[4] for b in bars if 570 <= b[0] <= 576]
+    le585 = [b[4] for b in bars if 570 <= b[0] <= 585]
+    if o and o > 0 and le576 and le585:
+        return (le585[-1] - le576[-1]) / o * 100
+    return None
+
+
 def is_riser_pick(symbol: str, date: Optional[str], db_journal: str) -> bool:
     """True if `symbol` was a riser_picks selection on `date` (today if None)."""
     try:
@@ -190,9 +206,10 @@ def predict_exit_riser(
     # BELL-GUARD: compute the bellwether trend once (only if enabled + in capture-peak mode + the
     # series reaches 09:45). bell_trend<0 -> early-exit at the first bar >= 09:45 (em 585).
     BELL_GUARD = os.environ.get("RISER_BELL_GUARD", "1") == "1"
-    bell_trend = None
+    bell_trend = None; iwm_trend = None
     if CAPTURE_PEAK and BELL_GUARD and any((fill_em + el) >= 585 for el, _, _ in series):
         bell_trend = _bell_trend(db_path, date)
+        iwm_trend = _etf_trend("IWM", db_path, date)   # small-cap risk proxy — combined w/ bell (either down)
     hwm = 0.0; hwm_hi = 0.0; last_hi_m = fill_em
     for el, cur, hi in series:
         hwm = max(hwm, cur)
@@ -201,12 +218,18 @@ def predict_exit_riser(
             hwm_hi = hi; last_hi_m = m          # new intraday high -> reset the confirm clock
         tt = f"{m // 60:02d}:{m % 60:02d}"
         if CAPTURE_PEAK:
-            if bell_trend is not None and bell_trend < 0 and m >= 585:
+            _bell_dn = bell_trend is not None and bell_trend < 0
+            _iwm_dn = iwm_trend is not None and iwm_trend < 0
+            if (_bell_dn or _iwm_dn) and m >= 585:
+                _who = "+".join(([f"bell{bell_trend:+.2f}"] if _bell_dn else [])
+                                + ([f"IWM{iwm_trend:+.2f}"] if _iwm_dn else []))
                 return {"verdict": "TRAIL_EXIT", "exit_time": tt, "cur_pnl_pct": float(cur),
                         "hwm_pct": float(hwm_hi), "sector": sector, "vix_at_entry": vix_at_entry,
-                        "own_range": float(own_range), "gate": gate_txt, "bell_trend": float(bell_trend),
-                        "reason": f"BELL-GUARD @{tt}: bellwethers trending down {bell_trend:+.2f}% (09:36->09:45) "
-                                  f"— bail near entry (cut tail; day flagged weak by market cohort)"}
+                        "own_range": float(own_range), "gate": gate_txt,
+                        "bell_trend": (float(bell_trend) if bell_trend is not None else None),
+                        "iwm_trend": (float(iwm_trend) if iwm_trend is not None else None),
+                        "reason": f"BELL-GUARD @{tt}: market cohort trending down (09:36->09:45: {_who}%) "
+                                  f"— bail near entry (cut tail; day flagged weak)"}
             if el >= 15 and cur <= -HARD_SL:
                 return {"verdict": "TRAIL_EXIT", "exit_time": tt, "cur_pnl_pct": float(cur),
                         "hwm_pct": float(hwm_hi), "sector": sector, "vix_at_entry": vix_at_entry,
