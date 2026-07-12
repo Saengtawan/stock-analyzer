@@ -33,6 +33,16 @@ et_secs() { read -r h m s < <(TZ=America/New_York date '+%H %M %S'); echo $((10#
 # REPLAY (test/validation only): RISER_REPLAY_DATE set -> skip the live capture loop + persist +
 # exit-tracker launch; the Python block reads the archived dump for that date instead.
 if [[ -n "${RISER_REPLAY_DATE:-}" ]]; then RISER_TRACK=0; export RISER_TRACK; fi
+# EARLY ENTRY (2026-07-12): ⛔ DO NOT ENABLE — TRAIN/SERVE SKEW (default 0, keep it 0).
+# The idea: decide+emit off the FIRST 09:31:30 scan -> buy ~09:32. On the premarket_features universe
+# it looked great: +0.27/pick vs 09:37, paired CI[+0.14,+0.39], N=174, 5/5 halves +, survives rmTop10
+# + slippage (mechanism: pm_gap reversal starts at the open, 09:37 buys the top of the early bounce).
+# BUT the LIVE-FAITHFUL test on the REAL ml_filter dumps FAILED: the 09:31 dump is too THIN (1-3 Z1
+# candidates) so the pmgap filter can't apply -> fallback picks low-gain noise -> live-faithful EARLY
+# −0.39/pick (N=15) vs NORMAL 09:37 +0.10. The +0.27 was measured on a BROADER universe than the live
+# 09:31 dump = same skew family as vs_vwap/rising-window/gap-cap. To ever revive: build a broad 09:31
+# scanner (not ml_filter's thin Z1 dump), then re-verify live-faithful. Code kept for that path only.
+if [[ "${RISER_EARLY_ENTRY:-0}" == "1" ]]; then RISER_LAST_MIN=31; export RISER_LAST_MIN; fi
 if [[ -z "${RISER_REPLAY_DATE:-}" ]]; then
 for MIN in $(seq 31 "${RISER_LAST_MIN:-36}"); do
   TARGET=$((9*3600 + MIN*60 + 30))               # HH:MM:30 ET
@@ -71,6 +81,10 @@ if _rpd:
     now=datetime(int(_rpd[:4]),int(_rpd[5:7]),int(_rpd[8:10]),int(_rpt[:2]),int(_rpt[3:5]),0,tzinfo=ET)
     _dumpglob=f'/home/saengtawan/work/project/cc/stock-analyzer/data/riser_dumps/{_rpd}/min_*.jsonl'
     print(f"[REPLAY] now={now.isoformat()} dumps={_dumpglob}")
+# EARLY ENTRY: use ONLY the first (09:31:30) scan = gain from the 09:30 bar. Live already has just
+# min_0931 (LAST_MIN=31); for REPLAY narrow the glob so the decision matches live early behavior.
+if os.environ.get('RISER_EARLY_ENTRY','0')=='1':
+    _dumpglob=_dumpglob.replace('min_*.jsonl','min_0931.jsonl')
 # accumulate per-symbol latest record across the 7 scans (Z1 only = mfo 0-9)
 acc={}; _mingain={}; _gser={}
 for f in sorted(glob.glob(_dumpglob)):
@@ -388,12 +402,14 @@ elif _rankmode=='pmgap':
             if not b: return None
             return (b[0]['o']/pc-1)*100   # first premarket bar open vs prev close
         except Exception: return None
-    # own-sector ETF gain @09:36 (SIP, 1min open->09:36)
+    # own-sector ETF gain open->09:36 (SIP, 1min); EARLY mode ends @09:31 (match the 09:31 decision).
+    _own_end_min=31 if os.environ.get('RISER_EARLY_ENTRY','0')=='1' else 37
+    _u1e=now.replace(hour=9,minute=_own_end_min,second=0,microsecond=0).astimezone(_zip.ZoneInfo('UTC')).strftime('%Y-%m-%dT%H:%M:%SZ')
     _etfsp=sorted(set(_sec2etf_p.get(r.get('sec')) for r in risers if _sec2etf_p.get(r.get('sec'))))
     _etfgp={}
     try:
         _u0e=now.replace(hour=9,minute=30,second=0,microsecond=0).astimezone(_zip.ZoneInfo('UTC')).strftime('%Y-%m-%dT%H:%M:%SZ')
-        _re=_rqp.get('https://data.alpaca.markets/v2/stocks/bars',headers=_hdrp,params={'symbols':','.join(_etfsp),'timeframe':'1Min','start':_u0e,'end':_u1p,'feed':'sip','limit':2000},timeout=15).json().get('bars',{}) if _etfsp else {}
+        _re=_rqp.get('https://data.alpaca.markets/v2/stocks/bars',headers=_hdrp,params={'symbols':','.join(_etfsp),'timeframe':'1Min','start':_u0e,'end':_u1e,'feed':'sip','limit':2000},timeout=15).json().get('bars',{}) if _etfsp else {}
         for _e in _etfsp:
             _bb=_re.get(_e,[])
             if _bb and _bb[0]['o']>0: _etfgp[_e]=(_bb[-1]['c']/_bb[0]['o']-1)*100
@@ -578,6 +594,7 @@ if [[ "${RISER_TRACK:-1}" == "1" ]]; then
   LOG_DIR="data/exit_loops"; mkdir -p "$LOG_DIR"
   ET_DATE="$(TZ=America/New_York date '+%Y-%m-%d')"
   _DISC="${RISER_LIMIT_DISCOUNT:-0}"
+  _ENTRY_HHMM="09:37"; [[ "${RISER_EARLY_ENTRY:-0}" == "1" ]] && _ENTRY_HHMM="09:32"  # early-entry anchor
   # launch an exit-tracker (+ entry-fill monitor if a limit is in use) for EACH pick of the latest
   # scan — top-N aware (2026-06-24): reads all rows at the most recent scan_ts.
   while IFS='|' read -r RSYM RPRICE; do
@@ -586,7 +603,7 @@ if [[ "${RISER_TRACK:-1}" == "1" ]]; then
       echo "[riser] $RSYM exit-tracker already running — skip"
     else
       LOG="$LOG_DIR/${RSYM}_${ET_DATE}_riser.log"
-      nohup bash scripts/exit_loop.sh "$RSYM" "$RPRICE" 09:37 "$ET_DATE" > "$LOG" 2>&1 < /dev/null &
+      nohup bash scripts/exit_loop.sh "$RSYM" "$RPRICE" "$_ENTRY_HHMM" "$ET_DATE" > "$LOG" 2>&1 < /dev/null &
       disown 2>/dev/null || true
       echo "[riser] launched exit-tracker: $RSYM @ \$$RPRICE (riser dynamic exit) -> $LOG"
     fi
