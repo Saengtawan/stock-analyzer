@@ -207,6 +207,14 @@ def predict_exit_riser(
     # series reaches 09:45). bell_trend<0 -> early-exit at the first bar >= 09:45 (em 585).
     BELL_GUARD = os.environ.get("RISER_BELL_GUARD", "1") == "1"
     HOLD_ON_UP = os.environ.get("RISER_HOLD_ON_UP", "0") == "1"   # user choice B: hold to EOD on up-days
+    # ⭐ HOLD_SL (2026-07-12): hold-to-EOD + hard-stop -4 ONLY (no capture-peak trail, no bell-guard).
+    # THE winning exit on CORRECT SIP data (N=375): avg +0.33->+1.09 (3.3x), WR 57->73, Sharpe .34->.56,
+    # worst -2.2->-4.0, edge/maxDD 0.15->0.27 (wins even DD-adjusted). The deployed capture-peak was a
+    # wf_1min-bad-data + leverage-metric artifact (both proven unreliable this session). The trail was
+    # the twitchy part that killed winners (MRNA 07-09 +0.91->-0.03). Live-faithful confirmed (dump
+    # +5.17 vs capture +1.26). hard-stop (stock-level) cuts the tail cleanly; the market bell-guard
+    # OVER-cuts (+1.09->+0.61) so it's off here. Rollback: RISER_HOLD_SL=0 -> capture-peak.
+    HOLD_SL = os.environ.get("RISER_HOLD_SL", "0") == "1"
     bell_trend = None; iwm_trend = None
     if CAPTURE_PEAK and (BELL_GUARD or HOLD_ON_UP) and any((fill_em + el) >= 585 for el, _, _ in series):
         bell_trend = _bell_trend(db_path, date)
@@ -224,7 +232,7 @@ def predict_exit_riser(
             # GUARD-FLOOR (2026-07-11): don't guard-bail if already <= -HARD_SL — bailing at the 09:45
             # price on a fast crasher can exit BELOW the -4 hard-stop (live-faithful worst -6.6). Instead
             # let the hard-stop (el>=15) cap it at -4. Fixed live-faithful worst -6.6->-4.0, no downside.
-            if BELL_GUARD and (_bell_dn or _iwm_dn) and m >= 585 and cur > -HARD_SL:
+            if not HOLD_SL and BELL_GUARD and (_bell_dn or _iwm_dn) and m >= 585 and cur > -HARD_SL:
                 _who = "+".join(([f"bell{bell_trend:+.2f}"] if _bell_dn else [])
                                 + ([f"IWM{iwm_trend:+.2f}"] if _iwm_dn else []))
                 return {"verdict": "TRAIL_EXIT", "exit_time": tt, "cur_pnl_pct": float(cur),
@@ -247,7 +255,7 @@ def predict_exit_riser(
             # 0.81->0.51, worst -1.9->-4.0). USER chose upside over consistency. Disable: RISER_HOLD_ON_UP=0.
             if HOLD_ON_UP and m >= 585 and (bell_trend is not None or iwm_trend is not None):
                 continue   # up-day -> hold to EOD (no capture lock)
-            if el >= 15 and hwm_hi >= CAP_ARM and (hwm_hi - cur) >= CAP_GB and (m - last_hi_m) >= CAP_CONFIRM:
+            if not HOLD_SL and el >= 15 and hwm_hi >= CAP_ARM and (hwm_hi - cur) >= CAP_GB and (m - last_hi_m) >= CAP_CONFIRM:
                 return {"verdict": "TRAIL_EXIT", "exit_time": tt, "cur_pnl_pct": float(cur),
                         "hwm_pct": float(hwm_hi), "sector": sector, "vix_at_entry": vix_at_entry,
                         "own_range": float(own_range), "gate": gate_txt,
