@@ -117,7 +117,7 @@ _MAX_PRICE=float(_mp) if _mp not in ('','off') else None
 # 2026-07-11 (user deploy LIVE): STEADY mode widens the pool to gain 0.5-6 (the low-gain-RISING
 # stocks are the edge — high-gain=froth that fades). The rising filter + sector-strength rank in the
 # 'steady' rank branch does the real selection. Only widens when RISER_RANK_MODE=steady.
-if os.environ.get('RISER_RANK_MODE')=='steady':
+if os.environ.get('RISER_RANK_MODE') in ('steady','pmgap'):
     _MIN_GAIN=0.5; _MAX_GAIN=6.0
 def _riser_ok(r):
     g=(r.get('gain') or -99)
@@ -352,6 +352,62 @@ elif _rankmode=='idavg_sector':
     _bs=sorted(risers,key=lambda r:-_secstr(r)); _sr={id(r):i+1 for i,r in enumerate(_bs)}
     risers.sort(key=lambda r:(_gr[id(r)]+_ir[id(r)]+_sr[id(r)])/3.0)
     top=risers[0]; _rankdesc='mean-rank(gain,id-avg,own-sector)'
+elif _rankmode=='pmgap':
+    # 2026-07-12 (user): PREMARKET GAP-REVERSAL. Prefer candidates that GAPPED DOWN premarket
+    # (pm_gap<0) in a STRONG sector (own-sector ETF >0) — "bad overnight news, idiosyncratic, in a
+    # healthy sector -> real buyers step in -> reverses & runs". Validated 2024-25 (N=59): WR 75%,
+    # median +0.83, per-year robust; out-of-sample July-2026 6-day fwd +0.48 vs steady -0.06.
+    # VERIFIED no-lookahead (pm_gap = first 4AM premarket bar open / prev daily close, all pre-09:30)
+    # and SIP-faithful (backfill == SIP recompute exact). MUST use feed=SIP (IEX premarket is empty).
+    # Filter: pm_gap<0 AND own>0 -> fallback pm_gap<0 -> fallback all; rank by gain. IN-SAMPLE-ish
+    # (small N) -> track forward. Rollback: RISER_RANK_MODE=steady.
+    import requests as _rqp, sqlite3 as _s3p, zoneinfo as _zip
+    _sec2etf_p={'Energy':'XLE','Technology':'XLK','Financial Services':'XLF','Financials':'XLF','Healthcare':'XLV','Industrials':'XLI','Consumer Cyclical':'XLY','Consumer Defensive':'XLP','Basic Materials':'XLB','Utilities':'XLU','Real Estate':'XLRE','Communication Services':'XLC'}
+    _kkp={}
+    for _l in open('/home/saengtawan/work/project/cc/stock-analyzer/.env'):
+        _l=_l.strip()
+        if _l and not _l.startswith('#') and '=' in _l:
+            _k,_v=_l.split('=',1); _kkp[_k.strip()]=_v.strip().strip('\"\'')
+    _hdrp={'APCA-API-KEY-ID':_kkp.get('ALPACA_API_KEY'),'APCA-API-SECRET-KEY':_kkp.get('ALPACA_SECRET_KEY')}
+    _thp=_s3p.connect('/home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db')
+    _dds=now.strftime('%Y-%m-%d')
+    def _prevclose(sym):
+        try:
+            r=_thp.execute("SELECT close FROM stock_daily_ohlc WHERE symbol=? AND date<? ORDER BY date DESC LIMIT 1",(sym,_dds)).fetchone()
+            return r[0] if r else None
+        except Exception: return None
+    # premarket 4AM(ET)->09:30, SIP. 4AM ET = 08:00 UTC (EDT) — use wide window, first bar = premarket
+    _u0p=now.replace(hour=4,minute=0,second=0,microsecond=0).astimezone(_zip.ZoneInfo('UTC')).strftime('%Y-%m-%dT%H:%M:%SZ')
+    _u1p=now.replace(hour=9,minute=37,second=0,microsecond=0).astimezone(_zip.ZoneInfo('UTC')).strftime('%Y-%m-%dT%H:%M:%SZ')
+    def _pmgap(sym):
+        try:
+            pc=_prevclose(sym)
+            if not pc: return None
+            r=_rqp.get('https://data.alpaca.markets/v2/stocks/bars',headers=_hdrp,params={'symbols':sym,'timeframe':'5Min','start':_u0p,'end':_u1p,'feed':'sip','limit':300},timeout=15).json()
+            b=r.get('bars',{}).get(sym,[])
+            if not b: return None
+            return (b[0]['o']/pc-1)*100   # first premarket bar open vs prev close
+        except Exception: return None
+    # own-sector ETF gain @09:36 (SIP, 1min open->09:36)
+    _etfsp=sorted(set(_sec2etf_p.get(r.get('sec')) for r in risers if _sec2etf_p.get(r.get('sec'))))
+    _etfgp={}
+    try:
+        _u0e=now.replace(hour=9,minute=30,second=0,microsecond=0).astimezone(_zip.ZoneInfo('UTC')).strftime('%Y-%m-%dT%H:%M:%SZ')
+        _re=_rqp.get('https://data.alpaca.markets/v2/stocks/bars',headers=_hdrp,params={'symbols':','.join(_etfsp),'timeframe':'1Min','start':_u0e,'end':_u1p,'feed':'sip','limit':2000},timeout=15).json().get('bars',{}) if _etfsp else {}
+        for _e in _etfsp:
+            _bb=_re.get(_e,[])
+            if _bb and _bb[0]['o']>0: _etfgp[_e]=(_bb[-1]['c']/_bb[0]['o']-1)*100
+    except Exception as _ee: print(f"[pmgap] ETF skip: {_ee}")
+    for r in risers:
+        r['pmgap']=_pmgap(r['sym']); r['own']=_etfgp.get(_sec2etf_p.get(r.get('sec')),None)
+    _have=[r for r in risers if r.get('pmgap') is not None]
+    _elig=[r for r in _have if r['pmgap']<0 and (r.get('own') is not None and r['own']>0)]
+    _gapdn=[r for r in _have if r['pmgap']<0]
+    _pool=_elig if _elig else (_gapdn if _gapdn else (_have if _have else risers))
+    _tag='gap<0+sec>0' if _elig else ('gap<0' if _gapdn else 'fallback')
+    print(f"[pmgap] {len(_have)} w/ pm_gap | {len(_gapdn)} gap<0 | {len(_elig)} gap<0+sec>0 -> pool={_tag}")
+    _pool.sort(key=lambda r:-r['gain'])
+    risers=_pool; top=risers[0]; _rankdesc=f'pm_gap-reversal ({_tag}, gain-ranked)'
 elif _rankmode=='steady':
     # 2026-07-11 (user deploy LIVE, no shadow): STEADY-RISER. On weak-Tech / rotation days the
     # high-gain band is froth that fades; the edge is LOW-GAIN stocks RISING STEADILY in the strong
