@@ -406,6 +406,11 @@ elif _rankmode=='pmgap':
     _pool=_elig if _elig else (_gapdn if _gapdn else (_have if _have else risers))
     _tag='gap<0+sec>0' if _elig else ('gap<0' if _gapdn else 'fallback')
     print(f"[pmgap] {len(_have)} w/ pm_gap | {len(_gapdn)} gap<0 | {len(_elig)} gap<0+sec>0 -> pool={_tag}")
+    # RANK within the filtered pool = gain (forward-validated). 2026-07-12: RANK IS NOISE HERE — the
+    # FILTER (gap<0+own>0) is the whole edge. Ablation N=32 (2024-25) said gain-rank worst / pm_gap-
+    # most-down & RANDOM better; but the July-2026 6-day OUT-OF-SAMPLE said the OPPOSITE (gain +0.50 vs
+    # pm_gap-most-down -0.06 — gain caught MRNA +1.49 on 07-02). Two small samples disagree = rank
+    # doesn't reliably matter. Keep gain (simplest, out-of-sample-validated). Don't over-tune on N=32.
     _pool.sort(key=lambda r:-r['gain'])
     risers=_pool; top=risers[0]; _rankdesc=f'pm_gap-reversal ({_tag}, gain-ranked)'
 elif _rankmode=='steady':
