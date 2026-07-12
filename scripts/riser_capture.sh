@@ -175,6 +175,27 @@ if _ID_GATE or _VIX20_MAX<99:
         _pre=len(risers); risers=[r for r in risers if _gate_ok(r)]
         print(f"[v2-gates] VIX-20d={('%.1f'%_vix20) if _vix20 is not None else 'na'}<{_VIX20_MAX} | id_gate={'ON(n>=8)' if _ID_GATE else 'off'} -> {len(risers)}/{_pre} pass")
         if not risers and _pre>0: _abstain_reason=f"all {_pre} band candidates failed identity gate (n>=8 & avg>0)"
+# SKEW gate (2026-07-12). Abstain when PRIOR-day CBOE SKEW is high = market is pricing tail-risk ->
+# the gap-reversal edge fails on those days. THOROUGH SIP analysis (N=364, 2024-2026-03, correct SIP
+# outcomes not wf_1min): LOW-skew tercile +0.53 / HIGH +0.21, Δ(LOW-HIGH) +0.23 CI[+0.08,+0.39] REAL;
+# a skew<=p70 gate lifts net avg in ALL 3 years (+0.08/+0.04/+0.13). Mechanism: SKEW=priced tail-risk;
+# high skew = fear = reversals don't get bought. prior-day skew_close (EOD) = no lookahead (like regime/
+# VIX gates). Day-level (market env) so it's ORTHOGONAL to the pick universe = transfers to live (unlike
+# the early-entry idea). Default 999 = OFF; set RISER_SKEW_MAX in .env (~152 = abstain worst ~25% days).
+_SKEW_MAX=float(os.environ.get('RISER_SKEW_MAX','999'))
+if _SKEW_MAX<999 and risers:
+    _sk=None
+    try:
+        import sqlite3 as _s3s
+        _ths=_s3s.connect('/home/saengtawan/work/project/cc/stock-analyzer/data/trade_history.db')
+        _r=_ths.execute("SELECT skew_close FROM macro_snapshots WHERE skew_close IS NOT NULL AND date<? ORDER BY date DESC LIMIT 1",(now.strftime('%Y-%m-%d'),)).fetchone(); _ths.close()
+        if _r: _sk=_r[0]
+    except Exception: _sk=None
+    if _sk is not None and _sk>_SKEW_MAX:
+        print(f"[v2-gates] prior SKEW={_sk:.1f} > {_SKEW_MAX} (tail-risk priced -> reversal fails) -> ABSTAIN")
+        risers=[]; _abstain_reason=f"high SKEW ({_sk:.1f}>{_SKEW_MAX:.0f}) — tail-risk day, reversal edge off"
+    else:
+        print(f"[v2-gates] prior SKEW={('%.1f'%_sk) if _sk is not None else 'na'} <= {_SKEW_MAX} -> trade OK")
 # SPX-GEX gate (2026-06-25). Abstain on a fragile MARKET day: prior-day SPX GEX < 0 = dealers short
 # gamma (past the gamma-flip at 0) = they AMPLIFY moves -> reversal-prone. Validated 15yr (GEX<0 ->
 # next-day |move| 2.4x; 16/20 worst days were prior-day GEX<0) and ORTHOGONAL to spy_intra (39% of
