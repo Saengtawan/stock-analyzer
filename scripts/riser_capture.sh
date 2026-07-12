@@ -401,8 +401,13 @@ elif _rankmode=='pmgap':
     for r in risers:
         r['pmgap']=_pmgap(r['sym']); r['own']=_etfgp.get(_sec2etf_p.get(r.get('sec')),None)
     _have=[r for r in risers if r.get('pmgap') is not None]
-    _elig=[r for r in _have if r['pmgap']<0 and (r.get('own') is not None and r['own']>0)]
-    _gapdn=[r for r in _have if r['pmgap']<0]
+    # FILTER thresholds (A/B knobs). Default 0/0 = validated version. In-sample 2024-25 (NOT out-of-sample
+    # verified — fetch failed) suggests DEEPER gap-down is better + monotonic: pm_gap<-1.0 -> WR 75->84,
+    # median +0.83->+1.21, both years; own>0.2 -> WR 76. Track fwd before making these the default.
+    _PGMAX=float(os.environ.get('RISER_PMGAP_MAX','0'))     # candidate must have pm_gap < this
+    _OWNMIN=float(os.environ.get('RISER_PMGAP_OWNMIN','0')) # own-sector must be > this
+    _elig=[r for r in _have if r['pmgap']<_PGMAX and (r.get('own') is not None and r['own']>_OWNMIN)]
+    _gapdn=[r for r in _have if r['pmgap']<_PGMAX]
     _pool=_elig if _elig else (_gapdn if _gapdn else (_have if _have else risers))
     _tag='gap<0+sec>0' if _elig else ('gap<0' if _gapdn else 'fallback')
     print(f"[pmgap] {len(_have)} w/ pm_gap | {len(_gapdn)} gap<0 | {len(_elig)} gap<0+sec>0 -> pool={_tag}")
