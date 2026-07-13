@@ -413,7 +413,13 @@ elif _rankmode=='pmgap':
         except Exception: return None
     # premarket 4AM(ET)->09:30, SIP. 4AM ET = 08:00 UTC (EDT) — use wide window, first bar = premarket
     _u0p=now.replace(hour=4,minute=0,second=0,microsecond=0).astimezone(_zip.ZoneInfo('UTC')).strftime('%Y-%m-%dT%H:%M:%SZ')
-    _u1p=now.replace(hour=9,minute=37,second=0,microsecond=0).astimezone(_zip.ZoneInfo('UTC')).strftime('%Y-%m-%dT%H:%M:%SZ')
+    # LIVE-DATA FIX (2026-07-13): Alpaca subscription blocks RECENT SIP ("subscription does not permit
+    # querying recent SIP data"), so end=09:37 returned 0 bars -> pmgap silently fell to fallback
+    # (gain-rank) EVERY live run since deploy. We only need the FIRST 4AM premarket bar, so end at
+    # now-20min (>15min old = SIP-delayed OK, still after 4AM so b[0] is unchanged). Verified: end 09:15
+    # -> 63 bars. Rollback if the account gets real-time SIP: revert to 09:37.
+    from datetime import timedelta as _td
+    _u1p=(now - _td(minutes=20)).astimezone(_zip.ZoneInfo('UTC')).strftime('%Y-%m-%dT%H:%M:%SZ')
     def _pmgap(sym):
         try:
             pc=_prevclose(sym)
@@ -430,7 +436,10 @@ elif _rankmode=='pmgap':
     _etfgp={}
     try:
         _u0e=now.replace(hour=9,minute=30,second=0,microsecond=0).astimezone(_zip.ZoneInfo('UTC')).strftime('%Y-%m-%dT%H:%M:%SZ')
-        _re=_rqp.get('https://data.alpaca.markets/v2/stocks/bars',headers=_hdrp,params={'symbols':','.join(_etfsp),'timeframe':'1Min','start':_u0e,'end':_u1e,'feed':'sip','limit':2000},timeout=15).json().get('bars',{}) if _etfsp else {}
+        # own-sector ETF @09:36 is RECENT -> SIP blocked; use feed=iex (real-time, regular hours; liquid
+        # ETFs have data — verified XLF iex 09:30-36 = 7 bars). The sign of the sector move (own>0) is
+        # robust on IEX. (pm_gap still needs SIP above because IEX premarket is empty.) 2026-07-13 fix.
+        _re=_rqp.get('https://data.alpaca.markets/v2/stocks/bars',headers=_hdrp,params={'symbols':','.join(_etfsp),'timeframe':'1Min','start':_u0e,'end':_u1e,'feed':'iex','limit':2000},timeout=15).json().get('bars',{}) if _etfsp else {}
         for _e in _etfsp:
             _bb=_re.get(_e,[])
             if _bb and _bb[0]['o']>0: _etfgp[_e]=(_bb[-1]['c']/_bb[0]['o']-1)*100
