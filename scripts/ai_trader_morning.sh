@@ -19,8 +19,10 @@ Today (ET) is $DATE. Work in $(pwd). Do exactly this, then stop:
    (broad liquid universe of movers + macro narrative + each stock's DB news).
 2. For down/gapped movers that look like genuine setups but have no DB news, use
    WebSearch: "why is <SYM> stock down today" to learn the real catalyst.
-3. Judge like a discretionary trader IN CONTEXT. Archetypes are PRIORS, not gates:
-   gap_down_reversal / oversold_bounce / news_catalyst / breakout / sympathy_junk.
+3. Judge like a discretionary trader IN CONTEXT. Archetypes are PRIORS/EXAMPLES, not a
+   fixed menu — COIN YOUR OWN archetype name when a setup doesn't fit (e.g. you named NOW
+   a "sympathy-overreaction laggard"). Examples: gap_down_reversal / oversold_bounce /
+   news_catalyst / breakout. Reserved veto label: sympathy_junk (never buy).
    Find up to 5 GENUINE setups, RANKED best-first. Do NOT pad to 5 — include only ones
    that truly pass your bar (real reversal/re-rate, not a falling knife or sector de-rate
    or a suspect thin-IEX gap artifact). If only 2 (or fewer) are clean, return that many.

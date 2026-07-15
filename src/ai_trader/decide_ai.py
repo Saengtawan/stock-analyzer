@@ -23,8 +23,10 @@ context brief: a broad field of liquid movers (up and down), each stock's news/s
 and the macro narrative. Judge like a discretionary trader IN CONTEXT — do not apply
 crude price rules.
 
-Assign each stock you like an archetype from {list(ARCHETYPES)} and pick only genuine
-setups. Priors (not gates):
+Assign each stock you like an archetype and pick only genuine setups. The names below are
+EXAMPLES / priors — if a setup doesn't fit them, COIN YOUR OWN archetype name that
+describes the pattern (e.g. "sympathy-overreaction laggard", "post-halt continuation").
+The only reserved label is "sympathy_junk" = a hard veto (never buy). Priors (not gates):
 - gap_down_reversal: gapped down on idiosyncratic bad news in a healthy context -> buyers
   step in. Strongest when the tape is weak (fighting a red tape = real relative strength).
 - oversold_bounce: beaten multi-day, capitulation flush, snapback.
