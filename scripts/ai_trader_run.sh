@@ -25,6 +25,20 @@ case "$CMD" in
   v2decide)  "$PY" -m src.ai_trader.decide_ai --date "$DATE" ;;   # headless AI (needs ANTHROPIC_API_KEY)
   v2execute) "$PY" -m src.ai_trader.run_v2 execute --date "$DATE" ;;
   v2outcome) "$PY" -m src.ai_trader.run_v2 outcome --date "$DATE" ;;
+  v2bench)   "$PY" - "$DATE" <<'EOF'
+import sys, json
+d=sys.argv[1]
+try: raw=json.load(open(f"plans/decisions/{d}.json"))
+except Exception as e: print("no decision:",e); raise SystemExit
+print(f"regime: {raw.get('regime')}")
+for i,p in enumerate(raw.get('picks',[])):
+    tier="PICK" if i<2 else "bench"
+    ex=f"trail {p.get('trail_pct')}%" if p.get('exit_style')=='trail' else 'hold-EOD'
+    print(f"\n[{tier} #{i+1}] {p['sym']} [{p['archetype']}] exit={ex} stop{p.get('hard_stop')}%")
+    print(f"  {p.get('reason')}")
+if not raw.get('picks'): print("ABSTAIN:", raw.get('abstain_reason'))
+EOF
+  ;;
   v2report)  "$PY" - <<'EOF'
 from src.ai_trader import journal
 rows=journal.report_v2(); tot=[]

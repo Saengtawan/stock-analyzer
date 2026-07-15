@@ -39,7 +39,8 @@ Return ONLY a JSON object, no prose:
 {{"regime": "<one line>", "picks": [{{"sym": "...", "archetype": "...", "reason": "...",
 "exit_style": "hold_eod|trail", "hard_stop": -4.0, "trail_pct": null}}],
 "abstain_reason": null}}
-At most 2 picks. exit_style 'trail' requires a trail_pct (e.g. 3.0)."""
+Up to 5 picks, RANKED best-first; do NOT pad — include only genuine setups (if only 2 are
+clean, return 2). The top 2 are shown/traded, the rest are bench. trail needs a trail_pct."""
 
 
 def _parse(text, date) -> Decision:
@@ -48,7 +49,7 @@ def _parse(text, date) -> Decision:
         raise ValueError("no JSON in model output")
     raw = json.loads(m.group(0))
     picks = []
-    for p in raw.get("picks", [])[:2]:
+    for p in raw.get("picks", [])[:5]:
         if p.get("archetype") == "sympathy_junk":
             continue
         picks.append(DecisionPick(

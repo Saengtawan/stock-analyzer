@@ -82,21 +82,23 @@ CREATE TABLE IF NOT EXISTS ai_journal_v2 (
 """
 
 
-def log_decision(decision, entry_prices, ts, db=DB):
-    """Log a v2 Decision (AI archetype+reasoning per pick). entry_prices: {sym: price}."""
+def log_decision(decision, entry_prices, ts, db=DB, primary_n=2):
+    """Log a v2 Decision. First `primary_n` ranked picks -> status 'picked' (the ones
+    shown/tradeable); the rest -> 'bench' (found + tracked, revealed on request)."""
     c = _conn(db); c.execute(DDL_V2)
     if not decision.picks:
         c.execute("INSERT OR REPLACE INTO ai_journal_v2 "
                   "(date,regime,sym,archetype,reason,status,logged_at) VALUES (?,?,?,?,?,?,?)",
                   (decision.date, decision.regime, "", "", decision.abstain_reason or "",
                    "abstained", ts))
-    for pk in decision.picks:
+    for i, pk in enumerate(decision.picks):
+        status = "picked" if i < primary_n else "bench"
         c.execute("INSERT OR REPLACE INTO ai_journal_v2 "
                   "(date,regime,sym,archetype,reason,exit_style,hard_stop,trail_pct,"
                   "entry_price,status,logged_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                   (decision.date, decision.regime, pk.sym, pk.archetype, pk.reason,
                    pk.exit_style, pk.hard_stop, pk.trail_pct,
-                   entry_prices.get(pk.sym), "picked", ts))
+                   entry_prices.get(pk.sym), status, ts))
     c.commit(); c.close()
 
 

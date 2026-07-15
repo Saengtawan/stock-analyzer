@@ -36,7 +36,7 @@ def _live_prices(syms):
     return {s: t["p"] for s, t in r.get("trades", {}).items()}
 
 
-def execute(date, log=True):
+def execute(date, log=True, primary_n=2):
     try:
         dec = Decision.load(date)
     except Exception as e:
@@ -44,18 +44,23 @@ def execute(date, log=True):
     prices = _live_prices([pk.sym for pk in dec.picks])
     ts = datetime.datetime.now().isoformat(timespec="seconds")
     if log:
-        journal.log_decision(dec, prices, ts)
+        journal.log_decision(dec, prices, ts, primary_n=primary_n)
 
     print(f"=== ai_trader v2 execute {date} ===")
     print(f"regime: {dec.regime}")
     if not dec.picks:
         print(f"ABSTAIN — {dec.abstain_reason}")
         return dec
-    for pk in dec.picks:
+    # show the top `primary_n`; the rest are bench (found, tracked, revealed on request)
+    for pk in dec.picks[:primary_n]:
         px = prices.get(pk.sym, "?")
         ex = f"trail {pk.trail_pct}%" if pk.exit_style == "trail" else "hold-EOD"
         print(f"PICK {pk.sym} [{pk.archetype}] @ {px}  exit={ex} stop{pk.hard_stop}%")
         print(f"     why: {pk.reason}")
+    bench = dec.picks[primary_n:]
+    if bench:
+        print(f"BENCH ({len(bench)} more found, ask to see): "
+              + ", ".join(f"{pk.sym}[{pk.archetype}]" for pk in bench))
     return dec
 
 

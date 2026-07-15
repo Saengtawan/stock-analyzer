@@ -21,14 +21,17 @@ Today (ET) is $DATE. Work in $(pwd). Do exactly this, then stop:
    WebSearch: "why is <SYM> stock down today" to learn the real catalyst.
 3. Judge like a discretionary trader IN CONTEXT. Archetypes are PRIORS, not gates:
    gap_down_reversal / oversold_bounce / news_catalyst / breakout / sympathy_junk.
-   Abstain if the tape is a real risk-off (war/rate-shock/inflation) or nothing is
-   genuine — abstaining is fine and never penalized. At most 2 picks.
-4. Write plans/decisions/$DATE.json with keys:
+   Find up to 5 GENUINE setups, RANKED best-first. Do NOT pad to 5 — include only ones
+   that truly pass your bar (real reversal/re-rate, not a falling knife or sector de-rate
+   or a suspect thin-IEX gap artifact). If only 2 (or fewer) are clean, return that many.
+   Abstain entirely if the tape is a real risk-off or nothing is genuine — never penalized.
+4. Write plans/decisions/$DATE.json (picks ordered best-first, up to 5) with keys:
    date, regime (one line), picks (each: sym, archetype, reason, exit_style
    ["hold_eod"|"trail"], hard_stop [negative %], trail_pct [number if trail else null]),
    abstain_reason (string if no picks else null).
-5. Run: bash scripts/ai_trader_run.sh v2execute $DATE
-6. Print a 3-line summary: regime, the pick(s) + one-line why, or why you abstained.
+5. Run: bash scripts/ai_trader_run.sh v2execute $DATE   (shows the top 2, benches the rest)
+6. Print: regime (1 line); the TOP 2 picks each with a one-line why; then a one-line
+   BENCH list of any rank 3-5 names (sym + archetype only). Or why you abstained.
 EOF
 
 claude -p "$PROMPT" --permission-mode bypassPermissions \
