@@ -23,10 +23,17 @@ Today (ET) is $DATE. Work in $(pwd). Do exactly this, then stop:
    fixed menu — COIN YOUR OWN archetype name when a setup doesn't fit (e.g. you named NOW
    a "sympathy-overreaction laggard"). Examples: gap_down_reversal / oversold_bounce /
    news_catalyst / breakout. Reserved veto label: sympathy_junk (never buy).
-   Find up to 5 GENUINE setups, RANKED best-first. Do NOT pad to 5 — include only ones
-   that truly pass your bar (real reversal/re-rate, not a falling knife or sector de-rate
-   or a suspect thin-IEX gap artifact). If only 2 (or fewer) are clean, return that many.
-   Abstain entirely if the tape is a real risk-off or nothing is genuine — never penalized.
+   CRITICAL — this is an INTRADAY system (buy ~09:37, flat by 16:00). The buy reason MUST
+   be an intraday move that will happen TODAY and HASN'T happened yet — UNRESOLVED edge:
+   a mismatch not yet reclaimed, a laggard not yet caught up, a reversal not yet bounced.
+   A multi-day / fundamental catalyst (guidance raise, "re-rates over days", cheap
+   valuation, beat that already popped) is a SWING thesis, NOT a valid intraday reason.
+   If the day's reaction is already SPENT — moved a lot from the open and starting to fade,
+   e.g. a low-vol mega-cap +2% then rolling over — SKIP it; the juice is gone.
+   Find up to 5 GENUINE setups with intraday juice LEFT, RANKED best-first. Do NOT pad —
+   only real reversals/mismatches, not falling knives, sector de-rates, or thin-IEX gap
+   artifacts. If only 2 (or fewer) are clean, return that many. Abstain entirely if the
+   tape is a real risk-off or nothing has live intraday edge — never penalized.
 4. Write plans/decisions/$DATE.json (picks ordered best-first, up to 5) with keys:
    date, regime (one line), picks (each: sym, archetype, reason, exit_style
    ["hold_eod"|"trail"], hard_stop [negative %], trail_pct [number if trail else null]),

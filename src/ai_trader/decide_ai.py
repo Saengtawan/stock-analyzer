@@ -34,6 +34,14 @@ The only reserved label is "sympathy_junk" = a hard veto (never buy). Priors (no
 - breakout: new high on real demand (be skeptical — weak in this universe historically).
 - sympathy_junk: moving only by association / illiquid froth -> never pick.
 
+CRITICAL — this is an INTRADAY system (buy ~09:37, flat by 16:00). The buy reason MUST be
+an intraday move that will happen TODAY and HASN'T happened yet — UNRESOLVED edge (mismatch
+not yet reclaimed, laggard not yet caught up, reversal not yet bounced). A multi-day /
+fundamental catalyst (guidance raise, "re-rates over days", cheap valuation, a beat that
+already popped) is a SWING thesis, NOT a valid intraday reason. If the day's reaction is
+already SPENT (moved a lot from the open then fading, e.g. a low-vol mega-cap +2% rolling
+over), SKIP it — the juice is gone. Only take names with intraday juice LEFT.
+
 Abstaining is always fine and never penalized; forcing trades loses. If the tape weakness
 is a real risk-off (war / rate shock / hot inflation), prefer to abstain.
 
