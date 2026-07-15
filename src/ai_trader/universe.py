@@ -1,19 +1,20 @@
-"""Broad morning-movers universe — the FIELD the AI sees (replaces the pre-filtered dump).
+"""Broad LIVE universe — the real field the AI sees, computed from 1-min bars.
 
-v1's mistake was feeding the AI a pre-crushed H12-A gainer dump. v2 starts from the
-market's real movers (up AND down / gappers) and applies ONLY a liquidity/quality floor
-(a safety guardrail, not an alpha filter). The AI classifies + selects from this field.
-
-Source: Alpaca movers screener (real-time), intersected with the curated liquid
-`universe_stocks` (drops penny/warrant/junk). Enrich each with prev_close (for gap) so
-the context layer can describe the situation.
+Lesson from the IBM day: the Alpaca movers screener (top-% gainers/losers) is penny-heavy
+and, once the quality floor is applied, collapses to 1-2 names — so the live path saw only
+IBM while the reconstructed field had 530 movers (and the real reversal, NOW). So the live
+field is now built the SAME way as the sim: fetch 1-min bars over the curated liquid
+universe and compute each name's gain-from-open + gap. Live uses feed=iex (SIP blocks
+recent <15min data); replay (universe_sim) uses feed=sip. Guardrail = price floor only.
 """
 from __future__ import annotations
-import sqlite3, requests
+import sqlite3, requests, datetime, zoneinfo, statistics
 from dataclasses import dataclass
 
 DB = "data/trade_history.db"
-MOVERS_URL = "https://data.alpaca.markets/v1beta1/screener/stocks/movers"
+ET = zoneinfo.ZoneInfo("America/New_York")
+UTC = zoneinfo.ZoneInfo("UTC")
+MOVERS_URL = "https://data.alpaca.markets/v1beta1/screener/stocks/movers"  # legacy fallback
 
 
 def _keys():
@@ -29,48 +30,81 @@ def _keys():
 @dataclass
 class Mover:
     sym: str
-    pct_change: float   # daily % (from prev close) per the screener
+    pct_change: float   # % from the 09:30 open at the observation minute
     price: float
     direction: str      # 'up' | 'down'
     prev_close: float | None = None
 
 
 def _liquidity(p, sym):
-    """(dollar_vol, prev_close) from recent daily OHLC; None if too little history."""
     r = [x for x in p.execute(
         "SELECT close, volume FROM stock_daily_ohlc WHERE symbol=? AND close IS NOT NULL "
         "ORDER BY date DESC LIMIT 20", (sym,)) if x[0] is not None]
     if len(r) < 10:
         return None, None
-    import statistics
     return r[0][0] * statistics.mean([x[1] or 0 for x in r]), r[0][0]
 
 
-def gather_universe(top=100, min_price=5.0, min_dollar_vol=20e6, db=DB) -> list[Mover]:
-    """Broad field of liquid movers. Guardrail = price + $-volume floor (safety, not alpha).
-    Curated `universe_stocks` membership is a bonus, not a hard gate."""
-    hdr = _keys()
-    p = sqlite3.connect(db)
-    curated = {r[0] for r in p.execute("SELECT symbol FROM universe_stocks")}
-    # Alpaca screener caps `top` at 50; a larger value 400s -> silent empty field.
-    r = requests.get(MOVERS_URL, headers=hdr, params={"top": min(top, 50)}, timeout=15).json()
-    out = []
-    for direction, key in (("up", "gainers"), ("down", "losers")):
-        for x in r.get(key, []):
-            sym = x.get("symbol", "")
-            price = x.get("price") or 0
-            if price < min_price:
-                continue
-            dv, pc = _liquidity(p, sym)
-            # keep if liquid enough OR in the curated universe (belt-and-suspenders)
-            if (dv is None or dv < min_dollar_vol) and sym not in curated:
-                continue
-            out.append(Mover(sym=sym, pct_change=x.get("percent_change", 0.0), price=price,
-                             direction=direction, prev_close=pc))
+def _bars_batch(syms, start_iso, end_iso, hdr, feed):
+    """1-min bars for a batch of symbols over [start,end], paginated."""
+    out, tok = {}, None
+    for _ in range(12):
+        params = {"symbols": ",".join(syms), "timeframe": "1Min",
+                  "start": start_iso, "end": end_iso, "feed": feed, "limit": 10000}
+        if tok:
+            params["page_token"] = tok
+        r = requests.get("https://data.alpaca.markets/v2/stocks/bars", headers=hdr,
+                         params=params, timeout=30).json()
+        for s, bl in r.get("bars", {}).items():
+            out.setdefault(s, []).extend(bl)
+        tok = r.get("next_page_token")
+        if not tok:
+            break
     return out
 
 
+def _field_from_bars(date, start_iso, end_iso, feed, min_gain, min_price, db):
+    """Shared field builder: gain-from-open + gap for every liquid name that moved."""
+    p = sqlite3.connect(db)
+    syms = [r[0] for r in p.execute("SELECT symbol FROM universe_stocks")]
+    prev = {s: c for s, c in p.execute(
+        "SELECT symbol, close FROM stock_daily_ohlc WHERE date=("
+        "SELECT MAX(date) FROM stock_daily_ohlc WHERE date<?) AND close IS NOT NULL", (date,))}
+    hdr = _keys()
+    out = []
+    for i in range(0, len(syms), 200):
+        batch = syms[i:i+200]
+        bars = _bars_batch(batch, start_iso, end_iso, hdr, feed)
+        for s in batch:
+            bl = bars.get(s, [])
+            if not bl:
+                continue
+            o930, last = bl[0]["o"], bl[-1]["c"]
+            if o930 <= 0 or last < min_price:
+                continue
+            gain = (last / o930 - 1) * 100
+            pc = prev.get(s)
+            gap = (o930 / pc - 1) * 100 if pc else 0.0
+            if abs(gain) < min_gain and abs(gap) < min_gain:
+                continue
+            out.append(Mover(sym=s, pct_change=round(gain, 2), price=round(last, 2),
+                             direction=("up" if gain >= 0 else "down"), prev_close=pc))
+    return out
+
+
+def gather_universe(min_gain=1.0, min_price=5.0, db=DB, top=None) -> list[Mover]:
+    """LIVE broad field: IEX 1-min bars over the curated universe, 09:30 -> now.
+    `top` is accepted for backward-compat and ignored."""
+    now = datetime.datetime.now(UTC)
+    today = datetime.datetime.now(ET).strftime("%Y-%m-%d")
+    u0 = datetime.datetime.now(ET).replace(hour=9, minute=30, second=0, microsecond=0).astimezone(UTC)
+    return _field_from_bars(today, u0.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                            now.strftime("%Y-%m-%dT%H:%M:%SZ"), "iex", min_gain, min_price, db)
+
+
 if __name__ == "__main__":
-    for m in gather_universe():
+    ms = gather_universe()
+    print(f"live field: {len(ms)} movers")
+    for m in sorted(ms, key=lambda m: m.pct_change)[:40]:
         gap = f"{(m.price/m.prev_close-1)*100:+.1f}%" if m.prev_close else "?"
-        print(f"  {m.sym:6} {m.direction:4} day{m.pct_change:+6.1f}% ${m.price:.2f} vs prevclose {gap}")
+        print(f"  {m.sym:6} {m.direction:4} from-open{m.pct_change:+6.1f}% ${m.price:.2f} gap{gap}")

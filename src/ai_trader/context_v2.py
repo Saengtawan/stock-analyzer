@@ -44,23 +44,25 @@ def build(date, top=100, db=DB, sim_minute=None):
     if not macro.get("macro_neg_headlines"):
         L.append("  (no negative macro flagged)")
 
-    ups = [m for m in movers if m.direction == "up"]
-    downs = [m for m in movers if m.direction == "down"]
-    # focus the reading: gap-down names (reversal hunting ground) by depth, top up-movers.
+    # Reversal hunting ground = GAPPED DOWN vs prev close (regardless of from-open
+    # direction) — a gap-down recovering to green is exactly the reversal, so we must
+    # key off gap, not from-open, or we'd file NOW-type names under "up" and miss them.
     def _gap(m):
         return (m.price / m.prev_close - 1) * 100 if m.prev_close else 0.0
-    down_focus = sorted([m for m in downs if _gap(m) <= -1.5], key=_gap)[:25] or \
-                 sorted(downs, key=lambda m: m.pct_change)[:25]
-    up_focus = sorted(ups, key=lambda m: -m.pct_change)[:15]
-    L += ["", f"THE FIELD — {len(movers)} liquid movers ({len(ups)} up / {len(downs)} down); "
+    gapped_down = [m for m in movers if _gap(m) <= -1.5]
+    down_focus = sorted(gapped_down, key=_gap)[:25]
+    up_focus = sorted([m for m in movers if _gap(m) > -1.5 and m.pct_change > 0],
+                      key=lambda m: -m.pct_change)[:15]
+    L += ["", f"THE FIELD — {len(movers)} liquid movers ({len(gapped_down)} gapped down); "
           f"showing {len(down_focus)} gap-down + {len(up_focus)} top-up.",
           "Read each STORY, assign an archetype, judge in context. Setups are PRIORS not gates."]
-    for label, group in (("GAPPED DOWN (reversal hunting ground — deepest gap first)", down_focus),
-                         ("TOP MOVING UP (breakout / momentum / catalyst)", up_focus)):
+    for label, group in (("GAPPED DOWN vs prev close (reversal ground — deepest gap first; "
+                          "note from-open % to see who's already recovering)", down_focus),
+                         ("TOP MOVING UP FROM OPEN (breakout / momentum / catalyst)", up_focus)):
         L.append(f"\n {label}:")
         for m in group:
             gap = f"{(m.price/m.prev_close-1)*100:+.1f}%" if m.prev_close else "?"
-            L.append(f"  {m.sym:6} day{m.pct_change:+6.1f}% ${m.price:.2f} gap-vs-prevclose {gap}"
+            L.append(f"  {m.sym:6} from-open{m.pct_change:+6.1f}% ${m.price:.2f} gap{gap}"
                      f"  {_sector(p, m.sym)}")
             nw = _news(p, m.sym, date)
             if nw:
