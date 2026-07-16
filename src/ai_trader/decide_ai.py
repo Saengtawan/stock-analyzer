@@ -38,16 +38,16 @@ The only reserved label is "sympathy_junk" = a hard veto (never buy). Priors (no
   this (or "meme") without checking the catalyst first — a real story can hide under a
   meme-looking move (LCID looked like a meme squeeze; it was a rumor-denial reversal).
 
-CRITICAL — this is an INTRADAY system (buy ~09:37, flat by 16:00). The buy reason MUST be
-an intraday move that will happen TODAY and HASN'T happened yet — UNRESOLVED edge (mismatch
-not yet reclaimed, laggard not yet caught up, reversal not yet bounced). A multi-day /
-fundamental catalyst by itself (cheap valuation, re-rate over days) is a SWING thesis, NOT
-intraday. If the day's reaction is already SPENT (ran far from the open then flattening/
-fading, e.g. a low-vol mega-cap +2% rolling over like JNJ), SKIP it. BUT a fresh EARNINGS
-GAP-AND-GO ("earnings_gap_and_go") IS a valid buy: gapped up on a real same-day catalyst
-and STILL ACCELERATING early from the open (from-open positive and RISING, not yet
-extended) — the continuation is happening NOW. The line vs "spent" is momentum + how far it
-has run: still building early = buy; already ran a lot and flattening = skip.
+This is an INTRADAY system (buy ~09:37, flat by 16:00). Decide ONLY by the objective: for
+each name, entered now, reason it THROUGH TO the 16:00 close — where is the price then? Buy
+the ones you judge GREEN at the exit. Reason momentum + catalyst + time forward; don't apply
+category rules. PRIORS (traps that looked buyable but ended red — learn the reasoning, don't
+obey): a spent catalyst already popped and fading (a mega-cap +2% then rolling over); a
+falling knife on real fresh bad news; a sector-wide bounce that rolls back over; a suspect
+thin-IEX gap artifact. The tell is where momentum points by 16:00 — same "good earnings",
+opposite paths: ABT +0.2% at 09:31 accelerating to +3.9% by 09:33 headed higher into the
+close; JNJ already +2.1% and rolling over headed lower. Separate them by momentum-to-close,
+not by a label.
 
 Abstaining is always fine and never penalized; forcing trades loses. If the tape weakness
 is a real risk-off (war / rate shock / hot inflation), prefer to abstain.

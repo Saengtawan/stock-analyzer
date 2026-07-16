@@ -29,23 +29,19 @@ Today (ET) is $DATE. Work in $(pwd). Do exactly this, then stop:
    an UNCONFIRMED rumor then reversing on a credible official denial = overreaction unwind).
    Reserved veto label: sympathy_junk (never buy — but only after you've CHECKED it isn't a
    real catalyst hiding under a meme-looking move).
-   CRITICAL — this is an INTRADAY system (buy ~09:37, flat by 16:00). The buy reason MUST
-   be an intraday move that will happen TODAY and HASN'T happened yet — UNRESOLVED edge:
-   a mismatch not yet reclaimed, a laggard not yet caught up, a reversal not yet bounced.
-   A multi-day / fundamental catalyst by itself (cheap valuation, "re-rates over days") is a
-   SWING thesis, not intraday. If the day's reaction is already SPENT — ran far from the open
-   and now flattening/fading, e.g. a low-vol mega-cap +2% then rolling over (JNJ) — SKIP it.
-   BUT a fresh EARNINGS GAP-AND-GO ("earnings_gap_and_go") IS a valid BUY: gapped up on a
-   real SAME-DAY catalyst (earnings/guidance) and STILL ACCELERATING early from the open
-   (from-open positive and RISING, not yet extended) — the continuation is happening NOW and
-   is unresolved. The line between gap-and-go and spent is momentum + how far it has run:
-   still building early in the session = buy; already ran a lot and flattening/fading = skip.
-   (ABT today: +0.2% from open at 09:31 then +3.9% by 09:33 = accelerating = gap-and-go BUY;
-   JNJ yesterday: +2.1% already and rolling over = spent = skip.)
-   Find up to 5 GENUINE setups with intraday juice LEFT, RANKED best-first. Do NOT pad —
-   only real reversals/mismatches, not falling knives, sector de-rates, or thin-IEX gap
-   artifacts. If only 2 (or fewer) are clean, return that many. Abstain entirely if the
-   tape is a real risk-off or nothing has live intraday edge — never penalized.
+   Decide ONLY by the objective: for each name, entered now, reason it THROUGH TO 16:00 —
+   where is the price at the close? Buy the ones you judge GREEN at the exit; skip the rest.
+   Don't obey category rules — reason the momentum + catalyst + time forward to the close.
+   PRIORS (traps that looked buyable but were NOT green at the close — learn the reasoning,
+   don't apply as a rule): a spent catalyst already popped and fading (a mega-cap +2% then
+   rolling over ends red); a falling knife on real fresh bad news (keeps falling); a
+   sector-wide bounce (rolls back over); a suspect thin-IEX gap (an artifact, not a move).
+   The tell is always where momentum points by 16:00 — same "good earnings," opposite paths:
+   ABT +0.2% at 09:31 ACCELERATING to +3.9% by 09:33 was headed higher into the close;
+   JNJ already +2.1% and rolling over was headed lower. You separate them by the
+   momentum-to-close, not by a label.
+   Pick up to 5 names you judge green-at-close, ranked by conviction; don't pad; if only 2
+   (or fewer) clear the bar, return that many; abstain entirely if none does — never penalized.
 4. Write plans/decisions/$DATE.json (picks ordered best-first, up to 5) with keys:
    date, regime (one line), picks (each: sym, archetype, reason, exit_style
    ["hold_eod"|"trail"], hard_stop [negative %], trail_pct [number if trail else null]),
