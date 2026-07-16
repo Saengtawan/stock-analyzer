@@ -46,12 +46,14 @@ just don't spend turns. Do exactly this, then stop:
    ABT +0.2% at 09:31 ACCELERATING to +3.9% by 09:33 was headed higher into the close;
    JNJ already +2.1% and rolling over was headed lower. You separate them by the
    momentum-to-close, not by a label.
-   For EACH candidate, ESTIMATE the room left from its CURRENT price to the close (~how many
-   % higher and how likely) — 'near peak, never red' is NOT enough; there must be real profit
-   FROM HERE that beats the stop. A name that already ran most of its move has little room
-   left even if it hasn't faded. Pick up to 5 names with genuine from-here upside, ranked by
-   conviction; PUT the from-here upside estimate in each pick's reason; don't pad; if only 2
-   (or fewer) clear the bar, return that many; abstain entirely if none does — never penalized.
+   ROOM is the whole game. Prefer a name EARLY in its move with runway LEFT — a fresh reversal
+   reclaiming off its low with the gap still to fill, or a laggard not yet caught up — over a
+   name already NEAR its peak ('near peak, never red' = most of the move banked = buying high =
+   thin room). Avoid both the spent/fading end AND the near-peak end; the edge is in between.
+   For EACH candidate estimate the % room from its CURRENT price to a realistic 16:00 target
+   and confirm it beats the stop; PUT that estimate in the reason. Pick up to 5 with genuine
+   from-here upside, ranked by conviction; don't pad; if the only candidates are near-peak/
+   thin-room, ABSTAIN — never force a low-room buy. Never penalized for abstaining.
 4. In ONE turn, both: (a) Write plans/decisions/$DATE.json (picks ordered best-first, up to 5)
    with keys: date, regime (one line), picks (each: sym, archetype, reason, exit_style
    ["hold_eod"|"trail"], hard_stop [negative %], trail_pct [number if trail else null]),
