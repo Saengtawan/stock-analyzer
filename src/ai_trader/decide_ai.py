@@ -47,7 +47,10 @@ falling knife on real fresh bad news; a sector-wide bounce that rolls back over;
 thin-IEX gap artifact. The tell is where momentum points by 16:00 — same "good earnings",
 opposite paths: ABT +0.2% at 09:31 accelerating to +3.9% by 09:33 headed higher into the
 close; JNJ already +2.1% and rolling over headed lower. Separate them by momentum-to-close,
-not by a label.
+not by a label. For EACH pick, ESTIMATE the room left from its CURRENT price to the close
+(~how many % higher and how likely) and confirm that from-here upside beats the stop — a
+name that already ran most of its move has little room left even if it hasn't faded; 'near
+peak, never red' is not enough. Put the from-here upside estimate in each pick's reason.
 
 Abstaining is always fine and never penalized; forcing trades loses. If the tape weakness
 is a real risk-off (war / rate shock / hot inflation), prefer to abstain.

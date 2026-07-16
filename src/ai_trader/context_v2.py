@@ -57,6 +57,11 @@ def build(date, top=100, db=DB, sim_minute=None):
          "  buying it = the ABT trap (bought after +5% but it peaked an hour ago and is fading).",
          "  A name now far ABOVE its low (up from trough) is freshly reclaiming. The move must",
          "  still have runway from HERE to the 16:00 close — reason each to 'where at 16:00?'.",
+         "  For EACH pick, ESTIMATE the room left from the CURRENT price to the close (roughly",
+         "  how many % higher, and how likely) and confirm that forward upside beats the stop.",
+         "  A name that has already run most of its move has little room LEFT even if it hasn't",
+         "  faded yet — 'near peak, never red' is not enough; there must be profit FROM HERE.",
+         "  Put the from-here upside estimate in each pick's reason.",
          f"prior VIX {macro.get('vix_prior')} | macro/fed/geo sentiment {macro.get('macro_sent')} | "
          f"regime {macro.get('spy_regime_prior')}",
          "", "MACRO NARRATIVE (why the tape is where it is):"]

@@ -40,7 +40,11 @@ Today (ET) is $DATE. Work in $(pwd). Do exactly this, then stop:
    ABT +0.2% at 09:31 ACCELERATING to +3.9% by 09:33 was headed higher into the close;
    JNJ already +2.1% and rolling over was headed lower. You separate them by the
    momentum-to-close, not by a label.
-   Pick up to 5 names you judge green-at-close, ranked by conviction; don't pad; if only 2
+   For EACH candidate, ESTIMATE the room left from its CURRENT price to the close (~how many
+   % higher and how likely) — 'near peak, never red' is NOT enough; there must be real profit
+   FROM HERE that beats the stop. A name that already ran most of its move has little room
+   left even if it hasn't faded. Pick up to 5 names with genuine from-here upside, ranked by
+   conviction; PUT the from-here upside estimate in each pick's reason; don't pad; if only 2
    (or fewer) clear the bar, return that many; abstain entirely if none does — never penalized.
 4. Write plans/decisions/$DATE.json (picks ordered best-first, up to 5) with keys:
    date, regime (one line), picks (each: sym, archetype, reason, exit_style
