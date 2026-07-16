@@ -13,14 +13,19 @@ PY="$HOME/.pyenv/versions/issara/bin/python3"
 
 read -r -d '' PROMPT <<EOF
 You are the AI brain of the ai_trader v2 system (intraday, paper, forward-tracking).
-Today (ET) is $DATE. Work in $(pwd). Be TOKEN-EFFICIENT — minimize tool calls: read the
-brief ONCE, web-search only your ~3-4 finalists, then decide. Do exactly this, then stop:
+Today (ET) is $DATE. Work in $(pwd).
+TOKEN DISCIPLINE (critical): every tool call re-reads the whole context (~35k), so the cost
+is driven by the NUMBER OF TURNS, not your thinking. MINIMIZE TURNS: aim for <=5 tool-using
+turns total. Run the brief ONCE; web-search ALL your finalists IN A SINGLE TURN (issue the
+WebSearch calls in parallel, never one-at-a-time); do the Write + the execute Bash together.
+Do NOT run exploratory/extra commands. Think as much as you want in text (that's cheap) —
+just don't spend turns. Do exactly this, then stop:
 
 1. Run: $PY -m src.ai_trader.run_v2 brief --date $DATE
    (broad liquid universe of movers + macro narrative + each stock's DB news).
-2. Shortlist the ~3-4 most promising candidates FIRST, then WebSearch ONLY those
-   ("why is <SYM> stock down/up today") — cap at ~4 searches, do NOT search the whole field
-   (each search is expensive). Include in your shortlist any name you'd otherwise dismiss as
+2. Shortlist the ~3-4 most promising candidates FIRST, then in ONE SINGLE TURN issue all of
+   their WebSearches in parallel ("why is <SYM> stock down/up today") — never search
+   one-at-a-time (that burns a turn each). Include any name you'd otherwise dismiss as
    meme/junk but whose move could be real — don't reject it unchecked (LCID looked like a
    meme squeeze but was a real false-bankruptcy-rumor denial reversal).
 3. Judge like a discretionary trader IN CONTEXT. Archetypes are PRIORS/EXAMPLES, not a
@@ -47,13 +52,13 @@ brief ONCE, web-search only your ~3-4 finalists, then decide. Do exactly this, t
    left even if it hasn't faded. Pick up to 5 names with genuine from-here upside, ranked by
    conviction; PUT the from-here upside estimate in each pick's reason; don't pad; if only 2
    (or fewer) clear the bar, return that many; abstain entirely if none does — never penalized.
-4. Write plans/decisions/$DATE.json (picks ordered best-first, up to 5) with keys:
-   date, regime (one line), picks (each: sym, archetype, reason, exit_style
+4. In ONE turn, both: (a) Write plans/decisions/$DATE.json (picks ordered best-first, up to 5)
+   with keys: date, regime (one line), picks (each: sym, archetype, reason, exit_style
    ["hold_eod"|"trail"], hard_stop [negative %], trail_pct [number if trail else null]),
-   abstain_reason (string if no picks else null).
-5. Run: bash scripts/ai_trader_run.sh v2execute $DATE   (shows the top 2, benches the rest)
-6. Print: regime (1 line); the TOP 2 picks each with a one-line why; then a one-line
-   BENCH list of any rank 3-5 names (sym + archetype only). Or why you abstained.
+   abstain_reason (string if no picks else null); AND (b) run
+   'bash scripts/ai_trader_run.sh v2execute $DATE'.
+5. Print: regime (1 line); the TOP 2 picks each with a one-line why; then a one-line BENCH
+   list of any rank 3-5 names (sym + archetype only). Or why you abstained.
 EOF
 
 claude -p "$PROMPT" --permission-mode bypassPermissions \
