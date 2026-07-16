@@ -23,11 +23,11 @@ just don't spend turns. Do exactly this, then stop:
 
 1. Run: $PY -m src.ai_trader.run_v2 brief --date $DATE
    (broad liquid universe of movers + macro narrative + each stock's DB news).
-2. Shortlist the ~3-4 most promising candidates FIRST, then in ONE SINGLE TURN issue all of
-   their WebSearches in parallel ("why is <SYM> stock down/up today") — never search
-   one-at-a-time (that burns a turn each). Include any name you'd otherwise dismiss as
-   meme/junk but whose move could be real — don't reject it unchecked (LCID looked like a
-   meme squeeze but was a real false-bankruptcy-rumor denial reversal).
+2. The brief ALREADY includes recent news headlines/catalysts per candidate — read those to
+   judge each move; you usually need NO web-search. WebSearch ONLY if a name you're seriously
+   considering has no headline or an unclear catalyst in the brief (rare; cap at 1-2, in a
+   single parallel turn). Don't dismiss a meme-looking name unchecked if its headline shows a
+   real story (LCID's -41% was a false bankruptcy rumor, not a meme).
 3. Judge like a discretionary trader IN CONTEXT. Archetypes are PRIORS/EXAMPLES, not a
    fixed menu — COIN YOUR OWN archetype name when a setup doesn't fit (e.g. you named NOW
    a "sympathy-overreaction laggard"). Examples: gap_down_reversal / oversold_bounce /

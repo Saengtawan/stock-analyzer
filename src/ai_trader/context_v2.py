@@ -4,12 +4,34 @@ For the day: macro narrative + regime. For each mover: gap direction, sector, an
 recent news/story (DB; flag web-search where absent). Code only gathers — the AI judges.
 """
 from __future__ import annotations
-import argparse, sqlite3, datetime, zoneinfo
-from .universe import gather_universe
+import argparse, sqlite3, datetime, zoneinfo, requests
+from .universe import gather_universe, _keys
 from .premarket import gather_preopen
 
 DB = "data/trade_history.db"
 ET = zoneinfo.ZoneInfo("America/New_York")
+
+
+def _alpaca_news(syms):
+    """Recent news headlines per symbol (Alpaca news API, one batched call) so the AI reads
+    catalysts straight from the brief instead of spending turns web-searching."""
+    if not syms:
+        return {}
+    try:
+        r = requests.get("https://data.alpaca.markets/v1beta1/news", headers=_keys(),
+                         params={"symbols": ",".join(syms), "limit": 50, "sort": "desc"},
+                         timeout=15).json()
+    except Exception:
+        return {}
+    out = {}
+    # prefer name-specific items (few symbols), most-recent first
+    for n in sorted(r.get("news", []), key=lambda n: len(n.get("symbols", []) or [])):
+        h = (n.get("headline") or "")[:80]
+        when = (n.get("created_at") or "")[:16]
+        for s in (n.get("symbols") or []):
+            if s in syms and len(out.get(s, [])) < 2 and h not in [x[1] for x in out.get(s, [])]:
+                out.setdefault(s, []).append((when, h))
+    return out
 
 
 def _sector(p, sym, _c={}):
@@ -80,6 +102,7 @@ def build(date, top=100, db=DB, sim_minute=None):
     down_focus = sorted(gapped_down, key=_gap)[:14]
     up_focus = sorted([m for m in movers if _gap(m) > -1.5 and m.pct_change > 0],
                       key=lambda m: -m.pct_change)[:8]
+    anews = _alpaca_news([m.sym for m in down_focus + up_focus])  # catalysts pre-fetched
     L += ["", f"THE FIELD — {len(movers)} liquid movers ({len(gapped_down)} gapped down); "
           f"showing {len(down_focus)} gap-down + {len(up_focus)} top-up.",
           "Read each STORY, assign an archetype, judge in context. Setups are PRIORS not gates."]
@@ -94,12 +117,13 @@ def build(date, top=100, db=DB, sim_minute=None):
             # is freshly reclaiming. Judge buyability from the CURRENT price, not the level.
             L.append(f"  {m.sym:6} now{m.pct_change:+6.1f}% [pk{m.peak_pct:+.1f} off{m.off_peak:+.1f} | "
                      f"low{m.trough_pct:+.1f} up{m.off_trough:+.1f}] ${m.price:.2f} gap{gap} {_sector(p, m.sym)}")
-            nw = _news(p, m.sym, date)
-            if nw:
-                d, lab, h = nw[0]
-                L.append(f"        [{lab}] {h[:74]}")
+            an = anews.get(m.sym)
+            if an:
+                for when, h in an:
+                    L.append(f"        [{when}] {h}")
             else:
-                L.append(f"        (no DB news)")
+                nw = _news(p, m.sym, date)
+                L.append(f"        [{nw[0][1]}] {nw[0][2][:74]}" if nw else "        (no news found)")
     L += ["", "DECIDE -> write plans/decisions/<date>.json (archetype + picks + exit + reason, or abstain)."]
     return "\n".join(L)
 
