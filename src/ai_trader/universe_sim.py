@@ -52,23 +52,27 @@ def gather_universe_sim(date, minute=576, min_gain=1.0, min_price=5.0, db=DB) ->
             if not bl:
                 continue
             o930 = bl[0]["o"]
-            # bar at/just before target minute
-            atbar = None
+            # bars up to the target minute
+            upto = []
             for b in bl:
                 dt = datetime.datetime.fromisoformat(b["t"].replace("Z", "+00:00")).astimezone(ET)
                 if dt.hour * 60 + dt.minute <= minute:
-                    atbar = b
+                    upto.append(b)
                 else:
                     break
-            if not atbar or o930 <= 0 or atbar["c"] < min_price:
+            if not upto or o930 <= 0 or upto[-1]["c"] < min_price:
                 continue
+            atbar = upto[-1]
             gain = (atbar["c"] / o930 - 1) * 100
+            peak = (max(b["h"] for b in upto) / o930 - 1) * 100
+            trough = (min(b["l"] for b in upto) / o930 - 1) * 100
             pc = prev.get(s)
             gap = (o930 / pc - 1) * 100 if pc else 0.0
             if abs(gain) < min_gain and abs(gap) < min_gain:
                 continue
             out.append(Mover(sym=s, pct_change=round(gain, 2), price=round(atbar["c"], 2),
-                             direction=("up" if gain >= 0 else "down"), prev_close=pc))
+                             direction=("up" if gain >= 0 else "down"), prev_close=pc,
+                             peak_pct=round(peak, 2), trough_pct=round(trough, 2)))
     return out
 
 

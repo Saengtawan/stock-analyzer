@@ -30,10 +30,19 @@ def _keys():
 @dataclass
 class Mover:
     sym: str
-    pct_change: float   # % from the 09:30 open at the observation minute
+    pct_change: float   # % from the 09:30 open at the observation minute (the "now" level)
     price: float
     direction: str      # 'up' | 'down'
     prev_close: float | None = None
+    peak_pct: float = 0.0    # highest % above the open so far (session-to-now)
+    trough_pct: float = 0.0  # lowest % below the open so far
+
+    @property
+    def off_peak(self):     # how far below the peak it now sits (spent-move tell)
+        return self.pct_change - self.peak_pct
+    @property
+    def off_trough(self):   # how far it has reclaimed off the low (reversal tell)
+        return self.pct_change - self.trough_pct
 
 
 def _liquidity(p, sym):
@@ -83,12 +92,15 @@ def _field_from_bars(date, start_iso, end_iso, feed, min_gain, min_price, db):
             if o930 <= 0 or last < min_price:
                 continue
             gain = (last / o930 - 1) * 100
+            peak = (max(b["h"] for b in bl) / o930 - 1) * 100
+            trough = (min(b["l"] for b in bl) / o930 - 1) * 100
             pc = prev.get(s)
             gap = (o930 / pc - 1) * 100 if pc else 0.0
             if abs(gain) < min_gain and abs(gap) < min_gain:
                 continue
             out.append(Mover(sym=s, pct_change=round(gain, 2), price=round(last, 2),
-                             direction=("up" if gain >= 0 else "down"), prev_close=pc))
+                             direction=("up" if gain >= 0 else "down"), prev_close=pc,
+                             peak_pct=round(peak, 2), trough_pct=round(trough, 2)))
     return out
 
 

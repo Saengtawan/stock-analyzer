@@ -50,10 +50,13 @@ def build(date, top=100, db=DB, sim_minute=None):
 
     L = [f"=== CONTEXT v2 {date} ===",
          f"SCAN TIME: {scan_label} — {mins_left} min ({mins_left/60:.1f}h) until the 16:00 ET close.",
-         "  OBJECTIVE: pick the name(s) that, entered now, will be GREEN at your exit (EOD or",
-         "  the pick's stop/trail) — that is the only thing that matters. The time left is",
-         "  part of the judgment: a move needs enough runway to actually happen before the",
-         "  close. Reason each name through to 'where is it at 16:00?'; don't lean on labels.",
+         "  OBJECTIVE: pick the name(s) that, bought AT THE CURRENT PRICE right now, will be",
+         "  GREEN at your exit (EOD or the pick's stop/trail). Every number below is AS OF NOW",
+         "  — judge from the current price + the momentum trajectory, NOT the from-open level.",
+         "  A name now far BELOW its peak (off-peak very negative) has already SPENT its move —",
+         "  buying it = the ABT trap (bought after +5% but it peaked an hour ago and is fading).",
+         "  A name now far ABOVE its low (up from trough) is freshly reclaiming. The move must",
+         "  still have runway from HERE to the 16:00 close — reason each to 'where at 16:00?'.",
          f"prior VIX {macro.get('vix_prior')} | macro/fed/geo sentiment {macro.get('macro_sent')} | "
          f"regime {macro.get('spy_regime_prior')}",
          "", "MACRO NARRATIVE (why the tape is where it is):"]
@@ -80,8 +83,11 @@ def build(date, top=100, db=DB, sim_minute=None):
         L.append(f"\n {label}:")
         for m in group:
             gap = f"{(m.price/m.prev_close-1)*100:+.1f}%" if m.prev_close else "?"
-            L.append(f"  {m.sym:6} from-open{m.pct_change:+6.1f}% ${m.price:.2f} gap{gap}"
-                     f"  {_sector(p, m.sym)}")
+            # momentum trajectory AS OF NOW: peak/low + how far off — a name now far below
+            # its peak has already SPENT its move (the ABT trap); one now far above its low
+            # is freshly reclaiming. Judge buyability from the CURRENT price, not the level.
+            L.append(f"  {m.sym:6} now{m.pct_change:+6.1f}% [pk{m.peak_pct:+.1f} off{m.off_peak:+.1f} | "
+                     f"low{m.trough_pct:+.1f} up{m.off_trough:+.1f}] ${m.price:.2f} gap{gap} {_sector(p, m.sym)}")
             nw = _news(p, m.sym, date)
             if nw:
                 for d, lab, h in nw[:2]:
