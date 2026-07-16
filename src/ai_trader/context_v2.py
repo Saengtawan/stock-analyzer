@@ -4,11 +4,12 @@ For the day: macro narrative + regime. For each mover: gap direction, sector, an
 recent news/story (DB; flag web-search where absent). Code only gathers — the AI judges.
 """
 from __future__ import annotations
-import argparse, sqlite3
+import argparse, sqlite3, datetime, zoneinfo
 from .universe import gather_universe
 from .premarket import gather_preopen
 
 DB = "data/trade_history.db"
+ET = zoneinfo.ZoneInfo("America/New_York")
 
 
 def _sector(p, sym, _c={}):
@@ -35,7 +36,24 @@ def build(date, top=100, db=DB, sim_minute=None):
     else:
         movers = gather_universe(top=top, db=db)
 
+    # TIME context — the AI must know the clock: a reversal at 09:35 has all day to play
+    # out; at 15:00 there's little time left. Live = now; sim = the reconstructed minute.
+    if sim_minute:
+        sh, sm = divmod(sim_minute, 60)
+        scan_label = f"~{sh:02d}:{sm:02d} ET (SIMULATED point-in-time)"
+        mins_left = 16 * 60 - sim_minute
+    else:
+        now = datetime.datetime.now(ET)
+        scan_label = now.strftime("%H:%M ET %a")
+        mins_left = 16 * 60 - (now.hour * 60 + now.minute)
+    mins_left = max(0, mins_left)
+
     L = [f"=== CONTEXT v2 {date} ===",
+         f"SCAN TIME: {scan_label} — {mins_left} min ({mins_left/60:.1f}h) until the 16:00 ET close.",
+         "  Use the clock: early (hours left) = a reversal has room; late (little left) = be",
+         "  stricter and prefer moves already underway. A mid-de-rate SECTOR bounce (many",
+         "  correlated names bouncing together) is a dead-cat risk regardless of the hour —",
+         "  it's not the idiosyncratic reclaim the edge needs.",
          f"prior VIX {macro.get('vix_prior')} | macro/fed/geo sentiment {macro.get('macro_sent')} | "
          f"regime {macro.get('spy_regime_prior')}",
          "", "MACRO NARRATIVE (why the tape is where it is):"]
