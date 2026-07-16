@@ -50,10 +50,10 @@ def build(date, top=100, db=DB, sim_minute=None):
 
     L = [f"=== CONTEXT v2 {date} ===",
          f"SCAN TIME: {scan_label} — {mins_left} min ({mins_left/60:.1f}h) until the 16:00 ET close.",
-         "  Use the clock: early (hours left) = a reversal has room; late (little left) = be",
-         "  stricter and prefer moves already underway. A mid-de-rate SECTOR bounce (many",
-         "  correlated names bouncing together) is a dead-cat risk regardless of the hour —",
-         "  it's not the idiosyncratic reclaim the edge needs.",
+         "  OBJECTIVE: pick the name(s) that, entered now, will be GREEN at your exit (EOD or",
+         "  the pick's stop/trail) — that is the only thing that matters. The time left is",
+         "  part of the judgment: a move needs enough runway to actually happen before the",
+         "  close. Reason each name through to 'where is it at 16:00?'; don't lean on labels.",
          f"prior VIX {macro.get('vix_prior')} | macro/fed/geo sentiment {macro.get('macro_sent')} | "
          f"regime {macro.get('spy_regime_prior')}",
          "", "MACRO NARRATIVE (why the tape is where it is):"]
