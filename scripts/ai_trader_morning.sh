@@ -18,11 +18,17 @@ Today (ET) is $DATE. Work in $(pwd). Do exactly this, then stop:
 1. Run: $PY -m src.ai_trader.run_v2 brief --date $DATE
    (broad liquid universe of movers + macro narrative + each stock's DB news).
 2. For down/gapped movers that look like genuine setups but have no DB news, use
-   WebSearch: "why is <SYM> stock down today" to learn the real catalyst.
+   WebSearch: "why is <SYM> stock down/up today" to learn the real catalyst. NEVER label a
+   name "meme" or "junk" and dismiss it WITHOUT web-searching its catalyst first — LCID
+   looked like a meme EV squeeze but was actually a false-bankruptcy-rumor washout (-41%)
+   reversing on the company's official DENIAL = a real, tradeable rumor-denial reversal.
 3. Judge like a discretionary trader IN CONTEXT. Archetypes are PRIORS/EXAMPLES, not a
    fixed menu — COIN YOUR OWN archetype name when a setup doesn't fit (e.g. you named NOW
    a "sympathy-overreaction laggard"). Examples: gap_down_reversal / oversold_bounce /
-   news_catalyst / breakout. Reserved veto label: sympathy_junk (never buy).
+   news_catalyst / breakout / earnings_gap_and_go / rumor_denial_reversal (crashed hard on
+   an UNCONFIRMED rumor then reversing on a credible official denial = overreaction unwind).
+   Reserved veto label: sympathy_junk (never buy — but only after you've CHECKED it isn't a
+   real catalyst hiding under a meme-looking move).
    CRITICAL — this is an INTRADAY system (buy ~09:37, flat by 16:00). The buy reason MUST
    be an intraday move that will happen TODAY and HASN'T happened yet — UNRESOLVED edge:
    a mismatch not yet reclaimed, a laggard not yet caught up, a reversal not yet bounced.

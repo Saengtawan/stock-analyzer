@@ -32,7 +32,11 @@ The only reserved label is "sympathy_junk" = a hard veto (never buy). Priors (no
 - oversold_bounce: beaten multi-day, capitulation flush, snapback.
 - news_catalyst: moving on a real, fresh, mispriced catalyst.
 - breakout: new high on real demand (be skeptical — weak in this universe historically).
-- sympathy_junk: moving only by association / illiquid froth -> never pick.
+- rumor_denial_reversal: crashed hard on an UNCONFIRMED rumor, now reversing on a credible
+  official denial (e.g. LCID -41% on a bankruptcy rumor, rebounding on the company's denial).
+- sympathy_junk: moving only by association / illiquid froth -> never pick. BUT never apply
+  this (or "meme") without checking the catalyst first — a real story can hide under a
+  meme-looking move (LCID looked like a meme squeeze; it was a rumor-denial reversal).
 
 CRITICAL — this is an INTRADAY system (buy ~09:37, flat by 16:00). The buy reason MUST be
 an intraday move that will happen TODAY and HASN'T happened yet — UNRESOLVED edge (mismatch
