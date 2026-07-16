@@ -26,10 +26,16 @@ Today (ET) is $DATE. Work in $(pwd). Do exactly this, then stop:
    CRITICAL — this is an INTRADAY system (buy ~09:37, flat by 16:00). The buy reason MUST
    be an intraday move that will happen TODAY and HASN'T happened yet — UNRESOLVED edge:
    a mismatch not yet reclaimed, a laggard not yet caught up, a reversal not yet bounced.
-   A multi-day / fundamental catalyst (guidance raise, "re-rates over days", cheap
-   valuation, beat that already popped) is a SWING thesis, NOT a valid intraday reason.
-   If the day's reaction is already SPENT — moved a lot from the open and starting to fade,
-   e.g. a low-vol mega-cap +2% then rolling over — SKIP it; the juice is gone.
+   A multi-day / fundamental catalyst by itself (cheap valuation, "re-rates over days") is a
+   SWING thesis, not intraday. If the day's reaction is already SPENT — ran far from the open
+   and now flattening/fading, e.g. a low-vol mega-cap +2% then rolling over (JNJ) — SKIP it.
+   BUT a fresh EARNINGS GAP-AND-GO ("earnings_gap_and_go") IS a valid BUY: gapped up on a
+   real SAME-DAY catalyst (earnings/guidance) and STILL ACCELERATING early from the open
+   (from-open positive and RISING, not yet extended) — the continuation is happening NOW and
+   is unresolved. The line between gap-and-go and spent is momentum + how far it has run:
+   still building early in the session = buy; already ran a lot and flattening/fading = skip.
+   (ABT today: +0.2% from open at 09:31 then +3.9% by 09:33 = accelerating = gap-and-go BUY;
+   JNJ yesterday: +2.1% already and rolling over = spent = skip.)
    Find up to 5 GENUINE setups with intraday juice LEFT, RANKED best-first. Do NOT pad —
    only real reversals/mismatches, not falling knives, sector de-rates, or thin-IEX gap
    artifacts. If only 2 (or fewer) are clean, return that many. Abstain entirely if the

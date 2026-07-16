@@ -23,7 +23,7 @@ from dataclasses import dataclass, field, asdict
 import json, os
 
 ARCHETYPES = ("gap_down_reversal", "oversold_bounce", "news_catalyst",
-              "breakout", "sympathy_junk", "other")
+              "earnings_gap_and_go", "breakout", "sympathy_junk", "other")
 EXIT_STYLES = ("hold_eod", "trail")
 
 
