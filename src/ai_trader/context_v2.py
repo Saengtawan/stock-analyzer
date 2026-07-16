@@ -76,9 +76,9 @@ def build(date, top=100, db=DB, sim_minute=None):
     def _gap(m):
         return (m.price / m.prev_close - 1) * 100 if m.prev_close else 0.0
     gapped_down = [m for m in movers if _gap(m) <= -1.5]
-    down_focus = sorted(gapped_down, key=_gap)[:25]
+    down_focus = sorted(gapped_down, key=_gap)[:14]
     up_focus = sorted([m for m in movers if _gap(m) > -1.5 and m.pct_change > 0],
-                      key=lambda m: -m.pct_change)[:15]
+                      key=lambda m: -m.pct_change)[:8]
     L += ["", f"THE FIELD — {len(movers)} liquid movers ({len(gapped_down)} gapped down); "
           f"showing {len(down_focus)} gap-down + {len(up_focus)} top-up.",
           "Read each STORY, assign an archetype, judge in context. Setups are PRIORS not gates."]
@@ -95,10 +95,10 @@ def build(date, top=100, db=DB, sim_minute=None):
                      f"low{m.trough_pct:+.1f} up{m.off_trough:+.1f}] ${m.price:.2f} gap{gap} {_sector(p, m.sym)}")
             nw = _news(p, m.sym, date)
             if nw:
-                for d, lab, h in nw[:2]:
-                    L.append(f"        [{d} {lab}] {h[:76]}")
+                d, lab, h = nw[0]
+                L.append(f"        [{lab}] {h[:74]}")
             else:
-                L.append(f"        (no DB news -> web-search 'why is {m.sym} moving today')")
+                L.append(f"        (no DB news)")
     L += ["", "DECIDE -> write plans/decisions/<date>.json (archetype + picks + exit + reason, or abstain)."]
     return "\n".join(L)
 

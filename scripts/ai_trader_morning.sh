@@ -13,15 +13,16 @@ PY="$HOME/.pyenv/versions/issara/bin/python3"
 
 read -r -d '' PROMPT <<EOF
 You are the AI brain of the ai_trader v2 system (intraday, paper, forward-tracking).
-Today (ET) is $DATE. Work in $(pwd). Do exactly this, then stop:
+Today (ET) is $DATE. Work in $(pwd). Be TOKEN-EFFICIENT — minimize tool calls: read the
+brief ONCE, web-search only your ~3-4 finalists, then decide. Do exactly this, then stop:
 
 1. Run: $PY -m src.ai_trader.run_v2 brief --date $DATE
    (broad liquid universe of movers + macro narrative + each stock's DB news).
-2. For down/gapped movers that look like genuine setups but have no DB news, use
-   WebSearch: "why is <SYM> stock down/up today" to learn the real catalyst. NEVER label a
-   name "meme" or "junk" and dismiss it WITHOUT web-searching its catalyst first — LCID
-   looked like a meme EV squeeze but was actually a false-bankruptcy-rumor washout (-41%)
-   reversing on the company's official DENIAL = a real, tradeable rumor-denial reversal.
+2. Shortlist the ~3-4 most promising candidates FIRST, then WebSearch ONLY those
+   ("why is <SYM> stock down/up today") — cap at ~4 searches, do NOT search the whole field
+   (each search is expensive). Include in your shortlist any name you'd otherwise dismiss as
+   meme/junk but whose move could be real — don't reject it unchecked (LCID looked like a
+   meme squeeze but was a real false-bankruptcy-rumor denial reversal).
 3. Judge like a discretionary trader IN CONTEXT. Archetypes are PRIORS/EXAMPLES, not a
    fixed menu — COIN YOUR OWN archetype name when a setup doesn't fit (e.g. you named NOW
    a "sympathy-overreaction laggard"). Examples: gap_down_reversal / oversold_bounce /
@@ -56,4 +57,4 @@ Today (ET) is $DATE. Work in $(pwd). Do exactly this, then stop:
 EOF
 
 claude -p "$PROMPT" --permission-mode bypassPermissions \
-  --allowedTools "Bash WebSearch Write Read"
+  --allowedTools "Bash WebSearch Write"
