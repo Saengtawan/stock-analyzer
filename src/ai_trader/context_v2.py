@@ -157,9 +157,20 @@ def build(date, top=100, db=DB, sim_minute=None):
     down_focus = sorted(gapped_down, key=_gap)[:14]
     up_focus = sorted([m for m in movers if _gap(m) > -1.5 and m.pct_change > 0],
                       key=lambda m: -m.pct_change)[:8]
-    anews = _alpaca_news([m.sym for m in down_focus + up_focus])  # catalysts pre-fetched
+    # HIGH-VOLUME ACCUMULATION — the deepest-gap / top-gainer screens above MISS names that
+    # aren't extreme on either axis but carry REAL conviction volume while HOLDING steady
+    # (the BJRI case: flat -0.2% AT its low at 09:32 but rv 2.9x — accumulation BEFORE the
+    # move; it then ran +5%). At 09:32 the tell is the volume, not a reclaim (too early to
+    # have reclaimed). Surface rv>=1.5 names that aren't collapsing (pct>=-2%) and aren't
+    # already shown — ranked by volume. A knife dumping on volume is excluded by the floor.
+    shown = {m.sym for m in down_focus + up_focus}
+    vol_reclaim = sorted(
+        [m for m in movers if m.sym not in shown and (m.rel_vol or 0) >= 1.5
+         and m.pct_change >= -2.0],
+        key=lambda m: -(m.rel_vol or 0))[:8]
+    anews = _alpaca_news([m.sym for m in down_focus + up_focus + vol_reclaim])  # catalysts pre-fetched
     L += ["", f"THE FIELD — {len(movers)} liquid movers ({len(gapped_down)} gapped down); "
-          f"showing {len(down_focus)} gap-down + {len(up_focus)} top-up.",
+          f"showing {len(down_focus)} gap-down + {len(up_focus)} top-up + {len(vol_reclaim)} vol-reclaim.",
           "Read each STORY, assign an archetype, judge in context. Setups are PRIORS not gates.",
           "  LEGEND (all AS OF NOW): Δ10m = % move over the LAST ~10 min (the live momentum tell —",
           "  positive+rising = accelerating into the close like ABT; negative = rolling over like JNJ,",
@@ -168,7 +179,12 @@ def build(date, top=100, db=DB, sim_minute=None):
           "  norm (>1.5x = real conviction; <1x = thin/froth, be wary of a sympathy_junk trap)."]
     for label, group in (("GAPPED DOWN vs prev close (reversal ground — deepest gap first; "
                           "note from-open % to see who's already recovering)", down_focus),
-                         ("TOP MOVING UP FROM OPEN (breakout / momentum / catalyst)", up_focus)):
+                         ("TOP MOVING UP FROM OPEN (breakout / momentum / catalyst)", up_focus),
+                         ("HIGH-VOLUME ACCUMULATION (rv>=1.5, holding not collapsing — real "
+                          "conviction volume the two screens above miss. Volume = someone is "
+                          "actually accumulating even before the move shows; judge the catalyst "
+                          "+ room like any other, and note if it's still at its low = early)",
+                          vol_reclaim)):
         L.append(f"\n {label}:")
         for m in group:
             gap = f"{(m.price/m.prev_close-1)*100:+.1f}%" if m.prev_close else "?"
