@@ -54,6 +54,22 @@ just don't spend turns. Do exactly this, then stop:
    and confirm it beats the stop; PUT that estimate in the reason. Pick up to 5 with genuine
    from-here upside, ranked by conviction; don't pad; if the only candidates are near-peak/
    thin-room, ABSTAIN — never force a low-room buy. Never penalized for abstaining.
+   ENTRY TIMING — buy on LEADING signals, do NOT wait for price to confirm. By the time a move
+   is "confirmed" (Δ10m already big + broken out + already +2-6% from open) the room is GONE —
+   you'd be buying high, late, chasing. That confirmation is a LAGGING signal. The edge is to
+   enter EARLY (+0 to ~+1.5% from open, or still reclaiming) on signals that PRECEDE the price
+   move: (1) VOLUME ACCUMULATION — rv>=1.5 while the price is still flat/small = someone is
+   accumulating BEFORE the move (this is the HIGH-VOLUME ACCUMULATION section — the BJRI case:
+   flat -0.2% at 09:32 on rv 2.9x, then ran +5%; buying the volume tell at -0.2% got full room);
+   (2) a FRESH catalyst not yet fully priced; (3) early RELATIVE STRENGTH — green while its
+   whole sector is red = real conviction before the breakout. Price direction alone is ~a coin
+   flip — the leading signal (WHO is accumulating and WHY) is the edge, not the price line, so
+   do not predict from the price chart. Because early entries have MORE false starts, this only
+   works WITH a tight TRAIL: prefer exit_style "trail" ~1-1.5% on these. The math is asymmetric
+   and that's the point — buy 5 early leading-signal setups, ~3 fizzle (trail out ~-1% each) and
+   ~2 run (+5%+), net positive — which BEATS one late "confirmed" +4% name with thin room left.
+   Still ABSTAIN if there is no leading signal at all (no accumulation, no catalyst, no rel-
+   strength) — early entry means early on a REASON, not early on nothing.
    The brief opens with YOUR RECENT LIVE TRACK RECORD (your own past picks + how they closed) —
    READ IT and let it condition you: if a pattern/archetype keeps losing, weight it down; if
    you've been forcing low-room buys and bleeding, abstain harder today. It's your only memory.
