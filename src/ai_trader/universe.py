@@ -36,6 +36,9 @@ class Mover:
     prev_close: float | None = None
     peak_pct: float = 0.0    # highest % above the open so far (session-to-now)
     trough_pct: float = 0.0  # lowest % below the open so far
+    slope10: float = 0.0     # % change over the last ~10 min (accelerating vs rolling-over tell)
+    vwap_dist: float = 0.0   # % of last price vs session VWAP (buyers-in-control tell)
+    rel_vol: float | None = None  # today's vol so far / time-adjusted 20d avg (conviction vs thin froth)
 
     @property
     def off_peak(self):     # how far below the peak it now sits (spent-move tell)
@@ -79,6 +82,10 @@ def _field_from_bars(date, start_iso, end_iso, feed, min_gain, min_price, db):
     prev = {s: c for s, c in p.execute(
         "SELECT symbol, close FROM stock_daily_ohlc WHERE date=("
         "SELECT MAX(date) FROM stock_daily_ohlc WHERE date<?) AND close IS NOT NULL", (date,))}
+    # 20d avg daily volume (time-adjusted relative-volume denominator) — one batched query
+    avgvol = {s: v for s, v in p.execute(
+        "SELECT symbol, AVG(volume) FROM stock_daily_ohlc "
+        "WHERE date>=date(?, '-30 day') AND date<? AND volume IS NOT NULL GROUP BY symbol", (date, date))}
     hdr = _keys()
     out = []
     for i in range(0, len(syms), 200):
@@ -98,9 +105,28 @@ def _field_from_bars(date, start_iso, end_iso, feed, min_gain, min_price, db):
             gap = (o930 / pc - 1) * 100 if pc else 0.0
             if abs(gain) < min_gain and abs(gap) < min_gain:
                 continue
+            # --- extra intraday tells, mined from the same bars (no extra API call) ---
+            # last-10-min momentum: is the move accelerating or rolling over RIGHT NOW?
+            ref = bl[-11]["c"] if len(bl) >= 11 else o930
+            slope10 = (last / ref - 1) * 100 if ref else 0.0
+            # session VWAP (Alpaca gives per-bar vw); above VWAP = buyers in control
+            tv = sum(b.get("v", 0) or 0 for b in bl)
+            vwap = (sum((b.get("vw") or b["c"]) * (b.get("v", 0) or 0) for b in bl) / tv) if tv else last
+            vwap_dist = (last / vwap - 1) * 100 if vwap else 0.0
+            # relative volume vs time-adjusted 20d avg — real conviction vs thin froth
+            av = avgvol.get(s)
+            try:
+                t0 = datetime.datetime.fromisoformat(bl[0]["t"].replace("Z", "+00:00"))
+                t1 = datetime.datetime.fromisoformat(bl[-1]["t"].replace("Z", "+00:00"))
+                elapsed = max(1.0, (t1 - t0).total_seconds() / 60 + 1)
+            except Exception:
+                elapsed = max(1.0, len(bl))
+            rel_vol = round(tv / (av * elapsed / 390), 1) if av else None
             out.append(Mover(sym=s, pct_change=round(gain, 2), price=round(last, 2),
                              direction=("up" if gain >= 0 else "down"), prev_close=pc,
-                             peak_pct=round(peak, 2), trough_pct=round(trough, 2)))
+                             peak_pct=round(peak, 2), trough_pct=round(trough, 2),
+                             slope10=round(slope10, 2), vwap_dist=round(vwap_dist, 2),
+                             rel_vol=rel_vol))
     return out
 
 

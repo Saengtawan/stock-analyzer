@@ -27,10 +27,13 @@ def _alpaca_news(syms):
     # prefer name-specific items (few symbols), most-recent first
     for n in sorted(r.get("news", []), key=lambda n: len(n.get("symbols", []) or [])):
         h = (n.get("headline") or "")[:80]
+        # summary gives the AI the actual catalyst (beat/raise/PT/denial) so it rarely needs
+        # to spend a web-search turn — same Alpaca call, one extra field
+        summ = " ".join((n.get("summary") or "").split())[:150]
         when = (n.get("created_at") or "")[:16]
         for s in (n.get("symbols") or []):
             if s in syms and len(out.get(s, [])) < 2 and h not in [x[1] for x in out.get(s, [])]:
-                out.setdefault(s, []).append((when, h))
+                out.setdefault(s, []).append((when, h, summ))
     return out
 
 
@@ -105,7 +108,12 @@ def build(date, top=100, db=DB, sim_minute=None):
     anews = _alpaca_news([m.sym for m in down_focus + up_focus])  # catalysts pre-fetched
     L += ["", f"THE FIELD — {len(movers)} liquid movers ({len(gapped_down)} gapped down); "
           f"showing {len(down_focus)} gap-down + {len(up_focus)} top-up.",
-          "Read each STORY, assign an archetype, judge in context. Setups are PRIORS not gates."]
+          "Read each STORY, assign an archetype, judge in context. Setups are PRIORS not gates.",
+          "  LEGEND (all AS OF NOW): Δ10m = % move over the LAST ~10 min (the live momentum tell —",
+          "  positive+rising = accelerating into the close like ABT; negative = rolling over like JNJ,",
+          "  trust this over the from-open level). vwap = price vs session VWAP (+ = buyers in control,",
+          "  − = below the avg, sellers winning). rv = today's volume so far vs its time-adjusted 20d",
+          "  norm (>1.5x = real conviction; <1x = thin/froth, be wary of a sympathy_junk trap)."]
     for label, group in (("GAPPED DOWN vs prev close (reversal ground — deepest gap first; "
                           "note from-open % to see who's already recovering)", down_focus),
                          ("TOP MOVING UP FROM OPEN (breakout / momentum / catalyst)", up_focus)):
@@ -115,12 +123,16 @@ def build(date, top=100, db=DB, sim_minute=None):
             # momentum trajectory AS OF NOW: peak/low + how far off — a name now far below
             # its peak has already SPENT its move (the ABT trap); one now far above its low
             # is freshly reclaiming. Judge buyability from the CURRENT price, not the level.
+            rv = f"{m.rel_vol:.1f}x" if m.rel_vol is not None else "?"
             L.append(f"  {m.sym:6} now{m.pct_change:+6.1f}% [pk{m.peak_pct:+.1f} off{m.off_peak:+.1f} | "
-                     f"low{m.trough_pct:+.1f} up{m.off_trough:+.1f}] ${m.price:.2f} gap{gap} {_sector(p, m.sym)}")
+                     f"low{m.trough_pct:+.1f} up{m.off_trough:+.1f}] Δ10m{m.slope10:+.1f} "
+                     f"vwap{m.vwap_dist:+.1f} rv{rv} ${m.price:.2f} gap{gap} {_sector(p, m.sym)}")
             an = anews.get(m.sym)
             if an:
-                for when, h in an:
+                for when, h, summ in an:
                     L.append(f"        [{when}] {h}")
+                    if summ:
+                        L.append(f"           {summ}")
             else:
                 nw = _news(p, m.sym, date)
                 L.append(f"        [{nw[0][1]}] {nw[0][2][:74]}" if nw else "        (no news found)")
