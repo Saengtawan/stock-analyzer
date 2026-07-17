@@ -119,30 +119,20 @@ def build(date, top=100, db=DB, sim_minute=None):
     if rec:
         wins = sum(1 for *_, o in rec if o is not None and o > 0)
         nres = sum(1 for *_, o in rec if o is not None)
-        L += ["", f"YOUR RECENT LIVE TRACK RECORD ({wins}/{nres} green — learn from it, don't overfit):"]
+        L += ["", f"YOUR RECENT LIVE PICKS ({wins}/{nres} closed green) — the realized record:"]
         for d, sym, arch, o in rec:
             L.append(f"  {d} {sym:6} [{arch}] -> {o:+.2f}%" if o is not None else
                      f"  {d} {sym:6} [{arch}] -> (open)")
-        L.append("  (if a pattern keeps losing, weight it down; if you've been forcing low-room "
-                 "buys and losing, abstain more. This is the only memory you have.)")
     L += [
          f"SCAN TIME: {scan_label} — {mins_left} min ({mins_left/60:.1f}h) until the 16:00 ET close.",
-         "  OBJECTIVE: pick the name(s) with the most ROOM TO RUN from the CURRENT price — bought",
-         "  now, how much HIGHER can it realistically get by the 16:00 close, and how likely?",
-         "  That is the whole game. Every number below is AS OF NOW; judge from the current price",
-         "  + the momentum trajectory, not the from-open level.",
-         "  SWEET SPOT = a name EARLY in its move with room LEFT: a fresh reversal reclaiming off",
-         "  its low with the gap still to fill (up from trough, lots of room), or a laggard not",
-         "  yet caught up to its peers. AVOID BOTH ENDS: (a) a SPENT name far below its peak and",
-         "  fading (the ABT trap), and (b) a name already NEAR its peak that has run most of its",
-         "  move ('near peak, never red' = little room left = buying high). The edge is in the",
-         "  middle — real upside still ahead, not already banked.",
-         "  For EACH pick estimate the % room to a realistic 16:00 target and confirm it beats",
-         "  the stop; put that estimate in the reason. If the only candidates are near-peak /",
-         "  thin-room (little runway left), ABSTAIN — never force a low-room buy.",
+         "  OBJECTIVE: you enter now and exit by 16:00 ET — maximize the position's P&L at the",
+         "  close. Every number below is a RAW FACT as of now. What makes a good entry, which",
+         "  signals matter, whether/when to act or abstain — reason it out yourself from the data",
+         "  (and query history via scripts/ai_trader_data.sh if a fact would help). Nothing here",
+         "  prescribes a setup.",
          f"prior VIX {macro.get('vix_prior')} | macro/fed/geo sentiment {macro.get('macro_sent')} | "
          f"regime {macro.get('spy_regime_prior')}",
-         "", "MACRO NARRATIVE (why the tape is where it is):"]
+         "", "MACRO — recent negative-leaning headlines (sentiment score, raw):"]
     for s, imp, h in (macro.get("macro_neg_headlines") or [])[:6]:
         L.append(f"  [{s:+.2f}] {h}")
     if not macro.get("macro_neg_headlines"):
@@ -157,34 +147,23 @@ def build(date, top=100, db=DB, sim_minute=None):
     down_focus = sorted(gapped_down, key=_gap)[:14]
     up_focus = sorted([m for m in movers if _gap(m) > -1.5 and m.pct_change > 0],
                       key=lambda m: -m.pct_change)[:8]
-    # HIGH-VOLUME ACCUMULATION — the deepest-gap / top-gainer screens above MISS names that
-    # aren't extreme on either axis but carry REAL conviction volume while HOLDING steady
-    # (the BJRI case: flat -0.2% AT its low at 09:32 but rv 2.9x — accumulation BEFORE the
-    # move; it then ran +5%). At 09:32 the tell is the volume, not a reclaim (too early to
-    # have reclaimed). Surface rv>=1.5 names that aren't collapsing (pct>=-2%) and aren't
-    # already shown — ranked by volume. A knife dumping on volume is excluded by the floor.
+    # Third slice = the highest relative-volume names not already shown above, so a name that's
+    # extreme on neither gap nor gain but is trading unusual volume isn't invisible. Neutral:
+    # ranked by rv, no threshold, no direction filter — the AI decides what the volume means.
     shown = {m.sym for m in down_focus + up_focus}
-    vol_reclaim = sorted(
-        [m for m in movers if m.sym not in shown and (m.rel_vol or 0) >= 1.5
-         and m.pct_change >= -2.0],
-        key=lambda m: -(m.rel_vol or 0))[:8]
+    vol_reclaim = sorted([m for m in movers if m.sym not in shown and m.rel_vol is not None],
+                         key=lambda m: -(m.rel_vol or 0))[:8]
     anews = _alpaca_news([m.sym for m in down_focus + up_focus + vol_reclaim])  # catalysts pre-fetched
-    L += ["", f"THE FIELD — {len(movers)} liquid movers ({len(gapped_down)} gapped down); "
-          f"showing {len(down_focus)} gap-down + {len(up_focus)} top-up + {len(vol_reclaim)} vol-reclaim.",
-          "Read each STORY, assign an archetype, judge in context. Setups are PRIORS not gates.",
-          "  LEGEND (all AS OF NOW): Δ10m = % move over the LAST ~10 min (the live momentum tell —",
-          "  positive+rising = accelerating into the close like ABT; negative = rolling over like JNJ,",
-          "  trust this over the from-open level). vwap = price vs session VWAP (+ = buyers in control,",
-          "  − = below the avg, sellers winning). rv = today's volume so far vs its time-adjusted 20d",
-          "  norm (>1.5x = real conviction; <1x = thin/froth, be wary of a sympathy_junk trap)."]
-    for label, group in (("GAPPED DOWN vs prev close (reversal ground — deepest gap first; "
-                          "note from-open % to see who's already recovering)", down_focus),
-                         ("TOP MOVING UP FROM OPEN (breakout / momentum / catalyst)", up_focus),
-                         ("HIGH-VOLUME ACCUMULATION (rv>=1.5, holding not collapsing — real "
-                          "conviction volume the two screens above miss. Volume = someone is "
-                          "actually accumulating even before the move shows; judge the catalyst "
-                          "+ room like any other, and note if it's still at its low = early)",
-                          vol_reclaim)):
+    L += ["", f"THE FIELD — {len(movers)} liquid movers ({len(gapped_down)} gapped down). Below are "
+          f"three RAW slices ({len(down_focus)} by gap, {len(up_focus)} by gain, {len(vol_reclaim)} "
+          "by volume); the full field is far larger — query it if you want more.",
+          "  COLUMN DEFINITIONS (raw facts, no interpretation): now = % vs 09:30 open. "
+          "pk/low = highest/lowest % vs open so far; off = now−pk; up = now−low. Δ10m = % change "
+          "over the last ~10 min (n/a if <11 bars). vwap = % of price vs session VWAP. rv = "
+          "today's volume so far ÷ its time-adjusted 20d average. gap = % vs prev close."]
+    for label, group in (("GAPPED DOWN vs prev close (largest gap first)", down_focus),
+                         ("UP FROM OPEN (largest gain first)", up_focus),
+                         ("HIGHEST RELATIVE VOLUME among names not shown above", vol_reclaim)):
         L.append(f"\n {label}:")
         for m in group:
             gap = f"{(m.price/m.prev_close-1)*100:+.1f}%" if m.prev_close else "?"
