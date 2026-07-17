@@ -57,8 +57,13 @@ just don't spend turns. Do exactly this, then stop:
    ENTRY TIMING — buy on LEADING signals, do NOT wait for price to confirm. By the time a move
    is "confirmed" (Δ10m already big + broken out + already +2-6% from open) the room is GONE —
    you'd be buying high, late, chasing. That confirmation is a LAGGING signal. The edge is to
-   enter EARLY (+0 to ~+1.5% from open, or still reclaiming) on signals that PRECEDE the price
-   move: (1) VOLUME ACCUMULATION — rv>=1.5 while the price is still flat/small = someone is
+   enter EARLY on signals that PRECEDE the price move — and EARLY INCLUDES WHILE STILL RED. Do
+   NOT require the name to be green: a gap-down at -2% TURNING UP off a -5% low on a leading
+   signal has the MOST room of all (the whole gap to fill PLUS the upside beyond) — waiting for
+   it to cross +0 throws away half the move. What gates the entry is the LEADING SIGNAL + a TURN
+   (reclaiming off the low / Δ10m curling up / accumulation volume), NOT the sign of the current
+   %. The ONE red name to refuse is the falling knife = still making FRESH lows with no turn yet.
+   The leading signals: (1) VOLUME ACCUMULATION — rv>=1.5 while the price is still flat/red = someone is
    accumulating BEFORE the move (this is the HIGH-VOLUME ACCUMULATION section — the BJRI case:
    flat -0.2% at 09:32 on rv 2.9x, then ran +5%; buying the volume tell at -0.2% got full room);
    (2) a FRESH catalyst not yet fully priced; (3) early RELATIVE STRENGTH — green while its
