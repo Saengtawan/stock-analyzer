@@ -4,12 +4,14 @@ For the day: macro narrative + regime. For each mover: gap direction, sector, an
 recent news/story (DB; flag web-search where absent). Code only gathers — the AI judges.
 """
 from __future__ import annotations
-import argparse, sqlite3, datetime, zoneinfo, requests
+import argparse, sqlite3, datetime, zoneinfo, requests, json, os
 from .universe import gather_universe, _keys
 from .premarket import gather_preopen
+from . import journal
 
 DB = "data/trade_history.db"
 ET = zoneinfo.ZoneInfo("America/New_York")
+FIELD_DIR = "plans/field"
 
 
 def _alpaca_news(syms):
@@ -55,6 +57,7 @@ def _news(p, sym, date, days=4):
 def build(date, top=100, db=DB, sim_minute=None):
     p = sqlite3.connect(db)
     macro = gather_preopen(date)
+    warn = []
     if sim_minute:
         from .universe_sim import gather_universe_sim
         movers = gather_universe_sim(date, minute=sim_minute, db=db)
@@ -71,9 +74,58 @@ def build(date, top=100, db=DB, sim_minute=None):
         now = datetime.datetime.now(ET)
         scan_label = now.strftime("%H:%M ET %a")
         mins_left = 16 * 60 - (now.hour * 60 + now.minute)
+        # A2: the "room to close" framing only holds during RTH — refuse to mislead otherwise
+        mins_now = now.hour * 60 + now.minute
+        if now.weekday() >= 5:
+            warn.append("⚠️ WEEKEND — market closed; this field is stale/empty. Do NOT trade.")
+        elif mins_now < 9 * 60 + 30:
+            warn.append("⚠️ BEFORE THE OPEN (pre-09:30 ET) — no intraday field yet; the 'room to "
+                        "close' numbers are not meaningful. Treat as a preview only, do NOT emit picks.")
+        elif mins_now >= 16 * 60:
+            warn.append("⚠️ AFTER THE CLOSE (post-16:00 ET) — session over; this is replay, not a "
+                        "tradeable scan.")
     mins_left = max(0, mins_left)
 
-    L = [f"=== CONTEXT v2 {date} ===",
+    # A4: an empty field during RTH almost always means a DATA-PIPE failure (expired key,
+    # rate-limit, bars outage) — NOT a genuine no-mover day. Say so loudly so a pipeline
+    # outage can't masquerade as a clean 'nothing to trade' abstain.
+    if not movers and not warn:
+        warn.append("⚠️ EMPTY FIELD during market hours — this is almost certainly a DATA-PIPE "
+                    "FAILURE (Alpaca key/rate-limit/bars outage), not a real no-mover day. "
+                    "ABSTAIN and flag PIPELINE ERROR; do not conclude 'nothing tradeable'.")
+
+    # B2: persist the live field snapshot so the outcome step can realize a mechanical
+    # baseline (deepest gap-down already reclaiming) as a control arm vs the AI's picks.
+    if not sim_minute and movers:
+        try:
+            os.makedirs(FIELD_DIR, exist_ok=True)
+            snap = [{"sym": m.sym, "gain": m.pct_change, "gap": round((m.price/m.prev_close-1)*100, 2)
+                     if m.prev_close else None, "peak": m.peak_pct, "trough": m.trough_pct,
+                     "off_trough": round(m.off_trough, 2), "slope10": m.slope10,
+                     "vwap_dist": m.vwap_dist, "rel_vol": m.rel_vol} for m in movers]
+            json.dump(snap, open(os.path.join(FIELD_DIR, f"{date}.json"), "w"))
+        except Exception:
+            pass
+
+    L = [f"=== CONTEXT v2 {date} ==="]
+    for w in warn:                       # A2/A4: loud banner if the scan is invalid/suspect
+        L += [w]
+    # B1 — FEEDBACK LOOP: show the AI its own recent realized picks so it isn't blind to how
+    # its judgment has actually been doing (not hardcoded anecdotes — the live journal).
+    try:
+        rec = journal.recent_outcomes(8)
+    except Exception:
+        rec = []
+    if rec:
+        wins = sum(1 for *_, o in rec if o is not None and o > 0)
+        nres = sum(1 for *_, o in rec if o is not None)
+        L += ["", f"YOUR RECENT LIVE TRACK RECORD ({wins}/{nres} green — learn from it, don't overfit):"]
+        for d, sym, arch, o in rec:
+            L.append(f"  {d} {sym:6} [{arch}] -> {o:+.2f}%" if o is not None else
+                     f"  {d} {sym:6} [{arch}] -> (open)")
+        L.append("  (if a pattern keeps losing, weight it down; if you've been forcing low-room "
+                 "buys and losing, abstain more. This is the only memory you have.)")
+    L += [
          f"SCAN TIME: {scan_label} — {mins_left} min ({mins_left/60:.1f}h) until the 16:00 ET close.",
          "  OBJECTIVE: pick the name(s) with the most ROOM TO RUN from the CURRENT price — bought",
          "  now, how much HIGHER can it realistically get by the 16:00 close, and how likely?",
@@ -124,8 +176,9 @@ def build(date, top=100, db=DB, sim_minute=None):
             # its peak has already SPENT its move (the ABT trap); one now far above its low
             # is freshly reclaiming. Judge buyability from the CURRENT price, not the level.
             rv = f"{m.rel_vol:.1f}x" if m.rel_vol is not None else "?"
+            sl = f"{m.slope10:+.1f}" if m.slope10 is not None else "n/a"
             L.append(f"  {m.sym:6} now{m.pct_change:+6.1f}% [pk{m.peak_pct:+.1f} off{m.off_peak:+.1f} | "
-                     f"low{m.trough_pct:+.1f} up{m.off_trough:+.1f}] Δ10m{m.slope10:+.1f} "
+                     f"low{m.trough_pct:+.1f} up{m.off_trough:+.1f}] Δ10m{sl} "
                      f"vwap{m.vwap_dist:+.1f} rv{rv} ${m.price:.2f} gap{gap} {_sector(p, m.sym)}")
             an = anews.get(m.sym)
             if an:

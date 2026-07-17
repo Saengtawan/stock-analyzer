@@ -36,7 +36,7 @@ class Mover:
     prev_close: float | None = None
     peak_pct: float = 0.0    # highest % above the open so far (session-to-now)
     trough_pct: float = 0.0  # lowest % below the open so far
-    slope10: float = 0.0     # % change over the last ~10 min (accelerating vs rolling-over tell)
+    slope10: float | None = 0.0  # % change over last ~10 min (accel vs rolling-over); None if <11 bars
     vwap_dist: float = 0.0   # % of last price vs session VWAP (buyers-in-control tell)
     rel_vol: float | None = None  # today's vol so far / time-adjusted 20d avg (conviction vs thin froth)
 
@@ -107,8 +107,8 @@ def _field_from_bars(date, start_iso, end_iso, feed, min_gain, min_price, db):
                 continue
             # --- extra intraday tells, mined from the same bars (no extra API call) ---
             # last-10-min momentum: is the move accelerating or rolling over RIGHT NOW?
-            ref = bl[-11]["c"] if len(bl) >= 11 else o930
-            slope10 = (last / ref - 1) * 100 if ref else 0.0
+            # Needs >=11 bars or it degenerates to "since-open" and mislabels the signal.
+            slope10 = round((last / bl[-11]["c"] - 1) * 100, 2) if len(bl) >= 11 and bl[-11]["c"] else None
             # session VWAP (Alpaca gives per-bar vw); above VWAP = buyers in control
             tv = sum(b.get("v", 0) or 0 for b in bl)
             vwap = (sum((b.get("vw") or b["c"]) * (b.get("v", 0) or 0) for b in bl) / tv) if tv else last
@@ -125,7 +125,7 @@ def _field_from_bars(date, start_iso, end_iso, feed, min_gain, min_price, db):
             out.append(Mover(sym=s, pct_change=round(gain, 2), price=round(last, 2),
                              direction=("up" if gain >= 0 else "down"), prev_close=pc,
                              peak_pct=round(peak, 2), trough_pct=round(trough, 2),
-                             slope10=round(slope10, 2), vwap_dist=round(vwap_dist, 2),
+                             slope10=slope10, vwap_dist=round(vwap_dist, 2),
                              rel_vol=rel_vol))
     return out
 

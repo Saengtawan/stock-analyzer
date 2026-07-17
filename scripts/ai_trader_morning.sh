@@ -54,6 +54,13 @@ just don't spend turns. Do exactly this, then stop:
    and confirm it beats the stop; PUT that estimate in the reason. Pick up to 5 with genuine
    from-here upside, ranked by conviction; don't pad; if the only candidates are near-peak/
    thin-room, ABSTAIN — never force a low-room buy. Never penalized for abstaining.
+   The brief opens with YOUR RECENT LIVE TRACK RECORD (your own past picks + how they closed) —
+   READ IT and let it condition you: if a pattern/archetype keeps losing, weight it down; if
+   you've been forcing low-room buys and bleeding, abstain harder today. It's your only memory.
+   DIVERSIFICATION: do NOT emit two primary picks that are the SAME BET (same sector / same
+   driver, e.g. two financials on a bank-earnings day) — that's one position wearing two tickers,
+   not two independent edges. If your two best are the same bet, keep the stronger one and either
+   find a genuinely different second or emit just one.
 4. In ONE turn, both: (a) Write plans/decisions/$DATE.json (picks ordered best-first, up to 5)
    with keys: date, regime (one line), picks (each: sym, archetype, reason, exit_style
    ["hold_eod"|"trail"], hard_stop [negative %], trail_pct [number if trail else null]),
@@ -63,5 +70,25 @@ just don't spend turns. Do exactly this, then stop:
    list of any rank 3-5 names (sym + archetype only). Or why you abstained.
 EOF
 
-claude -p "$PROMPT" --permission-mode bypassPermissions \
-  --allowedTools "Bash WebSearch Write"
+# A5 — the whole day rides on this single shot: bound it, capture it, and ALERT loudly on
+# failure (timeout / non-zero exit / session-limit / no decision written) so a silent miss
+# can't pass for a genuine abstain.
+ALERT="logs/ai_trader_ALERT.log"
+OUT=$(timeout 600 claude -p "$PROMPT" --permission-mode bypassPermissions \
+  --allowedTools "Bash WebSearch Write" 2>&1)
+RC=$?
+echo "$OUT"
+
+fail=""
+[ $RC -eq 124 ] && fail="TIMEOUT (>600s) — headless claude hung"
+[ $RC -ne 0 ] && [ $RC -ne 124 ] && fail="claude exited $RC"
+echo "$OUT" | grep -qi "hit your session limit\|usage limit\|rate limit" && fail="SESSION/RATE LIMIT — run blocked before it could decide"
+[ ! -f "plans/decisions/$DATE.json" ] && fail="${fail:+$fail; }NO decision file written for $DATE"
+
+if [ -n "$fail" ]; then
+  MSG="[$(TZ=America/New_York date '+%F %H:%M ET')] ai_trader morning FAILED: $fail"
+  echo "🔴🔴🔴 $MSG" | tee -a "$ALERT"
+  command -v notify-send >/dev/null 2>&1 && notify-send -u critical "ai_trader FAILED" "$fail" || true
+  exit 1
+fi
+echo "[$(TZ=America/New_York date '+%F %H:%M ET')] ai_trader morning OK ($DATE)" >> logs/ai_trader_v2_ai.log

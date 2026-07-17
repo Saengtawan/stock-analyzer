@@ -41,15 +41,31 @@ EOF
   ;;
   v2report)  "$PY" - <<'EOF'
 from src.ai_trader import journal
-rows=journal.report_v2(); tot=[]
+import statistics as s
+rows, base = journal.report_v2(live_only=True)   # LIVE only — dev re-runs (mode='replay') excluded
 print(f"{'date':11} {'sym':6} {'archetype':18} {'status':10} {'out':>7}")
-for d,sym,arch,st,out,reason in rows:
+for d,sym,arch,st,out,reason,mode in rows:
     o=f"{out:+.2f}" if out is not None else "-"
-    if out is not None: tot.append(out)
     print(f"{d:11} {sym or '-':6} {arch or '-':18} {st:10} {o:>7}")
+tot=[out for d,sym,arch,st,out,reason,mode in rows if st=='closed' and out is not None and sym]
 if tot:
-    import statistics as s
-    print(f"\nclosed N={len(tot)} avg{s.mean(tot):+.2f}% WR{sum(x>0 for x in tot)/len(tot)*100:.0f}% total{sum(tot):+.1f}%")
+    print(f"\nAI closed N={len(tot)} avg{s.mean(tot):+.2f}% WR{sum(x>0 for x in tot)/len(tot)*100:.0f}% total{sum(tot):+.1f}%")
+if base:
+    for kind in ('spy','field_reclaim'):
+        b=[o for d,k,sym,o in base if k==kind and o is not None]
+        if b: print(f"baseline[{kind:13}] N={len(b)} avg{s.mean(b):+.2f}% WR{sum(x>0 for x in b)/len(b)*100:.0f}%")
+    print("  (AI has an edge only if its avg/WR beats BOTH baselines over N)")
+EOF
+  ;;
+  v2fill)    "$PY" - "$DATE" "${3:-}" "${4:-}" <<'EOF'
+import sys
+from src.ai_trader import journal
+d, sym, px = sys.argv[1], sys.argv[2], sys.argv[3]
+if not sym or not px:
+    print("usage: ai_trader_run.sh v2fill <date> <SYM> <actual_entry_price>"); raise SystemExit(1)
+n=journal.record_fill(d, sym, float(px))
+print(f"recorded actual fill: {d} {sym.upper()} @ {px}  ({n} row updated)" if n
+      else f"no journal row for {d} {sym.upper()} (did you execute that date?)")
 EOF
   ;;
   # --- v1 (classify + rule gate) ---
