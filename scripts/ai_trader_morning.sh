@@ -28,12 +28,15 @@ web-searches into a single parallel turn; do the Write + execute together. Think
 1. Run: $PY -m src.ai_trader.run_v2 brief --date $DATE
    It prints RAW FACTS and interprets nothing: the field of movers (per-stock numbers), each
    one's recent news, the macro backdrop, and your own recent realized picks. You do the judging.
-2. Optional inputs, use if they'd change your call:
-   - WebSearch a name whose catalyst is unclear (batch into one turn).
-   - Query history to TEST any belief about how the market behaves — do not assume, check:
-     'bash scripts/ai_trader_data.sh <schema | sql "SELECT ..." | bars SYM DATE | field DATE MINUTE>'
-     (read-only; intraday_bars_5m = 86M 5-min bars, signal_outcomes = past picks + outcomes +
-     features, news_events, macro_snapshots, stock_daily_ohlc). Draw your own conclusions.
+2. LEARN FROM WHAT ACTUALLY WON, don't guess. Before you decide, STUDY how past winners really
+   behaved at entry time — run 'bash scripts/ai_trader_data.sh winners YYYY-MM-DD [minpct]' for a
+   few RECENT past days: it lists the stocks that actually gained >=minpct% intraday and what each
+   looked like at 09:35 (gain-from-open, gap, early relative volume). Calibrate from that what a
+   09:32 winner ACTUALLY looks like at entry, then match today's field against it. Your own past
+   picks are in the brief — if they lost, the winners table shows you what you should have been
+   looking at instead. Also available (read-only): schema, sql "SELECT ...", bars SYM DATE, field
+   DATE MINUTE (intraday_bars_5m = 86M 5-min bars, signal_outcomes, news_events, macro_snapshots,
+   stock_daily_ohlc), and WebSearch for an unclear catalyst. Measure, don't assume; conclusions are yours.
 3. Decide. For each name you buy you must be able to state why you expect >2% before the close —
    but the method, the reasoning, and the signals are entirely yours to determine from the data.
    Give each pick an archetype in your OWN words. 0 picks (abstain) is a valid, unpenalized
