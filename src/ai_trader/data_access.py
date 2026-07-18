@@ -84,6 +84,42 @@ def bars(sym, date, feed="sip"):
         print(f"{dt.hour*60+dt.minute}\t{dt:%H:%M}\t{b['o']}\t{b['h']}\t{b['l']}\t{b['c']}\t{b['v']}\t{b.get('vw','')}")
 
 
+def action(date, minute=600):
+    """MARKET ACTION as of ET `minute` (minute-from-midnight; 600=10:00), per SECTOR — the raw
+    fact of what money is ACTUALLY doing right now (not what the headlines say). Point-in-time by
+    construction: only reads 5-min bars at/before `minute`, so no lookahead even on the sim day.
+    Shows, per sector: how many movers, their avg gain-from-open NOW, and how many are RECLAIMING
+    (were red earlier, green now = the beaten group being bought back)."""
+    minute = int(minute); cut = f"{minute//60:02d}:{minute%60:02d}"
+    c = _ro()
+    rows = c.execute("""
+      WITH o AS (SELECT symbol, open op FROM intraday_bars_5m WHERE date=? AND time_et LIKE '09:30%'),
+           b AS (SELECT symbol, close cl, low lo, time_et,
+                        ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY time_et DESC) rn
+                 FROM intraday_bars_5m WHERE date=? AND substr(time_et,1,5)<=?),
+           lo AS (SELECT symbol, MIN(lo) lomin FROM b GROUP BY symbol),
+           nowc AS (SELECT symbol, cl FROM b WHERE rn=1),
+           f AS (SELECT symbol FROM stock_fundamentals)
+      SELECT sf.sector,
+             (nowc.cl/o.op-1)*100 gain_now,
+             (lo.lomin/o.op-1)*100 low_sofar
+      FROM o JOIN nowc ON o.symbol=nowc.symbol JOIN lo ON o.symbol=lo.symbol
+             JOIN stock_fundamentals sf ON o.symbol=sf.symbol
+      WHERE o.op>0 AND nowc.cl>=5 AND ABS((nowc.cl/o.op-1)*100)>=1.0 AND sf.sector IS NOT NULL
+    """, (date, date, cut)).fetchall()
+    agg = {}
+    for sec, g, lows in rows:
+        d = agg.setdefault(sec, [0, 0.0, 0])
+        d[0] += 1; d[1] += g
+        if g > 0 and lows is not None and lows < -1.0:   # green now but was red -> reclaiming
+            d[2] += 1
+    print(f"# MARKET ACTION on {date} as of {cut} ET — per sector (raw, point-in-time)")
+    print("sector\tn_movers\tavg_gain_now\tn_reclaiming(red->green)")
+    for sec, (n, gs, rec) in sorted(agg.items(), key=lambda kv: -(kv[1][1]/kv[1][0] if kv[1][0] else 0)):
+        if n < 3: continue
+        print(f"{sec}\t{n}\t{gs/n:+.2f}\t{rec}")
+
+
 def winners(date, minpct=3.0):
     """Raw fact table: on a PAST day, which stocks actually gained >=minpct% intraday from the
     ~09:35 price to their later high, and WHAT THEY LOOKED LIKE at 09:35 (gain-from-open, gap,
@@ -139,12 +175,14 @@ def main():
     b = sub.add_parser("bars"); b.add_argument("sym"); b.add_argument("date"); b.add_argument("feed", nargs="?", default="sip")
     f = sub.add_parser("field"); f.add_argument("date"); f.add_argument("minute")
     w = sub.add_parser("winners"); w.add_argument("date"); w.add_argument("minpct", nargs="?", default="3")
+    ac = sub.add_parser("action"); ac.add_argument("date"); ac.add_argument("minute", nargs="?", default="600")
     a = ap.parse_args()
     if a.cmd == "schema": schema()
     elif a.cmd == "sql": run_sql(a.query)
     elif a.cmd == "bars": bars(a.sym, a.date, a.feed)
     elif a.cmd == "field": field(a.date, a.minute)
     elif a.cmd == "winners": winners(a.date, a.minpct)
+    elif a.cmd == "action": action(a.date, a.minute)
 
 
 if __name__ == "__main__":
