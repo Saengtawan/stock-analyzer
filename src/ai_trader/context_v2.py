@@ -54,6 +54,14 @@ def _news(p, sym, date, days=4):
         "ORDER BY published_at DESC LIMIT 3" % days, (sym, date, date)))
 
 
+def _news_asof(p, sym, cutoff_iso, days=4):
+    """Sim-safe: only news PUBLISHED at/before the point-in-time cutoff (no lookahead)."""
+    return list(p.execute(
+        "SELECT substr(published_at,1,16), sentiment_label, headline FROM news_events "
+        "WHERE symbol=? AND published_at<=? AND published_at>=datetime(?, '-%d day') "
+        "ORDER BY published_at DESC LIMIT 3" % days, (sym, cutoff_iso, cutoff_iso)))
+
+
 def build(date, top=100, db=DB, sim_minute=None):
     p = sqlite3.connect(db)
     macro = gather_preopen(date)
@@ -70,7 +78,9 @@ def build(date, top=100, db=DB, sim_minute=None):
         sh, sm = divmod(sim_minute, 60)
         scan_label = f"~{sh:02d}:{sm:02d} ET (SIMULATED point-in-time)"
         mins_left = 16 * 60 - sim_minute
+        cutoff_iso = f"{date}T{sh:02d}:{sm:02d}:00"   # news cutoff = the sim wall-clock (no lookahead)
     else:
+        cutoff_iso = None
         now = datetime.datetime.now(ET)
         scan_label = now.strftime("%H:%M ET %a")
         mins_left = 16 * 60 - (now.hour * 60 + now.minute)
@@ -153,7 +163,9 @@ def build(date, top=100, db=DB, sim_minute=None):
     shown = {m.sym for m in down_focus + up_focus}
     vol_reclaim = sorted([m for m in movers if m.sym not in shown and m.rel_vol is not None],
                          key=lambda m: -(m.rel_vol or 0))[:8]
-    anews = _alpaca_news([m.sym for m in down_focus + up_focus + vol_reclaim])  # catalysts pre-fetched
+    # sim mode: skip the LIVE Alpaca news fetch (it returns today's news = lookahead for a past
+    # date); news then comes only from the DB, filtered to published_at <= the sim cutoff.
+    anews = {} if sim_minute else _alpaca_news([m.sym for m in down_focus + up_focus + vol_reclaim])
     L += ["", f"THE FIELD — {len(movers)} liquid movers ({len(gapped_down)} gapped down). Below are "
           f"three RAW slices ({len(down_focus)} by gap, {len(up_focus)} by gain, {len(vol_reclaim)} "
           "by volume); the full field is far larger — query it if you want more.",
@@ -182,8 +194,8 @@ def build(date, top=100, db=DB, sim_minute=None):
                     if summ:
                         L.append(f"           {summ}")
             else:
-                nw = _news(p, m.sym, date)
-                L.append(f"        [{nw[0][1]}] {nw[0][2][:74]}" if nw else "        (no news found)")
+                nw = _news_asof(p, m.sym, cutoff_iso) if sim_minute else _news(p, m.sym, date)
+                L.append(f"        [{nw[0][0]}] {nw[0][2][:74]}" if nw else "        (no news found)")
     L += ["", "DECIDE -> write plans/decisions/<date>.json (archetype + picks + exit + reason, or abstain)."]
     return "\n".join(L)
 

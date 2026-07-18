@@ -12,12 +12,25 @@ CLI (via scripts/ai_trader_data.sh):
   field YYYY-MM-DD MINUTE     -> the reconstructed mover field at a past ET minute
 """
 from __future__ import annotations
-import argparse, sqlite3, datetime, zoneinfo, requests
+import argparse, sqlite3, datetime, zoneinfo, requests, os, re
 from .universe import _keys
 
 DB = "data/trade_history.db"
 ET = zoneinfo.ZoneInfo("America/New_York")
 UTC = zoneinfo.ZoneInfo("UTC")
+# sim guard: when set (AI_SIM_CUTOFF=YYYY-MM-DD), refuse any access to data ON OR AFTER that
+# date, so a point-in-time replay can't peek at the sim day or the future (no lookahead).
+SIM_CUTOFF = os.environ.get("AI_SIM_CUTOFF")
+
+
+def _blocked(dates):
+    if SIM_CUTOFF:
+        for d in dates:
+            if d and d >= SIM_CUTOFF:
+                print(f"BLOCKED (sim lookahead guard): data on/after {SIM_CUTOFF} is off-limits "
+                      f"(you referenced {d}). Query only strictly-earlier dates.")
+                return True
+    return False
 
 
 def _ro():
@@ -39,6 +52,8 @@ def run_sql(q, limit=300):
     # mode=ro already blocks writes; this is just a clearer error than a lock failure
     if not q.lstrip().lower().startswith(("select", "with")):
         print("ERROR: read-only — start with SELECT (or WITH ... SELECT)."); return
+    if _blocked(re.findall(r"\d{4}-\d{2}-\d{2}", q)):   # any date literal >= sim cutoff -> refuse
+        return
     c = _ro()
     try:
         cur = c.execute(q)
@@ -54,6 +69,8 @@ def run_sql(q, limit=300):
 
 def bars(sym, date, feed="sip"):
     """Raw 1-min OHLCV 09:30-16:00 ET for one symbol/day — no computed columns added."""
+    if _blocked([date]):
+        return
     hdr = _keys()
     u0 = datetime.datetime.strptime(date, "%Y-%m-%d").replace(hour=9, minute=30, tzinfo=ET).astimezone(UTC)
     u1 = datetime.datetime.strptime(date, "%Y-%m-%d").replace(hour=16, minute=0, tzinfo=ET).astimezone(UTC)
@@ -68,6 +85,8 @@ def bars(sym, date, feed="sip"):
 
 def field(date, minute):
     """The reconstructed mover field at a past ET minute (raw Mover rows, no filtering)."""
+    if _blocked([date]):
+        return
     from .universe_sim import gather_universe_sim
     ms = gather_universe_sim(date, minute=int(minute), db=DB)
     print("sym\tgain\tprice\tpeak\ttrough\tslope10\tvwap_dist\trel_vol\tprev_close")

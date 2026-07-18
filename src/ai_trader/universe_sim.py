@@ -42,6 +42,11 @@ def gather_universe_sim(date, minute=576, min_gain=1.0, min_price=5.0, db=DB) ->
     prev = {s: c for s, c in p.execute(
         "SELECT symbol, close FROM stock_daily_ohlc WHERE date=("
         "SELECT MAX(date) FROM stock_daily_ohlc WHERE date<?) AND close IS NOT NULL", (date,))}
+    # 20d avg daily volume as-of the sim date (no lookahead: date < sim date) for rel_vol
+    avgvol = {s: v for s, v in p.execute(
+        "SELECT symbol, AVG(volume) FROM stock_daily_ohlc "
+        "WHERE date>=date(?, '-30 day') AND date<? AND volume IS NOT NULL GROUP BY symbol", (date, date))}
+    elapsed = max(1.0, minute - (9 * 60 + 30))   # minutes since 09:30 open
     out = []
     tmin = minute - 570  # bars index from 09:30
     for i in range(0, len(syms), 200):
@@ -62,17 +67,25 @@ def gather_universe_sim(date, minute=576, min_gain=1.0, min_price=5.0, db=DB) ->
                     break
             if not upto or o930 <= 0 or upto[-1]["c"] < min_price:
                 continue
-            atbar = upto[-1]
-            gain = (atbar["c"] / o930 - 1) * 100
+            atbar = upto[-1]; last = atbar["c"]
+            gain = (last / o930 - 1) * 100
             peak = (max(b["h"] for b in upto) / o930 - 1) * 100
             trough = (min(b["l"] for b in upto) / o930 - 1) * 100
             pc = prev.get(s)
             gap = (o930 / pc - 1) * 100 if pc else 0.0
             if abs(gain) < min_gain and abs(gap) < min_gain:
                 continue
-            out.append(Mover(sym=s, pct_change=round(gain, 2), price=round(atbar["c"], 2),
+            # same point-in-time tells as live (from upto bars only — no lookahead)
+            slope10 = round((last / upto[-11]["c"] - 1) * 100, 2) if len(upto) >= 11 and upto[-11]["c"] else None
+            tv = sum(b.get("v", 0) or 0 for b in upto)
+            vwap = (sum((b.get("vw") or b["c"]) * (b.get("v", 0) or 0) for b in upto) / tv) if tv else last
+            vwap_dist = round((last / vwap - 1) * 100, 2) if vwap else 0.0
+            av = avgvol.get(s)
+            rel_vol = round(tv / (av * elapsed / 390), 1) if av else None
+            out.append(Mover(sym=s, pct_change=round(gain, 2), price=round(last, 2),
                              direction=("up" if gain >= 0 else "down"), prev_close=pc,
-                             peak_pct=round(peak, 2), trough_pct=round(trough, 2)))
+                             peak_pct=round(peak, 2), trough_pct=round(trough, 2),
+                             slope10=slope10, vwap_dist=vwap_dist, rel_vol=rel_vol))
     return out
 
 
