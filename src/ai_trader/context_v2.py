@@ -196,6 +196,18 @@ def build(date, top=100, db=DB, sim_minute=None):
             else:
                 nw = _news_asof(p, m.sym, cutoff_iso) if sim_minute else _news(p, m.sym, date)
                 L.append(f"        [{nw[0][0]}] {nw[0][2][:74]}" if nw else "        (no news found)")
+
+    # THE FULL FIELD — every mover, compact (no news), so you are NOT limited to the sampled
+    # slices above. The three slices are just a highlighted sample; the name that closes green
+    # may be none of them. Scan the whole list and query news/details on any you want.
+    L += ["", f"FULL FIELD — all {len(movers)} movers (raw, no news). Columns: sym now% gap% "
+          "off(vs peak) up(vs low) Δ10m vwap rv. Sorted by rv (a factual axis — reorder as you like):"]
+    for m in sorted(movers, key=lambda m: -(m.rel_vol or 0)):
+        g = f"{(m.price/m.prev_close-1)*100:+.0f}" if m.prev_close else "?"
+        rv = f"{m.rel_vol:.1f}" if m.rel_vol is not None else "?"
+        sl = f"{m.slope10:+.1f}" if m.slope10 is not None else "na"
+        L.append(f"  {m.sym:6} {m.pct_change:+5.1f} {g:>4} {m.off_peak:+4.1f} {m.off_trough:+4.1f} "
+                 f"{sl:>5} {m.vwap_dist:+4.1f} {rv:>5}")
     L += ["", "DECIDE -> write plans/decisions/<date>.json (archetype + picks + exit + reason, or abstain)."]
     return "\n".join(L)
 
