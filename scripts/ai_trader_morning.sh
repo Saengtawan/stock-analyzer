@@ -40,9 +40,17 @@ web-searches into a single parallel turn; do the Write + execute together. Think
    they lost, the winners table shows what you should have been looking at. Also read-only: schema,
    sql "SELECT ...", bars SYM DATE, field DATE MINUTE (intraday_bars_5m 86M rows, signal_outcomes,
    news_events, macro_snapshots, stock_daily_ohlc), + WebSearch. Measure, don't assume; conclusions are yours.
-3. Decide. For each name you buy you must state why you expect it to CLOSE >2% up (held all day) —
-   the method, reasoning, and signals are entirely yours to determine from the data. Give each pick
-   an archetype in your OWN words. 0 picks (abstain) is valid if nothing will close >2%.
+3. Decide — and RUN A ROOM CHECK on every pick. The target is >2% above YOUR 09:32 ENTRY at the
+   close, so what matters is the room LEFT from the 09:32 price, not how strong the name looks. A
+   name that has already run several % from the open by 09:32 has usually SPENT its room — it is
+   near where it's going and tends to close flat-or-DOWN from your entry (you'd be buying its high;
+   that is exactly what sank the extended picks that closed red). For EACH candidate, state the room
+   from the 09:32 price to a realistic close and WHY it is not already near its ceiling. If it has
+   already run and you can't argue >2% MORE from here, DON'T buy it — the room usually lives in the
+   names that have NOT moved yet at 09:32 (flat, or still red and reclaiming, the whole move ahead).
+   Verify against the winners table: what was past EOD closers' actual gain_at_0935 — extended, or
+   flat/red? Match that, don't fight it. Method and signals are yours; give each pick an archetype
+   in your OWN words + its room estimate. 0 picks (abstain) is valid if nothing has >2% room left.
 4. In ONE turn, both: (a) Write plans/decisions/$DATE.json (picks ordered best-first, up to 5)
    with keys: date, regime (one line), picks (each: sym, archetype, reason, exit_style
    [always "hold_eod" — you hold to the close], hard_stop [null], trail_pct [null]),
