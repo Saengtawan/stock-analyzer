@@ -42,8 +42,8 @@ class DecisionPick:
             raise ValueError(f"exit_style must be {EXIT_STYLES}, got {self.exit_style!r}")
         if self.exit_style == "trail" and not self.trail_pct:
             raise ValueError(f"{self.sym}: trail exit needs trail_pct")
-        if self.hard_stop >= 0:
-            raise ValueError(f"{self.sym}: hard_stop must be negative")
+        if self.hard_stop is not None and self.hard_stop >= 0:   # None = hold-EOD, no stop
+            raise ValueError(f"{self.sym}: hard_stop must be negative (or null for hold-EOD)")
 
 
 @dataclass

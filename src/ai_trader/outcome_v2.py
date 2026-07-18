@@ -52,6 +52,9 @@ def realize(sym, date, hard_stop, exit_style, trail_pct, entry_price=None):
         if not entry or entry["o"] <= 0:
             return None
         e = entry["o"]           # legacy fallback (no logged price)
+    # hold_eod = pure hold to the close, NO stop and NO trail (ride the whole day)
+    if exit_style != "trail":
+        return (seq[-1][1]["c"] / e - 1) * 100 - COST
     peak = 0.0
     for m, b in seq:
         if m < 577:
@@ -60,9 +63,9 @@ def realize(sym, date, hard_stop, exit_style, trail_pct, entry_price=None):
         hi = (b["h"] / e - 1) * 100
         peak = max(peak, hi)
         held = m - start
-        if held >= 15 and (b["l"] / e - 1) * 100 <= hard_stop:   # hard stop (intrabar low)
+        if hard_stop is not None and held >= 15 and (b["l"] / e - 1) * 100 <= hard_stop:
             return hard_stop - COST
-        if exit_style == "trail" and trail_pct and peak >= trail_pct and (peak - cur) >= trail_pct:
+        if trail_pct and peak >= trail_pct and (peak - cur) >= trail_pct:
             return cur - COST
     return (seq[-1][1]["c"] / e - 1) * 100 - COST   # hold to EOD
 

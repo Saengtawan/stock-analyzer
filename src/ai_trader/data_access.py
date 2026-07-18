@@ -109,10 +109,11 @@ def winners(date, minpct=3.0):
              round((f.cl/e.en-1)*100,1)   AS fwd_close
       FROM o JOIN e ON o.symbol=e.symbol JOIN f ON o.symbol=f.symbol
              JOIN ev ON o.symbol=ev.symbol LEFT JOIN pc ON o.symbol=pc.symbol LEFT JOIN av ON o.symbol=av.symbol
-      WHERE e.en>=5 AND o.op>0 AND (f.hi/e.en-1)*100 >= ?
-      ORDER BY fwd_max_gain DESC LIMIT 60
+      WHERE e.en>=5 AND o.op>0 AND (f.cl/e.en-1)*100 >= ?
+      ORDER BY fwd_close DESC LIMIT 60
     """, (date, date, date, date, date, date, date, date, minpct)).fetchall()
-    print(f"# winners on {date}: gained >= {minpct}% from the 09:35 price to a later high")
+    print(f"# EOD winners on {date}: bought at 09:35 and HELD to the close, gained >= {minpct}% "
+          f"at the 16:00 close (no stop). fwd_close = the actual hold-to-close return.")
     print("symbol\tgain_at_0935\tgap\trv_0935\tfwd_max_gain\tfwd_close")
     for r in rows:
         print("\t".join("" if x is None else str(x) for x in r))
