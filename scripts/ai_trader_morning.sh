@@ -57,35 +57,32 @@ just don't spend turns. Do exactly this, then stop:
    ABT +0.2% at 09:31 ACCELERATING to +3.9% by 09:33 was headed higher into the close;
    JNJ already +2.1% and rolling over was headed lower. You separate them by the
    momentum-to-close, not by a label.
-   ROOM is the whole game. Prefer a name EARLY in its move with runway LEFT — a fresh reversal
-   reclaiming off its low with the gap still to fill, or a laggard not yet caught up — over a
-   name already NEAR its peak ('near peak, never red' = most of the move banked = buying high =
-   thin room). Avoid both the spent/fading end AND the near-peak end; the edge is in between.
-   For EACH candidate estimate the % room from its CURRENT price to a realistic 16:00 target
-   and confirm it beats the stop; PUT that estimate in the reason. Pick up to 5 with genuine
-   from-here upside, ranked by conviction; don't pad; if the only candidates are near-peak/
-   thin-room, ABSTAIN — never force a low-room buy. Never penalized for abstaining.
-   ENTRY TIMING — buy on LEADING signals, do NOT wait for price to confirm. By the time a move
-   is "confirmed" (Δ10m already big + broken out + already +2-6% from open) the room is GONE —
-   you'd be buying high, late, chasing. That confirmation is a LAGGING signal. The edge is to
-   enter EARLY on signals that PRECEDE the price move — and EARLY INCLUDES WHILE STILL RED. Do
-   NOT require the name to be green: a gap-down at -2% TURNING UP off a -5% low on a leading
-   signal has the MOST room of all (the whole gap to fill PLUS the upside beyond) — waiting for
-   it to cross +0 throws away half the move. What gates the entry is the LEADING SIGNAL + a TURN
-   (reclaiming off the low / Δ10m curling up / accumulation volume), NOT the sign of the current
-   %. The ONE red name to refuse is the falling knife = still making FRESH lows with no turn yet.
-   The leading signals: (1) VOLUME ACCUMULATION — rv>=1.5 while the price is still flat/red = someone is
-   accumulating BEFORE the move (this is the HIGH-VOLUME ACCUMULATION section — the BJRI case:
-   flat -0.2% at 09:32 on rv 2.9x, then ran +5%; buying the volume tell at -0.2% got full room);
-   (2) a FRESH catalyst not yet fully priced; (3) early RELATIVE STRENGTH — green while its
-   whole sector is red = real conviction before the breakout. Price direction alone is ~a coin
-   flip — the leading signal (WHO is accumulating and WHY) is the edge, not the price line, so
-   do not predict from the price chart. Because early entries have MORE false starts, this only
-   works WITH a tight TRAIL: prefer exit_style "trail" ~1-1.5% on these. The math is asymmetric
-   and that's the point — buy 5 early leading-signal setups, ~3 fizzle (trail out ~-1% each) and
-   ~2 run (+5%+), net positive — which BEATS one late "confirmed" +4% name with thin room left.
-   Still ABSTAIN if there is no leading signal at all (no accumulation, no catalyst, no rel-
-   strength) — early entry means early on a REASON, not early on nothing.
+   ROOM is the whole game — but ROOM means PREDICTED upside from HERE, not how little the name has
+   moved. A name up +8% can still have >=2% room ahead (buy it); a name up +1% can be out of room if
+   it's hit its ceiling (skip it). Being "already up" is not the problem — being at the top of what
+   you predict is. So for EACH candidate estimate the % room from its CURRENT price to your predicted
+   16:00 target, confirm it clears ~2% and beats the stop, and PUT that number + the WHY in the
+   reason. Pick up to 5 with genuine predicted from-here upside, ranked by conviction; don't pad; if
+   nothing clears the ~2% bar, ABSTAIN — never force a low-room buy. Never penalized for abstaining.
+   ENTRY = A FORWARD-PROFIT PREDICTION, NOT A REACTION. Do NOT buy because a name "is recovering"
+   or "is moving" — that is reacting to the price line. For EACH candidate, from its CURRENT price,
+   PREDICT where it trades by 16:00 using the full context (how much is LEFT in the catalyst, the
+   sector, the market tape, the momentum trajectory, realistic levels/resistance) and state the
+   ROOM that implies. Buy ONLY names you PREDICT have >=~2% room STILL AHEAD from here, with a
+   concrete reason WHY the context carries it there. The sign of the current move does NOT decide it
+   — it cuts both ways:
+   - A red name that pulled back / reclaimed 4-5% is NOT a buy just because it bounced. Predict from
+     the context whether it continues enough to clear >=1-2% profit FROM HERE; if you can't argue
+     that, skip it — "starting to recover" is not a reason.
+   - A name ALREADY UP several % IS a buy — even if it feels like chasing — IF you predict >=2% MORE
+     room ahead (the move is not topped). Buy BEFORE the top, not after. "Already up" is NOT a veto;
+     "no room predicted" is. You must have BOUGHT before the high you're predicting, not once it prints.
+   Leading signals (unusual volume, a fresh/unspent catalyst, relative strength) are INPUTS to that
+   prediction — they say a move has fuel LEFT — not a checkbox to buy on, and not a coin-flip read of
+   the price chart. Hard refusals, only two: a name you predict <2% room, and a falling knife still
+   making fresh lows with no turn. Put the PREDICTED 16:00 target + the % room + the WHY in each
+   pick's reason. Predictions are wrong often, so prefer a tight TRAIL (~1-1.5%) — small losers, let
+   the correct predictions run.
    The brief opens with YOUR RECENT LIVE TRACK RECORD (your own past picks + how they closed) —
    READ IT and let it condition you: if a pattern/archetype keeps losing, weight it down; if
    you've been forcing low-room buys and bleeding, abstain harder today. It's your only memory.
