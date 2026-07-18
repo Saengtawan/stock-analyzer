@@ -28,29 +28,17 @@ web-searches into a single parallel turn; do the Write + execute together. Think
 (that's cheap); just don't burn turns.
 
 1. Run: $PY -m src.ai_trader.run_v2 brief --date $DATE
-   It prints RAW FACTS and interprets nothing: the field of movers (per-stock numbers), each
-   one's recent news, the macro backdrop, and your own recent realized picks. You do the judging.
-2. LEARN FROM WHAT ACTUALLY CLOSED GREEN, don't guess. Before you decide, STUDY the past EOD
-   winners at entry time — run 'bash scripts/ai_trader_data.sh winners YYYY-MM-DD [minpct]' for a
-   few RECENT past days: it lists the stocks that, held from 09:35 to the close, FINISHED >=minpct%
-   up (fwd_close), and what each looked like at 09:35 (gain-from-open, gap, early relative volume;
-   fwd_max_gain is the intraday high for contrast — a big fwd_max with a small fwd_close is a
-   pump-and-fade you do NOT want). Calibrate from that what a name that CLOSES green actually looks
-   like at 09:32, then match today's field against it. Your own past picks are in the brief — if
-   they lost, the winners table shows what you should have been looking at. Also read-only: schema,
-   sql "SELECT ...", bars SYM DATE, field DATE MINUTE (intraday_bars_5m 86M rows, signal_outcomes,
-   news_events, macro_snapshots, stock_daily_ohlc), + WebSearch. Measure, don't assume; conclusions are yours.
-3. Decide — and RUN A ROOM CHECK on every pick. The target is >2% above YOUR 09:32 ENTRY at the
-   close, so what matters is the room LEFT from the 09:32 price, not how strong the name looks. A
-   name that has already run several % from the open by 09:32 has usually SPENT its room — it is
-   near where it's going and tends to close flat-or-DOWN from your entry (you'd be buying its high;
-   that is exactly what sank the extended picks that closed red). For EACH candidate, state the room
-   from the 09:32 price to a realistic close and WHY it is not already near its ceiling. If it has
-   already run and you can't argue >2% MORE from here, DON'T buy it — the room usually lives in the
-   names that have NOT moved yet at 09:32 (flat, or still red and reclaiming, the whole move ahead).
-   Verify against the winners table: what was past EOD closers' actual gain_at_0935 — extended, or
-   flat/red? Match that, don't fight it. Method and signals are yours; give each pick an archetype
-   in your OWN words + its room estimate. 0 picks (abstain) is valid if nothing has >2% room left.
+   It prints RAW FACTS and interprets nothing: THE WHOLE UNIVERSE of movers (every one, per-stock
+   numbers, no slice or ranking done for you), the macro backdrop, and your own recent realized
+   picks. YOU filter the universe. You do all the judging.
+2. Tools are available — use them however YOU see fit, or not at all. Nothing about how to use them
+   is prescribed. WebSearch a name's catalyst; and read-only data:
+   'bash scripts/ai_trader_data.sh <schema | sql "SELECT ..." | bars SYM DATE | field DATE MINUTE |
+   winners DATE [minpct]>' (intraday_bars_5m, signal_outcomes, news_events, macro_snapshots,
+   stock_daily_ohlc, and past days' actual EOD winners with their entry-time look). Conclusions are yours.
+3. Decide: from the universe, pick the name(s) YOU judge will CLOSE >2% up (bought at 09:32, held
+   to 16:00, no stop). The method, the signals, the reasoning are entirely yours to determine. Give
+   each pick an archetype in your OWN words. 0 picks (abstain) is a valid, unpenalized outcome.
 4. In ONE turn, both: (a) Write plans/decisions/$DATE.json (picks ordered best-first, up to 5)
    with keys: date, regime (one line), picks (each: sym, archetype, reason, exit_style
    [always "hold_eod" — you hold to the close], hard_stop [null], trail_pct [null]),

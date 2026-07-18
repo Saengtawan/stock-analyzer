@@ -148,66 +148,21 @@ def build(date, top=100, db=DB, sim_minute=None):
     if not macro.get("macro_neg_headlines"):
         L.append("  (no negative macro flagged)")
 
-    # Reversal hunting ground = GAPPED DOWN vs prev close (regardless of from-open
-    # direction) — a gap-down recovering to green is exactly the reversal, so we must
-    # key off gap, not from-open, or we'd file NOW-type names under "up" and miss them.
-    def _gap(m):
-        return (m.price / m.prev_close - 1) * 100 if m.prev_close else 0.0
-    gapped_down = [m for m in movers if _gap(m) <= -1.5]
-    down_focus = sorted(gapped_down, key=_gap)[:14]
-    up_focus = sorted([m for m in movers if _gap(m) > -1.5 and m.pct_change > 0],
-                      key=lambda m: -m.pct_change)[:8]
-    # Third slice = the highest relative-volume names not already shown above, so a name that's
-    # extreme on neither gap nor gain but is trading unusual volume isn't invisible. Neutral:
-    # ranked by rv, no threshold, no direction filter — the AI decides what the volume means.
-    shown = {m.sym for m in down_focus + up_focus}
-    vol_reclaim = sorted([m for m in movers if m.sym not in shown and m.rel_vol is not None],
-                         key=lambda m: -(m.rel_vol or 0))[:8]
-    # sim mode: skip the LIVE Alpaca news fetch (it returns today's news = lookahead for a past
-    # date); news then comes only from the DB, filtered to published_at <= the sim cutoff.
-    anews = {} if sim_minute else _alpaca_news([m.sym for m in down_focus + up_focus + vol_reclaim])
-    L += ["", f"THE FIELD — {len(movers)} liquid movers ({len(gapped_down)} gapped down). Below are "
-          f"three RAW slices ({len(down_focus)} by gap, {len(up_focus)} by gain, {len(vol_reclaim)} "
-          "by volume); the full field is far larger — query it if you want more.",
-          "  COLUMN DEFINITIONS (raw facts, no interpretation): now = % vs 09:30 open. "
-          "pk/low = highest/lowest % vs open so far; off = now−pk; up = now−low. Δ10m = % change "
-          "over the last ~10 min (n/a if <11 bars). vwap = % of price vs session VWAP. rv = "
-          "today's volume so far ÷ its time-adjusted 20d average. gap = % vs prev close."]
-    for label, group in (("GAPPED DOWN vs prev close (largest gap first)", down_focus),
-                         ("UP FROM OPEN (largest gain first)", up_focus),
-                         ("HIGHEST RELATIVE VOLUME among names not shown above", vol_reclaim)):
-        L.append(f"\n {label}:")
-        for m in group:
-            gap = f"{(m.price/m.prev_close-1)*100:+.1f}%" if m.prev_close else "?"
-            # momentum trajectory AS OF NOW: peak/low + how far off — a name now far below
-            # its peak has already SPENT its move (the ABT trap); one now far above its low
-            # is freshly reclaiming. Judge buyability from the CURRENT price, not the level.
-            rv = f"{m.rel_vol:.1f}x" if m.rel_vol is not None else "?"
-            sl = f"{m.slope10:+.1f}" if m.slope10 is not None else "n/a"
-            L.append(f"  {m.sym:6} now{m.pct_change:+6.1f}% [pk{m.peak_pct:+.1f} off{m.off_peak:+.1f} | "
-                     f"low{m.trough_pct:+.1f} up{m.off_trough:+.1f}] Δ10m{sl} "
-                     f"vwap{m.vwap_dist:+.1f} rv{rv} ${m.price:.2f} gap{gap} {_sector(p, m.sym)}")
-            an = anews.get(m.sym)
-            if an:
-                for when, h, summ in an:
-                    L.append(f"        [{when}] {h}")
-                    if summ:
-                        L.append(f"           {summ}")
-            else:
-                nw = _news_asof(p, m.sym, cutoff_iso) if sim_minute else _news(p, m.sym, date)
-                L.append(f"        [{nw[0][0]}] {nw[0][2][:74]}" if nw else "        (no news found)")
-
-    # THE FULL FIELD — every mover, compact (no news), so you are NOT limited to the sampled
-    # slices above. The three slices are just a highlighted sample; the name that closes green
-    # may be none of them. Scan the whole list and query news/details on any you want.
-    L += ["", f"FULL FIELD — all {len(movers)} movers (raw, no news). Columns: sym now% gap% "
-          "off(vs peak) up(vs low) Δ10m vwap rv. Sorted by rv (a factual axis — reorder as you like):"]
-    for m in sorted(movers, key=lambda m: -(m.rel_vol or 0)):
+    # THE WHOLE UNIVERSE — every mover, raw, no pre-selection. You filter it yourself; nothing
+    # here is highlighted or ranked for you. Columns are facts; news/history are yours to query.
+    L += ["", f"THE UNIVERSE — all {len(movers)} movers as of now, raw. YOU filter this to find the",
+          "ones that will close >2% up. No slice, no highlight, no ordering is done for you.",
+          "  COLUMNS (facts only): now = % vs 09:30 open. off = now−session-peak; up = now−session-low.",
+          "  gap = % vs prev close. Δ10m = % over last ~10 min (na if <11 bars). vwap = % vs session",
+          "  VWAP. rv = volume so far ÷ time-adjusted 20d avg. Get news via WebSearch or "
+          "sql \"SELECT ... FROM news_events WHERE symbol=...\"; study past days via the winners/field tools.",
+          "  sym / now / gap / off / up / Δ10m / vwap / rv / sector"]
+    for m in sorted(movers, key=lambda m: m.sym):
         g = f"{(m.price/m.prev_close-1)*100:+.0f}" if m.prev_close else "?"
         rv = f"{m.rel_vol:.1f}" if m.rel_vol is not None else "?"
         sl = f"{m.slope10:+.1f}" if m.slope10 is not None else "na"
         L.append(f"  {m.sym:6} {m.pct_change:+5.1f} {g:>4} {m.off_peak:+4.1f} {m.off_trough:+4.1f} "
-                 f"{sl:>5} {m.vwap_dist:+4.1f} {rv:>5}")
+                 f"{sl:>5} {m.vwap_dist:+4.1f} {rv:>5}  {_sector(p, m.sym)}")
     L += ["", "DECIDE -> write plans/decisions/<date>.json (archetype + picks + exit + reason, or abstain)."]
     return "\n".join(L)
 
