@@ -26,9 +26,18 @@ so identify the force and the group FIRST, the ticker LAST):
 2. MEDIUM — the group. From that force, reason WHICH sector / theme money is flowing INTO today
    (and out of). E.g. an oil shock -> energy; a chip-capex catalyst -> semis; a rate scare -> out of
    growth, into staples/defense. Name the group(s) being bid.
-3. SMALL — the names. Only now pick the specific tickers inside that bid group — the cleanest
-   beneficiaries of the force. They may be names that HAVEN'T moved yet; that's fine (raw price
-   would miss them, the context sees them coming).
+3. SMALL — the names, via the LAST-MILE RULE (validated on past theme-days, r≈0.7 on clean shocks):
+   once the group and the single UNDERLYING driving it are fixed, buy the name whose core P&L is
+   mechanically and CONTINUOUSLY tied to THAT specific price (rank by the stock's historical beta to
+   that underlying, take the top). Directness beats leverage: on an oil shock the ladder is
+   commodity-ETF >= refiner / E&P / integrated >> midstream > services/drillers >> tankers/narrative.
+   REJECT the "purest / highest-beta play" whenever its leverage is to a DIFFERENT variable than the
+   one moving (tankers move on freight rates, NOT crude — that's why they faded on 07-13 while E&P/
+   refiners/ETF ran +4-7%). High market-beta is anti-predictive here. Names that haven't moved yet
+   are fine (context sees them coming). LIVE CONFIRM: if a candidate gaps on the theme but FADES in
+   the first ~30 min, it's failing the linkage test in real time — stand down. This rule is strongest
+   for a single clean underlying shock with a mixed candidate set; when every candidate is equally
+   tied to the underlying it adds little (fall back to idiosyncratics/catalyst).
 WebSearch is your MAIN tool — use it freely for the macro read and each candidate's story. You may
 OPTIONALLY, only AFTER forming your top-down thesis, glance at live prices to confirm the group is
 actually being bid / time an entry — never to source picks:
