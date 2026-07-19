@@ -68,6 +68,43 @@ print(f"recorded actual fill: {d} {sym.upper()} @ {px}  ({n} row updated)" if n
       else f"no journal row for {d} {sym.upper()} (did you execute that date?)")
 EOF
   ;;
+  status)  "$PY" - <<'EOF'
+import os, glob, json, subprocess, datetime, zoneinfo
+ET=zoneinfo.ZoneInfo("America/New_York"); now=datetime.datetime.now(ET)
+print("="*64); print(f"  ai_trader — SYSTEM STATUS   |  ET {now:%F %H:%M %a}"); print("="*64)
+# latest decision
+ds=sorted(glob.glob("plans/decisions/*.json"))
+if ds:
+    d=json.load(open(ds[-1])); dt=os.path.basename(ds[-1])[:-5]; pk=d.get("picks") or []
+    print(f"\n▸ LATEST DECISION  ({dt})")
+    print(f"   regime: {(d.get('regime') or '')[:100]}")
+    if pk:
+        for p in pk[:5]: print(f"   PICK {p['sym']:6} [{p.get('archetype','')[:34]}] stop{p.get('hard_stop')}")
+    else: print(f"   ABSTAIN — {(d.get('abstain_reason') or '')[:100]}")
+# forward record + lessons (the AI's brain)
+try:
+    m=open("data/ai_trader_memory.md").read()
+    fr=[l for l in m.splitlines() if l.strip() and l[:4].isdigit()]
+    print(f"\n▸ FORWARD RECORD (last 5 of {len(fr)}):")
+    for l in fr[-5:]: print("   "+l[:110])
+    les=m.split("## Lessons",1)
+    if len(les)>1: print(f"   lessons on file: {les[1].count(chr(10)+'- ')}")
+except Exception as e: print("  (no memory yet)")
+# gate state today
+try:
+    g=subprocess.run(["bash","scripts/ai_trader_data.sh","gates",now.strftime('%F')],capture_output=True,text=True,timeout=30).stdout
+    st=[l for l in g.splitlines() if "gate" in l.lower() or "STATE" in l or "tilt" in l.lower()]
+    print("\n▸ GATE STATE today:"); [print("   "+l.strip()[:100]) for l in st[:3]]
+except Exception: pass
+# alert
+if os.path.exists("logs/ai_trader_ALERT.log") and os.path.getsize("logs/ai_trader_ALERT.log")>0:
+    print("\n▸ ⚠️ ALERTS (last line):"); print("   "+open("logs/ai_trader_ALERT.log").read().strip().splitlines()[-1][:100])
+else: print("\n▸ alerts: none")
+# schedule
+print("\n▸ SCHEDULE (ET): 09:32 morning decide  |  16:30 review->memory   (Mon-Fri)")
+print("="*64)
+EOF
+  ;;
   # --- v1 (classify + rule gate) ---
   brief)   "$PY" -m src.ai_trader.premarket_brief --date "$DATE" ;;
   plan)    "$PY" -m src.ai_trader.premarket_ai --date "$DATE" --backend llm ;;
