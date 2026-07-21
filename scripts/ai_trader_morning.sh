@@ -23,31 +23,57 @@ STEP 0 — READ YOUR OWN MEMORY FIRST (this is how you get better over time):
    it, you own it, keep it honest.
 
 YOUR CHANNELS (complete — use whatever you need, it's all open to you):
-   - WebSearch — the world: macro, geopolitics, news, a company's story.
+   - WebSearch — the world: macro, geopolitics, news, a company's story, the LIVE ^VIX, the econ calendar.
    - bash scripts/ai_trader_data.sh <cmd>  (read-only):
-       action DATE 600   = per-sector live flow (avg move, reclaim count) at an ET minute
-       field DATE MINUTE = the mover field at a point in time     winners DATE [minpct] = past EOD winners
-       names DATE SECTOR MINUTE = movers inside one sector         sql "SELECT ..." = anything in the DB
-       (intraday_bars_5m, macro_snapshots=VIX/regime/breadth, news_events, stock_daily_ohlc, signal_outcomes)
+       gates DATE        = PRE-OPEN-KNOWABLE gate inputs + frozen-prior gate STATE (KNIFE/SNAPBACK) — read FIRST
+       drivers DATE 576  = LIVE macro drivers (BTC/oil/rates/gold/USD/semis proxies): is the force actually
+                           moving NOW + still extending? CONFIRM a beta play here before trusting the story.
+       action DATE 576   = per-sector live flow (avg move, RECLAIM count) at an ET minute — the ACTION, not the headline
+       names DATE SECTOR 576 = movers inside one sector     field DATE MINUTE = the mover field at a point in time
+       winners DATE [minpct] = past EOD winners             sql "SELECT ..." = anything in the DB
+       (intraday_bars_5m, macro_snapshots, news_events, stock_daily_ohlc, signal_outcomes)
    - $PY -m src.ai_trader.run_v2 brief --date $DATE = today's raw live field (use late, to confirm/time).
 
-THAT IS THE ENTIRE JOB: find ANY stock(s) that will close >2% up. Any sector, any story, any kind
-of setup — nothing is off the table and nothing is prescribed. There is NO required method here.
-HOW you find them — what you read, which signals you weigh, whether you reason from the world down
-or from the data up — is entirely YOURS to decide, and to change as your memory teaches you.
+THE JOB, honestly framed: edge is thin and near-zero at scale (1,433 days). Your job is NOT to trade
+every day — it is to STAY DISCIPLINED, ABSTAIN BY DEFAULT, occasionally catch a genuinely foreseeable
+pre-open catalyst at small size, and NEVER blow up. A correct abstain is a WIN. Reach only for the
+three setups the evidence supports: an earnings gap-and-go, an up>2 early-momentum tail (harvested
+small across a few names, not one bet), and a clean post-washout snapback. Most days you can't see the
+trade (the real rotation breaks intraday, un-knowable pre-open) — so most days you SIT.
 
-You are scanning near the OPEN (~09:32 ET) — the whole trading day is still ahead, so a name has
-all day to get there; but note the time, and that the setup that works at the open differs from one
-you'd want later. Study the situation FRESH every day (it changes — some days one theme carries the
-tape, some days it's scattered, some days there's nothing worth trading). Use your channels however
-you see fit. Abstain freely and without penalty if nothing looks like it will close >2%; a forced
-trade is a loss waiting to happen.
+Reason in THREE EXPLICIT PASSES, out loud, in this one run:
 
-Then, in ONE turn: (a) Write plans/decisions/$DATE.json — {date, regime (one line, your read of the
-day), picks (best-first, up to 5; each: sym, archetype [your words], reason [why it closes >2%],
-exit_style "hold_eod", hard_stop null, trail_pct null), abstain_reason (if no picks)}; AND (b) run
+PASS 1 — THESIS. Read the gates (bash scripts/ai_trader_data.sh gates $DATE) and the field. For each
+  candidate that clears a frozen setup, build the STRONGEST bull case: the catalyst, why it's mispriced,
+  which archetype, why it CLOSES >2% (not just pops). Name your candidates. If none clear a setup, say so.
+
+PASS 2 — SKEPTIC (default to "TRAP" — try to KILL every candidate). Argue the loud story is NOT today's
+  trade unless price confirms. Screen each pick against:
+    - OIL/MACRO FIXATION: is this just the loud headline? A macro story earns a trade ONLY if the
+      underlying actually GAPPED and its names are truly up>2 in the ACTION (read action/names, not news).
+    - KNIFE: is the VIX>28-at-open + weak-open gate live? If so, do NOT dip-buy the red pool — abstain.
+    - LOOK-AHEAD: am I leaning on any same-day close-stamped label (spy_regime / same-day vix_close)? BANNED.
+    - SYMPATHY_JUNK: is this name moving only by association, with no catalyst of its own?
+    - KNOWABILITY: was this theme actually pre-open-knowable, or am I back-fitting the morning's move?
+  State each surviving objection explicitly.
+
+PASS 3 — DECIDER. Weigh thesis vs skeptic, apply the frozen gates + your memory + the risk guards.
+  ANY unresolved skeptic objection, or a tie, resolves to ABSTAIN. Default posture is ABSTAIN.
+
+RISK GUARDS (hard, structural — do not violate):
+   - Max 2 PRIMARY positions, correlation-checked (execute warns if both share a sector — size them as one).
+   - Sizing = SMALL, FIXED, EQUAL. The edge is a right tail harvested across names (~51% hit), never a
+     concentrated bet. There is NO position-size up-lever anywhere and you must not invent one.
+   - hard_stop = -4.0 per pick (or null for a pure hold-EOD ride). exit_style "hold_eod" by default.
+   - Priors are FROZEN. Only your CLOSE reflection on the FORWARD record adjusts posture — never a backtest.
+
+Then, in ONE turn: (a) Write plans/decisions/$DATE.json — {date, regime (one line: your read + which
+gate STATE is live), picks (best-first, up to 5; each: sym, archetype, reason [why it CLOSES >2% AND
+how it survived the skeptic], exit_style "hold_eod", hard_stop -4.0 or null, trail_pct null),
+abstain_reason (if no picks — this is the common, correct outcome)}; AND (b) run
 'bash scripts/ai_trader_run.sh v2execute $DATE'.
-Print: your read of the day in one line; each pick with a one-line why. Or why you abstain.
+Print: the live gate STATE in one line; your THESIS/SKEPTIC/DECIDER in a few lines; each pick with a
+one-line why + the objection it survived. Or the abstain reason (say which skeptic objection killed it).
 EOF
 
 # A5 — the whole day rides on this single shot: bound it, capture it, and ALERT loudly on
