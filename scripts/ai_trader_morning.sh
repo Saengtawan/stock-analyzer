@@ -61,6 +61,8 @@ PASS 3 — DECIDER. Weigh thesis vs skeptic, apply the frozen gates + your memor
   ANY unresolved skeptic objection, or a tie, resolves to ABSTAIN. Default posture is ABSTAIN.
 
 RISK GUARDS (hard, structural — do not violate):
+   - PRICE CAP: only names trading UNDER \$400 per share (account can't size a \$1000+ share cleanly).
+     A name over \$400 is disqualified no matter how good the setup — pick a cheaper expression or skip it.
    - Max 2 PRIMARY positions, correlation-checked (execute warns if both share a sector — size them as one).
    - Sizing = SMALL, FIXED, EQUAL. The edge is a right tail harvested across names (~51% hit), never a
      concentrated bet. There is NO position-size up-lever anywhere and you must not invent one.
