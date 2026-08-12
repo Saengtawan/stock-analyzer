@@ -172,7 +172,7 @@ def _verdict(v, cur, tt, sector, zone, p, sdd, hwm, reason):
 
 
 # ---- bar fetch (live Alpaca + DB fallback) — mirrors inference.predict_exit ----
-def _fetch_bars(symbol, sec_etfs, db_path, date):
+def _fetch_bars(symbol, sec_etfs, db_path, date, timeframe="5Min"):
     try:
         from zoneinfo import ZoneInfo as _ZI
         today_et = _dt.datetime.now(_ZI("America/New_York")).strftime("%Y-%m-%d")
@@ -206,7 +206,7 @@ def _fetch_bars(symbol, sec_etfs, db_path, date):
                         k, v = ln.split("=", 1)
                         _os.environ.setdefault(k.strip(), v.strip().strip('"\''))
             from src.scan.alpaca_bars import fetch_today_bars
-            live = fetch_today_bars([symbol] + list(sec_etfs))
+            live = fetch_today_bars([symbol] + list(sec_etfs), timeframe=timeframe)
             for b in live.get(symbol, []):
                 em = _emin(b["t"])
                 if em is not None:

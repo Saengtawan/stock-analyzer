@@ -296,3 +296,12 @@ configs/h12a_cell_ratings_staging_*
 configs/h12a_cell_ratings_pre_swap_*
 cache/bt_features/features_5yr_staging_*
 cache/bt_features/phase0_labels_staging_*
+
+# orb_trader — forward memory + daily plans (like data/)
+orb_trader/memory.md
+orb_trader/plans/*.json
+
+# resonance system
+resonance/memory.md
+resonance/cache/*
+resonance/plans/*.json

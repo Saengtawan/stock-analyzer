@@ -23,8 +23,9 @@ from typing import Dict, List
 ET = pytz.timezone('US/Eastern')
 
 
-def fetch_today_bars(symbols: List[str]) -> Dict[str, List[dict]]:
-    """Fetch today's 5-min bars for all symbols.
+def fetch_today_bars(symbols: List[str], timeframe: str = '5Min') -> Dict[str, List[dict]]:
+    """Fetch today's intraday bars for all symbols (default 5Min; pass '1Min' for finer resolution
+    — the riser capture-peak exit uses 1Min to lock closer to the intraday peak).
 
     Returns dict of {symbol: [bars_as_dict]} ordered by timestamp.
     Each bar has: t, o, h, l, c, v, n, vw
@@ -44,7 +45,7 @@ def fetch_today_bars(symbols: List[str]) -> Dict[str, List[dict]]:
         batch = symbols[i:i+100]
         params = {
             'symbols': ','.join(batch),
-            'timeframe': '5Min',
+            'timeframe': timeframe,
             'start': start,
             'end': end,
             'limit': 10000,
