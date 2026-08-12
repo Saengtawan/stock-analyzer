@@ -51,6 +51,43 @@ lookahead. Disable: `RISER_EXIT_DYNAMIC=0`. Verdicts: 🟢 TRAIL_EXIT / ✅ HOLD
 for each riser pick (logs to `data/exit_loops/SYM_DATE_riser.log`) → polls the riser exit every
 5 min, same as scan_track does for H12-A. Disable: `RISER_TRACK=0`.
 
+**⭐ RISER ENTRY: gain≥2 dud-filter DEPLOYED 2026-06-16.** `riser_capture.sh` drops low-gain
+"duds" via env `RISER_MIN_GAIN=2` (default 0 = legacy gain>0). Validated on riser holdout
+2025-05+ (gauntlet PASS: fold-split foldA+0.94/foldB+1.55, remove-top5, per-quarter 4/4;
+WR 54→57%, avg +0.43→+0.66%, trades 71% of days; beats band 2-4.5 — low-cut robust, high-cut
+was fragile). Mechanism: a "top gainer" up <2% isn't a real mover. BACKTEST-validated only —
+track forward before sizing. Rollback INSTANT: `RISER_MIN_GAIN=0` in .env. NOTE: riser_capture
+runs under CRON (no .env) so the script now self-loads RISER_*/H12A_* flags from .env at start.
+
+**⭐⭐ RISER ENTRY UPGRADE: BAND + GAP-CAP + hold-EOD DEPLOYED 2026-06-16.** Two orthogonal
+root-cause filters on top of gain≥2, all gauntlet-locked (fold-split / remove-top10 / cap-plateau
+/ per-quarter). `.env` flags (riser_capture self-loads them under cron):
+- `RISER_MAX_GAIN=3.5` — upper gain cap → drop **froth** (extended movers fade). Plateau 3.0-3.75
+  (≥4.0 foldA flips negative). Mechanism = over-extension.
+- `RISER_GAP_CAP` — ⚠️ **DISABLED 2026-06-16 (=off)** — TRAIN/SERVE SKEW. Backtest gap used trainer
+  09:30-bar open (feature_builder:359, cache source); live uses Alpaca IEX `dailyBar.o`
+  (ml_filter:544, single thin IEX open print). Same formula `(open/prev_close−1)×100` but DIFFERENT
+  open source → gap differs abs-mean **0.58** per stock (VTR 0.02 vs 3.05!) = bigger than the 0.5
+  threshold. gap is a small signal (~0.5%) so this noise makes the cut ~random live → does NOT
+  transfer. Same family as the Yahoo-open bug. To revive: recompute backtest gap on IEX-faithful
+  source (build_snap_from_1min.py = Alpaca 1-min = IEX) + re-derive threshold, then re-validate.
+  Backtest had said: plateau 0.2-0.8, layered with cap (gap-alone fails foldA −0.84) — but that
+  was on trainer-gap, not live-faithful gap. gain-band is robust to the same open-noise (gain 2-3.5
+  is a large signal vs 0.58 noise; band is 1.5 wide).
+- `RISER_EXIT_DYNAMIC=0` — band picks are calm → the VIX/own_range trail clips their U-recovery;
+  hold-EOD beats trail on band (holdout ret/DD 5.86 vs 3.07). Pairs with the cap.
+Locked backtest (2yr, hold-EOD): avg/pick **+0.01→+0.46%**, WR 51→53%, worst **−16.5→−11.6%**,
+every sub-period (foldA/foldB/holdout) **≥+0.42**, ret/DD 3.5, remove-top10 +0.08, per-Q 6/9.
+Trades ~49% of days (abstains when no in-band low-gap candidate). Selection still rank-by-gain
+(knobs: `RISER_GAP_CAP=0.3` aggressive / range_exp-rank = higher holdout but more regime-dependent).
+REJECTED this session: win_p filter/rank (fails fold-split), 15m_green_pct path-steadiness (median
+saturated=1.0, fails fold), vol_ratio 3rd-cause (thins N to 75, remove-top10 flips neg).
+Dump now carries `gap`+`range_exp` per candidate (ml_filter.py H12A_DUMP). BACKTEST + tail-mined
+— gauntlet lowers but doesn't zero false-positive risk → **track forward** before sizing up.
+Rollback INSTANT: remove `RISER_MAX_GAIN`/`RISER_GAP_CAP` (+ set `RISER_EXIT_DYNAMIC=1`) in .env.
+Backups: `.env.bak_pre_gapcap_*`, `scripts/riser_capture.sh.bak_pre_gapcap_*`,
+`src/scan/strategies/ml_filter.py.bak_pre_gapcap_*`.
+
 The v17c reference below is retained for the rollback path.
 
 ## Exit ML v17c — Manual exit workflow (added 2026-06-04)

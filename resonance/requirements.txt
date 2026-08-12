@@ -1,0 +1,8 @@
+# resonance — extra deps on top of the `cc` pyenv (which already has:
+#   pandas 2.1.3, numpy 1.25.2, scipy, scikit-learn, ta-lib 0.6.7, statsmodels 0.14.6,
+#   alpaca 0.43.2, lightgbm, yfinance, requests)
+#
+# Optional — only if a GARCH volatility *forecast* is wanted beyond realized-vol percentiles:
+# arch>=6.3
+#
+# (Nothing else needs installing; the feature layer is built on the stack already in cc.)
