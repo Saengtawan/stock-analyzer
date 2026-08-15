@@ -189,6 +189,15 @@ def main():
                 text("SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC LIMIT :p0"),
                 {"p0": args.top}
             ).fetchall()]
+            # + resonance extras (institutional/insider ownership context; extras were 8/11 of the
+            #   first live picks). yfinance is free.
+            try:
+                _seen = set(symbols)
+                symbols += [r[0] for r in session.execute(
+                    text("SELECT symbol FROM resonance_universe WHERE status='active' ORDER BY avg_dollar_vol DESC")
+                ).fetchall() if r[0] not in _seen]
+            except Exception:
+                pass
 
             if not args.force:
                 fresh = set(r[0] for r in session.execute(text("""
