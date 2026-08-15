@@ -92,6 +92,15 @@ def main():
             symbols = [r[0] for r in session.execute(text(
                 "SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC LIMIT :n"
             ), {'n': args.top}).fetchall()]
+            # + resonance extras (short squeeze fuel is a WHO signal the AI can't get from WebSearch;
+            #   extras were 8/11 of the first live picks). yfinance is free, no quota.
+            try:
+                _seen = set(symbols)
+                symbols += [r[0] for r in session.execute(text(
+                    "SELECT symbol FROM resonance_universe WHERE status='active' ORDER BY avg_dollar_vol DESC"
+                )).fetchall() if r[0] not in _seen]
+            except Exception:
+                pass
 
         existing = set(r[0] for r in session.execute(text(
             "SELECT symbol FROM short_interest WHERE date = :d"

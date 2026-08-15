@@ -47,9 +47,19 @@ UPGRADE_LOOKBACK_DAYS = 90  # store last 90 days of upgrades/downgrades
 def get_target_symbols(session: object, today: str, full: bool) -> list[str]:
     """Get symbols to collect for."""
     if full:
-        return [r[0] for r in session.execute(
+        syms = [r[0] for r in session.execute(
             text("SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC LIMIT 500")
         ).fetchall()]
+        # + resonance extras (upgrade/downgrade context; extras were 8/11 of the first live picks —
+        #   e.g. GLOB's Wedbush downgrade). yfinance is free, no quota.
+        try:
+            _seen = set(syms)
+            syms += [r[0] for r in session.execute(
+                text("SELECT symbol FROM resonance_universe WHERE status='active' ORDER BY avg_dollar_vol DESC")
+            ).fetchall() if r[0] not in _seen]
+        except Exception:
+            pass
+        return syms
 
     syms = set()
     # Today's signal_outcomes

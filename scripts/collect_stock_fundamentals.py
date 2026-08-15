@@ -100,6 +100,15 @@ def main():
             symbols = [r[0] for r in session.execute(
                 text("SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC")
             ).fetchall()]
+            # + resonance extras (float/mcap/small_float = the "easy to move" WHO context; extras
+            #   were 8/11 of the first live picks). yfinance is free, no quota.
+            try:
+                _seen = set(symbols)
+                symbols += [r[0] for r in session.execute(
+                    text("SELECT symbol FROM resonance_universe WHERE status='active' ORDER BY avg_dollar_vol DESC")
+                ).fetchall() if r[0] not in _seen]
+            except Exception:
+                pass
 
         if not args.force:
             # Skip symbols refreshed in last 7 days
