@@ -150,7 +150,6 @@ DIGEST_COLS = [
     "coil_recent_daily_rets", "coil_ret_prev1d", "coil_ret_prev2d", "coil_ret_prev3d",
     # prime (release trigger)
     "prime_gap_pct", "prime_gap_suspect", "prime_gap_pct_raw", "prime_pm_vol_vs_avg", "prime_pm_range_pct",
-    "prime_pm_recovery_pct",
     "prime_news_n", "prime_news_max_impact", "prime_news_net_sentiment",
     "prime_short_pct_float", "prime_short_change_pct", "prime_short_ratio",
     "prime_put_call_ratio", "prime_opt_unusual_call", "prime_opt_unusual_put",

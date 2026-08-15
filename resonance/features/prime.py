@@ -113,15 +113,6 @@ def compute_prime(pm=None, cat=None, pos=None, fund=None):
     out["pm_vol_vs_avg"] = _num(pm.get("pm_vol_vs_avg"))
     out["pm_range_pct"] = _num(pm.get("pm_range_pct"))
     out["pm_n_bars"] = pm.get("n_bars") or 0
-    # premarket RECOVERY: how far the last premarket print has bounced off the premarket LOW,
-    # as a % of that low. For a violently flushed down-gapper this measures how much of the
-    # oversold snap has ALREADY happened before 09:30 — a big pm bounce means the overshoot
-    # unwound in the premarket book and little is left for the RTH window (GLOB 2026-08-14 bounced
-    # +11.3% off its pm low and then faded; the winners MNDY/STUB/LUNR bounced <5% and unwound
-    # after the open). Raw number, no threshold — the AI reads it against the gap and the catalyst.
-    pm_lo = pm.get("pm_low"); pm_last = pm.get("pm_last")
-    out["pm_recovery_pct"] = (_num((pm_last / pm_lo - 1) * 100)
-                              if (pm_lo and pm_last and pm_lo > 0) else None)
 
     # ---- news catalyst --------------------------------------------------------------------
     news = cat.get("news") or {}
