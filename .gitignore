@@ -311,3 +311,9 @@ swing/pool/*.json
 swing/plans/*
 swing/__pycache__/
 swing/**/__pycache__/
+
+# all model artifact dirs (huge/regenerable; rclone GDrive, not git)
+backtests/models_*/
+*.bak_*
+backups/
+plans/

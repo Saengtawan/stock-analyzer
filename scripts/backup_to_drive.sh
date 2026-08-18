@@ -24,7 +24,7 @@ rclone copy backtests/models_exit_v17c "$DEST/models/models_exit_v17c" -P --tran
 
 # 2. small DBs (journals + state) — daily-changing, small
 echo "[2/4] small DBs..."
-for db in scan_journal.db exit_ml_journal.db stock_analyzer.db resonance.db; do
+for db in scan_journal.db exit_ml_journal.db stock_analyzer.db resonance.db swing.db; do
   [[ -f "data/$db" ]] && rclone copyto "data/$db" "$DEST/data/$db" -P
 done
 
