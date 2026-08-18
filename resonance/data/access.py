@@ -448,9 +448,13 @@ def tape(date, db=DB):
        breadth: {date, pct_above_20d, pct_above_50d, ad_ratio, new_52w_highs, new_52w_lows}}
     """
     m = _row(
+        # AND vix_close IS NOT NULL: skip the weekend/holiday rows that the btc-only weekend cron
+        # inserts (btc populated, every market field null). Without this, a Monday scan (date < Mon
+        # -> the Sunday row) reads null VIX/SPY/regime/yields — the AI went blind to the macro regime
+        # every Monday. This grabs the last row with a real macro read (last trading day) instead.
         """SELECT date, vix_close, vix3m_close, skew_close, vvix_close, yield_10y, yield_spread,
                   dxy_close, btc_close, gold_close, crude_close, hyg_close, regime_label
-           FROM macro_snapshots WHERE date < ? ORDER BY date DESC LIMIT 1""",
+           FROM macro_snapshots WHERE date < ? AND vix_close IS NOT NULL ORDER BY date DESC LIMIT 1""",
         (date,), db,
     )
     macro = None

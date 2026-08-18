@@ -305,3 +305,9 @@ orb_trader/plans/*.json
 resonance/memory.md
 resonance/cache/*
 resonance/plans/*.json
+
+# swing — generated pool/plans (like data/)
+swing/pool/*.json
+swing/plans/*
+swing/__pycache__/
+swing/**/__pycache__/
