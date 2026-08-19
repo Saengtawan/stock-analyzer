@@ -86,6 +86,22 @@ Confirm the *catalyst and its direction* on the names you want to check. Your bu
 - `... positioning <SYM> <DATE>` — is there real participation/squeeze fuel behind the move?
 - `... peers <SYM>` / `... cluster <SYM> <DATE>` — sympathy / is the whole group moving (FIT)?
 - `... rotation <DATE>` and `... tape <DATE>` — regime + which sectors led into today (FIT + risk).
+- **A big gap with NO own-news is a READTHROUGH until proven unnameable — search the PEER/SECTOR
+  before you rule "no catalyst."** When `catalyst <SYM>` returns nothing (news_n=0) but the tape is
+  moving hard, the driver is very often a *competitor's or the modality's* hard catalyst reading
+  through, not the absence of one. Do NOT stop at name-scoped search and skip it as "unnameable" —
+  that is judging a stock as bad because YOUR search was too narrow. Widen it: WebSearch the sector /
+  therapeutic area / product category / closest competitor for a hard event **today** (a peer's Phase
+  3 win, an FDA action, a sector-wide print, a supplier/customer catalyst), and check the peers/cluster
+  tape for whether the *right* analogue is moving (the true modality peer, not just any cluster name —
+  a fellow mRNA-cancer-vaccine name reading a rival's positive trial, not an unrelated bispecific).
+  A readthrough traced to a real, nameable peer catalyst pointing UP is a **nameable sympathy
+  catalyst**, tradeable like any other — it is NOT the least-durable "unnameable gap" class. Only
+  after a genuinely wide search still turns up nothing does "unnameable → lean skip" apply; even then,
+  say you searched the sector and found nothing, so the skip is a search-exhaustion call, not a verdict
+  on the name. (Learned 08-19: BNTX +18% on no own-news was Moderna/Merck's Phase 3 melanoma win
+  reading through the whole mRNA-cancer-vaccine modality; a name-scoped search missed it and skipped
+  the biggest mover.)
 - **WebSearch** — search freely on your finalists; the DB gives you headlines + a sentiment score,
   but the fact that decides direction usually lives in the *article body*, not the headline (a
   headline "misses Q2" can be an oversold bounce if the backlog/forward is intact, while a "beats Q2"
