@@ -3,7 +3,8 @@
 # entry + exit (via brain/decide.md). Run it after the resonance plan is written (~09:06 ET),
 # ideally by ~09:20 ET so the entry limit is ready before the 09:30 open.
 # Separate: own journal data/exec_ai.db, own plans. Read-only on trade_history.db. Does not affect resonance.
-# Learn pass:  bash exec_ai/run/exec.sh <DATE> learn
+# Revise pass (~10:15 ET, drift-vs-fade):  bash exec_ai/run/exec.sh <DATE> revise
+# Learn pass  (after close):               bash exec_ai/run/exec.sh <DATE> learn
 set -uo pipefail
 export HOME=/home/saengtawan
 export PATH="$HOME/.pyenv/versions/cc/bin:$HOME/.local/bin:$PATH"
@@ -16,6 +17,11 @@ mkdir -p exec_ai/plans
 if [ "$MODE" = "learn" ]; then
   PROMPT="Today (ET) is $DATE. You are the exec_ai brain doing the AFTER-CLOSE LEARN pass.
 $(cat exec_ai/brain/learn.md)"
+elif [ "$MODE" = "revise" ]; then
+  PLAN="resonance/plans/$DATE.plan.json"
+  if [ ! -f "$PLAN" ]; then echo "[exec_ai] no resonance plan for $DATE — nothing to revise"; exit 0; fi
+  PROMPT="Today (ET) is $DATE and it is ~10:15 ET. You are the exec_ai brain doing the SECOND (REVISE) pass.
+$(sed "s/<DATE>/$DATE/g" exec_ai/brain/revise.md)"
 else
   PLAN="resonance/plans/$DATE.plan.json"
   if [ ! -f "$PLAN" ]; then echo "[exec_ai] no resonance plan for $DATE — nothing to execute"; exit 0; fi

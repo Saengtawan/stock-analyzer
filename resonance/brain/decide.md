@@ -86,8 +86,15 @@ Confirm the *catalyst and its direction* on the names you want to check. Your bu
 - `... positioning <SYM> <DATE>` — is there real participation/squeeze fuel behind the move?
 - `... peers <SYM>` / `... cluster <SYM> <DATE>` — sympathy / is the whole group moving (FIT)?
 - `... rotation <DATE>` and `... tape <DATE>` — regime + which sectors led into today (FIT + risk).
-- **WebSearch** — use sparingly on a finalist when the DB news is thin or you need the *why now*
-  (a specific overnight headline, an event today). Confirm the catalyst is real and points UP.
+- **WebSearch** — search freely on your finalists; the DB gives you headlines + a sentiment score,
+  but the fact that decides direction usually lives in the *article body*, not the headline (a
+  headline "misses Q2" can be an oversold bounce if the backlog/forward is intact, while a "beats Q2"
+  can keep falling if guidance was CUT — the DB score can't tell these apart). For every finalist,
+  pull the actual *why now*: read past the headline for whether the forward guidance was RAISED/held
+  vs CUT, whether analysts are re-basing price targets up or down today, and confirm the catalyst is
+  real and points UP. Budget is TIME (finish before the open), not searches — spend it. Do several
+  searches per finalist if that is what it takes to know the real reason; a fast, shallow read of a
+  catalyst is worse than a slower, correct one.
 
 ## Step 4 — decide
 Predict which **≤3** names release UP and **CLOSE green >2%**. For each finalist hold yourself to:
