@@ -58,14 +58,26 @@ Cross-check with catalyst: if the morning class was REMODEL (hard current-number
 dip as noise unless the tape clearly rolls over; if ATTENTION (story/guidance-cut/award) treat the
 early pop as the whole edge and be quick to bank it.
 
+## Step 2b — NOW set the stop (this is the first and only time a stop is decided)
+No stop was set pre-open, by design — the opening flush is noise that would have hit any pre-open level.
+By 10:15 that flush has resolved and the real structural floor is visible, so set the stop HERE:
+- The stop is a **structural invalidation level, not a noise level** — it goes *below the completed opening
+  flush low* (the deepest wick 09:30-10:15), not a tight % off entry. If the flush already round-tripped
+  (name reclaimed its open), that flush low IS the line: a break back below it says the reclaim failed.
+- Respect the name's own range: if its risk note says 8% days are ordinary, the stop must sit outside that
+  noise. A stop tighter than the name's ordinary daily range is a noise stop — do not set one.
+- For a clean DRIFT/REMODEL you may run with **no hard resting stop** and only a mental structural line
+  (the flush low), exiting on a *close* back below it — a remodel held to EOD should not be stopped on an
+  intraday wick. State which you chose and why.
+
 ## Step 3 — write the revised card (ACTIONABLE FIRST)
 ```
 🔁 <SYM> 10:15 REVISE — <DRIFT / FADE / AMBIGUOUS>
-   path:  open <o> · peak +<p>% @ <t> · now +<c>% · gaveback <g>%
+   path:  open <o> · peak +<p>% @ <t> · flush low <f>% · now +<c>% · gaveback <g>%
+   🛑 STOP (set now):  <px, below the flush low>   (or: NONE — hold, exit on close < <level>)
    VERDICT:  <ONE of:>
      • HOLD to EOD                       (drifting — remodel carrying, don't cap)
      • TAKE PROFIT NOW at market ≈ <px>  (faded — bank the pop before the red close)
-     • TIGHTEN STOP to <px>              (ambiguous — protect, let it prove itself)
      • TRAIL <m>% from peak              (runner giving back)
    why: <one line tying path + class>
 ```

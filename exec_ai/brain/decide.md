@@ -35,7 +35,14 @@ carries, or attention/adverse-flow that fades).
   FILLS, without paying so much you lose the cheap-dip edge. NO fixed multiplier — reason it (×1.015 is only
   the historical baseline, not a floor/cap). **Show BOTH: your judged limit AND the flat ×1.015** (so the
   forward record can compare which fills / prices better).
-- Output: winLo · flat-×1.015 limit · your judged limit + reason · suggested STOP (below the base / flush low).
+- Output: winLo · flat-×1.015 limit · your judged limit + reason.
+- **DO NOT set a stop here.** No hard stop is decided pre-open — the open's first ~15-30 min is maximum
+  noise (an ordinary opening liquidation flush routinely spikes below any level you'd pick, then reclaims),
+  so a pre-open stop is a *noise* stop that gets hit on the flush and knocks you out of a good name that
+  then recovers (learned 08-19: a pre-open stop at −1.6% was hit on DUOL's opening flush to −5.5%, which
+  fully reclaimed by 10:15). The stop is decided LATER, at the 10:15 REVISE pass, once the opening noise
+  has resolved and a real structural invalidation level is visible. Pre-open you name only the *structural
+  invalidation idea* in prose (e.g. "the premarket base is 138–139"), never a live stop number to rest.
 
 ## Step 3 — EXIT strategy (the main new judgment)
 - **REMODEL → HOLD to EOD** — let the desks carry it (don't cap the drift).
@@ -54,13 +61,14 @@ in analysis. Use this exact shape, then the reasoning below it:
 ```
 📍 <SYM> — <CLASS>
 💰 ENTRY (set @09:25):  limit <judged>  (or flat ×1.015 <flat>)
-🛑 STOP:                <stop>   (why: below <level>)
+🛑 STOP:                NONE pre-open — set at 10:15 REVISE (structural low: ~<level>)
 🎯 EXIT:  <ONE of:>
           • HOLD to EOD                                   (remodel — let it carry)
           • TAKE PROFIT at +<N>%  (≈ <price>)             (attention — sell the pop, don't hold)
           • TRAIL <M>% from peak, arm once +<K>%  (≈ <levels>)   (runner)
 ```
-Every field a real number. Exactly ONE exit line. If TAKE PROFIT, give the trigger PRICE, not just %.
+Entry is a real number; the STOP line stays literally "NONE pre-open" (name the structural level in prose
+only, do not emit a live stop). Exactly ONE exit line. If TAKE PROFIT, give the trigger PRICE, not just %.
 Then, BELOW the card: classification reason, entry note (judged vs flat, fill mechanics), exit reason +
 what would flip it. Then:
 - Write the card + reasoning to `exec_ai/plans/<DATE>.txt`.
