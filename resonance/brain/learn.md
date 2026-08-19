@@ -27,6 +27,18 @@ record. One AI call, token-lean. This is your only continuity — do not flatter
 Be even-handed: don't credit luck as skill (right for the wrong reason is not a win of process),
 and don't damn a sound thesis that lost to the coin flip. Judge the *reasoning*, then the outcome.
 
+**WebSearch — use it to attribute the outcome to a FACT, not to a story.** After the close you can
+confirm *why* the pick actually moved: was there a real guidance CUT / analyst downgrade / contract /
+sector-wide move / an intraday headline you didn't have at 09:00? Read past the headline (the DB
+sentiment score can't tell a "beat but cut guidance" from a "miss but forward intact"). Use it to
+check whether your morning thesis was right *for the reason you gave* — e.g. "I called KLAR a spring;
+web confirms it was a guidance cut and analysts re-based targets down all session → my catalyst read
+was the error, not the coil." **Guardrail against hindsight:** post-close articles are full of tidy
+"here's why it moved" narratives written to fit the tape — adopt the verifiable FACTS (a cut was
+announced, a downgrade was published, a peer group all fell), never a pundit's just-so causal story.
+A lesson must trace to a fact you could have weighed pre-open, not to a rationalization that only
+exists because you already know the close.
+
 ## Step 3 — append ONE line to the FORWARD RECORD
 Append (never rewrite prior lines) to the `## FORWARD RECORD` section of `resonance/memory.md`,
 one line for the day, in the file's format:

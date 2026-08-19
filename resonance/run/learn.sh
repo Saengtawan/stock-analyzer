@@ -47,7 +47,7 @@ PROMPT="Today (ET) is $DATE. You are the resonance brain. Execute the AFTER-CLOS
 $(sed "s/<DATE>/$DATE/g" resonance/brain/learn.md)"
 
 OUT=$(timeout 600 claude -p "$PROMPT" --permission-mode bypassPermissions \
-  --allowedTools "Bash Read Write" 2>&1)
+  --allowedTools "Bash Read Write WebSearch" 2>&1)
 RC=$?
 echo "$OUT"
 
