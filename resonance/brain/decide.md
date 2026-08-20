@@ -102,6 +102,20 @@ Confirm the *catalyst and its direction* on the names you want to check. Your bu
   on the name. (Learned 08-19: BNTX +18% on no own-news was Moderna/Merck's Phase 3 melanoma win
   reading through the whole mRNA-cancer-vaccine modality; a name-scoped search missed it and skipped
   the biggest mover.)
+- **Check for a PENDING BINARY EVENT before you treat a name as a coil-release.** Some names carry a
+  *scheduled or imminent* one-shot catalyst — a court ruling, an FDA/PDUFA decision, a regulatory or
+  agency vote, a hearing, a trial-data readout — whose whole move is contingent on an outcome that
+  lands on the event's clock, not the open's. When a finalist's story is legal/regulatory/clinical (a
+  restart fight, a pending approval, a litigation name), WebSearch "<name> ruling / FDA / PDUFA /
+  decision date / hearing" and check whether the event is expected today or this week. If the edge
+  depends on such an event: it is an **event-driven trade, not a coil-release** — a pre-open
+  decide-and-hold-from-the-open bet cannot control an outcome (and often a timing) that resolves
+  intraday, so lean ABSTAIN unless the catalyst is *already public pre-open and points UP*. Two payoffs:
+  (1) you do not misclassify an event name as a quiet spring, and (2) when such a name runs on an
+  intraday event you had no way to reach, you record it as an out-of-reach event, NOT a process miss.
+  (Learned 08-19: SOC +17% went vertical at 14:02 ET on a federal court ruling modifying the Santa Ynez
+  pipeline consent decree — a known pending legal saga, unreachable by a 09:00 decision; it is
+  event-driven, not the coin-flip I first called it.)
 - **WebSearch** — search freely on your finalists; the DB gives you headlines + a sentiment score,
   but the fact that decides direction usually lives in the *article body*, not the headline (a
   headline "misses Q2" can be an oversold bounce if the backlog/forward is intact, while a "beats Q2"
