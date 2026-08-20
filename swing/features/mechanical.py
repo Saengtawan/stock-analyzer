@@ -193,7 +193,22 @@ def compute(bars, min_bars=150):
 
     # loaded spring: deep prior drawdown from the 252d high (stored energy from a FALL) — a beaten-down
     # coil, the opposite of a leader. resonance admits both; emitted raw, the AI decides if it fits.
-    hi_252 = float(h[-252:].max()) if len(h) >= 60 else float(h.max())
+    # Split-adjustment artifact guard (same fix as resonance coil): an unadjusted split leaves a fake
+    # pre-split high in the window and fakes a -90%+ drawdown. Rebase the high series across any
+    # split-like one-day close step (<0.55 or >1.80) before taking the 252d high.
+    _SPLIT_LO, _SPLIT_HI = 0.55, 1.80
+    h_adj = h.astype(float)
+    max_drawdown_artifact = False
+    if len(c) > 1:
+        _step = c[1:] / c[:-1]
+        _sidx = np.where(np.isfinite(_step) & ((_step < _SPLIT_LO) | (_step > _SPLIT_HI)))[0]
+        if _sidx.size:
+            max_drawdown_artifact = True
+            _factor = np.ones(len(h_adj))
+            for _i in _sidx:
+                _factor[: _i + 1] *= _step[_i]
+            h_adj = h_adj * _factor
+    hi_252 = float(h_adj[-252:].max()) if len(h_adj) >= 60 else float(h_adj.max())
     max_drawdown_pct = round((px / hi_252 - 1) * 100, 2) if hi_252 else None
     # ============================================================================================
 
@@ -239,6 +254,7 @@ def compute(bars, min_bars=150):
         "bb_bandwidth_ptile": round(bb_bandwidth_ptile, 2) if bb_bandwidth_ptile is not None else None,
         "bb_squeeze_106": bb_squeeze_106,
         "max_drawdown_pct": max_drawdown_pct,
+        "max_drawdown_artifact": max_drawdown_artifact,
         # returns (RS filled in by pool vs SPY)
         "ret_21": ret_21, "ret_63": ret_63, "ret_126": ret_126,
     }
