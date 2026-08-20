@@ -95,6 +95,14 @@ _TRADING_YEAR = 252
 # baseline accumulates a real streak. Aligns consol with the self-percentile axes (atr/bb).
 _CONSOL_BASELINE_MIN = 20  # need this many finite days to have a meaningful own-baseline median
 _RECENT_MOVE_WIN = 5       # look-back = 5 trading days = 1 calendar week (spring cooldown window)
+# Split-adjustment artifact guard for the drawdown / loaded_spring axis: an UNadjusted split shows
+# as a single-day close ratio far outside any real daily move and fakes a huge drawdown (BKNG -97%,
+# NINE -98.9% while only -23% from its 252d high). A liquid coil name does not move >~45% down or
+# >~80% up in one real session; such a step is a split/data break. We rebase across it before
+# measuring drawdown. Conservative by design: a false positive only means loaded_spring does not
+# fire on that name (a cleaner miss), never a fake spring contaminating the pool.
+_SPLIT_LO = 0.55           # one-day close ratio below this (>45% drop) = split-like down break
+_SPLIT_HI = 1.80           # one-day close ratio above this (>80% gain) = split-like up break (reverse split)
 
 
 def _series(bars):
@@ -227,9 +235,23 @@ def compute_coil(daily_digest):
     out["range_contraction"] = _f(m10 / m40) if (np.isfinite(m10) and np.isfinite(m40) and m40) else None
 
     # ---- loaded spring (prior move / stored energy) --------------------------------------
-    run_max = np.maximum.accumulate(c)
-    dd = (c / run_max - 1.0) * 100.0
-    out["max_drawdown_pct"] = _f(np.nanmin(dd))               # most negative = deepest prior fall
+    # Clean split-adjustment artifacts before measuring drawdown (see _SPLIT_LO/_SPLIT_HI). A raw
+    # split discontinuity in `c` fakes a -90%+ drawdown and fires loaded_spring on a name that never
+    # fell (BKNG/NINE 08-19). Rebase every bar by the product of all split-like steps at-or-after it
+    # so the drawdown is measured on a continuous, split-consistent series.
+    c_adj = c.astype(float)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        step = c_adj[1:] / c_adj[:-1]                          # step[i] = ratio from bar i to bar i+1
+    split_idx = np.where(np.isfinite(step) & ((step < _SPLIT_LO) | (step > _SPLIT_HI)))[0]
+    if split_idx.size:
+        factor = np.ones(n)
+        for i in split_idx:                                   # rebase bars 0..i by this break's ratio
+            factor[: i + 1] *= step[i]
+        c_adj = c_adj * factor
+    out["max_drawdown_artifact"] = bool(split_idx.size)       # surfaced so the pool/AI can see the clean-up
+    run_max = np.maximum.accumulate(c_adj)
+    dd = (c_adj / run_max - 1.0) * 100.0
+    out["max_drawdown_pct"] = _f(np.nanmin(dd))               # most negative = deepest prior fall (split-clean)
     out["ret_63d"] = _f((c[-1] / c[-64] - 1.0) * 100.0) if n >= 64 else None
     win_hi = np.nanmax(h)
     out["pct_from_window_high"] = _f((c[-1] / win_hi - 1.0) * 100.0) if win_hi else None
