@@ -30,9 +30,8 @@ from resonance.universe.backfill_bars import DB, _data_client, _load_env
 def update_daily(days=7, db=DB, verbose=True):
     """Append the last `days` of daily OHLC for resonance_universe extras. Returns a stats dict."""
     _load_env()
-    from alpaca.data.requests import StockBarsRequest
-    from alpaca.data.enums import Adjustment
-    from alpaca.data.timeframe import TimeFrame
+    import yfinance as yf
+    import time
 
     conn = sqlite3.connect(db)
     syms = [r[0] for r in conn.execute(
@@ -44,41 +43,43 @@ def update_daily(days=7, db=DB, verbose=True):
     end = datetime.date.today()
     start = end - datetime.timedelta(days=int(days))
 
-    import time
-    dc = _data_client()
     total_added = 0
     syms_with_rows = 0
-    BATCH = 100
+    BATCH = 50
     for i in range(0, len(syms), BATCH):
         batch = syms[i:i + BATCH]
-        # Retry with backoff, then FALL BACK sip -> iex. The live extras daily stalled at 07-31
-        # because every SIP batch threw APIError (free-SIP recent-data restriction / entitlement)
-        # with no retry and no fallback -> +0 rows -> coil features computed on stale daily. IEX
-        # daily is available on the basic plan and enough for the extras' OHLC. (Same fix as
-        # build_universe.fetch_dollar_vol.)
-        df = None
-        for feed in ("sip", "iex"):
-            for attempt in range(3):
-                try:
-                    req = StockBarsRequest(symbol_or_symbols=batch, timeframe=TimeFrame.Day,
-                                           start=start, end=end, adjustment=Adjustment.ALL, feed=feed)
-                    df = dc.get_stock_bars(req).df
-                    break
-                except Exception as e:
-                    if attempt < 2:
-                        time.sleep(2 * (attempt + 1))
-                        continue
-                    if verbose:
-                        print(f"  [warn] batch {i}-{i+len(batch)} feed={feed} failed after 3 tries: {type(e).__name__}")
-            if df is not None:
-                break
-        if df is None or df.empty:
+        # Daily OHLC from YFINANCE (consolidated, correct volume) — mirrors the CORE ingest
+        # scripts/update_stock_ohlc.py. The previous Alpaca sip->iex fallback returned IEX-only
+        # volume (~5-12% of consolidated) under the free-SIP recent-data block, so every extra's
+        # rvol / vol_dryup coil axes were computed on a thin feed and broken-volume names got
+        # promoted into the pool (diagnosed 2026-08-20: GPC/KNSA/APGE ~5-9% of real volume).
+        # Price/OHLC was fine; the fix restores real volume. yfinance needs no SIP entitlement.
+        try:
+            data = yf.download(' '.join(batch), start=start.isoformat(),
+                               end=(end + datetime.timedelta(days=1)).isoformat(),
+                               interval='1d', auto_adjust=True, progress=False, threads=False)
+        except Exception as e:
+            if verbose:
+                print(f"  [warn] yf batch {i}-{i+len(batch)} failed: {type(e).__name__}")
+            continue
+        if data is None or data.empty:
             continue
         rows = []
-        for (sym, ts), r in df.iterrows():
-            d = ts.date().isoformat()   # daily bar session date == trading date
-            rows.append((str(sym), d, float(r["open"]), float(r["high"]),
-                         float(r["low"]), float(r["close"]), int(r["volume"])))
+        for sym in batch:
+            try:
+                df = data if len(batch) == 1 else data.xs(sym, axis=1, level=1)
+            except Exception:
+                continue
+            for ts, r in df.iterrows():
+                try:
+                    if r["Close"] and float(r["Close"]) > 0:
+                        rows.append((str(sym), ts.strftime("%Y-%m-%d"),
+                                     float(r["Open"]), float(r["High"]), float(r["Low"]),
+                                     float(r["Close"]), int(r["Volume"]) if r["Volume"] else 0))
+                except Exception:
+                    continue
+        if not rows:
+            continue
         before = conn.total_changes
         conn.executemany(
             """INSERT OR IGNORE INTO stock_daily_ohlc
@@ -88,7 +89,9 @@ def update_daily(days=7, db=DB, verbose=True):
         )
         conn.commit()
         total_added += conn.total_changes - before
-        syms_with_rows += df.index.get_level_values("symbol").nunique()
+        syms_with_rows += len(set(r[0] for r in rows))
+        if i + BATCH < len(syms):
+            time.sleep(1)
 
     db_latest_after = conn.execute("SELECT MAX(date) FROM stock_daily_ohlc").fetchone()[0]
     conn.close()
