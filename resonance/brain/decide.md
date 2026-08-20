@@ -140,14 +140,15 @@ Predict which **≤3** names release UP and **CLOSE green >2%**. For each finali
   pre-open has NOT run multiple sessions into it, an AH pop is HELD not round-tripped at the open;
   *PRICED/STALE* = the name already ran several sessions into the event, an AH spike faded toward flat by
   the open, the story has led for days, and "it still goes up" now needs ME to argue there is room left
-  — which is the L9 clause, a re-rate I am supplying rather than one the market still owes. The thread
-  through the traded record: INSM/TEAM/MNDY/QNT were fresh same-morning beats that re-rated to the close
-  and won; BULL (ran +8.82% over two days into the print), LUNR on 08-17 (the contract story spent — the
-  SAME name did +22.9% on 08-13 when fresh, +0.6% on 08-17 when priced), and DUOL (a preliminary number
-  I had to interpret) were priced/stale and faded. So the bar is not "does it have a catalyst" — it is
-  "is the re-rate still ahead of my open." Forward-earned but small-sample: **weigh it, never cut on it**
-  (the gap-size version FAILS — INSM gapped +29% and won), and let the record keep testing whether fresh
-  really separates from priced.
+  — which is the L9 clause, a re-rate I am supplying rather than one the market still owes. The cleanest
+  illustration is one name on two days, where the numbers speak for themselves: LUNR did **+22.9% on
+  08-13** and **+0.6% on 08-17** on the same kind of contract news — the move was still ahead of the
+  open the first time and already behind it the second. Judge each finalist's freshness YOURSELF off
+  the observables above; do not pattern-match a stored list of which past names I called 'fresh' or
+  'priced' — you decide, from what the tape and the news actually show today. So the bar is not "does
+  it have a catalyst" — it is "is the re-rate still ahead of my open." Forward-earned but small-sample:
+  **weigh it, never cut on it** (the gap-size version FAILS — a +29% gap has still closed green), and
+  let the record keep testing whether fresh really separates from priced.
 - **who/fit** — real participation + rotation fit (per #3, not the gain).
 - **risk** — the honest way this is wrong (direction can fail; catalyst may be priced; froth may
   fade). Nothing verifies the close — say so.
