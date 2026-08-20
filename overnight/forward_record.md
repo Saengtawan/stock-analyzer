@@ -26,7 +26,7 @@ hard-beat edge. The scoreboard is whether **overnight-AH-catalyst** actually bea
 
 | # | date (Thu) | name | context / odds (pre-print) | play | print result | overnight → next open | edge vs "buy at open" | note |
 |---|---|---|---|---|---|---|---|---|
-| 1 | 2026-08-20 | ROST | −6% into print (not extended, room), strong beat history, BUT sector weak (TJX −6.9/BURL −4.1); expected move ~4-8%; odds ~55/45 | PENDING (bet-before vs wait-after) | PENDING (reports 16:00 ET) | PENDING | PENDING | first entry; AI gives odds not a prediction |
+| 1 | 2026-08-20 | ROST | −6% into print (not extended, room), strong beat history, BUT sector weak (TJX −6.9/BURL −4.1); expected move ~4-8%; odds ~55/45 | logged BOTH | **BEAT** — RTH close 229.34 → AH **248.99 = +8.57%** by 19:32 ET | PENDING (grade at 08-21 open) | bet-before ~229 = +8.57% AH; wait-after would chase ~249 | ✅ odds read on the right side, but n=1 coin-flip landed heads; grade at next open (AH gap can give back) |
 
 _(append one row per overnight idea; grade at next-day open. Screened-out names worth noting:
 WDAY 08-20 — beat but faded AH = sell-the-news, correctly avoided.)_
