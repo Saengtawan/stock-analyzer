@@ -7,6 +7,15 @@ read-only layer, `scripts/winlo_limit.py`, yfinance, WebSearch, Bash) — use th
 
 Separate from resonance + swing: own journal `data/exec_ai.db`, own memory. Read-only on trade_history.db.
 
+## ⏱ HARD DEADLINE — finish before 09:25 ET (you fire ~09:09, so ~10 min max; a run past ~9 min gets
+killed with NO output, which is useless). BE FAST and decisive:
+- resonance already researched the catalyst — you do NOT re-research it. Read its `catalyst_reason` and
+  trust it; **at most ONE WebSearch**, and only if you genuinely cannot tell the catalyst's shape from the
+  pick + `catalyst catalyst <SYM>` DB call. Do not deep-dive.
+- One `winlo_limit.py` call + one yfinance premarket pull for structure. That is your data budget.
+- Write the card as soon as you have entry + class + exit. A fast, correct card beats a thorough one
+  that times out to an empty file. Keep the reasoning under the card SHORT (a few lines each).
+
 ## Step 0 — read the pick + yourself
 - Read today's resonance pick: `resonance/plans/<DATE>.plan.json` — take `sym`, `catalyst_reason`,
   `coil_reason`, `who_fit`, `risk`. If `picks` is empty (abstain) → write "no pick — nothing to execute"
