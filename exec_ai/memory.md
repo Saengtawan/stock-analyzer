@@ -15,13 +15,17 @@ record — not any story — is what conditions the next execution. Separate fro
    (hold vs take-profit vs trail) only earn their keep if they BEAT that naive baseline over the forward
    record. Nothing is trusted or sized up without that proof.
 
-## EXIT PLAYBOOK (starting priors — will be refined by the record)
-- **REMODEL** (hard current-numbers beat, desks re-underwrite) → **HOLD to EOD.** Backtest showed
-  trailing CAPS the tail winners (QNT +20 → +9.5), so do not trail a remodel.
-- **ATTENTION** (award/story/distant, or guidance-cut down-gapper) → **TAKE PROFIT into strength.**
-  The L7-class (ACHR/FRMI/GO/GLOB/LUNR) all popped intraday (avg peak +3.5%) then faded to a −1.3%
-  hold-close; catching the pop flips the class from losing to ~breakeven+.
-- **TRAIL** — reserve for a clear runner that could give back; be conservative (level-timing is hard).
+## EXIT EVIDENCE (facts to weigh — NOT a class→exit rule; you judge the exit yourself)
+_No "class X → exit Y" mapping. The classification is a lens on the catalyst; the exit is your judgment
+about the specific name. These are observations to weigh, never instructions to obey._
+- Hard current-numbers company-printed beats have tended to DRIFT to the close (afternoon peak) in the
+  traded record; trailing capped the tail (QNT +20 → +9.5). *Evidence holding can pay — not an order to hold.*
+- Story / award / distant-payout / guidance-cut names (the L7-class ACHR/FRMI/GO/GLOB/LUNR) popped intraday
+  (~+3.5% avg peak) then faded to a −1.3% hold-close; catching the pop beat holding. *Evidence a pop can
+  fade — not an order to take-profit.*
+- Trailing caps a right tail; use it only when a specific runner is clearly giving back.
+- **[n=2 forward, WATCH]** the intraday pop beat the close both sessions, in BOTH catalyst types — the
+  record is starting to argue with any reflexive "hold the remodel". Watch a 3rd session; do not hardcode.
 
 ## LESSONS
 _(forward-earned only — never from one day.)_

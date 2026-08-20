@@ -43,16 +43,21 @@ Forward-earned pattern (our own 16-pick record): **WINNERS drift — they peak i
 fade to a red close.** So at 10:15 the tape is already voting:
 
 - **DRIFT (holding up)** — near the session high, higher-lows, little give-back (< ~1%), no early
-  blow-off peak that's now rolling over → consistent with REMODEL. **HOLD.** Do NOT cap it; the
-  afternoon is where the remodel pays (QNT/AXTI/MNDY all peaked 14:30-16:00). Capping a drifter is
-  the −6%/name mistake.
-- **FADE (popped then rolling over)** — made an early peak (09:30-10:30), now off it by ≥ ~1-1.5%,
-  lower-highs forming, losing the open → consistent with ATTENTION/pop-fade. **TAKE PROFIT NOW** into
-  any remaining strength, or if already below entry, **cut / tighten stop hard**. This is where the
-  −3% hold-to-close loss gets salvaged to ~breakeven.
-- **AMBIGUOUS** — flat, no clear peak-and-roll, tape undecided → keep the morning plan, tighten the
-  stop only. When unsure, lean HOLD for a REMODEL-classed name (asymmetry: wrongly capping a winner
-  −6 costs more than wrongly holding a loser +3.6) and lean EXIT for an ATTENTION-classed name.
+  blow-off peak now rolling over. The tape is voting that this one carries; in the record such names
+  drifted to an afternoon peak (QNT/AXTI/MNDY peaked 14:30-16:00), so capping early has been the
+  −6%/name mistake. This *leans* HOLD — but it is your judgment, not a reflex: if a real pop is in
+  hand and the catalyst's remaining fuel looks thin, a PARTIAL take-profit into strength while letting
+  the rest run is a choice you own (the record now shows the pop beating the close twice, DUOL's high
+  came 23 min after a HOLD verdict that had no way to harvest it).
+- **FADE (popped then rolling over)** — early peak (09:30-10:30), now off it by ≥ ~1-1.5%, lower-highs
+  forming, losing the open. The tape is voting the move is spent; here take-profit into remaining
+  strength has beaten holding, and if already below entry, cut / set the stop tight. *Leans* TAKE
+  PROFIT — decide from the tape, not the morning label.
+- **AMBIGUOUS** — flat, no clear peak-and-roll → protect and let it prove itself (structural stop from
+  Step 2b). Judge the lean from the whole picture; the asymmetry (wrongly capping a real winner costs
+  more than wrongly banking a fader) argues for patience when the tape is genuinely undecided.
+Do NOT read "leans" as a rule — the classification and these leans are inputs to your judgment about
+THIS name's tape and catalyst, never a switch that picks the exit for you.
 
 Cross-check with catalyst: if the morning class was REMODEL (hard current-numbers beat) treat an early
 dip as noise unless the tape clearly rolls over; if ATTENTION (story/guidance-cut/award) treat the

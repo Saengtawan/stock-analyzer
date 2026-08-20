@@ -44,15 +44,26 @@ carries, or attention/adverse-flow that fades).
   has resolved and a real structural invalidation level is visible. Pre-open you name only the *structural
   invalidation idea* in prose (e.g. "the premarket base is 138–139"), never a live stop number to rest.
 
-## Step 3 — EXIT strategy (the main new judgment)
-- **REMODEL → HOLD to EOD** — let the desks carry it (don't cap the drift).
-- **ATTENTION → TAKE PROFIT** — exit into strength at the first meaningful pop (state a target, e.g. +2-3%),
-  because it fades intraday; a captured +2-3% beats holding it back to a red close.
-- **TRAILING** — only if the structure clearly calls for it (a runner that could give back): trail X% from
-  peak once up +Y%. Be conservative — predicting exact intraday exit levels is HARD (the same reason a
-  hardcoded number loses to judgment ONLY when the judgment is about something knowable). When unsure between
-  hold and trail, prefer the simpler of the two and say so.
-- State the exit as a RULE the user can follow, + the reasoning + what would make you wrong.
+## Step 3 — EXIT strategy (JUDGE it — there is NO class→exit rule)
+Pick ONE exit by reasoning about THIS name — its catalyst durability, its premarket structure, and the
+patterns in your own record. There is deliberately **no "class X → exit Y" mapping** to obey; the
+classification is a lens for understanding the catalyst, not a switch that selects the exit. Weigh the
+evidence below against the actual setup in front of you — do not follow it mechanically.
+- **Tools:** HOLD to EOD · TAKE PROFIT into a pop (state a target price) · TRAIL X% from peak once up +Y%.
+- **Evidence from the record to WEIGH (facts, not instructions):**
+  - Names bought on a hard, current-numbers, company-printed beat have tended to DRIFT to the close in the
+    traded record (peak came in the afternoon); holding captured that drift, capping did not. *Evidence a
+    hold can pay — not an order to hold.*
+  - Names bought on a story / award / distant payout / guidance-cut popped in the first hour (~+3.5% avg
+    peak) then FADED to a −1.3% hold-close; catching the pop beat holding. *Evidence a pop can fade — not
+    an order to take-profit.*
+  - Trailing has capped tail winners (QNT +20% → +9.5%): it buys give-back protection at the cost of the
+    right tail — reserve it for a specific runner clearly rolling over.
+  - **[n=2, forward — WATCH]** the intraday pop has beaten the close both sessions so far, in BOTH catalyst
+    types (KLAR attention, DUOL remodel). Conditioning, not a gate — do not turn it into a numeric rule.
+- Decide from the specific setup, not the label. Level-timing is hard, so favor the simpler exit when the
+  tape is ambiguous. State the exit as a rule the user can follow + your reasoning + the specific thing that
+  would prove you wrong.
 
 ## Step 4 — write it (ACTIONABLE CARD FIRST, then the reasoning)
 Your FIRST lines must be a clean, concrete, copy-pasteable card — the numbers the user sets, NOT buried
@@ -62,10 +73,10 @@ in analysis. Use this exact shape, then the reasoning below it:
 📍 <SYM> — <CLASS>
 💰 ENTRY (set @09:25):  limit <judged>  (or flat ×1.015 <flat>)
 🛑 STOP:                NONE pre-open — set at 10:15 REVISE (structural low: ~<level>)
-🎯 EXIT:  <ONE of:>
-          • HOLD to EOD                                   (remodel — let it carry)
-          • TAKE PROFIT at +<N>%  (≈ <price>)             (attention — sell the pop, don't hold)
-          • TRAIL <M>% from peak, arm once +<K>%  (≈ <levels>)   (runner)
+🎯 EXIT:  <ONE, chosen by your judgment of THIS name — not by its class label:>
+          • HOLD to EOD
+          • TAKE PROFIT at +<N>%  (≈ <price>)
+          • TRAIL <M>% from peak, arm once +<K>%  (≈ <levels>)
 ```
 Entry is a real number; the STOP line stays literally "NONE pre-open" (name the structural level in prose
 only, do not emit a live stop). Exactly ONE exit line. If TAKE PROFIT, give the trigger PRICE, not just %.

@@ -26,8 +26,9 @@ python -m exec_ai.lib.journal recent      # the execution forward record
   (award/story/guidance-cut → pops then fades) vs OTHER.
 - **ENTRY** — winLo (mechanical) + a JUDGED buffer (with reason) AND the flat ×1.015, side by side +
   a stop. (Buffer is judgment, not a hardcode — but level-timing is hard, so both shown to compare.)
-- **EXIT** — REMODEL → HOLD to EOD; ATTENTION → TAKE PROFIT into the pop; TRAIL only when the structure
-  clearly calls for it (conservative — intraday exit timing is hard).
+- **EXIT** — AI-judged, NO class→exit rule: HOLD / TAKE PROFIT / TRAIL chosen by reasoning about the
+  specific name's catalyst + tape. The record's patterns (beats tend to drift to the close, story/pop
+  names tend to fade, trailing caps the tail) are evidence to weigh, not a switch to obey.
 
 ## Boundary
 Separate dir `exec_ai/`, separate DB `data/exec_ai.db`, separate plans. Reads trade_history.db
