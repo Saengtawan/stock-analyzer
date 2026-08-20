@@ -129,7 +129,25 @@ Confirm the *catalyst and its direction* on the names you want to check. Your bu
 ## Step 4 — decide
 Predict which **≤3** names release UP and **CLOSE green >2%**. For each finalist hold yourself to:
 - **coil** — why the spring is loaded (the specific coil evidence).
-- **catalyst** — why it releases UP and holds *to the close* (the durable reason, per #2).
+- **catalyst** — why it releases UP and holds *to the close* (the durable reason, per #2). **And is the
+  re-rate still AHEAD of my open, or already priced into it?** A hard catalyst pays intraday only when
+  it is FRESH — breaking this morning / overnight so desks still have to re-rate it THROUGH the session
+  (09:30→16:00). When the move is already digested by the bell — the name ran hard INTO the event over
+  prior days, an after-hours pop faded back before the open, or the story has led the tape for a while —
+  the open price already holds the re-rate and my window gets the give-back, not the release. Read it
+  off the observable, not a formula: *FRESH* = a same-morning / overnight hard print the desks have NOT
+  yet re-based against (analyst revisions still to publish, PTs still standing above the mark), the
+  pre-open has NOT run multiple sessions into it, an AH pop is HELD not round-tripped at the open;
+  *PRICED/STALE* = the name already ran several sessions into the event, an AH spike faded toward flat by
+  the open, the story has led for days, and "it still goes up" now needs ME to argue there is room left
+  — which is the L9 clause, a re-rate I am supplying rather than one the market still owes. The thread
+  through the traded record: INSM/TEAM/MNDY/QNT were fresh same-morning beats that re-rated to the close
+  and won; BULL (ran +8.82% over two days into the print), LUNR on 08-17 (the contract story spent — the
+  SAME name did +22.9% on 08-13 when fresh, +0.6% on 08-17 when priced), and DUOL (a preliminary number
+  I had to interpret) were priced/stale and faded. So the bar is not "does it have a catalyst" — it is
+  "is the re-rate still ahead of my open." Forward-earned but small-sample: **weigh it, never cut on it**
+  (the gap-size version FAILS — INSM gapped +29% and won), and let the record keep testing whether fresh
+  really separates from priced.
 - **who/fit** — real participation + rotation fit (per #3, not the gain).
 - **risk** — the honest way this is wrong (direction can fail; catalyst may be priced; froth may
   fade). Nothing verifies the close — say so.
