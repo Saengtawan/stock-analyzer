@@ -26,16 +26,24 @@ From the catalyst (use resonance's framing + WebSearch the specific catalyst if 
 State the class + one line of why (tie it to whether the catalyst is a current-numbers remodel that
 carries, or attention/adverse-flow that fades).
 
-## Step 2 — ENTRY (limit)
-- winLo = lowest low 09:05-09:25 ET (MECHANICAL): run
+## Step 2 — ENTRY (limit) — anchor on the STRUCTURE; winLo is a reference, not a mandated base
+- Compute winLo = lowest low 09:05-09:25 ET (MECHANICAL, a reference FACT — the pre-open support the tape
+  printed): run
   `cd /home/saengtawan/work/project/cc/stock-analyzer && set -a && . .env 2>/dev/null && set +a && \
-   /home/saengtawan/.pyenv/versions/cc/bin/python scripts/winlo_limit.py <SYM> 1.0` → the printed LIMIT is the raw winLo.
-- Pull the premarket structure (yfinance prepost) — flush depth, where support sits vs the LIKELY RTH low.
-- **Judge the buffer** from that structure: set the limit just above where it is likely to dip in RTH so it
-  FILLS, without paying so much you lose the cheap-dip edge. NO fixed multiplier — reason it (×1.015 is only
-  the historical baseline, not a floor/cap). **Show BOTH: your judged limit AND the flat ×1.015** (so the
-  forward record can compare which fills / prices better).
-- Output: winLo · flat-×1.015 limit · your judged limit + reason.
+   /home/saengtawan/.pyenv/versions/cc/bin/python scripts/winlo_limit.py <SYM> 1.0` → the printed number is the raw winLo.
+  winLo is DATA you may use, not a formula you must apply — you decide the anchor.
+- Pull the premarket structure (yfinance prepost): flush depth, the shelves/bases price is holding, where
+  support actually sits vs the LIKELY RTH dip. **This is what you anchor the limit on.**
+- **Judge the entry:** set the limit just above the level the name is most likely to dip to in RTH so it
+  FILLS, without paying so much you lose the cheap-dip edge. That anchor IS winLo when the name is a
+  down-gapper likely to retrace toward its pre-open low — but when it consolidates ABOVE winLo (an up-gapper
+  holding a higher shelf), winLo is the WRONG anchor: winLo×buffer then prints a CHASE above spot (DUOL 08-19:
+  winLo×1.015 = 150.75 = +1.5% above spot; the real fill sat at the 147.20 six-touch shelf). Anchor on the
+  structure that is actually there. NO fixed multiplier — reason the level.
+- **Show BOTH for the forward record:** your judged limit (+ the structural level it anchors on and why) AND
+  the flat winLo×1.015 — and say when flat is vacuous (an up-consolidation, where flat is just a chase / the
+  market-open benchmark), so the comparison stays honest.
+- Output: winLo (reference) · flat winLo×1.015 · your judged limit + its structural anchor + reason.
 - **DO NOT set a stop here.** No hard stop is decided pre-open — the open's first ~15-30 min is maximum
   noise (an ordinary opening liquidation flush routinely spikes below any level you'd pick, then reclaims),
   so a pre-open stop is a *noise* stop that gets hit on the flush and knocks you out of a good name that
