@@ -322,3 +322,4 @@ plans/
 exec_ai/plans/*
 exec_ai/__pycache__/
 exec_ai/**/__pycache__/
+data/overnight.db
