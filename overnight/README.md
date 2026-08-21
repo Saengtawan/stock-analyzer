@@ -1,8 +1,10 @@
 # overnight — after-hours-catalyst overnight-gap experiment
 
 A separate, off-record experiment (NOT a live trading system). Tests the user's idea: the biggest,
-freshest catalyst is often an **after-hours earnings/news print**; buying to capture the **overnight
-gap** into the next open may beat resonance's open→close window, which historically gets the give-back.
+freshest catalyst is often an **after-hours earnings/news print**; **buying BEFORE the print and
+selling the AH pop at the end of that evening's after-hours session (~19:59 ET)** may beat
+resonance's open→close window, which historically gets the give-back. The exit is the AH pop itself —
+NOT held into the next open.
 
 ```
 overnight/
@@ -30,7 +32,8 @@ python -m overnight.lib.journal recent
   comps, the expectations bar). It does **not** predict the earnings outcome — direction on a print is
   ~a coin flip (a beat can still gap DOWN on a guidance cut / sell-the-news, e.g. KLAR / WDAY).
 - Two plays are logged per idea: **bet-before** (would have bet pre-print on the odds — a gamble) and
-  **wait-after** (buy the held AH beat — disciplined). Graded at the next open.
+  **wait-after** (buy the held AH beat — disciplined). Graded at the end-of-AH mark (~19:59 ET);
+  next-open kept only as a reference comparison.
 
 ## Status: UNPROVEN, n small
 Honest prior: overnight gap-prediction is closer to a coin flip than the intraday hard-beat edge. The

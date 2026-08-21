@@ -26,7 +26,7 @@ hard-beat edge. The scoreboard is whether **overnight-AH-catalyst** actually bea
 
 | # | date (Thu) | name | context / odds (pre-print) | play | print result | overnight → next open | edge vs "buy at open" | note |
 |---|---|---|---|---|---|---|---|---|
-| 1 | 2026-08-20 | ROST | −6% into print (not extended, room), strong beat history, BUT sector weak (TJX −6.9/BURL −4.1); expected move ~4-8%; odds ~55/45 | logged BOTH | **BEAT** — RTH close 229.34 → AH **248.99 = +8.57%** by 19:32 ET | PENDING (grade at 08-21 open) | bet-before ~229 = +8.57% AH; wait-after would chase ~249 | ✅ odds read on the right side, but n=1 coin-flip landed heads; grade at next open (AH gap can give back) |
+| 1 | 2026-08-20 | ROST | −6% into print (not extended, room), strong beat history, BUT sector weak (TJX −6.9/BURL −4.1); expected move ~4-8%; odds ~55/45 | bet-before | **BEAT** — buy pre-close 229.34 → **sell end-of-AH 248.75 @19:59 ET = +8.46%** (GRADED) | user sold in AH — realized the pop | +8.46% end-of-AH (vs holding to the next-open give-back) | ✅ WIN, and the correct execution — sold the AH pop instead of holding into the open (the BULL lesson). n=1 coin-flip landed heads; forward record continues |
 
 _(append one row per overnight idea; grade at next-day open. Screened-out names worth noting:
 WDAY 08-20 — beat but faded AH = sell-the-news, correctly avoided.)_
@@ -47,3 +47,20 @@ call, OSIS, went the opposite way and crashed −15%. On this single blind sampl
 NOT predict direction; ROST last night was the result leaking + the coin landing up, not a demonstrated
 skill. n is tiny — let the forward record keep testing whether any setup edge shows up before sizing.
 
+## 2026-08-21 — ABSTAIN (0 picks), and a cron-timing bug
+
+The run fired at Thai 07:45 = **ET Thu 08-20 20:44** — ~4.8h AFTER Thursday's close and after the
+20:00 AH session ended (verified: `TZ=America/New_York date` and yfinance's last prepost bar
+2026-08-20 19:59 for both ROST and SPY). It was briefed as a pre-close 15:15-15:50 pass. It was not
+one, so no pre-close read was manufactured.
+
+Separately, **Friday 08-21's after-close field is empty**: the only confirmed AMC names are NIBE-B.ST
+(Stockholm, not US-AH tradeable) and SHAZ (micro-cap, paper-thin AH book). Friday's real reporters
+(UI, BJ) are all BEFORE the open — wrong side for an overnight hold. This is structural, not bad
+luck: US companies don't report Friday night, and the few that do are burying something.
+
+**Fix:** cron must fire ET 15:15-15:50 = **Thai 02:15-02:50**, and Mon-Thu only.
+
+ROST (08-20) remains **ungraded** — grade() correctly returned 0 because the 08-21 open hasn't
+printed. AH last 248.75 vs 229.34 entry; the thesis question is how much of that gap survives to the
+open. Not a win until graded.

@@ -2,13 +2,15 @@
 
 You run PRE-CLOSE (~15:15–15:50 ET) — the prediction pass. Names reporting earnings AFTER the close
 today have NOT printed yet. You make the pre-print call: which ≤3 are the best bet to BUY BEFORE 16:00
-to capture the overnight gap. This is what "predict so I can buy before" means — an odds call. There is
-no post-close pass; the outcome is settled by grade() at the next open.
+and SELL at the END of the after-hours session the same evening (~19:59 ET) — capture the AH pop, do
+NOT hold it into the next open's give-back. This is what "predict so I can buy before" means — an odds
+call. There is no post-close pass; the outcome is settled by grade() at the end-of-AH mark.
 
 Separate from resonance/exec_ai/swing — own record, off any live trading journal.
 
 **The idea:** the biggest, freshest catalyst is an after-hours earnings/news print. Buying BEFORE it to
-hold the overnight gap may beat resonance's open→close window (which gets the give-back).
+buying it BEFORE the print and selling the AH pop that evening may beat resonance's open→close window
+(which gets the give-back).
 
 ## The one honest rule — an ODDS call, never a fabricated result
 - Pre-close, the print has NOT happened. State it as **odds** (e.g. "~55/45 lean up") from the CONTEXT —
@@ -63,7 +65,8 @@ not a gap-up — so a name whose whole thesis needs a perfect print is a weaker 
 up to gap on a merely-fine print.
 
 ## Step 3 — pick ≤3 overnight candidates (fewer is better; abstain if none is clean)
-For each: ticker, the after-hours move so far, why it should HOLD the gap overnight, what the edge is
+For each: ticker, the after-hours move so far, why it should POP and hold through the AH session
+(you sell at ~19:59 ET, not the next open), what the edge is
 (catalyst, positioning, momentum — whatever you read), and the honest risk (guidance-cut on the call,
 AH round-trip before the open, thin after-hours liquidity). State the odds honestly (e.g. ~55/45), not
 a certainty. Whether a catalyst is fresh or already priced is one thing you WEIGH in the odds — not a
@@ -73,7 +76,7 @@ gate that keeps a name off the list.
 - Write the shortlist + reasoning to `overnight/plans/<DATE>.txt` (Write tool).
 - Log each pick via `overnight.lib.journal.log(date, sym, "bet-before", odds, reason, rth_close, ah_mark)`
   where `rth_close` = the current pre-close price you'd BUY AT (the bet-before entry) and `ah_mark` is
-  left empty. grade() checks the next open.
+  left empty. grade() fills it from the actual end-of-AH mark (~19:59 ET) that evening.
 - Do NOT write resonance/exec_ai/swing anything. Do NOT run any resonance updater.
 
 ## Honest frame
