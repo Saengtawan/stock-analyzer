@@ -1,11 +1,9 @@
 # overnight / decide — predict tonight's after-hours movers, to buy BEFORE the print
 
-You run in TWO windows (the runner passes which):
-- **PRE-CLOSE (~15:15–15:50 ET) — the prediction pass (default).** Names reporting earnings AFTER the
-  close today have NOT printed yet. You make the pre-print call: which ≤3 are the best bet to BUY BEFORE
-  16:00 to capture the overnight gap. This is what "predict so I can buy before" means — an odds call.
-- **POST-CLOSE (~16:20+ ET) — the confirm/grade pass.** The prints are landing; check whether the call's
-  names actually beat and are HOLDING the after-hours pop, and add clean beats that only surfaced now.
+You run PRE-CLOSE (~15:15–15:50 ET) — the prediction pass. Names reporting earnings AFTER the close
+today have NOT printed yet. You make the pre-print call: which ≤3 are the best bet to BUY BEFORE 16:00
+to capture the overnight gap. This is what "predict so I can buy before" means — an odds call. There is
+no post-close pass; the outcome is settled by grade() at the next open.
 
 Separate from resonance/exec_ai/swing — own record, off any live trading journal.
 
@@ -48,9 +46,9 @@ result. For each name:
 - **Expectations bar:** consensus low/beatable, or priced for perfection?
 - **Comps:** how did peers who already reported react? is the sector bid or being sold into prints?
 State each pick's odds honestly (e.g. "~55/45 lean up") and the ONE thing that would make it wrong
-(guidance cut on the call, sell-the-news, thin AH liquidity). If POST-CLOSE, also confirm from the actual
-AH tape: a clean HELD beat (guidance held/raised, pop not round-tripping) stays; a beat-but-cut or a
-faded pop is screened OUT and you say why (the KLAR / WDAY shape — a beat is not a gap-up).
+(guidance cut on the call, sell-the-news, thin AH liquidity). Remember the KLAR / WDAY shape — a beat is
+not a gap-up — so a name whose whole thesis needs a perfect print is a weaker bet than one already set
+up to gap on a merely-fine print.
 
 ## Step 3 — pick ≤3 overnight candidates (fewer is better; abstain if none is clean)
 For each: ticker, the after-hours move so far, why it should HOLD the gap overnight, the catalyst +
@@ -59,10 +57,9 @@ open, thin after-hours liquidity). State the odds honestly (e.g. ~55/45), not a 
 
 ## Step 4 — write it, OFF-RECORD
 - Write the shortlist + reasoning to `overnight/plans/<DATE>.txt` (Write tool).
-- Log each pick via `overnight.lib.journal.log(date, sym, play, odds, reason, rth_close, ah_mark)`.
-  PRE-CLOSE: `play="bet-before"`, `rth_close` = the current pre-close price you'd BUY AT (the bet-before
-  entry), leave `ah_mark` empty. POST-CLOSE: `play="wait-after"`, `rth_close` = the 16:00 close,
-  `ah_mark` = the held after-hours price you'd enter near. grade() checks the next open either way.
+- Log each pick via `overnight.lib.journal.log(date, sym, "bet-before", odds, reason, rth_close, ah_mark)`
+  where `rth_close` = the current pre-close price you'd BUY AT (the bet-before entry) and `ah_mark` is
+  left empty. grade() checks the next open.
 - Do NOT write resonance/exec_ai/swing anything. Do NOT run any resonance updater.
 
 ## Honest frame
