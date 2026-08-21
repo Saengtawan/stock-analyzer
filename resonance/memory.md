@@ -28,7 +28,13 @@ Not all catalysts are equal — weight them by durability, as a PRIOR (not a gat
     news frequently **sells off intraday** even when the coil is real — treat it as closer to
     froth than a durable release.
 A soft catalyst is not banned (a genuine turnaround CEO can be real), but it is a weaker reason to
-bet direction — lean toward abstain when the only catalyst is soft. The FORWARD RECORD judges.
+bet direction — lean toward abstain when the only catalyst is soft **AND nothing is supplying
+direction**. What can still supply direction on a soft catalyst is a **live buyer flow**: a
+still-running theme pulling momentum money in day after day, or a forced short-squeeze (a mechanical
+buyer obliged to buy UP). When a soft-catalyst name is ALSO releasing on a live theme + real
+participation (heavy volume, a squeeze), it is not the coin-flip a lone narrative is — take it to the
+"who buys at my open" test (is that flow still arriving or already extended/consumed?) rather than
+skipping it reflexively as "just soft." The FORWARD RECORD judges.
 
 **3. GAIN IS DECEPTIVE; USE WHY / WHO / FIT.**
 The % a name is already up is the most easily-faked signal (noise, crowd-magnet, already priced).
@@ -108,7 +114,10 @@ which is not a missed edge, it is a two-tailed name with no pre-open tell, i.e. 
 Conditioning, and it changes the *reason* rather than the decision (the same correction L2 made):
 keep abstaining on a triggerless name, but say **"no trigger, so I have no directional edge"** —
 never "falling knife", which is a bear call I have no basis for and which the record has now paid
-against three times. The practical cost of the sloppy word is that it makes a miss feel like a good
+against three times. Scope note: "triggerless" means genuinely NO flow — news_n=0, thin premarket,
+inert tape. A name that is releasing on **heavy volume with a live theme or a forced squeeze is NOT
+triggerless** and does not fall under this lesson's "no directional edge"; that flow IS a trigger,
+so judge it on the Step-4 who-buys test, not by filing it with the inert cohort. The practical cost of the sloppy word is that it makes a miss feel like a good
 skip: today the entire right tail (WKHS +8.12, SBET +4.16, DYN +2.55, NINE +2.45) was news_n=0 or
 news-negative, and calling them knives let me file four winners as validated discipline. Limit, so
 this is not over-read: the same dismissal was CORRECT on SOC twice (−0.24 on 08-14, −3.73 on 08-17)
