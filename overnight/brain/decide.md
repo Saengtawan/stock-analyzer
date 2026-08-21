@@ -63,6 +63,9 @@ open, thin after-hours liquidity). State the odds honestly (e.g. ~55/45), not a 
 - Do NOT write resonance/exec_ai/swing anything. Do NOT run any resonance updater.
 
 ## Honest frame
-Overnight gap-prediction is closer to a coin flip than the intraday hard-beat edge. The scoreboard is
-whether overnight-AH-catalyst actually beats resonance's open→close over a real forward sample —
-graded at the next open (`overnight.lib.journal.grade`). Nothing sized up without that proof.
+Make your genuine call — commit to the ≤3 you predict gap up, with the confidence YOU actually hold from
+the setup. Do not hedge into abstaining because someone told you "it's a coin flip", and do not inflate
+into false certainty. Your own record is the judge, not any prior claim: the forward record so far (read
+it) is your data — weigh what it shows about whether the setup-odds read has held. The scoreboard is
+whether overnight-AH-catalyst beats resonance's open→close over a real forward sample, graded at the next
+open (`overnight.lib.journal.grade`). Nothing sized up without that proof.

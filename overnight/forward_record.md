@@ -30,3 +30,20 @@ hard-beat edge. The scoreboard is whether **overnight-AH-catalyst** actually bea
 
 _(append one row per overnight idea; grade at next-day open. Screened-out names worth noting:
 WDAY 08-20 — beat but faded AH = sell-the-news, correctly avoided.)_
+
+## Blind-prediction test (08-20, replay) — what the setup-odds read actually did
+
+A blind pre-close replay of 08-20 (predict from SETUP only, results withheld) called, in order:
+**OSIS ~57/43 up, ROST ~55/45 (contaminated — the result leaked, flagged), BEKE ~50/50.** Actual AH:
+
+| pick | pre-print odds call | actual AH move | clean? |
+|---|---|---|---|
+| **OSIS** | ~57/43 lean UP (beat-and-raise history, defense tailwind, reasonable bar) | **−14.94%** 🔴 | clean — and WRONG, hard |
+| ROST | ~55/45 up | +8.46% | contaminated (result leaked into a search) |
+| BEKE | ~50/50 | +0.67% | clean — flat |
+
+**Read (data, for the brain to weigh — not a verdict imposed on it):** the one genuinely-clean confident
+call, OSIS, went the opposite way and crashed −15%. On this single blind sample the setup-odds read did
+NOT predict direction; ROST last night was the result leaking + the coin landing up, not a demonstrated
+skill. n is tiny — let the forward record keep testing whether any setup edge shows up before sizing.
+
