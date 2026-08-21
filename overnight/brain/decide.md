@@ -21,29 +21,33 @@ hold the overnight gap may beat resonance's open→close window (which gets the 
   sell-the-news). Your edge is reading which SETUP tilts the odds, not knowing the result.
 - Do NOT touch resonance/exec_ai/swing data, plans, or journals. Write ONLY where told below.
 
-## No pool, no universe file — the field IS tonight's earnings calendar
+## No pool, no universe file — you build the field live
 This does NOT use resonance's coiled pool or any pre-built universe (the 08-20 run that found ROST did
-not either). Your field is simply **who reports after the close tonight**, found live by WebSearch. For
-prices you may run yfinance in Bash. Do not read or write resonance/exec_ai/swing data, plans, or journals.
+not either). You build the field live by WebSearch — tonight's after-hours reporters are the obvious
+core of it, but the field is not limited to earnings; anything you read an overnight edge in belongs on
+it (see Step 1). For prices you may run yfinance in Bash. Do not read or write resonance/exec_ai/swing
+data, plans, or journals.
 
 ## Efficiency (this is what makes the run finish — match it exactly)
 Be efficient and decisive — a handful of TARGETED searches, then decide. Do NOT exhaustively research
 the whole field; time-box yourself. (The 08-20 run that found ROST finished in ~2 minutes on a tight,
 focused task; a loose, heavy prompt on the same night timed out. Tight and fast is the working shape.)
 
-## Step 1 — screen the DATED-CATALYST CALENDAR for the target session (this is the filter)
-The pre-premarket/overnight gap trade only has an edge when a name has a DATED, scheduled catalyst that
-lands on the target session — a fresh print/decision the market must react to, entered BEFORE it moves.
-Without a dated event, direction is a coin flip and there is nothing to filter for → abstain. So build
-the calendar for the target day, not just tonight's earnings:
+## Step 1 — build the field: what's happening into the target session
+Cast a wide net and see the whole field for the target day — do NOT pre-filter it down to one criterion.
+Anything you genuinely think could give an overnight-gap edge is fair game; you judge each on its merits
+in Step 2, nothing is ruled in or out by a rule here. Things worth searching for (not a required checklist):
 - **Earnings** reporting AFTER today's close (AH → next open) OR **BMO tomorrow** (before the open):
   "earnings after close <date>", "reporting before open <tomorrow>", "<sector> earnings <date>".
 - **FDA / PDUFA decision dates** landing on the target day: "PDUFA date <date>", "FDA decision <date>",
-  "FDA approval expected <date>". (RARE 08-20 was exactly this — a PDUFA gap the calendar would flag.)
+  "FDA approval expected <date>". (RARE 08-20 was exactly this — a PDUFA gap.)
 - **Court rulings, index adds effective at the open, scheduled data readouts, investor/analyst days**
   dated to the target session.
-VERIFY each one's date/time (confirm it lands on the target session, and has NOT already printed/moved).
-A name with NO dated catalyst on the target day does not belong on the list, however coiled it looks.
+- **Anything else** — momentum, sector rotation, a technical setup, an oversold snap-back — if YOU read
+  an edge in it for an overnight hold, weigh it. A dated catalyst is one strong kind of edge, not the
+  only one, and not a requirement.
+VERIFY dates/times for anything you lean on (confirm it lands on the target session and has NOT already
+printed/moved) — that's about not fabricating a result, not about disqualifying names.
 
 ## Step 2 — score the SETUP odds for each (this is the pre-print judgment)
 The print has not happened, so you read the SETUP that tilts the odds of a beat-and-gap-up — not the
@@ -59,9 +63,11 @@ not a gap-up — so a name whose whole thesis needs a perfect print is a weaker 
 up to gap on a merely-fine print.
 
 ## Step 3 — pick ≤3 overnight candidates (fewer is better; abstain if none is clean)
-For each: ticker, the after-hours move so far, why it should HOLD the gap overnight, the catalyst +
-why it's fresh-not-priced, and the honest risk (guidance-cut on the call, AH round-trip before the
-open, thin after-hours liquidity). State the odds honestly (e.g. ~55/45), not a certainty.
+For each: ticker, the after-hours move so far, why it should HOLD the gap overnight, what the edge is
+(catalyst, positioning, momentum — whatever you read), and the honest risk (guidance-cut on the call,
+AH round-trip before the open, thin after-hours liquidity). State the odds honestly (e.g. ~55/45), not
+a certainty. Whether a catalyst is fresh or already priced is one thing you WEIGH in the odds — not a
+gate that keeps a name off the list.
 
 ## Step 4 — write it, OFF-RECORD
 - Write the shortlist + reasoning to `overnight/plans/<DATE>.txt` (Write tool).
