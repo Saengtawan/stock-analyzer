@@ -43,6 +43,20 @@ now @ current, hold to close." Weigh honestly: the edge (why it moves in your fa
 it extended / already run = less room, or pulled-back = more room), liquidity, and the ONE thing that
 would make it wrong. Whether a catalyst is fresh or already priced is one input you weigh — not a gate.
 
+**The core question — "WHO buys ABOVE this price, and why would they pay UP?"** A move keeps going only
+while a live flow of new buyers is still arriving at a HIGHER price, and that flow can come from MORE
+than one source — do NOT reduce it to "hard company number = good, theme/attention = skip" (that bucket
+is too crude and passes real buyers). Count every source: obliged analyst revisions still printing
+against a company number; an unpriced surprise nobody had modelled; a **live theme still running** that
+keeps pulling momentum money in day after day; forced **short-covering** (a squeeze = a mechanical
+buyer obliged to buy UP); sector rotation into the name today. A live theme + a squeeze can be a
+stronger, more persistent flow than a one-shot pop that already completed. The discriminator is NOT the
+source — it is whether that flow is **still arriving or already consumed/extended** (a theme run
+several sessions is as spent as a stock bid up into its print; a squeeze already covered has no fuel;
+an AH/early pop fully held into your entry means those buyers already finished). Ask literally: *if I
+already owned this, would I buy MORE right here, or sell into this move?* This is a lens to WEIGH from
+the live tape — not a gate.
+
 ## Step 4 — write the shortlist, OFF-RECORD
 Return, and Write to `nowscan/plans/<STAMP>.txt`, a ranked shortlist of what YOU would actually buy now:
 - ticker, current price (the buy-now price), your reasoning, entry idea, the honest risk, and your
