@@ -21,14 +21,10 @@ hold the overnight gap may beat resonance's open→close window (which gets the 
   sell-the-news). Your edge is reading which SETUP tilts the odds, not knowing the result.
 - Do NOT touch resonance/exec_ai/swing data, plans, or journals. Write ONLY where told below.
 
-## Step 0 — reuse resonance's data, don't duplicate (READ-ONLY)
-You may READ resonance's layers so nothing is re-implemented here (same pattern as swing):
-- `import resonance.data.access as R` — prices, catalyst, universe, macro (read-only helpers).
-- `resonance/cache/pool_<DATE>.json` — today's coiled+catalyst pool. If one of tonight's after-hours
-  movers is ALSO a coiled resonance name, that is a bonus, but the overnight edge is the AH catalyst,
-  not the coil — do not require pool membership.
-These are READS ONLY. Never WRITE to resonance (no plans, no db, no journal). Import the pool/data;
-do not copy its code.
+## No pool, no universe file — the field IS tonight's earnings calendar
+This does NOT use resonance's coiled pool or any pre-built universe (the 08-20 run that found ROST did
+not either). Your field is simply **who reports after the close tonight**, found live by WebSearch. For
+prices you may run yfinance in Bash. Do not read or write resonance/exec_ai/swing data, plans, or journals.
 
 ## Efficiency (this is what makes the run finish — match it exactly)
 Be efficient and decisive — a handful of TARGETED searches, then decide. Do NOT exhaustively research
@@ -39,8 +35,7 @@ focused task; a loose, heavy prompt on the same night timed out. Tight and fast 
 WebSearch for companies reporting earnings AFTER today's close (and any scheduled event tonight/tomorrow
 that would gap a stock): "earnings after close <today's date>", "reporting after the bell today",
 "<sector> earnings tonight". VERIFY each one's report time (confirm it is AH today, not already out /
-not a different day). You may also scan `resonance/cache/pool_<DATE>.json` read-only for coiled names on
-tonight's calendar.
+not a different day).
 
 ## Step 2 — score the SETUP odds for each (this is the pre-print judgment)
 The print has not happened, so you read the SETUP that tilts the odds of a beat-and-gap-up — not the
