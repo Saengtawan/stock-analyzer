@@ -27,6 +27,11 @@ def _conn():
         rth_close REAL, ah_mark REAL, ah_pct REAL,
         next_open REAL, next_open_pct REAL, held_pct REAL, graded INTEGER DEFAULT 0,
         PRIMARY KEY (date, sym))""")
+    # migration: premarket-before-next-open exit (weekend / hold-over case)
+    have = {r[1] for r in c.execute("PRAGMA table_info(picks)")}
+    for col in ("pm_mark", "pm_pct"):
+        if col not in have:
+            c.execute(f"ALTER TABLE picks ADD COLUMN {col} REAL")
     return c
 
 
@@ -48,8 +53,12 @@ def grade(verbose=True):
     `ah_pct` = end-of-AH mark vs the pre-close entry. This does NOT wait for the next open — the
     exit is the AH pop itself (selling into it, not holding it into the next open's give-back).
 
-    For reference only (non-blocking), if the NEXT session's open has printed it also fills
-    `next_open` / `held_pct` so we can compare "sold end-of-AH" vs "held to the open"."""
+    Also records the WEEKEND / hold-over exit: `pm_mark` / `pm_pct` = the last premarket bar BEFORE
+    the next regular open (for a Friday pick this is MONDAY premarket, weekend skipped) — the sell
+    used when the pop lands over the weekend / on a next-session BMO catalyst, always before the
+    09:30 open (never held into the open's give-back). And for reference, `next_open` / `held_pct`
+    (end-AH sell vs holding to the open). All exits are recorded so the forward record can compare
+    which one — same-evening AH vs premarket-before-open — actually pays."""
     import datetime, zoneinfo
     import yfinance as yf
     ET = zoneinfo.ZoneInfo("America/New_York")
@@ -73,36 +82,45 @@ def grade(verbose=True):
         end_ah_t = ah.index[-1].strftime("%H:%M")
         ah_pct = round((end_ah / rth_close - 1) * 100, 2) if rth_close else None
 
-        # reference: next-session open, if it has printed (does NOT block grading)
+        # NEXT trading day (skip weekend: Fri -> Mon). Fetch WITH prepost so we get the premarket
+        # bars, and use it for BOTH the weekend/hold exit and the reference open.
         nd = d + datetime.timedelta(days=1)
         while nd.weekday() >= 5:
             nd += datetime.timedelta(days=1)
-        nopen = nopen_pct = held = None
+        pm_mark = pm_pct = nopen = nopen_pct = held = None
         try:
             ndf = yf.download(sym, start=nd.isoformat(),
                               end=(nd + datetime.timedelta(days=1)).isoformat(),
-                              interval="1m", prepost=False, progress=False, auto_adjust=False)
+                              interval="1m", prepost=True, progress=False, auto_adjust=False)
             if ndf is not None and not ndf.empty:
                 if hasattr(ndf.columns, "levels"):
                     ndf.columns = [x[0] for x in ndf.columns]
                 ndf = ndf.tz_convert(ET)
-                r = ndf[ndf.index.date == nd]
-                if len(r):
-                    nopen = float(r["Open"].iloc[0])
+                nday = ndf[ndf.index.date == nd]
+                # PREMARKET-before-open exit: last bar in 04:00-09:29 ET on the next trading day
+                # (for a Friday pick this is MONDAY premarket — the weekend/hold-over sell mark).
+                pm = nday[nday.index.strftime("%H:%M") < "09:30"]
+                if len(pm):
+                    pm_mark = float(pm["Close"].iloc[-1])
+                    pm_pct = round((pm_mark / rth_close - 1) * 100, 2) if rth_close else None
+                # reference: the regular open itself
+                rth = nday[nday.index.strftime("%H:%M") >= "09:30"]
+                if len(rth):
+                    nopen = float(rth["Open"].iloc[0])
                     nopen_pct = round((nopen / rth_close - 1) * 100, 2) if rth_close else None
                     held = round((nopen / end_ah - 1) * 100, 2)   # end-AH sell vs holding to open
         except Exception:
             pass
 
-        c.execute("""UPDATE picks SET ah_mark=?, ah_pct=?, next_open=?, next_open_pct=?,
-                     held_pct=?, graded=1 WHERE date=? AND sym=?""",
-                  (end_ah, ah_pct, nopen, nopen_pct, held, date, sym))
+        c.execute("""UPDATE picks SET ah_mark=?, ah_pct=?, pm_mark=?, pm_pct=?, next_open=?,
+                     next_open_pct=?, held_pct=?, graded=1 WHERE date=? AND sym=?""",
+                  (end_ah, ah_pct, pm_mark, pm_pct, nopen, nopen_pct, held, date, sym))
         graded += 1
         if verbose:
-            ref = "" if nopen is None else (f" | next open {nopen:.2f} ({nopen_pct:+.2f}% vs entry; "
-                                            f"selling end-AH beat holding-to-open by {(ah_pct - nopen_pct):+.2f}pp)")
+            pm_s = "" if pm_mark is None else f" | premkt-before-next-open {pm_mark:.2f} = {pm_pct:+.2f}%"
+            ref = "" if nopen is None else (f" | ref next open {nopen_pct:+.2f}%")
             print(f"  {sym} {date}: BUY {rth_close} -> SELL end-AH {end_ah:.2f} @{end_ah_t} = "
-                  f"**{ah_pct:+.2f}%**{ref}")
+                  f"**{ah_pct:+.2f}%**{pm_s}{ref}")
     c.commit(); c.close()
     if verbose:
         print(f"[overnight] graded {graded} pick(s)")
@@ -111,7 +129,7 @@ def grade(verbose=True):
 
 def recent(n=20):
     c = _conn()
-    for row in c.execute("SELECT date,sym,play,ah_pct,next_open_pct,held_pct,graded FROM picks "
+    for row in c.execute("SELECT date,sym,play,ah_pct,pm_pct,next_open_pct,graded FROM picks "
                          "ORDER BY date DESC LIMIT ?", (n,)):
         print(row)
     c.close()

@@ -26,7 +26,7 @@ hard-beat edge. The scoreboard is whether **overnight-AH-catalyst** actually bea
 
 | # | date (Thu) | name | context / odds (pre-print) | play | print result | overnight → next open | edge vs "buy at open" | note |
 |---|---|---|---|---|---|---|---|---|
-| 1 | 2026-08-20 | ROST | −6% into print (not extended, room), strong beat history, BUT sector weak (TJX −6.9/BURL −4.1); expected move ~4-8%; odds ~55/45 | bet-before | **BEAT** — buy pre-close 229.34 → **sell end-of-AH 248.75 @19:59 ET = +8.46%** (GRADED) | user sold in AH — realized the pop | +8.46% end-of-AH (vs holding to the next-open give-back) | ✅ WIN, and the correct execution — sold the AH pop instead of holding into the open (the BULL lesson). n=1 coin-flip landed heads; forward record continues |
+| 1 | 2026-08-20 | ROST | −6% into print (not extended, room), strong beat history, BUT sector weak (TJX −6.9/BURL −4.1); expected move ~4-8%; odds ~55/45 | bet-before | **BEAT** — buy pre-close 229.34 → **sell end-of-AH 248.75 @19:59 ET = +8.46%** (GRADED) | user sold in AH — realized the pop | **end-of-AH +8.46%** vs premkt-before-open +6.28% vs open +6.33% — the AH pop was the BEST exit; holding overnight gave ~2pp back | ✅ WIN, and the correct execution — sold the AH pop instead of holding into the open (the BULL lesson). All three exits now recorded to compare forward. n=1 coin-flip landed heads |
 
 _(append one row per overnight idea; grade at next-day open. Screened-out names worth noting:
 WDAY 08-20 — beat but faded AH = sell-the-news, correctly avoided.)_

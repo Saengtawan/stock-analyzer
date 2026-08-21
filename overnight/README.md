@@ -6,6 +6,13 @@ selling the AH pop at the end of that evening's after-hours session (~19:59 ET)*
 resonance's open→close window, which historically gets the give-back. The exit is the AH pop itself —
 NOT held into the next open.
 
+**Exit windows (all recorded by grade(), so the forward record can compare which pays):**
+- **end-of-AH** (default) — sell into the same evening's after-hours pop, ~19:59 ET.
+- **premarket-before-open** (weekend / hold-over) — when the pop lands over a weekend or on a
+  next-session BMO catalyst, sell in the NEXT session's premarket before 09:30 (for a Friday pick
+  that is MONDAY premarket = Thai ~15:00-20:30). ALWAYS before the regular open — never held into
+  the open's give-back.
+
 ```
 overnight/
   brain/decide.md    after-close scan: find tonight's AH movers -> fresh-vs-priced context/odds -> <=3
