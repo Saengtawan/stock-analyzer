@@ -27,7 +27,13 @@ Read `resonance/memory.md` in full:
      beat. Do NOT read "it's a HARD number" as "hold it." **SOFT** = a story with no
      fresh number (CEO/mgmt change, commentary, PR/product headline, analyst-note-alone, low
      `news_max_impact` ~0.5) → gap-ups on soft news often sell off intraday even with a real coil.
-     Soft isn't banned, but lean toward abstain when the only catalyst is soft.
+     Soft isn't banned, but lean toward abstain when the only catalyst is soft **AND nothing is
+     supplying direction** — a soft narrative with no flow behind it is the coin-flip principle #1
+     warns of. What can still supply direction on a soft catalyst is a **live buyer flow**: a
+     still-running theme pulling momentum in, or a forced short-squeeze (a mechanical buyer). When a
+     soft-catalyst name is ALSO releasing on a live theme + real participation (heavy volume, a
+     squeeze), do not reflexively abstain — take it to Step 4's "who buys at my open" test and judge
+     whether that flow is still arriving or already extended, rather than skipping it as "just soft."
   3. **Gain is deceptive — use WHY / WHO / FIT.** The % a name is already up is the most easily
      faked signal. Don't let it drive selection. Read WHY (durable catalyst), WHO (real
      participation: volume/float/short/options — not a thin poke), FIT (today's rotation).
@@ -155,16 +161,30 @@ Predict which **≤3** names release UP and **CLOSE green >2%**. For each finali
   let the record keep testing whether fresh really separates from priced.
 - **The test UNDER freshness — "WHO buys at my open, and why would they pay UP?"** This is the
   mechanism that decides whether a re-rate is still ahead, and it catches the case timing-freshness
-  misses. A gap only keeps drifting up if there is a **live flow of new conviction buyers still
-  arriving at a HIGHER price** — analyst PT revisions still printing THROUGH today, an unpriced
-  surprise (a first-ever print, a number nobody modelled), or a real story that makes desks *want in*
-  even up here. If instead the marginal participant at the open is a **profit-taker** — the pop is
-  already fully held into the open, the name is an ordinary company whose good-but-expected number
-  gives nobody a reason to pay a premium, or a high-flyer priced-for-perfection where a mere beat
-  is not enough — then the open is all supply and it fades even on a HARD, same-morning beat. Ask it
-  literally: *if I already owned this into the print, would I buy MORE at this open price, or sell my
-  pop here?* Read who is on the other side of your open from the tape and the revision flow — this is
-  a lens to WEIGH, not a gate with a threshold.
+  misses. A gap keeps drifting up only while a **live flow of new buyers is still arriving at a
+  HIGHER price** — and that flow can come from MORE than one source, so do NOT collapse it into
+  "company number = good, theme/attention = skip." That bucket is too crude and it will make you
+  pass real buyers. Count every source of paying-up flow:
+    - **obliged revisions** — analyst PT re-bases still printing THROUGH today against a company
+      number desks must publish against;
+    - **an unpriced surprise** nobody had modelled (a first-ever print, a number with no history);
+    - **a live theme still running** — a sector/macro move that has not exhausted keeps pulling
+      momentum money in day after day; that is a real, ongoing buyer flow, not "mere attention";
+    - **forced short-covering** — a squeeze is a *mechanical* buyer obliged to buy UP, one of the
+      strongest "who buys" there is;
+    - **rotation** into the name's sector on the day.
+  Any of these is a genuine "who buys," and a live theme + a squeeze can be a **stronger, more
+  persistent** flow than a one-shot earnings pop that already completed. The discriminator is NOT the
+  source — it is whether that flow is **still arriving at the open or already consumed/extended**, and
+  that question is symmetric across sources: a theme that has run several sessions is as extended as a
+  stock bid up into its print (second-leg risk); a squeeze that has already covered has no fuel left;
+  an AH pop fully held into the open means the earnings buyers already finished; PT raises that all
+  printed pre-open are spent. So for whatever the buyer source is, ask: is it STILL coming, or is this
+  the late leg? If the marginal participant is a **profit-taker with nothing behind them** — pop
+  consumed, ordinary/expected number, theme exhausted, squeeze spent — the open is all supply and it
+  fades. Ask it literally: *if I already owned this into the move, would I buy MORE at this open
+  price, or sell here?* This is a lens to WEIGH from the tape and the live flow — not a gate, and not
+  a hard-number-versus-attention bucket.
 - **who/fit** — real participation + rotation fit (per #3, not the gain).
 - **risk** — the honest way this is wrong (direction can fail; catalyst may be priced; froth may
   fade). Nothing verifies the close — say so.
