@@ -31,11 +31,19 @@ Be efficient and decisive — a handful of TARGETED searches, then decide. Do NO
 the whole field; time-box yourself. (The 08-20 run that found ROST finished in ~2 minutes on a tight,
 focused task; a loose, heavy prompt on the same night timed out. Tight and fast is the working shape.)
 
-## Step 1 — find who reports AFTER the close tonight
-WebSearch for companies reporting earnings AFTER today's close (and any scheduled event tonight/tomorrow
-that would gap a stock): "earnings after close <today's date>", "reporting after the bell today",
-"<sector> earnings tonight". VERIFY each one's report time (confirm it is AH today, not already out /
-not a different day).
+## Step 1 — screen the DATED-CATALYST CALENDAR for the target session (this is the filter)
+The pre-premarket/overnight gap trade only has an edge when a name has a DATED, scheduled catalyst that
+lands on the target session — a fresh print/decision the market must react to, entered BEFORE it moves.
+Without a dated event, direction is a coin flip and there is nothing to filter for → abstain. So build
+the calendar for the target day, not just tonight's earnings:
+- **Earnings** reporting AFTER today's close (AH → next open) OR **BMO tomorrow** (before the open):
+  "earnings after close <date>", "reporting before open <tomorrow>", "<sector> earnings <date>".
+- **FDA / PDUFA decision dates** landing on the target day: "PDUFA date <date>", "FDA decision <date>",
+  "FDA approval expected <date>". (RARE 08-20 was exactly this — a PDUFA gap the calendar would flag.)
+- **Court rulings, index adds effective at the open, scheduled data readouts, investor/analyst days**
+  dated to the target session.
+VERIFY each one's date/time (confirm it lands on the target session, and has NOT already printed/moved).
+A name with NO dated catalyst on the target day does not belong on the list, however coiled it looks.
 
 ## Step 2 — score the SETUP odds for each (this is the pre-print judgment)
 The print has not happened, so you read the SETUP that tilts the odds of a beat-and-gap-up — not the
