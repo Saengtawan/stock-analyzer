@@ -10,9 +10,15 @@ export PATH="$HOME/.pyenv/versions/cc/bin:$HOME/.local/bin:$PATH"
 cd /home/saengtawan/work/project/cc/stock-analyzer
 
 DATE="${1:-$(TZ=America/New_York date +%F)}"
+MODE="${2:-pre}"   # pre = pre-close PREDICTION pass (buy-before, ~15:15-15:50 ET) ; post = confirm/grade
 mkdir -p overnight/plans
 
-PROMPT="Today (ET) is $DATE, just after the close. You are the overnight brain. Execute exactly as written.
+if [ "$MODE" = "post" ]; then
+  WHEN="just AFTER the close (~16:20 ET) — the CONFIRM/grade pass; the prints are landing"
+else
+  WHEN="BEFORE the close (~15:15-15:50 ET) — the PREDICTION pass; tonight's AH reporters have NOT printed yet, make the pre-print odds call so the user can buy before 16:00"
+fi
+PROMPT="Today (ET) is $DATE, $WHEN. You are the overnight brain. Execute exactly as written.
 $(sed "s/<DATE>/$DATE/g" overnight/brain/decide.md)"
 
 timeout 900 claude -p "$PROMPT" --permission-mode bypassPermissions \
