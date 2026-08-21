@@ -39,8 +39,12 @@ focused task; a loose, heavy prompt on the same night timed out. Tight and fast 
 Cast a wide net and see the whole field for the target day — do NOT pre-filter it down to one criterion.
 Anything you genuinely think could give an overnight-gap edge is fair game; you judge each on its merits
 in Step 2, nothing is ruled in or out by a rule here. Things worth searching for (not a required checklist):
-- **Earnings** reporting AFTER today's close (AH → next open) OR **BMO tomorrow** (before the open):
-  "earnings after close <date>", "reporting before open <tomorrow>", "<sector> earnings <date>".
+- **Earnings** reporting AFTER today's close (AH → the next session's pop) OR **BMO the NEXT TRADING
+  session** (before its open). "Next trading session" skips the weekend: on a **Friday** run it is
+  **MONDAY**, so search Monday BMO + anything dated Sat/Sun/Monday, not "tomorrow" (which is Saturday,
+  a non-session). "earnings after close <date>", "reporting before open <next session>", "<sector>
+  earnings <date>". The exit follows the pop: same-evening AH if it prints tonight, or the next
+  session's premarket before its open (Monday premarket for a Friday buy) — always before the open.
 - **FDA / PDUFA decision dates** landing on the target day: "PDUFA date <date>", "FDA decision <date>",
   "FDA approval expected <date>". (RARE 08-20 was exactly this — a PDUFA gap.)
 - **Court rulings, index adds effective at the open, scheduled data readouts, investor/analyst days**
@@ -65,8 +69,9 @@ not a gap-up — so a name whose whole thesis needs a perfect print is a weaker 
 up to gap on a merely-fine print.
 
 ## Step 3 — pick ≤3 overnight candidates (fewer is better; abstain if none is clean)
-For each: ticker, the after-hours move so far, why it should POP and hold through the AH session
-(you sell at ~19:59 ET, not the next open), what the edge is
+For each: ticker, the after-hours move so far, why it should POP and hold to the sell (end-of-AH
+~19:59 ET tonight, or — for a weekend/next-session-BMO catalyst — the next session's premarket before
+its open; never held into the regular open), what the edge is
 (catalyst, positioning, momentum — whatever you read), and the honest risk (guidance-cut on the call,
 AH round-trip before the open, thin after-hours liquidity). State the odds honestly (e.g. ~55/45), not
 a certainty. Whether a catalyst is fresh or already priced is one thing you WEIGH in the odds — not a
