@@ -30,6 +30,11 @@ You may READ resonance's layers so nothing is re-implemented here (same pattern 
 These are READS ONLY. Never WRITE to resonance (no plans, no db, no journal). Import the pool/data;
 do not copy its code.
 
+## Efficiency (this is what makes the run finish — match it exactly)
+Be efficient and decisive — a handful of TARGETED searches, then decide. Do NOT exhaustively research
+the whole field; time-box yourself. (The 08-20 run that found ROST finished in ~2 minutes on a tight,
+focused task; a loose, heavy prompt on the same night timed out. Tight and fast is the working shape.)
+
 ## Step 1 — find who reports AFTER the close tonight
 WebSearch for companies reporting earnings AFTER today's close (and any scheduled event tonight/tomorrow
 that would gap a stock): "earnings after close <today's date>", "reporting after the bell today",
