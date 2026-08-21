@@ -163,12 +163,8 @@ Predict which **≤3** names release UP and **CLOSE green >2%**. For each finali
   gives nobody a reason to pay a premium, or a high-flyer priced-for-perfection where a mere beat
   is not enough — then the open is all supply and it fades even on a HARD, same-morning beat. Ask it
   literally: *if I already owned this into the print, would I buy MORE at this open price, or sell my
-  pop here?* The forward record is blunt on this: QNT (a first-ever earnings, unpriced — gap only
-  +6% but +20% close: buyers still arriving) vs BULL (a good-but-ordinary broker beat, +15% pop
-  fully held into the open, ZERO analyst revisions printed: −11% close — nobody left to pay up). A
-  HARD beat with no incoming buyer flow is the loss column (BULL / GO / DUOL were all HARD and
-  faded). This is a lens to WEIGH, not a gate with a threshold — read who is on the other side of
-  your open from the tape and the revision flow, and let the record keep testing it.
+  pop here?* Read who is on the other side of your open from the tape and the revision flow — this is
+  a lens to WEIGH, not a gate with a threshold.
 - **who/fit** — real participation + rotation fit (per #3, not the gain).
 - **risk** — the honest way this is wrong (direction can fail; catalyst may be priced; froth may
   fade). Nothing verifies the close — say so.
