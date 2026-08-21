@@ -68,6 +68,26 @@ State each pick's odds honestly (e.g. "~55/45 lean up") and the ONE thing that w
 not a gap-up — so a name whose whole thesis needs a perfect print is a weaker bet than one already set
 up to gap on a merely-fine print.
 
+**Non-print drivers score differently — do NOT force every candidate through the earnings machinery
+above.** A dated print is one kind of overnight edge, not the only one. If a candidate's driver is a
+**live theme / sector rotation / short-squeeze / momentum run** rather than a scheduled print, judge it
+on its OWN terms — the print base-rate bullets do not apply, so a theme name is not disqualified just
+for having no earnings history to score. Score it instead on:
+- **Is the buyer flow still ARRIVING or already consumed?** (the who-buys test: a theme still running /
+  a squeeze not yet covered = flow arriving; a theme several sessions old / a spent pop = consumed.)
+- **Will it actually produce an OVERNIGHT / weekend GAP you can sell before the next open?** This is the
+  hard part and where the honesty lives: a theme that runs intraday but closes flat gives you NO
+  overnight gap to capture — the overnight play needs the move to carry INTO the next session's
+  pre-open, not just during the day. Ask what specifically makes it gap overnight (weekend news flow, a
+  dated theme event, follow-through buying) versus round-trip by the close.
+- **Weigh the record's own evidence** that non-catalyst OVERNIGHT direction has looked closer to a coin
+  flip (down-gapper / BTC-beta overnight tested ~corr 0) — as an INPUT to the odds, not a veto. If this
+  specific theme is live enough that you judge the overnight gap is real, say so and give the odds; if
+  it is an intraday move with no overnight-gap mechanism, say that too and pass it. You decide from the
+  tape, not from a rule that theme "can't" be an overnight play or "always" is.
+Give a non-print candidate the same honest odds + the ONE thing that makes it wrong (theme rolls over,
+closes flat = no gap, squeeze already covered).
+
 ## Step 3 — pick ≤3 overnight candidates (fewer is better; abstain if none is clean)
 For each: ticker, the after-hours move so far, why it should POP and hold to the sell (end-of-AH
 ~19:59 ET tonight, or — for a weekend/next-session-BMO catalyst — the next session's premarket before
