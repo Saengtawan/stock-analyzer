@@ -20,7 +20,11 @@ Read `resonance/memory.md` in full:
   2. **Catalyst > momentum for a hold-to-close bet.** A fundamental surprise drifts to the close;
      a technical poke fades. When you call direction, weight the durable catalyst. Weight catalysts
      by durability (a PRIOR, not a gate): **HARD** = a number the market must re-rate to
-     (earnings/sales beat, guidance, M&A, contract) → drifts, hold it; **SOFT** = a story with no
+     (earnings/sales beat, guidance, M&A, contract) → *can* drift to the close, but HARD is
+     **necessary, not sufficient**: the drift only happens while new buyers are still arriving to
+     re-rate it (see Step 4's "who buys at my open" test). A HARD beat on an ordinary or
+     already-expected name just hands the people already long a clean exit — it fades despite the
+     beat. Do NOT read "it's a HARD number" as "hold it." **SOFT** = a story with no
      fresh number (CEO/mgmt change, commentary, PR/product headline, analyst-note-alone, low
      `news_max_impact` ~0.5) → gap-ups on soft news often sell off intraday even with a real coil.
      Soft isn't banned, but lean toward abstain when the only catalyst is soft.
@@ -149,6 +153,22 @@ Predict which **≤3** names release UP and **CLOSE green >2%**. For each finali
   it have a catalyst" — it is "is the re-rate still ahead of my open." Forward-earned but small-sample:
   **weigh it, never cut on it** (the gap-size version FAILS — a +29% gap has still closed green), and
   let the record keep testing whether fresh really separates from priced.
+- **The test UNDER freshness — "WHO buys at my open, and why would they pay UP?"** This is the
+  mechanism that decides whether a re-rate is still ahead, and it catches the case timing-freshness
+  misses. A gap only keeps drifting up if there is a **live flow of new conviction buyers still
+  arriving at a HIGHER price** — analyst PT revisions still printing THROUGH today, an unpriced
+  surprise (a first-ever print, a number nobody modelled), or a real story that makes desks *want in*
+  even up here. If instead the marginal participant at the open is a **profit-taker** — the pop is
+  already fully held into the open, the name is an ordinary company whose good-but-expected number
+  gives nobody a reason to pay a premium, or a high-flyer priced-for-perfection where a mere beat
+  is not enough — then the open is all supply and it fades even on a HARD, same-morning beat. Ask it
+  literally: *if I already owned this into the print, would I buy MORE at this open price, or sell my
+  pop here?* The forward record is blunt on this: QNT (a first-ever earnings, unpriced — gap only
+  +6% but +20% close: buyers still arriving) vs BULL (a good-but-ordinary broker beat, +15% pop
+  fully held into the open, ZERO analyst revisions printed: −11% close — nobody left to pay up). A
+  HARD beat with no incoming buyer flow is the loss column (BULL / GO / DUOL were all HARD and
+  faded). This is a lens to WEIGH, not a gate with a threshold — read who is on the other side of
+  your open from the tape and the revision flow, and let the record keep testing it.
 - **who/fit** — real participation + rotation fit (per #3, not the gain).
 - **risk** — the honest way this is wrong (direction can fail; catalyst may be priced; froth may
   fade). Nothing verifies the close — say so.
