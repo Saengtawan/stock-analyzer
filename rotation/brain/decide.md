@@ -24,9 +24,15 @@ So predict with CALIBRATION, not false confidence:
   (an earnings result, an FDA decision); state odds, and VERIFY event dates/times before leaning on them.
 
 ## Step 1 — read yourself first
-Read `rotation/memory.md` in full: the LINKAGE MEMORY (which leads have actually held forward, which
-broke) and the LESSONS. Let your graded record condition today's call. If a linkage is 0-for-many
-forward, stop leaning on it; if one keeps holding, weight it.
+Read `rotation/memory.md` (narrative lessons) AND the structured registry from the DB:
+```
+python -c "from rotation.lib.journal import linkage_registry,regime_history; import json; print('LINKAGES',json.dumps(linkage_registry())); print('REGIMES',json.dumps(regime_history()))"
+```
+The LINKAGE REGISTRY is your growing brain — each lead has a forward tally + status
+(unconfirmed/holding/broken). **Weight a linkage by its status:** `holding` = earned, lean on it;
+`unconfirmed` = watch, do not bet weight on it yet; `broken` = stop using it. A linkage 0-for-many is
+broken — drop it. The regime history tells you what regime preceded what (learn the transitions:
+"profit-surge day → next-day fade", etc.).
 
 ## Step 2 — read the cross-asset snapshot (mechanical, already stored)
 ```
@@ -54,7 +60,24 @@ a theme goes live; note it with its date.
 
 ## Step 4 — predict, for EACH horizon (calibrated, with a falsifiable)
 Make calls for all three horizons. For each theme/call state: `theme`, `lean`, `names` (the tickers it
-would express through), `confidence` (0-1, honest), and the ONE **falsifiable** that would prove it wrong.
+would express through), **`kind`**, **`priced`**, `confidence` (0-1, honest), and the ONE
+**falsifiable** that would prove it wrong.
+
+**Tag every call `kind` — this is the difference between a real lean and a coin flip:**
+- **`mechanism`** — a KNOWN structural driver is in motion whose transmission is documented, so the
+  DIRECTION is leanable, not a coin flip (e.g. Treasury liquidity injection → hard assets/gold/BTC up +
+  dollar down; rate cuts → rate-sensitives up; a fresh tariff → the named winner up / loser down). Here
+  you MAY lean direction.
+- **`event`** — the driver is an OUTCOME not yet known (an earnings print, an FDA decision, a Fed
+  hawk/dove call). Direction is ~a coin flip — call the theme LIVE and the timing, but do NOT call the
+  sign.
+- **`regime`** — the environment read (risk-on/off/rotation/chop).
+Also tag **`priced`**: even a true mechanism pays only if the move is still AHEAD (`unspent`), not
+already in the price (`priced`). A mechanism everyone already traded (BTC already +20% on the liquidity
+news) is `priced` — the mechanism is real but the entry is late; say so. And a mechanism-trend catches
+a name only when that name is ALSO unspent within it (the MARA/HOOD lesson: crypto-liquidity was a live
+mechanism, and the catch was the name that had NOT run yet — HOOD ret_prev1d −0.70 — not the ones
+already up). So a mechanism call is strongest when `kind=mechanism` AND `priced=unspent`.
 - **tomorrow** — which themes are most likely LIVE next session + lean + names. Weight live-ness over
   direction. A theme running today with a fresh driver (not consumed) tends to persist; a theme with a
   dated catalyst tomorrow is live by the clock; a theme extended/consumed is a fade candidate.
@@ -75,20 +98,29 @@ Guardrails you owe the record:
   "date": "<DATE>",
   "regime": "one line: risk-on/off/rotation/chop + why (VIX/rates/breadth/leadership)",
   "tomorrow": [
-    {"theme":"AI/semis","lean":"live/up","names":"NVDA,SMH,AMD","confidence":0.6,
-     "falsifiable":"if SMH closes red tomorrow with NVDA green, the readthrough lead is wrong",
+    {"theme":"gold/metals","lean":"up","kind":"mechanism","priced":"unspent","names":"GLD,GDX,NEM",
+     "confidence":0.6,"falsifiable":"if GDX closes red with the dollar down, the liquidity->metals lead is wrong",
      "reason":"..."}
   ],
-  "week": [ {"theme":"...","lean":"...","names":"...","confidence":0.5,"falsifiable":"...","reason":"..."} ],
-  "linkages_watching": ["Treasury buyback -> BTC -> crypto-equity (unconfirmed)", "..."]
+  "week": [ {"theme":"AI/semis around NVDA","lean":"live","kind":"event","priced":null,"names":"NVDA,SMH",
+             "confidence":0.85,"falsifiable":"...","reason":"live by the clock; sign NOT called"} ],
+  "linkages_watching": [ {"id":"liquidity->metals","kind":"mechanism","note":"Treasury buyback -> soft DXY -> gold/BTC"} ]
 }
 ```
-2. Log each call to the DB:
+2. Log to the DB:
+   - each prediction row (horizon ∈ tomorrow|week|regime):
 ```
-python -c "from rotation.lib.journal import log_prediction as p; p('<DATE>','tomorrow','AI/semis','live/up','NVDA,SMH',0.6,'if SMH red w/ NVDA green the lead is wrong','...')"
+python -c "from rotation.lib.journal import log_prediction as p; p('<DATE>','tomorrow','gold/metals','up','GLD,GDX','mechanism','unspent',0.6,'if GDX red w/ DXY down the lead is wrong','...')"
 ```
-   (one call per prediction row; horizon ∈ tomorrow|week|regime).
-3. Print a short receipt: regime line + the top 2-3 themes with lean+confidence.
+   - the regime tag:
+```
+python -c "from rotation.lib.journal import log_regime as r; r('<DATE>','rotation/bond-stress',None,'VIX complacent but week red; rates the driver')"
+```
+   - each linkage you are watching (registers it as unconfirmed so the learn pass can start scoring it forward):
+```
+python -c "from rotation.lib.journal import upsert_linkage as u; u('liquidity->metals',trigger='Treasury buyback/soft DXY',target='GLD,GDX,BTC',kind='mechanism',note='the apparent chain of the week — do not over-fit')"
+```
+3. Print a short receipt: regime line + the top 2-3 themes with lean+kind+confidence.
 
 Do NOT write anything outside `rotation/`, `data/rotation.db`. This is off-record — its calls do not
 enter any trading journal until the forward record proves the forecaster earns its keep.

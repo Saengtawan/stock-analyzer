@@ -23,10 +23,11 @@ UNIVERSE = {
     "fx":        ["DX-Y.NYB", "UUP"],                           # dollar
     "commodity": ["CL=F", "GC=F", "SI=F", "HG=F", "USO", "GLD"],# oil/gold/silver/copper
     "crypto":    ["BTC-USD", "ETH-USD", "SOL-USD"],
+    "credit":    ["HYG", "LQD"],                                # high-yield vs investment-grade = risk appetite
     "sector":    ["XLK", "XLE", "XLV", "XLF", "XLI", "XLY", "XLP", "XLU", "XLB", "XLRE", "XLC"],
-    "theme":     ["SMH", "IGV", "XBI", "IBB", "ITA", "TAN", "ARKK", "IWO", "KRE", "XRT", "JETS"],
+    "theme":     ["SMH", "IGV", "XBI", "IBB", "ITA", "TAN", "ARKK", "IWO", "KRE", "XRT", "JETS", "ITB"],
     # SMH=semis IGV=software XBI/IBB=biotech ITA=defense TAN=solar ARKK=innovation
-    # IWO=smallgrowth KRE=regionalbanks XRT=retail JETS=airlines
+    # IWO=smallgrowth KRE=regionalbanks XRT=retail JETS=airlines ITB=homebuilders
 }
 
 
@@ -74,8 +75,33 @@ def build(date=None):
                 ok += 1
             except Exception:
                 fail += 1
+    _derived_internals(date)
     print(f"[rotation.snapshot] {date}: stored {ok} assets, {fail} failed")
     return ok
+
+
+def _derived_internals(date):
+    """After the raw assets are stored, compute MARKET INTERNALS (extra dimensions the AI reads as
+    regime tells) and store them as pseudo-assets under class='internal':
+      - BREADTH_ETF: % of sector+theme ETFs green today (a simple breadth proxy)
+      - CURVE_10y3m: 10y minus 13w yield (yield-curve slope; negative = inverted)
+      - CREDIT_HYG_LQD: HYG 5d minus LQD 5d (risk-appetite spread proxy)
+    Neutral plumbing — no interpretation, just more dimensions so the read is never one-dimensional."""
+    from rotation.lib.journal import snapshot_asof
+    rows = {r["asset"]: r for r in snapshot_asof(date)}
+    # breadth
+    grp = [r for a, r in rows.items() if r["class"] in ("sector", "theme") and r["ret_1d"] is not None]
+    if grp:
+        pct_green = round(100 * sum(1 for r in grp if r["ret_1d"] > 0) / len(grp), 1)
+        log_snapshot(date, "BREADTH_ETF", "internal", pct_green, extra={"n": len(grp), "unit": "%green_1d"})
+    # yield-curve slope (10y - 13w), from stored ^TNX / ^IRX closes
+    if "^TNX" in rows and "^IRX" in rows:
+        slope = round(rows["^TNX"]["close"] - rows["^IRX"]["close"], 3)
+        log_snapshot(date, "CURVE_10y3m", "internal", slope, extra={"unit": "pct_pts", "inverted": slope < 0})
+    # credit risk-appetite proxy: HYG 5d - LQD 5d
+    if "HYG" in rows and "LQD" in rows and rows["HYG"]["ret_5d"] is not None and rows["LQD"]["ret_5d"] is not None:
+        spread = round(rows["HYG"]["ret_5d"] - rows["LQD"]["ret_5d"], 2)
+        log_snapshot(date, "CREDIT_HYG_LQD", "internal", spread, extra={"unit": "5d_ret_diff", "risk_on": spread > 0})
 
 
 if __name__ == "__main__":

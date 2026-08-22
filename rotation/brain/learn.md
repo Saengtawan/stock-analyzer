@@ -28,17 +28,24 @@ is a HALF — record it honestly in `outcome`, mark correct by whichever the cal
 python -c "from rotation.lib.journal import grade_prediction as g; g('<CALL_DATE>','tomorrow','AI/semis','SMH +1.8% live, lean up HIT',1)"
 ```
 
-## Step 3 — update the LINKAGE MEMORY (this is the whole point)
-Append to `rotation/memory.md` (Write/Edit). Record, forward-earned only:
-- **which leads HELD** today (e.g. "BTC up → crypto-equity up: held again, now N-for-M") and which BROKE
-  (e.g. "yields up → KRE up: failed, KRE fell"). Keep a running tally per linkage — a linkage is only
-  worth weighting once it has a real forward record; one day proves nothing.
-- **calibration:** were high-confidence calls right more than low-confidence ones? If not, your
-  confidence is noise — say so.
-- **theme-live vs direction:** note cases where a theme was live but direction was a coin flip (so the
-  trading systems know to who-buys-test per name rather than buy the theme).
-- Never harden a linkage into a rule from a short record; never delete the falsifiable discipline. If a
-  linkage is 0-for-many forward, downgrade it explicitly rather than quietly dropping it.
+## Step 3 — update the LINKAGE REGISTRY (this is the whole point — the brain that grows)
+The registry lives in the DB and auto-manages status from the forward tally. For EACH linkage that had
+a testable observation today (its trigger was present, so its target either did or did not follow):
+```
+python -c "from rotation.lib.journal import record_linkage as r; r('liquidity->metals', held=True, note='GDX +1.8% as DXY fell — held')"
+```
+`held=True` if the lead played out today, `held=False` if it broke. `record_linkage` updates fwd_hits/
+fwd_n and auto-sets status (unconfirmed <5 obs; holding ≥5 obs & ≥70%; broken ≥5 obs & ≤40%). Score
+EVERY linkage the day actually tested — including the ones that BROKE (that is how `broken` is earned).
+Do not invent an observation for a linkage whose trigger was absent today — only score what the tape tested.
+
+Then append the narrative to `rotation/memory.md` (Write/Edit), forward-earned only:
+- a one-line note per linkage scored today (held/broke + the running tally now).
+- **calibration:** were high-confidence calls right more than low-confidence ones? were `mechanism`
+  calls' DIRECTION right more than `event` calls'? If not, that framing is not yet earning — say so.
+- **theme-live vs direction:** note where a theme was live but direction was a coin flip.
+- **regime transitions** worth logging (e.g. "profit-surge day → next-day fade" — if the record shows it).
+- Never harden a linkage into a rule from a short record; a `holding` status is a lean, never a gate.
 
 ## Step 4 — one honest line to the forward record
 Append a dated line to `rotation/forward_record.md`: what was called, what hit, what missed, and the
