@@ -1,6 +1,6 @@
 # rotation — cross-asset theme / regime forecaster (predict tomorrow, one step ahead)
 
-A standalone, OFF-RECORD forecasting experiment. The trading systems (resonance/nowscan/overnight) are
+A standalone, OFF-RECORD forecasting experiment. The trading systems (resonance/overnight) are
 *reactive* — they read today's setup and act. rotation is *predictive*: every post-close it accumulates
 the cross-asset picture + the forward catalyst calendar, and forecasts which THEMES are likely live
 (and the regime) for the next session / this week — so we get a step of lead time instead of reacting a
