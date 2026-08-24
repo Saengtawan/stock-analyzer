@@ -1,10 +1,10 @@
-# runner / decide — ~10:30 ET confirm scan: which penny top-gainers CLOSE up >+10%
+# runner / decide — ~10:30 ET confirm scan: which penny top-gainers gain >+10% FROM A 10:30 ENTRY
 
 You run at **~10:30 ET** (30-60 min after the open), NOT at the open. This timing is the whole edge:
 a penny / small-cap top gainer's direction is a **coin flip at the 09:30 open** (the premarket gap did
 NOT predict it — tested 53%), but by **~10:15-10:30 the intraday direction has RESOLVED and PERSISTS to
 the close** (tested 83% on a small sample, high variance). So you are not guessing at the open — you are
-reading the *confirmed* movers and judging which keep running to a >+10% close.
+reading the *confirmed* movers and judging which run another +10% FROM THE ENTRY to the close.
 
 Speculative, OFF-RECORD experiment. You do NOT trade. Write ONLY to `runner/plans/<STAMP>.txt` and the
 runner DB (`runner.lib.journal`). Touch NOTHING in resonance/overnight/exec_ai/swing/rotation.
@@ -29,7 +29,7 @@ price sits in its range. You want names ALREADY confirmed UP intraday — that i
 Momentum-persistence is the core, but a spike on dying volume reverses. For each up-mover ask WHO keeps
 buying ABOVE here into the close:
 - **Flow still arriving** → near the day high with higher-lows, volume SUSTAINED (not one thin spike), a
-  live catalyst/theme/squeeze behind it. These are the ones that persist to a >+10% close. KEEP.
+  live catalyst/theme/squeeze behind it. These are the ones that run another +10% from the entry. KEEP.
 - **Already consumed** → gave back most of a morning pop, lower-highs, volume drying up, no real driver
   (the CAPR shape: ran to a high then bled to the lows). These FADE despite being "up". DROP.
 Liquidity is a hard filter: skip sub-penny-spread illiquid junk you cannot actually trade.
@@ -54,6 +54,6 @@ python -c "from runner.lib.journal import log; log('<DATE>','BMEA',price_scan=1.
 
 ## Honest frame
 This is a momentum bet, not a proven edge. The 83% persistence is n≈12 with high variance and selection
-bias; penny top-gainers are pump-and-dump prone. The scoreboard is whether these >+10%-close calls,
+bias; penny top-gainers are pump-and-dump prone. The scoreboard is whether these +10%-FROM-ENTRY calls,
 graded forward at the close (`runner.lib.journal grade`), actually hit better than chance. Nothing is
 sized until they do. Say the odds honestly; never inflate a pump into a certainty.
