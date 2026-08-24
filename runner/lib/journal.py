@@ -78,18 +78,18 @@ def grade(verbose=True):
         close = float(b["Close"].iloc[0]) if len(b) else float(rth["Close"].iloc[-1])
         day_close_pct = round((close / pc - 1) * 100, 2) if pc else None
         trade_pct = round((close / ps - 1) * 100, 2) if ps else None
-        # PRIMARY scoreboard = the TRADE (scan->close). The ">+10% day close" target is nearly free for a
-        # name already up +27%..+407% at scan (it would have to crash to miss), so it proves nothing —
-        # `hit` now = did the 10:30 momentum-follow entry actually GAIN to the close (trade_pct > 0).
-        hit = 1 if (trade_pct is not None and trade_pct > 0) else 0
-        day_hit = 1 if (day_close_pct is not None and day_close_pct >= (tgt or 10)) else 0
+        # TARGET = +10% FROM THE ENTRY (the scan price), not from the open / prior close. So `hit` = the
+        # trade itself gained >= target_pct from where you bought (trade_pct >= tgt). The day-close %
+        # (from prev_close) is kept only as a free reference — a name already up +27% is >+10% on the day
+        # for free, which proves nothing; the real bar is +10% MORE from the 10:30 entry.
+        hit = 1 if (trade_pct is not None and trade_pct >= (tgt or 10)) else 0
         c.execute("""UPDATE picks SET close_px=?, day_close_pct=?, trade_pct=?, hit=?, graded=1
                      WHERE date=? AND sym=?""", (close, day_close_pct, trade_pct, hit, date, sym))
         n += 1
         if verbose:
-            print(f"  {sym} {date}: scan {ps} -> close {close:.2f} | "
-                  f"**trade-from-scan {trade_pct:+.1f}% ({'WIN' if hit else 'loss'})** | "
-                  f"day {day_close_pct:+.1f}% (>+{tgt}% {'yes' if day_hit else 'no'} — free ref)")
+            print(f"  {sym} {date}: entry {ps} -> close {close:.2f} | "
+                  f"**+{tgt}%-from-entry: trade {trade_pct:+.1f}% ({'HIT' if hit else 'miss'})** | "
+                  f"day {day_close_pct:+.1f}% (free ref)")
     c.commit(); c.close()
     if verbose:
         print(f"[runner] graded {n} pick(s)")
@@ -102,12 +102,11 @@ def recent(k=25):
     for r in c.execute("""SELECT date,sym,day_pct_at_scan,day_close_pct,trade_pct,hit,graded FROM picks
                           ORDER BY date DESC LIMIT ?""", (k,)):
         print(r)
-    print("== TRADE scoreboard (scan->close, the real metric) ==")
+    print("== SCOREBOARD: +10%-FROM-ENTRY (trade_pct >= +10%, the real target) ==")
     for r in c.execute("SELECT COUNT(*),SUM(hit),AVG(trade_pct) FROM picks WHERE graded=1"):
         tot, hits, avg = r
         if tot:
-            print(f"  trade-win {hits or 0}/{tot} = {100*(hits or 0)/tot:.0f}% | avg trade-from-scan {avg:+.2f}%")
-            print(f"  (the >+10% day-close 'hit' is nearly free for top gainers — trade_pct is the scoreboard)")
+            print(f"  hit +10%-from-entry: {hits or 0}/{tot} = {100*(hits or 0)/tot:.0f}% | avg trade (entry->close) {avg:+.2f}%")
     c.close()
 
 
