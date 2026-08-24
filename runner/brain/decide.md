@@ -10,8 +10,11 @@ Speculative, OFF-RECORD experiment. You do NOT trade. Write ONLY to `runner/plan
 runner DB (`runner.lib.journal`). Touch NOTHING in resonance/overnight/exec_ai/swing/rotation.
 
 ## The bet (say it honestly)
-- Entry is modeled at THIS scan's price (~10:30). The target is a name that CLOSES up **>+10% on the day**
-  (prev_close → close).
+- Entry is modeled at THIS scan's price (~10:30). **The scoreboard is `trade_pct` — scan → close — did
+  the 10:30 entry actually GAIN to the close.** A ">+10% on the day close" target is nearly FREE for a
+  name already up +27%..+407% at scan (it would have to crash to miss), so it proves nothing; do not
+  rank on it. Rank on whether it keeps running FROM HERE (trade_pct), and give that its own honest odds
+  separate from the free day-close number.
 - The edge is **momentum persistence** (the 10:30 direction holds) + a **who-buys** filter (is the flow
   still arriving, or is the mover already exhausted). It is 83% on n≈12 — plausible, unproven, forward-tracked.
 - Direction at the open is a coin flip; do NOT try to call it earlier. That is why this runs at 10:30.
@@ -33,10 +36,12 @@ Liquidity is a hard filter: skip sub-penny-spread illiquid junk you cannot actua
 Direction filter: only KEEP names whose 10:30 read is UP and holding — you are long-only here.
 
 ## Step 3 — pick the shortlist + honest odds
-Pick the ≤5 penny top-gainers most likely to CLOSE >+10% on the day. For each: ticker, price now, how
-much it is already up on the day, WHY the flow keeps coming (the source), the honest risk (why it fades
-into the close), and a genuine odds/confidence. If the honest read is that every mover is already
-exhausted / on a risk-off tape none has legs to +10%, say so — a small or empty list is a valid answer.
+Pick the ≤5 penny top-gainers most likely to KEEP RUNNING from here to the close (positive `trade_pct`,
+scan → close — the real metric). For each: ticker, price now, how much it is already up on the day, WHY
+the flow keeps coming (the source), the honest risk (why it fades into the close), and TWO honest odds
+kept separate: (a) trade_pct > 0 (the real one — does buying here gain to the close) and (b) >+10% day
+close (the nearly-free reference). Rank by (a). If the honest read is that every mover is already
+exhausted / on a risk-off tape none keeps running from here, say so — a small or empty list is valid.
 
 ## Step 4 — write it, OFF-RECORD
 - Write the shortlist + reasoning to `runner/plans/<STAMP>.txt` (Write tool).

@@ -78,13 +78,18 @@ def grade(verbose=True):
         close = float(b["Close"].iloc[0]) if len(b) else float(rth["Close"].iloc[-1])
         day_close_pct = round((close / pc - 1) * 100, 2) if pc else None
         trade_pct = round((close / ps - 1) * 100, 2) if ps else None
-        hit = 1 if (day_close_pct is not None and day_close_pct >= (tgt or 10)) else 0
+        # PRIMARY scoreboard = the TRADE (scan->close). The ">+10% day close" target is nearly free for a
+        # name already up +27%..+407% at scan (it would have to crash to miss), so it proves nothing —
+        # `hit` now = did the 10:30 momentum-follow entry actually GAIN to the close (trade_pct > 0).
+        hit = 1 if (trade_pct is not None and trade_pct > 0) else 0
+        day_hit = 1 if (day_close_pct is not None and day_close_pct >= (tgt or 10)) else 0
         c.execute("""UPDATE picks SET close_px=?, day_close_pct=?, trade_pct=?, hit=?, graded=1
                      WHERE date=? AND sym=?""", (close, day_close_pct, trade_pct, hit, date, sym))
         n += 1
         if verbose:
-            print(f"  {sym} {date}: scan {ps} -> close {close:.2f} | day {day_close_pct:+.1f}% "
-                  f"(target +{tgt}% {'HIT' if hit else 'miss'}) | trade-from-scan {trade_pct:+.1f}%")
+            print(f"  {sym} {date}: scan {ps} -> close {close:.2f} | "
+                  f"**trade-from-scan {trade_pct:+.1f}% ({'WIN' if hit else 'loss'})** | "
+                  f"day {day_close_pct:+.1f}% (>+{tgt}% {'yes' if day_hit else 'no'} — free ref)")
     c.commit(); c.close()
     if verbose:
         print(f"[runner] graded {n} pick(s)")
@@ -97,11 +102,12 @@ def recent(k=25):
     for r in c.execute("""SELECT date,sym,day_pct_at_scan,day_close_pct,trade_pct,hit,graded FROM picks
                           ORDER BY date DESC LIMIT ?""", (k,)):
         print(r)
-    print("== hit rate (graded) ==")
+    print("== TRADE scoreboard (scan->close, the real metric) ==")
     for r in c.execute("SELECT COUNT(*),SUM(hit),AVG(trade_pct) FROM picks WHERE graded=1"):
         tot, hits, avg = r
         if tot:
-            print(f"  {hits or 0}/{tot} hit >+target = {100*(hits or 0)/tot:.0f}% | avg trade-from-scan {avg:+.2f}%")
+            print(f"  trade-win {hits or 0}/{tot} = {100*(hits or 0)/tot:.0f}% | avg trade-from-scan {avg:+.2f}%")
+            print(f"  (the >+10% day-close 'hit' is nearly free for top gainers — trade_pct is the scoreboard)")
     c.close()
 
 
