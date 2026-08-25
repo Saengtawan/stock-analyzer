@@ -1,71 +1,65 @@
-# runner / decide — ~10:30 ET confirm scan: which penny top-gainers gain >+10% FROM A 10:30 ENTRY
+# runner / decide — ~10:30 ET: fresh-catalyst names with a GOOD (not-extended) entry → >+10% by EOD
 
-You run at **~10:30 ET** (30-60 min after the open), NOT at the open. This timing is the whole edge:
-a penny / small-cap top gainer's direction is a **coin flip at the 09:30 open** (the premarket gap did
-NOT predict it — tested 53%), but by **~10:15-10:30 the intraday direction has RESOLVED and PERSISTS to
-the close** (tested 83% on a small sample, high variance). So you are not guessing at the open — you are
-reading the *confirmed* movers and judging which run another +10% FROM THE ENTRY to the close.
+Work BACKWARDS from the goal: "which names will END the day up big?" → find them EARLY (~10:30) at a
+GOOD entry, before they run. The winner is a **fresh CATALYST that is still re-rating and NOT yet
+extended** — you enter cheap and it runs into the close.
 
-Speculative, OFF-RECORD experiment. You do NOT trade. Write ONLY to `runner/plans/<STAMP>.txt` and the
-runner DB (`runner.lib.journal`). Touch NOTHING in resonance/overnight/exec_ai/swing/rotation.
+**This REPLACES the old momentum-persistence thesis** ("follow the 10:30 up-confirmed direction"), which
+the 08-24 forward day FALSIFIED: following the up-confirmed bought the extended tops (BTCT +55% at 10:30
+→ **−32%** close) and MISSED the real winner PMI, which was **faded −2.2% at 10:30 then ran +17.5%** on
+a fresh catalyst. Momentum-at-10:30 buys pumps at the top; a fresh catalyst not-yet-extended is the edge.
 
-## The bet (say it honestly)
-- Entry is modeled at THIS scan's price (~10:30). **The TARGET is +10% FROM THE ENTRY** — the trade
-  (entry → close, `trade_pct`) gains ≥ +10% from where you buy, NOT +10% on the day from the prior
-  close. A name already up +27% is >+10% "on the day" for free — that proves nothing. The real bar is
-  that it runs **another +10% from your 10:30 entry** to the close. That is a HARD bar (a name already
-  up big has to have real room + flow left), so most movers will miss it — rank strictly on it.
-- The edge is **momentum persistence** (the 10:30 direction holds) + a **who-buys** filter (is the flow
-  still arriving, or is the mover already exhausted). It is 83% on n≈12 — plausible, unproven, forward-tracked.
-- Direction at the open is a coin flip; do NOT try to call it earlier. That is why this runs at 10:30.
-- **ENTRY IS THE ~10:30 PRICE — model it, even if you run this scan later.** The edge lives at the 10:30
-  confirm window; a later entry pays up and loses the edge (lesson 08-24: LUCY was **+9.6% from its
-  10:30 price** but the scan ran at 12:22 and entered at 1.19 → **−5%**). So `price_scan` = the ~10:30
-  bar's price (pull the 10:30 bar), NOT "price now" if you are running late. Log the 10:30 entry.
-- **EXIT IS A TRAILING STOP, NOT HOLD-TO-CLOSE.** These names round-trip (lesson 08-24: DAIC ran **+42%
-  from entry** then closed **−22%** — hold-to-close threw the whole move away). The scoreboard is
-  `trail_pct` (a trailing-stop exit), not the close. You pick the entry; the trail captures the run.
+Speculative, OFF-RECORD experiment. You do NOT trade. Write ONLY to `runner/plans/<STAMP>.txt` + the
+runner DB. Touch NOTHING in resonance/overnight/exec_ai/swing/rotation.
 
-## Step 1 — build the confirmed-mover field (WebSearch + yfinance)
-Find today's penny / small-cap TOP GAINERS, roughly **$1-$10**, that are UP strongly on the day RIGHT NOW
-(~10:30). WebSearch today's gainers / low-float runners / small-cap movers; for candidates pull the live
-intraday via yfinance in Bash (prepost fine): the open, the price now, the day's high/low, and where the
-price sits in its range. You want names ALREADY confirmed UP intraday — that is the signal.
+## The bet
+- **SELECT on CATALYST + GOOD ENTRY, not price-momentum.** The +10%-by-EOD run is driven by a fresh
+  catalyst re-rating through the session — not by a name that already moved. (08-24 proof: LUCY had a
+  real catalyst (HTC alliance + 150-store) and PMI had one (Picard Reg FD presentation) — both ran to
+  the close; BTCT/DAIC had no fresh catalyst — pure BTC-beta / shell squeeze — and crashed/whipsawed.)
+- **Entry ~10:30, modeled at the 10:30 bar** even if you run later (a late entry pays up and loses the
+  edge — 08-24: LUCY was +9.6% from its 10:30 price of 1.00, but a 12:22 entry at 1.19 → −5%).
+- **Target +10% FROM THE ENTRY. Exit = a TRAILING stop, not hold-to-close** (names round-trip; hold
+  threw away DAIC's +42% peak). Scoreboard is `trail_pct`.
 
-## Step 2 — the who-buys filter (this removes the false runners)
-Momentum-persistence is the core, but a spike on dying volume reverses. For each up-mover ask WHO keeps
-buying ABOVE here into the close:
-- **Flow still arriving** → near the day high with higher-lows, volume SUSTAINED (not one thin spike), a
-  live catalyst/theme/squeeze behind it. These are the ones that run another +10% from the entry. KEEP.
-- **Already consumed AND still dying** → gave back the pop AND making lower-highs with volume dead, no
-  driver = the true fade. DROP.
-- **Gave back the pop but BASING / turning back up** → do NOT hard-drop. A name can bleed off a morning
-  high then re-accumulate and run a SECOND leg. (Lesson 08-24: PMI was dropped as "consumed, CAPR shape"
-  and then ran **+17.5% from 10:30 to the close** — the drop was a false-negative.) A consumed name that
-  is basing on returning volume / reclaiming its VWAP is a RE-ENTRY candidate, not a discard — flag it
-  to watch, do not bin it. Distinguish "consumed + dying" (drop) from "consumed + reclaiming" (keep-watch).
-Liquidity is a hard filter: skip sub-penny-spread illiquid junk you cannot actually trade.
-Direction filter: only KEEP names whose 10:30 read is UP and holding — you are long-only here.
+## Step 1 — build the FRESH-CATALYST field (WebSearch is mandatory here)
+Find today's small-cap / low-price movers ($1-$10 focus) and — for each — WebSearch the ACTUAL catalyst.
+You are NOT screening on price alone; you are screening on **a real, fresh, re-rating catalyst**:
+an earnings beat, an FDA/data event, a contract/deal/alliance, a fresh analyst re-rate, a Reg-FD
+disclosure. A name up big on NO fresh catalyst (pure BTC/theme beta already paid for, or a shell/float
+squeeze with no news) does NOT qualify — that is the BTCT/DAIC trap. Name the catalyst or drop the name.
+
+## Step 2 — the GOOD-ENTRY filter (the core: catalyst + NOT extended)
+For each fresh-catalyst name, judge the ENTRY at ~10:30 — you want to enter with ROOM left to run to EOD:
+- **NOT extended = room to run** → flat / basing near the day's open, OR **faded-then-reclaiming** (down
+  early but turning back up on the catalyst — the PMI shape). These enter CHEAP before the EOD move. KEEP.
+- **Already extended = no room** → up +30-55% and pressed to the day-high at 10:30 (BTCT +55%, BMEA +12%
+  topped) = the move is largely DONE; you would be buying the top. DROP even though it is "up".
+- **Faded = falling knife UNLESS reclaiming** → a down name only qualifies if it is turning back up
+  (reclaiming VWAP / higher-lows forming / volume returning) on an intact catalyst. A still-dying fader
+  with volume drying is a knife, not an entry — do NOT catch it. Require a reclaim, not just "it's cheap".
+Liquidity is a hard filter: skip sub-penny-spread illiquid junk and halted-repeatedly names (DAIC's LULD
+halts made its +42% un-exitable — untradeable, drop).
 
 ## Step 3 — pick the shortlist + honest odds
-Pick the ≤5 penny top-gainers most likely to gain **another +10% FROM THE ENTRY** (trade_pct ≥ +10%,
-entry → close) — the real, hard target. A name that already ran +23% and is now fading has little room
-for another +10% from here; you want ones with real room + sustained flow left. For each: ticker, price
-now, how much it is already up on the day, WHY the flow keeps coming, the honest risk, and the odds of
-**trade_pct ≥ +10%** (the real metric). Be blunt that this is a HARD bar — most movers miss it, so an
-empty or one-name list is the honest common answer, especially on a risk-off tape.
+Pick the ≤5 fresh-catalyst names with the best entry (not-extended / reclaiming) most likely to run
+**+10% from the ~10:30 entry to a trailing exit**. For each: ticker, 10:30 price (the entry), the
+CATALYST (named, verified fresh), the entry read (flat / basing / faded-reclaiming — why there is room),
+the honest risk (catalyst already priced, knife, halt), and the odds of trail_pct ≥ +10%. Rank by that.
+Most names miss — an empty or one-name list is the honest common answer.
 
 ## Step 4 — write it, OFF-RECORD
-- Write the shortlist + reasoning to `runner/plans/<STAMP>.txt` (Write tool).
-- Log each pick:
+- Write the shortlist + reasoning to `runner/plans/<STAMP>.txt`.
+- Log each pick (price_scan = the ~10:30 bar price; scan_time = "10:30"):
 ```
-python -c "from runner.lib.journal import log; log('<DATE>','BMEA',price_scan=1.70,prev_close=1.38,dir_confirmed='up',who_buys='near high, vol sustained, obesity theme + pending GLP-1 data',reason='...',scan_time='10:30')"
+python -c "from runner.lib.journal import log; log('<DATE>','LUCY',price_scan=1.00,prev_close=0.68,dir_confirmed='catalyst-not-extended',who_buys='HTC alliance + 150-store, flat/basing at 10:30 = room',reason='...',scan_time='10:30')"
 ```
-  (prev_close = prior day's close; price_scan = the price now.)
-- Do NOT write resonance/overnight/exec_ai/swing/rotation. This is off-record.
+- Do NOT write resonance/overnight/exec_ai/swing/rotation. Off-record.
 
 ## Honest frame
-This is a momentum bet, not a proven edge. The 83% persistence is n≈12 with high variance and selection
-bias; penny top-gainers are pump-and-dump prone. The scoreboard is whether these +10%-FROM-ENTRY calls,
-graded forward at the close (`runner.lib.journal grade`), actually hit better than chance. Nothing is
-sized until they do. Say the odds honestly; never inflate a pump into a certainty.
+This thesis (catalyst + not-extended entry) is a REVISION forced by ONE forward day (08-24), where it
+would have picked the two EOD winners (LUCY, PMI) and dropped the three losers (BTCT/BMEA/DAIC) — but
+that is a post-hoc fit on n=1, not proof. "Not extended" has a fuzzy threshold and "faded-reclaiming"
+can still be a knife. Every pick carries honest odds and is graded forward (trail_pct ≥ +10%). Nothing
+is sized until the catalyst+good-entry read beats chance over a real forward sample. Say odds honestly;
+never dress a pump as a catalyst.

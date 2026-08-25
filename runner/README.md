@@ -1,11 +1,14 @@
-# runner — penny top-gainer momentum, confirm-at-10:30, target >+10% close
+# runner — penny catalyst + good-entry (~10:30), target >+10% from entry
 
-A standalone, OFF-RECORD, speculative experiment. It tests a backtest-seeded edge on penny / small-cap
-TOP GAINERS: their direction is a **coin flip at the 09:30 open** (premarket gap did NOT predict it —
-53% in test), but by **~10:15-10:30 the intraday direction has RESOLVED and PERSISTS to the close**
-(83% on n≈12, high variance, selection-biased). So runner scans the *confirmed* movers at ~10:30,
-applies a who-buys flow filter, and predicts which CLOSE up >+10% on the day. Entry is modeled at the
-10:30 scan price.
+A standalone, OFF-RECORD, speculative experiment. **Thesis (REVISED after the 08-24 forward day):**
+work backwards from "which small-cap / low-price names END the day up big" and catch them EARLY (~10:30)
+at a GOOD entry — a **fresh CATALYST that is still re-rating and NOT yet extended** (flat/basing, or
+faded-then-reclaiming), entered cheap before the run, exited on a TRAILING stop, target +10% from entry.
+
+The ORIGINAL thesis (momentum-persistence: "follow the 10:30 up-confirmed direction", 83% on n≈12) was
+FALSIFIED on 08-24 — following the up-confirmed bought extended tops (BTCT +55% at 10:30 → −32% close)
+and missed the winner PMI (faded −2.2% at 10:30 → +17.5% on a fresh catalyst). So runner now selects on
+CATALYST + not-extended ENTRY, not price-momentum.
 
 ```
 runner/
@@ -24,13 +27,11 @@ bash runner/run/grade.sh    # after the close — did they hit
 python -m runner.lib.journal recent
 ```
 
-## Why 10:30 (the whole edge)
-| when | direction predictable? |
-|---|---|
-| 09:30 open (premarket gap) | NO — 53% coin flip |
-| ~10:00 | 75% persistence |
-| **~10:15-10:30** | **82-83% persistence** (best; direction resolved + still runs) |
-So runner deliberately WAITS to 10:30 — the open is a coin flip, the confirmed 10:30 direction is not.
+## Why ~10:30 (the entry window)
+Late enough that a fresh catalyst's re-rating is visible (which movers have a REAL driver vs a spent
+pump), early enough that a not-yet-extended name still has room to run to the close. NOT a
+momentum-confirm window — the old "direction persists by 10:30" rationale (75% @10:00, 83% @10:30) was
+FALSIFIED 08-24 (up-confirmed bought tops). 10:30 is now the moment to read catalyst + entry quality.
 
 ## Isolation (hard) + OFF-RECORD
 - Writes ONLY to `data/runner.db` and `runner/plans/`. NEVER touches resonance/overnight/exec_ai/swing/

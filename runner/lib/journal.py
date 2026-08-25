@@ -1,14 +1,16 @@
-"""runner/lib/journal.py — the momentum-runner experiment's OWN journal.
+"""runner/lib/journal.py — the runner (catalyst + good-entry) experiment's OWN journal.
 
-The bet (backtest-seeded, forward-UNPROVEN): a penny / small-cap TOP GAINER's direction is a coin flip
-at the 09:30 open (premarket gap did NOT predict it — tested 53%), but by ~10:15-10:30 the intraday
-direction has RESOLVED and PERSISTS to the close (tested 83% on n=12, high variance). So this system
-scans the confirmed movers at ~10:30, applies the who-buys flow read, and predicts which will CLOSE
-up big (target >+10% on the day). Entry is modeled at the 10:30 scan price.
+The bet (REVISED after the 08-24 forward day, forward-UNPROVEN): work backwards from "which small-cap /
+low-price names END the day up big" and catch them early (~10:30) at a GOOD entry — a fresh CATALYST
+still re-rating and NOT yet extended (flat/basing, or faded-then-reclaiming). Enter ~10:30, exit on a
+TRAILING stop, target +10% FROM THE ENTRY; scoreboard = `trail_pct`. (The original momentum-persistence
+thesis — follow the 10:30 up-confirmed — was FALSIFIED 08-24: it bought extended tops (BTCT +55%→−32%)
+and missed the faded-catalyst winner PMI +17.5%.) A ">+10% day close" is nearly free for a name already
+up big, so it is only a reference — the real metric is trail_pct from the ~10:30 entry.
 
 Fully isolated + OFF-RECORD: writes ONLY to data/runner.db + runner/*. Reads market data via yfinance.
 NEVER touches resonance/overnight/exec_ai/swing/rotation. It is a speculative experiment; nothing is
-sized until the forward record proves the 83% persistence holds live.
+sized until the catalyst+good-entry read beats chance over a real forward sample.
 
 CLI:
   python -m runner.lib.journal recent
