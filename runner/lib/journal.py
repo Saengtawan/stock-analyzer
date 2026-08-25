@@ -93,8 +93,8 @@ def grade(verbose=True, trail_stop=TRAIL_STOP):
             continue
         b = rth[rth.index.strftime("%H:%M") == "15:55"]
         close = float(b["Close"].iloc[0]) if len(b) else float(rth["Close"].iloc[-1])
-        # path AFTER the entry time (default 10:20 if scan_time missing) — for peak + trailing exit
-        et = et or "10:20"
+        # path AFTER the entry time (default 10:30 if scan_time missing) — for peak + trailing exit
+        et = et or "10:30"
         path = rth[rth.index.strftime("%H:%M") >= et]
         if not len(path):
             path = rth

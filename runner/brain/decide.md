@@ -1,8 +1,9 @@
-# runner / decide — ~10:20 ET: fresh-catalyst names with a GOOD (not-extended) entry → >+10% by EOD
+# runner / decide — ~10:30 ET: fresh-catalyst names with a GOOD (not-extended) entry → >+10% by EOD
 
-Work BACKWARDS from the goal: "which names will END the day up big?" → find them EARLY (~10:20) at a
-GOOD entry, before they run. (Window moved 10:30→10:20 on 08-25: the 10:30 board was already extended —
-PRZO's high printed 10:12, GRML's 10:21 — so 10:20 buys before the run, with more room left.) The winner is a **fresh CATALYST that is still re-rating and NOT yet
+Work BACKWARDS from the goal: "which names will END the day up big?" → find them EARLY (~10:30) at a
+GOOD entry, before they run. (A 10:20 window was tried 08-25 and REVERTED same day: on the day's own 3
+names 10:20 was on average +0.55% — noise — and actually WORSE on PRZO, which was still pinned to its
+10:12 high at 10:20 and cheaper by 10:30. The window is not the edge; catalyst + not-extended is.) The winner is a **fresh CATALYST that is still re-rating and NOT yet
 extended** — you enter cheap and it runs into the close.
 
 **This REPLACES the old momentum-persistence thesis** ("follow the 10:30 up-confirmed direction"), which
@@ -18,8 +19,11 @@ runner DB. Touch NOTHING in resonance/overnight/exec_ai/swing/rotation.
 - **SELECT on CATALYST + GOOD ENTRY, not price-momentum.** The +10%-by-EOD run is driven by a fresh
   catalyst re-rating through the session — not by a name that already moved. A name up big on NO fresh
   catalyst (pure theme/beta already paid for, a shell/float squeeze with no news) is the trap.
-- **Entry ~10:20, modeled at the 10:20 bar** even if you run later — a late entry pays up and loses the
-  edge (a name can be up nicely from its 10:20 price yet a lunchtime entry is already underwater).
+- **Entry ~10:30, modeled at the 10:30 bar** even if you run later — a late entry pays up and loses the
+  edge (a name can be up nicely from its 10:30 price yet a lunchtime entry is already underwater).
+  ⚠️ **If you fire well after 10:30, the post-10:30 tape is ALREADY KNOWN** — do NOT log entries at the
+  10:30 price as if predicted (that is a lookup, not a forecast, and it poisons the scoreboard). On a
+  late fire, run as a labelled replay: select on bars cut at 10:30 only, and log nothing new.
 - **Target +10% FROM THE ENTRY. Exit = a TRAILING stop, not hold-to-close** — these names round-trip, so
   holding to the bell gives back the run. Scoreboard is `trail_pct`.
 
@@ -31,7 +35,7 @@ A name up big on NO fresh catalyst (pure theme/beta already priced, or a shell/f
 does NOT qualify. Name the catalyst or drop the name.
 
 ## Step 2 — the GOOD-ENTRY filter (the core: catalyst + NOT extended)
-For each fresh-catalyst name, judge the ENTRY at ~10:20 — you want to enter with ROOM left to run to EOD.
+For each fresh-catalyst name, judge the ENTRY at ~10:30 — you want to enter with ROOM left to run to EOD.
 These are questions to weigh from the tape, not rules with fixed answers:
 - **Is there room, or is the move already done?** A name flat / basing near its open, or faded-then-
   reclaiming (down early but turning back up on the catalyst), enters cheap with room. A name already up
@@ -46,16 +50,16 @@ These are questions to weigh from the tape, not rules with fixed answers:
 
 ## Step 3 — pick the shortlist + honest odds
 Pick the ≤5 fresh-catalyst names with the best entry (room to run) most likely to gain **+10% from the
-~10:20 entry to a trailing exit**. For each: ticker, 10:20 price (the entry), the CATALYST (named,
+~10:30 entry to a trailing exit**. For each: ticker, 10:30 price (the entry), the CATALYST (named,
 verified fresh), the entry read (why there is room), the honest risk (catalyst already priced, knife,
 halt), and the odds of trail_pct ≥ +10%. Rank by that. Most names miss — an empty or one-name list is
 the honest common answer.
 
 ## Step 4 — write it, OFF-RECORD
 - Write the shortlist + reasoning to `runner/plans/<STAMP>.txt`.
-- Log each pick (price_scan = the ~10:20 bar price; scan_time = "10:20"):
+- Log each pick (price_scan = the ~10:30 bar price; scan_time = "10:30"):
 ```
-python -c "from runner.lib.journal import log; log('<DATE>','SYM',price_scan=1.00,prev_close=0.68,dir_confirmed='catalyst-not-extended',who_buys='<the catalyst + why there is room at 10:20>',reason='...',scan_time='10:20')"
+python -c "from runner.lib.journal import log; log('<DATE>','SYM',price_scan=1.00,prev_close=0.68,dir_confirmed='catalyst-not-extended',who_buys='<the catalyst + why there is room at 10:30>',reason='...',scan_time='10:30')"
 ```
 - Do NOT write resonance/overnight/exec_ai/swing/rotation. Off-record.
 
