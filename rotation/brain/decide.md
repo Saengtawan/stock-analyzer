@@ -66,8 +66,8 @@ what lands in the next 1-2 weeks that would light up a theme:
 - **FDA / PDUFA / trial readouts / medical conferences** (ASCO/JPM Healthcare) → biotech/vaccine/health.
 - **Fed / econ data** (CPI, jobs, FOMC, Jackson Hole) → rates/risk regime.
 - **Launches / contracts / index adds / court rulings / policy votes** → space, defense, crypto, etc.
-VERIFY each date/time (confirm it lands when you think, and has NOT already happened — the ROST/Jackson
-Hole contamination lesson: searches leak prior-year coverage). A dated catalyst is a *scheduled* reason
+VERIFY each date/time (confirm it lands when you think, and has NOT already happened — the date-
+contamination lesson: searches leak prior-year coverage). A dated catalyst is a *scheduled* reason
 a theme goes live; note it with its date.
 
 ## Step 4 — predict, for EACH horizon (calibrated, with a falsifiable)
@@ -85,11 +85,11 @@ would express through), **`kind`**, **`priced`**, `confidence` (0-1, honest), an
   sign.
 - **`regime`** — the environment read (risk-on/off/rotation/chop).
 Also tag **`priced`**: even a true mechanism pays only if the move is still AHEAD (`unspent`), not
-already in the price (`priced`). A mechanism everyone already traded (BTC already +20% on the liquidity
-news) is `priced` — the mechanism is real but the entry is late; say so. And a mechanism-trend catches
-a name only when that name is ALSO unspent within it (the MARA/HOOD lesson: crypto-liquidity was a live
-mechanism, and the catch was the name that had NOT run yet — HOOD ret_prev1d −0.70 — not the ones
-already up). So a mechanism call is strongest when `kind=mechanism` AND `priced=unspent`.
+already in the price (`priced`). A mechanism the whole market has already traded (the driver's assets
+have run hard on it already) is `priced` — the mechanism is real but the entry is late; say so. And a
+mechanism-trend catches a name only when that name is ALSO unspent within it — the pick is the express-
+name that has NOT run yet, not the ones already up. So a mechanism call is strongest when
+`kind=mechanism` AND `priced=unspent`.
 - **tomorrow** — which themes are most likely LIVE next session + lean + names. Weight live-ness over
   direction. A theme running today with a fresh driver (not consumed) tends to persist; a theme with a
   dated catalyst tomorrow is live by the clock; a theme extended/consumed is a fade candidate.
@@ -97,8 +97,8 @@ already up). So a mechanism call is strongest when `kind=mechanism` AND `priced=
 - **regime** — one line: risk-on / risk-off / rotation / chop, from VIX+rates+breadth+leadership.
 
 Guardrails you owe the record:
-- **theme-live is NOT theme-up.** A sector can be live and SELL every print (retail did: ROST/BJ beat,
-  ROST −2%). Say when a theme is live-but-you-can't-call-direction.
+- **theme-live is NOT theme-up.** A sector can be live and SELL every print (a beat can still close
+  red). Say when a theme is live-but-you-can't-call-direction.
 - **names are candidates for the trading systems to judge, not buys** — you predict WHERE the flow is;
   resonance/overnight apply the who-buys test per name.
 - do NOT let any single linkage become a hardcoded rule — weigh it, cite the record, keep the falsifiable.
