@@ -36,10 +36,17 @@ def _conn():
         target_pct REAL,      -- the >+10% day target
         reason TEXT,
         close_px REAL, day_close_pct REAL,   -- prev_close -> close (the day gain)
-        trade_pct REAL,       -- price_scan -> close (the actual tradeable result)
-        hit INTEGER,          -- 1 if day_close_pct >= target_pct
+        trade_pct REAL,       -- price_scan -> close (hold-to-close result — the OLD exit)
+        peak_pct REAL,        -- entry -> intraday peak after entry (the best it offered)
+        trail_pct REAL,       -- entry -> a simulated TRAILING-stop exit (the real exit; hold-to-close threw away DAIC +42%)
+        hit INTEGER,          -- 1 if trail_pct >= target_pct (the trailed trade made the +10%-from-entry bar)
         graded INTEGER DEFAULT 0,
         PRIMARY KEY (date, sym))""")
+    for col, typ in (("peak_pct", "REAL"), ("trail_pct", "REAL")):
+        try:
+            c.execute(f"ALTER TABLE picks ADD COLUMN {col} {typ}")
+        except Exception:
+            pass
     return c
 
 
@@ -55,14 +62,22 @@ def log(date, sym, price_scan, prev_close, dir_confirmed, who_buys, reason,
     print(f"[runner] logged {sym} {date} @{price_scan} (day {day_at:+}% at scan) target +{target_pct}%")
 
 
-def grade(verbose=True):
-    """Grade today's ungraded picks at the close (15:55 ET) — deterministic, yfinance."""
+TRAIL_STOP = 15.0  # % below the running peak that exits the trade (these are volatile penny names)
+
+
+def grade(verbose=True, trail_stop=TRAIL_STOP):
+    """Grade today's ungraded picks at the close — deterministic, yfinance. Records THREE exits:
+      trade_pct = hold-to-close (the OLD exit),
+      peak_pct  = entry -> best intraday high after entry (what was offered),
+      trail_pct = a simulated TRAILING-stop exit (exit when price falls `trail_stop`% off the running
+                  peak) — the real exit, since hold-to-close threw away DAIC's +42% peak (08-24).
+    `hit` = trail_pct >= target (+10% from entry). Entry is modeled at the entry_time bar (~10:30)."""
     import yfinance as yf
     warnings.filterwarnings("ignore")
     c = _conn()
-    rows = c.execute("SELECT date,sym,price_scan,prev_close,target_pct FROM picks WHERE graded=0").fetchall()
+    rows = c.execute("SELECT date,sym,price_scan,prev_close,target_pct,scan_time FROM picks WHERE graded=0").fetchall()
     n = 0
-    for date, sym, ps, pc, tgt in rows:
+    for date, sym, ps, pc, tgt, et in rows:
         d = datetime.date.fromisoformat(date)
         df = yf.download(sym, start=date, end=(d + datetime.timedelta(days=1)).isoformat(),
                          interval="1m", prepost=False, progress=False, auto_adjust=False)
@@ -76,20 +91,33 @@ def grade(verbose=True):
             continue
         b = rth[rth.index.strftime("%H:%M") == "15:55"]
         close = float(b["Close"].iloc[0]) if len(b) else float(rth["Close"].iloc[-1])
+        # path AFTER the entry time (default 10:30 if scan_time missing) — for peak + trailing exit
+        et = et or "10:30"
+        path = rth[rth.index.strftime("%H:%M") >= et]
+        if not len(path):
+            path = rth
+        peak = float(path["High"].max())
+        # simulate a trailing stop: walk bars, track running peak, exit when a bar's low <= peak*(1-trail)
+        run_peak = float(path["Close"].iloc[0]); exit_px = close
+        for _, bar in path.iterrows():
+            run_peak = max(run_peak, float(bar["High"]))
+            stop = run_peak * (1 - trail_stop / 100)
+            if float(bar["Low"]) <= stop:
+                exit_px = stop      # trailing stop hit
+                break
         day_close_pct = round((close / pc - 1) * 100, 2) if pc else None
-        trade_pct = round((close / ps - 1) * 100, 2) if ps else None
-        # TARGET = +10% FROM THE ENTRY (the scan price), not from the open / prior close. So `hit` = the
-        # trade itself gained >= target_pct from where you bought (trade_pct >= tgt). The day-close %
-        # (from prev_close) is kept only as a free reference — a name already up +27% is >+10% on the day
-        # for free, which proves nothing; the real bar is +10% MORE from the 10:30 entry.
-        hit = 1 if (trade_pct is not None and trade_pct >= (tgt or 10)) else 0
-        c.execute("""UPDATE picks SET close_px=?, day_close_pct=?, trade_pct=?, hit=?, graded=1
-                     WHERE date=? AND sym=?""", (close, day_close_pct, trade_pct, hit, date, sym))
+        trade_pct = round((close / ps - 1) * 100, 2) if ps else None       # hold-to-close (old)
+        peak_pct = round((peak / ps - 1) * 100, 2) if ps else None
+        trail_pct = round((exit_px / ps - 1) * 100, 2) if ps else None     # trailing exit (real)
+        hit = 1 if (trail_pct is not None and trail_pct >= (tgt or 10)) else 0
+        c.execute("""UPDATE picks SET close_px=?, day_close_pct=?, trade_pct=?, peak_pct=?, trail_pct=?,
+                     hit=?, graded=1 WHERE date=? AND sym=?""",
+                  (close, day_close_pct, trade_pct, peak_pct, trail_pct, hit, date, sym))
         n += 1
         if verbose:
-            print(f"  {sym} {date}: entry {ps} -> close {close:.2f} | "
-                  f"**+{tgt}%-from-entry: trade {trade_pct:+.1f}% ({'HIT' if hit else 'miss'})** | "
-                  f"day {day_close_pct:+.1f}% (free ref)")
+            print(f"  {sym} {date}: entry {ps} | peak {peak_pct:+.1f}% | "
+                  f"**trail(-{trail_stop:.0f}%) {trail_pct:+.1f}% ({'HIT' if hit else 'miss'} +{tgt}%)** | "
+                  f"hold-to-close {trade_pct:+.1f}% | day {day_close_pct:+.1f}% (free ref)")
     c.commit(); c.close()
     if verbose:
         print(f"[runner] graded {n} pick(s)")
@@ -98,11 +126,16 @@ def grade(verbose=True):
 
 def recent(k=25):
     c = _conn()
-    print("== recent runner picks ==")
-    for r in c.execute("""SELECT date,sym,day_pct_at_scan,day_close_pct,trade_pct,hit,graded FROM picks
+    print("== recent runner picks (peak / trail / hold-to-close, from entry) ==")
+    for r in c.execute("""SELECT date,sym,peak_pct,trail_pct,trade_pct,hit,graded FROM picks
                           ORDER BY date DESC LIMIT ?""", (k,)):
         print(r)
-    print("== SCOREBOARD: +10%-FROM-ENTRY (trade_pct >= +10%, the real target) ==")
+    print("== SCOREBOARD: +10%-FROM-ENTRY via TRAILING exit (hit = trail_pct >= +10%) ==")
+    for r in c.execute("SELECT COUNT(*),SUM(hit),AVG(trail_pct),AVG(trade_pct) FROM picks WHERE graded=1"):
+        tot, hits, avg_trail, avg_hold = r
+        if tot:
+            print(f"  hit {hits or 0}/{tot} = {100*(hits or 0)/tot:.0f}% | avg TRAIL {avg_trail:+.2f}% | avg hold-to-close {avg_hold:+.2f}% (the old exit)")
+        c.close(); return
     for r in c.execute("SELECT COUNT(*),SUM(hit),AVG(trade_pct) FROM picks WHERE graded=1"):
         tot, hits, avg = r
         if tot:

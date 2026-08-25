@@ -18,6 +18,13 @@ runner DB (`runner.lib.journal`). Touch NOTHING in resonance/overnight/exec_ai/s
 - The edge is **momentum persistence** (the 10:30 direction holds) + a **who-buys** filter (is the flow
   still arriving, or is the mover already exhausted). It is 83% on n≈12 — plausible, unproven, forward-tracked.
 - Direction at the open is a coin flip; do NOT try to call it earlier. That is why this runs at 10:30.
+- **ENTRY IS THE ~10:30 PRICE — model it, even if you run this scan later.** The edge lives at the 10:30
+  confirm window; a later entry pays up and loses the edge (lesson 08-24: LUCY was **+9.6% from its
+  10:30 price** but the scan ran at 12:22 and entered at 1.19 → **−5%**). So `price_scan` = the ~10:30
+  bar's price (pull the 10:30 bar), NOT "price now" if you are running late. Log the 10:30 entry.
+- **EXIT IS A TRAILING STOP, NOT HOLD-TO-CLOSE.** These names round-trip (lesson 08-24: DAIC ran **+42%
+  from entry** then closed **−22%** — hold-to-close threw the whole move away). The scoreboard is
+  `trail_pct` (a trailing-stop exit), not the close. You pick the entry; the trail captures the run.
 
 ## Step 1 — build the confirmed-mover field (WebSearch + yfinance)
 Find today's penny / small-cap TOP GAINERS, roughly **$1-$10**, that are UP strongly on the day RIGHT NOW
@@ -30,8 +37,13 @@ Momentum-persistence is the core, but a spike on dying volume reverses. For each
 buying ABOVE here into the close:
 - **Flow still arriving** → near the day high with higher-lows, volume SUSTAINED (not one thin spike), a
   live catalyst/theme/squeeze behind it. These are the ones that run another +10% from the entry. KEEP.
-- **Already consumed** → gave back most of a morning pop, lower-highs, volume drying up, no real driver
-  (the CAPR shape: ran to a high then bled to the lows). These FADE despite being "up". DROP.
+- **Already consumed AND still dying** → gave back the pop AND making lower-highs with volume dead, no
+  driver = the true fade. DROP.
+- **Gave back the pop but BASING / turning back up** → do NOT hard-drop. A name can bleed off a morning
+  high then re-accumulate and run a SECOND leg. (Lesson 08-24: PMI was dropped as "consumed, CAPR shape"
+  and then ran **+17.5% from 10:30 to the close** — the drop was a false-negative.) A consumed name that
+  is basing on returning volume / reclaiming its VWAP is a RE-ENTRY candidate, not a discard — flag it
+  to watch, do not bin it. Distinguish "consumed + dying" (drop) from "consumed + reclaiming" (keep-watch).
 Liquidity is a hard filter: skip sub-penny-spread illiquid junk you cannot actually trade.
 Direction filter: only KEEP names whose 10:30 read is UP and holding — you are long-only here.
 
