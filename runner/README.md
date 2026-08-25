@@ -1,7 +1,7 @@
-# runner — penny catalyst + good-entry (~10:30), target >+10% from entry
+# runner — penny catalyst + good-entry (~10:20), target >+10% from entry
 
 A standalone, OFF-RECORD, speculative experiment. **Thesis (REVISED after the 08-24 forward day):**
-work backwards from "which small-cap / low-price names END the day up big" and catch them EARLY (~10:30)
+work backwards from "which small-cap / low-price names END the day up big" and catch them EARLY (~10:20)
 at a GOOD entry — a **fresh CATALYST that is still re-rating and NOT yet extended** (flat/basing, or
 faded-then-reclaiming), entered cheap before the run, exited on a TRAILING stop, target +10% from entry.
 
@@ -12,8 +12,8 @@ CATALYST + not-extended ENTRY, not price-momentum.
 
 ```
 runner/
-  brain/decide.md   ~10:30 confirm scan: confirmed penny gainers -> who-buys filter -> which close >+10%
-  run/scan.sh       runner (~10:30 ET). timeout 900, WebSearch+Bash+yfinance.
+  brain/decide.md   ~10:20 scan: fresh-catalyst penny movers -> good-entry filter -> which trail >+10%
+  run/scan.sh       runner (~10:20 ET). timeout 900, WebSearch+Bash+yfinance.
   run/grade.sh      grade at the close (15:55 ET), deterministic
   lib/journal.py    data/runner.db (log picks + grade)
   plans/<stamp>.txt output
@@ -22,16 +22,18 @@ runner/
 
 ## Run
 ```bash
-bash runner/run/scan.sh     # ~10:30 ET — today's confirmed penny gainers most likely to close >+10%
+bash runner/run/scan.sh     # ~10:20 ET — today's fresh-catalyst penny movers with room to trail >+10%
 bash runner/run/grade.sh    # after the close — did they hit
 python -m runner.lib.journal recent
 ```
 
-## Why ~10:30 (the entry window)
+## Why ~10:20 (the entry window)
 Late enough that a fresh catalyst's re-rating is visible (which movers have a REAL driver vs a spent
 pump), early enough that a not-yet-extended name still has room to run to the close. NOT a
 momentum-confirm window — the old "direction persists by 10:30" rationale (75% @10:00, 83% @10:30) was
-FALSIFIED 08-24 (up-confirmed bought tops). 10:30 is now the moment to read catalyst + entry quality.
+FALSIFIED 08-24 (up-confirmed bought tops). **Moved 10:30→10:20 on 08-25:** the first live 10:30 scan
+found the board already extended (PRZO high printed 10:12, GRML 10:21) — by 10:30 the good entries were
+gone. 10:20 reads catalyst + entry quality a hair earlier, before the run.
 
 ## Isolation (hard) + OFF-RECORD
 - Writes ONLY to `data/runner.db` and `runner/plans/`. NEVER touches resonance/overnight/exec_ai/swing/
