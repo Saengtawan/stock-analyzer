@@ -43,12 +43,27 @@ def _conn():
         trail_pct REAL,       -- entry -> a simulated TRAILING-stop exit (the real exit; hold-to-close threw away DAIC +42%)
         hit INTEGER,          -- 1 if trail_pct >= target_pct (the trailed trade made the +10%-from-entry bar)
         graded INTEGER DEFAULT 0,
-        PRIMARY KEY (date, sym))""")
+        PRIMARY KEY (date, sym, scan_time))""")
     for col, typ in (("peak_pct", "REAL"), ("trail_pct", "REAL")):
         try:
             c.execute(f"ALTER TABLE picks ADD COLUMN {col} {typ}")
         except Exception:
             pass
+    # migrate old PK (date,sym) -> (date,sym,scan_time) so multiple entry windows per name coexist
+    # (a re-run at the current window logs its own row instead of overwriting the morning 10:30 pick)
+    row = c.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='picks'").fetchone()
+    if row and "PRIMARY KEY (date, sym))" in row[0]:
+        cols = ("date,sym,scan_time,price_scan,prev_close,day_pct_at_scan,dir_confirmed,who_buys,"
+                "target_pct,reason,close_px,day_close_pct,trade_pct,peak_pct,trail_pct,hit,graded")
+        c.execute("ALTER TABLE picks RENAME TO picks_old")
+        c.execute("""CREATE TABLE picks (
+            date TEXT, sym TEXT, scan_time TEXT, price_scan REAL, prev_close REAL, day_pct_at_scan REAL,
+            dir_confirmed TEXT, who_buys TEXT, target_pct REAL, reason TEXT, close_px REAL,
+            day_close_pct REAL, trade_pct REAL, peak_pct REAL, trail_pct REAL, hit INTEGER,
+            graded INTEGER DEFAULT 0, PRIMARY KEY (date, sym, scan_time))""")
+        c.execute(f"INSERT INTO picks ({cols}) SELECT {cols} FROM picks_old")
+        c.execute("DROP TABLE picks_old")
+        c.commit()
     return c
 
 
@@ -79,7 +94,7 @@ def grade(verbose=True, trail_stop=TRAIL_STOP):
     c = _conn()
     rows = c.execute("SELECT date,sym,price_scan,prev_close,target_pct,scan_time FROM picks WHERE graded=0").fetchall()
     n = 0
-    for date, sym, ps, pc, tgt, et in rows:
+    for date, sym, ps, pc, tgt, st in rows:
         d = datetime.date.fromisoformat(date)
         df = yf.download(sym, start=date, end=(d + datetime.timedelta(days=1)).isoformat(),
                          interval="1m", prepost=False, progress=False, auto_adjust=False)
@@ -94,7 +109,7 @@ def grade(verbose=True, trail_stop=TRAIL_STOP):
         b = rth[rth.index.strftime("%H:%M") == "15:55"]
         close = float(b["Close"].iloc[0]) if len(b) else float(rth["Close"].iloc[-1])
         # path AFTER the entry time (default 10:30 if scan_time missing) — for peak + trailing exit
-        et = et or "10:30"
+        et = st or "10:30"
         path = rth[rth.index.strftime("%H:%M") >= et]
         if not len(path):
             path = rth
@@ -113,8 +128,8 @@ def grade(verbose=True, trail_stop=TRAIL_STOP):
         trail_pct = round((exit_px / ps - 1) * 100, 2) if ps else None     # trailing exit (real)
         hit = 1 if (trail_pct is not None and trail_pct >= (tgt or 10)) else 0
         c.execute("""UPDATE picks SET close_px=?, day_close_pct=?, trade_pct=?, peak_pct=?, trail_pct=?,
-                     hit=?, graded=1 WHERE date=? AND sym=?""",
-                  (close, day_close_pct, trade_pct, peak_pct, trail_pct, hit, date, sym))
+                     hit=?, graded=1 WHERE date=? AND sym=? AND scan_time IS ?""",
+                  (close, day_close_pct, trade_pct, peak_pct, trail_pct, hit, date, sym, st))
         n += 1
         if verbose:
             print(f"  {sym} {date}: entry {ps} | peak {peak_pct:+.1f}% | "
@@ -128,9 +143,9 @@ def grade(verbose=True, trail_stop=TRAIL_STOP):
 
 def recent(k=25):
     c = _conn()
-    print("== recent runner picks (peak / trail / hold-to-close, from entry) ==")
-    for r in c.execute("""SELECT date,sym,peak_pct,trail_pct,trade_pct,hit,graded FROM picks
-                          ORDER BY date DESC LIMIT ?""", (k,)):
+    print("== recent runner picks (date, sym, scan_time, peak / trail / hold-to-close, hit, graded) ==")
+    for r in c.execute("""SELECT date,sym,scan_time,peak_pct,trail_pct,trade_pct,hit,graded FROM picks
+                          ORDER BY date DESC, sym, scan_time LIMIT ?""", (k,)):
         print(r)
     print("== SCOREBOARD: +10%-FROM-ENTRY via TRAILING exit (hit = trail_pct >= +10%) ==")
     for r in c.execute("SELECT COUNT(*),SUM(hit),AVG(trail_pct),AVG(trade_pct) FROM picks WHERE graded=1"):
