@@ -47,20 +47,17 @@ crypto/sector/theme). Read it as EVIDENCE of what moved and what's rotating — 
 - **cross-asset leads:** e.g. BTC/ETH + crypto-equity together, oil → XLE, yields → KRE/XLRE/homebuilders,
   gold → miners. Note what led what TODAY as a candidate lead-lag — to be confirmed by the record, not asserted.
 
-**⚠️ READ THE MULTI-DAY WINDOW, DO NOT EXTRAPOLATE THE LAST SESSION. (forward-earned 08-24 — the big miss)**
-Day-1's four misses were all one error: leaning on the PRIOR day's 1d move / trigger instead of the
-5d/20d picture that was sitting in the same row and told the right story. The 1d is noise + an
-extrapolation trap; the trend and *where in the move* a name is live in ret_5d/ret_20d. Before any lean:
-- **A small 1d on a weak 5d = WEAK, not "quiet."** (SMH was −0.4% 1d but −4.66% 5d → called "quiet",
-  closed −2.43% as the day's worst theme. The 5d was the tell.)
-- **A big 5d/20d move = EXTENDED = a mean-reversion candidate, NOT "it continues."** Do not extrapolate
-  a stretched trend. (XLU −7.6% 20d → leaned "down continues" → it BOUNCED +1.0%. XBI +10% 20d → leaned
-  "up" → it PAUSED red. Extended names revert, especially on a risk-off / event-eve tape.)
-- **A volume spike on a FALLING price = distribution / a consumed move, NOT "live."** Check price
-  direction WITH the volume. (TAN rvol was huge on a −5.1% 5d price → called "LIVE" off volume alone →
-  it was dead the next day.) rvol + up-price = accumulation; rvol + down-price = distribution.
-- So: judge each name off its multi-day setup (trend + extended/exhausted + where-in-move + volume
-  quality), and cross-check the trigger's persistence — never assume yesterday's driver is today's.
+**⚠️ READ THE MULTI-DAY WINDOW — do not extrapolate the last session.** The forward record showed the
+recurring failure is leaning on the PRIOR day's 1d move / trigger while the 5d/20d in the same row is
+right there. The 1d is noisy and an extrapolation trap. So before any lean, read the fuller window and
+ask YOURSELF (these are questions to weigh, NOT rules with fixed answers — you judge from the data):
+- Is the move FRESH or already EXTENDED / exhausted (1d vs 5d vs 20d)? Where in its run is the name?
+- Does the volume agree with the price direction, or diverge (heavy volume + which way is price going)?
+- Is yesterday's trigger still the live driver today, or has it changed/reversed?
+- Does a small 1d hide a strong multi-day trend (or vice-versa)?
+Form the lean from the multi-day setup you actually read — never from "yesterday repeats", and never
+from a hardcoded rule. What these questions resolve to is your call from the tape; the forward record is
+the only judge of whether your read was right.
 
 ## Step 3 — build the FORWARD catalyst calendar (WebSearch)
 The edge over pure reaction is that themes have DATED forward catalysts you can see coming. Search for
