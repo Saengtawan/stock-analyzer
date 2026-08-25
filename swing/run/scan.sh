@@ -24,6 +24,6 @@ fi
 PROMPT="Today (ET) is $DATE. You are the swing brain. The raw pool is at swing/pool/$DATE.json.
 Execute the selection exactly as written below.
 $(sed "s/<DATE>/$DATE/g" swing/brain/decide.md)"
-timeout 600 claude -p "$PROMPT" --permission-mode bypassPermissions \
+timeout 1200 claude -p "$PROMPT" --permission-mode bypassPermissions \
   --allowedTools "Bash Read Write WebSearch" 2>&1 | tee "swing/plans/$DATE.txt"
 echo "[swing] done ($DATE) -> swing/plans/$DATE.txt"
