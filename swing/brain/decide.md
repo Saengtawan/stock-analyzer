@@ -19,7 +19,10 @@ Read the tape via `resonance.data.access` (macro_snapshots / market_breadth) and
 VIX level+trend, SPY trend, breadth, and any macro event inside the hold window (FOMC, CPI, Jackson
 Hole). VCP/squeeze breakouts behave very differently in a trending vs a choppy/bear tape. Give a
 verdict FAVORABLE / NEUTRAL / UNFAVORABLE and let it size how aggressive you are (abstaining on a bad
-tape is legitimate — say so).
+tape is legitimate — say so). The forward record has shown this matters a lot: in a risk-off /
+breakout-hostile / de-risking tape, tight bases tend to break DOWN or drift rather than break UP — a
+coil-breakout thesis needs a tape that SUPPORTS breakouts. When the tape doesn't, weight it heavily:
+fewer picks, lighter, or stand aside — don't buy coils into a market that is selling them.
 
 ## Step 2 — judge each candidate on its OWN merits (you weigh the axes)
 The pool is a FIELD, not a buy list — compression is a setup, not a direction. For each name you
@@ -32,6 +35,12 @@ you see fit — nothing is pre-judged for you:
   (large 63d run = a name that already moved — you decide whether that helps or hurts THIS thesis);
 - the real question only you can answer: **is there a reason it resolves UP within weeks?** (post-earnings
   drift, re-rating, a theme it leads, squeeze fuel) — or is the tight base just as likely to break down?
+- **is the catalyst still RE-RATING, or already PRICED?** A base is worth far more when the re-rate is
+  still unfolding (fresh print, an upcoming dated catalyst inside the hold window, analyst revisions still
+  landing) than when the catalyst already fired weeks ago and the stock has since MOVED — an old,
+  digested beat leaves a base with little fuel, as likely to drift/roll as to break. Weigh how much
+  re-rate is still AHEAD, not just that a catalyst once existed. (`ret_63` tells you how far it already
+  ran on it.) Prefer catalysts with fuel still ahead of the hold, not ones the tape has fully absorbed.
 - ⚠️ **earnings landmine:** a 1w–1m hold often spans an earnings date = binary risk. The local
   earnings_calendar is STALE — VERIFY the next earnings date via WebSearch and decide whether to hold
   through it.
