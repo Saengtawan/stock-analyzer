@@ -1,14 +1,15 @@
 """runner/lib/journal.py — the runner (catalyst + good-entry) experiment's OWN journal.
 
-The bet (REVISED after the 08-24 forward day, forward-UNPROVEN): work backwards from "which small-cap /
-low-price names END the day up big" and catch them early (~10:30) at a GOOD entry — a fresh CATALYST
-still re-rating and NOT yet extended (flat/basing, or faded-then-reclaiming). Enter ~10:30, HOLD TO CLOSE
-(no trailing), target +10% FROM THE ENTRY; scoreboard = `trade_pct` (entry->close). (The original
-momentum-persistence thesis — follow the 10:30 up-confirmed — was FALSIFIED 08-24: it bought extended
-tops (BTCT +55%→−32%) and missed the faded-catalyst winner PMI +17.5%.) Trailing was REMOVED 08-25: a
-15% trail gave back PRZO's +15.5% peak to -1.8% while hold-to-close booked +3.3% — the trail hurt every
-pick that day; peak_pct and a hypothetical trail_pct are kept only as references. A ">+10% day close" is
-nearly free for a name already up big, so it is only a reference — the real metric is trade_pct from entry.
+The bet (REVISED after the 08-24..08-26 retrospective, forward-UNPROVEN): the biggest EOD winners were
+high-momentum float/squeeze gappers with NO catalyst (NCPL +51%, JEM +21%, PMI +16/+15% hold-to-close) —
+the names the old fresh-catalyst filter kept DROPPING, while the catalyst picks fizzled (avg -0.3%). So
+selection flipped: POND = today's biggest low-price gappers (not catalyst-filtered); GATE = drop the
+BLOW-OFFS (a violent first-hour single-bar reversal; every crasher had a >~16% single-bar drop — BTCT,
+CRE — every winner stayed <~11%). Enter ~10:30, HOLD TO CLOSE (no trailing), target +10% FROM ENTRY;
+scoreboard = `trade_pct`. Trailing was removed 08-25 (it gave back PRZO's +15.5% peak to -1.8%); peak_pct
+and a hypothetical trail_pct are kept only as references. The crash-gate is a crash-AVOIDER not a winner-
+picker (in-sample n=14, NCPL-carried, LUCY a false block) — forward-test before trusting. A ">+10% day
+close" is nearly free for a name already up big; the real metric is trade_pct (entry->close).
 
 Fully isolated + OFF-RECORD: writes ONLY to data/runner.db + runner/*. Reads market data via yfinance.
 NEVER touches resonance/overnight/exec_ai/swing/rotation. It is a speculative experiment; nothing is

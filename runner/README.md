@@ -1,10 +1,11 @@
 # runner — penny catalyst + good-entry (~10:30), target >+10% from entry
 
-A standalone, OFF-RECORD, speculative experiment. **Thesis (REVISED after the 08-24 forward day):**
-work backwards from "which small-cap / low-price names END the day up big" and catch them EARLY (~10:30)
-at a GOOD entry — a **fresh CATALYST that is still re-rating and NOT yet extended** (flat/basing, or
-faded-then-reclaiming), entered cheap before the run, HELD TO CLOSE (no trailing — removed 08-25, it gave
-back PRZO's +15.5% peak to -1.8% vs hold-to-close +3.3%), target +10% from entry.
+A standalone, OFF-RECORD, speculative experiment. **Thesis (REVISED by the 08-24..08-26 retrospective):**
+the biggest EOD winners were high-momentum, low-price **squeeze/gapper** names — mostly NO catalyst — that
+the old fresh-catalyst filter kept dropping, while the catalyst picks fizzled. So: POND = today's biggest
+low-price gappers (NOT catalyst-filtered); the edge is a **crash-GATE — drop the BLOW-OFFS** (a violent
+first-hour single-bar reversal, ~−13% reference); enter ~10:30, HELD TO CLOSE (no trailing), target +10%
+from entry. It is a crash-avoider, not a winner-picker (validation in-sample, n=14 — see `forward_record.md`).
 
 The ORIGINAL thesis (momentum-persistence: "follow the 10:30 up-confirmed direction", 83% on n≈12) was
 FALSIFIED on 08-24 — following the up-confirmed bought extended tops (BTCT +55% at 10:30 → −32% close)

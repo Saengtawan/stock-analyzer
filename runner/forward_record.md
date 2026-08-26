@@ -34,6 +34,51 @@ keep beating the picked catalyst names over a real sample.
 stays modeled at the 10:30 bar. scan.sh now flags a late fire so a post-10:30 lookup can't be logged as a
 forecast.
 
+## 08-26 RETROSPECTIVE — the fresh-catalyst thesis was BACKWARDS; pivoted to momentum + blow-off gate
+
+Graded every PICK and every DROP across 08-24..08-26 from a 10:30 entry, hold-to-close. The dropped
+no-catalyst squeezes beat the catalyst picks decisively:
+
+| name | date | pick/drop | catalyst | blow-off (1-bar) | close% | hit +10%? |
+|---|---|---|---|---|---|---|
+| NCPL | 08-25 | DROP | none (Wells notice) | −10.4% | **+51.1** | ✓✓✓ |
+| JEM  | 08-25 | DROP | none (consolidation) | −8.3% | **+21.1** | ✓ |
+| PMI  | 08-24 | DROP | none (float squeeze) | −8.0% | **+16.3** | ✓ |
+| PMI  | 08-25 | DROP | none | −10.9% | **+14.6** | ✓ |
+| LUCY | 08-24 | DROP | none | −13.7% | +13.0 | ✓ (false block) |
+| BTCT | 08-24 | DROP | none (momentum) | **−16.0** | −28.0 | ✗ crasher |
+| CRE  | 08-26 | DROP | fresh PR | **−17.7** | −8.8 | ✗ blow-off |
+| PRZO | 08-25 | PICK | federal order | −6.3% | +3.3 | ✗ |
+| GRML | 08-25 | PICK | rare-earth NPV | −8.7% | −12.1 | ✗ |
+| RZLV | 08-25 | PICK | Google deal | −5.0% | −0.3 | ✗ |
+| CAPR | 08-26 | PICK | day-3 re-rate | −4.3% | −4.4 | ✗ |
+
+**Dropped bucket: +6.9% avg, 4-of-8 hit +10%. Catalyst picks: −0.3% avg, ~1-of-5.** The fresh-catalyst
+filter was systematically selecting AGAINST the winners: a catalyst that already re-rated has no
+follow-through, while the no-catalyst momentum squeezes grind up all day and HOLD to close.
+
+**What separates winner from crasher = the BLOW-OFF (first-hour single-bar high→low drop):** every
+crasher > ~−16% (BTCT −16.0→−28; CRE −17.7→−8.8), every winner < ~−11% (PMI/NCPL/JEM −8 to −11). A
+~−13% gate splits them. Consistency check on all 14 obs: PASS bucket +7.2% avg vs BLOCK bucket −8.3%.
+
+**Honest limits of the gate (do not over-claim):** (1) IN-SAMPLE, n=14, one metric, and the PASS average
+is heavily carried by NCPL +51 (ex-NCPL the PASS bucket is +2.8%). (2) It mislabelled **LUCY** — a −13.7%
+blow-off that still closed +13% — so a blown-off name can RECLAIM and win; the gate is a crash-avoider,
+not a winner-picker (PASS bucket is still only ~1/3 winners). (3) The "volume-persistence" sub-signal
+(2nd-half vs 1st-half volume) did NOT separate winners from chop (CAPR/XPON high volTrend but lost; JEM
+low but won) — dropped it. Forward-test before trusting.
+
+**Entry-timing / "when does it come back":** the LUCY case is why a blocked (blown-off) name is watched,
+not booked dead — it earns back in only by RECLAIMING (higher lows re-forming, volume returning with
+price, the reclaim HELD, not a one-bar dead-cat bounce). Clean grinders are the straightforward ~10:30
+buy; blown-off names are candidates again only on a convincing held reclaim before the entry window.
+
+**Premarket / overnight visibility (checked 08-26):** the winners ARE visible pre-open (they gap +3.6 to
++41%), so the pond can be built off the premarket gainers board — but the gap ALONE does not separate
+winner from crasher (BTCT +43.9% ≈ PMI +41.1%; only an extreme gap like CRE +137% is a tell). The
+crash-gate NEEDS the RTH first hour (the blow-off is intraday price action). Overnight is the WRONG tool —
+these are float-squeeze momentum, not earnings gaps, so the earnings-based overnight system can't see them.
+
 ## 08-25 GRADED — 0/5 hit, but the loss was the EXIT, not selection → trailing removed
 
 Final grades (yfinance, 15:55 RTH close, prices verified against an independent re-pull; GRML's 1-for-50
