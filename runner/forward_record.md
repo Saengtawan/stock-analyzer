@@ -34,8 +34,43 @@ keep beating the picked catalyst names over a real sample.
 stays modeled at the 10:30 bar. scan.sh now flags a late fire so a post-10:30 lookup can't be logged as a
 forecast.
 
-## Record
-_(one line per graded pick: called at 10:30 -> closed -> hit >+10%? -> trade-from-scan)_
+## 08-25 GRADED — 0/5 hit, but the loss was the EXIT, not selection → trailing removed
 
-**08-25 (first live scan, 10:30):** logged PRZO / GRML / RZLV — grade after 16:00 ET.
-Hand-graded controls (NOT in DB): PMI, NCPL, JEM (drop-side, no-catalyst); RZLV also the extended-side test.
+Final grades (yfinance, 15:55 RTH close, prices verified against an independent re-pull; GRML's 1-for-50
+reverse split was 08-24 so all 08-25 bars are one post-split basis — no artifact):
+
+| pick | window | entry | peak | hold-to-close | (trail-15% ref) | day (free ref) |
+|---|---|---|---|---|---|---|
+| PRZO | 10:30 | 0.7793 | **+15.5%** | **+3.3%** 🟢 | −1.8% | +28.6% |
+| PRZO | 12:13 | 0.8098 | +11.1% | −0.6% | −5.5% | +28.6% |
+| GRML | 10:30 | 10.98 | +4.7% | −12.1% | −11.0% | +12.9% |
+| GRML | 12:13 | 10.53 | +2.9% | −8.4% | −12.5% | +12.9% |
+| RZLV | 10:30 | 2.935 | +5.3% | −0.3% | −11.0% | +20.4% |
+
+**The exit was the loss driver, not the pick.** Every name peaked green (PRZO +15.5%), but the 15% trail
+gave it all back (PRZO exit −1.8%). Across all 7 graded picks hold-to-close (−6.84% avg) beats the trail
+(−8.84% avg). **Trailing REMOVED 08-25; exit is now hold-to-close** (matches resonance's buy→hold-EOD).
+hit = trade_pct ≥ +10%. Accepted trade-off: hold-to-close gives back an intraday spike (08-24 DAIC +42%
+peak faded) → entry-not-extended now carries more weight to avoid round-trips.
+
+**Selection was RIGHT — context picked the winner.** PRZO (best context: federal-contract = recurring
+buyer, entry 55% of range = room, liquidity 562k/5min vs GRML 54k) had the highest peak AND was the only
+green close. GRML lost on one-shot-catalyst + dead liquidity; RZLV was extended (98% of range) at entry.
+
+**A/B (early vs late entry), on peak:** PRZO 10:30 +15.5% > 12:13 +11.1%; GRML 10:30 +4.7% > 12:13 +2.9%.
+Early (10:30) offered the bigger peak both times — the day's high was already behind the 12:13 entry. n=3,
+one direction, one day — not proof, but consistent with "enter early."
+
+**Knowable-at-10:30 finding (not hindsight):** at 10:30 the data DID separate the three — RZLV extended
+(98% range), GRML thin (54k vs PRZO 562k/5min) + one-shot catalyst. The brain ranked PRZO #1 but only 30
+vs GRML 28 — it under-weighted liquidity + recurring-buyer, both visible at 10:30. Only the "second demand
+push" (PRZO 11:20–29) was true hindsight. Candidate decide tweak (track first): weight early-liquidity +
+recurring-buyer catalyst harder. NOT yet applied — n=1.
+
+## Record
+_(one line per graded pick: called at 10:30 -> closed -> hit >+10%? via HOLD-TO-CLOSE)_
+
+**08-25:** PRZO 10:30 +3.3% miss · PRZO 12:13 −0.6% miss · GRML 10:30 −12.1% miss · GRML 12:13 −8.4% miss
+· RZLV 10:30 −0.3% miss. **0/5 hit.** Running: 0/7, avg hold-to-close −6.84%. Thesis UNPROVEN, n small.
+Controls (no-catalyst, not bought): NCPL peak +169%→crashed, PMI +25%→faded, JEM +8.68 HOD→6.22 — big
+peaks, all round-tripped (the pump-dump the filter avoids); open question whether avoiding them nets out.
