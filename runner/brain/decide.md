@@ -20,14 +20,23 @@ runner DB. Touch NOTHING in resonance/overnight/exec_ai/swing/rotation.
   float-squeeze names. Most have no news; that is FINE — the record says the no-catalyst squeezes were the
   winners. Do NOT require a catalyst. Fresh still-re-rating news is a small plus; a dilution / going-concern
   / regulatory-notice is a real minus; plain no-news is not a reason to drop.
-- **The CRASH-GATE is the whole edge: drop the BLOW-OFFS.** A blow-off = a violent single-bar reversal in
-  the first hour — a name spikes to a high and is slammed back hard in one or a few minutes. In the record
-  this cleanly split the field: crashers all showed a first-hour single-bar high→low drop worse than a
-  roughly −16% signature; the winners all stayed shallower than roughly −11%. **~−13% single-bar drop is
-  the observed REFERENCE line, not a hard rule** — judge the whole first-hour SHAPE (spike-and-slam vs
-  orderly grind), not one bar. The gate is a crash-AVOIDER, not a winner-picker: removing the blow-offs
-  turned a losing bucket into a winning one, but the survivors are still mostly chop — the positive
-  expectancy comes from the few grinders running huge while the chop loses small.
+- **TWO filters, and you need BOTH.** The blow-off gate is DEFENSE; the higher-high signal is OFFENSE. The
+  record showed each alone is not enough — the gate removes crashers but leaves mostly spent chop; the
+  higher-high signal picks the runners but would buy a blow-off without the gate.
+- **DEFENSE — the CRASH-GATE: drop the BLOW-OFFS.** A blow-off = a violent single-bar reversal in the first
+  hour — a name spikes to a high and is slammed back hard in one or a few minutes. In the record crashers
+  all showed a first-hour single-bar high→low drop worse than a roughly −16% signature; winners stayed
+  shallower than roughly −11%. **~−13% single-bar drop is the observed REFERENCE line, not a hard rule** —
+  judge the whole first-hour SHAPE (spike-and-slam vs orderly grind), not one bar.
+- **OFFENSE — is momentum STILL BUILDING into the entry, or already SPENT?** This is the signal the record
+  says separates the runners from the faders, and it is MEASURABLE, not a vibe: **is the name still making
+  HIGHER HIGHS right into ~10:30 — is its high-of-day PRINTING NOW (in roughly the last 15-20 min), not
+  behind it?** The big winners were at or a hair under their HOD at 10:30 and still stamping new highs
+  into the entry bar (momentum building); the faders had already printed their HOD early (09:30-10:00) and
+  made no new high into 10:30 (momentum spent — the recurring "HOD is behind the entry" killer). A big
+  day-gain with the HOD an hour behind it is a name you are buying AFTER the move. So require: HOD recent +
+  higher highs into the entry. If the strongest name on the board already peaked and is drifting, that is
+  not a buy — it is an ABSTAIN.
 - **Entry ~10:30, modeled at the 10:30 bar** even if you run later. ⚠️ If you fire well after 10:30 the
   post-10:30 tape is ALREADY KNOWN — do NOT log 10:30-priced entries as if predicted (a lookup, not a
   forecast). On a late fire, run a labelled replay: select on bars cut at 10:30 only, log nothing new.
@@ -53,19 +62,28 @@ prints. Read the tape and judge — questions to weigh, not fixed thresholds:
   If it reclaims convincingly before your entry window, it is a candidate again; if it is still bleeding or
   chopping under the slam, it stays out. This is the "when does it come back" watch: reclaim-confirmed, not
   hoped.
-- **Clean grinder → the straightforward buy.** Higher lows, orderly shallow pullbacks, price holding up
-  near the day's action → buy at the ~10:30 bar.
+- **Clean grinder STILL MAKING HIGHER HIGHS → the straightforward buy.** Higher lows AND higher highs into
+  ~10:30, HOD printing in the last ~15-20 min (not behind it), price holding up near the day's action →
+  buy at the ~10:30 bar. This is the offense signal: a name still stamping new highs at the entry is a name
+  whose move is still going; one whose HOD is an hour behind it has already run — skip it however big the
+  day-gain.
+- **ABSTAIN when nothing is still building.** If the strongest names on the board all printed their HOD
+  early and are drifting under it at 10:30 (no new highs into the entry), the honest answer is an EMPTY
+  list — do not force a pick from a spent field (that is exactly the day the replay lost). A day with no
+  name grinding into new highs at 10:30 is an abstain, same discipline as resonance.
 - **Over-extension tell:** an extreme premarket gap (a name already vertical pre-open) has the most air
   under it — a secondary crash flag.
 - Liquidity / halts are hard filters: skip repeatedly LULD-halted names (un-exitable) and sub-penny junk.
   Long only.
 
 ## Step 3 — pick the shortlist + honest odds
-Pick the low-price gappers that (a) did NOT blow off, or blew off and RECLAIMED convincingly, and (b) are
-grinding/holding into the ~10:30 entry, most likely to HOLD to a >+10%-from-entry close. For each: ticker,
-10:30 price (entry), the tape read (blow-off / reclaim / grind; where in its run), any catalyst colour
-(plus/minus/none), the honest risk (these round-trip), and the odds of a close ≥+10% from entry. Rank by
-that. An empty or one-name list is the honest common answer.
+Pick the low-price gappers that (a) did NOT blow off, or blew off and RECLAIMED convincingly [DEFENSE],
+AND (b) are still making HIGHER HIGHS into the ~10:30 entry — HOD recent, momentum building, not spent
+[OFFENSE] — most likely to HOLD to a >+10%-from-entry close. A name must pass BOTH. For each: ticker,
+10:30 price (entry), the tape read (blow-off / reclaim / grind; HOD time + higher-highs into entry; where
+in its run), any catalyst colour (plus/minus/none), the honest risk (these round-trip), and the odds of a
+close ≥+10% from entry. Rank by that. An empty list is the honest common answer — abstain rather than buy
+a spent field.
 
 ## Step 4 — write it, OFF-RECORD
 - Write the shortlist + reasoning to `runner/plans/<STAMP>.txt`.

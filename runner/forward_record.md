@@ -34,6 +34,33 @@ keep beating the picked catalyst names over a real sample.
 stays modeled at the 10:30 bar. scan.sh now flags a late fire so a post-10:30 lookup can't be logged as a
 forecast.
 
+## 08-26 FIX — added the OFFENSE signal (still-making-higher-highs); blow-off gate alone wasn't enough
+
+Replaying the momentum+gate thesis on 08-26 (hindsight, ≤10:30 select) still LOST: the gate correctly
+BLOCKED CRE (−15.4%) and XPON (halt, −16.1%) — the two worst — but every PASS name lost too (best was
+LBGJ, top-momentum, closed −8.7%). A losing replay means the system needs a fix, so diagnosed what
+separates the 08-25 winners from the pass-but-lose names:
+
+| name | @10:30 vs HOD | HOD printed | higher-highs into 10:30 | close |
+|---|---|---|---|---|
+| NCPL (win) | −0.7% | **10:30** | **+28.4%** | +51.1 |
+| JEM (win)  | −0.9% | **10:30** | +1.6% | +21.1 |
+| PMI (win)  | −10.2% | 10:27 | +23.6% | +14.6 |
+| PMI (win)  | −4.3% | 10:06 | +2.3% | +16.3 |
+| LBGJ (lose)| −1.4% | 09:52 | −1.4% | −9.2 |
+| CAPR (lose)| −3.6% | 10:10 | +5.1% | −4.1 |
+| LUCY (lose)| −5.2% | 09:48 | −3.2% | −3.0 |
+| DAIC (lose)| −23.3% | **09:30** | −16.7% | −2.8 |
+
+**The signal: is momentum STILL BUILDING into the entry?** Winners were stamping new highs right into
+10:30 (HOD at/near 10:30, higher-highs positive); losers had printed their HOD early (09:30-10:00) and
+made no new high into 10:30 — the recurring "HOD is behind the entry" killer. Adding an OFFENSE filter
+(HOD recent + higher-highs into the entry) keeps all 4 winners and drops 3 of 4 pass-losers (CAPR the lone
+false-pass, a day-3 consumed catalyst). It also gives the ABSTAIN discipline the system lacked: on 08-26
+NO name was making new highs into 10:30 (LBGJ peaked 09:52, DAIC 09:30, LUCY 09:48) → the correct output
+is ABSTAIN, not a forced LBGJ pick. So the thesis is now DEFENSE (blow-off gate) + OFFENSE (higher-highs
+into entry) + hold-to-close, abstain when the field is spent. Still in-sample — forward-test.
+
 ## 08-26 RETROSPECTIVE — the fresh-catalyst thesis was BACKWARDS; pivoted to momentum + blow-off gate
 
 Graded every PICK and every DROP across 08-24..08-26 from a 10:30 entry, hold-to-close. The dropped
