@@ -70,10 +70,11 @@ VERIFY each date/time (confirm it lands when you think, and has NOT already happ
 contamination lesson: searches leak prior-year coverage). A dated catalyst is a *scheduled* reason
 a theme goes live; note it with its date.
 
-## Step 4 — predict, for EACH horizon (calibrated, with a falsifiable)
-Make calls for all three horizons. For each theme/call state: `theme`, `lean`, `names` (the tickers it
-would express through), **`kind`**, **`priced`**, `confidence` (0-1, honest), and the ONE
-**falsifiable** that would prove it wrong.
+## Step 4 — predict the FORWARD PATH (multi-day, calibrated, each with a falsifiable)
+Do NOT stop at tomorrow. Predict a **dated path 1-7 trading days out** so the trading systems get real
+lead time. For each theme/call state: `theme`, `lean`, `names` (the tickers it would express through),
+**`kind`**, **`priced`**, `confidence` (0-1, honest), and the ONE **falsifiable** that would prove it
+wrong — anchored to the specific DATE that call is for.
 
 **Tag every call `kind` — this is the difference between a real lean and a coin flip:**
 - **`mechanism`** — a KNOWN structural driver is in motion whose transmission is documented, so the
@@ -90,11 +91,29 @@ have run hard on it already) is `priced` — the mechanism is real but the entry
 mechanism-trend catches a name only when that name is ALSO unspent within it — the pick is the express-
 name that has NOT run yet, not the ones already up. So a mechanism call is strongest when
 `kind=mechanism` AND `priced=unspent`.
-- **tomorrow** — which themes are most likely LIVE next session + lean + names. Weight live-ness over
-  direction. A theme running today with a fresh driver (not consumed) tends to persist; a theme with a
-  dated catalyst tomorrow is live by the clock; a theme extended/consumed is a fade candidate.
-- **week** — which dated catalysts this week will light which themes, and any building rotation.
-- **regime** — one line: risk-on / risk-off / rotation / chop, from VIX+rates+breadth+leadership.
+**The horizons — a per-day path, then a week bucket, then regime.** Name each `day+N` by its ACTUAL
+calendar date (verify the weekday; skip weekends/holidays — the "next trading session" logic, e.g.
+Friday's day+1 is Monday). Each day is graded on its own date, so make each a real, separate call — not a
+copy of day+1.
+- **day+1** (next trading session) — the sharpest read. Themes most likely LIVE + lean + names. Weight
+  live-ness over direction. A theme running today with a fresh driver (not consumed) tends to persist; a
+  theme with a dated catalyst that day is live by the clock; a theme extended/consumed is a fade candidate.
+- **day+2 and day+3** (out to the end of the trading week) — these are NOT day+1 repeated. They turn on:
+  (a) dated catalysts landing that specific day (an earnings print, a data release, a speech), and (b) how
+  a day+1 binary is likely to have RESOLVED into them (e.g. "the session AFTER a big AMC print is when the
+  range lands"). Where a call depends on an unknown day+1 outcome, say so and lean live-not-signed.
+- **week-ahead** (≈ the following 5-10 trading days) — building rotations and multi-week MECHANISM themes
+  (a supply/demand imbalance, a policy track, a patent-cliff M&A wave) that play out over many sessions,
+  plus any dated catalyst beyond this week.
+- **regime** — one line: risk-on / risk-off / rotation / chop, from VIX+rates+breadth+leadership, and where
+  it is likely heading over the path.
+
+**Confidence must DECAY with horizon.** Direction is hard and gets harder the further out you go — a day+3
+directional lean should almost never carry day+1's confidence. Further-out calls should lean MORE on dated
+catalysts (`event`, live-by-the-clock) and multi-week `mechanism`, and LESS on extrapolating today's tape
+(the trigger-persistence trap the record has punished). If you cannot separate a day+2/day+3 call from
+"today just repeats", say that and drop its confidence — an honest low-confidence call still teaches the
+record; a hindsight-shaped one does not.
 
 Guardrails you owe the record:
 - **theme-live is NOT theme-up.** A sector can be live and SELL every print (a beat can still close
@@ -104,25 +123,31 @@ Guardrails you owe the record:
 - do NOT let any single linkage become a hardcoded rule — weigh it, cite the record, keep the falsifiable.
 
 ## Step 5 — WRITE (mandatory)
-1. Write `rotation/plans/<DATE>.json` (Write tool):
+1. Write `rotation/plans/<DATE>.json` (Write tool). Each per-day horizon carries its own `for_date`
+   (the actual calendar date it predicts) so the learn pass grades it on the right session:
 ```json
 {
   "date": "<DATE>",
-  "regime": "one line: risk-on/off/rotation/chop + why (VIX/rates/breadth/leadership)",
-  "tomorrow": [
-    {"theme":"gold/metals","lean":"up","kind":"mechanism","priced":"unspent","names":"GLD,GDX,NEM",
-     "confidence":0.6,"falsifiable":"if GDX closes red with the dollar down, the liquidity->metals lead is wrong",
-     "reason":"..."}
+  "regime": "one line: risk-on/off/rotation/chop + why (VIX/rates/breadth/leadership) + where it's heading",
+  "path": [
+    {"horizon":"day+1","for_date":"YYYY-MM-DD","calls":[
+      {"theme":"gold/metals","lean":"up","kind":"mechanism","priced":"unspent","names":"GLD,GDX,NEM",
+       "confidence":0.6,"falsifiable":"if GDX closes red with the dollar down, the liquidity->metals lead is wrong",
+       "reason":"..."} ]},
+    {"horizon":"day+2","for_date":"YYYY-MM-DD","calls":[
+      {"theme":"AI/semis post-print","lean":"live","kind":"event","priced":null,"names":"SMH,NVDA",
+       "confidence":0.55,"falsifiable":"...","reason":"the session AFTER the AMC print; sign NOT called; conf below day+1"} ]},
+    {"horizon":"day+3","for_date":"YYYY-MM-DD","calls":[ ... ]}
   ],
-  "week": [ {"theme":"AI/semis around NVDA","lean":"live","kind":"event","priced":null,"names":"NVDA,SMH",
-             "confidence":0.85,"falsifiable":"...","reason":"live by the clock; sign NOT called"} ],
+  "week_ahead": [ {"theme":"defense unwind","lean":"live","kind":"event","priced":"partly-spent","names":"ITA,LMT",
+                   "confidence":0.5,"falsifiable":"...","reason":"multi-week negotiation track; sign NOT called"} ],
   "linkages_watching": [ {"id":"liquidity->metals","kind":"mechanism","note":"Treasury buyback -> soft DXY -> gold/BTC"} ]
 }
 ```
-2. Log to the DB:
-   - each prediction row (horizon ∈ tomorrow|week|regime):
+2. Log to the DB — one row per call, `horizon` = `day+1|day+2|day+3|week|regime` (the DB `horizon` column
+   is a free string; pass the per-day dates via the reason so the learn pass can find the right session):
 ```
-python -c "from rotation.lib.journal import log_prediction as p; p('<DATE>','tomorrow','gold/metals','up','GLD,GDX','mechanism','unspent',0.6,'if GDX red w/ DXY down the lead is wrong','...')"
+python -c "from rotation.lib.journal import log_prediction as p; p('<DATE>','day+1','gold/metals','up','GLD,GDX','mechanism','unspent',0.6,'if GDX red w/ DXY down the lead is wrong','for 2026-08-26: ...')"
 ```
    - the regime tag:
 ```
