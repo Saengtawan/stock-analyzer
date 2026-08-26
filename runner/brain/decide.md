@@ -24,8 +24,11 @@ runner DB. Touch NOTHING in resonance/overnight/exec_ai/swing/rotation.
   ⚠️ **If you fire well after 10:30, the post-10:30 tape is ALREADY KNOWN** — do NOT log entries at the
   10:30 price as if predicted (that is a lookup, not a forecast, and it poisons the scoreboard). On a
   late fire, run as a labelled replay: select on bars cut at 10:30 only, and log nothing new.
-- **Target +10% FROM THE ENTRY. Exit = a TRAILING stop, not hold-to-close** — these names round-trip, so
-  holding to the bell gives back the run. Scoreboard is `trail_pct`.
+- **Target +10% FROM THE ENTRY. Exit = HOLD TO CLOSE, no trailing** (changed 08-25). A 15% trailing stop
+  was tried and removed the same day: it gave back PRZO's +15.5% peak to -1.8% while hold-to-close booked
+  +3.3% — the trail hurt every pick that day. Scoreboard is `trade_pct` (entry->close). The trade-off is
+  known and accepted: hold-to-close gives back an intraday spike (an 08-24 DAIC-style +42% peak that fades)
+  — so entry quality carries more weight now (a name entered not-extended is less likely to round-trip).
 
 ## Step 1 — build the FRESH-CATALYST field (WebSearch is mandatory here)
 Find today's small-cap / low-price movers ($1-$10 focus) and — for each — WebSearch the ACTUAL catalyst.

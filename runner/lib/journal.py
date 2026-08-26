@@ -2,11 +2,13 @@
 
 The bet (REVISED after the 08-24 forward day, forward-UNPROVEN): work backwards from "which small-cap /
 low-price names END the day up big" and catch them early (~10:30) at a GOOD entry — a fresh CATALYST
-still re-rating and NOT yet extended (flat/basing, or faded-then-reclaiming). Enter ~10:30, exit on a
-TRAILING stop, target +10% FROM THE ENTRY; scoreboard = `trail_pct`. (The original momentum-persistence
-thesis — follow the 10:30 up-confirmed — was FALSIFIED 08-24: it bought extended tops (BTCT +55%→−32%)
-and missed the faded-catalyst winner PMI +17.5%.) A ">+10% day close" is nearly free for a name already
-up big, so it is only a reference — the real metric is trail_pct from the ~10:30 entry.
+still re-rating and NOT yet extended (flat/basing, or faded-then-reclaiming). Enter ~10:30, HOLD TO CLOSE
+(no trailing), target +10% FROM THE ENTRY; scoreboard = `trade_pct` (entry->close). (The original
+momentum-persistence thesis — follow the 10:30 up-confirmed — was FALSIFIED 08-24: it bought extended
+tops (BTCT +55%→−32%) and missed the faded-catalyst winner PMI +17.5%.) Trailing was REMOVED 08-25: a
+15% trail gave back PRZO's +15.5% peak to -1.8% while hold-to-close booked +3.3% — the trail hurt every
+pick that day; peak_pct and a hypothetical trail_pct are kept only as references. A ">+10% day close" is
+nearly free for a name already up big, so it is only a reference — the real metric is trade_pct from entry.
 
 Fully isolated + OFF-RECORD: writes ONLY to data/runner.db + runner/*. Reads market data via yfinance.
 NEVER touches resonance/overnight/exec_ai/swing/rotation. It is a speculative experiment; nothing is
@@ -123,18 +125,20 @@ def grade(verbose=True, trail_stop=TRAIL_STOP):
                 exit_px = stop      # trailing stop hit
                 break
         day_close_pct = round((close / pc - 1) * 100, 2) if pc else None
-        trade_pct = round((close / ps - 1) * 100, 2) if ps else None       # hold-to-close (old)
-        peak_pct = round((peak / ps - 1) * 100, 2) if ps else None
-        trail_pct = round((exit_px / ps - 1) * 100, 2) if ps else None     # trailing exit (real)
-        hit = 1 if (trail_pct is not None and trail_pct >= (tgt or 10)) else 0
+        trade_pct = round((close / ps - 1) * 100, 2) if ps else None       # hold-to-close = THE exit
+        peak_pct = round((peak / ps - 1) * 100, 2) if ps else None         # best offered (reference)
+        trail_pct = round((exit_px / ps - 1) * 100, 2) if ps else None     # what a 15% trail WOULD do (ref only)
+        # EXIT = hold-to-close, NO trailing (removed 08-25: the 15% trail gave back PRZO's +15.5% peak to
+        # -1.8% while hold-to-close booked +3.3%; trailing hurt every pick that day). hit off trade_pct.
+        hit = 1 if (trade_pct is not None and trade_pct >= (tgt or 10)) else 0
         c.execute("""UPDATE picks SET close_px=?, day_close_pct=?, trade_pct=?, peak_pct=?, trail_pct=?,
                      hit=?, graded=1 WHERE date=? AND sym=? AND scan_time IS ?""",
                   (close, day_close_pct, trade_pct, peak_pct, trail_pct, hit, date, sym, st))
         n += 1
         if verbose:
             print(f"  {sym} {date}: entry {ps} | peak {peak_pct:+.1f}% | "
-                  f"**trail(-{trail_stop:.0f}%) {trail_pct:+.1f}% ({'HIT' if hit else 'miss'} +{tgt}%)** | "
-                  f"hold-to-close {trade_pct:+.1f}% | day {day_close_pct:+.1f}% (free ref)")
+                  f"**HOLD-TO-CLOSE {trade_pct:+.1f}% ({'HIT' if hit else 'miss'} +{tgt}%)** | "
+                  f"(trail-{trail_stop:.0f}% would've been {trail_pct:+.1f}%, ref) | day {day_close_pct:+.1f}% (free ref)")
     c.commit(); c.close()
     if verbose:
         print(f"[runner] graded {n} pick(s)")
@@ -147,16 +151,12 @@ def recent(k=25):
     for r in c.execute("""SELECT date,sym,scan_time,peak_pct,trail_pct,trade_pct,hit,graded FROM picks
                           ORDER BY date DESC, sym, scan_time LIMIT ?""", (k,)):
         print(r)
-    print("== SCOREBOARD: +10%-FROM-ENTRY via TRAILING exit (hit = trail_pct >= +10%) ==")
-    for r in c.execute("SELECT COUNT(*),SUM(hit),AVG(trail_pct),AVG(trade_pct) FROM picks WHERE graded=1"):
-        tot, hits, avg_trail, avg_hold = r
+    print("== SCOREBOARD: +10%-FROM-ENTRY via HOLD-TO-CLOSE (hit = trade_pct >= +10%; NO trailing) ==")
+    for r in c.execute("SELECT COUNT(*),SUM(hit),AVG(trade_pct),AVG(trail_pct) FROM picks WHERE graded=1"):
+        tot, hits, avg_hold, avg_trail = r
         if tot:
-            print(f"  hit {hits or 0}/{tot} = {100*(hits or 0)/tot:.0f}% | avg TRAIL {avg_trail:+.2f}% | avg hold-to-close {avg_hold:+.2f}% (the old exit)")
-        c.close(); return
-    for r in c.execute("SELECT COUNT(*),SUM(hit),AVG(trade_pct) FROM picks WHERE graded=1"):
-        tot, hits, avg = r
-        if tot:
-            print(f"  hit +10%-from-entry: {hits or 0}/{tot} = {100*(hits or 0)/tot:.0f}% | avg trade (entry->close) {avg:+.2f}%")
+            print(f"  hit {hits or 0}/{tot} = {100*(hits or 0)/tot:.0f}% | avg HOLD-TO-CLOSE {avg_hold:+.2f}% "
+                  f"| (avg trail-15% would've been {avg_trail:+.2f}%, ref)")
     c.close()
 
 

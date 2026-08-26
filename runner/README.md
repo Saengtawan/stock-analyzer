@@ -3,7 +3,8 @@
 A standalone, OFF-RECORD, speculative experiment. **Thesis (REVISED after the 08-24 forward day):**
 work backwards from "which small-cap / low-price names END the day up big" and catch them EARLY (~10:30)
 at a GOOD entry — a **fresh CATALYST that is still re-rating and NOT yet extended** (flat/basing, or
-faded-then-reclaiming), entered cheap before the run, exited on a TRAILING stop, target +10% from entry.
+faded-then-reclaiming), entered cheap before the run, HELD TO CLOSE (no trailing — removed 08-25, it gave
+back PRZO's +15.5% peak to -1.8% vs hold-to-close +3.3%), target +10% from entry.
 
 The ORIGINAL thesis (momentum-persistence: "follow the 10:30 up-confirmed direction", 83% on n≈12) was
 FALSIFIED on 08-24 — following the up-confirmed bought extended tops (BTCT +55% at 10:30 → −32% close)
@@ -12,7 +13,7 @@ CATALYST + not-extended ENTRY, not price-momentum.
 
 ```
 runner/
-  brain/decide.md   ~10:30 scan: fresh-catalyst penny movers -> good-entry filter -> which trail >+10%
+  brain/decide.md   ~10:30 scan: fresh-catalyst penny movers -> good-entry filter -> which close >+10%
   run/scan.sh       runner (~10:30 ET). timeout 900, WebSearch+Bash+yfinance.
   run/grade.sh      grade at the close (15:55 ET), deterministic
   lib/journal.py    data/runner.db (log picks + grade)
@@ -22,7 +23,7 @@ runner/
 
 ## Run
 ```bash
-bash runner/run/scan.sh     # ~10:30 ET — today's fresh-catalyst penny movers with room to trail >+10%
+bash runner/run/scan.sh     # ~10:30 ET — today's fresh-catalyst penny movers with room to close >+10%
 bash runner/run/grade.sh    # after the close — did they hit
 python -m runner.lib.journal recent
 ```
