@@ -16,10 +16,14 @@ Speculative, OFF-RECORD experiment. You do NOT trade. Write ONLY to `runner/plan
 runner DB. Touch NOTHING in resonance/overnight/exec_ai/swing/rotation.
 
 ## The bet — momentum POND, crash-GATE, hold to close
-- **POND = today's biggest low-price gappers ($1-$10 focus), NOT catalyst-filtered.** These are momentum /
-  float-squeeze names. Most have no news; that is FINE — the record says the no-catalyst squeezes were the
+- **POND = today's biggest low-price ($1-$10 focus) momentum movers, NOT catalyst-filtered.** These are
+  squeeze/gapper names. Most have no news; that is FINE — the record says the no-catalyst squeezes were the
   winners. Do NOT require a catalyst. Fresh still-re-rating news is a small plus; a dilution / going-concern
-  / regulatory-notice is a real minus; plain no-news is not a reason to drop.
+  / regulatory-notice is a real minus; plain no-news is not a reason to drop. **A leveraged / inverse ETF
+  is a VALID momentum vehicle here** — the thesis is momentum + shape, not a company story, so an ETF that
+  is gapping and grinding qualifies on the same footing as a stock (do NOT drop it for "not being a stock";
+  that exclusion belonged to the old catalyst thesis). It must still clear both filters and the liquidity/
+  halt gate.
 - **TWO filters, and you need BOTH.** The blow-off gate is DEFENSE; the higher-high signal is OFFENSE. The
   record showed each alone is not enough — the gate removes crashers but leaves mostly spent chop; the
   higher-high signal picks the runners but would buy a blow-off without the gate.

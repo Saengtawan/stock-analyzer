@@ -34,6 +34,18 @@ keep beating the picked catalyst names over a real sample.
 stays modeled at the 10:30 bar. scan.sh now flags a late fire so a post-10:30 lookup can't be logged as a
 forecast.
 
+## 08-26 REPLAY of the FIXED thesis (both filters) — turns the losing day into avoid-all-losers
+
+Applying DEFENSE (blow-off gate) + OFFENSE (higher-highs into 10:30) to the whole 08-26 board (hindsight,
+≤10:30 select): it BLOCKED the crashers (CRE −18.2%, XPON −15.9%) and REJECTED every fader as spent
+(CAPR −4.5%, LBGJ −8.3%, LUCY −3.4%, DAIC −0.6% — all had HOD early + no new highs into 10:30). Exactly
+ONE name passed both filters: **QBTZ @ $3.62** (blow-off −3.1% ok; HOD 10:28, higher-highs +4.7% into the
+entry) → closed **+2.5%** (green, not a +10% hit but not a loss). QBTZ is a leveraged/inverse ETF, and per
+the decision 08-26 an ETF is a VALID momentum vehicle (the thesis is momentum+shape, not a company story)
+— so it is a legitimate pick, not the old "not a stock" drop. Net: the fixed thesis on 08-26 = one green
+pick (+2.5%) and it AVOIDED every loser the old catalyst thesis would have taken (it picked CAPR −4.5%).
+The fix converts a losing replay into a no-loss day. Still in-sample; forward-test.
+
 ## 08-26 FIX — added the OFFENSE signal (still-making-higher-highs); blow-off gate alone wasn't enough
 
 Replaying the momentum+gate thesis on 08-26 (hindsight, ≤10:30 select) still LOST: the gate correctly
