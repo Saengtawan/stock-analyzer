@@ -159,6 +159,25 @@ Predict which **≤3** names release UP and **CLOSE green >2%**. For each finali
   it have a catalyst" — it is "is the re-rate still ahead of my open." Forward-earned but small-sample:
   **weigh it, never cut on it** (the gap-size version FAILS — a +29% gap has still closed green), and
   let the record keep testing whether fresh really separates from priced.
+- **Gap DIRECTION is the record's sharpest split — weigh it HARD, and note it is NOT symmetric.** The
+  forward record shows down-gap picks have been the losing cohort (≈1-in-4) while up-gap picks win more
+  often (≈5-in-9); the who-buys answer differs by direction, so read each direction on its own terms:
+  - **A beat that gapped UP and is HOLDING (higher lows/highs, not rolling over) is NOT automatically
+    "priced."** Momentum persists — a fresh positive print that opens up and keeps holding still has
+    buyers arriving at higher prices. The give-back fear belongs to a name that is EXTENDED and already
+    FADING into the open (a big gap rolling over by 09:30), NOT to one still holding its gap. Do not
+    reflexively skip a held up-gapper as "consumed" — that reflex has cost the record its cleanest
+    winners. Judge holding-vs-fading off the tape, not gap-size.
+  - **A beat that gapped DOWN is a HIGH bar, not a bargain.** The instinct "it ran the wrong way so the
+    re-rate is still ahead" is the trap: a down-gap is usually the market repricing on a REAL concern, and
+    buying it is catching a knife (the record's down-gap losers all kept falling; the one win had an
+    identifiable, transient concern). Buy a down-gapper ONLY if you can NAME the specific concern that
+    caused the sell AND judge it NOISE/sentiment the tape will reverse (a secondary metric, a technical
+    flush) — not a structural forward issue. **If you cannot identify what the market sold on, that IS the
+    red flag — it is selling on something you can't see → abstain.** "The sell was an overreaction," with
+    nothing named that you are over-reading, is the L9 clause in its purest form. And a down-gap that
+    OPENS below its own pre-open support (winLo) is live confirmation the repricing is still going — stand
+    aside; a thin pre-open base is a mirage until real size prints at 09:30.
 - **The test UNDER freshness — "WHO buys at my open, and why would they pay UP?"** This is the
   mechanism that decides whether a re-rate is still ahead, and it catches the case timing-freshness
   misses. A gap keeps drifting up only while a **live flow of new buyers is still arriving at a
