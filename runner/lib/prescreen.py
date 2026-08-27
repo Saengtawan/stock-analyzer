@@ -39,9 +39,17 @@ def get_board(min_chg=8.0, lo=1.0, hi=10.0, min_vol=300_000, size=40):
     return out
 
 
+def _resolve_entry(entry):
+    """'now' -> current ET HH:MM; otherwise pass through an HH:MM."""
+    if entry == "now":
+        return datetime.datetime.now(ET).strftime("%H:%M")
+    return entry
+
+
 def metrics(sym, date, entry="10:30"):
     """First-hour tape metrics for one name, computed on bars <= entry (replay-safe)."""
     import yfinance as yf
+    entry = _resolve_entry(entry)
     d = datetime.date.fromisoformat(date)
     df = yf.download(sym, start=date, end=(d + datetime.timedelta(days=1)).isoformat(),
                      interval="1m", prepost=False, progress=False, auto_adjust=False)
@@ -57,28 +65,41 @@ def metrics(sym, date, entry="10:30"):
     e = w[w.index.strftime("%H:%M") == entry]
     entry_px = float(e["Close"].iloc[0]) if len(e) else float(w["Close"].iloc[-1])
     o = float(w[w.index.strftime("%H:%M") == "09:30"]["Open"].iloc[0])
-    hod = float(w["High"].max()); hod_t = w.loc[w["High"].idxmax()].name.strftime("%H:%M")
+    hod = float(w["High"].max())
+    hod_row = w.loc[w["High"].idxmax()].name
+    hod_t = hod_row.strftime("%H:%M")
     blowoff = min((float(b["Low"]) / float(b["High"]) - 1) * 100 for _, b in w.iterrows())
-    late = float(w[w.index.strftime("%H:%M") >= "10:15"]["High"].max()) if len(w[w.index.strftime("%H:%M") >= "10:15"]) else hod
-    ecut = w[(w.index.strftime("%H:%M") >= "09:45") & (w.index.strftime("%H:%M") <= "10:00")]
-    early = float(ecut["High"].max()) if len(ecut) else o
-    hh = (late / early - 1) * 100 if early else 0.0
-    halt = max(0, 60 - len(w))
+    # --- everything relative to the ENTRY bar, so it works for ANY entry (10:30 OR a later rerun) ---
+    eh, em = int(entry.split(":")[0]), int(entry.split(":")[1])
+    entry_min = eh * 60 + em
+    # higher-highs INTO the entry: the last ~10 min's high vs the ~15 min before that (recent momentum)
+    recent = w.tail(10)
+    prior = w.iloc[-25:-10] if len(w) >= 25 else w.iloc[: max(1, len(w) // 2)]
+    rhi = float(recent["High"].max()); phi = float(prior["High"].max()) if len(prior) else o
+    hh = (rhi / phi - 1) * 100 if phi else 0.0
+    # HOD recency: minutes between the HOD print and the entry (small = still stamping new highs)
+    hod_age = entry_min - (hod_row.hour * 60 + hod_row.minute)
+    # halt/missing minutes: expected 1-min bars from 09:30 to the entry (inclusive) minus what printed
+    expected = (entry_min - (9 * 60 + 30)) + 1
+    halt = max(0, expected - len(w))
     return {
         "entry_px": round(entry_px, 4),
         "day_gain": round((entry_px / o - 1) * 100, 1) if o else None,
         "vs_hod": round((entry_px / hod - 1) * 100, 1),
         "hod_time": hod_t,
+        "hod_age_min": hod_age,
         "blowoff": round(blowoff, 1),
         "hh_into_entry": round(hh, 1),
         "halt_missing_min": halt,
         # REFERENCE booleans (decide.md lines, NOT gates — the AI judges the shape):
         "ref_no_blowoff": blowoff > -13,
-        "ref_offense_ok": hh > 0 and hod_t >= "10:15",
+        "ref_offense_ok": hh > 0 and hod_age <= 20,   # HOD within ~20 min of entry = still building
+        "ref_liquid": halt <= 5,                       # >5 missing min hints a halt/thin book — verify
     }
 
 
 def run(entry="10:30", date=None, top=10):
+    entry = _resolve_entry(entry)
     date = date or datetime.datetime.now(ET).strftime("%F")
     board = get_board()
     rows = []
