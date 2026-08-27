@@ -48,10 +48,17 @@ runner DB. Touch NOTHING in resonance/overnight/exec_ai/swing/rotation.
   winners — they grind up and HOLD to the bell. Trailing was removed 08-25 (it gave back the peak).
   Scoreboard is `trade_pct` (entry→close).
 
-## Step 1 — build the momentum field (Bash + yfinance; WebSearch optional)
-Pull today's low-price top gainers ($1-$10 focus) and each name's intraday 1-min tape from the open
-through now. Screen on momentum + tape SHAPE, not a catalyst. WebSearch is optional colour only (a fresh
-re-rate is a plus, a dilution/going-concern/notice is a minus); no-news is not a drop.
+## Step 1 — read the pre-screen shortlist (already computed for you)
+A MECHANICAL pre-screen has ALREADY pulled today's low-price gainer board and computed each name's
+first-hour metrics on bars cut at the entry: `day_gain`, `vs_hod` (distance from HOD at entry),
+`hod_time`, `blowoff` (worst single-bar high→low drop), `hh_into_entry` (higher-highs late vs early),
+`halt_missing_min`, plus two REFERENCE booleans `ref_no_blowoff` / `ref_offense_ok` (the decide.md
+reference lines — NOT gates; you weigh the whole shape). The shortlist is in the prompt above, ranked
+by day-gain and deliberately WIDE — do NOT re-pull the whole board. You may pull raw 1-min bars for a
+FINALIST only, to eyeball its shape (reclaim held? volume with price?). Screen on momentum + tape SHAPE,
+not a catalyst. A **WebSearch is OPTIONAL and only worth it on your 1-2 finalists** (a fresh re-rate is
+a small plus, a dilution/going-concern/notice is a minus); no-news is not a drop — most of these have
+none and that is fine. Skip the board-wide search that used to dominate the runtime.
 
 ## Step 2 — WHEN to buy, and the blow-off / recovery read (the core)
 The entry is modeled at ~10:30, but WHICH bar you would actually buy depends on the SHAPE the first hour

@@ -54,9 +54,25 @@ else
 fi
 echo "[runner] mode: $MODE  (now $NOW ET, today rows=$HAVE_TODAY)"
 
+# MECHANICAL pre-screen (0 AI tokens, ~30s): pull the low-price gainer board + compute each name's
+# blow-off / higher-highs / HOD-time / day-gain / liquidity on bars <= entry, ranked, flagged (NOT gated).
+# The AI reads this instead of pulling ~30 names itself -> much faster, judgment unchanged.
+SHORTLIST="runner/plans/$STAMP.shortlist.json"
+echo "[runner] pre-screen (mechanical)..."
+python -m runner.lib.prescreen --entry "$ENTRY" --top 10 --out "$SHORTLIST" >/dev/null 2>&1 || echo "🟠 prescreen degraded"
+SHORTLIST_JSON="$(cat "$SHORTLIST" 2>/dev/null || echo '{}')"
+
 PROMPT="Today (ET) is $DATE, it is now $NOW ET. The entry window is $ENTRY ET. $OVERRIDE$LATE You are the
-runner brain — find fresh-catalyst penny movers with a not-extended entry likely to trail +10% from the
-~$ENTRY bar. Execute exactly:
+runner brain. A MECHANICAL pre-screen has ALREADY pulled today's low-price gainer board and computed each
+name's first-hour tape metrics (blow-off, higher-highs into entry, HOD time, day-gain, distance-from-HOD,
+liquidity/halt) on bars cut at $ENTRY. Read it and JUDGE — do NOT re-pull the whole board; you only need
+to pull raw 1-min bars for a finalist if you want to eyeball its shape. The shortlist (ranked by day-gain;
+ref_* flags are the decide.md REFERENCE lines, NOT gates — weigh the whole shape yourself):
+<<<SHORTLIST_JSON
+$SHORTLIST_JSON
+SHORTLIST_JSON
+
+Execute exactly:
 $(sed -e "s/<DATE>/$DATE/g" -e "s/<STAMP>/$STAMP/g" runner/brain/decide.md)"
 
 timeout 900 claude -p "$PROMPT" --permission-mode bypassPermissions \
