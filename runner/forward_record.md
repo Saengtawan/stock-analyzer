@@ -14,6 +14,46 @@ the >+10%-close calls beat chance over a real forward sample.
 
 ---
 
+## 2026-08-27 — FIRST 2 WINS (momentum+gate+offense thesis), but BRNX −53% reopens the exit
+
+First day the rebuilt thesis (momentum POND + blow-off gate + higher-highs offense, hold-to-close) got
+hits. Graded, hold-to-close:
+
+| pick | scan | entry | peak | HOLD-TO-CLOSE | (trail-15% ref) |
+|---|---|---|---|---|---|
+| **USDE** | 10:30 | 7.28 | +16.8% | **+12.2% HIT** ✅ | +12.2% |
+| **CELU** | 10:50 | 1.849 | +37.9% | **+12.4% HIT** ✅ | +17.2% |
+| USDE | 10:50 | 7.74 | +9.8% | +5.5% | +5.5% |
+| USDE | 11:06 | 8.33 | +2.1% | −1.9% | −1.9% |
+| USDE | 12:29 | 8.17 | +3.4% | −0.0% | −0.0% |
+| **BRNX** | 11:38 | 8.18 | +26.6% | **−53.0%** 🔴 | +7.7% |
+| WRAP | 12:29 | 1.795 | +0.3% | −4.5% | −4.5% |
+| JFB | 12:38 | 4.79 | +0.7% | −1.5% | −1.5% |
+| DFDV | 11:38 | 5.376 | +2.5% | −2.2% | −2.2% (catalyst-name control) |
+
+**Scoreboard now 2/17 = 12%, avg hold-to-close −4.86%.** The two hits (USDE/CELU) are the EARLY window
+(10:30/10:50) — the later legs all missed and BRNX imploded. "Enter early" is now strongly confirmed
+intraday: the morning picks won, the afternoon picks (11:38+) missed or crashed.
+
+**⚠️ BRNX reopens the exit question.** BRNX peaked +26.6% then closed **−53.0%** on hold-to-close, but a
+15% trailing stop would have exited it at **+7.7%**. Across all graded picks the trail-15% reference
+(−1.83% avg) now BEATS hold-to-close (−4.86% avg) — driven entirely by BRNX. Trailing was removed 08-25
+because it gave back PRZO's peak; but a blow-off that ROUND-TRIPS to −53% is exactly what a trail exists
+to catch. The honest read: hold-to-close is fine for a grinder that holds, dangerous for a blow-off that
+craters. This is n=1 for the −53% case, but it's a large single loss the exit could have avoided.
+Candidate revision to test forward: a WIDE trailing stop (or a hard SL) as a crash-floor while keeping
+hold-to-close for the grind — NOT the tight 15% that clipped PRZO. Do not act on n=1; track whether
+blow-off-picks keep round-tripping.
+
+**Structural window finding (the AI stated it):** the thesis is calibrated on a 10:30 entry with ~5.5h
+to grind to +10%. Afternoon re-runs (11:38, 12:29, 12:38, 12:55) structurally offered only spent
+squeezes or slow grinders and produced misses/crash/abstain — "if late re-runs keep abstaining, that's
+the window telling you something, not the field." Run the standard 10:30 window; do not chase re-runs.
+
+**Prescreen validated:** the 3-4× speedup (mechanical board+metrics in ~30s) held up, and the AI still
+OVERRODE the mechanical flags where its judgment differed — it picked CELU (which the raw blow-off gate
+would have blocked) and caught a prescreen halt-field bug (HSDT). Judgment stayed with the AI.
+
 ## Open finding — the catalyst filter has dropped the day's biggest winner 2 days running
 
 The thesis SELECTS on a fresh catalyst + not-extended entry and DROPS no-catalyst momentum. Two straight
