@@ -82,18 +82,29 @@ def metrics(sym, date, entry="10:30"):
     # halt/missing minutes: expected 1-min bars from 09:30 to the entry (inclusive) minus what printed
     expected = (entry_min - (9 * 60 + 30)) + 1
     halt = max(0, expected - len(w))
+    vs_hod = (entry_px / hod - 1) * 100
+    # RECENT SLAM: worst single-bar high->low drop in the LAST ~5 min. This is what separates an
+    # IGNITION (new high held) from a SPIKE-AND-SLAM (new high then dumped) — the higher-highs metric
+    # alone can't, because a spike that gets slammed still stamps a fresh HIGH (it flags offense_ok while
+    # the name is actually crashing at the entry). Caught by AREN 08-28: hh +14% / HOD 2min but a -12.5%
+    # slam one bar before entry. A grinder's recent bars are shallow; a slammed spike shows a deep one.
+    recent5 = w.tail(5)
+    recent_slam = min((float(b["Low"]) / float(b["High"]) - 1) * 100 for _, b in recent5.iterrows())
     return {
         "entry_px": round(entry_px, 4),
         "day_gain": round((entry_px / o - 1) * 100, 1) if o else None,
-        "vs_hod": round((entry_px / hod - 1) * 100, 1),
+        "vs_hod": round(vs_hod, 1),
         "hod_time": hod_t,
         "hod_age_min": hod_age,
         "blowoff": round(blowoff, 1),
+        "recent_slam": round(recent_slam, 1),
         "hh_into_entry": round(hh, 1),
         "halt_missing_min": halt,
         # REFERENCE booleans (decide.md lines, NOT gates — the AI judges the shape):
         "ref_no_blowoff": blowoff > -13,
-        "ref_offense_ok": hh > 0 and hod_age <= 20,   # HOD within ~20 min of entry = still building
+        # offense = still building AND still HOLDING near the HOD (not spiked-then-slammed back) AND no
+        # violent slam in the last few minutes. vs_hod > -5 kills the spike-and-slam that hh alone passes.
+        "ref_offense_ok": hh > 0 and hod_age <= 20 and vs_hod > -5 and recent_slam > -8,
         "ref_liquid": halt <= 5,                       # >5 missing min hints a halt/thin book — verify
     }
 
