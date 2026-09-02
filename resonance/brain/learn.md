@@ -49,16 +49,46 @@ one line for the day, in the file's format:
 
 Keep it to one line. This record — not any story — is what conditions tomorrow's decide.
 
-## Step 4 — a LESSON only on a REPEATED forward pattern
-Add to `## LESSONS` **only** when the forward record shows the *same* pattern across **multiple**
-days (e.g. "high-gap + thin-news picks have faded 3× now" or "coil-only, no-catalyst names went
-nowhere repeatedly"). One day is never a lesson — it is a sample of one, and the principles warn
-against fitting to noise. A lesson must be forward-earned and specific enough to change a future
-pick. If nothing recurred, add nothing.
+## Step 4 — UPDATE THE PROCESS, not just the topic list
+A repeated failure is not a new topic — it is a signal that the guidance you already have is not
+BINDING. Adding another lesson (another paragraph decide.md reads and argues past) is the LAST
+resort, not the default. The record's losing stretch happened while lessons were being written
+correctly and ignored anyway. So do these in order:
 
-**Never** rewrite the 3 PRINCIPLES. They are the frame; lessons refine how you *apply* them, they
-do not replace them. Never turn a lesson into a hard numeric rule — resonance abandoned static
-rules on purpose; keep it as conditioning guidance, not a gate.
+1. **GRADE the active lessons AND gates.** For each `## LESSON` and each Step-4 GATE in `decide.md`,
+   did today confirm or refute it? Update its running tally in memory (e.g. "L7 finished-work: now
+   0-for-N"). A lesson with a tally is measurable; a lesson with none is a story. This is how you
+   see a lesson failing.
+2. **ESCALATE on repetition.** If the SAME pattern has failed as soft "conditioning" **≥3 times**,
+   it is no longer conditioning — PROMOTE it into a Step-4 GATE in `decide.md` (a process check the
+   plan must clear to pick), and fold the repeats into that one gate. **Then DELETE or trim the
+   now-redundant prose** elsewhere in decide.md — the older paragraphs that stated the same thing as
+   conditioning. The gate is the SINGLE source; leaving BOTH the new gate AND the old prose is what
+   makes decide.md grow every run. A new gate must SHRINK the surrounding text, not just append to it
+   (move any nuance the prose had — a sub-case, a proxy caveat — INTO the gate, then cut the prose).
+   This is how learning changes BEHAVIOUR, not just knowledge. **Escalate only to a PROCESS gate** — one that forces a reasoning
+   step to finish (name the operating number, name the still-arriving flow, resolve your own caveat).
+   NEVER to a CONTENT gate that names which stock/sector to avoid: that stays forbidden (resonance
+   abandoned static rules on purpose). The distinction is the whole point — "finish your reasoning"
+   is discipline; "avoid stock X" is a hardcoded conclusion.
+3. **CONSOLIDATE and PRUNE.** Merge lessons that are the same mechanism in different clothes into one.
+   DELETE an escape clause whose forward tally is losing — an "…unless you can name X" door that keeps
+   letting the same loss through is the failure mode, not a nuance. Memory must get SHARPER over time,
+   not just LONGER. A shrinking, better-graded memory is a healthy one.
+4. **ADD a new lesson only if** a genuinely new, repeated pattern is covered by no existing lesson or
+   gate — and write it as a CHECKABLE condition (what the plan must contain), not another paragraph of
+   weigh-this-but-also-that. One day is never a lesson.
+
+**Keep `decide.md` TICKER-FREE.** decide.md is process, not a watchlist. When you write or escalate a
+lesson there, state it as a GENERIC pattern ("a de-overhang contract", "a beat into extended longs",
+"a pooled name whose coil was overridden") — you MAY keep the outcome numbers if they teach (+19.92%,
+−63.9% off its high, 1-green/6-red inverting to +2.13%), but NEVER the company name/ticker. Ticker-specific
+facts belong in the FORWARD RECORD and memory.md (Step 3), which name them freely. If you find a ticker
+already sitting in decide.md, genericize it as part of Step 4.3 consolidation — do not add new ones.
+
+**Never** rewrite the 3 PRINCIPLES — they are the frame; lessons refine how you *apply* them. And a
+repeated failure MUST escalate to a PROCESS gate (Step 4.2): refusing to is exactly why a lesson can
+fail ten times and never change a pick.
 
 ## Step 5 — close out
 Print 2–3 lines: the day's win/loss/skip tally, the one takeaway, and whether you added a lesson.

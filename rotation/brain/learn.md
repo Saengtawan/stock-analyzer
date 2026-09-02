@@ -28,8 +28,17 @@ named tickers. For each prediction:
 - **Did the LEAN hit?** (up/down/risk-on-off correct) — the secondary test; be honest that direction is
   the harder call.
 - **Did the falsifiable FIRE?** If the pre-registered test triggered, say so plainly.
-Grade `correct` on the call as stated (if the call was "live/up" and it was live but closed down, that
-is a HALF — record it honestly in `outcome`, mark correct by whichever the call actually claimed).
+Grade LIVENESS and DIRECTION as TWO SEPARATE marks — never collapse them into one ✅. A "live/up" call
+can be liveness-correct (it was live) AND direction-wrong (closed down): record BOTH in `outcome`
+("live ✅ / dir ✗") and count them in SEPARATE tallies. A "hit on the letter, half in substance" is a
+liveness hit and a direction MISS — say exactly that; do not bank it as a clean win (that inflation is
+how the record lied to itself).
+**Enforce the direction HARD RULE (process check).** A directional `lean` (up/down) is legitimate ONLY on
+`kind=mechanism` + `priced=unspent` + POST-trigger. If decide signed a direction on an `event`, a
+`regime`, or a PRE-trigger mechanism, that is a PROCESS ERROR — flag it ("illegal direction sign") and do
+NOT credit the direction even if it happened to hit (right for a forbidden reason is not skill). Track the
+running count of illegal signs; it should trend to zero. Track DIRECTION accuracy ONLY on the legitimate
+(post-trigger mechanism-unspent) subset — that is the only direction number that means anything.
 ```
 python -c "from rotation.lib.journal import grade_prediction as g; g('<CALL_DATE>','day+1','AI/semis','SMH +1.8% live, lean up HIT',1)"
 ```
@@ -54,10 +63,27 @@ Then append the narrative to `rotation/memory.md` (Write/Edit), forward-earned o
 - **theme-live vs direction:** note where a theme was live but direction was a coin flip.
 - **regime transitions** worth logging (e.g. "profit-surge day → next-day fade" — if the record shows it).
 - Never harden a linkage into a rule from a short record; a `holding` status is a lean, never a gate.
+- **Keep the LESSONS section from bloating — but preserve the "what survived contact" trail (it is
+  deliberate).** Early on, full prior versions were kept intact on purpose so it stays visible which
+  hypotheses survived — that audit value is real for a young record and must NOT be bulk-deleted. What is
+  NOT wanted is the same lesson restated as a FULL paragraph in three stacked "UPDATE after <date>" blocks
+  that decide then reads as three contradictory L1s. Reconcile the two: **one lesson = ONE current
+  paragraph**, and where its history teaches, compress that to a short status trail on the SAME entry
+  ("L1 — <current form>. (provisional 08-24 → survived 08-25 → OVERTURNED by L12 08-26)") rather than
+  keeping the full superseded paragraphs above it. Collapse a lesson's stacked versions into its one
+  current paragraph + trail once the lesson has matured (clearly confirmed or clearly overturned, not
+  still in its first session or two). Fully DROP a lesson only when the record has REFUTED it AND a newer
+  lesson already carries the correction. Only the FORWARD RECORD section is append-only; the LESSONS
+  section should sharpen — one paragraph per lesson — the way the DB registry retires a `broken` linkage.
 
 ## Step 4 — one honest line to the forward record
 Append a dated line to `rotation/forward_record.md`: what was called, what hit, what missed, and the
-running hit-rate **by horizon** — day+1 vs day+2 vs day+3 separately. State plainly whether accuracy
+running hit-rate **by horizon** — day+1 vs day+2 vs day+3 separately. **Report THREE tallies, never one
+blended number:** (1) LIVENESS hit-rate vs the naive "yesterday's theme repeats" baseline (skill only if
+it BEATS baseline); (2) DIRECTION hit-rate on the legitimate post-trigger-mechanism-unspent subset ONLY,
+with the illegal-sign count; (3) COMPRESSION/inert hit-rate vs the "everything is quiet before its event"
+baseline (the 11/11 means nothing if the baseline is also ~100% — state the delta). A number that does not
+beat its baseline is not an edge; say so plainly. State plainly whether accuracy
 DECAYS with horizon as it should (a day+3 call that scores like day+1 is either luck or a leaked lookup;
 a day+3 no better than the naive "today repeats" baseline means the far horizon is not yet earning its
 keep — say so). Keep it blunt — over-claiming is the failure mode.

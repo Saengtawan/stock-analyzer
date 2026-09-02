@@ -77,10 +77,17 @@ lead time. For each theme/call state: `theme`, `lean`, `names` (the tickers it w
 wrong — anchored to the specific DATE that call is for.
 
 **Tag every call `kind` — this is the difference between a real lean and a coin flip:**
-- **`mechanism`** — a KNOWN structural driver is in motion whose transmission is documented, so the
-  DIRECTION is leanable, not a coin flip (e.g. Treasury liquidity injection → hard assets/gold/BTC up +
-  dollar down; rate cuts → rate-sensitives up; a fresh tariff → the named winner up / loser down). Here
-  you MAY lean direction.
+- **`mechanism`** — a KNOWN structural driver whose transmission is documented (Treasury liquidity → hard
+  assets/gold/BTC + soft dollar; rate cuts → rate-sensitives; gold → miners). **Direction is leanable ONLY
+  when the TRIGGER has ALREADY FIRED — a known fact, not a forecast.** Split the two; it is the whole game:
+  - **POST-trigger (you MAY sign direction):** the driver already resolved this session (gold already
+    ripped, yields already jumped, the Fed already spoke hawkish) → the transmission to its beta targets is
+    mechanical → lean the direction of the TRANSMISSION (miners follow the gold that already moved, tomorrow).
+    This is the ONLY directional call the forward record actually supports — it converts a coin-flip into a
+    conditional-on-a-known-fact.
+  - **PRE-trigger (do NOT sign direction):** you are forecasting the trigger itself (WILL gold rip? WILL
+    yields jump?) → that is the coin flip wearing a mechanism costume — the record's original L1 failure.
+    Call the theme live + the timing; leave the sign uncalled.
 - **`event`** — the driver is an OUTCOME not yet known (an earnings print, an FDA decision, a Fed
   hawk/dove call). Direction is ~a coin flip — call the theme LIVE and the timing, but do NOT call the
   sign.
@@ -91,6 +98,15 @@ have run hard on it already) is `priced` — the mechanism is real but the entry
 mechanism-trend catches a name only when that name is ALSO unspent within it — the pick is the express-
 name that has NOT run yet, not the ones already up. So a mechanism call is strongest when
 `kind=mechanism` AND `priced=unspent`.
+
+**HARD RULE — when you may write a directional `lean` (up/down):** ONLY when `kind=mechanism` AND
+`priced=unspent` AND the trigger has ALREADY FIRED (a POST-trigger transmission, per the mechanism bullet
+above). On `event`, on `regime`, and on any PRE-trigger mechanism (you are still forecasting the trigger),
+you may NOT sign a direction — set `lean` to the non-directional call (`live` / `inert` / `rotation` / the
+timing) instead. This is lever from the record: direction signed on `event`/`regime` went ~coin-flip while
+the only >coin-flip subset was post-trigger mechanism transmission. Do NOT manufacture a directional lean
+to fill a row — an honest `live, sign not called` teaches the record; a coin-flip up/down only adds noise
+and dilutes the signal. A directional sign outside this case is a PROCESS error the learn pass will flag.
 **The horizons — a per-day path, then a week bucket, then regime.** Name each `day+N` by its ACTUAL
 calendar date (verify the weekday; skip weekends/holidays — the "next trading session" logic, e.g.
 Friday's day+1 is Monday). Each day is graded on its own date, so make each a real, separate call — not a
@@ -131,9 +147,9 @@ Guardrails you owe the record:
   "regime": "one line: risk-on/off/rotation/chop + why (VIX/rates/breadth/leadership) + where it's heading",
   "path": [
     {"horizon":"day+1","for_date":"YYYY-MM-DD","calls":[
-      {"theme":"gold/metals","lean":"up","kind":"mechanism","priced":"unspent","names":"GLD,GDX,NEM",
-       "confidence":0.6,"falsifiable":"if GDX closes red with the dollar down, the liquidity->metals lead is wrong",
-       "reason":"..."} ]},
+      {"theme":"gold-miner transmission (POST-trigger)","lean":"up","kind":"mechanism","priced":"unspent","names":"GDX,NEM",
+       "confidence":0.55,"falsifiable":"if GDX closes red the session after gold's move, the post-trigger transmission failed",
+       "reason":"gold ALREADY ripped +2% THIS session (trigger FIRED) -> miners transmit tomorrow; direction signed only because POST-trigger. A PRE-trigger 'gold will rip -> up' would be illegal (leave sign uncalled)."} ]},
     {"horizon":"day+2","for_date":"YYYY-MM-DD","calls":[
       {"theme":"AI/semis post-print","lean":"live","kind":"event","priced":null,"names":"SMH,NVDA",
        "confidence":0.55,"falsifiable":"...","reason":"the session AFTER the AMC print; sign NOT called; conf below day+1"} ]},
@@ -147,7 +163,7 @@ Guardrails you owe the record:
 2. Log to the DB — one row per call, `horizon` = `day+1|day+2|day+3|week|regime` (the DB `horizon` column
    is a free string; pass the per-day dates via the reason so the learn pass can find the right session):
 ```
-python -c "from rotation.lib.journal import log_prediction as p; p('<DATE>','day+1','gold/metals','up','GLD,GDX','mechanism','unspent',0.6,'if GDX red w/ DXY down the lead is wrong','for 2026-08-26: ...')"
+python -c "from rotation.lib.journal import log_prediction as p; p('<DATE>','day+1','gold-miner transmission','up','GDX,NEM','mechanism','unspent',0.55,'if GDX red the session after golds move the post-trigger transmission failed','POST-trigger: gold already ripped today; sign legit only because trigger fired')"
 ```
    - the regime tag:
 ```
@@ -156,6 +172,16 @@ python -c "from rotation.lib.journal import log_regime as r; r('<DATE>','rotatio
    - each linkage you are watching (registers it as unconfirmed so the learn pass can start scoring it forward):
 ```
 python -c "from rotation.lib.journal import upsert_linkage as u; u('liquidity->metals',trigger='Treasury buyback/soft DXY',target='GLD,GDX,BTC',kind='mechanism',note='the apparent chain of the week — do not over-fit')"
+```
+   - **COMPRESSION is the record's strongest signal (pre-event inertia ~11/11) but it is SCATTERED across
+     ad-hoc calls, so its registry linkage never accrues to `holding`.** FORMALIZE it: register EVERY
+     compression / "stays inert into its event" call under the ONE canonical id
+     **`preprint_compression->event_inertia`** (do NOT mint a fresh ad-hoc id each time) so the forward
+     tally accumulates in one place and can reach a real n. The learn pass grades it against the
+     "everything is quiet before its event" baseline (Step 4) — the linkage only earns `holding` if it
+     BEATS that baseline, so a formalized-but-baseline-matching signal is honestly exposed as non-edge:
+```
+python -c "from rotation.lib.journal import upsert_linkage as u; u('preprint_compression->event_inertia',trigger='dated binary event N sessions out',target='the name/theme reporting',kind='mechanism',note='vol/range compresses into the event; TIMING signal not direction; grade vs the pre-event-quiet baseline')"
 ```
 3. Print a short receipt: regime line + the top 2-3 themes with lean+kind+confidence.
 

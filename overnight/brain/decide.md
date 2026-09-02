@@ -58,15 +58,43 @@ printed/moved) — that's about not fabricating a result, not about disqualifyin
 ## Step 2 — score the SETUP odds for each (this is the pre-print judgment)
 The print has not happened, so you read the SETUP that tilts the odds of a beat-and-gap-up — not the
 result. For each name:
-- **Positioning:** is it EXTENDED into the print (run up hard = sell-the-news risk, weigh DOWN) or PULLED
-  BACK / not-extended (room, lower bar — weigh up)?
+- **Positioning — read WHO is positioned, not just how far it ran (the key lesson):** a big run-up into
+  the print is NOT automatically bearish; it depends on who holds it. If the run-up is LONGS piling in
+  (low short interest), the print hands them a clean exit → a beat can still gap DOWN on pure profit-taking,
+  no operating flaw needed. But if the name carries HIGH short interest AND a record of fading its own
+  beats, those shorts are positioned for another fade → a real beat SQUEEZES them → the same extension gaps
+  UP. So pair the run-up with the short read below and ask: if the print is GOOD, who is offside — the
+  extended longs, or the shorts? PULLED-BACK / not-extended is the cleanest long setup (room, no crowded exit).
 - **Base rate:** does this company usually beat + gap up? (history of beats, guidance record.)
-- **Expectations bar:** consensus low/beatable, or priced for perfection?
+- **Expectations bar:** consensus low/beatable, or priced for perfection? **TOOL — pull the real bar +
+  guidance (~20s, Playwright):** `~/.pyenv/versions/cc/bin/python -m tools.whisper.whisper SYM` returns the
+  buy-side WHISPER EPS (the bar that actually matters, not just consensus), the surprise %, and — key — the
+  guidance-vs-consensus with a `ref_beat_but_guide_below` flag. A name that beats CONSENSUS but is set to
+  MISS the whisper, or that guides BELOW consensus, is the "beat-but-sold" trap. Weigh it as a
+  REFERENCE (not a gate); if the tool errors or the name hasn't reported, fall back to your own read.
+- **Short / who's-offside (pair this with Positioning — do NOT read it standalone):** pull the RAW short
+  interest — `short%float` (yfinance `.info` `shortPercentOfFloat`) and `~/.pyenv/versions/cc/bin/python -m tools.borrow.borrow SYM`
+  (borrow fee + shares-available; falling availability = tightening). Judge for yourself: an EXTENDED name
+  that is heavily shorted into a fade-record is a squeeze setup (offside shorts, a beat drives it UP); an
+  extended name with LOW short is crowded longs (a beat is their exit, it fades). Short does not "buy" a
+  name on its own — it FLIPS the positioning read. RAW reference, no threshold.
 - **Comps:** how did peers who already reported react? is the sector bid or being sold into prints?
 State each pick's odds honestly (e.g. "~55/45 lean up") and the ONE thing that would make it wrong
 (guidance cut on the call, sell-the-news, thin AH liquidity). Remember the KLAR / WDAY shape — a beat is
 not a gap-up — so a name whose whole thesis needs a perfect print is a weaker bet than one already set
 up to gap on a merely-fine print.
+
+**Read CONTEXT; do NOT invent a price statistic to decide.** The odds live in the operating bar
+(whisper/guide), the positioning (who's-left-to-buy), and the short/who's-offside read — the bullets
+above. Do NOT reach for a novel price-derived cut (a stock's move minus the index, distance-off-52w-high,
+a bespoke ratio) to break a tie or justify a pass: those look clean on a handful of names and are NOISE
+across the field — they have repeatedly failed forward (the "excess-vs-QQQ" and "off-high" cuts both
+looked decisive on one name and separated nothing on the next five). If the context says lean-long and a
+price statistic says pass, trust the context. **Falsifiable to carry forward (track it, never hardcode a
+threshold):** does *real beat + not-crowded positioning → gap up* hold; and does *beat into extended LONGS
+(low short) → fade* vs *beat into extended SHORTS (high short + fade-record) → squeeze up* separate the
+winners? Register it as a scout in Step 4 and let the forward record judge — no number from this reasoning
+goes into this prompt.
 
 **Non-print drivers score differently — do NOT force every candidate through the earnings machinery
 above.** A dated print is one kind of overnight edge, not the only one. If a candidate's driver is a

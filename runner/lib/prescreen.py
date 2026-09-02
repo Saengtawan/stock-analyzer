@@ -64,7 +64,10 @@ def metrics(sym, date, entry="10:30"):
         return None
     e = w[w.index.strftime("%H:%M") == entry]
     entry_px = float(e["Close"].iloc[0]) if len(e) else float(w["Close"].iloc[-1])
-    o = float(w[w.index.strftime("%H:%M") == "09:30"]["Open"].iloc[0])
+    o930 = w[w.index.strftime("%H:%M") == "09:30"]
+    # a name halted at the open (or with a late first print) has NO 09:30 bar -> fall back to the first
+    # bar that DID print, so one such name can't kill the whole board (it used to raise and abort the run)
+    o = float(o930["Open"].iloc[0]) if len(o930) else float(w["Open"].iloc[0])
     hod = float(w["High"].max())
     hod_row = w.loc[w["High"].idxmax()].name
     hod_t = hod_row.strftime("%H:%M")
@@ -109,20 +112,45 @@ def metrics(sym, date, entry="10:30"):
     }
 
 
+def _squeeze(sym):
+    """RAW short-interest for the squeeze-fuel read — premarket-visible, matches the record's winning
+    cohort (low-price SQUEEZE names). Graceful: returns None on any failure (never aborts the board)."""
+    import yfinance as yf
+    try:
+        sf = yf.Ticker(sym).info.get("shortPercentOfFloat")
+        return round(sf * 100, 1) if sf is not None else None
+    except Exception:
+        return None
+
+
 def run(entry="10:30", date=None, top=10):
     entry = _resolve_entry(entry)
     date = date or datetime.datetime.now(ET).strftime("%F")
     board = get_board()
     rows = []
     for sym, price, chg, vol in board:
-        m = metrics(sym, date, entry)
+        try:
+            m = metrics(sym, date, entry)
+        except Exception as ex:              # never let one bad symbol abort the whole pre-screen
+            print(f"[prescreen] skip {sym}: {type(ex).__name__}: {ex}", file=sys.stderr)
+            continue
         if not m:
             continue
         m["sym"] = sym; m["screener_chg"] = round(chg, 1) if chg else None
         rows.append(m)
     rows.sort(key=lambda r: -(r.get("day_gain") or -999))
+    short = rows[:top]
+    # squeeze-fuel is a per-name external fetch, so compute it ONLY for the ranked shortlist (~top N),
+    # not the whole board — keeps the pre-screen fast, and one failed fetch just leaves the field None.
+    for m in short:
+        spf = _squeeze(m["sym"])
+        m["short_pct_float"] = spf
+        # REFERENCE line (like ref_no_blowoff — NOT a gate): high short-of-float on a low-price momentum
+        # name = squeeze fuel, the cohort the record says wins. ~10%+ is the reference; the AI weighs the
+        # raw number. It is a PLUS, never a requirement (many no-catalyst gappers squeeze on thin float).
+        m["ref_squeeze_fuel"] = (spf is not None and spf >= 10)
     return {"date": date, "entry": entry, "board_n": len(board), "with_data": len(rows),
-            "shortlist": rows[:top]}
+            "shortlist": short}
 
 
 if __name__ == "__main__":
