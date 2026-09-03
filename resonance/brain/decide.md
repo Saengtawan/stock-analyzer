@@ -115,6 +115,28 @@ A study of **every pooled name-day since 2026-07-27 (995 name-days, 29 sessions)
 Treat this as EVIDENCE to weigh, not a formula: it tells you WHERE the winners live (the coiled, awake,
 high-beta, liquid, deeply-drawn-down cohort), not which one to buy. Your judgment picks the direction.
 
+### 🔧 THE POOL NOW COMPUTES THAT COHORT FOR YOU — read `shortlist` in the pool JSON
+The pool file carries a **`shortlist`** array: the names that mechanically qualify on the profile above
+(`loaded_spring` + beta + premarket-awake), computed in code, typically **1-3 names**. **This is your
+candidate set, and it exists because selecting the cohort is a MECHANICAL job you were doing badly.**
+The forward record is blunt about why: the traded picks went **7 win / 13 loss lifetime, 1 win / 9 loss
+over three weeks**, and *every one of those losing picks cleared every gate in this document by name* —
+a 4,271-character justification cleared four gates and still closed −8.8%. Prose-based gates cannot stop
+a fluent writer from buying the wrong cohort; a computed shortlist can.
+
+**So your job changes shape — this is the whole point of the rebuild:**
+- **You do NOT hunt the 40-name digest for the best story.** Story quality is measured to have zero
+  separating power here. Searching for it is what produced the losing stretch.
+- **You DO judge, per shortlist name: TAKE or VETO** — using context (Step 3): what does the news
+  actually SAY, is there an active negative running, does the direction read UP for a hold to the close.
+- **VETO ALL of them and abstain is always available and is a valid, common answer.** The cohort gives a
+  ~47% shot at +2%, not a certainty; a day where every candidate has an active negative is an abstain.
+- **You MAY still pick a name outside the shortlist** — the profile is evidence, not law, and your context
+  read can genuinely beat it. But then G6 applies: say plainly that it is off-shortlist and why you are
+  overriding a 47%-vs-13% base rate. Off-shortlist picks should be the exception, not the habit.
+- If `shortlist` is EMPTY, that is a real signal about the day — abstain unless you have a specific,
+  stated reason to reach into the digest.
+
 ## Step 3 — drill deeper on finalists (as many as your judgment warrants)
 Confirm the *catalyst and its direction* on the names you want to check. Your budget is TIME
 (finish before the open), not tokens.

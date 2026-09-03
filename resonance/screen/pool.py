@@ -332,6 +332,31 @@ def pool(date, cache_dir=CACHE, write=True):
     # order by breadth of unusualness (how many axes), then sym — presentation only, NOT a score
     digest.sort(key=lambda d: (-d["n_axes"], d["sym"]))
 
+    # 4b) MECHANICAL SHORTLIST — the measured winner profile, computed here (NOT argued by the AI).
+    # Forward study of 995 pooled name-days (29 sessions, open->close) found catalyst/news/gap have ZERO
+    # separating power, while this combination did — and it held OUT-OF-SAMPLE: in-sample (->08-18) n=18
+    # avg +1.69% / 44% cleared +2%; out-of-sample (08-19->09-02) n=17 avg +1.48% median +1.96% / 47%
+    # cleared +2% against a 13% baseline on the same sessions. It fires on ~1-2 names a session.
+    # WHY IT LIVES IN CODE: every gate written into the decide prompt is prose-satisfiable, so an
+    # articulate model clears it and still buys the wrong cohort (the losing picks cited every gate by
+    # name). Selecting the cohort is a MECHANICAL job; the AI's job is direction (take/veto) on it.
+    # This does NOT decide anything — the AI may veto every name here, may abstain, and may still pick
+    # off-shortlist; it just no longer has to FIND the cohort itself.
+    SL_BETA_MIN, SL_PMVOL_MIN = 1.5, 0.8
+    shortlist = []
+    for row in digest:
+        if "loaded_spring" not in (row.get("axes") or []):
+            continue
+        b, pv = row.get("beta"), row.get("pm_vol_vs_avg")
+        if b is None or pv is None or b <= SL_BETA_MIN or pv < SL_PMVOL_MIN:
+            continue
+        shortlist.append({"sym": row["sym"], "beta": b, "pm_vol_vs_avg": pv,
+                          "pct_from_252hi": row.get("pct_from_252hi"),
+                          "short_pct_float": row.get("short_pct_float"),
+                          "gap_pct": row.get("gap_pct"), "news_n": row.get("news_n"),
+                          "market_cap": row.get("market_cap"), "axes": row.get("axes")})
+    shortlist.sort(key=lambda d: -(d.get("pm_vol_vs_avg") or 0))
+
     axis_contrib = {ax["name"]: len(extreme[ax["name"]]) for ax in AXES}
     dropped = buyable_size - len(pooled)
 
@@ -350,6 +375,9 @@ def pool(date, cache_dir=CACHE, write=True):
         f"EXTREME top-{PRIMARY_K} on a coiled axis -> {len(path_extreme)} names   |   "
         f"BROAD top-{BREADTH_Q:.0%} on >={BREADTH_MIN_AXES} axes (>=1 coiled) -> {len(path_broad)} "
         f"(+{len(path_broad - path_extreme)} unique)",
+        f"  SHORTLIST (mechanical winner profile: loaded_spring + beta>{SL_BETA_MIN} + "
+        f"pm_vol_vs_avg>={SL_PMVOL_MIN}) -> {len(shortlist)} names"
+        + (": " + ", ".join(d["sym"] for d in shortlist) if shortlist else " (none today)"),
         "  union-of-coiled-axes (binary per-axis membership; no composite; direction-agnostic; primed=trigger only).",
         "  per-axis EXTREME contribution (top-K):",
         "    COILED  " + "  ".join(f"{a['name']}={axis_contrib[a['name']]}" for a in coiled),
@@ -369,6 +397,7 @@ def pool(date, cache_dir=CACHE, write=True):
         "n_extreme": len(path_extreme),
         "n_broad": len(path_broad),
         "axis_contrib": axis_contrib,
+        "shortlist": shortlist,          # mechanical winner-profile candidates (see 4b)
         "digest": digest,
         "log": log,
     }
