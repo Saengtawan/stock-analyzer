@@ -72,13 +72,31 @@ result. For each name:
   guidance-vs-consensus with a `ref_beat_but_guide_below` flag. A name that beats CONSENSUS but is set to
   MISS the whisper, or that guides BELOW consensus, is the "beat-but-sold" trap. Weigh it as a
   REFERENCE (not a gate); if the tool errors or the name hasn't reported, fall back to your own read.
+  **A "habitual beater" record does NOT license overriding a NO-CUSHION bar (learned 09-02, a costly
+  miss):** when consensus sits AT THE TOP of the company's OWN guide (e.g. street $0.93 vs guide
+  $0.88-0.93, revenue at the high end of the range), the print must beat a stretched bar to gap up — and
+  a strong beat-history does not change that THIS print faces zero cushion. On 09-02 HPE was PICKED
+  ~58/42 by arguing exactly this away ("beats 4/4 avg +16%, so consensus at top-of-guide is just the
+  street modelling the habit, not a stretched bar") — it printed and sold **−5% AH**, the SAME no-cushion
+  shape that crushed PANW (−10%) and CRDO (−23%) the night before. So a top-of-guide / no-cushion bar is
+  a real sell-risk that WEIGHS DOWN even a habitual beater; do not wave it off on beat-history. The
+  edge is a name whose bar is LOW/beatable, not one whose only argument is "it usually beats."
 - **Short / who's-offside (pair this with Positioning — do NOT read it standalone):** pull the RAW short
   interest — `short%float` (yfinance `.info` `shortPercentOfFloat`) and `~/.pyenv/versions/cc/bin/python -m tools.borrow.borrow SYM`
   (borrow fee + shares-available; falling availability = tightening). Judge for yourself: an EXTENDED name
   that is heavily shorted into a fade-record is a squeeze setup (offside shorts, a beat drives it UP); an
   extended name with LOW short is crowded longs (a beat is their exit, it fades). Short does not "buy" a
   name on its own — it FLIPS the positioning read. RAW reference, no threshold.
-- **Comps:** how did peers who already reported react? is the sector bid or being sold into prints?
+- **Comps — CONTEXT/colour, NOT a deciding kill (learned 09-02, a costly miss):** how did peers who
+  already reported react? is the sector being sold into prints? Weigh it — BUT a peer's print REACTION is
+  a WEAK predictor of a DIFFERENT company's print, because each earnings print is idiosyncratic (its own
+  beat/guide/positioning). Do NOT PASS a name whose OWN setup is strong (good base rate + own raise +
+  offside shorts) just because a peer printed badly the night before. On 09-02 this exact reasoning cost
+  the biggest AH winner of the night: SNOW (7up/3down base rate, had raised its own product-rev guide) was
+  PASSED on "conflict — MDB, its closest peer, printed −12% last night" — and SNOW then beat and popped
+  **+22% AH**, while the name picked instead (HPE) sold **−5% AH**. A one-day-old peer reaction is not the
+  name's own print. Let the name's OWN base rate + own guide + own who's-offside decide; a bad peer print
+  lowers confidence, it does not veto a strong own-setup.
 State each pick's odds honestly (e.g. "~55/45 lean up") and the ONE thing that would make it wrong
 (guidance cut on the call, sell-the-news, thin AH liquidity). Remember the KLAR / WDAY shape — a beat is
 not a gap-up — so a name whose whole thesis needs a perfect print is a weaker bet than one already set

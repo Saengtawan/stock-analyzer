@@ -192,19 +192,44 @@ gate it failed. Fewer, gate-cleared picks beat more, argued-in picks.
    overhang was just removed", not "a fresh number to remodel", so "no 2028 number" does NOT fail the gate.
    To clear it this way the plan must NAME the specific overhang being removed AND the evidence it was
    actually priced in (the prior decline it caused) — an un-named "it's a big deal" does not clear.
-   **PRUNED 09-01 — the L5 bypass is closed:** "the payout is years away / there is no number to remodel"
-   (L5's distant-payout column) may NOT be used to decline a contract/approval/deal catalyst until this
-   de-overhang exception has been explicitly RESOLVED in writing — name the overhang and say why it does or
-   does not apply. Routing to L5 without working the exception is how a +19.92% name was declined on 09-01,
-   and L5's own text conceded it had "no instance yet of a distant-catalyst name that did run." It has one
-   now, and it is the largest miss in the record. L5 is a weighing note downstream of this gate, not a door
-   around it.
+   **The L5 bypass is closed (09-01):** "the payout is years away / there is no number to remodel" may NOT
+   decline a contract/approval/deal catalyst until this exception is RESOLVED in writing — name the overhang
+   and say why it does or does not apply. Routing to L5 without working it declined a +19.92% name, the
+   record's largest miss. L5 is a weighing note downstream of this gate, not a door around it.
+   **GUIDED vs SURPRISE (added 09-02 — say which, in words):** an overhang the company itself already
+   GUIDED away (a milestone with a date the market had, a pathway restored at a prior meeting, a
+   pre-announced filing window) is largely priced BEFORE it prints; a removal that arrives unannounced is
+   not. State which this is. **If it was guided, that concession is itself a killing caveat and must clear
+   G4 with an external fact — naming what residual is still un-priced and why.** Earned the same morning by
+   two picks in one plan: an unannounced first-of-its-kind award closed **+5.99%** (#2 of 37) while a
+   company-guided regulatory milestone, whose plan conceded "the larger half of that overhang was removed"
+   months earlier, closed **−8.83%** (#36 of 37) with the 09:30 open as the high of the day.
+   **The residual must be an EXTERNAL UN-PRICED FACT, never a positioning-inference (this is the exact hole
+   the −8.83% name slipped through):** "the milestone was guided but nobody positioned for it / the tape
+   didn't front-run it" is NOT a residual — it is you arguing the market is wrong, the same argue-into-a-pick
+   G4 forbids. A valid residual is a NEW number / term / datum the guidance did NOT already contain (an
+   award larger than the framework, a metric the milestone newly reveals). If the only thing "un-priced" is
+   your read of positioning, the guided catalyst is priced → ABSTAIN. Guided + positioning-inference-residual
+   = the sell-the-news that opened at its high and closed −8.83%.
 2. **Direction-flow gate** ("who buys at my open, and why would they pay UP?"): the plan NAMES the
    specific flow still ARRIVING at a higher price — obliged PT revisions still printing today against
    the number, an unpriced surprise nobody had modelled, a live theme not yet extended, a squeeze with
    fuel left, or sector rotation today. "The catalyst is good / HARD" is NOT a flow. A flow already
    consumed or extended (the pop completed, the PT raises all printed pre-open, the theme has run
-   several sessions, the squeeze has covered) does NOT clear it. **CLASSIFY the catalyst before you use a
+   several sessions, the squeeze has covered) does NOT clear it.
+   **Do NOT collapse this into "company number = good, theme/attention = skip"** — that bucket is too
+   crude and will make you pass real buyers. A live theme still pulling money in day after day, and a
+   forced short-cover (a *mechanical* buyer obliged to buy UP), can be a **stronger, more persistent**
+   flow than a one-shot earnings pop that already completed. **The discriminator is never the SOURCE — it
+   is whether that flow is still ARRIVING at the open or already consumed**, and that question is
+   symmetric across sources: a theme that has run several sessions is as extended as a stock bid up into
+   its print; a squeeze that has covered has no fuel; an AH pop fully held into the open means the
+   earnings buyers already finished. **Absence of sellers is not presence of buyers** — "nobody
+   front-ran it" says the flow has not started, not that it is coming (09-02: a plan whose whole flow leg
+   was five quiet sessions + bottom-14% volume closed **−8.83%**, and no revision flow ever arrived).
+   Ask it literally: *if I already owned this into the move, would I buy MORE at this open price, or sell
+   here?* If the marginal participant is a **profit-taker with nothing behind them**, the open is all
+   supply and it fades. **CLASSIFY the catalyst before you use a
    peer-group read to fail this gate: THEME vs IDIOSYNCRATIC.** A red peer group is a "no-bid" signal ONLY
    for a THEME/sector catalyst (the name is riding the group, so the group being sold = no bid behind it —
    a name riding a cluster that is de-rating). For an IDIOSYNCRATIC catalyst (a contract / approval / de-overhang specific to ONE
@@ -231,6 +256,19 @@ gate it failed. Fewer, gate-cleared picks beat more, argued-in picks.
    that is selling not bidding, a distant or already-priced payout) — you must RESOLVE it with a
    specific fact now, or abstain. You may not file the killing caveat and trade past it. The risk
    field is a veto you must clear, not a confession you log on the way in.
+   **HARDENED 09-02 — THE RESOLUTION MAY NOT HEDGE ITSELF, and this is checkable on your own prose.**
+   This gate has now been "cleared" by a sentence that concedes it is not a clearing: *"my resolution is
+   an inference from positioning, not proof"*, *"almost certainly X"*, *"I am not pretending otherwise"*,
+   *"I cannot see whether … until after I am filled."* **A self-hedge attached to the RESOLUTION fails the
+   gate — not argued down, failed.** (Scope it precisely: a hedge elsewhere in `risk` is fine — that field
+   is *supposed* to be honest about residual risk. What fails is a hedge on the sentence that is meant to
+   CLOSE the killing caveat.) A clearing resolution cites something OUTSIDE the thesis you already wrote:
+   a line in the primary filing, a published note, a dated tape observable. **Restating the bull case in
+   the caveat's own words is not an answer to it** — "nobody positioned for it, so it still has to be
+   bought" is the thesis, not evidence for the thesis. This absorbs the old prose-rule (*"when I write
+   'almost certainly X' about my own evidence, that is not a caveat, it is an unfinished task"*): it lives
+   HERE now, as a gate, because as conditioning it was written down and overridden on **four** picks
+   (−2.42%, −9.73%, −2.14%, −8.83%), the last of them **with this gate already in force**.
 
 5. **Coil-is-mechanical gate**: any statement the plan makes about a name's COIL must cite the axes the
    pool actually admitted it on (`axes` / `axes_extreme` in the digest). Declaring a POOLED name
@@ -308,32 +346,10 @@ For each finalist that clears the gates, hold yourself to:
       any depth. Take down-gaps sparingly; the forward record judges.
   - **Below pre-open support (winLo) at your read = the repricing is still going → stand aside**, either
     direction; a thin pre-open base is a mirage until real size prints at 09:30.
-- **The test UNDER freshness — "WHO buys at my open, and why would they pay UP?"** This is the
-  mechanism that decides whether a re-rate is still ahead, and it catches the case timing-freshness
-  misses. A gap keeps drifting up only while a **live flow of new buyers is still arriving at a
-  HIGHER price** — and that flow can come from MORE than one source, so do NOT collapse it into
-  "company number = good, theme/attention = skip." That bucket is too crude and it will make you
-  pass real buyers. Count every source of paying-up flow:
-    - **obliged revisions** — analyst PT re-bases still printing THROUGH today against a company
-      number desks must publish against;
-    - **an unpriced surprise** nobody had modelled (a first-ever print, a number with no history);
-    - **a live theme still running** — a sector/macro move that has not exhausted keeps pulling
-      momentum money in day after day; that is a real, ongoing buyer flow, not "mere attention";
-    - **forced short-covering** — a squeeze is a *mechanical* buyer obliged to buy UP, one of the
-      strongest "who buys" there is;
-    - **rotation** into the name's sector on the day.
-  Any of these is a genuine "who buys," and a live theme + a squeeze can be a **stronger, more
-  persistent** flow than a one-shot earnings pop that already completed. The discriminator is NOT the
-  source — it is whether that flow is **still arriving at the open or already consumed/extended**, and
-  that question is symmetric across sources: a theme that has run several sessions is as extended as a
-  stock bid up into its print (second-leg risk); a squeeze that has already covered has no fuel left;
-  an AH pop fully held into the open means the earnings buyers already finished; PT raises that all
-  printed pre-open are spent. So for whatever the buyer source is, ask: is it STILL coming, or is this
-  the late leg? If the marginal participant is a **profit-taker with nothing behind them** — pop
-  consumed, ordinary/expected number, theme exhausted, squeeze spent — the open is all supply and it
-  fades. Ask it literally: *if I already owned this into the move, would I buy MORE at this open
-  price, or sell here?* This is a lens to WEIGH from the tape and the live flow — not a gate, and not
-  a hard-number-versus-attention bucket.
+- **The who-buys test** — the mechanism that decides whether a re-rate is still ahead, and the one
+  that catches what timing-freshness misses. It is specified in full as **G2** above (sources of
+  paying-up flow, still-arriving vs consumed, the "would I buy MORE here?" question); do not restate it
+  here — apply it. G2 is the gate; this line is the pointer.
 - **who/fit** — real participation + rotation fit (per #3, not the gain).
 - **risk** — the honest way this is wrong (direction can fail; catalyst may be priced; froth may
   fade). Nothing verifies the close — say so.
