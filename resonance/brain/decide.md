@@ -94,9 +94,44 @@ just as much that faded intraday). Do not reflexively discount a
 mover for being up a lot — discount it for being up a lot *without a reason*. The gap tells you the
 release is underway; the catalyst tells you whether there is still room.
 
+### ⭐ WHAT THE RECORD SAYS ACTUALLY WINS IN THIS POOL (measured, out-of-sample)
+A study of **every pooled name-day since 2026-07-27 (995 name-days, 29 sessions)**, graded open→close:
+- **Pool base rate: 15% of names clear +2%, avg +0.37%.**
+- **`loaded_spring` names (the coil axis) do the work:** deeply-off-their-high names carry the winners —
+  names **≤−50% off the 252d high cleared +2% at 31%**, while names within 10% of their high cleared it at
+  **2%** (n=133). Deep drawdown is not a warning here; it is where the releases live.
+- **The winning PROFILE, and it held OUT-OF-SAMPLE:** `loaded_spring` **+ beta > ~1.5 + `pm_vol_vs_avg`
+  ≥ ~0.8 (the name is genuinely AWAKE premarket) + real liquidity (≥ ~$20M traded)**.
+  In-sample (→08-18): n=18, avg **+1.69%**, 44% cleared +2%. Out-of-sample (08-19→09-02): n=17, avg
+  **+1.48%**, median +1.96%, **47% cleared +2%** — against a 13% baseline on the same days. It fires on
+  roughly **1-2 names per session**, which is exactly a ≤3-pick budget.
+  Component check (OOS): coil+liquid alone = +0.45%/26%; **without** the coil axis it collapses to
+  +0.20%/20%. The coil is load-bearing; `pm_vol` adds the return; beta adds the hit-rate.
+- **What does NOT separate winners from losers, at all:** `news_n`, `news_max_impact`, and `gap_pct` —
+  medians are identical for winners and losers, and pool-wide the names WITH news averaged **−0.36%**
+  while the news-less averaged **+0.18%**. **Catalyst-richness is not an edge in this pool; the coil is.**
+- **The same name wins and loses on different days** (one name appeared 4× in the profile: +3.5%, +2.5%,
+  −2.4%, −5.9%). So the coil buys MAGNITUDE; the day and the direction still have to be judged.
+Treat this as EVIDENCE to weigh, not a formula: it tells you WHERE the winners live (the coiled, awake,
+high-beta, liquid, deeply-drawn-down cohort), not which one to buy. Your judgment picks the direction.
+
 ## Step 3 — drill deeper on finalists (as many as your judgment warrants)
 Confirm the *catalyst and its direction* on the names you want to check. Your budget is TIME
 (finish before the open), not tokens.
+
+**⚠️ YOUR JOB HERE IS DIRECTION, AND THE POOL'S NEWS FIELDS CANNOT DO IT FOR YOU.** The mechanical
+layer already told you WHERE the winners live (the profile above). What it cannot tell you is which way
+a given one goes today — and its `news_n` / `news_max_impact` fields are far too crude to say. The
+proof, from the record: one profile name printed the SAME features on four days and went +3.5%, +2.5%,
+−2.4%, **−5.9%**. On its worst day the pool logged `news_n=2, news_max_impact=0.50` — indistinguishable
+from its winning days — while the actual tape that morning was **"analysts SLASH price targets"** plus
+bearish sector-commercialization commentary and a revenue collapse. **The number said "some news"; only
+READING the news said "sell".** So for every finalist, go read what the news actually SAYS (WebSearch,
+`tools.edgar.edgar`, the catalyst headlines) and answer plainly: is there an ACTIVE NEGATIVE running
+today — a price-target cut / downgrade, insider selling, a guidance or metric deterioration, hostile
+sector commentary? **A coiled, awake, high-beta name with an active negative catalyst is the shape that
+loses hardest — veto it.** Absence of a negative, on a name the profile already selected, is a stronger
+reason to take it than the presence of a shiny positive story (which the data says does not separate).
 - `python -m resonance.data.access catalyst <SYM> <DATE>` — read the actual headlines. Is the news
   HARD and durable (earnings/sales beat, guidance, M&A, contract → drifts to close) or SOFT
   (CEO/mgmt change, commentary, PR/product headline, analyst-note-alone → gap-up often fades
@@ -217,6 +252,39 @@ gate it failed. Fewer, gate-cleared picks beat more, argued-in picks.
    fuel left, or sector rotation today. "The catalyst is good / HARD" is NOT a flow. A flow already
    consumed or extended (the pop completed, the PT raises all printed pre-open, the theme has run
    several sessions, the squeeze has covered) does NOT clear it.
+   **⚠️ THE RECORD'S SINGLE LOUDEST SIGNATURE — "the OPEN was the high of the day" — and it is what this
+   gate exists to catch.** Measured across the last two weeks of traded picks: **every pick whose HOD
+   printed in the first 5 minutes LOST (7 of 7, −2% to −11%)**, and their whole post-open range was
+   +0.0% to +5.3%; the picks that WON all made their high LATE (after midday) with +6.8% to +21.6% of
+   range still ahead of the open. Gap-% did NOT separate them (a +6.0% gapper lost while a +6.2% gapper
+   won; a +10.8% lost while a +12.2% won; the biggest winner that day had NO gap at all, −1.3%). So the
+   question is never how big the gap is — it is **whether anything is left to be bought after 09:30.**
+   **To clear this gate the plan must answer, in words: "after 09:30, WHO still has to buy — and why
+   could they not do it in the premarket?"** There are only three answers that have ever held up, and at
+   least ONE must be named with evidence:
+   (a) **A MECHANICAL / FORCED buyer that must transact in RTH** — a genuine short base that has to cover
+       up, an index/ETF add, a merger-arb or redemption flow. Mechanical means obliged, not "should."
+   (b) **A FUTURE RE-RATE whose implications take days to price** — a multi-year contract / offtake /
+       viability de-risk, where the market is still working out what it means (this is the open-ended
+       shape that opened at its LOW and ran all session). NOT a finite, fully-formatted event (a quarterly
+       number, a scheduled filing/milestone) — those are digested by the bell and their re-rate is DONE.
+   (c) **The premarket has NOT consumed the move** — the name is quiet / barely gapped, so the whole
+       release is still ahead of RTH rather than behind it.
+   If none of (a)/(b)/(c) can be named with a specific fact, the open is the high and the session is
+   give-back → **ABSTAIN.** A HARD, verified, beat-shaped catalyst that already popped premarket with no
+   (a)/(b)/(c) behind it is exactly the pick this record loses on — verifiability is not continuation.
+   **A same-morning analyst-revision cascade is CONSUMED at your open — it is NOT flow arriving after it
+   (the trap that took two picks on consecutive sessions: both cleared this gate on "revisions still
+   arriving" and both FADED straight from the open, −8.8% / −8.7% intraday).** A "analysts raise forecasts" / PT-bump item timestamped BEFORE
+   09:30 has published INTO the premarket pop you would be buying — it is the reaction completing, not a
+   buyer arriving at a higher price after the bell. So "obliged revisions still printing" counts as
+   still-arriving ONLY if it is a MULTI-DAY ladder still climbing over sessions, never a one-shot that lands
+   in the premarket. Note this is NOT a gap-size rule — gap-% does not separate these (a +14% gapper HELD,
+   a +15% and a +5% both faded); the tell is WHO keeps buying past the open. The flow that genuinely
+   continues is a FORCED / MECHANICAL buyer: a real short-squeeze that MUST cover up (the held winner ran a
+   ~31% short into a volume-confirmed re-ignition; the two faders carried ~7-15% short with no forced cover),
+   or a multi-day theme still pulling money in. If the only continuation you can name is "the beat's own
+   revisions are publishing this morning," the flow is consumed by the open → this gate is NOT cleared.
    **Do NOT collapse this into "company number = good, theme/attention = skip"** — that bucket is too
    crude and will make you pass real buyers. A live theme still pulling money in day after day, and a
    forced short-cover (a *mechanical* buyer obliged to buy UP), can be a **stronger, more persistent**
@@ -280,6 +348,21 @@ gate it failed. Fewer, gate-cleared picks beat more, argued-in picks.
    bb_bandwidth 1.000 / atr 0.721 / consol 0 — three axes it did not qualify on — while never mentioning
    `loaded_spring`, the axis it was admitted for at −63.9% off its 252d high. It closed **+19.92%**, the
    pool's #1, and the 09:30 open was the low of the day.)
+
+6. **Record-profile gate** (process, not a formula): before you commit, state where the pick sits versus
+   the measured winning profile from Step 2 — `loaded_spring` present? beta? `pm_vol_vs_avg`? liquidity?
+   **If the pick is OUTSIDE that profile, you must say so in one line and give the specific reason you are
+   overriding a 47%-vs-13% base rate.** You are NOT forbidden from picking outside it — the profile is
+   evidence, not a rule, and your context read can legitimately beat it. What is forbidden is picking
+   outside it *without noticing*, which is what the losing stretch was: the record's traded picks ran
+   **7 win / 13 loss lifetime and 1 win / 9 loss over the last three weeks**, while on those exact same
+   sessions the profile cohort averaged **+1.48%/day at a 47% hit rate**. The selector, not the market,
+   was the problem — so any pick that leaves that cohort now has to earn it in writing.
+   **Regime note to weigh (not a gate):** the coiled cohort mean-reverts day to day (corr −0.39 over 27
+   sessions) — sessions following a NEGATIVE cohort day averaged **+2.67%**, sessions following a positive
+   one averaged **−0.07%**. Yesterday's cohort behaviour is knowable pre-open; weigh it, do not obey it
+   (n is small). And no pre-open MARKET proxy predicted the cohort at all (IWM overnight gap, prior-day
+   IWM, VIX change all corr ≈ 0.00) — so do not invent a market-direction filter; it does not exist here.
 
 For each finalist that clears the gates, hold yourself to:
 - **coil** — why the spring is loaded (the specific coil evidence).
