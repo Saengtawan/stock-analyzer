@@ -141,6 +141,33 @@ a fluent writer from buying the wrong cohort; a computed shortlist can.
 Confirm the *catalyst and its direction* on the names you want to check. Your budget is TIME
 (finish before the open), not tokens.
 
+### 🧩 THE ONE QUESTION THAT SEPARATED THE RECORD'S WINNERS FROM ITS LOSERS
+Do not stop at the catalyst's TYPE (earnings / contract / filing) or at whether you can verify it — that
+is the shallow read, and it graded the record's worst losers as "HARD, good". Ask the deeper thing:
+
+> **Does this news change WHAT THE COMPANY IS — forcing the market to re-define it over several
+> sessions — or does it merely adjust a NUMBER inside the identity the market already has?**
+
+- **IDENTITY-CHANGE → the re-rate cannot finish in one premarket.** The record's winners all had this
+  shape: a miner that bought power assets and became an AI/HPC-infrastructure name (+8.6%); a shell that
+  became a crypto-treasury vehicle by accumulating aggressively, twice (+7.1%, +5.4%); a pre-revenue
+  manufacturer that became a hyperscaler-validated supplier on a first deployment (+6.2%); a developer
+  that became a contracted power seller on a marquee PPA (+19.9%, the record's biggest miss). The market
+  has to re-underwrite the whole thesis — so buyers keep arriving AFTER your open.
+- **NUMBER-ADJUSTMENT → digested by the bell, your session eats the give-back.** The losers: an analyst
+  UPGRADE that was only to *Neutral* with a target ~2% above where the stock had already gapped (−4.3%);
+  price-target CUTS (−4.9%); a regulatory filing the company had already guided (−8.8%); a quarterly beat
+  in an unchanged business (−8.3%). None of them re-defined anything.
+- **The analyst-rating trap, stated explicitly:** an upgrade to NEUTRAL means "we stop being negative",
+  not "we are buyers" — it obliges no one to buy. Read the RATING LEVEL and the TARGET AGAINST THE PRICE
+  YOU WOULD PAY (a target at or below the gapped price is bearish content under a bullish headline). The
+  headline is the facade; the rating + target + who it forces to act is the substance.
+- **⚠️ IF YOU CANNOT TELL WHICH IT IS — SKIP THE NAME.** Ambiguity is not a reason to lean in. In the
+  record the ambiguous middle (news that could be read either way, or where an external driver — the
+  underlying commodity/crypto/sector — would decide the day) averaged near zero and included the worst
+  external-override loss (own news looked like a treasury build, but the underlying fell intraday and
+  took it −4.4%). Skipping the unclear ones costs you almost nothing and removes the tail.
+
 **⚠️ YOUR JOB HERE IS DIRECTION, AND THE POOL'S NEWS FIELDS CANNOT DO IT FOR YOU.** The mechanical
 layer already told you WHERE the winners live (the profile above). What it cannot tell you is which way
 a given one goes today — and its `news_n` / `news_max_impact` fields are far too crude to say. The
@@ -359,6 +386,20 @@ gate it failed. Fewer, gate-cleared picks beat more, argued-in picks.
    'almost certainly X' about my own evidence, that is not a caveat, it is an unfinished task"*): it lives
    HERE now, as a gate, because as conditioning it was written down and overridden on **four** picks
    (−2.42%, −9.73%, −2.14%, −8.83%), the last of them **with this gate already in force**.
+   **HARDENED 09-03 — A CAVEAT MAY NOT BE PARTITIONED. Override #5 (−7.61%) did not hedge the resolution;
+   it SPLIT the caveat in two and quarantined the unresolved half.** The plan named the killing caveat
+   ("is the whole re-rate already IN the +12.4% premarket move?"), resolved a NARROWER version of it (was
+   the name bid up over prior SESSIONS into the print — no, the last two closes were red), and then filed
+   the ACTUAL question in a separate paragraph labelled *"residual risk I am NOT using to clear the gate"*:
+   *"a modest print to have already paid +12.4% for, and if the buyers finished in the premarket the
+   session gives it back."* That is what happened, to the tick. **The checkable rule: a disqualifier
+   written anywhere in `risk` counts against this gate no matter what label you attach to it. There is no
+   "residual I am not using to clear the gate" bucket** — labelling a killing caveat as residual is not a
+   disclosure, it is the override. And **the resolution must answer the caveat AS YOU STATED IT**, not a
+   narrower cousin of it: if the caveat is about the PREMARKET move consuming the re-rate, evidence about
+   PRIOR SESSIONS does not close it. Two questions before you commit: (1) is every disqualifier in `risk`
+   resolved with an external fact, or are some merely labelled? (2) does each resolution address the same
+   scope as the caveat it answers? Any "no" → abstain.
 
 5. **Coil-is-mechanical gate**: any statement the plan makes about a name's COIL must cite the axes the
    pool actually admitted it on (`axes` / `axes_extreme` in the digest). Declaring a POOLED name
@@ -388,26 +429,14 @@ gate it failed. Fewer, gate-cleared picks beat more, argued-in picks.
 
 For each finalist that clears the gates, hold yourself to:
 - **coil** — why the spring is loaded (the specific coil evidence).
-- **catalyst** — why it releases UP and holds *to the close* (the durable reason, per #2). **And is the
-  re-rate still AHEAD of my open, or already priced into it?** A hard catalyst pays intraday only when
-  it is FRESH — breaking this morning / overnight so desks still have to re-rate it THROUGH the session
-  (09:30→16:00). When the move is already digested by the bell — the name ran hard INTO the event over
-  prior days, an after-hours pop faded back before the open, or the story has led the tape for a while —
-  the open price already holds the re-rate and my window gets the give-back, not the release. Read it
-  off the observable, not a formula: *FRESH* = a same-morning / overnight hard print the desks have NOT
-  yet re-based against (analyst revisions still to publish, PTs still standing above the mark), the
-  pre-open has NOT run multiple sessions into it, an AH pop is HELD not round-tripped at the open;
-  *PRICED/STALE* = the name already ran several sessions into the event, an AH spike faded toward flat by
-  the open, the story has led for days, and "it still goes up" now needs ME to argue there is room left
-  — which is the L9 clause, a re-rate I am supplying rather than one the market still owes. The cleanest
-  illustration is one name on two days: the same kind of contract news gapped it **+22.9%** one day
-  and only **+0.6%** the next — the move was still ahead of the open the first time and already behind
-  it the second (fresh vs already-priced, same catalyst type). Judge each finalist's freshness YOURSELF off
-  the observables above; do not pattern-match a stored list of which past names I called 'fresh' or
-  'priced' — you decide, from what the tape and the news actually show today. So the bar is not "does
-  it have a catalyst" — it is "is the re-rate still ahead of my open." Forward-earned but small-sample:
-  **weigh it, never cut on it** (the gap-size version FAILS — a +29% gap has still closed green), and
-  let the record keep testing whether fresh really separates from priced.
+- **catalyst** — why it releases UP and holds *to the close* (the durable reason, per #2). Freshness —
+  "is the re-rate still AHEAD of my open, or already priced into it?" — is **gated in #2, not weighed
+  here**; the old conditioning version of this bullet ended *"weigh it, never cut on it"* and that escape
+  clause let through the three consumed-premarket picks #2 now names (−8.8% / −8.7% / −7.6%). Answer it
+  at the gate. The one illustration worth keeping: the same kind of contract news gapped one name
+  **+22.9%** on one day and only **+0.6%** on another — same catalyst type, the move still ahead of the
+  open the first time and already behind it the second. Judge freshness off today's tape and news, never
+  by pattern-matching a stored list of past names.
 - **Gap DIRECTION is the record's sharpest split — weigh it HARD, it is NOT symmetric, and for
   down-gaps the WHY (structural vs transient), read from CONTEXT, is the tell — not the depth.** Up-gap
   picks win more often (≈5-in-9); down-gap picks are the losing cohort (≈1-in-4). Read each on its own terms:
