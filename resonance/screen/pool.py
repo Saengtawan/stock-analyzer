@@ -369,7 +369,14 @@ def pool(date, cache_dir=CACHE, write=True):
     # passes through (execute has a <$400 backstop).
     PRICE_CAP = 400.0
     if "coil_last_close" in df.columns:
-        _gap = df["prime_gap_pct"].fillna(0.0) if "prime_gap_pct" in df.columns else 0.0
+        # Use the RAW gap here, not the axis-neutralized one. prime.py nulls `gap_pct` when a gap is
+        # implausibly large AND uncorroborated (the split-artifact signature) so it cannot rank on the
+        # gap axis — but the price cap is asking a different question: what will this cost at the open?
+        # Falling back to 0 there would price a genuine +50% gapper at its prior close and let an
+        # unbuyable name through. Rare (~0.1 names/day) and free to get right.
+        _gap = (df["prime_gap_pct_raw"] if "prime_gap_pct_raw" in df.columns
+                else df.get("prime_gap_pct")).fillna(0.0) if (
+                    "prime_gap_pct_raw" in df.columns or "prime_gap_pct" in df.columns) else 0.0
         _est_open = df["coil_last_close"] * (1.0 + _gap / 100.0)
         price_capped = int((_est_open >= PRICE_CAP).sum())
         df = df[~(_est_open >= PRICE_CAP)].copy()
