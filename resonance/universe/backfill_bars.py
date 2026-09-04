@@ -66,7 +66,7 @@ def backfill(years=1, force=False, db=DB):
     from alpaca.data.enums import Adjustment
     from alpaca.data.timeframe import TimeFrame
 
-    conn = sqlite3.connect(db)
+    conn = sqlite3.connect(db, timeout=60)
     syms = [r[0] for r in conn.execute(
         "SELECT symbol FROM resonance_universe WHERE status='active' ORDER BY symbol")]
     print(f"resonance_universe active symbols: {len(syms)}")
@@ -180,7 +180,7 @@ def readjust_extras(years=1, db=DB):
     from alpaca.data.enums import Adjustment
     from alpaca.data.timeframe import TimeFrame
 
-    conn = sqlite3.connect(db)
+    conn = sqlite3.connect(db, timeout=60)
     core_before = conn.execute("""SELECT COUNT(*) FROM stock_daily_ohlc
                                    WHERE symbol IN (SELECT symbol FROM universe_stocks)""").fetchone()[0]
     extras = _extras_only(conn)

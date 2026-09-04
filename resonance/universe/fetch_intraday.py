@@ -121,7 +121,10 @@ def fetch_intraday(date, db=DB, verbose=True, conn=None):
 
     own = conn is None
     if own:
-        conn = sqlite3.connect(db)
+        # timeout: this writer failed with 'database is locked' on 7 runs — the same silent failure
+        # that killed cluster_fit for five weeks. It surfaced only as 'extras intraday fetch
+        # warned (non-fatal)' in resonance.log, 17 times, tolerated each time.
+        conn = sqlite3.connect(db, timeout=60)
     syms, n_active, n_core_overlap = _extra_symbols(conn)
 
     if verbose:
@@ -195,7 +198,7 @@ def fetch_intraday(date, db=DB, verbose=True, conn=None):
 
 def backfill(last_n, db=DB, verbose=True):
     """Fetch full-session extras bars for each of the last `last_n` trading days. One shared conn."""
-    conn = sqlite3.connect(db)
+    conn = sqlite3.connect(db, timeout=60)
     days = _trading_days(conn, last_n)
     if verbose:
         print(f"BACKFILL: last {last_n} trading days = {days[0]}..{days[-1]} ({len(days)} days)")
