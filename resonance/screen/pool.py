@@ -511,45 +511,6 @@ def pool(date, cache_dir=CACHE, write=True):
     lookback_hint = 20
     cohort_baseline = _cohort_baseline(date, cache_dir, lookback=lookback_hint)
 
-    # 4e) SECTOR MIX — surfaced, never capped. The admission contains no sector term at all, yet the
-    # pond concentrates anyway: deeply-fallen high-beta names cluster in whatever the market has just
-    # beaten down (measured: Technology is 16% of the universe, 37% once beta>1.5 is applied — before
-    # depth is even considered — and 44% of the pool; the weekly share swung 34-51%, and Industrials
-    # rose from 12% to 29% on its own). That is the market rotating, not a rule, and it will move to a
-    # different sector when a different one gets crushed, with no code change.
-    # But a concentration nobody chose is still a concentration: on a day the leading sector is hit,
-    # a pond that is half that sector hands the AI three correlated candidates and it may pick them
-    # without ever deciding to take that bet. So we COMPUTE the mix and the trailing comparison, and
-    # we deliberately do NOT cap any sector — a cap would be exactly the hardcoded conclusion this
-    # system exists to avoid. The AI sees where today sits and weighs it itself.
-    _secs = [r.get("sector") for r in digest if r.get("sector")]
-    sector_mix, sector_concentration = {}, {}
-    if _secs:
-        _cnt = pd.Series(_secs).value_counts()
-        sector_mix = {k: round(100.0 * v / len(_secs), 1) for k, v in _cnt.items()}
-        _shares = np.array(list(sector_mix.values())) / 100.0
-        sector_concentration = {"top_sector": str(_cnt.index[0]),
-                                "top_sector_pct": sector_mix[_cnt.index[0]],
-                                "n_sectors": int(len(_cnt)),
-                                "hhi": round(float((_shares ** 2).sum()), 3)}
-        # trailing comparison from prior pool files — is today unusually concentrated for this pond?
-        _prior = sorted(p for p in glob.glob(f"{cache_dir}/pool_*.json")
-                        if os.path.basename(p)[5:15] < date)[-lookback_hint:]
-        _hist = []
-        for _p in _prior:
-            try:
-                with open(_p) as _f:
-                    _d = json.load(_f)
-                _s = [r.get("sector") for r in (_d.get("digest") or []) if r.get("sector")]
-                if _s:
-                    _v = pd.Series(_s).value_counts()
-                    _hist.append(100.0 * _v.iloc[0] / len(_s))
-            except Exception:
-                continue
-        if len(_hist) >= 5:
-            sector_concentration["top_sector_pct_trailing_median"] = round(float(np.median(_hist)), 1)
-            sector_concentration["trailing_sessions"] = len(_hist)
-
     axis_contrib = {ax["name"]: len(extreme[ax["name"]]) for ax in AXES}
     dropped = buyable_size - len(pooled)
 
@@ -581,13 +542,6 @@ def pool(date, cache_dir=CACHE, write=True):
          f"  SHORTLIST (loaded_spring + beta>{SL_BETA_MIN}) -> {len(shortlist)} names"
          + (": " + ", ".join(d["sym"] for d in shortlist) if shortlist else " (none today)")),
         "  axes are DESCRIPTION only now (which kind of compression) — they no longer decide membership.",
-        ((f"  SECTOR MIX (no sector term exists in the admission — this is the market rotating): "
-          + ", ".join(f"{k} {v}%" for k, v in list(sector_mix.items())[:5])
-          + (f"   [top sector {sector_concentration['top_sector_pct']}% vs trailing median "
-             f"{sector_concentration['top_sector_pct_trailing_median']}% over "
-             f"{sector_concentration['trailing_sessions']} sessions]"
-             if "top_sector_pct_trailing_median" in sector_concentration else ""))
-         if sector_mix else "  SECTOR MIX: unavailable"),
         (f"  COHORT BASELINE (rolling, last {cohort_baseline['sessions']} sessions, "
          f"{cohort_baseline['name_days']} name-days): moved >=±2% {cohort_baseline['moved_pct']}%  |  "
          f"UP >=+2% {cohort_baseline['up_pct']}%   DOWN <=-2% {cohort_baseline['down_pct']}%   "
@@ -620,8 +574,6 @@ def pool(date, cache_dir=CACHE, write=True):
         "n_broad": len(path_broad),
         "axis_contrib": axis_contrib,
         "cohort_baseline": cohort_baseline,   # rolling null hypothesis the AI must beat (see 4d)
-        "sector_mix": sector_mix,                     # % of the pool by sector (surfaced, never capped)
-        "sector_concentration": sector_concentration,  # top-sector share + HHI + trailing comparison
         "shortlist": shortlist,          # == pool under movement mode (see 4b)
         "digest": digest,
         "log": log,

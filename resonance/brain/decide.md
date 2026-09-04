@@ -98,19 +98,6 @@ Read it as **evidence, not a ranking**. The rows are sorted alphabetically, deli
 in their order is a score, and top-of-list is NOT "best". You do the weighting. No formula was
 baked in on purpose.
 
-**⚠️ CHECK `sector_mix` / `sector_concentration` BEFORE YOU PICK — a concentration nobody chose is
-still a bet.** The admission contains **no sector term whatsoever**; the pond's sector mix is the
-market rotating, not a rule (Technology is ~16% of the universe but ~37% of high-beta names *before*
-depth is applied — high beta simply lives there this year — and the weekly share has swung 34-51%
-while Industrials rose from 12% to 29% on its own). It will move to a different sector when a
-different one gets crushed, with no code change. **But that also means the pool can hand you three
-candidates that are one bet.** The file gives you today's mix, the top sector's share, and the
-trailing median of that share, so you can see when today is unusually concentrated. Nothing is
-capped — a sector cap would be exactly the hardcoded conclusion this system avoids. What is asked of
-you is only this: **if your picks land in one sector, say so in the plan and say why you are willing
-to hold that as a single bet.** (Note: the trailing figure is measured over pool files as written, so
-after an admission change it takes ~20 sessions to converge.)
-
 **WHAT THE POOL IS, AND WHAT IT IS NOT (read this before you read a single row).** The pool's one
 job is to **concentrate MOVEMENT** — to hand you names that will actually travel today, so that a
 direction read has something to earn on. It is admitted mechanically on three levels: **deeply below
