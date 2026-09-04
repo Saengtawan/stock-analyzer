@@ -139,6 +139,7 @@ COILED_AXES = {ax["name"] for ax in AXES if ax["group"] == "coiled"}
 
 # Raw columns carried into the compact digest the brain reads (token-light: only decision-relevant).
 DIGEST_COLS = [
+    "coil_dd_suspect",   # True = 252d high looks pre-split; depth suppressed, do not read as a crash
     "sym", "sector", "coil_last_close",
     # coil (stored energy)
     "coil_atr_pct_pctile", "coil_bb_bandwidth_pctile", "coil_rvol_ratio", "coil_rvol_short_pctile",

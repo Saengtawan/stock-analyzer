@@ -145,7 +145,10 @@ def compute_coil(daily_digest):
     out = {"n_bars": n,
            "last_close": _f((daily_digest or {}).get("last_close"), 3),
            "pct_from_252hi": _f((daily_digest or {}).get("pct_from_252hi"), 3),
-           "pct_from_252lo": _f((daily_digest or {}).get("pct_from_252lo"), 3)}
+           "pct_from_252lo": _f((daily_digest or {}).get("pct_from_252lo"), 3),
+           # carried through so the pool/AI can see WHY depth is missing: the 252d high looked pre-split
+           # (unadjusted history) and the derived drawdown was suppressed rather than trusted.
+           "dd_suspect": bool((daily_digest or {}).get("dd_suspect"))}
 
     if n < _MIN_BARS:
         # not enough history for stable percentiles — return context-only, rest None

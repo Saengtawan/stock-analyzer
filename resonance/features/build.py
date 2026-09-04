@@ -69,11 +69,39 @@ def bulk_daily(conn, asof, cal_days=420):
         g52 = g[g["date"] >= yr]
         hi252 = float(g52["high"].max()) if len(g52) else None
         lo252 = float(g52["low"].min()) if len(g52) else None
+        # SPLIT-ARTIFACT GUARD (added 09-04). `stock_daily_ohlc` is not always split-adjusted, so a name
+        # that split shows a PRE-split 252d high against a POST-split last close and reports a fake, huge
+        # drawdown. That matters more than it sounds: depth off the 252d high is the single strongest
+        # winner dimension in this pool, so a fake -96% puts a broken row straight into the winner region.
+        # Audit on one session found 4 of 41 pooled names with a corrupted high (one implied a $5,629 high
+        # against a real $221 — off by 24x). Detect it structurally: if the 252d high towers over the
+        # name's OWN recent trading range, the old bars are on a different share basis. Neutralize the
+        # derived depth (leave the raw high visible + flag it) rather than guessing an adjustment factor.
+        # Two independent tells, because a split can be recent (recent bars still pre-split) or old:
+        #  (a) the 252d high towers over the name's own recent range, and
+        #  (b) a DISCONTINUITY — one session where the close falls >=45% and simply stays there. A real
+        #      crash bleeds over sessions and usually retraces some; an unadjusted split is an instant,
+        #      permanent step down. This is what separates a genuine -85% drawdown (the winner shape we
+        #      WANT) from a bookkeeping artifact (which must not be allowed to fake that shape).
+        recent_hi = max((b["c"] for b in bars[-60:] if b["c"] is not None), default=None)
+        _towers = bool(hi252 and recent_hi and hi252 > 3.0 * recent_hi)
+        _step = False
+        _cl = [b["c"] for b in bars if b["c"] is not None]
+        for i in range(1, len(_cl)):
+            if _cl[i-1] and _cl[i] and _cl[i] <= 0.55 * _cl[i-1]:
+                after = _cl[i:i+10]
+                if after and max(after) < 0.75 * _cl[i-1]:   # never came back = a step, not a selloff
+                    _step = True
+                    break
+        dd_suspect = bool(_towers or _step)
+        _pct_hi = (_d((last_close / hi252 - 1) * 100)
+                   if (last_close and hi252 and not dd_suspect) else None)
         out[sym] = {
             "sym": sym, "asof": asof, "n": len(bars),
             "last_close": last_close,
             "hi_252": _d(hi252, 3), "lo_252": _d(lo252, 3),
-            "pct_from_252hi": _d((last_close / hi252 - 1) * 100) if (last_close and hi252) else None,
+            "dd_suspect": dd_suspect,        # True = 252d high looks pre-split; depth NOT trustworthy
+            "pct_from_252hi": _pct_hi,
             "pct_from_252lo": _d((last_close / lo252 - 1) * 100) if (last_close and lo252) else None,
             "bars": bars,
         }
