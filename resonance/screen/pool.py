@@ -357,12 +357,21 @@ def pool(date, cache_dir=CACHE, write=True):
     # (revenue miss + cut volume guidance). So pm_vol stays as INFORMATION (raw value + rank_in_pool) for
     # the AI to weigh as the trigger question ("is the release starting today?"), not as a gate.
     SL_BETA_MIN = 1.5
+    # TRADEABILITY floor — the same class of constraint as PRICE_CAP (what the account can actually
+    # transact), NOT a judgment axis. Without it the cohort's mean was distorted by a single sub-$300M
+    # name that printed a +194% open-to-close day: it lifted the average from +0.59% to +3.03% while
+    # leaving the median (+0.31%) and hit-rate (36-38%) untouched — i.e. pure tail noise from a name
+    # nobody could have transacted at size. Any floor ($100M cap, or ~$5M/day traded) removes exactly
+    # that one name and nothing else, so this costs no real candidate.
+    SL_MCAP_MIN = 100e6
     shortlist = []
     for row in digest:
         if "loaded_spring" not in (row.get("axes") or []):
             continue
         b, pv = row.get("beta"), row.get("pm_vol_vs_avg")
         if b is None or b <= SL_BETA_MIN:
+            continue
+        if (row.get("market_cap") or 0) < SL_MCAP_MIN:
             continue
         shortlist.append({"sym": row["sym"], "beta": b, "pm_vol_vs_avg": pv,
                           "pct_from_252hi": row.get("pct_from_252hi"),
