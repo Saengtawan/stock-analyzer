@@ -35,6 +35,17 @@ year = date[:4]
 mmdd = date[5:]
 
 
+# Residual found after the date filter: outcome citations that carry NO date. Lines like
+# "FRVO +19.92%" or "SAIC -8.63%" sit inside LESSONS and the gate tallies with nothing to date them,
+# and three replay agents reported reading exactly those before they could tell what session they
+# belonged to. Since the date cannot be recovered, a replay context drops EVERY ticker-plus-signed-
+# percent citation outside the forward record. That over-strips — some of those outcomes predate the
+# replay and were legitimately knowable — but for a harness whose only job is to test a change before
+# it ships, under-informing is the cheap error and leaking the answer is the fatal one. The lessons
+# keep their mechanism text; they lose their worked numbers.
+_OUTCOME = re.compile(r"\b[A-Z]{1,5}\b[^.;|]{0,40}?[+\u2212-]\d+(?:\.\d+)?%")
+
+
 def _leaks(line):
     """True if the line carries a date at or after the replay date, in any of the file's formats."""
     for d in re.findall(r"\b(\d{4})-(\d{2}-\d{2})\b", line):        # 2026-09-02
@@ -49,10 +60,16 @@ def _leaks(line):
     return False
 
 
-kept, cut = [], 0
+kept, cut, scrubbed = [], 0, 0
+in_forward = False
 for line in open(src):
+    if line.startswith("#"):
+        in_forward = "FORWARD RECORD" in line.upper()
     if _leaks(line):
         cut += 1
+        continue
+    if not in_forward and _OUTCOME.search(line):
+        scrubbed += 1
         continue
     kept.append(line)
 
@@ -62,4 +79,5 @@ with open(path, "w") as f:
     f.write(f"<!-- REPLAY CONTEXT for {date}: {cut} forward-record entries dated >= {date} were "
             f"REMOVED. This is what the brain knew before that morning. -->\n")
     f.writelines(kept)
-print(f"{path}  (cut {cut} entries dated >= {date}, kept {len(kept)} lines)")
+print(f"{path}  (cut {cut} dated >= {date}, scrubbed {scrubbed} undated outcome lines, "
+      f"kept {len(kept)})")

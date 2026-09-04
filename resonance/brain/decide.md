@@ -126,6 +126,20 @@ figure desks re-rate to, not the headline or GAAP line, and confirm it is genuin
 REMOVING a specific, already-priced concern. To clear this way, NAME the overhang and the evidence it
 was priced in (the decline it caused). "No number to remodel" may NOT decline such a catalyst until
 this exception is resolved in writing — that shortcut once declined a +19.92% name.
+*⚠️ The gap between G1 and Step 3, now closed with evidence — THE ACQUIRER BUYING A BIGGER TAM.* Two
+replay runs took the same shape on two different sessions: a company announces an acquisition that
+"doubles its 2030 addressable market", with **no operating number** and **no specific priced-in overhang
+removed**. It reads as an identity change under Step 3 and as nothing at all under G1, so both runs
+argued the de-overhang exception loosely ("the overhang is whether this can be an AI-infrastructure
+franchise rather than a commodity supplier") and bought it. It closed **−5.22%** and **−5.01%**. The
+version that declined it — naming the overhang as un-nameable and the SAM as a 2030 figure with nothing
+to remodel — was right both times.
+So: **a SAM/TAM expansion is NOT a de-overhang.** An addressable market is a forecast, not a concern the
+market was pricing, and there is no decline you can point to that it reverses. To clear G1 this way you
+must name a concern the market DEMONSTRABLY priced — with the decline it caused — not a description of
+what the company could become. If the only thing you can name is the story, G1 is not cleared. (An
+acquirer also pays: it is spending cash and issuing stock, which is supply on your side of the trade.)
+
 *Guided vs surprise:* say which. An overhang the company already GUIDED away is largely priced; an
 unannounced one is not. If guided, the residual must be an **EXTERNAL UN-PRICED FACT** (a new number,
 term, or datum the guidance did not contain) — never a positioning-inference ("nobody front-ran it").
