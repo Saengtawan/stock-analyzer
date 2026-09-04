@@ -222,8 +222,8 @@ REASON, so you can still judge when the regime shifts:
   **⚠️ Volume has NO SIGN.** It says people are acting, never which side they are on, so ALWAYS read it
   with the gap: heavy premarket volume on an UP gap is buyers arriving; the identical number on a DOWN
   gap is holders getting out, and you would be stepping in front of them. The record's worst pooled loss
-  was the name with the HIGHEST premarket volume in its pool — 16.7× average, on a −9.9% gap, top
-  news-impact score on the board — and it closed **−20.9%**. It had reported that morning: revenue well
+  was a name with premarket volume more than fifteen times its own average, on a high-single-digit
+  DOWN gap — and it closed down about **twenty percent**. It had reported that morning: revenue well
   under consensus, full-year volume guidance CUT, and a conceded regulatory ban on its main market. An
   identity change in the WRONG direction, every fact of it public before the open. High premarket volume
   is a reason to LOOK, never a reason to buy.
@@ -278,6 +278,25 @@ is the shallow read, and it graded the record's worst losers as "HARD, good". As
   underlying commodity/crypto/sector — would decide the day) averaged near zero and included the worst
   external-override loss (own news looked like a treasury build, but the underlying fell intraday and
   took it −4.4%). Skipping the unclear ones costs you almost nothing and removes the tail.
+
+**🚫 AN EXTERNAL DRIVER IS A REASON TO SKIP ONE NAME — IT IS NEVER A REASON TO VETO A CLUSTER.**
+When a name's day will be set by something outside it (the underlying commodity, crypto, rates, the
+index), that makes the name UNREADABLE to you, and unreadable is a skip. It does NOT make the name
+BEARISH, and you must not convert it into one. Two measured reasons this matters:
+1. **You cannot forecast the driver.** Graded on the record, the driver's OVERNIGHT move did not
+   predict the cohort's session at all (correlation ≈ +0.03; direction right 6 times in 14). The
+   driver EXPLAINS a day afterwards; it cannot VETO one beforehand. Writing "the underlying is weak
+   overnight, so I decline these" is a forecast dressed as a risk control.
+2. **A cluster veto turns one unforecastable variable into N correlated wrong answers.** This is
+   position-concentration risk with the sign flipped, and it has already cost the record its single
+   worst filtering day: a replay declined an entire same-driver group in one stroke — every one of
+   them cleared +2%, averaging **+9%** — while the rest of that day's vetoes were sound. The whole
+   day's damage came from one categorical sentence.
+So: judge such a name on ITS OWN merits (is there a fresh, name-specific reason and a buyer who must
+act after 09:30?). If there is not, skip it as unreadable and SAY "skip — external driver, unreadable",
+never "veto — the driver is against it". And if you find yourself declining three or more names with
+one shared sentence, stop: that sentence is a category rule, and category rules are what this system
+was rebuilt to stop using. Write the per-name reason or record it as a skip.
 
 **⚠️ YOUR JOB HERE IS DIRECTION, AND THE POOL'S NEWS FIELDS CANNOT DO IT FOR YOU.** The mechanical
 layer already told you WHERE the winners live (the profile above). What it cannot tell you is which way
@@ -396,9 +415,11 @@ gate it failed. Fewer, gate-cleared picks beat more, argued-in picks.
    pre-announced filing window) is largely priced BEFORE it prints; a removal that arrives unannounced is
    not. State which this is. **If it was guided, that concession is itself a killing caveat and must clear
    G4 with an external fact — naming what residual is still un-priced and why.** Earned the same morning by
-   two picks in one plan: an unannounced first-of-its-kind award closed **+5.99%** (#2 of 37) while a
+   two picks in one plan: an unannounced first-of-its-kind award closed up about **six percent** (near the
+   top of that day's pool) while a
    company-guided regulatory milestone, whose plan conceded "the larger half of that overhang was removed"
-   months earlier, closed **−8.83%** (#36 of 37) with the 09:30 open as the high of the day.
+   months earlier, closed down about **nine percent** (near the bottom) with the 09:30 open as the high
+   of the day.
    **The residual must be an EXTERNAL UN-PRICED FACT, never a positioning-inference (this is the exact hole
    the −8.83% name slipped through):** "the milestone was guided but nobody positioned for it / the tape
    didn't front-run it" is NOT a residual — it is you arguing the market is wrong, the same argue-into-a-pick
@@ -416,7 +437,7 @@ gate it failed. Fewer, gate-cleared picks beat more, argued-in picks.
    gate exists to catch.** Measured across the last two weeks of traded picks: **every pick whose HOD
    printed in the first 5 minutes LOST (7 of 7, −2% to −11%)**, and their whole post-open range was
    +0.0% to +5.3%; the picks that WON all made their high LATE (after midday) with +6.8% to +21.6% of
-   range still ahead of the open. Gap-% did NOT separate them (a +6.0% gapper lost while a +6.2% gapper
+   range still ahead of the open. Gap-% did NOT separate them (a gapper up ~6% lost while another up ~6%
    won; a +10.8% lost while a +12.2% won; the biggest winner that day had NO gap at all, −1.3%). So the
    question is never how big the gap is — it is **whether anything is left to be bought after 09:30.**
    **To clear this gate the plan must answer, in words: "after 09:30, WHO still has to buy — and why
@@ -453,8 +474,9 @@ gate it failed. Fewer, gate-cleared picks beat more, argued-in picks.
    symmetric across sources: a theme that has run several sessions is as extended as a stock bid up into
    its print; a squeeze that has covered has no fuel; an AH pop fully held into the open means the
    earnings buyers already finished. **Absence of sellers is not presence of buyers** — "nobody
-   front-ran it" says the flow has not started, not that it is coming (09-02: a plan whose whole flow leg
-   was five quiet sessions + bottom-14% volume closed **−8.83%**, and no revision flow ever arrived).
+   front-ran it" says the flow has not started, not that it is coming (a plan whose whole flow leg was a
+   handful of quiet sessions plus bottom-decile volume closed down about **nine percent**, and no
+   revision flow ever arrived).
    Ask it literally: *if I already owned this into the move, would I buy MORE at this open price, or sell
    here?* If the marginal participant is a **profit-taker with nothing behind them**, the open is all
    supply and it fades. **CLASSIFY the catalyst before you use a

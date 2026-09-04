@@ -130,8 +130,20 @@ correctly and ignored anyway. So do these in order:
 
 **Keep `decide.md` TICKER-FREE.** decide.md is process, not a watchlist. When you write or escalate a
 lesson there, state it as a GENERIC pattern ("a de-overhang contract", "a beat into extended longs",
-"a pooled name whose coil was overridden") — you MAY keep the outcome numbers if they teach (+19.92%,
-−63.9% off its high, 1-green/6-red inverting to +2.13%), but NEVER the company name/ticker. Ticker-specific
+"a pooled name whose coil was overridden") — you MAY keep the outcome numbers if they teach, but
+NEVER the company name/ticker.
+
+**⚠️ AND ROUND THE NUMBERS IN ANY SINGLE-NAME EXAMPLE — a precise one is a ticker in disguise.** A
+sentence like "premarket volume 16.7× average on a −9.9% gap, top news-impact in its pool, closed
+−20.9%" names no company but identifies EXACTLY ONE ROW in one pool file, and a replay of that day
+can match it and read the answer off this document. That happened: a replay of that session flagged
+the leak itself. It does not corrupt live runs (a future day cannot be looked up), but it destroys
+the only cheap way to test a change before deploying it. So when the example is ONE name, write the
+MECHANISM at full strength and the numbers at low resolution ("more than fifteen times its average",
+"a high-single-digit down gap", "closed down about twenty percent"), and never include a
+pool-relative rank ("the highest in its pool", "top score on the board") — that is an index key.
+COHORT statistics are exempt: a base rate over hundreds of name-days identifies nobody, so keep those
+exact. Ticker-specific
 facts belong in the FORWARD RECORD and memory.md (Step 3), which name them freely. If you find a ticker
 already sitting in decide.md, genericize it as part of Step 4.3 consolidation — do not add new ones.
 
