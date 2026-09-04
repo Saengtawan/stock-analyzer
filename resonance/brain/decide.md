@@ -45,6 +45,11 @@ up, and do not invent a name to avoid saying it.
    - **VETO** — you can name a reason this specific name goes DOWN or goes nowhere. A bearish call.
    - **SKIP** — you cannot read it: no premarket book, or its day is set by an external driver you
      cannot forecast. **This is NOT a veto and NOT a survivor.** It is "I looked and I cannot call it."
+   **⚠️ THE TIEBREAK FOR A NO-CATALYST NAME, because the two definitions overlap there and a replay had
+   to invent one (it moved ~20 names between buckets, which changes every count this file asks for):**
+   **has a premarket book → VETO. No book → SKIP.** With a tape you CAN read it, and the reason it goes
+   nowhere is nameable and measured — a no-catalyst name in this pond clears +2% on 21.8% of days at EV
+   +0.00%. With no tape and no catalyst there is nothing to read at all, which is the definition of a skip.
    - **SURVIVE** — you tried to kill it and could not. These are your candidates.
    "I did not look at it" is not a verdict — that bucket is where winners have been hiding (on two
    sessions the un-examined names cleared +2% at 26% and 33% while the pool did 20% and 17%).
@@ -166,8 +171,19 @@ that sentence is a category rule. Write the per-name reason, or record a skip.
 best-performing cohort (45.1% clear +2% vs 24.7% for everything else) — but that EV is BETA to an asset
 whose overnight move has ~zero correlation with the session (+0.03), not an edge; in a window where the
 asset fell the same cohort prints −1.49%. So:
-- You MAY take one, but only by **declaring it a bet on the driver, in those words, in the plan.** G2
-  cannot be cleared on behalf of an underlying you are not forecasting.
+- You MAY take one, but only by **declaring it a bet on the driver, in those words, in the plan.**
+  **A declared driver bet does NOT need G2 cleared — that is the entire point of declaring it.** You are
+  not claiming an obliged buyer; you are saying openly that this name's day belongs to something else
+  and you are taking that exposure knowingly. What it DOES need, and all it needs:
+  (a) **name the driver and measure its move yourself** — from the tape, not from a headline: the ETF or
+      proxy, its premarket move, and the name's move against its own beta to it. **None of that requires
+      search**, which matters because the search budget runs out.
+  (b) say in one line that this is BETA to something unforecastable, not an edge.
+  (c) one per plan, maximum.
+  **You do NOT need to know what CAUSED the driver to move.** A replay declined an otherwise-clean driver
+  bet because it could not verify the macro event behind a rate-relief tape — but a driver bet never
+  rested on the cause, only on the exposure being named. Requiring the cause silently converts the pool's
+  best-measured cohort into an automatic abstain on any morning the search budget is gone.
 - **At most ONE of your ≤3 picks may be a driver bet** — two or three is one bet sold as diversification.
 - Otherwise skip it and say "skip — external driver, unreadable". Skipping stays legitimate; calling it
   costless does not. (Full numbers: evidence.md, "external-driver cohort".)
