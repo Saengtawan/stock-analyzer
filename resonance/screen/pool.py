@@ -70,6 +70,7 @@ Output:
 from __future__ import annotations
 
 import argparse
+import datetime
 import glob
 import json
 import os
@@ -544,6 +545,18 @@ def pool(date, cache_dir=CACHE, write=True):
     lookback_hint = 20
     cohort_baseline = _cohort_baseline(date, cache_dir, lookback=lookback_hint)
 
+    # 4e) SNAPSHOT STAMP — the premarket columns (gap_pct, pm_vol_vs_avg, pm_range_pct) are read from
+    # the tape AS IT STANDS WHEN THIS RUNS, typically ~09:00-09:05 ET. The brain decides ~20 minutes
+    # later, and in that window a gap can more than halve: one replay quoted a digest gap of +11.77%
+    # for a name that was +2.88% at the decision minute. The row is a SNAPSHOT, not the state at the
+    # bell, so its age has to be visible rather than inferred.
+    try:
+        _now = datetime.datetime.now(datetime.timezone.utc).astimezone(
+            datetime.timezone(datetime.timedelta(hours=-4)))
+        built_at = _now.strftime("%Y-%m-%d %H:%M:%S ET")
+    except Exception:
+        built_at = None
+
     axis_contrib = {ax["name"]: len(extreme[ax["name"]]) for ax in AXES}
     dropped = buyable_size - len(pooled)
 
@@ -554,6 +567,9 @@ def pool(date, cache_dir=CACHE, write=True):
         f"resonance pool — {date}",
         f"  universe={universe_size}  ->  price-cap <${PRICE_CAP:.0f} dropped {price_capped} (unbuyable on small capital)  ->  buyable={buyable_size}",
         f"  buyable={buyable_size}  ->  POOL={len(pooled)}   (mode={POOL_MODE})",
+        (f"  SNAPSHOT: premarket columns (gap_pct, pm_vol_vs_avg, pm_range_pct) are as of {built_at} "
+         f"— RECOMPUTE them from the tape at your decision minute before quoting them in a gate."
+         if built_at else ""),
         (f"  ADMISSION (movement): off-252d-high <= {DEPTH_MAX_PCT_FROM_HI:.0f}%  AND  beta > {BETA_MIN}  "
          f"AND  mcap >= ${MCAP_MIN/1e9:.1f}B  — concentrates MOVEMENT (measured 54% of admitted names "
          f"travel >=±2% vs 29% for the market and 30% for the old axis gate). Direction stays the AI's job."
@@ -595,6 +611,7 @@ def pool(date, cache_dir=CACHE, write=True):
 
     result = {
         "date": date,
+        "built_at": built_at,       # premarket columns are as of THIS time, not the decision minute
         "universe_size": universe_size,
         "price_capped": price_capped,
         "buyable_size": buyable_size,

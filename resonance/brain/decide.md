@@ -130,6 +130,14 @@ this exception is resolved in writing — that shortcut once declined a +19.92% 
 unannounced one is not. If guided, the residual must be an **EXTERNAL UN-PRICED FACT** (a new number,
 term, or datum the guidance did not contain) — never a positioning-inference ("nobody front-ran it").
 
+**⚠️ G1 DOES NOT PASS BY DEFAULT ON A NAME WITH NO CATALYST.** G1 is written for a HARD catalyst or a
+de-overhang, so a name with `news_n = 0` and no filing has nothing for it to test — and it was silently
+counting as "cleared", which quietly moved the entire burden onto G2 without anyone deciding that. Say
+it out loud instead: **"G1 N/A — no catalyst; this name's direction rests entirely on G2."** That is a
+legitimate route (a forced buyer needs no press release), but it must be a stated choice, not a gap in
+the checklist. And it raises the bar on G2 rather than lowering it: with no catalyst there is no second
+leg, so the obliged buyer has to be nameable on its own.
+
 **G2 — Direction flow: "after 09:30, WHO still has to buy, and why could they not do it premarket?"**
 The record's loudest signature is *the open was the high*: every pick whose high printed in the first
 five minutes LOST (7 of 7). Name at least ONE, with evidence:
@@ -167,8 +175,17 @@ sellers is not presence of buyers.** Ask literally: *if I already owned this, wo
 sell?* And **classify the catalyst before using a peer-group read to fail this gate** — a red peer group
 is a no-bid signal for a THEME catalyst, but says little about an IDIOSYNCRATIC one.
 
-**G3 — Gap direction, read to your decision minute.** ⚠️ **Read the premarket tape ALL THE WAY to the
-minute you decide, and STATE THE TIME OF THE LAST PRINT YOU USED.** This gate is worthless on a stale
+**G3 — Gap direction, read to your decision minute.**
+**⏱️ YOUR DECISION MINUTE IS WHEN YOU WRITE THE PLAN (~09:20-09:25 ET), NOT WHEN THIS RUN STARTED
+(~09:00).** Replays kept anchoring on 09:00 and then reporting that G3's "read to the last print" and
+its 09:20 EDGAR re-check were unreachable — they are not: the run has twenty-five minutes, and the last
+half hour before the bell is the part that decides. Pull the tape again immediately before writing the
+plan. **The pool file's `gap_pct` / `pm_vol_vs_avg` are a SNAPSHOT taken at `built_at`** (printed in the
+log, usually ~09:00-09:05) — they are stale by the time you decide and must be RECOMPUTED from the tape
+before you quote them in a gate. One replay argued a gate on a digest gap of +11.77% for a name that was
++2.88% at the decision minute.
+⚠️ **Read the premarket tape ALL THE WAY to the minute you decide, and STATE THE TIME OF THE LAST PRINT
+YOU USED.** This gate is worthless on a stale
 window: two runs of this brain on the same name and morning reached OPPOSITE verdicts purely from where
 they stopped looking (08:45 saw rising lows and took it; 09:15-09:29 saw it break to the premarket's
 lowest print and vetoed — the second was right). If data only reaches 08:45, say so and treat the gap
