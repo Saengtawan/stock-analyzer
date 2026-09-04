@@ -173,7 +173,7 @@ def main():
 
     # Initialize repository
     repo = OutcomeRepository()
-    print(f"Database: {repo.db_path}")
+    print(f"Database: data/trade_history.db")
 
     # Define outcomes directory
     outcomes_dir = str(project_root / "outcomes")

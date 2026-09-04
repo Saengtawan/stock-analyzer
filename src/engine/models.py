@@ -36,7 +36,8 @@ class SignalSource:
     PEM = "pem"                      # v6.29: Post-Earnings Momentum
     PED = "ped"                      # v6.53: Pre-Earnings Drift
     PREMARKET_GAP = "premarket_gap"  # v6.84: Pre-Market Gap scan
-    ALL = (DIP_BOUNCE, OVERNIGHT_GAP, BREAKOUT, PEM, PED, PREMARKET_GAP)
+    ML_FILTER = "ml_filter"          # 2026-05-09: ML intraday momentum scan
+    ALL = (DIP_BOUNCE, OVERNIGHT_GAP, BREAKOUT, PEM, PED, PREMARKET_GAP, ML_FILTER)
 
 
 @dataclass

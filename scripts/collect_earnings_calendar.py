@@ -143,7 +143,7 @@ def upsert_earnings(session: object, sym: str,
 def get_stale_symbols(session: object, all_symbols: list[str],
                       max_age_days: int = 7) -> list[str]:
     """Return symbols not updated in last max_age_days or never fetched."""
-    cutoff = (date.today() - timedelta(days=max_age_days)).strftime('%Y-%m-%d')
+    cutoff = (datetime.now(ET).date() - timedelta(days=max_age_days)).strftime('%Y-%m-%d')
     fresh = set(r[0] for r in session.execute(text("""
         SELECT DISTINCT symbol FROM earnings_history
         WHERE updated_date >= :p0
@@ -166,10 +166,23 @@ def main():
     with get_session() as session:
         _ensure_table(session)
 
-        # Get all active universe symbols
+        # Get all active universe symbols — core (universe_stocks) UNION resonance extras.
+        # resonance picks the extras heavily (8/11 of the first live picks were extras: INSM, MGNI,
+        # QNT, GLOB...), so earnings_history must cover them or catalyst() returns empty earnings for
+        # the very names resonance trades (GLOB 2026-08-14 had no structured earnings/guidance —
+        # the AI had to fall back to WebSearch). Union in resonance_universe (table may be absent on
+        # older setups; ignore if so). Core order (by dollar_vol) preserved, extras appended.
         all_symbols = [r[0] for r in session.execute(
             text("SELECT symbol FROM universe_stocks WHERE status='active' ORDER BY dollar_vol DESC")
         ).fetchall()]
+        try:
+            extras = [r[0] for r in session.execute(
+                text("SELECT symbol FROM resonance_universe WHERE status='active' ORDER BY avg_dollar_vol DESC")
+            ).fetchall()]
+            seen = set(all_symbols)
+            all_symbols += [s for s in extras if s not in seen]
+        except Exception:
+            pass   # resonance_universe not present -> core-only (backward compatible)
 
         if args.backfill:
             symbols = all_symbols

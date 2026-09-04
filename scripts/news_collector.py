@@ -537,8 +537,8 @@ def collect_sec_8k(session, start: str = None, end: str = None,
                    symbols: list[str] | None = None, dry_run: bool = False) -> int:
     """Collect SEC 8-K material event filings from EDGAR."""
     collected_at = datetime.now(UTC_ZONE).isoformat()
-    today = date.today().isoformat()
-    start = start or (date.today() - timedelta(days=2)).isoformat()
+    today = datetime.now(ET_ZONE).date().isoformat()
+    start = start or (datetime.now(ET_ZONE).date() - timedelta(days=2)).isoformat()
     end   = end or today
 
     try:
@@ -619,7 +619,7 @@ def collect_sec_8k(session, start: str = None, end: str = None,
 
 def _get_active_symbols(session, days: int = 7) -> list[str]:
     """Symbols from signal_outcomes last N days + currently tracked universe."""
-    cutoff = (date.today() - timedelta(days=days)).isoformat()
+    cutoff = (datetime.now(ET_ZONE).date() - timedelta(days=days)).isoformat()
     rows = session.execute(text("""
         SELECT DISTINCT symbol FROM signal_outcomes
         WHERE scan_date >= :p0
@@ -633,7 +633,7 @@ def _get_active_symbols(session, days: int = 7) -> list[str]:
 
 def backfill(session, start_date: str, dry_run: bool = False):
     """Collect historical news from start_date to today."""
-    end_date = date.today().isoformat()
+    end_date = datetime.now(ET_ZONE).date().isoformat()
     symbols  = _get_active_symbols(session, days=60)
     print(f"Backfill {start_date} -> {end_date} | {len(symbols)} symbols")
 
@@ -655,7 +655,7 @@ def backfill(session, start_date: str, dry_run: bool = False):
 def run_symbol_mode(session, dry_run: bool = False):
     """05:30 BKK — collect per-symbol news for last 2 days."""
     symbols = _get_active_symbols(session, days=7)
-    start = (date.today() - timedelta(days=2)).isoformat()
+    start = (datetime.now(ET_ZONE).date() - timedelta(days=2)).isoformat()
     print(f"[symbol] {len(symbols)} symbols from {start}")
     n = collect_alpaca(session, symbols=symbols, start=start, dry_run=dry_run)
     print(f"  alpaca symbol news: {n} inserted")
@@ -663,7 +663,7 @@ def run_symbol_mode(session, dry_run: bool = False):
 
 def run_macro_mode(session, dry_run: bool = False):
     """Every 2h — collect macro/Fed/SEC news."""
-    start = (date.today() - timedelta(days=1)).isoformat()
+    start = (datetime.now(ET_ZONE).date() - timedelta(days=1)).isoformat()
 
     print("[macro] Fed RSS...")
     n = collect_fed_rss(session, dry_run=dry_run)
@@ -681,7 +681,7 @@ def run_macro_mode(session, dry_run: bool = False):
 def run_pre_scan_mode(session, dry_run: bool = False):
     """21:00 BKK — collect everything before the 21:32 market scan."""
     symbols = _get_active_symbols(session, days=3)
-    start = (date.today() - timedelta(days=1)).isoformat()
+    start = (datetime.now(ET_ZONE).date() - timedelta(days=1)).isoformat()
     print(f"[pre_scan] Collecting fresh news before scan | {len(symbols)} symbols")
 
     n = collect_alpaca(session, symbols=symbols, start=start, dry_run=dry_run)

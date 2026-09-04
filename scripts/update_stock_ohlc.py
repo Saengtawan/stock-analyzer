@@ -16,11 +16,11 @@ def main():
     with get_session() as session:
         # Get all symbols
         symbols = [r[0] for r in session.execute(
-            text('SELECT DISTINCT symbol FROM stock_fundamentals')
+            text('SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC')
         ).fetchall()]
         logger.info(f"Updating OHLC for {len(symbols)} symbols")
 
-        # Get last date in DB
+        # Get last date in DB (for logging only)
         last = session.execute(
             text('SELECT MAX(date) FROM stock_daily_ohlc')
         ).fetchone()[0]
@@ -30,11 +30,12 @@ def main():
     import time
 
     inserted = 0
+    skipped = 0
     batch_size = 50
     for i in range(0, len(symbols), batch_size):
         batch = symbols[i:i + batch_size]
         try:
-            data = yf.download(' '.join(batch), period='5d', interval='1d',
+            data = yf.download(' '.join(batch), period='7d', interval='1d',
                                auto_adjust=True, progress=False, threads=False)
             if data.empty:
                 continue
@@ -51,10 +52,8 @@ def main():
 
                         for date, row in df.iterrows():
                             dt = date.strftime('%Y-%m-%d')
-                            if last and dt <= last:
-                                continue
                             if row['Close'] > 0:
-                                session.execute(text("""
+                                result = session.execute(text("""
                                     INSERT OR IGNORE INTO stock_daily_ohlc
                                     (symbol, date, open, high, low, close, volume)
                                     VALUES (:s, :d, :o, :h, :l, :c, :v)
@@ -62,19 +61,31 @@ def main():
                                        'o': float(row['Open']), 'h': float(row['High']),
                                        'l': float(row['Low']), 'c': float(row['Close']),
                                        'v': int(row['Volume']) if row['Volume'] else 0})
-                                inserted += 1
+                                if result.rowcount > 0:
+                                    inserted += 1
+                                else:
+                                    skipped += 1
                     except Exception:
                         continue
         except Exception as e:
             logger.error(f"Batch error: {e}")
 
         if (i + batch_size) % 200 == 0:
-            logger.info(f"  [{i+batch_size}/{len(symbols)}] +{inserted} rows")
+            logger.info(f"  [{i+batch_size}/{len(symbols)}] +{inserted} new, {skipped} existing")
 
         if i + batch_size < len(symbols):
             time.sleep(1)
 
-    logger.info(f"Done: {inserted} new rows inserted")
+    # Log final state
+    with get_session() as session:
+        new_last = session.execute(
+            text('SELECT MAX(date) FROM stock_daily_ohlc')
+        ).fetchone()[0]
+        new_count = session.execute(
+            text('SELECT COUNT(*) FROM stock_daily_ohlc WHERE date = :d'),
+            {'d': new_last}
+        ).fetchone()[0]
+    logger.info(f"Done: +{inserted} new rows, {skipped} existing skipped. DB now: {new_last} ({new_count} symbols)")
 
 
 if __name__ == '__main__':

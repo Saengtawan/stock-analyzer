@@ -72,9 +72,10 @@ class DatabaseManager:
 
     def execute_many(self, query: str, params_list: list, commit: bool = True) -> Any:
         """Execute a statement with multiple parameter sets."""
+        converted = _replace_positional(query)
         with get_session() as session:
             for params in params_list:
-                session.execute(text(query), _positional_to_dict(query, params))
+                session.execute(text(converted), _positional_to_dict(query, params))
 
     def fetch_one(self, query: str, params: tuple = ()) -> Optional[dict]:
         """Fetch a single row as a dict (or None)."""

@@ -58,7 +58,7 @@ def load_universe() -> dict:
 
 def get_universe_betas() -> dict:
     """Load per-stock beta from stock_fundamentals table (pre-collected)."""
-    conn = None  # via get_session()
+    conn = sqlite3.connect("data/trade_history.db")
     rows = conn.execute("SELECT symbol, beta FROM stock_fundamentals WHERE beta IS NOT NULL").fetchall()
     conn.close()
     return {r[0]: r[1] for r in rows}
@@ -268,8 +268,8 @@ def load_all_macro() -> tuple[dict, dict]:
     Load all macro_snapshots and market_breadth rows into dicts keyed by date string.
     Returns (macro_by_date, breadth_by_date).
     """
-    conn = None  # via get_session()
-    conn.row_factory = dict
+    conn = sqlite3.connect("data/trade_history.db")
+    conn.row_factory = sqlite3.Row
 
     macro_rows = conn.execute("SELECT * FROM macro_snapshots ORDER BY date").fetchall()
     macro_by_date = {r['date']: dict(r) for r in macro_rows}

@@ -16,7 +16,14 @@ v6.67: volume_early_ratio_min 0.30→0.05
   HCI+9.4%=0.11x. Threshold 0.30 was near-impossible at 9:32.
   New 0.05 = stock trading at ~4× normal rate in first 5 min (meaningful filter).
 
-Exit: Same-day at market close (gap_trade=True → pre_close_check() closes at EOD)
+v7.6: r5m chase-top filter (Apr 2026 backtest):
+  Skip if (current_price/today_open - 1) > pem_r5m_skip_above_pct (default +1%).
+  Losers in PEM had r5m > +1% (chasing post-open run-up); winners pulled back or
+  stayed flat. With this + NORMAL-mode-only filter, WR lifted 44% → 83% on n=18.
+
+Exit: Same-day at market close when PDT budget allows; otherwise overnight to D+1
+morning (PDT block is benign — overnight cohort had 86% WR vs same-day SL 14%).
+Hard cap: pem_max_hold_days (default 2) prevents stuck multi-day positions.
 """
 
 import os
@@ -63,6 +70,10 @@ class PEMScreener:
         # Threshold 0.05 = "already 5% of daily avg in first 2 min" → ~10× normal trading rate.
         # Gap stocks at 9:32 observed: 0.01-0.11x (NFLX 0.02, DELL 0.01, HCI 0.11).
         self.volume_early_ratio_min = float(self.config.get('pem_volume_early_ratio_min', 0.05))
+        # v7.6: r5m chase-top filter — backtest showed losers had r5m > +1% (chasing post-open run-up)
+        # while winners pulled back or stayed flat. None = disabled.
+        _r5m = self.config.get('pem_r5m_skip_above_pct')
+        self.r5m_skip_above_pct = float(_r5m) if _r5m is not None else None
 
         # Cache for 20d avg volume (expensive to fetch, cache per run)
         self._vol_cache: Dict[str, float] = {}
@@ -291,6 +302,22 @@ class PEMScreener:
             except Exception:
                 pass
             return None
+
+        # v7.6: r5m chase-top filter — reject if stock already ran up since open
+        if self.r5m_skip_above_pct is not None and current_price and today_open > 0:
+            r5m = (current_price / today_open - 1) * 100
+            if r5m > self.r5m_skip_above_pct:
+                logger.info(f"PEM: {symbol} gap {gap_pct:+.1f}% rejected — r5m {r5m:+.2f}% > {self.r5m_skip_above_pct}% (chase-top)")
+                try:
+                    from database.repositories.screener_rejection_repository import ScreenerRejectionRepository
+                    ScreenerRejectionRepository().log_rejection(
+                        screener='pem', symbol=symbol, reject_reason='r5m_chase_top',
+                        scan_price=round(float(current_price), 2), gap_pct=round(gap_pct, 2),
+                        volume_ratio=round(volume_early_ratio, 3),
+                    )
+                except Exception:
+                    pass
+                return None
 
         # Step 4: ATR-based stop loss (wider for earnings day volatility)
         atr_pct = self._estimate_atr(symbol, prev_close)

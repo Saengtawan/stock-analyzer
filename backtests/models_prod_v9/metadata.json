@@ -1,0 +1,187 @@
+[
+  {
+    "bucket": "0930-1000",
+    "regression_model_files": [
+      "lgb_reg_0930_1000_seed0.txt",
+      "lgb_reg_0930_1000_seed1.txt",
+      "lgb_reg_0930_1000_seed2.txt",
+      "lgb_reg_0930_1000_seed3.txt",
+      "lgb_reg_0930_1000_seed4.txt"
+    ],
+    "n_train": 13929,
+    "cv_wr": 0.64,
+    "cv_avg_pnl": 0.787,
+    "objective": "huber",
+    "threshold": 0.25,
+    "features_file": "features_0930.txt",
+    "eng_features": [
+      "gap_x_vol",
+      "gap_x_beta",
+      "gap_x_spy",
+      "gap_x_pm",
+      "gap_abs",
+      "vol_x_pm",
+      "gain_x_vol",
+      "gap_x_vix",
+      "mom5_x_gap",
+      "beta_x_spy"
+    ],
+    "params": {
+      "objective": "huber",
+      "alpha": 1.0,
+      "learning_rate": 0.03,
+      "num_leaves": 15,
+      "max_depth": 3,
+      "min_data_in_leaf": 50,
+      "feature_fraction": 0.8,
+      "bagging_fraction": 0.8,
+      "lambda_l1": 1.0,
+      "lambda_l2": 5.0,
+      "n_estimators": 500
+    },
+    "notes": "v10: Huber loss + shallow+reg + engineered gap interactions. CV: WR=64.0% ppd=2.2 at thresh>0.25. Up from WR=41.4% baseline.",
+    "quantile_p50_files": [
+      "lgb_q50_0930_1000_seed0.txt",
+      "lgb_q50_0930_1000_seed1.txt",
+      "lgb_q50_0930_1000_seed2.txt",
+      "lgb_q50_0930_1000_seed3.txt",
+      "lgb_q50_0930_1000_seed4.txt"
+    ],
+    "quantile_p25_files": [
+      "lgb_q25_0930_1000_seed0.txt",
+      "lgb_q25_0930_1000_seed1.txt",
+      "lgb_q25_0930_1000_seed2.txt",
+      "lgb_q25_0930_1000_seed3.txt",
+      "lgb_q25_0930_1000_seed4.txt"
+    ],
+    "quantile_cv_results": {
+      "p50_no_threshold": {
+        "wr": 45.3,
+        "avg_pnl": -0.0763,
+        "med_pnl": -0.2006,
+        "avg_beta": 1.38,
+        "hb_pct": 15.5
+      },
+      "risk_adj_no_threshold": {
+        "wr": 44.9,
+        "avg_pnl": -0.129,
+        "med_pnl": -0.1842,
+        "avg_beta": 1.23,
+        "hb_pct": 9.8
+      },
+      "huber_no_threshold": {
+        "wr": 44.2,
+        "avg_pnl": -0.0616,
+        "med_pnl": -0.246,
+        "avg_beta": 1.36,
+        "hb_pct": 14.1
+      },
+      "p50_at_thr025": {
+        "wr": 49.0,
+        "avg_pnl": 0.1191,
+        "n": 314,
+        "avg_beta": 1.33,
+        "hb_pct": 12.7
+      },
+      "risk_adj_at_thr025": {
+        "wr": 75.0,
+        "avg_pnl": 1.0998,
+        "n": 16,
+        "note": "too sparse for prod"
+      },
+      "huber_at_thr025": {
+        "wr": 52.3,
+        "avg_pnl": 0.4739,
+        "n": 193,
+        "avg_beta": 1.38,
+        "hb_pct": 16.1
+      }
+    },
+    "quantile_notes": "Quantile P50 reduces beta bias (avg_beta 1.38 vs 1.58 mean, high-beta% 15.5 vs 21.5). At thr>0.25: Huber still wins on WR (52.3% vs 49.0%) but P50 sees more days (134 vs 80). Risk-adj (P50-0.5*(P50-P25)) is very selective (WR=75% at thr>0.25) but only 7 days - too sparse. CONCLUSION: Huber remains primary for ranking. P50/P25 available for risk-adjusted scoring as supplementary signal. Use score = huber_pred - 0.3 * (p50 - p25) to penalize high-uncertainty stocks."
+  },
+  {
+    "bucket": "1000-1045",
+    "regression_model_files": [
+      "lgb_reg_1000_1045_seed0.txt",
+      "lgb_reg_1000_1045_seed1.txt",
+      "lgb_reg_1000_1045_seed2.txt",
+      "lgb_reg_1000_1045_seed3.txt",
+      "lgb_reg_1000_1045_seed4.txt"
+    ],
+    "n_train": 32198,
+    "cv_wr": 0.6535,
+    "cv_avg_pnl": 0.6247,
+    "n_features": 63,
+    "objective": "huber",
+    "max_depth": 6,
+    "n_estimators": 500,
+    "sample_weighting": "linear",
+    "threshold_60": 0.1,
+    "threshold_65": 0.2,
+    "threshold_70": 0.3,
+    "threshold_75": 0.45,
+    "threshold_80": 0.65,
+    "threshold_85": 0.9,
+    "params": {
+      "objective": "huber",
+      "alpha": 1.0,
+      "metric": "l2",
+      "learning_rate": 0.05,
+      "num_leaves": 31,
+      "max_depth": 6,
+      "min_data_in_leaf": 50,
+      "feature_fraction": 0.8,
+      "bagging_fraction": 0.8,
+      "lambda_l1": 0.1,
+      "lambda_l2": 1.0,
+      "n_estimators": 500
+    },
+    "note": "v10: 63 features (11 new path), Huber loss, md6, n500, linear sample weights. CV: Top-1 thr>0.10 WR=60.1% ppd=0.80, Top-3 thr>0.4 WR=75.2% ppd=1.24. Up from WR=47.8% baseline."
+  },
+  {
+    "bucket": "1045-1130",
+    "regression_model_files": [
+      "lgb_reg_1045_1130_seed0.txt",
+      "lgb_reg_1045_1130_seed1.txt",
+      "lgb_reg_1045_1130_seed2.txt",
+      "lgb_reg_1045_1130_seed3.txt",
+      "lgb_reg_1045_1130_seed4.txt"
+    ],
+    "n_train": 30918,
+    "cv_wr": 0.635,
+    "cv_avg_pnl": 0.485,
+    "n_features": 63,
+    "max_depth": 6,
+    "n_estimators": 300,
+    "threshold_65": 0.1,
+    "threshold_70": 0.2,
+    "threshold_75": 0.3,
+    "threshold_80": 0.5,
+    "threshold_85": 0.9,
+    "threshold_90": 1.5,
+    "note": "v10: 63 features (11 new path), md6, n300. WR@thr0.1=66.5% ppd=27.1, WR@thr0.5=78.6% ppd=10.8, WR@thr1.5=89.6% ppd=1.1"
+  },
+  {
+    "bucket": "1130-1300",
+    "regression_model_files": [
+      "lgb_reg_1130_1300_seed0.txt",
+      "lgb_reg_1130_1300_seed1.txt",
+      "lgb_reg_1130_1300_seed2.txt",
+      "lgb_reg_1130_1300_seed3.txt",
+      "lgb_reg_1130_1300_seed4.txt"
+    ],
+    "n_train": 37328,
+    "cv_wr": 0.646,
+    "cv_avg_pnl": 0.326,
+    "n_features": 63,
+    "max_depth": 6,
+    "n_estimators": 300,
+    "threshold_65": 0.1,
+    "threshold_70": 0.1,
+    "threshold_75": 0.2,
+    "threshold_80": 0.3,
+    "threshold_85": 0.5,
+    "threshold_90": 0.8,
+    "note": "v10: 63 features (11 new path), md6, n300. WR@thr0.1=69.7% ppd=30.3, WR@thr0.5=85.5% ppd=7.6, WR@thr1.2=93.0% ppd=1.0"
+  }
+]

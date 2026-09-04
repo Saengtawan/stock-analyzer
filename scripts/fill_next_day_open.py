@@ -13,6 +13,9 @@ Cron entry (TZ=America/New_York — auto-handles EDT/EST DST):
 import sys
 import os
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+ET = ZoneInfo('America/New_York')
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from database.orm.base import get_session
@@ -28,7 +31,7 @@ def main():
     with get_session() as session:
 
         # Find OVN/PED sells from yesterday with no next_day_open_pct
-        yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        yesterday = (datetime.now(ET) - timedelta(days=1)).strftime('%Y-%m-%d')
         rows = session.execute(text("""
             SELECT id, symbol, price as sell_price
             FROM trades

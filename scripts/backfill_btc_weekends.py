@@ -8,6 +8,9 @@ import time
 import logging
 from pathlib import Path
 from datetime import datetime, date, timedelta
+from zoneinfo import ZoneInfo
+
+ET = ZoneInfo('America/New_York')
 
 import yfinance as yf
 import pandas as pd
@@ -23,7 +26,7 @@ def main():
 
     # Download full BTC history
     logger.info("Downloading BTC-USD full history...")
-    btc = yf.download('BTC-USD', start='2020-01-01', end=(date.today() + timedelta(days=1)).strftime('%Y-%m-%d'),
+    btc = yf.download('BTC-USD', start='2020-01-01', end=(datetime.now(ET).date() + timedelta(days=1)).strftime('%Y-%m-%d'),
                        progress=False, auto_adjust=True)
     if btc.empty:
         logger.error("No BTC data!")
@@ -47,7 +50,7 @@ def main():
     inserted = 0
     updated = 0
     d = date(2020, 1, 4)  # First Saturday in 2020
-    today = date.today()
+    today = datetime.now(ET).date()
 
     while d <= today:
         if d.weekday() in (5, 6):  # Sat or Sun

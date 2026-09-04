@@ -1,750 +1,460 @@
-# Stock Analyzer — Claude Code Instructions
+# Stock Analyzer — Claude Code Instructions (v2, rebuilt 2026-04-11)
 
-## ⛔ OUTPUT FORMAT (MANDATORY)
+## ⭐ Current version: v1.9.0 (Step 19) — set as MAIN 2026-05-29
 
-All scan results MUST use Markdown pipe-table format. The terminal CAN render tables.
+v1.9.0 is the primary/main ml_filter version. Local `master` points here
+(commit cac8a9c = Step 19 `26a75e5` + verified runtime models). NOT pushed.
 
-✅ CORRECT — all candidates in ONE pipe-table:
-| # | Symbol | Gap% | Yest% | Vol | 5d Mom | CPos | Sector | Catalyst | Score |
-|---|--------|------|-------|-----|--------|------|--------|----------|-------|
-| 1 | SNX | +0.9% | +10.4% | 1.7x | +13.8% | 0.99 | Tech | Q1 beat + upgrades | 5/6 ✅ |
-| 2 | WDC | +0.4% | +10.1% | 1.5x | +0.5% | 0.70 | Tech | — | 3/6 |
-| 3 | KGC | +0.7% | +4.9% | 1.1x | +10.3% | 0.69 | Gold | Gold rally | 3/6 |
+- **Exit logic:** deterministic Z4 hard SL -3% / hold-to-EOD remains the
+  in-engine default. Exit ML **v17c manual workflow** added 2026-06-04
+  (shadow mode by default — see "Exit ML v17c" section below).
+- **Step 36 (v2.7.0) is set aside but 100% recoverable:** tag `v2.7.0`
+  (commit b4e5db2) + `/tmp/safe_v2.7.0_models` + `/tmp/safe_v2.7.0_pkl`.
+  Return path: `git checkout -B master v2.7.0`, restore models+pkl from /tmp,
+  restart both services.
+- **Reversibility checkpoint** before Exit ML build: tag `v1.9.0-pre-exitml`
+  (created 2026-06-04). Roll back: `git reset --hard v1.9.0-pre-exitml`.
+- **Entry Filter v1** (deployed 2026-06-04): rule-based per-zone selection
+  applied AFTER ML threshold gate, BEFORE top-1 selection in `ml_filter.py`.
+  Survivors are re-ranked by `ml_prob`; top-1 of survivors is emitted.
+  Spec: `backtests/entry_filter_v1/spec.json`. Toggle: env
+  `ENTRY_FILTER_ENABLED=0` to disable instantly. Reversibility tag:
+  `v1.9.0-pre-entryfilter`. All candidates (PASS + SKIP) logged to
+  `scan_candidates` with `filter_verdict` + `filter_reason` columns.
 
-Then add details per stock below the table.
+## Exit ML — Manual exit workflow
 
-❌ WRONG — never list stocks as separate blocks with `#: 1\nSymbol: SNX\n────────`
-The terminal CAN render wide pipe-tables. Always use one table for all candidates.
+**⭐ v18 DEPLOYED LIVE 2026-06-13** (replaces v17c as the default exit verdict).
+Same CLI (`exit_check.sh` / `exit_loop.sh`) now returns the v18 two-sided stack:
+- **SL**: held ≥20m & cur ≤ −2.5% → 🔴 SL_EXIT
+- **TRAIL**: held ≥25m & peak ≥+1% & cur ≥0 & gave back ≥ max(1%, 0.4×peak) & SPY dd ≤ −0.3% → 🟢 TRAIL_EXIT
+- **PL**: held ≥60m & model p ≥0.55 & cur ≥+0.3% & SPY dd ≤ −0.3% → 🟡 PL_EXIT
+- else → ✅ HOLD to EOD. VIX≥28 at entry → 🛡️ skip (hold-EOD).
+Holdout N=279: Sharpe 2.93→3.89, total +117→+136, worst trade −8.72→−3.04%.
+Models `backtests/models_exit_v18/`, inference `src/exit_ml/inference_v18.py`
+(computes spy_dd + sector breadth LIVE; parity-verified bit-exact vs research replay).
+**Rollback to v17c instantly:** `bash scripts/exit_check.sh SYM --v17c` or set
+`EXIT_ML_VERSION=v17c`. v17c code/models fully intact and untouched.
+**NOTE:** user deployed direct (skipped the spec's shadow-first step). Still track
+forward picks in `exit_ml_journal.db` to confirm live ≈ backtest.
 
----
+**⭐ RISER picks use a SEPARATE exit (2026-06-14)** — `exit_check.sh` auto-detects riser
+picks (in `riser_picks` table) and routes them to `src/exit_ml/inference_riser.py` (NOT v18 —
+v18 hurts risers). Riser exit = dynamic vol-gated trailing stop:
+- gate ON if `VIX_at_entry >= 22` **OR** `own_range[first 20min] >= 3.0%` (orthogonal vol
+  signals, corr 0.00: market-vol OR stock's own early choppiness) → trailing SL 1.0% from peak.
+- gate OFF (calm) → hold-EOD (risers U-recover; holding captured ASTS +14.6% where v18 would
+  have wrongly trailed it at +0.66%).
+Validated riser holdout: ret/DD 0.85→1.97, total +69→+123, robust (remove-top3 +18.8), no
+lookahead. Disable: `RISER_EXIT_DYNAMIC=0`. Verdicts: 🟢 TRAIL_EXIT / ✅ HOLD.
+**Auto-tracked** (2026-06-14): `riser_capture.sh` cron now launches a background `exit_loop.sh`
+for each riser pick (logs to `data/exit_loops/SYM_DATE_riser.log`) → polls the riser exit every
+5 min, same as scan_track does for H12-A. Disable: `RISER_TRACK=0`.
 
-## เมื่อ user ขอ scan หุ้น (ORB / intraday / OVN / หาหุ้น)
+**⭐ RISER ENTRY: gain≥2 dud-filter DEPLOYED 2026-06-16.** `riser_capture.sh` drops low-gain
+"duds" via env `RISER_MIN_GAIN=2` (default 0 = legacy gain>0). Validated on riser holdout
+2025-05+ (gauntlet PASS: fold-split foldA+0.94/foldB+1.55, remove-top5, per-quarter 4/4;
+WR 54→57%, avg +0.43→+0.66%, trades 71% of days; beats band 2-4.5 — low-cut robust, high-cut
+was fragile). Mechanism: a "top gainer" up <2% isn't a real mover. BACKTEST-validated only —
+track forward before sizing. Rollback INSTANT: `RISER_MIN_GAIN=0` in .env. NOTE: riser_capture
+runs under CRON (no .env) so the script now self-loads RISER_*/H12A_* flags from .env at start.
 
-**⛔ ก่อนทำอะไร → อ่าน prompt file ที่ตรงกับ scan type:**
+**⭐⭐ RISER ENTRY UPGRADE: BAND + GAP-CAP + hold-EOD DEPLOYED 2026-06-16.** Two orthogonal
+root-cause filters on top of gain≥2, all gauntlet-locked (fold-split / remove-top10 / cap-plateau
+/ per-quarter). `.env` flags (riser_capture self-loads them under cron):
+- `RISER_MAX_GAIN=3.5` — upper gain cap → drop **froth** (extended movers fade). Plateau 3.0-3.75
+  (≥4.0 foldA flips negative). Mechanism = over-extension.
+- `RISER_GAP_CAP` — ⚠️ **DISABLED 2026-06-16 (=off)** — TRAIN/SERVE SKEW. Backtest gap used trainer
+  09:30-bar open (feature_builder:359, cache source); live uses Alpaca IEX `dailyBar.o`
+  (ml_filter:544, single thin IEX open print). Same formula `(open/prev_close−1)×100` but DIFFERENT
+  open source → gap differs abs-mean **0.58** per stock (VTR 0.02 vs 3.05!) = bigger than the 0.5
+  threshold. gap is a small signal (~0.5%) so this noise makes the cut ~random live → does NOT
+  transfer. Same family as the Yahoo-open bug. To revive: recompute backtest gap on IEX-faithful
+  source (build_snap_from_1min.py = Alpaca 1-min = IEX) + re-derive threshold, then re-validate.
+  Backtest had said: plateau 0.2-0.8, layered with cap (gap-alone fails foldA −0.84) — but that
+  was on trainer-gap, not live-faithful gap. gain-band is robust to the same open-noise (gain 2-3.5
+  is a large signal vs 0.58 noise; band is 1.5 wide).
+- `RISER_EXIT_DYNAMIC=0` — band picks are calm → the VIX/own_range trail clips their U-recovery;
+  hold-EOD beats trail on band (holdout ret/DD 5.86 vs 3.07). Pairs with the cap.
+Locked backtest (2yr, hold-EOD): avg/pick **+0.01→+0.46%**, WR 51→53%, worst **−16.5→−11.6%**,
+every sub-period (foldA/foldB/holdout) **≥+0.42**, ret/DD 3.5, remove-top10 +0.08, per-Q 6/9.
+Trades ~49% of days (abstains when no in-band low-gap candidate). Selection still rank-by-gain
+(knobs: `RISER_GAP_CAP=0.3` aggressive / range_exp-rank = higher holdout but more regime-dependent).
+REJECTED this session: win_p filter/rank (fails fold-split), 15m_green_pct path-steadiness (median
+saturated=1.0, fails fold), vol_ratio 3rd-cause (thins N to 75, remove-top10 flips neg).
+Dump now carries `gap`+`range_exp` per candidate (ml_filter.py H12A_DUMP). BACKTEST + tail-mined
+— gauntlet lowers but doesn't zero false-positive risk → **track forward** before sizing up.
+Rollback INSTANT: remove `RISER_MAX_GAIN`/`RISER_GAP_CAP` (+ set `RISER_EXIT_DYNAMIC=1`) in .env.
+Backups: `.env.bak_pre_gapcap_*`, `scripts/riser_capture.sh.bak_pre_gapcap_*`,
+`src/scan/strategies/ml_filter.py.bak_pre_gapcap_*`.
 
-| Scan | อ่านไฟล์ | เวลา ET |
-|------|---------|---------|
-| ORB / หาหุ้น / scan | `prompts/orb_breakout_prompt.md` | 06:00-09:30 |
-| Intraday / 3%+ | `prompts/intraday_3pct_prompt.md` | 09:30-11:30 |
-| **Top Movers / หุ้นวิ่งแรง** | **`prompts/top_movers_prompt.md`** | **11:30-15:30** |
-| OVN / overnight | `prompts/ovn_gap_prompt.md` | 15:30-15:55 |
-| Friday / ศุกร์-จันทร์ | `prompts/friday_monday_prompt.md` | ศุกร์ 15:00 |
+The v17c reference below is retained for the rollback path.
 
-**ไม่ overlap**: ORB→Intraday handoff ที่ 09:30 | Top Movers→OVN handoff ที่ 15:30
+## Exit ML v17c — Manual exit workflow (added 2026-06-04)
 
-**Prompt file มี rules + stats ครบ (Bounce Mode, Sector, HOLD vs FADE)**
-**CLAUDE.md มี scan code + output format — ใช้ร่วมกัน**
+After scan → buy → check exit signal manually. Engine does **not** auto-exit;
+user runs the CLI and clicks the exit at Alpaca.
 
-จากนั้น **ทำ 5 ขั้นตอนนี้ทุกครั้ง ห้ามข้าม:**
-
----
-
-### ขั้นตอน 1: เช็คเวลา + ตลาด
 ```bash
-python3 << 'PYEOF'
-from datetime import datetime; import pytz; import requests, os, sqlite3
-from dotenv import load_dotenv; load_dotenv()
-et = datetime.now(pytz.timezone('US/Eastern'))
-print(f'ET: {et.strftime("%Y-%m-%d %H:%M %A")}')
-h, m = et.hour, et.minute
-if h < 4: print('OVERNIGHT')
-elif h < 9 or (h == 9 and m < 30): print(f'PRE-MARKET — {(9*60+30)-(h*60+m)}min to open')
-elif h < 16: print(f'MARKET OPEN — {(h-9)*60+m-30}min since open')
-else: print('CLOSED')
-# Alpaca snapshot for SPY + macro from DB
-hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
-r = requests.get('https://data.alpaca.markets/v2/stocks/snapshots?symbols=SPY', headers=hdr)
-if r.status_code == 200:
-    s = r.json().get('SPY',{})
-    db, pb = s.get('dailyBar',{}), s.get('prevDailyBar',{})
-    spy_now = db.get('c',0); spy_prev = pb.get('c',1)
-    spy_daily = (spy_now/spy_prev-1)*100
-    spy_intra = (db.get('c',0)/db.get('o',1)-1)*100
-    print(f'SPY ${spy_now:.2f} daily {spy_daily:+.1f}% {"🟢" if spy_daily > 0 else "🔴"} | intraday {spy_intra:+.1f}%')
-conn = sqlite3.connect("data/trade_history.db")
-vix_r = conn.execute("SELECT vix_close FROM macro_snapshots ORDER BY date DESC LIMIT 1").fetchone()
-print(f'VIX {vix_r[0]:.1f}' if vix_r else 'VIX N/A')
-conn.close()
-PYEOF
+# === Recommended: scan + auto-track in one command ===
+bash scripts/scan_track.sh                              # runs scan_smart, auto-launches
+                                                         # an exit_loop in background for
+                                                         # every new pick. One terminal,
+                                                         # tracker stays alive after shell
+                                                         # closes. Logs go to data/exit_loops/.
+
+# Monitor a running tracker:
+tail -f data/exit_loops/URI_2026-06-04_1040.log
+
+# Stop trackers:
+pkill -f "exit_loop.sh URI"      # specific symbol
+pkill -f "exit_loop.sh"           # all
+
+# === Lower-level tools (manual use) ===
+bash scripts/exit_check.sh URI                          # one-shot check
+bash scripts/exit_check.sh URI 1022.14 10:40            # explicit entry/time
+bash scripts/exit_check.sh CNQ 46.47 09:35 2026-06-01   # historical replay
+bash scripts/exit_check.sh URI --live                   # mark LIVE (default = shadow)
+
+bash scripts/exit_loop.sh URI 1022.14 10:40             # foreground 5-min poll
+POLL_SECONDS=600 bash scripts/exit_loop.sh URI ...      # 10-min poll
+QUIET=1 bash scripts/exit_loop.sh URI ...               # no beep
 ```
 
-### ขั้นตอน 2: Scan 200 + hot inject — ปรับตามเวลา
+Output shows: sector/zone, VIX safety state, ML prob vs threshold,
+current PnL, verdict (HOLD / EXIT / CRISIS_HOLD). Every call is logged
+to `data/exit_ml_journal.db` for shadow monitoring.
 
-**ถ้า OVERNIGHT / PRE-MARKET / CLOSED → Alpaca snapshots + DB history:**
+- **Spec** — `backtests/models_exit_v17c/spec.json` (frozen)
+- **Models** — `backtests/models_exit_v17c/sector_specialists.pkl` (11 sectors × 5 seeds)
+- **Inference** — `src/exit_ml/inference.py` (importable as
+  `from src.exit_ml.inference import predict_exit`)
+- **CLI** — `scripts/exit_check.sh` → `src/exit_ml/cli.py`
+- **Journal** — `data/exit_ml_journal.db` table `exit_checks`
+- **Python env** — `~/.pyenv/versions/issara/bin/python` (pandas 3.0.2 — required for the pkl)
+
+**Rules (v17c-FINAL):** Z1 universal THR 0.13; Z4 Energy override 0.15;
+others AUTO per-sector. Z1 DD-gate: Energy +0.50%, others −2.0%. VIX-gate:
+if VIX ≥ 28 at entry → SKIP Exit ML (hold-EOD). Min hold 60 min.
+
+**Rollout posture:** SHADOW mode — log verdicts, do not execute. After
+10–15 picks compare "if followed" vs hold-EOD before going live.
+
+## How to scan
+
+**Preferred (handles early-scan wait):**
 ```bash
-python3 << 'PYEOF'
-import requests, os, sqlite3, numpy as np
-from dotenv import load_dotenv; load_dotenv()
+bash scripts/scan_smart.sh                 # auto-waits until 09:31:30 ET
+bash scripts/scan_smart.sh ml_filter       # force ml_filter
+```
+`scan_smart.sh` is the canonical scan entry point. If invoked between
+09:28:00–09:31:30 ET on a weekday, it sleeps until the first 1-min bar
+has closed + 30 s ingestion buffer, then forwards to the engine. Outside
+that window it passes straight through.
 
-hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
-conn = sqlite3.connect("data/trade_history.db")
-syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
-hot = [r[0] for r in conn.execute("""
-    SELECT DISTINCT d.symbol FROM stock_daily_ohlc d
-    JOIN universe_stocks u ON d.symbol = u.symbol
-    WHERE d.date = (SELECT MAX(date) FROM stock_daily_ohlc)
-    AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
-    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03 AND d.volume * d.close >= 5000000
-""").fetchall()]
-if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
-syms = list(set(syms + hot))
-
-# 5d history from DB
-hist = {}
-for r in conn.execute("""
-    SELECT symbol, date, open, high, low, close, volume FROM stock_daily_ohlc
-    WHERE date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-7 days')
-    ORDER BY symbol, date
-"""):
-    hist.setdefault(r[0], []).append(r[1:])
-conn.close()
-
-# Alpaca snapshots (2 batches × 100, ~2 seconds total)
-snaps = {}
-for i in range(0, len(syms), 100):
-    batch = ','.join(syms[i:i+100])
-    r = requests.get(f'https://data.alpaca.markets/v2/stocks/snapshots?symbols={batch}', headers=hdr)
-    if r.status_code == 200: snaps.update(r.json())
-print(f"Loaded {len(snaps)} snapshots")
-
-results = []
-for sym in syms:
-    try:
-        snap = snaps.get(sym)
-        days = hist.get(sym, [])
-        if not snap or len(days) < 3: continue
-        db = snap.get('dailyBar',{}); pb = snap.get('prevDailyBar',{})
-        now = db.get('c',0); prev = pb.get('c',0)
-        if now < 3 or prev < 1: continue
-
-        last_ret = (now/prev-1)*100
-        d0 = days[0]; mom5d = (now/d0[3]-1)*100 if len(days) >= 5 else last_ret
-        avg_vol = np.mean([d[5] for d in days[:-1]]) if len(days) > 1 else 1
-        vr = db.get('v',0)/avg_vol if avg_vol > 0 else 0
-        hi, lo = db.get('h',now), db.get('l',now)
-        rng = hi - lo; cp = (now-lo)/rng if rng > 0 else 0.5
-        trs = [max(d[2]-d[3], abs(d[2]-days[i-1][4]), abs(d[3]-days[i-1][4])) for i,d in enumerate(days[1:],1)]
-        atr = np.mean(trs[-4:])/now*100 if trs else 0
-
-        if abs(last_ret) >= 2 or abs(mom5d) >= 5:
-            results.append((sym, now, last_ret, mom5d, vr, cp, atr))
-    except: pass
-
-results.sort(key=lambda x: abs(x[2]), reverse=True)
-print(f"{len(results)} ORB candidates")
-print(f"{'Sym':5s} {'Price':>7s} {'Yest':>6s} {'5dM':>6s} {'Vol':>4s} {'CPos':>5s} {'ATR':>4s}")
-for s,p,yr,m,vr,cp,atr in results[:20]:
-    print(f"{s:5s} {p:>7.2f} {yr:+5.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {atr:>3.1f}%")
-PYEOF
+**Raw engine (no wait — only use if you know data is ready):**
+```bash
+python3 -m src.scan.engine list            # show registered strategies
+python3 -m src.scan.engine auto            # auto-pick by time+regime
+python3 -m src.scan.engine ml_filter       # force specific strategy
 ```
 
-**ถ้า MARKET OPEN (09:30-11:30) → Alpaca Intraday scan:**
+Each strategy is one file under `src/scan/strategies/`. Each has its own
+entry rules, exit rules, backtest-validated WR/EV, and hard time window.
+
+## User commands → CLI mapping
+
+User พิมพ์คำสั่งเป็นภาษาไทยหรือ slang — ผมแปลงเป็น CLI command ดังนี้:
+
+| User พิมพ์ | Run |
+|---|---|
+| `scan` / `scan หุ้น` | `bash scripts/scan_smart.sh` (auto-waits if pre-09:31:30 ET) |
+| `scan orb` | `orb_gap_preview` (ก่อน 09:30) / `orb_gap_break` (09:30-09:35) / `orb_prep` (03:00 prep) |
+| `scan intraday` | `ml_filter` |
+| `scan top movers` | `ml_filter` (ถ้าอยู่ใน 09:30-14:00 window) |
+| `scan ovn` | removed — backtest showed no edge (gap prediction = coin flip) |
+| `scan ml` | `ml_filter` (force) |
+| `scan gap` | `orb_gap_preview` หรือ `orb_gap_break` ตามเวลา |
+| `scan crisis` / `scan VIX high` | `crisis_reversal` |
+| `scan list` | `python3 -m src.scan.engine list` |
+
+**Default rule**: ถ้าไม่ match อะไรชัด → `auto`
+
+### Output handling (ALL commands)
+
+1. Run the CLI command
+2. Report the result **verbatim** to user (can translate/format for readability)
+3. If result is `out_of_window` or `skipped_gate`, **do not** override with
+   another strategy. The gate exists because backtest showed no edge.
+4. If result has picks, present them as-is. Don't add your own analysis
+   layer on top of the strategy's reasoning.
+5. Scan output auto-recorded to journal for drift monitoring.
+
+## Output rules (hard)
+
+- **Never assume user holds positions.** Each scan is fresh. No "trail SL
+  ขึ้นมา", "lock profit", "if you bought". Scan = recommendation, not
+  position management.
+- **Never override gates.** If strategy says `skipped_gate: SPY red`, that
+  is the answer — don't flip to "but sector X is strong".
+- **Never mix strategies.** If user asks `ml_filter` and it returns
+  out_of_window, say that. Don't say "let's try vwap_reclaim instead".
+- **Never invent picks.** If scan returns 0 picks, report 0. Do not
+  substitute with ideas from your head.
+- **Never cite deprecated rules.** Old v1 rules (Sec3d +2, catalyst +1,
+  bounce mode, top 3 sector) were backtest-invalidated. If you find yourself
+  referencing them, stop.
+
+## Current strategies (v2 + ML)
+
+### Trade strategies
+| Strategy | Window ET | Notes |
+|---|---|---|
+| **ml_filter** | 09:30-13:00 | ⭐ ENSEMBLE ML — primary. See deployed config below. |
+| orb_prep | 03:00-09:30 | watchlist only |
+| vwap_reclaim | 13:30-15:30 | afternoon VWAP |
+| crisis_reversal | any (VIX≥25) | contrarian |
+| eod_flatten | 15:55-16:00 | meta (MOC) |
+
+(Old per-strategy WR/EV numbers removed 2026-05-13 — see deployed config below
+for current expectations. Earlier numbers like "78% honest WF" / "78.3% WF" /
+"88% WR" / "86.8% Triple Blend" / "0.1% live -81%" are OBSOLETE — they
+referred to deprecated configurations and feature pipelines.)
+
+### ml_filter (PRIMARY) — deployed 2026-05-14 (Step 18: rank by win only)
+
+**Step 18 (2026-05-14) — Top-1 ranking = `win_score` only (drop +0.10×gain)**
+  - WF grid (9 formulas): F1 win-only beats F3 (current) by +174% total.
+  - WF combined: +959%/6mo (vs F3 +785%). WR 89% (vs 83%). worst -3.50% (vs -4.48%).
+  - Per-zone: Z1 +325%, Z2 +211%, Z3 +206%, Z4 +216% (all under Top-1).
+  - Single-line code change: `ml_filter.py:834`.
+
+**Step 17 (2026-05-14) — Z4 Hard SL = -3% from limit_price**
+  - All zones still use adaptive limit + label_z*_market (Step 16 config).
+  - Z4 EXCEPTION: hard SL at -3% (was pure hold).
+  - WF: Z4 worst trade -4.68% → -3.10% (RIVN 2025-12-12 case capped).
+  - Total cost: -5% over 6mo (+259% → +254%). WR 92% → 91%.
+  - Config: `ZONE_HARD_SL = {'Z4': 0.03}` in `src/scan/ml_scorer.py`.
+  - Z1/Z2/Z3 remain pure hold (worst already < -3%).
+
+**Step 16 (2026-05-14) — Z1 retrained with label_z12_market_3dd**
+See `docs/ML_METHODOLOGY_2026-05-13.md` for full documentation.
+
+Key changes:
+  - **+16 new features** (feat_dist_sma20_d, feat_rsi_14d, feat_atr_pct_14d, etc.)
+  - **Per-zone optimal hyperparameters** (random search 10 trials)
+  - **Validated via true 6-month walk-forward** (monthly refit), not single-cutoff
+  - **MoE + 1m ensemble DISABLED** — pure 28m models (matches WF validation)
+  - Loss models retrained with same feature set
+
+**WF validation (6 months, Nov 2025 - Apr 2026):**
+| Zone | WR | avg | Total | Worst | p-value |
+|---|---|---|---|---|---|
+| Z1 | 88% | +3.12% | +290% | -2.54% | 0.0000 ⭐ |
+| Z2 | 88% | +2.80% | +95%  | -2.08% | 0.0652 |
+| Z3 | 85% | +2.83% | +292% | -2.01% | 0.0000 ⭐ |
+| Z4 | 98% | +4.22% | +511% | -2.25% | 0.0000 ⭐ |
+
+Combined 6-month total: **+1188%** (2.8× baseline +422%).
+
+### ml_filter (PRIMARY) — deployed 2026-05-13 (initial)
+
+**Strategy:**
+  - Labels (zone-specific, all 840d train except where noted):
+    - Z1: `label_safe_eod_1` (EOD-green AND no -1% intraday DD from entry)
+    - Z2: `label_eod_green_v2` (EOD-green, baseline kept — safe variants didn't help)
+    - Z3: `label_safe_eod_2` (EOD-green AND no -2% intraday DD)
+    - Z4: `label_safe_eod_2` (same as Z3)
+  - Thresholds: Z1=0.40, Z2=0.40, Z3=0.40, Z4=0.35 (lowered from initial
+    based on live evidence: FTI 0.449 / TGT 0.420 on 5/12 both closed
+    EOD-green but were blocked by earlier 0.55 threshold).
+  - **Exit: pure hold to EOD, no SL, no trail, no Lock** — all zones.
+  - **Entry: LIMIT @ 09:30 1-min open** (suggested in scan output as `limit_price`).
+    Adverse selection caveat: limit only fills if stock dips back. Practical
+    fill rate ~25-40%. Live can also use market order at scan time (higher
+    fill, slightly worse entry).
+
+**Expected performance (WF using training pkl, Apr 1-May 8, 2026):**
+| Zone | N | WR | avg | Total | Worst |
+|---|---|---|---|---|---|
+| Z1 | 23 | 83% | +2.65% | +61% | -2.27% |
+| Z2 | 16 | 100% | +2.66% | +42% | +0.34% |
+| Z3 | 23 | 87% | +2.74% | +63% | -1.06% |
+| Z4 | 23 | 100% | +2.87% | +66% | +0.34% |
+
+Improvements vs initial 2026-05-13 deploy (label_eod_green_v2 + label_decay):
+  Z1 +12% total (label_safe_eod_1 +1% DD constraint helps Z1 winners hold)
+  Z3 +10pp WR, worst -6.96% → -1.06% (huge tail risk reduction)
+  Z4 +13pp WR (87→100%), worst -1.65% → +0.34% (no losing trades in OOS)
+
+⚠️ These are the only numbers to trust. Earlier OOS sim numbers (Z1 93%/+136%
+etc.) used custom Python feature computation that drifted from the training
+pkl — they overestimated performance by ~2-3×. Realistic upper bound shown
+above; live likely 5-15pp lower than these due to slippage + feature drift.
+
+**Diagnostic history (2026-05-12):**
+Previous live ml_filter was bleeding (-81% / 20% WR since 2026-04-15) under
+the old config: `label_decay` + market-order chase + Hard SL -2% + adaptive
+trail + Lock SL. Root cause was execution chase (entry above 09:30 open)
+combined with tight SL hitting on natural intraday retrace. Six losing
+picks (RMBS/GLW/DKNG/AKAM/NET/HL) all would have been winners with
+limit @ 09:30 open + no SL.
+
+**Active window: 09:30-13:00 ET only.** Late buckets hard-skipped via
+`can_reach_75()` — do not re-enable without new validation.
+
+Features (56 base + 5 interactions @09:30 + 15 multi-tf @10:00/11:30):
+  V7 (31): mins_from_open, gain_from_open, range_pct, from_peak_pct,
+  vs_vwap, vol_ratio, vol_accel, bars_since_hi, hh_count, consol,
+  range_exp, gap_from_prev, beta, mcap_bucket, spy_green, spy_intra,
+  vix, vix_5d_chg, ad_ratio, mom5d, mom20d, dist_sma20,
+  pct_52w_hi, pct_52w_lo, dow, btc_5d_chg, jpy_5d_chg,
+  skew, vvix, vix_term_spread, sec_rel_strength.
+  Cross-ETF (25): xlb/xlc/xle/xlf/xli/xlk/xlp/xlre/xlu/xlv/xly_intra,
+  smh/qqq/iwm/dbc/eem/gld/hyg/igv/ief/lqd/tlt/uso/uup/vxx_intra.
+  Multi-tf (15): {15m,30m,1h}_{gain,range,vol_norm,green_pct,high_break}.
+
+NOTE: vol_ratio is canonical (no lookahead) — uses 30d_avg_daily ×
+fraction_elapsed, NOT full-day average. Earlier vol_ratio bug inflated
+WR by ~8pp; canonical formula validated 2026-04.
+
+### How to scan with ml_filter
+
 ```bash
-python3 << 'PYEOF'
-import requests, os, sqlite3, numpy as np
-from dotenv import load_dotenv; load_dotenv()
-
-hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
-conn = sqlite3.connect("data/trade_history.db")
-syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
-hot = [r[0] for r in conn.execute("""
-    SELECT DISTINCT d.symbol FROM stock_daily_ohlc d
-    JOIN universe_stocks u ON d.symbol = u.symbol
-    WHERE d.date = (SELECT MAX(date) FROM stock_daily_ohlc)
-    AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
-    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03 AND d.volume * d.close >= 5000000
-""").fetchall()]
-if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
-syms = list(set(syms + hot))
-conn.close()
-
-# Alpaca snapshots — 2 seconds for 200 symbols
-snaps = {}
-for i in range(0, len(syms), 100):
-    batch = ','.join(syms[i:i+100])
-    r = requests.get(f'https://data.alpaca.markets/v2/stocks/snapshots?symbols={batch}', headers=hdr)
-    if r.status_code == 200: snaps.update(r.json())
-
-# SPY — BOTH daily and intraday
-spy = snaps.get('SPY',{})
-spy_db, spy_pb = spy.get('dailyBar',{}), spy.get('prevDailyBar',{})
-spy_daily = (spy_db.get('c',0)/spy_pb.get('c',1)-1)*100 if spy_pb.get('c') else 0
-spy_intra = (spy_db.get('c',0)/spy_db.get('o',1)-1)*100
-print(f"📊 SPY daily {spy_daily:+.1f}% {'🟢' if spy_daily > 0 else '🔴'} | intraday {spy_intra:+.1f}%")
-
-# Sector momentum — ดู sector ที่แข็งแรงวันนี้
-conn2 = sqlite3.connect("data/trade_history.db")
-sectors = dict(conn2.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
-conn2.close()
-sector_chg = {}
-for sym in syms:
-    s = snaps.get(sym)
-    if not s: continue
-    db, pb = s.get('dailyBar',{}), s.get('prevDailyBar',{})
-    if pb.get('c',0) > 0:
-        sec = sectors.get(sym,'')
-        if sec:
-            sector_chg.setdefault(sec, []).append((db.get('c',0)/pb['c']-1)*100)
-sector_avg = {s: np.mean(v) for s,v in sector_chg.items() if len(v)>=5}
-print(f"\n📊 Sector momentum วันนี้:")
-for s,v in sorted(sector_avg.items(), key=lambda x: x[1], reverse=True):
-    print(f"  {v:+5.1f}% {s}")
-
-up_results = []; dn_results = []
-for sym in syms:
-    try:
-        s = snaps.get(sym)
-        if not s: continue
-        db = s.get('dailyBar',{}); pb = s.get('prevDailyBar',{})
-        mb = s.get('minuteBar',{})
-        now = db.get('c',0); opn = db.get('o',0); hi = db.get('h',0); lo = db.get('l',0)
-        prev_c = pb.get('c',0); vol = db.get('v',0); prev_vol = pb.get('v',1)
-        if now < 3 or opn < 1 or prev_c < 1: continue
-        chg = (now/opn-1)*100; daily_chg = (now/prev_c-1)*100
-        drop = (lo/opn-1)*100; vr = vol/prev_vol if prev_vol > 0 else 0
-        rng = hi-lo; cp = (now-lo)/rng if rng > 0 else 0.5
-        last_green = mb.get('c',0) > mb.get('o',0) if mb else False
-        pullback = (hi/now-1)*100 if now < hi else 0
-        sec = sectors.get(sym,'')
-
-        if drop <= -2 and now > lo:
-            dn_results.append((sym, opn, now, chg, drop, (now/lo-1)*100, vr, cp, last_green, daily_chg, sec))
-        if chg > 1.5 or daily_chg > 3:  # intraday up OR daily gap up
-            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, cp, last_green, pullback, daily_chg, sec))
-    except: pass
-
-dn_results.sort(key=lambda x: x[4])
-print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (drop 2%+ from open)")
-print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
-for s,o,n,c,dr,bn,vr,cp,lg,dc,sec in dn_results[:12]:
-    f = '  '
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
-
-up_results.sort(key=lambda x: (x[8], x[3]), reverse=True)
-print(f"\n🔺 {len(up_results)} UP movers (+1.5%+ intraday OR +3%+ daily | PB=pullback from high)")
-print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
-for s,o,n,c,hi,vr,cp,lg,pb,dc,sec in up_results[:12]:
-    f = '  '
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {pb:>3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
-PYEOF
+python3 -m src.scan.engine ml_filter   # force ml_filter
+python3 -m src.scan.engine auto        # auto picks ml_filter first
 ```
 
-**ถ้า MARKET OPEN (11:30-15:30) → Alpaca Top Movers scan:**
-```bash
-python3 << 'PYEOF'
-import requests, os, sqlite3, numpy as np
-from dotenv import load_dotenv; load_dotenv()
+Output interpretation:
+- `active` + picks → trade these (ensemble prob ≥ threshold)
+- `no_picks` → no stocks passed threshold this scan (re-try in 5-10 min)
+- `skipped_gate` → current bucket cannot reach 75% WR (13:00+ dead zone)
+- `out_of_window` → outside 09:30-13:00 ET
 
-hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
-conn = sqlite3.connect("data/trade_history.db")
-syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
-hot = [r[0] for r in conn.execute("""
-    SELECT DISTINCT d.symbol FROM stock_daily_ohlc d
-    JOIN universe_stocks u ON d.symbol = u.symbol
-    WHERE d.date = (SELECT MAX(date) FROM stock_daily_ohlc)
-    AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
-    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03 AND d.volume * d.close >= 5000000
-""").fetchall()]
-if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
-syms = list(set(syms + hot))
-conn.close()
+Picks are auto-recorded to data/scan_journal.db for drift monitoring.
 
-# Alpaca snapshots — ~2 seconds
-snaps = {}
-for i in range(0, len(syms), 100):
-    batch = ','.join(syms[i:i+100])
-    r = requests.get(f'https://data.alpaca.markets/v2/stocks/snapshots?symbols={batch}', headers=hdr)
-    if r.status_code == 200: snaps.update(r.json())
+### Daily workflow
 
-# SPY — BOTH daily and intraday
-spy = snaps.get('SPY',{})
-spy_db, spy_pb = spy.get('dailyBar',{}), spy.get('prevDailyBar',{})
-spy_daily = (spy_db.get('c',0)/spy_pb.get('c',1)-1)*100 if spy_pb.get('c') else 0
-spy_intra = (spy_db.get('c',0)/spy_db.get('o',1)-1)*100
-print(f"📊 SPY daily {spy_daily:+.1f}% {'🟢' if spy_daily > 0 else '🔴'} | intraday {spy_intra:+.1f}%")
-
-# Sector momentum — ดู sector ที่แข็งแรงวันนี้
-conn2 = sqlite3.connect("data/trade_history.db")
-sectors = dict(conn2.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
-conn2.close()
-sector_chg = {}
-for sym in syms:
-    s = snaps.get(sym)
-    if not s: continue
-    db, pb = s.get('dailyBar',{}), s.get('prevDailyBar',{})
-    if pb.get('c',0) > 0:
-        sec = sectors.get(sym,'')
-        if sec:
-            sector_chg.setdefault(sec, []).append((db.get('c',0)/pb['c']-1)*100)
-sector_avg = {s: np.mean(v) for s,v in sector_chg.items() if len(v)>=5}
-print(f"\n📊 Sector momentum วันนี้:")
-for s,v in sorted(sector_avg.items(), key=lambda x: x[1], reverse=True):
-    print(f"  {v:+5.1f}% {s}")
-
-dn_results = []; up_results = []
-for sym in syms:
-    try:
-        s = snaps.get(sym)
-        if not s: continue
-        db = s.get('dailyBar',{}); pb = s.get('prevDailyBar',{}); mb = s.get('minuteBar',{})
-        now = db.get('c',0); opn = db.get('o',0); hi = db.get('h',0); lo = db.get('l',0)
-        prev_c = pb.get('c',0); vol = db.get('v',0); prev_vol = pb.get('v',1)
-        if now < 1 or opn < 1 or prev_c < 1: continue
-        chg = (now/opn-1)*100; daily_chg = (now/prev_c-1)*100
-        drop = (lo/opn-1)*100; vr = vol/prev_vol if prev_vol > 0 else 0
-        rng = hi-lo; cp = (now-lo)/rng if rng > 0 else 0.5
-        last_green = mb.get('c',0) > mb.get('o',0) if mb else False
-        pullback = (hi/now-1)*100 if now < hi else 0
-        sec = sectors.get(sym,'')
-
-        if drop <= -2 and now > lo:
-            dn_results.append((sym, opn, now, chg, drop, (now/lo-1)*100, vr, cp, last_green, daily_chg, sec))
-        if chg >= 3 or daily_chg >= 5:  # intraday up OR daily gap up
-            up_results.append((sym, opn, now, chg, (hi/opn-1)*100, vr, cp, last_green, pullback, daily_chg, sec))
-    except: pass
-
-dn_results.sort(key=lambda x: x[4])
-print(f"\n🔻 {len(dn_results)} DOWN BOUNCE (drop 2%+ from open)")
-print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Drop':>5s} {'Bnc':>5s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
-for s,o,n,c,dr,bn,vr,cp,lg,dc,sec in dn_results[:12]:
-    f = '  '
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {dr:+4.1f}% +{bn:3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
-
-up_results.sort(key=lambda x: (x[8], x[3]), reverse=True)
-print(f"\n🔺 {len(up_results)} UP movers (+3%+ | PB=pullback from high)")
-print(f"{'Sym':5s} {'Open':>7s} {'Now':>7s} {'Chg':>5s} {'Hi':>5s} {'PB':>4s} {'Vol':>4s} {'DChg':>5s} {'Sec':>8s}")
-for s,o,n,c,hi,vr,cp,lg,pb,dc,sec in up_results[:12]:
-    f = '  '
-    print(f"{f}{s:5s} {o:>7.2f} {n:>7.2f} {c:+4.1f}% {hi:+4.1f}% {pb:>3.1f}% {vr:>3.1f}x {dc:+4.1f}% {sec[:8]:>8s} {'🟢' if lg else '🔴'}")
-PYEOF
+```
+03:00-03:59  orb_prep watchlist scan
+04:00-09:29  orb_gap_preview (PM gap watchlist, confidence by time-to-open)
+09:30-09:34  ml_filter (09:30 bucket — honest 75-85% WF)
+09:35-09:40  orb_gap_break (gap+vol 2x filter)
+09:41-10:45  ml_filter (10:00 bucket — sweet spot, most robust)
+10:45-11:30  ml_filter (10:45 bucket)
+11:30-13:00  ml_filter (11:30 bucket)
+13:00-15:55  NO trades (48% WR coin flip — validated, skipped)
+15:55-16:00  eod_flatten (exit intraday positions)
 ```
 
-### ขั้นตอน 3: ดึง context data ให้ครบ (สำหรับ top 5-8 ตัว)
+### Outcome update (after close)
 
-**ดึง data ทั้งหมดนี้ แล้ว AI ตัดสินเอง — ไม่ hardcode score:**
 ```bash
-# แทน XXX,YYY,ZZZ ด้วย symbols จาก Step 2
-sqlite3 data/trade_history.db "
--- News: มีข่าวมั้ย ข่าวอะไร (มีข่าว = attention = ดี ไม่ว่า pos/neg)
-SELECT n.symbol, n.sentiment_label, substr(n.headline,1,60), n.published_at
-FROM news_events n
-WHERE n.symbol IN ('XXX','YYY','ZZZ') AND n.published_at >= date('now','-3 days')
-ORDER BY n.published_at DESC LIMIT 15;
-
--- Short Interest: SI สูง = short squeeze potential ช่วย bounce
--- SI ต่ำ = ไม่มีแรง squeeze → bounce อ่อนกว่า
-SELECT s.symbol, s.short_pct_float, s.short_change_pct, u.sector
-FROM short_interest s
-JOIN universe_stocks u ON s.symbol = u.symbol
-WHERE s.symbol IN ('XXX','YYY','ZZZ') AND s.date = (SELECT MAX(date) FROM short_interest);
-
--- Analyst: consensus ดีมั้ย target เท่าไหร่
-SELECT symbol, target_mean, upside_pct, bull_score FROM analyst_consensus
-WHERE symbol IN ('XXX','YYY','ZZZ');
-
--- Earnings: มี earnings ใกล้มั้ย (uncertainty สูง)
-SELECT symbol, next_earnings_date FROM earnings_calendar
-WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') AND date('now','+3 days');
-
--- Insider: มี insider buy ล่าสุดมั้ย (confidence signal)
-SELECT symbol, insider_name, total_value, transaction_date FROM insider_transactions
-WHERE symbol IN ('XXX','YYY','ZZZ') AND transaction_date >= date('now','-30 days')
-ORDER BY total_value DESC LIMIT 5;
-
--- Options: put/call ratio สูงมั้ย (hedging = fear)
-SELECT symbol, pc_volume_ratio, unusual_call_count, unusual_put_count
-FROM options_daily_summary
-WHERE symbol IN ('XXX','YYY','ZZZ') AND collected_date = (SELECT MAX(collected_date) FROM options_daily_summary);
-
--- Beta + MCap (for Winner/Loser profile判断)
--- Beta>1.5 = WR 50% (bad) | Beta<1.0 = WR 54% (good) | MCap>30B = WR 55% (best)
-SELECT f.symbol, f.beta, f.market_cap, f.pe_forward, f.sector, f.industry
-FROM stock_fundamentals f
-WHERE f.symbol IN ('XXX','YYY','ZZZ');
-
--- Market Breadth (ดูความแข็งแรงของตลาดรวม)
-SELECT date, pct_above_20d_ma, ad_ratio FROM market_breadth ORDER BY date DESC LIMIT 1;
-
--- Earnings: มี earnings ใกล้มั้ย (uncertainty สูง)
-SELECT symbol, next_earnings_date FROM earnings_calendar
-WHERE symbol IN ('XXX','YYY','ZZZ') AND next_earnings_date BETWEEN date('now') AND date('now','+3 days');
-"
+python3 -m src.scan.outcome_updater           # last 7 days
+python3 -m src.scan.outcome_updater --days=30 # last 30 days
 ```
 
-### ขั้นตอน 4: AI วิเคราะห์ + ตัดสิน
-
-**ใช้ data จาก Step 3 + หลักการจาก prompt file ที่อ่าน → AI ตัดสินเอง:**
-
-หลักการ (จาก backtest 97K+ signals — validated):
-- **SPY direction = ดูจาก DAILY (prev close → now) ไม่ใช่ intraday (today open → now)**
-  - SPY daily green → bounce WR 58-62% (แม้ intraday จะแดงเล็กน้อยจาก gap up)
-  - SPY daily < -1% → WR 34%
-  - ตัวอย่าง: SPY +2.4% daily แต่ intraday -0.2% = **วันเขียว** ไม่ใช่วันแดง
-- **Drop depth = #1 predictor**: 2-3% drop = WR 53% | 3-5% = 57% | 5%+ = 68%
-- **Green bar fraction**: 50%+ green bars (last 30min) = WR 69% | <30% = WR 13%
-- **Single green bar**: 1 green then red = WR 37% | 4+ consecutive = WR 61%
-- **Beta**: <1.5 = WR 54% (good) | >1.5 = WR 50% (bad) — from stock_fundamentals
-- **MCap**: >30B = WR 55% (best) | <10B = WR 51% (worse)
-- SI สูง = short squeeze → bounce แรงกว่า
-- มีข่าว (ไม่ว่า pos/neg) = มี attention + volume → ดีกว่าไม่มีข่าว
-- Sector: ดู sector ที่แข็งแรงวันนั้น (rotation เปลี่ยนทุกวัน — บางวัน Energy นำ บางวัน Tech นำ)
-- มี insider buy = executives เชื่อมั่น
-- Earnings ใกล้ = uncertainty สูง → อาจดีหรือแย่ ระวัง
-- **Gap Down + Vol 2x** = WR 42% (ต่ำกว่า random)
-- **Wednesday movers ถือข้ามคืน D+1** = WR 36% (mean reversion — เฉพาะ OVN hold ไม่ใช่ intraday วันนั้น)
-
-**TP/SL data (backtest 126K setups):**
-- เช้า avg winner +2.3-3.6% / avg loser -2.3-3.8% (amplitude สูง)
-- บ่าย avg winner +1.0-1.8% / avg loser -1.1-1.8% (amplitude ต่ำ)
-- 14:00+ avg winner +0.6-0.9% / avg loser -0.6-1.0%
-- หลัง hit +2%: เช้า 64% วิ่งต่อ +3% | บ่าย 43% | 14:00+ 32%
-- Retrace risk: เช้า 32% retrace <+1% | บ่าย 19%
-
-**Entry characteristics:**
-- Bounce เช้า: median 14-18 bars (70-90 min) ค่อยๆ ขึ้น
-- Bounce บ่าย: median 17-18 bars ช้า + consolidation ชัด
-- 14:00+: median 6 bars (30 min) เร็ว
-- **26-30% ของ setups peak ใน ≤3 bars → บางตัววิ่งตรงขึ้นไม่ pullback เลย**
-- Limit fill ยาก: ขอบล่างสุดอาจไม่ถึง | กลาง range (70-80%) fill ง่ายกว่า
-
-**เมื่อไหร่ BUY NOW (market) vs WATCH (limit):**
-- ถ้าหลาย factors winner profile ตรง (low beta, large mcap, deep drop, high green fraction, SPY green, sector แข็ง) → edge สูงขึ้น — AI weigh รวมแล้วตัดสิน BUY NOW
-- SPY แดง ไม่ได้แปลว่าไม่มี BUY — หุ้น low beta + catalyst + SI สูง อาจ BUY NOW ได้แม้ SPY แดง (WR ลดลงแต่ไม่ใช่ 0%)
-- ถ้ารอ pullback แล้วราคาวิ่งขึ้นเรื่อยๆ → ถ้า profile แข็งพอตั้งแต่แรก ควร BUY NOW
-
-**AI ดู data ทั้งหมดแล้ว weigh เอง — แต่ละวันต่างกัน context ต่างกัน**
-**ไม่มี fixed score — AI judge จาก totality of evidence**
-
-### ขั้นตอน 5: แสดงผล
-
-**แสดง candidates ที่ผ่าน filter ทั้งหมด + AI เลือก 1-2 ตัวที่ดีสุด BUY NOW**
-- **ตารางรวม** = แสดงทุกตัวที่ผ่าน filter (user เห็นภาพรวม)
-- **BUY NOW** = AI เลือก 1-3 ตัวที่ดีที่สุด พร้อม Entry/SL/TP/R:R
-- ถ้าไม่มีตัวที่ดีพอ → "ไม่มี BUY NOW" + เวลา re-scan
-- ไม่ใส่ label ⚠️/❌/"ไม่แนะนำ" ใน candidates — แค่แสดง data ให้ user ดูเอง
-
-**ตัวอย่าง output — SPY daily green + candidates ดี:**
-
----
-
-## Scan — 12:30 ET Wed | SPY daily +2.4% 🟢 | intraday -0.1% | VIX 21
-
-### 🟢 BUY NOW
-
-| # | Symbol | Now | SL | TP | R:R | เหตุผล |
-|---|--------|-----|-----|-----|-----|--------|
-| 1 | INTU | $405 | $392 (-3.2%) | $418 (+3.2%) | 1:1 | Drop -5% + Beta 1.21 + MCap $114B + GF 67% + SPY daily 🟢 |
-| 2 | NBIS | $125 | $119 (-4.8%) | $131 (+4.8%) | 1:1 | Drop -5.8% + Beta 1.06 + SI 19.6% + GF 83% |
-
-**INTU**: Winner profile ครบ + SPY daily +2.4% = entry now
-**NBIS**: SI 19.6% squeeze + low beta + deep drop
-
----
-
-**ตัวอย่าง output — SPY daily แดง:**
-
----
-
-## Scan — 09:42 ET Tue | SPY daily -0.5% 🔴 | VIX 24.2
-
-ไม่มี BUY NOW — SPY daily แดง
-
-### WATCH — รอ SPY green / Pullback
-
-| # | Symbol | Now | รอที่ | Limit | SL | TP | R:R |
-|---|--------|-----|------|-------|-----|-----|-----|
-| 1 | LLY | $899 | Green bar | GBar | $890 | $917 | 1:2 |
-
-**LLY**: Beta 0.43 + MCap $794B + Drop -2.8% + 51 unusual calls
-→ GF 0% ยังไม่ bounce — รอ green bar
-
-Re-check: 10:00 LITE pullback | 10:15 LLY green bar
-
----
-
-### Position Status (ถ้ามี)
-
-| หุ้น | Entry | Now | P&L | Action |
-|------|-------|-----|-----|--------|
-| AA 10 | $64.87 | $70.49 | +8.7% (+$56) | trail SL $69 |
-
----
-
-**(ใช้ format นี้ทุกครั้ง — กระชับ ตารางแคบ รายละเอียด 2 บรรทัดต่อตัว)**
-
----
-
-## เลือก scan type ตามเวลา ET
-
-| เวลา ET | Prompt | ทำอะไร |
-|---------|--------|--------|
-| **00:00-03:59** | **ORB** | ORB prep: ดู yesterday movers + PM gaps |
-| **04:00-09:29** | **ORB** | PM gaps vs prev close + vol + catalyst |
-| **09:30-10:00** | **Intraday** | Opening Bell: First bar + OR breakout + Vol Surge |
-| **10:00-10:30** | **Intraday** | Kill Zone + 10:00 confirmation + Down Bounce |
-| **10:30-11:30** | **Intraday** | Late Morning: Consolidation breakout 47.6% / Noon vol surge |
-| **11:30-12:30** | **Top Movers** | Lunch: Down Bounce (SPY green + green bars 50%+) |
-| **12:30-13:30** | **Top Movers** | Late Lunch: Down Bounce / Green bar fraction 50%+ |
-| **13:30-15:00** | **Top Movers** | Afternoon: Down Bounce (SPY gate) / momentum 5%+ |
-| **15:00-15:30** | **Top Movers** | Power Hour: Down Bounce only / hold-exit confirm |
-| **15:30-15:55** | **OVN** | 5d mom ≥5% + today green + vol ≥2x + close near high |
-| **ศุกร์ 15:00** | **Fri-Mon** | ศุกร์ rally 3%+ / bad week bounce / dump vol 2x |
-
-### ⚠️ Cross-Scan Conflict Rules (ศุกร์ 15:00-15:55)
-ศุกร์บ่ายอาจมีหุ้นผ่านทั้ง OVN + Fri-Mon → ใช้กฎนี้:
-1. **Fri-Mon ชนะ OVN เสมอวันศุกร์** — Fri-Mon baseline +0.37% ดีกว่า OVN +0.14% (Mon close > Tue open)
-2. **ถ้าหุ้นผ่าน Fri-Mon checklist 5/6+ → ใช้ Fri-Mon** (ซื้อศุกร์ ขาย Mon close)
-3. **ถ้าหุ้นผ่าน Fri-Mon แค่ 3/6 แต่ OVN 5/6+ → ใช้ OVN** (ซื้อศุกร์ ขาย Mon open)
-4. **ไม่ควรเข้าทั้ง 2 scan บนหุ้นเดียวกัน** — เลือกอันที่ดีกว่า
-
-
----
-
-## OVN Scan Code (15:30-15:55 ET)
-**Checklist + stats → อ่านจาก `prompts/ovn_gap_prompt.md`**
-```bash
-python3 << 'PYEOF'
-import requests, os, sqlite3, numpy as np
-from datetime import datetime
-import pytz
-from dotenv import load_dotenv; load_dotenv()
-
-et = datetime.now(pytz.timezone('US/Eastern'))
-day_name = et.strftime('%A')
-
-hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
-conn = sqlite3.connect("data/trade_history.db")
-syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
-hot = [r[0] for r in conn.execute("""
-    SELECT DISTINCT d.symbol FROM stock_daily_ohlc d
-    JOIN universe_stocks u ON d.symbol = u.symbol
-    WHERE d.date = (SELECT MAX(date) FROM stock_daily_ohlc)
-    AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
-    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03
-    AND d.volume * d.close >= 5000000
-""").fetchall()]
-if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
-syms = list(set(syms + hot))
-
-sectors = dict(conn.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
-earnings_tomorrow = set(r[0] for r in conn.execute("SELECT symbol FROM earnings_calendar WHERE next_earnings_date = date('now','+1 day')").fetchall())
-
-# 5d history from DB
-hist = {}
-for r in conn.execute("""
-    SELECT symbol, date, open, high, low, close, volume FROM stock_daily_ohlc
-    WHERE date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-7 days')
-    ORDER BY symbol, date
-"""):
-    hist.setdefault(r[0], []).append(r[1:])
-conn.close()
-
-# Alpaca snapshots
-snaps = {}
-for i in range(0, len(syms), 100):
-    batch = ','.join(syms[i:i+100])
-    r = requests.get(f'https://data.alpaca.markets/v2/stocks/snapshots?symbols={batch}', headers=hdr)
-    if r.status_code == 200: snaps.update(r.json())
-
-results = []
-for sym in syms:
-    try:
-        snap = snaps.get(sym); days = hist.get(sym, [])
-        if not snap or len(days) < 3: continue
-        db = snap.get('dailyBar',{}); pb = snap.get('prevDailyBar',{})
-        last_close = db.get('c',0); prev_close = pb.get('c',0)
-        if last_close < 5 or prev_close < 1: continue
-
-        today_ret = (last_close/prev_close-1)*100
-        d0 = days[0]; mom5d = (last_close/d0[3]-1)*100 if len(days) >= 5 else today_ret
-        avg_vol = np.mean([d[5] for d in days[:-1]]) if len(days) > 1 else 1
-        vr = db.get('v',0)/avg_vol if avg_vol > 0 else 0
-        hi, lo = db.get('h',last_close), db.get('l',last_close)
-        rng = hi - lo; cp = (last_close-lo)/rng if rng > 0 else 0.5
-
-        sector = sectors.get(sym, 'Unknown')
-        good_day = day_name in ('Tuesday','Wednesday')
-
-        score = 0; checks = []
-        if mom5d >= 5: score += 1; checks.append(f'☑5dM {mom5d:+.1f}%')
-        else: checks.append(f'☐5dM {mom5d:+.1f}%')
-        if today_ret >= 2: score += 1; checks.append(f'☑Ret {today_ret:+.1f}%')
-        else: checks.append(f'☐Ret {today_ret:+.1f}%')
-        if vr >= 2: score += 1; checks.append(f'☑Vol {vr:.1f}x')
-        else: checks.append(f'☐Vol {vr:.1f}x')
-        if cp > 0.5: score += 1; checks.append(f'☑CP {cp:.2f}')
-        else: checks.append(f'☐CP {cp:.2f}')
-        checks.append(f'☐{sector[:4]}')  # AI judges sector — no hardcode
-        if good_day: score += 1; checks.append(f'☑{day_name[:3]}')
-        else: checks.append(f'☐{day_name[:3]}')
-
-        if sym in earnings_tomorrow: continue
-        if vr >= 3 and mom5d < 0: continue
-        if score < 3: continue
-
-        results.append((sym, last_close, today_ret, mom5d, vr, cp, sector, score, ' | '.join(checks)))
-    except: pass
-
-results.sort(key=lambda x: (-x[7], -x[3]))
-print(f"\n{len(results)} OVN candidates (Score ≥ 3/6)")
-print(f"{'':1s}{'Sym':5s} {'Close':>7s} {'Today':>6s} {'5dM':>6s} {'Vol':>4s} {'CP':>5s} {'Sec':>6s} {'Sc':>2s}")
-for s,cl,tr,m,vr,cp,sec,sc,ch in results[:12]:
-    f = '  '
-    print(f"{f}{s:5s} {cl:>7.2f} {tr:+5.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {sec[:6]:>6s} {sc}/5")
-    print(f"  {ch}")
-PYEOF
+Or cron:
+```
+30 16 * * 1-5 cd /path && python3 -m src.scan.outcome_updater
 ```
 
----
+### Weekly drift check
 
-## Friday→Monday Scan Code (ศุกร์ 15:00-15:55 ET)
-**Stats + setups + checklist → อ่านจาก `prompts/friday_monday_prompt.md`**
-```bash
-python3 << 'PYEOF'
-import requests, os, sqlite3, numpy as np
-from datetime import datetime
-import pytz
-from dotenv import load_dotenv; load_dotenv()
-
-et = datetime.now(pytz.timezone('US/Eastern'))
-if et.strftime('%A') != 'Friday':
-    print(f"⚠️ วันนี้ {et.strftime('%A')} — Fri-Mon scan ใช้วันศุกร์เท่านั้น!")
-
-hdr = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
-conn = sqlite3.connect("data/trade_history.db")
-syms = [r[0] for r in conn.execute("SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200").fetchall()]
-hot = [r[0] for r in conn.execute("""
-    SELECT DISTINCT d.symbol FROM stock_daily_ohlc d
-    JOIN universe_stocks u ON d.symbol = u.symbol
-    WHERE d.date = (SELECT MAX(date) FROM stock_daily_ohlc)
-    AND d.symbol NOT IN (SELECT symbol FROM universe_stocks ORDER BY dollar_vol DESC LIMIT 200)
-    AND ABS(d.close - d.open) * 1.0 / d.open >= 0.03
-    AND d.volume * d.close >= 5000000
-""").fetchall()]
-if hot: print(f"🔥 Hot inject: {len(hot)} movers: {', '.join(hot[:10])}")
-syms = list(set(syms + hot))
-
-sectors = dict(conn.execute("SELECT symbol, sector FROM universe_stocks").fetchall())
-earnings_mon = set(r[0] for r in conn.execute("SELECT symbol FROM earnings_calendar WHERE next_earnings_date BETWEEN date('now','+2 day') AND date('now','+3 day')").fetchall())
-vix_row = conn.execute("SELECT vix_close FROM macro_snapshots ORDER BY date DESC LIMIT 1").fetchone()
-vix_now = float(vix_row[0]) if vix_row else 20.0
-
-# 5d history from DB
-hist = {}
-for r in conn.execute("""
-    SELECT symbol, date, open, high, low, close, volume FROM stock_daily_ohlc
-    WHERE date >= date((SELECT MAX(date) FROM stock_daily_ohlc), '-7 days')
-    ORDER BY symbol, date
-"""):
-    hist.setdefault(r[0], []).append(r[1:])
-conn.close()
-
-# Alpaca snapshots
-snaps = {}
-for i in range(0, len(syms), 100):
-    batch = ','.join(syms[i:i+100])
-    r = requests.get(f'https://data.alpaca.markets/v2/stocks/snapshots?symbols={batch}', headers=hdr)
-    if r.status_code == 200: snaps.update(r.json())
-
-results = []
-for sym in syms:
-    try:
-        snap = snaps.get(sym); days = hist.get(sym, [])
-        if not snap or len(days) < 5: continue
-        db = snap.get('dailyBar',{})
-        last_close = db.get('c',0); last_open = db.get('o',0)
-        if last_close < 5 or last_open < 1: continue
-
-        fri_ret = (last_close/last_open - 1)*100
-        d0 = days[0]; mom5d = (last_close/d0[3]-1)*100
-        avg_vol = np.mean([d[5] for d in days[:-1]]) if len(days) > 1 else 1
-        vr = db.get('v',0)/avg_vol if avg_vol > 0 else 0
-        hi, lo = db.get('h',last_close), db.get('l',last_close)
-        rng = hi - lo; cp = (last_close-lo)/rng if rng > 0 else 0.5
-
-        sector = sectors.get(sym, 'Unknown')
-
-        setup = ''
-        if fri_ret >= 3: setup = 'FRI_RALLY'
-        elif mom5d <= -5 and fri_ret >= 2: setup = 'BAD_WEEK_BOUNCE'
-        elif fri_ret <= -3 and vr >= 2: setup = 'FRI_DUMP_VOL'
-        else: continue
-
-        score = 0; checks = []
-        if setup: score += 1; checks.append(f'☑{setup}')
-        if cp > 0.5: score += 1; checks.append(f'☑CP {cp:.2f}')
-        else: checks.append(f'☐CP {cp:.2f}')
-        if vr >= 1.5: score += 1; checks.append(f'☑Vol {vr:.1f}x')
-        else: checks.append(f'☐Vol {vr:.1f}x')
-        checks.append(f'☐{sector[:4]}')  # AI judges sector
-        checks.append('☑NoNews' if sym not in earnings_mon else '☐EarnMon')
-        if sym not in earnings_mon: score += 1
-        if vix_now < 30: score += 1; checks.append(f'☑VIX {vix_now:.0f}')
-        else: checks.append(f'☐VIX {vix_now:.0f}')
-
-        if sym in earnings_mon: continue
-        if score < 3: continue
-
-        trs = [max(d[2]-d[3], abs(d[2]-days[i-1][4]), abs(d[3]-days[i-1][4])) for i,d in enumerate(days[1:],1)]
-        atr = np.mean(trs[-4:]) if trs else last_close * 0.03
-        sl_price = last_close - 2*atr
-        sl_pct = (sl_price/last_close - 1)*100
-
-        results.append((sym, last_close, fri_ret, mom5d, vr, cp, sector, setup, score, ' | '.join(checks), sl_price, sl_pct))
-    except: pass
-
-results.sort(key=lambda x: (-x[8], -abs(x[2])))
-print(f"\n{len(results)} Fri-Mon candidates (Score ≥ 3/6) | VIX {vix_now:.1f}")
-print(f"{'':1s}{'Sym':5s} {'Close':>7s} {'FriR':>6s} {'5dM':>6s} {'Vol':>4s} {'CP':>5s} {'Setup':>10s} {'Sc':>2s} {'SL':>7s}")
-for s,cl,fr,m,vr,cp,sec,su,sc,ch,slp,slpct in results[:12]:
-    f = '  '
-    print(f"{f}{s:5s} {cl:>7.2f} {fr:+5.1f}% {m:+5.1f}% {vr:>3.1f}x {cp:>4.2f} {su:>10s} {sc}/5 SL${slp:.2f}({slpct:+.0f}%)")
-    print(f"  {ch}")
-PYEOF
+```python
+from src.scan.journal import get_journal
+j = get_journal()
+for row in j.report(days=7):
+    print(row)
+# Shows actual WR vs expected WR per strategy/bucket
+# If drift > 5pp → investigate or retrain
 ```
 
----
+Backtest source: `backtests/results/SUMMARY.md` (29 tests, 20M bars, 2025+).
+ML models: `backtests/models_prod_v22/` (70 model files: 4 buckets × tp1+loss × 5 seeds,
+            + Tech-specialized 09:30, + multi-tf 10:00/11:30).
+Validation: walk-forward refit per month (gold standard), 6 months OOS.
 
-## Quick Commands อื่นๆ
+**Monthly retrain (recommended):**
+  Cron: `0 2 1 * *  bash scripts/monthly_retrain.sh`
+  Cron: `0 2 * * 0  bash scripts/weekly_zone_retrain.sh` (Sunday — zone-only, faster)
 
-### "ข่าววันนี้" / "news"
-Query `news_events` + `macro_snapshots` ล่าสุด → สรุป risk-on/risk-off
+Both scripts now:
+  1. Rebuild pkl → `cache/bt_features/features.pkl` (persistent, not /tmp/)
+  2. Run `feature_builder.py` (incl 16 feat_* + market labels for Step 18)
+  3. Run `train_zones.py` (win + loss + adaptlim, per-zone labels + HP)
+  4. **Run `validate_retrain.sh`** before restart — rollback if WF floor missed
+  5. Backup old models to `backtests/models_prod_v22_<date>/` (replay)
 
-### "ตรวจระบบ" / "system check"
-Check: services, DB freshness, cron logs, active positions
+Validation floors (`configs/wf_baseline.json`):
+  Per-zone: Z1 WR≥75%/avg≥1%, Z2 WR≥70%/avg≥0.8%, Z3 WR≥65%/avg≥0.5%, Z4 WR≥70%/avg≥0.5%
+  Combined: WR≥75%, total≥30% (30-day OOS).
 
-### "run discovery"
-`PYTHONPATH=src:. python3 scripts/discovery_scan.py`
+## Adding a new strategy
 
----
+1. Create `src/scan/strategies/<name>.py` inheriting `BaseStrategy`
+2. Set `name`, `time_start`, `time_end`, `expected_wr`, `expected_ev`
+3. Implement `scan()` returning `ScanResult`
+4. Register in `src/scan/engine.py` `STRATEGIES` dict
+5. Backtest-validate rules BEFORE deploying (see `backtests/`)
+6. Paper trade 2 weeks before going live
 
-## Project Info
-- `src/auto_trading_engine.py` — main engine
-- `src/discovery/engine.py` — Discovery scanner
-- `src/web/app.py` — webapp
-- `config/trading.yaml` / `config/discovery.yaml`
-- `prompts/` — detailed trading prompts (ORB, intraday, OVN, friday-monday)
-- `data/trade_history.db` — SQLite DB
+## Architecture principles
 
-### DB Tables
-- `universe_stocks` — symbol, dollar_vol, sector (1000 ตัว → scan top 200 by dollar_vol)
-- `stock_daily_ohlc` — symbol, date, open, high, low, close, volume
-- `macro_snapshots` — date, vix_close, spy_close, crude_close, gold_close, yield_10y
-- `market_breadth` — date, pct_above_20d_ma, ad_ratio
-- `news_events` — published_at, headline, sentiment_label, symbol
-- `short_interest` — symbol, date, short_pct_float, short_change_pct
-- `insider_transactions` — symbol, insider_name, total_value, transaction_date
-- `analyst_consensus` — symbol, target_mean, upside_pct, bull_score
-- `earnings_calendar` — symbol, next_earnings_date
-- `discovery_outcomes` — symbol, scan_date, actual_return_d3, max_gain, vix_close
-- `trading_signals` — symbol, signal_price, score, reasons, signal_time
-- `gap_pm_cache` — date, data_json
+**Specialization over coverage.** Don't build a universal scanner. Build
+narrow, proven setups each in their own file. A 60% WR strategy applied
+for 40 minutes beats a 52% WR scanner running all day.
 
-### Services
-- `systemctl --user restart/stop auto-trading.service`
-- `systemctl --user restart/stop stock-webapp.service`
-- **NEVER pkill** — always use systemctl
+**Backtest before deploy.** Every rule must have a backtest that shows
+positive edge. No "gut feel" rules. No ported wisdom from prompts without
+re-validation.
 
-### Account
+**Hard gates over soft penalties.** If a condition kills edge (AD<1,
+SPY red, VIX>30 for momentum), hard skip. Don't lower score and still
+recommend. Score reduction lets "best of bad batch" through.
+
+**Trail from peak > fixed TP/SL.** Backtest +0.93% EV vs +0.43% fixed.
+Default exit for most setups is trail 1% from peak.
+
+**Wider SL than noise.** -0.5% = 28% WR (noise stops). Use -1.5% minimum
+or ATR-based `-max(1.5%, 0.5×ATR)`.
+
+**No catalyst bonus.** Backtest: no-catalyst = 58% WR, news = 50%,
+insider = 40%. Catalysts attract crowds which attract fades.
+
+## System notes
+
+### Service management
+```
+systemctl --user restart auto-trading.service
+systemctl --user restart stock-webapp.service
+```
+Never `pkill`.
+
+### Logs
+- Engine: `logs/auto_trading_engine_error.log`
+- Webapp: `logs/web_app.log`
+- Scan: `logs/scan.log` (if writing)
+
+### Database
+- `data/trade_history.db` — main (13GB)
+- Key tables: `stock_daily_ohlc`, `intraday_bars_5m`, `macro_snapshots`,
+  `market_breadth`, `universe_stocks`, `stock_fundamentals`,
+  `news_events`, `insider_transactions`, `short_interest`,
+  `earnings_calendar`
+
+### v1 archive
+Old scan code + prompts preserved at `archive/v1/` for reference.
+Don't copy rules back without re-validating against backtest v2.
+
+## Account
 - Alpaca Paper ($5K start, dynamic budget)
-- Regime: MacroDayGate ML (16 features, AUC 0.60)
+- Position risk: 1% per trade
+- Max 3 positions simultaneous
+- EOD flat at 15:55 ET (enforced by trail/EOD exit)
+
+## Rebuild history
+- **2026-04-11**: Full scan layer rebuild. 29 backtests exposed look-ahead
+  bugs and wrong factor weights in v1. Rewrote from scratch with
+  per-strategy architecture. First working strategy: `ml_filter`.
+  See `archive/v1/CLAUDE_v1.md` for the old monolithic system.

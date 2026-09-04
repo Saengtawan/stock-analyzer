@@ -1,0 +1,16 @@
+{
+  "_comment": "WF baseline for validate_retrain.sh. Compare against single most-recent WF month (last 30 days). If actual deviates more than tolerance, validation fails.",
+  "_methodology": "Computed from Step 18 deploy 2026-05-14: Nov 2025 - Apr 2026 WF.",
+  "tolerance_pp_wr": 10,
+  "tolerance_pct_total": 50,
+  "per_zone_monthly_floor": {
+    "Z1": {"min_wr": 0.75, "min_avg_pct": 1.0},
+    "Z2": {"min_wr": 0.70, "min_avg_pct": 0.8},
+    "Z3": {"min_wr": 0.65, "min_avg_pct": 0.5},
+    "Z4": {"min_wr": 0.70, "min_avg_pct": 0.5}
+  },
+  "combined_floor": {
+    "min_wr": 0.75,
+    "min_total_pct": 30
+  }
+}

@@ -87,6 +87,11 @@ class RapidRotationConfig:
     trail_enabled: bool = True          # Enable trailing stop
     trail_activation_pct: float = 3.0   # Activate trailing at +3% gain
     trail_lock_pct: float = 75.0        # Lock 75% of peak gains (legacy: 75)
+    # 2026-05-09: ml_filter-specific trail (Layer B lock — WR 98% target).
+    # WF: lock @ peak ≥ +2.0% with SL at +0.5% above entry.
+    # 25% of 2% gain = 0.5% → trail_lock_pct=25 gives SL=+0.5% at trigger.
+    ml_filter_trail_activation_pct: float = 2.0
+    ml_filter_trail_lock_pct: float = 25.0
 
     # =========================================================================
     # POSITION MANAGEMENT
@@ -406,6 +411,10 @@ class RapidRotationConfig:
     # v6.60: PEM trailing (keep EOD as fallback)
     pem_trail_activation_pct: float = 2.0       # Trailing activates at +2% (avoids opening volatility)
     pem_trail_lock_pct: float = 80.0            # Lock 80% of peak gains
+    # v7.6: WR-lift filters from Apr 2026 backtest (n=18 → 5W/1L = 83% WR after filters)
+    pem_r5m_skip_above_pct: float = 1.0         # Skip if first_5min_return > +1% (chase-top filter; cuts 4 of 5 same-day SL losers)
+    pem_normal_mode_only: bool = True           # PEM only fires in NORMAL mode (BEAR/LOW_RISK had 33% WR vs NORMAL 83%)
+    pem_max_hold_days: int = 2                  # Cap PEM hold at 2 days (HUM was stuck 7 days under global MAX_HOLD_DAYS=7)
 
     # =========================================================================
     # PRE-EARNINGS DRIFT (PED) STRATEGY (v6.53)

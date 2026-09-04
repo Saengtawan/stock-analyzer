@@ -399,6 +399,9 @@ class AutoTradingEngine:
     PEM_MAX_POSITIONS: int
     PEM_POSITION_SIZE_PCT: float
     PEM_SL_PCT: float
+    PEM_R5M_SKIP_ABOVE_PCT: float
+    PEM_NORMAL_MODE_ONLY: bool
+    PEM_MAX_HOLD_DAYS: int
 
     # Pre-Earnings Drift (PED) v6.53
     PED_ENABLED: bool
@@ -560,6 +563,7 @@ class AutoTradingEngine:
                 pem_config = {
                     'pem_gap_threshold_pct': self.PEM_GAP_THRESHOLD_PCT,
                     'pem_volume_early_ratio_min': self.PEM_VOLUME_EARLY_RATIO_MIN,
+                    'pem_r5m_skip_above_pct': self.PEM_R5M_SKIP_ABOVE_PCT,
                 }
                 self.pem_screener = PEMScreener(broker=self.broker, config=pem_config)
                 logger.info("✅ PEMScreener initialized (v6.29)")
@@ -989,6 +993,14 @@ class AutoTradingEngine:
         # v6.60: PEM trailing
         self.PEM_TRAIL_ACTIVATION_PCT = getattr(cfg, 'pem_trail_activation_pct', 2.0)
         self.PEM_TRAIL_LOCK_PCT = getattr(cfg, 'pem_trail_lock_pct', 80.0)
+        # 2026-05-09: ml_filter-specific trailing (Layer B lock).
+        # Activate at +2% peak, lock 25% → SL ≈ +0.5% at trigger.
+        self.ML_FILTER_TRAIL_ACTIVATION_PCT = getattr(cfg, 'ml_filter_trail_activation_pct', 2.0)
+        self.ML_FILTER_TRAIL_LOCK_PCT = getattr(cfg, 'ml_filter_trail_lock_pct', 25.0)
+        # v7.6: PEM WR-lift filters (Apr 2026 backtest: 44% → 83% WR over 18 trades)
+        self.PEM_R5M_SKIP_ABOVE_PCT = getattr(cfg, 'pem_r5m_skip_above_pct', 1.0)
+        self.PEM_NORMAL_MODE_ONLY = getattr(cfg, 'pem_normal_mode_only', True)
+        self.PEM_MAX_HOLD_DAYS = getattr(cfg, 'pem_max_hold_days', 2)
         self.PEM_SKIP_VIX = getattr(cfg, 'pem_skip_vix', False)  # v6.69: bypass VIX for PEM
         self.OVN_SKIP_VIX = getattr(cfg, 'overnight_gap_skip_vix', True)  # v6.76: bypass VIX for OVN (overnight holds, own gap-down protection)
 
@@ -1737,6 +1749,9 @@ class AutoTradingEngine:
                         elif _startup_src == SignalSource.PEM:
                             _startup_trail_act = self.PEM_TRAIL_ACTIVATION_PCT
                             _startup_trail_lock = self.PEM_TRAIL_LOCK_PCT
+                        elif _startup_src == SignalSource.ML_FILTER:
+                            _startup_trail_act = self.ML_FILTER_TRAIL_ACTIVATION_PCT
+                            _startup_trail_lock = self.ML_FILTER_TRAIL_LOCK_PCT
                         else:
                             _startup_trail_act = self.TRAIL_ACTIVATION_PCT
                             _startup_trail_lock = self.TRAIL_LOCK_PCT
@@ -4254,6 +4269,11 @@ class AutoTradingEngine:
             return SignalSource.PED
         if scan_type == 'premarket_gap':
             return SignalSource.PREMARKET_GAP
+        if scan_type == 'ml_filter':
+            return SignalSource.ML_FILTER
+        # Fallback: detect ml_filter via sl_method/source/strategy
+        if hasattr(signal, 'strategy') and getattr(signal, 'strategy', '') == 'ml_filter':
+            return SignalSource.ML_FILTER
         # sl_method / source attribute from screener output (secondary)
         sl_method = getattr(signal, 'sl_method', '')
         source_attr = signal.__dict__.get('source', '') if hasattr(signal, '__dict__') else ''
@@ -5051,17 +5071,13 @@ class AutoTradingEngine:
                 )
                 return False, f"BREADTH_CRASH delta={breadth_delta:.1f}%"
 
-            # Gate 3: BREADTH_NOT_RECOVERING — breadth must be improving (delta > 0)
-            # WR without: 42%, with breadth_delta>0: 54% (n=232). Fail-open if data unavailable.
-            if breadth_delta is not None and breadth_delta <= 0:
-                logger.warning(f"❌ BREADTH_NOT_RECOVERING {symbol}: breadth_delta_5d={breadth_delta:.1f}% <= 0")
-                self._log_filter_rejection(
-                    symbol, current_price, "BREADTH_NOT_RECOVERING",
-                    f"breadth_delta_5d {breadth_delta:.1f}% <= 0 (not recovering)",
-                    {"breadth_not_recovering": {"passed": False}},
-                    signal_score, signal_sector, signal_source, signal, mode,
-                )
-                return False, f"BREADTH_NOT_RECOVERING delta={breadth_delta:.1f}%"
+            # Gate 3: BREADTH_NOT_RECOVERING — DISABLED (v7.10, 2026-05-01)
+            # Original v1.3: WR 42%→54% with delta>0 (n=232). But Apr 2026 review showed
+            # this gate was rejecting WINNERS in current regime: 4 rejected signals had
+            # 3W/1L = 75% WR, avg o3d +5.10%/trade (CEG +9.35, AMT +1.88, CSIQ +12.16,
+            # TSLA -3.01). The mild "delta <= 0" threshold caught flat-breadth days that
+            # are no longer predictive of dip-bounce failure. BREADTH_CRASH gate (delta
+            # < -15%) still blocks structural breakdowns. Restore if WR drifts < 50%.
 
             # Gate 4: SECTOR_RED — stock's sector must be up today
             # WR with sector_1d>0: 48% alone, combined with breadth_delta>0: 68% (n=102)
@@ -5520,12 +5536,16 @@ class AutoTradingEngine:
         _is_pem_src = signal_source == 'pem'
         _is_ovn_src = signal_source == 'overnight_gap'
         _is_gap_src = signal_source == 'premarket_gap'
+        _is_ml_src = signal_source == 'ml_filter'
         if _is_ovn_src:
             _trail_act = self.OVN_TRAIL_ACTIVATION_PCT
             _trail_lock = self.OVN_TRAIL_LOCK_PCT
         elif _is_pem_src or _is_gap_src:
             _trail_act = self.PEM_TRAIL_ACTIVATION_PCT
             _trail_lock = self.PEM_TRAIL_LOCK_PCT
+        elif _is_ml_src:
+            _trail_act = self.ML_FILTER_TRAIL_ACTIVATION_PCT
+            _trail_lock = self.ML_FILTER_TRAIL_LOCK_PCT
         else:
             _trail_act = self.TRAIL_ACTIVATION_PCT
             _trail_lock = self.TRAIL_LOCK_PCT
@@ -5656,12 +5676,16 @@ class AutoTradingEngine:
             _is_pem_src2 = signal_source == 'pem'
             _is_ovn_src2 = signal_source == 'overnight_gap'
             _is_gap_src2 = signal_source == 'premarket_gap'
+            _is_ml_src2 = signal_source == 'ml_filter'
             if _is_ovn_src2:
                 _trail_act = self.OVN_TRAIL_ACTIVATION_PCT
                 _trail_lock = self.OVN_TRAIL_LOCK_PCT
             elif _is_pem_src2 or _is_gap_src2:
                 _trail_act = self.PEM_TRAIL_ACTIVATION_PCT
                 _trail_lock = self.PEM_TRAIL_LOCK_PCT
+            elif _is_ml_src2:
+                _trail_act = self.ML_FILTER_TRAIL_ACTIVATION_PCT
+                _trail_lock = self.ML_FILTER_TRAIL_LOCK_PCT
             else:
                 _trail_act = self.TRAIL_ACTIVATION_PCT
                 _trail_lock = self.TRAIL_LOCK_PCT
@@ -6372,6 +6396,28 @@ class AutoTradingEngine:
                         logger.info(f"✅ Retrieved actual fill price for {symbol}: ${actual_fill_price:.2f} (stop @ ${managed_pos.current_sl_price:.2f})")
                 except Exception as e:
                     logger.warning(f"Failed to get fill price from order {managed_pos.sl_order_id}: {e}")
+
+            # v7.9: If sl_order_id was canceled (e.g., replaced by market sell that filled >10s later),
+            # search Alpaca for the most recent filled SELL order for this symbol.
+            # Without this, we would fall back to current_sl_price (stop trigger), which is WRONG
+            # when the actual exit was a market sell at a different price.
+            if not actual_fill_price:
+                try:
+                    from alpaca.trading.requests import GetOrdersRequest
+                    from alpaca.trading.enums import QueryOrderStatus
+                    request = GetOrdersRequest(
+                        status=QueryOrderStatus.CLOSED,
+                        symbols=[symbol],
+                        limit=10,
+                    )
+                    recent_orders = self.broker.client.get_orders(filter=request)
+                    for o in recent_orders:
+                        if o.side.value == 'sell' and o.status.value == 'filled' and o.filled_avg_price:
+                            actual_fill_price = float(o.filled_avg_price)
+                            logger.info(f"✅ Recovered fill price for {symbol} from recent orders: ${actual_fill_price:.2f} (order {o.id})")
+                            break
+                except Exception as e:
+                    logger.warning(f"Failed to scan recent SELL orders for {symbol}: {e}")
 
             # Fallback to stop price if can't get actual fill
             sell_price = actual_fill_price if actual_fill_price else managed_pos.current_sl_price
@@ -7458,6 +7504,12 @@ class AutoTradingEngine:
                 continue  # Skip other checks for this position
 
         for symbol, managed_pos in list(self.positions.items()):
+            # v7.6: PEM-specific shorter cap (was hitting global 7-day limit and getting stuck)
+            _src = getattr(managed_pos, 'source', '')
+            if _src == 'pem' and managed_pos.days_held >= self.PEM_MAX_HOLD_DAYS:
+                logger.info(f"Closing {symbol} [PEM] - held {managed_pos.days_held} days (cap={self.PEM_MAX_HOLD_DAYS})")
+                self._close_position(symbol, managed_pos, "PEM_MAX_HOLD_DAYS", force=True)
+                continue
             if managed_pos.days_held >= self.MAX_HOLD_DAYS:
                 logger.info(f"Closing {symbol} - held {managed_pos.days_held} days")
                 self._close_position(symbol, managed_pos, "MAX_HOLD_DAYS", force=True)
@@ -8594,6 +8646,13 @@ class AutoTradingEngine:
 
         # v6.40: DON'T set done flag yet - only after successful execution
         params = self._get_effective_params()
+
+        # v7.6: PEM only fires in NORMAL mode (BEAR/LOW_RISK = 33% WR vs NORMAL = 83%)
+        if self.PEM_NORMAL_MODE_ONLY and params.get('mode') != 'NORMAL':
+            logger.info(f"📊 PEM Scan SKIP: mode={params.get('mode')} (require NORMAL)")
+            self._pem_scan_done = today
+            return
+
         logger.info(f"📊 PEM Scan START: {len(self.positions)}/{self.MAX_POSITIONS_TOTAL} total, {pem_count}/{self.PEM_MAX_POSITIONS} PEM, "
                    f"scanning for earnings gaps ≥{self.PEM_GAP_THRESHOLD_PCT}%...")
 

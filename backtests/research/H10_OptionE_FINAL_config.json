@@ -1,0 +1,219 @@
+{
+  "version": "H10_OptionE_FINAL",
+  "date": "2026-06-06",
+  "status": "backtest_only_not_deployed",
+
+  "performance": {
+    "3yr_total_pct_flat": 57.3,
+    "3yr_total_pct_kelly": 115,
+    "holdout_1yr_pct_flat": 52.1,
+    "holdout_1yr_pct_kelly": 99,
+    "sharpe_annualized": 2.42,
+    "total_picks_3yr": 212,
+    "wr_3yr": 57.0,
+    "avg_per_pick_pct": 0.27,
+    "vs_h8_full_projection_3yr": 425,
+    "vs_h8_kelly_projection_3yr": 850
+  },
+
+  "win_thr": 0.75,
+  "train_window_days": 840,
+  "regime_window_days": 90,
+  "stack_train_window_days": 180,
+  "seeds": [0, 1, 2, 3, 4],
+  "wf_cadence": "monthly",
+
+  "zones": {
+    "Z1": {
+      "mfo_range": [0, 9],
+      "source": "V2",
+      "source_description": "Sector specialist only (840d sliding × sector FT, no regime adapter)",
+      "label": "label_z12_market_3dd",
+      "label_description": "EOD-green AND no -3% intraday DD",
+      "win_model_hp": {
+        "learning_rate": 0.05, "max_depth": 3, "num_leaves": 24,
+        "min_child_samples": 50, "reg_alpha": 1.0, "reg_lambda": 1.0,
+        "n_estimators": 500
+      },
+      "win_ensemble": "min of 5 seeds",
+      "loss_model_hp": "same as win",
+      "loss_ensemble": "max of 5 seeds (conservative)",
+      "cell_filter": "S2",
+      "cell_filter_rule": "(avg > 0) OR (WR >= 50)",
+      "regime_gate": "sec_rel_strength > 0",
+      "dow_filter": null,
+      "perf_3yr_pct": 16.7,
+      "perf_holdout_pct": 10.4,
+      "perf_N": 60,
+      "perf_WR": 60.0
+    },
+    "Z2": {
+      "mfo_range": [10, 29],
+      "source": "VC",
+      "label": "label_z12_market_3dd",
+      "cell_filter": "S7",
+      "cell_filter_rule": "(avg > 0) AND (WR >= 50)",
+      "regime_gate": null,
+      "regime_gate_description": "NO HARD RULE — stack model handles via vix_x_vix5d interaction feature",
+      "dow_filter": null,
+      "perf_3yr_pct": 18.5,
+      "perf_holdout_pct": 11.7,
+      "perf_N": 45,
+      "perf_WR": 55.6
+    },
+    "Z3": {
+      "mfo_range": [30, 44],
+      "source": "VC",
+      "label": "label_z34_market",
+      "cell_filter": "S7",
+      "regime_gate": null,
+      "regime_gate_description": "NO HARD RULE — stack model handles via sec_rel_strength feature",
+      "dow_filter": "skip_Fri",
+      "perf_3yr_pct": 5.1,
+      "perf_holdout_pct": 12.0,
+      "perf_N": 59,
+      "perf_WR": 52.5
+    },
+    "Z4": {
+      "mfo_range": [45, 75],
+      "source": "VC",
+      "label": "label_z34_market",
+      "cell_filter": null,
+      "cell_filter_description": "no cell filter — Option E gate handles selection",
+      "regime_gate": "Option_E_star",
+      "regime_gate_rule": {
+        "if_vix_below_25": {
+          "if_sector_in_good_sectors": "spy_intra > 0.2",
+          "else": "spy_intra > 0.5"
+        },
+        "if_vix_at_least_25": "spy_intra > 0.5"
+      },
+      "good_sectors": ["Consumer Defensive", "Basic Materials", "Technology"],
+      "vix_crisis_threshold": 25,
+      "dow_filter": null,
+      "perf_3yr_pct": 8.1,
+      "perf_holdout_pct": 13.2,
+      "perf_N": 52,
+      "perf_WR": 55.8
+    }
+  },
+
+  "stack_model": {
+    "type": "LightGBM regression",
+    "target": "pnl_EOD",
+    "hp": {
+      "learning_rate": 0.05,
+      "max_depth": 3,
+      "num_leaves": 8,
+      "min_child_samples": 10,
+      "reg_alpha": 1.0,
+      "reg_lambda": 1.0,
+      "rounds": 100
+    },
+    "ensemble": "mean of 5 seeds",
+    "training_window_days": 180,
+    "features_count": 33,
+    "feature_groups": {
+      "base_15": ["wp_use","lp_use","spy_intra","vix","vix_5d_chg","ad_ratio","sec_rel_strength","vvix","skew","vix_term_spread","mom5d","mom20d","spy_green","cell_WR","cell_avg"],
+      "dow_one_hot_5": ["dow_mon","dow_tue","dow_wed","dow_thu","dow_fri"],
+      "metadata_1": ["mins_from_open"],
+      "interactions_7": ["vix_x_vix5d","spy_x_sec","vix_x_spy","ad_x_spy","mom5_x_mom20","wp_x_sec","wp_minus_lp"],
+      "indicators_5": ["vix_inv","sec_strong","vix_low","spy_strong","vix5d_falling"]
+    }
+  },
+
+  "ranking": {
+    "score": "stack_pred",
+    "selection": "top-1 per day per zone"
+  },
+
+  "sizing": {
+    "method": "Kelly_linear_by_wp_use",
+    "formula": "weight = 2 * wp_use / mean(wp_use)",
+    "avg_size_multiplier": 2.0,
+    "max_size_multiplier_observed": 4.0
+  },
+
+  "entry_rule": {
+    "timing": "scan_now (market order)",
+    "no_change_from_production": true
+  },
+  "exit_rule": {
+    "default": "hold_to_EOD",
+    "Z4_hard_sl_pct": -3.0,
+    "no_change_from_production": true
+  },
+
+  "verification": {
+    "vix_threshold_sensitivity": "robust across 20-30 (all within +/- 3pp)",
+    "sector_leave_one_out": {
+      "default_4": 48.5,
+      "minus_Industrials": 57.3,
+      "minus_Technology": 42.5,
+      "minus_Consumer_Defensive": 40.8,
+      "minus_Basic_Materials": 35.3,
+      "decision": "Drop Industrials — only sector that hurts"
+    },
+    "crisis_test": {
+      "calm_VIX_below_20_N": 46,
+      "calm_VIX_below_20_total": 0.2,
+      "crisis_VIX_at_least_25_N": 3,
+      "crisis_VIX_at_least_25_total": 1.1,
+      "verdict": "Crisis SPY>0.5 gate effective"
+    }
+  },
+
+  "lineage": [
+    {"version": "H8 FINAL v3", "3yr_pct": 141.8, "rules": 5},
+    {"version": "H9", "3yr_pct_proj": 275, "rules": 3},
+    {"version": "H10", "3yr_pct_proj": 286, "rules": 2},
+    {"version": "H10 + Option E (4 sect)", "3yr_pct_proj": 361, "rules": "2+1_conditional"},
+    {"version": "H10 + Option E* (3 sect)", "3yr_pct_proj": 425, "rules": "2+1_conditional", "champion": true}
+  ],
+
+  "files": {
+    "trainer_scripts": [
+      "/tmp/finetune_v2_prod_baseline.py",
+      "/tmp/finetune_v3_regime.py",
+      "/tmp/p2_z2_label.py",
+      "/tmp/c_z4_label.py",
+      "/tmp/loss_models_train.py"
+    ],
+    "stack_scripts": [
+      "/tmp/h10_smarter_stack.py",
+      "/tmp/h10_z4_conditional.py",
+      "/tmp/h10e_verify_save.py"
+    ],
+    "prediction_csvs": {
+      "Z1_V2": "/tmp/finetune_v2_predictions.csv",
+      "Z2_VC_z12_3dd": "/tmp/p2_z2_pred_z12_market_3dd.csv",
+      "Z3_VC": "/tmp/finetune_v3_predictions.csv",
+      "Z4_VC": "/tmp/c_z4_pred_z34_market_current.csv",
+      "loss_Z1_to_Z4": "/tmp/loss_pred_Z{1,2,3,4}.csv"
+    },
+    "final_picks_csv": "/tmp/h10_option_e_picks.csv"
+  },
+
+  "open_levers": [
+    "Z2_Z3_sector_conditional_filter (analog to Z4)",
+    "NEW_data_sources_order_flow_options_news",
+    "Multi_pick_top_2_per_day",
+    "Dynamic_VIX_threshold_learned",
+    "Sector_ETF_momentum_hard_gate",
+    "Lambdarank_on_V2_architecture",
+    "Recalibrated_win_p_EV_threshold"
+  ],
+
+  "deploy_estimate_hours": 25,
+
+  "lessons_logged": [
+    "Loss model alone redundant with win model (same features); useful only as stack input",
+    "Stack model REPLACES 3 hard rules but cannot replace DOW (Fri) or Z4 SPY",
+    "Larger stack models OVERFIT — small (depth 3, 100 rounds) optimal",
+    "Z4 SPY shows U-shape: +0.5% AND +0.2% both work, mid-band +0.3-0.4% is dead zone",
+    "Sector-conditional Z4 gate unlocks mid-band winners (ConsDef/Materials/Tech)",
+    "Industrials adds noise in mid-band — drop from GOOD_SECTORS",
+    "Kelly linear by wp_use doubles return at same Sharpe (free lunch)",
+    "VIX threshold robust across 20-30 — sensitivity test passed"
+  ]
+}

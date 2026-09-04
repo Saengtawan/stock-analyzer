@@ -1,0 +1,48 @@
+{
+  "version": "v18-PROD",
+  "trained": "2026-06-12",
+  "status": "DEPLOYED LIVE 2026-06-13 — integrated into exit_check/exit_loop via src/exit_ml/inference_v18.py; parity-verified bit-exact vs research replay (KLAC TRAIL +2.73 / SCCO PL +0.62); user deployed direct, skipped shadow. Rollback: --v17c flag or env EXIT_ML_VERSION=v17c.",
+  "training_data": {
+    "dataset": "/tmp/exit_aug_ds.pkl (rebuild: build_dataset.py)",
+    "span": "2024-05-01..2026-05-29 (full \u2014 post-validation retrain on all data)",
+    "population": "H12-A broad pop: cell-ok + wp>=0.70, top-1/(sym,date,zone), 5348 positions, 424469 snaps",
+    "snap_grid": "every 5 min from entry fill (em 580), entry=09:35 snapshot rank / fill 09:40 bar close"
+  },
+  "label": "new_0.3: exit-now beats hold-EOD by >=0.3pp (cur_pnl - pnl_EOD >= 0.3)",
+  "model": "LightGBM 5-seed ensemble per sector; n_est 200, leaves 15, lr 0.03, mcs 40, sub/col 0.8, cw {0:1.0,1:1.3}",
+  "features": "v17c build_features (48-52 dim per sector) + appended [spy_dd, spy_dd*|stock_dd|, sector_breadth_dd03]",
+  "feature_aug_note": "spy_dd = SPY drawdown from intraday high (cumulative %); breadth = count of sector ETFs >0.3 below their intraday high; appended AFTER base X in this order",
+  "exit_stack": {
+    "_order": "evaluate per 5-min snap, first hit wins",
+    "1_SL": {
+      "min_hold_min": 20,
+      "cur_pnl_lte": -2.5
+    },
+    "2_trail_prop": {
+      "min_hold_min": 25,
+      "hwm_gte": 1.0,
+      "cur_gte": 0.0,
+      "giveback_gte": "max(1.0, 0.4*HWM)",
+      "spy_dd_lte": -0.3
+    },
+    "3_model_PL": {
+      "min_hold_min": 60,
+      "p_gte": 0.55,
+      "cur_gte": 0.3,
+      "spy_dd_lte": -0.3
+    },
+    "4_else": "hold to EOD"
+  },
+  "validated_holdout": {
+    "harness": "gated H12-A top-1 picks, 2025-05-01..2026-05-29, N=279, intraday_bars_5m",
+    "hold_EOD": "WR58 tot+117.1 worst-8.72 Sh+2.93 mDD-14.8",
+    "v18_stack": "WR63 tot+135.9 worst-3.04 Sh+3.89 mDD-8.6",
+    "per_quarter": "5/5 WR better, 5/5 worst capped, 3/5 avg better",
+    "ablations_2026_06_12": "label/HP grid: current=top of 20 configs; PL trigger p>=0.55 only variant beating no-PL both folds (3.89 vs 3.60); no further feature gate exists (post-mortem d<0.3 all)"
+  },
+  "scope_limits": {
+    "riser_lane": "DO NOT apply v18 to riser_momentum picks \u2014 rejected 2026-06-12 (SL fires 34-42%, kills 91% of 25H2 profit). Riser lane = hold-EOD.",
+    "vix_gate": "inherit v17c VIX>=28 -> skip exit ML (hold-EOD)"
+  },
+  "rollout": "SHADOW first: log verdicts alongside v17c in exit_check/exit_loop, no execution; compare 10-15 forward picks before LIVE."
+}

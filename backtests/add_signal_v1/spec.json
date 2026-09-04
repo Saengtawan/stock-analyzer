@@ -1,0 +1,70 @@
+{
+  "version": "v1",
+  "deployed": "2026-06-05",
+  "commit": "6252821",
+  "purpose": "ADD signal — DCA opportunity when position dips but Exit ML still strong-HOLD. Advisory output in exit_check/exit_loop; does NOT auto-execute. User decides size (suggested 0.5x).",
+  "common_rules": {
+    "p_ratio_max": 0.5,
+    "p_ratio_meaning": "ml_prob / sector-zone-threshold. ≤0.5 = Exit ML at least 2x below EXIT trigger = strong HOLD",
+    "min_elapsed_minutes": 30,
+    "exit": "hold-EOD (per-tier exit timing not used — backtest showed EOD == ML-followed exit)"
+  },
+  "tiers": {
+    "T1": {
+      "zone": "Z1", "sector": "any",
+      "dip_thr_pct": -0.5,
+      "backtest_3yr": {"N": 22, "WR_pct": 82, "avg_pct": 1.27, "exit": "EOD"},
+      "recent_1mo": {"N": 1, "wins": 1, "picks": ["VTR 2026-04-28 +0.92%"]}
+    },
+    "T2a": {
+      "zone": "Z3", "sector": "Energy",
+      "dip_thr_pct": -0.5,
+      "backtest_3yr": {"N": 22, "WR_pct": 64, "avg_pct": 0.42, "exit": "EOD"},
+      "recent_1mo": {"N": 2, "wins": 2, "picks": ["DVN 2026-04-22 +1.43%", "HAL 2026-05-08 +0.10%"]}
+    },
+    "T2b": {
+      "zone": "Z3", "sector": "Industrial",
+      "dip_thr_pct": -0.5,
+      "backtest_3yr": {"N": 10, "WR_pct": 70, "avg_pct": 0.42, "exit": "EOD"},
+      "recent_1mo": {"N": 0}
+    },
+    "T3": {
+      "zone": "Z4", "sector": "Health",
+      "dip_thr_pct": -1.0,
+      "backtest_3yr": {"N": 5, "WR_pct": 80, "avg_pct": 0.67, "exit": "EOD", "caveat": "small N — needs forward validation"},
+      "recent_1mo": {"N": 1, "wins": 1, "picks": ["DXCM 2026-05-01 +1.50%"]}
+    },
+    "T4": {
+      "zone": "Z4", "sector": "Industrial",
+      "dip_thr_pct": -2.0,
+      "backtest_3yr": {"N": 5, "WR_pct": 80, "avg_pct": 0.56, "exit": "EOD", "caveat": "small N — needs forward validation"},
+      "recent_1mo": {"N": 1, "wins": 1, "picks": ["GNRC 2026-05-26 +0.18%"]}
+    }
+  },
+  "skipped_combinations": {
+    "Z2_any": "no edge in any sector",
+    "Z3_other_sectors": "weak (Materials WR 36-45%, ConsCyc WR 36-45%, Health weak, Tech 50/66 but small)",
+    "Z4_Basic_Materials_-0.5": "3yr +3.25% N=20 strong BUT recent 1mo -0.93% (sample shift) — skipped",
+    "Z4_Industrial_-0.5": "weak both 3yr (-0.14%) and recent (-0.72%) — skipped",
+    "Z4_Tech": "0 fires recent + 50% WR 3yr — skipped"
+  },
+  "summary_recent_1mo": {
+    "total_fires": 5,
+    "wins": 5,
+    "WR_pct": 100,
+    "avg_pct": 0.79,
+    "note": "Small sample but consistent direction"
+  },
+  "implementation": {
+    "code": "src/exit_ml/inference.py::evaluate_add_signal()",
+    "display_cli": "src/exit_ml/cli.py — 'ADD:' line",
+    "display_loop": "scripts/exit_loop.sh — '+ADD-Tx' flag + banner on first fire"
+  },
+  "operational_notes": [
+    "ADD is ADVISORY — user must place order manually at Alpaca",
+    "Original position continues to follow Exit ML signal independently",
+    "Alpaca auto-blends cost basis — tracker shows separate streams for clarity",
+    "Suggested ADD size: 0.5x of original position (user override)",
+    "Forward-track T3/T4 (small N) for 5-10 fires before treating as fully proven"
+  ]
+}

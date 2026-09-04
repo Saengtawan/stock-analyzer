@@ -1,0 +1,178 @@
+"""Stage 2 — assemble the context the AI reasons over, across the BROAD universe.
+
+For the day: macro narrative + regime. For each mover: gap direction, sector, and its
+recent news/story (DB; flag web-search where absent). Code only gathers — the AI judges.
+"""
+from __future__ import annotations
+import argparse, sqlite3, datetime, zoneinfo, requests, json, os
+from .universe import gather_universe, _keys
+from .premarket import gather_preopen
+from . import journal
+
+DB = "data/trade_history.db"
+ET = zoneinfo.ZoneInfo("America/New_York")
+FIELD_DIR = "plans/field"
+
+
+def _alpaca_news(syms):
+    """Recent news headlines per symbol (Alpaca news API, one batched call) so the AI reads
+    catalysts straight from the brief instead of spending turns web-searching."""
+    if not syms:
+        return {}
+    try:
+        r = requests.get("https://data.alpaca.markets/v1beta1/news", headers=_keys(),
+                         params={"symbols": ",".join(syms), "limit": 50, "sort": "desc"},
+                         timeout=15).json()
+    except Exception:
+        return {}
+    out = {}
+    # prefer name-specific items (few symbols), most-recent first
+    for n in sorted(r.get("news", []), key=lambda n: len(n.get("symbols", []) or [])):
+        h = (n.get("headline") or "")[:80]
+        # summary gives the AI the actual catalyst (beat/raise/PT/denial) so it rarely needs
+        # to spend a web-search turn — same Alpaca call, one extra field
+        summ = " ".join((n.get("summary") or "").split())[:150]
+        when = (n.get("created_at") or "")[:16]
+        for s in (n.get("symbols") or []):
+            if s in syms and len(out.get(s, [])) < 2 and h not in [x[1] for x in out.get(s, [])]:
+                out.setdefault(s, []).append((when, h, summ))
+    return out
+
+
+def _sector(p, sym, _c={}):
+    if sym in _c:
+        return _c[sym]
+    r = p.execute("SELECT sector FROM stock_fundamentals WHERE symbol=? LIMIT 1", (sym,)).fetchone()
+    _c[sym] = (r[0] if r and r[0] else "?")
+    return _c[sym]
+
+
+def _news(p, sym, date, days=4):
+    return list(p.execute(
+        "SELECT scan_date_et, sentiment_label, headline FROM news_events "
+        "WHERE symbol=? AND scan_date_et<=? AND scan_date_et>=date(?, '-%d day') "
+        "ORDER BY published_at DESC LIMIT 3" % days, (sym, date, date)))
+
+
+def _news_asof(p, sym, cutoff_iso, days=4):
+    """Sim-safe: only news PUBLISHED at/before the point-in-time cutoff (no lookahead)."""
+    return list(p.execute(
+        "SELECT substr(published_at,1,16), sentiment_label, headline FROM news_events "
+        "WHERE symbol=? AND published_at<=? AND published_at>=datetime(?, '-%d day') "
+        "ORDER BY published_at DESC LIMIT 3" % days, (sym, cutoff_iso, cutoff_iso)))
+
+
+def build(date, top=100, db=DB, sim_minute=None):
+    p = sqlite3.connect(db)
+    macro = gather_preopen(date)
+    warn = []
+    if sim_minute:
+        from .universe_sim import gather_universe_sim
+        movers = gather_universe_sim(date, minute=sim_minute, db=db)
+    else:
+        movers = gather_universe(top=top, db=db)
+
+    # TIME context — the AI must know the clock: a reversal at 09:35 has all day to play
+    # out; at 15:00 there's little time left. Live = now; sim = the reconstructed minute.
+    if sim_minute:
+        sh, sm = divmod(sim_minute, 60)
+        scan_label = f"~{sh:02d}:{sm:02d} ET (SIMULATED point-in-time)"
+        mins_left = 16 * 60 - sim_minute
+        cutoff_iso = f"{date}T{sh:02d}:{sm:02d}:00"   # news cutoff = the sim wall-clock (no lookahead)
+    else:
+        cutoff_iso = None
+        now = datetime.datetime.now(ET)
+        scan_label = now.strftime("%H:%M ET %a")
+        mins_left = 16 * 60 - (now.hour * 60 + now.minute)
+        # A2: the "room to close" framing only holds during RTH — refuse to mislead otherwise
+        mins_now = now.hour * 60 + now.minute
+        if now.weekday() >= 5:
+            warn.append("⚠️ WEEKEND — market closed; this field is stale/empty. Do NOT trade.")
+        elif mins_now < 9 * 60 + 30:
+            warn.append("⚠️ BEFORE THE OPEN (pre-09:30 ET) — no intraday field yet; the 'room to "
+                        "close' numbers are not meaningful. Treat as a preview only, do NOT emit picks.")
+        elif mins_now >= 16 * 60:
+            warn.append("⚠️ AFTER THE CLOSE (post-16:00 ET) — session over; this is replay, not a "
+                        "tradeable scan.")
+    mins_left = max(0, mins_left)
+
+    # A4: an empty field during RTH almost always means a DATA-PIPE failure (expired key,
+    # rate-limit, bars outage) — NOT a genuine no-mover day. Say so loudly so a pipeline
+    # outage can't masquerade as a clean 'nothing to trade' abstain.
+    if not movers and not warn:
+        warn.append("⚠️ EMPTY FIELD during market hours — this is almost certainly a DATA-PIPE "
+                    "FAILURE (Alpaca key/rate-limit/bars outage), not a real no-mover day. "
+                    "ABSTAIN and flag PIPELINE ERROR; do not conclude 'nothing tradeable'.")
+
+    # B2: persist the live field snapshot so the outcome step can realize a mechanical
+    # baseline (deepest gap-down already reclaiming) as a control arm vs the AI's picks.
+    if not sim_minute and movers:
+        try:
+            os.makedirs(FIELD_DIR, exist_ok=True)
+            snap = [{"sym": m.sym, "gain": m.pct_change, "gap": round((m.price/m.prev_close-1)*100, 2)
+                     if m.prev_close else None, "peak": m.peak_pct, "trough": m.trough_pct,
+                     "off_trough": round(m.off_trough, 2), "slope10": m.slope10,
+                     "vwap_dist": m.vwap_dist, "rel_vol": m.rel_vol} for m in movers]
+            json.dump(snap, open(os.path.join(FIELD_DIR, f"{date}.json"), "w"))
+        except Exception:
+            pass
+
+    L = [f"=== CONTEXT v2 {date} ==="]
+    for w in warn:                       # A2/A4: loud banner if the scan is invalid/suspect
+        L += [w]
+    # B1 — FEEDBACK LOOP: show the AI its own recent realized picks so it isn't blind to how
+    # its judgment has actually been doing (not hardcoded anecdotes — the live journal).
+    try:
+        rec = journal.recent_outcomes(8)
+    except Exception:
+        rec = []
+    if rec:
+        wins = sum(1 for *_, o in rec if o is not None and o > 0)
+        nres = sum(1 for *_, o in rec if o is not None)
+        L += ["", f"YOUR RECENT LIVE PICKS ({wins}/{nres} closed green) — the realized record:"]
+        for d, sym, arch, o in rec:
+            L.append(f"  {d} {sym:6} [{arch}] -> {o:+.2f}%" if o is not None else
+                     f"  {d} {sym:6} [{arch}] -> (open)")
+    L += [
+         f"SCAN TIME: {scan_label} — {mins_left} min ({mins_left/60:.1f}h) until the 16:00 ET close.",
+         "  OBJECTIVE: you enter now and exit by 16:00 ET — maximize the position's P&L at the",
+         "  close. Every number below is a RAW FACT as of now. What makes a good entry, which",
+         "  signals matter, whether/when to act or abstain — reason it out yourself from the data",
+         "  (and query history via scripts/ai_trader_data.sh if a fact would help). Nothing here",
+         "  prescribes a setup.",
+         f"prior VIX {macro.get('vix_prior')} | macro/fed/geo sentiment {macro.get('macro_sent')} | "
+         f"regime {macro.get('spy_regime_prior')}",
+         "", "MACRO — recent negative-leaning headlines (sentiment score, raw):"]
+    for s, imp, h in (macro.get("macro_neg_headlines") or [])[:6]:
+        L.append(f"  [{s:+.2f}] {h}")
+    if not macro.get("macro_neg_headlines"):
+        L.append("  (no negative macro flagged)")
+
+    # THE WHOLE UNIVERSE — every mover, raw, no pre-selection. You filter it yourself; nothing
+    # here is highlighted or ranked for you. Columns are facts; news/history are yours to query.
+    L += ["", f"THE UNIVERSE — all {len(movers)} movers as of now, raw. YOU filter this to find the",
+          "ones that will close >2% up. No slice, no highlight, no ordering is done for you.",
+          "  COLUMNS (facts only): now = % vs 09:30 open. off = now−session-peak; up = now−session-low.",
+          "  gap = % vs prev close. Δ10m = % over last ~10 min (na if <11 bars). vwap = % vs session",
+          "  VWAP. rv = volume so far ÷ time-adjusted 20d avg. Get news via WebSearch or "
+          "sql \"SELECT ... FROM news_events WHERE symbol=...\"; study past days via the winners/field tools.",
+          "  sym / now / gap / off / up / Δ10m / vwap / rv / sector"]
+    for m in sorted(movers, key=lambda m: m.sym):
+        g = f"{(m.price/m.prev_close-1)*100:+.0f}" if m.prev_close else "?"
+        rv = f"{m.rel_vol:.1f}" if m.rel_vol is not None else "?"
+        sl = f"{m.slope10:+.1f}" if m.slope10 is not None else "na"
+        L.append(f"  {m.sym:6} {m.pct_change:+5.1f} {g:>4} {m.off_peak:+4.1f} {m.off_trough:+4.1f} "
+                 f"{sl:>5} {m.vwap_dist:+4.1f} {rv:>5}  {_sector(p, m.sym)}")
+    L += ["", "DECIDE -> write plans/decisions/<date>.json (archetype + picks + exit + reason, or abstain)."]
+    return "\n".join(L)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--date", required=True)
+    ap.add_argument("--top", type=int, default=100)
+    print(build(ap.parse_args().date, top=ap.parse_args().top))
+
+
+if __name__ == "__main__":
+    main()

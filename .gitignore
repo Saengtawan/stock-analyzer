@@ -249,12 +249,13 @@ historical_data/
 test_reports/
 test_coverage/
 
-# Model files (if using ML)
-models/
+# Model files (if using ML) — extension-based, NOT directory
+# (avoid broad `models/` pattern — collides with src/database/models/)
 *.pkl
 *.joblib
 *.h5
 *.pb
+catboost_info/
 
 # Documentation builds
 docs/build/
@@ -285,3 +286,52 @@ src/web/portfolio_v3.json
 =*
 sector_cache.json
 sector_cache.backup.json
+data/scan_journal.db
+backtests/models_prod/
+
+# H12-A retrain staging artifacts
+backtests/models_prod_v23_h12a_staging_*
+backtests/models_prod_v23_h12a_pre_swap_*
+configs/h12a_cell_ratings_staging_*
+configs/h12a_cell_ratings_pre_swap_*
+cache/bt_features/features_5yr_staging_*
+cache/bt_features/phase0_labels_staging_*
+
+# orb_trader — forward memory + daily plans (like data/)
+orb_trader/memory.md
+orb_trader/plans/*.json
+
+# resonance system
+resonance/memory.md
+resonance/cache/*
+resonance/plans/*.json
+
+# swing — generated pool/plans (like data/)
+swing/pool/*.json
+swing/plans/*
+swing/__pycache__/
+swing/**/__pycache__/
+
+# all model artifact dirs (huge/regenerable; rclone GDrive, not git)
+backtests/models_*/
+*.bak_*
+backups/
+plans/
+
+# exec_ai — generated plans (like swing)
+exec_ai/plans/*
+exec_ai/__pycache__/
+exec_ai/**/__pycache__/
+data/overnight.db
+
+# --- resonance: keep source under version control (added 2026-09-04) -----------------------------
+# The bare `lib/`, `data/` and `cache/` patterns above are directory-name matches, so they also hide
+# resonance/lib/ and resonance/data/ — both of which contain SOURCE, not artifacts. The existing files
+# there are tracked only because they were added before those rules; any NEW module dropped in either
+# directory would be silently excluded and never committed. Un-ignore the code explicitly.
+!resonance/lib/
+!resonance/lib/*.py
+!resonance/data/
+!resonance/data/*.py
+resonance/data/*.db
+resonance/*.db

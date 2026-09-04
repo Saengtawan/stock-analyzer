@@ -14,7 +14,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 from database.orm.base import get_session
 from sqlalchemy import text
 import argparse
-from datetime import date, timedelta
+from datetime import datetime, date, timedelta
+from zoneinfo import ZoneInfo
+
+ET = ZoneInfo('America/New_York')
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -29,7 +32,7 @@ def monday_of(d: date) -> date:
 def report(weeks: int = 8):
     with get_session() as session:
 
-        today = date.today()
+        today = datetime.now(ET).date()
         start_monday = monday_of(today) - timedelta(weeks=weeks - 1)
 
         print(f"\n{'='*62}")

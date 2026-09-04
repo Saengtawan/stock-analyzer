@@ -51,7 +51,7 @@ def main():
     start = datetime.strptime(args.start, '%Y-%m-%d').date()
     end = datetime.strptime(args.end, '%Y-%m-%d').date()
 
-    conn = None  # via get_session()
+    conn = sqlite3.connect(DB_PATH)  # fixed 2026-06-27 (was stubbed None)
     # Ensure all columns exist
     for col in ['vix3m_close', 'dxy_change_pct', 'regime_label', 'spy_regime',
                 'gold_close', 'crude_close', 'hyg_close',

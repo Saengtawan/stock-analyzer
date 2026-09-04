@@ -1,0 +1,190 @@
+{
+  "version": "H8_FINAL_v3",
+  "date": "2026-06-06",
+  "status": "backtest_only_not_deployed",
+  "performance": {
+    "3yr_total_pct": 141.9,
+    "holdout_year3_pct": 102.7,
+    "vs_production_v22_pp": 350,
+    "total_picks_3yr": 362,
+    "avg_per_pick_pct": 0.40,
+    "overall_wr_3yr": 58.6
+  },
+  "win_thr": 0.75,
+  "train_window_days": 840,
+  "regime_window_days": 90,
+  "seeds": [0, 1, 2, 3, 4],
+  "ensemble_aggregation": "min",
+  "wf_cadence": "monthly",
+
+  "zones": {
+    "Z1": {
+      "mfo_range": [0, 9],
+      "source": "V2",
+      "source_description": "Sector specialist only (840d sliding × sector FT, no regime adapter)",
+      "label": "label_z12_market_3dd",
+      "label_description": "EOD-green AND no -3% intraday DD",
+      "hp_stage1": {
+        "learning_rate": 0.05, "max_depth": 3, "num_leaves": 24,
+        "min_child_samples": 50, "reg_alpha": 1.0, "reg_lambda": 1.0,
+        "n_estimators": 500, "bagging_fraction": 0.8, "feature_fraction": 0.9
+      },
+      "hp_stage2": {
+        "learning_rate": 0.01, "max_depth": 3, "num_leaves": 24,
+        "min_child_samples": 20, "reg_alpha": 1.0, "reg_lambda": 1.0,
+        "bagging_fraction": 0.8, "feature_fraction": 0.9, "rounds": 100,
+        "min_train_rows": 200
+      },
+      "cell_filter": "S2",
+      "cell_filter_rule": "(avg > 0) OR (WR >= 50)",
+      "regime_gate": "(vix < 20) AND (sec_rel_strength > 0)",
+      "dow_filter": null,
+      "perf_3yr_pct": 73.5,
+      "perf_holdout_pct": 51.2,
+      "perf_N": 225,
+      "perf_WR": 58.2,
+      "perf_avg_pct": 0.33
+    },
+    "Z2": {
+      "mfo_range": [10, 29],
+      "source": "VC",
+      "source_description": "Dual-axis: 840d generalist → 90d × sector FT (regime adapter)",
+      "label": "label_z12_market_3dd",
+      "label_description": "EOD-green AND no -3% intraday DD (P2 fix from label_eod_green_v2)",
+      "hp_stage1": {
+        "learning_rate": 0.03, "max_depth": 5, "num_leaves": 47,
+        "min_child_samples": 80, "reg_alpha": 0.5, "reg_lambda": 3.0,
+        "n_estimators": 500, "bagging_fraction": 0.8, "feature_fraction": 0.8
+      },
+      "hp_stage2": {
+        "learning_rate": 0.005, "max_depth": 5, "num_leaves": 47,
+        "min_child_samples": 30, "reg_alpha": 0.5, "reg_lambda": 3.0,
+        "bagging_fraction": 0.8, "feature_fraction": 0.8, "rounds": 80,
+        "min_train_rows": 50
+      },
+      "cell_filter": "S7",
+      "cell_filter_rule": "(avg > 0) AND (WR >= 50)",
+      "regime_gate": "vix_5d_chg < 0",
+      "regime_gate_description": "VIX has declined over past 5 days (fear cooling)",
+      "dow_filter": null,
+      "perf_3yr_pct": 24.7,
+      "perf_holdout_pct": 20.4,
+      "perf_N": 30,
+      "perf_WR": 60.0,
+      "perf_avg_pct": 0.82
+    },
+    "Z3": {
+      "mfo_range": [30, 44],
+      "source": "VC",
+      "source_description": "Dual-axis: 840d generalist → 90d × sector FT (regime adapter)",
+      "label": "label_z34_market",
+      "label_description": "EOD-green relative to market",
+      "hp_stage1": {
+        "learning_rate": 0.05, "max_depth": 4, "num_leaves": 31,
+        "min_child_samples": 30, "reg_alpha": 0.5, "reg_lambda": 1.0,
+        "n_estimators": 300, "bagging_fraction": 0.8, "feature_fraction": 0.8
+      },
+      "hp_stage2": {
+        "learning_rate": 0.01, "max_depth": 4, "num_leaves": 31,
+        "min_child_samples": 15, "reg_alpha": 0.5, "reg_lambda": 1.0,
+        "bagging_fraction": 0.8, "feature_fraction": 0.8, "rounds": 80,
+        "min_train_rows": 50
+      },
+      "cell_filter": "S7",
+      "cell_filter_rule": "(avg > 0) AND (WR >= 50)",
+      "regime_gate": "sec_rel_strength > 0",
+      "dow_filter": "skip_Fri",
+      "dow_filter_description": "Skip Friday (only DOW that generalizes to holdout — Z3 Fri -0.08% train + -1.15% holdout)",
+      "perf_3yr_pct": 40.9,
+      "perf_holdout_pct": 28.1,
+      "perf_N": 85,
+      "perf_WR": 60.0,
+      "perf_avg_pct": 0.48
+    },
+    "Z4": {
+      "mfo_range": [45, 75],
+      "source": "VC",
+      "source_description": "Dual-axis: 840d generalist → 90d × sector FT (regime adapter)",
+      "label": "label_z34_market",
+      "label_description": "EOD-green relative to market",
+      "hp_stage1": {
+        "learning_rate": 0.05, "max_depth": 3, "num_leaves": 8,
+        "min_child_samples": 30, "reg_alpha": 1.0, "reg_lambda": 3.0,
+        "n_estimators": 400, "bagging_fraction": 0.7, "feature_fraction": 0.7
+      },
+      "hp_stage2": {
+        "learning_rate": 0.01, "max_depth": 3, "num_leaves": 8,
+        "min_child_samples": 15, "reg_alpha": 1.0, "reg_lambda": 3.0,
+        "bagging_fraction": 0.7, "feature_fraction": 0.7, "rounds": 80,
+        "min_train_rows": 50
+      },
+      "cell_filter": null,
+      "cell_filter_rule": "no cell filter; regime gate handles selection",
+      "regime_gate": "spy_intra > 0.5",
+      "regime_gate_description": "SPY intraday return > +0.5% (bull trend confirmed for late entry)",
+      "dow_filter": null,
+      "perf_3yr_pct": 2.8,
+      "perf_holdout_pct": 3.0,
+      "perf_N": 24,
+      "perf_WR": 58.3,
+      "perf_avg_pct": 0.12
+    }
+  },
+
+  "entry_rule": {
+    "timing": "scan_now (market order)",
+    "no_change_from_production": true
+  },
+  "exit_rule": {
+    "default": "hold_to_EOD",
+    "Z4_hard_sl_pct": -3.0,
+    "no_change_from_production": true
+  },
+
+  "data_sources": {
+    "features_pkl": "cache/bt_features/features_5yr_noleak.pkl",
+    "phase0_labels_pkl": "/tmp/phase0_labels_5yr.pkl",
+    "sector_map_db": "data/trade_history.db (table: stock_fundamentals)"
+  },
+
+  "prediction_csvs": {
+    "Z1_V2": "/tmp/finetune_v2_predictions.csv",
+    "Z2_VC_z12_3dd": "/tmp/p2_z2_pred_z12_market_3dd.csv",
+    "Z3_VC": "/tmp/finetune_v3_predictions.csv",
+    "Z4_VC": "/tmp/c_z4_pred_z34_market_current.csv"
+  },
+
+  "trainer_scripts": {
+    "V2_baseline": "/tmp/finetune_v2_prod_baseline.py",
+    "VC_regime": "/tmp/finetune_v3_regime.py",
+    "Z2_label_rewrite": "/tmp/p2_z2_label.py",
+    "Z4_label_sweep": "/tmp/c_z4_label.py"
+  },
+
+  "analysis_scripts": {
+    "hybrid_assembly": "/tmp/h7_combine.py",
+    "dow_overfit_test": "/tmp/dow_holdout.py",
+    "vix_threshold_sweep": "/tmp/z1_vix_sweep.py",
+    "all_gates_recheck": "/tmp/all_gates_sweep.py",
+    "z1_gate_explore": "/tmp/z1_gate_explore.py",
+    "z234_gate_explore": "/tmp/z234_gate_explore.py"
+  },
+
+  "open_levers": [
+    "L5_loss_prob_gate_NOT_TESTED",
+    "Position_sizing_by_p_ratio_Kelly",
+    "Multi_pick_top_2_per_day",
+    "NEW_data_sources_order_flow_options_news",
+    "Sector_ETF_momentum_hard_gate",
+    "Loss_model_integration",
+    "Lambdarank_on_V2_architecture",
+    "Z2_Z4_gate_stacking"
+  ],
+
+  "lessons_logged": [
+    "User caught DOW filter overfit (Z1/Z2/Z4) — only Z3 Fri generalizes",
+    "User caught VIX<18 over-strict — VIX<20 is sweet spot (+24pp)",
+    "User suggested Z4 regime gate — led to SPY>+0.5%",
+    "Holdout test is critical — multi-comparison fallacy easy to fall into"
+  ]
+}

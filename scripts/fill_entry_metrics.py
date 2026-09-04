@@ -93,7 +93,7 @@ def main():
                         help='Number of past trading days to backfill (default: 1 = today only)')
     args = parser.parse_args()
 
-    target_date = args.date or date.today().strftime('%Y-%m-%d')
+    target_date = args.date or datetime.now(ET).date().strftime('%Y-%m-%d')
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] fill_entry_metrics date={target_date} days={args.days}")
 
     with get_session() as session:

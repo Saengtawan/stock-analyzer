@@ -1,479 +1,185 @@
-# Stock Analyzer - Automated Trading System
+# Stock Analyzer — Intraday ML Trading System
 
-![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
-![Status](https://img.shields.io/badge/status-production-green.svg)
-![Version](https://img.shields.io/badge/version-6.36-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/python-3.11-blue.svg)
+![Account](https://img.shields.io/badge/account-Alpaca%20Paper-orange.svg)
+![Status](https://img.shields.io/badge/status-deployed%20(paper)-green.svg)
 
-Production-ready automated trading system with database-backed architecture, multi-strategy support, and comprehensive risk management.
+Backtest-validated intraday trading on Alpaca **paper**. Two entry lanes, each
+with its own regime-conditional exit. Manual workflow (suggest → you click at
+Alpaca). Driven via Claude Code + `CLAUDE.md`.
 
-**Current Version:** v6.36 (Database Migration Complete)
-**Last Updated:** 2026-02-21
-**Status:** ✅ Production Ready
-
----
-
-## 🎯 Overview
-
-Automated trading system that combines multiple strategies with intelligent risk management. Features database-backed storage, real-time monitoring, and adaptive strategy selection based on market volatility.
-
-### Key Features
-
-- **4 Active Strategies:** DIP-bounce, Overnight Gap, Post-Earnings Momentum, VIX Adaptive
-- **Database Architecture:** Single source of truth with SQLite
-- **Real-time Monitoring:** Web dashboard with live updates
-- **Risk Management:** Multi-layer protection with PDT compliance
-- **Skip Window:** Avoids volatile 10:00-11:00 AM trading period
-- **Strategy Tags:** Clear identification ([DIP], [OVN], [PEM])
+> **`CLAUDE.md` is the canonical spec** (rules, params, history). This README is
+> the quickstart + map. When they disagree, trust `CLAUDE.md`.
 
 ---
 
-## 🚀 Quick Start
+## System at a glance — 2 entry lanes × 2 exits
 
-### Prerequisites
+| Lane (entry) | What it picks | Exit | Holdout result |
+|---|---|---|---|
+| **H12-A** (`ml_filter`) | per-(zone,sector) ML, top-1 by win_p, 09:30–13:00 | **v18** — SL2.5 / prop-trail / model-PL, gated on `spy_dd≤−0.3` (reacts to a falling market) | +154%/3yr; exit Sharpe 2.93→**3.89**, worst −8.7→**−3.0** |
+| **riser** (`riser_capture`) | Z1 ranked by `gain_from_open`, buy top-1, hold-EOD | **riser dynamic** — trail 1% if `VIX_entry≥22 OR own_range[20m]≥3%`, else hold-EOD | WR(peak≥1%) 73%; exit ret/DD 0.85→**1.97** |
+
+`exit_check.sh` **auto-routes**: a symbol in `riser_picks` → riser exit; else → v18.
+Both are PAPER/shadow — forward-track before sizing up.
+
+---
+
+## Quick start (new machine)
+
+Code is in git; large artifacts (models ~200MB, DBs incl. 21GB `trade_history`,
+`.env`) live in **Google Drive** via rclone.
 
 ```bash
-# Python 3.8+
-python --version
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your Alpaca API keys
-```
-
-### Installation
-
-```bash
-# 1. Clone repository
-git clone https://gitlab.com/Saengtawan/stock-analyzer.git
+git clone git@github.com:Saengtawan/stock-analyzer.git
 cd stock-analyzer
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Apply database migrations
-bash scripts/apply_migration_001.sh  # Signals tables
-bash scripts/apply_migration_002.sh  # Pre-filter tables
-
-# 4. Configure settings
-cp config/trading.yaml.example config/trading.yaml
-# Edit trading.yaml with your preferences
+bash scripts/setup.sh                 # one command: pyenv + Drive pull + services + cron
+#   bash scripts/setup.sh --light     # skip the 21GB DB (rebuild via cron)
 ```
 
-### Running the System
+`setup.sh` is **idempotent** — it does everything it can and stops with the exact
+command for the 3 things only you can do (they need sudo / Google login):
+`curl https://rclone.org/install.sh | sudo bash` · `rclone config` (remote named
+`gdrive`) · install pyenv. Fix the one it names, re-run `setup.sh`, it continues.
+
+<details><summary>…or do the phases manually</summary>
 
 ```bash
-# Start auto trading engine
-nohup python src/auto_trading_engine.py > nohup.out 2>&1 &
-
-# Start web dashboard
-nohup python src/run_app.py > nohup_web.out 2>&1 &
-
-# Check status
-ps aux | grep -E "auto_trading|run_app"
-
-# View logs
-tail -f nohup.out
+curl https://rclone.org/install.sh | sudo bash      # rclone
+rclone config                                       # remote 'gdrive' → Drive
+bash scripts/bootstrap.sh                            # pull models + DBs + .env
+# pyenv: install 3.11.8 + envs from deploy/requirements_{issara,cc}.txt
+cp deploy/systemd/*.service ~/.config/systemd/user/ && systemctl --user daemon-reload
+bash scripts/restore_cron.sh --install               # crontab (auto path-fix)
+systemctl --user enable --now auto-trading.service stock-webapp.service
 ```
+</details>
 
----
+### Make cron + services work (the part git/Drive doesn't auto-handle)
 
-## 📊 Active Strategies
-
-### 1. Dip-Bounce Strategy [DIP]
-**Type:** Mean reversion
-**Entry:** Price dips below SMA20, oversold conditions
-**Exit:** SL (3-4%), TP (8-12%), trailing stop, max 7 days
-**Position Limit:** 2 concurrent
-**Frequency:** ~7-8 trades/month
-
-**Performance (Backtest 2023-2025):**
-- Win Rate: 46.3%
-- CAGR: 35.8%
-- Max DD: -9.79%
-- Monthly: ~$1,044 on $25k
-
-### 2. Overnight Gap Strategy [OVN]
-**Type:** Gap momentum
-**Entry:** Near-high close (3:30 PM), gap setup for next day
-**Exit:** Next day or hold 1-3 days
-**Position Limit:** 1 concurrent (dedicated slot)
-**Frequency:** 6-10 trades/month (BULL), 3-5/month (BEAR)
-
-### 3. Post-Earnings Momentum [PEM]
-**Type:** Earnings catalyst
-**Entry:** Gap ≥8%, volume 3x average, after earnings
-**Exit:** EOD force exit
-**Position Limit:** 1 concurrent (dedicated slot)
-**Frequency:** <1 trade/month
-
-### 4. VIX Adaptive Strategy [VIX]
-**Type:** Volatility timing overlay
-**Function:** Adjusts all strategies based on VIX tier
-
-**VIX Tiers:**
-- **VIX < 20:** NORMAL (mean reversion, 3 positions)
-- **VIX 20-24:** SKIP (selective, VIX direction matters)
-- **VIX 24-38:** HIGH (bounce only, 1 position)
-- **VIX > 38:** EXTREME (close all positions)
-
----
-
-## 🏗️ Architecture
-
-### Database Schema
-
-```
-trade_history.db
-├── trading_signals      # Signal generation log
-├── execution_history    # Trade execution results
-├── signal_queue         # Pending signals
-├── scan_sessions        # Scan metadata
-├── pre_filter_sessions  # Pre-filter runs (280 stocks)
-├── filtered_stocks      # Stock pool
-├── active_positions     # Current positions
-├── trades               # Historical trades
-└── alerts               # System alerts
-```
-
-### System Components
-
-```
-┌─────────────────────────────────────────────────────┐
-│                  Auto Trading Engine                │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐ │
-│  │   Screeners  │  │  Strategies  │  │  Filters  │ │
-│  │ - DIP        │  │ - VIX        │  │ - Entry   │ │
-│  │ - OVN        │  │ - Adaptive   │  │ - Risk    │ │
-│  │ - PEM        │  │              │  │ - Sector  │ │
-│  └──────────────┘  └──────────────┘  └───────────┘ │
-└─────────────────────────────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────┐
-│              Database (Single Source)               │
-│  - Positions (scoped sync)                          │
-│  - Signals (212/day avg)                            │
-│  - Pre-filter (280 stocks)                          │
-└─────────────────────────────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────┐
-│                  Web Dashboard                      │
-│  - Real-time monitoring                             │
-│  - Position tracking                                │
-│  - Signal history                                   │
-│  - Performance metrics                              │
-└─────────────────────────────────────────────────────┘
-```
-
----
-
-## ⚙️ Configuration
-
-### Position Management (`config/trading.yaml`)
-
-```yaml
-rapid_rotation:
-  max_positions: 2              # DIP strategy limit
-  max_positions_total: 4        # Total: 2 DIP + 1 OVN + 1 PEM
-  max_hold_days: 7              # Time stop
-  position_size_pct: 30.0       # % of equity per position
-  max_position_pct: 45.0        # Max single position size
-```
-
-### Risk Management
-
-```yaml
-  # Stop Loss / Take Profit (ATR-based)
-  atr_sl_multiplier: 1.5        # SL = 1.5 × ATR%
-  min_sl_pct: 3.0               # Min 3% stop loss
-  max_sl_pct: 4.0               # Max 4% stop loss
-  atr_tp_multiplier: 3.0        # TP = 3.0 × ATR%
-  min_tp_pct: 8.0               # Min 8% take profit
-  max_tp_pct: 12.0              # Max 12% take profit
-
-  # Trailing Stop
-  trail_activation_pct: 2.0     # Activate at +2%
-  trail_lock_pct: 75.0          # Lock 75% of gains
-
-  # Risk Limits
-  daily_loss_limit_pct: 5.0     # Daily loss limit
-  weekly_loss_limit_pct: 7.0    # Weekly loss limit
-```
-
-### Skip Window (v6.36)
-
-```yaml
-  # No trading during volatile mid-morning period
-  skip_window_enabled: true
-  skip_window_start_hour: 10    # 10:00 AM ET
-  skip_window_end_hour: 11      # 11:00 AM ET
-```
-
-### Entry Protection (4 Layers)
-
-```yaml
-  # Layer 1: Adaptive timing based on gap
-  # Layer 2: VWAP filter (max 3% above)
-  # Layer 3: Chase limit (max 0.8% from signal)
-  # Layer 4: Range filter (avoid top 20%)
-```
-
----
-
-## 📈 Performance
-
-### Backtest Results (2023-2025, Realistic)
-
-**With Costs (0.2% slippage + 0.1% commission):**
-- **Total Trades:** 866
-- **Win Rate:** 46.3%
-- **Avg Win:** +3.93%
-- **Avg Loss:** -2.41%
-- **CAGR:** 35.8%
-- **Max Drawdown:** -9.79%
-- **Monthly Return:** ~$1,044 on $25k capital
-
-**Production Estimate (SPY+Sector Filter):**
-- **Win Rate:** 49.7%
-- **CAGR:** 27.5%
-- **Monthly Return:** ~$750 on $25k capital
-
-### Live Performance Metrics
-
-Monitor via web dashboard at `http://localhost:5002`
-
----
-
-## 🖥️ Web Dashboard
-
-### Features
-
-- **Real-time Position Tracking**
-  - Current P&L with strategy tags
-  - Stop loss / Take profit levels
-  - Days held counter
-  - Risk visualization
-
-- **Signal History**
-  - 212+ signals/day analyzed
-  - Filter by strategy, score, time
-  - Execution results
-
-- **Timeline View**
-  - 8 trading sessions (Gap, Morning, PEM, SKIP, Midday, Afternoon, OVN, Pre-Close)
-  - Live session status
-  - Next scan countdown
-
-- **Performance Metrics**
-  - Win rate, P&L, trades
-  - Drawdown tracking
-  - Strategy breakdown
-
-### Access
-
-```
-URL: http://localhost:5002
-Default Port: 5002
-```
-
----
-
-## 🔧 Advanced Usage
-
-### Pre-filter System
-
-Scans 987-stock universe daily, maintains pool of ~280 quality stocks.
-
-**Scan Schedule:**
-- 20:00 ET: Evening pre-filter (full scan)
-- 09:00 ET: Pre-open update
-- 10:45 ET: Intraday refresh
-- 13:45 ET: Afternoon refresh
-- 15:45 ET: Pre-close update
-- On-demand: When pool < 200 stocks
-
-**Manual Pre-filter:**
-```bash
-# Run evening scan
-python src/pre_filter.py evening
-
-# Run pre-open scan
-python src/pre_filter.py pre_open
-
-# Check status
-python scripts/test_prefilter_db_integration.py
-```
-
-### Database Queries
+`git clone` + `bootstrap.sh` gives code + models + DBs + `.env`, but **NOT** the
+crontab, pyenv envs, or systemd services. Restore them from `deploy/`:
 
 ```bash
-# Check positions
-sqlite3 data/trade_history.db "SELECT * FROM active_positions"
+# 1. pyenv environments (cron + the pkl need these exact ones)
+pyenv install 3.11.8
+pyenv virtualenv 3.11.8 issara && pip install -r deploy/requirements_issara.txt   # pandas 3.x (loads the pkls)
+pyenv virtualenv 3.11.8 cc      && pip install -r deploy/requirements_cc.txt
 
-# Check recent signals
-sqlite3 data/trade_history.db "SELECT symbol, score, signal_price, signal_time FROM trading_signals ORDER BY signal_time DESC LIMIT 10"
+# 2. systemd services (adjust paths inside if username/dir differ)
+cp deploy/systemd/*.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now auto-trading.service stock-webapp.service
 
-# Check pre-filter pool
-sqlite3 data/trade_history.db "SELECT COUNT(*) FROM filtered_stocks WHERE session_id = (SELECT id FROM pre_filter_sessions ORDER BY id DESC LIMIT 1)"
+# 3. crontab (auto-rewrites the original machine's paths to THIS machine)
+bash scripts/restore_cron.sh             # dry-run: checks deps + previews
+bash scripts/restore_cron.sh --install   # apply (backs up existing crontab first)
+
+# 4. rclone for the backup crons
+rclone config            # remote named 'gdrive'  (if not done in step above)
 ```
 
-### Testing
+If there's no Drive backup: fill `.env` from `.env.template` (49 keys) and let
+the cron data-collectors rebuild the DBs over time (days–weeks).
+
+> ⚠️ cron uses **absolute paths** + `TZ=Asia/Bangkok` (ET+11 during EDT; shift
+> +1h at the Nov EST changeover). `restore_cron.sh` fixes paths; timezone you keep.
+
+---
+
+## Daily usage
 
 ```bash
-# Test database integration
-python scripts/test_position_db_integration.py
-python scripts/test_prefilter_db_integration.py
+# scan (auto-waits until 09:31:30 ET if run early)
+bash scripts/scan_smart.sh            # H12-A picks, auto-tracked with v18
+# riser lane runs via cron (09:31 ET) → riser_capture.sh
 
-# Test pre-filter models
-python scripts/test_prefilter_models.py
+# check / track an exit (auto-picks the right exit for the symbol)
+bash scripts/exit_check.sh SYM            # one-shot verdict
+bash scripts/exit_loop.sh SYM ENTRY TIME  # poll every 5 min
+bash scripts/watch_riser.sh               # live terminal view of the riser lane
+
+# verdicts: ✅ HOLD  🟢 TRAIL_EXIT  🟡 PL_EXIT  🔴 SL_EXIT  🛡️ VIX_SKIP
+# read the Verdict line; EXIT = sell at Alpaca, HOLD = keep, EOD-flat at 15:55.
+
+# weekly: live-vs-backtest drift scorecard
+python3 scripts/forward_track.py
 ```
 
+**Reversibility flags:** `EXIT_ML_VERSION=v17c` or `--v17c` (roll back v18) ·
+`RISER_EXIT_DYNAMIC=0` (riser → plain hold-EOD) · `RISER_ENABLED=0` ·
+`RISER_TRACK=0` · `H12A_*` env toggles (see `CLAUDE.md`).
+
 ---
 
-## 📁 Project Structure
+## Operating via Claude Code (new machine / new session)
+
+The trading system runs **without** Claude — OS-cron writes picks, `watch_riser.sh`
+streams them to a terminal, exits route automatically. Claude Code is the *operator*
+(scan on demand, analyze, run tooling). Two things are **session-bound** and must be
+re-created when you open a fresh Claude session elsewhere:
+
+1. **In-chat riser alert** (Claude pings you at ~09:37:45 when the riser pick prints).
+   This is a background watcher tied to the session — start it by telling Claude:
+   > "ตั้ง background watcher รอ riser แล้วเด้งบอกในแชตตอน display"
+
+   (or just run the session-independent terminal view yourself: `bash scripts/watch_riser.sh`).
+
+2. **Claude scheduled wake-ups** (optional) — recreate with a request like
+   *"ตั้ง Claude schedule ปลุก 09:38 ET มาสรุป riser pick"*.
+
+To bring a fresh Claude session fully up to speed, paste this:
+
+> อ่าน CLAUDE.md + memory/MEMORY.md ก่อน. ระบบ = H12-A (ml_filter) + riser lane,
+> exit = v18 (auto) + riser dynamic (VIX/own_range). อยากให้: (1) ยืนยัน cron/services
+> รันอยู่ (systemctl, crontab -l), (2) ตั้ง background watcher รอ riser display เด้งในแชต,
+> (3) พร้อมช่วย scan/exit_check/forward_track ระหว่างวัน.
+
+Everything the system *needs* to trade is in git + Drive + cron. The Claude session
+only adds convenience (alerts, analysis) — never required for an order to fire.
+
+## Architecture
 
 ```
-stock-analyzer/
-├── src/
-│   ├── auto_trading_engine.py       # Main engine
-│   ├── pre_filter.py                # Universe pre-filter
-│   ├── database/
-│   │   ├── models/                  # Data models
-│   │   └── repositories/            # Data access (7 repos)
-│   ├── screeners/                   # Signal generators
-│   │   ├── rapid_rotation_screener.py
-│   │   ├── overnight_gap_scanner.py
-│   │   └── pem_screener.py
-│   ├── strategies/
-│   │   └── vix_adaptive/            # VIX overlay
-│   ├── filters/                     # Entry/exit filters
-│   └── web/
-│       ├── app.py                   # Flask web app
-│       └── templates/               # UI templates
-├── config/
-│   └── trading.yaml                 # Configuration
-├── data/
-│   ├── trade_history.db             # Main database
-│   └── stocks.db                    # Market data cache
-├── scripts/
-│   ├── migrations/                  # Database migrations
-│   └── test_*.py                    # Test scripts
-├── docs/                            # Documentation
-└── SYSTEM_STATUS_2026-02-21.md      # Current status
+src/scan/strategies/ml_filter.py     # H12-A entry (multi-model serving)
+src/scan/strategies/riser_momentum.py# riser entry
+src/scan/{engine,h12a_picker,ml_scorer}.py
+src/exit_ml/inference_v18.py         # v18 exit (H12-A) — spy_dd-reactive
+src/exit_ml/inference_riser.py       # riser exit — VIX/own_range dynamic trail
+src/exit_ml/cli.py                   # exit_check entry; auto-routes per lane
+scripts/{scan_smart,scan_track,riser_capture}.sh   # scan + auto-track
+scripts/{exit_check,exit_loop,watch_riser}.sh      # exit / monitor
+scripts/{backup_to_drive,bootstrap}.sh             # Drive backup / restore
+scripts/forward_track.py                           # drift scorecard
+backtests/models_prod_v23_h12a/   # H12-A serving models (235)   [pkl gitignored]
+backtests/models_exit_v18/        # v18 exit models               [pkl gitignored]
+data/trade_history.db             # 21GB feature store            [gitignored]
+CLAUDE.md                         # canonical spec
 ```
 
----
-
-## 🛡️ Safety Features
-
-### PDT Protection
-- Day trade tracking
-- Reserve day trades
-- Flagged account handling
-- Overnight holds for PDT accounts
-
-### Risk Limits
-- Daily loss limit: 5%
-- Weekly loss limit: 7%
-- Max consecutive losses: 3
-- Position size caps
-
-### Entry Protection (4 Layers)
-1. **Adaptive timing:** Gap-based delay (5-20 min)
-2. **VWAP filter:** Max 3% above VWAP
-3. **Chase limit:** Max 0.8% from signal price
-4. **Range filter:** Avoid top 20% of range
-
-### VIX EXTREME Protection
-- Auto-close all positions if VIX > 38
-- Max drawdown protection: 2.35× better than market during COVID
+Services are systemd (`auto-trading.service`, `stock-webapp.service`) — **never
+`pkill`**, use `systemctl --user restart`.
 
 ---
 
-## 📚 Documentation
+## Backup / restore
 
-### Core Documents
-- **SYSTEM_STATUS_2026-02-21.md** - Current system status
-- **PHASE2B_COMPLETE.md** - Pre-filter migration
-- **PHASE4_POSITION_MIGRATION_COMPLETE.md** - Position migration
-- **BACKTEST_RESULTS_SUMMARY.md** - Performance analysis
+| Layer | Where | Refresh |
+|---|---|---|
+| code | git (github + gitlab) | `git push` |
+| models, small DBs, `.env` | Google Drive (`backup_to_drive.sh --light`) | weekly cron (Sun 21:00 BKK) |
+| `trade_history.db` (21GB) | Google Drive (`backup_to_drive.sh`) | monthly cron (1st 22:00 BKK) |
 
-### Strategy Documentation
-- **docs/VIX_ADAPTIVE_BACKTEST_RESULTS.md** - VIX strategy details
-- **docs/CANDLESTICK_STRATEGY_SPEC.md** - Candlestick spec (not implemented)
-
-### Migration Guides
-- **docs/DATABASE_MIGRATION_COMPLETE.md** - Full migration summary
-- **docs/DATABASE_SCHEMA_PHASE1.md** - Schema documentation
+New machine = `git clone` + `bootstrap.sh`. Secrets (`.env`) never go to git —
+only to your private Drive.
 
 ---
 
-## 🔄 Recent Updates
+## ⚠️ Notes
 
-### v6.36 (2026-02-21)
-- ✅ Skip window 10:00-11:00 AM (avoid volatile period)
-- ✅ Strategy tags [DIP], [OVN], [PEM]
-- ✅ Enhanced timeline (8 sessions)
-- ✅ Position limits: 4 total (2 DIP + 1 OVN + 1 PEM)
+- **Paper account** — no real money. `.env` holds API keys (gitignored).
+- Exits are **shadow/paper**; track 10–15 forward picks (`forward_track.py`)
+  before trusting live / increasing size.
+- This README is a map; **`CLAUDE.md` is authoritative** for rules and numbers.
 
-### Database Migration (2026-02-21)
-- ✅ All data → Database single source of truth
-- ✅ Phase 1: Signals to DB
-- ✅ Phase 2: Pre-filter to DB
-- ✅ Phase 4: Positions to DB (scoped sync)
-
-### v6.35 (2026-02-20)
-- Overnight Gap gets dedicated slot
-- Expanded entry criteria
-- Multi-strategy position management
-
----
-
-## 🤝 Contributing
-
-This is a personal trading system. Not accepting external contributions.
-
----
-
-## ⚠️ Disclaimer
-
-This software is for educational and personal use only. Trading involves risk of loss. Past performance does not guarantee future results. Use at your own risk.
-
-**NOT FINANCIAL ADVICE**
-
----
-
-## 📞 Support
-
-### Repository
-- GitLab: `gitlab.com:Saengtawan/stock-analyzer.git`
-- Branch: master
-
-### System Status
-Check `SYSTEM_STATUS_2026-02-21.md` for current configuration and performance.
-
-### Logs
-- Engine: `nohup.out`
-- Web App: `nohup_web.out`
-- Trade Logs: `trade_logs/`
-
----
-
-## 📊 Statistics
-
-- **Version:** v6.36
-- **Active Strategies:** 4 (DIP, OVN, PEM, VIX)
-- **Database Tables:** 9
-- **Repositories:** 7
-- **Average Signals/Day:** ~212
-- **Pre-filter Pool:** ~280 stocks
-- **Production Status:** ✅ Ready
-
----
-
-**Last Updated:** 2026-02-21
-**System Status:** Production Ready
-**Database:** Migrated & Verified
+**Last updated:** 2026-06-15

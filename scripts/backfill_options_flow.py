@@ -25,12 +25,23 @@ def main():
         "SELECT DISTINCT date FROM options_flow").fetchall())
     logger.info(f"Existing dates: {len(existing)}")
 
-    # Get top 300 symbols by market cap
+    # Top 300 large-caps by market cap (as before) UNION resonance extras. The old $10B / top-300
+    # filter selected only large-caps, so the small/mid-cap extras resonance actually trades (GLOB,
+    # QNT, MGNI...) had NO options_flow — unusual-call/put and P/C ratio were empty for its picks.
+    # Extras are lower-cap but liquid ($3M+/day at build time); yfinance serves their option chains
+    # for free, so include them regardless of the $10B gate.
     symbols = [r[0] for r in conn.execute("""
         SELECT symbol FROM stock_fundamentals
         WHERE market_cap > 10e9 AND avg_volume > 200000
         ORDER BY market_cap DESC LIMIT 300
     """).fetchall()]
+    try:
+        _seen = set(symbols)
+        symbols += [r[0] for r in conn.execute(
+            "SELECT symbol FROM resonance_universe WHERE status='active' ORDER BY avg_dollar_vol DESC"
+        ).fetchall() if r[0] not in _seen]
+    except Exception:
+        pass   # resonance_universe absent -> large-caps only (backward compatible)
     logger.info(f"Symbols: {len(symbols)}")
 
     # Generate target dates (last 30 trading days)

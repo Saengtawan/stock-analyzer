@@ -9,6 +9,9 @@ Usage:
 """
 import argparse, os, sys, time, requests
 from datetime import datetime, date, timedelta
+from zoneinfo import ZoneInfo
+
+ET = ZoneInfo('America/New_York')
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from database.orm.base import get_session
@@ -109,7 +112,7 @@ def insert_bars(session, symbol, bars):
     for bar in bars:
         ts = bar['t']
         dt = datetime.fromisoformat(ts.replace('Z', '+00:00'))
-        et = dt - timedelta(hours=4)
+        et = dt.astimezone(ET)
         date_str = et.strftime('%Y-%m-%d')
         time_str = et.strftime('%H:%M')
 
@@ -147,10 +150,10 @@ def main():
 
     # Determine date range
     if args.recent > 0:
-        start = (date.today() - timedelta(days=args.recent)).isoformat()
+        start = (datetime.now(ET).date() - timedelta(days=args.recent)).isoformat()
     else:
         start = '2023-06-01'
-    end = date.today().isoformat()
+    end = datetime.now(ET).date().isoformat()
 
     print(f'Backfill intraday 5m: {len(symbols)} symbols, {start} to {end}')
 
@@ -166,7 +169,7 @@ def main():
 
         sym_start = start
         if existing and not args.recent:
-            if existing >= (date.today() - timedelta(days=3)).isoformat():
+            if existing >= (datetime.now(ET).date() - timedelta(days=3)).isoformat():
                 continue
             sym_start = existing
 
