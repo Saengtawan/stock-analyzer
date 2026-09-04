@@ -81,3 +81,6 @@ with open(path, "w") as f:
     f.writelines(kept)
 print(f"{path}  (cut {cut} dated >= {date}, scrubbed {scrubbed} undated outcome lines, "
       f"kept {len(kept)})")
+print(f"  ALSO SET IN THE REPLAY ENV:  EDGAR_AS_OF={date}")
+print("  (EDGAR's submissions feed is live — without it, `tools.edgar` hands the agent filings from "
+      "sessions that had not happened yet.)")
