@@ -103,7 +103,10 @@ def fetch_premarket(date=None, db=DB, verbose=True):
         print(f"fetch_premarket {date}  window {start_et:%H:%M}-{end_et:%H:%M} ET  "
               f"universe={len(syms)} (core={uni['n_core']} resonance={uni['n_resonance']})  feed=SIP+IEX")
 
-    conn = sqlite3.connect(db)
+    # NOTE: this DB has several cron writers and three live readers. Without a busy timeout a
+    # transient lock raises OperationalError and the job dies silently — cluster_fit did
+    # exactly that every Sunday for 5 weeks before anyone looked at its log.
+    conn = sqlite3.connect(db, timeout=60)
     # At the 09:00 ET build, intraday_snapshot_cron (*/5) and the live services write the same 13GB
     # DB concurrently — a bare connect() raised "database is locked" on executemany and the whole
     # premarket fetch died (empty prime layer). Wait for the lock instead of crashing.

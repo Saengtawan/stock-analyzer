@@ -201,7 +201,10 @@ def build(min_dollar_vol=MIN_DOLLAR_VOL, price_min=PRICE_MIN, price_max=PRICE_MA
           max_extras=MAX_EXTRAS, lookback_days=BAR_LOOKBACK_DAYS,
           max_dollar_vol=MAX_DOLLAR_VOL, db=DB):
     _load_env()
-    conn = sqlite3.connect(db)
+    # NOTE: this DB has several cron writers and three live readers. Without a busy timeout a
+    # transient lock raises OperationalError and the job dies silently — cluster_fit did
+    # exactly that every Sunday for 5 weeks before anyone looked at its log.
+    conn = sqlite3.connect(db, timeout=60)
     ensure_table(conn)
 
     core = {r[0] for r in conn.execute("SELECT symbol FROM universe_stocks")}

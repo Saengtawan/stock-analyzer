@@ -33,7 +33,10 @@ def update_daily(days=7, db=DB, verbose=True):
     import yfinance as yf
     import time
 
-    conn = sqlite3.connect(db)
+    # NOTE: this DB has several cron writers and three live readers. Without a busy timeout a
+    # transient lock raises OperationalError and the job dies silently — cluster_fit did
+    # exactly that every Sunday for 5 weeks before anyone looked at its log.
+    conn = sqlite3.connect(db, timeout=60)
     syms = [r[0] for r in conn.execute(
         "SELECT symbol FROM resonance_universe WHERE status='active' ORDER BY symbol")]
     db_latest_before = conn.execute("SELECT MAX(date) FROM stock_daily_ohlc").fetchone()[0]

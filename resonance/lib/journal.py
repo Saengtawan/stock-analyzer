@@ -46,7 +46,10 @@ CREATE TABLE IF NOT EXISTS record (
 
 def _conn(db=DB):
     os.makedirs(os.path.dirname(db), exist_ok=True)
-    c = sqlite3.connect(db)
+    # NOTE: this DB has several cron writers and three live readers. Without a busy timeout a
+    # transient lock raises OperationalError and the job dies silently — cluster_fit did
+    # exactly that every Sunday for 5 weeks before anyone looked at its log.
+    c = sqlite3.connect(db, timeout=60)
     c.execute(DDL)
     return c
 

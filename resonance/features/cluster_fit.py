@@ -188,7 +188,10 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="compute + print, do not write")
     args = ap.parse_args()
 
-    conn = sqlite3.connect(DB)
+    # NOTE: this DB has several cron writers and three live readers. Without a busy timeout a
+    # transient lock raises OperationalError and the job dies silently — cluster_fit did
+    # exactly that every Sunday for 5 weeks before anyone looked at its log.
+    conn = sqlite3.connect(DB, timeout=60)
     try:
         asof = args.asof
         if asof is None:
