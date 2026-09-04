@@ -9,8 +9,17 @@ Intraday **direction** ≈ coin flip and confirming a break does NOT verify the 
 not chase direction and we do not wait for a confirm. Instead:
 
 > **Volatility is predictable even when direction is not.** Find the stocks whose spring is
-> **coiled** (unusually quiet vs their own normal = energy stored, a move is *due*) **and primed**
-> (a catalyst/positioning reason to release *today*). Screen these **before the open**. An AI reads
+> **coiled** and **primed** (a catalyst/positioning reason to release *today*).
+>
+> ⚠️ **AMENDED 2026-09-04 — "coiled" no longer means "unusually quiet vs its own normal".** That
+> definition was measured over 48,469 buyable name-days and concentrated nothing: the pool built on it
+> moved >=±2% on 29.9% of name-days against 29.3% for the market. The cause was a units error — quietness
+> was measured as a PERCENTILE against a name's own history, so a mega-cap in a slow week scored like a
+> stock down 70%, while the real signal is an ABSOLUTE level. Depth below the 252-day high is monotone
+> across five bands (9.3% -> 34.7% cleared +2%), and beta is monotone the same way. The pool now admits
+> on **deeply below its own 252-day high + high beta + tradeable size**, and moves >=±2% on ~53% of
+> name-days. The compression axes are still computed and travel in the digest as description; they no
+> longer decide membership. See pool.py section 3b. Screen these **before the open**. An AI reads
 > the compact feature digest + full context, weights it itself, predicts which ~3 release UP and
 > **close** green, buys at the open, and **holds to EOD**. No confirm.
 
@@ -46,7 +55,8 @@ resonance/
 │   ├── prime.py       🔧 release triggers: gap, premkt-vol wake, news, earnings, analyst,
 │   │                     options_flow, put/call, short_interest, float
 │   └── build.py       🔧 run the universe → compact feature table → cache/
-├── screen/pool.py     🔧 high-recall candidate pool (unusual on ANY axis; no weighted judgment)
+├── screen/pool.py     🔧 candidate pool — admits on depth+beta+size (movement concentration);
+│                      axes are description only since 2026-09-04. No weighted judgment.
 ├── brain/
 │   ├── decide.md      🧠 read pool digest + context → weight → pick ~3 (coiled+catalyst) → plan
 │   └── learn.md       🧠 forward reflection → memory.md
