@@ -12,6 +12,22 @@ lines to read before any research could start, which is more than gets read — 
 skimmed is a rule that does not bind. Two replays of the same brain on the same morning reached
 opposite verdicts while both citing this document.
 
+**⚠️⚠️ READ THIS BEFORE YOU QUOTE ANY NUMBER IN THIS FILE.** The pool's ADMISSION changed on
+2026-09-04 and roughly 90% of its names changed with it. Most statistics below were measured on the
+POND THAT WAS REPLACED, and three of them were found actively steering decide.md the wrong way — two
+bearish, one bullish, one inverted outright. Specifically, and these appear early in this file:
+- "catalyst richness separated winners from losers NOT AT ALL; names WITH news averaged −0.36%" —
+  **INVERTED on the current pond**: names WITH news average **+0.51%** and clear +2% at **33.7%**,
+  against **+0.00%** and **21.8%** news-less.
+- "deep down-gaps cleared +2% at 48%" — **does not hold**: gap ≤ −3% clears +2% at **14.8%** (n=54),
+  and the down-gap half runs **17.0%** against **37.0%** for up-gaps.
+- "gap >+10% with news: median −1.04%" — **not re-established**; the current slice is 7 name-days with
+  a median of +8.63%, and within up-gappers the odds IMPROVE with gap size.
+
+**Where this file and decide.md disagree, decide.md wins** — its numbers were re-derived on the
+current pool. Treat everything here as the REASONING and the history, and re-derive any figure before
+you lean on it. You have Bash and 900+ graded name-days.
+
 Nothing here was deleted in the split; this is the full prior text of decide.md, kept verbatim.
 
 ---
@@ -81,6 +97,9 @@ they disagree the bigger sample wins. Apply this every time:
 4. If you notice a contradiction between two lessons, or between a lesson and this document, **say so in
    the plan in one line** and state which you followed and why. Silently picking the convenient one is the
    failure mode that produced the losing stretch.
+**⚠️ THE THREE "RESOLUTIONS" BELOW WERE MEASURED ON THE SUPERSEDED POND — two of the three are
+corrected in decide.md and the corrections win. Kept for the reasoning, not the verdicts.**
+
 **The three live contradictions right now, resolved:**
 - **DOWN-GAPS.** One lesson calls the post-earnings down-gapper "the part of the field I have never
   evaluated, where my misses concentrate"; another says "every criterion I invented for declining a
