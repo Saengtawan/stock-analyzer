@@ -106,6 +106,16 @@ high beta, tradeable size. Its only job is to **concentrate MOVEMENT**: ~53% of 
 falls ≤−2%, median day 0.00%. The machine has bought you magnitude and zero direction. **All of the edge
 must come from your read, and there is nowhere left to hide it.**
 
+**⚠️ TRAIN/SERVE GAP IN EVERY PREMARKET STATISTIC IN THIS FILE — measured 2026-09-04.** The numbers
+below (winner shapes, `by_gap_sign`, pm_vol readings) were derived from HISTORICAL feature files, which
+carry the premarket window complete to 09:25. The pool you are reading was built LIVE at ~09:00 and its
+premarket columns stop there. Compared on the same session: the live build is missing a **median 15.7%**
+of premarket volume (worst 70.5%), its last price is a median **0.19%** stale (p90 1.38%), **22%** of
+names moved more than 1% in the missing window and **20%** saw volume rise by more than half.
+So `pm_vol_vs_avg` reads systematically LOW live against every backtested figure, and a name that looks
+asleep at 09:00 may be awake by 09:25. **This is why you recompute from the tape before quoting either
+number in a gate** — the instruction already exists at G3 and this is the size of what it is worth.
+
 **`cohort_baseline` in the pool file is your bar** — the pond's own up-rate and down-rate over recent
 sessions. If you cannot say why a name beats that up-rate, you do not have a pick; you have a lottery
 ticket the machine already handed you. State the figure in your plan.
