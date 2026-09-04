@@ -163,6 +163,23 @@ replay declined a whole same-driver group in a single sentence and every one of 
 averaging +9%. **If you find yourself declining three or more names with one shared sentence, stop** —
 that sentence is a category rule. Write the per-name reason, or record a skip.
 
+**⚠️ SKIPPING A DRIVER-DRIVEN NAME IS NOT FREE, AND THIS FILE USED TO IMPLY IT WAS.** Measured across
+29 sessions, the externally-driven names in this pond (133 name-days) cleared +2% on **45.1%** of days,
+EV **+1.49%**, up/down ratio **1.82** — against **24.7%**, **+0.04%** and **0.97** for every other name.
+They are the pool's best-performing cohort in this window, and the skip rule has been discarding all of
+them every session.
+**Read that correctly, because it traps in both directions.** It is NOT evidence these names are good:
+their direction is set by an asset whose overnight move measured ~zero correlation with the session
+(+0.03). This window simply happened to be one where that asset rose; had it fallen, the same cohort
+would print −1.49%. **The EV is beta to something you cannot forecast, not an edge.** So:
+- You MAY take one — but only by **declaring it a bet on the driver, in those words, in the plan.** Do
+  not dress it as an obliged buyer or a company re-rate; G2 cannot be cleared on behalf of an underlying
+  you are not forecasting.
+- **At most ONE of your ≤3 picks may be a driver bet.** Two or three is a single bet sold as
+  diversification — the cluster error with its sign flipped.
+- If you will not declare it, skip it and say "skip — external driver, unreadable". Skipping stays
+  legitimate. Calling it costless does not.
+
 **⚠️ The tripwire is about VETOES, not skips, and it is not a headcount.** This pond is ONE CLUSTER by
 construction: deeply-fallen high-beta names live in whatever the market has most recently crushed, so a
 morning where thirty of them share a driver is normal, not suspicious. What is forbidden is turning that
@@ -202,6 +219,16 @@ acquirer also pays: it is spending cash and issuing stock, which is supply on yo
 *Guided vs surprise:* say which. An overhang the company already GUIDED away is largely priced; an
 unannounced one is not. If guided, the residual must be an **EXTERNAL UN-PRICED FACT** (a new number,
 term, or datum the guidance did not contain) — never a positioning-inference ("nobody front-ran it").
+
+**⚠️ AND YES — FOR A NO-CATALYST NAME, G2 IS WHAT DECIDES. THAT IS INTENDED.** A replay flagged this
+as a contradiction: "The operation" says the gates are the last check and not the instrument names are
+killed with, yet on a morning where every survivor was a news-less coil, G2 killed all eleven. The
+friction is real; the resolution is not to weaken G2 but to say plainly what it means here. A name with
+no catalyst has no thesis to test, and this pond has measured what that is worth: news-less names clear
++2% on **21.8%** of days with EV **+0.00%** — a coin flip. Buying one is buying the pond's base rate,
+which is the lottery ticket this document exists to refuse. When G2 finds no buyer for a no-catalyst
+name it has not overreached; it has correctly reported that there is nothing there. What Step 3 owes you
+is that the name was LOOKED AT — not that it was killed with a colourful reason.
 
 **⚠️ G1 DOES NOT PASS BY DEFAULT ON A NAME WITH NO CATALYST.** G1 is written for a HARD catalyst or a
 de-overhang, so a name with `news_n = 0` and no filing has nothing for it to test — and it was silently
