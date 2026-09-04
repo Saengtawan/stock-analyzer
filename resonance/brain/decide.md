@@ -25,7 +25,10 @@ Read `resonance/memory.md` in full:
 - the **3 PRINCIPLES** (they bind you — they are not statistics, not optional):
   1. **Direction is coin-flip; volatility is not.** Bet on the coiled spring being *due*; lean on
      the catalyst for which way. Don't pretend to predict the path.
-  2. **Catalyst > momentum for a hold-to-close bet.** A fundamental surprise drifts to the close;
+  2. **Catalyst > momentum for a hold-to-close bet.** ⚠️ *Scope, per the EVIDENCE HIERARCHY below: this
+     principle is about DIRECTION, not selection. Graded over 995 name-days, catalyst richness (`news_n`,
+     `news_max_impact`, `gap_pct`) separates winners from losers NOT AT ALL — the coil does that. Use the
+     catalyst to decide which WAY a coiled name goes, never to decide WHICH name to look at.* A fundamental surprise drifts to the close;
      a technical poke fades. When you call direction, weight the durable catalyst. Weight catalysts
      by durability (a PRIOR, not a gate): **HARD** = a number the market must re-rate to
      (earnings/sales beat, guidance, M&A, contract) → *can* drift to the close, but HARD is
@@ -45,6 +48,40 @@ Read `resonance/memory.md` in full:
   3. **Gain is deceptive — use WHY / WHO / FIT.** The % a name is already up is the most easily
      faked signal. Don't let it drive selection. Read WHY (durable catalyst), WHO (real
      participation: volume/float/short/options — not a thin poke), FIT (today's rotation).
+### ⚖️ EVIDENCE HIERARCHY — read this BEFORE the lessons, and use it to resolve their conflicts
+The lessons below were each earned honestly, but most were written from **3-6 of my own picks**, while the
+pool has since been graded across **995 name-days**. Those are not the same kind of evidence, and where
+they disagree the bigger sample wins. Apply this every time:
+1. **A lesson that says "cohort X loses" but was derived from MY PICKS in cohort X is a statement about my
+   SELECTION, not about cohort X.** Losing 3 of 3 picks in a cohort whose base rate is 48% means I chose
+   badly inside it — it does NOT mean the cohort is a trap. Re-read every such lesson that way.
+2. **Cohort statistics (hundreds of name-days) outrank pick-derived lessons (a handful of names).** If a
+   lesson and a measured base rate conflict, follow the base rate and treat the lesson as a caution about
+   HOW to choose within it.
+3. **Both outrank a single memorable day.** One vivid loss is the weakest evidence in this file.
+4. If you notice a contradiction between two lessons, or between a lesson and this document, **say so in
+   the plan in one line** and state which you followed and why. Silently picking the convenient one is the
+   failure mode that produced the losing stretch.
+**The three live contradictions right now, resolved:**
+- **DOWN-GAPS.** One lesson calls the post-earnings down-gapper "the part of the field I have never
+  evaluated, where my misses concentrate"; another says "every criterion I invented for declining a
+  flushed down-gapper was falsified by the name I declined"; a third calls down-gaps "the record's losing
+  cohort (~1-in-4)". The third is pick-derived (3-4 names). The measured cohort: **deep down-gaps in this
+  pool cleared +2% at 48% with avg +2.85% (n=31) — the strongest cohort measured, roughly 3x the 15% pool
+  base rate.** Follow the base rate. The separator is NOT structural-vs-transient: the winners carried
+  MORE news coverage (median 7 items vs 4) and opened within ~2% of their day's low, i.e. **the repricing
+  was COMPLETE and the open was the capitulation**; the losers were still repricing at the bell.
+- **CATALYST vs COIL.** One lesson says "the coil axes have not discriminated one winner from one loser;
+  the catalyst has" (3 days, 6 names). The 995-day grade says the opposite: `news_n`, `news_max_impact`
+  and `gap_pct` separate NOTHING (names WITH news averaged −0.36% vs +0.18% for the news-less), while the
+  coil axis does the work (pool names without `loaded_spring` cleared +2% just 6% vs a 15% base). Follow
+  the larger sample: **coil selects WHERE, catalyst decides WHICH WAY — neither replaces the other.**
+- **PROCESSED vs UNPROCESSED is the unifying rule for both gap directions.** The more completely a
+  reaction has been published and absorbed before your open, the more of the move is behind you. On an
+  UP-gap that is BAD (gap >+10% with heavy news coverage: median −1.04%) — you would be buying the top.
+  On a DOWN-gap it is GOOD (48% clear rate, winners the MORE covered ones) — you would be buying the
+  capitulation. Same principle, opposite sign. Judge coverage/absorption, not the gap's direction alone.
+
 - the **FORWARD RECORD** + **LESSONS**. Let your own past outcomes condition today. If a lesson
   names a repeated pattern, honor it. If yesterday burned you on froth, be slower on gain today.
 
@@ -67,8 +104,9 @@ How to read a row, per the principles:
 - **PRIMED (direction + durability — why UP, and does it hold?):** `news_max_impact` +
   `news_net_sentiment` (a real, *positive* catalyst, not just noise volume — check net sentiment,
   not just `news_n`), `earn_upcoming` (only if not `earn_stale`), `analyst_net` > 0,
-  `pm_vol_vs_avg` high (the name is awake), `short_pct_float` + rising `short_change_pct` (squeeze
-  fuel), unusual call flags. `gap_pct` is direction-agnostic energy — treat a big gap as *a move
+  `pm_vol_vs_avg` (whether anyone is acting yet — a TRIGGER reading with NO sign: high on an up-gap is
+  buyers arriving, high on a down-gap is holders leaving), `short_pct_float` + rising `short_change_pct`
+  (a buyer who may be FORCED to transact in RTH), unusual call flags. `gap_pct` is direction-agnostic energy — treat a big gap as *a move
   is happening*, not as *it will go up*; the direction comes from the catalyst, not the gap.
 - **WHO / FIT:** `small_float` / low `float_shares` = easier to move; `beta`; sector vs today's
   rotation. `market_cap` for realism.
@@ -100,8 +138,12 @@ A study of **every pooled name-day since 2026-07-27 (995 name-days, 29 sessions)
 - **`loaded_spring` names (the coil axis) do the work:** deeply-off-their-high names carry the winners —
   names **≤−50% off the 252d high cleared +2% at 31%**, while names within 10% of their high cleared it at
   **2%** (n=133). Deep drawdown is not a warning here; it is where the releases live.
-- **The winning PROFILE, and it held OUT-OF-SAMPLE:** `loaded_spring` **+ beta > ~1.5 + `pm_vol_vs_avg`
-  ≥ ~0.8 (the name is genuinely AWAKE premarket) + real liquidity (≥ ~$20M traded)**.
+- **The winning PROFILE as first measured:** `loaded_spring` **+ beta > ~1.5 + `pm_vol_vs_avg` ≥ ~0.8 +
+  liquidity**. ⚠️ **The `pm_vol` leg has since been REMOVED from the computed shortlist** — it dropped
+  quiet springs that release intraday while waving through awake-but-collapsing names, and volume has no
+  sign. So the numbers below describe the profile WITH that cut (46-47%); the shortlist you actually get
+  today is the wider `loaded_spring + beta` set, whose base rate is **~38%** — still ~2.5x the pool. The
+  gap between 38% and 47% is exactly the value your context read has to add.
   In-sample (→08-18): n=18, avg **+1.69%**, 44% cleared +2%. Out-of-sample (08-19→09-02): n=17, avg
   **+1.48%**, median +1.96%, **47% cleared +2%** — against a 13% baseline on the same days. It fires on
   roughly **1-2 names per session**, which is exactly a ≤3-pick budget.
@@ -479,7 +521,8 @@ gate it failed. Fewer, gate-cleared picks beat more, argued-in picks.
    pool's #1, and the 09:30 open was the low of the day.)
 
 6. **Record-profile gate** (process, not a formula): before you commit, state where the pick sits versus
-   the measured winning profile from Step 2 — `loaded_spring` present? beta? `pm_vol_vs_avg`? liquidity?
+   the measured winning profile from Step 2 — `loaded_spring` present? beta? liquidity? (pm_vol is NOT a
+   membership test any more — report it as the trigger reading, with the gap's sign beside it.)
    **If the pick is OUTSIDE that profile, you must say so in one line and give the specific reason you are
    overriding a 47%-vs-13% base rate.** You are NOT forbidden from picking outside it — the profile is
    evidence, not a rule, and your context read can legitimately beat it. What is forbidden is picking
@@ -504,8 +547,14 @@ For each finalist that clears the gates, hold yourself to:
   open the first time and already behind it the second. Judge freshness off today's tape and news, never
   by pattern-matching a stored list of past names.
 - **Gap DIRECTION is the record's sharpest split — weigh it HARD, it is NOT symmetric, and for
-  down-gaps the WHY (structural vs transient), read from CONTEXT, is the tell — not the depth.** Up-gap
-  picks win more often (≈5-in-9); down-gap picks are the losing cohort (≈1-in-4). Read each on its own terms:
+  down-gaps the tell is HOW COMPLETELY THE REPRICING HAS BEEN ABSORBED, read from CONTEXT — not the
+  depth, and not "structural vs transient".** ⚠️ Older text here called down-gaps "the losing cohort
+  (≈1-in-4)" — that was **my own 3-4 picks**, not the cohort. Measured over the pool: **deep down-gaps
+  cleared +2% at 48% with avg +2.85% (n=31), the strongest cohort in the study**, and the winners were
+  the MORE heavily covered ones (median 7 news items vs 4 for the losers), opening within ~2% of the
+  day's low. A trial failure, a guidance cut, a downgrade cascade — all "structural" — bounced anyway
+  once the repricing was finished. So do NOT auto-decline a down-gap for being structural; ask whether
+  the market has finished pricing it. Read each on its own terms:
   - **A beat that gapped UP and is HOLDING (higher lows/highs, not rolling over) is NOT automatically
     "priced."** Momentum persists — a fresh positive print that opens up and keeps holding still has
     buyers arriving at higher prices. The give-back fear belongs to a name that is EXTENDED and already
@@ -532,9 +581,13 @@ For each finalist that clears the gates, hold yourself to:
     - **NAME the concern the market sold on** (search the news / `~/.pyenv/versions/cc/bin/python -m
       tools.edgar.edgar SYM` / `... tools.whisper.whisper SYM`). If you CANNOT name it, that IS the red
       flag — the tape is selling on something you can't see → abstain (the L9 clause).
-    - **Structural or transient?** A guidance CUT, a metric the beat doesn't fix, or an expectations reset =
-      STRUCTURAL → knife → abstain. A positioning/technical flush on a print whose forward guidance is
-      INTACT/raised = TRANSIENT → the kind of down-gap worth a pick.
+    - **How far through the repricing is it?** (This replaces the old "structural = knife" rule, which the
+      cohort data refuted.) FINISHED = the event is public and fully published — many news items, a
+      downgrade/PT-cut cascade that has ALREADY printed, premarket volume many multiples of normal, the
+      price basing rather than making fresh lows into the bell. That is capitulation, and the open is
+      near the low. UNFINISHED = thin coverage, notes still to come, fresh lows through 08:30-09:00, or
+      an event whose full size is not yet known — the selling continues into your session. Structural
+      versus transient does NOT decide this; how completely it has been absorbed does.
     - **Check the GROUP's DURABLE trend** (multi-week relative strength + the public narrative; `... 
       tools.peertape.peertape PEER1 PEER2 ...` is premarket COLOUR only per G2, not load-bearing — it has
       inverted repeatedly): a cluster that has been repricing DOWN over the durable window is

@@ -93,11 +93,23 @@ correctly and ignored anyway. So do these in order:
    NEVER to a CONTENT gate that names which stock/sector to avoid: that stays forbidden (resonance
    abandoned static rules on purpose). The distinction is the whole point — "finish your reasoning"
    is discipline; "avoid stock X" is a hardcoded conclusion.
-3. **CONSOLIDATE and PRUNE.** Merge lessons that are the same mechanism in different clothes into one.
+3. **RECONCILE against the cohort data before you write anything (new — this is how the file stopped
+   contradicting itself).** Most lessons here were earned from 3-6 of my own picks; the pool is graded
+   across hundreds of name-days. Before adding or keeping a lesson, check it against that larger sample:
+   - **A lesson of the form "cohort X loses" that came from MY PICKS in X is about my SELECTION, not X.**
+     Rewrite it that way ("I chose badly inside X because...") or delete it. Three such lessons had already
+     inverted against the data — down-gaps were called "the losing cohort (~1-in-4)" from 3-4 picks while
+     the cohort cleared +2% at 48%, and the coil was called non-discriminating while it was the single
+     strongest separator.
+   - **Never let a pick-derived lesson stand as a cohort fact.** State the n it came from, in the lesson.
+   - **If a new lesson contradicts an existing one, resolve it in the file — do not leave both.** The
+     decide pass reads every line here each morning; two opposing instructions mean it will follow the
+     convenient one.
+4. **CONSOLIDATE and PRUNE.** Merge lessons that are the same mechanism in different clothes into one.
    DELETE an escape clause whose forward tally is losing — an "…unless you can name X" door that keeps
    letting the same loss through is the failure mode, not a nuance. Memory must get SHARPER over time,
    not just LONGER. A shrinking, better-graded memory is a healthy one.
-4. **ADD a new lesson only if** a genuinely new, repeated pattern is covered by no existing lesson or
+5. **ADD a new lesson only if** a genuinely new, repeated pattern is covered by no existing lesson or
    gate — and write it as a CHECKABLE condition (what the plan must contain), not another paragraph of
    weigh-this-but-also-that. One day is never a lesson.
 
