@@ -35,6 +35,13 @@ for x in board:
     s = x.get("symbol"); chg = x.get("regularMarketChangePercent")
     if not s:
         continue
+    # RE-VALIDATE THE GAIN. The screener selects on `percentchange > 10`, but its membership and the
+    # quote it hands back can disagree — early in a session, and on leveraged/derivative tickers whose
+    # Yahoo fields are unreliable, a name arrives here already down on the day. Without this the flag
+    # line prints things like "+-1% day", which is not an igniter by any reading. Trust the quote, not
+    # the screen. (Found 2026-09-04 running a pass at 09:44, before radar's usual 10:10 window.)
+    if chg is None or chg < 10:
+        continue
     try:
         d = yf.Ticker(s).history(period="1d", interval="1m", prepost=False)
         if d.empty:
