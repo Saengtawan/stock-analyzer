@@ -86,6 +86,15 @@ CACHE = "resonance/cache"
 DEPTH_MAX_PCT_FROM_HI = -50.0   # a spring must be compressed: >= 50% below its own 252d high
 BETA_MIN = 1.5                  # ... and able to travel when it releases
 MCAP_MIN = 1e9                  # tradeability floor (same class as PRICE_CAP, not a judgment)
+# ⚠️ MCAP_MIN MUST STAY COARSE, because its input is noisy — checked 2026-09-04. `market_cap` comes from
+# stock_fundamentals, a current-snapshot table refreshed weekly and only for symbols it considers stale,
+# so most rows were ~12 days old when this was measured: caps sat -4% to +17% off live (median ~6%).
+# Recomputing it as shares_out x last_close fixes the price drift but inherits share-count staleness and
+# is worse on names that have issued stock (one pooled name came out 23% low), so neither source is
+# reliably better and the formula was NOT swapped. At $1B this does not matter — 16 names sit within
+# 0.8-1.2B and they are equally transactable either way, which is all this rail is for. It would matter
+# a great deal if anyone ever tightened this into a discriminator. Do not. Same for BETA_MIN: 170 names
+# sit within +/-0.15 of 1.5, and beta is only stable because it is computed over months.
 
 PRIMARY_K = 4            # path (a) EXTREME: top-K most-unusual per axis metric
 BREADTH_Q = 0.04         # path (b) BROAD: "unusual on an axis" = top 4% of that axis
