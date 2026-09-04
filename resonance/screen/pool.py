@@ -157,6 +157,7 @@ DIGEST_COLS = [
     "prime_put_call_ratio", "prime_opt_unusual_call", "prime_opt_unusual_put",
     "prime_earn_upcoming", "prime_earn_days_to", "prime_analyst_net",
     "prime_float_shares", "prime_small_float", "prime_market_cap", "prime_beta",
+    "released_recently",   # popped >=12% recently: loaded_spring axis is off, name still admitted
 ]
 
 
@@ -327,14 +328,29 @@ def pool(date, cache_dir=CACHE, write=True):
             return float(np.nanmax(arr)) if arr.size else -1e9
         except Exception:
             return -1e9
+    # ⚠️ SCOPE FIX 2026-09-04. The reset was written to neutralize the loaded_spring AXIS by nulling the
+    # depth columns — harmless when membership came from the axis union. Under the movement admission
+    # those same columns ARE the admission, so nulling them silently DELETED the name from the pool.
+    # That was an unintended consequence of the admission change, not a decision, and it was wrong on
+    # the merits: measured over 29 sessions the 67 names it removed cleared +2% on 37.3% of days against
+    # 27.6% for the admitted pool (holds on both folds: 41.5% / 30.8%). A name that popped 12%+ recently
+    # is NOT discharged — it keeps moving. It is also more two-sided (down 32.8% vs 25.2%, sd 5.97 vs
+    # 3.83), so this is variance rather than edge, which is exactly the judgement the AI should make and
+    # the machine should not.
+    # So: the reset keeps its ORIGINAL scope — it neutralizes the loaded_spring axis — and the admission
+    # reads the UN-reset depth. Released names stay in the pool, flagged, and the brain decides.
     if "coil_recent_daily_rets" in df.columns:
         _released_mask = df["coil_recent_daily_rets"].apply(_max_up) >= RELEASE_UP_PCT
         released_reset = int(_released_mask.sum())
+        df["coil_pct_from_252hi_admit"] = df["coil_pct_from_252hi"]   # admission reads this, un-reset
+        df["released_recently"] = _released_mask
         for _col in ("coil_max_drawdown_pct", "coil_pct_from_252hi"):
             if _col in df.columns:
                 df.loc[_released_mask, _col] = np.nan   # loaded_spring axis won't fire on these
     else:
         released_reset = 0
+        df["coil_pct_from_252hi_admit"] = df.get("coil_pct_from_252hi")
+        df["released_recently"] = False
 
     # Account constraint (small capital): only names buyable under $400/share. This is NOT a
     # judgment axis — it just removes names the AI could never size, so it never wastes a pick on
@@ -419,7 +435,8 @@ def pool(date, cache_dir=CACHE, write=True):
     #
     # Rollback: RESONANCE_POOL_MODE=axis_union restores the previous gate exactly.
     POOL_MODE = os.environ.get("RESONANCE_POOL_MODE", "movement")
-    _depth = df["coil_pct_from_252hi"] if "coil_pct_from_252hi" in df.columns else None
+    _depth = (df["coil_pct_from_252hi_admit"] if "coil_pct_from_252hi_admit" in df.columns
+              else (df["coil_pct_from_252hi"] if "coil_pct_from_252hi" in df.columns else None))
     _beta = df["prime_beta"] if "prime_beta" in df.columns else None
     _mcap = df["prime_market_cap"] if "prime_market_cap" in df.columns else None
     if POOL_MODE == "movement" and _depth is not None and _beta is not None and _mcap is not None:
@@ -579,8 +596,9 @@ def pool(date, cache_dir=CACHE, write=True):
         f"{len(axis_only)} of those are NOT admitted here, and {len(movement_only)} names it hid ARE. "
         f"(overlap {len(pooled & axis_union)})",
         f"  primed-only (would fail the old coil prerequisite): {len(primed_only_excluded)}.",
-        f"  RELEASE RESET: {released_reset} names had loaded_spring neutralized (already popped "
-        f">={RELEASE_UP_PCT:.0f}% recently = discharged, no longer a loaded coil).",
+        f"  RELEASE RESET: {released_reset} names had the loaded_spring AXIS neutralized (popped "
+        f">={RELEASE_UP_PCT:.0f}% recently). They REMAIN in the pool, flagged `released_recently` — the "
+        f"reset scopes the axis, not membership (measured: these clear +2% at 37.3% vs 27.6% admitted).",
         f"  [old-gate reference only] axis entry paths: "
         f"EXTREME top-{PRIMARY_K} on a coiled axis -> {len(path_extreme)} names   |   "
         f"BROAD top-{BREADTH_Q:.0%} on >={BREADTH_MIN_AXES} axes (>=1 coiled) -> {len(path_broad)} "

@@ -128,6 +128,12 @@ not by being scored. It is recomputed each run, so if the split narrows or inver
   **⚠️ Volume has NO SIGN.** Always read it with the gap: heavy volume on an UP gap is buyers arriving;
   the identical number on a DOWN gap is holders leaving and you would be stepping in front of them.
 - **short interest** — a forced buyer is the one flow that keeps arriving after the open.
+- **`released_recently`** — this name made a single up-day of 12%+ in the recent window, so its
+  `loaded_spring` axis is switched off. **It is NOT excluded, and "it already popped" is not a reason to
+  decline it.** Measured over 29 sessions, names carrying this flag cleared +2% on **37.3%** of days
+  against **27.6%** for the rest of the pool (holding on both folds) — a spring that fires does not stop
+  moving. They are also more two-sided (down 32.8% vs 25.2%, and noticeably wider), so this is VARIANCE,
+  not edge, and which of the two you are looking at is a judgement about that name, not a rule.
 
 **Do NOT hunt the digest for the best story** — story quality measured zero separating power, and
 searching for it produced the losing stretch. **DO judge, per candidate: TAKE or VETO**, on context.
