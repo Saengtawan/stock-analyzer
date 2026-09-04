@@ -117,8 +117,13 @@ high-beta, liquid, deeply-drawn-down cohort), not which one to buy. Your judgmen
 
 ### 🔧 THE POOL NOW COMPUTES THAT COHORT FOR YOU — read `shortlist` in the pool JSON
 The pool file carries a **`shortlist`** array: the names that mechanically qualify on the profile above
-(`loaded_spring` + beta + premarket-awake), computed in code, typically **1-3 names**. **This is your
-candidate set, and it exists because selecting the cohort is a MECHANICAL job you were doing badly.**
+(`loaded_spring` + beta + premarket-awake), computed in code, typically **1-3 names**. **Treat it as a
+computed REFERENCE — the record's winner-region marked on today's board — not as a set you must buy from
+and not as a set you may not leave.** It exists because selecting the cohort by story is the job the
+record shows you doing badly; it does NOT exist to make the choice for you. The `rank_in_pool` fields
+(below) are the same information without a cutoff, and they are the primary read: a name just outside the
+frozen thresholds but top-decile on the dimensions is not disqualified, and a name inside them with a
+visible negative is not endorsed.
 The forward record is blunt about why: the traded picks went **7 win / 13 loss lifetime, 1 win / 9 loss
 over three weeks**, and *every one of those losing picks cleared every gate in this document by name* —
 a 4,271-character justification cleared four gates and still closed −8.8%. Prose-based gates cannot stop
@@ -146,8 +151,11 @@ failure.
 **So your job changes shape — this is the whole point of the rebuild:**
 - **You do NOT hunt the 40-name digest for the best story.** Story quality is measured to have zero
   separating power here. Searching for it is what produced the losing stretch.
-- **You DO judge, per shortlist name: TAKE or VETO** — using context (Step 3): what does the news
-  actually SAY, is there an active negative running, does the direction read UP for a hold to the close.
+- **You DO judge, per candidate: TAKE or VETO** — using context (Step 3): what does the news actually
+  SAY, is there an active negative running, does the direction read UP for a hold to the close. Work the
+  shortlist first because that is where the winner-region sits, then let `rank_in_pool` tell you if any
+  other pooled name is genuinely in that region too (top-decile on the dimensions, just outside a frozen
+  threshold). Judge those on the same terms — the ranks are the read, the thresholds are only a marker.
 - **VETO ALL of them and abstain is always available and is a valid, common answer.** The cohort gives a
   ~47% shot at +2%, not a certainty; a day where every candidate has an active negative is an abstain.
 - **You MAY still pick a name outside the shortlist** — the profile is evidence, not law, and your context
