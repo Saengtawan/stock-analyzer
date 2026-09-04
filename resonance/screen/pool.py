@@ -559,6 +559,20 @@ def pool(date, cache_dir=CACHE, write=True):
     # honest null hypothesis for every pick: a plan that takes names which clear +2% at 28% has added
     # nothing. It is computed ROLLING, never hardcoded, so it re-measures itself as the regime changes
     # and can never quietly go stale the way a written-down base rate does.
+    # SPLIT-ARTIFACT EXCLUSIONS — count them, because a silent exclusion is how the release-reset bug
+    # hid. `coil_dd_suspect` marks a name whose 252-day high looks pre-split, so its measured drawdown is
+    # an artifact; build.py nulls `pct_from_252hi` for those, which under this admission removes them
+    # from the pool. Unlike the release reset that is CORRECT — admitting on a depth we know is wrong
+    # would be admitting on garbage — but it must be visible. Measured over 29 sessions: ~4.7 flagged a
+    # day, of which ~1 would otherwise have qualified (29 name-days: 34.5% cleared +2%, EV +1.14%).
+    # Those returns are not evidence the exclusion is costing us: a name that only LOOKS deeply fallen
+    # is not the cohort this system trades, so it was never a candidate on the merits.
+    dd_suspect_excluded = 0
+    if "coil_dd_suspect" in df.columns:
+        _sus = df["coil_dd_suspect"].fillna(False).astype(bool)
+        _would = _sus & (df.get("prime_beta", 0) > BETA_MIN) & (df.get("prime_market_cap", 0) >= MCAP_MIN)
+        dd_suspect_excluded = int(_would.sum())
+
     lookback_hint = 20
     cohort_baseline = _cohort_baseline(date, cache_dir, lookback=lookback_hint)
 
@@ -596,6 +610,9 @@ def pool(date, cache_dir=CACHE, write=True):
         f"{len(axis_only)} of those are NOT admitted here, and {len(movement_only)} names it hid ARE. "
         f"(overlap {len(pooled & axis_union)})",
         f"  primed-only (would fail the old coil prerequisite): {len(primed_only_excluded)}.",
+        (f"  SPLIT-ARTIFACT: {dd_suspect_excluded} name(s) excluded because their 252d high looks "
+         f"pre-split, so the measured depth is an artifact — not admitted on a number we know is wrong."
+         if dd_suspect_excluded else ""),
         f"  RELEASE RESET: {released_reset} names had the loaded_spring AXIS neutralized (popped "
         f">={RELEASE_UP_PCT:.0f}% recently). They REMAIN in the pool, flagged `released_recently` — the "
         f"reset scopes the axis, not membership (measured: these clear +2% at 37.3% vs 27.6% admitted).",
@@ -646,6 +663,7 @@ def pool(date, cache_dir=CACHE, write=True):
         "n_extreme": len(path_extreme),
         "n_broad": len(path_broad),
         "axis_contrib": axis_contrib,
+        "dd_suspect_excluded": dd_suspect_excluded,  # split-artifact names that would else qualify
         "cohort_baseline": cohort_baseline,   # rolling null hypothesis the AI must beat (see 4d)
         "shortlist": shortlist,          # == pool under movement mode (see 4b)
         "digest": digest,
