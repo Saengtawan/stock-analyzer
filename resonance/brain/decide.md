@@ -141,6 +141,14 @@ use the REASON each dimension mattered, so you can still judge when the regime s
   cannot produce the day you need even if you are right. *(Ask: can this name physically move enough?)*
 - **premarket volume vs its own average** — someone is ALREADY acting before you. This was the largest
   single return separator; a quiet premarket means nothing has started. *(Ask: is anyone there yet?)*
+  **⚠️ But volume has no sign — it tells you people are acting, NOT which side they are on. ALWAYS read
+  it together with the gap: heavy premarket volume on an UP gap is buyers arriving; the same number on a
+  DOWN gap is holders getting out, and you would be stepping in front of them.** The record's single
+  worst pooled loss was the name with the HIGHEST premarket volume in its pool — 16.7× its average, on a
+  −9.9% gap, with the top news-impact score on the board — and it closed **−20.9%**. It had reported that
+  morning: revenue well under consensus, full-year volume guidance CUT, and it conceded a regulatory ban
+  on its main market. That is an identity change in the WRONG direction, and every one of those facts was
+  public before the open. High `pm_vol_vs_avg` is a reason to LOOK, never a reason to buy.
 - **short interest** — a forced buyer who must transact in RTH is the one flow that keeps arriving after
   the open. *(Ask: is there anyone OBLIGED to buy this today?)*
 If today's tape contradicts one of these (a calm-market day where nothing is awake, a squeeze already
