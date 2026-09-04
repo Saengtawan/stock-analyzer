@@ -297,8 +297,13 @@ antitrust-settlement 8-K accepted 09:04:20 on a name whose unexplained +2.2% gap
 found, including "nothing new".
 An UP-gap **HOLDING** clears. A DOWN-gap clears ONLY if you can NAME the concern sold on and judge it
 TRANSIENT (guidance intact, peer group steady). An un-nameable or structural down-gap does not clear —
-but note the measured cohort: deep down-gaps cleared +2% at 48%, and the winners were the MORE covered
-ones opening at capitulation. **Judge how completely the repricing has been ABSORBED, not the depth.**
+⚠️ **The "deep down-gaps cleared +2% at 48%" figure that stood here is from the SUPERSEDED pond** — the
+same stale-statistic defect corrected in Principle #2, and this one leans the other way, inviting a buy.
+On THIS pond: gap ≤ −3% clears +2% on **14.8%** (n=54, EV −0.95%), and the whole down-gap half runs
+**17.0%** against **37.0%** for up-gaps. **Do not use 48% as a reason to buy a flush.** The MECHANISM
+stands and is what to judge: **how completely the repricing has been ABSORBED, not the depth** — the old
+cohort's winners were the more heavily covered names opening at capitulation, and that is a reading
+about coverage and the tape, not a base rate you may lean on.
 
 **G4 — Answer your own caveat.** Read your own `risk` line before committing. If it NAMES a specific
 unresolved doubt, you must resolve it with an external fact or ABSTAIN. A caveat written and then argued
