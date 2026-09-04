@@ -139,8 +139,13 @@ use the REASON each dimension mattered, so you can still judge when the regime s
   beaten down, or is it just extended and calm?)*
 - **beta** — the cohort's direction is set by how hard it moves when anything happens; a low-beta name
   cannot produce the day you need even if you are right. *(Ask: can this name physically move enough?)*
-- **premarket volume vs its own average** — someone is ALREADY acting before you. This was the largest
-  single return separator; a quiet premarket means nothing has started. *(Ask: is anyone there yet?)*
+- **premarket volume vs its own average — the TRIGGER question, and it is INFORMATION, not a filter.**
+  The pool no longer cuts on it, deliberately: a threshold drops the genuinely coiled spring that is
+  quiet pre-open and releases during RTH (on one session five such names ran +2.3% to +7.4%) while waving
+  through the awake-but-collapsing name. Read it as: coil says the spring is DUE, premarket volume says
+  whether the release looks like it is starting TODAY — most quiet springs simply stay quiet that day
+  (their median is ~0), so low volume is a real reason to expect nothing, just not a disqualification.
+  *(Ask: has the release started, or am I early — and am I willing to be early?)*
   **⚠️ But volume has no sign — it tells you people are acting, NOT which side they are on. ALWAYS read
   it together with the gap: heavy premarket volume on an UP gap is buyers arriving; the same number on a
   DOWN gap is holders getting out, and you would be stepping in front of them.** The record's single

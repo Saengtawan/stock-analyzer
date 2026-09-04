@@ -343,13 +343,21 @@ def pool(date, cache_dir=CACHE, write=True):
     # name). Selecting the cohort is a MECHANICAL job; the AI's job is direction (take/veto) on it.
     # This does NOT decide anything — the AI may veto every name here, may abstain, and may still pick
     # off-shortlist; it just no longer has to FIND the cohort itself.
-    SL_BETA_MIN, SL_PMVOL_MIN = 1.5, 0.8
+    # pm_vol is deliberately NOT a cut here (changed 09-04). It measured as the strongest single return
+    # separator, but a threshold on it does two wrong things at once: it drops genuinely coiled springs
+    # that are quiet pre-open and release during RTH (on one session five such names ran +2.3% to +7.4%),
+    # and it waves through the awake-but-COLLAPSING name (the −20.9% disaster had the highest premarket
+    # volume in its pool). Volume has no sign; a number cannot fix that. The right instrument is the
+    # CONTEXT read — and it works: on replay the agent vetoed that name on its actual pre-open facts
+    # (revenue miss + cut volume guidance). So pm_vol stays as INFORMATION (raw value + rank_in_pool) for
+    # the AI to weigh as the trigger question ("is the release starting today?"), not as a gate.
+    SL_BETA_MIN = 1.5
     shortlist = []
     for row in digest:
         if "loaded_spring" not in (row.get("axes") or []):
             continue
         b, pv = row.get("beta"), row.get("pm_vol_vs_avg")
-        if b is None or pv is None or b <= SL_BETA_MIN or pv < SL_PMVOL_MIN:
+        if b is None or b <= SL_BETA_MIN:
             continue
         shortlist.append({"sym": row["sym"], "beta": b, "pm_vol_vs_avg": pv,
                           "pct_from_252hi": row.get("pct_from_252hi"),
@@ -399,8 +407,7 @@ def pool(date, cache_dir=CACHE, write=True):
         f"EXTREME top-{PRIMARY_K} on a coiled axis -> {len(path_extreme)} names   |   "
         f"BROAD top-{BREADTH_Q:.0%} on >={BREADTH_MIN_AXES} axes (>=1 coiled) -> {len(path_broad)} "
         f"(+{len(path_broad - path_extreme)} unique)",
-        f"  SHORTLIST (mechanical winner profile: loaded_spring + beta>{SL_BETA_MIN} + "
-        f"pm_vol_vs_avg>={SL_PMVOL_MIN}) -> {len(shortlist)} names"
+        f"  SHORTLIST (winner-region reference: loaded_spring + beta>{SL_BETA_MIN}; pm_vol is INFO, not a cut) -> {len(shortlist)} names"
         + (": " + ", ".join(d["sym"] for d in shortlist) if shortlist else " (none today)"),
         "  union-of-coiled-axes (binary per-axis membership; no composite; direction-agnostic; primed=trigger only).",
         "  per-axis EXTREME contribution (top-K):",
