@@ -323,3 +323,15 @@ exec_ai/plans/*
 exec_ai/__pycache__/
 exec_ai/**/__pycache__/
 data/overnight.db
+
+# --- resonance: keep source under version control (added 2026-09-04) -----------------------------
+# The bare `lib/`, `data/` and `cache/` patterns above are directory-name matches, so they also hide
+# resonance/lib/ and resonance/data/ — both of which contain SOURCE, not artifacts. The existing files
+# there are tracked only because they were added before those rules; any NEW module dropped in either
+# directory would be silently excluded and never committed. Un-ignore the code explicitly.
+!resonance/lib/
+!resonance/lib/*.py
+!resonance/data/
+!resonance/data/*.py
+resonance/data/*.db
+resonance/*.db
