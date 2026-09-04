@@ -145,6 +145,25 @@ def _extras_only(conn):
             ORDER BY symbol""")]
 
 
+# ⚠️ CORE IS NOT COVERED, AND IT IS ALSO CORRUPTED (measured 2026-09-04).
+# readjust_extras deliberately protects `universe_stocks` — the DELETE is scoped to extras-only because
+# core daily rows are shared with ml_filter, exec_ai and swing, and dropping them mid-session would
+# break live systems. That safety is right. The consequence is that core names still carry PRE-split
+# rows written before the Adjustment.ALL change, and nothing repairs them: update_daily writes with
+# INSERT OR IGNORE, so an existing wrong row is never overwritten.
+# Scope on the day this was measured: ~25 core symbols show the signature (a 252d high more than 3x
+# the recent range) — BKNG reads a 252d high of 5628 against a 195 last close (-97%), KLAC 2431 vs 173,
+# CVNA 487 vs 73. Those are splits, not crashes.
+# Impact is BOUNDED, which is why this is documented rather than repaired in a hurry: build.py's
+# dd_suspect guard detects the signature and nulls the depth, so no name is ever ADMITTED on a fake
+# drawdown. The cost is exclusion — roughly one otherwise-qualifying name a day never reaches the pool.
+# Same-day open->close returns are unaffected (both prices come from the same row), so graded outcomes
+# and every measurement in this session are safe.
+# A SAFE repair would: re-fetch those symbols with Adjustment.ALL into a staging table, diff it against
+# stock_daily_ohlc, and UPDATE only the rows that differ — never DELETE from a table three live systems
+# read. Do it outside market hours. Do not point readjust_extras at core.
+
+
 def readjust_extras(years=1, db=DB):
     """Rewrite the EXTRAS' daily OHLC onto the corrected split+dividend-adjusted basis.
 
