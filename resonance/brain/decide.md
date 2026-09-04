@@ -74,9 +74,15 @@ Read `resonance/memory.md`: the **3 PRINCIPLES**, then the FORWARD RECORD and LE
 1. **Direction is coin-flip; volatility is not.** Bet on the spring being due; lean on the catalyst for
    which way. Do not pretend to predict the path.
 2. **Catalyst > momentum for a hold-to-close bet.** A fundamental surprise drifts to the close; a
-   technical poke fades. ⚠️ *Scope: this is about DIRECTION, not selection. Over 995 name-days,
-   catalyst richness (`news_n`, `news_max_impact`, `gap_pct`) separated winners from losers NOT AT ALL.
-   Use the catalyst to decide which WAY a coiled name goes, never which name to look at.*
+   technical poke fades.
+   ⚠️ **CORRECTED 2026-09-04 — the scope note that stood here was measured on a pond that no longer
+   exists.** It said catalyst richness "separated winners from losers NOT AT ALL", with news-carrying
+   names averaging −0.36% against +0.18% for the news-less. That was the axis-union pool, which the
+   current admission replaced by ~90% of its names. Re-measured on THIS pond (922 graded name-days) the
+   sign is the other way: names WITH news average **+0.51%** and clear +2% on **33.7%** of days, against
+   **+0.00%** and **21.8%** for the news-less. **A catalyst does help here — do not decline a name for
+   carrying news, and do not read "no news" as neutral.** What has not changed: the catalyst's job is
+   DIRECTION. It tells you which way a name goes, never which name to look at.
    Weight catalysts by durability, as a PRIOR not a gate: **HARD** = a number the market must re-rate to
    (earnings/sales beat, guidance, M&A, contract). **SOFT** = a story with no fresh number (management
    change, commentary, product PR, analyst-note-alone). HARD is necessary, not sufficient — the drift

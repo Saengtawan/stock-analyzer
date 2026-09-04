@@ -247,6 +247,13 @@ REASON, so you can still judge when the regime shifts:
 - **short interest** — a forced buyer is the one flow that keeps arriving after the open.
   *(Ask: is anyone OBLIGED to buy this today?)*
 
+**⚠️ STALE — MEASURED ON THE SUPERSEDED POND, NOT RE-ESTABLISHED ON THIS ONE (flagged 2026-09-04).**
+The mechanism below still stands to reason; the NUMBERS do not describe the current pool, which replaced
+~90% of the old one's names. On this pond the same slice is far too small to confirm and points the other
+way (7 name-days, median +8.63%), and within up-gappers the odds IMPROVE with gap size (0-1% gap: 33.5%
+clear +2%; >+5%: 67.7%). **You may not decline a name on these figures.** Weigh how much of the reaction
+is already published and absorbed, read off today's tape and coverage.
+
 **PROCESSED vs UNPROCESSED — the single most useful thing measured here.** A big gap WITH broadly
 published news is the DANGEROUS end, not the good one: gap >+10% with news in the feed had a median of
 **−1.04%** and a worst of −29.5%, while gap +5–10% with NOTHING in the feed had a median of **+2.80%**.
