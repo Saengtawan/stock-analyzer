@@ -236,6 +236,26 @@ evidence only (not a traded pick). Keep pre-registering it; do not weaken the pr
 ---
 
 ## LESSONS
+
+> ### 📐 RECONCILED AGAINST THE CURRENT POND — 2026-09-04 (922 graded name-days)
+> The admission changed on 2026-09-04 and ~90% of the pool's names changed with it, so every lesson
+> below was written for a different pond. Rather than leave that as a warning, the statistical ones were
+> RE-DERIVED. Pool baseline for comparison: **cleared +2% on 27.7%, EV +0.25%.**
+>
+> | lesson | re-measured on this pond | verdict |
+> |---|---|---|
+> | **L1** triggerless coil does not release on a good tape | triggerless (no news, pm_vol<0.8): **20.5%** up, EV **−0.14%**. With a trigger (news + pm_vol≥1.0): **47.5%**, EV **+1.50%** | ✅ **CONFIRMED, and stronger than when written** |
+> | **L12** the down-gap is the losing cohort | gap ≤−3%: **14.8%** up, **31.5%** down, EV **−0.95%** | ✅ **CONFIRMED** |
+> | **L3 / L6** the flushed down-gapper is where my misses concentrate; every criterion for declining one was falsified | both are pick-derived (3-4 names) and the 54 name-days above contradict them. The one real sub-case: down-gap WITH heavy news clears +2% at 43.8% — but EV is still **−0.91%** (fat tails both ways, n=16) | ⚠️ **OVERRULED by L12 per the evidence hierarchy.** Keep the mechanism (how completely has the repricing been absorbed), drop the base rate |
+> | **L4** the coil axes discriminate no winner from any loser | inside this pool, depth ≤−65% clears +2% at **27.0%** against **27.9%** for the rest — no difference | ⛔ **MOOT, not wrong.** The pool now ADMITS on depth, so the discrimination moved into the admission and there is no variance left inside the pond to measure. Do not cite it either way |
+> | **L11** I judge every name as an isolated story and have no GROUP layer | same-driver names: **45.1%** up, EV **+1.49%** — the pool's best cohort by a wide margin | 🔴 **CONFIRMED AND THE MOST EXPENSIVE ONE OPEN.** Partly addressed 2026-09-04 by the declared driver-bet rule (one per plan, stated as a bet on the driver). The EV is BETA to an unforecastable asset, not an edge — but declining all of it, every session, is a measured cost |
+>
+> **The lessons NOT in this table are MECHANISMS, not statistics** (L2, L5, L7, L8, L9, L10, L13 — how to
+> read a spent catalyst, a distant payout, a live adverse mechanism, a guidance cut, your own inference,
+> a split artifact, an unchecked number). Mechanisms survive a change of pond; base rates do not. They
+> stand as written.
+
+
 _(forward-earned only, never from one day, never a statistical rule — start empty)_
 
 **L1 — A triggerless coil does not release just because the tape does.** (forward-earned 08-03 +
