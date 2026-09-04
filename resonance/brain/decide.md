@@ -347,13 +347,33 @@ even when abstaining (empty `picks`).
       "who_fit": "real participation + rotation fit",
       "risk": "the honest way this is wrong; nothing verifies the close",
       "entry": "open",
-      "exit": "hold_eod"
+      "exit": "hold_eod",
+      "winlo": 0.00,
+      "limit": 0.00,
+      "limit_reason": "why this buffer, read from the premarket structure",
+      "limit_flat_1015": 0.00
     }
   ],
   "abstain_reason": "omit if picks non-empty; else why nothing qualified",
   "closest_call": "on abstain ONLY: the one name you would have taken if forced, + why (recorded, not traded)"
 }
 ```
+
+**⚠️ EVERY PICK MUST CARRY THE ENTRY PRICE — this is the operator's standing rule and it was missing.**
+The trade is not bought at the open; it is bought with a LIMIT set at ~09:25. So for each pick:
+- **`winlo`** — MECHANICAL: the lowest low of the 09:05-09:25 ET 1-min bars. Pull it yourself (or run
+  `scripts/winlo_limit.py <SYM>`). Not a judgement, just the pre-open support the tape actually printed.
+- **`limit`** — YOUR judged buffer above that low, with **`limit_reason`** in one line read from the
+  premarket structure. **There is no fixed multiplier and none may be invented**: the principle is to sit
+  just above where the name is likely to dip in RTH so it FILLS, without paying so much that the cheap
+  pullback is gone. A hard-flushed down-gapper likely wants a hair wider; a gentle gapper tighter.
+- **`limit_flat_1015`** — `winlo × 1.015`, the flat baseline, shown ALONGSIDE the judged one so the
+  forward record can compare which fills and which prices better. Both, every day, per the operator's
+  decision — not one or the other.
+**Note in the plan that the fill is MODELLED** (a resting limit is assumed to fill if price trades at or
+below it) and that `resonance/lib/execute.py` grades the paper record at the **09:30 open** instead — a
+deliberately conservative proxy, since the limit measured about +0.87pp better than the open across 11
+picks. Never grade a limit fill before the close.
 
 Then print the receipt, tickers first:
 

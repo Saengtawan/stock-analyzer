@@ -1,5 +1,14 @@
 """resonance / lib / execute.py — PAPER execution (never places a real order).
 
+NOTE ON THE ENTRY PRICE (2026-09-04): the paper record grades at the 09:30 open, but that is NOT how
+the trade is actually entered. The operator buys with a LIMIT set ~09:25 at winLo(09:05-09:25) x an
+AI-judged buffer, and the plan now carries `winlo` / `limit` / `limit_reason` / `limit_flat_1015` for
+every pick. Grading at the open is kept deliberately: it is unambiguous, needs no fill assumption, and
+is CONSERVATIVE — across 11 picks the limit priced about +0.87pp better than the open. So the forward
+record understates the operator's method rather than flattering it, which is the right direction for a
+record to be wrong in. If limit fills are ever graded here, they must be modelled explicitly (a resting
+limit fills when price trades at or below it) and never scored before the close.
+
 The resonance trade is mechanical to *execute*: entry = the RTH 09:30 open, exit = the 15:55 ET
 close, hold-to-EOD, no intraday management. So this module just resolves those two prices from the
 stored 5-min bars and writes the forward record. NO Alpaca order is EVER sent — the user places the
