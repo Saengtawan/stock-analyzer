@@ -8,6 +8,18 @@ resonance axis — is empty live for both core and extras. The 07-30 replay only
 bars happened to exist post-hoc.
 
 This module closes that gap. For a DATE it fetches the premarket + early-session 5-min bars
+MEASURED LIMIT (2026-09-04) — READ BEFORE "JUST FETCHING AGAIN". The window ends at `now` when this
+STARTS, and the cron starts it at 09:00, so the stored premarket always ends ~09:00 while the brain
+decides at ~09:20-09:25. The obvious fix — run it a second time before the AI call — does not work, and
+the numbers say why: SIP is capped at now-16min by the free-tier restriction, so a 09:02 re-run reaches
+only 08:46, and IEX (which has no such cap) covered just **4 of 48 pooled names** past 08:45 on the day
+this was measured — JOBY, KEEL, ORCL, SOUN, the liquid ones. For the other 34 whose tape stops at 08:40,
+IEX simply has no prints. That is a real IEX coverage limit on small caps, not a bug here, and no
+scheduling change repairs it.
+The path that DOES work is a per-name pull at decision time: `scripts/winlo_limit.py <SYM>` reads
+yfinance premarket 1-min with prepost=True, free and near-real-time, cross-checked against SIP to about
+a cent. decide.md's G3 requires it. Do not replace that with another batch fetch here.
+
 (04:00 ET -> the current ET minute) LIVE from Alpaca (feed=IEX — the real-time entitlement) for the
 FULL resonance universe (access.universe() = core + resonance extras, ~2000) and UPSERTs them into
 intraday_bars_5m matching the EXACT existing schema.
