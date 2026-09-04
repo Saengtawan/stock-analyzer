@@ -124,6 +124,25 @@ over three weeks**, and *every one of those losing picks cleared every gate in t
 a 4,271-character justification cleared four gates and still closed −8.8%. Prose-based gates cannot stop
 a fluent writer from buying the wrong cohort; a computed shortlist can.
 
+**⚠️ THE SHORTLIST IS A FROZEN CUT — UNDERSTAND THE MECHANISM, DON'T OBEY THE NUMBERS.** Its thresholds
+were fitted on one month of one regime; a frozen cut is a hardcoded rule and hardcoded rules are exactly
+what died before. So every digest row also carries **`rank_in_pool`** — where that name sits inside
+TODAY'S pool (percentile, no cutoff) on the four dimensions that carried the winners. Use the ranks, and
+use the REASON each dimension mattered, so you can still judge when the regime shifts:
+- **drawdown depth** — a name far below its own high has a year of stored energy and no trapped longs
+  overhead; names near their highs cleared +2% only ~2% of the time. *(Ask: has this one actually been
+  beaten down, or is it just extended and calm?)*
+- **beta** — the cohort's direction is set by how hard it moves when anything happens; a low-beta name
+  cannot produce the day you need even if you are right. *(Ask: can this name physically move enough?)*
+- **premarket volume vs its own average** — someone is ALREADY acting before you. This was the largest
+  single return separator; a quiet premarket means nothing has started. *(Ask: is anyone there yet?)*
+- **short interest** — a forced buyer who must transact in RTH is the one flow that keeps arriving after
+  the open. *(Ask: is there anyone OBLIGED to buy this today?)*
+If today's tape contradicts one of these (a calm-market day where nothing is awake, a squeeze already
+covered), say so and weigh it differently — that is judgment, and it is why you are here rather than a
+formula. What you may NOT do is ignore the dimensions entirely and pick on story, which is the measured
+failure.
+
 **So your job changes shape — this is the whole point of the rebuild:**
 - **You do NOT hunt the 40-name digest for the best story.** Story quality is measured to have zero
   separating power here. Searching for it is what produced the losing stretch.

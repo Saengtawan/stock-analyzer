@@ -357,6 +357,29 @@ def pool(date, cache_dir=CACHE, write=True):
                           "market_cap": row.get("market_cap"), "axes": row.get("axes")})
     shortlist.sort(key=lambda d: -(d.get("pm_vol_vs_avg") or 0))
 
+    # 4c) PERCENTILE RANKS — the same information WITHOUT a threshold, so the AI can judge instead of
+    # obeying. The shortlist above is one frozen cut of these dimensions; a frozen cut is a hardcoded
+    # rule and will break when the regime changes (that is how the old rule systems died). These ranks
+    # say WHERE each name sits inside TODAY'S pool on the dimensions that historically carried the
+    # winners — deep drawdown (stored energy), beta (can it actually move), premarket volume (is anyone
+    # acting yet), short interest (is there a forced buyer). No cutoff, no verdict: raw position.
+    def _pct_rank(vals, v):
+        xs = [x for x in vals if x is not None]
+        if v is None or not xs:
+            return None
+        return round(100.0 * sum(1 for x in xs if x <= v) / len(xs))
+    _dims = {"drawdown_depth": [(-(r.get("pct_from_252hi") or 0)) for r in digest],
+             "beta": [r.get("beta") for r in digest],
+             "pm_vol_vs_avg": [r.get("pm_vol_vs_avg") for r in digest],
+             "short_pct_float": [r.get("short_pct_float") for r in digest]}
+    for row in digest:
+        row["rank_in_pool"] = {
+            "drawdown_depth": _pct_rank(_dims["drawdown_depth"], -(row.get("pct_from_252hi") or 0)),
+            "beta": _pct_rank(_dims["beta"], row.get("beta")),
+            "pm_vol_vs_avg": _pct_rank(_dims["pm_vol_vs_avg"], row.get("pm_vol_vs_avg")),
+            "short_pct_float": _pct_rank(_dims["short_pct_float"], row.get("short_pct_float")),
+        }
+
     axis_contrib = {ax["name"]: len(extreme[ax["name"]]) for ax in AXES}
     dropped = buyable_size - len(pooled)
 

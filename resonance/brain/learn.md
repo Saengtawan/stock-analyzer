@@ -49,6 +49,28 @@ one line for the day, in the file's format:
 
 Keep it to one line. This record — not any story — is what conditions tomorrow's decide.
 
+## Step 3b — GRADE YOUR FILTER, not just your picks (this is how the filtering gets better)
+A pick is one decision; your FILTER made several today — everything you took, vetoed, and skipped. Grade
+the filter itself, because that is the skill that has to compound (a fixed numeric cut cannot adapt to a
+new regime; a filter that learns can).
+1. **Pull the day's candidate set** (`shortlist` + `rank_in_pool` in `resonance/cache/pool_<DATE>.json`)
+   and get the open→close for EVERY name in it, not only the ones you bought.
+2. **Score each decision separately:**
+   - **TOOK → won** = the read worked. Say WHICH read did the work (identity-change? forced buyer? a
+     dimension the ranks flagged?), so it is repeatable rather than lucky.
+   - **TOOK → lost** = was the losing driver VISIBLE pre-open (own negative news, a weak "good" headline
+     like an upgrade with no upside), or only decidable intraday (the underlying moved during the
+     session)? Only the first is a filter error; the second is the structural coin-flip and must NOT be
+     "fixed" with a new rule.
+   - **VETOED → it fell** = the veto earned its keep; name the tell you used.
+   - **VETOED → it ran** = the expensive one. What did you read as a negative that the market did not?
+   - **SKIPPED (unclear) → it ran big** = was it genuinely unreadable pre-open, or did you skip something
+     that a deeper read (the actual news CONTENT, not the headline) would have resolved?
+3. **Write ONE line on the filter** into the forward record: `filter: took N (x won), vetoed N (x fell),
+   skipped N (x ran)` + the single sharpest lesson about the READ, not about the stock.
+4. **Only escalate a filter change when the same READ error repeats** (≥3×). One bad day is the coin
+   flip; a repeated mis-read of the same kind of news is a filtering skill gap worth fixing.
+
 ## Step 4 — UPDATE THE PROCESS, not just the topic list
 A repeated failure is not a new topic — it is a signal that the guidance you already have is not
 BINDING. Adding another lesson (another paragraph decide.md reads and argues past) is the LAST
