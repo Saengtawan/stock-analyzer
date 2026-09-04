@@ -148,20 +148,18 @@ correctly and ignored anyway. So do these in order:
    NEVER to a CONTENT gate that names which stock/sector to avoid: that stays forbidden (resonance
    abandoned static rules on purpose). The distinction is the whole point — "finish your reasoning"
    is discipline; "avoid stock X" is a hardcoded conclusion.
-2b. **⚠️ ONE-TIME, UNTIL DONE: RECONCILE THE LESSONS AGAINST THE POND THEY WERE WRITTEN FOR.**
-   The pool's admission changed on 2026-09-04 and ~90% of its names changed with it. Every lesson and
-   tally in memory.md written before that date describes a DIFFERENT pond, and three such statistics
-   were already found steering decide.md the wrong way — two bearish, one bullish, one of them inverted
-   outright (catalyst richness measured as worthless on the old pond; on this one, news-carrying names
-   clear +2% at 33.7% against 21.8%). Nobody re-derived them when the pond changed.
-   So each session, until the backlog is clear, take **two** pre-2026-09-04 lessons and do one of:
-   - **RE-DERIVE** it on the current pool (you have Bash and 900+ graded name-days) and update its
-     numbers in place, noting the date of the re-measurement; or
-   - **MARK IT SUPERSEDED** with one line saying which pond it described and what replaced it; or
-   - **KEEP IT** if it is a mechanism rather than a statistic — those survive a pond change — and say so.
-   Do NOT bulk-delete. A lesson's reasoning is often still right when its numbers are stale, and the
-   record of what was argued is how the conclusion stays auditable. Report in the close-out which two
-   you handled and how many remain.
+2b. **RECONCILE THE LESSONS AGAINST THE POND — the STATISTICAL ones are already done.**
+   ✅ On 2026-09-04 the five lessons that were base rates (L1, L3, L6, L11, L12) were re-derived on the
+   current pool and L4 was marked moot; the table sits at the top of memory.md's LESSONS section. The
+   remaining lessons (L2, L5, L7, L8, L9, L10, L13) are MECHANISMS, not statistics — they survive a
+   change of pond and need no re-derivation. **So do NOT re-open this backlog each session.**
+   What remains, and it is small: if a lesson you are about to cite carries a number you cannot trace
+   to a measurement on THIS pond, re-derive it before you lean on it (you have Bash), or cite the
+   mechanism without the number. Nothing else.
+
+2c. **[SUPERSEDED — kept so the instruction is not re-added]** an earlier version of this step asked for
+   two pre-2026-09-04 lessons to be reconciled every session. That backlog is cleared; doing it again
+   would be re-litigating settled work on a pass that already hit its time limit once.
 
 3. **RECONCILE against the cohort data before you write anything (new — this is how the file stopped
    contradicting itself).** Most lessons here were earned from 3-6 of my own picks; the pool is graded

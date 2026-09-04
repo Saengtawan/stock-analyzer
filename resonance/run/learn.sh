@@ -40,13 +40,18 @@ if ! python -m resonance.lib.execute plan "$DATE" live; then
   exit 1
 fi
 
+# TIMEOUT 1200s, not 600s: the learn pass hit the 600s ceiling on 2026-09-01 and was killed. Unlike
+# premarket — which has a hard 09:25 deadline and must stay at 600 — nothing downstream waits on learn,
+# so a longer budget is free. It also has more to do since 2026-09-04 (grade the three verdicts, grade
+# the closest_call on abstain days, reconcile a pre-pond-change lesson), and losing the whole grade to a
+# timeout costs the day's only record.
 # --- (b) BRAIN: learn (1 call). learn.md uses the <DATE> placeholder (incl. plans/<DATE>.plan.json),
 #         so substitute <DATE> to keep those paths valid. ----------------------------------------
 PROMPT="Today (ET) is $DATE. You are the resonance brain. Execute the AFTER-CLOSE LEARN pass exactly as written below.
 
 $(sed "s/<DATE>/$DATE/g" resonance/brain/learn.md)"
 
-OUT=$(timeout 600 claude -p "$PROMPT" --permission-mode bypassPermissions \
+OUT=$(timeout 1200 claude -p "$PROMPT" --permission-mode bypassPermissions \
   --allowedTools "Bash Read Write WebSearch" 2>&1)
 RC=$?
 echo "$OUT"
