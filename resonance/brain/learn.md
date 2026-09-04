@@ -68,6 +68,20 @@ new regime; a filter that learns can).
    so in that language** — not "a losing day", not "the coin flip went against me". Both are also true of
    a plan that added nothing. This is the number the whole system now rests on, so never round it in your
    own favour, and never grade a single day as proof either way — report it and let the tally accumulate.
+1c. **GRADE THE THREE VERDICTS SEPARATELY — they are not the same decision (new 2026-09-04).**
+   The morning pass now assigns every pooled name VETO, SKIP, or SURVIVE, and each has its own test:
+   - **VETO** is right when the vetoed names did WORSE than the pool that day. Report both numbers.
+   - **SURVIVE** is right when the survivors did BETTER than the pool. If survivors ≈ pool, the veto
+     pass sorted nothing and should be said so plainly.
+   - **SKIP is the one to watch, and it is where the winners have been hiding.** On one graded session
+     the skip bucket returned +4.14% and held 60% of the day's winners while the survivors returned
+     +0.56%. Compute the skip bucket's up-rate every day. A skip is an admission of unreadability, and
+     it is legitimate — but if the skips keep out-running both the survivors and the pool, that is the
+     single most valuable thing this record can tell us, and it must be reported in the forward line,
+     not buried.
+   - **Driver bets:** if a pick was declared a bet on an external driver, grade it against that driver's
+     session move, not against the pool. It was never a stock call.
+
 2. **Score each decision separately:**
    - **TOOK → won** = the read worked. Say WHICH read did the work (identity-change? forced buyer? a
      dimension the ranks flagged?), so it is repeatable rather than lucky.
@@ -80,7 +94,8 @@ new regime; a filter that learns can).
    - **SKIPPED (unclear) → it ran big** = was it genuinely unreadable pre-open, or did you skip something
      that a deeper read (the actual news CONTENT, not the headline) would have resolved?
 3. **Write ONE line on the filter** into the forward record: `filter: took N (x won), vetoed N (x fell),
-   skipped N (x ran) | pool that day: up A% / down B% → took beat pool by ±C pp` + the single sharpest
+   SKIPPED N (x ran, up-rate Z%), survived N (up-rate Y%) | pool that day: up A% / down B% → took beat
+   pool by ±C pp` + the single sharpest
    lesson about the READ, not about the stock. The `vs pool` figure is mandatory — a filter line without
    it cannot show whether anything was added.
 4. **Only escalate a filter change when the same READ error repeats** (≥3×). One bad day is the coin
