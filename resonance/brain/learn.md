@@ -53,8 +53,21 @@ Keep it to one line. This record — not any story — is what conditions tomorr
 A pick is one decision; your FILTER made several today — everything you took, vetoed, and skipped. Grade
 the filter itself, because that is the skill that has to compound (a fixed numeric cut cannot adapt to a
 new regime; a filter that learns can).
-1. **Pull the day's candidate set** (`shortlist` + `rank_in_pool` in `resonance/cache/pool_<DATE>.json`)
-   and get the open→close for EVERY name in it, not only the ones you bought.
+1. **Pull the day's candidate set** — every name in `digest` in `resonance/cache/pool_<DATE>.json` — and
+   get the open→close for ALL of them, not only the ones you bought. (`shortlist` now equals the pool;
+   it no longer narrows anything.)
+1b. **GRADE AGAINST THE POND, NOT AGAINST ZERO — this is the only measurement that can prove skill.**
+   The pool is admitted to concentrate MOVEMENT and is deliberately near-symmetric: it hands you roughly
+   as many names that fall 2% as rise 2%. So "my pick went up" is not evidence of anything. Compute, for
+   the day: the share of ALL pooled names that cleared +2% and the share that fell −2% (the pool file
+   also carries a rolling `cohort_baseline` — use today's actual numbers, and the rolling one for
+   context). Then state the comparison plainly:
+   - **took** — did the names you took clear +2% at a HIGHER rate than the pool did that day?
+   - **vetoed** — did the names you vetoed fall −2% at a higher rate than the pool did?
+   If TOOK ≈ pool and VETOED ≈ pool, **the day produced no evidence of direction skill and you must say
+   so in that language** — not "a losing day", not "the coin flip went against me". Both are also true of
+   a plan that added nothing. This is the number the whole system now rests on, so never round it in your
+   own favour, and never grade a single day as proof either way — report it and let the tally accumulate.
 2. **Score each decision separately:**
    - **TOOK → won** = the read worked. Say WHICH read did the work (identity-change? forced buyer? a
      dimension the ranks flagged?), so it is repeatable rather than lucky.
@@ -67,7 +80,9 @@ new regime; a filter that learns can).
    - **SKIPPED (unclear) → it ran big** = was it genuinely unreadable pre-open, or did you skip something
      that a deeper read (the actual news CONTENT, not the headline) would have resolved?
 3. **Write ONE line on the filter** into the forward record: `filter: took N (x won), vetoed N (x fell),
-   skipped N (x ran)` + the single sharpest lesson about the READ, not about the stock.
+   skipped N (x ran) | pool that day: up A% / down B% → took beat pool by ±C pp` + the single sharpest
+   lesson about the READ, not about the stock. The `vs pool` figure is mandatory — a filter line without
+   it cannot show whether anything was added.
 4. **Only escalate a filter change when the same READ error repeats** (≥3×). One bad day is the coin
    flip; a repeated mis-read of the same kind of news is a filtering skill gap worth fixing.
 

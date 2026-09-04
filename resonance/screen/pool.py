@@ -5,45 +5,39 @@ coil+prime feature table to a ~30-50 name pool that the brain (AI) then reads an
 
 DESIGN RULES (from README + memory principles — do not break):
 
-  1. UNION-OF-AXES, never a weighted composite, gated by a COIL PREREQUISITE. A name enters the
-     pool if it is unusual on a resonance axis — but resonance trades COILED SPRINGS, so a name is
-     admitted ONLY IF it is unusual on at least one COILED axis (atr_compression, bb_squeeze,
-     rvol_contraction, consolidation, loaded_spring). The spring comes first; the PRIMED axes
-     (pm_wake, gap, news, short_fuel, options) are the TRIGGER — they add conviction and are still
-     surfaced in the digest, but a pure gapper/newsmover with NO coil (e.g. BE / AMZN 2026-07-31,
-     which entered on gap+news alone with zero coiled axis) is exactly the earnings-gapper /
-     gain-chase the system exists to reject, so primed axes can NO LONGER admit a name on their own.
-     We still deliberately do NOT sum/score the axes into one number and take the top-N — that
-     would bake in the very weighting the AI is supposed to do downstream (principle: "don't
-     hardcode conclusions / AI does the weighting"). This gate is not ranking or judging; it
-     enforces the system's DEFINITION (it trades springs). Membership is BINARY and per-axis; no
-     single number ranks names for selection.
+  1. ADMISSION = MOVEMENT CONCENTRATION (rewritten 2026-09-04 — see the long note in pool() §3b).
+     The pool's one job is to hand the AI names that will actually TRAVEL today, so a direction read
+     has something to earn on. A name is admitted on three LEVELS: deeply below its own 252-day high
+     (stored energy), high beta (able to move), tradeable size. That is a DEFINITION of what this
+     system trades plus a tradeability floor — the same class of statement as the $400 price cap —
+     not a prediction about any name and not a ranking. No axis is summed or scored; nothing is
+     weighted (principle: "don't hardcode conclusions / AI does the weighting").
 
-     Two equal-weight entry paths (both are still pure per-axis membership, NOT a composite; both
-     require >= 1 coiled axis):
-       (a) EXTREME  — a name is in the top-K most-unusual of ANY ONE *coiled* axis. (A primed-only
-                      extreme no longer enters.)
-       (b) BROAD    — a name is in the top BREADTH_Q (e.g. top 4%) of >= BREADTH_MIN_AXES DISTINCT
-                      axes at once, AT LEAST ONE of which is coiled. This rescues the real
-                      coiled+primed profile — a name that is strongly unusual across SEVERAL axes
-                      but extreme on none (this is exactly AXTI on 2026-07-30: top ~2-3% on
-                      consolidation, loaded_spring, gap AND short_fuel, yet top-K on none). Path (b)
-                      does not weight axes against each other — every axis is one equal binary vote
-                      — so it stays faithful to "the AI does the weighting". Without it, a shallow
-                      max-per-axis net silently drops the very setup we exist to find; a net deep
-                      enough to catch it by path (a) alone floods to 150+ names.
+     This REPLACED a union-of-axes gate with a coil prerequisite. That gate was measured over 48,469
+     buyable name-days and concentrated NOTHING: its pool moved >=±2% on 29.9% of name-days against
+     29.3% for the market. The cause was a units error — the axes rank by PERCENTILE against a name's
+     own history ("unusually quiet for itself"), so a mega-cap in a slow week scored like a stock down
+     70%, while the real signal is an ABSOLUTE level (off-252d-high, monotone across five bands:
+     9.3% -> 34.7% cleared +2%). The admitted cohort now moves >=±2% on 54% of name-days.
 
-     A coiled name with primed triggers = the ideal (spring + trigger). A coiled-only name =
-     allowed (loaded; the trigger may come intraday). A primed-only name (no coil) = EXCLUDED.
+     The axes are still computed and still travel in the digest as DESCRIPTION (which kind of
+     compression, how broad). They no longer decide membership, and `n_axes` is not quality — it
+     measured ANTI-correlated with outcome (2-axis 18% cleared +2%, 4-axis 7%), because the
+     compression axes are redundant and a high count mostly means "extremely asleep".
 
-  2. DIRECTION-AGNOSTIC (principle #3: gain is deceptive). Axes rank by MAGNITUDE / unusualness vs
-     the field, never by "up the most". The gap axis uses |gap| (prime_gap_abs), not signed gap.
-     A coiled-quiet name and a primed-active name are equally welcome; today's big gainer gets no
-     special pass.
+     Rollback: RESONANCE_POOL_MODE=axis_union restores the previous gate (and its shortlist) exactly.
 
-  3. NEVER SILENTLY CAP. The pool is whatever the two paths produce; every other name is reported
-     as "dropped — unusual on no axis", with a count. K / BREADTH_Q are the *declared* net width,
-     logged with each axis's contribution, not a hidden trim.
+  2. DIRECTION-AGNOSTIC (principle #3: gain is deceptive). Admission uses MAGNITUDE and capacity to
+     move, never "up the most"; today's big gainer gets no special pass. This is deliberate and it
+     is measurable: the admitted cohort rises >=+2% on ~28% of name-days and falls <=-2% on ~25%,
+     median 0.00%. The machine buys MAGNITUDE and takes NO side. 100% of the directional edge must
+     come from the AI's context read — which is also what makes that read falsifiable, since the
+     cohort's own up/down rates (emitted as `cohort_baseline`) are the number a plan has to beat.
+
+  3. NEVER SILENTLY CAP, and never silently swap the pond. The log states the admission thresholds,
+     the dropped count, and — every run — how the admitted set differs from what the OLD axis gate
+     would have shown (`axis_only_excluded` / `movement_only_added`), so a change of pond can never
+     pass unnoticed.
 
 The axes (each contributes its own top-K + its top-BREADTH_Q, then union):
 
@@ -86,6 +80,12 @@ import pandas as pd
 CACHE = "resonance/cache"
 
 # --- net width knobs (tuned on 2026-07-30 so the union lands ~50 with AXTI IN, CAG OUT) --------
+# --- ADMISSION (movement concentration) — see the long note in pool() section 3b. These are LEVELS,
+#     not percentile ranks, because the measured signal is a level. Direction-agnostic by construction.
+DEPTH_MAX_PCT_FROM_HI = -50.0   # a spring must be compressed: >= 50% below its own 252d high
+BETA_MIN = 1.5                  # ... and able to travel when it releases
+MCAP_MIN = 1e9                  # tradeability floor (same class as PRICE_CAP, not a judgment)
+
 PRIMARY_K = 4            # path (a) EXTREME: top-K most-unusual per axis metric
 BREADTH_Q = 0.04         # path (b) BROAD: "unusual on an axis" = top 4% of that axis
 BREADTH_MIN_AXES = 3     # path (b): a name enters if broadly unusual on >= this many DISTINCT axes
@@ -233,6 +233,48 @@ def _round(v):
     return round(f, 3)
 
 
+def _cohort_baseline(date, cache_dir=CACHE, lookback=20, db="data/trade_history.db"):
+    """Rolling open->close record of the POOL ITSELF over the last `lookback` written sessions.
+
+    Returns {sessions, name_days, up_pct, down_pct, moved_pct, median_pct} or {} if unavailable.
+    This is the null hypothesis the AI must beat, measured rather than asserted. Read-only; any
+    failure (missing DB, no prior pools) degrades to {} rather than blocking the morning run."""
+    try:
+        import sqlite3
+        prior = sorted(glob.glob(f"{cache_dir}/pool_*.json"))
+        prior = [p for p in prior if os.path.basename(p)[5:15] < date][-lookback:]
+        if not prior:
+            return {}
+        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        rets, sessions = [], 0
+        for p in prior:
+            d = os.path.basename(p)[5:15]
+            try:
+                with open(p) as f:
+                    syms = [r["sym"] for r in (json.load(f).get("digest") or [])]
+            except Exception:
+                continue
+            if not syms:
+                continue
+            q = ("SELECT symbol, open, close FROM stock_daily_ohlc WHERE date=? AND open>0 "
+                 "AND symbol IN (%s)" % ",".join("?" * len(syms)))
+            got = con.execute(q, [d] + syms).fetchall()
+            if got:
+                sessions += 1
+                rets += [(c / o - 1) * 100.0 for _, o, c in got if o and c]
+        con.close()
+        if len(rets) < 30:
+            return {}
+        a = np.asarray(rets, dtype=float)
+        return {"sessions": sessions, "name_days": len(a),
+                "up_pct": round(100.0 * float((a >= 2).mean()), 1),
+                "down_pct": round(100.0 * float((a <= -2).mean()), 1),
+                "moved_pct": round(100.0 * float((np.abs(a) >= 2).mean()), 1),
+                "median_pct": round(float(np.median(a)), 2)}
+    except Exception:
+        return {}
+
+
 def pool(date, cache_dir=CACHE, write=True):
     """Build the high-recall candidate pool for `date`.
 
@@ -307,7 +349,51 @@ def pool(date, cache_dir=CACHE, write=True):
     path_extreme = {s for s, axs in ext_by_sym.items() if _coil_eligible(s, axs)}
     path_broad = {s for s, axs in broad_by_sym.items()
                   if len(axs) >= BREADTH_MIN_AXES and _coil_eligible(s, axs)}
-    pooled = path_extreme | path_broad
+    axis_union = path_extreme | path_broad
+
+    # 3b) ADMISSION — MOVEMENT CONCENTRATION, measured (replaces the axis-union gate, 2026-09-04)
+    #
+    # The pool's job is NOT to pick winners and NOT to guess direction (that stays the AI's job, and
+    # the pool must stay direction-agnostic — principle #2). Its job is to CONCENTRATE MOVEMENT: hand
+    # the AI names that will actually travel today, so a direction read has something to earn on.
+    #
+    # The axis-union gate FAILED that job, measured over 48,469 buyable name-days (29 sessions,
+    # open->close), of which the 19 sessions 08-03..08-27 are LIVE 09:0x-ET snapshots:
+    #     whole market   moved >=±2%  29.3%   (up 15.3% / down 14.0%)
+    #     axis-union     moved >=±2%  29.9%   (up 15.2% / down 14.6%)   <- identical to random
+    # It concentrated nothing. The cause is a units error, not a bad idea: the axes rank by PERCENTILE
+    # against a name's own history ("unusually quiet for itself"), so a mega-cap in a slow week scores
+    # like a stock that has fallen 70%. But the spring is an ABSOLUTE level, and at that level the
+    # signal is strong and perfectly monotone across 48k name-days:
+    #     off 252d-high  -15..0 -> 9.3% cleared +2% | -30..-15 15.4% | -50..-30 22.3%
+    #                    -70..-50 -> 30.6%          | <=-70%  34.7%
+    # Beta is monotone the same way (<1.0 10.7% -> >2.5 26.1%): depth stores the energy, beta says the
+    # name can actually travel. Both are LEVELS, so they are what we admit on.
+    #
+    #     admitted  moved >=±2%  54.1%  (1.85x the market), >=+5% 11.0% (vs 5.8% for the axis-union)
+    #     ~31 names/session, holding on both folds of the live window.
+    #
+    # This is NOT a judgment or a hardcoded conclusion — it is the same class of statement as the
+    # $400 price cap: a DEFINITION of what this system trades (a deeply compressed, high-beta name)
+    # plus a tradeability floor. It says nothing about which way any name goes: the admitted cohort
+    # is close to symmetric (up 29.2% / down 24.9%), exactly as intended. 100% of the directional
+    # edge must come from the AI's context read — and now that is measurable, because the cohort's
+    # own up/down rates are the baseline it has to beat.
+    #
+    # The axes are still computed and still travel in the digest as DESCRIPTION (which kind of
+    # compression, how broad), they simply no longer decide membership.
+    #
+    # Rollback: RESONANCE_POOL_MODE=axis_union restores the previous gate exactly.
+    POOL_MODE = os.environ.get("RESONANCE_POOL_MODE", "movement")
+    _depth = df["coil_pct_from_252hi"] if "coil_pct_from_252hi" in df.columns else None
+    _beta = df["prime_beta"] if "prime_beta" in df.columns else None
+    _mcap = df["prime_market_cap"] if "prime_market_cap" in df.columns else None
+    if POOL_MODE == "movement" and _depth is not None and _beta is not None and _mcap is not None:
+        _adm = (_depth <= DEPTH_MAX_PCT_FROM_HI) & (_beta > BETA_MIN) & (_mcap >= MCAP_MIN)
+        pooled = set(df.loc[_adm.fillna(False), "sym"])
+    else:
+        POOL_MODE = "axis_union"
+        pooled = axis_union
     # (No membership cooldown: already-released springs are dropped upstream by the loaded_spring
     #  RELEASE reset — a discharged name no longer fires loaded_spring, and compression self-resets.)
 
@@ -315,7 +401,10 @@ def pool(date, cache_dir=CACHE, write=True):
     # any axis, or broad on >= BREADTH_MIN_AXES) but which carry NO qualifying coiled axis — the
     # pure gappers / newsmovers (primed-only, not a spring) this gate exists to reject.
     ungated = set(ext_by_sym) | {s for s, axs in broad_by_sym.items() if len(axs) >= BREADTH_MIN_AXES}
-    primed_only_excluded = ungated - pooled
+    primed_only_excluded = ungated - axis_union
+    # transparency: how the two admissions differ today (never silently swap a pond)
+    axis_only = axis_union - pooled          # old gate would have shown these; movement gate does not
+    movement_only = pooled - axis_union      # newly visible (the measured cohort the old gate hid)
 
 
     # 4) compact digest for the pooled names (token-light; raw columns only, AI weights them)
@@ -328,7 +417,10 @@ def pool(date, cache_dir=CACHE, write=True):
         row["axes"] = sorted(broad_by_sym.get(s, []))              # every axis it is unusual on
         row["axes_extreme"] = sorted(ext_by_sym.get(s, []))        # subset it is top-K on
         row["n_axes"] = len(row["axes"])
-        row["entry"] = "extreme" if s in path_extreme else "broad"
+        # how this name would have entered under the OLD axis gate — description only, never a rank.
+        # "none" = the movement admission surfaced it and the axis-union would have hidden it.
+        row["entry"] = ("extreme" if s in path_extreme
+                        else "broad" if s in path_broad else "none")
         digest.append(row)
     # ORDER: alphabetical, deliberately meaningless. It used to sort by n_axes ("breadth of
     # unusualness"), labelled presentation-only — but a forward check found n_axes ANTI-correlates with
@@ -356,6 +448,12 @@ def pool(date, cache_dir=CACHE, write=True):
     # CONTEXT read — and it works: on replay the agent vetoed that name on its actual pre-open facts
     # (revenue miss + cut volume guidance). So pm_vol stays as INFORMATION (raw value + rank_in_pool) for
     # the AI to weigh as the trigger question ("is the release starting today?"), not as a gate.
+    # SUPERSEDED 2026-09-04: the shortlist existed because the pool was a near-random pond and the
+    # measured winner cohort had to be pointed at from inside it. The pool IS that cohort now
+    # (section 3b admits on exactly these dimensions), so the shortlist no longer narrows anything.
+    # It is kept populated — equal to the pool — so nothing downstream breaks and the meaning is
+    # unchanged ("the measured cohort"); it is simply no longer a second, tighter cut. Under
+    # RESONANCE_POOL_MODE=axis_union it reverts to the old narrowing behaviour.
     SL_BETA_MIN = 1.5
     # TRADEABILITY floor — the same class of constraint as PRICE_CAP (what the account can actually
     # transact), NOT a judgment axis. Without it the cohort's mean was distorted by a single sub-$300M
@@ -366,13 +464,14 @@ def pool(date, cache_dir=CACHE, write=True):
     SL_MCAP_MIN = 100e6
     shortlist = []
     for row in digest:
-        if "loaded_spring" not in (row.get("axes") or []):
-            continue
+        if POOL_MODE == "axis_union":
+            if "loaded_spring" not in (row.get("axes") or []):
+                continue
+            if (row.get("beta") or 0) <= SL_BETA_MIN:
+                continue
+            if (row.get("market_cap") or 0) < SL_MCAP_MIN:
+                continue
         b, pv = row.get("beta"), row.get("pm_vol_vs_avg")
-        if b is None or b <= SL_BETA_MIN:
-            continue
-        if (row.get("market_cap") or 0) < SL_MCAP_MIN:
-            continue
         shortlist.append({"sym": row["sym"], "beta": b, "pm_vol_vs_avg": pv,
                           "pct_from_252hi": row.get("pct_from_252hi"),
                           "short_pct_float": row.get("short_pct_float"),
@@ -403,6 +502,15 @@ def pool(date, cache_dir=CACHE, write=True):
             "short_pct_float": _pct_rank(_dims["short_pct_float"], row.get("short_pct_float")),
         }
 
+    # 4d) COHORT BASELINE — what this pond has actually done lately, computed from the last N sessions.
+    # This is the number the AI's direction read has to BEAT. The pool is deliberately near-symmetric
+    # (it concentrates movement, it does not pick sides), so "the cohort rose 28% of the time" is the
+    # honest null hypothesis for every pick: a plan that takes names which clear +2% at 28% has added
+    # nothing. It is computed ROLLING, never hardcoded, so it re-measures itself as the regime changes
+    # and can never quietly go stale the way a written-down base rate does.
+    lookback_hint = 20
+    cohort_baseline = _cohort_baseline(date, cache_dir, lookback=lookback_hint)
+
     axis_contrib = {ax["name"]: len(extreme[ax["name"]]) for ax in AXES}
     dropped = buyable_size - len(pooled)
 
@@ -412,18 +520,35 @@ def pool(date, cache_dir=CACHE, write=True):
     lines = [
         f"resonance pool — {date}",
         f"  universe={universe_size}  ->  price-cap <${PRICE_CAP:.0f} dropped {price_capped} (unbuyable on small capital)  ->  buyable={buyable_size}",
-        f"  buyable={buyable_size}  ->  POOL={len(pooled)}   (dropped {dropped}: unusual on no coiled axis)",
-        f"  COIL PREREQUISITE: {len(primed_only_excluded)} excluded as primed-only (no coil / not a spring) "
-        f"— gap/news/etc. alone can no longer admit a name.",
+        f"  buyable={buyable_size}  ->  POOL={len(pooled)}   (mode={POOL_MODE})",
+        (f"  ADMISSION (movement): off-252d-high <= {DEPTH_MAX_PCT_FROM_HI:.0f}%  AND  beta > {BETA_MIN}  "
+         f"AND  mcap >= ${MCAP_MIN/1e9:.1f}B  — concentrates MOVEMENT (measured 54% of admitted names "
+         f"travel >=±2% vs 29% for the market and 30% for the old axis gate). Direction stays the AI's job."
+         if POOL_MODE == "movement" else
+         f"  ADMISSION (axis_union, ROLLBACK MODE): coil prerequisite — >=1 coiled axis required."),
+        f"  vs the old axis-union gate: it would have shown {len(axis_union)} names — "
+        f"{len(axis_only)} of those are NOT admitted here, and {len(movement_only)} names it hid ARE. "
+        f"(overlap {len(pooled & axis_union)})",
+        f"  primed-only (would fail the old coil prerequisite): {len(primed_only_excluded)}.",
         f"  RELEASE RESET: {released_reset} names had loaded_spring neutralized (already popped "
         f">={RELEASE_UP_PCT:.0f}% recently = discharged, no longer a loaded coil).",
-        f"  entry paths (both require >=1 coiled axis): "
+        f"  [old-gate reference only] axis entry paths: "
         f"EXTREME top-{PRIMARY_K} on a coiled axis -> {len(path_extreme)} names   |   "
         f"BROAD top-{BREADTH_Q:.0%} on >={BREADTH_MIN_AXES} axes (>=1 coiled) -> {len(path_broad)} "
         f"(+{len(path_broad - path_extreme)} unique)",
-        f"  SHORTLIST (winner-region reference: loaded_spring + beta>{SL_BETA_MIN}; pm_vol is INFO, not a cut) -> {len(shortlist)} names"
-        + (": " + ", ".join(d["sym"] for d in shortlist) if shortlist else " (none today)"),
-        "  union-of-coiled-axes (binary per-axis membership; no composite; direction-agnostic; primed=trigger only).",
+        (f"  SHORTLIST == POOL ({len(shortlist)}): the pool IS the measured cohort now, so the shortlist "
+         f"no longer narrows. rank_in_pool is the read."
+         if POOL_MODE == "movement" else
+         f"  SHORTLIST (loaded_spring + beta>{SL_BETA_MIN}) -> {len(shortlist)} names"
+         + (": " + ", ".join(d["sym"] for d in shortlist) if shortlist else " (none today)")),
+        "  axes are DESCRIPTION only now (which kind of compression) — they no longer decide membership.",
+        (f"  COHORT BASELINE (rolling, last {cohort_baseline['sessions']} sessions, "
+         f"{cohort_baseline['name_days']} name-days): moved >=±2% {cohort_baseline['moved_pct']}%  |  "
+         f"UP >=+2% {cohort_baseline['up_pct']}%   DOWN <=-2% {cohort_baseline['down_pct']}%   "
+         f"median {cohort_baseline['median_pct']:+.2f}%  <- the number a direction read must BEAT"
+         f"   (measures the pool AS WRITTEN on those sessions; after an admission change it takes "
+         f"~{lookback_hint} sessions to converge on the new pond)"
+         if cohort_baseline else "  COHORT BASELINE: not enough prior pool files to measure yet."),
         "  per-axis EXTREME contribution (top-K):",
         "    COILED  " + "  ".join(f"{a['name']}={axis_contrib[a['name']]}" for a in coiled),
         "    PRIMED  " + "  ".join(f"{a['name']}={axis_contrib[a['name']]}" for a in primed),
@@ -436,13 +561,20 @@ def pool(date, cache_dir=CACHE, write=True):
         "price_capped": price_capped,
         "buyable_size": buyable_size,
         "pool_size": len(pooled),
+        "pool_mode": POOL_MODE,
+        "admission": ({"depth_max_pct_from_hi": DEPTH_MAX_PCT_FROM_HI, "beta_min": BETA_MIN,
+                       "mcap_min": MCAP_MIN} if POOL_MODE == "movement" else {"gate": "coil_prerequisite"}),
+        "axis_union_size": len(axis_union),
+        "axis_only_excluded": sorted(axis_only),
+        "movement_only_added": sorted(movement_only),
         "dropped": dropped,
         "primed_only_excluded": len(primed_only_excluded),
         "released_reset": released_reset,
         "n_extreme": len(path_extreme),
         "n_broad": len(path_broad),
         "axis_contrib": axis_contrib,
-        "shortlist": shortlist,          # mechanical winner-profile candidates (see 4b)
+        "cohort_baseline": cohort_baseline,   # rolling null hypothesis the AI must beat (see 4d)
+        "shortlist": shortlist,          # == pool under movement mode (see 4b)
         "digest": digest,
         "log": log,
     }
@@ -467,7 +599,7 @@ def main():
     print(res["log"])
     if res.get("_path"):
         print(f"  wrote {res['_path']}")
-    print(f"\n  sample of the pool (most axes first) — RAW components, the AI weights them:")
+    print(f"\n  sample of the pool (alphabetical — the order is NOT a ranking) — RAW components:")
     for d in res["digest"][: a.show]:
         print(f"    {d['sym']:6s} {str(d.get('sector'))[:14]:14s} [{d['entry']:7s}] "
               f"axes[{d['n_axes']}]={','.join(d['axes'])}")

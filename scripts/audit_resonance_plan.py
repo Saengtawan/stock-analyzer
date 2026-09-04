@@ -1,14 +1,19 @@
 """scripts/audit_resonance_plan.py — did the decide agent actually FOLLOW the rebuilt process?
 
 The record's core failure mode is compliance theater: every losing pick cited every gate by name and
-still lost, because prose gates cannot fail a fluent writer. After the 09-03 rebuild (mechanical
-`shortlist` in the pool + the agent's job reduced to TAKE/VETO with a context read), this script checks
-the plan MECHANICALLY instead of trusting the prose:
+still lost, because prose gates cannot fail a fluent writer. So this checks the plan MECHANICALLY
+instead of trusting its prose.
 
-  1. did the plan pick from the pool's computed `shortlist`, or off it?
-  2. if off-shortlist, did it state that + give an override reason (G6)?
+Updated 2026-09-04 for the movement-concentration pool. The old `shortlist` check is GONE and is not
+replaced: the shortlist now equals the pool (the pond is admitted on exactly the dimensions the
+shortlist used to mark), so "on/off shortlist" no longer carries information. What replaced it as the
+real discipline is the COHORT BASELINE — the pool is near-symmetric by construction, so a plan that
+cannot say why its picks beat the pond's own up-rate has not made a decision, it has drawn a ticket.
+
+  1. are the picks actually in today's pool?
+  2. does the plan ENGAGE the cohort baseline (state the bar it has to beat)?
   3. did it do the Step-3 context read (news/edgar/veto language), not just cite gates?
-  4. gate-citation count — high citations + off-shortlist pick = the old theater pattern.
+  4. gate-citation count — many citations + no context read = the old theater pattern.
 
 Usage:  python scripts/audit_resonance_plan.py [YYYY-MM-DD]
 Read-only. Prints a short verdict; writes nothing.
@@ -26,22 +31,31 @@ for p in (plan_p, pool_p):
         print(f"missing: {p}"); sys.exit(1)
 
 plan = json.load(open(plan_p)); pool = json.load(open(pool_p))
-short = [d["sym"] for d in (pool.get("shortlist") or [])]
+pooled = {d["sym"] for d in (pool.get("digest") or [])}
+base = pool.get("cohort_baseline") or {}
 picks = [p.get("sym") for p in (plan.get("picks") or [])]
 blob = json.dumps(plan).lower()
 
 print(f"=== resonance plan audit {date} ===")
-print(f"  pool shortlist ({len(short)}): {', '.join(short) if short else '(empty)'}")
+print(f"  pool: {len(pooled)} names   mode={pool.get('pool_mode','?')}")
+if base:
+    print(f"  cohort baseline (last {base.get('sessions')} sessions): "
+          f"UP {base.get('up_pct')}%  DOWN {base.get('down_pct')}%  <- the bar")
+else:
+    print("  cohort baseline: not measurable yet")
 print(f"  picks ({len(picks)}): {', '.join(picks) if picks else 'ABSTAIN'}")
 
 if not picks:
-    print("  → ABSTAIN. valid outcome; nothing to audit on selection.")
+    print("  -> ABSTAIN. valid outcome; nothing to audit on selection.")
 else:
-    on = [s for s in picks if s in short]; off = [s for s in picks if s not in short]
-    print(f"  ON-shortlist: {on or '—'}   OFF-shortlist: {off or '—'}")
+    off = [s for s in picks if s not in pooled]
     if off:
-        said = ("off-shortlist" in blob) or ("shortlist" in blob and "override" in blob)
-        print(f"  G6 override stated in writing? {'YES' if said else '❌ NO — silent off-shortlist pick (the old failure)'}")
+        print("  [X] NOT IN POOL: %s -- the plan picked outside its own candidate set." % off)
+    else:
+        print("  all picks are in today's pool.")
+    engaged = any(k in blob for k in ("baseline", "base rate", "cohort", "up-rate", "beat the pool"))
+    _v = "YES" if engaged else "NO \u2014 no stated bar to beat"
+    print(f"  engages the cohort baseline? {_v}")
 
 # Step-3 context read: is there evidence it read what the news SAYS (not just cited gates)?
 ctx = [k for k in ("downgrade", "price target", "pt cut", "insider", "websearch", "edgar",

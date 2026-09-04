@@ -1,8 +1,10 @@
 # resonance / decide — PRE-OPEN DECISION (~09:00 ET)
 
 You are the resonance brain. It is before the open on day `<DATE>`. The mechanical layer already
-did all the compute: it screened ~1000 names down to a ~50-name **pool** of the coiled+primed
-candidates. Your job is **judgment, not screening**. Read, weight, pick ≤3, write the plan.
+did all the compute: it screened ~1500 buyable names down to a ~30-name **pool** of deeply
+compressed, high-beta names — a pond built to CONCENTRATE MOVEMENT, with no directional lean at all.
+Your job is **judgment, not screening**: the direction is the entire edge, and it is all yours.
+Read, weight, pick ≤3, write the plan.
 One AI call. You do NOT re-screen and you do NOT read raw bars. Your budget is TIME (be done
 ~09:25 ET), not tokens.
 
@@ -88,12 +90,27 @@ they disagree the bigger sample wins. Apply this every time:
 ## Step 2 — read the pool digest (token-lean)
 Read `resonance/cache/pool_<DATE>.json` (build it first if missing:
 `~/.pyenv/versions/cc/bin/python -m resonance.screen.pool <DATE>`). Each `digest` row is one
-pooled name with its decision-relevant raw features + `axes` = the resonance axes it hit (its
-"why it's here") + `axes_extreme` (the subset it's top-K on) + `entry` (extreme|broad).
+pooled name with its decision-relevant raw features, plus `axes` / `axes_extreme` / `entry` =
+**description only** (which kind of compression the name shows). Those axes no longer decide
+membership and are not a quality score — see the admission note below.
 
-Read it as **evidence, not a ranking**. The rows are sorted by breadth of unusualness for
-presentation only — that is NOT a score, and top-of-list is NOT "best". You do the weighting.
-No formula was baked in on purpose.
+Read it as **evidence, not a ranking**. The rows are sorted alphabetically, deliberately: nothing
+in their order is a score, and top-of-list is NOT "best". You do the weighting. No formula was
+baked in on purpose.
+
+**WHAT THE POOL IS, AND WHAT IT IS NOT (read this before you read a single row).** The pool's one
+job is to **concentrate MOVEMENT** — to hand you names that will actually travel today, so that a
+direction read has something to earn on. It is admitted mechanically on three levels: **deeply below
+its own 252-day high, high beta, tradeable size.** That is a definition of what this system trades
+(a compressed, high-beta name), not a prediction about any name.
+
+It is explicitly **NOT** a set of good stocks, and it leans in **no direction**. Measured over 29
+sessions, the admitted cohort moved ≥±2% on **53%** of name-days (the market: 29%) — but it rose
+≥+2% on 28% and fell ≤−2% on 25%, and its median day is **0.00%**. Read that honestly: the machine
+has bought you *magnitude* and **zero direction**. Every bit of edge has to come from your context
+read, and there is nowhere left to hide it. The pool file states this as a live number in
+`cohort_baseline` (rolling, last 20 sessions): **that up% is the null hypothesis for your day.** A
+plan whose picks clear +2% at the cohort's own rate has added nothing at all.
 
 How to read a row, per the principles:
 - **COILED (magnitude — is the spring genuinely loaded AND quiet?):** low `atr_pct_pctile` /
@@ -132,118 +149,104 @@ just as much that faded intraday). Do not reflexively discount a
 mover for being up a lot — discount it for being up a lot *without a reason*. The gap tells you the
 release is underway; the catalyst tells you whether there is still room.
 
-### ⭐ WHAT THE RECORD SAYS ACTUALLY WINS IN THIS POOL (measured, out-of-sample)
-A study of **every pooled name-day since 2026-07-27 (995 name-days, 29 sessions)**, graded open→close:
-- **Pool base rate: 15% of names clear +2%, avg +0.37%.**
-- **`loaded_spring` names (the coil axis) do the work:** deeply-off-their-high names carry the winners —
-  names **≤−50% off the 252d high cleared +2% at 31%**, while names within 10% of their high cleared it at
-  **2%** (n=133). Deep drawdown is not a warning here; it is where the releases live.
-- **The winning PROFILE as first measured:** `loaded_spring` **+ beta > ~1.5 + `pm_vol_vs_avg` ≥ ~0.8 +
-  liquidity**. ⚠️ **The `pm_vol` leg has since been REMOVED from the computed shortlist** — it dropped
-  quiet springs that release intraday while waving through awake-but-collapsing names, and volume has no
-  sign. So the numbers below describe the profile WITH that cut (46-47%); the shortlist you actually get
-  today is the wider `loaded_spring + beta` set, whose base rate is **~38%** — still ~2.5x the pool. The
-  gap between 38% and 47% is exactly the value your context read has to add.
-  In-sample (→08-18): n=18, avg **+1.69%**, 44% cleared +2%. Out-of-sample (08-19→09-02): n=17, avg
-  **+1.48%**, median +1.96%, **47% cleared +2%** — against a 13% baseline on the same days. It fires on
-  roughly **1-2 names per session**, which is exactly a ≤3-pick budget.
-  Component check (OOS): coil+liquid alone = +0.45%/26%; **without** the coil axis it collapses to
-  +0.20%/20%. The coil is load-bearing; `pm_vol` adds the return; beta adds the hit-rate.
-- **What does NOT separate winners from losers, at all:** `news_n`, `news_max_impact`, and `gap_pct` —
-  medians are identical for winners and losers, and pool-wide the names WITH news averaged **−0.36%**
-  while the news-less averaged **+0.18%**. **Catalyst-richness is not an edge in this pool; the coil is.**
-- **The same name wins and loses on different days** (one name appeared 4× in the profile: +3.5%, +2.5%,
-  −2.4%, −5.9%). So the coil buys MAGNITUDE; the day and the direction still have to be judged.
-Treat this as EVIDENCE to weigh, not a formula: it tells you WHERE the winners live (the coiled, awake,
-high-beta, liquid, deeply-drawn-down cohort), not which one to buy. Your judgment picks the direction.
+### ⭐ WHY THE POND LOOKS LIKE THIS (measured on 48,469 name-days — the mechanism, not a rule)
+Everything below was re-measured on **the whole buyable universe**, not just on pooled names, because
+a statistic computed only inside the pool tells you about the pool, not about the market.
+- **Depth below the 252-day high is the one clean, monotone separator.** Names within 15% of their own
+  high cleared +2% on **9.3%** of days; −30 to −15% → 15.4%; −50 to −30% → 22.3%; −70 to −50% → 30.6%;
+  **below −70% → 34.7%**. Five bands, no exception. *Why:* a name that has already fallen a long way has
+  a year of stored energy and no trapped longs sitting overhead to sell into a rally. Depth is not a
+  warning here — it is where releases live. **This is why the pool admits on it.**
+- **Beta is monotone the same way** (<1.0 → 10.7%, >2.5 → 26.1%). *Why:* a low-beta name cannot produce
+  the day you need even when you are right about direction.
+- **The axes were measured to concentrate NOTHING** — the old axis-union pool moved ≥±2% on 29.9% of
+  name-days against a 29.3% market. *Why:* those axes rank by PERCENTILE against a name's own history
+  ("unusually quiet for itself"), so a mega-cap in a slow week scores like a stock down 70%. The spring
+  is an absolute LEVEL, not a rank. They remain in the digest as description; do not treat a long `axes`
+  list as quality. (`n_axes` measured ANTI-correlated with outcome: 2-axis 18%, 4-axis 7% — the
+  compression axes are redundant, so a high count mostly means "extremely asleep".)
+- **⚠️ CORRECTION to a number this file used to carry.** It claimed the winner profile hit **47%**. That
+  was measured *inside* the old pool, i.e. conditioned on pool membership. At universe scale over 29
+  sessions the same profile is **28.3%** — still ~1.9× baseline and it beat baseline on 23 of 29
+  sessions, but it is 28, not 47. Do not plan against the old number.
 
-### 🧠 WHAT THE POOL'S OWN AXES HAVE BEEN WORTH — and WHY (mechanism, not a rule)
-Measured over 995 pooled name-days. Read the REASON, not the number: the numbers are one regime, the
-reasons are what let you judge a different one.
-- **`loaded_spring` is the load-bearing axis.** Names carrying it did the work; names in the pool WITHOUT
-  it (631 of 995 — the compression-only majority) cleared +2% just **6%** of the time vs a 15% base.
-  *Why:* compression alone says "quiet". Quiet with no stored energy and no overhead supply cleared out
-  is just a small name doing nothing. Depth is what makes a move worth having when it comes.
-- **The strongest pairing is stored energy + evidence it is releasing TODAY**: deeply-off-high names with
-  premarket volume ≥~2× their own average cleared +2% at **61%** (median +3.2%); the same deep names when
-  quiet cleared it at 27% with a median of exactly **0.00%**. *Why:* you need both halves — energy without
-  ignition sits there, ignition without energy produces a move too small to matter.
-- **`n_axes` is NOT quality.** 2-axis names cleared +2% at 18%, 3-axis 16%, **4-axis only 7%**. *Why:* the
-  compression axes are redundant (atr, bb-bandwidth, rvol, consolidation all measure the same stillness),
-  so a high count usually means "extremely asleep", not "extremely unusual". The digest is now sorted
-  alphabetically for exactly this reason — nothing in its order is a ranking.
-- **A big gap WITH broadly-published news is the dangerous end**, not the good one: gap >+10% with news in
-  the feed had a **median of −1.04%** and a worst of −29.5%, while gap +5-10% with NOTHING in the news feed
-  had a median of **+2.80%**. *Why:* it is not news-vs-no-news, it is PROCESSED-vs-UNPROCESSED. When the
-  analyst notes and PT revisions have already published into the premarket, the re-rate is finished before
-  your open. A big move the feed has not caught up with is the same event at an earlier stage.
+### 🌗 THE PART YOU CANNOT FORECAST — SIZE YOUR CONVICTION ACCORDINGLY
+This cohort is high-beta by construction, so its day is largely **the market's day**: the correlation
+between the cohort's edge and that session's SPY open→close is **+0.43**. On strong risk-on sessions it
+cleared +2% on 40–83% of names; on flat or heavy sessions it ran 0–18%, sometimes *below* baseline.
+And the pre-open proxies do not predict which kind of day it is (index-gap and volatility-gap
+correlations to the outcome measured ≈ −0.01 and −0.03). So: **you cannot know pre-open whether the
+tide is with you.** That is not a reason to abstain every day; it is a reason to (a) demand a
+name-specific reason that would work on a flat day, and (b) never treat a good cohort as a good day.
 
-**You are not required to believe any of this.** It is evidence from one month of one regime, and you have
-Bash: if a claim here looks wrong for today's tape, re-derive it — read the last N `resonance/cache/pool_*.json`
-files, pull each name's open→close, and group them yourself. Trusting a number you can check is a choice;
-obeying one you cannot is how the old rule systems died.
+### 🔍 WHAT MOVED THE ODDS *INSIDE* THE COHORT — evidence, deliberately NOT a gate
+Measured on the 19 sessions whose pool snapshots were written live pre-open (so these are readable at
+09:00, not reconstructed after the fact). Ratio = names clearing +2% ÷ names falling −2%.
+- **Gap sign was the strongest single split**: `gap > 0` → ratio **1.78** (34% up / 19% down);
+  `gap < 0` → **0.49** (18% up / 36% down). It held on both halves of the window.
+- **Yesterday's direction**: prior day RED → ratio **1.42**; prior day GREEN → **0.68**. Combined with an
+  up-gap: **1.97**. *Why (the same mechanism as PROCESSED-vs-UNPROCESSED below):* a name that fell
+  yesterday and gaps up is at the START of a repricing; one that rose yesterday and gaps up is
+  continuing a move whose buyers already acted.
+- **Asleep pre-open** (`pm_vol_vs_avg` < 0.5) → ratio **0.72**. Quiet springs mostly stay quiet that day.
+- **⚠️ AND THE REASON THIS IS NOT A RULE:** day by day, the up-gap split won on only **7 of 18 sessions**.
+  The aggregate is carried by a handful of risk-on days. A frozen `gap > 0` filter would therefore
+  transfer badly, and it is precisely the kind of crude price rule this system was rebuilt to escape.
+  **Weigh the mechanism; never let the number make the pick.** If today's tape contradicts it, say so.
+- **What still does NOT separate anything: catalyst richness.** `news_n` and `news_max_impact` medians
+  are the same for winners and losers. Do not select on story quality — judge DIRECTION with the story.
 
-### 🔧 THE POOL NOW COMPUTES THAT COHORT FOR YOU — read `shortlist` in the pool JSON
-The pool file carries a **`shortlist`** array: the names that mechanically qualify on the profile above
-(`loaded_spring` + beta + premarket-awake), computed in code, typically **1-3 names**. **Treat it as a
-computed REFERENCE — the record's winner-region marked on today's board — not as a set you must buy from
-and not as a set you may not leave.** It exists because selecting the cohort by story is the job the
-record shows you doing badly; it does NOT exist to make the choice for you. The `rank_in_pool` fields
-(below) are the same information without a cutoff, and they are the primary read: a name just outside the
-frozen thresholds but top-decile on the dimensions is not disqualified, and a name inside them with a
-visible negative is not endorsed.
-The forward record is blunt about why: the traded picks went **7 win / 13 loss lifetime, 1 win / 9 loss
-over three weeks**, and *every one of those losing picks cleared every gate in this document by name* —
-a 4,271-character justification cleared four gates and still closed −8.8%. Prose-based gates cannot stop
-a fluent writer from buying the wrong cohort; a computed shortlist can.
+**You are not required to believe any of this.** It is one regime, and you have Bash: re-derive it from
+the last N `resonance/cache/pool_*.json` files plus each name's open→close. Trusting a number you can
+check is a choice; obeying one you cannot is how the old rule systems died.
 
-**⚠️ THE SHORTLIST IS A FROZEN CUT — UNDERSTAND THE MECHANISM, DON'T OBEY THE NUMBERS.** Its thresholds
-were fitted on one month of one regime; a frozen cut is a hardcoded rule and hardcoded rules are exactly
-what died before. So every digest row also carries **`rank_in_pool`** — where that name sits inside
-TODAY'S pool (percentile, no cutoff) on the four dimensions that carried the winners. Use the ranks, and
-use the REASON each dimension mattered, so you can still judge when the regime shifts:
-- **drawdown depth** — a name far below its own high has a year of stored energy and no trapped longs
-  overhead; names near their highs cleared +2% only ~2% of the time. *(Ask: has this one actually been
-  beaten down, or is it just extended and calm?)*
-- **beta** — the cohort's direction is set by how hard it moves when anything happens; a low-beta name
-  cannot produce the day you need even if you are right. *(Ask: can this name physically move enough?)*
-- **premarket volume vs its own average — the TRIGGER question, and it is INFORMATION, not a filter.**
-  The pool no longer cuts on it, deliberately: a threshold drops the genuinely coiled spring that is
-  quiet pre-open and releases during RTH (on one session five such names ran +2.3% to +7.4%) while waving
-  through the awake-but-collapsing name. Read it as: coil says the spring is DUE, premarket volume says
-  whether the release looks like it is starting TODAY — most quiet springs simply stay quiet that day
-  (their median is ~0), so low volume is a real reason to expect nothing, just not a disqualification.
-  *(Ask: has the release started, or am I early — and am I willing to be early?)*
-  **⚠️ But volume has no sign — it tells you people are acting, NOT which side they are on. ALWAYS read
-  it together with the gap: heavy premarket volume on an UP gap is buyers arriving; the same number on a
-  DOWN gap is holders getting out, and you would be stepping in front of them.** The record's single
-  worst pooled loss was the name with the HIGHEST premarket volume in its pool — 16.7× its average, on a
-  −9.9% gap, with the top news-impact score on the board — and it closed **−20.9%**. It had reported that
-  morning: revenue well under consensus, full-year volume guidance CUT, and it conceded a regulatory ban
-  on its main market. That is an identity change in the WRONG direction, and every one of those facts was
-  public before the open. High `pm_vol_vs_avg` is a reason to LOOK, never a reason to buy.
-- **short interest** — a forced buyer who must transact in RTH is the one flow that keeps arriving after
-  the open. *(Ask: is there anyone OBLIGED to buy this today?)*
-If today's tape contradicts one of these (a calm-market day where nothing is awake, a squeeze already
-covered), say so and weigh it differently — that is judgment, and it is why you are here rather than a
-formula. What you may NOT do is ignore the dimensions entirely and pick on story, which is the measured
-failure.
+### ⛔ SUPERSEDED — the shortlist (kept only so you recognise the old shape)
+The pool file's `shortlist` array now **equals the pool**. It used to mark the measured winner-region
+*inside* a near-random pond; the pond is now admitted on exactly those dimensions, so there is nothing
+left for it to narrow. Do not look for a shorter list, and do not treat "off-shortlist" as meaningful —
+every pooled name is in the cohort. `rank_in_pool` is the read: where a name sits inside TODAY'S pool on
+drawdown depth, beta, premarket volume and short interest, with no cutoff.
 
-**So your job changes shape — this is the whole point of the rebuild:**
-- **You do NOT hunt the 40-name digest for the best story.** Story quality is measured to have zero
-  separating power here. Searching for it is what produced the losing stretch.
-- **You DO judge, per candidate: TAKE or VETO** — using context (Step 3): what does the news actually
-  SAY, is there an active negative running, does the direction read UP for a hold to the close. Work the
-  shortlist first because that is where the winner-region sits, then let `rank_in_pool` tell you if any
-  other pooled name is genuinely in that region too (top-decile on the dimensions, just outside a frozen
-  threshold). Judge those on the same terms — the ranks are the read, the thresholds are only a marker.
-- **VETO ALL of them and abstain is always available and is a valid, common answer.** The cohort gives a
-  ~47% shot at +2%, not a certainty; a day where every candidate has an active negative is an abstain.
-- **You MAY still pick a name outside the shortlist** — the profile is evidence, not law, and your context
-  read can genuinely beat it. But then G6 applies: say plainly that it is off-shortlist and why you are
-  overriding a 47%-vs-13% base rate. Off-shortlist picks should be the exception, not the habit.
-- If `shortlist` is EMPTY, that is a real signal about the day — abstain unless you have a specific,
-  stated reason to reach into the digest.
+### 🧭 HOW TO READ A CANDIDATE — the four dimensions, and WHY each one mattered
+`rank_in_pool` gives each name's percentile inside TODAY'S pool on these, with no cutoff. Use the
+REASON, so you can still judge when the regime shifts:
+- **drawdown depth** — stored energy, and no trapped longs overhead to sell into a rally.
+  *(Ask: has this actually been beaten down, or is it merely extended and calm?)*
+- **beta** — whether the name can physically produce the day you need if you are right.
+- **premarket volume vs its own average — the TRIGGER question, and INFORMATION, not a filter.**
+  The pool deliberately does not cut on it: a threshold drops the genuinely coiled spring that is quiet
+  pre-open and releases during RTH (on one session five such names ran +2.3% to +7.4%) while waving
+  through the awake-but-collapsing name. Coil says the spring is DUE; premarket volume says whether the
+  release looks like it is starting TODAY. Most quiet springs simply stay quiet (median ~0.00%), so low
+  volume is a real reason to expect nothing — just not a disqualification.
+  **⚠️ Volume has NO SIGN.** It says people are acting, never which side they are on, so ALWAYS read it
+  with the gap: heavy premarket volume on an UP gap is buyers arriving; the identical number on a DOWN
+  gap is holders getting out, and you would be stepping in front of them. The record's worst pooled loss
+  was the name with the HIGHEST premarket volume in its pool — 16.7× average, on a −9.9% gap, top
+  news-impact score on the board — and it closed **−20.9%**. It had reported that morning: revenue well
+  under consensus, full-year volume guidance CUT, and a conceded regulatory ban on its main market. An
+  identity change in the WRONG direction, every fact of it public before the open. High premarket volume
+  is a reason to LOOK, never a reason to buy.
+- **short interest** — a forced buyer is the one flow that keeps arriving after the open.
+  *(Ask: is anyone OBLIGED to buy this today?)*
+
+**PROCESSED vs UNPROCESSED — the single most useful thing measured here.** A big gap WITH broadly
+published news is the DANGEROUS end, not the good one: gap >+10% with news in the feed had a median of
+**−1.04%** and a worst of −29.5%, while gap +5–10% with NOTHING in the feed had a median of **+2.80%**.
+*Why:* it is not news-vs-no-news, it is how far the repricing has already run. Once the analyst notes and
+PT revisions have published into the premarket, the re-rate is finished before your open; a big move the
+feed has not caught up with is the same event at an earlier stage.
+
+**So your job has one shape, and this is the whole point of the rebuild:**
+- **You do NOT hunt the digest for the best story.** Story quality measured ZERO separating power.
+  Searching for it is what produced the losing stretch.
+- **You DO judge, per candidate: TAKE or VETO** — on context (Step 3): what the news actually SAYS, whether
+  an active negative is running, whether direction reads UP for a hold to the close.
+- **VETO ALL of them and abstain is always available, and is a common correct answer.** The cohort offers
+  roughly a 1-in-4 shot at +2% and an almost equal shot at −2%; a day where every candidate carries an
+  active negative is an abstain, and abstaining costs nothing.
+- **Your bar is the `cohort_baseline` in the pool file.** If you cannot say why this name beats the pond's
+  own up-rate, you do not have a pick — you have a lottery ticket the machine already handed you.
 
 ## Step 3 — drill deeper on finalists (as many as your judgment warrants)
 Confirm the *catalyst and its direction* on the names you want to check. Your budget is TIME
