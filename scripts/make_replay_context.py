@@ -24,10 +24,34 @@ date = sys.argv[1]
 out_dir = sys.argv[2] if len(sys.argv) > 2 else "."
 src = "resonance/memory.md"
 
+# Two kinds of leak, both found by replay agents that disclosed them unprompted:
+#   (a) FORWARD-RECORD lines, which start with the session date;
+#   (b) DATED ADDENDA INSIDE THE LESSONS and the gate-tally block — "09-02: the exception written on
+#       09-01 was EXERCISED FOR..." — which quote later sessions' names and outcomes in prose. The
+#       first version of this script removed only (a), and an agent replaying 08-26 read a lesson
+#       addendum that listed that morning's winners by ticker and return. Anything carrying a date
+#       at or after the replay date now goes, whatever section it sits in.
+year = date[:4]
+mmdd = date[5:]
+
+
+def _leaks(line):
+    """True if the line carries a date at or after the replay date, in any of the file's formats."""
+    for d in re.findall(r"\b(\d{4})-(\d{2}-\d{2})\b", line):        # 2026-09-02
+        if f"{d[0]}-{d[1]}" >= date:
+            return True
+    for d in re.findall(r"(?<!\d)(\d{2}-\d{2})(?=[\s:,.)\]]|$)", line):   # bare 09-02
+        try:
+            if int(d[:2]) in range(1, 13) and f"{year}-{d}" >= date:
+                return True
+        except ValueError:
+            continue
+    return False
+
+
 kept, cut = [], 0
 for line in open(src):
-    m = re.match(r"^(\d{4}-\d{2}-\d{2})\s*\|", line)
-    if m and m.group(1) >= date:
+    if _leaks(line):
         cut += 1
         continue
     kept.append(line)
