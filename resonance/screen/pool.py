@@ -167,6 +167,7 @@ DIGEST_COLS = [
     "prime_earn_upcoming", "prime_earn_days_to", "prime_analyst_net",
     "prime_float_shares", "prime_small_float", "prime_market_cap", "prime_beta",
     "released_recently",   # popped >=12% recently: loaded_spring axis is off, name still admitted
+    "coil_n_bars",   # daily bars behind the 252d high — <200 means the window is shorter than the name
 ]
 
 

@@ -128,6 +128,14 @@ not by being scored. It is recomputed each run, so if the split narrows or inver
   **⚠️ Volume has NO SIGN.** Always read it with the gap: heavy volume on an UP gap is buyers arriving;
   the identical number on a DOWN gap is holders leaving and you would be stepping in front of them.
 - **short interest** — a forced buyer is the one flow that keeps arriving after the open.
+- **`n_bars`** — how many daily bars actually sit behind the "252-day high". Below ~200 the window is
+  SHORTER than its name: a name showing −57% off its high on 115 bars really fell 57% within 115 days.
+  **The number is true, just measured over less time** — and it makes admission STRICTER, not looser,
+  since a short-history name has to have fallen the whole way inside its available window. What it
+  cannot see is a fall that happened before the data starts. Measured: these clear +2% at 28.6% (vs
+  28.3% for full-history names) but fall −2% at **37.1% vs 25.3%** — same upside, materially more
+  downside. Read a deep drawdown on a short window as a recent, faster fall, not a year of grinding.
+
 - **`released_recently`** — this name made a single up-day of 12%+ in the recent window, so its
   `loaded_spring` axis is switched off. **It is NOT excluded, and "it already popped" is not a reason to
   decline it.** Measured over 29 sessions, names carrying this flag cleared +2% on **37.3%** of days
