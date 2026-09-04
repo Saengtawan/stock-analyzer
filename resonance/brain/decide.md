@@ -308,6 +308,20 @@ plan. **The pool file's `gap_pct` / `pm_vol_vs_avg` are a SNAPSHOT taken at `bui
 log, usually ~09:00-09:05) — they are stale by the time you decide and must be RECOMPUTED from the tape
 before you quote them in a gate. One replay argued a gate on a digest gap of +11.77% for a name that was
 +2.88% at the decision minute.
+⚠️ **THE DATABASE CANNOT GIVE YOU THE LAST 40 MINUTES — YOU MUST PULL THEM LIVE.** This is the single
+most common false verdict in the record and it is a DATA limitation, not a fact about any name.
+`fetch_premarket` runs just before the pool build and can only request SIP up to about now−16min, and
+IEX rarely fills the gap for small caps. Measured on one session: **34 of 48 pooled names had their last
+stored bar at 08:40**, and NOT ONE had a bar between 09:10 and 09:25. So a name whose tape "stops at
+08:40" is not unreadable — the query was aimed at the wrong place.
+**Before you judge G3, pull the recent minutes yourself.** `scripts/winlo_limit.py <SYM>` reads yfinance
+premarket 1-min with `prepost=True`, which is free and near-real-time (the latest bar is the current
+minute) and has cross-checked against SIP to about a cent; you can also query Alpaca IEX directly. Then
+state the time of the last print you actually used.
+**"The stored tape ends at 08:40" is never a reason to call a gap UNRESOLVED.** Every replay so far has
+reported that stale window and converted it into vetoes and skips across dozens of names, which is a
+verdict about our fetch schedule rather than about the market.
+
 ⚠️ **Read the premarket tape ALL THE WAY to the minute you decide, and STATE THE TIME OF THE LAST PRINT
 YOU USED.** This gate is worthless on a stale
 window: two runs of this brain on the same name and morning reached OPPOSITE verdicts purely from where
