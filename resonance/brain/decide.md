@@ -130,6 +130,14 @@ searching for it produced the losing stretch. **DO judge, per candidate: TAKE or
 ## Step 3 — THE VETO PASS (this is where selection happens)
 Work the pool name by name and try to kill each one on its own facts. What you cannot kill is a
 candidate; take those to Step 4. Every name gets a verdict — see "The operation" above.
+**⚠️ IF WEBSEARCH IS UNAVAILABLE, SAY SO AND DOWNGRADE WHAT YOU CLAIM.** It runs out. When it does,
+fall back in this order — `tools.edgar` (primary source, needs no search), `tools.whisper`,
+`tools.peertape`, the local news feed, and the premarket tape you can read yourself. What you CANNOT
+recover without search is consensus figures, analyst actions, and fresh wire copy — which is most of
+what G1 and G2 turn on. So: **state in the plan that the run had no search, and do not record G1 or G2
+as CLEARED on a fact you could not verify.** An unverified catalyst is an unreadable one; that is a
+SKIP, not a take, and not a veto either.
+
 Confirm the catalyst AND ITS DIRECTION. Use WebSearch, `python -m tools.edgar.edgar <SYM>`,
 `tools.whisper.whisper`, `tools.peertape.peertape`, and `python -m resonance.data.access`.
 
@@ -203,6 +211,13 @@ acquirer also pays: it is spending cash and issuing stock, which is supply on yo
 *Guided vs surprise:* say which. An overhang the company already GUIDED away is largely priced; an
 unannounced one is not. If guided, the residual must be an **EXTERNAL UN-PRICED FACT** (a new number,
 term, or datum the guidance did not contain) — never a positioning-inference ("nobody front-ran it").
+
+**⚠️ "NO CATALYST" MEANS EDGAR IS EMPTY, NOT THAT `news_n` IS ZERO.** `news_n=0` says OUR FEED has
+nothing; it does not say the world does. Before you kill any name for having no catalyst, run
+`python -m tools.edgar.edgar <SYM>` and say what it returned, including "nothing since <date>". This is
+cheap, it is primary-source, and it is the difference between "there is no news" and "we did not
+receive any". (Checked on two such names the morning this was written: EDGAR confirmed genuinely
+nothing for 3-5 weeks, so the emptiness was real — but it had to be confirmed, not assumed.)
 
 **⚠️ FOR A NO-CATALYST NAME, G2 IS WHAT DECIDES — THAT IS INTENDED, not the gates overreaching.** A
 name with no catalyst has no thesis to test, and this pond has measured what that is worth: news-less
