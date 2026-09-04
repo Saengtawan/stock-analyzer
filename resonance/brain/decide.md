@@ -41,12 +41,24 @@ attempt to select POSITIVELY has lost: a run that ranked the pool for upside fir
 fault-finding, underperformed its own pool on four sessions out of four, and its picks lost 5%. **The
 skill this brain has demonstrated is rejection. Use it, and let the residue be the answer.**
 
+**⚠️ And the limit of it, measured the same way.** On a session where the pool cleared +2% on 36% of its
+names, a full veto pass still killed all of them and abstained — because that day's winners were a
+single same-driver complex whose direction was set by an asset nobody can forecast pre-open. When that
+is genuinely the case, abstaining is right and it still costs. Say the cost out loud; do not dress it
+up, and do not invent a name to avoid saying it.
+
 **Three consequences, and they are binding:**
-1. **Every pooled name gets a verdict.** VETO with a per-name reason, or SURVIVE. "I did not look at it"
-   is not a verdict — that bucket is where winners have been hiding (on two sessions the un-examined
-   names cleared +2% at 26% and 33% while the pool did 20% and 17%). If a name is unreadable, that IS a
-   veto: write "unreadable — no premarket book / cannot name the driver" and own it as a decision.
-   Group them compactly; the requirement is that each name was looked at, not that each gets a paragraph.
+1. **Every pooled name gets ONE OF THREE verdicts — and they are not the same thing.**
+   - **VETO** — you can name a reason this specific name goes DOWN or goes nowhere. A bearish call.
+   - **SKIP** — you cannot read it: no premarket book, or its day is set by an external driver you
+     cannot forecast. **This is NOT a veto and NOT a survivor.** It is "I looked and I cannot call it."
+   - **SURVIVE** — you tried to kill it and could not. These are your candidates.
+   "I did not look at it" is not a verdict — that bucket is where winners have been hiding (on two
+   sessions the un-examined names cleared +2% at 26% and 33% while the pool did 20% and 17%).
+   Group compactly; the requirement is that each name was LOOKED AT, not that each gets a paragraph.
+   ⚠️ **Do not collapse SKIP into VETO.** A replay did exactly that, recorded 53 vetoes and 0 survivors,
+   and abstained on a session where the pool cleared +2% on 36% of its names — the collapse makes
+   abstain arithmetically unavoidable on any morning dominated by one external driver.
 2. **If anything survives, you have candidates — so take the strongest or say specifically why not.**
    The burden flips here. Having survivors and buying none needs a reason as concrete as buying does.
 3. **ABSTAIN IS AN OUTCOME, NOT A STARTING POSTURE.** It means the veto pass killed everything. That is
