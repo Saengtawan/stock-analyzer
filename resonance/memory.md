@@ -88,6 +88,150 @@ _Format: DATE | pool→picks | why (coiled+catalyst) | fwd close vs SPY | JUDGME
 
 2026-08-26 | pool 37 → **ABSTAIN** (8th abstain, 4th in a row) | NVDA-tonight holding pattern, SPY +0.17%; only 3 triggers and I wrote a decline paragraph for each: INTU (−10.4% gap, FY27 rev 9-10% vs 14%, FY27 EPS $22.68-23.12 vs $27.30 cons) declined on L8 (a CUT starts a revision cycle that prints inside my session; WFC PT→$300 at 12:48Z) explicitly OVERRIDING L6's 0-for-4; SYRE (−10.6%, SKYWAY RA sub-study hit stat-sig but missed Spyre's own effect-size bar, next readouts Q4-26) on L5 distant-payout; SEDG (+6.7%) on SOFT-catalyst + "the solar theme is observably NOT live — whole cluster flat premarket (ENPH 0.00, RUN +0.33, FSLR +0.72, SHLS +0.87, NXT +0.83)" | fwd open→15:55 (SPY +0.17%): **INTU +6.88% = the #1 name of the pool** (falsifiable (b) FIRED), **SEDG +2.77%** (falsifiable (a) FIRED), **SYRE +1.29%** (falsifiable (c) SURVIVED — correct skip); named-and-dismissed as "down-gappers with news_n=0, drift not flush, nothing nameable to buy": **FIG +3.84%, MNDY +2.76%** — both wrong; correct skips: ROKU −0.66 (zero PT headroom, held), and the DISCHARGE reads went **3-for-3** — QURE +0.08, **SMR −5.79**, **FRMI −5.55** (yesterday's movers with no fresh trigger, and the two biggest blew out); L1 large-cap inert half inert AGAIN 18/18 inside ±1.3% (ACA −0.02, TECH +0.07, MKTX −0.04, ITGR −0.10, HQY +0.01, CBZ +0.31, UTZ −0.14, PAYO 0.00, SLAB +0.19, APGE +0.09, LNTH +0.12, FBRX +0.04, ATAI −0.27, ARR −1.25, ABCB +0.06, ARX +0.05, ALKS −0.14, NAVN +0.96) — NOT counted as 18 skips per L1's 08-25 addendum; the two-tailed half fired BOTH ways again exactly as that addendum predicted (**PRIM +4.55 = the only unnamed winner**, vs SMR −5.79, FRMI −5.55, WKHS −2.88), i.e. the coin flip I declined = neither skill nor miss; un-evaluable per L10, booked in neither column: CVNA −2.52, KLAC +0.10, BKNG −2.58. **THE FACT OF THE DAY: 4 of the pool's 5 >+2% names (INTU, SEDG, FIG, MNDY) were names I wrote an explicit decline mechanism for — and 3 of those 4 are SOFTWARE. IGV closed +2.60% open→close vs SPY +0.17% (CRM +3.09, ADBE +3.08, NOW +2.85, TEAM +4.08, HUBS +2.41) while NVDA fell −1.27%: a chips→software rotation on NVDA-print day. MNDY +2.76 vs IGV +2.60 = ~ZERO name alpha (pure group beta), FIG +1.24 over group, INTU +4.28 over group (so INTU's capitulation bounce IS real on top of the rotation). SEDG likewise UNDERPERFORMED its own cluster (SHLS +5.48, ARRY +3.73, ENPH +2.89) — the cluster I had declared "not live" from its flat PREMARKET prints came alive after the bell, and my premarket leadership read (XLP +1.70/XLF +1.29/XLU +1.05 = defensive) INVERTED intraday (XLP −0.39, XLF +0.01, XLU +0.44 vs XLK +1.20, IGV +2.60).** WebSearch confirms the pre-open-knowable fact I never priced: IGV +18% since its 07-23 low on an explicit rotation out of chips into software ("driven by rotation, not company news"), and a 08-18 headline already read "Software Stocks Soar in Rotational Trade: Monday.com Up 7%, HubSpot Up 6%, Intuit Up 5%" — MNDY and INTU were named beneficiaries of this exact trade a week before I declined them | JUDGMENT: **0 win / 0 loss / 5 named correct-skips (SYRE, ROKU, QURE, SMR, FRMI) / 4 named skips WRONG (INTU, SEDG, FIG, MNDY) / 1 unnamed miss (PRIM, the two-tailed coin flip) / 3 un-evaluable** — the costliest abstain of the record and 2 of 3 pre-registered falsifiables fired. Honest takeaway: **my name-level reads were mostly SOUND (SYRE right, discharge 3-for-3 with SMR/FRMI both −5.5%+, the inert block inert an 11th time) and I still missed 4 of the 5 winners, because I judge every name as an isolated story and have NO group/rotation layer at all.** Second admission: on SEDG I did ask the flow question and answered it from PREMARKET sector prints — which inverted in both directions today, so that input has no predictive content. Third, against over-learning INTU: only +4.28 of its +6.88 was name-specific, so this is a partial hit on L8, not a refutation — but L8 was earned only as a "don't BUY" lesson and today was the first time I used it to DECLINE, and it cost me the #1 name.
 
+2026-08-27 | pool 36 → pick **HQY** (single pick, 12th non-abstain, ends a 4-day abstain streak) | HQY = the record's most extreme coil (atr_pct_pctile 0.004, bb_squeeze_106, consol 7, rvol_short 0.053) paired with a HARD beat-and-RAISE (Q2 adj EPS $1.24 vs $1.19, FY27 revenue AND EBITDA guides raised, record 48% margin, record 10.7M HSA accounts) that the premarket sold −7.1% — bought as an L6 flush-overshoot with MNDY as precedent, while my own plan text conceded I could NOT name the bear point and that FIT was "nil" (the live rotation was semis/software, HQY an idiosyncratic rate-sensitive HSA custodian with no group bid) | fwd (open→15:55, SIP): **HQY 96.88 → 93.33 = −3.66% (vs SPY +0.34% → −4.00)** — 2nd-worst of 35 graded pool names (FRMI −4.31 was worst; correcting L12's "pool's worst" phrasing), and it never based: full-day −14% off the 105 prior close and the 09:30 open printed BELOW the 96.5-98.4 pre-open base I leaned on. Post-close search STILL cannot produce a published cut — beat, both guides raised — so the sellable items were the ones already in my own risk paragraph at 09:00: the adj-EPS guide left at $4.66-4.73 vs $4.72 consensus despite a $0.05 beat (implied H2 trim) and HSA-cash yield guided ~3.75%, both printed 08:05 ET. MISSED: **CRWD +9.46, FIG +9.29**, NAVN +3.75, SMR +2.74, WKHS +2.61 (5 of 35 cleared +2%). GROUP (the day's real driver): **IGV +4.24% vs SPY +0.34%** — CRM +9.52, TEAM +9.84, PANW +6.74, NOW +6.10, MNDY +4.76, HUBS +4.71, ZS +4.56, OKTA +4.06, S +3.94; verified fact, not a narrative: CRM, CRWD and OKTA all beat AND raised the prior evening, and the non-earnings software names ran just as hard, so it was a group bid rather than ETF drag from three prints. | JUDGMENT: **0 win / 1 loss / 0 skip.** I wrote both disqualifiers into my own plan — "I cannot name the bear point" (the exact L9 tell) and "FIT is nil, no group bid" — and bought anyway on the strength of the coil axis; the coil was genuinely the most extreme in the record and the direction was still wrong, which is precisely what principle #1 says a coil cannot fix.
+
+2026-08-28 | pool 45 → picks **AFRM + SOLS** (13th non-abstain) | AFRM = "the 2nd-most extreme coil I have ever bought" (atr pctile 0.011, bb 0.026, consol 4, undischarged chop — max abs 5d move 2.638%) + a HARD company-printed Q4 (rev $1.166B vs ~$1.12B street, GMV +36% to $14.1B, FY27 GMV guide >$64B) with the revision flow visibly MID-FLIGHT (BMO PT $101 at 08:38 ET, Benzinga "analysts increase their forecasts" at 08:55), gap +11.0% HOLDING into the bell on 52.9x pm vol, weak legs stated up front as no group bid + "BULL's tell in a milder form"; SOLS = catalyst-ONLY (coil leg stated ABSENT) — the $14.5B Element deal mutually terminated 17:05 ET + a $500M buyback authorized, with an 8%-of-float merger-arb short (short_change +126.6%) mechanically obliged to cover in RTH, weak legs stated as "the price-level mean-reversion is largely done at the bell" + no group | fwd (SPY open→15:55 **−0.31%**, QQQ −0.46, IWM −1.31 — a mildly down tape; both picks filled natively): **AFRM −9.73% (vs SPY −9.42) = the WORST of 44 gradeable names in the entire pool**, **SOLS −2.14% (vs SPY −1.83), #28/44** — and the field was a desert: pool mean **−1.97%**, median −0.63%, only 11/44 green and **ZERO names cleared +2%** (best in the whole pool: TTD +1.42, BKNG +1.01), so **the MISSED column is EMPTY for the first time in the record** — there was no winner to find today, only losses to avoid, and I found the biggest one. CORRECT-SKIP in outcome but NOT named: PYPL −0.31, CYTK −3.04 — my tape note claimed "both down-gappers are declines with a stated mechanism below" and **the plan file contains no such mechanism**, so I take no credit; that is an artifact-integrity miss (I asserted work I did not write down). THE FACT behind AFRM, on the tape ~16 hours before my open: the $4.62 GAAP EPS I quoted as the beat was a **one-time deferred-tax valuation-allowance release**, and the operating line was **adjusted EPS $0.72 vs $0.84 est = a 13.9% MISS**, with the call spent on Goldman pressing margin/take-rate sustainability. The whole BNPL complex de-rated on that print — **SOFI −6.01, UPST −5.03, KLAR −4.89, HOOD −4.08, SEZL −3.29** — while XLF closed **+0.20%** | JUDGMENT: **0 win / 2 loss / 0 named correct-skip / 0 missed.** Both pre-registered falsifiable tests FIRED (both closed below their 09:30 open). Honest takeaway: **I did not lose AFRM to the coin flip — I graded the catalyst off a headline number and my own risk note (3) had already written the correct answer** ("the EPS line is almost certainly carrying a large non-cash item; if desks strip it out the 'beat' is the revenue/GMV lines only"). I posed the exact question that would have killed the trade, filed it as a caveat, never spent sixty seconds answering it against the release, and bought the pool's worst name. SOLS is the cleaner loss and still not bad luck: the thesis's SIGN was right (the gap held; it closed ~+12.7% above the prior close) and I lost anyway because I bought the overnight auction's finished work — the third such sentence I have written and traded past. L7 goes **0-for-10**, two of them in a single day, both self-named.
+
+2026-08-31 | pool 33 → **ABSTAIN** (9th abstain) | month-end, last session of August, on a MACRO tape (overnight US strike on Iranian launchers staging to mine Hormuz, WTI +3.4%, majors/services bid 11-40x pm) that never arrived in my pool — 3 triggers, each declined with a stated mechanism: **ASST** (+77.56% "gap") and **IBRX** (+6.93%) both DATA ARTIFACTS (last daily rows 08-07 and 08-14, stale 3 and 11 sessions) = L10 un-evaluable, not skips; **SOC** (+4.33% real gap, the Hormuz readthrough — theme named rather than stopping at news_n=0) declined on the **direction-flow gate** ("the theme is live; the buyer is not arriving in THIS $978M name" — 26,100 pm shares over 12 bars = 0.6x its own thin average while the complex printed 11-40x) plus the **answer-your-own-caveat gate** (the whole direction leg was a geopolitical headline that could unwind on a negotiation line, and one was already on the tape at 06:55 ET); **AFRM** declined per L13 (my own 08-28 loss, one session old, gap round-tripped, operating line was a 13.9% MISS); remaining 30 = the L1 triggerless news_n=0 cohort + the high-short-float "fuel, no spark" block | fwd open→15:55 SIP (SPY **−0.05%**, QQQ +0.23, IWM −0.40, XLE +0.22, XOP −0.65, IGV +1.29, XBI +0.88; 33/33 gradeable): pool mean **+0.65%**, median +0.05%, 19/33 green, **5/33 cleared +2%** (WKHS +9.94, ASST +7.45, SOC +6.09, AI +2.61, SOUN +2.07) | **THE CALL OF THE DAY — the pre-registered complaint against MY OWN COIL PREREQUISITE was refuted by the tape: SAIC closed −8.63% (140.39 → 128.28), the worst open→close of anything I graded.** I had written that SAIC "IS the exact shape of every win in the traded record" (verified ADJUSTED $3.01 vs $2.31 per L13, revenue $1.880B vs $1.766B, ALL FOUR FY27 guides raised, +9.96% gap on 24.65x pm vol sitting AT the premarket high) and that "the exclusion rule — not my judgment — is what cost the day." **It saved the day.** The open printed 140.39, ABOVE the 138.50 pm mark, and the first 5-min bar low was 132.15 — the open WAS the exhaustion — then it bled all session. And it sold on the one item **my own plan named as the sellable**: book-to-bill 0.6; WebSearch confirms the company guided book-to-bill to finish "closer to 1.0 on a slower submission and award environment." So the falsifiable **SURVIVED**, and the honest form of it is: a verified operating beat-and-raise with a held up-gap is NOT sufficient without a coil — which is principle #1's converse, first direct evidence, n=1 | **FALSIFIABLE (SOC) FIRED on the letter — and the mechanism was NOT my flow read.** SOC was **+0.11% open→15:00** (flat for 5.5 of 6.5 hours, exactly as the direction-flow gate argued; its complex went nowhere all day — XLE +0.22, XOP −0.65, HAL −1.18, OXY −0.22) and then **+5.97% in the final 55 minutes** on 1.23M shares in the 15:55 bar vs 99.8k in the 09:30 bar (12x), with no findable 08-31 company headline: **month-end closing-auction flow on the last session of August**, which my hold-to-15:55 exit is fully exposed to and my 09:00 plan never priced. I take the miss; I do NOT get to call the gate wrong about the session, and I do NOT get to call it right about the close | **FALSIFIABLE (L1 triggerless cohort) SURVIVED for the 5th straight week** — all 15 named (ACA +0.03, TECH −0.04, PAYO +0.14, APGE −0.01, ATAI +0.48, MKTX −0.06, ITGR +0.01, CBZ −0.22, QURE +0.93, SLAB +0.05, AES +0.17, ARX +0.20, LNTH +0.19, PAG +0.05, ABCB −1.50) inside ±1.5%, best QURE +0.93, not one within 1pp of the bar; counted as ONE cohort skip per L1's 08-25 addendum, not 15 | **FALSIFIABLE (AFRM) SURVIVED: AFRM −2.01%** (#32 of 33) — L13 goes 2-for-2 | named skips that FAILED: **AI +2.61, SOUN +2.07** from the "real fuel, no spark" block (news_n=0, 0.56x / 0.21x pm vol) — but its other four went the other way (RUN −1.72, REPL −0.46, UPST +0.53, SMR +1.15), i.e. the two-tailed coin flip L1's addendum predicts, not a read I could have made | unnamed miss: **WKHS +9.94, the pool's #1** — a $35M micro-cap, news_n=0, **0.09x** premarket volume, no catalyst findable post-close either; unreadable pre-open, and its own record is two-tailed (−4.82 on 08-24, −2.88 on 08-26, +2.61 on 08-27) | un-evaluable per L10, booked in NEITHER column: **ASST +7.45** (the pool's #2), IBRX +0.89, KLAC −0.78, BKNG −2.41 — 9th consecutive session of stale/split-artifact names | JUDGMENT: **0 win / 0 loss / 3 named correct-skips (SAIC, AFRM, the L1 cohort) / 3 named skips that failed (SOC, AI, SOUN) / 1 unreadable miss (WKHS) / 4 un-evaluable.** Honest takeaway: **for the first time the record tested a rule I was blaming for my abstains, and the rule won — the coil prerequisite kept me out of the day's worst reversal, on the exact caveat I had already written down.** The abstain's one real cost (SOC) was not lost to bad reasoning about flow; it was lost to a month-end auction in the last 55 minutes, which is a CALENDAR event, not a coil or a catalyst, and I have never once priced one. n=1 — watch it, do not build on it.
+
+2026-09-01 | pool 37 → **ABSTAIN** (10th abstain) | first session of September, risk-off lean, VIX 14.92 / NORMAL, pool carrying ZERO earnings rows for the 4th session in five and news_n=0 on 30 of 37 — 8 triggers declined with a stated mechanism, headed by **FRVO** (396MW Google PPA, the day's only genuine catalyst) failed on G1 no-operating-number → L5 distant-payout, G2 red AI-power peer group, G3 fading-up-gap; plus CHTR (CFO exit, soft-negative), ATAI (merger-arb pin), SOC (month-end move discharged), TTD (stale), TECH (SBTi soft catalyst, volume-with-no-price cross), SMR (boron-pellet PR, −2.70% gap inside a red nuclear complex), the L1 triggerless cohort (21 names, ONE skip), the high-short-float "fuel, no spark" block, and KLAC/BKNG/CVNA un-evaluable per L10 (10th session) | fwd open→15:55 SIP (SPY **−0.05%**, QQQ +0.04, IWM −0.47, XLU +0.59, XLE −0.12; 37/37 gradeable): pool mean **+0.33%**, median +0.00%, 18/37 green, **3/37 cleared +2% — FRVO +19.92, WKHS +4.40, SMR +3.07** | **FALSIFIABLE (a) FIRED, and it is the largest miss in the record: FRVO +19.92% (16.47 → 19.75), the pool's #1, and the 09:30 open WAS the low of the day** — it never traded under 16.47, based ~20 minutes, then ran all session (17.59 by 09:35, 19.00 by 10:30, 19.75 into the close). WebSearch confirms the FACT and confirms there was NOTHING to learn intraday: the world's largest enhanced-geothermal PPA, 396MW off the $2B Cape Station GeoCluster in Utah, online 2028, announced ~06:00 ET — the SAME pre-open fact re-rating THROUGH the session, no new headline. **So the miss is 100% attributable to my reasoning, not to information I did not have** | **THREE gates were applied to FRVO and all three read it wrong — and two of them carry a WRITTEN EXCEPTION covering exactly this case that my plan never worked.** (i) **G1** — the de-overhang class is spelled out in the gate almost literally ("a hyperscaler offtake that offsets a known demand/curtailment fear the stock had been selling off on"); I routed to L5's distant-payout column instead and never named the overhang. What I did write toward it — "a DRAW-DOWN against the already-public 3GW framework, so the relationship is not the surprise" — is true about the RELATIONSHIP and irrelevant to the OVERHANG: the priced-in fear on a pre-revenue developer **−63.9% from its 252d high** with adj EPS −0.38 is whether it can contract binding off-take to fund a $2B build, and the largest EGS PPA ever signed removes precisely that. (ii) **G2** — the gate orders me to "CLASSIFY the catalyst before you use a peer-group read to fail this gate: THEME vs IDIOSYNCRATIC" and says "Do not fail an idiosyncratic name on its group being red." My plan contains **neither word**, and a single-name 396MW PPA is idiosyncratic by construction. The group read was ALSO inverted by the session: premarket 1 green / 6 red avg −1.34% → RTH **BE +5.40, CEG +3.65, SMR +3.07, ORA +2.77, VST +1.18, TLN +0.90, OKLO −2.03 = avg +2.13% vs SPY −0.05%**. (iii) **G3** — honest and wrong, not misapplied: at 09:05 FRVO genuinely was printing fresh lows (19.19 → 17.10 → 16.85) so the "still rolling over → abstain" branch was applied correctly to the observable; the give-back simply finished IN the opening auction. That is the proxy failing as the gate itself warns it can, and it is the one of the three I do not get to call a process error | **THE SHARPEST ERROR IS NOT A GATE — I OVERRODE THE MECHANICAL COIL LAYER.** My plan declared FRVO's coil "not merely absent, it is INVERTED" citing bb_bandwidth_pctile 1.000 / atr_pct_pctile 0.721 / consol_len 0 — **three axes FRVO does not qualify on** — and never once mentioned `loaded_spring`, the axis the pool actually ADMITTED it for (`axes_extreme = ['gap','pm_wake']`, `axes = ['gap','loaded_spring','pm_wake']`). The mechanical layer called it a loaded spring; I hand-picked a subset of its own metrics to argue the opposite. This is the exact thing the coil/AI split exists to prevent — coil is MECHANICAL, direction is MINE — and I re-litigated the mechanical leg to support a decline. **And all three names that cleared +2% today carried `loaded_spring`** (FRVO extreme, SMR extreme, WKHS on it alone) | **FALSIFIABLE (b) SURVIVED: CHTR −0.09%** — a CFO exit into a 50%-short-float name did not squeeze | **FALSIFIABLE (c) SURVIVED for the 6th straight week — the L1 triggerless cohort**: 21 names, best **AR +1.56**, then CYH +0.86 / CNC +0.74 / PAG +0.49 / LMND +0.47 / FRT +0.45 / GSAT +0.42 / ARX +0.25 / SLAB +0.22 / ACA +0.14 / ITGR +0.11 / AES +0.07 / APGE +0.04 down to RHI −4.14; **not one cleared +2%**, ACA (2.66x pm) and SLAB (2.06x pm) with pm_range 0.01%/0.00% closed +0.14 and +0.22 = the cross read was right. ONE cohort skip per L1's 08-25 addendum | **FALSIFIABLE (d) SURVIVED exactly: ATAI +0.00% (7.35 → 7.35)** — the merger-arb pin held to the penny, 4th correct ROKU/Fox application | named skip that FAILED #2: **SMR +3.07** — declined on "gapping −2.70% inside a red nuclear complex," i.e. the SAME inverted premarket-group read that cost FRVO, on the same complex, in the same plan | unnamed miss: **WKHS +4.40** — the pool's top name for the SECOND consecutive session (08-31 +9.94), news_n=0, admitted on `loaded_spring` alone, still no findable catalyst post-close; a $35M micro-cap I have now failed to read twice | **COIL PREREQUISITE tally → 1-1, and today it is EXONERATED**: on 08-31 it excluded SAIC (−8.63%) and saved the day; today it ADMITTED the winner and I talked past it. The prerequisite did not cost this day — I did | JUDGMENT: **0 win / 0 loss / 3 named correct-skips (CHTR, ATAI, the L1 cohort) / 2 named skips that FAILED (FRVO +19.92, SMR +3.07) / 1 unreadable miss (WKHS +4.40) / 3 un-evaluable.** Honest takeaway: **this is the first day the record can prove the gates were not the constraint — the exceptions I needed were already written into G1 and G2, and I skipped both without a word.** A gate whose exception clause is never exercised is not a gate, it is a one-way ratchet toward abstaining; nine abstains in ten sessions is what that looks like from the outside. Escalated to a PROCESS gate (G5) + hardened G2 + pruned L5's escape route. Do NOT read this as "buy the next big contract" — G3 was applied honestly and still lost, direction stays a coin flip, and n=1.
+
+2026-09-02 | pool 37 → picks **EOSE + QURE** (14th non-abstain, ending a 2-session abstain run) | both taken through the **de-overhang exception** written into G1 one day earlier, both stated IDIOSYNCRATIC per G2, both citing the pool's own axes per G5 — EOSE = a 07:55 ET MN8/Google/Eos West Virginia award (86MW solar + 70MW/280MWh Li-ion + 10MW/100MWh of Eos' Z3, up to $350M capex), Google's FIRST Z3 deployment and the FIRST drawdown under the MN8 MSA, into a name −84.7% off its 252d high, 31.27% short float rising +6.46%, five red sessions into the print; QURE = a 07:05 ET BLA submission for AMT-130 (Huntington's, accelerated approval, priority review requested) into a 7-of-10-axis coil (atr pctile 0.000, bb 0.000, rvol_short 0.143, consol 5), 15.74% short rising, nobody front-running it | fwd open→15:55 SIP (SPY **+0.36%**, 37/37 gradeable): pool mean **+0.66%**, median +0.17%, 27/37 green, **11/37 cleared +2%** — a hot pool on a nearly flat index | **EOSE +5.99% (3.42 → 3.625, vs SPY +5.64) = #2 of 37** — opened 3.42, dipped to 3.29 in the first ten minutes, based, and climbed all session (3.46 by 10:00, 3.55 by 12:00, 3.62 into the close). WebSearch + the company release confirm the fact and confirm there was nothing new intraday: the SAME pre-open award re-rating THROUGH the session. **This is a clean process win and the first exercise of the G1 de-overhang exception** — the exception that cost me +19.92% yesterday by going unworked, worked correctly today | **QURE −8.83% (50.72 → 46.24, vs SPY −9.19) = #36 of 37, the plan's own worst-case sentence come true.** The **09:30 open was the HIGH of the day** — it never traded above 50.72, first 5-min bar low 49.70, then a monotone bleed (49.10 by 09:40, 47.21 by 10:00, 46.83 by 10:30, 45.30 by 14:00) with a token close-side bounce. Post-close checks kill every excuse: **EDGAR shows the ONLY 09-02 filing is the 8-K (Item 7.01/9.01) carrying the BLA press release — no offering, no dilution, no intraday headline**; the 424B5s in the file are dated **06-24**, i.e. the company had ALREADY monetized the June de-risking. So this is not bad luck and not new information — **it is textbook sell-the-news on a company-GUIDED milestone** | **THE ERROR IS G4, AND IT IS THE FOURTH TIME.** My plan named the killing caveat exactly right (*"the filing was telegraphed in June, the marginal holder banks it, the next real catalyst is two months out… that is a genuine sell-the-news shape"*), then "resolved" it by **restating the bull case in the caveat's own words** (*"an expected event that nobody positioned for still has to be bought"*) — and my own risk line **wrote the verdict on that resolution**: *"my G4 resolution is an inference from positioning, not proof."* I filed the disqualifier, labelled my answer as not-proof, and bought. Overriding a self-named killing caveat is now **0-for-4** (−2.42, −9.73, −2.14, −8.83) and the fourth happened **with G4 already in force** | **THE SECOND ERROR IS INSIDE G2: absence of sellers is not presence of buyers.** My whole flow leg was that nobody had front-run it — five quiet sessions, bottom-14% volume, short rising. That describes a flow that has NOT STARTED, not one that is ARRIVING. The "obliged model revisions publishing through the session" never printed | **G1's hole, located by the pair:** the de-overhang exception has no freshness test. Same morning, same exception, opposite results — the **unannounced** award ran, the **company-guided** milestone sold; and my QURE plan itself conceded *"the larger half of that overhang was removed in June… the smaller residual piece"* before clearing the gate | **L12 HELD-UP-GAP TALLY → 1-2, and no longer untested on a traded pick:** QURE's open printed ABOVE its 50.34 pm mark and was the day's high (same signature as SAIC −8.63 on 08-31), while EOSE's open printed BELOW its 3.47 pm mark and ran. 3-for-3 consistent on that observable — **and still unusable, because I decide at 09:00 and it prints at 09:30** | **L1'S 6-WEEK INERT STREAK BROKE:** seven news_n=0 names cleared +2% (RUN +7.19 the pool's #1, ASST +5.42, LMND +3.24, UPST +3.11, SOC +2.81, CC +2.75, REPL +2.04) with the other tail at WKHS −9.19; the large-cap inert half still behaved (SLAB +0.59, PAYO +0.35, ACA +0.08, APGE +0.01, ATAI −0.07). L1 is **two-tailed**, not inert — and I still had no pre-open way to pick which seven | MISSED besides those: SMR +4.65, CNC +2.98, FRMI +2.68 | JUDGMENT: **1 win / 1 loss / 0 named correct-skips / 9 missed.** Honest takeaway: **the win and the loss ran through the SAME two gates on the same morning, so the day is a controlled experiment and the discriminator is legible — the gate text was fine, my CLEARING of it was not.** EOSE cleared G4 by citing facts outside its own thesis; QURE "cleared" it by paraphrasing its thesis and admitting in writing that it had. That is the whole difference between +5.99% and −8.83%. Escalated: **G4 now fails on a self-hedged resolution** (L13's prose-rule promoted out of memory into the gate), G1 requires **GUIDED vs SURPRISE** in words, G2 states **absence of sellers ≠ presence of buyers**, and ~1,950 characters of who-buys prose duplicating G2 were deleted from decide.md. Do NOT read this as "avoid regulatory milestones" — that would be a content rule, and the record forbids them; the fix is that a caveat I label as unresolved is an abstain.
+
+---
+
+## GATE TALLIES
+_(Step-4 GATE CHECK went live 2026-08-29; first live session under it = 08-31. A gate with a tally is
+measurable, a gate without one is a story. Update every learn pass. These grade the PROCESS — whether
+the gate forced the reasoning to finish — not whether the name went up.)_
+
+- **G1 operating-number / de-overhang** — **09-02: the exception written on 09-01 was EXERCISED FOR THE
+  FIRST TIME, twice in one plan, and it went 1-1 — which located the hole in it.** Both picks cleared G1 via
+  the de-overhang route and both named the overhang + the evidence it was priced, exactly as the gate asks.
+  The WIN (+5.99%, #2 of 37): an unannounced first-of-its-kind hyperscaler award removing an
+  execution/commercialization overhang on a name −84.7% off its 252d high after a 124% EPS miss and PT cuts.
+  The LOSS (−8.83%, #36 of 37): a regulatory filing whose overhang removal the company had **GUIDED to the
+  quarter** months earlier — and my own plan conceded *"the larger half of that overhang was removed in June…
+  the smaller residual piece"* and cleared the gate anyway. **Fix shipped into G1: GUIDED vs SURPRISE must be
+  stated in words, and a guided removal is itself a killing caveat that must clear G4 with an external fact.**
+  The exception is sound; it just had no freshness test inside it. Running: exercised **5**, correct **3**.
+- **G1 operating-number** — exercised **3**, correct **2**, **INCORRECT 1 (09-01 FRVO, the record's largest
+  miss).** 09-01: FRVO declined for having no operating number ("power flows in 2028", routed to L5's
+  distant-payout column) — but G1's own text carries the **de-overhang exception** written for almost exactly
+  this case ("a hyperscaler offtake that offsets a known demand/curtailment fear"), and the plan never worked
+  it. The overhang was nameable and its pricing-in was visible: a pre-revenue developer **−63.9% from its
+  252d high** with adj EPS −0.38, whose live question is whether it can contract binding off-take to fund a
+  $2B build — which the largest EGS PPA ever signed answers. **FRVO closed +19.92%.** Fix shipped in the gate
+  itself: the L5 bypass is now CLOSED — "the payout is years away" may not decline a contract/approval/deal
+  catalyst until the de-overhang exception is explicitly resolved in writing.
+- **G1 (prior tally, kept):** exercised **2**, correct **2**. 08-31: AFRM kept out on the 13.9% adjusted
+  MISS behind the $4.62 GAAP headline (**−2.01%**, #32 of 33); SAIC's adjusted $3.01 vs $2.31 and the
+  four raised FY27 guides verified at the primary release and web-confirmed after the close. **Caveat
+  that matters more than the tally: G1 is a TRUTH check, not a direction signal — SAIC PASSED it and
+  closed −8.63%.** Passing G1 buys the right to keep evaluating, nothing else.
+- **G2 direction-flow** — **09-02: honored in FORM on both picks (the literal-word requirement added 09-01
+  worked — both plans said IDIOSYNCRATIC, neither sourced a premarket peer read), 1-1 in OUTCOME.** The
+  loss exposes what the gate does not yet catch: its flow leg was *"nobody front-ran it"* — five quiet
+  sessions, bottom-14% volume, short interest rising — which is **absence of sellers, not presence of
+  buyers**. The "obliged model revisions publishing through the session" I named never arrived; the name
+  opened at its high and bled 79 bars. **Fix shipped into G2:** absence of sellers is not presence of buyers,
+  stated explicitly. Running: exercised **4**, correct **2**.
+- **G2 direction-flow** — exercised **2**, correct **1**, **INCORRECT 1 (09-01 FRVO/SMR).** The gate already
+  ordered the fix and I did not perform it: *"CLASSIFY the catalyst before you use a peer-group read to fail
+  this gate: THEME vs IDIOSYNCRATIC... Do not fail an idiosyncratic name on its group being red."* My 09-01
+  plan contains **neither word**, and a single-name 396MW PPA is idiosyncratic by construction. The group read
+  was inverted by the session on top of being inadmissible: premarket AI-power **1 green / 6 red, avg −1.34%**
+  → RTH **BE +5.40, CEG +3.65, SMR +3.07, ORA +2.77, VST +1.18, TLN +0.90, OKLO −2.03 = +2.13% avg vs SPY
+  −0.05%**. The same inverted read cost SMR (+3.07) in the same plan. **HARDENED 09-01 (escalation, 3rd
+  repeat):** the plan must contain the literal word THEME or IDIOSYNCRATIC for any name a peer-group read is
+  used against, and **this morning's premarket peer prints may no longer source a load-bearing group read** —
+  3 inversions (08-26 solar, 08-26 sector-regime, 09-01 AI-power) vs 1 counter-sample (08-27 IGV) = no
+  predictive content either way. This is L11's own retired-clause, promoted from conditioning to gate.
+- **G2 (prior tally, kept):** exercised **1**, outcome **FIRED**, session **validated**. 08-31 SOC: declined
+  because the name's own premarket book was 0.6x while its complex printed 11-40x. SOC was **+0.11%
+  open→15:00** and its complex went nowhere all day (XLE +0.22, XOP −0.65) — the gate read the session
+  correctly — then **+5.97% in the last 55 minutes** on 12x the open bar's volume = month-end auction.
+  Booked as a fired falsifiable. No loosening: the gate was not refuted by the session it described.
+- **G3 gap-direction** — **09-02: exercised 2 (both on the "faded EARLY then BASED/RECLAIMING" branch),
+  correct 1.** The win validated the branch precisely — it dipped ~4% in the first ten minutes, based, and
+  ran all session to +5.99%, i.e. the give-back really was behind the open. The loss took the same branch
+  and the open WAS the exhaustion (open = high of day, −8.83% close). Same proxy, opposite results, same
+  morning: **the late-premarket shape does not distinguish them.** The one observable that DOES (open vs
+  last premarket mark) is unavailable at 09:00 — see L12's tally, now 1-2. **No rewrite:** the branch was
+  applied honestly to the right evidence in both cases. Running: exercised **3**, correct **1**.
+- **G3 gap-direction** — exercised **1**, correct **0**, wrong **1 — but HONESTLY applied, not misapplied.**
+  09-01 FRVO: at 09:05 the tape genuinely was making fresh lows (pm high 19.19 at 06:30 → 17.10 at 09:00 →
+  16.85 at 09:05), so the gate's "still ROLLING OVER into the bell → abstain" branch was the correct reading
+  of the observable. The give-back simply completed INSIDE the opening auction: the 09:30 open printed 16.47,
+  it never traded lower, and it closed 19.75. This is the proxy failing exactly as the gate's own text warns
+  ("the real confirm — does it hold the open? — you can't see; stay humble"). **No loosening and no rewrite:**
+  the branch was applied to the right evidence and lost. It does mean G3 cannot be the gate that carries a
+  decline on its own when G1/G2 were the ones misapplied.
+- **G3 (prior note, kept):** exercised **0** on a finalist. 08-31 counterexample worth carrying: SAIC was a
+  HELD up-gap (+9.96%, pm_last AT the pm high) that would have **cleared** G3 and closed **−8.63%** —
+  see L12's held-up-gap tally, now 1-1.
+- **G4 answer-your-own-caveat** — **09-02: FAILED IN FORCE. This is the gate's first real defeat and it
+  triggered the escalation.** Both picks wrote a G4 paragraph. The win's resolution cited facts OUTSIDE the
+  thesis (a 124% prior EPS miss, sell-side PTs cut to ~$8, the fact of a first-ever hyperscaler deployment)
+  → +5.99%. The loss's resolution **hedged itself in writing** — the plan's own risk line said *"my G4
+  resolution is an inference from positioning, not proof"* — and the resolution itself merely restated the
+  bull case in the caveat's words (*"an expected event that nobody positioned for still has to be bought"*)
+  → **−8.83%**. That makes **four** picks overridden on a self-named killing caveat (−2.42%, −9.73%, −2.14%,
+  −8.83%), the fourth **with G4 already live**. **ESCALATED 09-02:** a self-hedge attached to the RESOLUTION
+  now FAILS the gate outright, a clearing resolution must cite something outside the thesis, and L13's
+  prose-rule was promoted out of memory into this gate. Running: exercised **4**, correct **3**.
+- **G4 answer-your-own-caveat** — exercised **2**, correct **2**; **not exercised 09-01** (no finalist). One
+  09-01 observation worth carrying: the gate has an ABSTAIN-side analogue I have no coverage for. My plan's
+  HONEST COST paragraph named the live risk of the abstain — *"on 08-26 a field I read this way still produced
+  five +2% names via a rotation I never priced (L11)"* — and then abstained without resolving it, on a day a
+  rotation was in fact running in the pool's biggest name. Filing the killing caveat and abstaining past it is
+  the same failure shape as filing it and trading past it. Not promoted to a gate on n=1; watch it.
+- **G4 (prior tally, kept):** exercised **2**, correct **2**. 08-31 SOC: the caveat (a geopolitical
+  direction leg that can unwind on a negotiation line, one already on the tape at 06:55 ET) was
+  unresolvable → abstain, and the name was flat through the session. 08-31 SAIC: the plan named
+  book-to-bill 0.6 as "the sellable item" and **that is exactly what sold it** — the company guided
+  book-to-bill to finish "closer to 1.0 on a slower submission and award environment" (web-confirmed).
+  Honest limit: SAIC was excluded by the coil prerequisite before G4 was the operative filter, so this
+  is the gate being RIGHT, not the gate being LOAD-BEARING.
+
+- **G5 coil-is-mechanical** — **09-02: first live test, exercised 2, HONORED 2.** Both plans cited the
+  pool's own `axes` and one explicitly refused to re-litigate the mechanical leg (*"I do NOT cite
+  atr_pct_pctile 0.488 or consol_len 0 against it — those are axes it does not qualify on"*). The gate is
+  doing its job. **And the `loaded_spring` hint from 09-01 did NOT generalize as a direction signal:** it
+  was carried by the day's #1 (+7.19) and #2 (+5.99) — and also by the day's worst two (−8.83, −9.19).
+  Magnitude, not direction, exactly as principle #1 says. Do not build a directional read on it.
+- **G5 coil-is-mechanical** — NEW 09-01, exercised **0** (it exists because of the failure that created it;
+  first live test pending). The failure: my plan declared FRVO's coil *"not merely absent, it is INVERTED"*
+  citing bb_bandwidth_pctile 1.000 / atr_pct_pctile 0.721 / consol_len 0 — **three axes FRVO does not qualify
+  on** — and never mentioned `loaded_spring`, the axis the pool actually admitted it for
+  (`axes = ['gap','loaded_spring','pm_wake']`, `axes_extreme = ['gap','pm_wake']`). I overrode the mechanical
+  layer with a hand-picked subset of its own numbers, which is the single thing the coil/AI split exists to
+  prevent. Suggestive and NOT yet a rule: **all three names that cleared +2% on 09-01 carried `loaded_spring`**
+  (FRVO extreme, SMR extreme, WKHS on it alone) — n=1 day, do not build on it, but grade it forward.
+
+> ### ⛔ SUPERSEDED 2026-09-04 — THE GATE THESE TWO TALLIES ARGUE ABOUT NO LONGER EXISTS
+> The coil PREREQUISITE (union-of-axes; a name needed >=1 coiled axis) was measured over 48,469 buyable
+> name-days and concentrated nothing: its pool moved >=±2% on 29.9% of name-days against 29.3% for the
+> market. It was replaced by an absolute-level admission (deeply off the 252-day high + high beta +
+> tradeable size), which changed ~90% of the pool's names.
+> **So both tallies below are about a rule that is gone, and the debate they record — "is the
+> prerequisite filtering out the win class?" — was settled the other way: it was not filtering, it was
+> not selecting either.** Kept because the REASONING is still good practice (pre-register the complaint,
+> let the tape refute it, do not weaken a rule on a feeling) and because deleting a record of what was
+> argued would hide how the conclusion was reached. Do not carry their verdicts forward as live guidance.
+
+### COIL PREREQUISITE (pool admission) — tally **1-1, and 09-01 EXONERATES it**
+09-01 cuts the opposite way from 08-31 and clears the rule of the charge I keep filing against it: the
+prerequisite **ADMITTED** the day's winner (FRVO, on `loaded_spring`) and admitted the other two +2% names as
+well. It was not the constraint — my own prose was. Standing tally: 08-31 it excluded SAIC (−8.63%, saved the
+day), 09-01 it admitted FRVO (+19.92%) and I declined it anyway. **Stop blaming the prerequisite for abstains
+until a day comes where it actually excluded the winner.**
+
+### COIL PREREQUISITE — prior entry (08-31) — tally **1-0 for the rule**
+08-31 was the first time I pre-registered the complaint "the coil prerequisite is filtering out the
+system's own win class" as a falsifiable, and **the tape refuted the complaint**: SAIC — the shape I
+argued was the win class — closed **−8.63%**, the worst open→close I graded. n=1, direction-agnostic
+evidence only (not a traded pick). Keep pre-registering it; do not weaken the prerequisite on a feeling.
 
 ---
 
@@ -152,6 +296,31 @@ genuine (and cheap) abstain; the two-tailed half is the coin flip I am declining
 a coin flip is neither skill nor a miss. Not a gate and not a number — no screen on short float, no
 "buy the two-tailed half"; the change is that I may no longer use a 21-name inert count as evidence
 that abstaining was right. Same family as L10: the decision was fine, the accounting was flattering it.)
+
+(**TALLY as of 08-31 — the split the 08-25 addendum drew is holding, both halves.** Large-cap inert
+half: 08-31 named 15 (ACA +0.03, TECH −0.04, PAYO +0.14, APGE −0.01, ATAI +0.48, MKTX −0.06, ITGR
++0.01, CBZ −0.22, QURE +0.93, SLAB +0.05, AES +0.17, ARX +0.20, LNTH +0.19, PAG +0.05, ABCB −1.50) —
+**all inside ±1.5%, best +0.93, not one within 1pp of the bar**, booked as ONE cohort skip per the
+addendum, not 15. That is the 5th straight week the inert read has held. Two-tailed half, same session,
+same rule: **AI +2.61 and SOUN +2.07 cleared while RUN −1.72, REPL −0.46, UPST +0.53, SMR +1.15 did
+not** — 2 up, 2 down, out of six "real fuel, no spark" names, which is the coin flip, priced as one.
+And the pool's #1 was **WKHS +9.94** on news_n=0 and **0.09x** premarket volume with no catalyst
+findable even post-close — the two-tailed half's third appearance for WKHS specifically (−4.82 on
+08-24, −2.88 on 08-26, +2.61 on 08-27, +9.94 on 08-31). No change to the decision: still no screen on
+short float, still no "buy the two-tailed half." The tally exists so the inert count keeps being
+reported honestly.)
+
+(**09-02 — THE 6-WEEK INERT STREAK BROKE, and I am recording it before it gets explained away.** On a
++0.36% SPY, **seven news_n=0 pool names cleared +2%**: +7.19 (the pool's #1), +5.42, +3.24, +3.11,
++2.81, +2.75, +2.04 — with the same cohort's other tail at −9.19. The old large-cap inert half still
+behaved (SLAB +0.59, PAYO +0.35, ACA +0.08, APGE +0.01, ITGR −0.09, CBZ/MKTX +0.06, AES +0.41, LNTH
++0.07, ATAI −0.07), so the **08-25 split survives**; what failed is any reading of L1 as "news_n=0
+means inert." It does not — it means **two-tailed**, and on a day when the pool itself ran hot (mean
++0.66%, median +0.17%, **11 of 37 cleared +2%** despite a nearly flat index) the up-tail was seven
+names wide. This does NOT become "buy the triggerless cohort": I still had no pre-open way to pick
+which seven, which is the coin flip, not an edge I passed up. What it kills is the comfort of quoting
+a 6-week streak as if inertness were established. **The streak is over; the two-tailed reading is the
+honest one.**)
 
 
 **L2 — Do not dismiss a big-gap catalyst name with a spent-magnitude story; dismiss it because it is not
@@ -333,6 +502,23 @@ over-trusting it: n=3 on the framing point and n=1 on the win-class failure, and
 +3.34% gap) remains the one case where the unspent read was both unforced and right — so the test
 is not dead, it is only worth anything when the raw numbers say it without help from me.)
 
+(**09-01 TALLY — L5 takes its first, and expensive, refutation: 5-for-6, and the one miss is the largest
+in the record.** L5's own text conceded the hole: *"I have no instance yet of a distant-catalyst name that
+did run."* It has one now. **FRVO closed +19.92%** on a 396MW Google PPA whose power **flows in 2028** — the
+exact "multi-year promise on a name with no current numbers to remodel" L5 says the open has already fully
+priced. It had not: the 09:30 open was the LOW of the day and the re-rate ran the full session. Two things
+this does and does not mean. (1) It does NOT overturn L5's mechanism — ACHR and FRMI still printed their
+entire re-rate after hours, and n=1 against 5 is not a reversal. (2) It DOES kill L5's use as a *decline
+route*, because that is what it was on 09-01: **I used L5 to walk around G1's de-overhang exception without
+naming it.** So the ESCAPE CLAUSE IS PRUNED (per learn Step 4.3): **L5 may no longer be cited to decline a
+contract/approval/deal catalyst until G1's de-overhang exception has been explicitly resolved in writing** —
+name the overhang and the prior decline that shows it was priced, or say plainly that none is identifiable.
+L5 is a weighing note downstream of the gate, not a door around it. The discriminator L5 was always
+reaching for is now visible in the split: ACHR/FRMI bolted a distant contract onto a story that had nothing
+priced AGAINST it, while FRVO's contract REMOVED a specific, visibly-priced fear (−63.9% from its 252d high
+on exactly the off-take/funding doubt the PPA answers). "When does it pay" is not the axis; **"what does it
+un-price" is.** That is a hypothesis with n=1 behind it — the record judges it, I do not promote it.)
+
 **L6 — Every pre-open criterion I have invented for declining a violently flushed down-gapper has been
 falsified by the name I declined. The flush does not have to end before 09:30 — the open is where it
 ends.** (forward-earned 08-07 TTD + 08-11 HIMS + 08-13 STUB & LUNR — three distinct days, four distinct
@@ -385,6 +571,13 @@ Keep judging; do not apply it as a standalone reason to pass.)
 
 **L7 — When my own risk note names a mechanism that keeps operating INSIDE the session, I have not
 written a caveat, I have written the outcome. Overriding that specific kind of risk is 0-for-4.**
+(**09-02 — L7's conditioning half is now SUBSUMED BY G4.** The override count reached FOUR picks and the
+fourth happened with G4 already in force, so "notice yourself arguing past your own risk note" stopped
+being something to notice and became a gate with a checkable trigger. L7 keeps its one piece of content
+G4 lacks — **the type split**: absent SUPPORT/context (no sector fit, no group bid, a thin book) is
+survivable and I have won over it repeatedly; a PRESENT adverse session-mechanism, or a move that has
+already finished arriving, is not. Keep that split; the "conditioning, not a gate" framing below is
+superseded.)
 (forward-earned 08-10 ACHR + 08-11 FRMI + 08-13 GO + 08-14 GLOB — four distinct days, four distinct
 names, each one pre-named in writing by me and taken anyway.) The four: **ACHR** −2.42% ("acquirers
 do not hold a +17% pop" — the 19.75% share issuance is supply that keeps arriving); **FRMI** +0.64%
@@ -473,6 +666,19 @@ had already bought — in the after-hours and in the two sessions before it. The
 it lost by three times my previous worst trade. Conditioning, unchanged in form: when the risk note
 describes supply that is present and working at 09:30, the answer is to stand down, not to find a
 better argument — the record is 0-for-8 across ACHR, FRMI, GO, GLOB, LUNR, KLAR, DUOL, BULL.)
+
+(08-28 addendum — **0-for-10, two in one session.** On **AFRM** I wrote the already-arrived claim about
+this very name — *"the marginal premarket buyer stopped paying up hours ago, and that is BULL's tell in a
+milder form"* — named BULL, the 11% loss that is this exact shape, and then overrode it with "my separation
+from BULL is the run-into-the-print and the coil," which is a **cohort analogy**, the tell this lesson
+already flags. On **SOLS** I wrote *"the price-level mean-reversion is largely done at the bell"* and argued
+past it with "but the transacting is not done — an 8%-of-float arb short must cover in RTH." Result: AFRM
+**−9.73%** (worst of 44 in the pool), SOLS **−2.14%**. The ledger is ACHR, FRMI, GO, GLOB, LUNR, KLAR, DUOL,
+BULL, AFRM, SOLS. What is NEW and worth carrying: the **forced-cover / obliged-buyer** override is now tested
+and failed. "A mechanical buyer must still transact in RTH" (SOLS) is the same sentence as "the revision desks
+are still publishing with headroom" (BULL, AFRM) wearing different clothes — an obligation to transact is real
+and it is **not** a claim about price; the obliged party can execute all day at prices below my open, and on
+SOLS it evidently did. Stop treating obliged flow as a fresh reason: it is 0-for-3.)
 
 **L8 — A guidance CUT is not an event my session can re-read, and the "composition" argument for why
 this cut is different has now failed twice with my own falsifiable pre-registered both times.**
@@ -654,9 +860,69 @@ still structural and only **+4.28 of its +6.88 was name-specific**, so L8 took a
 refutation, and the correct reading is that the group bid was a driver *sitting alongside* my
 name-level read, not evidence my name-level read was wrong.
 
+(08-27 addendum — **the group driver has now paid on three consecutive sessions, and this is the FIRST one
+where I was TRADING while it ran, which retires L11's own limit #1.** 08-25 SMR, 08-26 INTU/FIG/MNDY & SEDG were
+miss-column observations; 08-27 was not. **IGV closed +4.24% vs SPY +0.34%** with the bid spread across the whole
+complex — CRM +9.52, TEAM +9.84, CRWD +9.46, FIG +9.29, PANW +6.74, NOW +6.10, MNDY +4.76, HUBS +4.71, ZS +4.56,
+OKTA +4.06, S +3.94 — and the names that did NOT report ran as hard as the ones that did, so it was a genuine
+group bid and not three prints dragging an ETF. The fact behind it is HARD and was on the tape before my open:
+**CRM, CRWD and OKTA all beat AND raised** the prior evening (the 'SaaSpocalypse' de-rating thesis being unwound is
+the story; the three raises are the fact — weigh the raises). Meanwhile I bought **HQY, closing −3.66%**, and my own
+plan had already certified it group-less: *'FIT is nil: today's live rotation is semis/software... HQY is an
+idiosyncratic rate-sensitive HSA custodian with no group bid behind it. Nobody is obliged to buy this at 09:30.'*
+I wrote the FIT test, answered it NIL, and took the trade anyway on the coil axis. So the cost of having no group
+layer is no longer hypothetical: on 08-27 it was the difference between the pool's best names (both software) and
+its 2nd-worst (my pick). Conditioning, and it changes nothing about the gates because there are none — the
+who-buys-at-my-open question already exists in the pass; the change is that **'no group bid' must be allowed to
+WEIGH against a pick and not merely be disclosed in it.** A name whose only support is its own story needs a
+correspondingly stronger reason, because the record's paying flow keeps turning out to be a group. Three honest
+limits: (1) this is still hindsight-shaped — the group that worked is always obvious after 16:00, and I have one
+traded case, not a series; (2) it does not rehabilitate CRWD as a pick I should have made — that is L12's up-gap
+half and a separate question; (3) **L11's premarket-print clause took a counter-sample today** — IGV printed +4.5%
+premarket and delivered +4.24% intraday, the opposite of 08-26's inversion, so the honest state is 1-for-1 in each
+direction = no predictive content either way, exactly as principle #1 says. The read that was actually available
+and durable was the multi-week one L11 already specifies (the 08-18 rotational-software headline, IGV +2.60 on
+08-26, three overnight raises) — I had it and did not use it. Do not upgrade the premarket sector print on the
+strength of this one day.)
+
+(08-28 addendum — **second traded case, and this time the group did not merely fail to bid, it SOLD — on my
+own pick's print.** The 08-27 addendum's whole point was that "no group bid" must be allowed to WEIGH against a
+pick. On 08-28 I answered FIT myself, in writing — *"AFRM's cluster is the fintech/BNPL complex and that group
+is compressed, not running... There is no group bid behind this name"* — and traded it for the second
+consecutive session. The realized group: **SOFI −6.01, UPST −5.03, KLAR −4.89, HOOD −4.08, SEZL −3.29, AFRM
+−9.73**, against **XLF +0.20%** and SPY −0.31% — i.e. the BNPL complex de-rated ~5% on a day its own sector
+index closed GREEN, and my name's earnings print was the trigger for it. The content this adds beyond 08-27:
+**"compressed and de-rating" is not the same weak leg as "no group."** A name with no group is *absent support*,
+which L7 classes as survivable; a name whose group is actively being sold is *present adverse flow at the group
+level*, which is L7's fatal category — and I have now written the former phrase while holding the latter
+situation. Conditioning, no gate and no threshold: when FIT comes back "the group is compressed, not running,"
+ask the follow-up I skipped — **is my catalyst the thing that re-rates the whole group, and in which direction?**
+A print big enough to move nine peers is a group event, not an idiosyncratic one. Honest limit: n=2 traded, and
+both cases (HQY, AFRM) were simultaneously L7 and L13 failures, so I cannot attribute either loss cleanly to the
+group axis — it is a confounded signal, and I am recording it as one.)
+
+(**09-01 — L11 IS NOW A GATE, and this is the entry that closes it as a lesson.** Third distinct inversion,
+and the one that finally cost the record its biggest name. L11's own headline already said it — *"premarket
+sector prints are not how to read it"* — and its body already ordered the fix — *"retire 'the theme is not
+live premarket' as a reason to decline, because it has now been wrong in both directions on the same day."*
+On 09-01 I wrote it a fourth time anyway: FRVO and SMR were both declined on *"the theme is being SOLD, not
+bid — peertape on the AI-power complex reads 1 green / 6 red, avg −1.34%."* **RTH: BE +5.40, CEG +3.65, SMR
++3.07, ORA +2.77, VST +1.18, TLN +0.90, OKLO −2.03 = +2.13% average against SPY −0.05%** — the complex was
+BOUGHT all session, and FRVO ran +19.92%. Running count on the premarket-group-print read: **3 inversions
+(08-26 solar, 08-26 the sector-regime read, 09-01 AI-power) vs 1 counter-sample (08-27 IGV) = no predictive
+content in either direction**, which is principle #1 at the sector level, stated a year of sessions ago.
+**A lesson that is written correctly, restated in two addenda, and disobeyed on its fourth occurrence is not
+a lesson — it is a story I tell myself while doing the opposite.** So per learn Step 4.2 it is ESCALATED into
+**G2**: the plan must state THEME or IDIOSYNCRATIC in words for any name a peer-group read is used against,
+and **this morning's premarket peer prints may no longer source a load-bearing group read** (peertape may
+add colour; it may not fail the gate). Note what is NOT in that gate: no sector is named, no stock is named,
+no threshold is set — it forbids a DATA SOURCE and requires a reasoning step to finish. The durable group
+read L11 specifies (multi-week relative strength + public narrative) remains the admissible one, and it
+remains something I have to JUDGE. L11's body stays as the derivation; the behaviour now lives in G2.)
+
 **L12 — the DOWN-GAP is the record's losing cohort, and I keep mistaking a knife for a bargain.**
 (forward-earned 08-27 HQY, graded against the full record.) Split the picks by gap direction: **down-gap
-picks are ≈1-in-4** (only MNDY +9.30 won; KLAR −3.83, GLOB −2.19, HQY −6% all kept falling) while
+picks are ≈1-in-4** (only MNDY +9.30 won; KLAR −3.83, GLOB −2.19, HQY −3.66 all kept falling) while
 **up-gap picks are ≈5-in-9**. On 08-27 I bought HQY — a beat that gapped DOWN −7% — on the reasoning
 "it ran the wrong way so the re-rate is still ahead," and cited MNDY as precedent. That was a
 **misapplication of L11, which explicitly is NOT a license to buy beaten-down names and says a
@@ -673,3 +939,68 @@ error costs too: I reflexively skip HELD up-gappers as "priced" (08-27 I passed 
 beat that closed the pool's best; HQY was the pool's worst) — a held up-gap with a fresh positive print
 is momentum still running, not consumed. Limit: n is still small and both are miss/single-loss column;
 weigh the direction split, do not harden it into a gate.
+**HELD-UP-GAP CLAUSE TALLY — now 1-1, and it has NEVER been tested on a traded pick.** For (08-27):
+CRWD +9.46, a held +9% up-gap on a beat, the pool's best. Against (08-31): **SAIC −8.63%, the worst
+open→close I have graded** — a held +9.96% up-gap on 24.65x pm volume sitting AT the pm high, on a
+verified operating beat-and-raise (adj $3.01 vs $2.31, all four FY27 guides raised). The clause is
+therefore NOT settled advice and must not be quoted as if it were. The one checkable discriminator the
+two cases offer, stated as a question rather than a rule: SAIC's **09:30 print (140.39) came in ABOVE
+its 138.50 premarket mark and the first 5-min bar low was 132.15** — the open itself was the
+exhaustion, not a continuation. That is observable AT my entry, not before it, so it cannot become a
+pre-open filter; what it can do is stop me writing "held up-gaps run" as if the holding were proven to
+persist past the bell. Keep the tally; do not resolve this at n=2.
+**TALLY 09-02 → 1-2, and it is no longer untested on a traded pick.** AGAINST: a guided-milestone
+up-gapper I BOUGHT opened **above** its 09:00 premarket mark, and that **09:30 open was the high of the
+day** — 79 bars, a monotone bleed to −10.7% by 14:00, closing **−8.83%** (#36 of 37). Same signature as
+the 08-31 case, now twice. The same plan supplies the clean counter-example: the pick that opened
+**below** its premarket mark dipped ~4% in the first ten minutes, based, and ran all session to
+**+5.99%** (#2 of 37). So the "open vs last premarket mark" observable is now 3-for-3 consistent —
+**and it stays unusable as a filter, exactly as written above**: my decision is at 09:00 and the open
+prints at 09:30. Record it; do not build a gate on a number I cannot see when I decide.
+**TALLY 09-03 → L12 held-up-gap clause 1-3; the open-vs-pm-mark observable 4-for-4.** A held up-gapper
+(higher lows into 09:20, ~1.4% off its pm high, 14.10x pm volume) on a VERIFIED beat-and-raise opened
+**above** its 15.39-15.50 premarket mark, and that open was the high of the day — the first 5-min bar
+gave back −7.3% and the name closed −7.61%. **The "held up-gap = momentum still running" clause is now
+0-for-3 on traded picks and must not be quoted as support for a pick.** Its one win remains an untraded
+observation. The 09:00-vs-09:30 unusability is unchanged; what IS usable pre-open is G2 — on all three
+losses the premarket had already consumed the flow, which is knowable at 09:00 without the open print.
+
+**L13 — When the load-bearing clause is a NUMBER, check it against the primary source before it is allowed
+to be the reason. Twice now the filing itself contradicted my premise, and both times the correction was free
+and sitting in front of me.** (forward-earned 08-19 DUOL + 08-28 AFRM. This promotion was **pre-registered by
+the record**: L9's DUOL note ends *"If a second pick fails on a premise the primary filing contradicts, that
+becomes its own lesson."* AFRM is that second pick.) **DUOL** — my thesis's strongest sentence ("a company 62%
+off its highs does not volunteer mid-quarter data to confirm the bear case") was refuted by the 8-K itself: it
+was a Reg FD cure for data *inadvertently* displayed in an investor meeting. I had read the release's
+boilerplate, not its substance. **AFRM** — I graded the catalyst HARD-UP on *"EPS $4.62 vs $0.85 est,"* a +444%
+headline surprise, which was a **one-time deferred-tax valuation-allowance release**; the operating line was
+**adjusted EPS $0.72 vs $0.84 = a 13.9% MISS**, and the earnings call was spent on analysts pressing margin and
+take-rate sustainability. Both facts were on the tape from the 08-27 AMC release, sixteen hours before my open.
+**This is NOT L9.** L9 asks *whose claim* carries the thesis, and AFRM passed it cleanly — a company printed the
+number, it was not my interpretation. L13 sits one level below: **the company-printed number may not say what
+the headline says it says.** Nor is it hindsight, and this is the part that stings — **my own risk note (3)
+wrote the answer**: *"the EPS line is almost certainly carrying a large non-cash item; if desks strip it out the
+'beat' is the revenue/GMV lines only."* I identified the precise question that would have killed the trade,
+filed it as a caveat, and bought. How to apply (conditioning, not a gate, not a numeric rule): when a number is
+doing the load-bearing work, **name the source line, read the ADJUSTED/operating figure and the consensus it is
+measured against, and skim what the call was actually about — before the number counts as HARD.**
+(**PRUNED 09-02:** the prose-rule that used to sit here — *"almost certainly X" about my own evidence is an
+unfinished task, not a caveat* — was **PROMOTED into G4** after a 4th override. It is a GATE now, with a
+checkable form ("a self-hedge attached to the RESOLUTION fails the gate"), not conditioning. Do not restate
+it here; L13 keeps only the number-checking half.) Two honest limits: (1) n=2 and the
+two failures differ in kind (a misread filing vs an unchecked headline), so the common thread is the
+*unverified premise*, not one document type; (2) it must NOT widen into "distrust every print" — the fix is
+cheap and specific (read the adjusted line and the call), not a reason to stop buying earnings, which remain
+the source of every win in the traded record.
+
+(**TALLY as of 08-31 — L13 is 2-for-2 in application and it did work in BOTH directions on one day.**
+Kept me OUT: AFRM, where the decomposed operating line (adj $0.72 vs $0.84 = a 13.9% miss behind a
+$4.62 GAAP headline) was the stated reason to decline, and AFRM closed **−2.01%**, #32 of 33. Let me
+grade a number as GENUINELY clean: SAIC, where I read the ADJUSTED line at the primary release
+($3.01 vs $2.31, revenue $1.880B vs $1.766B, all four FY27 guides raised) rather than a headline —
+and a post-close WebSearch confirms every figure. **That second case is the important one, because
+SAIC then closed −8.63%.** L13 is a check on whether the number is TRUE, not on where the stock goes;
+a verified beat-and-raise still sold all session on a soft book-to-bill. Do not let a cleared L13
+start reading as a reason to buy — it only removes a reason not to.)
+
+2026-09-03 | pool 41 → pick **NTSK** (15th non-abstain) | taken as an own-numbers **beat-and-RAISE** printed 09-02 AMC into a `loaded_spring` at −50.9% off its 252d high (a busted Sept-2025 IPO), gap +13.75%, pm_wake **14.10x** — G1 answered with the operating lines (not the headline), G2 stated IDIOSYNCRATIC, G5 cited only the axes the pool admitted it on, G3 read the up-gap as HOLDING (higher lows 15.20→15.43 into 09:20, ~1.4% off the pm high) | fwd open→15:55 SIP (SPY **+0.69%**; 40/41 gradeable, APGE no-data): pool mean **−0.20%**, median +0.07%, 21/40 green, **8/40 cleared +2%** (MSTR +13.18, BE +7.44, RARE +6.19, ASST +4.62, SYM +3.07, BLLN +2.89, FAF +2.20, KLAC +2.04) | **NTSK −7.61% (15.51 → 14.33, vs SPY −8.30) = #39 of 40.** The **09:30 open WAS the high of the day and it was over in five minutes**: the first 5-min bar opened 15.51 and closed **14.38 (−7.3% in one bar)**, low 14.135 by 09:35, then a flat bleed to 14.33 — there was no session to hold through, the entire loss printed in the opening auction | **EVERY FACT IN MY PLAN WAS TRUE — I checked them all post-close and not one is wrong.** WebSearch + the 09-02 release confirm revenue **$221M vs $214.2M** (+29% y/y), ARR **$899M** +27%, non-GAAP gross margin **77% vs 75%**, adj LPS **−$0.03 vs −$0.07**, FY27 revenue raised to **$888-892M vs $881M consensus**, and the PT ladder was real (**RBC $18→$20, JPM $14→$14→$16**, both Outperform/Overweight). **L13 → 3-for-3 on verification, and for the SECOND time a fully verified beat-and-raise closed deeply red** (08-31 SAIC −8.63 was the first). L13 checks whether the number is TRUE, never where the stock goes — that separation is now twice-demonstrated and must not blur | **THE CAUSE IS G2, AND THE FIX WAS WRITTEN 2h50m TOO LATE.** My whole flow leg was Benzinga's *"Netskope Analysts Raise Their Forecasts After Better-Than-Expected Q2 Results"* timestamped **08:52 ET, 38 minutes before my open** — and under the G2 text **actually in force when I wrote the plan (09:07 ET)** that was an explicitly ADMISSIBLE flow ("obliged PT revisions still printing today against the number"). The hardening that says a same-morning revision item is **CONSUMED at your open** was committed at **11:57 ET**, after this plan. **So this is not a gate violation — it is the third independent confirmation of the new gate text**, and the tally on that one pattern is now **−8.8% / −8.7% / −7.6%, 0-for-3.** A pre-09:30 "analysts raise forecasts" item publishes INTO the premarket pop; it is the reaction completing, not a buyer arriving after the bell | **WHAT *IS* MY ERROR IS G4 — OVERRIDE #5 — AND IT IS A NEW EVASION.** I did not hedge the resolution this time (the 09-02 hardening closed that door); I **SPLIT the caveat and quarantined the unresolved half.** I named the killing caveat correctly — *"is the +12.4% premarket move ALREADY the whole re-rate?"* — then resolved a **narrower cousin** of it (was the name bid UP over prior sessions into the print? no, the last two closes were −8.2% and −2.1%), and filed the ACTUAL question in a separate paragraph labelled ***"Residual risk I am NOT using to clear the gate"***: *"a modest print to have already paid +12.4% for, and if the buyers finished in the premarket the session gives it back."* **That sentence is a verbatim description of what then happened.** Overriding a self-named killing caveat is now **0-for-5** (−2.42, −9.73, −2.14, −8.83, −7.61). Escalated: **G4 now says a caveat may not be PARTITIONED — a disqualifier written anywhere in `risk` counts against the gate regardless of the label attached to it, and a resolution must answer the caveat AT THE SCOPE YOU STATED IT**, not a narrower cousin | **SECOND ERROR, and it is a one-sided reading of a fact I already had: I used "recent IPO" as a BULL argument only.** My plan argued the Sept-2025 IPO date meant *"thin model history → the sell side has to rebuild inside the session → unspent auction."* The same fact has a supply side I never looked at: post-close search finds that **in March 2026 this name fell 15% on an earnings BEAT because an IPO lockup expired** — a dated, pre-open-knowable precedent that this specific float sells its own good prints. I do not get to cite a structural fact for its bullish half and skip its bearish half. **n=1, so no lesson — but the generic form to watch is: when a structural fact (float age, lockup, index status) is load-bearing, state BOTH sides of it before it counts** | **TIMING NOTE THE AUDIT CANNOT SEE — no G6 violation today.** `scripts/audit_resonance_plan.py` flags NTSK as a "silent off-shortlist pick," but **G6 and the pool's mechanical `shortlist` did not exist at 09:07** (decide.md rebuilt 11:57, pool.py 12:36, pool JSON regenerated 12:36, audit written 12:41). Retrospectively NTSK is off-profile — but it fails the screen on **`beta = None`**, not on merit: a Sept-2025 IPO has no 252d beta. ⚠️ **Mechanical caveat for the shortlist: `beta is None` silently drops every recent IPO from the cohort**, so an empty/short shortlist may be a data artifact, not a signal about the day | **FIRST OBSERVATION OF THE SHORTLIST ITSELF, and it is not flattering: PSNY −20.99 (the pool's worst), ASST +4.62, FLNC +1.75 → mean −4.87%, 1 of 3 cleared +2%.** Its OOS claim is +1.48%/day at 47%; day one is −4.87% at 33%. n=1 against n=17 — this changes nothing yet, but the shortlist gets a tally from today and does NOT get to be assumed | MISSED (unpicked, cleared +2%): MSTR +13.18 (news_n=18, the pool's #1), BE +7.44, RARE +6.19 (a −46.93% "gap" = L10 data-artifact shape, un-evaluable), SYM +3.07, BLLN +2.89, FAF +2.20, KLAC +2.04 (10th session un-evaluable) | JUDGMENT: **0 win / 1 loss / 0 named correct-skips / 7 missed.** Honest takeaway: **a verified catalyst, a real coil, a live PT ladder and four cleared gates bought the worst five minutes of the session — because every one of those things was already in the +13.75% gap, and the one sentence in my own plan that said so was filed under a heading that excused me from answering it.** The gates did not fail; my *labelling* did. Escalated G4 (no partitioned caveats, resolutions must match the caveat's scope) and DELETED the freshness bullet's escape clause (*"weigh it, never cut on it"*) now that G2 gates freshness — decide.md grew 2 net lines. Do NOT read this as "avoid earnings beats" — beat-and-raise names remain the source of every win in the traded record; the fix is that a premarket gap which has already paid for the re-rate leaves nothing for my window.
