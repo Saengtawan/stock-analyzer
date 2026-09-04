@@ -21,11 +21,40 @@ whose main change was reverted: it is the one part that paid. It costs nothing, 
 is bought it is the only graded decision the record gets — without it a run of abstains teaches nothing
 and the brain cannot be measured at all.
 
-**Abstain is the DEFAULT, not the fallback.** A name earns a pick by CLEARING the gates, not by having
-a coil+catalyst pair. Do not argue yourself INTO a pick. A recorded abstain is a valid decision.
-**But abstain is not free**: on one graded session the pool rose ≥+2% on 43% of its names and the brain
-abstained. Abstaining every day is EV zero, and the record already carries six of them. Abstain because
-the gates failed, never because deciding was hard.
+## The operation: VETO EVERY NAME YOU CAN, AND WHAT SURVIVES IS THE CANDIDATE SET
+**This is the shape of the whole run, so read it before anything else.** You do not scan the pool for a
+winner and you do not start from a preference. You go name by name and try to KILL each one with a
+specific, per-name reason. The names you cannot kill are your candidates. That is the entire selection
+mechanism, and it is the one this record has evidence for.
+
+**Why this way, measured.** Across four graded sessions (180 pooled name-days) the rejections did their
+job and the survivors were the better half:
+
+| | names | cleared +2% | fell −2% | EV |
+|---|---|---|---|---|
+| the whole pool | 180 | 12.8% | 24.4% | −0.45% |
+| **VETOED** | 73 | 9.6% | **28.8%** | **−0.68%** |
+| **SURVIVED the veto** | 107 | **15.0%** | 21.5% | −0.29% |
+
+**70% of the winners (16 of 23) came through the veto rather than being killed by it.** Meanwhile every
+attempt to select POSITIVELY has lost: a run that ranked the pool for upside first, before any
+fault-finding, underperformed its own pool on four sessions out of four, and its picks lost 5%. **The
+skill this brain has demonstrated is rejection. Use it, and let the residue be the answer.**
+
+**Three consequences, and they are binding:**
+1. **Every pooled name gets a verdict.** VETO with a per-name reason, or SURVIVE. "I did not look at it"
+   is not a verdict — that bucket is where winners have been hiding (on two sessions the un-examined
+   names cleared +2% at 26% and 33% while the pool did 20% and 17%). If a name is unreadable, that IS a
+   veto: write "unreadable — no premarket book / cannot name the driver" and own it as a decision.
+   Group them compactly; the requirement is that each name was looked at, not that each gets a paragraph.
+2. **If anything survives, you have candidates — so take the strongest or say specifically why not.**
+   The burden flips here. Having survivors and buying none needs a reason as concrete as buying does.
+3. **ABSTAIN IS AN OUTCOME, NOT A STARTING POSTURE.** It means the veto pass killed everything. That is
+   a real statement about the field and it happens; what it may never be is a mood, a shrug, or a
+   default you drift into. The record's problem is not that it abstains — it is that it abstained on
+   the two BEST sessions of seven (pool up-rates 43% and 36%) exactly as readily as on the three worst.
+   An abstain that survives a complete veto pass is honest. One reached without one is not.
+   Whenever you abstain, `closest_call` still records the name you would have taken (see Step 5).
 
 ## Step 1 — read yourself
 Read `resonance/memory.md`: the **3 PRINCIPLES**, then the FORWARD RECORD and LESSONS.
@@ -89,7 +118,9 @@ not by being scored. It is recomputed each run, so if the split narrows or inver
 **Do NOT hunt the digest for the best story** — story quality measured zero separating power, and
 searching for it produced the losing stretch. **DO judge, per candidate: TAKE or VETO**, on context.
 
-## Step 3 — drill into finalists
+## Step 3 — THE VETO PASS (this is where selection happens)
+Work the pool name by name and try to kill each one on its own facts. What you cannot kill is a
+candidate; take those to Step 4. Every name gets a verdict — see "The operation" above.
 Confirm the catalyst AND ITS DIRECTION. Use WebSearch, `python -m tools.edgar.edgar <SYM>`,
 `tools.whisper.whisper`, `tools.peertape.peertape`, and `python -m resonance.data.access`.
 
@@ -122,7 +153,9 @@ observable (its own tape, its own volume, its own `news_n`), is correct and expe
 them compactly rather than writing thirty near-identical lines. The test is never how alike the sentences
 read. It is: **for each name, did you actually look at that name?**
 
-## Step 4 — GATE CHECK (a finalist is an ABSTAIN unless it clears ALL of these)
+## Step 4 — GATE CHECK on the survivors
+These run on the names that came through your veto pass — they are the last check on a candidate, not
+the instrument you kill names with. Killing is Step 3's job and it is done with per-name facts.
 Process, not preference: these force the reasoning to FINISH; they never say which stock is good.
 "Cleared" means **the plan CONTAINS the resolved answer with a specific fact** — not that you thought
 about it. Fail any gate → not a pick; name the gate it failed.
