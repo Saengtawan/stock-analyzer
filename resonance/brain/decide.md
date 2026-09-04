@@ -15,11 +15,21 @@ Direction is a coin flip and nothing verifies the close, so we do not chase and 
 at the open and **hold to EOD**. The COIL buys magnitude (the spring is *due*); the CATALYST buys
 direction and durability. We will be wrong on direction sometimes — that is priced in.
 
-**Abstain is the DEFAULT, not the fallback.** A name earns a pick by CLEARING the gates, not by having
-a coil+catalyst pair. Do not argue yourself INTO a pick. A recorded abstain is a valid decision.
-**But abstain is not free**: on one graded session the pool rose ≥+2% on 43% of its names and the brain
-abstained. Abstaining every day is EV zero, and the record already carries six of them. Abstain because
-the gates failed, never because deciding was hard.
+**Your job is to FIND the names that will run, then check them.** Not to audit the pool for faults.
+Roughly one pool name in ten closes ≥+5% and one in four clears +2%, so winners are there most mornings;
+finding them is the work, and Step 3 is where you do it.
+
+**Abstain is always available and is sometimes right** — a name earns a pick by clearing the gates, and
+you must never argue yourself INTO one. **But abstain is NOT free and NOT the goal.** The record is
+lopsided the wrong way: across eight graded sessions this brain abstained six times and made three picks
+in total, which is both EV zero and — worse — almost no evidence about whether it can pick at all. On one
+of those abstained sessions the pool rose ≥+2% on 43% of its names. Abstain when the gates genuinely
+fail on candidates you actually wanted; never as the comfortable default, and never because the morning
+was hard to read.
+
+**⚠️ If you abstain, you must still name the ONE name you would have taken if forced, and why it was
+closest.** It is recorded, not traded. An abstain with no runner-up is an abstain that did no work, and
+it teaches the record nothing.
 
 ## Step 1 — read yourself
 Read `resonance/memory.md`: the **3 PRINCIPLES**, then the FORWARD RECORD and LESSONS.
@@ -74,8 +84,41 @@ ticket the machine already handed you. State the figure in your plan.
 **Do NOT hunt the digest for the best story** — story quality measured zero separating power, and
 searching for it produced the losing stretch. **DO judge, per candidate: TAKE or VETO**, on context.
 
-## Step 3 — drill into finalists
-Confirm the catalyst AND ITS DIRECTION. Use WebSearch, `python -m tools.edgar.edgar <SYM>`,
+## Step 3 — FIND THE CANDIDATES (do this BEFORE any gate)
+**Your first pass is a SEARCH FOR WINNERS, not a search for faults.** This file used to run the other
+way round and it produced a brain that scanned for reasons to reject: across eight graded replays it
+abstained six times and made three picks total, so it generated almost no evidence about itself either
+way. The gates in Step 4 are a FINAL CHECK on candidates you have actively chosen — they are not the
+lens you scan the pool with. Scanning with them rejects the pond by construction, because this pond is
+mostly names with no fresh catalyst (a typical morning has `news_n = 0` on more than half the pool).
+
+**So begin here: name the 2-4 names most likely to RUN today, and write the positive case for each
+before you look for anything wrong with them.** Rank the whole pool by your own judgment of "most
+likely to travel UP today" and say what put each one at the top. Only then take them to Step 4.
+
+**⭐ WHAT A WINNER ACTUALLY LOOKS LIKE AT 09:00** — measured over 922 pooled name-days; the 87 that
+closed ≥+5%, against the ones that closed ≤−2%:
+
+| seen pre-open | winners ≥+5% | middling | losers ≤−2% |
+|---|---|---|---|
+| gap | **+1.88%** | +0.01% | −0.59% |
+| **yesterday's close** | **−3.72%** | −1.31% | +0.14% |
+| premarket volume vs own avg | 0.80 | 0.49 | 0.51 |
+| beta | 2.68 | 2.31 | 2.42 |
+
+- **gap > 0** — 78.2% of winners, 34.8% of losers (**+43.4pp**)
+- **yesterday RED** — 77.0% of winners, 48.5% of losers (+28.5pp)
+- **both together** — 63.2% of winners, 21.0% of losers (**+42.2pp**)
+- premarket volume ≥ 1.0× — 34.5% of winners, 18.9% of losers
+
+**The shape is a name that got hit yesterday and is being bought this morning** — a reversal with
+participation arriving, not a continuation. *Why it works:* the seller who drove yesterday's decline is
+done, the overhead supply cleared, and someone is paying up again before the bell — so the flow you
+need is starting rather than finishing. This is the positive template. **It is EVIDENCE, not a filter:**
+one in ten pool names clears +5% and this shape does not tell you which. A name outside it can absolutely
+win, and you may take one — just say what you are seeing instead.
+
+Then confirm the catalyst AND ITS DIRECTION. Use WebSearch, `python -m tools.edgar.edgar <SYM>`,
 `tools.whisper.whisper`, `tools.peertape.peertape`, and `python -m resonance.data.access`.
 
 **🧩 THE ONE QUESTION THAT SEPARATED WINNERS FROM LOSERS:**
@@ -99,7 +142,9 @@ replay declined a whole same-driver group in a single sentence and every one of 
 averaging +9%. **If you find yourself declining three or more names with one shared sentence, stop** —
 that sentence is a category rule. Write the per-name reason, or record a skip.
 
-## Step 4 — GATE CHECK (a finalist is an ABSTAIN unless it clears ALL of these)
+## Step 4 — GATE CHECK on the candidates you chose in Step 3
+**These are the final check on names you already want, not the lens you find names with.** If you arrive
+here with nothing, you skipped Step 3 — go back and rank the pool for upside first.
 Process, not preference: these force the reasoning to FINISH; they never say which stock is good.
 "Cleared" means **the plan CONTAINS the resolved answer with a specific fact** — not that you thought
 about it. Fail any gate → not a pick; name the gate it failed.
@@ -197,7 +242,8 @@ even when abstaining (empty `picks`).
       "exit": "hold_eod"
     }
   ],
-  "abstain_reason": "omit if picks non-empty; else why nothing qualified"
+  "abstain_reason": "omit if picks non-empty; else why nothing qualified",
+  "closest_call": "on abstain ONLY: the one name you would have taken if forced, + why it was closest (recorded, not traded)"
 }
 ```
 
