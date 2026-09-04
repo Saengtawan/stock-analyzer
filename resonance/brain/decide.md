@@ -27,19 +27,12 @@ winner and you do not start from a preference. You go name by name and try to KI
 specific, per-name reason. The names you cannot kill are your candidates. That is the entire selection
 mechanism, and it is the one this record has evidence for.
 
-**Why this way, measured.** Across four graded sessions (180 pooled name-days) the rejections did their
-job and the survivors were the better half:
-
-| | names | cleared +2% | fell −2% | EV |
-|---|---|---|---|---|
-| the whole pool | 180 | 12.8% | 24.4% | −0.45% |
-| **VETOED** | 73 | 9.6% | **28.8%** | **−0.68%** |
-| **SURVIVED the veto** | 107 | **15.0%** | 21.5% | −0.29% |
-
-**70% of the winners (16 of 23) came through the veto rather than being killed by it.** Meanwhile every
-attempt to select POSITIVELY has lost: a run that ranked the pool for upside first, before any
-fault-finding, underperformed its own pool on four sessions out of four, and its picks lost 5%. **The
-skill this brain has demonstrated is rejection. Use it, and let the residue be the answer.**
+**Why this way, measured.** Over four graded sessions (180 pooled name-days) the names the veto KILLED
+did worse than the pool and the SURVIVORS did better, and 70% of the winners came through the veto rather
+than being killed by it. Every attempt to select POSITIVELY has lost — a run that ranked the pool for
+upside first underperformed its own pool on four sessions out of four. **The skill this brain has
+demonstrated is rejection. Use it, and let the residue be the answer.** (Numbers: evidence.md,
+"veto vs survivors".)
 
 **⚠️ And the limit of it, measured the same way.** On a session where the pool cleared +2% on 36% of its
 names, a full veto pass still killed all of them and abstained — because that day's winners were a
@@ -75,14 +68,12 @@ Read `resonance/memory.md`: the **3 PRINCIPLES**, then the FORWARD RECORD and LE
    which way. Do not pretend to predict the path.
 2. **Catalyst > momentum for a hold-to-close bet.** A fundamental surprise drifts to the close; a
    technical poke fades.
-   ⚠️ **CORRECTED 2026-09-04 — the scope note that stood here was measured on a pond that no longer
-   exists.** It said catalyst richness "separated winners from losers NOT AT ALL", with news-carrying
-   names averaging −0.36% against +0.18% for the news-less. That was the axis-union pool, which the
-   current admission replaced by ~90% of its names. Re-measured on THIS pond (922 graded name-days) the
-   sign is the other way: names WITH news average **+0.51%** and clear +2% on **33.7%** of days, against
-   **+0.00%** and **21.8%** for the news-less. **A catalyst does help here — do not decline a name for
-   carrying news, and do not read "no news" as neutral.** What has not changed: the catalyst's job is
-   DIRECTION. It tells you which way a name goes, never which name to look at.
+   ⚠️ **CORRECTED 2026-09-04 — the old scope note here was measured on the superseded pond.** It said
+catalyst richness "separated winners from losers NOT AT ALL". Re-measured on THIS pond (922 name-days)
+the sign is the other way: names WITH news average **+0.51%** and clear +2% on **33.7%**, against
+**+0.00%** and **21.8%** news-less. **A catalyst does help here — do not decline a name for carrying
+news, and do not read "no news" as neutral.** Unchanged: the catalyst's job is DIRECTION, never
+selection.
    Weight catalysts by durability, as a PRIOR not a gate: **HARD** = a number the market must re-rate to
    (earnings/sales beat, guidance, M&A, contract). **SOFT** = a story with no fresh number (management
    change, commentary, product PR, analyst-note-alone). HARD is necessary, not sufficient — the drift
@@ -163,22 +154,15 @@ replay declined a whole same-driver group in a single sentence and every one of 
 averaging +9%. **If you find yourself declining three or more names with one shared sentence, stop** —
 that sentence is a category rule. Write the per-name reason, or record a skip.
 
-**⚠️ SKIPPING A DRIVER-DRIVEN NAME IS NOT FREE, AND THIS FILE USED TO IMPLY IT WAS.** Measured across
-29 sessions, the externally-driven names in this pond (133 name-days) cleared +2% on **45.1%** of days,
-EV **+1.49%**, up/down ratio **1.82** — against **24.7%**, **+0.04%** and **0.97** for every other name.
-They are the pool's best-performing cohort in this window, and the skip rule has been discarding all of
-them every session.
-**Read that correctly, because it traps in both directions.** It is NOT evidence these names are good:
-their direction is set by an asset whose overnight move measured ~zero correlation with the session
-(+0.03). This window simply happened to be one where that asset rose; had it fallen, the same cohort
-would print −1.49%. **The EV is beta to something you cannot forecast, not an edge.** So:
-- You MAY take one — but only by **declaring it a bet on the driver, in those words, in the plan.** Do
-  not dress it as an obliged buyer or a company re-rate; G2 cannot be cleared on behalf of an underlying
-  you are not forecasting.
-- **At most ONE of your ≤3 picks may be a driver bet.** Two or three is a single bet sold as
-  diversification — the cluster error with its sign flipped.
-- If you will not declare it, skip it and say "skip — external driver, unreadable". Skipping stays
-  legitimate. Calling it costless does not.
+**⚠️ SKIPPING A DRIVER-DRIVEN NAME IS NOT FREE.** Measured over 29 sessions these are the pool's
+best-performing cohort (45.1% clear +2% vs 24.7% for everything else) — but that EV is BETA to an asset
+whose overnight move has ~zero correlation with the session (+0.03), not an edge; in a window where the
+asset fell the same cohort prints −1.49%. So:
+- You MAY take one, but only by **declaring it a bet on the driver, in those words, in the plan.** G2
+  cannot be cleared on behalf of an underlying you are not forecasting.
+- **At most ONE of your ≤3 picks may be a driver bet** — two or three is one bet sold as diversification.
+- Otherwise skip it and say "skip — external driver, unreadable". Skipping stays legitimate; calling it
+  costless does not. (Full numbers: evidence.md, "external-driver cohort".)
 
 **⚠️ The tripwire is about VETOES, not skips, and it is not a headcount.** This pond is ONE CLUSTER by
 construction: deeply-fallen high-beta names live in whatever the market has most recently crushed, so a
@@ -220,15 +204,10 @@ acquirer also pays: it is spending cash and issuing stock, which is supply on yo
 unannounced one is not. If guided, the residual must be an **EXTERNAL UN-PRICED FACT** (a new number,
 term, or datum the guidance did not contain) — never a positioning-inference ("nobody front-ran it").
 
-**⚠️ AND YES — FOR A NO-CATALYST NAME, G2 IS WHAT DECIDES. THAT IS INTENDED.** A replay flagged this
-as a contradiction: "The operation" says the gates are the last check and not the instrument names are
-killed with, yet on a morning where every survivor was a news-less coil, G2 killed all eleven. The
-friction is real; the resolution is not to weaken G2 but to say plainly what it means here. A name with
-no catalyst has no thesis to test, and this pond has measured what that is worth: news-less names clear
-+2% on **21.8%** of days with EV **+0.00%** — a coin flip. Buying one is buying the pond's base rate,
-which is the lottery ticket this document exists to refuse. When G2 finds no buyer for a no-catalyst
-name it has not overreached; it has correctly reported that there is nothing there. What Step 3 owes you
-is that the name was LOOKED AT — not that it was killed with a colourful reason.
+**⚠️ FOR A NO-CATALYST NAME, G2 IS WHAT DECIDES — THAT IS INTENDED, not the gates overreaching.** A
+name with no catalyst has no thesis to test, and this pond has measured what that is worth: news-less
+names clear +2% on 21.8% of days, EV +0.00% — a coin flip, i.e. the base rate this document exists to
+refuse. When G2 finds no buyer there, it is reporting correctly that nothing is there.
 
 **⚠️ G1 DOES NOT PASS BY DEFAULT ON A NAME WITH NO CATALYST.** G1 is written for a HARD catalyst or a
 de-overhang, so a name with `news_n = 0` and no filing has nothing for it to test — and it was silently
