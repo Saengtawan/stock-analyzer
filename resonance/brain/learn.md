@@ -39,12 +39,37 @@ announced, a downgrade was published, a peer group all fell), never a pundit's j
 A lesson must trace to a fact you could have weighed pre-open, not to a rationalization that only
 exists because you already know the close.
 
+## Step 2b — GRADE THE `closest_call` ON EVERY ABSTAIN DAY (added 2026-09-04)
+**This is the only measurement that can ever tell us whether the abstains are costing money, and it was
+being written and never read.** decide.md has required a `closest_call` on every abstain since
+2026-09-04 — the one name the morning pass would have taken if forced, recorded and never traded — and
+nothing graded it. A disconnected instrument measures nothing.
+
+On any day the plan has empty `picks`:
+1. Read `closest_call` from `resonance/plans/<DATE>.plan.json` and pull that name's open→close.
+2. State it against the pool's up-rate for the SAME day, and against the `by_gap_sign` half that
+   matches that name's gap — the like-for-like bar, not the blended one.
+3. Carry a **running tally** in the forward-record line: `closest_call: SYM ±x.x% | tally N days,
+   cleared +2% on M (pool did P%)`.
+
+**How to read the tally, stated in advance so it cannot be rationalised later:**
+- If the closest calls clear +2% MORE often than the pool does, **the abstains are throwing away
+  money** and the veto pass is too strict — that is an escalation, not a footnote.
+- If they clear it at or below the pool's rate, **the abstains are earning their keep** and nothing
+  needs loosening.
+- One day proves neither. It takes a run of them, which is exactly why the tally has to accumulate
+  rather than be re-argued each morning.
+This costs nothing, risks nothing, and it is how a string of abstains stops teaching the record nothing.
+
 ## Step 3 — append ONE line to the FORWARD RECORD
 Append (never rewrite prior lines) to the `## FORWARD RECORD` section of `resonance/memory.md`,
 one line for the day, in the file's format:
 
 ```
 <DATE> | pool <N>→picks <SYMs or ABSTAIN> | why (coil+catalyst, terse) | fwd: SYM +x.x% (vs SPY +y.y%) ... | JUDGMENT: win/loss/skip counts + the one honest takeaway
+
+On an ABSTAIN day the same line MUST also carry the closest-call grade and its running tally (Step 2b),
+e.g. `... | closest_call: SYM +1.2% | tally 7 days, cleared +2% on 2 (pool did 19%)`.
 ```
 
 Keep it to one line. This record — not any story — is what conditions tomorrow's decide.

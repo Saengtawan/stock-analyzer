@@ -46,6 +46,11 @@ else:
 print(f"  picks ({len(picks)}): {', '.join(picks) if picks else 'ABSTAIN'}")
 
 if not picks:
+    # An abstain still owes a decision. decide.md requires `closest_call` on every abstain — the one
+    # name the pass would have taken if forced — and learn.md grades it. Without it a run of abstains
+    # produces no gradable decision at all, which is how the record learned nothing from nine of them.
+    cc = plan.get("closest_call")
+    print(f"  closest_call: {str(cc)[:110] if cc else '[X] MISSING — this abstain is ungradable'}")
     print("  -> ABSTAIN. valid outcome; nothing to audit on selection.")
 else:
     off = [s for s in picks if s not in pooled]
