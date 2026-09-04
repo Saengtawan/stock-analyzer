@@ -84,3 +84,5 @@ print(f"{path}  (cut {cut} dated >= {date}, scrubbed {scrubbed} undated outcome 
 print(f"  ALSO SET IN THE REPLAY ENV:  EDGAR_AS_OF={date}")
 print("  (EDGAR's submissions feed is live — without it, `tools.edgar` hands the agent filings from "
       "sessions that had not happened yet.)")
+print("  PROMPT + the remaining guards (mis-stamped items, search budget, max 2 concurrent):")
+print("    scripts/replay_prompt.md")

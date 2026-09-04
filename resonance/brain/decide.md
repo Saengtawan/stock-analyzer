@@ -114,6 +114,14 @@ replay declined a whole same-driver group in a single sentence and every one of 
 averaging +9%. **If you find yourself declining three or more names with one shared sentence, stop** —
 that sentence is a category rule. Write the per-name reason, or record a skip.
 
+**⚠️ The tripwire is about VETOES, not skips, and it is not a headcount.** This pond is ONE CLUSTER by
+construction: deeply-fallen high-beta names live in whatever the market has most recently crushed, so a
+morning where thirty of them share a driver is normal, not suspicious. What is forbidden is turning that
+single unforecastable driver into thirty BEARISH calls. Recording them as SKIPS, each with its own
+observable (its own tape, its own volume, its own `news_n`), is correct and expected — and you may group
+them compactly rather than writing thirty near-identical lines. The test is never how alike the sentences
+read. It is: **for each name, did you actually look at that name?**
+
 ## Step 4 — GATE CHECK (a finalist is an ABSTAIN unless it clears ALL of these)
 Process, not preference: these force the reasoning to FINISH; they never say which stock is good.
 "Cleared" means **the plan CONTAINS the resolved answer with a specific fact** — not that you thought
