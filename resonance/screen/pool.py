@@ -330,8 +330,13 @@ def pool(date, cache_dir=CACHE, write=True):
         row["n_axes"] = len(row["axes"])
         row["entry"] = "extreme" if s in path_extreme else "broad"
         digest.append(row)
-    # order by breadth of unusualness (how many axes), then sym — presentation only, NOT a score
-    digest.sort(key=lambda d: (-d["n_axes"], d["sym"]))
+    # ORDER: alphabetical, deliberately meaningless. It used to sort by n_axes ("breadth of
+    # unusualness"), labelled presentation-only — but a forward check found n_axes ANTI-correlates with
+    # outcome (2-axis names cleared +2% at 18%, 3-axis 16%, 4-axis just 7%), because the compression
+    # axes are largely redundant: stacking atr+bb+rvol+consol mostly means "extremely asleep", not
+    # "extremely interesting". Sorting by it silently floated the weakest names to the top of the page.
+    # A neutral order can mislead nobody.
+    digest.sort(key=lambda d: d["sym"])
 
     # 4b) MECHANICAL SHORTLIST — the measured winner profile, computed here (NOT argued by the AI).
     # Forward study of 995 pooled name-days (29 sessions, open->close) found catalyst/news/gap have ZERO

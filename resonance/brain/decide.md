@@ -115,6 +115,32 @@ A study of **every pooled name-day since 2026-07-27 (995 name-days, 29 sessions)
 Treat this as EVIDENCE to weigh, not a formula: it tells you WHERE the winners live (the coiled, awake,
 high-beta, liquid, deeply-drawn-down cohort), not which one to buy. Your judgment picks the direction.
 
+### 🧠 WHAT THE POOL'S OWN AXES HAVE BEEN WORTH — and WHY (mechanism, not a rule)
+Measured over 995 pooled name-days. Read the REASON, not the number: the numbers are one regime, the
+reasons are what let you judge a different one.
+- **`loaded_spring` is the load-bearing axis.** Names carrying it did the work; names in the pool WITHOUT
+  it (631 of 995 — the compression-only majority) cleared +2% just **6%** of the time vs a 15% base.
+  *Why:* compression alone says "quiet". Quiet with no stored energy and no overhead supply cleared out
+  is just a small name doing nothing. Depth is what makes a move worth having when it comes.
+- **The strongest pairing is stored energy + evidence it is releasing TODAY**: deeply-off-high names with
+  premarket volume ≥~2× their own average cleared +2% at **61%** (median +3.2%); the same deep names when
+  quiet cleared it at 27% with a median of exactly **0.00%**. *Why:* you need both halves — energy without
+  ignition sits there, ignition without energy produces a move too small to matter.
+- **`n_axes` is NOT quality.** 2-axis names cleared +2% at 18%, 3-axis 16%, **4-axis only 7%**. *Why:* the
+  compression axes are redundant (atr, bb-bandwidth, rvol, consolidation all measure the same stillness),
+  so a high count usually means "extremely asleep", not "extremely unusual". The digest is now sorted
+  alphabetically for exactly this reason — nothing in its order is a ranking.
+- **A big gap WITH broadly-published news is the dangerous end**, not the good one: gap >+10% with news in
+  the feed had a **median of −1.04%** and a worst of −29.5%, while gap +5-10% with NOTHING in the news feed
+  had a median of **+2.80%**. *Why:* it is not news-vs-no-news, it is PROCESSED-vs-UNPROCESSED. When the
+  analyst notes and PT revisions have already published into the premarket, the re-rate is finished before
+  your open. A big move the feed has not caught up with is the same event at an earlier stage.
+
+**You are not required to believe any of this.** It is evidence from one month of one regime, and you have
+Bash: if a claim here looks wrong for today's tape, re-derive it — read the last N `resonance/cache/pool_*.json`
+files, pull each name's open→close, and group them yourself. Trusting a number you can check is a choice;
+obeying one you cannot is how the old rule systems died.
+
 ### 🔧 THE POOL NOW COMPUTES THAT COHORT FOR YOU — read `shortlist` in the pool JSON
 The pool file carries a **`shortlist`** array: the names that mechanically qualify on the profile above
 (`loaded_spring` + beta + premarket-awake), computed in code, typically **1-3 names**. **Treat it as a
