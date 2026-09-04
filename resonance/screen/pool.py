@@ -236,9 +236,19 @@ def _round(v):
 def _cohort_baseline(date, cache_dir=CACHE, lookback=20, db="data/trade_history.db"):
     """Rolling open->close record of the POOL ITSELF over the last `lookback` written sessions.
 
-    Returns {sessions, name_days, up_pct, down_pct, moved_pct, median_pct} or {} if unavailable.
-    This is the null hypothesis the AI must beat, measured rather than asserted. Read-only; any
-    failure (missing DB, no prior pools) degrades to {} rather than blocking the morning run."""
+    Returns {sessions, name_days, up_pct, down_pct, moved_pct, median_pct} plus `by_gap_sign`,
+    or {} if unavailable. This is the null hypothesis the AI must beat, measured rather than asserted.
+
+    WHY THE GAP-SIGN SPLIT (added 2026-09-04): the pond-wide up-rate is the wrong bar for most names,
+    because the two halves of the pond behave nothing alike. Measured over 861 graded pooled name-days:
+        gap > 0   ->  up >=+2%  37.0%   down <=-2%  18.8%   EV +1.22%
+        gap <= 0  ->  up >=+2%  17.0%   down <=-2%  32.6%   EV -0.88%
+    A single blended number therefore sets too LOW a bar for an up-gapping name and too HIGH a bar for
+    a down-gapping one — and the plan is asked to justify beating it. Both halves are reported so the
+    comparison is like-for-like. This is measurement, not a rule: no name is admitted or excluded by
+    its gap sign, nothing here says which to prefer, and the split is recomputed each run from the last
+    N pool files rather than written down, so it re-measures itself if the relationship changes or
+    inverts. Read-only; any failure degrades to {} rather than blocking the morning run."""
     try:
         import sqlite3
         prior = sorted(glob.glob(f"{cache_dir}/pool_*.json"))
@@ -247,13 +257,16 @@ def _cohort_baseline(date, cache_dir=CACHE, lookback=20, db="data/trade_history.
             return {}
         con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
         rets, sessions = [], 0
+        by_sign = {"up_gap": [], "down_gap": []}
         for p in prior:
             d = os.path.basename(p)[5:15]
             try:
                 with open(p) as f:
-                    syms = [r["sym"] for r in (json.load(f).get("digest") or [])]
+                    rows_ = json.load(f).get("digest") or []
             except Exception:
                 continue
+            syms = [r["sym"] for r in rows_]
+            gaps = {r["sym"]: r.get("gap_pct") for r in rows_}
             if not syms:
                 continue
             q = ("SELECT symbol, open, close FROM stock_daily_ohlc WHERE date=? AND open>0 "
@@ -261,12 +274,32 @@ def _cohort_baseline(date, cache_dir=CACHE, lookback=20, db="data/trade_history.
             got = con.execute(q, [d] + syms).fetchall()
             if got:
                 sessions += 1
-                rets += [(c / o - 1) * 100.0 for _, o, c in got if o and c]
+                for sym_, o, c in got:
+                    if not (o and c):
+                        continue
+                    r_ = (c / o - 1) * 100.0
+                    rets.append(r_)
+                    g = gaps.get(sym_)
+                    if g is not None:
+                        by_sign["up_gap" if g > 0 else "down_gap"].append(r_)
         con.close()
         if len(rets) < 30:
             return {}
         a = np.asarray(rets, dtype=float)
+
+        def _slice(xs):
+            if len(xs) < 20:
+                return None
+            v = np.asarray(xs, dtype=float)
+            return {"name_days": len(v),
+                    "up_pct": round(100.0 * float((v >= 2).mean()), 1),
+                    "down_pct": round(100.0 * float((v <= -2).mean()), 1),
+                    "ev_pct": round(float(v.mean()), 2)}
+
+        by_gap_sign = {k: _slice(v) for k, v in by_sign.items()}
+        by_gap_sign = {k: v for k, v in by_gap_sign.items() if v}
         return {"sessions": sessions, "name_days": len(a),
+                "by_gap_sign": by_gap_sign,
                 "up_pct": round(100.0 * float((a >= 2).mean()), 1),
                 "down_pct": round(100.0 * float((a <= -2).mean()), 1),
                 "moved_pct": round(100.0 * float((np.abs(a) >= 2).mean()), 1),
@@ -546,8 +579,13 @@ def pool(date, cache_dir=CACHE, write=True):
          f"{cohort_baseline['name_days']} name-days): moved >=±2% {cohort_baseline['moved_pct']}%  |  "
          f"UP >=+2% {cohort_baseline['up_pct']}%   DOWN <=-2% {cohort_baseline['down_pct']}%   "
          f"median {cohort_baseline['median_pct']:+.2f}%  <- the number a direction read must BEAT"
-         f"   (measures the pool AS WRITTEN on those sessions; after an admission change it takes "
-         f"~{lookback_hint} sessions to converge on the new pond)"
+         + ("".join(
+             f"\n      by gap sign — {('UP-gap' if k == 'up_gap' else 'DOWN-gap'):8s}: "
+             f"up {v['up_pct']}%  down {v['down_pct']}%  EV {v['ev_pct']:+.2f}%  (n={v['name_days']})"
+             for k, v in (cohort_baseline.get("by_gap_sign") or {}).items())
+            if cohort_baseline.get("by_gap_sign") else "")
+         + f"\n      (measures the pool AS WRITTEN on those sessions; after an admission change it "
+           f"takes ~{lookback_hint} sessions to converge on the new pond)"
          if cohort_baseline else "  COHORT BASELINE: not enough prior pool files to measure yet."),
         "  per-axis EXTREME contribution (top-K):",
         "    COILED  " + "  ".join(f"{a['name']}={axis_contrib[a['name']]}" for a in coiled),

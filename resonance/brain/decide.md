@@ -67,6 +67,15 @@ must come from your read, and there is nowhere left to hide it.**
 sessions. If you cannot say why a name beats that up-rate, you do not have a pick; you have a lottery
 ticket the machine already handed you. State the figure in your plan.
 
+**Use the RIGHT half of it: `cohort_baseline.by_gap_sign`.** The pond's two halves behave nothing alike
+— measured over 861 graded pooled name-days, an UP-gapping name cleared +2% on 37.0% of days (EV
++1.22%) while a DOWN-gapping one cleared it on 17.0% (EV −0.88%). So the blended number is too EASY a
+bar for an up-gapper and too HARD a bar for a down-gapper, and comparing to it flatters one and buries
+the other. Quote the half that matches the name you are arguing for. **This is measurement, not a
+preference: nothing here says up-gaps are the ones to buy** — the record's strongest measured cohort is
+a deep down-gap opening at capitulation, which lives in the 17% half and wins by being read correctly,
+not by being scored. It is recomputed each run, so if the split narrows or inverts, the file will say so.
+
 **How to read a candidate.** `rank_in_pool` gives each name's percentile inside TODAY's pool, no cutoff:
 - **drawdown depth** — stored energy, and no trapped longs overhead. *(Beaten down, or merely calm?)*
 - **beta** — can this name physically produce the day you need if you are right?
@@ -181,8 +190,8 @@ past is how the losing stretch happened.
 **G5 — Coil is mechanical.** Any claim about a name's coil must cite what the data actually shows —
 never a coil you asserted from the price chart.
 
-**G6 — State where the pick sits versus the pond.** Give the `cohort_baseline` up-rate and one line on
-why this name beats it. Not a formula — a sentence you are accountable for.
+**G6 — State where the pick sits versus the pond.** Give the `cohort_baseline` up-rate **for this name's
+gap sign** (`by_gap_sign`, not the blended figure) and one line on why this name beats it. Not a formula — a sentence you are accountable for.
 
 ## Step 5 — WRITE THE PLAN (mandatory — the run FAILS without this file)
 Use the **Write** tool to create `resonance/plans/<DATE>.plan.json`. Printing is not enough. Write it
