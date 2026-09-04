@@ -471,7 +471,17 @@ gate it failed. Fewer, gate-cleared picks beat more, argued-in picks.
    A load-bearing group read must come from the DURABLE evidence L11 specifies — multi-week relative
    strength and the public narrative — not from the pre-open tape. `peertape` output is a description of
    the premarket, so it may add colour but may NOT by itself fail this gate.
-3. **Gap-direction gate** (judge with the gap bullet below): an UP-gap HOLDING clears; a DOWN-gap clears
+3. **Gap-direction gate** (judge with the gap bullet below).
+   **⚠️ READ THE PREMARKET TAPE ALL THE WAY TO YOUR DECISION MINUTE, AND STATE THE TIME OF THE LAST PRINT
+   YOU USED.** This gate is worthless on a stale window. Two runs of this same brain, on the same name and
+   the same morning, reached OPPOSITE verdicts purely from where they stopped looking: one read to 08:45,
+   saw rising lows (153.5 → 154.0 → 154.5) and called it "based near the highs — TAKE"; the other read the
+   **09:15-09:29 block**, found the name had broken to **150.17, the lowest print of the entire premarket,
+   minutes before the bell**, and vetoed it. The second was right — it opened 150.77 and traded to 140.62.
+   The last 30-45 minutes before the open are exactly where a holding gap turns into a rolling-over one,
+   so a read that ends at 08:00 or 08:45 is not a read. Quote the final print time in the plan; if the data
+   only goes to 08:45, say so and treat the gap read as UNRESOLVED rather than as "holding".
+   An UP-gap HOLDING clears; a DOWN-gap clears
    ONLY if you can NAME the concern the market sold on AND judge it TRANSIENT — forward guidance intact +
    the peer group steady (not repricing down) — an un-nameable or structural (guidance-cut / group-selling)
    down-gap does NOT clear (depth is a weighed reference, not the test); a name trading below its pre-open
